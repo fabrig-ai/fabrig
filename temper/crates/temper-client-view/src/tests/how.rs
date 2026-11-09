@@ -60,7 +60,7 @@ fn fixture(case: &Case) -> (d::Domain, Token) {
         None,
         None,
         Some(&[]),
-        Some(d::forge::ways::Ways { goals: case.goals, away: true, way: 11, ..d::forge::ways::Ways::STOCK }),
+        Some(d::forge::ways::Ways { goals: case.goals, way: 11, ..d::forge::ways::Ways::STOCK }),
         false,
         false,
     );

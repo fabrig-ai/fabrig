@@ -350,6 +350,10 @@ fn ask_temper_is_charter_11_and_template_5() {
     expected.policy.tools = jig_domain_tasks::Tools(3072);
     assert_eq!(*charter, expected);
     let words = core::str::from_utf8(&charter.policy.instructions).unwrap();
+    assert!(words.contains(temper_engine_smith::ADDRESSES));
+    assert!(
+        words.contains("project-classes: what agents decide for a person and what asks them, by kind and by path set.")
+    );
     ask_design_first_rules(words);
     assert!(words.len() <= 8192, "stock instructions fit their receiving bound");
     for heading in [
@@ -483,7 +487,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
             run = (bytes, Setting::Charter(charter.number));
         }
     }
-    assert_eq!(run, (13_123, Setting::Charter(5)));
+    assert_eq!(run, (12_883, Setting::Charter(5)));
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         (b"core.policy_bytes", 5918, Setting::Policy(1), "the stock's policy 1 needs 5918 bytes"),
@@ -673,35 +677,54 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
 // temper/docs/design/protocol/configuration.md, 13.4; domain/agent.md, 4.3.
 #[test]
 fn a_goal_is_told_to_call_decided_before_it_asks() {
-    let words = include_str!("../stock/chat.txt");
-    let goal = words
+    for (words, prefixes) in [
+        (include_str!("../stock/chat.txt"), &["If your brief says you are a goal", "If neither line"][..]),
+        (include_str!("../stock/coordinator.md"), &["Where the draft leaves a choice:"][..]),
+    ] {
+        for prefix in prefixes {
+            let paragraph =
+                words.split("\n\n").find(|paragraph| paragraph.starts_with(prefix)).expect("asking paragraph");
+            assert!(paragraph.contains("Before asking the person anything, call decided with the question, its options, the one you'd take, why, its kind, the paths the choice would change, and under where an item of the project's classes with words covers it (see settings project-classes); on Decided carry on and ask no one; on Ask, ask as the answer says. Use money for funds and budgets, irreversible for rewriting history, deleting work that hasn't landed or a store's data, rules for a change to the project's classes, a landing rule or a standing role's rules, and other for what fits none of the ten; these always wait too. Sign-ins, machines and a plan's go-ahead always wait."));
+        }
+    }
+    let coordinator = include_str!("../stock/coordinator.md");
+    let question = coordinator
         .split("\n\n")
-        .find(|paragraph| paragraph.starts_with("If your brief says you are a goal"))
-        .expect("goal paragraph");
-    assert!(goal.contains("Otherwise do the work without asking. Before you ask your requester anything, call decided with the question, its options, the one you'd take, why, and its kind; on Decided carry on with it and ask no one; on Ask, ask them with message, as a question."), "the goal calls decided before asking and follows its answer");
+        .find(|paragraph| paragraph.starts_with("On a question a change relays"))
+        .expect("question part");
+    for words in [
+        "before asking the person call `decided`",
+        "question, options, the one you'd take, why, kind, paths, and `under`",
+        "see settings project-classes",
+        "on Decided carry on and ask no one; on Ask, ask as the answer says",
+    ] {
+        assert!(question.contains(words));
+    }
+
     assert!(
-        goal.contains("Funds, sign-ins, machines, a plan's go-ahead and anything hard to reverse are kind other."),
-        "these decisions wait for the person"
-    );
-    assert!(
-        goal.contains("If they tell you a decision was overturned, ask it with message, as a question, and wait."),
-        "an overturned decision waits for the person's answer"
+        include_str!("../stock/chat.txt")
+            .contains("If they tell you a decision was overturned, ask it with message, as a question, and wait.")
     );
 }
 
 #[test]
-fn asks_always_is_told_never_to_call_it() {
-    let words = include_str!("../stock/chat.txt");
-    let goal = words
-        .split("\n\n")
-        .find(|paragraph| paragraph.starts_with("If your brief says you are a goal"))
-        .expect("goal paragraph");
-    assert!(
-        goal.contains(
-            "If your words hold the line Asks: always, never call decided: ask them with message, as a question."
+fn asks_always_is_told_every_answer_is_ask() {
+    for (words, prefixes) in [
+        (include_str!("../stock/chat.txt"), &["If your brief says you are a goal", "If neither line"][..]),
+        (
+            include_str!("../stock/coordinator.md"),
+            &["Where the draft leaves a choice:", "On a question a change relays"][..],
         ),
-        "Asks: always bypasses decided and asks the person"
-    );
+    ] {
+        for prefix in prefixes {
+            let paragraph =
+                words.split("\n\n").find(|paragraph| paragraph.starts_with(prefix)).expect("asking paragraph");
+            assert!(
+                paragraph.contains("If your words hold the line Asks: always, every answer is Ask."),
+                "Asks: always calls decided and records why it asks"
+            );
+        }
+    }
 }
 
 #[test]
@@ -1290,8 +1313,8 @@ mod brief;
 #[test]
 fn the_chats_words_read_a_changes_code_before_briefing_it() {
     let words = include_str!("../stock/chat.txt");
-    assert!(words.contains("When they ask for a change to a repository, first read the code it touches with the forge's reads (read_branch for its head, then read_file), then call change with their request and only what you read: never describe code you have not read."));
-    assert!(words.contains("When they ask you to fix something and what they call broken is not there, change nothing and tell them so in words, saying what the code has."));
+    assert!(words.contains("For a repository change, first read touched code through forge reads (read_branch for its head, then read_file), then call change with their request and only what you read: never describe unread code."));
+    assert!(words.contains("If a requested fix's fault is absent, change nothing: tell the person what the code has."));
 }
 
 #[test]
@@ -1376,6 +1399,8 @@ fn the_coders_words_preserve_both_sides_in_repairs_and_resolutions() {
 #[expect(clippy::too_many_lines, reason = "each setting kind is checked against its admission bounds")]
 fn kinds_are_declared_with_their_bounds() {
     const CONNECTOR: u16 = 5;
+    // Two list lengths, twenty 127-byte items and six 553-byte path sets.
+    const CLASSES_BYTES: u32 = 8 + 20 * 127 + 6 * 553;
     use jig_domain_core::settings::{Kind, KindScope};
     use temper_engine_domain_forge::{self as forge, settings};
     let engine = fixtures::engine();
@@ -1450,7 +1475,15 @@ fn kinds_are_declared_with_their_bounds() {
                 number: 7,
                 scope: KindScope::Project,
                 connector: CONNECTOR,
-                value_bytes: 8,
+                value_bytes: 7,
+                per_scope: 1,
+                charters: 0
+            },
+            Kind {
+                number: 8,
+                scope: KindScope::Project,
+                connector: CONNECTOR,
+                value_bytes: CLASSES_BYTES,
                 per_scope: 1,
                 charters: 0
             },
@@ -1560,12 +1593,14 @@ fn every_stock_charter_has_exactly_one_fitting_line() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "stock way rows keep their words and settings together")]
 fn the_stock_ways_hold_their_words_and_settings() {
     use temper_engine_domain_forge::{
         self as forge,
         settings::{LandingRule, RuleApproval, RuleGate, Value},
     };
     use temper_engine_domain_ways::Laid;
+    use temper_protocol_reaches::{Classes, Way};
     let all = forge::GatePattern {
         segments: Box::new([b"branch".as_slice().into()]),
         last: forge::GateLast::Open(Box::default()),
@@ -1595,6 +1630,7 @@ fn the_stock_ways_hold_their_words_and_settings() {
                 },
             )],
             None,
+            Some(Classes::stock(Way::YouApprove)),
             false,
         ),
         (
@@ -1603,6 +1639,7 @@ fn the_stock_ways_hold_their_words_and_settings() {
             b"An agent makes each change, another reviews it, and code lands it.".as_slice(),
             vec![(1, review)],
             None,
+            Some(Classes::stock(Way::AgentsReview)),
             false,
         ),
         (
@@ -1640,17 +1677,19 @@ fn the_stock_ways_hold_their_words_and_settings() {
                 ),
             ],
             Some(Laid { drafts: true, goals: true, way: 4 }),
+            Some(Classes::stock(Way::DraftFirst)),
             true,
         ),
     ];
     let stock = crate::stock::ways();
     assert_eq!(stock.len(), rows.len());
-    for (way, (name, headline, line, rules, ways, delegation)) in stock.iter().zip(rows) {
+    for (way, (name, headline, line, rules, ways, classes, delegation)) in stock.iter().zip(rows) {
         assert_eq!(way.name.as_ref(), name);
         assert_eq!(way.headline.as_ref(), headline, "{name:?}");
         assert_eq!(way.line.as_ref(), line, "{name:?}");
         assert_eq!(way.rules.as_ref(), rules.as_slice(), "{name:?}");
         assert_eq!(way.ways, ways, "{name:?}");
+        assert_eq!(way.classes, classes, "{name:?}");
         assert_eq!(way.delegation, delegation, "{name:?}");
     }
     let engine = fixtures::engine();

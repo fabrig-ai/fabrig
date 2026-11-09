@@ -391,7 +391,7 @@ use temper_client_domain::{self as d, Action, Event, pages::Act};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 const SETTINGS_KEY: c::ProposalKey = fixtures::chat::PROPOSAL;
 const SETTINGS_REASON: &[u8] = b"I work alone\nKeep drafts beside the code";
-const SETTINGS_KINDS: [(c::Setting, &[u8]); 14] = [
+const SETTINGS_KINDS: [(c::Setting, &[u8]); 15] = [
     (c::Setting::Charter(c::SettingNumber { number: 2 }), b"charter 2"),
     (c::Setting::Template(c::SettingNumber { number: 40 }), b"template 40"),
     (c::Setting::Policy(c::SettingNumber { number: 1 }), b"policy 1"),
@@ -403,6 +403,7 @@ const SETTINGS_KINDS: [(c::Setting, &[u8]); 14] = [
     (c::Setting::ProjectPolicy { project: 2 }, b"project policy 2"),
     (c::Setting::Application { kind: 6, scope: fixtures::PROJECT, number: 1 }, b"project-questions 1"),
     (c::Setting::Application { kind: 7, scope: fixtures::PROJECT, number: 1 }, b"project-ways 1"),
+    (c::Setting::Application { kind: 8, scope: fixtures::PROJECT, number: 1 }, b"project-classes 1"),
     (c::Setting::Application { kind: 5, scope: 7, number: 3 }, b"application kind 5, 7, 3"),
     (c::Setting::Application { kind: 9, scope: 0, number: 4 }, b"charter-words 4"),
     (c::Setting::Application { kind: 10, scope: fixtures::PROJECT, number: 1 }, b"project-words 1"),
@@ -552,18 +553,51 @@ fn proposed_values(
             read = Some(*token);
         }
     }
-    let ways = w::ProjectWays::new(
-        &w::CEILINGS,
-        w::ProjectWaysParts { skein_bools: [drafts, drafts, drafts, drafts], way: 0 },
-    )
-    .unwrap();
+    let ways =
+        w::ProjectWays::new(&w::CEILINGS, w::ProjectWaysParts { drafts, goals: drafts, changes: drafts, way: 0 })
+            .unwrap();
     let mut writer = Writer::new(usize::try_from(ways.measure()).unwrap());
     ways.encode(&mut writer).unwrap();
     let questions = w::ProjectQuestions::new(&w::CEILINGS, w::ProjectQuestionsParts { route }).unwrap();
     let mut q = Writer::new(usize::try_from(questions.measure()).unwrap());
     questions.encode(&mut q).unwrap();
-    let mut items = List::with_capacity(2);
-    for (kind, value) in [(7, writer.finish()), (6, q.finish())] {
+    let mut classes = temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview);
+    classes.sets = Box::new([
+        temper_protocol_reaches::PathSet {
+            number: 1,
+            name: b"vsr's protocol core".as_slice().into(),
+            patterns: Box::new([Box::from(b"src/protocol/**".as_slice()), Box::from(b"include/vsr.h".as_slice())]),
+        },
+        temper_protocol_reaches::PathSet {
+            number: 2,
+            name: b"the tests".as_slice().into(),
+            patterns: Box::new([Box::from(b"tests/**".as_slice())]),
+        },
+    ]);
+    let mut class_items = List::uncapped();
+    for item in &classes.items {
+        class_items.push(item.clone()).unwrap();
+    }
+    class_items
+        .push(temper_protocol_reaches::Item {
+            subject: temper_protocol_reaches::Subject::Set(1),
+            words: Box::default(),
+            class: temper_protocol_reaches::Class::AskAway,
+        })
+        .unwrap();
+    class_items
+        .push(temper_protocol_reaches::Item {
+            subject: temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Implementation),
+            words: b"inside the wasm crate".as_slice().into(),
+            class: temper_protocol_reaches::Class::AskAway,
+        })
+        .unwrap();
+    classes.items = class_items.into_boxed();
+    let record = temper_protocol_reaches::classes_record(&classes).unwrap();
+    let mut classes_value = Writer::new(usize::try_from(record.measure()).unwrap());
+    record.encode(&mut classes_value).unwrap();
+    let mut items = List::with_capacity(3);
+    for (kind, value) in [(7, writer.finish()), (6, q.finish()), (8, classes_value.finish())] {
         items
             .push(
                 w::ProposalItem::new(
@@ -684,10 +718,11 @@ fn a_settings_proposal_s_reason_draws_its_markdown() {
     assert_eq!(detail.text.get(0).unwrap().text.as_ref(), b"charter 2");
 }
 #[test]
-fn kinds_six_and_seven_are_named_until_their_values_are_read() {
+fn kinds_six_seven_and_eight_are_named_until_their_values_are_read() {
     let items = [
         (c::Setting::Application { kind: 7, scope: fixtures::PROJECT, number: 1 }, c::RevisionItemEdit::Set),
         (c::Setting::Application { kind: 6, scope: fixtures::PROJECT, number: 1 }, c::RevisionItemEdit::Set),
+        (c::Setting::Application { kind: 8, scope: fixtures::PROJECT, number: 1 }, c::RevisionItemEdit::Set),
     ];
     for (on, route, expected) in [
         (true, w::QuestionsRoute::Foreman, b"Questions: answered by the goal".as_slice()),
@@ -698,6 +733,7 @@ fn kinds_six_and_seven_are_named_until_their_values_are_read() {
         let before = fixtures::text(&draw_settings(&root, &settings_card(&root), false));
         assert!(skein_lib::bytes::find(&before, b"project-ways 1").is_some());
         assert!(skein_lib::bytes::find(&before, b"project-questions 1").is_some());
+        assert!(skein_lib::bytes::find(&before, b"project-classes 1").is_some());
         proposed_values(&mut root, &out, on, route, false);
         let tree = draw_settings(&root, &settings_card(&root), false);
         let said = fixtures::text(&tree);
@@ -706,12 +742,18 @@ fn kinds_six_and_seven_are_named_until_their_values_are_read() {
             if on { b"Drafts: on" } else { b"Drafts: off" },
             if on { b"Goals: shown" } else { b"Goals: hidden" },
             if on { b"Changes page: shown" } else { b"Changes page: hidden" },
-            if on { b"Away switch: shown" } else { b"Away switch: hidden" },
             b"Way: Task by task",
+            b"What reaches you:",
+            b"Agents decide, then tell you: wording choices, retries and splits, test-only changes",
+            b"Asks you; Away may decide: implementation choices, new dependencies, departures from a landed design",
+            "Asks you, even when away: changes to vsr's protocol core, implementation choices under “inside the wasm crate”, changes to the tests".as_bytes(),
+            b"vsr's protocol core: src/protocol/**, include/vsr.h",
+            b"the tests: tests/**",
         ] {
             assert!(skein_lib::bytes::find(&said, expected).is_some(), "{expected:?}");
         }
         assert!(skein_lib::bytes::find(&said, b"project-ways").is_none());
+        assert!(skein_lib::bytes::find(&said, b"project-classes").is_none());
         let mut card = settings_card(&root);
         card.page = Some(c::ReadValue::Ended(Box::new(c::Ended {
             key: card.object,

@@ -466,9 +466,18 @@ fn parties_driver() -> (Driver, [(u64, u64); 2]) {
                 at: OWN_LATEST,
                 question: b"Which?".as_slice().into(),
                 options: Box::new([b"First".as_slice().into(), b"Second".as_slice().into()]),
-                took,
+                took: Some(took),
                 why: b"Fits".as_slice().into(),
                 overturned: false,
+                reach: temper_protocol_reaches::Reach {
+                    kind: temper_protocol_reaches::Kind::Wording,
+                    class: temper_protocol_reaches::Class::Decide,
+                    reason: temper_protocol_reaches::Reason::Kind,
+                    under: 0,
+                    sets: 0,
+                    matched: 0,
+                    away: false,
+                },
             })),
         });
     }
@@ -517,15 +526,15 @@ fn panel_answers(driver: &Driver) -> Vec<Option<root::ApplicationAnswer>> {
         })
         .collect()
 }
-fn set_away(kinds: u8) -> root::Application {
-    root::Application::SetAway { project: PROJECT, on: true, until: Some(AWAY_UNTIL), kinds }
+fn set_away(on: bool) -> root::Application {
+    root::Application::SetAway { project: PROJECT, on, until: Some(AWAY_UNTIL) }
 }
 #[test]
 fn a_partys_away_is_its_own() {
     const KEY: u8 = 120;
     let (mut driver, parties) = parties_driver();
-    for ((_, sign_in), kinds) in parties.into_iter().zip([7, 8]) {
-        panel_application(&mut driver, sign_in, KEY, ApplicationScope::Project(2), set_away(kinds));
+    for ((_, sign_in), on) in parties.into_iter().zip([true, false]) {
+        panel_application(&mut driver, sign_in, KEY, ApplicationScope::Project(2), set_away(on));
         // A new row's answer cannot leave before its save commits.
         for _ in 0..UNCOMMITTED_STEPS {
             driver.advance(false);
@@ -536,7 +545,7 @@ fn a_partys_away_is_its_own() {
         assert_eq!(panel_answers(&driver), [Some(root::ApplicationAnswer::SetAway(forge::SetAwayAnswer::Away))]);
         driver.delivered.clear();
     }
-    for (((party, sign_in), kinds), watcher) in parties.into_iter().zip([7, 8]).zip([WATCHER, Token::new(701)]) {
+    for (((party, sign_in), on), watcher) in parties.into_iter().zip([true, false]).zip([WATCHER, Token::new(701)]) {
         panel_watch(&mut driver, sign_in, watcher, ApplicationScope::Own, forge::AWAY_SUBJECT);
         assert_eq!(
             party_documents(&driver, watcher),
@@ -546,16 +555,15 @@ fn a_partys_away_is_its_own() {
                     project: PROJECT,
                     since: Wall::EPOCH,
                     until: Some(AWAY_UNTIL),
-                    kinds,
                     landed: 0,
-                    off: None
+                    off: if on { None } else { Some(Wall::EPOCH) }
                 }]),
             })]
         );
     }
     let mut driver = restarted_panels(&mut driver);
-    for ((_, sign_in), kinds) in parties.into_iter().zip([7, 8]) {
-        panel_application(&mut driver, sign_in, KEY, ApplicationScope::Project(2), set_away(kinds));
+    for ((_, sign_in), on) in parties.into_iter().zip([true, false]) {
+        panel_application(&mut driver, sign_in, KEY, ApplicationScope::Project(2), set_away(on));
         driver.settle();
     }
     assert_eq!(panel_answers(&driver), [None, None], "lost volatile outcomes stay unknown");
@@ -581,7 +589,18 @@ fn decided_is_the_asking_partys_own() {
                     took: took.into(),
                     why: b"Fits".as_slice().into(),
                     overturned: false,
+                    reach: temper_protocol_reaches::Reach {
+                        kind: temper_protocol_reaches::Kind::Wording,
+                        class: temper_protocol_reaches::Class::Decide,
+                        reason: temper_protocol_reaches::Reason::Kind,
+                        under: 0,
+                        sets: 0,
+                        matched: 0,
+                        away: false
+                    },
                 }]),
+                asked: Box::new([]),
+                cut: false,
             })]
         );
         driver.send(root::Event::Party(root::PartyInput::Delivered { watcher }));
@@ -608,7 +627,7 @@ fn a_party_without_a_role_is_refused_at_admission() {
     let mut driver = driver();
     let sign_in = driver.session();
     for (key, request) in [
-        (124, root::Application::SetAway { project: 2, on: true, until: None, kinds: 7 }),
+        (124, root::Application::SetAway { project: 2, on: true, until: None }),
         (125, root::Application::Overturn { project: 2, number: OWN_DECISION }),
     ] {
         driver.delivered.clear();

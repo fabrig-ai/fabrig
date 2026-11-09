@@ -589,11 +589,18 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
             with_people(&mut root, 2);
         }
         for (browser, mut view) in [(false, f::page_view(&root)), (true, f::browser_page_view(&root))] {
+            assert_eq!(skein_ui::outline::check(view.tree()), None, "{address:?}");
+            assert!(!view.tree().nodes().iter().any(|n| n.role == Role::Banner));
             let rail = styled(view.tree(), look::RAIL);
             assert_eq!(rail[0].role, Role::Navigation);
             assert_eq!(rail[0].name.as_deref(), Some(b"Shop".as_slice()));
-            let parts: Vec<_> =
-                children(rail).into_iter().filter(|n| !n.styles.as_slice().contains(&look::RAIL_UNFOLD)).collect();
+            assert_eq!(children(rail).iter().any(|n| n.styles.as_slice().contains(&look::AWAY_CHIP)), browser);
+            let parts: Vec<_> = children(rail)
+                .into_iter()
+                .filter(|n| {
+                    !n.styles.as_slice().contains(&look::RAIL_UNFOLD) && !n.styles.as_slice().contains(&look::AWAY_CHIP)
+                })
+                .collect();
             assert_eq!(
                 parts.iter().map(|n| n.role).collect::<Vec<_>>(),
                 if browser {
@@ -837,7 +844,7 @@ fn the_foot_keeps_status_identity_and_lost_sign_out_and_places_behind_for_each_s
         for browser in [false, true] {
             let view = if browser { f::browser_page_view(&root) } else { f::page_view(&root) };
             let foot = children(styled(view.tree(), look::RAIL_FOOT));
-            assert_eq!(foot[0].region, Some(crate::frame::link_region()));
+            let region = foot.iter().find(|node| node.region == Some(crate::frame::link_region())).unwrap();
             let expected = match state {
                 jig_client::Link::Starting => b"Connecting".as_slice(),
                 jig_client::Link::Offline => b"Offline",
@@ -851,7 +858,6 @@ fn the_foot_keeps_status_identity_and_lost_sign_out_and_places_behind_for_each_s
             } else {
                 assert_eq!(foot.last().unwrap().name.as_deref(), Some(b"Pat".as_slice()));
             }
-            let region = foot[0];
             let status = f::find(view.tree(), Role::Status, expected).unwrap();
             assert!(
                 view.tree()
@@ -878,8 +884,8 @@ fn the_foot_keeps_status_identity_and_lost_sign_out_and_places_behind_for_each_s
         for browser in [false, true] {
             let view = if browser { f::browser_page_view(&root) } else { f::page_view(&root) };
             let foot = children(styled(view.tree(), look::RAIL_FOOT));
-            let region = foot[0];
             let behind = f::find(view.tree(), Role::Status, b"Behind").unwrap();
+            let region = foot.iter().find(|node| node.region == Some(crate::frame::link_region())).unwrap();
             let inside = view
                 .tree()
                 .nodes()
@@ -889,7 +895,8 @@ fn the_foot_keeps_status_identity_and_lost_sign_out_and_places_behind_for_each_s
                 .any(|n| n.id == behind);
             assert_eq!(inside, !browser);
             if browser {
-                assert_eq!(foot[1].id, behind);
+                let at = foot.iter().position(|node| node.id == region.id).unwrap();
+                assert_eq!(foot[at + 1].id, behind);
             }
         }
         f::root_event(&mut root, Event::Act { action: d::Action::Pages(pages::Act::SignOut) });
@@ -958,8 +965,9 @@ fn the_playground_setup_link_leads_the_foot_and_leaves() {
     let mut root = f::playground_root(Address::Forges, f::PROJECT, true);
     for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
         let foot = children(styled(view.tree(), look::RAIL_FOOT));
-        assert_eq!(foot[0].name.as_deref(), Some(b"Set up temper".as_slice()));
-        let id = foot[0].id;
+        let link = foot.iter().find(|node| node.styles.as_slice().contains(&look::LEAVE_PLAYGROUND)).unwrap();
+        assert_eq!(link.name.as_deref(), Some(b"Set up temper".as_slice()));
+        let id = link.id;
         assert_eq!(crate::act(&mut view, id, Act::Press), Some(d::Action::Forge(d::forge::Act::EndPlayground)));
     }
     f::root_event(&mut root, Event::Act { action: d::Action::Forge(d::forge::Act::EndPlayground) });
@@ -991,7 +999,8 @@ fn the_terminal_numbers_the_rail_and_keeps_the_first_line() {
                 "[12] How work runs",
                 "[13] Draft",
                 "[14] Change",
-                "[15] Deployment",
+                "[15] Away",
+                "[16] Deployment",
             ][..],
         ),
         (
@@ -1009,7 +1018,8 @@ fn the_terminal_numbers_the_rail_and_keeps_the_first_line() {
                 "[14] How work runs",
                 "[15] Draft",
                 "[16] Change",
-                "[17] Deployment",
+                "[17] Away",
+                "[18] Deployment",
             ][..],
         ),
     ] {
@@ -1119,35 +1129,62 @@ fn deliver_count(root: &mut d::Domain, watch: Token, count: u32, cut: bool) {
 }
 
 #[test]
-fn no_switch_on_a_fresh_project() {
+fn the_switch_shows_when_a_fresh_projects_classes_read_as_stock() {
     let root = f::root_with_ways(Address::Home { project: f::PROJECT }, Some(d::forge::ways::Ways::STOCK));
+    for mut view in [f::page_view(&root), f::browser_page_view(&root)] {
+        let node = &styled(view.tree(), look::AWAY)[0];
+        assert_eq!(node.role, Role::Button);
+        assert_eq!(node.name.as_deref(), Some(b"Away".as_slice()));
+        let id = node.id;
+        assert_eq!(
+            crate::act(&mut view, id, Act::Press),
+            Some(d::Action::Pages(pages::Act::Away(pages::away::Act::Toggle { project: f::PROJECT })))
+        );
+        let foot = children(styled(view.tree(), look::RAIL_FOOT));
+        let at = foot.iter().position(|n| n.styles.as_slice().contains(&look::AWAY)).unwrap();
+        assert_eq!(foot[at + 1].region, Some(crate::frame::link_region()));
+        assert!(foot.iter().any(|node| node.name.as_deref() == Some(b"Deployment")));
+    }
+}
+#[test]
+fn a_goal_alone_does_not_show_the_switch() {
+    let (mut root, me, _, _, _, _, _, _, _) = f::root_at_with_values(
+        Address::Home { project: f::PROJECT },
+        &f::domain_limits(),
+        b"Shop",
+        None,
+        None,
+        None,
+        Some(&[]),
+        None,
+        false,
+        true,
+    );
+    with_goal_fact(&mut root, me, Some(true));
+    assert!(!root.away_on(f::PROJECT, f::NOW));
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::AWAY)));
         assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::AWAY_CHIP)));
     }
 }
 #[test]
-fn the_switch_shows_with_a_goal() {
-    let (mut root, me) = f::root_with_watch(None);
-    with_goal_fact(&mut root, me, Some(true));
-    assert!(!root.away_on(f::PROJECT, f::NOW));
-    let view = f::page_view(&root);
-    assert_eq!(styled(view.tree(), look::AWAY)[0].name.as_deref(), Some(b"Away".as_slice()));
-    let foot = children(styled(view.tree(), look::RAIL_FOOT));
-    let at = foot.iter().position(|n| n.styles.as_slice().contains(&look::AWAY)).unwrap();
-    assert_eq!(at, 0);
-    assert_eq!(foot[at + 1].region, Some(crate::frame::link_region()));
+fn you_approves_classes_do_not_show_the_switch() {
+    let root = f::root_with_classes(
+        Address::Home { project: f::PROJECT },
+        &temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::YouApprove),
+    );
+    for view in [f::page_view(&root), f::browser_page_view(&root)] {
+        assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::AWAY)));
+        assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::AWAY_CHIP)));
+    }
 }
 #[test]
-fn the_switch_shows_with_ways_away() {
+fn the_switch_shows_across_projects_with_stock_classes() {
     for (address, expected) in [
         (Address::Home { project: f::PROJECT }, pages::away::Act::Toggle { project: f::PROJECT }),
         (Address::AllHome, pages::away::Act::ToggleAll),
     ] {
-        let mut root = f::root_with_ways(
-            Address::Home { project: f::PROJECT },
-            Some(d::forge::ways::Ways { away: true, ..d::forge::ways::Ways::STOCK }),
-        );
+        let mut root = f::root_with_ways(Address::Home { project: f::PROJECT }, Some(d::forge::ways::Ways::STOCK));
         f::root_event(&mut root, Event::Went { place: d::Place::Address(address.clone()) });
         let mut view = f::page_view(&root);
         let node = &styled(view.tree(), look::AWAY)[0];
@@ -1212,7 +1249,9 @@ fn past_until_it_draws_off_and_asks_a_wake() {
     crate::build(&mut view, &root, skein_lib::Wall::from_nanos(until.as_nanos() - 1), &mut Queue::uncapped());
     assert_eq!(view.next_change(), Some(until));
     crate::build(&mut view, &root, until, &mut Queue::uncapped());
-    assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::AWAY)));
+    let node = &styled(view.tree(), look::AWAY)[0];
+    assert_eq!(node.name.as_deref(), Some(b"Away".as_slice()));
+    assert!(!node.states.as_slice().contains(&State::Pressed));
     let (mut root, me) = f::away_frame(Some(until), None);
     with_goal_fact(&mut root, me, Some(true));
     let mut view = f::view_of(f::browser_words());

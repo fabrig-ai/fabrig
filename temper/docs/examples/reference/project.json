@@ -2,7 +2,7 @@
   "items": [
     {
       "setting": {"kind": "project-ways", "project": 1},
-      "set": {"drafts": true, "goals": true, "changes": true, "away": true, "way": 4}
+      "set": {"drafts": true, "goals": true, "changes": true, "way": 4}
     },
     {
       "setting": {"kind": "landing-rule", "project": 1, "number": 1},

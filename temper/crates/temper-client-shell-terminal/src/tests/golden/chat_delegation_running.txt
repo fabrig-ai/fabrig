@@ -16,13 +16,14 @@ demo:
       A design session that ends in a goal, best had in the terminal.
     [12] Change
       Ask for one change.
-  [13] Deployment
+  [13] Away
+  [14] Deployment
   * Pat
 Where:
-  [14] Chats
-  [15] demo
-  [16] Chats
-[17] + Draft
+  [15] Chats
+  [16] demo
+  [17] Chats
+[18] + Draft
 * waiting on 1 delegate
 0 spent · of 1
 Conversation:
@@ -42,11 +43,11 @@ Conversation:
       - Pull request opened
       - CI passed
       - Landed
-    [18] Task 2 ↗
+    [19] Task 2 ↗
   wait:
     `wait`
   Message:
-    [19] Message: (empty) (enter sends)
+    [20] Message: (empty) (enter sends)
     [-] Send (disabled)
     Enter sends · Shift+Enter for a new line
     the default model

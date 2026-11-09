@@ -702,6 +702,11 @@ have one, an engine alone none. Each:
   within the checkout's commit message. So `small` takes a forge's `git`
   base of at most 122 bytes, the longest remote's bound (below). A test
   whose agent has other bounds states the overrides it needs.
+- **A project's decided rows:** `forge.decided_per_project`, the rows of
+  what was decided for its people and of what asked them, which the forge
+  keeps 7 days (`../domain/forge.md`, 5.9): 1,024 in both profiles, so a
+  busy night's every task fits beside the day before. The forge's family
+  holds it times `forge.judge_projects`.
 - **Overrides by dotted name:** the path of the field in its owner's
   `Limits` type, a duration's last segment with `_ms`. A name temper does
   not know, or a value outside its type, refuses the start, naming it.
@@ -955,10 +960,10 @@ have one, an engine alone none. Each:
   `client/domain/contract.md`, 7.2; jig's `protocol/client.md`, section
   13). The deployment admits `clients.streams` clients at once, each
   holding up to its own watches, `me`'s included, and temper's shipped
-  clients hold at most 19 (`../domain/root.md`, section 10). So:
-  - *a stream's room* is 19, `WATCHES_PER_STREAM`, one shipped client's;
-  - *the deployment's room* is `clients.streams` times that: 152 at
-    `temper init`'s 8 streams (13.4), 38 at the small profile's 2;
+  clients hold at most 22 (`../domain/root.md`, section 10). So:
+  - *a stream's room* is 22, `WATCHES_PER_STREAM`, one shipped client's;
+  - *the deployment's room* is `clients.streams` times that: 176 at
+    `temper init`'s 8 streams (13.4), 44 at the small profile's 2;
   - *a party's room* is the deployment's, since a person's tabs and their
     `temper ctl` calls are one party and may hold every stream.
     `views.watchers_per_party` never bites below `views.watchers` here:
@@ -970,7 +975,7 @@ have one, an engine alone none. Each:
   stream's room to temper's client's watches, and a test of the limits
   holds the other two to `clients.streams`.
 - **The rooms have no setting of their own.** More room is more streams,
-  `clients.streams`, and the 19 is the shipped clients' bound. An
+  `clients.streams`, and the 22 is the shipped clients' bound. An
   `engine.limits.overrides` naming `views.watchers` or
   `views.watchers_per_party` is refused at the start, naming
   `clients.streams`, and `temper help limits-engine` lists neither: the
@@ -996,10 +1001,9 @@ have one, an engine alone none. Each:
     of 17 and 136 watches held another 14,112–15,256 and 114,720–126,336 bytes after
     delivery, respectively, and one marking commit peaked at 116,816 and
     452,176 bytes in the engine world including its driver and fake store.
-  - *The journal's door:* a full room puts at most 152 deliveries behind
-    one commit, 456 behind `root.journal.commits`' 3, within
-    `root.journal.deliveries`' 512. Past that the watermark paces new
-    work, and nothing fails.
+  - *The journal's door:* a full room puts at most 176 deliveries behind
+    one commit, within `root.journal.deliveries`' 512. The watermark
+    paces new work as the door fills, and nothing fails.
   - *The store:* its bounds don't follow the rooms. A watch holds no row,
     and an opening on a retained subject takes one of `root.loads.loads`,
     refused busy past them.
@@ -1814,7 +1818,7 @@ The pages a person meets it on are `../client/README.md`, 5.13.
 
 ### 13.2 temper's kinds
 
-temper declares nine kinds of its own beside jig's, each owned by the
+temper declares ten kinds of its own beside jig's, each owned by the
 forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 
 | Kind | Scope | Numbers | Value | Decided by |
@@ -1826,20 +1830,37 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 | 5, a repository's gates | each project | the repository's adoption, unique in the deployment: its forge's number shifted 16 bits left, with the forge's repository number below | a repository's test gates (`../domain/landing.md`, 13.1) | that project's owners |
 | 6, a project's questions | each project | 1 | the question route a change of the project takes when its maker names none: none, foreman or up (`../domain/forge.md`, 8.11) | that project's owners |
 | 7, a project's ways | each project | 1 | what the project shows and the way a goal starts by, a `ProjectWays` (below) | that project's owners |
+| 8, a project's classes | each project | 1 | what agents decide for a person and what reaches them, a `ProjectClasses` (below; `../domain/forge.md`, 5.10) | that project's owners |
 | 9, a charter's words | the deployment | a charter's, 1 to `tasks.charters` | what the charter does, in a line, a `CharterWords` (below) | the deployment's owners |
 | 10, a project's words | each project | 1 | How work runs' headline and lede for the project's own way, a `ProjectWords` (below) | that project's owners |
 
 - **A project's ways' value** is a `ProjectWays` record in temper's
   codec, read by the client alone (`../client/README.md`, 5.13):
-  `drafts`, `goals`, `changes` and `away`, each a bool, whether chats
-  offer drafts and whether the rail offers Goals, Changes and the
-  Away switch. An Ask temper chat offers a draft regardless, and Goals
+  `drafts`, `goals` and `changes`, each a bool, whether chats
+  offer drafts and whether the rail offers Goals and Changes; the Away
+  switch shows by a project's classes (kind 8; `../client/README.md`,
+  3.5). An Ask temper chat offers a draft regardless, and Goals
   stays shown for a current Goals or goal page or a project holding a goal
   (`../client/README.md`, 3.5 and 5.3). The `way` is a template's number,
   the way a goal starts by, 0 for the first the project offers with
   `tracked` set. Its bound, the
   kind's, is its encoding; the engine decides nothing by it. A value of
   a project's questions is its route alone, a `ProjectQuestions` record.
+- **A project's classes' value** is a `ProjectClasses` record in
+  temper's codec, the table of `../domain/forge.md`, 5.10, member for
+  member: `items`, at most 20 `ClassItem { subject, words, class }`, its
+  `subject` a `ClassSubject`, `kind` with a `ReachKind` or `set` with a
+  set's number, its `words` at most 120 bytes, its `class` a
+  `ReachClass`; and `sets`, at most 6 `PathSet { number, name, patterns
+  }`, its name at most 40 bytes and at most 6 patterns of 80. `ReachKind`
+  names the ten kinds and `ReachClass` the four classes, `decide`, `ask`,
+  `ask_away` and `wait`, in 5.10's order. A judgement of the engine's
+  reads it: the forge's `decided` (`../domain/forge.md`, 5.9) and no
+  other. Its bound, the kind's, is the encoding of a table full at every
+  bound. A project with no value has Agents review's table
+  (`../domain/forge.md`, 5.10). The same codec's `Reach`, `{ kind, class,
+  reason, under, sets, matched, away }` with `reason` a `ReachReason`,
+  `kind`, `set` with a set's number, or `always`, is 5.10's reach.
 - **A setting's words,** kinds 9 and 10: words a person or Ask temper
   writes with a setting, kept beside it, which the pages that draw the
   setting say (`../draft/whole-story.execution.md`, P3e). Numbered past
@@ -1897,6 +1918,9 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
     removed: the forge always has all three charters, and an owner who
     wants the stock's back resets it;
   - *a project's questions* that is not one of the three routes;
+  - *a project's classes* that does not decode as a `ProjectClasses`,
+    or that `Classes::check` refuses (`../domain/forge.md`, 5.10), the
+    refusal's words saying which of its faults;
   - *words* of kind 9 or 10 that are empty, past their bound, not UTF-8
     or holding a control character, or of kind 9 at a number outside 1
     to jig's `tasks.charters`; a removed or reset item of either is
@@ -1904,7 +1928,7 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   - *a project's ways* with a `way` neither 0 nor a template the project
     would offer after the whole decision, read by the root from the core
     through its active settings decision as an approval's eligible people
-    are read from its people; a removed or reset item of kind 6 or 7 is always good,
+    are read from its people; a removed or reset item of kind 6, 7 or 8 is always good,
     the project going back to the stock (13.4). A proposal may install a
     template and select it as the project's way in the same acceptance.
     A refusal names the item and the rejected way number;
@@ -1954,7 +1978,7 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
 - **Erased with their project.** A project deleted (jig's
   `RemoveProject`, jig's `domain/people.md`, 5.2) has its settings
   erased by the connector owning each kind: the forge erases its kinds
-  2, 4, 5, 6, 7 and 10 of that project's scope, their current changes and the
+  2, 4, 5, 6, 7, 8 and 10 of that project's scope, their current changes and the
   items of pending proposals among them, in the deletion's steps, and
   the deployment's kinds 1, 3 and 9 stay. A project made later, its number
   never the deleted one's, starts from the stock defaults.
@@ -1966,7 +1990,7 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   and sizes alone. A read asks in a scope: the deployment's, by a party
   with a role in the deployment, for any kind; or a project's, by a party
   with a role in that project, for a kind of each project's scope (2, 6,
-  7 and 10) in that scope alone. How work runs reads a project's words in
+  7, 8 and 10) in that scope alone. How work runs reads a project's words in
   its `ways` read (13.10), which any party of the project reads.
 - **Never pinned.** Every merge is judged by the landing rules the
   forge holds then, the deployment's and its project's, whatever
@@ -2107,7 +2131,8 @@ init`'s document carries none of them (`setup.md`, 8.3).
 | kind 2, rule 1 | for every project: every branch of each of its repositories (`branch`, open: 13.2), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head; no approvals (`../draft/stock-ways.md`, 3.1) |
 | kind 3 | number 1, the change's charter: charter 2; number 2, its reviews' charter: charter 4; number 3, its foremen's charter: charter 6 |
 | kind 6 | none for every project: a change asks no one unless its maker names a route |
-| kind 7 | for every project: `drafts` true; `goals`, `changes` and `away` false; `way` 0, so that a fresh project shows Home, Needs you and Chats and its chats can write drafts, which it can turn off |
+| kind 7 | for every project: `drafts` true; `goals` and `changes` false; `way` 0, so that a fresh project shows Home, Needs you and Chats and its chats can write drafts, which it can turn off |
+| kind 8 | for every project: Agents review's table (`../domain/forge.md`, 5.10): `wording`, `retry` and `tests` decided and listed, `implementation`, `dependency` and `departure` asking, which Away may decide; no path set |
 | a period's span | 7 days, from each project's first period, renewed by the calendar (`../domain/root.md`, 5.7), so policy 1's period spend of 1,944K is a week's. A constant of the stock until 13.6's second step, which makes it a setting of temper's, the deployment's |
 
 - **Kind 9, each stock charter's words,** given to the forge at each start
@@ -2128,14 +2153,15 @@ init`'s document carries none of them (`setup.md`, 8.3).
 
   The reference's charters 7 and 8 have none, so Roles says them by their
   instructions' first sentence (13.9).
-- **A project's kinds 6, 7 and 10 have no row in the stock:** a project made
+- **A project's kinds 6, 7, 8 and 10 have no row in the stock:** a project made
   later has its own number, and a stock default names one scope (jig's
   `domain/engine.md`, 17.5). So their stock is a constant of the code, the
   value of a setting with none stored: the forge answers no value, and
-  who reads it, the root for kind 6, the client for kind 7 and for a
-  run's `settings` read (`../domain/agent.md`, 8.1) the root for both,
-  takes the stock. Kind 10's stock is none: a project's words are its
-  own, and with none How work runs says its way's (13.10).
+  who reads it, the root for kind 6, the client for kind 7, the forge's
+  `decided` and the client for kind 8, and for a run's `settings` read
+  (`../domain/agent.md`, 8.1) the root for all three, takes the stock.
+  Kind 10's stock is none: a project's words are its own, and with
+  none How work runs says its way's (13.10).
 - **A project's rule 1 is given to the forge,** for the same reason, as
   every project's (`../draft/stock-ways.md`, 3.1): the stock module
   gives it at each start beside the forge's other defaults, an entry of
@@ -3187,9 +3213,9 @@ defaults (13.4), so that a test world gives its own or none.
 
 | Way | Its headline | Its line | Its items, in the project's scope |
 |---|---|---|---|
-| You approve | "You approve every change" | "An agent makes each change; nothing reaches main until you approve it." | kind 2's rule 1: every branch (`branch`, open: 13.2), enforced, CI, up to date, no gate, one approval by role 0, `clean`; rules 2 to 4 removed |
-| Agents review | "Agents review every change, and code lands it" | "An agent makes each change, another reviews it, and code lands it." | kind 2's rule 1, the stock's (13.4); rules 2 to 4 removed |
-| Draft first | "Draft first, then agents build it on its own branch" | "You and an agent write a design draft; agents build it on its own branch, and it lands whole." | kind 2's rule 1: `branch`, exact `main`, enforced, CI, up to date, no gate, no approval; rule 2: `branch`, open `temper`, enforced, no CI, not up to date, no gate, no approval; rules 3 and 4 removed; kind 7: the project's own, or the stock's with none, with `drafts` and `goals` on and `way` 4; the project's policy, where its delegation lacks charter 5, role 0 or the merge job (job 3), with them added to its ceiling's and role 0's delegation |
+| You approve | "You approve every change" | "An agent makes each change; nothing reaches main until you approve it." | kind 2's rule 1: every branch (`branch`, open: 13.2), enforced, CI, up to date, no gate, one approval by role 0, `clean`; rules 2 to 4 removed; kind 8: You approve's table (`../domain/forge.md`, 5.10) |
+| Agents review | "Agents review every change, and code lands it" | "An agent makes each change, another reviews it, and code lands it." | kind 2's rule 1, the stock's (13.4); rules 2 to 4 removed; kind 8: Agents review's table |
+| Draft first | "Draft first, then agents build it on its own branch" | "You and an agent write a design draft; agents build it on its own branch, and it lands whole." | kind 2's rule 1: `branch`, exact `main`, enforced, CI, up to date, no gate, no approval; rule 2: `branch`, open `temper`, enforced, no CI, not up to date, no gate, no approval; rules 3 and 4 removed; kind 7: the project's own, or the stock's with none, with `drafts` and `goals` on and `way` 4; kind 8: Draft first's table; the project's policy, where its delegation lacks charter 5, role 0 or the merge job (job 3), with them added to its ceiling's and role 0's delegation |
 
 - **In this order,** from more of the person to more of their agents, as
   the page's tabs are. Each way's name, headline and line are its words,
@@ -3201,12 +3227,15 @@ defaults (13.4), so that a test world gives its own or none.
   `domain/engine.md`, 17.2), computed by the root for one project from
   the way and that project's settings: a rule *set* to its value, each
   rule the way names none of *removed*; kind 7 *set* to the project's
-  value with the way's members laid over it; a project's policy item
+  value with the way's members laid over it; kind 8 *set* to the way's
+  table, whole (`Classes::stock`, `../domain/forge.md`, 5.10), so that a
+  way sets what reaches the project's people
+  (`../draft/what-reaches-you.md`, section 2); a project's policy item
   only where its delegation lacks what the way needs. Every value is
   set whole, never reset, so that a way's values become the project's
   own and a release's new stock leaves them.
 - **Nothing else:** charters, models, questions (kind 6), kind 7's
-  `changes` and `away`, a charter's or the project's words (kinds 9 and
+  `changes`, a charter's or the project's words (kinds 9 and
   10), a repository's gates and tiers, and the project's
   landing stay as they are, so that a person's choices of models survive
   a change of way. You approve and Agents review set no kind 7: a project

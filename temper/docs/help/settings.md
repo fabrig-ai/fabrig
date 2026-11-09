@@ -7,18 +7,20 @@ How work runs in a deployment: its charters, templates, policies and rules, whic
 ## What it is
 
 Settings cover charters, templates, policies, rules, landing rules, forge
-charters, goal templates' work, charter words, and project ways, questions and words. Name one
+charters, goal templates' work, charter words, and project ways, questions, classes and words. Name one
 by kind and number, or project for project settings; rules have no number: `charter 2`, `template 1`, `policy 1`, `rules`,
 `landing-rule 1`, `landing-rule 1 --project 2`, `forge-charter 1`, `template-goal 4`,
-`project-ways 2`, `project-questions 2`, `charter-words 2`, `project-words 2`.
+`project-ways 2`, `project-questions 2`, `project-classes 2`, `charter-words 2`, `project-words 2`.
 
 - A project's ways say whether chats can write drafts, whether Work's Goals
-  and Changes filters and the Away switch show, and which offered template with
+  and Changes filters show, and which offered template with
   `tracked` set a goal starts by; 0 takes the first. The stock offers drafts, hides the
-  two filters and the switch and uses 0. Goals and Changes hide no rail entry;
+  two filters and uses 0. Goals and Changes hide no rail entry;
   work under a hidden filter stays under Work's All filter.
 - A project's questions give a change's question route when its maker
   names none: `none`, `foreman` or `up`. The stock uses `none`.
+- A project's classes say which questions agents decide and tell you about,
+  ask you, or ask you even when away (`temper help project`).
 - A charter's words (`charter-words`) are the line How work runs says the
   charter by. A project's words (`project-words`) are How work runs' headline
   and lede when the project runs a way of its own. Ask temper writes both
@@ -129,7 +131,7 @@ its default. A stored change still wins over a changed default.
   Both take `--revision` for an earlier value and `--json` for a settings
   file's `set` form.
   `settings show project-ways PROJECT` and `settings show project-questions
-  PROJECT` read by project number or name, marking the stock when none is
+  PROJECT` and `settings show project-classes PROJECT` read by project number or name, marking the stock when none is
   stored. `settings show charter-words NUMBER` reads a charter's words,
   marking the stock's with no stored value, or saying none is kept.
   `settings show project-words PROJECT` reads a project's headline and lede,
@@ -144,8 +146,8 @@ its default. A stored change still wins over a changed default.
   and the asking form of `propose_settings`
   (`temper help charter`). It reads and proposes `charter`, `template`,
   `policy`, `rules`, `landing-rule`, `forge-charter`, `template-goal` and
-  `project-policy`, `project-ways`, `project-questions`, `charter-words` and
-  `project-words`, in the settings file's form. Ways, questions and project
+  `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words` and
+  `project-words`, in the settings file's form. Ways, questions, classes and project
   words require `project` and take no `number`; charter words take the charter's
   `number` and no `project`. A landing rule names
   its project, or none for the deployment; a project's policy names its

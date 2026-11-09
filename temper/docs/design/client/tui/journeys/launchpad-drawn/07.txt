@@ -1,8 +1,8 @@
-╭─ temper · Hello ─────────────────────────────────────────── 127.0.0.1:38609 ─╮
+╭─ temper · Hello ─────────────────────────────────────────── 127.0.0.1:38243 ─╮
 │ Hello is ready.                                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
  Where you left off
-   Hello   Add a CSV export to the report, a chat · 23:17 · waiting…   /chats 1
+   Hello   Add a CSV export to the report, a chat · 00:58 · waiting…   /chats 1
 
  Start
    /change   one change, run as Hello's way says

@@ -255,6 +255,7 @@ members = [
     "temper/crates/temper-docs",
     "temper/crates/temper-fake",
     "temper/crates/temper-playground",
+    "temper/crates/temper-protocol-reaches",
     "temper/crates/temper-protocol-records",
     "temper/tests/real-loop",
     "temper/crates/temper-box",
@@ -556,6 +557,7 @@ temper-fixtures = { path = "temper/testing/temper-fixtures" }
 temper-fake = { path = "temper/crates/temper-fake" }
 temper-playground = { path = "temper/crates/temper-playground" }
 temper-playground-world = { path = "temper/tests/playground" }
+temper-protocol-reaches = { path = "temper/crates/temper-protocol-reaches" }
 temper-protocol-records = { path = "temper/crates/temper-protocol-records", default-features = false }
 temper-box = { path = "temper/crates/temper-box" }
 temper-forge-setup-shell = { path = "temper/crates/temper-forge-setup-shell" }

@@ -104,9 +104,11 @@ pub struct BriefBudgets {
     pub notes: u32,
 }
 
-/// The most words one task read holds (temper/docs/design/domain/root.md, 5.2).
-pub(crate) fn task_read_room(limits: &Limits) -> u32 {
-    match limits.host_reply_bytes {
+/// A task read's room (temper/docs/design/domain/root.md, 5.2): its worker's
+/// reply bound, else the local agent's, within the core and journal bounds;
+/// the documents' window where neither names one.
+pub(crate) fn task_read_room(limits: &Limits, reply: Option<u32>) -> u32 {
+    match reply {
         None => limits.documents.text_bytes,
         Some(reply) => {
             let carrier = jig_domain_core::reads::run_task::answer_carrier_bound(&core_limits(limits))
@@ -125,11 +127,12 @@ pub(crate) fn environment_core(env: &Env<Limits>) -> Env<jig_domain_core::Limits
 /// jig's `crates/jig-protocol-config/src/profile/small.rs` sets it until
 /// temper's configuration names its own (domain/root.md, 10).
 pub const FILL_MARK: u64 = 268_435_456;
-/// Streams use temper's client's own bound of 19, above jig's small
+/// Streams use temper's client's own bound of 22, above jig's small
 /// profile's 4 (`small.rs`, clients; protocol/configuration.md, 7).
-pub const WATCHES_PER_STREAM: u32 = 19;
+pub const WATCHES_PER_STREAM: u32 = 22;
 /// Views for one admitted stream; `views_for` scales both watch rooms.
-/// The deployment and one party each hold `streams` times 19 watches (protocol/configuration.md, 7).
+/// The deployment and one party each hold `streams` times 22 watches, including
+/// four projects' decided watches (protocol/configuration.md, 7).
 /// Live runs and provisional text retain jig's small profile's limits.
 pub const VIEWS: views::Limits = views::Limits {
     runs: 4,
@@ -477,13 +480,12 @@ mod tests {
     #[test]
     fn task_read_room_reserves_the_journal_carrier() {
         let mut limits = crate::tests::resume_fixture::limits();
-        limits.host_reply_bytes = Some(2048);
         let carrier =
             u32::try_from(jig_domain_core::reads::run_task::answer_carrier_bound(&core_limits(&limits)).unwrap())
                 .unwrap();
         limits.journal.transcript_bytes = carrier + 8;
-        assert_eq!(task_read_room(&limits), 8);
+        assert_eq!(task_read_room(&limits, Some(2048)), 8);
         limits.journal.transcript_bytes = carrier - 1;
-        assert_eq!(task_read_room(&limits), 0, "metadata cannot underflow the door's room");
+        assert_eq!(task_read_room(&limits, Some(2048)), 0, "metadata cannot underflow the door's room");
     }
 }

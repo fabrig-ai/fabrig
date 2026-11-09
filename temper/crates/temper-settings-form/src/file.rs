@@ -266,6 +266,7 @@ fn setting(d: &Decoder<'_>, at: u32) -> Result<c::Setting, Error> {
         b"template-goal",
         b"project-ways",
         b"project-questions",
+        b"project-classes",
         b"charter-words",
         b"project-words",
     ]

@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-protocol-reaches = { path = "../temper-protocol-reaches" }
 jig-client-protocol-wire.workspace = true
 jig-client.workspace = true
 skein-lib.workspace = true

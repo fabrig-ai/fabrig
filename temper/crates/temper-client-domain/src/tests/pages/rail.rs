@@ -166,17 +166,20 @@ fn project_domain(second: Option<c::PartyKind>) -> Domain {
         } = request
             && let w::Read::Setting(setting) =
                 wire::decode_reading(&record.bytes, &w::CEILINGS).expect("reading").read()
-            && setting.kind() == 7
+            && (setting.kind() == 7 || setting.kind() == 8)
         {
             let ways = w::ProjectWays::new(
                 &w::CEILINGS,
-                w::ProjectWaysParts { skein_bools: [true, false, false, true], way: 0 },
+                w::ProjectWaysParts { drafts: true, goals: false, changes: false, way: 0 },
             )
             .expect("ways");
             let mut writer = Writer::new(usize::try_from(ways.measure()).expect("ways size"));
             ways.encode(&mut writer).expect("ways bytes");
-            let answer = w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) })
-                .expect("answer");
+            let answer = w::SettingAnswer::new(
+                &w::CEILINGS,
+                w::SettingAnswerParts { value: if setting.kind() == 7 { Some(writer.finish()) } else { None } },
+            )
+            .expect("answer");
             up(
                 &mut root,
                 Up::ReadDone {

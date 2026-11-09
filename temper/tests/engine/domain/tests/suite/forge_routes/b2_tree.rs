@@ -1120,8 +1120,8 @@ fn a_stock_chat_reads_an_absent_fix_and_replies_without_a_change() {
     let world = World::configured_stock_limits(&defaults, &model(), &box_limits());
     let (mut world, chat) = started_world_with_words(world, &defaults, REQUEST);
     let words = core::str::from_utf8(&chat.run.policy.instructions).expect("stock chat words");
-    assert!(words.contains("When they ask for a change to a repository, first read the code it touches with the forge's reads (read_branch for its head, then read_file), then call change with their request and only what you read: never describe code you have not read."));
-    assert!(words.contains("When they ask you to fix something and what they call broken is not there, change nothing and tell them so in words, saying what the code has."));
+    assert!(words.contains("For a repository change, first read touched code through forge reads (read_branch for its head, then read_file), then call change with their request and only what you read: never describe unread code."));
+    assert!(words.contains("If a requested fix's fault is absent, change nothing: tell the person what the code has."));
     let head =
         fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"file", CODE, 1).expect("table printer");
     let answer = super::change_tool::named_read(&mut world, &chat, 93, b"read_branch", br#"{"branch":"main"}"#);

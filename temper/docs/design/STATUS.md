@@ -190,7 +190,19 @@ their close-out into the goal's branch before the landing, nothing tells
 Ask temper to propose a template's work, and stage one's golden asks it
 at template 4 by number (`protocol/configuration.status.md`, 13.9;
 `domain/agent.status.md`, 8.1; `domain/testing.status.md`, 6.5.1;
-`draft/surfaces.status.md`, 7). The rail, Work and
+`draft/surfaces.status.md`, 7). Words saved with a setting are the
+whole story's milestone P3e, by plan `ui-p3e-words`: kind 9, a
+charter's words, the stock's nine lines among them, and kind 10, a
+project's headline and lede, kept, judged, read and proposed by ctl and
+Ask temper's tools, Ask temper's *Configuring* asking for both; each
+stock way's headline and the project's words in the `ways` read, heading
+How work runs; and a tier's description from the configuration, on its
+card and in `see settings gates`. Roles says no charter's words, which
+the help says it does, `see ways` no way's headline, and no record shows
+the user's review of Ask temper's sentence; the render check follows
+landing (`protocol/configuration.status.md`, 3 and 13.2;
+`client/README.status.md`, 5.13; `domain/agent.status.md`, 8.4.1;
+`draft/ask-temper.status.md`, 5.2; `draft/surfaces.status.md`, 7). The rail, Work and
 Deployment are the whole story's milestone P1, by plan `ui-p1-rail`: the
 rail and the tab bar from one pure function of their parts, Work, the
 hairline, How work runs, the new box and Deployment at the foot, the
@@ -539,14 +551,19 @@ reply or failure, so authorization waits for room (`protocol/sign-in.md`,
 work (`protocol/sign-in.md`, section 10). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
-reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words in
-its reply's room, but in those pieces where its process has no local agent, by the
-`read-task-room` plan's cut, and no goal on record has counted what the room saves
-(`domain/root.md`); how the engine is to learn its workers' reply bound is the
-design owner's decision (`domain/agent.md`, section 10). A charter is fitted to
+reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words
+in the room of the reply bound its worker names in its hello, else the local
+agent's, else `documents.text_bytes`. The six-row engine table covers those
+choices, a smaller worker bound, continuation and the journal ceiling; no
+real host or LLM is exercised, and real-deployment savings remain unobserved
+(`domain/root.status.md`, **Not yet:** 5.2). Worker-specific `see` rendering
+remains deferred (`domain/agent.md`, section 10). A charter is fitted to
 its worker's allowance, smith's 65,536 where the process has no local agent, as
 that section leaves it, and a resolution names a file too large for its brief
-(`domain/agent.md`; `domain/forge.md`). A live delegate counts no stall and a stall's hold reaches its
+(`domain/agent.md`; `domain/forge.md`). The worker-reply-bound
+draft's vision is carried in full by the design and its text is archived
+(`draft/archive/worker-reply-bound.status.md`). A live delegate counts no
+stall and a stall's hold reaches its
 task's holder, but no record shows the rerun of the replay the `parallel-faults`
 request has as its proof, nor why its hold came about 57 minutes in, and a no-change
 under another hold is said only once a release holds it again (`domain/forge.md`). A
@@ -694,9 +711,11 @@ a kept GitHub forge whose base ends
 in `/` keeps remotes with two after the host, and a clients'
 listener off loopback is refused in every engine shape, where the
 design admits one with the printed link off
-(`protocol/configuration.md`). A duplicate person's identity panics
-at a start, which the user's request counts a bug
-(`domain/root.md`). The render check of `ready-account-email` on a real
+(`protocol/configuration.md`). A link jig's start cannot make, a
+duplicate person's identity among them, refuses the start naming the
+record and what it links to, but the forge's link of its restored
+records still panics (`domain/root.md`, `domain/forge.md`,
+`protocol/README.md`). The render check of `ready-account-email` on a real
 sign-in and a real Claude Code login follows landing, owned by temper/ui
 (`client/README.md`, section 11). Ready draws no words for a
 sign-in made with no model usable, which has none yet, or for an
@@ -1050,3 +1069,6 @@ Drafts:
 - [`draft/surfaces.md`](draft/surfaces.status.md)
 - [`draft/what-reaches-you.md`](draft/what-reaches-you.status.md)
 - [`draft/whole-story.md`](draft/whole-story.status.md)
+
+Archived drafts:
+- [`draft/archive/worker-reply-bound.md`](draft/archive/worker-reply-bound.status.md)

@@ -631,14 +631,15 @@ one rule for every child and the store:
   and the tests compare (`../protocol/store.md`, 10.2).
 - **A link that cannot be made** refuses the start as `Failure::Link`,
   naming the record's key and what it links to (`Linked`: a record's
-  key, a charter at a revision, a project, a connector), the first one
-  found, and the engine stops with that reason, never a panic (the
-  user, request `store-crash-safe` of 11-09, which replaces the
-  assertion of 10-28). Each child's link check answers the same way,
-  through its own restore refusal, and the core names it in
-  `Failure::Link`. The store stays as it was: nothing repairs it, and
-  leaving such a record out so that the start goes on is open
-  (section 16). Every link is made before any sweep runs
+  key, a charter at a revision, a project, a connector, a settings
+  proposal numbered past what its settings key holds, the hold owning a
+  writer's resource), the first one found, and the engine stops with
+  that reason, never a panic (the user, request `store-crash-safe` of
+  11-09, which replaces the assertion of 10-28). Each child's link
+  check answers the same way, through its own restore refusal, and the
+  core names it in `Failure::Link`. The store stays as it was:
+  nothing repairs it, and leaving such a record out so that the start
+  goes on is open (section 16). Every link is made before any sweep runs
   (`../protocol/store.md`, section 9), so the refusal erases no value,
   and a release that repairs the writer, or the store, starts it.
 - **The checks are tests** (section 15): every world story ends with a
@@ -1270,6 +1271,14 @@ The fleet child domain knows the hosts and the runs they host:
   allows, whose endpoint bounds hold its models, where its sources are
   usable and that the host rule allows (below), preferring a worker that holds its
   workstream. A refusal as busy is no failure.
+- **A host's reply bound, by its runs.** A host's hello may name its
+  agent's reply bound (hosts.md, section 2). The fleet keeps it with the
+  host's bounds and names it for a run's live claim: the bound of the
+  host in contact that holds the claim, `Domain::reply_bound(run,
+  attempt)`; none where that host's hello named none, or where the claim
+  is adrift, waiting, a job's or not the live one. The parent sizes what
+  it answers that attempt's calls by it, with its own default where none
+  is named. It is no admission reason (below).
 - **Endpoints at the hello, program logins after it.** A host's hello
   states its agent's endpoint bounds (hosts.md, section 2). A worker's
   logins follow its hello: the engine sends it, by name, every program
@@ -2192,11 +2201,11 @@ switch, switched, and the manifest naming the position then; a live set
 past limits lowered since, refused before the switch, the generation
 patched from still active and unchanged, and a start of the build before
 opening it as it was; a task naming a project the copy does not hold, a
-link that cannot be made, panicking before the switch with the task and
-the project named, the generation patched from the same; a crash during
-the restore, the next start patching a fresh copy; and a start with
-nothing pending, whose switch step switches nothing and commits the
-wires alone.
+link that cannot be made, refusing the start before the switch with the
+task and the project named, the generation patched from the same; a
+crash during the restore, the next start patching a fresh copy; and a
+start with nothing pending, whose switch step switches nothing and
+commits the wires alone.
 
 Its referee holds the core to core.md, section 11, seen from outside;
 applications' worlds reuse it on jig's conformance world (testing.md,
@@ -2234,7 +2243,8 @@ section 5).
   and its child's sweep skipped, so that a writer's bug costs a record
   and not the start. For now it refuses the start, naming the record
   and its link (request `store-crash-safe`, 11-09); after the first
-  release.
+  release. A tool that repairs such a store is not designed: that
+  request leaves it out.
 - **A transcript's load with no slot** (9.1, 7.2): `TranscriptLoad` has
   no capacity answer, so a root never answers one for room: it keeps the
   activation due while its load table is full, and a window's later pages
@@ -2803,7 +2813,7 @@ requires no additional limit or root-to-core allowance (decided 2026-11-03).
     lowered since, or a release's revision that would pass them, refuse
     the start, saying which, as a live set past lowered limits does. A
     task or a claim naming a revision the store holds no record of is a
-    link that cannot be made, and panics (section 6).
+    link that cannot be made, and refuses the start (section 6).
 
   A saved project policy above the current policy byte budget refuses the
   start naming its project and policy; the named restore failure is retained
@@ -2858,8 +2868,9 @@ requires no additional limit or root-to-core allowance (decided 2026-11-03).
   of an application's kinds, the core prices only what it keeps of
   them, and their connectors the values (17.5).
   The fleet keeps, for each connected host, what its hello declared for
-  its endpoints and its agent's bounds, priced by the endpoints'
-  bound, so that it can judge the host against changed needs.
+  its endpoints and its agent's bounds, its reply bound among them,
+  priced by the endpoints' bound, so that it can judge the host against
+  changed needs and name its runs' reply bound (section 8).
 - **History** is a third number, of revision records the store keeps
   beyond those held, within the store's fill (`../protocol/store.md`,
   11.2). The core holds none of it.

@@ -91,6 +91,46 @@ fn a_dismissal_saves_its_row_marks_and_answers() {
     );
     assert_eq!(d.dismissals(PARTY).as_ref(), [PersonFact::ToBegin { project: 1 }]);
     assert_eq!(d.application_answer(ANSWER), Some(Answered::Dismiss(DismissAnswer::Dismissed)));
+    let first = keep_asking(1, temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Tests), 10);
+    let later = keep_asking(1, temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Tests), 20);
+    let other = keep_asking(1, temper_protocol_reaches::Subject::Set(1), 20);
+    let other_project =
+        keep_asking(2, temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Tests), 20);
+    for (what, previous, saved) in [
+        (first, None, true),
+        (first, None, false),
+        (later, Some(first), true),
+        (other, None, true),
+        (other_project, None, true),
+    ] {
+        let mut expected = skein_lib::List::with_capacity(4);
+        if let Some(what) = previous {
+            expected.push(Request::Erase { key: Key::Dismissed { party: PARTY, what } }).unwrap();
+        }
+        if saved {
+            expected
+                .push(Request::Save {
+                    record: Stored::Dismissed { party: PARTY, what },
+                    release: None,
+                    read_afresh: None,
+                })
+                .unwrap();
+            expected.push(mark()).unwrap();
+        }
+        expected.push(done()).unwrap();
+        assert_eq!(
+            outputs(&mut d, Event::Dismiss { request: REQUEST, token: ANSWER, party: PARTY, what }).as_ref(),
+            expected.into_boxed().as_ref(),
+            "{what:?}"
+        );
+        assert_eq!(d.application_answer(ANSWER), Some(Answered::Dismiss(DismissAnswer::Dismissed)));
+    }
+    assert_eq!(d.dismissals(PARTY).as_ref(), [PersonFact::ToBegin { project: 1 }, later, other, other_project]);
+    assert!(d.dismissals(OTHER_PARTY).is_empty());
+}
+
+fn keep_asking(project: u32, subject: temper_protocol_reaches::Subject, at: u64) -> PersonFact {
+    PersonFact::KeepAsking { project, subject, at }
 }
 
 #[test]
@@ -118,12 +158,37 @@ fn too_large_at_the_family_bound() {
     assert_eq!(d.application_answer(ANSWER), Some(Answered::Dismiss(DismissAnswer::TooLarge)));
     assert!(d.dismissals(OTHER_PARTY).is_empty());
     assert_eq!(d.dismissals(PARTY).len(), usize::try_from(DISMISSALS).unwrap());
+    let mut d = restore_rows(DISMISSALS.checked_sub(1).unwrap());
+    let subject = temper_protocol_reaches::Subject::Set(1);
+    let first = keep_asking(1, subject, 10);
+    let later = keep_asking(1, subject, 20);
+    outputs(&mut d, Event::Restore { record: Stored::Dismissed { party: PARTY, what: first } });
+    assert_eq!(
+        outputs(&mut d, Event::Dismiss { request: REQUEST, token: ANSWER, party: PARTY, what: later }).as_ref(),
+        [
+            Request::Erase { key: Key::Dismissed { party: PARTY, what: first } },
+            Request::Save { record: Stored::Dismissed { party: PARTY, what: later }, release: None, read_afresh: None },
+            mark(),
+            done(),
+        ]
+    );
+    assert_eq!(d.dismissals(PARTY).len(), usize::try_from(DISMISSALS).unwrap());
+    assert_eq!(d.application_answer(ANSWER), Some(Answered::Dismiss(DismissAnswer::Dismissed)));
 }
 
 #[test]
-fn erase_project_erases_both_kinds() {
+fn erase_project_erases_every_fact() {
     let mut d = domain();
-    for record in [row(PARTY, 1), goal_row(PARTY, 1), row(OTHER_PARTY, 1), row(PARTY, 2)] {
+    let first = keep_asking(1, temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Tests), 10);
+    let other = keep_asking(1, temper_protocol_reaches::Subject::Set(1), 20);
+    for record in [
+        row(PARTY, 1),
+        goal_row(PARTY, 1),
+        Stored::Dismissed { party: PARTY, what: first },
+        Stored::Dismissed { party: PARTY, what: other },
+        row(OTHER_PARTY, 1),
+        row(PARTY, 2),
+    ] {
         outputs(&mut d, Event::Restore { record });
     }
     let released = outputs(&mut d, Event::ReleaseProject { project: 1, request: REQUEST });
@@ -132,6 +197,8 @@ fn erase_project_erases_both_kinds() {
         [
             Request::Erase { key: Key::Dismissed { party: PARTY, what: PersonFact::ToBegin { project: 1 } } },
             Request::Erase { key: Key::Dismissed { party: PARTY, what: GOAL_FROM } },
+            Request::Erase { key: Key::Dismissed { party: PARTY, what: first } },
+            Request::Erase { key: Key::Dismissed { party: PARTY, what: other } },
             Request::Erase { key: Key::Dismissed { party: OTHER_PARTY, what: PersonFact::ToBegin { project: 1 } } },
             mark(),
             Request::ProjectReleased { request: REQUEST },
@@ -182,7 +249,7 @@ fn too_large_at_the_partys_own_bound() {
     limits.bindings = 2;
     limits.judge_projects = temper_client_protocol_wire::DISMISSED / 8 + 1;
     let mut d = domain_with_limits(&limits);
-    for goal in 0..u64::from(temper_client_protocol_wire::DISMISSED.checked_sub(1).unwrap()) {
+    for goal in 0..u64::from(temper_client_protocol_wire::DISMISSED.checked_sub(2).unwrap()) {
         outputs(
             &mut d,
             Event::Restore {
@@ -195,11 +262,25 @@ fn too_large_at_the_partys_own_bound() {
     }
     // An earlier party's row must not be counted against this party.
     outputs(&mut d, Event::Restore { record: goal_row(EARLIER_PARTY, 1) });
-    // The last admitted row is ToBegin, before every GoalFrom in the party's range.
+    let subject = temper_protocol_reaches::Subject::Set(1);
+    let first = keep_asking(1, subject, 10);
+    let later = keep_asking(1, subject, 20);
+    outputs(&mut d, Event::Restore { record: Stored::Dismissed { party: PARTY, what: first } });
+    // The last admitted row is ToBegin, before the party's other facts in key order.
     assert_eq!(
         dismiss(&mut d, PARTY, 2).as_ref(),
         [Request::Save { record: row(PARTY, 2), release: None, read_afresh: None }, mark(), done()]
     );
+    assert_eq!(
+        outputs(&mut d, Event::Dismiss { request: REQUEST, token: ANSWER, party: PARTY, what: later }).as_ref(),
+        [
+            Request::Erase { key: Key::Dismissed { party: PARTY, what: first } },
+            Request::Save { record: Stored::Dismissed { party: PARTY, what: later }, release: None, read_afresh: None },
+            mark(),
+            done()
+        ]
+    );
+    assert_eq!(d.application_answer(ANSWER), Some(Answered::Dismiss(DismissAnswer::Dismissed)));
     assert_eq!(dismiss(&mut d, PARTY, 1).as_ref(), [done()]);
     assert_eq!(d.application_answer(ANSWER), Some(Answered::Dismiss(DismissAnswer::TooLarge)));
     assert_eq!(d.dismissals(PARTY).len(), usize::try_from(temper_client_protocol_wire::DISMISSED).unwrap());

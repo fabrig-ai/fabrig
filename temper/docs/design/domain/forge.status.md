@@ -58,7 +58,12 @@ with a decision's items laid over it (`ways.rs`, `laid_goal`). Rows of
 the focused paths' and cards' tables and of the root's table hold them,
 and the fuzzy test, over random template work, draws "design" and
 "close-out" only with their settings, the close-out once, an agent's,
-after the landing and before the bar.
+after the landing and before the bar. A tier's card says its
+description, from the configuration (`../protocol/configuration.md`,
+section 3), as its fact "Checks" after "Runs", and nothing where it has
+none; the root copies it into the derivation's tier, and the cards'
+table holds the reference's two tiers described
+(`cards_open_the_setting_and_stay_within_the_bounds`).
 
 - **Not yet:** 8.13, *The project's roles*: the drafter, charter 12,
   which the stock holds and its template 6 starts since P6 landed after
@@ -116,7 +121,6 @@ and leave when the merge is admitted. A vetoed approval wait stays First,
 retaining its branch turn. Step tables and the owned-Forgejo engine story
 cover these paths; GitHub's composed story remains in `testing.status.md`,
 6.4.
-
 
 - **Not yet:** 4.6: a link restored outside `--box` survives when its
   person remains the deployment's sole owner. `link.rs`, `owner`, clears
@@ -442,9 +446,7 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
   - 5.9: the caller's person is found through its chat, where the request has
     `domain.core.tasks.delegation`: a chat's goal has the chat as its requester, so
     the root takes jig's `served_chat`, then the chat's person.
-  - 5.9: "Only goals call it" is held by the root, where the request leaves it to
-    charter 1's words: goals and chats share that charter, so a chat's call answers
-    ask (`agent.status.md`, 4.3).
+
 - **Design departs:** 8.4, from the request `repair-green` of 2026-11-05, each
   decided by its plan's cut, for the user to see:
   - The request's rule 1 ends a held repair when CI has passed at the head. A
@@ -536,3 +538,6 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
   `tasks.message_bytes` and marked with `…`, as a question passed up is.
   This keeps the message within its admission bound, where the design says
   the answer's words are whole.
+- **Not yet:** 6: a `Flight` row whose entry the forge does not hold
+  panics at its link, where the section refuses the start
+  (`root.status.md`, 9.1).

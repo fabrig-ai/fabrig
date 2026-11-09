@@ -71,7 +71,7 @@ or the nearest thing, and says so in that draft's status.
 | P3b | How work runs: What reaches you | `surfaces.md`, 7 | P3a, N1 | temper/ui | nice | not started |
 | P3c | How work runs: Rules by path, and the path's stops for a path set, "if core" and "one of you" | `surfaces.md`, 7; `what-reaches-you.md`, 7 | P3a, N2 | temper/ui | should | not started |
 | P3d | How work runs: What follows a landing, and a role's budget | `surfaces.md`, 7 | P3a, F1, R1 | temper/ui | nice | not started |
-| P3e | Words saved with a setting: a charter's line on Roles, How work runs' headline, a tier's description | `surfaces.md`, 7; its entry below | P3a | temper/ui | should | in flight |
+| P3e | Words saved with a setting: a charter's line on Roles, How work runs' headline, a tier's description | `surfaces.md`, 7; its entry below | P3a | temper/ui | should | landed but for a charter's line on Roles, whose repair starts (section 5) |
 | P3f | The path's "design" and "close-out", from what a goal's template says its coordinator does | `stock-ways.md`, 4; its entry below | P3a | temper/ui | should | done |
 | P4a | Team: its people, what waits on each, and the project's triager | `surfaces.md`, 6 | M0 | temper/ui | must | landed; its repair starts (section 5) |
 | P4b | Team: a role's card, but for "Talk to it" | `surfaces.md`, 6 | P4a, R1 | temper/ui | must | not started |
@@ -81,7 +81,7 @@ or the nearest thing, and says so in that draft's status.
 | P6 | The drafter's charter | `surfaces.md`, 11.2, its instructions | | temper/ui | must | done |
 | P7 | A change's size on its approval card: its files, additions and deletions at the head reviewed | `surfaces.md`, 4; its entry below | P2 | temper/ui | nice | not started |
 | P8 | Work's drafts landed and ready to start a goal | `surfaces.md`, 5; its entry below | P1, P6 | temper/ui | nice | not started |
-| N1 | Three classes, Away, why and Stop asking, Decided for any task | `what-reaches-you.md`, 2 to 6 | R1 for a standing role's case | temper/ui | must | in flight |
+| N1 | Three classes, Away, why and Stop asking, Decided for any task | `what-reaches-you.md`, 2 to 6 | R1 for a standing role's case | temper/ui | must | in flight: `ui-reaches` (`../../plan/ui-reaches/plan.md`) |
 | N2 | Rules by path | `what-reaches-you.md`, 7 | N1 | temper/migration | must | not started |
 | N3a | Only you | `what-reaches-you.md`, 8 | N1 | temper/ui | nice | not started |
 | N3b | Being told: a push, a mail | `what-reaches-you.md`, 9 | N1 | temper/ui | must for a push, nice for a mail | not started |
@@ -291,7 +291,7 @@ P1's and P8's at 22:55Z, as P1 retired, and P2's, P5a's and P7's at
 as P3a's repair, `look-round-25`, retired, and P1's at 00:42Z, as
 `ui-away-all` retired, and P1's and P4a's at 01:02Z, as P4a retired,
 and P1's, P5a's and P5b's at 01:30Z, as P5a retired, and P3e's and
-P3f's at 02:25Z, as P3f retired. Plans
+P3f's at 02:25Z, as P3f retired, and P3e's at 03:18Z, as it retired. Plans
 land meanwhile, so read what a row waits on afresh before starting it.
 
 | | State | Waits on, and why |
@@ -301,7 +301,7 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | P2 | landed; its repair starts | `ui-p2-home` drew the byline across projects as this draft stood at its cut; a repair, or a look request, words it as section 3 now does and gives the phone's headline `phone-home.html`'s words (`surfaces.status.md`, 3); the launchpad's brief across projects is T1's repair, temper/tui's (`surfaces.status.md`, 11) |
 | P3a | landed; its repair starts | `ui-p3a-how` drew the path in lanes, and its repair, `look-round-25`, draws it as Ask temper's ways do, their agent's star and its rise in ink, and Roles; a second repair gives the drafter, in the stock since P6, its place among Roles (`surfaces.status.md`, 7) |
 | P3b, P3c, P3d | wait | N1, N2 or F1 and R1, by their needs |
-| P3e | in flight | `ui-p3e-words` |
+| P3e | landed; its repair starts | `ui-p3e-words` keeps a charter's words, kind 9, and a project's, kind 10, which Ask temper writes with what it proposes, the stock's for each stock charter, a headline for each stock way, which How work runs' heading and lede say, the project's own where it runs none, and a tier's description, which its card says; the stock holds no tier, so none of its words. It drew no charter's line on Roles, which had not landed at its cut: a repair carries kind 9 on the `roles` view's cards and draws it after when the role runs, its instructions' first sentence where none is kept, as `how.html` does (`surfaces.status.md`, 7); `see ways` says no way's headline yet (`../domain/agent.status.md`, 8.4.1); its render check follows landing |
 | P3f | done | |
 | P4a | landed; its repair starts | `ui-p4a-team` drew Team's people as this draft and `team/team.html` stood before its cut; a repair, or a look request, gives a box the role "Owner", People's head "owners of shop" and a line's count in words; the triager as Who routes, under the areas, is P4c's; a line's sign-offs wait on N2, N5 and N6 (`surfaces.status.md`, 6); its walk follows (`../client/README.md`, 11) |
 | P4b, P4c | wait | R1, then R2 and R3, by their needs |
@@ -328,5 +328,5 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | V2 to V5 | wait | V1, and each its needs in section 3 |
 
 - **Next to start:** P4a's repair, as temper/ui's places allow; P3a's
-  repair; P2's repair, then P7; T2, whose needs have landed: T1 by
+  repair, with P3e's, both on Roles; P2's repair, then P7; T2, whose needs have landed: T1 by
   `tui-whole-t1`, P6 by `ui-drafter`, and finding-465's repair.

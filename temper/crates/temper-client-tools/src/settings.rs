@@ -9,6 +9,7 @@ use alloc::collections::BTreeSet;
 use jig_client::{Family, Readable, Readout, contract as c};
 use skein_lib::{List, Reader};
 use temper_client_protocol_wire::{self as wire, v1 as w};
+use temper_protocol_reaches::{Classes, Way, classes_from, classes_record};
 pub(crate) fn resolve_project(call: &mut Call, me: Option<&c::Me>) -> bool {
     if call.tool != rows::SETTING_AT || call.form != 2 && call.form != 4 {
         return true;
@@ -79,6 +80,10 @@ fn valid(kind: u32, bytes: &[u8]) -> bool {
         11 => w::TemplateGoal::decode(&w::CEILINGS, &mut reader).is_ok(),
         6 => w::ProjectQuestions::decode(&w::CEILINGS, &mut reader).is_ok(),
         7 => w::ProjectWays::decode(&w::CEILINGS, &mut reader).is_ok(),
+        8 => match w::ProjectClasses::decode(&w::CEILINGS, &mut reader) {
+            Ok(record) => classes_from(&record).check().is_ok(),
+            Err(_) => false,
+        },
         9 => w::CharterWords::decode(&w::CEILINGS, &mut reader).is_ok(),
         10 => w::ProjectWords::decode(&w::CEILINGS, &mut reader).is_ok(),
         _ => false,
@@ -106,9 +111,15 @@ fn stock(kind: u32) -> Option<c::SettingValue> {
         7 => {
             let value = w::ProjectWays::new(
                 &w::CEILINGS,
-                w::ProjectWaysParts { skein_bools: [true, false, false, false], way: 0 },
+                w::ProjectWaysParts { drafts: true, goals: false, changes: false, way: 0 },
             )
             .expect("stock ways");
+            let mut out = skein_lib::Writer::new(usize::try_from(value.measure()).expect("fixed stock size"));
+            value.encode(&mut out).expect("fixed stock record");
+            out.finish()
+        }
+        8 => {
+            let value = classes_record(&Classes::stock(Way::AgentsReview)).expect("stock classes fit");
             let mut out = skein_lib::Writer::new(usize::try_from(value.measure()).expect("fixed stock size"));
             value.encode(&mut out).expect("fixed stock record");
             out.finish()
@@ -171,7 +182,8 @@ pub(crate) fn selector(call: &Call) -> Option<c::Setting> {
             kind: match *kind {
                 0 => 7,
                 1 => 6,
-                2 => 10,
+                2 => 8,
+                3 => 10,
                 _ => unreachable!("project setting kind"),
             },
             scope: *project,
@@ -215,7 +227,7 @@ use crate::jig::table::{
 #[expect(clippy::indexing_slicing, reason = "the host extends the kit's two fixed setting forms in order")]
 pub const SETTING: Tool = Tool {
     prints:
-        b"`KIND N, revision R`, or `rules, revision R`, then the value as JSON; temper's settings also show their state",
+        b"`KIND N, revision R`, or `rules, revision R`, then the whole value; project classes in words; temper's settings also show their state",
     forms: &[
         rows::SETTING.forms[0],
         rows::SETTING.forms[1],
@@ -257,10 +269,10 @@ pub const SETTING: Tool = Tool {
         &[
             positional(
                 b"kind",
-                b"project-ways|project-questions|project-words",
-                Kind::Word { set: &[b"project-ways", b"project-questions", b"project-words"] },
+                b"project-ways|project-questions|project-classes|project-words",
+                Kind::Word { set: &[b"project-ways", b"project-questions", b"project-classes", b"project-words"] },
                 Required,
-                b"A project's ways, questions or words",
+                b"A project's ways, questions, classes or words",
             ),
             positional(
                 b"project",
@@ -319,11 +331,12 @@ pub(crate) fn name(setting: c::Setting, out: &mut Text) -> bool {
         11 => b"template-goal ",
         6 => b"project-questions ",
         7 => b"project-ways ",
+        8 => b"project-classes ",
         9 => b"charter-words ",
         10 => b"project-words ",
         _ => b"landing-rule ",
     });
-    out.number(u64::from(if kind == 6 || kind == 7 || kind == 10 { scope } else { number }));
+    out.number(u64::from(if kind == 6 || kind == 7 || kind == 8 || kind == 10 { scope } else { number }));
     if kind == 2 {
         out.put(b" --project ");
         out.number(u64::from(scope));

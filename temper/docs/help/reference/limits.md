@@ -77,6 +77,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.changes_landed`: count, 8. Bounds recent landed changes in the changes document.
 - `forge.landings_kept`: count, 16. Bounds retained landings per repository.
 - `forge.landings`: count, 2. Bounds live landing procedure rows.
+- `forge.decided_per_project`: count, 1,024. Bounds retained decided and asked rows per project.
 - `forge.judge_projects`: count, 2. Bounds project judge tables retained beside committed policy.
 - `forge.judge_criteria`: count, 8. Bounds criteria in each deployment or project judge table.
 - `forge.landing_rules`: count, 4. Bounds landing rules per scope.

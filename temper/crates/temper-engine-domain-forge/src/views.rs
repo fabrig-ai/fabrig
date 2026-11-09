@@ -359,7 +359,9 @@ impl Document {
                 size = size.saturating_add(size_of_val(view.rows.as_ref()));
             }
             Self::Decisions(view) => {
-                size = size.saturating_add(size_of_val(view.rows.as_ref()));
+                size = size
+                    .saturating_add(size_of_val(view.rows.as_ref()))
+                    .saturating_add(size_of_val(view.asked.as_ref()));
                 for row in &view.rows {
                     size = size
                         .saturating_add(row.question.len())

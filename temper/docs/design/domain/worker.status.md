@@ -31,6 +31,11 @@ relinking every two to two and a half minutes on 2026-11-08, but that is
 unproven: its evidence is outside the repository, and no deployment on
 record has run since.
 
+Section 6 has no known gap in every temper worker naming its agent's
+`host_reply_text` as the hello's reply bound, the in-process worker among
+them (`temper/crates/temper/src/agent.rs`). The service gives the worker's
+`Limits::reply_bytes` the same figure (`temper-service/src/worker_settings.rs`).
+
 - **Not yet:** 4.3: a held task names no run's failure, which the user's
   request of 2026-11-05 asked for if cheap: it needs a stored-format
   change, so it is section 12's question. The `ctl-words` request requires

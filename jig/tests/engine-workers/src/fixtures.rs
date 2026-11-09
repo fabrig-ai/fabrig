@@ -155,6 +155,7 @@ pub fn hello_record() -> jig_protocol_worker_wire::Hello {
             message_bytes: 16,
             inbox: 1,
             unacknowledged: 1,
+            reply_bytes: None,
         },
     )
     .expect("bounds");

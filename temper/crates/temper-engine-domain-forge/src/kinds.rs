@@ -298,7 +298,9 @@ impl Domain {
     pub fn erase_project_settings(&mut self, project: u32, out: &mut Queue<Request>) {
         let mut erases = List::with_capacity(self.setting_rows.capacity());
         for (key, _) in &self.setting_rows {
-            if (key.kind == 2 || key.kind == 6 || key.kind == 7 || key.kind == 10) && key.scope == project {
+            if (key.kind == 2 || key.kind == 6 || key.kind == 7 || key.kind == 8 || key.kind == 10)
+                && key.scope == project
+            {
                 erases.push(*key).expect("bounded project setting rows");
             }
         }
@@ -323,10 +325,32 @@ impl Domain {
                     | Value::Charter(_)
                     | Value::Ways(_)
                     | Value::CharterWords(_)
+                    | Value::Classes(_)
                     | Value::ProjectWords(_),
                 ..
             })
             | None => Route::None,
+        }
+    }
+
+    /// Kind 8 of a project, or Agents review's stock table with none held
+    /// (temper/docs/design/protocol/configuration.md, 13.2 and 13.4).
+    #[must_use]
+    pub fn project_classes(&self, project: u32) -> temper_protocol_reaches::Classes {
+        match self.setting(8, project, 1) {
+            Some(settings::SizedValue { value: Value::Classes(classes), .. }) => classes.clone(),
+            Some(settings::SizedValue {
+                value:
+                    Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Goal(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_),
+                ..
+            })
+            | None => temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview),
         }
     }
 
@@ -343,6 +367,7 @@ impl Domain {
                     | Value::Charter(_)
                     | Value::Questions(_)
                     | Value::Ways(_)
+                    | Value::Classes(_)
                     | Value::ProjectWords(_),
                 ..
             })
@@ -362,7 +387,8 @@ impl Domain {
                     | Value::Charter(_)
                     | Value::Questions(_)
                     | Value::Ways(_)
-                    | Value::CharterWords(_),
+                    | Value::CharterWords(_)
+                    | Value::Classes(_),
                 ..
             })
             | None => None,
@@ -382,6 +408,7 @@ impl Domain {
                     | Value::Questions(_)
                     | Value::Ways(_)
                     | Value::CharterWords(_)
+                    | Value::Classes(_)
                     | Value::ProjectWords(_),
                 ..
             })
@@ -561,6 +588,7 @@ impl Domain {
                     | Value::Questions(_)
                     | Value::Ways(_)
                     | Value::CharterWords(_)
+                    | Value::Classes(_)
                     | Value::ProjectWords(_),
                 ..
             })
@@ -606,6 +634,7 @@ fn value_state(value: Option<&settings::SizedValue>) -> (u32, Option<u32>) {
                 | Value::Questions(_)
                 | Value::Ways(_)
                 | Value::CharterWords(_)
+                | Value::Classes(_)
                 | Value::ProjectWords(_),
             size,
         }) => (*size, None),

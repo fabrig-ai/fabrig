@@ -19,7 +19,7 @@ const WORKER: skein_lib::Token = skein_lib::Token::new(7);
 const ROSTER: u8 = 202;
 const OTHER_OWNER: u64 = 8;
 const CHANGE_CALL: u64 = 1;
-const SWITCHES: [&[u8]; 4] = [b"Chats can write drafts", b"Goals", b"Changes", b"Away switch"];
+const SWITCHES: [&[u8]; 3] = [b"Chats can write drafts", b"Goals", b"Changes"];
 
 fn see(find: Find) -> Step<Address> {
     Step::See { find, within: fixtures::WITHIN }
@@ -53,17 +53,17 @@ fn work_filter(world: &mut ClientWorld, person: ClientId, label: &[u8], shown: b
             see(Find::exactly_named(Role::Navigation, b"Work's filters")),
             observation,
             Step::Press { find: Find::exactly_named(Role::Link, b"How work runs") },
-            see(Find::named(Role::Check, b"Goals")),
+            see(Find::exactly_named(Role::Check, b"Goals")),
         ],
     );
 }
 fn accepted() -> (ClientWorld, ClientId) {
-    let value = Value::Ways(ProjectWays { drafts: true, goals: true, changes: true, away: true, way: 0 });
+    let value = Value::Ways(ProjectWays { drafts: true, goals: true, changes: true, way: 0 });
     let (mut world, agent, _, proposal) =
         propose(false, Some(Box::new([kinds::item(WAYS_KIND, PROJECT, SETTING, &value)])));
     fixtures::settings_goal(world.front());
     let person = world.client(fixtures::PARTY, Address::Settings { project: PROJECT });
-    run(&mut world, person, vec![see(Find::named(Role::Check, b"Changes"))]);
+    run(&mut world, person, vec![see(Find::exactly_named(Role::Check, b"Changes"))]);
     switch(&world, person, b"Changes", false);
     accept(&mut world, agent, &proposal, b"accept-ways");
     work_filter(&mut world, person, "Goals · ".as_bytes(), true);
@@ -95,11 +95,11 @@ fn changes_filter_switch() {
     super::change_page::finish_review(&mut world, review);
     run(&mut world, owner, vec![see(Find::text("Landed · merge commit".as_bytes()))]);
     world.go(owner, Address::Settings { project: PROJECT });
-    run(&mut world, owner, vec![see(Find::named(Role::Check, b"Changes"))]);
-    run(&mut world, owner, vec![Step::Press { find: Find::named(Role::Check, b"Changes") }]);
+    run(&mut world, owner, vec![see(Find::exactly_named(Role::Check, b"Changes"))]);
+    run(&mut world, owner, vec![Step::Press { find: Find::exactly_named(Role::Check, b"Changes") }]);
     switch(&world, owner, b"Changes", true);
     work_filter(&mut world, owner, "Changes · ".as_bytes(), true);
-    run(&mut world, owner, vec![Step::Press { find: Find::named(Role::Check, b"Changes") }]);
+    run(&mut world, owner, vec![Step::Press { find: Find::exactly_named(Role::Check, b"Changes") }]);
     switch(&world, owner, b"Changes", false);
     work_filter(&mut world, owner, "Changes · ".as_bytes(), false);
 }
@@ -108,7 +108,7 @@ fn changes_filter_switch() {
 fn a_switch_on_the_tab_changes_works_filters_and_a_member_is_refused() {
     changes_filter_switch();
     let (mut world, owner) = accepted();
-    run(&mut world, owner, vec![Step::Press { find: Find::named(Role::Check, b"Goals") }]);
+    run(&mut world, owner, vec![Step::Press { find: Find::exactly_named(Role::Check, b"Goals") }]);
     switch(&world, owner, b"Goals", false);
     work_filter(&mut world, owner, "Goals · ".as_bytes(), false);
     let driver = &mut world.front().engine;
@@ -183,7 +183,7 @@ fn a_switch_on_the_tab_changes_works_filters_and_a_member_is_refused() {
         &mut world,
         person,
         vec![
-            Step::Press { find: Find::named(Role::Check, b"Goals") },
+            Step::Press { find: Find::exactly_named(Role::Check, b"Goals") },
             see(Find::text(b"The held role does not permit this action")),
         ],
     );

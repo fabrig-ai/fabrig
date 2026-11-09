@@ -30,6 +30,7 @@ Kind:
     “It touches sign-in.”
   Budget:
     Funded by pool in project 1, person 7, period 3 · Funding needed: 40 · Funding left: 120 · Funding after: 80
+  Reached you because a proposal always waits for whoever may accept it.
 - Question
   Project 1
   [18] Task 9
@@ -40,6 +41,7 @@ Kind:
   [19] Task 9
   Waiting under 1 min
   ### Review needs attention
+  Reached you because a held task always waits for whoever may release it.
   Held: out of tries
   Hold revision 7
   The next run resumes its conversation; tries count again from zero

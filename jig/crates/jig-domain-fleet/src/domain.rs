@@ -411,6 +411,14 @@ impl Domain {
         crate::progress::observed(self, run, attempt)
     }
 
+    /// The reply bound the hello of the host in contact holding this live
+    /// claim named (jig/docs/design/domain/engine.md, section 8): `None` where
+    /// it named none, or the claim is adrift, waiting, a job's or not the live one.
+    #[must_use]
+    pub fn reply_bound(&self, run: Token, attempt: Token) -> Option<u32> {
+        call::reply_bound(self, run, attempt)
+    }
+
     /// Copy bounded current attempt facts, without exposing outstanding replies.
     #[must_use]
     pub fn attempt_views(&self) -> List<crate::AttemptView> {

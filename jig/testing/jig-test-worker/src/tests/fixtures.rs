@@ -56,6 +56,7 @@ pub fn limits() -> Limits {
         message_bytes: 65_536,
         inbox: 8,
         unacknowledged: 8,
+        reply_bytes: None,
     };
     Limits {
         watermark: crate::WATERMARK,

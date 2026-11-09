@@ -1,7 +1,8 @@
 //! Home on All projects (temper/docs/design/client/README.md, 3.5, Home on All projects).
 use super::{
     Request,
-    home::{self, DecisionLine, Home, Needs, Status},
+    decided::DecisionLine,
+    home::{self, Home, Needs, Status},
     parts,
 };
 use crate::{Domain, address::Filter, forge, owner::Owner};
@@ -99,6 +100,9 @@ impl AllHome {
         limits: forge::Limits,
         out: &mut Queue<Request>,
     ) {
+        if !self.statuses {
+            return;
+        }
         let mut homes = List::with_capacity(ACROSS);
         if let Some(me) = me {
             for row in &me.projects {
@@ -120,11 +124,7 @@ impl AllHome {
                     None => {
                         let number = *next;
                         *next = next.checked_add(2).expect("page handles fit");
-                        if self.statuses {
-                            Home::new(row.project, number, limits, out)
-                        } else {
-                            Home::decided(row.project, number, limits, out)
-                        }
+                        Home::new(row.project, number, limits, out)
                     }
                 };
                 homes.push((row.project, home)).expect("first ACROSS projects fit");
@@ -148,29 +148,16 @@ impl AllHome {
         false
     }
     fn rows(&self, root: &Domain, wall: Wall) -> (Box<[Decided]>, u32) {
-        let mut rows = Map::uncapped();
-        let mut showing = 0_u32;
-        for (project, home) in &self.homes {
-            if let Some(form) = home.away(root.forge().away(*project), wall) {
-                showing = showing.checked_add(form.showing).expect("ACROSS decision counts fit");
-                for mut line in form.rows {
-                    line.overturned |= root.pages.overturns.marked(*project, line.number);
-                    rows.insert((line.at, *project, line.number), Decided { project: *project, line })
-                        .expect("bounded decisions");
+        match root.pages().decided(self.project, wall) {
+            Some(shown) => {
+                let mut rows = List::with_capacity(7);
+                for line in shown.rows {
+                    rows.push(Decided { project: line.project, line }).expect("seven drawn decisions");
                 }
+                (rows.into_boxed(), shown.showing)
             }
+            None => (Box::default(), 0),
         }
-        for _index in 0..rows.len().saturating_sub(7) {
-            let key = *rows.first().expect("more than seven rows").0;
-            rows.remove(&key).expect("oldest drawn row");
-        }
-        let mut drawn = List::with_capacity(7);
-        for _index in 0..rows.len() {
-            let key = *rows.first().expect("drawn row").0;
-            let row = rows.remove(&key).expect("drawn row");
-            drawn.push(row).expect("seven drawn decisions");
-        }
-        (drawn.into_boxed(), showing)
     }
 }
 fn reads(root: &Domain) -> Option<&AllHome> {
@@ -278,7 +265,6 @@ pub fn facts(root: &Domain, wall: Wall) -> Facts {
 /// Reconcile only the seven displayed tasks, then send each settled project's entry look.
 pub(super) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<crate::Request>) {
     let Some(reads) = reads(root) else { return };
-    let (rows, _) = reads.rows(root, env.wall);
     let mut settled = List::with_capacity(ACROSS);
     if reads.statuses
         && root.forge.settled()
@@ -301,27 +287,6 @@ pub(super) fn look(root: &mut Domain, env: &Env<crate::Limits>, out: &mut Queue<
     };
     if let Some(reads) = reads {
         for (project, home) in reads.homes.iter_mut() {
-            let mut lines = List::with_capacity(7);
-            for row in &rows {
-                if row.project == *project {
-                    lines
-                        .push(DecisionLine {
-                            number: row.line.number,
-                            task: row.line.task,
-                            title: None,
-                            at: row.line.at,
-                            question: Box::default(),
-                            took: Box::default(),
-                            why: Box::default(),
-                            overturned: false,
-                            state: home::DecisionTask::Unknown,
-                        })
-                        .expect("seven drawn decisions");
-                }
-            }
-            let form =
-                home::AwayForm { rows: lines.into_boxed(), span: None, landed: None, showing: 0, expires: env.wall };
-            home.read_tasks(Some(&form), &mut pages.next, &mut requests);
             let unsent = match home.look {
                 home::Look::NotSent => true,
                 home::Look::Out(_) | home::Look::Answered => false,

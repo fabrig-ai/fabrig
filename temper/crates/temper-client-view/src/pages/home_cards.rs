@@ -22,6 +22,9 @@ pub(crate) fn cards(
     times: &mut Times,
 ) {
     for need in needs.iter().take(3) {
+        if !needs::ready(root, *need) {
+            continue;
+        }
         b.open(Role::Slot);
         b.style(look::NEED_CARD);
         from(b, root, *need, across, w, bindings, times);
@@ -32,6 +35,9 @@ pub(crate) fn cards(
             question = w.say(Word::NeedsFundsUsed, &[Hole::Number(spent), Hole::Number(limit)]);
         }
         ask::text(b, Role::Paragraph, &question, look::ASK_QUESTION);
+        if let needs::Need::Card(card) = need {
+            super::needs::why_line(b, root, w, bindings, needs::Need::Card(card));
+        }
         b.open(Role::Slot);
         b.style(look::NEED_ACTS);
         match need {

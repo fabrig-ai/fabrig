@@ -107,10 +107,34 @@ rendering room remains deferred in section 10.
 Section 4.6 has no known gap in a chat's new model or effort answering its
 person's next words, whether the previous run still listens or has parked.
 
+Sections 8.1, 8.4.1 and 8.4.2 have no known gap but those below in the
+words saved with a setting: `charter-words` and `project-words` in a
+run's `settings` read, `see` and `propose_settings`, read and proposed as
+a settings file names them, a charter's at the stock's where none is
+stored and either "none kept" with none; `see settings gates` naming a
+tier's description, "checks" and its words; and Ask temper's
+*Configuring* asking for both with what it proposes, in the person's
+terms (`ask.txt`). The engine world's `the_asking_chat_reads_each_kind`,
+`an_asking_chat_reads_each_address` and
+`an_owners_asking_chat_proposes_and_hears_it_accepted`, whose proposal
+carries a charter, its words and the project's, accepted and read back,
+and smith's `tests/see.rs` and `tests/settings.rs` hold it. No walk on
+record has run a real model on the sentence.
+
 ## Gaps and departures
 
+- **Not yet:** 8.4.1: `see ways` says no way's headline: smith's
+  `ways_text` prints a way's name, `now`, its line and its path, so the
+  run and How work runs' heading say a way by different words
+  (`../protocol/configuration.md`, 13.10).
 
-
+- **Departs:** 8.4.1, *Unknown*: an unknown address answers with
+  `ask.txt`'s line of addresses and, in its settings bracket,
+  `charter-words N | project-words`, which `ask.txt`'s *Finding out* doesn't
+  name (smith's `see.rs`, `ADDRESSES`): Ask temper's instructions are held
+  to 8,192 bytes and had no room for them, so the run learns the two
+  kinds from its tools' declarations and `see settings`; decided by the
+  `ui-p3e-words` cut.
 
 - **Design departs:** 8.1, from `../draft/model-catalogue.md`, 3, decided
   by the `model-catalogue-1` cut: settings reads return whole charters,
@@ -135,8 +159,14 @@ real-model behaviour or run the project's executable checks; the grant
 requires them, and smith's report-delivery process story checks the files.
 Stock and reference instructions remain separate work (section 10 and
 `../draft/goal-as-designer.status.md`).
-Section 4.3 has no gap in file, pull-file and compare fitting to the checked
-local receiving-agent allowance, size feedback, recovery and settled-call replay.
+Section 4.3 has no known implementation gap in task and forge reads
+fitting to the live attempt's worker reply bound, else the local agent's.
+Task reads use `documents.text_bytes` where neither names a bound; forge
+rendering retains the core allowance there (`root.md`, 5.2).
+File, pull-file and compare size feedback, recovery and settled-call replay
+have no known gap. A `see` answer uses the local agent's bound alone,
+without a call key; worker-specific `see` rendering remains deferred in
+section 10, not an absent task-read implementation.
 Section 4.3 has no known implementation gap in a charter's bound: the
 engine fits a charter to `charter_bound`, the smaller of
 `hub.charter_bytes` and the local agent's `host_limits.charter_bytes`,
@@ -220,7 +250,6 @@ not prove a real model's approval-role judgement or GitHub's composed flow.
 - **Not yet:** 8.3: a document built in parts is proved on a script alone: no real model has built one, so whether it counts lines right, appends rather than rewrites, joins a line past one call, finds its note in a fresh brief and recovers from a refusal is unobserved. The real loop's `suite::notes::a_long_document_is_built_in_parts_and_revised_by_a_fresh_run` (`temper/tests/real-loop/tests/suite/notes.rs`) reads what the pane reads and draws nothing: the view's own test fits a full body in its limits (`a_full_document_fits_the_views_limits`, `temper-client-view/src/tests/document.rs`), and no walk or browser story draws a long one. Its fresh run is a chat's, under a charter the story sets to `resume: false` where the stock one resumes, so a goal's later run has no such story. It recalls nothing: a body past one call is recalled whole in jig's core world alone (`jig/tests/core/tests/stories/note_room.rs`).
 - **Design departs:** 8.3, from the request `note-parts` of 2026-11-05, decided by its plan's cut: a later write's words close with the note's lines, where the request keeps the answer as it stood, because an append's `first` is the body's lines + 1 and a later write printed no total, so a slip would insert in the wrong place with no refusal. The answer's values and how they are computed stay.
 - **Design departs:** 8.3, from the request `ui-chat-draft` of 2026-11-05, decided by the answer that day to its task `note-scope`: a goal keeps its own note scope, where the request has a goal keep no notes, because a goal's report is a note.
-- **Design departs:** 4.3, from the request `read-task-room` of 2026-11-06, decided by its plan's cut: a run whose process has no local agent's metadata reads a task's words in pieces of `documents.text_bytes`, where the request has it read up to what its reply holds (`root.status.md`, section 10 here keeping it open).
 - **Not yet:** 4.3.1: a change's refusal omits which model its charter
   refused, because `temper-engine-smith/src/answers.rs` renders
   `model outside the charter` without that detail although the typed
@@ -237,8 +266,8 @@ not prove a real model's approval-role judgement or GitHub's composed flow.
   plan's cut: `decided` is declared to every run, where the request has it charter
   1's, because the host part declares its fixed tools whatever a charter says
   (`temper-engine-smith/src/calls.rs`, `tools_for`). So a coding agent's run spends
-  its room on it too; a call from anything but a goal answers ask, or is refused
-  for want of the control family (`forge.status.md`, 5.9).
+  its room on it too; a call from a task whose question reaches no person
+  answers ask, or is refused for want of the control family (`forge.status.md`, 5.9).
 - **Departs:** 8.3: the scripted fake model's goal script names literal
   numbers, project 1 and goal 2 (`temper-fake/src/backends.rs`,
   `model_document`), because its scripts are static, so on `temper box

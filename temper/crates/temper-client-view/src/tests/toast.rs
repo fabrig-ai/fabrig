@@ -154,24 +154,35 @@ fn way_answer(kept: bool) -> d::Domain {
 #[test]
 fn toast_is_last_on_home_and_chats_in_both_shells_and_undo_is_only_held() {
     for address in [Address::Home { project: f::PROJECT }, Address::Chats { filter: d::ChatsFilter::All }] {
-        for (reply, later, way, said) in [
-            (false, false, None, "Answered: First"),
-            (true, false, None, "Answered: Replied: “My words”"),
-            (false, true, None, "Later: it stays in Needs you, after the others."),
-            (false, false, Some(false), "A way is this project's way now, as revision 9."),
-            (false, false, Some(true), "A way is now this project's own, as revision 9."),
+        for (reply, later, way, stop, said) in [
+            (false, false, None, None, "Answered: First"),
+            (true, false, None, None, "Answered: Replied: “My words”"),
+            (false, true, None, None, "Later: it stays in Needs you, after the others."),
+            (false, false, Some(false), None, "A way is this project's way now, as revision 9."),
+            (false, false, Some(true), None, "A way is now this project's own, as revision 9."),
+            (false, false, None, Some(0), "Applied: the next one is decided and listed. This one still waits for you."),
+            (
+                false,
+                false,
+                None,
+                Some(1),
+                "Proposed: it applies once an owner accepts it. This one still waits for you.",
+            ),
+            (false, false, None, Some(2), "It keeps asking. Stop asking comes back in 7 days."),
+            (false, false, None, Some(3), "temper couldn't keep that. Try Keep asking again."),
         ] {
-            let mut root = match way {
-                Some(kept) => way_answer(kept),
-                None => root(),
+            let mut root = match (way, stop) {
+                (Some(kept), _) => way_answer(kept),
+                (None, Some(stop)) => stop_answer(stop),
+                (None, None) => root(),
             };
-            if way.is_none() && later {
+            if stop.is_none() && way.is_none() && later {
                 act(&mut root, pages::Act::Needs(needs::Act::Later { object: OBJECT }));
-            } else if way.is_none() && reply {
+            } else if stop.is_none() && way.is_none() && reply {
                 act(&mut root, pages::Act::Needs(needs::Act::OpenReply { object: OBJECT }));
                 act(&mut root, pages::Act::CardWords { object: OBJECT, words: b"My words".as_slice().into() });
                 act(&mut root, pages::Act::Needs(needs::Act::SendReply { object: OBJECT }));
-            } else if way.is_none() {
+            } else if stop.is_none() && way.is_none() {
                 act(
                     &mut root,
                     pages::Act::Needs(needs::Act::Choose { object: OBJECT, words: b"First".as_slice().into() }),
@@ -188,7 +199,7 @@ fn toast_is_last_on_home_and_chats_in_both_shells_and_undo_is_only_held() {
                 assert_eq!(nodes[at + 1].role, Role::Text);
                 assert_eq!(nodes[at + 1].text.get(0).unwrap().text.as_ref(), said.as_bytes());
                 let undo = f::find(view.tree(), Role::Button, b"Undo");
-                assert_eq!(undo.is_some(), !later && way.is_none());
+                assert_eq!(undo.is_some(), !later && way.is_none() && stop.is_none());
                 if let Some(undo) = undo {
                     assert_eq!(
                         crate::act(&mut view, undo, Act::Press),
@@ -320,7 +331,7 @@ fn refused_says_try_again() {
 }
 
 #[test]
-fn overturned_says_its_goal_asks_again() {
+fn overturned_says_it_asks_again_under_needs_you() {
     let root = super::home::overturn_answer(
         temper_client_protocol_wire::v1::Outcome::Overturned,
         Some(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Said { task: 99, message: 9 }))),
@@ -328,7 +339,7 @@ fn overturned_says_its_goal_asks_again() {
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         assert_eq!(
             f::node_text(view.tree(), toast_at(view.tree()).unwrap()).as_ref(),
-            b"Overturned: its goal asks you again, under Still needs you."
+            b"Overturned: it asks you again, under Needs you."
         );
     }
 }
@@ -371,4 +382,76 @@ fn an_unsent_answer_says_to_press_again_without_an_act() {
             assert_ne!(node.role, Role::Button);
         }
     }
+}
+
+fn stop_answer(which: u8) -> d::Domain {
+    use d::pages::stop_asking::Act as Stop;
+    use temper_protocol_reaches::{Kind, Offer, Subject};
+    let mut root = super::needs::stop_root(which == 0, false);
+    let mut out = Queue::uncapped();
+    let mut limits = f::domain_limits();
+    limits.client.domain.text = 512;
+    limits.client.domain.long_text = 512;
+    limits.client.domain.turn_text = 512;
+    let env = Env { now: Time::ZERO, wall: f::NOW, limits };
+    let object = c::ObjectKey::Question { task: f::INBOX_TASK, message: 1 };
+    for action in [
+        Stop::Open { object },
+        match which {
+            0 => Stop::Apply { offer: Offer::Decide(Subject::Kind(Kind::Implementation)) },
+            1 => Stop::Propose { offer: Offer::Decide(Subject::Kind(Kind::Implementation)) },
+            2 | 3 => Stop::Keep,
+            _ => panic!("four stop asking outcomes"),
+        },
+    ] {
+        d::step(&mut root, &env, Event::Act { action: d::Action::Pages(pages::Act::StopAsking(action)) }, &mut out);
+    }
+    d::step(&mut root, &env, Event::Client { event: jig_client::Event::Stored }, &mut out);
+    let mut attempt = None;
+    for request in &out {
+        if let d::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Send { attempt: sent, .. } },
+        } = request
+        {
+            attempt = Some(*sent);
+        }
+    }
+    let attempt = attempt.expect("stop asking sends one act");
+    let answer = match which {
+        0 => jig_client::Answered::Jig(c::Answer::Done(c::Outcome::SettingsChanged(c::OutcomeSettingsChanged {
+            revision: 1,
+        }))),
+        1 => jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Proposed {
+            proposal: 1,
+            to: 1,
+        }))),
+        2 => {
+            use temper_client_protocol_wire::{self as wire, v1 as w};
+            jig_client::Answered::Family(jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::answer(
+                    &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Dismissed }).unwrap(),
+                ),
+            })
+        }
+        3 => jig_client::Answered::Jig(c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None }),
+        _ => panic!("four stop asking outcomes"),
+    };
+    d::step(
+        &mut root,
+        &env,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    answer: Some(answer),
+                    why: None,
+                },
+            },
+        },
+        &mut out,
+    );
+    root
 }

@@ -5,7 +5,7 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 60] = [
+const SHAPES: [Shape; 63] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
@@ -64,6 +64,9 @@ const SHAPES: [Shape; 60] = [
     Shape::TemplateGoal,
     Shape::ProjectWays,
     Shape::ProjectQuestions,
+    Shape::ProjectClasses,
+    Shape::ClassItem,
+    Shape::PathSet,
     Shape::CharterWords,
     Shape::ProjectWords,
 ];
@@ -272,6 +275,7 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                         && kind != b"project-policy"
                         && kind != b"project-ways"
                         && kind != b"project-questions"
+                        && kind != b"project-classes"
                         && kind != b"project-words"
                     {
                         continue;
@@ -283,10 +287,14 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                             b"project-policy",
                             b"project-ways",
                             b"project-questions",
+                            b"project-classes",
                             b"project-words",
                         ]
                         .contains(&kind)
                     {
+                        continue;
+                    }
+                    if shape == Shape::ClassItem && field.name == b"set" {
                         continue;
                     }
                     stack.push(Action::Field(field)).expect("schema stack bound");
@@ -404,6 +412,7 @@ fn every_generated_file_decodes() {
         if (field.shape == Shape::Charter && field.name == b"parts")
             || (field.shape == Shape::Llm && field.name == b"later")
             || (field.shape == Shape::LlmLater && field.name == b"subagents")
+            || (field.shape == Shape::ClassItem && field.name == b"words")
         {
             decodes(Edit::Omit(field));
         }
@@ -431,6 +440,7 @@ fn a_member_left_out_is_refused_naming_it() {
             || (field.shape == Shape::LlmLater && field.name == b"subagents")
             || (field.shape == Shape::Model && field.name == b"provider")
             || (field.shape == Shape::Document && field.name == b"heading")
+            || (field.shape == Shape::ClassItem && [b"set".as_slice(), b"words"].contains(&field.name))
         {
             continue;
         }
@@ -608,7 +618,7 @@ LINE
 ## model
 
 - `"chosen"`: LINE
-- `set`: list of at most 32, each the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways`, `project-questions`, `charter-words` or `project-words`, or null.
+- `set`: list of at most 32, each the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words` or `project-words`, or null.
 "#;
     assert_eq!(page.as_ref(), expected);
 }
