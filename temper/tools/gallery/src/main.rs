@@ -1,4 +1,8 @@
 use std::{env, path::Path, process};
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C8: the gallery tool's arguments, until it is a binary of temper/bin/"
+)]
 fn main() {
     skein_fail_stop::install();
     let mut args = env::args_os();

@@ -271,6 +271,7 @@ fn histogram(world: &Protocol, start: usize) -> BTreeMap<String, u64> {
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "cli C4: TEMPER_RATE, through temper's test table once it exists")]
 fn pending_changes_installation_requests_per_hour() {
     let mut measured = Vec::new();
     for count in 1..=3 {
@@ -400,6 +401,7 @@ fn sharing(world: &Protocol, start: usize, bucket: u64) -> (u64, u64, u64) {
     (reads, save, chains)
 }
 
+#[expect(clippy::disallowed_methods, reason = "cli C4: TEMPER_RATE, through temper's test table once it exists")]
 fn busy(moving: bool) {
     for count in 1..=3 {
         let (mut world, mut scheduler) = configured(count, 120, 1);

@@ -93,6 +93,10 @@ impl ServiceHost {
     pub(crate) fn with_issuer(path: PathBuf, signals: Fd, issuer: SocketAddr) -> Self {
         Self::with_shape(path, signals, None, false, None, None, Some(issuer))
     }
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "cli C4: TEMPER_R8_WAIT_CHECK, through temper's test table once it exists"
+    )]
     fn with_shape(
         path: PathBuf,
         signals: Fd,

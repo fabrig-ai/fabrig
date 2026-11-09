@@ -29,6 +29,10 @@ struct Terminal {
     bytes: Vec<u8>,
 }
 impl Terminal {
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "cli C4: TERM and the child process environment, through temper's test table once it exists"
+    )]
     fn start(root: &Path) -> Self {
         let mut command = box_link::command(root, "box");
         command.env("XDG_STATE_HOME", root.join("state")).env_remove("TEMPER_ECHO");
