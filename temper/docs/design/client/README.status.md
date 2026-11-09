@@ -325,6 +325,8 @@ Section 11 keeps the flags, design-location cleanup, terminal
 and macOS checks, later surfaces and the expiry/revocation ambiguity;
 no real-terminal or macOS runtime result is supplied here.
 
+
+
 Sections 2, 6.11 and 6.12 have the clients' start, one for two binaries:
 `temper [ADDRESS]` and `temper-client [ADDRESS]` run
 `temper-client-shell-tui`'s `start` under their own names, both `ctl`s
@@ -344,7 +346,9 @@ Sections 6.13 and 6.14's no-project command composer has no known
 implementation gap. The host's focused key-and-frame regression covers
 completion, command execution, Escape, ordinary words, quit keys,
 revision stability, navigation and separation from the sign-in field.
-The help pages name `/exit` and Ctrl+C as closing keys and `q` as typing.
+The help pages name the closing command and Ctrl+C as closing keys and `q` as typing.
+
+
 
 Sections 6.12 to 6.15's parts from the user's requests of 2026-11-08 and
 the look request `tui-chat-title-below` have no known implementation gap:
@@ -363,6 +367,8 @@ with its address as the place, under the person's opening question
 (`tui/journeys.md`, section 9). The real-terminal look
 of each, "box" among them, is section 11's after-landing check, owned by
 temper/tui.
+
+
 
 Sections 4.6 and 6.17 have no known implementation gap in the TUI in
 front of a box, by the look request `tui-box-front` (its account
@@ -385,6 +391,8 @@ restarting"), where the request's frame 05 has "forge restarting", and
 `again` (`tui/journeys.status.md`, 8.3), and the real terminal's check,
 Linux and macOS, is section 11's after-landing work, owned by temper/tui.
 
+
+
 Section 6.14's shared words and lists, Home's template-5 composer,
 launchpad and chat, question choices and command handling have no known
 implementation gap, including section 5.15's initial history for short
@@ -404,6 +412,8 @@ The shared reader still reparses closed blocks; the gap from the user's
 read-once requirement remains section 11's parsed-block work and
 `../draft/chat-reading.status.md`, 3. Request differences remain explicit
 in `../draft/tui.status.md`; no rendered-equality result is supplied.
+
+
 
 Sections 6.13 to 6.15 and 10 have no known implementation gap in the
 launchpad as drawn and views printed (`../draft/surfaces.md`, 11.1,
@@ -440,6 +450,8 @@ mockups is `../draft/surfaces.status.md`.
   the first section stands on the row under the header's frame (the
   launchpad's goldens and `launchpad-drawn`), as the look request
   `tui-launchpad`'s build left it (`../draft/tui.status.md`).
+
+
 
 Sections 3.5, 4.6, 5.8 and 5.13 have the approvals watch and wire document,
 the merge into Needs you, project and goal filters, Home and goal bands,

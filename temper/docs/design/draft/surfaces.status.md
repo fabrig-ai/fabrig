@@ -180,6 +180,13 @@
     close-out's own charter is an open question
     (`../domain/forge.md`, section 20). Decided by the cut of
     `ui-p3f-design`.
+  - 11.1 and 11.4, the user's requests of 2026-11-09 (plan
+    `tui-box-polish`): the quiet line holds, at its right end, a
+    one-line notice for 6 seconds over the rest of its right half; and
+    of today's commands, the TUI names the closing one `/quit`, `/exit`
+    taking it still, unlisted, and `/theme` opens a list of Auto, Light
+    and Dark, kept for the next run, where it flipped
+    (`../client/README.md`, 6.14 and 6.15).
 - **Open:**
   - 11.1 and 15: `/chats` or `/resume N` for Where you left off. The
     design takes `/chats N` (above).

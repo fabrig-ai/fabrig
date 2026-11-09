@@ -1,5 +1,5 @@
 //! The TUI's own state beside the client root (temper/docs/design/client/README.md, 6.14, 6.17 and 7.1).
-use crate::{BoxLine, limits};
+use crate::{BoxLine, Scheme, limits, theme::ThemeChoice};
 use alloc::boxed::Box;
 use jig_client::contract::ObjectKey;
 use skein_lib::{List, Queue, Secret, bytes::copy_of};
@@ -25,7 +25,7 @@ pub struct Tui {
     written: u64,
     columns: u16,
     aside: Option<ObjectKey>,
-    unknown: Option<Box<[u8]>>,
+    notice: Option<Notice>,
     focus: u64,
     box_written: u64,
     left_off: Option<u64>,
@@ -40,6 +40,9 @@ pub struct Tui {
     walk: Option<Walk>,
     brief_shown: bool,
     not_opened: Option<Box<[u8]>>,
+    theme_choice: ThemeChoice,
+    terminal_scheme: Option<Scheme>,
+    theme_list: bool,
 }
 /// The box's state, given up winning (temper/docs/design/client/README.md, 6.17).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -73,6 +76,13 @@ pub enum Refusal {
     NotALink,
     OtherAddress { address: Box<[u8]> },
 }
+/// A one-line notice on the quiet line (temper/docs/design/client/README.md, 6.14).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Notice {
+    Unknown { words: Box<[u8]> },
+    SigningIn,
+    Theme { choice: ThemeChoice, terminal: Option<Scheme> },
+}
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Told {
     Walk {
@@ -98,8 +108,8 @@ pub enum Told {
     Aside {
         object: Option<ObjectKey>,
     },
-    Unknown {
-        words: Option<Box<[u8]>>,
+    Notice {
+        notice: Option<Notice>,
     },
     Local {
         local: Local,
@@ -135,6 +145,13 @@ pub enum Told {
     Quitting,
     Stay,
     Log,
+    Theme {
+        choice: ThemeChoice,
+        terminal: Option<Scheme>,
+    },
+    ThemeList {
+        open: bool,
+    },
 }
 impl Tui {
     #[must_use]
@@ -155,7 +172,7 @@ impl Tui {
             written: 0,
             columns: 0,
             aside: None,
-            unknown: None,
+            notice: None,
             focus: 1,
             box_written: 0,
             front: false,
@@ -170,6 +187,9 @@ impl Tui {
             not_opened: None,
             left_off: None,
             boxed: false,
+            theme_choice: ThemeChoice::Auto,
+            terminal_scheme: None,
+            theme_list: false,
         }
     }
     #[must_use]
@@ -229,8 +249,8 @@ impl Tui {
         self.aside
     }
     #[must_use]
-    pub fn unknown(&self) -> Option<&[u8]> {
-        self.unknown.as_deref()
+    pub fn notice(&self) -> Option<&Notice> {
+        self.notice.as_ref()
     }
     #[must_use]
     pub const fn focus(&self) -> u64 {
@@ -282,9 +302,22 @@ impl Tui {
     pub fn not_opened(&self) -> Option<&[u8]> {
         self.not_opened.as_deref()
     }
+    #[must_use]
+    pub const fn theme_choice(&self) -> ThemeChoice {
+        self.theme_choice
+    }
+    #[must_use]
+    pub const fn terminal_scheme(&self) -> Option<Scheme> {
+        self.terminal_scheme
+    }
+    #[must_use]
+    pub const fn theme_list(&self) -> bool {
+        self.theme_list
+    }
     fn clear_launchpad(&mut self) -> bool {
-        let changed = self.walk.is_some() || self.brief_shown || self.not_opened.is_some();
+        let changed = self.walk.is_some() || self.brief_shown || self.not_opened.is_some() || self.theme_list;
         self.walk = None;
+        self.theme_list = false;
         self.brief_shown = false;
         self.not_opened = None;
         changed
@@ -356,17 +389,10 @@ impl Tui {
         self.local = local;
         changed
     }
-    fn clear_command_words(&mut self) {
-        if !self.command_words.is_empty() {
-            self.command_words = Box::default();
-            self.box_written = self.box_written.saturating_add(1);
-        }
-    }
     fn set_link(&mut self, link: jig_client::Link) -> bool {
         match link {
             jig_client::Link::SignedOut => {
                 if self.linked {
-                    self.clear_command_words();
                     self.signing = Signing::Idle;
                     self.browser = None;
                     self.pasted = false;
@@ -385,7 +411,6 @@ impl Tui {
             | jig_client::Link::Offline
             | jig_client::Link::OutOfDate => {
                 if !self.linked {
-                    self.clear_command_words();
                     self.focus = self.focus.saturating_add(1);
                 }
                 let changed = self.signing != Signing::Idle
@@ -496,7 +521,8 @@ impl Tui {
                 let cleared = self.clear_launchpad();
                 self.command_words = Box::default();
                 let written = self.box_written.saturating_add(1);
-                let changed = self.box_written != written;
+                let changed = self.box_written != written || self.log_shown;
+                self.log_shown = false;
                 self.box_written = written;
                 changed || cleared
             }
@@ -505,10 +531,9 @@ impl Tui {
                 self.aside = object;
                 changed
             }
-            Told::Unknown { words } => {
-                let changed = self.unknown != words || self.log_shown;
-                self.log_shown = false;
-                self.unknown = words;
+            Told::Notice { notice } => {
+                let changed = self.notice != notice;
+                self.notice = notice;
                 changed
             }
             Told::Local { local } => self.set_local(local),
@@ -567,6 +592,17 @@ impl Tui {
             Told::Kept { written } => {
                 let changed = self.unkept == written;
                 self.unkept = !written;
+                changed
+            }
+            Told::Theme { choice, terminal } => {
+                let changed = self.theme_choice != choice || self.terminal_scheme != terminal;
+                self.theme_choice = choice;
+                self.terminal_scheme = terminal;
+                changed
+            }
+            Told::ThemeList { open } => {
+                let changed = self.theme_list != open;
+                self.theme_list = open;
                 changed
             }
         };

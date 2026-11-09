@@ -1609,7 +1609,7 @@ chat's person, of the chat's project alone, through jig's run read as its person
   ADDRESS reads it from its start.`, an error.
 - **Then what to read next:** a last line, `see: ` and the addresses one level
   down, as the table gives them, joined by ` · `, on every part of an answer but
-  a refusal, a not-yet and an unknown address. Its words are the address forms,
+  a refusal and an unknown address. Its words are the address forms,
   N and OWNER/NAME left for the run to fill from what it read.
 - **How an answer reads,** for the addresses read as the person
   (`../draft/ask-temper.md`, 5.1): temper's nouns; each number with its name, a

@@ -190,9 +190,14 @@ is still deciding; `draft/notes-memory.md` keeps the idea of
 notes as agents' memory, a chat's document alone taken up (`domain/engine.md`,
 section 10), the rest not to be planned until the user says.
 
-The asking tool family and a run's settings-proposal read are implemented
-(`domain/authority.md`, section 3; `domain/engine.md`, 7.3). Reading as a
-person remains later work in `domain/engine.md`, section 16.
+The asking tool family, a run's settings-proposal read and a run's read
+as its person, a party's read made as the run's requester, of its
+project alone, are implemented (`domain/authority.md`, section 3;
+`domain/engine.md`, 7.3). A task query of the project naming a person
+requester answers unknown where the person has ended tasks elsewhere,
+and a filtered inbox page takes its next page from the whole inbox
+(`domain/engine.status.md`). A frame narrowed to one project stays a
+question in `domain/engine.md`, section 16.
 
 Client transport admission counts cancelled watch openings and cleanup
 until their HTTP reply or failure. Its focused stream table holds an

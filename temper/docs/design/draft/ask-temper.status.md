@@ -17,6 +17,11 @@ M3a is built: `see ways`, the `view` block and the views `path`, `way`,
 the engine's one derivation, and the instructions' first step of Showing.
 Ask temper's page draws the ways from the same read, by the look request
 `ask-temper-ways`, and the walk follows landing.
+M2 is built: `me`, `project`, `goals`, `goals ended`, `tasks`, `task N`
+with its tree, activity and turns, `change N`, `changes` and `inbox`
+read as the chat's person, of its project alone, through jig's run read
+as its person, and render as tables of lines in temper's words; `see`
+has its reference page. Its walk on the playground follows landing.
 
 ## Gaps and departures
 
@@ -28,6 +33,16 @@ Ask temper's page draws the ways from the same read, by the look request
   - 8: `../domain/agent.md`, 8.4: the instructions carry the Showing part's first step alone; its other views and the paragraph on sketches join with M3b.
   - 6.3: skein's `ui.md`, 3.5: a flow's node takes no mark but `:::strong`; M3 adds the actors' marks.
 - **Design departs:** 5.2: `../domain/agent.md`, 8.4.2 judges a landing rule's approvals at the call for the chat's own project alone, and leaves another project's to acceptance, which says it to the owner who decides, so that nothing of another project reaches this chat's transcript (5.1); decided by the `ui-ask-m1` cut, 2026-11-07. Proposal parts are held in engine memory and lost at restart, with the next proposing call refused once; section 10 keeps durable parts for later if needed.
+- **Design departs:** 5.1: `../domain/agent.md`, 8.4.1 makes `me` of the
+  project read and the inbox's needs filtered by the project, where 5.1
+  reads ctl's `me` for the project, because jig's frame spans the person's
+  projects and a run's read as its person refuses it (jig's
+  `domain/engine.md`, section 16); and `project`'s "what is held" is the
+  project's held tasks, a task query of the held phase, where 5.1 reads
+  `hold list`, because jig has no read of a project's placed holds (jig's
+  `client/domain/contract.status.md`, 5.6), so a placed hold is said only
+  through the tasks it holds. Decided by the `ui-ask-m2` cut,
+  2026-11-09.
 - **Design departs:** 6.2: `../client/README.md`, 5.16 draws a path or a charter at `@revision N` only where N is the newest revision, and says an older one is not drawn yet, because the settings as an older revision left them are jig's restore's reading (jig's `domain/engine.md`, 17.10), which no read gives a client; and draws `proposal tN/K` for a waiting proposal alone, its "before" the newest settings, since a decided one's paths are a revision's. Decided by the `ui-ask-m3a` cut, 2026-11-08.
 - **Design departs:** 5.2 and 8: `../domain/agent.md`, 8.4.2, has a
   proposal carry the words the pages say its settings by, a charter's and

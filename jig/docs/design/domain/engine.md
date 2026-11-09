@@ -1132,8 +1132,9 @@ the run's other reads.
   their pages and bounds, their loads. In place of a sign-in, a stored
   read's completion checks again the run's current attempt, its
   requester, the person's role in the project, and that what the row
-  names is of the project, and answers unknown where any has moved, as
-  the run's other stored reads do (above). An application's read goes to
+  names is of the project, and answers unknown where any but the attempt
+  has moved; an attempt no longer current is answered nothing, as the
+  run's other stored reads are (above). An application's read goes to
   its connector as a party's does, with the person and the project's
   scope, and the connector answers it to the run's call through the root
   (connectors.md, 5.5).

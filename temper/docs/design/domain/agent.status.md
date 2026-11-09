@@ -47,6 +47,30 @@ by a focused test. Moved-write retry within a call, M3b's views and
 sketches and preferences remain deferred in section 10. Real-model
 judgement and the walk follow landing.
 
+Section 8.4.1 has M2's addresses, read as the chat's person, of its
+project alone, but for the gaps below. `me`, `project`, `goals`, `goals
+ended`, `tasks`, `task N` with its tree, activity and turns, and `inbox`
+are read by the call's flight through jig's `PersonRead`, in the order
+each row's *Over* names, and `change N` and `changes` by the forge's
+documents for the person (`temper-engine-domain`'s `route/see/person.rs`);
+`temper-engine-smith`'s `see/person.rs` renders them as a heading line
+with its count, then a line a row, times in UTC and money in dollars
+and cents. The three refusals of a person's address, the declaration's
+description, and one table of addresses (`see/addresses.rs`) that renders
+the reference page, the unknown address's line and each `see:` line are
+present. The root's `addresses_parse_in_the_chats_project`,
+`person_addresses_choose_each_read_in_order_and_keep_later_refusals` and
+`person_flights_route_core_and_forge_answers_with_names_and_refusals`
+(`tests/see.rs`), smith's `person_answers_read_as_named_bounded_lines`
+and `the_address_table_keeps_the_instructions_forms_and_short_lines`, the
+engine world's `an_asking_chat_reads_its_project_as_its_person`
+(`configuring/asking_person.rs`: two projects, every address a row, the
+other project's task, a number with no task and a delegate's run with no
+person refused, a member reading the same tasks) and
+`seeded_addresses_stay_bounded_framed_and_in_their_project`
+(`fuzzy/see.rs`, 64 seeds over the same world, the store unchanged) hold
+it. The walk on the playground follows landing.
+
 Section 4.3.1 has no known gap in a change's role choice carrying no
 `later`: the change-choice parser constructs each choice with none,
 so producers, repairs, resolutions and agent gates keep one choice.
@@ -141,7 +165,43 @@ record has run a real model on the sentence.
 ## Gaps and departures
 
 - **Not yet:** 8.4.1: an inbox row's words are read for questions alone;
-  proposals, escalations and person tasks keep their kind and task.
+  proposals, escalations and person tasks keep their kind and task. In
+  `inbox` and `me` a question whose words read busy or unknown drops
+  them with no line saying so, and `me` lists the needs page's first page
+  whole with no "more wait" line (`see/person.rs`).
+- **Not yet:** 8.4.1, *How an answer reads*: a charter is said by number
+  alone, `an agent, charter N`: jig's charters keep no name and the
+  settings inventory names templates alone (`route/see/person/names.rs`,
+  `charters`), so "charter 4, the reviewer's" is never written. A
+  policy's role is `role N`, unnamed (`see/person/words.rs`, `role`). A
+  later read answered busy or unknown says `not read` either way. A
+  title, name, words' line or headline is cut to its first line, at most
+  160 bytes, ending `…` (`words.rs`, `short`), a bound the section does
+  not give.
+- **Not yet:** 8.4.1, `project`: its repositories print as
+  `HOST/OWNER/NAME`, where the inventory names them `OWNER/NAME`, the
+  form `file` and `settings gates` take.
+- **Not yet:** 8.4.1, `task N` and `task N tree`: a placed hold's reason
+  (jig's `PlacedLine`) is not said: a hold with no words of its own says
+  `a hold was placed`; a requester task outside the task's lineage has no
+  title; the model is said only where the task keeps its own choice, and
+  never in the tree; the delegates counted are the live ones; what was
+  asked, and an ended task's kept words, are their first line alone.
+- **Not yet:** 8.4.1, `task N turn A.T`: a brief's part is its heading
+  and its first line, and a call's input is cut at 512 bytes
+  (`see/person/runs.rs`), where the row has the turn whole.
+- **Not yet:** 8.4.1, `change N` and `changes`: a gate is `gate N` and
+  its verdict, with no name; approvals are counted by `role N`, naming no
+  reviewer; a question names no asker; by turn, the place is `landing by
+  turn` alone; a queue's row is the change's number and title, with no
+  step or wait; a landing by turn names its changes by number alone
+  (`see/person/changes.rs`). The forge's panel holds no task title or
+  gate and role names to give them.
+- **Not yet:** 8.4.1, *Its tests*: the engine world has no ended goal and
+  no queued change, so `goals ended` and `changes` read empty there and
+  their rows are held by smith's hand-made documents alone; the other
+  project's work is checked absent from every answer by its words alone,
+  not its tasks' numbers or the project's name.
 
 - **Not yet:** 8.4, 8.4.4: charter 11's runs are declared no `remember`;
   `see`, `document` and `propose_settings` alone, with smith's `wait`.
@@ -157,8 +217,9 @@ record has run a real model on the sentence.
 - **Departs:** 8.4.1, *Unknown*: an unknown address answers with
   `ask.txt`'s line of addresses and, in its settings bracket,
   `charter-words N | project-words`, which `ask.txt`'s *Finding out* doesn't
-  name (smith's `see.rs`, `ADDRESSES`): Ask temper's instructions are held
-  to 8,192 bytes and had no room for them, so the run learns the two
+  name (`temper-engine-smith`'s `see/addresses.rs`, `ADDRESSES`): Ask
+  temper's instructions are held to 8,192 bytes and had no room for them,
+  so the run learns the two
   kinds from its tools' declarations and `see settings`; decided by the
   `ui-p3e-words` cut.
 
