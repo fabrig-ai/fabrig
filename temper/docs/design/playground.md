@@ -264,6 +264,15 @@ delegate's phases; the frame's speed changes how long the person waits
   capacities, smith's windows and the fakes' limits, each just big
   enough for its stories, every story at its high water. The trace is
   off (skein's `world.md`, 7) and nothing is captured.
+- **Clear of the bounds that count slots:** a bound that counts what it
+  holds by its slots' size (jig's and temper's byte bounds that add
+  `size_of` of a row, a record or a box to its owned bytes) holds more
+  in the browser's wasm32 world than in a log's native replay. So a
+  story reaches none of them natively: its deployment gives each byte
+  bound it comes near room past its native high water, so its walk and
+  its replays decide nothing at a byte bound on either build (section
+  9; skein's `playground.md`, 6, *Another build's slots*; decided
+  2026-11-09).
 - **Measured first:** what reserves the world's memory at its first step
   and through each story, and which of it the documents control.
 - **Its figures,** the world's memory at its high water and the download
@@ -302,6 +311,15 @@ delegate's phases; the frame's speed changes how long the person waits
   replays natively under the one-process world's referee to the same
   end. A change that makes it differ is a new log, recorded again, or a
   finding.
+- **Clear of its byte bounds, in the gate:** story A's kept log replays
+  natively the same over its deployment with each byte bound it
+  overrides doubled (every `*_bytes` override of its engine, its
+  worker and its application; the `small` profile's own are roomy), so
+  the story decides nothing at those bounds and the browser's wasm32
+  world, whose slots are smaller, says what the native replay says
+  (section 8). A bound the story reaches by its payload alone, the
+  same on both builds, or one whose doubling startup refuses, is left
+  out by name with its reason.
 - **In a browser, outside the gate:** the browser tier walks story A on
   the built playground in headless Chromium (`client/browser.md`,
   section 4), and measures the download from the bundle's files (raw,
