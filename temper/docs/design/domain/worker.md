@@ -202,11 +202,14 @@ temper's workspace items beside it:
   - whether it may be written, and if so the branch a change is pushed
     to, and the head that branch must still be at, if the assignment
     names one (section 5);
-  - an optional landing branch for an inherited writable change producer
-    that starts on its push branch: the comparison for existing work,
-    separate from the checkout start and the push's expected head; or from
-    a merge in progress, whose landing branch marks it a producer's start,
-    as a goal's later run's does (section 5);
+  - a landing branch, the branch its change lands on, for each writable
+    repository of a change's producer, whatever its start, and of a goal's
+    later run; no other item names one. Prepare pins its tip as
+    `refs/temper/landing` for the project's checks (section 5). For an
+    inherited producer that starts on its push branch it is also the
+    comparison for existing work, separate from the checkout start and the
+    push's expected head; and on a merge in progress it marks a producer's
+    start, as a goal's later run's does (section 5);
   - the identity for every git operation on it: one of temper's
     application credentials (jig's `domain/engine.md`, 12.1), granted
     with the assignment, which the protocol layer maps to a token and a
@@ -536,12 +539,22 @@ runs as contained processes and whose output it parses.
   creates no branch but by pushing a run's change, and branches temper
   needs before then are made by the engine, as effects (forge.md,
   section 11).
-- **An existing producer branch** also names its landing branch. After
-  fetching the start, prepare fetches that landing branch on the same
-  remote and freezes its tip for this hold; a missing landing branch fails
-  preparation. The next hold fetches it afresh, so the landing tip may move
-  between attempts. This comparison changes neither the checkout start nor
-  ownership, drift admission or the saved-work baseline.
+- **The landing pin.** A repository whose item names a landing branch
+  (4.1) has it fetched once per hold, during prepare, after its start is
+  fetched, on the same remote, into
+  `refs/temper/landing` (`../protocol/git.md`, 4.3): every start of a
+  change's producer, a saved or resumed one's included, and a goal's later
+  run. That tip is frozen for the hold: no later operation of the hold
+  moves the reference, so the project's checks take the same base at every
+  delivery and at finish (`tools/pre-pr/design.md`, section 2). A missing
+  landing branch fails preparation. The next hold fetches it afresh, so
+  the landing tip may move between attempts; a pin a cached checkout kept
+  from an earlier hold is overwritten, never read. The pin changes neither
+  the checkout start nor ownership, drift admission or the saved-work
+  baseline.
+- **An existing producer branch** compares with the pinned tip: it is the
+  frozen comparison for existing work below, only for an inherited
+  producer that starts on its push branch.
 - **A base with heads merged in** fetches the base branch and each head,
   checks out the base's tip, and merges each head into it in their
   order, committing each merge at once, with two parents (what was

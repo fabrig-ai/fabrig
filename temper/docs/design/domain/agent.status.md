@@ -14,6 +14,9 @@ too; a run's `settings`, `see settings project-classes` and
 `tests/decided.rs` and `tests/settings.rs`; the engine world's
 `each_callers_person_and_reach_are_kept`).
 
+- **Not yet:** 4.5: no checkout holds `refs/temper/landing` (worker.status.md, 4.1
+  and 5), and fabrig's `.temper/pre-pr` runs no lint or focused test
+  (`tools/pre-pr/design.status.md`).
 - **Not yet:** 4.3: the stock charters (`chat.txt`, `coordinator.md`)
   say sign-ins, machines and a plan's go-ahead always wait but name no
   kind for them, where this section has them `money` or `irreversible`;
