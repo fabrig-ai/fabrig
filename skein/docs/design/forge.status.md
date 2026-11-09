@@ -11,6 +11,9 @@ they don't, or a range whose oldest commit alone passes the answer,
 `a_range_past_the_answer_keeps_its_oldest_commits`). The pin's `compare`
 transcript lists its three commits newest first, as the plan reads them.
 
+- **Not yet:** 3.3, by plan `forge-polls-quiet`: Forgejo's dialect
+  sends no validator, and GitHub's sends one on the delivery log's first
+  page alone.
 - **Not yet:** 9: no conformance fact records a `style=merge` update of a
   head already holding its base, or what a rebase's push does to a push
   made while its git work is running. The fake answers the first unchanged
