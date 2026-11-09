@@ -2,11 +2,19 @@
 use super::fixtures as f;
 use crate::{
     Address, Domain, Event, Place, Request,
-    pages::how::{self, Budget, Facts, Head, Parts, Path, Read},
+    pages::how::{self, Budget, Facts, Head, Line, Parts, Path, Reaches, Read},
 };
 use jig_client::{Down, Readable, Readout, Up, contract as c};
 use skein_lib::{List, Queue, Token, Writer};
 use temper_client_protocol_wire::{self as wire, v1 as w};
+use temper_protocol_reaches::{Class, Classes, Item, Kind, PathSet, Subject, Way};
+
+enum ClassesRead {
+    Unread,
+    Stock,
+    Given(Classes),
+}
+type ReachesRow = (&'static str, Classes, Box<[Line]>, Box<[Line]>);
 
 const OTHER: u32 = 17;
 const FIRST: u32 = 2;
@@ -38,21 +46,21 @@ fn opened(out: &Queue<Request>) -> Token {
     }
     panic!("project ways watch")
 }
-fn setting_read(out: &Queue<Request>) -> Token {
+fn setting_read(out: &Queue<Request>, kind: u32) -> Token {
     for request in out {
         if let Request::Unlinked {
             request:
                 jig_client::UnlinkedRequest::Down { down: Down::Read { read, what: Readable::Family { record, .. } } },
         } = request
             && let w::Read::Setting(setting) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
-            && setting.kind() == 7
+            && setting.kind() == kind
         {
             return *read;
         }
     }
-    panic!("kind 7 read")
+    panic!("kind {kind} read")
 }
-fn me(asking: bool, tracked: bool) -> c::Me {
+fn me(asking: bool, tracked: bool, several: bool) -> c::Me {
     let mut me = f::chats::me();
     let member = me.projects.get_mut(0).unwrap();
     let mut template = member.templates.get(0).unwrap().clone();
@@ -71,10 +79,24 @@ fn me(asking: bool, tracked: bool) -> c::Me {
         template.tracked = None;
         member.templates.push(template).unwrap();
     }
+    if several {
+        let mut other = me.projects.get(0).unwrap().clone();
+        other.project = OTHER;
+        other.templates = List::with_capacity(0);
+        me.projects = List::from_boxed(Box::new([me.projects.get(0).unwrap().clone(), other]));
+    }
     me
 }
-#[expect(clippy::too_many_lines, reason = "one fixture delivers the independent ways and roles answers")]
-fn fixture(asking: bool, tracked: bool, ways: Option<(bool, u32)>, read: Read, roles: Option<w::View>) -> Domain {
+#[expect(clippy::too_many_lines, reason = "one fixture delivers the independent ways, classes and roles answers")]
+fn fixture(
+    asking: bool,
+    tracked: bool,
+    ways: Option<(bool, u32)>,
+    read: Read,
+    roles: Option<w::View>,
+    classes: ClassesRead,
+    several: bool,
+) -> Domain {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
     let me_watch = f::start(&mut root, List::with_capacity(0));
     up(
@@ -88,7 +110,7 @@ fn fixture(asking: bool, tracked: bool, ways: Option<(bool, u32)>, read: Read, r
         &mut root,
         Up::Watched {
             watch: me_watch,
-            event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me(asking, tracked)))),
+            event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me(asking, tracked, several)))),
         },
     );
     if let Some((goals, way)) = ways {
@@ -103,8 +125,33 @@ fn fixture(asking: bool, tracked: bool, ways: Option<(bool, u32)>, read: Read, r
         up(
             &mut root,
             Up::ReadDone {
-                read: setting_read(&out),
+                read: setting_read(&out, 7),
                 result: Readout::Family { family: wire::FORGE, record: Some(bytes) },
+            },
+        );
+    }
+    let classes = match classes {
+        ClassesRead::Unread => None,
+        ClassesRead::Stock => Some(None),
+        ClassesRead::Given(table) => Some(Some(table)),
+    };
+    if let Some(table) = classes {
+        let value = match table {
+            Some(table) => {
+                let record = temper_protocol_reaches::classes_record(&table).unwrap();
+                let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
+                record.encode(&mut writer).unwrap();
+                Some(writer.finish())
+            }
+            None => None,
+        };
+        let answer =
+            wire::setting_answer(&w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value }).unwrap());
+        up(
+            &mut root,
+            Up::ReadDone {
+                read: setting_read(&out, 8),
+                result: Readout::Family { family: wire::FORGE, record: Some(answer) },
             },
         );
     }
@@ -222,7 +269,10 @@ fn path() -> w::BranchPath {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "one parts table covers the independent page facts and their reads")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one table covers the independent page facts, their reads and reaches columns"
+)]
 fn parts_and_facts_follow_the_project_rules() {
     for (read, head, path) in [
         (Read::Reading, Head::Reading, Path::Reading),
@@ -232,11 +282,13 @@ fn parts_and_facts_follow_the_project_rules() {
         (Read::Shown { current: None }, Head::Own, Path::Shown),
     ] {
         for (asking, roles) in [(false, false), (true, false), (false, true), (true, true)] {
-            assert_eq!(
-                how::parts(&Facts { roles, asking, read, goals: false, budget: None }),
-                Parts { roles, head, ask: asking, path, budget: None },
-                "{read:?}, asking={asking}"
-            );
+            for (classes, several) in [(false, false), (true, false), (false, true), (true, true)] {
+                assert_eq!(
+                    how::parts(&Facts { roles, asking, read, goals: false, budget: None, classes, several }),
+                    Parts { roles, head, ask: asking, path, budget: None, reaches: classes, several },
+                    "{read:?}, asking={asking}, roles={roles}, classes={classes}, several={several}"
+                );
+            }
         }
     }
     for (budget, shown) in [
@@ -250,8 +302,24 @@ fn parts_and_facts_follow_the_project_rules() {
     ] {
         for (goals, expected) in [(false, None), (true, shown)] {
             assert_eq!(
-                how::parts(&Facts { roles: false, asking: false, read: Read::Reading, goals, budget }),
-                Parts { roles: false, head: Head::Reading, ask: false, path: Path::Reading, budget: expected },
+                how::parts(&Facts {
+                    roles: false,
+                    asking: false,
+                    read: Read::Reading,
+                    goals,
+                    budget,
+                    classes: false,
+                    several: false
+                }),
+                Parts {
+                    roles: false,
+                    head: Head::Reading,
+                    ask: false,
+                    path: Path::Reading,
+                    budget: expected,
+                    reaches: false,
+                    several: false
+                },
                 "{budget:?}, goals={goals}"
             );
         }
@@ -262,7 +330,15 @@ fn parts_and_facts_follow_the_project_rules() {
             true,
             None,
             Read::Reading,
-            Facts { roles: false, asking: false, read: Read::Reading, goals: false, budget: None },
+            Facts {
+                roles: false,
+                asking: false,
+                read: Read::Reading,
+                goals: false,
+                budget: None,
+                classes: false,
+                several: false,
+            },
         ),
         (
             true,
@@ -275,6 +351,8 @@ fn parts_and_facts_follow_the_project_rules() {
                 read: Read::Shown { current: Some(0) },
                 goals: true,
                 budget: Some(c::TemplateBudget::Amount(AMOUNT)),
+                classes: false,
+                several: false,
             },
         ),
         (
@@ -288,6 +366,8 @@ fn parts_and_facts_follow_the_project_rules() {
                 read: Read::Shown { current: None },
                 goals: false,
                 budget: Some(c::TemplateBudget::Amount(AMOUNT)),
+                classes: false,
+                several: false,
             },
         ),
         (
@@ -301,6 +381,8 @@ fn parts_and_facts_follow_the_project_rules() {
                 read: Read::Ended,
                 goals: true,
                 budget: Some(c::TemplateBudget::AsAllowed { cap: Some(CAP) }),
+                classes: false,
+                several: false,
             },
         ),
         (
@@ -314,6 +396,8 @@ fn parts_and_facts_follow_the_project_rules() {
                 read: Read::Reading,
                 goals: true,
                 budget: Some(c::TemplateBudget::AsAllowed { cap: Some(CAP) }),
+                classes: false,
+                several: false,
             },
         ),
         (
@@ -321,14 +405,158 @@ fn parts_and_facts_follow_the_project_rules() {
             false,
             Some((true, SELECTED)),
             Read::Reading,
-            Facts { roles: false, asking: false, read: Read::Reading, goals: true, budget: None },
+            Facts {
+                roles: false,
+                asking: false,
+                read: Read::Reading,
+                goals: true,
+                budget: None,
+                classes: false,
+                several: false,
+            },
         ),
     ] {
-        let root = fixture(asking, tracked, ways, read, None);
-        assert_eq!(how::facts(&root, f::PROJECT), expected);
+        for (classes, several) in [
+            (ClassesRead::Unread, false),
+            (ClassesRead::Stock, false),
+            (ClassesRead::Given(Classes::stock(Way::AgentsReview)), false),
+            (ClassesRead::Unread, true),
+            (ClassesRead::Stock, true),
+        ] {
+            let mut expected = expected;
+            expected.classes = match &classes {
+                ClassesRead::Unread => false,
+                ClassesRead::Stock | ClassesRead::Given(_) => true,
+            };
+            expected.several = several;
+            let mut root = fixture(asking, tracked, ways, read, None, classes, several);
+            assert_eq!(how::facts(&root, f::PROJECT), expected);
+            assert_eq!(
+                how::facts(&root, OTHER),
+                Facts {
+                    roles: false,
+                    asking: false,
+                    read: Read::Reading,
+                    goals: false,
+                    budget: None,
+                    classes: false,
+                    several
+                }
+            );
+            event(&mut root, Event::Went { place: Place::Address(Address::Repositories { project: f::PROJECT }) });
+            assert_eq!(how::facts(&root, f::PROJECT).classes, expected.classes, "classes need no How page");
+            assert_eq!(how::facts(&root, f::PROJECT).several, several, "project count needs no How page");
+        }
+    }
+    let kind_line = |kind, item, class| Line { subject: Subject::Kind(kind), item, class };
+    let set_line = |number, item, class| Line { subject: Subject::Set(number), item, class };
+    let item = |subject, words: &[u8], class| Item { subject, words: words.into(), class };
+    let set =
+        |number| PathSet { number, name: b"Core".as_slice().into(), patterns: Box::new([b"src/*".as_slice().into()]) };
+    let movable = [Kind::Wording, Kind::Retry, Kind::Implementation, Kind::Tests, Kind::Dependency, Kind::Departure];
+    let ask_away: Box<[_]> = movable.map(|kind| kind_line(kind, 0, Class::AskAway)).into();
+    let all_decide = Classes {
+        items: movable.map(|kind| item(Subject::Kind(kind), b"", Class::Decide)).into(),
+        sets: Box::default(),
+    };
+    let mut decide_lines = List::uncapped();
+    for (index, kind) in movable.into_iter().enumerate() {
+        decide_lines.push(kind_line(kind, u8::try_from(index + 1).unwrap(), Class::Decide)).unwrap();
+    }
+    let decide_lines = decide_lines.into_boxed();
+    let mixed = Classes {
+        items: Box::new([
+            item(Subject::Kind(Kind::Implementation), b"", Class::Ask),
+            item(Subject::Kind(Kind::Dependency), b"", Class::AskAway),
+            item(Subject::Kind(Kind::Wording), b"within the spec", Class::Ask),
+            item(Subject::Set(1), b"", Class::Ask),
+            item(Subject::Kind(Kind::Retry), b"one retry", Class::AskAway),
+            item(Subject::Set(1), b"test fixes", Class::Decide),
+        ]),
+        // The bare set comes first here, but follows the table's items in settings order.
+        sets: Box::new([set(2), set(1)]),
+    };
+    mixed.check().unwrap();
+    let unchecked = Classes {
+        items: Box::new([
+            item(Subject::Kind(Kind::Money), b"within budget", Class::Decide),
+            item(Subject::Kind(Kind::Retry), b"", Class::Wait),
+            item(Subject::Set(3), b"", Class::Ask),
+        ]),
+        sets: Box::default(),
+    };
+    let mut oversized_items = List::uncapped();
+    for _ in 0..u8::MAX {
+        oversized_items.push(item(Subject::Kind(Kind::Money), b"", Class::Decide)).unwrap();
+    }
+    oversized_items.push(item(Subject::Kind(Kind::Retry), b"one retry", Class::Ask)).unwrap();
+    let reaches_rows: [ReachesRow; 6] = [
+        (
+            "Agents review",
+            Classes::stock(Way::AgentsReview),
+            Box::new([
+                kind_line(Kind::Wording, 1, Class::Decide),
+                kind_line(Kind::Retry, 2, Class::Decide),
+                kind_line(Kind::Tests, 3, Class::Decide),
+            ]),
+            Box::new([
+                kind_line(Kind::Implementation, 4, Class::Ask),
+                kind_line(Kind::Dependency, 5, Class::Ask),
+                kind_line(Kind::Departure, 6, Class::Ask),
+            ]),
+        ),
+        ("You approve", Classes::stock(Way::YouApprove), Box::default(), ask_away.clone()),
+        (
+            "mixed",
+            mixed,
+            Box::new([set_line(1, 6, Class::Decide)]),
+            Box::new([
+                kind_line(Kind::Wording, 0, Class::AskAway),
+                kind_line(Kind::Retry, 0, Class::AskAway),
+                kind_line(Kind::Tests, 0, Class::AskAway),
+                kind_line(Kind::Dependency, 2, Class::AskAway),
+                kind_line(Kind::Departure, 0, Class::AskAway),
+                kind_line(Kind::Retry, 5, Class::AskAway),
+                set_line(2, 0, Class::AskAway),
+                kind_line(Kind::Implementation, 1, Class::Ask),
+                kind_line(Kind::Wording, 3, Class::Ask),
+                set_line(1, 4, Class::Ask),
+            ]),
+        ),
+        ("all decide", all_decide, decide_lines, Box::default()),
+        (
+            "unchecked",
+            unchecked,
+            Box::default(),
+            Box::new([
+                kind_line(Kind::Wording, 0, Class::AskAway),
+                kind_line(Kind::Implementation, 0, Class::AskAway),
+                kind_line(Kind::Tests, 0, Class::AskAway),
+                kind_line(Kind::Dependency, 0, Class::AskAway),
+                kind_line(Kind::Departure, 0, Class::AskAway),
+            ]),
+        ),
+        (
+            "item number does not fit",
+            Classes { items: oversized_items.into_boxed(), sets: Box::default() },
+            Box::default(),
+            ask_away,
+        ),
+    ];
+    for (name, classes, decide, ask) in reaches_rows {
         assert_eq!(
-            how::facts(&root, OTHER),
-            Facts { roles: false, asking: false, read: Read::Reading, goals: false, budget: None }
+            how::reaches(&classes),
+            Reaches {
+                decide,
+                ask,
+                wait: Box::new([
+                    kind_line(Kind::Money, 0, Class::Wait),
+                    kind_line(Kind::Irreversible, 0, Class::Wait),
+                    kind_line(Kind::Rules, 0, Class::Wait),
+                    kind_line(Kind::Other, 0, Class::Wait),
+                ]),
+            },
+            "{name}: columns keep settings order and omit unchecked entries"
         );
     }
     let card = w::Card::new(
@@ -356,7 +584,7 @@ fn parts_and_facts_follow_the_project_rules() {
             false,
         ),
     ] {
-        let mut root = fixture(true, false, None, Read::Reading, answer);
+        let mut root = fixture(true, false, None, Read::Reading, answer, ClassesRead::Unread, false);
         assert_eq!(how::facts(&root, f::PROJECT).roles, expected);
         assert_eq!(how::parts(&how::facts(&root, f::PROJECT)).roles, expected);
         assert!(!how::facts(&root, OTHER).roles);
@@ -367,6 +595,14 @@ fn parts_and_facts_follow_the_project_rules() {
     let root = crate::unlinked(&f::limits(), f::SEED);
     assert_eq!(
         how::facts(&root, f::PROJECT),
-        Facts { roles: false, asking: false, read: Read::Reading, goals: false, budget: None }
+        Facts {
+            roles: false,
+            asking: false,
+            read: Read::Reading,
+            goals: false,
+            budget: None,
+            classes: false,
+            several: false
+        }
     );
 }

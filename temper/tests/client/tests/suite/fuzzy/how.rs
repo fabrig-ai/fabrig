@@ -55,6 +55,8 @@ fn facts(rng: &mut Rng) -> Facts {
         },
         goals: rng.chance(500),
         budget: budget(rng),
+        classes: false,
+        several: false,
     }
 }
 
