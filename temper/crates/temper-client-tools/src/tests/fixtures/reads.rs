@@ -282,7 +282,10 @@ pub(crate) fn composite_call(argv: &[&str]) -> (Harness, u32) {
     (root, call)
 }
 /// A follow-up begins at the exact part bound, where the remaining byte starts.
-const PART_OFFSET: &str = "16384";
+const PART_OFFSET: &str = "65536";
+pub(crate) const TURN_PART_CALL: &[&str] = &[TURN_CALL[0], TURN_CALL[1], TURN_CALL[2], TURN_CALL[3], "--part", "1"];
+pub(crate) const TURN_OUTCOME_CALL: &[&str] =
+    &[TURN_CALL[0], TURN_CALL[1], TURN_CALL[2], TURN_CALL[3], "--part", "2", "--from", "2"];
 pub(crate) const TURN_NEXT_CALL: &[&str] =
     &[TURN_CALL[0], TURN_CALL[1], TURN_CALL[2], TURN_CALL[3], "--part", "1", "--from", PART_OFFSET];
 pub(crate) const WRONG_INBOX_GROUP: &[&str] = &[INBOX_CALL[0], "--kind", "questions", "--after", "011122"];
