@@ -1,6 +1,6 @@
 # shell: status
 
-2026-11-08. Where skein's code lags or departs from [shell.md](shell.md).
+2026-11-09. Where skein's code lags or departs from [shell.md](shell.md).
 
 Section 6 has no known gap in closing a panic report with its thread's
 `panicked at` line and message after one forced backtrace. The fail-stop
@@ -31,7 +31,8 @@ below remain; the Linux tests do not prove the Darwin arms.
   skein's suites. Whether that workflow's compile step has run is unknown;
   a cross-target build does not prove the Darwin runtime.
 - **Departs:** 6.2: `read_trust_roots` gives its caller the counts, and only
-  `smith-agent-shell`'s `trust_sources` says them. temper's own two readers
+  `smith-agent-document`'s `config/native.rs`, `trust_sources`, says them,
+  through the shell's re-export too. temper's own two readers
   (`temper/crates/temper/src/lib.rs`, `trust`, and
   `temper-fetch-shell/src/fetch.rs`) say nothing of a malformed block, where
   the section has startup say the counts: the request `first-usable-model` of
