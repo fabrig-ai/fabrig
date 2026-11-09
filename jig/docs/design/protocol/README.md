@@ -173,7 +173,7 @@ An application that mixes the last two has both.
 
 | Crate | Kind | In | What it does |
 |---|---|---|---|
-| `jig-protocol-worker-wire` | codecs | engine, worker | the channel's records and a worker's credential (`channel.md`) |
+| `jig-protocol-worker-wire` | codecs | engine, worker | the channel's records, a worker's credential, and why a channel or a dial ended (`channel.md`) |
 | `jig-protocol-engine-workers` | component | engine | workers' channels: opening, authentication, liveness, translation to and from the hub's vocabulary (`channel.md`) |
 | `jig-protocol-worker-link` | component | worker | the link: dialling, liveness, the grace's clock, relays across channels, translation to and from the hub's vocabulary, smith's payloads carried as bytes (`channel.md`) |
 | `jig-protocol-charter` | translation | engine | the core's charter put into smith's, as smith's bytes, and a run's result read back (`../domain/hosts.md`, section 8) |
