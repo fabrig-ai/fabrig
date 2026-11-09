@@ -1258,10 +1258,14 @@ fn the_launchpad_surface_follows_the_displayed_facts() {
     );
     for (name, page, expected) in [
         ("brief and need", SurfacePage::Home { brief: true, needs: true }, Own::ALL.as_slice()),
-        ("neither", SurfacePage::Home { brief: false, needs: false }, &[Own::Change, Own::Ask, Own::Open][..]),
-        ("chat", SurfacePage::Chat, &[Own::Open][..]),
-        ("no project", SurfacePage::NoProject, &[][..]),
-        ("signed out", SurfacePage::SignedOut, &[][..]),
+        (
+            "neither",
+            SurfacePage::Home { brief: false, needs: false },
+            &[Own::Change, Own::Ask, Own::Open, Own::Theme][..],
+        ),
+        ("chat", SurfacePage::Chat, &[Own::Open, Own::Theme][..]),
+        ("no project", SurfacePage::NoProject, &[Own::Theme][..]),
+        ("signed out", SurfacePage::SignedOut, &[Own::Theme][..]),
     ] {
         let root = surface_root(page);
         assert_eq!(crate::offered_own(&root, &tui).as_ref(), expected, "{name}");

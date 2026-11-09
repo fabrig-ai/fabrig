@@ -454,10 +454,6 @@ mockups is `../draft/surfaces.status.md`.
   `tui-launchpad`'s build left it (`../draft/tui.status.md`).
 
 
-- **Not yet:** 6.13's `Own` and `Theme`, 6.14, *`/theme`*, and 6.15,
-  *The theme chosen*: in the TUI `/theme` is the root's command, which
-  flips the root's look for the run with no list, no notice, no Auto
-  and nothing kept, its words "Dark or light" (plan `tui-box-polish`).
 
 Sections 3.5, 4.6, 5.8 and 5.13 have the approvals watch and wire document,
 the merge into Needs you, project and goal filters, Home and goal bands,

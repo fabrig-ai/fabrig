@@ -111,7 +111,7 @@ fn the_trees_fit_their_limits() {
         let notice = crate::Notice::Unknown { words: raw.as_bytes().into() };
         assert_eq!(words.notice(&notice).as_ref(), format!("Unknown command {cut} · /help lists them").as_bytes());
     }
-    let mut failures = skein_lib::List::with_capacity(78);
+    let mut failures = skein_lib::List::with_capacity(91);
     for (word, holes, want) in [
         (Word::UnknownNotice, &[Hole::Name(title.as_bytes().into())][..], skein_lib::bytes::concat(&[b"Unknown command ", title.as_bytes(), " · /help lists them".as_bytes()]).as_ref()),
         (Word::SigningInNotice, &[][..], b"Still signing in".as_slice()),
@@ -132,6 +132,19 @@ fn the_trees_fit_their_limits() {
         (Word::OpenOnWeb, &[][..], "Open it on the web".as_bytes()),
         (Word::WalkDone, &[][..], "Nothing else needs you.".as_bytes()),
         (Word::KeyWalk, &[][..], "n walks what needs you".as_bytes()),
+        (Word::ThemeCommand, &[][..], b"Auto, light or dark".as_slice()),
+        (Word::ThemeHead, &[][..], b"Theme. Auto follows your terminal.".as_slice()),
+        (Word::ThemeAuto, &[][..], b"Auto".as_slice()),
+        (Word::ThemeLight, &[][..], b"Light".as_slice()),
+        (Word::ThemeDark, &[][..], b"Dark".as_slice()),
+        (Word::ThemeAutoLight, &[][..], b"light, as your terminal says".as_slice()),
+        (Word::ThemeAutoDark, &[][..], b"dark, as your terminal says".as_slice()),
+        (Word::ThemeAutoNone, &[][..], b"dark: your terminal doesn't say".as_slice()),
+        (Word::ThemeNoticeAutoLight, &[][..], b"Theme: auto, light as your terminal says.".as_slice()),
+        (Word::ThemeNoticeAutoDark, &[][..], b"Theme: auto, dark as your terminal says.".as_slice()),
+        (Word::ThemeNoticeAutoNone, &[][..], b"Theme: auto, dark: your terminal doesn't say.".as_slice()),
+        (Word::ThemeNoticeLight, &[][..], b"Theme: light.".as_slice()),
+        (Word::ThemeNoticeDark, &[][..], b"Theme: dark.".as_slice()),
         (Word::ChatNumber, &[Hole::Number(u64::MAX)][..], "/chats 18446744073709551615".as_bytes()),
         (Word::ChangeStart, &[Hole::Name(title.as_bytes().into())][..], &change_start),
         (Word::OpenAt, &[Hole::Name(page_address)][..], &open_at),

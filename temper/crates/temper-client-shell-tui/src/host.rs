@@ -282,15 +282,6 @@ impl Host {
             terminal::Theme::Dark => tui::Scheme::Dark,
             terminal::Theme::Light => tui::Scheme::Light,
         };
-        if scheme != self.choice.scheme(self.terminal) {
-            self.keep_theme(
-                match scheme {
-                    tui::Scheme::Dark => ThemeChoice::Dark,
-                    tui::Scheme::Light => ThemeChoice::Light,
-                },
-                &mut duties,
-            );
-        }
         self.theme = tui::theme(scheme, self.background);
         tui::build(
             &mut self.view,
@@ -328,6 +319,7 @@ impl Host {
                 kept.push(record).expect("counted store");
             }
         }
+        self.tell(Told::Theme { choice: self.choice, terminal: self.terminal });
         self.step(Event::Start {
             address: Address::Inbox { filter: Filter::ALL },
             kept,
@@ -481,7 +473,18 @@ impl Host {
                 self.tell(Told::Walked { object });
             }
             tui::Event::EndWalk => self.tell(Told::EndWalk),
-            tui::Event::Typed { value } => self.typed(value),
+            tui::Event::Typed { value } => {
+                self.tell(Told::ThemeList { open: false });
+                self.typed(value);
+            }
+            tui::Event::Theme { choice } => {
+                self.tell(Told::ThemeList { open: false });
+                if let Some(choice) = choice {
+                    self.keep_theme(choice, duties);
+                    self.tell(Told::Cleared);
+                    self.notice(tui::Notice::Theme { choice, terminal: self.terminal });
+                }
+            }
             tui::Event::LeftOff { task } => self.tell(Told::LeftOff { task }),
             tui::Event::SignIn if self.state().field().is_empty() && tui::may_ask_again(self.state(), &self.root) => {
                 self.ask();
@@ -552,6 +555,12 @@ impl Host {
                 self.act(Act::Terminal(terminal::Act::Dismiss));
                 self.tell(Told::Cleared);
                 self.tell(Told::Walk { by_key: false });
+            }
+            tui::Own::Theme => {
+                self.act(Act::Terminal(terminal::Act::Dismiss));
+                self.tell(Told::Cleared);
+                self.tell(Told::ThemeList { open: true });
+                self.focus.active = None;
             }
             tui::Own::Open => {
                 if let Some(address) = tui::focus(&self.view) {
@@ -880,12 +889,14 @@ impl Host {
 
     fn keep_theme(&mut self, choice: ThemeChoice, duties: &mut Duties) {
         self.choice = choice;
+        self.tell(Told::Theme { choice, terminal: self.terminal });
         let theme = match choice.scheme(self.terminal) {
             tui::Scheme::Dark => terminal::Theme::Dark,
             tui::Scheme::Light => terminal::Theme::Light,
         };
         self.step(Event::LookKept { look: Look { theme, ..self.root.pages().look() } });
         self.theme = tui::theme(choice.scheme(self.terminal), self.background);
+        self.route(duties);
         let mut records = List::with_capacity(1);
         records
             .push(jig_client::Record { key: THEME_KEY.into(), bytes: choice.print().into() })
