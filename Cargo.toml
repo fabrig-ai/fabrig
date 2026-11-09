@@ -296,6 +296,7 @@ members = [
     "temper/crates/temper-forge-setup-shell",
     "temper/crates/temper-engine-shell",
     "temper/crates/temper-worker-shell",
+    "temper/bin/temper-worker",
     "temper/crates/temper-service-shell",
     "temper/crates/temper-worker-protocol-git",
     "temper/crates/temper-client-protocol-wire",
