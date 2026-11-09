@@ -163,6 +163,7 @@ pub(crate) fn load_outputs(
                 }
                 match waiting(domain, waiter) {
                     Some(Waiting::Document) => crate::route::document::loaded(domain, waiter, rows, next, cut, out),
+                    Some(Waiting::Remember) => crate::route::remember::loaded(domain, waiter, rows, next, cut, out),
                     Some(Waiting::Notes) => note_loaded(domain, waiter, rows, next, cut),
                     Some(Waiting::GoalWords) if cut.is_none() && next.is_none() => {
                         goal_loaded(domain, waiter, rows, out);
@@ -198,6 +199,7 @@ pub(crate) fn load_outputs(
                 }
                 match waiting(domain, waiter) {
                     Some(Waiting::Document) => crate::route::document::failed(domain, waiter),
+                    Some(Waiting::Remember) => crate::route::remember::failed(domain, waiter),
                     Some(Waiting::Notes) => note_failed(domain, waiter),
                     Some(Waiting::Input) => input_failed(domain, waiter),
                     Some(Waiting::GoalWords) => goal_failed(domain, waiter),

@@ -574,9 +574,14 @@ fn cut_core(kind: Core, text: Box<[u8]>, size: u32) -> Box<[u8]> {
     }
     let tail = match kind {
         Core::Attempts | Core::TranscriptTail => true,
-        Core::Task | Core::Lineage | Core::Results | Core::Plan | Core::Calls | Core::Waiting | Core::NotesIndex => {
-            false
-        }
+        Core::Task
+        | Core::Lineage
+        | Core::Results
+        | Core::Plan
+        | Core::Calls
+        | Core::Waiting
+        | Core::NotesIndex
+        | Core::Preferences => false,
     };
     let mut low = 0_usize;
     let mut high = text.len().min(room);

@@ -20,7 +20,20 @@ fn a_read_is_answered_only_once_held_is_released() {
 }
 #[test]
 fn a_cursor_round_trips_to_the_same_position() {
-    for (label, position) in f::cursors() {
+    let party = (
+        "Party",
+        reads::Cursor::Store {
+            scope: reads::Scope::ScopedNotes {
+                scope: jig_domain_notes::Scope::Party { party: u64::MAX },
+                description: Some(Box::from(b"filter".as_slice())),
+            },
+            after: Some(reads::Position::Owner(jig_domain_core::Key::Notes(jig_domain_notes::Key::Line {
+                scope: jig_domain_notes::Scope::Party { party: u64::MAX },
+                name: u64::MAX,
+            }))),
+        },
+    );
+    for (label, position) in f::cursors().into_iter().chain([party]) {
         let encoded = crate::translate::cursor::encode(&position, 1024).expect(label);
         assert_eq!(crate::translate::cursor::decode(&encoded), Some(position.clone()), "{label}");
         let size = u32::try_from(encoded.len()).expect("small cursor");
@@ -202,43 +215,54 @@ fn turn_failure_terminals_keep_their_reason_after_release() {
 
 #[test]
 fn a_single_turn_read_carries_the_same_archive_as_activity() {
-    let page = f::activity_page();
-    let reads::PageRow::Activity { turn: Some(reads::PageTurn::Carried(record)), .. } = page.rows.get(0).unwrap()
-    else {
-        panic!("carried fixture turn")
-    };
-    let limits = f::wire();
-    let value = w::Read::Turn(
-        w::ReadTurn::new(&limits, w::ReadTurnParts { task: record.task, attempt: record.attempt, turn: record.turn })
+    for withheld in [false, true] {
+        let page = f::private_activity(false);
+        let reads::PageRow::Activity { turn: Some(reads::PageTurn::Carried(record)), .. } = page.rows.get(0).unwrap()
+        else {
+            panic!("carried fixture turn")
+        };
+        let limits = f::wire();
+        let value = w::Read::Turn(
+            w::ReadTurn::new(
+                &limits,
+                w::ReadTurnParts { task: record.task, attempt: record.attempt, turn: record.turn },
+            )
             .unwrap(),
-    );
-    let mut exchange = f::read_exchange();
-    let (owner, reply, read) = exchange.read(&value);
-    assert_eq!(read, reads::Read::Turn { task: record.task, attempt: record.attempt, turn: record.turn });
-    exchange.release_read(
-        reply,
-        reads::Answer::Ended(Box::new(reads::Ended {
-            value: reads::EndedValue::Turn(record.clone()),
-            at: None,
-            by: None,
-        })),
-    );
-    let w::ReadAnswer::Value(envelope) = exchange.read_answer(owner) else { panic!("turn answer") };
-    let w::ReadValue::Turn(archive) =
-        w::ReadValue::decode(&limits, &mut skein_lib::Reader::new(envelope.record())).unwrap()
-    else {
-        panic!("archive")
-    };
-    assert_eq!(
-        (archive.task(), archive.name().attempt(), archive.name().number()),
-        (record.task, record.attempt, record.turn)
-    );
-    assert_eq!(
-        (archive.cumulative(), *archive.read(), archive.at()),
-        (record.spent, record.read, record.at.as_nanos())
-    );
-    let w::TurnBytes::Carried(turn) = archive.turn() else { panic!("carried") };
-    assert_eq!(turn.bytes(), record.transcript.as_ref());
+        );
+        let mut settings = f::settings();
+        settings.private = f::private();
+        let mut exchange = f::read_exchange_with(settings);
+        let (owner, reply, read) = exchange.read(&value);
+        assert_eq!(read, reads::Read::Turn { task: record.task, attempt: record.attempt, turn: record.turn });
+        exchange.release_read(
+            reply,
+            reads::Answer::Ended(Box::new(reads::Ended {
+                value: if withheld {
+                    reads::EndedValue::WithheldTurn(record.clone())
+                } else {
+                    reads::EndedValue::Turn(record.clone())
+                },
+                at: None,
+                by: None,
+            })),
+        );
+        let w::ReadAnswer::Value(envelope) = exchange.read_answer(owner) else { panic!("turn answer") };
+        let w::ReadValue::Turn(archive) =
+            w::ReadValue::decode(&limits, &mut skein_lib::Reader::new(envelope.record())).unwrap()
+        else {
+            panic!("archive")
+        };
+        assert_eq!(
+            (archive.task(), archive.name().attempt(), archive.name().number()),
+            (record.task, record.attempt, record.turn)
+        );
+        assert_eq!(
+            (archive.cumulative(), *archive.read(), archive.at()),
+            (record.spent, record.read, record.at.as_nanos())
+        );
+        let w::TurnBytes::Carried(turn) = archive.turn() else { panic!("carried") };
+        assert_eq!(turn.bytes(), f::private_transcript(withheld).as_ref(), "withheld {withheld}");
+    }
 }
 
 #[test]
@@ -333,7 +357,8 @@ fn tasks_translates_onto_the_project_read() {
         let reads::PageRow::Note(note) = page.rows.get_mut(0).unwrap() else { panic!("note row") };
         note.scope = core::documents::NoteLocation::Goal { project: 13, task: 19 };
         note.body = core::documents::Text { bytes: Box::new([]), cut: true };
-        let expected = crate::translate::pages::page(&f::models(), &read, &page, &f::wire()).unwrap();
+        let expected =
+            crate::translate::pages::page(&f::models(), &read, &page, &crate::Private::none(), &f::wire()).unwrap();
         let w::ReadValue::Notes(_) = &expected else { panic!("notes wire page") };
         exchange.release_read(reply, reads::Answer::Page(Box::new(page)));
         assert_eq!(exchange.read_answer(owner), f::value_answer(&expected));
@@ -383,7 +408,9 @@ fn a_later_page_says_more_by_its_after() {
         cut: false,
         inbox_selection: None,
     };
-    let w::ReadValue::Activity(value) = crate::translate::pages::page(&[], &read, &page, &f::wire()).unwrap() else {
+    let w::ReadValue::Activity(value) =
+        crate::translate::pages::page(&[], &read, &page, &crate::Private::none(), &f::wire()).unwrap()
+    else {
         panic!("activity page")
     };
     assert_eq!(value.before(), &None);

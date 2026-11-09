@@ -30,7 +30,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `root.journal.deliveries`: count, 512. Sets the door output count used in the default admission watermark, without capping a decision.
 - `root.journal.transcript_bytes`: bytes, 65,536. Bounds transcript bytes or a wrapped child row's owned bytes admitted to the journal.
 - `root.journal.result_bytes`: bytes, 14,592. Bounds owned result text or assignment section text admitted to a held delivery.
-- `root.journal.run_bytes`: bytes, 20,480. Bounds a run charter's owned bytes in a held assignment.
+- `root.journal.run_bytes`: bytes, 24,576. Bounds a run charter's owned bytes in a held assignment.
 - `root.loads.loads`: count, 2. Bounds issued store loads, including abandoned reads awaiting their terminal answer.
 - `root.loads.rows`: count, 2. Bounds rows requested and accepted in one incoming store page.
 - `root.loads.bytes`: bytes, 65,536. Bounds a kept page prefix, counting record slots and their owned bytes.
@@ -38,7 +38,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `root.loads.reply_bytes`: bytes, 65,536. Bounds a decoded store answer before its kept prefix is cut.
 - `root.loads.transcript_bytes`: bytes, 65,536. Bounds a row's owned bytes, including transcripts and wrapped child rows, before the prefix is cut.
 - `root.brief.briefs`: count, 2. Bounds briefs the root gathers at once.
-- `root.brief.sections`: count, 8. Bounds brief sections the root gathers at once.
+- `root.brief.sections`: count, 9. Bounds brief sections the root gathers at once.
 - `root.brief.parts`: count, 2. Bounds parts in one gathered brief section.
 - `root.brief.read_bytes`: bytes, 4,608. Bounds bytes read for one gathered brief section.
 - `root.brief.brief_bytes`: bytes, 14,592. Bounds the body of a gathered brief.
@@ -52,6 +52,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `root.brief.budgets.attempts`: bytes, 128. Bounds attempt section bytes in a gathered brief.
 - `root.brief.budgets.plan`: bytes, 128. Bounds plan section bytes in a gathered brief.
 - `root.brief.budgets.notes`: bytes, 64. Bounds note section bytes in a gathered brief.
+- `root.brief.budgets.preferences`: bytes, 2,048. Bounds whole requester preferences in a gathered brief.
 
 ## forge
 
@@ -81,7 +82,7 @@ Every limit application.limits.overrides takes: its unit, the small profile's va
 - `forge.judge_projects`: count, 2. Bounds project judge tables retained beside committed policy.
 - `forge.judge_criteria`: count, 8. Bounds criteria in each deployment or project judge table.
 - `forge.landing_rules`: count, 4. Bounds landing rules per scope.
-- `forge.brief_sections`: count, 32. Bounds forge brief sections gathered at once.
+- `forge.brief_sections`: count, 36. Bounds forge brief sections gathered at once.
 - `forge.brief_bytes`: bytes, 4,608. Bounds bytes retained for one gathered forge brief section.
 - `forge.tiers.tiers`: count, 2. Bounds tiers retained per repository.
 - `forge.tiers.failing_tests`: count, 16. Bounds failing tests reported per tier run.

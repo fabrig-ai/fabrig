@@ -68,6 +68,7 @@ impl Composition {
             },
         };
         let settings = clients::Settings {
+            private: clients::Private::none(),
             provider: None,
             link_secret: None,
             local_secret: None,

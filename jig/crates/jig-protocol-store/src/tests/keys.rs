@@ -129,6 +129,24 @@ fn notes_keys_with_shared_pattern_prefixes_sort_as_they_derive() {
 #[test]
 fn a_shorter_pattern_sorts_before_its_extension() {
     use alloc::boxed::Box;
+    use jig_domain_notes as notes;
+    for scope in [
+        notes::Scope::Project { project: u32::MAX },
+        notes::Scope::Goal { project: u32::MAX, goal: u64::MAX },
+        notes::Scope::Resources {
+            project: u32::MAX,
+            connector: u16::MAX,
+            pattern: notes::Pattern { segments: Box::new([]), last: notes::Last::Open(Box::new([])) },
+        },
+    ] {
+        let project = Key::Notes(notes::Key::Line { scope, name: u64::MAX });
+        let party = Key::Notes(notes::Key::Line { scope: notes::Scope::Party { party: 0 }, name: 0 });
+        let bytes = keys::encode(&party, fixtures::KEY_LIMIT).expect("party key fits");
+        assert_eq!(bytes.get(3), Some(&4));
+        assert_eq!(keys::decode(&bytes), Some(party.clone()));
+        assert!(project < party);
+        assert!(keys::encode(&project, fixtures::KEY_LIMIT).unwrap() < bytes);
+    }
     let short = Key::Notes(fixtures::pattern_key(Box::new([])));
     let longer = Key::Notes(fixtures::pattern_key(Box::new([Box::new([])])));
     let short_bytes = keys::encode(&short, fixtures::KEY_LIMIT).expect("within the key limit");

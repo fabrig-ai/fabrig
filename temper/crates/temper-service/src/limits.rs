@@ -247,8 +247,8 @@ const FORGE: forge::Limits = forge::Limits {
     roles: 4,
     setting_proposals: 4,
     setting_history: 4,
-    // Forge brief sections gathering at once, from the engine forge world fixture.
-    brief_sections: 32,
+    // Two gathers of nine sections, each with a second fetch while cutting.
+    brief_sections: 36,
     // Bytes of one gathered forge section: at least the root's brief.read_bytes.
     brief_bytes: 4608,
     // Forge client calls, retries and outbox room.
@@ -366,8 +366,8 @@ const ROOT: Root = Root {
         transcript_bytes: 65_536,
         // At least brief.brief_bytes and jig small people.words: the root's worst case.
         result_bytes: 14_592,
-        // The fake backends' stock charter carrier needs 16,446 bytes.
-        run_bytes: 20_480,
+        // The stock's largest run policy, charter 11's, needs 20,795 bytes.
+        run_bytes: 24_576,
     },
     loads: engine::loads::Limits {
         // Concurrent loads, from the root world.
@@ -387,7 +387,7 @@ const ROOT: Root = Root {
         // Concurrent gathers, from the root world.
         briefs: 2,
         // Core sections and two charter documents per gather.
-        sections: 8,
+        sections: 9,
         // Parts per section, from the root world.
         parts: 2,
         // One section's read bytes: at least the task section's.
@@ -413,6 +413,7 @@ const ROOT: Root = Root {
             plan: 128,
             // Notes section's bytes, from the root world.
             notes: 64,
+            preferences: 2048,
         },
         // Whole task, pull and review sections, with 768 bytes for other context.
         brief_bytes: 14_592,

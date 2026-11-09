@@ -22,7 +22,8 @@ const TASKS: u32 = 4;
 const SLOTS: u32 = 3;
 const GRANTS: u32 = 16;
 const EXECUTORS: u32 = 16; // Fifteen stock kinds and the removable world's charter.
-const RUN_BYTES: u32 = 16_384;
+// Charter 11's resolved stock run policy needs 16,574 bytes.
+const RUN_BYTES: u32 = 20_480;
 const TRANSCRIPT_BYTES: u32 = 32_768;
 const MESSAGE_BYTES: u32 = 512;
 // Account, three chats, a decision and up to three owner messages or edits.
@@ -117,6 +118,7 @@ pub(super) fn repository_projects() -> World {
     owners.push(owner);
     config.core.owners = owners.into_boxed_slice();
     let mut bounds = limits();
+    bounds.brief.sections = 4; // Task, preferences, Home and a charter document.
     bounds.authority.segments = 8; // A charter document names a six-segment forge branch.
     bounds.authority.projects = 2;
     bounds.people.projects = 3; // Two projects and the deployment roster.
@@ -851,4 +853,19 @@ fn restart_configured_world(world: &mut World, run: &engine::Assignment, config:
     }));
     world.driver.settle();
     world.owner = world.driver.session();
+}
+
+/// Stock Ask temper with the production party bounds and private tool names.
+pub(super) fn remembering_world() -> World {
+    let mut config = member_config();
+    config.core.settings.private_tools = temper_engine_smith::PRIVATE_TOOLS.map(Into::into).into();
+    let mut bounds = limits();
+    bounds.notes.entries_per_scope = 12;
+    bounds.notes.party_entries = 12;
+    bounds.notes.party_bytes = 120;
+    bounds.notes.description_bytes = 120;
+    bounds.brief.budgets.preferences = 2048;
+    bounds.brief.brief_bytes = 4096;
+    bounds.journal.result_bytes = 4096;
+    World::with_limits(config, &bounds)
 }

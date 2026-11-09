@@ -5,10 +5,11 @@ use crate::{
 
 #[test]
 fn each_page_round_trips_through_its_path() {
-    let pages: [(Address, &[u8]); 38] = [
+    let pages: [(Address, &[u8]); 39] = [
         (Address::Work { project: 3, filter: WorkFilter::All }, b"/projects/3/work"),
         (Address::Work { project: 3, filter: WorkFilter::Drafts }, b"/projects/3/work?show=drafts"),
         (Address::Members, b"/deployment/members"),
+        (Address::Remembered, b"/remembered"),
         (Address::Limits, b"/deployment/limits"),
         (Address::Inbox { filter: Filter::ALL }, b"/"),
         (Address::Chats { filter: ChatsFilter::All }, b"/chats"),

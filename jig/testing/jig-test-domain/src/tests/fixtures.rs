@@ -138,6 +138,7 @@ pub fn domain() -> Domain {
                     models: Box::new([run().policy.model]),
                     resume_bytes: 256,
                     tail_bytes: 128,
+                    private_tools: Box::new([]),
                     tools: core::ToolFamilies::JIG,
                     key_bytes: 256,
                     redirect_bytes: 4096,

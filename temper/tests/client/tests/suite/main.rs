@@ -33,6 +33,7 @@ mod playground;
 mod project_fund;
 mod reading;
 mod recovery;
+mod remembered_page;
 mod settings;
 mod settings_tools;
 mod status;

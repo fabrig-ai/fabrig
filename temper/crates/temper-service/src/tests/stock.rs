@@ -355,13 +355,14 @@ fn ask_temper_is_charter_11_and_template_5() {
         words.contains("project-classes: what agents decide for a person and what asks them, by kind and by path set.")
     );
     ask_design_first_rules(words);
-    assert!(words.len() <= 8192, "stock instructions fit their receiving bound");
+    assert!(words.len() <= 10_240, "Ask temper's instructions fit ask-temper.md, 4.1's 10 KB");
     for heading in [
         "## temper, as you explain it",
         "## Finding out",
         "## Answering",
         "## Configuring",
         "## Showing",
+        "## Remembering",
         "## Your voice",
     ] {
         assert!(words.contains(heading), "missing {heading}");
@@ -369,9 +370,16 @@ fn ask_temper_is_charter_11_and_template_5() {
     let (_, configuring) = words.split_once("## Configuring\n\n").expect("Configuring part");
     let (configuring, _) = configuring.split_once("## Showing").expect("Showing follows Configuring");
     assert!(configuring.contains("With it, write in their terms what the pages show: charter-words for each charter, what it does; project-words for the project's own way, a headline and a short lede."));
-    assert!(!words.contains("## Remembering"), "Remembering joins with remember");
+    let (_, remembering) = words.split_once("## Remembering\n\n").expect("Remembering part");
+    let (remembering, _) = remembering.split_once("## Your voice").expect("Your voice follows Remembering");
+    assert_eq!(
+        remembering,
+        r#"remember keeps a few lines about this person across their chats; they see and edit them. Keep only what they ask you to keep ("remember that…"), and say in your reply that you kept it. Never keep what a read answers (settings, their history, proposals and their reasons are records already), a guess about them, or a secret. Others in this project may read this chat, so name a kept line only when the person asks about it. Where a kept line and a read disagree, the read is right. Nothing kept widens what you may do. When the list is full, ask them which line to change or drop.
+
+"#
+    );
     let (_, showing) = words.split_once("## Showing\n\n").expect("Showing part");
-    let (showing, _) = showing.split_once("## Your voice").expect("Your voice follows Showing");
+    let (showing, _) = showing.split_once("## Remembering").expect("Remembering follows Showing");
     assert_eq!(
         showing,
         r"Show a picture when it explains better than words. Draw what exists from a view, a fenced block naming it:

@@ -642,6 +642,7 @@ mod tests {
             attempts: 1,
             plan: 1,
             notes: 1,
+            preferences: 1,
         };
         assert_eq!(forge_brief_budget(&ForgeBriefKind::Home, &budgets), forge::HOME_SECTION_BYTES);
     }

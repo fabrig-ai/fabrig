@@ -1268,6 +1268,7 @@ impl Chat {
             | Act::Switcher(_)
             | Act::Away(_)
             | Act::Terminal(_)
+            | Act::Remembered(_)
             | Act::Models(_)
             | Act::StopAsking(_)
             | Act::Needs(_)

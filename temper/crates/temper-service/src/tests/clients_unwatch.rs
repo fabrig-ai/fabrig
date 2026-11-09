@@ -30,6 +30,7 @@ impl Stand {
             })
             .unwrap();
         let settings = kit::Settings {
+            private: kit::Private::none(),
             provider: None,
             addresses: Box::new([]),
             key_bytes: config

@@ -9,7 +9,7 @@ use jig_domain_people as p;
 fn a_pending_proposal_becomes_its_owner_record() {
     let answer = reads::Answer::Document(Box::new(d::Document::Proposal(Box::new(fixtures::pending_proposal()))));
     assert_eq!(
-        translate::document(&answer, &[], &fixtures::wire_limits()),
+        translate::document(&answer, &[], &crate::Private::none(), &fixtures::wire_limits()),
         Ok(w::ReadValue::Proposal(records::pending_proposal_record()))
     );
 }
@@ -36,7 +36,7 @@ fn a_decided_escalation_keeps_its_decider_and_wall() {
     for (label, decision, expected) in rows {
         let answer = with_decision(&source, decision);
         assert_eq!(
-            translate::document(&answer, &[], &limits),
+            translate::document(&answer, &[], &crate::Private::none(), &limits),
             Ok(record_with_decision(&expected_source, expected)),
             "{label}"
         );
@@ -46,7 +46,7 @@ fn a_decided_escalation_keeps_its_decider_and_wall() {
 fn an_ended_task_keeps_its_ending() {
     let answer = reads::Answer::Ended(Box::new(fixtures::ended_task()));
     assert_eq!(
-        translate::document(&answer, &[], &fixtures::wire_limits()),
+        translate::document(&answer, &[], &crate::Private::none(), &fixtures::wire_limits()),
         Ok(w::ReadValue::Ended(Box::new(records::ended_task_record())))
     );
 }
@@ -54,7 +54,7 @@ fn an_ended_task_keeps_its_ending() {
 fn a_project_document_becomes_its_record() {
     let answer = reads::Answer::Document(Box::new(d::Document::Project(Box::new(fixtures::project_document()))));
     assert_eq!(
-        translate::document(&answer, &[], &fixtures::wire_limits()),
+        translate::document(&answer, &[], &crate::Private::none(), &fixtures::wire_limits()),
         Ok(w::ReadValue::Project(records::owner_project_record()))
     );
 }
@@ -116,7 +116,7 @@ fn ended_settings_facts_reach_the_client_whole() {
             },
         }),
     }));
-    let record = translate::document(&source, &[], &limits).unwrap();
+    let record = translate::document(&source, &[], &crate::Private::none(), &limits).unwrap();
     let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
     record.encode(&mut out).unwrap();
     let c::ReadValue::Ended(ended) =

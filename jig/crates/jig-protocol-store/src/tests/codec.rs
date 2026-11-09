@@ -285,6 +285,7 @@ fn a_notes_pattern_past_its_aggregate_limit_is_refused() {
 fn a_party_authored_note_reads_back_in_each_scope() {
     let limits = notes::limits(&fixtures::NOTES_LIMITS).expect("within ceilings");
     for scope in [
+        domain::Scope::Party { party: u64::MAX },
         domain::Scope::Deployment,
         domain::Scope::Project { project: u32::MAX },
         domain::Scope::Resources {

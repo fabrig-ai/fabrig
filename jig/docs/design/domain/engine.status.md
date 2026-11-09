@@ -207,6 +207,7 @@ try. A window's later pages keep its first page's slot there
   page's `last`), so whether there is a next page, and the cursor the
   root holds, can come from another project's entry; temper says only
   whether more wait. No test pages a filtered inbox.
+
 - **Not yet:** 17.12: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read
   presence and `names`, but not `left_out`; `documents/small.rs`, `frame`,
@@ -221,7 +222,6 @@ try. A window's later pages keep its first page's slot there
   These can differ across a worker restart with Claude and OpenAI accounts;
   `../client/domain/contract.status.md`, 5.1 records the source paths and
   reason. The offer remains available as this section requires.
-
 
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the

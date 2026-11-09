@@ -149,7 +149,17 @@ fn drive(domain: &mut Domain, limits: &Limits, mut tokens: ReadTokens, kind: Kin
     }
     match &kind {
         Kind::Index { scopes, most } => {
-            let (lines, more) = collect_index(domain, scopes, (*most).min(limits.lines));
+            let bound = if scopes.len() == 1 {
+                match scopes.get(0).expect("one index scope") {
+                    Scope::Party { .. } => limits.party_entries,
+                    Scope::Deployment | Scope::Project { .. } | Scope::Goal { .. } | Scope::Resources { .. } => {
+                        limits.lines
+                    }
+                }
+            } else {
+                limits.lines
+            };
+            let (lines, more) = collect_index(domain, scopes, (*most).min(bound));
             push(out, Request::Indexed { owner: tokens.owner, lines, more });
         }
         Kind::Search { scopes, query, page } => {

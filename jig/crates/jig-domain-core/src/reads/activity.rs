@@ -6,7 +6,7 @@ use crate::{
 };
 use jig_domain_tasks as tasks;
 
-pub(crate) fn row(line: &tasks::ActivityLine, row: &Row) -> Result<PageRow, Missing> {
+pub(crate) fn row(core: &crate::Core, party: u64, line: &tasks::ActivityLine, row: &Row) -> Result<PageRow, Missing> {
     let mut supplied = None;
     if let tasks::Line::Turn { attempt, turn, .. } = line.line {
         supplied = Some(match &row.related {
@@ -14,7 +14,7 @@ pub(crate) fn row(line: &tasks::ActivityLine, row: &Row) -> Result<PageRow, Miss
                 if (value.task, value.attempt, value.turn) != (line.task, attempt, turn) || row.unjoined.is_some() {
                     return Err(Missing::Unknown);
                 }
-                PageTurn::Carried(value.clone())
+                super::withheld::page_turn(core, party, super::vocabulary::row_owner(row), value.clone())
             }
             Some(_) => return Err(Missing::Unknown),
             None => match &row.unjoined {

@@ -487,6 +487,7 @@ fn role_pages_read_the_named_view_once_and_keep_the_answer() {
             | Address::Chats { .. }
             | Address::NewChat { .. }
             | Address::Work { .. }
+            | Address::Remembered
             | Address::Members
             | Address::Limits
             | Address::Accounts

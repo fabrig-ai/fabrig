@@ -188,6 +188,7 @@ impl Core {
                             pattern: authority::Pattern { segments: pattern.segments, last },
                         })
                     }
+                    notes::Scope::Party { party: person } => return party::authorize_note(self, key, person),
                     notes::Scope::Project { .. } | notes::Scope::Goal { .. } | notes::Scope::Resources { .. } => {
                         return Some(CallPart::ToolDenied {
                             answer: authority::Answer::Refuse,
@@ -271,6 +272,7 @@ impl Core {
     pub fn note_readable(&self, task: u64, scope: &notes::Scope) -> bool {
         let Some(row) = self.tasks.task(task) else { return false };
         match scope {
+            notes::Scope::Party { party: person } => party::note_readable(self, task, *person),
             notes::Scope::Deployment => true,
             notes::Scope::Project { project } | notes::Scope::Resources { project, .. } => *project == row.project,
             notes::Scope::Goal { project, goal } => *project == row.project && Some(*goal) == self.note_goal(row),
@@ -285,6 +287,7 @@ pub(crate) enum NoteRoute {
     Call { to: ReplyTo, key: CallKey },
     Person { request: Token },
     Brief { task: u64 },
+    Preferences { task: u64 },
 }
 
 /// One brief's wait within the existing `limits.brief.briefs` table.

@@ -83,6 +83,7 @@ impl Core {
                     | CallPart::DelegationDenied { .. }
                     | CallPart::DelegationRefused(_)
                     | CallPart::NoteWritten { .. }
+                    | CallPart::NoteDeleted { .. }
                     | CallPart::NoteRecalled { .. }
                     | CallPart::NoteRefused(_)
                     | CallPart::Revised { .. }

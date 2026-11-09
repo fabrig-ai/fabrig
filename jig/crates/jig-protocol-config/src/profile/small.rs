@@ -133,7 +133,7 @@ pub(super) const AUTHORITY: authority::Limits = authority::Limits {
     writes: 4,
 };
 pub(super) const BRIEF: brief::Limits =
-    brief::Limits { briefs: 4, sections: 8, read_bytes: 8_192, brief_bytes: 16_384 };
+    brief::Limits { briefs: 4, sections: 9, read_bytes: 8_192, brief_bytes: 16_384 };
 pub(super) const ACCOUNTS: accounts::Limits = accounts::Limits {
     accounts: 4,
     holder_accounts: 4,
@@ -160,6 +160,8 @@ pub(super) const VIEWS: views::Limits = views::Limits {
 pub(super) const NOTES: notes::Limits = notes::Limits {
     scopes: 8,
     entries_per_scope: 16,
+    party_entries: 12,
+    party_bytes: 120,
     pattern_bytes: 256,
     description_bytes: 256,
     body_bytes: 32_768,
@@ -187,6 +189,7 @@ pub(super) const BUDGETS: core::CoreBriefBudgets = core::CoreBriefBudgets {
     attempts: 1_024,
     plan: 2_048,
     notes: 2_048,
+    preferences: 2_048,
 };
 pub(super) const CORE: core::Limits = core::Limits {
     public: core::PublicIndexLimits::OFF,

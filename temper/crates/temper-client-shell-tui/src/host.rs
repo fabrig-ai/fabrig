@@ -760,6 +760,7 @@ impl Host {
             Address::Inbox { filter } => filter.project,
             Address::Chats { .. }
             | Address::NewChat { .. }
+            | Address::Remembered
             | Address::Members
             | Address::Limits
             | Address::Accounts

@@ -266,6 +266,9 @@ fn take_group(value: c::Group) -> reads::Group {
 }
 fn put_note_scope(value: notes::Scope) -> Option<c::NoteScope> {
     Some(match value {
+        notes::Scope::Party { party } => {
+            c::NoteScope::Party(c::NoteScopeParty::new(&C, c::NoteScopePartyParts { party }).ok()?)
+        }
         notes::Scope::Deployment => c::NoteScope::Deployment,
         notes::Scope::Project { project: v } => c::NoteScope::Project(project(v)),
         notes::Scope::Goal { project, goal } => {
@@ -284,6 +287,7 @@ fn put_note_scope(value: notes::Scope) -> Option<c::NoteScope> {
 }
 fn take_note_scope(value: c::NoteScope) -> notes::Scope {
     match value {
+        c::NoteScope::Party(value) => notes::Scope::Party { party: value.party() },
         c::NoteScope::Deployment => notes::Scope::Deployment,
         c::NoteScope::Project(v) => notes::Scope::Project { project: v.value() },
         c::NoteScope::Goal(v) => notes::Scope::Goal { project: v.project(), goal: v.goal() },
