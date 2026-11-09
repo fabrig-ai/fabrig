@@ -6405,6 +6405,15 @@ name = "temper-version"
 version = "0.0.0"
 
 [[package]]
+name = "temper-worker"
+version = "0.0.0"
+dependencies = [
+ "skein-fail-stop",
+ "skein-scratch",
+ "temper-worker-shell",
+]
+
+[[package]]
 name = "temper-worker-checkout-world"
 version = "0.0.0"
 dependencies = [
@@ -6509,6 +6518,7 @@ dependencies = [
  "temper-service",
  "temper-service-shell",
  "temper-shell",
+ "temper-version",
  "temper-worker-domain",
 ]
 
