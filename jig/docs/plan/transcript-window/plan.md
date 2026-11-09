@@ -35,26 +35,68 @@ the design.
 
 | Part | Task | Needs | Trees | Request item |
 |---|---|---|---|---|
-| `window-pages` | `tasks/window-pages.md` | | temper | 1 and 2: the failing rows (window length against the page, the restart's row) and the fix: a window's later pages keep its slot |
+| `window-pages` | `tasks/window-pages.md` | | temper | 1 and 2: rows by the window's length against the page, the restart's row; the fix: a window's later pages keep its first page's slot |
+| `turn-cut` | `tasks/turn-cut.md` | | jig (temper: the new field's two lines) | 1 and 2: rows by a turn's size against the page's room; the fix: the store hands such a turn on cut, the core keeps a marker and starts fresh from the tail |
+| `temper-cut` | `tasks/temper-cut.md` | `window-pages`, `turn-cut` | temper (jig: one status sentence) | 1 and 2: rows by a turn's size against temper's bounds; the fix: the cut carried to the core, and temper's own row and page bounds cut rather than end the page |
 
-Further batches (being written): a window turn too large for a load page
-is loaded cut with a marker and the run starts fresh from its tail, in
-jig (store, core, reference root) and then temper (service routing).
+Three tasks: the request's limit. Item 3, the design, is this cut's own
+writing, not a task. Nothing is dropped.
+
+Which bound refused: `root.loads.loads` (2), for a window's later page,
+with its earlier page's slot retired until the pass's reclaim
+(`window-pages` proves it by row). The restart's minute is the same path:
+`restart-loads` made the activation wait for room, but a restarted task's
+window past one page still asks its later pages without it, while other
+due tasks hold the table (`window-pages`, Steps 2, rules it in or out).
+The request's other candidates: a row past the window's room is
+`turn-cut`'s and `temper-cut`'s (it was `Unread`, `... could not be read`,
+not the words reported; and in temper a row past the root's own row
+bound ends the page in `page_failed`); `append_transcript`'s bound
+refuses no size (ruled out by two existing core tests, `turn-cut`
+names them); the store's load refusing past a size is the same `Unread`.
+
+## Contracts
+
+`notes/contracts.md`: the store's `Event::Turns.cut`, the core's
+`TranscriptLoad::Cut` and `CUT_TURN_TEXT`, and temper's default
+`TurnText`. `turn-cut` builds the jig half alone; until `temper-cut`
+lands, temper answers a cut page as it answered the store's `Unread`.
 
 ## Design written by this cut
 
 - `temper/docs/design/domain/root.md`, 8: *A window's pages keep their
-  load slot*. Its status: a **Not yet** 8, which `window-pages` removes.
-- `jig/docs/design/domain/engine.md`, 16: *A transcript's load with no
-  slot* now says a root never lets room fail a load.
+  load slot*; *An issued transcript load that fails*: a cut turn reaches
+  the core cut, and so does a turn past the root's own page bounds. Its
+  status: two **Not yet** 8 entries, apart: `window-pages` removes the
+  first, `temper-cut` the second.
+- `jig/docs/design/protocol/store.md`, 8.3: *A window's turn past its
+  page's room*; *Direct complete-turn requests* now excludes a window's.
+  Its status: a **Not yet** 8.3, which `turn-cut` removes.
+- `jig/docs/design/domain/engine.md`, 7.2: *A turn too large for a page*,
+  and *A window closed by an upgrade* now hands such a turn on cut; 9: the
+  brief's tail carries a cut turn's marker; 16: *A transcript's load with
+  no slot*. Its status: a **Not yet** 7.2, which `turn-cut` removes.
 
 ## Critical path
 
-`window-pages` (about 2 hours) alone so far.
+`window-pages` (about 2 hours) and `turn-cut` (about 2.7 hours) run
+together; `temper-cut` (about 2.3 hours) follows both: about 5 hours.
+
+## Merging main
+
+main moved past this plan's base: `worker-relinks`' retire wrote a
+**Not yet** 8 in `temper/docs/design/domain/root.status.md` for the same
+later-page gap. This branch merged main and kept the trunk's entry in
+its place, the one `window-pages` removes, so the trunk's merges stay
+clean; `temper-cut` brings main's two status sentences on that gap
+(temper's root status, jig's engine status) up to date.
 
 ## Overlaps
 
 None with the drafts beside this one: `store-crash-safe/writer-rows`
-changes `jig/tests/core` and `jig-domain-core`'s admission, not these
-files; `ui-reaches` and `ui-p3e-words` change temper's client, service
-stock and protocol files.
+changes `jig/tests/core/tests/suite/main.rs`, `named_people.rs` and
+`jig-domain-core`'s admission and delegation, and
+`jig/docs/design/domain/engine.status.md`, where `turn-cut` removes an
+entry at the file's end and `temper-cut` edits one sentence; `ui-reaches`
+and `ui-p3e-words` change temper's client, service stock, family and
+protocol files, not its store routing.

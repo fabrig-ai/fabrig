@@ -212,3 +212,11 @@ there (`temper/docs/design/domain/root.status.md`, 8).
   whether a capacity check is missing or the expectation is wrong, and
   whether this departs, is the designer's decision: it is a bug if the
   design requires `Full` in this case; no reason is recorded.
+
+- **Not yet:** 7.2: a turn too large for a page: there is no
+  `TranscriptLoad::Cut`; the store answers a window page that cannot hold
+  its turn `Unread` (`jig-protocol-store/src/transcripts/read.rs`,
+  `settle`), so an open window holding such a turn fails its brief once,
+  `transcript: its window could not be read`, spending a transient try, and
+  its retry starts fresh without the tail; jig's reference root
+  (`jig-test-store/src/route.rs`) hands that `Unread` on.

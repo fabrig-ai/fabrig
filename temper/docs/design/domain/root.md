@@ -902,9 +902,15 @@ its bounded retry path.
   tail and no added failure or refusal, while an open window keeps its
   transient failure policy. A transcript load is issued only with read
   room: without it the root answers the activation `busy` and the task
-  stays due (jig's `domain/root.md`, 3). Successful-page cuts and the
-  transcript row and text validation guards keep their existing
-  preparation-failure translation.
+  stays due (jig's `domain/root.md`, 3). A window's turn the store hands
+  on cut (jig's `protocol/store.md`, 8.3) reaches the core as
+  `TranscriptLoad::Cut`: its place and its length, never its bytes. So
+  does a turn the store carried whole but past the root's own page bounds
+  (`root.loads.transcript_bytes` for a row, `root.loads.bytes` for a
+  page): the service hands it on cut, alone in its page, rather than end
+  the page, so no turn's size fails a window or ends the engine's
+  journal. Other successful-page cuts and the transcript row and text
+  validation guards keep their existing preparation-failure translation.
 - **A window's pages keep their load slot.** A transcript's window is
   read a page of `root.loads.rows` turns at a time. A page that names a
   next one hands its load slot on: the next page is issued in that slot,

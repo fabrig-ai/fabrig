@@ -105,3 +105,11 @@ the repository. A window's later page is below.
   panic at a link it cannot make (the user, 10-28). Which holds is the
   user's, unanswered (that document's section 16).
 
+- **Not yet:** 8: a window's turn handed on cut: `temper-service`'s
+  store routing (`src/store/route.rs`, `up`) hands no turn on cut, and the
+  root has no way to say one (`temper-engine-domain/src/boundary.rs`,
+  `TranscriptTexts`; `archive.rs`, `transcript_loaded`). A turn the store
+  carried whole but past `root.loads.transcript_bytes`, or alone past
+  `root.loads.bytes`, ends its page in `route.rs`, `page_failed`, whose
+  `stop` reports the last commit `Uncommitted`.
+
