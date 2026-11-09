@@ -564,6 +564,7 @@ fn load_document(
         problems.push(root.member(b"application").member(b"workers"), What::Jig(config::What::Bound));
     }
     checks::hub(engine.as_ref().expect("required engine checked"), &mut problems);
+    checks::resumed_start(engine.as_ref().expect("required engine checked"), &mut problems);
     checks::provider(engine.as_ref().expect("required engine checked"), &mut problems);
     checks::credentials(
         engine.as_ref().expect("required engine checked"),

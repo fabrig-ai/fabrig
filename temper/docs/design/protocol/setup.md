@@ -2523,6 +2523,9 @@ runs it (section 7).
     `size_of::<Box<[u8]>>()`: the window and a box for each turn it can hold;
     `hub.turn_queue_bytes` 8T, the agent's eight unacknowledged turns
     (the worker's check, above);
+  - the worker's `limits`: `io.output` a turn of T's frame on its link,
+    header included, past the profile's 1,048,576, so that the worker's
+    link is made (jig's `protocol/channel.md`, 9 and 11);
   - `engine.limits`: `core.resume_bytes` T + 4, one largest turn with
     its length, so that a chat's window resumes whole up to that size;
   - `application.limits`: `root.journal.transcript_bytes` T + 4, the

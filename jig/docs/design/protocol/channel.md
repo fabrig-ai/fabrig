@@ -326,7 +326,10 @@ tags stay fixed (`README.md`, 7).
   past the room fails its run, never the link*): an assignment or a job
   whose frame is past the room the engine's stream grants at once, or
   that skein's channel refuses at its entrance for anything but a full
-  queue, is answered the same way, with no record sent. Its diagnostic
+  queue, is answered the same way, with no record sent. An assignment's
+  committed calls are fitted to the room first (section 9, *A resumed
+  start fits its room first*), so an assignment is past the room only
+  with every host answer cut. Its diagnostic
   names the record, its frame's bytes and the bound: `assignment of
   BYTES bytes past the link's room of ROOM bytes`, or `assignment of
   BYTES bytes refused by the channel: REASON`, `job` for a job. A job
@@ -756,6 +759,33 @@ holds, and neither of its components reads them.
   and dropped; with every other kind within the room and the peer's
   terms checked at the opening (4.1), only a broken contract reaches
   that.
+- **A resumed start fits its room first.** The calls committed since a
+  resumed run's last turn (6.1) are the one part of a start that grows
+  with the run's work rather than with a bound of its own: a long run
+  whose turn was never told, its program working an hour between two
+  turns, carries as many as the core retains, each answer up to its
+  bound, far past any room. Before an assignment is measured against the
+  room, the engine's component fits them. It keeps every committed call,
+  by its name and tool, in its order; each delivery's answer whole,
+  since its evidence must decode and agree on the worker (6.1); and
+  each host answer no longer than the words below, which a cut would not
+  shorten. From the newest back, it keeps each host answer whole while the frame with it
+  fits; that first one that does not fit and every older host answer are
+  cut: the body becomes the fixed ASCII words `[this call ran; its answer
+  of BYTES bytes was left out of this start]`, `BYTES` the cut body's
+  length in plain decimal, and the answer keeps its error flag. So the
+  run is told of every call it made, the newest answers as they were,
+  and is asked none again: smith tells the LLM of each, as text in its
+  waking prompt (smith's `domain/run.md`, section 6), and an older read
+  it still needs it reads again. A program that resumes its own session
+  is given the same words as user messages (smith's
+  `protocol/programs.md`, 5.8), so its session goes on from where its
+  work stood. An assignment that fits whole, a job, and a start in the
+  engine's own hub, which crosses no link, are never cut. Only an
+  assignment still past the room with every host answer cut is refused
+  as above, its words naming the frame so cut. The cut is the link's:
+  the core keeps every call as committed, and retires them at the run's
+  next turn as any.
 - **Inventories coalesce while output waits.** The worker's component
   keeps one latest whole snapshot outside the channel queue and sends it
   when that queue is empty. A replacement snapshot overwrites an unsent
@@ -891,8 +921,13 @@ and resends what it must after the next hello.
   sources, the program sources a worker may be given (which bound
   `sources` and `logins`) and the application's credentials, from the
   accounts' bounds (`configuration.md`, section 6). The crate turns
-  them into each kind's largest body and each side's output cap. It
-  depends on no domain.
+  them into each kind's largest body and each side's output cap, and
+  into the smallest resumed start: an assignment's fixed fields with
+  its charter, transcript, workspace, messages and grants empty, and
+  the most committed calls the sizes admit, each with its name and tool
+  at their bounds and its answer cut (section 9). It fits a resumed
+  start's committed calls to a room, as section 9 has it. It depends on
+  no domain.
 - **The component's own limits:** the chunk read at once, the room its
   stream grants at once (section 9), the name's and
   the secret's bytes, the handshake's, hello's, ping's, silence's and
@@ -903,9 +938,14 @@ and resends what it must after the next hello.
   protocol layer gives each component its io's `largest_room`, the same
   cap io grants the stream's room by, in one process as between hosts.
   Each side's largest frames but the engine's starts must fit it, or the
-  component is not made; a start larger than it is a run that fails with
-  its numbers (section 9). How large a start the domains admit beside the
-  room is the application's figure.
+  component is not made; a start larger than it is first fitted, and
+  only one still past it with its committed calls cut is a run that
+  fails with its numbers (section 9). The smallest resumed start must
+  fit the room too, or the engine's component is not made: under such
+  limits a run that committed its most calls could never resume. How
+  large a start the domains admit beside the room is the application's
+  figure, and the application names the bound when it refuses such
+  limits (temper's `protocol/configuration.md`, section 7).
 - **The worst case per channel** is skein's channel's (skein's
   `channel.md`, section 10) with these terms and caps; per side, the
   engine's is that times the fleet's workers and the connections opening,
@@ -953,13 +993,33 @@ ones in the fuzzy suite.
   as io does. The engine's world, one table: an assignment and a job at
   the room are sent; one byte past it, each is answered refused with its
   bytes and the room, told once as `Unsent`, and a ping still goes out
-  at each interval for two minutes, with the next record sent after it;
-  limits whose largest message, relayed answer or grant frame passes the
-  room are not made. The worker's world: limits whose largest turn,
+  at each interval for two minutes, with the next record sent after it.
+  The engine's component's step tests: limits whose largest message,
+  relayed answer or grant frame passes the room are not made, a job that
+  cannot encode is answered, and a record the channel refuses at its
+  entrance is answered once. The worker's world: limits whose largest turn,
   call, answer or hello frame passes the room are not made. Joined to
   the real engine's component, an assignment past the engine's room
   leaves the link up for two minutes, pings crossing both ways, its run
   answered refused, and a run assigned after it is hosted.
+- **A resumed start fitted to its room.** In `jig-protocol-worker-wire`,
+  one step table: an assignment that fits is left whole; one past the
+  room by its committed calls has its newest answers whole and the
+  older cut, its frame within the room, each cut answer's words naming
+  its bytes, its error flag and every call's name and tool kept; a
+  delivery among them whole; the room met exactly; one still past the
+  room with every host answer cut, left so; and the smallest resumed
+  start against an assignment built at it, measured. The engine's
+  world: limits whose smallest resumed start passes the room are not
+  made, and an assignment past the room by its committed calls is sent
+  cut, with no `Unsent`. Joined to the real engine's component, on each
+  stock profile's limits: a resumed start carrying more committed calls
+  at the largest answer than one start can carry crosses, the worker's
+  root is handed every call, the newest answers whole and the rest cut,
+  its run's turn and answer go up and are kept, and the link lives. The
+  core's choice of the calls a start carries, every one committed since
+  the last turn in commit order, is the core world's (`../domain/engine.md`,
+  7.2).
 - **The channel's protocol world,** `tests/channel`: the engine's side
   with the core under jig's test root, and the worker's side with the hub
   under the test worker's root, both as the reference service composes
@@ -1095,7 +1155,15 @@ ones in the fuzzy suite.
   hello and be carried by the fleet.
 - **Large assignments:** a resumed run's transcript crosses in one frame,
   within the resume limit. If transcripts grow to many megabytes, an
-  assignment may stream its turns as records of their own after it.
+  assignment may stream its turns as records of their own after it. A
+  resumed start's committed calls are fitted to the room (section 9),
+  but a start past it by its other parts, its charter, window, inbox and
+  grants, fails its run, and the domains' limits admit one (temper's
+  `standard` by a full inbox alone): making it start takes a room sized
+  from what the configuration admits, a start that carries less of
+  them, or frames that move below in pieces, a skein channel change.
+  The user chooses, from a deployment's refusal line (temper/migration,
+  2026-11-09). Default: it fails with its numbers.
 - **Facts dropped, told:** a piece past a gap marks the turn cut; a
   count of the activity dropped could cross too, for the deployment's
   document.

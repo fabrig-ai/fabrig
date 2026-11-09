@@ -40,6 +40,37 @@ fn standalone_shape_is_required_of_jigs_parts() {
     }
 }
 #[test]
+fn the_smallest_resumed_start_fits_the_engines_room_or_names_it() {
+    // Header 8 + fixed fields 57 + calls * (14 + name 64 + tool 64 + cut words):
+    // 32 calls with 69-byte words; 128 with 70-byte words (jig/docs/design/protocol/channel.md, 11).
+    const SMALL: u32 = 6_817;
+    const STANDARD: u32 = 27_201;
+    let mut engine = fixtures::engine().jig;
+    for (profile, smallest, words) in [
+        (
+            config::Profile::Small,
+            SMALL,
+            "engine.limits.io.output: 6816 bytes, short of the smallest resumed start, 6817 bytes\n",
+        ),
+        (
+            config::Profile::Standard,
+            STANDARD,
+            "engine.limits.io.output: 27200 bytes, short of the smallest resumed start, 27201 bytes\n",
+        ),
+    ] {
+        let limits = config::profile(profile);
+        for (row, output, expected) in
+            [("stock", limits.io.output, ""), ("met", smallest, ""), ("one short", smallest - 1, words)]
+        {
+            engine.limits = limits;
+            engine.limits.io.output = output;
+            let mut problems = Problems::empty();
+            checks::resumed_start(&engine, &mut problems);
+            assert_eq!(lines(&problems).as_ref(), expected.as_bytes(), "{profile:?} {row}");
+        }
+    }
+}
+#[test]
 fn the_longest_remote_of_an_empty_machine_measures_github_com() {
     let machine = temper_forge_setup::machine::Machine { owned: None, fake: None, github: None };
     assert_eq!(checks::machine_remote(&machine, 10), Some(44));
