@@ -256,6 +256,18 @@ fn sign_in(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words, wall: Wall)
     }
     tick
 }
+/// The sign-in screen is drawn while signed out with no sign-in from a link under way.
+#[must_use]
+pub fn sign_in_drawn(root: &Domain, tui: &Tui) -> bool {
+    root.client().link().state == Link::SignedOut && tui.local() != Local::Signing
+}
+
+/// The sign-in has not landed: the link is signed out, or `me` is not yet read.
+#[must_use]
+pub fn landing(root: &Domain) -> bool {
+    root.client().link().state == Link::SignedOut || root.pages().me(root.client()).is_none()
+}
+
 /// Rebuild when the root's shown count or the TUI's revision changes, or the tick is reached.
 pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Queue<Patch>) {
     let root_shown = temper_client_domain::shown(root);
@@ -271,8 +283,7 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
     view.page = page_focus(root, tui.address());
     view.focus = view.page.clone();
     view.walkable = has_needs(root);
-    let signed_out = root.client().link().state == Link::SignedOut && tui.local() != Local::Signing;
-    if signed_out {
+    if sign_in_drawn(root, tui) {
         view.selected_event = None;
         view.walkable = false;
         view.left_off.clear();
@@ -457,8 +468,8 @@ pub fn offered(root: &Domain, _words: &Words) -> Box<[temper_client_domain::page
             Command::Pause => chat,
             Command::Close | Command::StartOver => chat && no_delegate,
             Command::New | Command::Chats => project,
-            Command::Theme | Command::Help | Command::Exit => true,
-            Command::Draft | Command::Goal | Command::Font => false,
+            Command::Help | Command::Exit => true,
+            Command::Draft | Command::Goal | Command::Font | Command::Theme => false,
         };
         if screen && temper_client_view::shared::offered(root, task, command) {
             commands.push(command).expect("at most Command::ALL commands");
@@ -538,8 +549,9 @@ pub fn focus(view: &View) -> Option<&[u8]> {
 /// The TUI's own commands in their offered order (client/README.md, 6.14).
 #[must_use]
 pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
-    let mut commands = List::with_capacity(5);
+    let mut commands = List::with_capacity(6);
     if root.client().link().state == Link::SignedOut || welcome::shown(root, tui) {
+        commands.push(Own::Theme).expect("one theme command");
         return commands.into_boxed();
     }
     if root.pages().chat().is_some() {
@@ -553,6 +565,7 @@ pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
         for command in Own::ALL {
             let offered = match command {
                 Own::Change | Own::Ask | Own::Open => true,
+                Own::Theme => false,
                 Own::Brief => brief,
                 Own::Needs => no_list && has_needs(root),
             };
@@ -561,5 +574,6 @@ pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
             }
         }
     }
+    commands.push(Own::Theme).expect("theme counted");
     commands.into_boxed()
 }

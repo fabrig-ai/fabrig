@@ -77,6 +77,25 @@ reading, and checks them and the current attempt after loading a stored
 row. `reads/vocabulary.rs` restricts retained task proposals to the
 reader's project and settings actions.
 
+Section 7.3's run read as its person is present but for the two gaps
+below. `NamedAction::PersonRead` is routed before replay and call
+admission (`routing/run/calls.rs`) to `reads/person.rs`, which checks the
+asking family, the run's current attempt and a person requester, admits
+the reads naming the run's project or a task of it and no other, and
+answers `Now::PersonAnswer`, unrecorded. A stored read's completion
+checks again the attempt, the requester, the person's role and each
+loaded row's project (`reads/rows.rs`, `person_from_store`), and an
+application's read goes to its connector with the person and the
+project's scope. No frame is read for the person (section 16). The
+core's `tests/reads/person.rs` (`admission_names_exactly_one_project_or_a_task_to_check`,
+`stored_person_reads_recheck_the_attempt_requester_and_role`,
+`stored_person_reads_refuse_foreign_owners_and_linked_rows`,
+`retained_pages_prove_their_owner_even_when_empty`) and the core world's
+`suite/person_reads.rs` (`a_run_reads_its_project_as_its_person_and_no_other`,
+`a_run_reads_as_its_person_only_with_the_asking_family`,
+`stored_person_reads_recheck_the_role_and_share_load_limits`,
+`person_application_reads_reach_the_connector_as_the_person`) hold it.
+
 Sections 17.9 and 17.11 have no known gap in the stored-policy size
 refusal or a charter's selected effort. Size facts include parts and
 cross proposal answers, client wire 19 and people store 14 unchanged,
@@ -175,6 +194,24 @@ try. A window's later pages keep its first page's slot there
 
 ## Gaps and departures
 
+- **Not yet:** 7.3, *A run's read as its person*: a task query of the
+  project that names a person requester reads its ended part from the
+  person's index, which spans projects (`reads/ended.rs`,
+  `ended_part`), and a page that loads another project's row answers
+  unknown whole (`reads/rows.rs`, `person_from_store`), where a party's
+  read drops that row. temper's addresses name no requester; no test
+  reads such a query.
+- **Not yet:** 7.3, *Of its project alone*: an inbox page filtered by the
+  run's project takes its `next` cursor from the last entry of the
+  person's whole inbox, before the filter (`reads/rows.rs`, the live
+  page's `last`), so whether there is a next page, and the cursor the
+  root holds, can come from another project's entry; temper says only
+  whether more wait. No test pages a filtered inbox.
+
+- **Not yet:** 10.1, *The scope*: notes keep no party's scope; the
+  deployment, project, goal and resource scopes alone, in the notes child,
+  the store, the people child, the clients' wire and their cursors.
+
 - **Not yet:** 17.12: a read changing only the displayed omitted count
   does not mark `me`. `routing/lists.rs`, `answered`, compares good-read
   presence and `names`, but not `left_out`; `documents/small.rs`, `frame`,
@@ -183,12 +220,20 @@ try. A window's later pages keep its first page's slot there
   The mark table has no row for this case; this finding is by reading,
   with no runtime result supplied. No reason for the omission is recorded.
 
+- **Not yet:** 10.1, *Its entries are preferences* and *Written for its
+  party*: no run writes or drops an entry of a party's scope, and the notes
+  child holds no `notes.party_entries` or `notes.party_bytes`; a run deletes
+  no note.
+
 - **Departs:** 11.1: an omitted template's preview uses the first offered
   model, while a task's next-run selection needs a supporting host to call
   even a direct account usable and otherwise takes the first serving one.
   These can differ across a worker restart with Claude and OpenAI accounts;
   `../client/domain/contract.status.md`, 5.1 records the source paths and
   reason. The offer remains available as this section requires.
+
+- **Not yet:** 9, 10.1, *Read by those runs*: a brief has no `preferences`
+  section; no run reads a party's scope.
 
 
 - **Not yet:** 2, 8: runs on the engine's own slots under
@@ -233,6 +278,11 @@ try. A window's later pages keep its first page's slot there
   `jig-domain-core/src/settings.rs`, `Current::new`, expects the capacity to
   be representable instead of returning a named configuration refusal; the
   bounds check takes limits without declared kinds. No reason is recorded.
+
+- **Not yet:** 7.3, 10.1, *Its runs' parts are its party's*: every turn
+  reads whole to whoever may read its task, a run's read as its person
+  included, and a run's live call shows its input to every follower; the
+  core's and the clients' settings name no private section or tool.
 
 - **Not yet:** 5.1, 17.6: the whole project-deletion commit has no
   established admission price against `journal.writes`, because the
@@ -283,3 +333,6 @@ try. A window's later pages keep its first page's slot there
   whether a capacity check is missing or the expectation is wrong, and
   whether this departs, is the designer's decision: it is a bug if the
   design requires `Full` in this case; no reason is recorded.
+
+- **Not yet:** 10.1, *Read and kept by its party alone*: no party reads,
+  corrects or deletes a party's scope through a client.

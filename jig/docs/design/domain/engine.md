@@ -1132,15 +1132,19 @@ the run's other reads.
   their pages and bounds, their loads. In place of a sign-in, a stored
   read's completion checks again the run's current attempt, its
   requester, the person's role in the project, and that what the row
-  names is of the project, and answers unknown where any has moved, as
-  the run's other stored reads do (above). An application's read goes to
+  names is of the project, and answers unknown where any but the attempt
+  has moved; an attempt no longer current is answered nothing, as the
+  run's other stored reads are (above). An application's read goes to
   its connector as a party's does, with the person and the project's
   scope, and the connector answers it to the run's call through the root
   (connectors.md, 5.5).
 - **Answered** to the root as the read's own answer, the document, the
   page, the turn, or why there is none, busy among them; the application
   renders it for its run. It marks nothing seen and moves no read
-  position.
+  position. Every turn it answers, on its own or in an activity page, is
+  marked withheld, whoever requested the turn's task, since what the run
+  reads joins its own transcript, which others read (10.1, *Its runs'
+  parts are its party's*).
 
 **Calls are named, and decided once.** Every call names its task's
 attempt and the run's own name for it. The core commits a call that
@@ -1516,7 +1520,9 @@ whom; its delegates, their states, and the
   coordinator); its earlier
   attempts and why they failed; the calls its task committed since its
   last turn, when it does not resume; the proposals and escalations
-  waiting for its decision; the index of its notes; a transcript's tail,
+  waiting for its decision; the index of its notes; for a run that
+  explains to its person, that person's preferences, whole (10.1); a
+  transcript's tail,
   when it does not resume, the window's last turns as text rendered by the
   host's protocol layer when loaded, a turn too large to load as its
   fixed marker (7.2), within the tail's own budget; and,
@@ -1611,7 +1617,8 @@ prefers. The notes child domain knows scopes, entries and indexes:
 - **An entry** has a one-line description, a body, a scope, references to
   tasks, and who wrote it: a party, or a task.
 - **Scopes:** the deployment; a project; a goal; a resource pattern of a
-  connector's (a service, a repository), within a project.
+  connector's (a service, a repository), within a project; and a party's,
+  a person's own, in no project (10.1).
 - **A chat's own scope** is the goal scope named by a chat's own number. A
   root conversation, a task flagged conversation with no tracked ancestor
   (`goal_of` none), writes and reads that scope as a goal's tree does its
@@ -1679,6 +1686,71 @@ prefers. The notes child domain knows scopes, entries and indexes:
 - **Knowledge that belongs to a system** belongs there, such as a
   repository's guide: a note that matures may be proposed as an effect
   on it.
+
+### 10.1 A party's scope
+
+A person's preferences: a few short lines kept for them across the
+deployment and read by the runs that explain to them, so that what they asked
+to be remembered holds in their next conversation (`draft/notes-memory.md`,
+section 3, taken up as far as an application's asking runs need it; temper's
+Ask temper is the first, its `draft/ask-temper.md`, section 7).
+
+- **The scope,** `Party { party }`, a person's number: one per person, in no
+  project, so that no project's reads list it and a project's deletion leaves
+  it. The store keys it as it keys every scope, its index lines and entries
+  beside the others' (`../protocol/store.md`, section 4).
+- **Its entries are preferences,** the kind its scope gives them: an entry's
+  description is the line and its body is empty, at most `notes.party_bytes`
+  for the description, and at most `notes.party_entries` entries in one
+  party's scope. A write past the bytes is refused naming them and the bound,
+  a body is refused, and a new entry past the count is refused as full, as a
+  scope past `notes.entries_per_scope` is. The other kinds of
+  `draft/notes-memory.md`, section 2, are not built: no other scope has one.
+- **Written for its party by the runs that explain to them:** a run whose
+  task's requester is the person, `Party::Person(party)`, and whose
+  authority holds the asking family (authority.md, section 3), through its
+  application's named actions: `Note`, a new entry or a revision at the
+  revision it read, and `NoteDelete`, an entry dropped at the revision it
+  read, which no other scope admits from a run. The note family decides and
+  records each as it does a note (7.3); for this scope its check is that
+  requester and that family, in place of the authority's note scopes, and any
+  other run's write there is refused beyond authority, naming the scope. A
+  run's own `note` and `recall` tools name no party's scope; a requester two
+  tasks up, which a delegate works for, is later (section 16).
+- **Read by those runs, whole in their brief:** the core section
+  `preferences` (section 9), present where the run's task's requester is a
+  person and its authority holds the asking family: the scope's index lines,
+  every one, in name order, the oldest first, each `N. DESCRIPTION`, `N` its
+  place from 1, or the one line `None kept.`. It is required, and its budget
+  holds `notes.party_entries` lines of `notes.party_bytes` numbered, so it is
+  never cut; a scope whose index cannot be read fails the brief as the notes
+  index does (9.1). The notes index (section 10) never lists the scope.
+- **Read and kept by its party alone:** the party reads the scope through a
+  client (`../client/domain/contract.md`, section 6) and corrects or deletes
+  its entries whatever their roles, project 0 named as a deployment's note
+  names it. No other party reads it, an owner of the deployment included: a
+  read is answered unknown, a correction or a deletion refused as unknown.
+- **Its runs' parts are its party's:** a turn of a task whose requester is a
+  person shows its brief's `preferences` section and the calls of the
+  application's private tools to that person alone. The application names,
+  in the core's settings and the client component's, the section's title as
+  its runs' briefs render it and its private tools by name, temper's
+  `remember` among them. Each turn the core answers to any other party, on
+  its own (`Turn`) or in an activity page, and every turn a run reads as its
+  person (7.3), is marked *withheld*, and the protocol layer that carries it
+  projects it before it leaves: in every text of the turn, the section's
+  heading line and the lines after it that are empty, `None kept.` or a
+  number then `. ` become the heading and one line, `Withheld: shown to its
+  person alone.`, and each private tool's call keeps its tool and position
+  with its input `{}` and its result that line. A run's live document
+  (`../client/domain/contract.md`, 7.3) shows a private tool's call and the
+  input being written to the task's requester alone, and to every other
+  follower the call's tool alone. The stored turn stays whole, so that the
+  run resumes from it and its person reads it as it was.
+- **Bounded and erased with what holds them:** the scope's index is kept as
+  every scope's is, evicted least recently used (section 10), and parties are
+  never erased (people.md, section 3), so neither is their scope; a party's
+  erasure is later, with its scope.
 
 ## 11. Views
 
@@ -2285,6 +2357,11 @@ section 5).
   refuse the fresh proposal and retain the pending set. Replacement
   grants no extra slot.
 
+- **A party's scope beyond its asking runs** (10.1): whether a delegate
+  works for the person two tasks up and reads their preferences, whether
+  other kinds of `draft/notes-memory.md` take a scope, and whether a run's
+  own `note` and `recall` name a party's scope. Default: an asking run of
+  the person's own task alone, through its application's named actions.
 - **A line range on `recall`:** `recall` returns a note's whole body, which costs
   input, not output. A range joins it only if a walk shows it's needed
   (section 10; the user's idea, 2026-11-05).

@@ -25,6 +25,52 @@ impl Scheme {
     }
 }
 
+/// The theme kept in the TUI's small store (temper/docs/design/client/README.md, 6.15).
+pub const THEME_KEY: &[u8] = b"theme";
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ThemeChoice {
+    Auto,
+    Light,
+    Dark,
+}
+
+impl ThemeChoice {
+    pub const ALL: [ThemeChoice; 3] = [ThemeChoice::Auto, ThemeChoice::Light, ThemeChoice::Dark];
+
+    #[must_use]
+    pub const fn print(self) -> &'static [u8] {
+        match self {
+            Self::Auto => b"auto",
+            Self::Light => b"light",
+            Self::Dark => b"dark",
+        }
+    }
+
+    #[must_use]
+    pub fn read(bytes: &[u8]) -> ThemeChoice {
+        if bytes == b"light" {
+            Self::Light
+        } else if bytes == b"dark" {
+            Self::Dark
+        } else {
+            Self::Auto
+        }
+    }
+
+    #[must_use]
+    pub const fn scheme(self, terminal: Option<Scheme>) -> Scheme {
+        match self {
+            Self::Auto => match terminal {
+                Some(scheme) => scheme,
+                None => Scheme::Dark,
+            },
+            Self::Light => Scheme::Light,
+            Self::Dark => Scheme::Dark,
+        }
+    }
+}
+
 const fn rgb(red: u8, green: u8, blue: u8) -> Rgb {
     Rgb { red, green, blue }
 }
@@ -85,6 +131,7 @@ fn style(style: skein_ui::Style, paint: Paint) -> StyleLook {
         mark: None,
         described: None,
         active_name: None,
+        focused_value: None,
         spaced: false,
     }
 }
@@ -148,7 +195,7 @@ fn styles(dim: Rgb, faint: Rgb, accent: Rgb, good: Rgb, back: Option<Rgb>) -> Bo
         StyleLook { mark: star, ..style(look::DOTS, fore(faint)) },
         StyleLook { mark: star, ..style(look::RUNNING, fore(dim)) },
         style(look::END, Paint { reverse: true, ..Paint::NONE }),
-        StyleLook { label: false, ..style(look::FIELD, Paint::NONE) },
+        StyleLook { label: false, focused_value: Some(Paint::NONE), ..style(look::FIELD, Paint::NONE) },
         style(look::LIST_HEAD, bold),
         StyleLook { described: Some(fore(dim)), ..style(look::OPTION, bold) },
         StyleLook { described: Some(fore(dim)), active_name: Some(Paint::NONE), ..style(look::COMMAND, bold) },

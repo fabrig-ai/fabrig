@@ -112,7 +112,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `journey` | `2` | the first line (shared) |
 | `seed` | the host's seed | the start's facts, in this order (shared) |
 | `clocks` | now and wall, in nanoseconds, at the host's making | (shared) |
-| `screen` | rows, columns, `dark` or `light` | the start's size and scheme |
+| `screen` | rows, columns, `dark`, `light` or `none` | the start's size and the scheme the terminal says, `none` where it says none (`../README.md`, 6.15) |
 | `background` | red, green and blue, each a number | the terminal's answer to OSC 11, when the start has one (`../README.md`, 6.13, `Start.background`) |
 | `address` | `HOST:PORT` as bytes | the start's address |
 | `local` | none | when the start has an engine's link file to read (`../README.md`, 6.13, `Start.local`) |

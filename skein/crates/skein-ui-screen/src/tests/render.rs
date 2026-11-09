@@ -1099,6 +1099,82 @@ fn active_name_paint_replaces_tokens_only_for_the_active_name() {
     }
 }
 
+#[test]
+fn focused_value_paint_leaves_the_focus_paint_on_the_mark_alone() {
+    let own = fixtures::BLUE_PAINT.over(fixtures::DIM).over(fixtures::BAND_PAINT);
+    let accent = Paint { reverse: true, ..fixtures::ACCENT };
+    let coloured = Paint { underline: true, ..fixtures::RED_PAINT };
+    for (earlier, later, expected) in [
+        (None, None, accent.over(own)),
+        (None, Some(Paint::NONE), own),
+        (None, Some(coloured), coloured.over(own)),
+        (Some(coloured), Some(Paint::NONE), own),
+        (Some(Paint::NONE), None, own),
+    ] {
+        for (labelled, focused) in [(true, true), (false, true), (true, false), (false, false)] {
+            let mut theme = fixtures::theme();
+            theme.focus = accent;
+            for look in &mut theme.regions {
+                if look.region == fixtures::BOTTOM {
+                    look.place = crate::Place::Body;
+                    look.arrange = crate::Arrange::Lines;
+                    look.paint = fixtures::BAND_PAINT;
+                }
+            }
+            for look in &mut theme.styles {
+                if look.style == fixtures::BLUE {
+                    look.focused_value = earlier;
+                }
+                if look.style == fixtures::NO_LABEL {
+                    look.focused_value = later;
+                    look.label = labelled;
+                }
+            }
+            for (role, value, cells, caret, placeholder) in [
+                (Role::TextField, b"ab".as_slice(), &[(0, 5, 'a'), (0, 6, 'b')][..], (0, 7), false),
+                (Role::TextField, b"".as_slice(), &[(0, 5, 'h')][..], (0, 5), true),
+                (
+                    Role::TextArea,
+                    b"ab\ncd".as_slice(),
+                    &[(0, 5, 'a'), (0, 6, 'b'), (1, 2, 'c'), (1, 3, 'd')][..],
+                    (1, 4),
+                    false,
+                ),
+            ] {
+                let tree = fixtures::styled_field(role, value);
+                let mut focus = Focus::default();
+                if focused {
+                    focus.node = Some(fixtures::id(&tree, b"F"));
+                    focus.caret = u32::try_from(value.len()).unwrap();
+                }
+                let mut frame = Frame::new(FIELDS);
+                render(&tree, &theme, FIELDS, &mut focus, &mut frame);
+                let mark = if focused { theme.focus.over(own) } else { own };
+                let first = frame.row(0).unwrap();
+                assert_eq!(first[0], Cell { glyph: if focused { theme.glyphs.focus } else { ' ' }, paint: mark });
+                if labelled {
+                    for (column, glyph) in [(2, 'F'), (3, ':'), (4, ' ')] {
+                        assert_eq!(first[column], Cell { glyph, paint: mark }, "label");
+                    }
+                }
+                let value_paint = if focused { expected } else { own };
+                let value_paint = if placeholder { theme.placeholder.over(value_paint) } else { value_paint };
+                for (row, column, glyph) in cells {
+                    let column = if !labelled && *row == 0 { column - 3 } else { *column };
+                    assert_eq!(frame.row(*row).unwrap()[column], Cell { glyph: *glyph, paint: value_paint }, "value");
+                }
+                let (row, column) = caret;
+                let column = if !labelled && row == 0 { column - 3 } else { column };
+                let cursor = Position { row, column };
+                assert_eq!(frame.cursor(), focused.then_some(cursor), "caret position");
+                if focused {
+                    assert_eq!(frame.row(row).unwrap()[usize::from(column)].paint, value_paint, "caret paint");
+                }
+            }
+        }
+    }
+}
+
 fn first_line(text: &[u8]) -> &[u8] {
     let end = skein_lib::bytes::find(text, b"\n").expect("a frame ends every row");
     text.get(..end).expect("the first line ends in the frame")

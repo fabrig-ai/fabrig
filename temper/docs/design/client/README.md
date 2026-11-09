@@ -433,6 +433,7 @@ keeps (`../protocol/configuration.md`, section 2).
 | `ConnectModel { way }` | `connect-model.html` | under its path (*Settings and Deployment,* below), connecting one more LLM account, `way` the way it is at, or none at the choices: the welcome’s cards (5.5, The ways), then a sign-in’s wait or a key’s or program’s panel; success returns to Accounts with a confirmation line, and other endings keep their words and acts (5.5, A sign-in) | `accounts`; `me`'s LLM providers | sign in with an LLM provider; add a key as an account of its own; declare a program's login |
 | `Members` | none: `../draft/surfaces.md`, section 8 | Deployment's fifth tab: each project's members, each with the role it holds there, and the person's role in the deployment (*Settings and Deployment,* below) | `me`; jig's `Read::Project` for each project `me` lists, one at a time | none |
 | `Limits` | none: `../draft/surfaces.md`, section 8 | Deployment's sixth tab: the deployment's capacities as its engine reports them, read-only (*Settings and Deployment,* below) | `me`; jig's `deployment` document, watched as `Builders` watches it | none |
+| `Remembered` | none: `../draft/ask-temper.md`, section 7, drawn in Deployment's language | "What temper remembers about you": the lines Ask temper keeps about the person across their chats, each with the chat that kept it and when, or that none are kept (5.17) | `me`; jig's `Notes` read of the person's own party scope (jig's `client/domain/contract.md`, section 6) | change a line; delete a line (5.17) |
 | `Proposal { proposal }`, later (5.13) | none: the user's (5.13) | a proposal of settings: temper enforces and your agents follow, its effect on running work, the settings folded; withdrawn when stale; accepted (5.13) | the `proposal`; `settings`; each item's setting before | accept, choosing whether running work moves; reject with a reason; change something, in the chat |
 
 - **Words and facts:** a chat's status from jig's facts (jig's
@@ -2970,7 +2971,8 @@ keeps (`../protocol/configuration.md`, section 2).
     lede, with no kicker and no tabs. Choosing a project on them changes
     nothing but the words naming the project.
   - *Sign out* is the last row of the `Accounts` tab: "Signed in as NAME",
-    its login in small type, and "Sign out"; with "Sign out did not reach
+    its login in small type, "What temper remembers about you", a link to
+    `Remembered` (5.17), and "Sign out"; with "Sign out did not reach
     the engine." beside it as 6.6 says. A browser draws this row at 760 px and
     under alone, where the rail has no foot; wider, "Sign out" is the person's
     menu's (5.3). With no project, the top bar has "Sign out" (5.1).
@@ -5274,10 +5276,9 @@ navigation named by the open project, in this order:
   skein-ui's menu (`Role::Menu`; skein's `ui-web.md`, 7), in a
   `div.temper-rail-person`, drawn as the foot's other rows. It opens a panel
   above the row, as wide as it, in the look of the switcher's menu. Its items:
-  "Accounts", to `Accounts`, and "Sign out", the `Accounts` tab's act. Between
-  them is the place of "What temper remembers about you", Ask temper's memory
-  of the person (`../draft/whole-story.execution.md`, section 4, M4), drawn
-  once that page has an address. A press
+  "Accounts", to `Accounts`; "What temper remembers about you", to
+  `Remembered`, Ask temper's memory of the person (5.17); and "Sign out", the
+  `Accounts` tab's act. A press
   on an item, Escape and a press outside close it, the focus back on the row
   unless that press took it elsewhere. Open, the row keeps the hover's grey. A
   phone has no foot, and signs out on the `Accounts` tab (3.5);
@@ -7466,6 +7467,67 @@ terminal draw the same path.
   `task N timeline`. The TUI prints views as lines of its own text
   (6.14, *A chat*, *a view*; `../draft/surfaces.md`, 11.5).
 
+### 5.17 What temper remembers about you
+
+The person's own page of what Ask temper keeps about them
+(`../draft/ask-temper.md`, section 7): the lines of their party scope (jig's
+`domain/engine.md`, 10.1), which only they read, each changed or deleted
+there. It draws what the engine holds, with no placeholder.
+
+- **Its address,** `Remembered`, at `/remembered`, of no project: the
+  person's menu (5.3) and, on a phone, the `Accounts` tab's last row (3.5,
+  *Settings and Deployment*) open it. It takes the rail's frame and the
+  column of Deployment's tabs, 720 wide, with no kicker and no tabs, under its
+  own level-1 heading, "What temper remembers about you", and its lede, "What
+  Ask temper keeps about you across your chats, when you ask it to. Only you
+  see these lines." No entry of the rail is current on it.
+- **Its read,** on entering and after each act's answer: jig's `Read::Notes
+  { scope: Party { party }, description: None, after: None }`, `party` the
+  person's own number from `me`, then each next page until none is left; a
+  party scope holds at most `notes.party_entries` lines (jig's
+  `domain/engine.md`, 10.1), so one page answers it whole. No watch: only
+  the person and their own Ask temper chats write it, and a chat's kept line
+  shows when the page is opened again. Until it answers, the page keeps what
+  it last knew (3.5).
+- **A line a row,** in the order of the scope's names, oldest first, as Ask
+  temper numbers them: the line, in the body's type; under it, in small type,
+  who kept it and when, "Ask temper chat 14 · 9 Nov" for a line a chat kept,
+  its first reference the chat's number, or "Changed by you · 9 Nov" for one
+  the person wrote, its writer the party, the date by 5.12; and at its right
+  "Change" and "Delete", quiet buttons, as Deployment's rows' acts are.
+- **Change** opens the row's field in place, its line in it, with "Save" and
+  "Cancel"; "Save" sends jig's `EditNote { project: 0, note, scope: Party {
+  party }, revision, description, body, references }`, the field's words
+  trimmed as the description, the body empty and the references as read, at
+  the revision read; "Cancel" and Escape close it unchanged, the focus back
+  on "Change". At most one field is open; an empty field sends nothing.
+- **Delete** sends jig's `DeleteNote { project: 0, note, scope: Party {
+  party }, revision }` at once: a line is short, and Ask temper keeps another
+  only when asked.
+- **A refusal** says why under its row, in a line, and keeps the row as read:
+  moved, "This line changed meanwhile; it shows as it is now.", the page
+  reading again; past the line's bound, "A line is at most 120 bytes.", the
+  bound jig's refusal names; any other, jig's words for it (5.1).
+- **With none kept,** a quiet band in the column, as Repositories' with none
+  (3.5): the tag "Nothing kept yet", and "Ask temper keeps a line here when
+  you ask it to remember something, such as how you like its answers."
+- **Full,** at `notes.party_entries` lines, a quiet line under the last: "12
+  lines, the most Ask temper keeps: it asks you which to change before it
+  keeps another."
+- **Its look** is Deployment's rows' (3.5, *The rows*): each row a hairline
+  under it, 14 px 4 px, no card and no shadow; its style under the `settings`
+  marker of `temper.css`. At 760 px and under, a row's acts go under its
+  line, each at least 44 pixels tall to a press (`browser.md`, 2.5, *What a
+  phone presses*).
+- **The terminal** has no such page: the TUI's pages are 6.14's, and
+  `Remembered` falls back to its launchpad, as Deployment's tabs do.
+- **Its tests:** the domain's read and acts, each request as sent and each
+  answer's page, as rows of `temper-client-domain`'s page tests; the view's
+  rows, field and refusals as `temper-client-view`'s; the person's menu with
+  its three items; and the gallery's states (`browser.md`, section 7), none
+  kept, three lines, twelve, a line being changed and a refusal, each by day
+  and by night, its prints read at a laptop's width and a phone's.
+
 ## 6. The terminal shells
 
 ### 6.1 `temper open DIRECTORY LINK_OR_ADDRESS`
@@ -7908,12 +7970,12 @@ it (6.14). `temper open` stays the tests' line client
   ```rust
   pub struct Start {
       pub size: skein_ui_screen::Size,
-      pub scheme: temper_client_tui::Scheme,          // 6.15
+      pub scheme: Option<temper_client_tui::Scheme>,  // the terminal's word, or none (6.15)
       pub background: Option<skein_ui_screen::Rgb>,  // the terminal's answer to OSC 11 (6.15)
       pub address: Box<[u8]>,                         // HOST:PORT
       pub local: bool,                                // an engine's link file to read (6.12)
       pub boxed: bool,                                // on a box (6.12)
-      pub kept: Vec<jig_client::Record>,              // the small store's records
+      pub kept: Vec<jig_client::Record>,              // the small store's records, `theme` among them (6.15)
       pub credential: Option<skein_lib::Secret>,      // DIRECTORY/token's
       pub note: Option<temper_client_tui::Note>,      // DIRECTORY/sign-in's, for this address
   }
@@ -7921,7 +7983,7 @@ it (6.14). `temper open` stays the tests' line client
       Heard(jig_client::Event), Kept { written: bool }, Opened { opened: bool },
       Local { link: Option<skein_lib::Secret> } }     // the engine's link file, read
   pub struct Duties {
-      pub asked: Vec<jig_client::Request>,            // to the native shell, in order
+      pub asked: Vec<jig_client::Request>,            // to the native shell, in order, the TUI's `theme` record among them
       pub keep: Option<Option<skein_lib::Secret>>,    // the credential to write; Some(None) erases it
       pub note: Option<temper_client_tui::Note>,      // DIRECTORY/sign-in to write (6.12)
       pub address: Option<Box<[u8]>>,                 // the address signed in to (6.12)
@@ -7941,7 +8003,8 @@ it (6.14). `temper open` stays the tests' line client
   ```
 
 - **The reports:** `Start`, once and first, with the window's size, the
-  scheme, the terminal's background where it answered (6.15), the
+  scheme the terminal says, or none where it says none, the terminal's
+  background where it answered (6.15), the
   address, whether the TUI has an engine's link file to read
   (on Linux, `XDG_RUNTIME_DIR` absolute; on macOS, always), whether it
   is on a box (6.12, *On a box*), the small
@@ -7956,7 +8019,9 @@ it (6.14). `temper open` stays the tests' line client
   the browser's opener ended, done or not (7.1). Any report
   before `Start` is the host's defect.
 - **The duties** of each report: the root's requests for the native
-  shell, in order, each routed as `temper open` routes them (6.2); the
+  shell, in order, each routed as `temper open` routes them (6.2), and
+  after them the TUI's `theme` record to save, when the person took a
+  theme (6.15, *The theme chosen*); the
   credential to keep, or none to erase it; the note to write, when the
   sign-in's standing changes (6.14); the address signed in to, once, the
   first time the link is live with a party; the engine's link file to
@@ -8021,7 +8086,8 @@ it (6.14). `temper open` stays the tests' line client
   as `temper open` drops them.
 - **The look:** right after `Start` the host gives the root `Event::LookKept
   { look: Look { terminal: true, theme, font: Font::DejaVu } }`, `theme`
-  the start's scheme, so that the root's terminal machinery is the TUI's
+  the scheme of the theme kept (6.15, *The theme chosen*), and again
+  with the scheme of each theme the person takes, so that the root's terminal machinery is the TUI's
   as a browser's chat terminal's is (3.5, *A chat's terminal*): commands
   sent whole, the lists they open, the notes, a confirmation as a list,
   a chat's question read while it waits on the person. After each
@@ -8031,15 +8097,16 @@ it (6.14). `temper open` stays the tests' line client
 
   | Event | Does |
   |---|---|
-  | `Typed { value }` | signing in: the link's field, as before; on the launchpad with a project `Act::ChatWords { words }`, keeping the left-off selection while the words begin with "/" and clearing it otherwise; with no project the TUI's command composer, on a chat `Act::MessageWords { words }` |
+  | `Typed { value }` | while the sign-in screen is drawn, the link's field, as before; else the box, whenever it is drawn (6.14, *Typed before the sign-in lands*): on the launchpad with a project `Act::ChatWords { words }`, keeping the left-off selection while the words begin with "/" and clearing it otherwise; with no project, the welcome and "Connecting" among them, the TUI's command composer; on a chat `Act::MessageWords { words }`. Typed while the theme's list stands, it lowers the list too |
   | `SignIn` | signing in's Enter, as before |
-  | `Send` | the box's Enter (6.14, *The box*): words that begin a command the TUI offers press it, as `Command`; words that begin with "/", hold no white space and begin none, `terminal::Act::Dismiss` and the TUI's note; the chat's question standing, `needs::Act::OpenReply`, `Act::CardWords` and `needs::Act::SendReply` for its object, then `Act::MessageWords` with no words; with no project, nothing; else `Act::StartChat` on the launchpad, `Act::Send` on a chat |
-  | `Command { command }` | `Exit` closes (6.16); `New` goes to the launchpad; any other `Act::Terminal(terminal::Act::Run { command })` |
+  | `Send` | the box's Enter (6.14, *The box*): before the sign-in lands, the notice "Still signing in" and nothing else, the words kept (6.14, *Typed before the sign-in lands*); words that begin a command the TUI offers press it, as `Command` or `Own`, `/exit` whole as `/quit`; words that begin with "/", hold no white space and begin none, `terminal::Act::Dismiss` and the TUI's notice of an unknown command (6.14, *The notice*); the chat's question standing, `needs::Act::OpenReply`, `Act::CardWords` and `needs::Act::SendReply` for its object, then `Act::MessageWords` with no words; with no project, nothing; else `Act::StartChat` on the launchpad, `Act::Send` on a chat |
+  | `Command { command }` | `Exit`, the TUI's `/quit`, closes (6.16); `New` goes to the launchpad; any other `Act::Terminal(terminal::Act::Run { command })` |
   | `Act { act }` | a list's choice, the root's act as the view bound it: `choice::Act::Model` or `Effort`, `Act::Go`, `Act::Confirm` or `Cancel`, `needs::Act::Choose`; and Enter on the launchpad's empty box with a left-off chat selected, `Act::Go` to its `Chat { task }` (6.14) |
   | `Aside { object }` | "Tell it something else", or Esc or words typed on the chat's question: the TUI sets that question aside (6.14) |
   | `Dismiss` | Esc on a command's list: `Act::Terminal(terminal::Act::Dismiss)`, clearing the left-off selection too |
   | `LeftOff { task }` | Up or Down on the launchpad's left-off rows, `Some(TASK)` the row they select, or Esc there, `None`: the TUI's state keeps the selection (6.14, *Where you left off*) |
-  | `Own { command }` | one of the TUI's own commands pressed or sent alone (6.14, *The TUI's own commands*), `Own::Change` or `Ask` leaving its name and a space in the box, `Brief` the note, `Needs` the walk, `Open` the object in focus opened; `n` on the launchpad's empty box makes `Own { command: Needs }` |
+  | `Own { command }` | one of the TUI's own commands pressed or sent alone (6.14, *The TUI's own commands*), `Own::Change` or `Ask` leaving its name and a space in the box, `Brief` the note, `Needs` the walk, `Open` the object in focus opened, `Theme` the theme's list opened (6.14, *`/theme`*); `n` on the launchpad's empty box makes `Own { command: Needs }` |
+  | `Theme { choice }` | on the theme's list, `Some(choice)` taken: the host draws in it, keeps it (6.15, *The theme chosen*) and gives its notice; `None`, Esc there: the list lowered |
   | `Open { address }` | a page opened through the opener, the whole address the view made: Enter on the selected goal, a sign-off's "Review on FORGE ↗", "Open it on the web" (6.14) |
   | `Walk { object, step }` | a choice on the walk's prompt for the need `object` (6.14, *Walking what needs you*): `Choose { words }`, `needs::Act::Choose`; `Open { address }`, the page opened as by `Open`; `Next`; each then marks the need shown |
   | `EndWalk` | Esc on the walk's prompt: the walk ends |
@@ -8052,17 +8119,26 @@ it (6.14). `temper open` stays the tests' line client
   address the same way.
 
   A key that makes `Act`, `Command`, `Aside`, `Dismiss`, `LeftOff`,
-  `Own`, `Open`, `Walk` or `EndWalk` marks the frame it acts on in a
-  recording, and typing marks none
+  `Own`, `Open`, `Walk`, `EndWalk` or `Theme` marks the frame it acts on
+  in a recording, and typing marks none
   (`tui/journeys.md`, 3.3). Words typed on the launchpad, and leaving
   it, clear the selection.
+- **The notice's time:** the TUI's notice (6.14, *The notice*) stands
+  `limits::NOTICE`, 6 seconds, from the report that gave it, a newer
+  one replacing it and its time. The host keeps its end, which
+  `Host::deadline` counts among the times it gives, the soonest first;
+  a `Due` at or past the end lowers the notice. So a recording keeps it as any turn's deadline
+  (`tui/journeys.md`, 3.2), and a replay lowers it at the same turn.
 - **The seam's shape:** `Start` carries the start's facts, the
   terminal's background, whether the TUI is on a box and whether it is
   in front of one among them (6.17; the user's requests of 2026-11-08);
   `Report` gains `Front` (6.17), and `Duties` gains no field. Following a
-  `Show`, the look, `/theme`, `/new` and `/exit` are
+  `Show`, the look, `/theme`'s list and the theme taken, `/new`, `/quit`
+  and the notice's time are
   the host's own steps on the root and the TUI's state, and closing is
-  the duty `close` it has; nothing new crosses to the run.
+  the duty `close` it has; the `theme` record crosses to the run as a
+  `Save` among `asked` (6.15, *The theme chosen*), and nothing else new
+  crosses.
 - **Shaped for the recording now:** a recording is the start's facts,
   then turn by turn the clocks, each report with its duties, each key
   with its event, and a mark for each frame the person saw; a replay
@@ -8089,7 +8165,7 @@ as `../draft/chat-reading.md` says. Every frame below is illustrative:
 its words and look are refined on the recording (`../draft/tui.md`,
 section 5). In front of a box, the welcome stands in the no-project
 launchpad's place, the playground's project says so, Ctrl+C and
-`/exit` ask first while work runs, and the box's state and `/log` join
+`/quit` ask first while work runs, and the box's state and `/log` join
 the foot and the commands (6.17).
 
 - **The TUI's state,** `temper-client-tui`'s `Tui`, holds what the root
@@ -8100,8 +8176,9 @@ the foot and the commands (6.17).
   whether the link was signed out after a sign-in, and whether the
   credential's last write failed; the window's columns, for what a
   narrow row leaves out; the question set aside by "Tell it something
-  else" (*The chat's question*); the TUI's own note of a command it
-  does not offer (*The commands*); the left-off chat selected on the
+  else" (*The chat's question*); the notice standing (*The notice*);
+  the theme chosen, the terminal's scheme Auto reads, and whether the
+  theme's list stands (*`/theme`*); the left-off chat selected on the
   launchpad, by its task (*Where you left off*); and whether it is on a
   box (6.12, *On a box*). The root stays the one source of the
   link's state, of `me`, of the pages and their reads, of the box's
@@ -8459,15 +8536,18 @@ chat, the running line above them.
     sign-in field; typing, command completion, the footer and submission
     use that same value. Typing advances the TUI's revision without
     advancing the box's write count. Executing a command, dismissing its
-    list, navigation and sign-in transitions clear the value and advance
-    the write count; an unchanged link leaves the value alone.
+    list and navigation clear the value and advance the write count; the
+    link's changes, its sign-in and sign-out among them, leave the value
+    alone (*Typed before the sign-in lands*).
   - *The focus:* the box asks for it as each screen opens and keeps it.
     It is the only node a person acts on outside a list, so Tab, Up and
     Down leave the focus where it is (skein's `ui-screen.md`, 6.2), but
     for the launchpad's left-off chats (*Where you left off*), and
     `q` types: the first screen's "q to quit" is gone. Ctrl+C closes the
     TUI from anywhere (6.16).
-  - *Enter:* on the launchpad's empty box with a left-off chat
+  - *Enter:* before the sign-in lands, the words kept and the notice
+    "Still signing in" (*Typed before the sign-in lands*); on the
+    launchpad's empty box with a left-off chat
     selected, that chat opened (*Where you left off*); else the box's
     words, by what they are, in this order: a
     command's beginning, as *The commands* say; on a chat whose question
@@ -8479,6 +8559,26 @@ chat, the running line above them.
     `tui-refused`, in the view's words.
   - *No new line:* a terminal reads Shift+Enter as Enter, so the box
     takes one paragraph; words wrap as the box's lines (section 11).
+- **Typed before the sign-in lands,** the user's request of 2026-11-09,
+  after a key typed on the welcome while the TUI signed in was drawn
+  nowhere and then thrown away:
+  - *Whenever the box is drawn, keys go to the box:* the welcome in
+    front, the launchpad's "Connecting to HOST:PORT" while the TUI signs
+    in from the engine's or the handed link, the launchpad and a chat.
+    The link's field takes keys only while the sign-in screen is drawn,
+    `temper_client_tui::sign_in_drawn(root, tui)`, the one test the
+    view's choice of screen and the host's routing of a key both read
+    (6.13, `Typed`).
+  - *The sign-in never clears the box:* the link's changes leave its
+    words (*The box*), and the host's going to the launchpad from the
+    start's address once `me` names a project (6.13, *Its pages*) carries
+    the no-project box's words into Home's composer, `Act::ChatWords`,
+    so words typed before `me` was read stay in the box.
+  - *Before it lands,* while the link is signed out or the root has not
+    yet read `me` (`temper_client_tui::landing(root)`): the box's words
+    open no list, and Enter keeps them, sends and runs nothing, and the
+    notice says "Still signing in" (*The notice*). Once it has landed,
+    the words are acted on at the person's next Enter, as any words are.
 - **The quiet line,** the region `tui-bottom`, spread, as the sign-in's
   bottom row (`../draft/surfaces.md`, 11.1: the project, the model and
   effort, the link's state, and "N need you · n to walk"):
@@ -8494,7 +8594,9 @@ chat, the running line above them.
     something needs the person in the project, "1 needs you", "3 need
     you", or "3+ need you" where the read is cut (`tui-signal`), the
     rail's count of the project (`Session::count`, 3.5, *Needs you*);
-    and, on the launchpad with that count, "n to walk" (`tui-hint`).
+    and, on the launchpad with that count, "n to walk" (`tui-hint`);
+    while a notice stands, the notice alone, in place of them all
+    (*The notice*).
 
   The chat's spend is the browser's alone.
 - **A narrow terminal:** the header's address goes first (above); then,
@@ -8503,7 +8605,34 @@ chat, the running line above them.
   and its " · ", then the closed line and its " · ", and skein cuts what
   still does not fit from the left half's end; the rule above a chat's
   box leaves out the place, then the project (*A chat*, *The rule above
-  the box*).
+  the box*). A notice goes before the line's own words (*The notice*).
+- **The notice,** the user's request of 2026-11-09: a one-line notice
+  of the TUI's, at the right end of the quiet line, never in the
+  conversation. It is the place the box's state uses in front (6.17),
+  made general:
+  - *What:* `temper_client_tui::Notice`, one of an unknown command's,
+    "Unknown command /WORDS · /help lists them", WORDS the box's words
+    after "/" (*The commands*); "Still signing in" (*Typed before the
+    sign-in lands*); and the theme taken's (*`/theme`*). Its words are
+    the TUI's own (`tui-signal`).
+  - *Where:* the quiet line's right half, alone: the box's state,
+    "playground", "paused · a message resumes it", the count and "n to
+    walk" give way to it for its time, then stand again. It stands on
+    the launchpad, the welcome and a chat alike, and on the sign-in
+    screen not at all.
+  - *How long:* 6 seconds, a newer one replacing it, timed by the host's
+    dues (6.13, *The notice's time*); a send, a key or another screen
+    leave it standing.
+  - *A narrow window:* where the quiet line's left half, two spaces, the
+    notice and its padding are wider than the window's columns, the
+    notice goes before the line's own words: the notice first, at the
+    row's start, then " · " and the left half, which skein cuts from its
+    end.
+  - *Not a notice:* a note of more than a line stays in the
+    conversation, `/help`'s and `/log`'s among them, and so do `/brief`'s
+    note, `/open`'s "Open ADDRESS in your browser.", which holds an
+    address to copy, and the box's give up note, which stands for good
+    (6.17).
 
 **The commands**, the browser terminal's (3.5, *A chat's terminal*,
 *Commands*), illustrative (the request's 02):
@@ -8515,21 +8644,21 @@ chat, the running line above them.
 ❯ /model   Change the model, from the next turn
   /new     Start a new chat
   /chats   Open another chat
-  /theme   Dark or light
+  /theme   Auto, light or dark
   /help    Commands and keys
-  /exit    Close temper
+  /quit    Close temper
 ```
 
 - **Offered:** on the launchpad `/model` and `/effort`, then `/new`,
-  `/chats`, `/theme`, `/help` and `/exit`; on a
+  `/chats`, `/theme`, `/help` and `/quit`; on a
   chat `/model`, `/effort`, `/pause`, `/close` and `/start-over`, then
-  `/new`, `/chats`, `/theme`, `/help` and `/exit`; each of the first
+  `/new`, `/chats`, `/theme`, `/help` and `/quit`; each of the first
   where the view says the browser's terminal offers it
   (`shared::offered`): `/model` while the picker is changeable, and
   `/effort` while it is and its chosen model has efforts, wherever
   `/model` is, as the browser's terminal offers it wherever its picker
   is (the user's request of 2026-11-08); with no project `/theme`,
-  `/help` and `/exit`. Never
+  `/help` and `/quit`. Never
   `/draft` or `/goal`, since drafting is not the TUI's yet, nor `/font`,
   the browser's alone. On the launchpad `/model` and `/effort` change
   Home's composer's choice, which the chat its box starts takes
@@ -8538,14 +8667,17 @@ chat, the running line above them.
   delegates' fates is the web's sheet (section 11).
 - **The TUI's own commands** (`../draft/surfaces.md`, 11.4), which the
   root's `Command` does not hold and which never reach the root as
-  commands, as `/exit` and `/new` don't: offered on the launchpad with a
+  commands, as `/quit` and `/new` don't: offered on the launchpad with a
   project, `/change` and `/ask` before the root's, and `/brief` while
   the header holds a brief, `/needs` while Needs you stands and `/open`
   after `/chats`; on a chat `/open` after `/chats`. So the launchpad's
   order is `/change`, `/ask`, `/model`, `/effort`, `/new`, `/chats`,
-  `/brief`, `/needs`, `/open`, `/theme`, `/help`, `/exit`. Their words,
+  `/brief`, `/needs`, `/open`, `/theme`, `/help`, `/quit`. `/theme` is
+  the TUI's own wherever it is offered (*`/theme`*), in the place the
+  root's held. Their words,
   the TUI's: "One change, run as the project's way says", "Ask temper",
-  "The brief, whole", "Walk what needs you", "Open this on the web".
+  "The brief, whole", "Walk what needs you", "Open this on the web",
+  "Auto, light or dark".
   - *`/change` and `/ask`,* pressed or sent alone, leave "/change " or
     "/ask " in the box for the words; sent with words, `/change WORDS`
     starts a chat in the project, the one change's (the project's chat
@@ -8565,12 +8697,21 @@ chat, the running line above them.
     secret. Where no browser opened (no opener, or it failed), the TUI
     notes "Open ADDRESS in your browser." until the next send or screen.
   - *`/chats N`,* sent on the launchpad, opens the Nth chat of *Where you
-    left off*, as Enter on it does; a number with no chat there is
-    noted as an unknown command is. `/chats` alone opens the root's
+    left off*, as Enter on it does; a number with no chat there gives
+    the notice an unknown command gives. `/chats` alone opens the root's
     list, whose order is the launchpad's numbering, newest first.
 - **Their words:** each command's name and the browser terminal's words
-  (`shared::description`), but `/exit`'s, "Close temper", and the TUI's
-  own commands' (above).
+  (`shared::description`), but the closing command's, and the TUI's own
+  commands' (above).
+- **`/quit`,** the user's request of 2026-11-09: the root's
+  `Command::Exit` is named `/quit` in the TUI, `temper_client_tui::QUIT`,
+  listed, completed and in `/help`'s note under that name, its words
+  "Close temper", in front "Close temper and stop the box" (6.17), and
+  its question while work runs as 6.17 asks it. `/exit` sent whole is
+  the same command, never listed or completed, and its beginnings begin
+  no command of its own. The browser's terminal keeps `/exit`: the
+  view's `shared` words are unchanged, and the TUI names the command
+  itself.
 - **The list:** the box's words beginning with "/" and holding no white
   space open the commands under the box in the quiet line's place, the
   region `tui-list`: an options menu after the box (skein's `ui.md`,
@@ -8583,7 +8724,7 @@ chat, the running line above them.
   words (`terminal::Act::Dismiss`). With no command beginning with the
   words, no list stands.
 - **Pressed,** or sent whole, which with its list standing is the same
-  press: `/exit` closes the TUI (6.16) and never reaches the root;
+  press: `/quit` closes the TUI (6.16) and never reaches the root;
   `/new` opens the launchpad (6.13), whose next question starts a new
   Ask temper chat; any other is the root's `terminal::Act::Run {
   command }`, so that its list opens, its note is written or its act is
@@ -8591,9 +8732,9 @@ chat, the running line above them.
 - **Words no command of the TUI's names:** words that begin with "/",
   hold no white space and begin no command the TUI offers there are
   cleared from the box (`terminal::Act::Dismiss`), nothing is sent, and
-  the TUI notes "Unknown command /WORDS. /help lists them." in the
-  view's words (`shared::note`) after the root's notes, until the next
-  send or screen. So `/font`, which the root knows, is unknown here.
+  the notice says "Unknown command /WORDS · /help lists them" (*The
+  notice*), in the TUI's own words, never a note in the conversation.
+  So `/font`, which the root knows, is unknown here.
 - **A command's list,** under the box in the quiet line's place, an
   options menu after it, its head a line of its own at the row's start
   (`tui-list-head`), its choices its items, the current one active;
@@ -8623,9 +8764,30 @@ chat, the running line above them.
   and PgDn read back", "Esc closes a list", on the launchpad while Needs
   you stands "n walks what needs you", and "Ctrl+C closes temper". The
   root keeps the note (`terminal::Note::Help`); its words are the TUI's.
-- **`/theme`:** the root's look's theme flips, and the TUI draws in the
-  scheme it names (6.13, *The look*), for that run: the TUI keeps no
-  theme of its own, and the next one starts in the terminal's (6.15).
+- **`/theme`,** the user's request of 2026-11-09, since a flip on the
+  terminal's own ground showed as almost nothing: the TUI's own command,
+  `Own::Theme`, never the root's `Command::Theme` in the TUI. Pressed,
+  or sent whole or begun, it opens the theme's list under the box in
+  the quiet line's place, as a command's list stands, the box's words
+  cleared: its head (`tui-list-head`) "Theme. Auto follows your
+  terminal."; then "Auto", its words what Auto reads now, "light, as
+  your terminal says", "dark, as your terminal says", or "dark: your
+  terminal doesn't say" where the terminal says no scheme (6.15, *The
+  scheme*); "Light"; and "Dark", with no words (`tui-option`); the
+  theme chosen active. While it stands the box keeps the focus: Up and
+  Down move the active choice, Enter takes it, Esc closes the list, and
+  words typed close it.
+  - *Taking one,* `Event::Theme { choice }`: the TUI draws in it at
+    once (6.13, *The look*), keeps it for the next run (6.15, *The theme
+    chosen*), lowers the list, and gives the notice "Theme: auto, light
+    as your terminal says.", "Theme: auto, dark as your terminal
+    says.", "Theme: auto, dark: your terminal doesn't say.", "Theme:
+    light." or "Theme: dark." (*The notice*).
+  - *Its state:* the TUI's, `Tui::theme_list`, as the quit question's
+    is (6.17), and never the root's: the root's lists and notes don't
+    hold it.
+  - *The browser's terminal's* `/theme` is the root's and flips, as
+    before (3.5, *A chat's terminal*).
 
 **A chat**, illustrative (the request's 03, with the look request
 `tui-chat-title-below`'s rule):
@@ -8922,7 +9084,7 @@ Answer csv-export's question with "Comma"?
   | `tui-dots` | faint | the mark `✦`, accent | the three dots |
   | `tui-running` | dim | the mark `✦`, accent | the running line |
   | `tui-end` | reverse | | the end of the words being written |
-  | `tui-field` | none | no label | the box's text area |
+  | `tui-field` | none | no label; focused, its value and caret in no paint (`focused_value`) | the box's text area |
   | `tui-list-head` | bold | | a list's head |
   | `tui-option` | bold | its description dim | a list choice: its name, and its words as its description |
   | `tui-command` | bold | active name plain; its description dim | a command: its name, and its words as its description |
@@ -8937,7 +9099,11 @@ Answer csv-export's question with "Comma"?
   `•` the mask. The focus is shown by the mark and the accent, the
   focus's paint the accent's foreground with no background of its own,
   as Claude Code shows it; in a spread row, which keeps no focus
-  columns, the accent alone. The active choice of a list is shown as
+  columns, the accent alone. The box's words and its caret's cell are
+  the terminal's own ink: `tui-field` names a focused value's paint of
+  none (skein's `ui-screen.md`, section 3, `focused_value`), so the
+  accent lies on its "❯" alone (the user's request of 2026-11-09); the
+  sign-in's link field keeps the focus's paint. The active choice of a list is shown as
   skein lays it (`ui-screen.md`, 5.3): the focus's mark and paint over
   the active paint, the theme's band across the list, or none where it
   has no band (*The band*). Command names use
@@ -8946,21 +9112,41 @@ Answer csv-export's question with "Comma"?
   Descriptions stay plain; question choices keep their bold names. Reverse video is
   the fallback should the mark and the accent not show the focus
   (section 11).
-- **The scheme,** dark or light, chosen before `Start`, which carries
-  it (6.13): from `COLORFGBG` where its last field, the background the
+- **The scheme,** the terminal's word, dark or light, found before
+  `Start`, which carries it, or none (6.13): from `COLORFGBG` where its
+  last field, the background the
   terminal declares, is a number, light for 7 or 15 and dark for any
   other, read by the binary; else from the terminal's own background,
   asked at start (skein's `ui-screen.md`, section 8) and waited for at
   most 200 ms, `limits::BACKGROUND` (6.16): light where
   `Scheme::of_background` finds the answer light, its luma `2126 R +
   7152 G + 722 B` above 1,275,000, half of white's, else dark; with no
-  answer within the wait, dark. The background is asked whatever
+  answer within the wait, none (emacs vterm never answers). The
+  background is asked whatever
   `COLORFGBG` says, for the band (*The band*), and `Start` carries the
   answer, or none. The answer is never read as a key, and
-  a recording keeps the scheme and the answer among its start's facts
-  (`tui/journeys.md`, 3.2). The host gives it to the root as its look's
-  theme (6.13, *The look*); from then on the TUI draws in the theme the
-  root's look names, which `/theme` flips for the run.
+  a recording keeps the scheme, or none, and the answer among its
+  start's facts (`tui/journeys.md`, 3.2).
+- **The theme chosen,** the user's request of 2026-11-09:
+  `temper_client_tui::ThemeChoice`, `Auto`, `Light` or `Dark`. Auto,
+  the default, draws in the terminal's scheme, dark where it says none
+  (`ThemeChoice::scheme`); Light and Dark in theirs. The host gives the
+  root the chosen scheme as its look's theme (6.13, *The look*); from
+  then on the TUI draws in the theme the root's look names.
+  - *Kept in the TUI's small store,* the native shell's `store` (6.12),
+    as the browser keeps its look in its own: the record `theme`
+    (`temper_client_tui::THEME_KEY`), its bytes `auto`, `light` or
+    `dark` (`ThemeChoice::print` and `read`). The host takes it out of
+    `Start.kept` before the root is given the rest, since jig's store
+    reads only its own records; one absent or unreadable reads as Auto,
+    so the next run starts in the theme the last one took.
+  - *Written* when the person takes a theme (6.14, *`/theme`*), Auto
+    included: a `jig_client::Request::Save` of that record alone, among
+    the report's duties' requests, after the root's. The native shell
+    answers each `Save` and `Erase` once, in the order asked (jig's
+    `jig-client-shell-native`), so the host keeps, in that order, which
+    writes were its own, and gives the root the answers to the root's
+    writes alone. A failed write says nothing; the next one is whole.
 - **The colours' depth,** chosen by the binary: 24-bit where
   `COLORTERM` is `truecolor` or `24bit`, else the 256 indexed ones
   (skein's `ui-screen.md`, section 7).
@@ -9010,9 +9196,10 @@ Answer csv-export's question with "Comma"?
   goes to the terminal, which draws the newest at its pace. No key is
   taken and no frame drawn before `Start`.
 - **Time and the seed** are skein-shell's, as `temper open`'s (6.2).
-- **Closing:** `/exit`, Ctrl+C anywhere, the input's
+- **Closing:** `/quit` (or `/exit`, 6.14, *`/quit`*), Ctrl+C anywhere,
+  the input's
   end, SIGINT or SIGTERM; in front of a box, the end of the box's lines
-  too, and `/exit` and Ctrl+C ask first while work runs (6.17). The TUI
+  too, and `/quit` and Ctrl+C ask first while work runs (6.17). The TUI
   doesn't sign out. The terminal
   finishes the write it began and writes its `LEAVE`; the native shell
   finishes the small store's last write, then closes its connections
@@ -9258,7 +9445,7 @@ Stop the box? csv-export's running task stops with it.
   2. Don't quit
 ```
 
-- **Ctrl+C or `/exit`, in front:** with the question standing, the TUI
+- **Ctrl+C or `/quit`, in front:** with the question standing, the TUI
   closes; else, while work runs (`work_runs`, below), the question
   stands; else the TUI closes at once. The box stops when its front
   exits, draining as its first termination signal does
@@ -9270,7 +9457,7 @@ Stop the box? csv-export's running task stops with it.
   while more do, and "Stop the box?" once none does; then "1. Stop the
   box" and "2. Don't quit" (`tui-option`), the first active. While it
   stands the box keeps the focus: Up and Down move the active choice,
-  Enter takes it, Esc is "Don't quit", and Ctrl+C or `/exit` again
+  Enter takes it, Esc is "Don't quit", and Ctrl+C or `/quit` again
   closes. "Stop the box" closes; "Don't quit" lowers it.
 - **`work_runs`,** `temper_client_tui::work_runs`, from what the root
   already reads, no fact of the engine's added: a chat of the TUI's
@@ -9280,11 +9467,11 @@ Stop the box? csv-export's running task stops with it.
   tool's call, working or retrying, or while a delegate of it lives
   (its chip's `live_delegates`). The open chat's title, else the newest
   working chat's, is the head's TITLE.
-- **Given up:** once the box gave up (below), Ctrl+C and `/exit` close at
+- **Given up:** once the box gave up (below), Ctrl+C and `/quit` close at
   once, asking nothing: nothing runs.
-- **Out of front,** Ctrl+C and `/exit` close as 6.16 says, and a box run
+- **Out of front,** Ctrl+C and `/quit` close as 6.16 says, and a box run
   on its own goes on running.
-- **Their words in front:** `/exit`'s, "Close temper and stop the box";
+- **Their words in front:** `/quit`'s, "Close temper and stop the box";
   `/help`'s key, "Ctrl+C closes temper and stops the box".
 
 **The box's state and `/log`**, illustrative (the request's 05):
@@ -9307,7 +9494,8 @@ Stop the box? csv-export's running task stops with it.
 - **The box's state,** on the quiet line, first at its right (6.14,
   *The quiet line*): "STEP restarting" (`tui-signal`) from the box's `restarting` line
   until its `running` line for that step, for the step it last said
-  restarting; once it gave up, "STEP gave up" (`tui-down`). STEP is as
+  restarting; once it gave up, "STEP gave up" (`tui-down`). A notice
+  stands in its place for its time (6.14, *The notice*). STEP is as
   the box names it, its bytes read as UTF-8 with a replacement for each
   invalid one (`forge::words::lossy`) and cut at 64 bytes,
   `limits::STEP`.
@@ -9317,11 +9505,11 @@ Stop the box? csv-export's running task stops with it.
   box gave up: STEP. /log shows why; Ctrl+C closes." (`tui-refused`).
   The link goes offline as the engine stops.
 - **`/log`,** a command of the TUI's own, never the root's: offered in
-  front alone, after `/help` and before `/exit`, its words "The box's
+  front alone, after `/help` and before `/quit`, its words "The box's
   recent log"; in the commands' list and in `/help`'s note there.
   Pressed, or sent whole or begun, it never reaches the root: the box's
   words are cleared (`terminal::Act::Dismiss`) and its note stands until
-  the next send or screen, as the TUI's unknown command's note does.
+  the next send or screen.
   The note, after the others: the head "/log" (`tui-head`) and, two
   columns in, the box's last lines, oldest first, each as the box wrote
   it, read as UTF-8 with a replacement for each invalid byte and cut at
@@ -9384,7 +9572,7 @@ header's border end with no project, as the frames show.
   for each step's mark and the forge under way, the playground's
   header and quiet line, and `/log` offered in front alone; of the
   host, for the handed link with and without a credential held, each
-  line told, Ctrl+C and `/exit` with and without work and after a give
+  line told, Ctrl+C and `/quit` with and without work and after a give
   up, `/log` sent, and the host back at the start's address; of the run,
   for the lines read and their end closing it; of the recording's codec
   and redaction, for `front`; of the domain, for `signed_in` and the
@@ -10294,8 +10482,9 @@ own tests:
 
 - **Ask temper after landing** (3.5, 5.3): try the small chat on ChatGPT and
   Claude Code through a proposal and an owner's Accept, then judge its
-  instructions. The other views, sketches and preferences join at M3b and M4 of
-  `../draft/ask-temper.execution.md`; M2 supplies the remaining reads first.
+  instructions. The other views and sketches join at M3b of
+  `../draft/ask-temper.execution.md`, and the page of preferences (5.17) is
+  M4's, its walk after landing; M2 supplies the remaining reads first.
 - **Views after landing and M3b** (5.16): temper/ui compares a path, a
   way, a proposal's two paths and a charter's or a rule's card in a reply and in the
   chat's document at 1440, 1000 and 420 px, across and down the page,

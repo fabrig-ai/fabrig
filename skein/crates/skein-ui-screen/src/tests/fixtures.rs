@@ -126,6 +126,7 @@ pub fn theme() -> Theme {
                 mark: Some(Mark { glyph: '✦', paint: ACCENT }),
                 described: None,
                 active_name: None,
+                focused_value: None,
                 spaced: false,
             },
             StyleLook {
@@ -137,6 +138,7 @@ pub fn theme() -> Theme {
                 mark: Some(Mark { glyph: '❯', paint: DIM }),
                 described: None,
                 active_name: None,
+                focused_value: None,
                 spaced: false,
             },
             StyleLook {
@@ -148,6 +150,7 @@ pub fn theme() -> Theme {
                 mark: Some(Mark { glyph: '▸', paint: DIM }),
                 described: None,
                 active_name: None,
+                focused_value: None,
                 spaced: false,
             },
             StyleLook {
@@ -159,6 +162,7 @@ pub fn theme() -> Theme {
                 mark: None,
                 described: Some(DIM),
                 active_name: None,
+                focused_value: None,
                 spaced: false,
             },
             StyleLook {
@@ -170,6 +174,7 @@ pub fn theme() -> Theme {
                 mark: None,
                 described: None,
                 active_name: None,
+                focused_value: None,
                 spaced: true,
             },
             StyleLook {
@@ -181,6 +186,7 @@ pub fn theme() -> Theme {
                 mark: None,
                 described: None,
                 active_name: None,
+                focused_value: None,
                 spaced: false,
             },
             StyleLook {
@@ -192,6 +198,7 @@ pub fn theme() -> Theme {
                 mark: None,
                 described: None,
                 active_name: None,
+                focused_value: None,
                 spaced: false,
             },
             StyleLook {
@@ -203,6 +210,7 @@ pub fn theme() -> Theme {
                 mark: None,
                 described: None,
                 active_name: None,
+                focused_value: None,
                 spaced: false,
             },
             StyleLook {
@@ -214,6 +222,7 @@ pub fn theme() -> Theme {
                 mark: None,
                 described: None,
                 active_name: None,
+                focused_value: None,
                 spaced: false,
             },
             StyleLook {
@@ -225,6 +234,7 @@ pub fn theme() -> Theme {
                 mark: None,
                 described: None,
                 active_name: None,
+                focused_value: None,
                 spaced: false,
             },
             StyleLook {
@@ -236,6 +246,7 @@ pub fn theme() -> Theme {
                 mark: None,
                 described: None,
                 active_name: None,
+                focused_value: None,
                 spaced: false,
             },
         ]),
@@ -476,6 +487,24 @@ pub fn field_tail(role: Role, value: &[u8], entry: EntryKind) -> Tree {
     b.bind(binding());
     b.close();
     leaf(&mut b, Role::Paragraph, b"Tail");
+    b.close();
+    finish(b)
+}
+
+/// A field carries two tokens over an ancestor's token and a region's paint.
+pub fn styled_field(role: Role, value: &[u8]) -> Tree {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Region);
+    b.region(BOTTOM);
+    b.style(RUN);
+    b.open(role);
+    b.style(BLUE);
+    b.style(NO_LABEL);
+    b.name(b"F");
+    b.value(value, 0);
+    b.placeholder(b"hint");
+    b.bind(binding());
+    b.close();
     b.close();
     finish(b)
 }

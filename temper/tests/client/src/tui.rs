@@ -123,7 +123,7 @@ impl Tui {
                 local,
                 note,
                 size: Size { columns: 80, rows: 24 },
-                scheme: Scheme::Dark,
+                scheme: Some(Scheme::Dark),
                 background: None,
                 boxed: false,
                 address: ADDRESS.into(),
