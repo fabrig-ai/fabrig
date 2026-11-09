@@ -1259,9 +1259,9 @@ fn the_asking_chat_reads_each_kind() {
         assert!(text.contains(content), "{text}");
         if input == "settings" {
             let (body, error) =
-                host_tool(&mut world.driver, &run, completion + pages, b"see", br#"{"address":"settings"}"#);
+                host_tool(&mut world.driver, &run, completion + pages, b"see", br#"{"address":"help see"}"#);
             assert!(!error);
-            assert!(String::from_utf8_lossy(&body).contains("settings template-goal N"));
+            assert!(String::from_utf8_lossy(&body).contains("## settings template-goal N\n"));
             completion += 1;
         }
         completion += pages;
@@ -1366,8 +1366,8 @@ fn an_asking_chat_reads_each_address() {
         }
         assert_eq!(world.driver.store.rows, before, "{address} commits nothing");
         if address == "settings" {
-            assert!(text.contains("settings charter-words N"), "{text}");
-            assert!(text.contains("settings project-words"), "{text}");
+            assert!(text.contains("charter-words 4: changed in revision 2"), "{text}");
+            assert!(text.ends_with("settings project-classes · revisions · help settings\n"), "{text}");
             eprintln!("see settings first part: {} bytes", body.len());
         }
         completion += 1;

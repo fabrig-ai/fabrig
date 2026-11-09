@@ -427,7 +427,7 @@ pub(crate) fn prepared(domain: &mut Domain, env: &Env<Limits>, client: Token, pr
     let items = record.items;
     let failure = match &prepared {
         checkout::Prepared::Refused { refusal } => Some(translate::checkout_refusal(*refusal)),
-        checkout::Prepared::Failed { failure } => {
+        checkout::Prepared::Failed { failure, .. } => {
             let items = domain.items.get(&items).expect("the assignment lives through prepare");
             Some(translate::failure(*failure, &items.tags))
         }
@@ -465,6 +465,10 @@ pub(crate) fn prepared(domain: &mut Domain, env: &Env<Limits>, client: Token, pr
 
 /// The push or the save for `client` ended, with `outcome`.
 pub(crate) fn wrote(domain: &mut Domain, env: &Env<Limits>, client: Token, outcome: checkout::Outcome, push: bool) {
+    let owner = domain.workspaces.get(Id::from_token(client)).expect("a delivering workspace lives").run;
+    if push {
+        crate::jobs::delivered(domain, owner, &outcome);
+    }
     let id = Id::<Workspace>::from_token(client);
     let record = domain.workspaces.get_mut(id).expect("a workspace lives until it is released");
     let repositories = record.repositories;
@@ -612,10 +616,18 @@ fn ended(
             State::Ready { hold: hold.expect("a prepare that ran was held"), directory, asked: None }
         }
         checkout::Prepared::Refused { refusal } => {
-            then.host = Some(unprepared(owner, translate::preparation(translate::checkout_refusal(refusal), items)));
+            then.host = Some(unprepared(
+                owner,
+                translate::preparation(translate::checkout_refusal(refusal), items),
+                match refusal {
+                    checkout::Refusal::Busy => Box::from(b"prepare refused: Busy".as_slice()),
+                    checkout::Refusal::Full => Box::from(b"prepare refused: Full".as_slice()),
+                    checkout::Refusal::Invalid => Box::from(b"prepare refused: Invalid".as_slice()),
+                },
+            ));
             State::Closed
         }
-        checkout::Prepared::Failed { failure } => {
+        checkout::Prepared::Failed { failure, detail } => {
             assert!(!abandoned, "a released hold's prepare ends aborted");
             let hold = hold.expect("a prepare that ran was held");
             then.checkout = Some(checkout::Event::Release { hold });
@@ -625,19 +637,19 @@ fn ended(
                 | checkout::Failure::Refused { .. }
                 | checkout::Failure::Conflicted { .. } => host::Preparation::Permanent { resource: Some(items) },
             };
-            then.host = Some(unprepared(owner, failure));
+            then.host = Some(unprepared(owner, failure, detail));
             State::Releasing
         }
         checkout::Prepared::Aborted => {
             assert!(abandoned, "only an abandoned prepare is aborted");
-            then.host = Some(unprepared(owner, host::Preparation::Transient));
+            then.host = Some(unprepared(owner, host::Preparation::Transient, Box::from(b"prepare aborted".as_slice())));
             State::Releasing
         }
     }
 }
 
-fn unprepared(owner: Token, failure: host::Preparation) -> host::Event {
-    host::Event::Unprepared { owner, failure, detail: Box::new([]) }
+fn unprepared(owner: Token, failure: host::Preparation, detail: Box<[u8]>) -> host::Event {
+    host::Event::Unprepared { owner, failure, detail }
 }
 
 /// Where the run's repositories sit, for smith's start: the directory io

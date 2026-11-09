@@ -153,11 +153,6 @@ record has run a real model on the sentence.
   kinds from its tools' declarations and `see settings`; decided by the
   `ui-p3e-words` cut.
 
-- **Not yet:** 8.4.1, *Its declaration* and *On its page*: the
-  declaration's description names settings, revisions, proposals, pages and
-  a file alone; no reference page `see` exists, and an unknown address's
-  line and each answer's `see:` line are constants of
-  `temper-engine-smith`'s `see.rs` (plan `ui-ask-m2`, `see-page`).
 - **Design departs:** 8.1, from `../draft/model-catalogue.md`, 3, decided
   by the `model-catalogue-1` cut: settings reads return whole charters,
   including models outside the offer, because a proposal needs their whole

@@ -41,6 +41,8 @@ pub struct Domain {
     pub(crate) tooling: tooling::Domain,
     /// Decoded job specs by the engine's run and attempt, until answered.
     pub(crate) job_specs: Map<(Token, Token), crate::jobs::Spec>,
+    /// Operator evidence for hosted jobs and the entering assignment (worker.md, 4.4).
+    pub(crate) job_evidence: Map<(Token, Token), crate::jobs::Evidence>,
     /// Owners whose job capability has not yet refused or gone.
     pub(crate) jobs: Map<Token, Token>,
     /// The agents smith started, by their runs' tokens.
@@ -186,6 +188,7 @@ impl Domain {
             agent: agent::Domain::new(&limits.agent),
             tooling: tooling::Domain::new(&limits.tooling, kinds).expect("the root's job kinds fit its limits"),
             job_specs: Map::with_capacity(slots.saturating_add(1)),
+            job_evidence: Map::with_capacity(slots.saturating_add(1)),
             jobs: Map::with_capacity(slots),
             agents: Map::with_capacity(agents),
             calls: Map::with_capacity(agents.checked_mul(limits.agent.calls).expect("valid accepted the calls")),
@@ -321,6 +324,19 @@ impl Domain {
     #[must_use]
     pub const fn activity_lost(&self) -> u64 {
         self.host.activity_lost().saturating_add(self.activity_dropped)
+    }
+
+    /// The assigned kind and its verb, until the service takes the job's evidence (worker.md, 4.4).
+    #[must_use]
+    pub fn job_kind(&self, run: Token, attempt: Token) -> Option<(u32, Box<[u8]>)> {
+        let evidence = self.job_evidence.get(&(run, attempt))?;
+        let verb = self.tooling.verb(evidence.kind);
+        Some((evidence.kind.0, verb))
+    }
+
+    /// Take a job's operator evidence once, outside facts, results and turns (worker.md, 4.4).
+    pub fn job_why(&mut self, run: Token, attempt: Token) -> Option<Box<[u8]>> {
+        self.job_evidence.remove(&(run, attempt))?.why
     }
 
     /// The reclaim point: frees what closed in this iteration.

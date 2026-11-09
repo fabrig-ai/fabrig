@@ -165,6 +165,11 @@ facts on `Committed` for `Write::Merge`. The no-link cases keep the stock
 permission mapping, owner-role refusal after admin adoption and fresh
 maintainer-role acceptance. These are scripted worlds on fake Forgejo.
 
+- **Not yet:** 2.1: the merge job's story, `suite::merge_job`: the
+  composed world declares no job kind on either root and panics on a job's
+  assignment and its operations (`tests/system/src/composed.rs`), so no
+  test runs a change's merge job from the engine through the worker to the
+  forge (plan `merge-job-runs-2`).
 - **Not yet:** 6.4: the box's approval-identity and approval-wait stories
   have no GitHub row: their fixtures offer Forgejo alone. Setup and
   connector tables cover GitHub's identity evidence and link decisions,
