@@ -383,27 +383,63 @@ fn a_commit_page_past_the_range_bound_is_refused() {
 }
 // Three native commit slots, three parent ids, and these whole messages.
 const RANGE_BYTES: u32 = 192 + 96 + 22 + 7 + 23;
+// Two native slots, second's parent, and first and second's whole messages.
+const OLDEST_TWO_BYTES: u32 = 128 + 32 + 22 + 7;
+// First's native slot and whole message, with no parents.
+const OLDEST_BYTES: u32 = 64 + 22;
 #[test]
-fn commit_messages_fit_exactly_within_the_answer_byte_bound() {
+fn a_range_past_the_answer_keeps_its_oldest_commits() {
+    let oldest_page = || {
+        let [first, second, _] = range_values();
+        Step::Done(Ok(Answer::Commits { commits: Box::new([first, second]), more: true }))
+    };
     skein_rows::check(
         [
             (
-                "commit_messages_fit_at_the_answer_bound",
-                (RANGE_BYTES, {
-                    let [first, second, _] = range_values();
-                    Step::Done(Ok(Answer::Commits { commits: Box::new([first, second]), more: true }))
-                }),
+                "all_three_at_the_answer_bound",
+                (crate::forgejo::plans::plan::Bounds { answer_bytes: RANGE_BYTES, ..BOUNDS }, 1, oldest_page()),
             ),
-            ("commit_messages_past_the_answer_bound_are_refused", (RANGE_BYTES - 1, Step::Done(Err(Error::TooLarge)))),
+            (
+                "one_byte_under_keeps_the_oldest_two",
+                (crate::forgejo::plans::plan::Bounds { answer_bytes: RANGE_BYTES - 1, ..BOUNDS }, 1, oldest_page()),
+            ),
+            (
+                "two_rows_keep_the_oldest_two",
+                (crate::forgejo::plans::plan::Bounds { rows: 2, ..BOUNDS }, 1, oldest_page()),
+            ),
+            (
+                "only_the_oldest_kept_holds_no_whole_page",
+                (
+                    crate::forgejo::plans::plan::Bounds { answer_bytes: OLDEST_TWO_BYTES - 1, ..BOUNDS },
+                    1,
+                    Step::Done(Err(Error::TooLarge)),
+                ),
+            ),
+            (
+                "the_oldest_alone_past_the_answer",
+                (
+                    crate::forgejo::plans::plan::Bounds { answer_bytes: OLDEST_BYTES - 1, ..BOUNDS },
+                    1,
+                    Step::Done(Err(Error::TooLarge)),
+                ),
+            ),
+            (
+                "page_two_past_two_rows_is_refused_before_sending",
+                (crate::forgejo::plans::plan::Bounds { rows: 2, ..BOUNDS }, 2, Step::Done(Err(Error::TooLarge))),
+            ),
         ],
-        |(answer_bytes, expected)| {
-            let mut run = Run::with_limits(
-                range_limits(),
-                crate::forgejo::plans::plan::Bounds { answer_bytes, ..BOUNDS },
-                Op::Read(Read::Commits { before: BASE, after: HEAD, page: 1 }),
-            );
-            run.begin();
-            assert_eq!(run.answer(200, &server_answer(&range_document())), expected);
+        |(bounds, page, expected)| {
+            let mut run =
+                Run::with_limits(range_limits(), bounds, Op::Read(Read::Commits { before: BASE, after: HEAD, page }));
+            let begun = run.begin();
+            let answer = match begun {
+                Step::Send(_) => run.answer(200, &server_answer(&range_document())),
+                Step::Done(_) => {
+                    run.assert_sent(&[]);
+                    begun
+                }
+            };
+            assert_eq!(answer, expected);
         },
     );
 }

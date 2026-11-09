@@ -1,6 +1,6 @@
 # browser: status
 
-2026-11-08. Where temper's code lags or departs from [browser.md](browser.md).
+2026-11-09. Where temper's code lags or departs from [browser.md](browser.md).
 
 - **Departs:** 7.3: the gallery's tests exceed their 1 CPU s budget:
   `cargo test -p temper-client-gallery --lib`, serial, measured
@@ -68,15 +68,27 @@ first" to its "Use this", in the existing history story; it checks
 neither Agents review's "now" nor the line and the path. The rendered
 comparison follows landing (`README.md`, section 11).
 
+Sections 2.5, *Ask temper's ways*, and 7.2 have no known implementation
+gap in `look-round-25`'s repairs: the drawing's and the legend's rules,
+and the tabs', line's, card's and act's, name Ask temper's page and How
+work runs' frame alike; with a fourth tab the tabs stand two by two at
+760 px and under; who acts is the whole story's marks, an agent's star
+`--gf-ink`, outlined when needed, code's square `--gf-muted`, a stop's
+small words `--gf-faint`; and each rise's fade colours its stops by the
+`temper-ways-fade-*` tokens, the line's rules written under
+`:not([data-fade])` so that no stroke outweighs the fade (skein's
+`ui-web.md`, section 8). The gallery's `ask-ways-*` states are reprinted
+with them.
+
 Sections 2.5, *How work runs' look*, and 7.2 have no known
-implementation gap: `temper.css`'s `/* ==== ui: how ==== */`, after the
-ways' rules, holds the wide column, the section's head and "the way:
-NAME", the path's table scrolling sideways in its box, its lanes' pills
-in who acts' colours on `--gf-agent`, `--gf-agent-pale`, `--gf-code` and
-`--gf-code-pale`, by day and by night, the bar, the authority row and
-Budgets' row, and `look.rs` names each `temper-how-*` class. The gallery
-prints `how`, `how-approve`, `how-draft`, `how-yours`, `how-card` and
-`night-how` at both widths, and its table checks each. The rendered
+implementation gap but the departure above: `temper.css`'s `/* ==== ui:
+how ==== */`, after the ways' rules, holds the wide column, the
+section's head and "the way: NAME", Roles' rows and terms, and Budgets'
+row, by day and by night; the path is Ask temper's drawing under its own
+rules, with no lanes and no colour of its own; and `look.rs` names each
+`temper-how-*` class. The gallery prints `how`, `how-approve`,
+`how-draft`, `how-yours`, `how-card` and `night-how` at both widths,
+`how-draft` with Roles, and its table checks each. The rendered
 comparison follows landing (`README.md`, section 11).
 
 Sections 2.3, 2.5 and 7.2 have no known implementation gap in the rail,

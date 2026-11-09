@@ -275,9 +275,19 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
 - **The brief fits the room its charter leaves.** smith counts a run's
   brief in its host part, beside the charter's offered tools, its
   instructions and the finish and deliver schemas. Before sending an
-  assignment, the engine fits gathered sections to the configured
-  `hub.charter_bytes` envelope for both the encoded charter, including
-  framing, and its decoded ownership. Instructions, tools, contracts,
+  assignment, the engine fits gathered sections to its charter bound for
+  both the encoded charter, including framing, and its decoded ownership.
+  The bound is the smaller of the configured `hub.charter_bytes` and the
+  charter allowance of the worker that receives it, so the engine never
+  sends a run a charter its worker would refuse: a worker refuses at
+  decoding a charter whose ownership passes its smith `run_bytes`, before
+  its own fit. Where the process has a local agent, that allowance is the
+  agent's `run_bytes`, as a task read's room is its `host_reply_text`
+  (`root.md`, 5.2). Where it doesn't know its worker's, it takes smith's
+  at its floor, 65,536, which the stock agent's `tool_payload` of 10,662
+  does not raise (smith's `protocol/limits.md`, 3.10): the smaller of the
+  two defaults, and how the engine learns a remote worker's is section
+  10's. Instructions, tools, contracts,
   models and run identity stay whole. The worker service also fits the
   brief after the workspace is prepared and before encoding the start,
   using the receiving run's limits and measured schema costs. It fits both
@@ -1886,6 +1896,14 @@ host:
   reply allows and leaves the choice to the design owner, a protocol
   decision a plan of its own follows. Default: the documents' window, which
   a deployment raises by its own `documents.text_bytes`.
+- **A charter where the process has no local agent.** The engine does not
+  know its remote worker's charter allowance either, so it fits a charter
+  to the smaller of `hub.charter_bytes` and smith's 65,536 (4.3), and a
+  remote worker that takes more, the reference's 127,480 among them,
+  receives its brief cut at 65,536. The same two ways would carry the
+  allowance beside the reply bound, and the request `landing-behind-main`
+  of 2026-11-08 asks it be sized as that bound is. Default: the smaller of
+  the two defaults.
 - **The person's forge identity in a chat's brief,** rather than in the
   settings inventory (8.1), which Ask temper reads first.
   A brief section would spend every chat's room for what one charter

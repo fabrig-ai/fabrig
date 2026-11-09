@@ -931,6 +931,13 @@ pub enum Word {
     TimeAt,
     Away,
     AwayChipOff,
+    AwayAcross,
+    ToastAwayAllOn,
+    ToastAwayAllOnOne,
+    ToastAwayAllOff,
+    ToastAwayAllOffOne,
+    ToastAwayAllPartial,
+
     AwayUntil,
     ToastAwayOnUntil,
     ToastAwayOn,
@@ -1633,7 +1640,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2186;
+const PHRASES: u32 = 2192;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1660,10 +1667,10 @@ const PHRASES: u32 = 2186;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 3901;
+const SEGMENTS: u32 = 3923;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 52992;
-const ALL: [Word; 1504] = [
+const ENGLISH_BYTES: u32 = 53292;
+const ALL: [Word; 1510] = [
     Word::WaysLede,
     Word::HowChange,
     Word::HowOwn,
@@ -2558,6 +2565,12 @@ const ALL: [Word; 1504] = [
     Word::TimeAt,
     Word::Away,
     Word::AwayChipOff,
+    Word::AwayAcross,
+    Word::ToastAwayAllOn,
+    Word::ToastAwayAllOnOne,
+    Word::ToastAwayAllOff,
+    Word::ToastAwayAllOffOne,
+    Word::ToastAwayAllPartial,
     Word::AwayUntil,
     Word::ToastAwayOnUntil,
     Word::ToastAwayOn,
@@ -4109,6 +4122,13 @@ impl Word {
             Self::TimeAt => 1207,
             Self::Away => 3675,
             Self::AwayChipOff => 3676,
+            Self::AwayAcross => 4347,
+            Self::ToastAwayAllOn => 4348,
+            Self::ToastAwayAllOnOne => 4349,
+            Self::ToastAwayAllOff => 4350,
+            Self::ToastAwayAllOffOne => 4351,
+            Self::ToastAwayAllPartial => 4352,
+
             Self::AwayUntil => 3677,
             Self::ToastAwayOnUntil => 3678,
             Self::ToastAwayOn => 3679,
@@ -4700,9 +4720,9 @@ impl Word {
             Self::NeedsDecidedLifetime => 4343,
             Self::HomeAsk => 4342,
             Self::HomeAskPlaceholder => 4341,
-            Self::NeedsTab => 4347,
-            Self::NeedsTabCount => 4348,
-            Self::NeedsTabCountCut => 4349,
+            Self::NeedsTab => 4353,
+            Self::NeedsTabCount => 4354,
+            Self::NeedsTabCountCut => 4355,
         };
         let owner =
             if number >= 100 { crate::frame::owner() } else { temper_client_domain::forge::words::owner(connector) };
@@ -6161,6 +6181,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::TimeAt => (&[b"at ", b""], &[Name]),
         Word::Away => (&[b"Away"], &[]),
         Word::AwayChipOff => (&[b"Away: off"], &[]),
+        Word::AwayAcross => (&[b"Away on ", b" of ", b""], &[Number, Number]),
+        Word::ToastAwayAllOn => (&[b"Away turned on for ", b" projects: agents decide within their limits."], &[Number]),
+        Word::ToastAwayAllOnOne => (&[b"Away turned on for ", b" project: agents decide within their limits."], &[Number]),
+        Word::ToastAwayAllOff => (&[b"Away turned off for ", b" projects: questions wait for you again."], &[Number]),
+        Word::ToastAwayAllOffOne => (&[b"Away turned off for ", b" project: questions wait for you again."], &[Number]),
+        Word::ToastAwayAllPartial => (&[b"Away changed for ", b" of ", b" projects. Try again."], &[Number, Number]),
         Word::AwayUntil => (&[b"Away until ", b""], &[Name]),
         Word::ToastAwayOnUntil => (&[b"Away until ", b": agents decide within ", b"\xe2\x80\x99s limits."], &[Name, Name]),
         Word::ToastAwayOn => (&[b"Away: agents decide within ", b"\xe2\x80\x99s limits."], &[Name]),

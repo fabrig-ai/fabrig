@@ -69,6 +69,21 @@ pub fn change_step(
     change_step_with_release(world, entry, heard, gates, false)
 }
 
+/// Step the usual change with its merge job available.
+pub fn change_step_merge_job(
+    world: &mut World,
+    entry: u64,
+    heard: change::Status,
+    gates: Box<[change::GateReport]>,
+) -> change::Decision {
+    if world.top.merge_job(5).is_none() {
+        assert!(world.project_landing(5, change::Way::Queue, Box::new([])));
+    }
+    world.top.merge_kind(4096, 4096);
+    assert!(world.top.project_merge_job(5, b".temper/merge".as_slice().into()));
+    change_step_options(world, 51, entry, heard, gates, false, false, false, true)
+}
+
 pub fn change_step_with_release(
     world: &mut World,
     entry: u64,
@@ -102,9 +117,28 @@ pub fn change_step_task_running(
     kept: bool,
     delegate_running: bool,
 ) -> change::Decision {
+    change_step_options(world, task, entry, heard, gates, released, kept, delegate_running, false)
+}
+
+#[expect(
+    clippy::too_many_arguments,
+    clippy::fn_params_excessive_bools,
+    reason = "the scripted step supplies task standing, forge gates and a merge job"
+)]
+fn change_step_options(
+    world: &mut World,
+    task: u64,
+    entry: u64,
+    heard: change::Status,
+    gates: Box<[change::GateReport]>,
+    released: bool,
+    kept: bool,
+    delegate_running: bool,
+    merge_job: bool,
+) -> change::Decision {
     world.take_seen();
     world.event(top::Event::StepChange {
-        merge_job: false,
+        merge_job,
         task,
         entry,
         heard: change::Heard {
