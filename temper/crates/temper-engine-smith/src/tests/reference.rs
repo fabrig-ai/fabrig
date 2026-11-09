@@ -61,7 +61,7 @@ fn a_tool_with_no_members_says_its_input_is_empty() {
 #[test]
 fn the_page_holds_every_declared_tool_in_the_tables_order() {
     // The declared task, connector and settings tools.
-    const TOOLS: usize = 43;
+    const TOOLS: usize = 44;
     let mut out = Writer::new(temper_docs::PAGE_BYTES);
     reference(&mut out).expect("page fits PAGE_BYTES");
     let mut exact = Writer::new(out.written());
@@ -84,7 +84,7 @@ fn the_page_holds_every_declared_tool_in_the_tables_order() {
     }
     assert_eq!(SPECS.len(), TOOLS);
     let mut tail = SPECS.iter().rev();
-    for name in [b"document".as_slice(), b"see", b"read_docs"] {
+    for name in [b"remember".as_slice(), b"document", b"see", b"read_docs"] {
         assert_eq!(tail.next().unwrap().name, name);
     }
     assert!(page.len() <= temper_docs::PAGE_BYTES);

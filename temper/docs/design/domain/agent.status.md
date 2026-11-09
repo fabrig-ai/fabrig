@@ -203,9 +203,6 @@ record has run a real model on the sentence.
   project's work is checked absent from every answer by its words alone,
   not its tasks' numbers or the project's name.
 
-- **Not yet:** 8.4, 8.4.4: charter 11's runs are declared no `remember`;
-  `see`, `document` and `propose_settings` alone, with smith's `wait`.
-
 - **Not yet:** 8.4.1: `see ways` says no way's headline: smith's
   `ways_text` prints a way's name, `now`, its line and its path, so the
   run and How work runs' heading say a way by different words

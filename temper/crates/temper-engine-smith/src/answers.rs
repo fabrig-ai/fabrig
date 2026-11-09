@@ -818,6 +818,7 @@ fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostA
         }
         CallAnswer::Parts(parts) => crate::settings::parts(&mut text, parts)?,
         CallAnswer::Document(documented) => crate::document::render(&mut text, documented)?,
+        CallAnswer::Remember(remembered) => crate::remember::render(&mut text, remembered)?,
         CallAnswer::NoteRefused(why) => {
             text.add(b"Note refused: ")?;
             let ending: &[u8] = match why {
@@ -993,7 +994,7 @@ fn tool_family(tool: &[u8]) -> Option<&'static [u8]> {
         b"note" => b"note",
         b"recall" => b"recall",
         b"settings" | b"propose_settings" => b"settings",
-        b"see" | b"document" => b"asking",
+        b"see" | b"document" | b"remember" => b"asking",
         name if name.starts_with(b"read_") => b"read",
         _ => return None,
     })

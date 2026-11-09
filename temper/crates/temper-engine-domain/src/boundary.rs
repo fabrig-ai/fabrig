@@ -163,6 +163,14 @@ pub enum DocumentAction {
     Replace,
 }
 
+/// What a `remember` call does to its person's list (domain/agent.md, 8.4.4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum RememberAction {
+    Add { text: Box<[u8]> },
+    Change { line: u32, text: Box<[u8]> },
+    Drop { line: u32 },
+}
+
 /// One typed engine tool request from the current worker claim
 /// (domain/root.md, sections 3 and 5.2). Later routes extend this vocabulary.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -177,6 +185,8 @@ pub enum Tool {
     See { line: Box<[u8]>, from: u32 },
     /// Write the chat's one document whole, or one section of it (domain/agent.md, 8.4.3).
     Document { action: DocumentAction, body: Box<[u8]> },
+    /// Keep, change or drop a line about the chat's person (domain/agent.md, 8.4.4).
+    Remember { action: RememberAction },
     /// Propose whole settings to the deployment's owners.
     ProposeSettings {
         against: u32,

@@ -397,7 +397,7 @@ fn asking_declarations() {
         assert_eq!(
             names,
             if allowed {
-                vec![b"see".as_slice(), b"document", b"propose_settings"]
+                vec![b"see".as_slice(), b"document", b"remember", b"propose_settings"]
             } else {
                 vec![b"propose_settings".as_slice()]
             }

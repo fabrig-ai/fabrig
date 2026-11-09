@@ -24,6 +24,7 @@ pub mod kinds;
 mod nested;
 mod notes;
 mod reference;
+mod remember;
 pub mod room;
 mod see;
 mod settings;
