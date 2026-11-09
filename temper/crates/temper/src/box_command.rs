@@ -16,11 +16,15 @@ pub(crate) fn link_form(
 
 pub(crate) const ECHO_SETTINGS: skein_shell::Settings = skein_shell::Settings {
     tool: "temper",
+    about: "How the box shows its steps.",
     table: &[skein_shell::Setting {
         name: "echo",
         value: "none|steps",
         about: "Show errors and a failed step's log, or every step's lines too.",
         fallback: skein_shell::Fallback::Text("none"),
+        set: skein_shell::Set::Public,
+        twin: Some("TEMPER_ECHO"),
+        notes: "",
     }],
 };
 type Arguments = Box<[Box<[u8]>]>;
@@ -61,6 +65,10 @@ pub(crate) struct Opening {
 }
 
 /// Runs a document already retained in its effective directories. Owns all supplied listeners.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: the process environment supplies child processes and the running word; temper-box's table will pass it"
+)]
 pub(crate) fn run_configuration(
     directories: &super::Directories,
     bytes: &[u8],

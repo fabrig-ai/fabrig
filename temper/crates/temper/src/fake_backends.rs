@@ -84,6 +84,10 @@ pub(crate) fn configure(rest: &[std::ffi::OsString], working: &[u8]) -> Result<O
     }
     Ok(bundle)
 }
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: TEMPER_FAKE_BOX_PORTS selects fake listeners; temper-box's table will pass it"
+)]
 pub(crate) fn run(
     source: &Directories,
     bundle: Option<&Path>,
@@ -532,6 +536,10 @@ fn provisioned_program(path: &Path) -> Result<(), String> {
     Ok(())
 }
 // The adapter is this temper's fake-claude sibling; it is a parameter so that tests can provision one.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: the process environment configures fake backends; temper-box's table will pass it"
+)]
 fn prepare(
     source_dirs: &Directories,
     bundle: Option<&Path>,

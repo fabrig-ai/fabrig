@@ -102,7 +102,9 @@ development with no sign-off, and no run of the browser tier on record holds the
 loader, or a log's reading stories, within its budget. A read that failed at a log's head
 is not asked for again on a move back within its reach (`ui-web.md`). The foundation's rules (`../foundation/`) have no status file: of `testing-strategy.md`, 6, no
 tree runs transition coverage (`cargo llvm-cov`) or fuzzes a machine or
-a decoder (`cargo fuzz`). Of the drafts, `component-kit.md` waits on
+a decoder (`cargo fuzz`); of `cli.md`, what a tree doesn't follow yet is
+its checks' exceptions (section 9), and `shell.status.md` and
+`tools/lints/design.status.md` hold what of its mechanism is not built. Of the drafts, `component-kit.md` waits on
 `lib.md` and `io.md` to name its items, the design departs from
 `redb.md`: the store is `kv.md`'s own machine, and `progress-value.md`'s
 status holds a departure the user has not answered, a progress's text

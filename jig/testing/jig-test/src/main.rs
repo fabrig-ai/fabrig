@@ -1,6 +1,7 @@
 //! The reference service and its agent command (protocol/service.md, 7).
 use std::{env, process::ExitCode};
 
+#[expect(clippy::disallowed_methods, reason = "jig's round: reads the reference service and agent command arguments")]
 fn main() -> ExitCode {
     skein_fail_stop::install();
     if env::args_os().nth(1).is_some_and(|argument| argument == smith_agent_shell::relay::FLAG) {

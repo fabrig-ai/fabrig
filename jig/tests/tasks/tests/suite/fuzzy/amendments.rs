@@ -523,6 +523,7 @@ fn random_amendments_preserve_the_promise_and_leave_no_circle() {
     sweep();
 }
 
+#[expect(clippy::disallowed_methods, reason = "jig's round: reads JIG_WORLD_TRACE to enable amendment sweep tracing")]
 fn sweep() {
     let mut random = Rng::new(DRAW_SOURCE);
     let mut seeds = BTreeSet::new();

@@ -1,4 +1,8 @@
 use std::path::PathBuf;
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C8: the transcript tool's arguments, until it is a binary of temper/bin/"
+)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     skein_fail_stop::install();
     let mut git = None;

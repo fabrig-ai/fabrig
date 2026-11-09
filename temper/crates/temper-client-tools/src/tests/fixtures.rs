@@ -443,6 +443,10 @@ pub(crate) fn golden(name: &str) -> Box<[u8]> {
     std::fs::read(path).expect("checked golden").into_boxed_slice()
 }
 /// Task-rendering fixtures regenerate only through their owning tests.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
+)]
 pub(crate) fn check_golden(name: &str, bytes: &[u8]) {
     let write = match std::env::var_os("SKEIN_CODEGEN_WRITE") {
         Some(value) => value == "1",

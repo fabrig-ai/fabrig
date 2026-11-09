@@ -6,6 +6,7 @@ use skein_lib::{Duration, Time, Wall};
 use skein_ui::Act;
 use skein_ui::Role;
 type PageWorld = World<Test, Scripted>;
+#[expect(clippy::disallowed_methods, reason = "jig's round: reads SKEIN_CODEGEN_WRITE to refresh printed page goldens")]
 fn print(w: &PageWorld, c: ClientId, label: &str, golden: &[u8]) {
     let (_, view) = jig_client_world::test::new(&jig_client_world::test::limits(), 0);
     let mut print = skein_ui_text::Print::new(&view.limits().tree).expect("print fits");

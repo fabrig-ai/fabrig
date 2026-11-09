@@ -141,6 +141,29 @@ fake forge; no real model or real forge is proved by it. Section 6.5.1's
 reference obligations retain their current charter words; folding in the
 goal-as-designer workflow remains in section 11.
 
+Section 2.1 has no known gap in the merge job's story:
+`a_changes_merge_job_runs_on_its_worker` (`tests/system/tests/suite/merge_job.rs`)
+runs a change's merge job in the composed world, both roots declaring the
+kind as production does (`temper-service`'s `limits::job_kinds` and
+`merge_jobs`) and the job crossing production's translation
+(`assignment::job_down`, `worker_route::job_items` and `job_spec`). Its
+five rows are a clean catch-up of main into a goal's branch, a settled
+conflict, a conflict left for a resolution, a base absent from the cached
+clone until fetched by its id, and `conflicts + 1` files settled; each reads
+the forge's branch and its parents, the job's task ended and the change's
+next step. Its git and forge are the fakes, its command the world's
+(`tests/system/src/composed/merge_job.rs`); the worker's checkout bounds a
+merge's listing as the git layer does (`../protocol/git.status.md`).
+
+- **Design departs:** 2.1, from the request `merge-job-runs-2` of
+  2026-11-09, item 1, decided by its plan's cut: the merge job's story
+  runs in the composed world, whose worker is the real root over the
+  link's translation without bytes, where the request asks for a remote
+  worker. A socket worker and the in-process one share the job's code
+  above the bytes, and the real loop's cluster keeps one path per feature
+  (2.4) and its fake git checks out no command. No story runs a merge job
+  between an engine and a worker over a socket.
+
 Sections 2.4 and 2.6 have the reusable-port chooser and its callers:
 socket-claimed blocks below Linux's configured ephemeral range, the
 retained deployment's listeners, the browser's reserved sockets and the
@@ -165,11 +188,6 @@ facts on `Committed` for `Write::Merge`. The no-link cases keep the stock
 permission mapping, owner-role refusal after admin adoption and fresh
 maintainer-role acceptance. These are scripted worlds on fake Forgejo.
 
-- **Not yet:** 2.1: the merge job's story, `suite::merge_job`: the
-  composed world declares no job kind on either root and panics on a job's
-  assignment and its operations (`tests/system/src/composed.rs`), so no
-  test runs a change's merge job from the engine through the worker to the
-  forge (plan `merge-job-runs-2`).
 - **Not yet:** 6.4: the box's approval-identity and approval-wait stories
   have no GitHub row: their fixtures offer Forgejo alone. Setup and
   connector tables cover GitHub's identity evidence and link decisions,

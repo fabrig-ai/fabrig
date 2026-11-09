@@ -20,6 +20,10 @@ fn connected(host: &[u8], port: u16) -> v1::Making {
     super::making_new(v1::ForgeAsk::Connected(value))
 }
 #[expect(clippy::disallowed_macros, reason = "golden fixtures are relative to the test crate")]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
+)]
 fn golden(request: v1::Request, name: &str) {
     let record = v1::Requesting::new(&fixtures::limits(), v1::RequestingParts { request }).unwrap();
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden").join(name);

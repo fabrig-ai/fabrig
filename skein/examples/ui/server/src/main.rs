@@ -49,6 +49,10 @@ fn main() -> ExitCode {
         }
     }
 }
+#[expect(
+    clippy::disallowed_methods,
+    reason = "skein's round: reads the UI example server address and bundle directory"
+)]
 fn run() -> Result<(), String> {
     let mut args = std::env::args().skip(1);
     let address: SocketAddr = args

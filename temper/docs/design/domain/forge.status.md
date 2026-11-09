@@ -236,10 +236,14 @@ its landing branches' alone, and a goal's CI subscription held at
 restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
 `restored`, by `Request::GoalUntopic`), while a task's own stays.
 
+Section 8.4 has no known gap in a merge job's failures: each is a line on
+the worker that met it and on the engine, naming the job, its kind and why,
+and the way out of its hold, out of tries, points at the engine's log,
+which names each (`worker.status.md`, 4.4). The composed system world runs
+a change's merge job from the engine through its worker to the fake forge
+(`testing.status.md`, 2.1).
+
 - **Not yet:**
-  - 8.4: a merge job's failures are no line on either side, so the way out of
-    its hold, out of tries, points at an engine's log that names none of them
-    (`worker.status.md`, 4.4; plan `merge-job-runs-2`).
   - 8.3, 8.4: the user's N4 request of 2026-11-08 asks for focused and
     fuzzy tests. The focused story
     `a_persons_request_for_changes_repairs_with_its_remarks`
@@ -387,7 +391,8 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
     (`temper-engine-domain-forge/src/items.rs`, `change_branch_holder`),
     but no story runs it: the merge job's stories are changes into a
     goal's branch and into main, none a goal's landing
-    (`tests/engine/domain/tests/suite/forge_routes/merge_job.rs`). The
+    (`tests/engine/domain/tests/suite/forge_routes/merge_job.rs`; the
+    composed system world's `suite::merge_job`). The
     forge world steps such a landing to its merge job and a resolution
     on scripted delegations alone, with no job or resolution run
     (`a_first_change_behind_its_base_takes_it_or_goes_to_its_merge_job`).

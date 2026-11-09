@@ -1,6 +1,6 @@
 # design: status
 
-2026-11-07. Where the repository lags or departs from [design.md](design.md).
+2026-11-09. Where the repository lags or departs from [design.md](design.md).
 
 Section 3's `skein-fork` takes the `ring` profile; its documented process
 boundary scopes its `unsafe` expectation. No gap remains in that addition.

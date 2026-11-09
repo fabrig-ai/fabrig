@@ -13,6 +13,7 @@ mod deadlines;
     clippy::too_many_lines,
     reason = "the single-threaded signal fixture owns startup and drains io to settlement"
 )]
+#[expect(clippy::disallowed_methods, reason = "skein's round: reads the signal sender fixture command line")]
 fn main() {
     use skein_io::kernel::{Pipe, ServiceSignal, Spawn, Way};
     use skein_io::{self as io, Event, Request};

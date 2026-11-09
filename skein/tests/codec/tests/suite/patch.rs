@@ -326,6 +326,10 @@ mod tests {
 
     #[test]
     #[expect(clippy::panic, reason = "a patch halt reports the golden and the record key")]
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "skein's round: reads SKEIN_PATCH_WRITE, the patch golden rewrite switch"
+    )]
     fn patch_runs_every_v1_golden_into_v2_generated_code() {
         let (mut patcher, plan) = planned();
         let schema = schema::parse(V1.as_bytes()).expect("v1 schema");

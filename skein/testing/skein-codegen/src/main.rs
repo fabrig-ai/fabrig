@@ -78,6 +78,7 @@ fn main() -> ExitCode {
 }
 
 #[expect(clippy::print_stdout, reason = "the binary prints the run's report and the check's findings (codec.md 12.8)")]
+#[expect(clippy::disallowed_methods, reason = "skein's round: reads the codegen command line")]
 fn execute() -> Result<u8, Box<dyn core::error::Error>> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
     match arguments(&args)? {

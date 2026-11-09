@@ -9,24 +9,34 @@ use std::{
 
 pub const SETTINGS: Settings = Settings {
     tool: "temper",
+    about: "The deployment's three directories.",
     table: &[
         Setting {
             name: "config",
             value: "CONFIG",
             about: "Configuration, including temper.json.",
             fallback: Fallback::Base(Base::Config),
+            set: skein_shell::Set::Public,
+            twin: Some("TEMPER_CONFIG"),
+            notes: "",
         },
         Setting {
             name: "data",
             value: "DATA",
             about: "The deployment's data and secrets.",
             fallback: Fallback::Base(Base::Data),
+            set: skein_shell::Set::Public,
+            twin: Some("TEMPER_DATA"),
+            notes: "",
         },
         Setting {
             name: "cache",
             value: "CACHE",
             about: "Binaries that can be fetched again.",
             fallback: Fallback::Base(Base::Cache),
+            set: skein_shell::Set::Public,
+            twin: Some("TEMPER_CACHE"),
+            notes: "",
         },
     ],
 };
@@ -53,6 +63,7 @@ impl fmt::Display for Refusal {
 }
 pub type Argument = Box<[u8]>;
 pub type EnvironmentEntry = (Argument, Argument);
+#[expect(clippy::result_large_err, reason = "shell.md, 6.5 preserves the refused setting and its documentation")]
 pub fn resolve(
     arguments: &[Argument],
     environment: &[EnvironmentEntry],

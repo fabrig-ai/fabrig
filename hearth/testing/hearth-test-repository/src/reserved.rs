@@ -9,6 +9,7 @@ pub const PROD_ENV: File = File { path: "envs/prod.json", body: b"{}", mode: 0o6
 pub const LAB_ENV: File = File { path: "envs/lab.json", body: b"{}", mode: 0o644 };
 pub const METAL_EFI: &[u8] = br#"{"placement":{"kind":"metal","firmware":"efi","hardware":"7th-gen"}}"#;
 #[must_use]
+#[expect(clippy::disallowed_methods, reason = "hearth's round: reads PATH for test repository git commands")]
 pub fn git_path() -> std::ffi::OsString {
     std::env::var_os("PATH").expect("git is required on PATH")
 }

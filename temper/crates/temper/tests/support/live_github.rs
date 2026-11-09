@@ -37,7 +37,10 @@ struct Inputs {
     scratch: PathBuf,
 }
 impl Inputs {
-    #[expect(clippy::disallowed_methods, reason = "the live proof supplies its owner through the test environment")]
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "cli C4: TEMPER_LIVE_GITHUB_OWNER, TEMPER_LIVE_GITHUB_FIXTURES and PATH, through temper's test table once it exists"
+    )]
     fn read(scratch: &Path) -> Self {
         let owner = std::env::var("TEMPER_LIVE_GITHUB_OWNER").expect("owner from proof-live-github.sh");
         assert_eq!(owner, "fabrig-ai", "probe owner only");
@@ -93,6 +96,7 @@ impl Inputs {
     }
 }
 
+#[expect(clippy::disallowed_methods, reason = "cli C4: TMPDIR, through temper's test table once it exists")]
 pub fn run() {
     let clock = Clock::new();
     let started = clock.now().now;

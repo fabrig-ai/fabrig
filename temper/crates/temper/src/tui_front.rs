@@ -54,6 +54,10 @@ fn terminal_refusal(why: Error) -> String {
     format!("temper internal tui: terminal: {why:?}\n")
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: the process environment selects terminal scheme and depth; temper-box's table will pass it"
+)]
 fn start(engine: SocketAddr, link: Secret, terminal: Fd, clock: &Clock) -> Result<u8, String> {
     let environment = skein_shell::environment();
     let directory = tui::directory(&environment).map_err(|why| why.line("temper"))?;

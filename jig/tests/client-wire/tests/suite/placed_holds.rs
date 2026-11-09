@@ -4,6 +4,7 @@ use skein_lib::{Reader, Writer};
 use std::fs;
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "jig's round: reads SKEIN_CODEGEN_WRITE to refresh placed hold goldens")]
 fn task_holds_with_a_placed_line_match_their_smallest_and_full_goldens() {
     let root = skein_scratch::paths::tree().join("crates/jig-client-protocol-wire/golden");
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");

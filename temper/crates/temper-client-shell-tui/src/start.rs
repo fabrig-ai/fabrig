@@ -178,6 +178,10 @@ pub fn run(name: &str, argument: Option<&[u8]>, clock: &Clock) -> u8 {
     }
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C3: the client's environment selects directories, links and terminal settings; temper's table will pass it"
+)]
 fn start(argument: Option<&[u8]>, clock: &Clock) -> Result<u8, Refused> {
     let given = argument.map(address).transpose()?;
     let environment = skein_shell::environment();

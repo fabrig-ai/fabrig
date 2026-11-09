@@ -830,6 +830,7 @@ pub fn assert_cached_binary_unchanged(cached: &std::path::Path, source: &std::pa
 /// Init's shipped charters on the process story's three roots. The model
 /// choice changes only ordinary provider and program configuration.
 #[must_use]
+#[expect(clippy::disallowed_methods, reason = "cli C4: PATH, through temper's test table once it exists")]
 pub fn live_deployment(paths: &[PathBuf; 3], model: LiveModel<'_>) -> std::net::SocketAddr {
     initialize(paths);
     super::own_listener_files(&paths[0]);
@@ -860,6 +861,7 @@ pub fn live_deployment(paths: &[PathBuf; 3], model: LiveModel<'_>) -> std::net::
 /// Select the launcher's store and admit it before starting any process; a
 /// held account moves into a fresh store only.
 #[must_use]
+#[expect(clippy::disallowed_methods, reason = "cli C4: TEMPER_LIVE_STORE, through temper's test table once it exists")]
 pub fn live_store(account: bool) -> (PathBuf, bool) {
     let store = std::path::PathBuf::from(
         std::env::var_os("TEMPER_LIVE_STORE").expect("run live through scripts/proof-live.sh forge-land"),
@@ -874,6 +876,7 @@ pub fn live_store(account: bool) -> (PathBuf, bool) {
 /// The owned-forge landing story's own store under `TEMPER_LIVE_STORE`, so the pair runs
 /// in one invocation, each on its own deployment (domain/testing.md, 2.7).
 #[must_use]
+#[expect(clippy::disallowed_methods, reason = "cli C4: TEMPER_LIVE_STORE, through temper's test table once it exists")]
 pub fn landing_store(model: LiveModel<'_>) -> (PathBuf, bool) {
     let stores = PathBuf::from(
         std::env::var_os("TEMPER_LIVE_STORE").expect("run live through scripts/proof-live.sh forge-land"),
@@ -907,6 +910,10 @@ fn reserve_account_store(store: &std::path::Path, account: bool) -> Result<bool,
 
 /// The held record `TEMPER_LIVE_ACCOUNT` names, admitted before any store is.
 #[must_use]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: TEMPER_LIVE_ACCOUNT, through temper's test table once it exists"
+)]
 pub fn live_account() -> Option<PathBuf> {
     let account = PathBuf::from(std::env::var_os("TEMPER_LIVE_ACCOUNT")?);
     if let Err(message) = held_account(&account) {

@@ -2,6 +2,10 @@
 use std::process::ExitCode;
 use temper_stage_one::{check, collect, golden, judge};
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C8: the stage-one tool's arguments, until it is a binary of temper/bin/"
+)]
 fn main() -> ExitCode {
     skein_fail_stop::install();
     let args: Vec<String> = std::env::args().skip(1).collect();

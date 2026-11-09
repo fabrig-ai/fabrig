@@ -115,6 +115,10 @@ pub struct StarvedPass;
 /// Whether a starved wait ends its test as a pass here: `TIERS_ONE_PROCESS` or
 /// `NEXTEST` is set.
 #[must_use]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "skein's round: reads TIERS_ONE_PROCESS and NEXTEST to select the starvation verdict"
+)]
 pub fn starved_passes() -> bool {
     std::env::var_os("TIERS_ONE_PROCESS").is_some() || std::env::var_os("NEXTEST").is_some()
 }
@@ -123,6 +127,10 @@ pub fn starved_passes() -> bool {
 /// as `Starved::pass` ends it; elsewhere fails with the line.
 #[expect(clippy::exit, reason = "testing.md, 5 ends a nextest starved pass with exit 0")]
 #[expect(clippy::print_stderr, reason = "testing.md, 5 requires one starvation verdict on stderr")]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "skein's round: reads TIERS_ONE_PROCESS and NEXTEST to report a starved test pass"
+)]
 pub fn pass_starved(line: &str) -> ! {
     if std::env::var_os("TIERS_ONE_PROCESS").is_some() {
         eprintln!("{line}");

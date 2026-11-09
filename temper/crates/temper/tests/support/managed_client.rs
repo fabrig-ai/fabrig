@@ -94,7 +94,10 @@ pub enum Mode {
     Adopt,
 }
 
-#[expect(clippy::disallowed_methods, reason = "the sitting supplies the fake client's role through its environment")]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: TEMPER_MANAGED_CLIENT supplies the fake client's role, through temper's test table once it exists"
+)]
 pub fn role() -> Option<Mode> {
     match std::env::var("TEMPER_MANAGED_CLIENT") {
         Ok(mode) => match mode.as_str() {

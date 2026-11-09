@@ -30,6 +30,7 @@ pub fn command(root: &Path, action: &str) -> Command {
     command
 }
 
+#[expect(clippy::disallowed_methods, reason = "cli C4: PATH, through temper's test table once it exists")]
 fn isolate(command: &mut Command, root: &Path) {
     let runtime = root.join("runtime");
     fs::DirBuilder::new().recursive(true).mode(0o700).create(&runtime).expect("private runtime");
