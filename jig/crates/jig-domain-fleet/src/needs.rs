@@ -318,6 +318,7 @@ pub(crate) fn empty_evidence() -> Bounds {
         message_bytes: 0,
         inbox: 0,
         unacknowledged: 0,
+        reply_bytes: None,
     }
 }
 pub(crate) fn evidence(bounds: &Bounds) -> Bounds {

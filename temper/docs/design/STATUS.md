@@ -539,14 +539,19 @@ reply or failure, so authorization waits for room (`protocol/sign-in.md`,
 work (`protocol/sign-in.md`, section 10). `temper init`'s documents hold
 `documents.text_bytes` at 512, where the `first-goal-fixes` request of
 2026-11-05 has 8,192, which the web and terminal clients refuse, so a client
-reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words in
-its reply's room, but in those pieces where its process has no local agent, by the
-`read-task-room` plan's cut, and no goal on record has counted what the room saves
-(`domain/root.md`); how the engine is to learn its workers' reply bound is the
-design owner's decision (`domain/agent.md`, section 10). A charter is fitted to
+reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words
+in the room of the reply bound its worker names in its hello, else the local
+agent's, else `documents.text_bytes`. The six-row engine table covers those
+choices, a smaller worker bound, continuation and the journal ceiling; no
+real host or LLM is exercised, and real-deployment savings remain unobserved
+(`domain/root.status.md`, **Not yet:** 5.2). Worker-specific `see` rendering
+remains deferred (`domain/agent.md`, section 10). A charter is fitted to
 its worker's allowance, smith's 65,536 where the process has no local agent, as
 that section leaves it, and a resolution names a file too large for its brief
-(`domain/agent.md`; `domain/forge.md`). A live delegate counts no stall and a stall's hold reaches its
+(`domain/agent.md`; `domain/forge.md`). The worker-reply-bound
+draft's vision is carried in full by the design and its text is archived
+(`draft/archive/worker-reply-bound.status.md`). A live delegate counts no
+stall and a stall's hold reaches its
 task's holder, but no record shows the rerun of the replay the `parallel-faults`
 request has as its proof, nor why its hold came about 57 minutes in, and a no-change
 under another hold is said only once a release holds it again (`domain/forge.md`). A
@@ -1050,3 +1055,6 @@ Drafts:
 - [`draft/surfaces.md`](draft/surfaces.status.md)
 - [`draft/what-reaches-you.md`](draft/what-reaches-you.status.md)
 - [`draft/whole-story.md`](draft/whole-story.status.md)
+
+Archived drafts:
+- [`draft/archive/worker-reply-bound.md`](draft/archive/worker-reply-bound.status.md)

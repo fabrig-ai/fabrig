@@ -230,6 +230,14 @@ impl Domain {
         rows.into_boxed()
     }
 
+    /// The reply bound of the agent running `key`'s attempt
+    /// (temper/docs/design/domain/root.md, 5.2): the one its worker's hello
+    /// names, else the local agent's; `None` where neither names one.
+    #[must_use]
+    pub fn reply_bound(&self, key: CallKey) -> Option<u32> {
+        self.core.fleet.reply_bound(Token::new(key.task), Token::new(key.attempt)).or(self.limits.host_reply_bytes)
+    }
+
     /// The live task arena, for a world to inspect between iterations.
     #[must_use]
     pub const fn tasks(&self) -> &tasks::Domain {

@@ -51,6 +51,7 @@ pub(crate) fn hello(record: wire::Hello) -> Option<Hello> {
             message_bytes: bounds.message_bytes,
             inbox: bounds.inbox,
             unacknowledged: bounds.unacknowledged,
+            reply_bytes: bounds.reply_bytes,
         },
     })
 }

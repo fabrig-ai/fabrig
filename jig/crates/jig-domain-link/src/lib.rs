@@ -218,6 +218,9 @@ pub struct Bounds {
     pub message_bytes: u32,
     pub inbox: u32,
     pub unacknowledged: u32,
+    /// The longest host answer the agent takes, in bytes, if the application names it
+    /// (jig/docs/design/domain/hosts.md, section 2).
+    pub reply_bytes: Option<u32>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

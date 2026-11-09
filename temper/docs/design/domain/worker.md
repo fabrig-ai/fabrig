@@ -630,6 +630,13 @@ process has exited and its tree is empty. temper's choices:
   nothing in the agent's configuration raises it. Each of the host's
   other limits is one agent's, whatever the slots; an agent process
   holds one run.
+- **Its reply bound,** in the hello's bounds: the agent's
+  `host_reply_text`, its `agent.json` `profile.declared.tool_payload`,
+  the same figure as the worker's `Limits::reply_bytes` (4.3), so that
+  the engine sizes a task read and renders an answer for this worker's
+  runs within what its agent takes (`root.md`, 5.2; jig's
+  `domain/hosts.md`, section 2). Every temper worker names it, the
+  engine's in-process local agent among them.
 - **What rises with its slots:** the worker's `hub.slots`, the engine's
   `fleet.slots` and the checkout's `checkout.workspaces` are each at
   least the slots, and `git_component.operations` at least the

@@ -30,6 +30,7 @@ fn bounds_window(window: u32) -> Bounds {
         message_bytes: 64,
         inbox: 4,
         unacknowledged: 2,
+        reply_bytes: None,
     }
 }
 fn hello(bounds: Bounds) -> Hello {
@@ -57,6 +58,22 @@ fn rejected(needs: Needs, bounds: Bounds) -> HelloRefusal {
     assert_eq!(actual, HelloRefusal::Agent { why: expected });
     actual
 }
+#[test]
+fn a_live_claims_reply_bound_is_its_hosts_hello() {
+    for reply_bytes in [Some(4096), None] {
+        let mut bounds = bounds_window(8192);
+        bounds.reply_bytes = reply_bytes;
+        let hello = hello(bounds);
+        let mut h = Harness::with_needs(LIMITS, needs_window(8192));
+        assert!(h.step(Event::Hello { worker: 0, channel: C1, hello }).is_empty());
+        assert_eq!(h.place(R1, A1, 1), C1);
+        assert_eq!(h.domain.reply_bound(R1, A1), reply_bytes);
+        assert_eq!(h.domain.reply_bound(R1, A2), None);
+        h.step(Event::Lost { channel: C1 });
+        assert_eq!(h.domain.reply_bound(R1, A1), None);
+    }
+}
+
 #[test]
 fn a_need_past_its_endpoints_window_or_output_falls_short() {
     for (window, output, why) in [
