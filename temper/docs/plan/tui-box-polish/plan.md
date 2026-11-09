@@ -20,11 +20,6 @@ the user's requests of 2026-11-09. The shapes that cross tasks are
 | notice | `notice` | | `Notice`, `Told::Notice`, the quiet line's notice, the host's 6-second due; the unknown command's note becomes the notice |
 | quit | `quit` | | `/quit` names `Command::Exit` in the TUI, `/exit` whole still closes; help page |
 | theme | `theme-start` | | `ThemeChoice`, the `theme` record in the small store, `Start.scheme` the terminal's word or none, `keep_theme` and the store's answers kept from the root |
-
-Released in the next batch (written in this cut, below):
-
-| Part | Task | Needs | What |
-|---|---|---|---|
 | typing | `typing` | `notice` | keys go to the box whenever it is drawn, the sign-in never clears it, the words carried to Home, Enter before it lands notices "Still signing in" |
 | theme | `theme-list` | `theme-start`, `notice`, `quit` | `/theme` the TUI's own, its list (Auto with what it reads, Light, Dark), the choice taken, kept and noticed |
 | box-ink | `box-ink` | `focused-value`, `quit`, `notice`, `typing`, `theme-list` | `tui-field` names a focused value of none; every golden's box line and the journeys' frames follow |

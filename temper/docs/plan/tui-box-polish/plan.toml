@@ -38,6 +38,13 @@ mode = "direct"
 needs = []
 design = "temper/docs/design/client/README.md, 6.15"
 
+[[part]]
+id = "typing"
+title = "What's typed in the box shows from the first frame and stays through the sign-in; Enter before it lands says \"Still signing in\""
+mode = "direct"
+needs = ["notice"]
+design = "temper/docs/design/client/README.md, 6.14"
+
 [[slice]]
 id = 1
 story = "In the TUI, an unknown command's notice stands on the quiet line for 6 seconds, /quit closes temper, and a theme kept in the small store starts the next run"
@@ -48,4 +55,10 @@ walk = false
 id = 2
 story = "Typed in the box, the person's words are the terminal's own ink after an accent \"❯\""
 parts = ["box-ink"]
+walk = false
+
+[[slice]]
+id = 3
+story = "Keys typed on the welcome while the TUI signs in show in the box at once and stay; Enter before it lands says \"Still signing in\", and Enter after acts on them"
+parts = ["typing"]
 walk = false
