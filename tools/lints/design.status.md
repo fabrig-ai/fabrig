@@ -5,6 +5,11 @@
 Section 3's `skein-fork` takes the `ring` profile; its documented process
 boundary scopes its `unsafe` expectation. No gap remains in that addition.
 
+Section 4's ban of the process's arguments and environment is in all three variants, and every
+read in the four trees' packages is under a scoped expectation whose reason starts with what it is
+or the round or milestone that removes it (temper's, the milestones C2 to C8 of
+`temper/docs/design/draft/cli.execution.md`), but for the seven of the last departure below.
+
 - **Not yet:** 5: `every_package_takes_a_lint_profile` (`tests/boundary/tests/lints.rs`), which
   `.config/gate/always.txt` selects on every change, is the check's one run in this repository.
   The user's request of 2026-11-04 has it run beside `tools/citations/citations.py`, in a step this
@@ -22,3 +27,8 @@ boundary scopes its `unsafe` expectation. No gap remains in that addition.
     names are neither; no reason is recorded. Each kit under `testing/` has a copy, where the debt
     item proposed one `testing/clippy.toml`, because step crates sit beside the kits there and
     clippy would hand them the looser bans.
+  - 4: seven expectations in skein and jig that predate the ban keep a reason that doesn't start
+    with what the read is: `skein-shell`'s `listener_tests.rs` (two), `skein/tests/llm`'s
+    `live.rs`, `skein/tests/ui-web`'s `harness_fixture.rs`, `jig-test`'s `tests/support/mod.rs`
+    and `jig/tests/core`'s fuzzy `settings.rs` (two). The ban's sweep left the other trees' existing
+    wording to their rounds (`skein/docs/foundation/cli.md`, 10).

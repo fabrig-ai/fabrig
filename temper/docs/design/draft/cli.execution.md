@@ -6,7 +6,7 @@
 
 | Milestone | Draft parts | Owner | Needs | Its walk | State |
 |---|---|---|---|---|---|
-| C1, the conventions and their mechanism: the command line's page in `skein/docs/foundation/`, `skein-shell`'s table, sets and rendering, help's format, and the checks, landing green with an exception for each thing temper hasn't brought into line yet, named for the milestone that removes it | 3, 8.1 to 8.3 | temper/ui | — | none | in flight |
+| C1, the conventions and their mechanism: the command line's page in `skein/docs/foundation/`, `skein-shell`'s table, sets and rendering, help's format, and the checks, landing green with an exception for each thing temper hasn't brought into line yet, named for the milestone that removes it | 3, 8.1 to 8.3 | temper/ui | — | none | done |
 | C2, `temper-box` and `temper-engine` in `temper/bin/`: the libraries holding their names renamed, their tables, sets, help, `--version`, pre-table modes as rows, generated documents, their internal variables renamed, and the dropped twins' tests reworked | 4.2, 4.3, 4.6, 8.4, 8.5, 8.7, 8.10 | temper/ui | C1 | none | not started |
 | C3, `temper` in `temper/bin/`, from `temper-client`: its table, sets, help, and `temper box`: the TUI in front of `temper-box --front`, the local link's pipe, the identity check, the cache and the download, and `temper-box` without `--no-tui` and `internal tui` | 4.1, 5, 8.4 to 8.6 | temper/tui | C1; C2 for `temper-box`'s name | none; the download's walk is C7's | not started |
 | C4, the test set: the 29 renamed to `TEMPER_TEST_*`, with their setters, and the test set's document | 4.6, 8.7 | temper/tiers | C1 | none | not started |
@@ -21,4 +21,5 @@
 - **C1 first,** once this draft lands: it adds, and moves nothing, so it runs beside other work.
 - **C2 to C6 and C8 after C1,** and after the work in the same crates has landed: `deployment-binaries.execution.md`'s M3 and M4, and the whole story's plans then in flight in the client and the service. Their moves and renames reach most of temper's crates and tests, so each lands as one change, out of the way of plans in flight. Marked work goes first, as everywhere.
 - **C7 after C2 and C3,** and with `deployment-binaries.execution.md`'s M6.
+- **Each later milestone removes C1's exceptions named for it:** `until: "cli CN"` in `tests/boundary/tests/cli.rs` and `tests/boundary/tests/cli_names.rs`, and each `expect` whose reason starts `cli CN`. One left matching nothing fails its check (`skein/docs/foundation/cli.md`, 9). C7 has none.
 - **A milestone of `deployment-binaries.execution.md` not yet started when C1 lands** starts in `temper/bin/`, as C6 says.

@@ -1140,6 +1140,11 @@ and changes no code above io:
   and no check refuses a service that names it; `temper`'s `fake` module, a test
   peer in a shipping crate, does name it. Whether a gate step holds the fence.
   Default: no; a service has no use for the module.
+- **A table's dispatch** (15): whether the shell matches a binary's
+  arguments to its table's commands, a `Reach::RunAs` row by the name the
+  binary runs as, or each binary's crate does. Default: each binary's
+  crate, until temper's first tables
+  (`temper/docs/design/draft/cli.execution.md`, C2) show what they share.
 
 ## 11. Not built yet
 

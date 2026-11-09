@@ -130,6 +130,8 @@ only sites are in its test modules, the root says `#![cfg_attr(test, expect(...)
 
 - smith's packages and the root's `tests/boundary` take a profile when this debt is taken up for
   them: they are outside the four trees, and no item of `smith/docs/development/debt/` holds it yet.
+  smith's reads of the process's arguments and environment take section 4's ban with it, in smith's
+  round of `skein/docs/foundation/cli.md`.
 - The closure-ban lints could be set once in `[workspace.lints.clippy]`, which would retire each
   crate's root `manual_map` expectation.
 - skein's `manual_map` exceptions could take section 6's one wording at each crate's root, as
