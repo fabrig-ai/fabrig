@@ -2,6 +2,26 @@
 
 2026-11-09. Where temper's code lags or departs from [configuration.md](configuration.md).
 
+Sections 7, 13.2, 13.4 and 13.10 have no known implementation gap in a
+project's classes, the whole story's milestone N1, by plan
+`ui-reaches`: kind 8 is declared to jig with its bound the encoding of a
+table full at every bound, judged by `Classes::check` with its refusal's
+words, read in a project's scope and by a run's `settings`, its stock
+Agents review's table, and each stock way sets it whole;
+`forge.decided_per_project` is 1,024 in both profiles. Kind 7 holds no
+`away` in the wire, the store, the forge's stock or a settings file. The
+wire's tables encode both records at every bound
+(`limits_take_each_bound_from_its_source_field`); the store's round trip
+holds a table of one item and one set, kind 8's bound the rest
+(`settings_round_trip_every_slot_edit_value_and_pattern_last_and_match_their_key`).
+An owner's change and a member's read stand in the engine world
+(`a_projects_stored_ways_read_as_stored`), the stock ways in
+`the_stock_ways_hold_their_words_and_settings`, and a settings file in
+`forge_document_forms_use_the_registered_connector_and_round_trip`;
+smith decodes a run's kind 8 proposal
+(`settings_proposals_carry_typed_project_questions`), but no world
+makes and accepts one.
+
 Sections 13.2 to 13.4 have the branch-relative project patterns and the
 forge's every-project rule defaults, including removal and reset, held
 rules and the client and run settings reads. The binary supplies kind 2's
