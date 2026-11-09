@@ -16,6 +16,7 @@ record Bounds {
     message_bytes: u32
     inbox: u32
     unacknowledged: u32
+    reply_bytes: option u32
     program_endpoints: list 64 u32
 }
 enum Phase { answered, preparing, starting, active, waiting, ending }

@@ -61,6 +61,7 @@ pub fn bounds() -> Bounds {
         message_bytes: 64,
         inbox: 4,
         unacknowledged: 2,
+        reply_bytes: None,
     }
 }
 #[must_use]

@@ -30,6 +30,7 @@ pub fn hello() -> jig_domain_link::Hello {
             message_bytes: 128,
             inbox: 4,
             unacknowledged: 2,
+            reply_bytes: None,
         },
     }
 }

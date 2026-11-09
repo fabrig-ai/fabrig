@@ -227,6 +227,7 @@ pub(crate) fn agent_with_limits(agent_limits: &smith_agent_service::Limits) -> j
             message_bytes: 65_536,
             inbox: 8,
             unacknowledged: 8,
+            reply_bytes: None,
         },
     }
 }
@@ -402,6 +403,7 @@ pub(crate) fn peer_hello() -> skein_channel::Frame {
             message_bytes: 65_536,
             inbox: 8,
             unacknowledged: 8,
+            reply_bytes: None,
         },
     )
     .expect("peer bounds");

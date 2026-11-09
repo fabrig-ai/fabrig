@@ -50,20 +50,6 @@ kind remains shape.
   `read-task-room` of 2026-11-06 takes a real goal's next count as its proof.
   The engine world holds the bound on a script alone
   (`temper/tests/engine/domain/tests/suite/host_calls.rs`).
-- **Design departs:** 5.2, from the same request, decided by its plan's cut: a
-  process with no local agent's metadata names `documents.text_bytes`, where the
-  request has a run read up to what its reply holds, because an engine alone does
-  not know its remote agents' reply bound, and an answer past it reaches the run
-  as smith's `TooLarge` at every offset, so a long spec could not be read at all
-  (`agent.md`, section 10 keeps it open). The request `goal-call-faults` of
-  2026-11-08, item 3, met its cost and asked a page as large as the reply's
-  room: a goal read a 30.5 KB report 128 bytes a call, its deployment's
-  `documents.text_bytes`, for about 2 minutes 40 seconds of calls. Its plan
-  built nothing for it but this section's account of the page, on
-  temper/migration's word of 2026-11-08: the page stays the documents'
-  window, and how the engine learns its workers' reply bound, by jig's
-  worker link or by its own document, is the design owner's protocol
-  decision, a plan of its own following it (`agent.md`, section 10).
 - **Not yet:** 7.2: a section for each
   document a charter names (the forge's brief sources are CI, reviews, the
   pull request and the home: `temper-engine-domain-forge/src/boundary.rs`,
