@@ -367,8 +367,10 @@ git diff-files --name-only -z --diff-filter=U          only after exit 1
 
 ### 4.7 Commit
 
-`Commit { at, parent, merging, title, body, identity }`: the working tree
-exactly as it is, on the parents the domain names. The message, given on
+`Commit { at, parent, merging, always, title, body, identity }`: the working tree
+exactly as it is, on the parents the domain names. `always` makes the commit
+even when the tree is the parent's: the next commit of a hold after a save
+(`../domain/worker.md`, section 5). The message, given on
 stdin, is `title`, then, when `body` is not empty, a blank line and
 `body`, then a newline. `.gitignore` is honoured: an ignored file is not
 part of the tree. **A hidden log is no part of a change:** a file named
@@ -383,7 +385,7 @@ repository's own ignore rules tell them apart.
 
 ```
 git add --all -- . ':(exclude,glob)**/.*.log'
-git diff-index --cached --quiet <parent> --            exit 0: Unchanged, and nothing more runs
+git diff-index --cached --quiet <parent> --            exit 0: Unchanged, and nothing more runs; not run with `always`
 git write-tree
 git commit-tree <tree> -p <parent> -F -
 ```

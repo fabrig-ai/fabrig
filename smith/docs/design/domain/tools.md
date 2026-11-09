@@ -336,7 +336,7 @@ workspace that can write can remove, with no shell needed.
   - **Cancelled for another writer.** A session's running jobs are its
     writes in progress. Whatever takes the lease (run.md, sections 5.3
     and 8.1) first cancels the running jobs of every other session, and
-    a check or a delivery cancels every running job before it runs; each
+    a check, a delivery or a save cancels every running job before it runs; each
     waits for the jobs it cancelled to settle before it goes on. A
     cancelled job's end is `cancelled`, answered by the next `job` call
     that names it.

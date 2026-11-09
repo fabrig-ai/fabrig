@@ -72,7 +72,10 @@ of domain/host.md, section 2.
   one version, its release's, and offers only that one: the channel is
   pre-release, and no half reads an older version (README.md, section
   8).
-  The current version is 6 (`channel-v6.schema`).
+  The current version is 6 (`channel-v6.schema`). Before v0.1.0 a
+  version changes in place: the save ask (section 4) was added to
+  version 6 as it is (the owner, 2026-11-09); both halves are built
+  together until then.
 - **The credential** is empty over a spawned agent's pipes. A connected
   agent's is still open (README.md, section 11).
 - **The agent accepts at once** over pipes. A daemon decides by its
@@ -165,8 +168,10 @@ of domain/host.md, section 2.
 
 - **for a host tool,** its text as a result or as an error (domain/run.md,
   5.2);
-- **for a delivery,** delivered, nothing, refused, failed or stale, with
-  what each carries (domain/run.md, 8.2):
+- **for a delivery or a save,** delivered, nothing, refused, failed or
+  stale, with what each carries (domain/run.md, 8.2 and 8.5), in the one
+  delivery record, so a host that keeps a delivery's answer keeps a
+  save's alike:
   - delivered names each directory and what was made of it;
   - refused names what the LLM can fix;
   - failed carries its reason, and the tail of the host's diagnostic
@@ -253,7 +258,10 @@ last one with `opens_window` (domain/host.md, section 6).
 
 - **a host tool:** its name, and the input the LLM wrote, as bytes;
 - **a delivery:** the result's fields, each a name and text, which the host
-  reads to do what delivering means to it.
+  reads to do what delivering means to it;
+- **a save:** nothing more: the host makes the tree durable as it would
+  a delivery, with no fields, and marks it unchecked in its own terms
+  (domain/run.md, 8.5). The call's effect is a write.
 
 **The account notices' fields:**
 

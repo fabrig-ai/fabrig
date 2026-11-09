@@ -121,7 +121,7 @@ What a host owes:
   activation number, never reused, which every name carries.
 - **A delivery is never abandoned.** One in flight runs to its end, which
   its deadline bounds, and is answered with what it did, so one that
-  landed is reported landed.
+  landed is reported landed. A save is a delivery here (run.md, 8.5).
 - **Nothing written after a stop.** The host touches the workspace only
   once the run and everything it started are gone, but for the delivery
   it asked for.
@@ -252,7 +252,7 @@ policy.
 - **its host tools:** their schemas, their decisions, their answers'
   words, their durable records;
 - **deliveries:** what making a tree durable means, and when a delivery
-  is stale;
+  is stale; and what marks a save's tree as unchecked (run.md, 8.5);
 - **messages:** which reach a run, rendered how, and which a start
   carries;
 - **unread messages:** what becomes of those a run answered without

@@ -342,6 +342,11 @@ directory, each record under its lock (`docs/design/shell.md`, section
 
 ### 5.5 Delivering in place
 
+The local host's charters grant `deliver` by its configuration and never
+`save` (domain/run.md, 8.5): a commit in place is already what a save
+would keep. A save asked of it all the same, by a charter of another
+writer's, is refused, saying that this host does not save.
+
 - **In each writable repository that changed,** the local host commits the
   checked tree, running git as a contained tree of its own. git's own
   directory is writable there, since the host, not the agent, writes it.

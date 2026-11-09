@@ -68,6 +68,9 @@ Section 6 has no known gap in every temper worker naming its agent's
 them (`temper/crates/temper/src/agent.rs`). The service gives the worker's
 `Limits::reply_bytes` the same figure (`temper-service/src/worker_settings.rs`).
 
+- **Not yet:** 5, *A save pushes unchecked*: the checkout's hold
+  (`temper-worker-domain-checkout`'s `hold.rs`, `Tips`) records no save,
+  and its next commit after one is `Unchanged` on an unchanged tree.
 - **Not yet:** 4.3: a held task names no run's failure, which the user's
   request of 2026-11-05 asked for if cheap: it needs a stored-format
   change, so it is section 12's question. The `ctl-words` request requires

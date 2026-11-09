@@ -834,8 +834,11 @@ jig's workspace vocabulary with the hub, through the root:
   be written, a merge to resolve), or failed, transient or permanent,
   naming the resource;
 - **deliver** what the run hands over, from its `deliver` or its
-  `finish` (section 9): answered with the delivery's outcome in smith's
-  terms, and, for the engine, what it left on the resources;
+  `finish` (section 9), checked, with its title and body, or from its
+  `save`, unchecked, with neither (smith's `domain/run.md`, 8.5), where a
+  checked delivery goes: answered with the delivery's outcome in smith's
+  terms, and, for the engine, what it left on the resources. What marks
+  an unchecked one is the application's;
 - **save** unfinished work where the items say: answered saved, with
   where, or failed;
 - **release** the workspace to its cache, or **discard** it when it may
@@ -874,6 +877,8 @@ A Finite run takes `deliver` in one of two ways; an Open run never does (8.1):
 
 Every other run has no `deliver`: a verdict's run, and a report's run whose policy withholds `modify` or whose root doesn't say its workspace delivers.
 
+A run granted `deliver` by a change among its outcomes is also granted smith's `save` (smith's `domain/run.md`, 8.5), so that it can keep its work in progress, unchecked, before it asks a question; a run whose `deliver` its root's `delivers` gave, and every other, is not. Like `deliver`, it is jig's decision, in `charter`.
+
 Its `hosted` puts a run's whole hand-over together from what the hub link kept (the core's `Assignment`), and so reads the brief's placed parts: the brief's sections with their titles, the charter, the start's messages with their senders and words, and the answered calls by their names. What a root gives it is its own: its tools, its endpoints, its deployment and its bounds. A place in the brief that an application offers no section for refuses the assignment. Its `message` puts together, the same way, a task's message to a run under way, with its sender and words. So a root that calls them renders no words, titles or a call's name, and the hub receives the same assignment from each. An application with a tool vocabulary of its own, as temper is (`temper/docs/design/protocol/README.md`, 5), puts its hand-over together itself.
 
 - **Instructions and brief:** the charter's instructions, and the brief's
@@ -888,7 +893,7 @@ Its `hosted` puts a run's whole hand-over together from what the hub link kept (
   | the engine's tools (engine.md, 7.3) | host tools, each declared with its schema, its description and whether it writes |
   | each connector's reads, and the effects and topics it offers to agents | host tools, declared by the application; its effects through the engine's `effect`, its topics through `subscribe` |
   | waiting, by its wake policy | smith's `wait` |
-  | a delivery, by its result contract or by its policy and workspace, as above | smith's `deliver`, when the run has a workspace that delivers |
+  | a delivery, by its result contract or by its policy and workspace, as above | smith's `deliver`, when the run has a workspace that delivers; and smith's `save`, with a change among its outcomes |
 
   Each host tool's schema and description are written once, with the
   function that decodes its calls and the one that renders its answers;
@@ -1058,7 +1063,11 @@ refused busy, as at its entrance: no failure, placed again
 - **Delivery** is the workspace's: smith's `deliver` is served by the hub
   through the application's workspace (section 7), which makes it. Its
   outcome is smith's (smith's `domain/run.md`, 8.2): delivered, nothing,
-  stale, refused, failed. A delivery that was made is the run's result
+  stale, refused, failed. A `save` is served the same way, as an
+  unchecked delivery with no title or body, one delivery in flight at a
+  time with the run's others; its answer is a delivery's, which the
+  worker wire and the store keep as they keep any (`../protocol/store.md`,
+  5.1), so neither changes. A delivery that was made is the run's result
   even if the run was winding down; what it left on resources reaches
   their connectors with the answer.
 
