@@ -594,7 +594,8 @@ throughout the walk
 (`client/browser.md`, `client/forge.md`).
 The browser tier holds its twelve tests, with the call line, model picker,
 welcome sign-in and four reading stories in four merged tests, compiled
-with story labels for failed steps but with no run in Chromium yet. Reading's
+with story labels for failed steps; of those, only the call line's and
+reading's have passing runs in Chromium, each run alone. Reading's
 four stories, apart, passed with ctl history
 and a 131,072-byte window, their CPU medians summing to
 44.849900 s against three unmet targets. The tier's window, `long_text` and
@@ -603,7 +604,10 @@ skein's decoder indexes each CDP message once, with no CPU figure on record
 since; no whole-tier run proves the
 repair within its 127.5 CPU s, 85 raised by half by the user's word of 11-08,
 for now, to be revisited. The listener-full ctl failure is repaired; the public
-visibility-command failure remains unverified. A whole-bound manual reading
+visibility-command failure remains unverified. Reading's story failed twice
+after red-82's opening, `long`'s words moving and `unanchored`'s anchor
+missing; it passed thirty runs alone, loaded and not, and the cause is
+unknown. A whole-bound manual reading
 check, the closed-chat wait's split and a head's stall-deadline story remain
 (`client/browser.md`). A stale view still rereads held Markdown and rebuilds
 and compares the semantic tree, preserving DOM nodes through the diff; retaining
