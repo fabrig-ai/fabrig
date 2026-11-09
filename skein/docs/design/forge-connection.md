@@ -477,7 +477,8 @@ A read of something unchanged costs the forge a `304` and no body.
   (`GET`), the component keeps, per forge, the last answer's validators,
   its `ETag` and its `Last-Modified`, each at most `VALIDATOR_BYTES`
   of printable ASCII (forge.md, 3.3), else that one is not kept, with
-  the answer's body as it arrived. It is keyed by the request: its path
+  the answer as it arrived: its head's fields the plans read (paging's
+  among them) and its body. It is keyed by the request: its path
   and query and the identity it was sent as (the forge's token, or a
   GitHub installation), so one installation's answer never answers
   another's read. An answer with neither validator keeps nothing, so
@@ -485,17 +486,18 @@ A read of something unchanged costs the forge a `304` and no body.
 - **What is sent.** A request with a kept entry carries `If-None-Match`
   with its `ETag` and `If-Modified-Since` with its `Last-Modified`,
   whichever it has.
-- **A `304`** is answered from the kept body, decoded by the step as a
-  `200` with that body would be: the call's answer is the one the forge
+- **A `304`** is answered from the kept answer, decoded by the step as
+  that `200` was: the call's answer is the one the forge
   would have sent, and it counts as a read, for the client's keep as any
   answer does. The request counts in the call's cost and in its `free`
   (4.1). A `304` to a request sent with no validator, or whose entry
   is gone, is an invalid answer, as today.
 - **A `200`** replaces the entry, or drops it when the answer has no
   validator; any other answer leaves it as it is.
-- **Bounded, oldest out.** The entries' bodies and validators take at
-  most `kept_bytes` in all, the owner's `calls` times its `answer_bytes`
-  (7.2), no figure of its own. A body past `kept_bytes` is not kept. To
+- **Bounded, oldest out.** The entries, their keys, validators, heads
+  and bodies, take at most `kept_bytes` in all, the owner's `calls`
+  times its `answer_bytes` (7.2), no figure of its own. An answer past
+  `kept_bytes` is not kept. To
   keep a new one, the entries used least recently go first, never one
   a request in flight was sent with. Entries live in memory alone: a
   restart, or a forge's ending, drops them, and the next reads are
