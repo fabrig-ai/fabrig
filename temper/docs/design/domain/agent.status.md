@@ -140,6 +140,9 @@ record has run a real model on the sentence.
 
 ## Gaps and departures
 
+- **Not yet:** 8.4.1: an inbox row's words are read for questions alone;
+  proposals, escalations and person tasks keep their kind and task.
+
 - **Not yet:** 8.4.1: `see ways` says no way's headline: smith's
   `ways_text` prints a way's name, `now`, its line and its path, so the
   run and How work runs' heading say a way by different words
@@ -233,8 +236,6 @@ coordinator plans and makes no close-out." (the engine world's
   and its members alone; no story proposes one. Stage one's golden asks
   it of the reference's (`testing.status.md`, 6.5.1).
 - **Not yet:** 4.4: a verdict's follow-up tasks.
-- **Not yet:** 8.4.1, *Its tests*: no row of the engine's domain world
-  reads an address as the person (plan `ui-ask-m2`, `see-stories`).
 - **Not yet:** 4.3.2: no supplied owned-forge live result establishes the
   `live-change-call` request's plain change through the shipped chat's own
   `change` on `gpt-6-luna`. The model's response to the declaration and

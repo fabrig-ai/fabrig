@@ -196,6 +196,10 @@ fn task_answer(tracked: bool) -> Answer {
 fn read_answer(read: &Read, tracked: bool) -> Part {
     if let Read::Task { .. } = read {
         Part::Jig(task_answer(tracked))
+    } else if let Read::Inbox { .. } = read {
+        Part::Jig(question_page())
+    } else if let Read::Question { .. } = read {
+        Part::Jig(Answer::None(Why::Unknown))
     } else if let Read::Application { .. } = read {
         Part::Forge(Some(Box::new(temper_engine_domain_forge::Document::Landings(
             temper_engine_domain_forge::LandingsView { project: 7, turn: None, landings: Box::new([]) },
@@ -203,6 +207,35 @@ fn read_answer(read: &Read, tracked: bool) -> Part {
     } else {
         Part::Jig(Answer::Document(Box::new(d::Document::Chips(List::with_capacity(0)))))
     }
+}
+
+fn question_page() -> Answer {
+    let mut rows = List::uncapped();
+    for (task, object) in [
+        (41, d::InboxObject::Question { message: 9 }),
+        (41, d::InboxObject::Proposal { proposer: Proposer::Task(41), number: 1 }),
+        (42, d::InboxObject::Question { message: 3 }),
+    ] {
+        rows.push(jig_domain_core::reads::PageRow::Inbox(d::InboxEntry {
+            reply: None,
+            task: d::TaskLink::Stored { number: task, status: None },
+            project: Some(7),
+            object,
+            activity: None,
+            at: Some(skein_lib::Wall::EPOCH),
+            unread: None,
+            cursor: d::Cursor::Inbox { task, object, at: Some(skein_lib::Wall::EPOCH) },
+            projects: List::uncapped(),
+        }))
+        .unwrap();
+    }
+    Answer::Page(Box::new(jig_domain_core::reads::Page {
+        rows,
+        before: None,
+        next: None,
+        cut: false,
+        inbox_selection: None,
+    }))
 }
 
 #[test]
@@ -214,7 +247,16 @@ fn person_addresses_choose_each_read_in_order_and_keep_later_refusals() {
     use crate::SeeNotRead;
     use d::{PhaseClass as P, QueryOrder as O};
     for (line, tracked, reads) in [
-        ("me", false, vec![Read::Project { project: 7 }, needs_read()]),
+        (
+            "me",
+            false,
+            vec![
+                Read::Project { project: 7 },
+                needs_read(),
+                Read::Question { task: 41, message: 9 },
+                Read::Question { task: 42, message: 3 },
+            ],
+        ),
         ("project", false, vec![Read::Project { project: 7 }, task_query(O::Number, Some(P::Held), None, None)]),
         ("goals", false, vec![task_query(O::Priority, None, None, Some(true)), Read::Notes { project: 7, from: None }]),
         (
@@ -252,24 +294,29 @@ fn person_addresses_choose_each_read_in_order_and_keep_later_refusals() {
                 application_read(temper_engine_domain_forge::landings_subject(7, false)),
             ],
         ),
-        ("inbox", false, vec![needs_read()]),
+        (
+            "inbox",
+            false,
+            vec![needs_read(), Read::Question { task: 41, message: 9 }, Read::Question { task: 42, message: 3 }],
+        ),
     ] {
         let address = address(line.as_bytes(), 7);
         let mut gathered = Gathered::new(3);
         for (index, read) in reads.iter().enumerate() {
             assert_eq!(person::next(&address, 7, &gathered), Step::Read(read.clone()), "{line}, read {index}");
             let answer = read_answer(read, tracked);
-            if index == 0 {
-                gathered.first = Some(answer);
-            } else {
-                gathered.second = Some(answer);
-            }
+            gathered.push(&address, answer);
         }
         assert_eq!(person::next(&address, 7, &gathered), Step::Deliver(None), "{line}");
         for (why, expected) in [(Why::Unknown, SeeNotRead::Unknown), (Why::Busy, SeeNotRead::Busy)] {
-            let refused = Gathered { connector: 3, first: Some(Part::Jig(Answer::None(why))), second: None };
+            let refused = Gathered {
+                connector: 3,
+                first: Some(Part::Jig(Answer::None(why))),
+                second: None,
+                words: List::uncapped(),
+            };
             assert_eq!(person::next(&address, 7, &refused), Step::Deliver(Some(expected)), "{line}");
-            if reads.len() == 2 {
+            if gathered.second.is_some() {
                 gathered.second = Some(Part::Jig(Answer::None(why)));
                 assert_eq!(person::next(&address, 7, &gathered), Step::Deliver(None), "{line}, later {why:?}");
             }
@@ -279,11 +326,13 @@ fn person_addresses_choose_each_read_in_order_and_keep_later_refusals() {
                 connector: 3,
                 first: Some(Part::Jig(Answer::None(Why::TooLarge { bytes: 8192 }))),
                 second: None,
+                words: List::uncapped(),
             };
             assert_eq!(person::next(&address, 7, &sized), Step::Deliver(None), "a turn keeps its size refusal");
         }
         if let Some(Read::Application { .. }) = reads.first() {
-            let missing = Gathered { connector: 3, first: Some(Part::Forge(None)), second: None };
+            let missing =
+                Gathered { connector: 3, first: Some(Part::Forge(None)), second: None, words: List::uncapped() };
             assert_eq!(person::next(&address, 7, &missing), Step::Deliver(Some(SeeNotRead::Unknown)), "{line}");
         }
     }
@@ -432,6 +481,7 @@ fn person_flights_route_core_and_forge_answers_with_names_and_refusals() {
         ("me", Party::Person(1), Some(Why::Unknown)),
         ("project", Party::Person(1), Some(Why::Busy)),
         ("me", Party::Person(1), None),
+        ("inbox", Party::Person(1), None),
         ("changes", Party::Person(1), None),
         ("change 99", Party::Person(1), None),
     ] {
@@ -489,9 +539,42 @@ fn person_flights_route_core_and_forge_answers_with_names_and_refusals() {
             );
             person_now(&mut domain, &env, &mut decision, key, Answer::None(Why::Busy));
             SeeAnswer::Person(Box::new(SeePerson {
-                read: SeeRead::Me { person: 1, project, needs: Answer::None(Why::Busy) },
+                read: SeeRead::Me { person: 1, project, needs: Answer::None(Why::Busy), words: Box::new([]) },
                 names: SeeNames {
                     project: SeeName { number: 1, name: b"Project from read".as_slice().into() },
+                    people: Box::new([
+                        SeeName { number: 1, name: b"Reader".as_slice().into() },
+                        SeeName { number: 2, name: b"other".as_slice().into() },
+                    ]),
+                    charters: Box::new([SeeName { number: 1, name: Box::new([]) }]),
+                },
+            }))
+        } else if line == "inbox" {
+            use crate::SeeWords;
+            assert_eq!(
+                read,
+                Read::Inbox {
+                    group: jig_domain_core::reads::Group::Needs,
+                    filter: jig_domain_core::reads::Filter { project: Some(1), goal: None },
+                    from: None,
+                }
+            );
+            let needs = question_page();
+            person_now(&mut domain, &env, &mut decision, key, needs.clone());
+            for (task, message) in [(41, 9), (42, 3)] {
+                assert_eq!(take_read(&mut domain, key), Read::Question { task, message });
+                person_now(&mut domain, &env, &mut decision, key, Answer::None(Why::Unknown));
+            }
+            SeeAnswer::Person(Box::new(SeePerson {
+                read: SeeRead::Inbox {
+                    needs,
+                    words: Box::new([
+                        SeeWords { task: 41, message: 9, words: Answer::None(Why::Unknown) },
+                        SeeWords { task: 42, message: 3, words: Answer::None(Why::Unknown) },
+                    ]),
+                },
+                names: SeeNames {
+                    project: SeeName { number: 1, name: b"Project 1".as_slice().into() },
                     people: Box::new([
                         SeeName { number: 1, name: b"Reader".as_slice().into() },
                         SeeName { number: 2, name: b"other".as_slice().into() },
