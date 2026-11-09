@@ -159,7 +159,12 @@ fn a_window_turn_charging_exactly_the_room_resumes_whole() {
 }
 
 fn a_window_turn_just_past_the_room_starts_fresh_with_a_marker() {
-    window_page_case(173, &[&[b'a'; WINDOW_ROOM - WINDOW_FRAME_FIELDS + 1]], false, Some(b"[a turn too large to load]\n"));
+    window_page_case(
+        173,
+        &[&[b'a'; WINDOW_ROOM - WINDOW_FRAME_FIELDS + 1]],
+        false,
+        Some(b"[a turn too large to load]\n"),
+    );
 }
 
 fn a_large_tool_turn_keeps_its_place_between_other_texts() {

@@ -46,6 +46,7 @@ fn proof() -> crate::RunProof {
 
 fn transcript() -> crate::Transcript {
     crate::Transcript {
+        cut: false,
         window: None,
         closed: false,
         loaded: false,

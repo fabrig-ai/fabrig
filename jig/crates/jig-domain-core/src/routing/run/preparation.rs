@@ -1,5 +1,5 @@
 //! Run admission, briefs and workspace preparation across the task, brief,
-//! notes and account children (`domain/engine.md`, sections 4.4 and 7).
+//! notes and account children (`domain/engine.md`, sections 4.4 and 7.2).
 
 use crate::{
     Ask, Core, Event, Limits, Now, Request, RunCharter, RunProof,
@@ -159,6 +159,7 @@ pub(crate) fn workspace_prepared(
         );
     }
     let resume = !transcript.closed
+        && !transcript.cut
         && core.charter_of(task).policy.resume
         && context.tries.transient == 0
         && transcript.bytes <= u64::from(core.settings.resume_bytes);
@@ -775,6 +776,21 @@ pub(crate) fn transcript_loaded(
             },
         ),
         crate::routing::TranscriptLoad::Unread => transcript_unread(core, work, task),
+        crate::routing::TranscriptLoad::Cut { turn, bytes, done } => {
+            if !core.append_cut_transcript(task, turn, bytes) {
+                return route_preparation_failed(
+                    core,
+                    work,
+                    task,
+                    brief::GatherFailure {
+                        fate: brief::GatherFate::Transient,
+                        section: b"transcript",
+                        words: b"its window could not be loaded",
+                    },
+                );
+            }
+            if done { start_brief(core, env, work, task) } else { Queue::uncapped() }
+        }
         crate::routing::TranscriptLoad::Page { rows, done } => {
             for (row, text) in rows {
                 if !core.append_transcript(task, row, text) {

@@ -39,6 +39,7 @@ struct Decoded {
     length: u32,
     size: u32,
     charge_frame: bool,
+    cut: Option<u32>,
     turn: TurnRecord,
 }
 #[derive(Debug)]
@@ -51,6 +52,7 @@ pub(crate) struct Read {
     step: Step,
     turns: List<TurnRecord>,
     budget: u64,
+    cut: Option<u32>,
     party: Option<Party>,
     activity: Option<Activity>,
 }
@@ -219,6 +221,7 @@ fn prepare(store: &mut Store, owner: Token, request: TranscriptRead, rows: u32, 
         step: Step::Waiting,
         turns: List::with_capacity(rows.min(store.limits.store.page.rows)),
         budget: bytes.min(u64::from(store.limits.store.page.bytes)),
+        cut: None,
         party: None,
         activity: None,
     })
@@ -412,12 +415,23 @@ fn advance(
                     if charged_frame && let Some(party) = &mut read.party {
                         party.frame_bytes = Some(size);
                     }
-                    accept(store, read, Decoded { offset, length, turn, size, charge_frame: charged_frame }, below)
+                    accept(
+                        store,
+                        read,
+                        Decoded { offset, length, turn, size, charge_frame: charged_frame, cut: None },
+                        below,
+                    )
                 }
                 frame::Decode::Patching(patch) => patching(store, read, offset, length, patch, above, below),
             }
         }
         Step::Waiting | Step::Site { .. } => Err(()),
+    }
+}
+fn window(read: &Read) -> bool {
+    match read.scan {
+        Scan::Window { .. } => true,
+        Scan::Turn { .. } | Scan::Page => false,
     }
 }
 fn length(
@@ -447,7 +461,7 @@ fn length(
     if start.checked_add(u64::from(length)).ok_or(())? > read.end {
         return Err(());
     }
-    if read.activity.is_some() || party::single(read) {
+    if read.activity.is_some() || party::single(read) || window(read) {
         if length < 48 {
             if store.transcripts.machines.body.is_some() {
                 read.step =
@@ -508,6 +522,16 @@ fn header(
         .ok_or(())?;
     if u64::from(length) != expected || size > store.codec_limits.core.turn_record_transcript {
         return Err(());
+    }
+    if window(read) {
+        if u64::from(length) > read.budget {
+            read.step = Step::Sized { offset, length, turn, size, bytes: Writer::new(4) };
+            demand(store, read, offset.checked_add(u64::from(length)).ok_or(())?.checked_sub(4).ok_or(())?, 4, below)?;
+        } else {
+            read.step = Step::Frame { offset, length, bytes: Writer::new(skein_lib::length::usize_of(length)) };
+            demand(store, read, offset, length, below)?;
+        }
+        return Ok(false);
     }
     let charged_frame = store.transcripts.machines.body.is_some() || store.transcripts.machines.turn.is_some();
     let size = if charged_frame { length } else { size };
@@ -596,6 +620,14 @@ fn sized(
     size: u32,
     below: &mut Below,
 ) -> Result<bool, ()> {
+    if window(read) {
+        return accept(
+            store,
+            read,
+            Decoded { offset, length, turn, size: length, charge_frame: true, cut: Some(size) },
+            below,
+        );
+    }
     if read.party.is_some() {
         return Ok(true);
     }
@@ -642,7 +674,7 @@ fn append(event: Arrival, buffer: &mut Writer) -> Result<bool, ()> {
     Ok(buffer.room() == 0)
 }
 fn accept(store: &mut Store, read: &mut Read, frame: Decoded, below: &mut Below) -> Result<bool, ()> {
-    let Decoded { offset, length, size, charge_frame, turn } = frame;
+    let Decoded { offset, length, size, charge_frame, cut, mut turn } = frame;
     if turn.task != read.task {
         return Err(());
     }
@@ -691,15 +723,27 @@ fn accept(store: &mut Store, read: &mut Read, frame: Decoded, below: &mut Below)
     }
     if found {
         let single = party::single(read);
-        if read.turns.room() == 0 || (!single && u64::from(size) > read.budget) {
+        if read.turns.room() == 0 {
             return Ok(true);
         }
-        if !single {
+        if !single && u64::from(size) > read.budget {
+            if !window(read) || !read.turns.is_empty() {
+                return Ok(true);
+            }
+            read.cut = Some(match cut {
+                Some(bytes) => bytes,
+                None => u32::try_from(turn.transcript.len()).or(Err(()))?,
+            });
+            turn.transcript = Box::new([]);
+        } else if !single {
             read.budget = read.budget.checked_sub(u64::from(size)).expect("frame within budget");
         }
         read.turns.push(turn).expect("next checked row capacity");
     }
     read.position = if read.backwards { offset } else { offset.checked_add(u64::from(length)).ok_or(())? };
+    if read.cut.is_some() {
+        return Ok(true);
+    }
     match read.scan {
         Scan::Turn { .. } => {
             if found {
@@ -757,7 +801,7 @@ fn settle(store: &mut Store, owner: Token, mut read: Read, result: Result<bool, 
                 turns.reverse();
             }
             store.transcripts.reading = None;
-            above.push(Event::Turns { owner, turns, next });
+            above.push(Event::Turns { owner, turns, next, cut: read.cut });
         }
         Err(()) => {
             store.transcripts.reading = None;
@@ -882,7 +926,7 @@ fn patching(
                 }
             }
             turn.transcript = transcript;
-            accept(store, read, Decoded { offset, length, turn, size, charge_frame: true }, below)
+            accept(store, read, Decoded { offset, length, turn, size, charge_frame: true, cut: None }, below)
         }
     }
 }

@@ -93,7 +93,7 @@ fn settled(world: &mut World, request: Request) -> Vec<Event> {
     panic!("fixture read did not settle");
 }
 fn bytes(events: &[Event]) -> &[u8] {
-    let [Event::Turns { owner, turns, next: None }] = events else { panic!("turn terminal: {events:?}") };
+    let [Event::Turns { owner, turns, next: None, cut: None }] = events else { panic!("turn terminal: {events:?}") };
     assert_eq!(*owner, READER);
     assert_eq!(turns.len(), 1);
     let turn = &turns[0];
@@ -440,7 +440,9 @@ fn several_frames_suspend_at_their_own_offsets_in_both_directions() {
                 assert_eq!(events.len(), 1, "{events:?}");
                 events = answer(&mut world, events.remove(0), None, u64::from(*index) * stride);
             }
-            let [Event::Turns { owner, turns, next }] = events.as_slice() else { panic!("page terminal: {events:?}") };
+            let [Event::Turns { owner, turns, next, cut: None }] = events.as_slice() else {
+                panic!("page terminal: {events:?}")
+            };
             assert_eq!(*owner, READER);
             // store.md 8.3 selects a page from either end without promising its turn order.
             let mut page_turns: Vec<_> = turns.iter().map(|turn| turn.turn - 1).collect();

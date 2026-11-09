@@ -455,7 +455,7 @@ fn unread(events: &[Event]) {
     assert_eq!(*owner, Token::new(801));
 }
 fn page(events: &[Event]) -> (Token, &[TurnRecord], Option<u64>) {
-    let [Event::Turns { owner, turns, next }] = events else {
+    let [Event::Turns { owner, turns, next, cut: None }] = events else {
         panic!("turn page: {events:?}");
     };
     (*owner, turns, *next)
@@ -487,43 +487,104 @@ fn pair() -> [TurnRecord; 2] {
 }
 // Each pair turn has a 55-byte versioned body and 12 bytes of framing.
 const PAIR_FRAME: u64 = 67;
-// One window-opening turn needs only one page; two attempts expose an
-// unchanged empty cursor without relying on a wall-clock deadline.
-const WINDOW_REQUESTS: u32 = 2;
 #[test]
-fn an_undersized_window_read_terminates_without_repeating_its_cursor() {
-    let turns = [fixtures::window_turn(LIVE, 2, 1, b"one")];
-    let (mut store, disk) = readable(&turns);
-    let mut after = None;
-    for _ in 0..WINDOW_REQUESTS {
-        let (events, below) = ask(&mut store, 801, window(after), 1, PAIR_FRAME.checked_sub(1).expect("one below"));
-        let events = if events.is_empty() { answer_reads(&mut store, below, &disk, 4096) } else { events };
-        match events.as_ref() {
-            [Event::Unread { .. }] => {
-                unread(&events);
-                assert!(store.transcripts.reads.is_empty());
-                assert_eq!(store.transcripts.reading, None);
-                return;
-            }
-            [Event::Turns { turns, next: Some(next), .. }] => {
-                assert!(turns.is_empty(), "undersized first turn cannot fit");
-                after = Some(*next);
-            }
-            _ => panic!("unread or continuation: {events:?}"),
+fn window_pages_cut_oversized_turns_alone_and_advance() {
+    // Pair metadata includes read=Some: 64 frame bytes beside the transcript.
+    const FIELDS: u64 = 64;
+    for (sizes, earlier) in
+        [(&[3_usize][..], false), (&[4][..], false), (&[3, 1024, 2][..], false), (&[1024][..], true)]
+    {
+        let mut turns = skein_lib::List::with_capacity(4);
+        if earlier {
+            turns.push(fixtures::turn(LIVE, 1, 1, b"old")).expect("earlier turn");
         }
+        for (index, size) in sizes.iter().enumerate() {
+            let body = [b'x'; 1024];
+            let mut turn = fixtures::turn(LIVE, 2, u32::try_from(index + 1).unwrap(), body.get(..*size).unwrap());
+            turn.opens_window = index == 0;
+            turns.push(turn).expect("fixture turns");
+        }
+        let turns = turns.into_boxed();
+        let (mut store, disk) = readable(&turns);
+        let mut after = None;
+        let mut position = if earlier { PAIR_FRAME } else { 0 };
+        for expected in turns.iter().skip(usize::from(earlier)) {
+            let (_, mut below) = ask(&mut store, 801, window(after), 3, PAIR_FRAME);
+            let mut events: Box<[Event]> = Box::new([]);
+            for _ in 0_u32..4096 {
+                // A current cut frame's payload is never demanded, even in fragments.
+                for request in &below.transcripts {
+                    if let file::Request::ReadAt { offset, max, .. } = request {
+                        let mut start = 0;
+                        for turn in &turns {
+                            let payload = len_u64(turn.transcript.len());
+                            if payload + FIELDS > PAIR_FRAME {
+                                let body = start + FIELDS - 8;
+                                assert!(*offset + u64::from(*max) <= body || *offset >= body + payload);
+                            }
+                            start += payload + FIELDS;
+                        }
+                    }
+                }
+                let (found, next) = read_answer(&mut store, below, &disk, 3);
+                below = next;
+                if !found.is_empty() {
+                    events = found;
+                    break;
+                }
+            }
+            let [Event::Turns { owner, turns: found, next, cut }] = events.as_ref() else {
+                panic!("window page: {events:?}");
+            };
+            assert_eq!(*owner, Token::new(801));
+            let mut expected = expected.clone();
+            let payload = len_u64(expected.transcript.len());
+            let charged = payload + FIELDS;
+            position += charged;
+            let expected_cut = if charged > PAIR_FRAME {
+                expected.transcript = Box::new([]);
+                Some(u32::try_from(payload).unwrap())
+            } else {
+                None
+            };
+            assert_eq!(*cut, expected_cut);
+            assert_eq!(found.as_ref(), [expected]);
+            assert_eq!(*next, if position == len_u64(disk.len()) { None } else { Some(position) });
+            after = *next;
+        }
+        assert_eq!(after, None);
+        let (_, below) = ask(
+            &mut store,
+            801,
+            crate::TranscriptRead::Window { task: LIVE, attempt: 2, turn: 2, after: None },
+            3,
+            PAIR_FRAME,
+        );
+        unread(&answer_reads(&mut store, below, &disk, 3));
     }
-    panic!("window did not terminate after {WINDOW_REQUESTS} requests; unchanged cursor {after:?}");
 }
 
 #[test]
-fn direct_reads_without_row_or_byte_room_are_unread() {
+fn direct_reads_without_room_are_unread_except_windows_cut_with_byte_room_zero() {
     let (mut store, disk) = readable(&pair());
     let selected = crate::TranscriptRead::Turn { task: LIVE, attempt: 2, turn: 1 };
     for read in [window(None), forwards(None), backwards(None), selected] {
         for (rows, bytes) in [(0, PAIR_FRAME), (1, 0)] {
             let (events, below) = ask(&mut store, 801, read, rows, bytes);
             let events = if events.is_empty() { answer_reads(&mut store, below, &disk, 4096) } else { events };
-            unread(&events);
+            let window = match read {
+                crate::TranscriptRead::Window { .. } => true,
+                crate::TranscriptRead::Turn { .. } | crate::TranscriptRead::Page { .. } => false,
+            };
+            if rows == 1 && window {
+                let [Event::Turns { turns, cut: Some(3), next: Some(PAIR_FRAME), .. }] = events.as_ref() else {
+                    panic!("window cuts with no byte room: {events:?}");
+                };
+                assert_eq!(turns.len(), 1);
+                assert!(turns[0].transcript.is_empty());
+            } else {
+                unread(&events);
+            }
         }
     }
 }
@@ -553,7 +614,7 @@ fn exact_frame_room_keeps_a_prefix_and_advances_its_cursor() {
 }
 
 #[test]
-fn a_nonempty_prefix_continues_before_a_turn_that_refuses() {
+fn a_nonempty_prefix_continues_before_a_turn_that_is_cut() {
     let turns = [fixtures::window_turn(LIVE, 2, 1, b"one"), fixtures::turn(LIVE, 2, 2, b"four")];
     let (mut store, disk) = readable(&turns);
     let (_, below) = ask(&mut store, 801, window(None), 2, PAIR_FRAME);
@@ -563,7 +624,13 @@ fn a_nonempty_prefix_continues_before_a_turn_that_refuses() {
     assert_eq!(next, Some(PAIR_FRAME));
     // The next turn needs one more payload byte than this request permits.
     let (_, below) = ask(&mut store, 801, window(next), 2, PAIR_FRAME);
-    unread(&answer_reads(&mut store, below, &disk, 4096));
+    let events = answer_reads(&mut store, below, &disk, 4096);
+    let [Event::Turns { turns: found, cut: Some(4), next: None, .. }] = events.as_ref() else {
+        panic!("cut continuation: {events:?}");
+    };
+    let mut expected = turns[1].clone();
+    expected.transcript = Box::new([]);
+    assert_eq!(found.as_ref(), [expected]);
 }
 
 #[test]
@@ -684,13 +751,34 @@ fn current_and_patched_frames_share_the_exact_direct_read_bound() {
             assert_eq!(turns.len(), 1);
             assert_eq!(turns.first().expect("one turn").transcript, expected);
             assert_eq!(next, None);
-            unread(&fixture_page(&mut store, &raw, read, FIXTURE_FRAME.checked_sub(1).expect("one below")));
+            let events = fixture_page(&mut store, &raw, read, FIXTURE_FRAME.checked_sub(1).expect("one below"));
+            direct_bound_answer(&events, read, &expected);
             // The effective bound is min(request, page), including patched framing.
             store.limits.store.page.bytes =
                 u32::try_from(FIXTURE_FRAME.checked_sub(1).expect("one below")).expect("page");
-            unread(&fixture_page(&mut store, &raw, read, FIXTURE_FRAME));
+            let events = fixture_page(&mut store, &raw, read, FIXTURE_FRAME);
+            direct_bound_answer(&events, read, &expected);
             store.limits.store.page.bytes = fixtures::store_limits().store.page.bytes;
         }
+    }
+}
+
+fn direct_bound_answer(events: &[Event], read: crate::TranscriptRead, transcript: &[u8]) {
+    use jig_test_patches_jig::frames;
+    let window = match read {
+        crate::TranscriptRead::Window { .. } => true,
+        crate::TranscriptRead::Turn { .. } | crate::TranscriptRead::Page { .. } => false,
+    };
+    if window {
+        let [Event::Turns { turns, cut, next: None, .. }] = events else { panic!("cut page: {events:?}") };
+        assert_eq!(*cut, Some(u32::try_from(transcript.len()).unwrap()));
+        assert_eq!(turns.len(), 1);
+        let turn = &turns[0];
+        assert!(turn.transcript.is_empty());
+        assert_eq!((turn.task, turn.attempt, turn.turn), (frames::TASK, frames::ATTEMPT, frames::TURN));
+        assert!(turn.opens_window);
+    } else {
+        unread(events);
     }
 }
 

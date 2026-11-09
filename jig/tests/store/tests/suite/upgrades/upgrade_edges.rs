@@ -86,7 +86,7 @@ fn native_pages_accept_exactly_one_whole_turn() {
     let bytes = direct_frame_bytes(NATIVE);
     for read in starts() {
         let events = page(&mut world, read, ONE_ROW, bytes);
-        let [Event::Turns { owner, turns, next }] = events.as_slice() else {
+        let [Event::Turns { owner, turns, next, cut: None }] = events.as_slice() else {
             panic!("exact native room {read:?}: {events:?}")
         };
         assert_eq!(*owner, OWNER);
@@ -136,7 +136,7 @@ fn accepted_prefix_continues_without_skipping_after_an_unread() {
     let directions = [(window, 1, 2), (forward, 1, 2), (backward, 2, 1)];
     for (read, first, second) in directions {
         let events = page(&mut world, read, TWO_ROWS, charge);
-        let [Event::Turns { owner, turns, next: Some(offset) }] = events.as_slice() else {
+        let [Event::Turns { owner, turns, next: Some(offset), cut: None }] = events.as_slice() else {
             panic!("one accepted prefix {read:?}: {events:?}")
         };
         assert_eq!(*owner, OWNER);
@@ -148,7 +148,7 @@ fn accepted_prefix_continues_without_skipping_after_an_unread() {
         let next = continued(read, *offset);
         unread(&page(&mut world, next, TWO_ROWS, charge - 1), next);
         let events = page(&mut world, next, TWO_ROWS, charge);
-        let [Event::Turns { owner, turns, next: None }] = events.as_slice() else {
+        let [Event::Turns { owner, turns, next: None, cut: None }] = events.as_slice() else {
             panic!("retry keeps the next committed turn {read:?}: {events:?}")
         };
         assert_eq!(*owner, OWNER);
