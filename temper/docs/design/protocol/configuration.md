@@ -1954,6 +1954,47 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
   kind 6 (`none` on the stock), kept on the change's row as its
   questions parameter (`../domain/forge.md`, 8.1), and a later change
   of the setting reaches only the changes made after it.
+- **A goal template's work, kind 11** (`../draft/stock-ways.md`, section
+  4; `../draft/whole-story.execution.md`, P3f): whether the coordinator
+  of a goal started from a template designs first and whether it makes a
+  close-out, said by a setting of the template rather than guessed from
+  its charter's instructions, so that a goal's path draws "design" or
+  "plan", and a "close-out" where one is made (`../domain/forge.md`,
+  8.13). A kind of temper's beside the table's, owned by the forge's
+  connector and kept, erased, read and never pinned as they are;
+  numbered past kind 8, a project's classes
+  (`../draft/what-reaches-you.md`, section 2), and kinds 9 and 10, a
+  setting's words (`../draft/whole-story.execution.md`, P3e):
+  - *its scope and numbers:* the deployment's, as templates are (jig's
+    `protocol/configuration.md`, 3.1); its number a template's, 1 to
+    jig's `core.templates`; decided by the deployment's owners;
+  - *its value,* a `TemplateGoal` record in temper's codec: `design`, a
+    bool, whether the template's charter designs the goal first,
+    delivering the design into the goal's branch as a change the goal's
+    other changes start from and merge after; and `close_out`, a bool,
+    whether it makes a close-out once the goal has landed, one change
+    into the landing branch bringing what the goal leaves up to date: its
+    status files, its designs' Later sections and its draft's fate. Its
+    bound, the kind's, is its encoding. The engine decides nothing by it:
+    the charter's instructions say what its runs do, and the setting says
+    it for the pages, so that the two agree is the owner's, as a
+    charter's words are;
+  - *with none,* the template's coordinator plans and makes no
+    close-out, the value `{design: false, close_out: false}`; a removal
+    or a reset where the stock gives none leaves it so. A value at a
+    number the settings offer no template at, or at a template no goal
+    starts by, is kept and drawn nowhere;
+  - *judged by the forge,* as the table's kinds are: at scope 0 alone,
+    else refused for its scope; a number 0 or past `core.templates`,
+    for its number; a value not a `TemplateGoal`, for its value; a
+    removal or a reset always good;
+  - *named* `template-goal`, with the template's `number`, in a settings
+    file and a run's `settings`, `see` and `propose_settings`
+    (`../client/tools.md`, 5.3; `../domain/agent.md`, 8.1), its value
+    `{"design": BOOL, "close_out": BOOL}`, both members required; read
+    by a party with a role in the deployment, as kinds 1 and 3 are;
+  - *the stock's,* 13.4's: template 4's, neither; the reference's,
+    13.9's: template 4's, both.
 
 ### 13.3 How the landing rules are enforced
 
@@ -2102,12 +2143,20 @@ init`'s document carries none of them (`setup.md`, 8.3).
   any template. Its runs read and propose settings; they never change
   one, since jig's `settings` family proposes and an owner accepts
   (jig's `domain/engine.md`, 17.6).
+- **Template 4's work,** kind 11 (13.2), at scope 0 and number 4: no
+  design and no close-out, since the stock's charter 5 cuts the draft
+  into changes it specifies itself, with no designers, and its last
+  change, which brings the status files current, lands into the goal's
+  branch as one of the goal's changes (`../draft/stock-ways.md`, 3.3, and
+  section 4, "plan" in the stock's). So Draft first's path over the stock
+  draws "plan" and no close-out, as the look request's does. No other
+  stock template has a value of kind 11.
 - **Built at each start** by `temper-service`'s `stock` module, as
   typed values, the instructions held in the binary; `Service` passes
   jig's kinds' defaults, with the three kinds' declarations (number,
   scope, the forge's connector, the bounds above), to jig's builder in
   place of the document's members, and temper's kinds' defaults (kind 3,
-  and every project's rule 1 of kind 2) to the forge (jig's
+  template 4's kind 11 and every project's rule 1 of kind 2) to the forge (jig's
   `domain/engine.md`, 17.5), and
   makes the engine as today. A test world builds the service with
   defaults of its own in that field's place, the settings its stories
@@ -2662,7 +2711,12 @@ that changes the stock changes nothing of them.
     (`../draft/goal-as-designer.md`, section 8);
     tracked at priority 1; a report; the creator's budget; *its own
     goal branch* among its resources (jig's `protocol/configuration.md`,
-    3.3; `../client/tools.md`, 5.3).
+    3.3; `../client/tools.md`, 5.3);
+  - *template 4's work,* kind 11 (13.2), `template-goal` number 4:
+    design and close-out, since its charter 5's second edition delivers
+    the shared design first, as a designer's change, and makes the
+    close-out, X (*Designers and the cut*, below), so that the case's
+    path draws "design" and "close-out" (`../domain/forge.md`, 8.13).
 - **The rules and policy 1** are changed on the box from their current
   values, which hold the deployment's own budgets (13.4): read with
   `temper ctl settings show --json`, charter 7 added to the rules' and

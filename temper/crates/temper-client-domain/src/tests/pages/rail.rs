@@ -6,7 +6,7 @@ use super::{
 use crate::{
     Address, Domain, Event, Place, Request,
     address::Filter,
-    pages::rail::{self, Facts, New, Parts},
+    pages::rail::{self, Facts, New, Parts, Tabs},
 };
 use jig_client::{Down, Readable, Readout, Up, Watchable, contract as c};
 use skein_lib::{List, Writer};
@@ -40,32 +40,55 @@ const ORDINARY: Parts = Parts {
     away: false,
     new: New::Change,
 };
+const ORDINARY_TABS: Tabs = Tabs { needs: true, count: 0, cut: false, work: true, ask: false, deployment: false };
 
 #[test]
 fn parts_follow_each_rails_rule_and_to_begin_cut() {
-    for (name, facts, expected) in [
-        ("no facts", BASE, ORDINARY),
-        ("one project", Facts { projects: 1, ..BASE }, ORDINARY),
-        ("two projects", Facts { projects: PROJECTS, ..BASE }, Parts { all_projects: true, ..ORDINARY }),
-        ("needs count", Facts { needs: NEEDS, ..BASE }, Parts { count: NEEDS, ..ORDINARY }),
-        ("zero cut", Facts { needs_cut: true, ..BASE }, Parts { cut: true, ..ORDINARY }),
-        ("count floor", Facts { needs: NEEDS, needs_cut: true, ..BASE }, Parts { count: NEEDS, cut: true, ..ORDINARY }),
-        ("no members or roles", Facts { members: Some(0), standing_roles: Some(0), ..BASE }, ORDINARY),
-        ("one member", Facts { members: Some(1), ..BASE }, ORDINARY),
-        ("second member", Facts { members: Some(2), ..BASE }, Parts { team: true, ..ORDINARY }),
-        ("standing role", Facts { standing_roles: Some(1), ..BASE }, Parts { team: true, ..ORDINARY }),
+    for (name, facts, expected, expected_tabs) in [
+        ("no facts", BASE, ORDINARY, ORDINARY_TABS),
+        ("one project", Facts { projects: 1, ..BASE }, ORDINARY, ORDINARY_TABS),
+        ("two projects", Facts { projects: PROJECTS, ..BASE }, Parts { all_projects: true, ..ORDINARY }, ORDINARY_TABS),
+        (
+            "needs count",
+            Facts { needs: NEEDS, ..BASE },
+            Parts { count: NEEDS, ..ORDINARY },
+            Tabs { count: NEEDS, ..ORDINARY_TABS },
+        ),
+        (
+            "zero cut",
+            Facts { needs_cut: true, ..BASE },
+            Parts { cut: true, ..ORDINARY },
+            Tabs { cut: true, ..ORDINARY_TABS },
+        ),
+        (
+            "count floor",
+            Facts { needs: NEEDS, needs_cut: true, ..BASE },
+            Parts { count: NEEDS, cut: true, ..ORDINARY },
+            Tabs { count: NEEDS, cut: true, ..ORDINARY_TABS },
+        ),
+        ("no members or roles", Facts { members: Some(0), standing_roles: Some(0), ..BASE }, ORDINARY, ORDINARY_TABS),
+        ("one member", Facts { members: Some(1), ..BASE }, ORDINARY, ORDINARY_TABS),
+        ("second member", Facts { members: Some(2), ..BASE }, Parts { team: true, ..ORDINARY }, ORDINARY_TABS),
+        ("standing role", Facts { standing_roles: Some(1), ..BASE }, Parts { team: true, ..ORDINARY }, ORDINARY_TABS),
         (
             "both team facts",
             Facts { members: Some(2), standing_roles: Some(1), ..BASE },
             Parts { team: true, ..ORDINARY },
+            ORDINARY_TABS,
         ),
-        ("asking", Facts { asking: true, ..BASE }, Parts { ask: true, ..ORDINARY }),
-        ("away", Facts { away: true, ..BASE }, Parts { away: true, ..ORDINARY }),
-        ("drafts", Facts { drafts: true, ..BASE }, Parts { new: New::DraftOrChange, ..ORDINARY }),
+        (
+            "asking",
+            Facts { asking: true, ..BASE },
+            Parts { ask: true, ..ORDINARY },
+            Tabs { ask: true, ..ORDINARY_TABS },
+        ),
+        ("away", Facts { away: true, ..BASE }, Parts { away: true, ..ORDINARY }, ORDINARY_TABS),
+        ("drafts", Facts { drafts: true, ..BASE }, Parts { new: New::DraftOrChange, ..ORDINARY }, ORDINARY_TABS),
         (
             "to begin",
             Facts { beginning: true, ..BASE },
             Parts { needs_you: false, work: false, how: false, new: New::Hidden, ..ORDINARY },
+            Tabs { needs: false, work: false, deployment: true, ..ORDINARY_TABS },
         ),
         (
             "to begin with every fact",
@@ -92,9 +115,12 @@ fn parts_follow_each_rails_rule_and_to_begin_cut() {
                 away: true,
                 new: New::Hidden,
             },
+            Tabs { needs: false, count: NEEDS, cut: true, work: false, ask: true, deployment: true },
         ),
     ] {
-        assert_eq!(rail::parts(&facts), expected, "{name}");
+        let parts = rail::parts(&facts);
+        assert_eq!(parts, expected, "{name}");
+        assert_eq!(rail::tabs(&parts), expected_tabs, "{name}: phone tabs");
     }
 }
 
@@ -110,7 +136,7 @@ fn two_projects() -> c::Me {
     me
 }
 
-fn project_domain() -> Domain {
+fn project_domain(second: Option<c::PartyKind>) -> Domain {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
     let watch = f::start(&mut root, List::with_capacity(0));
     up(
@@ -160,14 +186,44 @@ fn project_domain() -> Domain {
             );
         }
     }
-    event(&mut root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
+    let out = event(&mut root, Event::Went { place: Place::Address(Address::Settings { project: f::PROJECT }) });
+    if let Some(kind) = second {
+        for request in &out {
+            if let Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: Down::Read { read, what: Readable::Jig(c::Read::Project { project }) },
+                    },
+            } = request
+            {
+                assert_eq!(*project, f::PROJECT);
+                let mut document = super::team::project(
+                    Box::new([
+                        super::team::member(1, c::PartyKind::Person, b"Owner", c::HeldRole::Owner),
+                        super::team::member(2, kind, b"Other", c::HeldRole::Member),
+                    ]),
+                    false,
+                );
+                document.number = f::PROJECT;
+                up(
+                    &mut root,
+                    Up::ReadDone {
+                        read: *read,
+                        result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Project(Box::new(document)))),
+                    },
+                );
+            }
+        }
+    }
     root
 }
 
 #[test]
 fn facts_gather_the_open_projects_domain_values() {
-    let project_root = project_domain();
-    let mut across_root = project_domain();
+    let project_root = project_domain(None);
+    let people = project_domain(Some(c::PartyKind::Person));
+    let service = project_domain(Some(c::PartyKind::Service));
+    let mut across_root = project_domain(None);
     event(&mut across_root, Event::Went { place: Place::Address(Address::AllHome) });
     let unread = crate::unlinked(&f::limits(), f::SEED);
     for (name, root, project, expected) in [
@@ -176,6 +232,36 @@ fn facts_gather_the_open_projects_domain_values() {
             &project_root,
             f::PROJECT,
             Facts { projects: PROJECTS, needs: NEEDS, needs_cut: true, asking: true, away: true, drafts: true, ..BASE },
+        ),
+        (
+            "two people",
+            &people,
+            f::PROJECT,
+            Facts {
+                projects: PROJECTS,
+                needs: NEEDS,
+                needs_cut: true,
+                members: Some(2),
+                asking: true,
+                away: true,
+                drafts: true,
+                ..BASE
+            },
+        ),
+        (
+            "person and service",
+            &service,
+            f::PROJECT,
+            Facts {
+                projects: PROJECTS,
+                needs: NEEDS,
+                needs_cut: true,
+                members: Some(1),
+                asking: true,
+                away: true,
+                drafts: true,
+                ..BASE
+            },
         ),
         ("other project", &project_root, OTHER, Facts { projects: PROJECTS, needs_cut: true, ..BASE }),
         ("across", &across_root, OTHER, Facts { projects: PROJECTS, needs_cut: true, away: true, ..BASE }),
@@ -187,7 +273,7 @@ fn facts_gather_the_open_projects_domain_values() {
 
 #[test]
 fn across_means_all_home_or_inbox_without_a_project_filter() {
-    let mut root = project_domain();
+    let mut root = project_domain(None);
     for (address, expected) in [
         (Address::AllHome, true),
         (Address::Inbox { filter: Filter::ALL }, true),

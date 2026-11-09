@@ -19,6 +19,18 @@ pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
             }
             out.unsigned(u64::from(value.charter()));
         }
+        11 => {
+            let Ok(value) = w::TemplateGoal::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            out.object_start();
+            out.key(b"design");
+            out.boolean(value.design());
+            out.key(b"close_out");
+            out.boolean(value.close_out());
+            out.object_end();
+        }
         6 => {
             let Ok(value) = w::ProjectQuestions::decode(&w::CEILINGS, &mut reader) else { return false };
             if !reader.is_empty() {

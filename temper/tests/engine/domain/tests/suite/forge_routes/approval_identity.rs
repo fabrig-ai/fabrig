@@ -371,7 +371,10 @@ fn drop_approvals(world: &mut World) {
                             rule.approvals = Box::new([]);
                             Some(kinds::item(key.kind, key.scope, key.number, &settings::Value::Rule(rule)))
                         }
-                        settings::Value::Charter(_) | settings::Value::Questions(_) | settings::Value::Ways(_) => None,
+                        settings::Value::Charter(_)
+                        | settings::Value::Questions(_)
+                        | settings::Value::Ways(_)
+                        | settings::Value::Goal(_) => None,
                     }
                 }
                 _ => None,

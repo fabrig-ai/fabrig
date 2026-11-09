@@ -1369,6 +1369,11 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
 | 9 | create a branch at a commit | a creation, named | unrecoverable: another hand can delete it, and nothing then shows it was made | the branch exists at that commit |
 | 15 | delete a branch | a set: temper's own branches only | idempotent | it is gone |
 
+- **The outbox is bounded** by the connector's `entries` limit: no entry
+  is committed past it, and room frees only as an entry leaves it, by its
+  write's outcome or its withdrawal. What asks for an effect while it is
+  full waits or is refused by its own rule; a goal's projection waits
+  (section 12).
 - **Each row is a kind of its own** (jig's `domain/connectors.md`,
   3.1): a policy that grants writing issues grants each kind it means.
 - **A write in flight is a row of its own,** `Flight { task, entry }`
@@ -2911,6 +2916,9 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
     on and `way` names a template whose resources hold *its own goal
     branch*, as template 4's do (`../protocol/configuration.md`, 13.4);
     otherwise as a chat's change;
+  - that template's work (kind 11; `../protocol/configuration.md`,
+    13.2): whether its coordinator designs first and whether it makes a
+    close-out, neither where it has none;
   - the project's landing, by queue or by turn, whether it names a
     merge job (8.4, *The merge job*), and the repository's CI, its test
     gates and its tiers, each with the branch it follows (`landing.md`,
@@ -2928,9 +2936,10 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
   lands on, each in this order:
   1. *Who starts,* on the first segment alone: for a chat's change, "you
      ask", the person, then "produce", the producer's charter; for a
-     goal, "draft", the person, then "plan", the template's charter,
-     then "produce ×n", the producer's charter, the goal's changes being
-     one stop as a flow has one path.
+     goal, "draft", the person, then "plan", the template's charter, or
+     "design" in its place where the template's work says its
+     coordinator designs first, then "produce ×n", the producer's
+     charter, the goal's changes being one stop as a flow has one path.
   2. *"check",* code, where a covering rule that enforces asks CI and
      the repository was adopted with CI; under `turn`, none, since no CI
      runs on a pushed head (`landing.md`, section 3).
@@ -2960,7 +2969,11 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
      turn, its card naming the gates, since a stop opens a rule's gate
      by number and a repository's test gates have none
      (`../client/README.md`, 4.6), then "repair", the producer's, while
-     none is drawn; "turn", code, opening the turn.
+     none is drawn; "turn", code, opening the turn. On the landing
+     branch's segment after a goal's, where the template's work says its
+     coordinator makes a close-out, "close-out", the template's charter,
+     follows the merge or the turn: made once the goal has landed, so
+     that the landing branch's tiers check it with what landed.
   7. *Each tier* following the branch: on a goal's branch "check",
      code, then "repair", the template's charter's, while none is drawn;
      on the landing branch "verify", code. A tier opens itself. Then, on
@@ -3003,6 +3016,16 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
     goal on BRANCH" on the landing branch's segment after a goal's;
     `name` "the queue"; its fact "Does", "merges exactly the commit its
     checks saw".
+- **The coordinator's cards,** the template's charter's agent's card
+  (*A stop's card*, below), `name` "the coordinator":
+  - "plan": `who` "an agent · cuts the draft into changes";
+  - "design": `who` "an agent · designs the goal, then cuts it into
+    changes"; after the agent's facts, "Its order", "the design is
+    delivered first, as a change into the goal's branch; the changes
+    start from it and merge after it";
+  - "close-out": `who` "an agent · after the landing, brings what the
+    goal leaves up to date"; after the agent's facts, "Lands", "as one
+    change into BRANCH, by BRANCH's rules", BRANCH the landing branch.
 - **A stop whose setting is absent isn't drawn:** no "check" without
   CI, no tier's stops without a tier, no approval no rule asks.
 - **No agent's stop below the line:** a conflict, a merge, a catch-up,
@@ -3470,6 +3493,15 @@ history they keep if temper is unplugged. Issues are projections (jig's
   on to its next milestone, the finishing one and the close; the issue's
   open so lost fails the projection, which has nothing to write on, and
   settles failed at the goal's close.
+- **A full outbox defers it.** A projection whose next write meets the
+  outbox at its bound (section 6) waits for room, neither failed nor
+  settled: it is tried again after the policy's interval, as a failed
+  write is, and goes out at the first try that finds room; a restart
+  tries it at once, as it does every projection with nothing in flight.
+  Nothing asks for it sooner: once a step has met the full outbox, a
+  projection due at once in that step, by a write's outcome, a release
+  or its timer, waits the interval too while the outbox stays full, so
+  the step ends.
 - **Issues others open** in an adopted repository are participating
   objects, which may become intake later.
 
@@ -3781,6 +3813,15 @@ whole.
   it. Telling them apart reads each file and its triggers, a read per
   workflow at each change of the directory. Default: by file, every one
   but the dispatched.
+
+- **A close-out's own charter** (8.13, *The coordinator's cards*): the
+  "close-out" stop opens the goal template's charter, the coordinator,
+  which makes the close-out, though the reference's is a designer's
+  change (`../protocol/configuration.md`, 13.9) and its card's model and
+  "Asked to" are then the coordinator's. Naming the charter that writes
+  it would be a member of the template's work, kind 11, read where it is
+  set. Default: the coordinator's card, until a draft asks for a
+  close-out's role of its own (8.13, *The project's roles*).
 
 - **Project-scoped rules on a real forge** (8.9): observe the
   every-project default, its override and reset, and branch-relative

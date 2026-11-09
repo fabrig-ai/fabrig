@@ -2,6 +2,11 @@
 
 2026-11-09. Where temper's code lags or departs from [README.md](README.md).
 
+Sections 6.13 and 6.14 keep the selected launchpad row while composing a
+slash command. Host tests cover typed `/open` for a chat, a goal and Home,
+its opener fallback, and selection clearing on ordinary words, Esc and
+navigation. No known gap remains in these rules.
+
 Sections 3.5 and 5.3 have the two-step To begin, repository first,
 the two-count facts and notes, and restricted navigation on Home and
 Ask temper in both shells. Home leaves Needs you and Chats out while
@@ -43,6 +48,30 @@ chat starts. Section 5.13 offers no configuring chat, and How work runs
 reaches Ask temper by "Ask temper to change this" alone. The
 post-landing walk, M3b's views and preferences remain section 11's
 work.
+
+- **Not yet:** 3.5, *Tell temper*, whole: no `Tell` address, no region at
+  Needs you's foot, no link under Ask temper's composer. The engine files
+  no person's word as a finding and no project's settings name a triager
+  (`../domain/findings.status.md`; `../domain/landing.md`, 13.1),
+  so it waits for both, with nothing in its place.
+
+Sections 3.5, *Needs you*'s *Its head* and *On a phone* and *Ask temper's
+page*'s composer, and 5.3, *On a phone*, have no known implementation
+gap, by plan `ui-p5a-phone`. The domain's `rail::tabs` decides the tab
+bar from the rail's parts, and the browser draws it alone: "Home",
+"Needs" with its count, "N+" where cut, "Work", "Ask" and To begin's
+"Deployment", each current as the rail's entry is, the rail keeping
+"Needs you". Ask temper's page and an Ask temper chat keep it under the
+composer, "Ask" current, and no other chat draws it. Needs you's open
+card stands under its own bar, "‹ Needs you" to Home and its place, "1
+of 2", with no dots and no "Next:" line, its question 19 px and its
+choices stacked full width. `parts_follow_each_rails_rule_and_to_begin_cut`
+and the client world's `parts_and_live_work_survive_random_settings_moves`
+hold the rule, `rail_and_tabbar_keep_the_order_addresses_current_states_and_count`
+and `phone_bar_links_home_and_counts_answered_including_cut` the view.
+Each target's 44 px is `browser.md`, 2.5's, with its gap there
+(`browser.status.md`). The render check and walk follow landing (section
+11, *The phone after landing*).
 
 Sections 4.6, 5.13 and 5.16 have no known gap. The wire carries
 `BranchPath`, the subject `ways` with its `WaysPanel` and the read `View`;
@@ -146,7 +175,7 @@ section 11's after-landing work.
 
 Sections 3.5, *Work*, *Goals*, *Changes* and *Settings and Deployment*,
 and 5.3, *The rail*, *The rail's parts*, *Projects in the rail* and *All
-projects*, have no known gap but Team's, below, by plan `ui-p1-rail`:
+projects*, have no known gap but a standing role's, below, by plan `ui-p1-rail`:
 `Address::Work`, `Members` and `Limits` and their paths, Work's five
 addresses holding the goals', changes' and chats' reads open together;
 `pages::rail::parts` of what `rail::facts` gathers, which both shells
@@ -169,6 +198,30 @@ it (`browser.status.md`, 7.2), and the client world's, the browser tier's, the r
 process's stories walk the new rail. The render check and the walk
 remain section 11's after-landing work (*The rail, Work and Deployment
 after landing*).
+
+Sections 3.5, *Team*, and 5.3's Team in the rail have no known gap but
+the project's triager, below, by plan `ui-p4a-team`: `Address::Team {
+project }` at `/projects/<project>/team`, a page of the project's frame;
+`pages::team`'s `gather`, `parts`, `shown` and `people`, the project's
+members of kind person once each, the reader first, a service left out;
+the project's document read by `Read::Project` on every project page and
+again on each `me` delivery; the reader's line from Needs you's open
+entries and approvals in the project, and another's from a `tasks{query}`
+watch of the tasks they requested, at most eight; the intro's count of
+people, a box for each with their name, role and line, and "This
+project's people can't be read now."; "Team" in the rail and "Team for
+PROJECT" in the switcher's menu once the project has two people. The
+domain's `gather_lists_each_person_once_the_reader_first`,
+`parts_show_what_the_facts_hold` and
+`team_reads_the_project_and_what_waits_on_each`, the view's
+`team_draws_what_it_shows` and the Team rows of `tests/rail.rs` and
+`tests/frame.rs`, the fuzzy suite's `team_parts_follow_their_rules`, the
+joint world's `two_people_read_each_other_on_team`, the terminal's
+`team.txt` golden and the gallery's `team`, `team-alone` and `night-team`
+hold it (`browser.status.md`, 7.2). The render check and the walk remain
+section 11's after-landing work (*Team after landing*); what the draft and
+`team/team.html`, redrawn after the plan's cut, say otherwise is
+`../draft/surfaces.status.md`'s, 6.
 
 Section 3.5's settings-proposal call names distinguish failed attempts from
 created proposals, including mixed outcomes. The view's
@@ -841,10 +894,8 @@ read's head explicit.
   `Builder::focus`, at most one per tree, which asserts. The `ui-rename-focus` task
   `rename-row` has opening the form on such a page not panic; no reason is recorded
   for this site. Seen by reading; no test holds it.
-- **Not yet:** 5.3, *The rail's parts*: Team is never shown. No read gives the
-  rail a project's members (jig's `Read::Project` is the Members tab's) or a
-  standing role (`../draft/standing-roles.md`), and Team has no page
-  (`../draft/surfaces.md`, section 6), so `rail::facts` gathers neither.
+- **Not yet:** 5.3, *The rail's parts*: no read gives the rail a standing
+  role (`../draft/standing-roles.md`).
 - **Not yet:** 3.5, *Away*, 4.6: with the `away` watch refused, ended or not
   delivered yet the switch draws off, but its act is still offered, where 4.6
   has it not offered: `temper-client-view`'s `frame.rs`, `away`, and
@@ -870,6 +921,25 @@ read's head explicit.
   at a character boundary to fit 512 bytes (`forge/decided.rs`, `overturn_words`),
   where the section has it whole, because the smallest deployed composer admits
   that (5.4).
+
+Section 3.5, *Away*, *On All projects*, and 5.3's Away row have no known
+gap, by plan `ui-away-all`: `pages::away_all::across` counts `me`'s
+projects, those on at the wall and the earliest `until` of those on, and
+whether Away shows for any, which `rail::facts` reads on a page across
+projects; `frame.rs`'s `away` draws the switch and the chip from it,
+"Away on N of M" between, and binds `away::Act::ToggleAll`, whose
+`away_all::act` builds each changing project's request by
+`pages::away::request`, which a project's own act calls, and sends them
+one after another, toasting `Toasted::AwayAll`, or `AwayRefused` with
+none changed. The domain's `tests/away.rs`, its
+`across_counts_the_projects_on`, `toggle_all_sets_each_project_that_differs`
+and `a_second_toggle_waits`, `tests/pages/rail.rs`'s "across" row, the
+view's `the_switch_shows_with_ways_away` and the gallery's
+`all-home-away` and `all-home-away-on` (`browser.status.md`, 7.2) hold
+it. No render of the words is on record and no client-world story
+presses the switch across projects: the render check and the walk remain
+section 11's after-landing work (*Away on All projects after landing*).
+
 - **Design departs:** 5.8, from the request `ui-goal-page` of 2026-11-05, decided
   by its plan's cut and its proof. A goal's bar is `figure.bar` in the browser
   and `Role::Image` in the terminal, where the request has `div.bar` and
@@ -1054,6 +1124,11 @@ read's head explicit.
   word change: `the_button_reads_each_label_once_in_the_browser` holds the three names in
   the view's tree, and that a name's patch rewrites the button's text
   (`skein-ui-web/src/page/web.rs`, `refresh` and `content`) is seen by reading too.
+- **Not yet:** 3.5, *Team*, *The project's triager*: no setting names a
+  triager (`../domain/landing.status.md`, 13.1; `../domain/findings.status.md`),
+  so no read gives `team::Facts`' `triager`, `team::parts` never shows its
+  line, and the view has no words for it (`temper-client-view`'s
+  `pages/team.rs`).
 - **Design departs:** 3.5, *Needs you*, `.rec`, from the request `ui-copy-once` of
   2026-11-06, decided by its plan's cut. The request has no button, tab or option with
   both a name and a text child in a browser, and a recommended choice's button has its

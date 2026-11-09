@@ -56,6 +56,7 @@ fn fuzzy_workers_cuts_and_stalls_keep_each_channel_told_once() {
         }
         world.down(Event::Stop);
         world.down(Event::Close);
+        world.run();
         world.advance(Duration::from_secs(30));
         referee::judge(world.root()).unwrap_or_else(|why| panic!("seed {seed}: {why}"));
         assert!(matches!(world.root().last(), Some(Request::Closed)), "seed {seed}: closed");

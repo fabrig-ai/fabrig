@@ -137,7 +137,7 @@ record ProposalItem { kind: u32 scope: u32 number: u32 edit: SettingEdit }
 versioned record ProposalItemsAnswer { items: list 1024 ProposalItem owned_approval: bool }
 # A branch's path (temper/docs/design/domain/forge.md, 8.13; client/README.md, 4.6).
 enum Actor { person, agent, code, bar }
-enum PathStep { ask, draft, plan, produce, produce_many, check, review, repair, approve, conflict, resolve, merge, catch_up, prepare, prove, turn, verify, branch }
+enum PathStep { ask, draft, plan, produce, produce_many, check, review, repair, approve, conflict, resolve, merge, catch_up, prepare, prove, turn, verify, branch, design, close_out }
 record OpensCharter { charter: u32 }
 record OpensRule { kind: u32 scope: u32 number: u32 }
 record OpensGate { number: u32 charter: u32 }
@@ -272,6 +272,7 @@ record RuleGate { number: u32 blocking: bool freshness: RuleFreshness }
 record RuleApproval { role: u32 people: u32 freshness: RuleFreshness }
 record LandingRule { pattern: LandingPattern enforce: bool ci: bool up_to_date: bool gates: list 64 RuleGate approvals: list 64 RuleApproval }
 record ForgeCharter { charter: u32 }
+record TemplateGoal { design: bool close_out: bool }
 enum QuestionsRoute { none, foreman, up }
 record ProjectQuestions { route: QuestionsRoute }
 record ProjectWays { drafts: bool goals: bool changes: bool away: bool way: u32 }

@@ -139,11 +139,57 @@ fn repositories(domain: &mut Domain, env: &Env<crate::Limits>, home: bool) {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one table checks the project inputs and the roles those inputs run")]
 fn inputs_gather_the_repository_start_and_readers_roles() {
-    for (name, adopted, home, goal, way, merge_job, expected_repository, expected_start) in [
-        ("no repository", false, false, false, 0, false, None, ways::Start::Chat),
-        ("first adopted", true, false, false, 0, false, Some(b"first".as_slice()), ways::Start::Chat),
-        ("home", true, true, false, 0, false, Some(b"home".as_slice()), ways::Start::Chat),
-        ("goal", true, true, true, 4, false, Some(b"home".as_slice()), ways::Start::Goal { charter: COORDINATOR }),
+    // Kind 11 encodes two bools (temper/docs/design/protocol/configuration.md, 13.2).
+    const GOAL_BYTES: u32 = 2;
+    let both = settings::TemplateGoal { design: true, close_out: true };
+    for (name, adopted, home, goal, way, merge_job, (held, laid), expected_repository, expected_start) in [
+        ("no repository", false, false, false, 0, false, (&[][..], false), None, ways::Start::Chat),
+        ("first adopted", true, false, false, 0, false, (&[][..], false), Some(b"first".as_slice()), ways::Start::Chat),
+        ("home", true, true, false, 0, false, (&[][..], false), Some(b"home".as_slice()), ways::Start::Chat),
+        (
+            "another template's",
+            true,
+            true,
+            true,
+            4,
+            false,
+            (&[1, 2][..], false),
+            Some(b"home".as_slice()),
+            ways::Start::Goal { charter: COORDINATOR, design: false, close_out: false },
+        ),
+        (
+            "goal designs",
+            true,
+            true,
+            true,
+            4,
+            false,
+            (&[][..], true),
+            Some(b"home".as_slice()),
+            ways::Start::Goal { charter: COORDINATOR, design: true, close_out: true },
+        ),
+        (
+            "goal held",
+            true,
+            true,
+            true,
+            4,
+            false,
+            (&[4][..], false),
+            Some(b"home".as_slice()),
+            ways::Start::Goal { charter: COORDINATOR, design: true, close_out: true },
+        ),
+        (
+            "goal plans",
+            true,
+            true,
+            true,
+            4,
+            false,
+            (&[][..], false),
+            Some(b"home".as_slice()),
+            ways::Start::Goal { charter: COORDINATOR, design: false, close_out: false },
+        ),
         (
             "goal with merge job",
             true,
@@ -151,12 +197,33 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
             true,
             4,
             true,
+            (&[][..], false),
             Some(b"home".as_slice()),
-            ways::Start::Goal { charter: COORDINATOR },
+            ways::Start::Goal { charter: COORDINATOR, design: false, close_out: false },
         ),
-        ("chat with merge job", true, true, false, 0, true, Some(b"home".as_slice()), ways::Start::Chat),
-        ("default goal", false, false, true, 0, false, None, ways::Start::Goal { charter: COORDINATOR }),
-        ("missing template", false, false, true, 9, false, None, ways::Start::Chat),
+        (
+            "chat with merge job",
+            true,
+            true,
+            false,
+            0,
+            true,
+            (&[][..], false),
+            Some(b"home".as_slice()),
+            ways::Start::Chat,
+        ),
+        (
+            "default goal",
+            false,
+            false,
+            true,
+            0,
+            false,
+            (&[][..], false),
+            None,
+            ways::Start::Goal { charter: COORDINATOR, design: false, close_out: false },
+        ),
+        ("missing template", false, false, true, 9, false, (&[][..], false), None, ways::Start::Chat),
     ] {
         let (mut domain, env) = fixture();
         if adopted {
@@ -165,19 +232,44 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
         if merge_job {
             assert!(domain.forge.project_merge_job(PROJECT, b"merge".as_slice().into()));
         }
-        let items = [ways::Item {
-            kind: 7,
-            scope: PROJECT,
-            number: 1,
-            edit: ways::Edit::Set(settings::Value::Ways(settings::ProjectWays {
-                drafts: true,
-                goals: goal,
-                changes: true,
-                away: false,
-                way,
-            })),
-        }];
-        let got = inputs(&domain, PROJECT, READER, &items, None, None);
+        for &number in held {
+            domain.forge.keep_settings(
+                &env.with(env.limits.forge),
+                1,
+                None,
+                &[settings::Asked {
+                    kind: 11,
+                    scope: 0,
+                    number,
+                    edit: settings::Edit::Set(settings::SizedValue {
+                        value: settings::Value::Goal(both),
+                        size: GOAL_BYTES,
+                    }),
+                }],
+                &mut Queue::uncapped(),
+            );
+        }
+        let mut items = List::uncapped();
+        items
+            .push(ways::Item {
+                kind: 7,
+                scope: PROJECT,
+                number: 1,
+                edit: ways::Edit::Set(settings::Value::Ways(settings::ProjectWays {
+                    drafts: true,
+                    goals: goal,
+                    changes: true,
+                    away: false,
+                    way,
+                })),
+            })
+            .unwrap();
+        if laid {
+            items
+                .push(ways::Item { kind: 11, scope: 0, number: 4, edit: ways::Edit::Set(settings::Value::Goal(both)) })
+                .unwrap();
+        }
+        let got = inputs(&domain, PROJECT, READER, items.as_slice(), None, None);
         let repository = match &got.repository {
             Some(repository) => Some(repository.name.as_ref()),
             None => None,
@@ -187,10 +279,20 @@ fn inputs_gather_the_repository_start_and_readers_roles() {
         assert_eq!(got.start, expected_start, "{name}");
         assert_eq!(got.merge_job, merge_job, "{name}");
         let mut catch_up = false;
+        let mut drawn_design = false;
+        let mut drawn_close_out = false;
         for stop in &ways::derive(&got).stops {
             catch_up |= stop.step == ways::Step::CatchUp;
+            drawn_design |= stop.words.as_ref() == b"design";
+            drawn_close_out |= stop.words.as_ref() == b"close-out";
         }
         assert_eq!(catch_up, merge_job && goal, "{name}");
+        let (design, close_out) = match expected_start {
+            ways::Start::Chat => (false, false),
+            ways::Start::Goal { design, close_out, .. } => (design, close_out),
+        };
+        assert_eq!(drawn_design, design, "{name}");
+        assert_eq!(drawn_close_out, close_out, "{name}");
         assert_eq!(
             got.roles.as_ref(),
             [

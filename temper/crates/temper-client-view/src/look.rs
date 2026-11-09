@@ -101,17 +101,17 @@ pub const WORK_FILTERS: Style = Style { owner: owner(), token: 656 };
 /// Work, client/README.md, 3.5.
 pub const WORK_CHIP: Style = Style { owner: owner(), token: 657 };
 /// Work, client/README.md, 3.5.
-pub const WORK_CURRENT: Style = Style { owner: owner(), token: 658 };
+pub const WORK_CURRENT: Style = Style { owner: owner(), token: 688 };
 /// Work, client/README.md, 3.5.
-pub const WORK_SECTION: Style = Style { owner: owner(), token: 659 };
+pub const WORK_SECTION: Style = Style { owner: owner(), token: 689 };
 /// Work, client/README.md, 3.5.
-pub const WORK_SECTION_HEAD: Style = Style { owner: owner(), token: 660 };
+pub const WORK_SECTION_HEAD: Style = Style { owner: owner(), token: 690 };
 /// Work, client/README.md, 3.5.
-pub const WORK_CARD: Style = Style { owner: owner(), token: 661 };
+pub const WORK_CARD: Style = Style { owner: owner(), token: 691 };
 /// Work, client/README.md, 3.5.
-pub const WORK_FROM: Style = Style { owner: owner(), token: 662 };
+pub const WORK_FROM: Style = Style { owner: owner(), token: 692 };
 /// Work, client/README.md, 3.5.
-pub const WORK_AGENT: Style = Style { owner: owner(), token: 663 };
+pub const WORK_AGENT: Style = Style { owner: owner(), token: 693 };
 /// Work, client/README.md, 3.5.
 pub const WORK_CODE: Style = Style { owner: owner(), token: 664 };
 /// Work, client/README.md, 3.5.
@@ -1019,10 +1019,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-299",
         b"temper-toast",
         b"temper-needs",
-        b"temper-flow-head",
-        b"temper-dots",
-        b"temper-dot",
-        b"temper-dot-done",
+        b"temper-reserved-302",
+        b"temper-reserved-303",
+        b"temper-reserved-304",
+        b"temper-reserved-305",
         b"temper-flow-q",
         b"temper-ask-context",
         b"temper-ask-saw",
@@ -1034,7 +1034,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-answered",
         b"temper-answered-label",
         b"temper-answered-undo",
-        b"temper-next-up",
+        b"temper-reserved-317",
         b"temper-answered-section",
         b"temper-needs-home",
         b"temper-needs-intro",
@@ -1430,24 +1430,21 @@ pub const NAMES: Names<'static> = Names {
         b"temper-ways-fade-agent-faint",
         b"temper-ways-fade-base",
         b"temper-ways-kind-maybe",
+        b"temper-team",
+        b"temper-team-intro",
+        b"temper-team-people",
+        b"temper-team-person",
+        b"temper-team-role",
+        b"temper-team-line",
+        b"temper-needs-bar",
+        b"temper-needs-bar-at",
+        b"temper-tabbar-ask",
     ],
     regions: &[b"temper-link"],
 };
 
 /// Needs you (temper/docs/design/client/README.md, 3.5).
 pub const NEEDS: Style = Style { owner: owner(), token: 301 };
-
-/// Needs you (temper/docs/design/client/README.md, 3.5).
-pub const FLOW_HEAD: Style = Style { owner: owner(), token: 302 };
-
-/// Needs you (temper/docs/design/client/README.md, 3.5).
-pub const DOTS: Style = Style { owner: owner(), token: 303 };
-
-/// Needs you (temper/docs/design/client/README.md, 3.5).
-pub const DOT: Style = Style { owner: owner(), token: 304 };
-
-/// Needs you (temper/docs/design/client/README.md, 3.5).
-pub const DOT_DONE: Style = Style { owner: owner(), token: 305 };
 
 /// Needs you (temper/docs/design/client/README.md, 3.5).
 pub const FLOW_Q: Style = Style { owner: owner(), token: 306 };
@@ -1481,9 +1478,6 @@ pub const ANSWERED_LABEL: Style = Style { owner: owner(), token: 315 };
 
 /// Needs you (temper/docs/design/client/README.md, 3.5).
 pub const ANSWERED_UNDO: Style = Style { owner: owner(), token: 316 };
-
-/// Needs you (temper/docs/design/client/README.md, 3.5).
-pub const NEXT_UP: Style = Style { owner: owner(), token: 317 };
 
 /// Needs you (temper/docs/design/client/README.md, 3.5).
 pub const ANSWERED_SECTION: Style = Style { owner: owner(), token: 318 };
@@ -1869,6 +1863,13 @@ pub const HOME_WIDE: Style = Style { owner: owner(), token: 700 };
 
 /// The wide Homes' question field (client/README.md, 3.5).
 pub const ASK_LINE: Style = Style { owner: owner(), token: 701 };
+/// Team’s column and people (temper/docs/design/client/browser.md, 2.5, Team’s look).
+pub const TEAM: Style = Style { owner: owner(), token: 712 };
+pub const TEAM_INTRO: Style = Style { owner: owner(), token: 713 };
+pub const TEAM_PEOPLE: Style = Style { owner: owner(), token: 714 };
+pub const TEAM_PERSON: Style = Style { owner: owner(), token: 715 };
+pub const TEAM_ROLE: Style = Style { owner: owner(), token: 716 };
+pub const TEAM_LINE: Style = Style { owner: owner(), token: 717 };
 
 /// Path marks and fades (temper/docs/design/client/README.md, 5.16).
 pub const WAYS_MAYBE: Style = Style { owner: owner(), token: 702 };
@@ -1881,6 +1882,13 @@ pub const WAYS_FADE_AGENT: Style = Style { owner: owner(), token: 708 };
 pub const WAYS_FADE_AGENT_FAINT: Style = Style { owner: owner(), token: 709 };
 pub const WAYS_FADE_BASE: Style = Style { owner: owner(), token: 710 };
 pub const WAYS_KIND_MAYBE: Style = Style { owner: owner(), token: 711 };
+/// Needs you's phone bar (temper/docs/design/client/README.md, 3.5).
+pub const NEEDS_BAR: Style = Style { owner: owner(), token: 718 };
+/// Its place in the open cards (temper/docs/design/client/README.md, 3.5).
+pub const NEEDS_BAR_AT: Style = Style { owner: owner(), token: 719 };
+
+/// The phone's Ask tab (temper/docs/design/client/README.md, 5.3).
+pub const TABBAR_ASK: Style = Style { owner: owner(), token: 720 };
 
 #[cfg(test)]
 mod tests {

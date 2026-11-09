@@ -311,6 +311,17 @@ pub(crate) fn switcher(
         }
         new_project_form(builder, root, words, bindings);
         let name = crate::pages::project_name(Some(me), project).expect("open project has a name");
+        if parts.team {
+            let label = words.say(crate::words::Word::TeamFor, &[skein_ui::phrases::Hole::Name(name.clone())]);
+            action(
+                builder,
+                Role::Link,
+                &label,
+                PageAct::Go { address: Address::Team { project } },
+                root.pages().address() == &(Address::Team { project }),
+                bindings,
+            );
+        }
         let label = words.say(crate::words::Word::RailHowFor, &[skein_ui::phrases::Hole::Name(name)]);
         crate::link(builder, &label, bindings.insert(PageAct::Go { address: Address::Settings { project } }));
         builder.text(Run::Plain, &label);
@@ -348,6 +359,7 @@ fn all_projects(
         }
         Address::AllHome
         | Address::Home { .. }
+        | Address::Team { .. }
         | Address::Work { .. }
         | Address::Goals { .. }
         | Address::Changes { .. }
@@ -587,7 +599,7 @@ pub(crate) fn rail(
     }
     b.open(Role::Slot);
     b.style(crate::look::RAIL_NAV);
-    entries(b, root, w, bindings, project, parts, false);
+    entries(b, root, w, bindings, project, parts);
     b.close();
     new_box(b, root, w, bindings, project, parts);
     b.open(Role::Slot);
@@ -745,12 +757,41 @@ pub(crate) fn tabbar(
     project: u32,
     wall: skein_lib::Wall,
 ) {
-    let parts = rail::parts(&rail::facts(root, project, wall));
+    use crate::words::Word;
+    let tabs = rail::tabs(&rail::parts(&rail::facts(root, project, wall)));
+    let current = shown(root);
     b.open(Role::Navigation);
     b.style(crate::look::TABBAR);
-    b.name(&w.say(crate::words::Word::Sections, &[]));
-    entries(b, root, w, bindings, project, parts, true);
-    if !parts.work {
+    b.name(&w.say(Word::Sections, &[]));
+    action(
+        b,
+        Role::Link,
+        &w.say(Word::RailHome, &[]),
+        PageAct::Go { address: Address::Home { project } },
+        current.home,
+        bindings,
+    );
+    if tabs.needs {
+        let name = needs_name(w, tabs.count, tabs.cut, [Word::NeedsTab, Word::NeedsTabCount, Word::NeedsTabCountCut]);
+        needs_link(b, bindings, project, &name, tabs.count, tabs.cut, current.inbox);
+    }
+    if tabs.work {
+        action(
+            b,
+            Role::Link,
+            &w.say(Word::RailWork, &[]),
+            PageAct::Go { address: Address::Work { project, filter: WorkFilter::All } },
+            current.work,
+            bindings,
+        );
+    }
+    if tabs.ask {
+        if ask_current(root, project) {
+            b.style(crate::look::TABBAR_ASK);
+        }
+        ask_link(b, root, w, bindings, project, Word::AskTab);
+    }
+    if tabs.deployment {
         b.style(crate::look::TABBAR_BEGINNING);
         deployment_link(b, root, w, bindings);
     }
@@ -763,7 +804,9 @@ struct Shown {
     inbox: bool,
     work: bool,
     how: bool,
+    team: bool,
 }
+#[expect(clippy::match_like_matches_macro, reason = "the step crate excludes matches!; its address check uses if let")]
 fn shown(root: &Domain) -> Shown {
     let (home, inbox, work, how) = match root.pages().address() {
         Address::AllHome | Address::Home { .. } => (true, false, false, false),
@@ -781,6 +824,7 @@ fn shown(root: &Domain) -> Shown {
         | Address::Repositories { .. }
         | Address::Adopt { .. } => (false, false, false, true),
         Address::Ask { .. }
+        | Address::Team { .. }
         | Address::Accounts
         | Address::Forges
         | Address::Models { .. }
@@ -791,7 +835,7 @@ fn shown(root: &Domain) -> Shown {
         | Address::ConnectModel { .. }
         | Address::Welcome { .. } => (false, false, false, false),
     };
-    Shown { home, inbox, work, how }
+    Shown { home, inbox, work, how, team: if let Address::Team { .. } = root.pages().address() { true } else { false } }
 }
 fn entries(
     b: &mut Builder,
@@ -800,10 +844,9 @@ fn entries(
     bindings: &mut Bindings,
     project: u32,
     parts: rail::Parts,
-    tab: bool,
 ) {
     use crate::words::Word;
-    let Shown { home, inbox, work, how } = shown(root);
+    let Shown { home, inbox, work, how, team } = shown(root);
     action(
         b,
         Role::Link,
@@ -813,39 +856,8 @@ fn entries(
         bindings,
     );
     if parts.needs_you {
-        let name = if parts.count == 0 {
-            w.say(Word::NeedsYou, &[])
-        } else {
-            w.say(
-                if parts.cut { Word::NeedsYouCountCut } else { Word::NeedsYouCount },
-                &[skein_ui::phrases::Hole::Number(u64::from(parts.count))],
-            )
-        };
-        crate::link(
-            b,
-            &name,
-            bindings.insert(PageAct::Go {
-                address: Address::Inbox {
-                    filter: temper_client_domain::address::Filter { project: Some(project), kind: None, goal: None },
-                },
-            }),
-        );
-        if inbox {
-            b.state(skein_ui::State::Current);
-        }
-        if parts.count == 0 {
-            b.text(Run::Plain, &name);
-        } else {
-            let number = skein_lib::Decimal::of(u64::from(parts.count));
-            let suffix = number.as_bytes().len().checked_add(usize::from(parts.cut)).expect("count suffix fits");
-            let prefix = name.len().checked_sub(suffix).expect("count is the phrase suffix");
-            b.text(Run::Plain, name.get(..prefix).expect("prefix fits"));
-            b.open(Role::Text);
-            b.style(crate::look::NAV_COUNT);
-            b.run(Run::Plain, name.get(prefix..).expect("count suffix fits"));
-            b.close();
-        }
-        b.close();
+        let name = needs_name(w, parts.count, parts.cut, [Word::NeedsYou, Word::NeedsYouCount, Word::NeedsYouCountCut]);
+        needs_link(b, bindings, project, &name, parts.count, parts.cut, inbox);
     }
     if parts.work {
         action(
@@ -857,19 +869,20 @@ fn entries(
             bindings,
         );
     }
-    if parts.ask {
-        crate::link(
+    if parts.team {
+        action(
             b,
-            &w.say(Word::AskTitle, &[]),
-            bindings.insert(PageAct::Go { address: ask_address(root, project) }),
+            Role::Link,
+            &w.say(Word::TeamTitle, &[]),
+            PageAct::Go { address: Address::Team { project } },
+            team,
+            bindings,
         );
-        w.text(b, if tab { Word::AskTab } else { Word::AskTitle }, &[]);
-        if root.pages().address() == &(Address::Ask { project }) || crate::pages::chat::asking(root) {
-            b.state(skein_ui::State::Current);
-        }
-        b.close();
     }
-    if parts.how && !tab {
+    if parts.ask {
+        ask_link(b, root, w, bindings, project, Word::AskTitle);
+    }
+    if parts.how {
         b.open(Role::Slot);
         b.style(crate::look::RAIL_SEP);
         b.close();
@@ -882,6 +895,71 @@ fn entries(
             bindings,
         );
     }
+}
+fn needs_name(w: &crate::words::Words, count: u32, cut: bool, words: [crate::words::Word; 3]) -> Box<[u8]> {
+    let [plain, counted, limited] = words;
+    if count == 0 {
+        w.say(plain, &[])
+    } else {
+        w.say(if cut { limited } else { counted }, &[skein_ui::phrases::Hole::Number(u64::from(count))])
+    }
+}
+fn needs_link(
+    b: &mut Builder,
+    bindings: &mut Bindings,
+    project: u32,
+    name: &[u8],
+    count: u32,
+    cut: bool,
+    current: bool,
+) {
+    crate::link(
+        b,
+        name,
+        bindings.insert(PageAct::Go {
+            address: Address::Inbox {
+                filter: temper_client_domain::address::Filter { project: Some(project), kind: None, goal: None },
+            },
+        }),
+    );
+    if current {
+        b.state(skein_ui::State::Current);
+    }
+    if count == 0 {
+        b.text(Run::Plain, name);
+    } else {
+        let number = skein_lib::Decimal::of(u64::from(count));
+        let suffix = number.as_bytes().len().checked_add(usize::from(cut)).expect("count suffix fits");
+        let prefix = name.len().checked_sub(suffix).expect("count is the phrase suffix");
+        b.text(Run::Plain, name.get(..prefix).expect("prefix fits"));
+        b.open(Role::Text);
+        b.style(crate::look::NAV_COUNT);
+        b.run(Run::Plain, name.get(prefix..).expect("count suffix fits"));
+        b.close();
+    }
+    b.close();
+}
+fn ask_current(root: &Domain, project: u32) -> bool {
+    root.pages().address() == &(Address::Ask { project }) || crate::pages::chat::asking(root)
+}
+fn ask_link(
+    b: &mut Builder,
+    root: &Domain,
+    w: &crate::words::Words,
+    bindings: &mut Bindings,
+    project: u32,
+    word: crate::words::Word,
+) {
+    crate::link(
+        b,
+        &w.say(crate::words::Word::AskTitle, &[]),
+        bindings.insert(PageAct::Go { address: ask_address(root, project) }),
+    );
+    w.text(b, word, &[]);
+    if ask_current(root, project) {
+        b.state(skein_ui::State::Current);
+    }
+    b.close();
 }
 fn new_box(
     b: &mut Builder,
@@ -957,6 +1035,7 @@ fn deployment_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bind
         | Address::Role { .. }
         | Address::Rule { .. }
         | Address::Repositories { .. }
+        | Address::Team { .. }
         | Address::AllHome
         | Address::Adopt { .. }
         | Address::Welcome { .. } => false,

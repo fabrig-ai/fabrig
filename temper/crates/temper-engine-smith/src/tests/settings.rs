@@ -77,6 +77,11 @@ fn every_settings_read_form_and_offset_decodes() {
             SettingsRead::Setting { setting: s::Setting::ProjectPolicy { project: 3 }, revision: 0 },
             0,
         ),
+        (
+            br#"{"setting":{"kind":"template-goal","number":4}}"#,
+            SettingsRead::Setting { setting: s::Setting::Application { kind: 11, scope: 0, number: 4 }, revision: 0 },
+            0,
+        ),
         (br#"{"revision":4,"from":9}"#, SettingsRead::Revision { number: 4 }, 9),
         (br#"{"history":{},"from":10}"#, SettingsRead::Revisions { before: None }, 10),
         (br#"{"history":{"before":4},"from":11}"#, SettingsRead::Revisions { before: Some(4) }, 11),
@@ -88,7 +93,7 @@ fn every_settings_read_form_and_offset_decodes() {
 fn settings_bad_fields_are_refused_by_name() {
     for spec in &crate::calls::SPECS {
         if [b"settings".as_slice(), b"propose_settings"].contains(&spec.name) {
-            assert!(skein_lib::bytes::find(spec.schema, br#""description":"Required for charter, template, policy, model, landing-rule and forge-charter; the other kinds take none.""#).is_some());
+            assert!(skein_lib::bytes::find(spec.schema, br#""description":"Required for charter, template, policy, model, landing-rule, forge-charter or template-goal (template's); else none.""#).is_some());
         }
     }
     for (input, why) in [
@@ -101,6 +106,8 @@ fn settings_bad_fields_are_refused_by_name() {
         (br#"{"setting":{"kind":"model"}}"#, Problem::Needs { kind: b"model", member: b"number" }),
         (br#"{"setting":{"kind":"landing-rule"}}"#, Problem::Needs { kind: b"landing-rule", member: b"number" }),
         (br#"{"setting":{"kind":"forge-charter"}}"#, Problem::Needs { kind: b"forge-charter", member: b"number" }),
+        (br#"{"setting":{"kind":"template-goal"}}"#, Problem::Needs { kind: b"template-goal", member: b"number" }),
+        (br#"{"setting":{"kind":"template-goal","number":4,"project":1}}"#, Problem::Range(b"project")),
         (br#"{"setting":{"kind":"rules","number":1}}"#, Problem::Range(b"number")),
         (br#"{"setting":{"kind":"charter","number":1,"project":1}}"#, Problem::Range(b"project")),
         (br#"{"setting":{"kind":"forge-charter","number":1,"project":1}}"#, Problem::Range(b"project")),
@@ -692,15 +699,22 @@ fn the_settings_tool_restores_the_stocks_policy_and_rules() {
 
 #[test]
 fn a_runs_proposal_carries_the_forges_charter_number() {
-    let call = decided(
-        b"propose_settings",
-        br#"{"against":1,"reason":"the change charter","items":[{"setting":{"kind":"forge-charter","number":1},"set":2}]}"#,
-    ).expect("forge charter proposal");
-    let engine::Tool::ProposeSettings { items, kinds, .. } = call.tool else { panic!("settings proposal") };
-    assert_eq!(items[0].setting, s::Setting::Application { kind: 3, scope: 0, number: 1 });
-    assert_eq!(kinds.len(), 1);
-    assert_eq!((kinds[0].kind, kinds[0].scope, kinds[0].number), (3, 0, 1));
-    assert_eq!(kinds[0].value.value, temper_engine_domain_forge::settings::Value::Charter(2));
+    use temper_engine_domain_forge::settings::{TemplateGoal, Value};
+    for (input, kind, number, value) in [
+        (br#"{"against":1,"reason":"the change charter","items":[{"setting":{"kind":"forge-charter","number":1},"set":2}]}"#.as_slice(), 3, 1, Value::Charter(2)),
+        (br#"{"against":1,"reason":"the goal's work","items":[{"setting":{"kind":"template-goal","number":4},"set":{"design":true,"close_out":false}}]}"#, 11, 4, Value::Goal(TemplateGoal { design: true, close_out: false })),
+    ] {
+        let call = decided(b"propose_settings", input).expect("typed proposal");
+        let engine::Tool::ProposeSettings { items, kinds, .. } = call.tool else { panic!("settings proposal") };
+        assert_eq!(items[0].setting, s::Setting::Application { kind, scope: 0, number });
+        assert_eq!(kinds.len(), 1);
+        assert_eq!((kinds[0].kind, kinds[0].scope, kinds[0].number), (kind, 0, number));
+        assert_eq!(kinds[0].value.value, value);
+    }
+    let crate::Decoded::Answered(answer) = decoded(b"propose_settings", br#"{"against":1,"reason":"bad scope","items":[{"setting":{"kind":"template-goal","number":4,"project":1},"set":{"design":true,"close_out":false}}]}"#).expect("form refusal") else { panic!("project refused") };
+    let (body, error) = answer.into_parts();
+    assert!(error);
+    assert_eq!(body.as_ref(), b"settings file item 1: template-goal.project: unknown member");
 }
 
 #[test]
@@ -915,7 +929,7 @@ fn inventory_people_forms_share_repository_pagination() {
     )
     .into_parts();
     assert!(error);
-    assert_eq!(unknown.as_ref(), b"not read: no such setting at that revision. This says nothing about the settings: read the inventory and name what it lists; project-ways and project-questions take project and no number.\nend\n", "context belongs only to an inventory");
+    assert_eq!(unknown.as_ref(), b"not read: no such setting at that revision. This says nothing about the settings: read the inventory and name what it lists; template-goal takes a template number and no project; project-ways and project-questions take project and no number.\nend\n", "context belongs only to an inventory");
 }
 
 #[test]

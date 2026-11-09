@@ -35,7 +35,7 @@ pub const SEE_PART: u32 = 6_144;
 /// The line of addresses an unknown address answers with, as `ask.txt` gives it.
 pub const ADDRESSES: &str = "me · project · goals [ended] · tasks · task N [tree | activity | turn A.T] · change N · changes · inbox · ways · settings [KIND N | rules | landing-rule N [project] | landing | gates OWNER/NAME | project-ways | project-questions] · revisions · revision N · proposal tN/K or pN/K · help [NAME | search WORDS] · file OWNER/NAME PATH [BRANCH] · more TOKEN";
 
-const INVENTORY: &[u8] = "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · revisions · help settings".as_bytes();
+const INVENTORY: &[u8] = "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings template-goal N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · revisions · help settings".as_bytes();
 const SETTING: &[u8] = "settings · revisions · help settings-fields".as_bytes();
 const LANDING_RULE: &[u8] = "settings landing · settings · help landing-rule".as_bytes();
 const FILE: &[u8] = "file OWNER/NAME PATH [BRANCH] · settings gates OWNER/NAME".as_bytes();
@@ -101,6 +101,9 @@ fn following(line: &[u8], answer: &SeeAnswer) -> &'static [u8] {
             jig_domain_core::SettingsAnswer::Inventory(_) => INVENTORY,
             jig_domain_core::SettingsAnswer::Setting(document) => match document.setting {
                 jig_domain_core::settings::Setting::Application { kind: 1 | 2, .. } => LANDING_RULE,
+                jig_domain_core::settings::Setting::Application { kind: 11, .. } => {
+                    b"settings template N \xc2\xb7 ways \xc2\xb7 help settings-fields"
+                }
                 jig_domain_core::settings::Setting::Charter(_)
                 | jig_domain_core::settings::Setting::Template(_)
                 | jig_domain_core::settings::Setting::Policy(_)

@@ -250,28 +250,7 @@ pub fn ending_with_binary(
             }
             Stop::CommitFailed { number } => format!("{binary} serve: commit {number} failed\n"),
             Stop::Hooks => format!("{binary} serve: webhooks listener failed\n"),
-            Stop::Listener { listener, address, error } => {
-                let name = match listener {
-                    temper_service::Listening::Clients => "client",
-                    temper_service::Listening::Workers => "worker",
-                    temper_service::Listening::Webhooks => "webhooks",
-                };
-                let address = match address {
-                    Some(skein_io::Addr::Ip(socket)) => socket.to_string(),
-                    Some(skein_io::Addr::InProcess(name)) => String::from_utf8_lossy(name.as_bytes()).into_owned(),
-                    None => "unknown".into(),
-                };
-                let why = match error {
-                    Some(skein_io::Error::Refused) => "refused",
-                    Some(skein_io::Error::Unreachable) => "unreachable",
-                    Some(skein_io::Error::TimedOut) => "timed out",
-                    Some(skein_io::Error::Reset) => "reset",
-                    Some(skein_io::Error::Busy) => "busy",
-                    Some(skein_io::Error::Other) => "other",
-                    None => "closed",
-                };
-                format!("{binary} serve: {name} listener {address} failed: {why}\n")
-            }
+            Stop::Listener { listener, address, error } => listener_failed_line(binary, *listener, *address, *error),
         },
         None | Some(End::Drained | End::Aborted) => String::new(),
     };
@@ -449,6 +428,27 @@ pub fn note_line(binary: &str, note: temper_service::Note) -> String {
         temper_service::Note::Linked { worker, address } => {
             format!("linked {} {address}\n", String::from_utf8_lossy(&worker))
         }
+        temper_service::Note::Lost { worker, address, why } => {
+            format!("lost {} {address} {}\n", String::from_utf8_lossy(&worker), worker_loss(why))
+        }
+        temper_service::Note::WorkerLost { worker, channel, why } => {
+            format!(
+                "{binary} serve: worker lost worker={} channel={}: {}\n",
+                worker_name(worker.as_deref()),
+                channel.raw(),
+                engine_worker_loss(why)
+            )
+        }
+        temper_service::Note::WorkerOpeningEnded { worker, why } => {
+            format!(
+                "{binary} serve: worker opening ended worker={}: {}\n",
+                worker_name(worker.as_deref()),
+                engine_worker_loss(why)
+            )
+        }
+        temper_service::Note::WorkerListenerFailed { address, error } => {
+            listener_failed_line(binary, temper_service::Listening::Workers, address, error)
+        }
         temper_service::Note::Refused { worker, address, reason } => {
             let reason = refusal(reason);
             format!("refused {} {address} {reason}\n", String::from_utf8_lossy(&worker))
@@ -588,6 +588,84 @@ fn setup_stopped_line(binary: &str, number: u16, why: temper_service::SetupStopp
         }
     };
     format!("{binary} serve: forge {number}: Not connected: {why}\n")
+}
+
+fn listener_failed_line(
+    binary: &str,
+    listener: temper_service::Listening,
+    address: Option<skein_io::Addr>,
+    error: Option<skein_io::Error>,
+) -> String {
+    let name = match listener {
+        temper_service::Listening::Clients => "client",
+        temper_service::Listening::Workers => "worker",
+        temper_service::Listening::Webhooks => "webhooks",
+    };
+    let address = match address {
+        Some(skein_io::Addr::Ip(socket)) => socket.to_string(),
+        Some(skein_io::Addr::InProcess(name)) => String::from_utf8_lossy(name.as_bytes()).into_owned(),
+        None => "unknown".into(),
+    };
+    let why = match error {
+        Some(skein_io::Error::Refused) => "refused",
+        Some(skein_io::Error::Unreachable) => "unreachable",
+        Some(skein_io::Error::TimedOut) => "timed out",
+        Some(skein_io::Error::Reset) => "reset",
+        Some(skein_io::Error::Busy) => "busy",
+        Some(skein_io::Error::Other) => "other",
+        None => "closed",
+    };
+    format!("{binary} serve: {name} listener {address} failed: {why}\n")
+}
+
+fn loss_refusal(code: u16) -> String {
+    refusal(match code {
+        2 => temper_service::Refusal::Terms,
+        3 => temper_service::Refusal::Malformed,
+        code => temper_service::Refusal::Peer(code),
+    })
+}
+
+fn worker_name(worker: Option<&[u8]>) -> String {
+    match worker {
+        Some(name) => String::from_utf8_lossy(name).into_owned(),
+        None => "-".into(),
+    }
+}
+
+fn engine_worker_loss(why: temper_service::EngineWorkerLoss) -> String {
+    use temper_service::EngineWorkerLoss as Loss;
+    match why {
+        Loss::Silence => "silence".into(),
+        Loss::Stall => "stall".into(),
+        Loss::Full => "full".into(),
+        Loss::Deadline => "deadline".into(),
+        Loss::Stream => "stream".into(),
+        Loss::Framing => "framing".into(),
+        Loss::Refused { reason } => format!("refused {}", loss_refusal(reason)),
+        Loss::RefusedPeer { reason } => format!("refused-by-peer {}", loss_refusal(reason)),
+        Loss::NoRoom => "no-room".into(),
+        Loss::Stopping => "stopping".into(),
+    }
+}
+
+fn worker_loss(why: temper_service::WorkerLoss) -> String {
+    use temper_service::{WorkerClosed as Closed, WorkerLoss as Loss};
+    match why {
+        Loss::Closed(Closed::Stream) => "stream".into(),
+        Loss::Closed(Closed::Truncated) => "truncated".into(),
+        Loss::Closed(Closed::Framing) => "framing".into(),
+        Loss::Closed(Closed::Owner) => "owner".into(),
+        Loss::Closed(Closed::RefusedHere(reason)) => format!("refused {}", loss_refusal(reason)),
+        Loss::Closed(Closed::RefusedPeer(reason)) => format!("refused-by-peer {}", loss_refusal(reason)),
+        Loss::Silence => "silence".into(),
+        Loss::Stall => "stall".into(),
+        Loss::Handshake => "handshake".into(),
+        Loss::Full => "full".into(),
+        Loss::Busy => "busy".into(),
+        Loss::Fault => "fault".into(),
+        Loss::Unreachable => "unreachable".into(),
+    }
 }
 
 fn refusal(reason: temper_service::Refusal) -> String {
@@ -877,6 +955,236 @@ fn worker_link_notes_print_each_address_and_refusal_exactly() {
                 format!("refused worker-a {printed} {expected}\n")
             );
         }
+    }
+}
+
+#[test]
+fn worker_loss_lines_name_each_cause_and_refusal_exactly() {
+    use temper_service::{Note, WorkerClosed as Closed, WorkerLoss as Loss};
+    for (why, expected) in [
+        (Loss::Closed(Closed::Stream), "lost worker-a [::1]:7100 stream\n"),
+        (Loss::Closed(Closed::Truncated), "lost worker-a [::1]:7100 truncated\n"),
+        (Loss::Closed(Closed::Framing), "lost worker-a [::1]:7100 framing\n"),
+        (Loss::Closed(Closed::Owner), "lost worker-a [::1]:7100 owner\n"),
+        (Loss::Silence, "lost worker-a [::1]:7100 silence\n"),
+        (Loss::Stall, "lost worker-a [::1]:7100 stall\n"),
+        (Loss::Handshake, "lost worker-a [::1]:7100 handshake\n"),
+        (Loss::Full, "lost worker-a [::1]:7100 full\n"),
+        (Loss::Busy, "lost worker-a [::1]:7100 busy\n"),
+        (Loss::Fault, "lost worker-a [::1]:7100 fault\n"),
+        (Loss::Unreachable, "lost worker-a [::1]:7100 unreachable\n"),
+        (Loss::Closed(Closed::RefusedHere(2)), "lost worker-a [::1]:7100 refused terms\n"),
+        (Loss::Closed(Closed::RefusedHere(3)), "lost worker-a [::1]:7100 refused malformed\n"),
+        (Loss::Closed(Closed::RefusedHere(256)), "lost worker-a [::1]:7100 refused unauthorized\n"),
+        (Loss::Closed(Closed::RefusedHere(257)), "lost worker-a [::1]:7100 refused application\n"),
+        (Loss::Closed(Closed::RefusedHere(258)), "lost worker-a [::1]:7100 refused busy\n"),
+        (Loss::Closed(Closed::RefusedHere(259)), "lost worker-a [::1]:7100 refused replaced\n"),
+        (Loss::Closed(Closed::RefusedHere(260)), "lost worker-a [::1]:7100 refused not-admitted\n"),
+        (Loss::Closed(Closed::RefusedHere(261)), "lost worker-a [::1]:7100 refused stopping\n"),
+        (Loss::Closed(Closed::RefusedHere(42)), "lost worker-a [::1]:7100 refused code-42\n"),
+        (Loss::Closed(Closed::RefusedPeer(2)), "lost worker-a [::1]:7100 refused-by-peer terms\n"),
+        (Loss::Closed(Closed::RefusedPeer(3)), "lost worker-a [::1]:7100 refused-by-peer malformed\n"),
+        (Loss::Closed(Closed::RefusedPeer(256)), "lost worker-a [::1]:7100 refused-by-peer unauthorized\n"),
+        (Loss::Closed(Closed::RefusedPeer(257)), "lost worker-a [::1]:7100 refused-by-peer application\n"),
+        (Loss::Closed(Closed::RefusedPeer(258)), "lost worker-a [::1]:7100 refused-by-peer busy\n"),
+        (Loss::Closed(Closed::RefusedPeer(259)), "lost worker-a [::1]:7100 refused-by-peer replaced\n"),
+        (Loss::Closed(Closed::RefusedPeer(260)), "lost worker-a [::1]:7100 refused-by-peer not-admitted\n"),
+        (Loss::Closed(Closed::RefusedPeer(261)), "lost worker-a [::1]:7100 refused-by-peer stopping\n"),
+        (Loss::Closed(Closed::RefusedPeer(42)), "lost worker-a [::1]:7100 refused-by-peer code-42\n"),
+    ] {
+        assert_eq!(
+            note_line(
+                "temper",
+                Note::Lost {
+                    worker: b"worker-a".as_slice().into(),
+                    address: Box::new(([0, 0, 0, 0, 0, 0, 0, 1], 7100).into()),
+                    why,
+                }
+            ),
+            expected,
+            "{why:?}"
+        );
+    }
+}
+
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one table pins every engine loss and refusal for both a lost channel and an opening"
+)]
+fn engine_worker_loss_lines_name_each_cause_and_refusal_exactly() {
+    use temper_service::{EngineWorkerLoss as Loss, Note};
+    for (why, lost, opening) in [
+        (
+            Loss::Silence,
+            "temper serve: worker lost worker=worker-a channel=7: silence\n",
+            "temper serve: worker opening ended worker=-: silence\n",
+        ),
+        (
+            Loss::Stall,
+            "temper serve: worker lost worker=worker-a channel=7: stall\n",
+            "temper serve: worker opening ended worker=-: stall\n",
+        ),
+        (
+            Loss::Full,
+            "temper serve: worker lost worker=worker-a channel=7: full\n",
+            "temper serve: worker opening ended worker=-: full\n",
+        ),
+        (
+            Loss::Deadline,
+            "temper serve: worker lost worker=worker-a channel=7: deadline\n",
+            "temper serve: worker opening ended worker=-: deadline\n",
+        ),
+        (
+            Loss::Stream,
+            "temper serve: worker lost worker=worker-a channel=7: stream\n",
+            "temper serve: worker opening ended worker=-: stream\n",
+        ),
+        (
+            Loss::Framing,
+            "temper serve: worker lost worker=worker-a channel=7: framing\n",
+            "temper serve: worker opening ended worker=-: framing\n",
+        ),
+        (
+            Loss::NoRoom,
+            "temper serve: worker lost worker=worker-a channel=7: no-room\n",
+            "temper serve: worker opening ended worker=-: no-room\n",
+        ),
+        (
+            Loss::Stopping,
+            "temper serve: worker lost worker=worker-a channel=7: stopping\n",
+            "temper serve: worker opening ended worker=-: stopping\n",
+        ),
+        (
+            Loss::Refused { reason: 2 },
+            "temper serve: worker lost worker=worker-a channel=7: refused terms\n",
+            "temper serve: worker opening ended worker=-: refused terms\n",
+        ),
+        (
+            Loss::Refused { reason: 3 },
+            "temper serve: worker lost worker=worker-a channel=7: refused malformed\n",
+            "temper serve: worker opening ended worker=-: refused malformed\n",
+        ),
+        (
+            Loss::Refused { reason: 256 },
+            "temper serve: worker lost worker=worker-a channel=7: refused unauthorized\n",
+            "temper serve: worker opening ended worker=-: refused unauthorized\n",
+        ),
+        (
+            Loss::Refused { reason: 257 },
+            "temper serve: worker lost worker=worker-a channel=7: refused application\n",
+            "temper serve: worker opening ended worker=-: refused application\n",
+        ),
+        (
+            Loss::Refused { reason: 258 },
+            "temper serve: worker lost worker=worker-a channel=7: refused busy\n",
+            "temper serve: worker opening ended worker=-: refused busy\n",
+        ),
+        (
+            Loss::Refused { reason: 259 },
+            "temper serve: worker lost worker=worker-a channel=7: refused replaced\n",
+            "temper serve: worker opening ended worker=-: refused replaced\n",
+        ),
+        (
+            Loss::Refused { reason: 260 },
+            "temper serve: worker lost worker=worker-a channel=7: refused not-admitted\n",
+            "temper serve: worker opening ended worker=-: refused not-admitted\n",
+        ),
+        (
+            Loss::Refused { reason: 261 },
+            "temper serve: worker lost worker=worker-a channel=7: refused stopping\n",
+            "temper serve: worker opening ended worker=-: refused stopping\n",
+        ),
+        (
+            Loss::Refused { reason: 42 },
+            "temper serve: worker lost worker=worker-a channel=7: refused code-42\n",
+            "temper serve: worker opening ended worker=-: refused code-42\n",
+        ),
+        (
+            Loss::RefusedPeer { reason: 2 },
+            "temper serve: worker lost worker=worker-a channel=7: refused-by-peer terms\n",
+            "temper serve: worker opening ended worker=-: refused-by-peer terms\n",
+        ),
+        (
+            Loss::RefusedPeer { reason: 3 },
+            "temper serve: worker lost worker=worker-a channel=7: refused-by-peer malformed\n",
+            "temper serve: worker opening ended worker=-: refused-by-peer malformed\n",
+        ),
+        (
+            Loss::RefusedPeer { reason: 256 },
+            "temper serve: worker lost worker=worker-a channel=7: refused-by-peer unauthorized\n",
+            "temper serve: worker opening ended worker=-: refused-by-peer unauthorized\n",
+        ),
+        (
+            Loss::RefusedPeer { reason: 257 },
+            "temper serve: worker lost worker=worker-a channel=7: refused-by-peer application\n",
+            "temper serve: worker opening ended worker=-: refused-by-peer application\n",
+        ),
+        (
+            Loss::RefusedPeer { reason: 258 },
+            "temper serve: worker lost worker=worker-a channel=7: refused-by-peer busy\n",
+            "temper serve: worker opening ended worker=-: refused-by-peer busy\n",
+        ),
+        (
+            Loss::RefusedPeer { reason: 259 },
+            "temper serve: worker lost worker=worker-a channel=7: refused-by-peer replaced\n",
+            "temper serve: worker opening ended worker=-: refused-by-peer replaced\n",
+        ),
+        (
+            Loss::RefusedPeer { reason: 260 },
+            "temper serve: worker lost worker=worker-a channel=7: refused-by-peer not-admitted\n",
+            "temper serve: worker opening ended worker=-: refused-by-peer not-admitted\n",
+        ),
+        (
+            Loss::RefusedPeer { reason: 261 },
+            "temper serve: worker lost worker=worker-a channel=7: refused-by-peer stopping\n",
+            "temper serve: worker opening ended worker=-: refused-by-peer stopping\n",
+        ),
+        (
+            Loss::RefusedPeer { reason: 42 },
+            "temper serve: worker lost worker=worker-a channel=7: refused-by-peer code-42\n",
+            "temper serve: worker opening ended worker=-: refused-by-peer code-42\n",
+        ),
+    ] {
+        assert_eq!(
+            note_line(
+                "temper",
+                Note::WorkerLost {
+                    worker: Some(b"worker-a".as_slice().into()),
+                    channel: skein_lib::Token::new(7),
+                    why,
+                }
+            ),
+            lost,
+            "{why:?}"
+        );
+        assert_eq!(note_line("temper", Note::WorkerOpeningEnded { worker: None, why }), opening, "{why:?}");
+    }
+    assert_eq!(
+        note_line(
+            "temper",
+            Note::WorkerOpeningEnded { worker: Some(b"worker-a".as_slice().into()), why: Loss::Silence }
+        ),
+        "temper serve: worker opening ended worker=worker-a: silence\n"
+    );
+}
+
+#[test]
+fn worker_listener_failures_print_the_exit_lines_words_at_once() {
+    use temper_service::Note;
+    for (address, error, expected) in [
+        (
+            Some(skein_io::Addr::Ip(([127, 0, 0, 1], 7100).into())),
+            Some(skein_io::Error::Unreachable),
+            "temper serve: worker listener 127.0.0.1:7100 failed: unreachable\n",
+        ),
+        (
+            Some(skein_io::Addr::InProcess(skein_io::Name::new(b"workers").unwrap())),
+            None,
+            "temper serve: worker listener workers failed: closed\n",
+        ),
+    ] {
+        assert_eq!(note_line("temper", Note::WorkerListenerFailed { address, error }), expected);
     }
 }
 

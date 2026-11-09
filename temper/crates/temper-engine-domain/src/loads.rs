@@ -192,6 +192,12 @@ impl Loads {
         Loads { limits: *limits, entries: Slab::with_capacity(limits.loads) }
     }
 
+    /// Whether a page can begin. Retired slots remain taken until reclaim.
+    #[must_use]
+    pub fn has_room(&self) -> bool {
+        !self.entries.is_full()
+    }
+
     /// Pure shell idle query: no issued page awaits its terminal or reclaim. Abandoned IO remains
     /// counted until its actual answer.
     #[must_use]

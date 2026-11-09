@@ -188,13 +188,30 @@ switcher's All projects; Work's one list, its head, filters and cards,
 Goals and Changes its filters; Deployment's six tabs, Members and Limits
 new; with a fuzz test of the draft's density rules, the joint world's Work
 across two projects and fifteen gallery states; their render check and
-walk follow landing. Team is never shown, as no read gives the rail a
-project's members or roles; the draft, redrawn after the plan's cut,
-adds a hairline and How work runs to To begin's rail, drops the words
-that still name Settings and takes Away across projects, which the
-design doesn't yet say (`client/README.status.md`, 3.5 and 5.3;
+walk follow landing. Team shows from a project's second person, not yet
+for a standing role; the draft, redrawn after the plan's cut,
+adds a hairline and How work runs to To begin's rail and drops the words
+that still name Settings, which the design doesn't yet say
+(`client/README.status.md`, 3.5 and 5.3;
 `client/browser.status.md`, 2.3, 2.5 and 7.2;
-`draft/surfaces.status.md`, 2, 5, 8 and 10). Home and Needs you across
+`draft/surfaces.status.md`, 2, 5, 8 and 10). Team is the whole story's
+milestone P4a, by plan `ui-p4a-team`: a project's people from its
+document, the reader first, each with their role and what waits on them,
+the reader's from Needs you's entries and another's from the tasks they
+requested, in the rail and the switcher's menu from a second person; its
+parts one pure function, with a fuzz test of their rules, the joint
+world's two people reading each other and three gallery states; its
+render check and walk follow landing. No setting names the project's
+triager, so its line isn't drawn; areas, owners and a role's card are
+P4b's and P4c's, and the draft and `team/team.html`, redrawn after the
+plan's cut, word a box's role and the triager otherwise
+(`client/README.status.md`, 3.5; `client/browser.status.md`, 2.3, 2.5
+and 7.2; `draft/surfaces.status.md`, 6). Away on All projects, by
+plan `ui-away-all`, sets every project the person is in, each by its own
+`SetAway`, one after another, reads "Away on N of M" while they differ
+and toasts how many changed, with two gallery states; its render check
+and walk follow landing (`client/README.md`, 3.5 and 11;
+`client/README.status.md`, 3.5; `client/browser.status.md`, 7.2). Home and Needs you across
 projects, and the brief, are the whole story's milestone P2, by plan
 `ui-p2-home`: Home on All projects at `/home`, reading every project's
 status and decisions, the briefs' first sentences joined, Projects, the
@@ -210,7 +227,19 @@ need's why, owners' lines and What follows what wait for their
 milestones, and the launchpad still reads one project's brief
 (`client/README.md`, 3.5 and 11;
 `client/README.status.md`, 3.5; `client/browser.status.md`, 2.3 and
-7.2; `draft/surfaces.status.md`, 3, 4, 11 and 14). Ask temper's
+7.2; `draft/surfaces.status.md`, 3, 4, 11 and 14). The phone is the
+whole story's milestone P5a, by plan `ui-p5a-phone`: the tab bar from
+one pure rule over the rail's parts, "Needs" with its count, the Ask
+tab's tabs kept under Ask temper's page and its chats, Needs you's own
+bar on a phone, "‹ Needs you" and "1 of 2", and a 44 px target on the
+top bar, the tabs, Home, Needs you, Work and a chat's bar and composer,
+with a fuzz test of the tabs' rule and rows of the gallery's prints; an
+Ask temper chat's thread and the path's stops keep the mock's sizes, and
+the render check and walk follow landing. Tell temper is designed and
+not built, waiting for the engine to file a person's word as a finding
+and for a setting naming the project's triager (`client/README.md`, 3.5,
+5.3 and 11; `client/README.status.md`, 3.5; `client/browser.status.md`,
+2.5; `draft/surfaces.status.md`, 9, 10 and 14). Ask temper's
 first milestone stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
 the instructions' first step of Showing. Charter 3, template 3, `Configure`
@@ -363,7 +392,10 @@ findings, whole (`domain/findings.md`, with their families in
 worker runs temper's merge kind, and the merge job settles a
 change's conflict before a resolution and produces a catch-up into a
 goal's branch; a goal's landing whose update conflicts takes it, but
-no story runs that (`domain/forge.md`). Lost updates and prepares recover
+no story runs that (`domain/forge.md`). A head behind its base takes it
+however far behind, any listed commit or a range too large to list
+proving it lacks the base's tip, and Forgejo answers a long range's
+oldest page (`domain/forge.md`; skein's `forge.md`). Lost updates and prepares recover
 in the worlds, with a reason at their retry bound; the three-thread
 real-process restart proof awaits its after-landing trial
 (`domain/forge.md`, `domain/landing.md`). The prepare and key kinds
@@ -501,7 +533,10 @@ reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words i
 its reply's room, but in those pieces where its process has no local agent, by the
 `read-task-room` plan's cut, and no goal on record has counted what the room saves
 (`domain/root.md`); how the engine is to learn its workers' reply bound is the
-design owner's decision (`domain/agent.md`, section 10). A live delegate counts no stall and a stall's hold reaches its
+design owner's decision (`domain/agent.md`, section 10). A charter is fitted to
+its worker's allowance, smith's 65,536 where the process has no local agent, as
+that section leaves it, and a resolution names a file too large for its brief
+(`domain/agent.md`; `domain/forge.md`). A live delegate counts no stall and a stall's hold reaches its
 task's holder, but no record shows the rerun of the replay the `parallel-faults`
 request has as its proof, nor why its hold came about 57 minutes in, and a no-change
 under another hold is said only once a release holds it again (`domain/forge.md`). A
@@ -571,7 +606,8 @@ throughout the walk
 (`client/browser.md`, `client/forge.md`).
 The browser tier holds its twelve tests, with the call line, model picker,
 welcome sign-in and four reading stories in four merged tests, compiled
-with story labels for failed steps but with no run in Chromium yet. Reading's
+with story labels for failed steps; of those, only the call line's and
+reading's have passing runs in Chromium, each run alone. Reading's
 four stories, apart, passed with ctl history
 and a 131,072-byte window, their CPU medians summing to
 44.849900 s against three unmet targets. The tier's window, `long_text` and
@@ -580,7 +616,10 @@ skein's decoder indexes each CDP message once, with no CPU figure on record
 since; no whole-tier run proves the
 repair within its 127.5 CPU s, 85 raised by half by the user's word of 11-08,
 for now, to be revisited. The listener-full ctl failure is repaired; the public
-visibility-command failure remains unverified. A whole-bound manual reading
+visibility-command failure remains unverified. Reading's story failed twice
+after red-82's opening, `long`'s words moving and `unanchored`'s anchor
+missing; it passed thirty runs alone, loaded and not, and the cause is
+unknown. A whole-bound manual reading
 check, the closed-chat wait's split and a head's stall-deadline story remain
 (`client/browser.md`). A stale view still rereads held Markdown and rebuilds
 and compares the semantic tree, preserving DOM nodes through the diff; retaining

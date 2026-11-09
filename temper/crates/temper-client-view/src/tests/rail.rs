@@ -456,6 +456,64 @@ fn deliver_document(root: &mut d::Domain, watch: Token, document: c::Delivery) {
         },
     );
 }
+// Deliver the rail's project read, preserving the address the row checks.
+pub(super) fn with_people(root: &mut d::Domain, people: u32) {
+    let address = root.pages().address().clone();
+    f::root_event(root, Event::Went { place: d::Place::Address(Address::Forges) });
+    let mut out = Queue::uncapped();
+    d::step(
+        root,
+        &Env { now: Time::ZERO, wall: f::NOW, limits: f::domain_limits() },
+        Event::Went { place: d::Place::Address(Address::Settings { project: f::PROJECT }) },
+        &mut out,
+    );
+    let read = out
+        .iter()
+        .find_map(|request| {
+            if let d::Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Project { .. }) },
+                    },
+            } = request
+            {
+                Some(*read)
+            } else {
+                None
+            }
+        })
+        .expect("rail's project read");
+    let limits = f::domain_limits();
+    let link = jig_client_protocol_link::Limits::new(limits.client.domain, limits.client.exchanges).unwrap();
+    let mut document =
+        jig_client_protocol_link::translate::documents::project(jig_client_test_records::owner_project_record(), &link)
+            .unwrap();
+    document.number = f::PROJECT;
+    let reader = &root.pages().me(root.client()).unwrap().party;
+    let member = c::ProjectMember {
+        party: reader.number,
+        kind: c::PartyKind::Person,
+        name: reader.name.clone(),
+        login: reader.login.clone(),
+        role: c::HeldRole::Owner,
+    };
+    document.members = List::with_capacity(people);
+    for number in 0..people {
+        document.members.push(c::ProjectMember { party: u64::from(number), ..member.clone() }).unwrap();
+    }
+    f::root_event(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Project(Box::new(document)))),
+                },
+            },
+        },
+    );
+    f::root_event(root, Event::Went { place: d::Place::Address(address) });
+}
 fn current_names(tree: &Tree, style: Style) -> Vec<&[u8]> {
     children(styled(tree, style))
         .into_iter()
@@ -469,16 +527,26 @@ fn a_chat_is_never_goals() {
     for (asking, expected) in [(false, b"Work".as_slice()), (true, b"Ask temper".as_slice())] {
         let (mut root, me, chat) = f::root_at(Address::Chat { task: GOAL_TASK }, &f::domain_limits());
         with_goal_fact(&mut root, me, Some(true));
+        let asking_me = f::asking_me(root.pages().me(root.client()).unwrap().clone());
+        f::deliver_me(&mut root, me, asking_me);
         let mut document = f::task::delegate();
         document.project = f::PROJECT;
         document.goal = Some(GOAL_TASK);
         document.priority = Some(GOAL_PRIORITY);
-        document.chip.executor = c::ChipExecutor::Agent { charter: if asking { 11 } else { 1 } };
+        document.chip.executor = c::ChipExecutor::Agent { charter: if asking { 37 } else { 1 } };
         deliver_document(&mut root, chat.unwrap(), c::Delivery::Task(Box::new(document)));
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             let nav = current_names(view.tree(), look::RAIL_NAV);
             let foot = current_names(view.tree(), look::RAIL_FOOT);
             assert_eq!(nav.into_iter().chain(foot).collect::<Vec<_>>(), [expected]);
+            if view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::TABBAR)) {
+                let tabs = styled(view.tree(), look::TABBAR);
+                assert_eq!(tabs[0].styles.as_slice().contains(&look::TABBAR_ASK), asking);
+                assert_eq!(current_names(view.tree(), look::TABBAR), [expected]);
+                let ask = children(tabs).into_iter().find(|n| n.name.as_deref() == Some(b"Ask temper")).unwrap();
+                assert_eq!(f::nodes_text(styled(view.tree(), look::TABBAR)).as_ref(), b"HomeNeedsWorkAsk");
+                assert_eq!(ask.states.as_slice().contains(&State::Current), asking);
+            }
         }
     }
 }
@@ -497,6 +565,7 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
         (Address::NewChat { draft: false }, "Work"),
         (Address::Chat { task: 9 }, "Work"),
         (Address::Task { task: 9 }, "Work"),
+        (Address::Team { project: f::PROJECT }, "Team"),
         (Address::Settings { project: f::PROJECT }, "How work runs"),
         (Address::Role { project: f::PROJECT, charter: 2 }, "How work runs"),
         (Address::Rule { project: f::PROJECT, kind: 2, number: 1 }, "How work runs"),
@@ -515,6 +584,10 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
         let (mut root, watch, _, _) = f::root_at_with_needs(address.clone(), &f::domain_limits());
         let me = f::asking_me(root.pages().me(root.client()).unwrap().clone());
         f::deliver_me(&mut root, watch, me);
+        let team = current == "Team";
+        if team {
+            with_people(&mut root, 2);
+        }
         for (browser, mut view) in [(false, f::page_view(&root)), (true, f::browser_page_view(&root))] {
             let rail = styled(view.tree(), look::RAIL);
             assert_eq!(rail[0].role, Role::Navigation);
@@ -537,19 +610,15 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
             let brand = parts[0].id;
             assert_eq!(crate::href(&mut view, brand).as_deref(), Some(b"/projects/1".as_slice()));
             let nav = children(styled(view.tree(), look::RAIL_NAV));
-            assert_eq!(
-                nav.iter().map(|n| n.name.as_deref()).collect::<Vec<_>>(),
-                [
-                    Some(b"Home".as_slice()),
-                    Some(b"Needs you"),
-                    Some(b"Work"),
-                    Some(b"Ask temper"),
-                    None,
-                    Some(b"How work runs")
-                ]
-            );
-            assert_eq!(nav[4].role, Role::Slot);
-            assert_eq!(nav[4].styles.as_slice(), [look::RAIL_SEP]);
+            let mut names = vec![Some(b"Home".as_slice()), Some(b"Needs you"), Some(b"Work")];
+            if team {
+                names.push(Some(b"Team"));
+            }
+            names.extend([Some(b"Ask temper".as_slice()), None, Some(b"How work runs")]);
+            assert_eq!(nav.iter().map(|n| n.name.as_deref()).collect::<Vec<_>>(), names);
+            let sep = nav[4 + usize::from(team)];
+            assert_eq!(sep.role, Role::Slot);
+            assert_eq!(sep.styles.as_slice(), [look::RAIL_SEP]);
             let expected = if current == "Deployment" { vec![] } else { vec![current.as_bytes()] };
             assert_eq!(current_names(view.tree(), look::RAIL_NAV), expected, "{address:?}");
             assert_eq!(
@@ -558,28 +627,42 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                 "{address:?}"
             );
             let rows: Vec<_> = nav.into_iter().filter(|n| n.role == Role::Link).map(|n| n.id).collect();
-            for (id, href) in rows.into_iter().zip([
-                b"/projects/1".as_slice(),
-                b"/?project=1",
-                b"/projects/1/work",
-                b"/projects/1/ask",
-                b"/projects/1/settings",
-            ]) {
+            let mut hrefs = vec![b"/projects/1".as_slice(), b"/?project=1", b"/projects/1/work"];
+            if team {
+                hrefs.push(b"/projects/1/team");
+            }
+            hrefs.extend([b"/projects/1/ask".as_slice(), b"/projects/1/settings"]);
+            for (id, href) in rows.into_iter().zip(hrefs) {
                 assert_eq!(crate::href(&mut view, id).as_deref(), Some(href));
             }
             if view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::TABBAR)) {
                 assert!(browser);
                 assert_eq!(
+                    styled(view.tree(), look::TABBAR)[0].styles.as_slice().contains(&look::TABBAR_ASK),
+                    current == "Ask temper"
+                );
+                let links = children(styled(view.tree(), look::TABBAR));
+                assert_eq!(f::nodes_text(styled(view.tree(), look::TABBAR)).as_ref(), b"HomeNeedsWorkAsk");
+                let ids: Vec<_> = links.iter().map(|n| n.id).collect();
+                for (id, href) in ids.into_iter().zip([
+                    b"/projects/1".as_slice(),
+                    b"/?project=1",
+                    b"/projects/1/work",
+                    b"/projects/1/ask",
+                ]) {
+                    assert_eq!(crate::href(&mut view, id).as_deref(), Some(href));
+                }
+                assert_eq!(
                     children(styled(view.tree(), look::TABBAR))
                         .iter()
                         .map(|n| n.name.as_deref().unwrap())
                         .collect::<Vec<_>>(),
-                    [b"Home".as_slice(), b"Needs you", b"Work", b"Ask temper"]
+                    [b"Home".as_slice(), b"Needs", b"Work", b"Ask temper"]
                 );
                 assert_eq!(
                     current_names(view.tree(), look::TABBAR),
                     if ["Home", "Needs you", "Work", "Ask temper"].contains(&current) {
-                        vec![current.as_bytes()]
+                        vec![if current == "Needs you" { b"Needs".as_slice() } else { current.as_bytes() }]
                     } else {
                         vec![]
                     }
@@ -623,12 +706,13 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     continue;
                 }
                 let nodes = styled(view.tree(), style);
-                let name = if count == 0 {
-                    "Needs you"
-                } else if cut {
-                    "Needs you 3+"
-                } else {
-                    "Needs you 3"
+                let name = match (style == look::TABBAR, count == 0, cut) {
+                    (true, true, _) => "Needs",
+                    (true, false, false) => "Needs 3",
+                    (true, false, true) => "Needs 3+",
+                    (false, true, _) => "Needs you",
+                    (false, false, false) => "Needs you 3",
+                    (false, false, true) => "Needs you 3+",
                 };
                 assert_eq!(current_names(view.tree(), style), [name.as_bytes()]);
                 let badges: Vec<_> = nodes.iter().filter(|n| n.styles.as_slice().contains(&look::NAV_COUNT)).collect();
@@ -638,6 +722,101 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                 }
             }
         }
+    }
+    for (address, current, asking) in [
+        (Address::Home { project: f::PROJECT }, b"Home".as_slice(), false),
+        (Address::Ask { project: f::PROJECT }, b"Ask temper".as_slice(), true),
+    ] {
+        let (mut root, me, _, settings, ..) =
+            f::home_root(&f::domain_limits(), List::with_capacity(0), Some(&[]), false);
+        let me_document = f::asking_me(root.pages().me(root.client()).unwrap().clone());
+        let mut out = Queue::uncapped();
+        let env = Env { now: Time::ZERO, wall: f::NOW, limits: f::domain_limits() };
+        d::step(
+            &mut root,
+            &env,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Watched {
+                        watch: settings,
+                        event: c::WatchEvent::Delivered(c::Delivery::Settings(Box::new(c::SettingsDocument {
+                            newest: 0,
+                            settings: List::with_capacity(0),
+                            held: List::with_capacity(0),
+                            pending: List::with_capacity(0),
+                        }))),
+                    },
+                },
+            },
+            &mut out,
+        );
+        d::step(
+            &mut root,
+            &env,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Watched {
+                        watch: me,
+                        event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me_document))),
+                    },
+                },
+            },
+            &mut out,
+        );
+        d::step(&mut root, &env, Event::Went { place: d::Place::Address(address.clone()) }, &mut out);
+        while let Some(request) = out.pop() {
+            let d::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else {
+                continue;
+            };
+            let up = match down {
+                jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { .. }) } => {
+                    jig_client::Up::Watched {
+                        watch,
+                        event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                            rows: List::with_capacity(0),
+                            more: false,
+                        }))),
+                    }
+                }
+                jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => {
+                    jig_client::Up::ReadDone {
+                        read,
+                        result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(
+                            c::TaskPage {
+                                live: List::with_capacity(0),
+                                live_after: None,
+                                ended: c::EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },
+                            },
+                        )))),
+                    }
+                }
+                jig_client::Down::Open { .. }
+                | jig_client::Down::Read { .. }
+                | jig_client::Down::Continue { .. }
+                | jig_client::Down::Close { .. }
+                | jig_client::Down::Save { .. }
+                | jig_client::Down::Erase { .. }
+                | jig_client::Down::Send { .. } => continue,
+            };
+            d::step(&mut root, &env, Event::Client { event: jig_client::Event::Up { up } }, &mut out);
+        }
+        let mut view = f::browser_page_view(&root);
+        let tabs = styled(view.tree(), look::TABBAR);
+        assert!(
+            tabs[0].styles.as_slice().contains(&look::TABBAR_BEGINNING),
+            "{:?}",
+            pages::home::facts(&root, f::PROJECT, f::NOW)
+        );
+        assert_eq!(tabs[0].styles.as_slice().contains(&look::TABBAR_ASK), asking);
+        let links = children(tabs);
+        assert_eq!(
+            links.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(),
+            [b"Home".as_slice(), b"Ask temper", b"Deployment"]
+        );
+        assert_eq!(f::nodes_text(tabs).as_ref(), b"HomeAskDeployment");
+        assert_eq!(current_names(view.tree(), look::TABBAR), [current]);
+        let deployment = links[2].id;
+        assert_eq!(crate::href(&mut view, deployment).as_deref(), Some(b"/accounts".as_slice()));
     }
 }
 
@@ -798,40 +977,75 @@ fn the_terminal_numbers_the_rail_and_keeps_the_first_line() {
             },
         },
     );
-    let view = f::page_view(&root);
-    let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
-    skein_ui_text::render(view.tree(), b"temper", Some(crate::frame::link_region()), &mut print);
-    let text = String::from_utf8_lossy(print.text.as_slice());
-    assert_eq!(text.lines().next(), Some("== Inbox == Offline; Behind"));
-    for line in [
-        "[2] All projects · 2 projects (pressed)",
-        "[7] How work runs for Shop",
-        "[8] Deployment",
-        "[9] Home",
-        "[10] Needs you (current)",
-        "[11] Work",
-        "[12] How work runs",
-        "[13] Draft",
-        "[14] Change",
-        "[15] Deployment",
+    for (people, first_line, lines) in [
+        (
+            None,
+            "== Inbox == Offline; Behind",
+            &[
+                "[2] All projects · 2 projects (pressed)",
+                "[7] How work runs for Shop",
+                "[8] Deployment",
+                "[9] Home",
+                "[10] Needs you (current)",
+                "[11] Work",
+                "[12] How work runs",
+                "[13] Draft",
+                "[14] Change",
+                "[15] Deployment",
+            ][..],
+        ),
+        (
+            Some(2),
+            "== Who owns what on Shop == Offline; Behind",
+            &[
+                "[2] All projects · 2 projects",
+                "[7] Team for Shop (current)",
+                "[8] How work runs for Shop",
+                "[9] Deployment",
+                "[10] Home",
+                "[11] Needs you",
+                "[12] Work",
+                "[13] Team (current)",
+                "[14] How work runs",
+                "[15] Draft",
+                "[16] Change",
+                "[17] Deployment",
+            ][..],
+        ),
     ] {
-        assert!(text.lines().any(|s| s.trim() == line), "{line}: {text}");
+        if let Some(people) = people {
+            f::root_event(&mut root, Event::Went { place: d::Place::Address(Address::Team { project: f::PROJECT }) });
+            with_people(&mut root, people);
+        }
+        let view = f::page_view(&root);
+        let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
+        skein_ui_text::render(view.tree(), b"temper", Some(crate::frame::link_region()), &mut print);
+        let text = String::from_utf8_lossy(print.text.as_slice());
+        assert_eq!(text.lines().next(), Some(first_line));
+        for line in lines {
+            assert!(text.lines().any(|s| s.trim() == *line), "{line}: {text}");
+        }
+        assert!(!text.contains("Sections:"));
+        assert!(!text.contains("Sign out"));
     }
-    assert!(!text.contains("Sections:"));
-    assert!(!text.contains("Sign out"));
 }
 
 #[test]
 fn kind_seven_changes_no_navigation_entry() {
     use d::forge::ways::Ways;
-    for (ways, refused) in [
-        (Some(Ways { goals: true, changes: true, ..Ways::STOCK }), false),
-        (None, false),
-        (None, true),
-        (Some(Ways::STOCK), false),
+    for (ways, refused, people) in [
+        (Some(Ways { goals: true, changes: true, ..Ways::STOCK }), false, None),
+        (None, false, None),
+        (None, true, None),
+        (Some(Ways::STOCK), false, None),
+        (Some(Ways::STOCK), false, Some(1)),
+        (Some(Ways::STOCK), false, Some(2)),
     ] {
         let address = Address::Changes { project: f::PROJECT };
-        let root = if refused { f::root_with_refused_ways(address) } else { f::root_with_ways(address, ways) };
+        let mut root = if refused { f::root_with_refused_ways(address) } else { f::root_with_ways(address, ways) };
+        if let Some(people) = people {
+            with_people(&mut root, people);
+        }
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             for style in [look::RAIL_NAV, look::TABBAR] {
                 if !view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&style)) {
@@ -842,9 +1056,13 @@ fn kind_seven_changes_no_navigation_entry() {
                 assert_eq!(
                     names,
                     if style == look::RAIL_NAV {
-                        vec![b"Home".as_slice(), b"Needs you", b"Work", b"How work runs"]
+                        if people == Some(2) {
+                            vec![b"Home".as_slice(), b"Needs you", b"Work", b"Team", b"How work runs"]
+                        } else {
+                            vec![b"Home".as_slice(), b"Needs you", b"Work", b"How work runs"]
+                        }
                     } else {
-                        vec![b"Home".as_slice(), b"Needs you", b"Work"]
+                        vec![b"Home".as_slice(), b"Needs", b"Work"]
                     }
                 );
                 assert_eq!(current_names(view.tree(), style), [b"Work".as_slice()]);

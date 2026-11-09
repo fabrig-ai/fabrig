@@ -18,6 +18,38 @@ fn kept_log() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/story-a.log")
 }
 
+fn doubled_byte_bounds(deployment: &[u8]) -> Box<[u8]> {
+    fn double(overrides: &mut serde_json::Value) {
+        for (name, value) in overrides.as_object_mut().expect("limit overrides") {
+            // Startup requires checkout.name_bytes to agree with the agent's
+            // name_bytes and the longest remote derived from forge.name_bytes,
+            // and hub.event_bytes to fit tool_payload minus 2.
+            if name == "checkout.name_bytes" || name == "forge.name_bytes" || name == "hub.event_bytes" {
+                continue;
+            }
+            // These count payload alone: documents/small.rs clips UTF-8;
+            // tasks/batch.rs counts spec text and contract words. The stock
+            // templates also expose result_bytes as their report contract.
+            if name == "documents.text_bytes" || name == "tasks.spec_bytes" || name == "tasks.result_bytes" {
+                continue;
+            }
+            if name.ends_with("_bytes") {
+                let bytes = value.as_u64().expect("a byte bound");
+                *value = bytes.checked_mul(2).expect("doubled byte bound fits").into();
+            }
+        }
+    }
+
+    let mut document: serde_json::Value = serde_json::from_slice(deployment).expect("deployment document");
+    for path in ["/engine/limits/overrides", "/application/limits/overrides"] {
+        double(document.pointer_mut(path).expect("deployment limit overrides"));
+    }
+    for worker in document["workers"].as_array_mut().expect("deployment workers") {
+        double(worker.pointer_mut("/limits/overrides").expect("worker limit overrides"));
+    }
+    serde_json::to_vec(&document).expect("doubled deployment document").into_boxed_slice()
+}
+
 #[test]
 fn story_a_walks_from_the_welcome_to_the_csv_change_landed() {
     let mut page = Page::start(&A, SEED, Wall::EPOCH);
@@ -54,12 +86,17 @@ fn story_a_walks_from_the_welcome_to_the_csv_change_landed() {
 fn story_a_kept_log_replays_natively() {
     let bytes = std::fs::read(kept_log()).expect("story A's kept log");
     let read = log::read(&bytes).expect("the kept session log");
-    let world = temper_playground::world(A.start(read.seed, read.start));
-    let parameters = story::parameters(&world);
-    let replayed =
-        programs::with(parameters, || skein_playground::replay::replay(world, story::reach(), &read, &mut ()))
-            .unwrap_or_else(|differs| panic!("{differs:#?}"));
-    assert_main(&replayed);
+    for (row, deployment) in [("kept", A.deployment.into()), ("doubled", doubled_byte_bounds(A.deployment))] {
+        let mut start = A.start(read.seed, read.start);
+        start.deployment = deployment;
+        let world = temper_playground::world(start);
+        let parameters = story::parameters(&world);
+        let replayed = programs::with(parameters, || {
+            skein_playground::replay::replay(world, story::reach(), &read, &mut ())
+                .unwrap_or_else(|differs| panic!("{row}: {differs:#?}"))
+        });
+        assert_main(&replayed);
+    }
 }
 
 #[test]
