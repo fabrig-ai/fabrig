@@ -170,6 +170,23 @@ pub enum Fault {
     Cancelled,
 }
 
+impl Fault {
+    /// Closed fault words for operator diagnostics (temper/docs/design/domain/worker.md, 4.4).
+    #[must_use]
+    pub const fn name(self) -> &'static [u8] {
+        match self {
+            Self::Missing { missing: Missing::Repository } => b"Missing(Repository)",
+            Self::Missing { missing: Missing::Branch } => b"Missing(Branch)",
+            Self::Missing { missing: Missing::Commit } => b"Missing(Commit)",
+            Self::Refused => b"Refused",
+            Self::Unreachable => b"Unreachable",
+            Self::Broken => b"Broken",
+            Self::TimedOut => b"TimedOut",
+            Self::Cancelled => b"Cancelled",
+        }
+    }
+}
+
 /// What the forge does not have.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Missing {

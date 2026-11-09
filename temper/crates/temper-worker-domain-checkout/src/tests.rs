@@ -570,7 +570,10 @@ fn a_base_branch_created_meanwhile_is_fetched_again_and_not_moved() {
     h.next(hold, Done::Fetched { commit: commit(9) });
     h.next(hold, Done::Exists);
     let gone = h.one(Event::Done { owner: hold, done: failed(Fault::Missing { missing: Missing::Branch }) });
-    assert_eq!(prepared(gone), Prepared::Failed { failure: Failure::Transient , detail: Box::new([]) });
+    assert_eq!(
+        prepared(gone),
+        Prepared::Failed { failure: Failure::Transient, detail: bytes(b"refetch base: Missing(Branch)") }
+    );
 }
 
 #[test]
@@ -604,10 +607,15 @@ fn preparation_failures_are_typed() {
         (3, failed(Fault::TimedOut), Failure::Transient, b"fetch: TimedOut".as_slice()),
         (0, failed(Fault::Broken), Failure::Transient, b"make: Broken".as_slice()),
         (4, failed(Fault::Broken), Failure::Transient, b"check out: Broken".as_slice()),
-        (3, Done::FailedWithOutput {
-            fault: Fault::Unreachable,
-            diagnostic: crate::git::PushDiagnostic::new(b"fatal: unreachable", 0),
-        }, Failure::Transient, b"fetch: Unreachable: fatal: unreachable".as_slice()),
+        (
+            3,
+            Done::FailedWithOutput {
+                fault: Fault::Unreachable,
+                diagnostic: crate::git::PushDiagnostic::new(b"fatal: unreachable", 0),
+            },
+            Failure::Transient,
+            b"fetch: Unreachable: fatal: unreachable".as_slice(),
+        ),
     ];
     for (after, fault, failure, detail) in cases {
         let mut h = Harness::new(LIMITS);
@@ -618,7 +626,7 @@ fn preparation_failures_are_typed() {
             h.next(hold, done);
         }
         let end = h.one(Event::Done { owner: hold, done: fault });
-        assert_eq!(prepared(end), Prepared::Failed { failure , detail: bytes(detail) }, "after {after} operations");
+        assert_eq!(prepared(end), Prepared::Failed { failure, detail: bytes(detail) }, "after {after} operations");
         // It may only be released.
         assert_eq!(refused(h.one(Event::Push { hold, message: message() })), Refusal::Busy);
         h.none(Event::Abort { hold });
@@ -787,7 +795,11 @@ fn a_retry_keeps_a_stronger_expected_and_verifies_an_ambiguous_push() {
 
 #[test]
 fn landing_fetch_failures_fail_preparation_and_never_fall_back() {
-    for fault in [Fault::Missing { missing: Missing::Branch }, Fault::Unreachable, Fault::Refused] {
+    for (fault, detail) in [
+        (Fault::Missing { missing: Missing::Branch }, b"fetch landing: Missing(Branch)".as_slice()),
+        (Fault::Unreachable, b"fetch landing: Unreachable".as_slice()),
+        (Fault::Refused, b"fetch landing: Refused".as_slice()),
+    ] {
         let mut h = Harness::new(LIMITS);
         let (hold, _) = h.prepare(1, spec(b"w", Box::new([retry_repository()])));
         h.next(hold, Done::Succeeded);
@@ -800,7 +812,7 @@ fn landing_fetch_failures_fail_preparation_and_never_fall_back() {
         };
         assert_eq!(
             prepared(h.one(Event::Done { owner: hold, done: failed(fault) })),
-            Prepared::Failed { failure: expected , detail: Box::new([]) }
+            Prepared::Failed { failure: expected, detail: bytes(detail) }
         );
     }
 }
@@ -1076,7 +1088,10 @@ fn a_missing_base_branch_of_a_read_only_repository_is_missing() {
     let end = h.one(Event::Done { owner: hold, done: failed(Fault::Missing { missing: Missing::Branch }) });
     assert_eq!(
         prepared(end),
-        Prepared::Failed { failure: Failure::Missing { repository: 0, missing: Missing::Branch } , detail: Box::new([]) }
+        Prepared::Failed {
+            failure: Failure::Missing { repository: 0, missing: Missing::Branch },
+            detail: bytes(b"fetch: Missing(Branch)")
+        }
     );
 }
 
@@ -1319,7 +1334,10 @@ fn merge_starts_require_configured_path_room_and_missing_branches_are_never_crea
         h.one(Event::Done { owner: hold, done: failed(Fault::Missing { missing: Missing::Branch }) }),
         Request::Prepared {
             client: Token::new(1),
-            prepared: Prepared::Failed { failure: Failure::Missing { repository: 0, missing: Missing::Branch } , detail: Box::new([]) }
+            prepared: Prepared::Failed {
+                failure: Failure::Missing { repository: 0, missing: Missing::Branch },
+                detail: bytes(b"fetch: Missing(Branch)")
+            }
         }
     );
 }
@@ -1685,7 +1703,10 @@ fn a_failed_producer_base_query_is_transient() {
     let (mut h, hold) = comparing_producer_base(false);
     assert_eq!(
         h.one(Event::Done { owner: hold, done: failed(Fault::Refused) }),
-        Request::Prepared { client: Token::new(1), prepared: Prepared::Failed { failure: Failure::Transient , detail: Box::new([]) } }
+        Request::Prepared {
+            client: Token::new(1),
+            prepared: Prepared::Failed { failure: Failure::Transient, detail: bytes(b"compare base: Refused") }
+        }
     );
 }
 
@@ -1746,7 +1767,10 @@ fn merged_head_conflict_fails_naming_it() {
         h.one(Event::Done { owner: hold, done: Done::Conflicted { files: Box::new([bytes(b"code")]) } }),
         Request::Prepared {
             client: Token::new(1),
-            prepared: Prepared::Failed { failure: Failure::Conflicted { repository: 0, head: commit(8) } , detail: Box::new([]) }
+            prepared: Prepared::Failed {
+                failure: Failure::Conflicted { repository: 0, head: commit(8) },
+                detail: bytes(b"merge: Conflicted")
+            }
         }
     );
     assert_eq!(h.domain.holds(), 1);
@@ -1764,12 +1788,15 @@ fn merged_head_conflict_fails_naming_it() {
 
 #[test]
 fn merged_head_checkout_failure_ends_preparation_transient() {
-    for done in [
-        Done::Failed { fault: Fault::Broken },
-        Done::FailedWithOutput {
-            fault: Fault::Broken,
-            diagnostic: crate::git::PushDiagnostic::new(b"checkout failed", 0),
-        },
+    for (done, detail) in [
+        (Done::Failed { fault: Fault::Broken }, b"check out head: Broken".as_slice()),
+        (
+            Done::FailedWithOutput {
+                fault: Fault::Broken,
+                diagnostic: crate::git::PushDiagnostic::new(b"checkout failed", 0),
+            },
+            b"check out head: Broken: checkout failed".as_slice(),
+        ),
     ] {
         let mut h = Harness::new(MERGES);
         let hold = begin_merged(&mut h, &[commit(7)]);
@@ -1778,7 +1805,10 @@ fn merged_head_checkout_failure_ends_preparation_transient() {
         h.next(hold, Done::Committed { commit: commit(11) });
         assert_eq!(
             h.one(Event::Done { owner: hold, done }),
-            Request::Prepared { client: Token::new(1), prepared: Prepared::Failed { failure: Failure::Transient , detail: Box::new([]) } }
+            Request::Prepared {
+                client: Token::new(1),
+                prepared: Prepared::Failed { failure: Failure::Transient, detail: bytes(detail) }
+            }
         );
     }
 }
@@ -1854,12 +1884,19 @@ fn a_first_saved_start_makes_without_looking() {
 
 #[test]
 fn a_failed_look_spoils_the_workspace_and_fails_transient() {
-    for fault in [Fault::Broken, Fault::TimedOut, Fault::Cancelled] {
+    for (fault, detail) in [
+        (Fault::Broken, b"look: Broken".as_slice()),
+        (Fault::TimedOut, b"look: TimedOut".as_slice()),
+        (Fault::Cancelled, b"look: Cancelled".as_slice()),
+    ] {
         let mut h = Harness::reusing(LIMITS);
         let (hold, _) = h.prepare(1, one(b"work"));
         assert_eq!(
             h.one(Event::Done { owner: hold, done: failed(fault) }),
-            Request::Prepared { client: Token::new(1), prepared: Prepared::Failed { failure: Failure::Transient , detail: Box::new([]) } }
+            Request::Prepared {
+                client: Token::new(1),
+                prepared: Prepared::Failed { failure: Failure::Transient, detail: bytes(detail) }
+            }
         );
         h.one(Event::Release { hold });
         h.facts();

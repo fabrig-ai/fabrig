@@ -47,6 +47,17 @@ impl Domain {
         Ok(Domain { kinds, jobs: Map::with_capacity(limits.jobs) })
     }
 
+    /// The declared verb for an assignment's kind, or closed words for an unknown kind (worker.md, 4.4).
+    #[must_use]
+    pub fn verb(&self, number: JobKind) -> Box<[u8]> {
+        for kind in &self.kinds {
+            if kind.bound.kind == number {
+                return kind.verb.clone();
+            }
+        }
+        copy_of(b"unknown")
+    }
+
     /// The kinds' bounds, for the hello.
     #[must_use]
     pub fn bounds(&self) -> Box<[JobBound]> {
@@ -218,7 +229,9 @@ fn advance(job: &mut Job, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
             State::Reading { deliver, most } => {
                 let end = match bytes {
                     Some(result) if within(&result, most) => End::Finished { result, deliver },
-                    Some(_) | None => End::Failed { detail: job.tail.clone() },
+                    Some(_) | None => {
+                        End::Failed { detail: diagnostic(b"result missing or past its bound", &job.tail) }
+                    }
                 };
                 job.state = State::Ending;
                 out.push(Request::Ended { owner, end });
@@ -280,11 +293,28 @@ fn exited_job(job: &mut Job, env: &Env<Limits>, owner: Token, exit: Exit, out: &
             out.push(Request::Read { owner, path, most });
             return;
         }
-        Exit::Code(_) | Exit::Signal => End::Failed { detail: job.tail.clone() },
+        Exit::Code(code) => {
+            let number = skein_lib::Decimal::of(u64::from(code));
+            let mut prefix =
+                Writer::new(b"exit ".len().checked_add(number.as_bytes().len()).expect("bounded exit code"));
+            prefix.put(b"exit ").expect("exit prefix");
+            prefix.put(number.as_bytes()).expect("exit code");
+            End::Failed { detail: diagnostic(&prefix.finish(), &job.tail) }
+        }
+        Exit::Signal => End::Failed { detail: diagnostic(b"signal", &job.tail) },
         Exit::Deadline => End::Deadline,
     };
     job.state = State::Ending;
     out.push(Request::Ended { owner, end });
+}
+
+fn diagnostic(why: &[u8], tail: &[u8]) -> Box<[u8]> {
+    let size = why.len().checked_add(2).expect("fixed reason").checked_add(tail.len()).expect("bounded stderr tail");
+    let mut text = Writer::new(size);
+    for part in [why, b": ", tail] {
+        text.put(part).expect("measured job diagnostic");
+    }
+    text.finish()
 }
 
 fn refuse(owner: Token, why: &[u8], out: &mut Queue<Request>) {

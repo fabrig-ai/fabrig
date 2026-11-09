@@ -192,7 +192,10 @@ fn a_missing_or_oversized_result_file_fails_the_job() {
         h.exited(Exit::Code(0));
         assert_eq!(
             h.one(Event::Read { owner: OWNER, bytes }),
-            Request::Ended { owner: OWNER, end: End::Failed { detail: copy_of(b"result missing or past its bound: stderr") } }
+            Request::Ended {
+                owner: OWNER,
+                end: End::Failed { detail: copy_of(b"result missing or past its bound: stderr") }
+            }
         );
         h.gone(OWNER, b"stderr");
     }
