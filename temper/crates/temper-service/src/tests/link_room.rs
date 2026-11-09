@@ -190,10 +190,16 @@ impl Joint {
                         assert!(parts.is_empty());
                         self.answers.push(answer).unwrap();
                     }
-                    other @ (kit::Request::Take { .. } | kit::Request::TurnAway { .. }
-                    | kit::Request::Lower { .. } | kit::Request::Close { .. } | kit::Request::Abort { .. }
-                    | kit::Request::Hello { .. } | kit::Request::Up { .. } | kit::Request::Lost { .. }
-                    | kit::Request::Ended { .. } | kit::Request::Closed) => {
+                    other @ (kit::Request::Take { .. }
+                    | kit::Request::TurnAway { .. }
+                    | kit::Request::Lower { .. }
+                    | kit::Request::Close { .. }
+                    | kit::Request::Abort { .. }
+                    | kit::Request::Hello { .. }
+                    | kit::Request::Up { .. }
+                    | kit::Request::Lost { .. }
+                    | kit::Request::Ended { .. }
+                    | kit::Request::Closed) => {
                         panic!("unexpected engine output; the link must stay up: {other:?}")
                     }
                 }
@@ -208,14 +214,22 @@ impl Joint {
                         self.assignments.push(assignment).unwrap();
                     }
                     other @ (temper_worker_domain::Event::SourceAnswered { .. }
-                    | temper_worker_domain::Event::ListRead { .. } | temper_worker_domain::Event::AssignJob { .. }
-                    | temper_worker_domain::Event::Job { .. } | temper_worker_domain::Event::Link(_)
-                    | temper_worker_domain::Event::Ready | temper_worker_domain::Event::Lost
-                    | temper_worker_domain::Event::GracePassed | temper_worker_domain::Event::Resend { .. }
-                    | temper_worker_domain::Event::RelayCancelled { .. } | temper_worker_domain::Event::Process(_)
-                    | temper_worker_domain::Event::Live { .. } | temper_worker_domain::Event::Decoded { .. }
-                    | temper_worker_domain::Event::Encoded { .. } | temper_worker_domain::Event::Activity { .. }
-                    | temper_worker_domain::Event::Done { .. } | temper_worker_domain::Event::Shutdown) => {
+                    | temper_worker_domain::Event::ListRead { .. }
+                    | temper_worker_domain::Event::AssignJob { .. }
+                    | temper_worker_domain::Event::Job { .. }
+                    | temper_worker_domain::Event::Link(_)
+                    | temper_worker_domain::Event::Ready
+                    | temper_worker_domain::Event::Lost
+                    | temper_worker_domain::Event::GracePassed
+                    | temper_worker_domain::Event::Resend { .. }
+                    | temper_worker_domain::Event::RelayCancelled { .. }
+                    | temper_worker_domain::Event::Process(_)
+                    | temper_worker_domain::Event::Live { .. }
+                    | temper_worker_domain::Event::Decoded { .. }
+                    | temper_worker_domain::Event::Encoded { .. }
+                    | temper_worker_domain::Event::Activity { .. }
+                    | temper_worker_domain::Event::Done { .. }
+                    | temper_worker_domain::Event::Shutdown) => {
                         panic!("unexpected worker root event; the link must stay up: {other:?}")
                     }
                 }
@@ -444,12 +458,20 @@ fn tree(run: &mut root::Assignment, limits: &payload::Limits, extra: usize) {
         let mut repository = fixtures::repository(
             index.checked_add(1).unwrap(),
             &filled(usize::try_from(limits.repository_name).unwrap()),
-            &filled(usize::try_from(limits.repository_name).unwrap().checked_add(if index == 0 { extra } else { 0 }).unwrap()),
+            &filled(
+                usize::try_from(limits.repository_name)
+                    .unwrap()
+                    .checked_add(if index == 0 { extra } else { 0 })
+                    .unwrap(),
+            ),
         );
         let mut heads = List::with_capacity(limits.merged_heads);
-        for _ in 0..limits.merged_heads { heads.push([7; 32]).unwrap(); }
+        for _ in 0..limits.merged_heads {
+            heads.push([7; 32]).unwrap();
+        }
         repository.start = root::ForgeStart::Merged {
-            branch: filled(usize::try_from(limits.merged_branch).unwrap()), heads: heads.into_boxed(),
+            branch: filled(usize::try_from(limits.merged_branch).unwrap()),
+            heads: heads.into_boxed(),
         };
         repository.push = Some(filled(usize::try_from(limits.writable_push).unwrap()));
         repository.landing = Some(filled(usize::try_from(limits.writable_landing_some).unwrap()));
@@ -461,24 +483,51 @@ fn tree(run: &mut root::Assignment, limits: &payload::Limits, extra: usize) {
 fn inbox(run: &mut root::Assignment, settings: &settings::Engine, extra: usize) {
     let mut messages = List::with_capacity(settings.jig.limits.core.tasks.run_inbox);
     for number in 0..settings.jig.limits.core.tasks.run_inbox {
-        messages.push(tasks::Word {
-            number: u64::from(number).checked_add(1).unwrap(), from: tasks::Party::Person(1),
-            kind: tasks::MessageKind::Words,
-            words: filled(usize::try_from(settings.jig.limits.core.tasks.message_bytes).unwrap().checked_add(if number == 0 { extra } else { 0 }).unwrap()),
-            at: Wall::EPOCH, hits: 1, eligible: true,
-        }).unwrap();
+        messages
+            .push(tasks::Word {
+                number: u64::from(number).checked_add(1).unwrap(),
+                from: tasks::Party::Person(1),
+                kind: tasks::MessageKind::Words,
+                words: filled(
+                    usize::try_from(settings.jig.limits.core.tasks.message_bytes)
+                        .unwrap()
+                        .checked_add(if number == 0 { extra } else { 0 })
+                        .unwrap(),
+                ),
+                at: Wall::EPOCH,
+                hits: 1,
+                eligible: true,
+            })
+            .unwrap();
     }
     run.messages = messages.into_boxed();
 }
 fn calls(run: &mut root::Assignment, settings: &settings::Engine, extra: usize) {
     let mut calls = List::with_capacity(settings.jig.limits.core.call_records);
     for number in 0..settings.jig.limits.core.call_records {
-        calls.push(core::Settled {
-            key: core::CallKey { task: run.task, attempt: run.attempt, completion: number.checked_add(1).unwrap(), position: 0 },
-            call: core::SettledCall { serial: u64::from(number).checked_add(1).unwrap(), tool: b"see".as_slice().into(),
-                answer: core::SettledAnswer::Host { error: false, body: filled(usize::try_from(settings.jig.limits.core.call_answer_bytes).unwrap().checked_add(if number == 0 { extra } else { 0 }).unwrap()) },
-            },
-        }).unwrap();
+        calls
+            .push(core::Settled {
+                key: core::CallKey {
+                    task: run.task,
+                    attempt: run.attempt,
+                    completion: number.checked_add(1).unwrap(),
+                    position: 0,
+                },
+                call: core::SettledCall {
+                    serial: u64::from(number).checked_add(1).unwrap(),
+                    tool: b"see".as_slice().into(),
+                    answer: core::SettledAnswer::Host {
+                        error: false,
+                        body: filled(
+                            usize::try_from(settings.jig.limits.core.call_answer_bytes)
+                                .unwrap()
+                                .checked_add(if number == 0 { extra } else { 0 })
+                                .unwrap(),
+                        ),
+                    },
+                },
+            })
+            .unwrap();
     }
     run.settled = calls.into_boxed();
 }
