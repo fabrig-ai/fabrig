@@ -303,6 +303,20 @@ step its last answer arrives.
 - **One decision, one commit.** What a decision changes in every child
   and connector it touched is one commit: records written or removed, as
   one.
+- **Whole across families, through a kill.** That commit is one
+  skein-kv commit (`../protocol/store.md`, 6), so a process killed at
+  any point of its write, after any record, mid-frame or between
+  families, starts again from what was durable: the last whole
+  decision, never part of one. No family's record is durable without
+  the records of its decision that it links to.
+- **Nothing links ahead of what it names.** A decision saves a record
+  that names a party, task, project or revision only when the core
+  holds what it names, made in that decision or an earlier one. A
+  person named by an input from outside the core (a procedure's or a
+  connector's batch, an agent's ask or tool call, an application's
+  request) that the people child does not hold is refused where the
+  input is admitted, saying which, and never written, so a start finds
+  every link it makes (section 6).
 - **Numbered and in order.** The journal numbers commits and the store
   applies them in that order. Its answer is that a commit is durable,
   which makes every earlier one durable too.
@@ -604,21 +618,29 @@ one rule for every child and the store:
   start reads the clock for expiry, so a clock set back during the start
   changes nothing. A row whose time passes after it is live, loaded and
   linked, and expires through the ordinary timers once the engine serves.
-- **It panics** at a link it cannot make: a task or a claim naming a
-  revision not held (17.7), a name reserved by another source
-  (accounts.md, 3.4), an ended read position whose task is missing, a
-  connector's row naming what it lacks.
+- **It refuses a link it cannot make:** a record naming one the start
+  did not load (a task's party, project, placed hold or task, a claim's
+  proof), a task or a claim naming a revision not held or a charter
+  that revision lacks (17.7), a name reserved by another source
+  (accounts.md, 3.4), an ended read position whose task is missing,
+  a projection or a connector's row naming what it lacks, a person
+  whose identity another person's row holds (the second row naming
+  the first).
 - **It no longer checks** a family's rules, a record's shape beyond its
   codec, who wrote it, or a patch's counts, which the manifest keeps
   and the tests compare (`../protocol/store.md`, 10.2).
-- **A link that cannot be made** is a writer's bug, and an assertion
-  where the link is made: the engine panics, its message naming the
-  record's key and the link, and stops as any fail-stop does, until a
-  release that repairs the writer starts it (the user, 10-28). Nothing
-  else is built for it: leaving such a record out so that the start
-  goes on is open (section 16). Every link is made before any sweep
-  runs (`../protocol/store.md`, section 9), so the panic erases no
-  value.
+- **A link that cannot be made** refuses the start as `Failure::Link`,
+  naming the record's key and what it links to (`Linked`: a record's
+  key, a charter at a revision, a project, a connector), the first one
+  found, and the engine stops with that reason, never a panic (the
+  user, request `store-crash-safe` of 11-09, which replaces the
+  assertion of 10-28). Each child's link check answers the same way,
+  through its own restore refusal, and the core names it in
+  `Failure::Link`. The store stays as it was: nothing repairs it, and
+  leaving such a record out so that the start goes on is open
+  (section 16). Every link is made before any sweep runs
+  (`../protocol/store.md`, section 9), so the refusal erases no value,
+  and a release that repairs the writer, or the store, starts it.
 - **The checks are tests** (section 15): every world story ends with a
   cold restart that restores and reads back what it wrote, and a record
   left out fails a test build; each patch is proved over sample stores
@@ -2195,13 +2217,9 @@ section 5).
   out of the live state with what links through it, kept in the store,
   named in the start's notes to a party with a role in the deployment,
   and its child's sweep skipped, so that a writer's bug costs a record
-  and not the start. For now it panics (the user, 10-28); after the
-  first release.
-- **A duplicate person's identity,** at a start (section 6): a link
-  that cannot be made, so it panics, naming its row. Whether it refuses
-  the start instead, beside section 6's refusals, a cause of people's
-  and a failure of the core's. Default: it panics; the user's to
-  decide.
+  and not the start. For now it refuses the start, naming the record
+  and its link (request `store-crash-safe`, 11-09); after the first
+  release.
 - **A transcript's load with no slot** (9.1, 7.2): a root whose load table
   is full answers `TranscriptLoad::Failed`, as it does for a page it cannot
   take, so room that frees by itself counts as transient, and the try it

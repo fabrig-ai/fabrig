@@ -1,0 +1,25 @@
+draft = "store-crash-safe"
+repo = "fabrig"
+sources = ["jig/docs/plan/store-crash-safe/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/migration"
+priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "link-refusal"
+title = "A store that fails a link at start refuses the start, naming the record and what it links to, never a panic"
+mode = "direct"
+needs = []
+design = "jig/docs/design/domain/engine.md, 6"
+
+[[slice]]
+id = 1
+story = "A store holding a task whose person is missing refuses the start as Failure::Link naming both, changes nothing, and temper serve prints that reason"
+parts = ["link-refusal"]
+walk = false
