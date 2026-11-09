@@ -362,6 +362,9 @@ coordinator plans and makes no close-out." (the engine world's
   has it, and the tools' declarations and `help settings` name the kind
   and its members alone; no story proposes one. Stage one's golden asks
   it of the reference's (`testing.status.md`, 6.5.1).
+- **Not yet:** 4.3, *A refused branch read*: `read_branches`'s
+  `TooLarge` keeps its one line and names no bound
+  (`temper-engine-smith/src/answers.rs`).
 - **Not yet:** 4.4: a verdict's follow-up tasks.
 - **Not yet:** 4.3.2: no supplied owned-forge live result establishes the
   `live-change-call` request's plain change through the shipped chat's own

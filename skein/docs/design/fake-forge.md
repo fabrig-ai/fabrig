@@ -410,7 +410,16 @@ and what the two layers share (section 12), and holds no clock of its own.
   not there answers `500`; a failed job's completion step reports
   `failure`; a push to a pull request's head or base starts a mergeability
   check. `forge.md`, section 9 names the fact that records each, or lists
-  those not yet. A reviewer's request answers with no body, where Forgejo
+  those not yet.
+- **Forgejo's narrowing filters are honoured:** the open pull requests'
+  listing keeps only rows whose head and base branches are its `head` and
+  `base`, when given; an issue's comments keep only those updated at or
+  after `since`, when given, still unpaged; the Actions runs' listing
+  keeps only runs of the workflow file `workflow_id` names, when given,
+  before it pages, and still ignores `workflow`. Each is a filter of the
+  domain's read, as `head_sha` is, so the tally shows what a client's
+  filter saved (`forge.md`, 5.2; section 9 lists them as not yet
+  recorded). A reviewer's request answers with no body, where Forgejo
   sends the pull's reviews, which no client reads.
 - **Faults move down to bytes.** A call refused for its rate is `429` with
   `Retry-After` in whole seconds, rounded up; one failed unavailable is `503`;
@@ -870,7 +879,9 @@ faults; the service and the hosted peer each have an allocator binary.
   lists all rows; otherwise the bound is inclusive (`updated_at >= since`).
   A `since` before `1971-01-01T00:00:00Z` answers `200 []`. The named
   `ISSUES_SINCE_MIN` bound in the GitHub reads layer is the earliest observed
-  nonempty bound; the intervening dates were not probed further.
+  nonempty bound; the intervening dates were not probed further. An
+  issue's comments take `since` the same way, inclusive on each comment's
+  `updated_at`, before they page.
 - **GraphQL at `POST /graphql`.** The layer answers the dialect's three
   documents, matched byte for byte against its constants (`viewer`,
   `pull`, `enqueue`), each with its variables. Any other document is
