@@ -84,11 +84,6 @@ dispatch, without establishing a real provider's login or rendered look.
   words to those three cases. Key and sign-in acts retain generic
   not-offered words because that refusal combines several core causes.
   Distinguishing them remains section 11's work.
-- **Not yet:** 5.5, *Each state*, expiring: an expiring source's row
-  draws its tag "Expiring" alone, with no "Expiring: sign in again before
-  it ends.", no "Continue with PLAN" for a sign-in and no command or
-  "Check again" for a usable program's login
-  (`temper-client-view`'s `pages/accounts/rows.rs`).
 
 Sections 3.5 and 5.3 have Ask temper at `/projects/<project>/ask`,
 in the rail after Work and as Ask in the phone tabs, returning to the
