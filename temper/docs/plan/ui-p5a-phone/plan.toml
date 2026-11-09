@@ -1,0 +1,38 @@
+draft = "ui-p5a-phone"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-p5a-phone/inputs/request.md", "temper/docs/design/draft/surfaces.md", "temper/docs/design/draft/whole-story.execution.md", "temper/docs/design/client/web/whole-story/README.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
+priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "tabs"
+title = "The phone's tab bar from one pure rule: Needs with its count, and the Ask tab's tabs under Ask temper's page and its chats"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 5.3"
+
+[[part]]
+id = "pages"
+title = "Needs you's phone bar, and every target of Home, Needs you and Work at 44 px on a phone"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 1
+story = "On a phone a person moves by four tabs, Home, Needs with its count, Work and Ask, asks temper from the Ask tab with the tabs kept, and answers a need on its own page, back to Home in one tap, every target at 44 px"
+parts = ["tabs", "pages"]
+walk = false
+
+[[question]]
+id = "tell-temper-findings"
+answer = """Build P5a without Tell temper's filing. The execution's rule (section 2) is to draw what the engine holds, and no engine files a finding yet, nor does any setting name a triager. So build the phone's pages, and Ask temper on the phone, as the mockups draw them. Leave Tell temper out, with no entry, no placeholder and no made-up triager. Its filing needs the findings family and the triager's setting, which are the owner of coding runs' design. temper/ui is telling the execution file's owner that P5a's Tell temper waits on them, and it follows as its own milestone once they land. Say in plan.md and in surfaces.md's status that Tell temper waits for findings. (temper/ui, 2026-11-08)"""
+text = "Tell temper files a person's words as a finding with the project's triager (surfaces.md, 9; this plan's request). The engine files no finding at all (temper/docs/design/domain/findings.status.md: sections 2 to 9, whole), findings.md names no person's word among its filers, and no project's settings name a triager (landing.md, 13.1, kind 4 is not yet a setting; P4a's Team draws no triager line for that reason). Building it is skein's label writes on both forges, a Finding family and its effects, the findings setting and the triager's wake: temper/migration's design, and more than step 1 may ask of the engine (whole-story.execution.md, section 4: the first step asks nothing new of it). This plan writes Tell temper's client design (client/README.md, 3.5, Tell temper) and builds none of it, with nothing in its place. Options: (a, recommended) findings' filing, a person's word among its filers, joins R2 (temper/migration), which builds findings' routing anyway, and P5b then draws Tell temper whole, filing and routing, from this plan's design; (b) a milestone of its own for findings' filing, temper/migration's, before R2; (c) P5a grows an engine part for it, about ten tasks across skein, the store and the engine."
+parts = []

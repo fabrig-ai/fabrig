@@ -62,7 +62,7 @@ fn fixture_classes(
     title: Option<&[u8]>,
     classes: Option<&temper_protocol_reaches::Classes>,
 ) -> (d::Domain, skein_lib::Token, skein_lib::Token) {
-    fixture_classes_role(words, cut, count, more, filter, title, classes, false)
+    fixture_classes_role(words, cut, count, more, filter, title, classes, false, 2)
 }
 #[expect(clippy::too_many_arguments, reason = "the card fixture carries independent document and role rows")]
 #[expect(clippy::too_many_lines, reason = "the fixture delivers independent question and class documents")]
@@ -75,6 +75,7 @@ fn fixture_classes_role(
     title: Option<&[u8]>,
     classes: Option<&temper_protocol_reaches::Classes>,
     owner: bool,
+    projects: u32,
 ) -> (d::Domain, skein_lib::Token, skein_lib::Token) {
     let (mut root, me_watch, _, _, _, _, _, standing, _) = f::root_at_with_classes(
         Address::Settings { project: f::PROJECT },
@@ -89,9 +90,12 @@ fn fixture_classes_role(
         true,
         classes,
     );
-    if owner {
+    if owner || projects == 1 {
         let mut me = root.pages().me(root.client()).unwrap().clone();
-        me.projects.get_mut(0).unwrap().role = c::HeldRole::Owner;
+        me.projects.truncate(projects);
+        if owner {
+            me.projects.get_mut(0).unwrap().role = c::HeldRole::Owner;
+        }
         event(
             &mut root,
             Event::Client {
@@ -131,7 +135,8 @@ fn fixture_classes_role(
     }
     let mut entries = List::with_capacity(count);
     for message in 1..=u64::from(count) {
-        let project = if filter.project.is_none() && message == 2 { f::SECOND_PROJECT } else { f::PROJECT };
+        let project =
+            if projects > 1 && filter.project.is_none() && message == 2 { f::SECOND_PROJECT } else { f::PROJECT };
         entries.push(documents::entry(object(message), project, message, Wall::EPOCH, None)).unwrap();
     }
     let mut out = Queue::uncapped();
@@ -424,7 +429,7 @@ fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
         }
         let mut view = f::browser_page_view(&root);
         let styles = [
-            look::FLOW_HEAD,
+            look::NEEDS_BAR,
             look::ASK_META,
             look::FLOW_Q,
             look::WHY,
@@ -432,7 +437,6 @@ fn example_parts_are_in_order_and_choices_keep_their_names_and_acts() {
             look::ASK_SAW,
             look::ASK_CHOICES,
             look::NEED_TELL,
-            look::NEXT_UP,
         ];
         let order: Vec<_> =
             styles.iter().map(|s| main(&view).iter().position(|n| n.styles.as_slice().contains(s)).unwrap()).collect();
@@ -650,31 +654,83 @@ fn plain_and_cut_words_have_no_choices_or_saw() {
     }
 }
 #[test]
-fn progress_counts_answered_first_including_cut_and_exposes_pips() {
-    for more in [false, true] {
-        let mut root = fixture(QUESTION, false, 3, more, d::address::Filter::ALL);
-        let view = f::browser_page_view(&root);
-        assert_eq!(styled(&view, look::DOTS).role, Role::Figure);
-        assert_eq!(
-            styled(&view, look::DOTS).name.as_deref(),
-            Some(if more { b"1 of 3+".as_slice() } else { b"1 of 3" })
-        );
-        choose(&mut root, 1);
-        let view = f::browser_page_view(&root);
-        assert_eq!(
-            styled(&view, look::DOTS).name.as_deref(),
-            Some(if more { b"2 of 3+".as_slice() } else { b"2 of 3" })
-        );
-        let dots: Vec<_> = main(&view).iter().filter(|n| n.styles.as_slice().contains(&look::DOT)).collect();
-        assert_eq!(dots.len(), 3);
-        assert_eq!(dots[0].role, Role::Text);
-        assert!(dots[0].styles.as_slice().contains(&look::DOT_DONE));
-        assert!(!dots[1].styles.as_slice().contains(&look::DOT_DONE));
-        assert!(!dots[2].styles.as_slice().contains(&look::DOT_DONE));
+fn phone_bar_links_home_and_counts_answered_including_cut() {
+    for (projects, project, address) in [
+        (1_u32, None, Address::Home { project: f::PROJECT }),
+        (1, Some(f::PROJECT), Address::Home { project: f::PROJECT }),
+        (2, None, Address::AllHome),
+        (2, Some(f::PROJECT), Address::AllHome),
+    ] {
+        for more in [false, true] {
+            let filter = d::address::Filter { project, ..d::address::Filter::ALL };
+            let (mut root, _, decided) =
+                fixture_classes_role(QUESTION, false, 3, more, filter, None, None, false, projects);
+            deliver_asked(&mut root, decided, None);
+            let mut view = f::browser_page_view(&root);
+            assert!(
+                main(&view).iter().any(|node| node.styles.as_slice().contains(&look::NEEDS_BAR)),
+                "bar for {projects} projects, filter {project:?}, more {more}: {:?}",
+                root.pages().inbox()
+            );
+            let bar = styled(&view, look::NEEDS_BAR);
+            assert_eq!(bar.role, Role::Slot);
+            assert_eq!(main(&view)[1].id, bar.id, "the bar precedes the page");
+            let nodes = main(&view);
+            let start = nodes.iter().position(|node| node.id == bar.id).unwrap();
+            let link = &nodes[start + 1];
+            assert_eq!(link.role, Role::Link);
+            assert_eq!(link.name.as_deref(), Some(b"Needs you".as_slice()));
+            let place = &nodes[start + 1 + usize::try_from(link.size).unwrap()];
+            assert!(place.styles.as_slice().contains(&look::NEEDS_BAR_AT), "the place follows the link");
+            let link = link.id;
+            assert_eq!(
+                crate::act(&mut view, link, Act::Press),
+                Some(d::Action::Pages(pages::Act::Go { address: address.clone() }))
+            );
+            assert_eq!(styled(&view, look::NEEDS_BAR_AT).role, Role::Text);
+            assert_eq!(
+                styled(&view, look::NEEDS_BAR_AT).name.as_deref(),
+                Some(if more { b"1 of 3+".as_slice() } else { b"1 of 3" })
+            );
+            for name in
+                [b"temper-flow-head".as_slice(), b"temper-dots", b"temper-dot", b"temper-dot-done", b"temper-next-up"]
+            {
+                assert!(
+                    !main(&view).iter().any(|node| node
+                        .styles
+                        .as_slice()
+                        .iter()
+                        .any(|style| look::NAMES.style(*style) == Some(name)))
+                );
+            }
+            assert!(!main(&view).iter().any(|node| node.role == Role::Figure));
+            assert!(!has(&view, b"Next:"));
+            assert!(!has(&view, b"The last one"));
+            choose(&mut root, 1);
+            let view = f::browser_page_view(&root);
+            assert_eq!(
+                styled(&view, look::NEEDS_BAR_AT).name.as_deref(),
+                Some(if more { b"2 of 3+".as_slice() } else { b"2 of 3" })
+            );
+            choose(&mut root, 2);
+            choose(&mut root, 3);
+            let mut view = f::browser_page_view(&root);
+            assert!(!main(&view).iter().any(|node| node.styles.as_slice().contains(&look::NEEDS_BAR)));
+            let home = main(&view)
+                .iter()
+                .find(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Home"))
+                .unwrap()
+                .id;
+            assert_eq!(
+                crate::act(&mut view, home, Act::Press),
+                Some(d::Action::Pages(pages::Act::Go { address: address.clone() }))
+            );
+        }
     }
 }
+
 #[test]
-fn next_line_last_at_and_later_order() {
+fn opened_card_and_later_order() {
     let (mut root, _, decided) = fixture_watched(
         QUESTION,
         false,
@@ -685,7 +741,7 @@ fn next_line_last_at_and_later_order() {
     );
     deliver_decided(&mut root, decided);
     let view = f::browser_page_view(&root);
-    assert!(has(&view, "Next: forge-cards · Fix the dropped watch".as_bytes()));
+    assert!(!has(&view, b"Next:"));
     act(&mut root, needs::Act::Open { object: object(3) });
     assert!(has(&f::browser_page_view(&root), b"third"));
     assert_eq!(
@@ -696,7 +752,7 @@ fn next_line_last_at_and_later_order() {
     choose(&mut root, 1);
     choose(&mut root, 2);
     let view = f::browser_page_view(&root);
-    assert!(has(&view, b"The last one"));
+    assert!(!has(&view, b"The last one"));
     assert!(has(&view, b"later"));
     assert!(has(&view, "Decided for you · 1".as_bytes()));
     assert!(has(&view, b"for 24 hours, then in each task's history"));
@@ -925,7 +981,6 @@ fn done_with_and_without_lines_and_home_project() {
         assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"Nothing needs you.").is_some());
         assert!(has(&view, b"Every question is answered. Work carries on; Home tells you what changed."));
         assert_eq!(main(&view).iter().any(|n| n.styles.as_slice().contains(&look::ANSWERED)), answered);
-        assert!(!main(&view).iter().any(|n| n.styles.as_slice().contains(&look::FLOW_HEAD)));
         assert_eq!(has(&view, "Decided for you · 1".as_bytes()), decided_rows);
         if decided_rows {
             assert!(has(&view, "Shop · Task 99 · 00:00".as_bytes()));
@@ -939,6 +994,7 @@ fn done_with_and_without_lines_and_home_project() {
                 nodes.iter().position(|node| node.role == Role::Link && node.name.as_deref() == Some(b"Home")).unwrap();
             assert!(region > home);
         }
+        assert!(!main(&view).iter().any(|n| n.styles.as_slice().contains(&look::NEEDS_BAR)));
         let home = main(&view).iter().find(|n| n.role == Role::Link && n.name.as_deref() == Some(b"Home")).unwrap().id;
         assert_eq!(
             crate::act(&mut view, home, Act::Press),
@@ -1089,8 +1145,8 @@ fn list_keeps_one_card_and_opens_rows_in_place() {
             })
             .collect();
         assert_eq!(shapes, ["closed", "open", "closed"]);
-        assert_eq!(styled(&view, look::DOTS).name.as_deref(), Some(b"1 of 3".as_slice()));
-        assert!(has(&view, "Next: welcome-stall · Fix the dropped watch".as_bytes()));
+        assert_eq!(styled(&view, look::NEEDS_BAR_AT).name.as_deref(), Some(b"1 of 3".as_slice()));
+        assert!(!has(&view, b"Next:"));
     }
 }
 #[test]
@@ -1462,7 +1518,7 @@ fn held_row(h: c::Escalation) -> (c::ObjectKey, c::Read, c::ReadValue) {
     )
 }
 fn ordered(view: &crate::View) {
-    let positions: Vec<_> = [look::ASK_META, look::FLOW_Q, look::ASK_CONTEXT, look::ASK_CHOICES, look::NEXT_UP]
+    let positions: Vec<_> = [look::ASK_META, look::FLOW_Q, look::ASK_CONTEXT, look::ASK_CHOICES]
         .iter()
         .map(|style| main(view).iter().position(|node| node.styles.as_slice().contains(style)).unwrap())
         .collect();
@@ -1642,7 +1698,7 @@ fn person_spec_and_plain_acts() {
     assert!(f::find(view.tree(), Role::Button, b"Later").is_none());
 }
 #[test]
-fn mixed_kinds_next_line_uses_each_short() {
+fn mixed_kinds_keep_each_short_and_later_order() {
     let p = proposal(c::Proposer::Task(9));
     let mut p = p;
     p.reason = words("Accept the plan. More context.");
@@ -1659,13 +1715,8 @@ fn mixed_kinds_next_line_uses_each_short() {
         (c::ObjectKey::PersonTask(12), c::Read::PersonTask { task: 12 }, c::ReadValue::PersonTask(Box::new(person))),
     ];
     let mut root = kinds(&rows);
-    let expectations = [
-        ("Accept the plan.", "Next: first-run-projects · first-run-projects"),
-        ("first-run-projects", "Next: first-run-projects · 31 of 40 used"),
-        ("31 of 40 used", "Next: Review the plan · Review the plan"),
-        ("Review the plan", "Next: Task 9 · Accept the plan."),
-    ];
-    for (row, (short, next)) in rows.iter().zip(expectations) {
+    let expectations = ["Accept the plan.", "first-run-projects", "31 of 40 used", "Review the plan"];
+    for (row, short) in rows.iter().zip(expectations) {
         let needs::Need::Card(card) =
             root.pages().needs().shown(root.pages().inbox().unwrap(), root.forge().approvals()).unwrap()
         else {
@@ -1673,7 +1724,7 @@ fn mixed_kinds_next_line_uses_each_short() {
         };
         assert_eq!(crate::pages::ask::read(card, &f::words()).short.as_ref(), short.as_bytes());
         let view = f::browser_page_view(&root);
-        assert!(has(&view, next.as_bytes()));
+        assert!(!has(&view, b"Next:"));
         act(&mut root, needs::Act::Later { object: row.0 });
     }
 }
@@ -2100,19 +2151,16 @@ fn approval_parts_say_the_rule_and_offer_the_review_where_it_counts() {
                 nodes.iter().position(|n| n.id == primary).unwrap() < nodes.iter().position(|n| n.id == open).unwrap()
             );
         }
-        assert_eq!(styled(&view, look::FLOW_HEAD).role, Role::Slot);
+        assert_eq!(styled(&view, look::NEEDS_BAR).role, Role::Slot);
         assert!(has(&view, b"1 of 1"));
-        assert!(has(&view, b"The last one"));
+        assert!(!has(&view, b"The last one"));
     }
     let mut root = fixture(QUESTION, false, 1, false, d::address::Filter::ALL);
     let row = approval_row();
     approvals(&mut root, core::slice::from_ref(&row), 1);
     let mut view = f::browser_page_view(&root);
     assert!(has(&view, b"1 of 2+"));
-    assert_eq!(
-        styled(&view, look::NEXT_UP).name.as_deref(),
-        Some("Next: A change · Approve A change on Forgejo".as_bytes())
-    );
+    assert!(!has(&view, b"Next:"));
     act(&mut root, needs::Act::Later { object: object(1) });
     f::build(&mut view, &root);
     assert!(has(&view, b"Approve A change on Forgejo"));
@@ -2166,6 +2214,7 @@ pub(super) fn stop_root(owner: bool, set: bool) -> d::Domain {
         None,
         Some(&classes),
         owner,
+        2,
     );
     deliver_asked(
         &mut root,

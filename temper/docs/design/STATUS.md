@@ -188,13 +188,25 @@ switcher's All projects; Work's one list, its head, filters and cards,
 Goals and Changes its filters; Deployment's six tabs, Members and Limits
 new; with a fuzz test of the draft's density rules, the joint world's Work
 across two projects and fifteen gallery states; their render check and
-walk follow landing. Team is never shown, as no read gives the rail a
-project's members or roles; the draft, redrawn after the plan's cut,
+walk follow landing. Team shows from a project's second person, not yet
+for a standing role; the draft, redrawn after the plan's cut,
 adds a hairline and How work runs to To begin's rail and drops the words
 that still name Settings, which the design doesn't yet say
 (`client/README.status.md`, 3.5 and 5.3;
 `client/browser.status.md`, 2.3, 2.5 and 7.2;
-`draft/surfaces.status.md`, 2, 5, 8 and 10). Away on All projects, by
+`draft/surfaces.status.md`, 2, 5, 8 and 10). Team is the whole story's
+milestone P4a, by plan `ui-p4a-team`: a project's people from its
+document, the reader first, each with their role and what waits on them,
+the reader's from Needs you's entries and another's from the tasks they
+requested, in the rail and the switcher's menu from a second person; its
+parts one pure function, with a fuzz test of their rules, the joint
+world's two people reading each other and three gallery states; its
+render check and walk follow landing. No setting names the project's
+triager, so its line isn't drawn; areas, owners and a role's card are
+P4b's and P4c's, and the draft and `team/team.html`, redrawn after the
+plan's cut, word a box's role and the triager otherwise
+(`client/README.status.md`, 3.5; `client/browser.status.md`, 2.3, 2.5
+and 7.2; `draft/surfaces.status.md`, 6). Away on All projects, by
 plan `ui-away-all`, sets every project the person is in, each by its own
 `SetAway`, one after another, reads "Away on N of M" while they differ
 and toasts how many changed, with two gallery states; its render check
