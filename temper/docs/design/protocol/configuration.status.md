@@ -25,6 +25,30 @@ trip, `kinds_are_declared_with_their_bounds`,
 `a_projects_stored_ways_read_as_stored` hold it. Only the path reads it
 (`../domain/forge.md`, 8.13).
 
+Sections 3, 13.2, 13.4, 13.9 and 13.10 have no known gap in the words
+saved with a setting: a tier's `description`, read at the start, 1 to 120
+bytes of UTF-8 without a control character or refused at its member, and
+the reference's two tiers described; kinds 9 and 10, the forge's
+`CharterWords` and `ProjectWords`, judged by their bounds and kind 9's
+number, 1 to `tasks.charters`, kept, removed, reset and restored as kind
+11 is, kind 10 erased with its project, kind 9 read by `charter_words`,
+both in the store's and smith's codecs; their declarations to jig, kind
+9's `per_scope` `tasks.charters`; `charter-words` and `project-words` in
+a settings file, the settings form, a run's `settings`, `see` and
+`propose_settings`, with their "none kept" answers; the stock's nine
+charter lines given at each start; and each stock way's headline and
+the project's words in the `ways` read. The forge's judge and kinds
+tables, smith's round trip, the start's tier refusals,
+`every_stock_charter_has_exactly_one_fitting_line`,
+`the_stock_ways_hold_their_words_and_settings`, the engine world's
+`the_asking_chat_reads_each_kind` and `the_reference_landing_member_parses`
+hold it. What the words are said by: How work runs' heading and lede,
+and a tier's card and `see settings gates`; no page says a charter's
+words yet (`../domain/forge.md`, section 20, *A role's words on its
+card*), and `see ways` says no headline (`../domain/agent.status.md`,
+8.4.1). The stock holds no tier, so it has no tier's words
+(`../draft/stock-ways.md`, section 9).
+
 Section 13.4 has stock charters 1, 2, 4, 5, 6, 9, 10, 11 and 12 and
 templates 1, 2, 4, 5 and 6; charter 3, template 3 and `configuring.txt`
 are absent. Charter 12's `drafter.txt` is the words temper/ui handed,
@@ -206,12 +230,6 @@ or in the terminal refusal naming the item and rejected way.
 Section 13.8 has no gap in note-backed settings transport within the call payload ceiling.
 
 ## Gaps and departures
-
-
-
-
-
-
 
 - **Not yet:** 13.9: stage one's golden (`../domain/testing.md`, the
   reference's roles) names the deployment's two landing rules and not

@@ -58,7 +58,12 @@ with a decision's items laid over it (`ways.rs`, `laid_goal`). Rows of
 the focused paths' and cards' tables and of the root's table hold them,
 and the fuzzy test, over random template work, draws "design" and
 "close-out" only with their settings, the close-out once, an agent's,
-after the landing and before the bar.
+after the landing and before the bar. A tier's card says its
+description, from the configuration (`../protocol/configuration.md`,
+section 3), as its fact "Checks" after "Runs", and nothing where it has
+none; the root copies it into the derivation's tier, and the cards'
+table holds the reference's two tiers described
+(`cards_open_the_setting_and_stay_within_the_bounds`).
 
 - **Not yet:** 8.13, *The project's roles*: the drafter, charter 12,
   which the stock holds and its template 6 starts since P6 landed after
@@ -116,7 +121,6 @@ and leave when the merge is admitted. A vetoed approval wait stays First,
 retaining its branch turn. Step tables and the owned-Forgejo engine story
 cover these paths; GitHub's composed story remains in `testing.status.md`,
 6.4.
-
 
 - **Not yet:** 4.6: a link restored outside `--box` survives when its
   person remains the deployment's sole owner. `link.rs`, `owner`, clears
