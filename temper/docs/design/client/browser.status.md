@@ -18,15 +18,18 @@
   `all-home-away` and `all-home-away-on`, add to it, and so do the rows
   `ui-p5a-phone` added to `print_writes_every_page_and_the_bundle`, which
   read the `needs-list`, `ask-chat` and `rail-new-change` prints, with no
-  CPU figure on record either; so do the six states `ui-reaches` added,
-  `home-decided`, `needs-decided`, `needs-why`, `needs-stop-asking`,
-  `needs-stop-asking-set` and `settings-away-you-approve`, in place of
-  `settings-away-off`, with none on record, and the four `ui-n3a-only`
+  CPU figure on record either; so do the five states `ui-reaches` added,
+  `home-decided`, `needs-decided`, `needs-why`, `needs-stop-asking` and
+  `needs-stop-asking-set`, with none on record, the four `ui-n3a-only`
   added, `needs-only-you`, `needs-only-you-done`, `night-needs-only-you`
-  and `accounts-expiring`, with none on record either.
+  and `accounts-expiring`, with none on record either, and What reaches
+  you's columns in `how` and `how-approve` and its two states,
+  `how-reaches` and `night-how-reaches`, which `ui-p3b-reaches` printed in
+  place of `settings-away` and `settings-away-you-approve`, with none on
+  record.
 
-Section 7.2 holds what reaches a person, by plan `ui-reaches`: those six
-states, `settings-away` as a view of Agents review's classes and
+Section 7.2 holds what reaches a person, by plan `ui-reaches`: those five
+states and
 `start-goal-draft`'s "When it needs you", each with its row of
 `each_state_holds_what_its_name_says`; that row checks
 `start-goal-draft`'s "As the project says" is offered, not that it is
@@ -128,15 +131,22 @@ small words `--gf-faint`; and each rise's fade colours its stops by the
 with them.
 
 Sections 2.5, *How work runs' look*, and 7.2 have no known
-implementation gap but the departure above and the entries below: `temper.css`'s `/* ==== ui:
+implementation gap but the departure above: `temper.css`'s `/* ==== ui:
 how ==== */`, after the ways' rules, holds the wide column, the
-section's head and "the way: NAME", Roles' rows and terms, and Budgets'
-row, by day and by night; the path is Ask temper's drawing under its own
+section's head and "the way: NAME", Roles' rows and terms, Budgets'
+row, and What reaches you's grid, boxes, chips and small line,
+`whole-story.css`' `.grid3`, `.box`, `.who` and `.small.muted` on the
+`temper-how-reach*` and `temper-how-who-*` tokens, the agent's star a
+mask of the bundle's `files/star.svg`, by day and by night; the path is
+Ask temper's drawing under its own
 rules, with no lanes and no colour of its own; and `look.rs` names each
 `temper-how-*` class. The gallery prints `how`, `how-approve`,
-`how-draft`, `how-yours`, `how-card` and `night-how` at both widths,
-`how-draft` with Roles, and its table checks each. The rendered
-comparison follows landing (`README.md`, section 11).
+`how-draft`, `how-yours`, `how-card`, `night-how`, `how-reaches` and
+`night-how-reaches` at both widths, `how-draft` with Roles, `how`,
+`how-approve` and `how-reaches` with What reaches you's columns, and its
+table checks each. The rendered
+comparison follows landing (`README.md`, section 11, *What reaches you
+after landing*).
 
 Sections 2.3, 2.5 and 7.2 have no known implementation gap in the rail,
 Work and Deployment, by plan `ui-p1-rail`: Work's path with `?show=drafts`

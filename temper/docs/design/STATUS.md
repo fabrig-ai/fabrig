@@ -214,7 +214,18 @@ the help says it does, `see ways` no way's headline, and no record shows
 the user's review of Ask temper's sentence; the render check follows
 landing (`protocol/configuration.status.md`, 3 and 13.2;
 `client/README.status.md`, 5.13; `domain/agent.status.md`, 8.4.1;
-`draft/ask-temper.status.md`, 5.2; `draft/surfaces.status.md`, 7). The rail, Work and
+`draft/ask-temper.status.md`, 5.2; `draft/surfaces.status.md`, 7). How
+work runs' What reaches you is the whole story's milestone P3b, by plan
+`ui-p3b-reaches`: the project's classes, kind 8, in three columns of
+words, each subject once by one pure function, "Asks you" saying what
+Away changes, then the question route and "Away until", in place of the
+classes' checks, so that a class changes by proposal; with a fuzz test
+of the columns, the joint world's story across Stop asking's Apply and
+two gallery states. It departs from the mockups where they list what no
+class holds, and in "Asks you"'s order and small line; its render check
+and walk follow
+landing (`client/README.status.md`, 5.13; `client/browser.status.md`,
+2.5; `draft/surfaces.status.md`, 7 and 13). The rail, Work and
 Deployment are the whole story's milestone P1, by plan `ui-p1-rail`: the
 rail and the tab bar from one pure function of their parts, Work, the
 hairline, How work runs, the new box and Deployment at the foot, the
@@ -788,7 +799,7 @@ last looked and the status agent is built, but a stock project's room is
 no brief's own, the reference names no charter 9, and a project's first run
 counts its span from the epoch (`domain/forge.md`,
 `protocol/configuration.md`). The Away switch,
-`decided`, Home's away form, Overturn and Settings' section are built, but the
+`decided`, Home's away form, Overturn and What reaches you are built, but the
 switch still offers its act with its watch refused or ended, an Overturn or its
 message gone astray reads as overturned already or as ended, where a live task
 then hears nothing (`client/README.md`),
