@@ -883,6 +883,15 @@ result inside the browser's log. Section 11 keeps the after-landing keys
 and layout check, opening at the end, and the unqueued PgUp at a pending
 read's head explicit.
 
+Section 5.15's *Opening history* has no known implementation gap in the
+domain: `Chat::accept_activity` (`pages/chat.rs`) reads on from a chat's
+first page only while its held lines weigh under `OPENING_WEIGHT`, 2,880
+bytes, and the domain's `a_chat_opens_to_its_opening_or_a_screen_and_a_half`
+holds a short chat reaching its opening, a page one byte under the weight
+reading on, and one at it stopping with its older cursor, which `Older`
+then reads. The browser's story 14 (`browser.md`, 4.6) checks it after
+landing; its later failures are `browser.status.md`'s, 4.3 and 4.6.
+
 - **Not yet:** 5.9, *The conversation*, and 5.15: no browser test draws an agent's running line,
   presses its "Latest" or scrolls its log, so that a press reads on to the end, the log following,
   is seen by reading. The gallery's `agent-work` draws the line and the pill, and the domain's and

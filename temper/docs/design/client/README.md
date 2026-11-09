@@ -5581,8 +5581,10 @@ reference UI and tools; temper sets it to `document_bytes / LINE_ROOM`,
 bytes, including Markdown and ten structural nodes per room. Earlier and
 later reads let whole lines go at the opposite end, and read them again
 when that edge nears the view; nothing says how many left. No second page
-is read merely because the window has room: the browser measures the log,
-and the terminal opens with one page. An empty page with an older cursor
+is read merely because the window has room: a chat's opening reads earlier
+only until its history's end or a screen and a half held (5.15, *Opening
+history*), and from there the browser measures the log and the terminal
+waits for `up`. An empty page with an older cursor
 reads on in either shell. The engine's pages keep their own rows (its
 `documents.rows`, at most the client's). Committed turns on both the chat
 and agent task pages are priced by `turn_text`; cards and other fields
@@ -11380,10 +11382,13 @@ own tests:
   log has no end request, so a person sending from far back stays where they read,
   and Latest reaches the end a page at a time. A chat's `to_end` and
   `Thread::latest` on a task's page would close both. Default: as it stands.
-- **The terminal's keys and first page** (5.15; `../draft/chat-reading.md`, 5): its
+- **The terminal's keys and opening** (5.15; `../draft/chat-reading.md`, 5): its
   input is never raw (skein's `ui-text.md`, section 7), so PgUp and PgDn are lines
-  with Enter, and with no view to measure it opens on one page. Default: as it
-  stands; keys of their own are a change of skein's shell.
+  with Enter, and with no view to measure a chat opens with what its opening reads
+  hold, as the TUI's does (6.14): the history's end or 2,880 bytes, a screen and a
+  half of an 80 by 24 terminal, whatever the terminal's size. Default: as it
+  stands; keys of their own are a change of skein's shell, and an opening measured
+  by the shell's own size a change of the domain's (*Opening history*).
 - **The rest of a run's line** (3.5, 5.9; `../draft/chat-reading.md`, 2 and 7): words
   for tools past the table, which are the user's to read on a real chat. Default: any
   other tool is its name. A run of one turn has its time as *A run's time* says, and an
