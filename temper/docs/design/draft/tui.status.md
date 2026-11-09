@@ -1,6 +1,6 @@
 # tui: status
 
-2026-11-08. Where the design lags or departs from [tui.md](tui.md).
+2026-11-09. Where the design lags or departs from [tui.md](tui.md).
 
 - **Design lags:** 3, 6 and 7, from 2026-11-08: the launchpad as drawn, design sessions with the side pane and talking with a standing role are v0.1.0's through `surfaces.md`, section 11, whose status holds their lags. 3 and 7: of the direction, the side pane and
   drafting, a need from elsewhere on a chat, the line above its box, the
@@ -124,5 +124,21 @@
     keeps the TUI apart from the box's link file to walk the approval
     (`../client/tui/journeys.md`, 8.2 and 11). The render check and the
     walk follow landing (`../client/README.md`, section 11).
+  - 4.1, 4.3, 4.4 and 5, the user's requests of 2026-11-09 (plan
+    `tui-box-polish`), after a night of `temper box` with the TUI in
+    front (emacs vterm, 150 by 39, a brand-new box): what is typed in
+    the box shows from the first frame and the sign-in never clears it,
+    Enter before it lands saying "Still signing in"; the person's words
+    in the box are the terminal's own ink, the accent on "❯" alone;
+    `/theme` opens a list of Auto, Light and Dark, Auto being 4.4's
+    start, and the choice is kept in the TUI's small store for the next
+    run; the command that closes the TUI is `/quit`, `/exit` taking it
+    still, unlisted, where 4.1 closes by `q` or Ctrl+C; and a one-line
+    notice stands 6 seconds at the right end of the quiet line
+    (`../client/README.md`, 6.13 to 6.17). Where the request's
+    "in a narrow window the notice goes before the quiet line's own
+    words" reads two ways, the design draws the notice first, at the
+    row's start, and cuts the line's own words after it
+    (`../client/README.md`, 6.14, *The notice*).
 - **Open:**
   - 3: a need from elsewhere on a chat, the web's hand-off and a checkout's project, refined on recorded frames as the launchpad and a chat were.

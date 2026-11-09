@@ -91,9 +91,22 @@ pub fn status(stdout: &[u8], branch: &[u8]) -> Option<Status> {
 /// NUL-terminated paths, admitted before any owned path is allocated.
 #[must_use]
 pub fn paths(stdout: &[u8], checkout: &checkout::Limits) -> Option<Box<[Box<[u8]>]>> {
+    listed_paths(stdout, checkout, false)
+}
+
+/// The first checkout-bounded paths, dropping a last incomplete path (git.md, 4.6).
+#[must_use]
+pub(crate) fn conflict_paths(stdout: &[u8], checkout: &checkout::Limits) -> Option<Box<[Box<[u8]>]>> {
+    listed_paths(stdout, checkout, true)
+}
+
+fn listed_paths(stdout: &[u8], checkout: &checkout::Limits, prefix: bool) -> Option<Box<[Box<[u8]>]>> {
     let mut count = 0_u32;
     let mut start = 0_usize;
     for (end, byte) in stdout.iter().enumerate() {
+        if prefix && count == checkout.conflicts {
+            break;
+        }
         if *byte != 0 {
             continue;
         }
@@ -107,12 +120,13 @@ pub fn paths(stdout: &[u8], checkout: &checkout::Limits) -> Option<Box<[Box<[u8]
         }
         start = end.checked_add(1)?;
     }
-    if start != stdout.len() {
+    if !prefix && start != stdout.len() {
         return None;
     }
+    let kept = stdout.get(..start)?;
     let mut out = List::with_capacity(count);
     start = 0;
-    for (end, byte) in stdout.iter().enumerate() {
+    for (end, byte) in kept.iter().enumerate() {
         if *byte == 0 {
             out.push(Box::from(stdout.get(start..end)?)).expect("validated path count");
             start = end.checked_add(1)?;

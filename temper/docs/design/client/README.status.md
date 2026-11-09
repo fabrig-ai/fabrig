@@ -317,6 +317,11 @@ Section 11 keeps the flags, design-location cleanup, terminal
 and macOS checks, later surfaces and the expiry/revocation ambiguity;
 no real-terminal or macOS runtime result is supplied here.
 
+
+- **Not yet:** 6.14, *The commands* and *`/quit`*, 6.16 and 6.17: the
+  TUI lists, completes and takes `/exit`, and `/quit` is an unknown
+  command (plan `tui-box-polish`).
+
 Sections 2, 6.11 and 6.12 have the clients' start, one for two binaries:
 `temper [ADDRESS]` and `temper-client [ADDRESS]` run
 `temper-client-shell-tui`'s `start` under their own names, both `ctl`s
@@ -338,6 +343,14 @@ completion, command execution, Escape, ordinary words, quit keys,
 revision stability, navigation and separation from the sign-in field.
 The help pages name `/exit` and Ctrl+C as closing keys and `q` as typing.
 
+
+- **Not yet:** 6.13's `Typed` and `Send`, and 6.14, *The box* and *Typed
+  before the sign-in lands*: while the link is signed out, a key goes to
+  the link's field though the welcome or "Connecting" draws the box; the
+  link's sign-in and sign-out clear the box's words; going to the
+  launchpad from the start's address drops them; and Enter before `me`
+  is read sends nothing and says nothing (plan `tui-box-polish`).
+
 Sections 6.12 to 6.15's parts from the user's requests of 2026-11-08 and
 the look request `tui-chat-title-below` have no known implementation gap:
 the binary reads the engine's link file at start whatever the address,
@@ -355,6 +368,12 @@ with its address as the place, under the person's opening question
 (`tui/journeys.md`, section 9). The real-terminal look
 of each, "box" among them, is section 11's after-landing check, owned by
 temper/tui.
+
+
+- **Not yet:** 6.15, *Its glyphs, its focus and the active choice*, and
+  its `tui-field`: the box's words and its caret's cell are laid in the
+  focus's paint, the accent across "❯", the words and the caret, as the
+  goldens and the journeys' frames draw them (plan `tui-box-polish`).
 
 Sections 4.6 and 6.17 have no known implementation gap in the TUI in
 front of a box, by the look request `tui-box-front` (its account
@@ -377,6 +396,13 @@ restarting"), where the request's frame 05 has "forge restarting", and
 `again` (`tui/journeys.status.md`, 8.3), and the real terminal's check,
 Linux and macOS, is section 11's after-landing work, owned by temper/tui.
 
+
+- **Not yet:** 6.13, *The notice's time*, 6.14, *The notice*, and
+  6.17, *The box's state*: no notice stands on the quiet line; an unknown
+  command, or `/chats N` with no Nth chat, is a note after the root's,
+  "Unknown command /WORDS. /help lists them.", in the view's words,
+  until the next send or screen (plan `tui-box-polish`).
+
 Section 6.14's shared words and lists, Home's template-5 composer,
 launchpad and chat, question choices and command handling have no known
 implementation gap, including section 5.15's initial history for short
@@ -396,6 +422,14 @@ The shared reader still reparses closed blocks; the gap from the user's
 read-once requirement remains section 11's parsed-block work and
 `../draft/chat-reading.status.md`, 3. Request differences remain explicit
 in `../draft/tui.status.md`; no rendered-equality result is supplied.
+
+
+- **Not yet:** 6.13's `Start.scheme` and `Duties.asked`, and 6.15, *The
+  scheme* and *The theme chosen*: `Start.scheme` is a scheme always,
+  dark where the terminal says none; no `ThemeChoice` exists, and no
+  `theme` record is kept, read or kept from the root, so each run
+  starts in the terminal's scheme; the recording's `screen` takes no
+  `none` (plan `tui-box-polish`).
 
 Sections 6.13 to 6.15 and 10 have no known implementation gap in the
 launchpad as drawn and views printed (`../draft/surfaces.md`, 11.1,
@@ -432,6 +466,12 @@ mockups is `../draft/surfaces.status.md`.
   the first section stands on the row under the header's frame (the
   launchpad's goldens and `launchpad-drawn`), as the look request
   `tui-launchpad`'s build left it (`../draft/tui.status.md`).
+
+
+- **Not yet:** 6.13's `Own` and `Theme`, 6.14, *`/theme`*, and 6.15,
+  *The theme chosen*: in the TUI `/theme` is the root's command, which
+  flips the root's look for the run with no list, no notice, no Auto
+  and nothing kept, its words "Dark or light" (plan `tui-box-polish`).
 
 Sections 3.5, 4.6, 5.8 and 5.13 have the approvals watch and wire document,
 the merge into Needs you, project and goal filters, Home and goal bands,

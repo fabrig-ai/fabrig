@@ -194,7 +194,28 @@ impl Operation {
             return sequence::failed(fault, &tail, child.stderr.dropped());
         }
         let stdout = child.stdout.as_bytes();
-        if child.dropped != 0 || (!stdout.is_empty() && stdout.last().copied() != Some(self.delimiter())) {
+        let merge_listing = self.command == Command::Unmerged
+            && match &self.op {
+                Some(git::Op::Merge { .. }) => true,
+                Some(
+                    git::Op::Make { .. }
+                    | git::Op::Look { .. }
+                    | git::Op::Clone { .. }
+                    | git::Op::Fetch { .. }
+                    | git::Op::Create { .. }
+                    | git::Op::CheckOut { .. }
+                    | git::Op::IsAncestor { .. }
+                    | git::Op::Commit { .. }
+                    | git::Op::Push { .. },
+                )
+                | None => false,
+            };
+        let invalid = if child.dropped == 0 {
+            !stdout.is_empty() && stdout.last().copied() != Some(self.delimiter())
+        } else {
+            !merge_listing
+        };
+        if invalid {
             return sequence::failed(git::Fault::Broken, &tail, child.stderr.dropped());
         }
         match child.exited {

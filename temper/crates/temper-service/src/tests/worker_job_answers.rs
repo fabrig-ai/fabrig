@@ -65,9 +65,19 @@ fn merge_git(op: root::checkout::git::Op) -> root::checkout::git::Done {
     }
 }
 
+#[derive(Clone, Copy)]
+enum GitFault {
+    None,
+    CloneRefused,
+    BaseBroken,
+    PushStale,
+    PushRefused,
+    PushFailed,
+}
+
 // The root and service encoding are real; only job and git completions are scripted.
 #[expect(clippy::wildcard_enum_match_arm, reason = "all other root requests use the service's routing")]
-fn merge_step_script(worker: &mut Worker, event: root::Event, refused: bool) -> Box<[(Token, Request)]> {
+fn merge_step_script(worker: &mut Worker, event: root::Event, fault: GitFault) -> Box<[(Token, Request)]> {
     let mut out = Queue::uncapped();
     root::step(&mut worker.root, &worker.env, event, &mut out);
     let mut jobs = List::with_capacity(1);
@@ -75,12 +85,34 @@ fn merge_step_script(worker: &mut Worker, event: root::Event, refused: bool) -> 
         let Some(request) = out.pop() else { return jobs.into_boxed() };
         match request {
             root::Request::Io { owner, op, .. } => {
-                let done = if let root::checkout::git::Op::Clone { .. } = &op
-                    && refused
-                {
-                    root::checkout::git::Done::Failed { fault: root::checkout::git::Fault::Refused }
-                } else {
-                    merge_git(op)
+                let done = match (&op, fault) {
+                    (root::checkout::git::Op::Clone { .. }, GitFault::CloneRefused) => {
+                        root::checkout::git::Done::Failed { fault: root::checkout::git::Fault::Refused }
+                    }
+                    (
+                        root::checkout::git::Op::Fetch { want: root::checkout::git::Want::Commit { commit }, .. },
+                        GitFault::BaseBroken,
+                    ) if commit.raw() == MERGE_BASE => root::checkout::git::Done::FailedWithOutput {
+                        fault: root::checkout::git::Fault::Broken,
+                        diagnostic: root::checkout::git::PushDiagnostic::new(b"fatal: base fetch failed", 0),
+                    },
+                    (root::checkout::git::Op::Push { .. }, GitFault::PushStale) => root::checkout::git::Done::Rejected,
+                    (root::checkout::git::Op::Push { .. }, GitFault::PushRefused) => {
+                        root::checkout::git::Done::FailedWithOutput {
+                            fault: root::checkout::git::Fault::Refused,
+                            diagnostic: root::checkout::git::PushDiagnostic::new(
+                                b"fatal: Authentication failed for repo",
+                                0,
+                            ),
+                        }
+                    }
+                    (root::checkout::git::Op::Push { .. }, GitFault::PushFailed) => {
+                        root::checkout::git::Done::FailedWithOutput {
+                            fault: root::checkout::git::Fault::Unreachable,
+                            diagnostic: root::checkout::git::PushDiagnostic::new(b"fatal: early EOF", 0),
+                        }
+                    }
+                    _ => merge_git(op),
                 };
                 root::step(&mut worker.root, &worker.env, root::Event::Done { owner, done }, &mut out);
             }
@@ -92,7 +124,7 @@ fn merge_step_script(worker: &mut Worker, event: root::Event, refused: bool) -> 
 }
 
 fn merge_step(worker: &mut Worker, event: root::Event) -> Box<[(Token, Request)]> {
-    merge_step_script(worker, event, false)
+    merge_step_script(worker, event, GitFault::None)
 }
 
 fn merge_event(worker: &mut Worker, owner: Token, event: Event) -> Box<[(Token, Request)]> {
@@ -178,6 +210,11 @@ fn a_delivering_job_answers_with_left_parts_and_replays_until_acknowledged() {
     assert!(merge_event(&mut worker, owner, Event::Gone { owner }).is_empty());
     let (answer, parts) = merge_answer(&mut peer, &mut worker);
     assert_merge_answer(&answer, &parts);
+    while let Some(note) = worker.notes().pop() {
+        if let crate::Note::WorkerJob { .. } = note {
+            panic!("finished jobs have no failure note");
+        }
+    }
     assert_eq!(worker.root.kept_answers(), 1);
     assert_eq!(worker.root.workspaces(), 0);
     worker.up(fixtures::NOW, io::Event::Closed { owner: peer.owner });
@@ -204,7 +241,7 @@ fn failed_job_answers_carry_their_resources_and_refusals_carry_none() {
     for unprepared in [false, true] {
         let (mut worker, mut peer) = merge_worker();
         if unprepared {
-            assert!(merge_step_script(&mut worker, merge_assignment(), true).is_empty());
+            assert!(merge_step_script(&mut worker, merge_assignment(), GitFault::CloneRefused).is_empty());
         } else {
             let owner = start_merge(&mut worker);
             deliver_merge(&mut worker, owner);
@@ -231,13 +268,118 @@ fn failed_job_answers_carry_their_resources_and_refusals_carry_none() {
             let left = v1::Left::decode(&fixtures::wire_limits(), &mut Reader::new(&part.bytes)).unwrap();
             assert_eq!(left.landed().get(0).unwrap().commit(), &MERGE_PUSHED);
         }
+        while worker.notes().pop().is_some() {}
         let root::Event::AssignJob { mut job, spec, .. } = merge_assignment() else { panic!("job assignment") };
         job.run = Token::new(99);
         merge_step(&mut worker, root::Event::AssignJob { job, spec, items: Err(root::wire::Undecodable) });
         let (answer, parts) = merge_answer(&mut peer, &mut worker);
-        let hub::LinkUp::JobAnswer { answer: hub::JobEnding::Refused(_), .. } = answer else {
+        let hub::LinkUp::JobAnswer { answer: hub::JobEnding::Refused(reason), .. } = answer else {
             panic!("undecodable workspace is refused");
         };
         assert!(parts.is_empty());
+        assert_eq!(
+            worker.notes().pop(),
+            Some(crate::Note::WorkerJob {
+                run: 99,
+                attempt: 2,
+                kind: 3,
+                verb: b"merge".as_slice().into(),
+                ending: temper_engine_domain::JobDiagnosticEnding::Refused(reason),
+                why: b"workspace items".as_slice().into(),
+            })
+        );
+        assert!(worker.notes().is_empty(), "one worker note per refusal");
+    }
+}
+
+enum FailureCase {
+    BaseFetch,
+    Command(Exit),
+    Result,
+    Delivery(GitFault),
+}
+
+fn fail_merge(worker: &mut Worker, case: FailureCase) {
+    if let FailureCase::BaseFetch = case {
+        assert!(merge_step_script(worker, merge_assignment(), GitFault::BaseBroken).is_empty());
+        return;
+    }
+    let owner = start_merge(worker);
+    let (exit, read, bytes, fault) = match case {
+        FailureCase::BaseFetch => unreachable!(),
+        FailureCase::Command(exit) => (exit, false, None, GitFault::None),
+        FailureCase::Result => (Exit::Code(0), true, None, GitFault::None),
+        FailureCase::Delivery(fault) => (Exit::Code(0), true, Some(MERGE_RESULT.into()), fault),
+    };
+    merge_event(worker, owner, Event::Exited { owner, exit, tail: b"stderr".as_slice().into() });
+    if read {
+        merge_step_script(worker, root::Event::Job { owner, event: Event::Read { owner, bytes } }, fault);
+    }
+    merge_event(worker, owner, Event::Gone { owner });
+}
+
+#[test]
+fn failed_jobs_name_the_workers_why_once() {
+    use hub::{DeliveryOutcome, JobFailure, Preparation};
+    let fetch = b"fetch base: Broken: fatal: base fetch failed".as_slice();
+    for (case, expected_failure, expected_detail, expected_why) in [
+        (FailureCase::BaseFetch, JobFailure::Unprepared(Preparation::Transient), fetch, fetch),
+        (FailureCase::Command(Exit::Code(1)), JobFailure::Failed, b"exit 1: stderr", b"exit 1: stderr"),
+        (FailureCase::Command(Exit::Signal), JobFailure::Failed, b"signal: stderr", b"signal: stderr"),
+        (FailureCase::Command(Exit::Deadline), JobFailure::Deadline, b"", b"deadline passed"),
+        (
+            FailureCase::Result,
+            JobFailure::Failed,
+            b"result missing or past its bound: stderr",
+            b"result missing or past its bound: stderr",
+        ),
+        (
+            FailureCase::Delivery(GitFault::PushStale),
+            JobFailure::Undelivered(DeliveryOutcome::Stale),
+            b"",
+            b"delivery Stale: branch moved",
+        ),
+        (
+            FailureCase::Delivery(GitFault::PushRefused),
+            JobFailure::Undelivered(DeliveryOutcome::Failed),
+            b"",
+            b"delivery Failed: push: Refused: fatal: Authentication failed for repo",
+        ),
+        (
+            FailureCase::Delivery(GitFault::PushFailed),
+            JobFailure::Undelivered(DeliveryOutcome::Failed),
+            b"",
+            b"delivery Failed: push: Unreachable: fatal: early EOF",
+        ),
+    ] {
+        let (mut worker, mut peer) = merge_worker();
+        while worker.notes().pop().is_some() {}
+        fail_merge(&mut worker, case);
+        let (answer, _) = merge_answer(&mut peer, &mut worker);
+        let hub::LinkUp::JobAnswer { answer: hub::JobEnding::Failed { failure, detail, .. }, .. } = answer else {
+            panic!("failed job answers");
+        };
+        assert_eq!(failure, expected_failure);
+        assert_eq!(detail.as_ref(), expected_detail);
+        let mut found = 0_u32;
+        while let Some(note) = worker.notes().pop() {
+            if let crate::Note::WorkerJob { run, attempt, kind, verb, ending, why } = note {
+                assert_eq!((run, attempt, kind, verb.as_ref()), (JOB.raw(), 2, 3, b"merge".as_slice()));
+                assert_eq!(why.as_ref(), expected_why);
+                assert_eq!(
+                    ending,
+                    temper_engine_domain::JobDiagnosticEnding::Failed { failure, detail: detail.clone() }
+                );
+                found += 1;
+            }
+        }
+        assert_eq!(found, 1, "the worker names a failed job once");
+        merge_step(&mut worker, root::Event::Lost);
+        merge_step(&mut worker, root::Event::Ready);
+        while let Some(note) = worker.notes().pop() {
+            if let crate::Note::WorkerJob { .. } = note {
+                panic!("a kept answer resent has no second note");
+            }
+        }
     }
 }

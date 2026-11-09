@@ -217,10 +217,15 @@ fn pushed(stdout: &[u8], branch: &[u8], create: bool, tail: &[u8], cut: u64) -> 
     Some(Next::End(done))
 }
 fn unmerged(op: &git::Op, stdout: &[u8], checkout: &checkout::Limits) -> Option<Next> {
-    let files = output::paths(stdout, checkout)?;
     match op {
-        git::Op::Merge { .. } if !files.is_empty() => Some(Next::End(git::Done::Conflicted { files })),
-        git::Op::Commit { .. } => Some(if files.is_empty() { Next::Run(Command::Add) } else { Next::Scan { files } }),
+        git::Op::Merge { .. } => {
+            let files = output::conflict_paths(stdout, checkout)?;
+            if files.is_empty() { None } else { Some(Next::End(git::Done::Conflicted { files })) }
+        }
+        git::Op::Commit { .. } => {
+            let files = output::paths(stdout, checkout)?;
+            Some(if files.is_empty() { Next::Run(Command::Add) } else { Next::Scan { files } })
+        }
         git::Op::Make { .. }
         | git::Op::Clone { .. }
         | git::Op::Fetch { .. }
@@ -228,7 +233,6 @@ fn unmerged(op: &git::Op, stdout: &[u8], checkout: &checkout::Limits) -> Option<
         | git::Op::CheckOut { .. }
         | git::Op::Look { .. }
         | git::Op::IsAncestor { .. }
-        | git::Op::Merge { .. }
         | git::Op::Push { .. } => None,
     }
 }

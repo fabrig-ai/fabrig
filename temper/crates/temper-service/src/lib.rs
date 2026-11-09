@@ -4,7 +4,7 @@
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
 use alloc::boxed::Box;
-pub use temper_engine_domain::RunRefusalDiagnostic;
+pub use temper_engine_domain::{JobDiagnostic, JobDiagnosticEnding, RunRefusalDiagnostic};
 pub mod diagnostics;
 pub mod forge;
 pub mod forges;
@@ -188,6 +188,17 @@ pub enum Note {
     RunFailed(temper_engine_domain::RunDiagnostic),
     /// A refused assignment accepted by the hub, for stderr only (domain/worker.md, 4.3).
     RunRefused(RunRefusalDiagnostic),
+    /// A failed or refused job accepted by the engine (domain/worker.md, 4.4).
+    JobAnswered(JobDiagnostic),
+    /// The worker's own job evidence, kept outside facts and results (domain/worker.md, 4.4).
+    WorkerJob {
+        run: u64,
+        attempt: u64,
+        kind: u32,
+        verb: Box<[u8]>,
+        ending: JobDiagnosticEnding,
+        why: Box<[u8]>,
+    },
     /// A forge read refusal with its task, tool, layer and authority findings.
     ReadRefused {
         task: u64,
