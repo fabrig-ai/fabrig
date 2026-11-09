@@ -1,33 +1,18 @@
-# ui-p2-home: Home and Needs you across projects, and the brief
+# ui-away-all: Away on All projects
 
-Milestone P2 of `temper/docs/design/draft/whole-story.execution.md`: `temper/docs/design/draft/surfaces.md`, sections 3 and 4. The user's go of 2026-11-08, about 16:25Z: move as fast as possible on the code-producing side. Its look is the mockups on main, `temper/docs/design/client/web/whole-story/` (`home.html`, `needs.html`, `phone-home.html`, `phone-need.html`, and their `README.md` for precedence over the greenfield mock). Nothing in the drafts is reopened. The brief is this milestone's, across projects; the standing roles' Nows reach it later, by R3, and change nothing of it.
+A follow-up to P1 and P2 of `temper/docs/design/draft/whole-story.execution.md`, from the mockups' audit of 2026-11-08, on the user's word. `temper/docs/design/draft/surfaces.md` 2 says: on All projects, Away sets every project the person is in, and reads "Away on 2 of 4" while the projects differ. P1 and P2 have landed without it: Away on main is per project only (`temper-client-domain`'s `pages/away.rs`, and the `AwayOn` and `AwayOff` toasts).
 
-## What it executes
+## One task
 
-As the execution's P1 to P6 entry says:
-- **The design first:** `client/README.md`'s Home and Needs you, `client/browser.md` where the browser differs, and the greenfield mock's README for what it now defers to.
-- **Then the build:** Home and Needs you as the mockups draw them, reading every project the person is in, and the brief across projects. What a read lacks is named in the page's lag.
-
-The rail and Work are P1's, which follows `red-78`. Draw Home and Needs you within today's rail, and leave the rail to P1.
-
-## Its tests
-
-Focused and fuzzy only, as the execution's entry says:
-- the gallery's states for each page at a laptop's and a phone's width, day and night;
-- the client's joint world for each page across two projects;
-- a fuzz test of each page's parts against `surfaces.md` section 12's rules, across random settings and their moves.
-
-Journeys the change makes stale are regenerated with `temper-client-journeys again`, as generation. New journeys and the walk come after landing.
-
-## Who hears first
-
-`plan.md` names every change to `temper-client-domain` for the TUI's owner, whose T1 reads Home's brief as this milestone gives it. It names every change to `temper-engine-domain` and `forge_route.rs` for the owner of coding runs.
+- Away on All projects sets Away on every project the person is in, through the existing per-project act, one decision each.
+- While the projects differ, it reads "Away on N of M", with N and M from the person's projects as the root holds them. When all agree, it reads as a single project's Away does.
+- Its toast names how many projects changed.
+- Rows of the existing Away table tests, in the domain's tests and the gallery's All projects states.
 
 ## Sources
 
 - `temper/docs/design/draft/surfaces.md`
-- `temper/docs/design/draft/whole-story.execution.md`
-- `temper/docs/design/client/web/whole-story/README.md`
+- `temper/crates/temper-client-domain/src/pages/away.rs`
 
 
 ## For every task of this plan

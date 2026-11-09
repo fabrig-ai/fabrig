@@ -1,6 +1,6 @@
 # README: status
 
-2026-11-08. Where temper's code lags or departs from [README.md](README.md).
+2026-11-09. Where temper's code lags or departs from [README.md](README.md).
 
 Sections 3.5 and 5.3 have the two-step To begin, repository first,
 the two-count facts and notes, and restricted navigation on Home and
@@ -74,9 +74,6 @@ rendered comparison and walk remain section 11's after-landing work.
   - one drawing laid out by the box's width, down the page under 560 px
     or where its stops would stand closer than 48, where the request's
     page holds two SVGs toggled at a 760 px window;
-  - the line in two tones, the signal's faint one above the dotted line
-    and the line's below, where the request fades it, since a scene
-    carries no gradient;
   - the card's caret drawn by the scene under the open stop, in a room
     of 14 of the box's pixels at the scene's foot that the card follows
     with no gap, where the request places a `::before` by a percentage
@@ -107,24 +104,45 @@ state draws the two pages (`browser.status.md`, 7.3). The repairs'
 render check and the pages' walk remain section 11's after-landing
 work.
 
-Sections 3.5, *Settings and Deployment*, 4.6 and 5.13, *The page*, *Its
-parts* and *A way's acts*, have no known gap in How work runs, by plan `ui-p3a-how`:
-`pages::how::parts`, of what `pages::how::facts` gathers, decides the
-heading's way, "Ask temper to change this", the path section's state and
-Budgets' row, and `pages::how::lanes` places each stop once in its
-actor's lane and a bar in none. `Settings { project }` watches the
-project's `ways` as Ask temper's page does, `Act::WayTab` and
-`Act::WayStop` heard on either, and the view's `pages/ways.rs` draws
-both pages' tabs, card, act and refusal. The page names the way, or "A
-way of its own", with its line, draws the path in lanes under the
-authority row, a goal's amount or cap, What needs you and Away, and the
-switches at its foot; the disabled Status, Funds and Telling you rows
-are gone. The domain's and the view's tables, the fuzzy suite's
-`parts_and_lanes_follow_only_the_current_facts`, the joint world's
-`the_three_ways_draw_ci_and_tiers_or_neither` and the gallery's `how`
-to `night-how` hold it, and the text shell's `settings.txt` golden and
-the `chat-draft` journey are reprinted with it. The page's render check
-and walk remain section 11's after-landing work.
+Sections 4.6, 5.13 and 5.16 have no known gap but the departure below
+in `look-round-25`'s repairs of `ask-temper-ways` and of How work runs:
+the wire's `PathStep` holds `conflict` and `catch_up` and no `update`,
+its `Stop` `needed` and `over`, and `View` `roles`, a card a role,
+which a reply draws; a stop made only when needed is drawn outlined, its
+small words over its own, and the fallback says ", when needed" and the
+small words in brackets; who acts is the mark alone, an agent's star
+and its rises in ink, a person's ring and its rises the signal's,
+code's square grey, each rise a fade of skein's (skein's `ui.md`,
+11.2), the legend with an agent when needed; and in a box under 360 the
+narrow path is a scene 360 wide scaled to the box, as the request's
+picture is. How work runs draws its path with Ask temper's drawing,
+legend, tabs, card and act, shared in the view's `pages/ways.rs`, and
+Roles, a disclosure a role of the view `roles`, read as the page opens
+and again at a newer revision. The view's `tests/ask.rs`, `tests/how.rs`
+and `tests/views.rs`, the fuzzy suite's
+`parts_and_drawing_follow_only_the_current_facts` and the gallery's
+`ask-ways-*` and `how` to `night-how` hold them. Their render check and
+the page's walk remain section 11's after-landing work.
+
+- **Departs:** 5.13: A role's model is drawn among its opened terms, not
+  at its summary's right: skein's disclosure summary holds its name and
+  one description (`skein/docs/design/ui.md`, *A disclosure*); the
+  right-hand model waits for a structured summary in skein.
+
+How work runs has plan `ui-p3a-how`'s implementation, with
+`look-round-25`'s drawing and Roles above (3.5, *Settings and
+Deployment*, 4.6 and 5.13): `pages::how::parts`, of what
+`pages::how::facts` gathers, decides the heading's way, "Ask temper to
+change this", the path section's state, Roles' state and Budgets' row.
+`Settings { project }` watches the project's `ways` as Ask temper's page
+does, `Act::WayTab` and `Act::WayStop` heard on either. The page names
+the way, or "A way of its own", with its line, draws the path, Roles, a
+goal's amount or cap, What needs you and Away, and the switches at its
+foot; the disabled Status, Funds and Telling you rows are gone. The
+domain's and the view's tables, the joint world's
+`the_three_ways_draw_ci_and_tiers_or_neither` and the text shell's
+`settings.txt` golden hold it. The page's render check and walk remain
+section 11's after-landing work.
 
 Sections 3.5, *Work*, *Goals*, *Changes* and *Settings and Deployment*,
 and 5.3, *The rail*, *The rail's parts*, *Projects in the rail* and *All
@@ -1174,15 +1192,29 @@ TUI stories cover approval by the browser's party, credential keeping,
 the launchpad and refusal followed by another ask. Browser and real
 terminal checks remain section 11's after-landing work.
 
-- **Not yet:** 3.5, *Home on All projects*: no `AllHome` address, no
-  page reading every project's `status` and `decided`, no briefs joined,
-  no Projects rows and no Ask temper line; `parts` holds no rules.
-- **Not yet:** 3.5, *Home*, *The cards*: a project's Home draws its
-  first need as a card and the others as lines, says "Work carries on…"
-  when none waits, and has no Ask temper line.
-- **Not yet:** 3.5, *Needs you*: one card at a time at every width, no
-  intro, no project chip on the unfiltered from line, "Reply…" and
-  "Later" in place of *Tell it something else*, no Decided for you, and
-  Done's "Home" never `AllHome`.
-- **Not yet:** 3.5, *A page's parts*: no `pages::parts`; Home and Needs
-  you decide their parts page by page.
+Sections 3.5, *Home* (its *Needs you* cards, *More* and *The Ask temper
+line*), *Home on All projects*, *Needs you* and *A page's parts*, and
+5.3, *All projects*, have no known implementation gap, by plan
+`ui-p2-home`: `Address::AllHome` at `/home`, reading the first 16
+projects' `status` and `decided` (`all_home::ACROSS`) with the inbox and
+`approvals` across projects, and looking once an entry; `all_home::intro`
+and `all_home::brief`, each new brief's first sentence after its
+project's name, newest first, at most four; Projects' rows with their
+branch's chip; Decided for you across projects, Overturn under the row's
+project; the Ask temper line's `Act::AskWith`; a project's Home's first
+three open cards and "N more"; Needs you's list on a wide page, its
+intro, its head, closed rows opened by `needs::Act::Open`, *Tell it
+something else* always open, Decided for you and no "Later" in the
+browser; Done's "Home" to `AllHome` with two projects or more; the
+switcher's All projects to `AllHome` but from `Inbox`; and
+`pages::parts::home` and `needs`. The domain's tables
+(`temper-client-domain`'s `tests/pages/all_home.rs` and `parts.rs`), the
+view's (`temper-client-view`'s `tests/all_home.rs`, `home.rs`,
+`home_cards.rs` and `needs.rs`), the fuzzy suite's
+`random_facts_and_settings_keep_each_part_and_card`, the joint world's
+five stories across two projects in `status.rs`, `inbox.rs` and
+`away.rs`, and the gallery's thirteen new states (`browser.status.md`,
+7.2) hold it. The render check, the walk and the journey of Home to a
+need, answered, remain section 11's after-landing work (*Home and Needs
+you across projects after landing*); what the draft draws beyond them is
+section 11's *Home's and Needs you's later parts*.

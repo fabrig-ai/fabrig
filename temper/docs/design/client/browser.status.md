@@ -1,6 +1,6 @@
 # browser: status
 
-2026-11-08. Where temper's code lags or departs from [browser.md](browser.md).
+2026-11-09. Where temper's code lags or departs from [browser.md](browser.md).
 
 - **Departs:** 7.3: the gallery's tests exceed their 1 CPU s budget:
   `cargo test -p temper-client-gallery --lib`, serial, measured
@@ -13,7 +13,14 @@
   (`look-round-24`'s `gallery-narrow`, at `436533537a`); no CPU figure is
   on record. How work runs' six states, `how` to `night-how`, and the
   fifteen of the rail, Work and Deployment, `rail-new-change` to
-  `night-limits`, add to it, with no CPU figure on record either.
+  `night-limits`, and the thirteen of Home and Needs you across projects,
+  `all-home` to `night-needs`, add to it, with no CPU figure on record
+  either.
+
+- **Departs:** 2.5: A role's model is drawn among its opened terms, not
+  at its summary's right: skein's disclosure summary holds its name and
+  one description (`skein/docs/design/ui.md`, *A disclosure*); the
+  right-hand model waits for a structured summary in skein.
 
 Sections 2.5, 7.1 and 7.2 have the day and night tokens, glow, moon/sun
 switch and `night-home`, `night-ask` and `night-chat-split` gallery states;
@@ -60,15 +67,27 @@ first" to its "Use this", in the existing history story; it checks
 neither Agents review's "now" nor the line and the path. The rendered
 comparison follows landing (`README.md`, section 11).
 
+Sections 2.5, *Ask temper's ways*, and 7.2 have no known implementation
+gap in `look-round-25`'s repairs: the drawing's and the legend's rules,
+and the tabs', line's, card's and act's, name Ask temper's page and How
+work runs' frame alike; with a fourth tab the tabs stand two by two at
+760 px and under; who acts is the whole story's marks, an agent's star
+`--gf-ink`, outlined when needed, code's square `--gf-muted`, a stop's
+small words `--gf-faint`; and each rise's fade colours its stops by the
+`temper-ways-fade-*` tokens, the line's rules written under
+`:not([data-fade])` so that no stroke outweighs the fade (skein's
+`ui-web.md`, section 8). The gallery's `ask-ways-*` states are reprinted
+with them.
+
 Sections 2.5, *How work runs' look*, and 7.2 have no known
-implementation gap: `temper.css`'s `/* ==== ui: how ==== */`, after the
-ways' rules, holds the wide column, the section's head and "the way:
-NAME", the path's table scrolling sideways in its box, its lanes' pills
-in who acts' colours on `--gf-agent`, `--gf-agent-pale`, `--gf-code` and
-`--gf-code-pale`, by day and by night, the bar, the authority row and
-Budgets' row, and `look.rs` names each `temper-how-*` class. The gallery
-prints `how`, `how-approve`, `how-draft`, `how-yours`, `how-card` and
-`night-how` at both widths, and its table checks each. The rendered
+implementation gap but the departure above: `temper.css`'s `/* ==== ui:
+how ==== */`, after the ways' rules, holds the wide column, the
+section's head and "the way: NAME", Roles' rows and terms, and Budgets'
+row, by day and by night; the path is Ask temper's drawing under its own
+rules, with no lanes and no colour of its own; and `look.rs` names each
+`temper-how-*` class. The gallery prints `how`, `how-approve`,
+`how-draft`, `how-yours`, `how-card` and `night-how` at both widths,
+`how-draft` with Roles, and its table checks each. The rendered
 comparison follows landing (`README.md`, section 11).
 
 Sections 2.3, 2.5 and 7.2 have no known implementation gap in the rail,
@@ -428,6 +447,17 @@ reads the rules, whose effect is rendered; that comparison is section
   request does not draw, so that no source of the bundle names the old
   mark's `#b8664e`, as its test asks.
 
-- **Not yet:** 2.3: no `/home`. 7.2: none of the `all-home-*`,
-  `night-all-home`, `home-step-*`, `needs-list*`, `needs-tell`,
-  `needs-approval-first` or `night-needs` states.
+Sections 2.3 and 7.2 have no known implementation gap in Home and Needs
+you across projects, by plan `ui-p2-home`: `/home` for `AllHome`, which
+the domain's address table parses and prints; `temper.css`'s `/*
+==== ui: home ==== */` and `/* ==== ui: needs ==== */` holding Home's
+cards, Projects, the Ask temper line, Needs you's list, its closed rows,
+its *Tell it something else* and Decided for you, with their phone
+forms; and the gallery's `all-home`, `all-home-nothing-new`,
+`all-home-one-project`, `night-all-home`, the four `home-step-*`,
+`needs-list`, `needs-list-second`, `needs-tell`, `needs-approval-first`
+and `night-needs`, which its table checks. 7.2's states hold no red
+"owned", no Home at the standing roles' step, and no need's why, offer
+or Only you, which nothing yet draws (`../draft/surfaces.status.md`,
+14). The rendered comparison follows landing (`README.md`, section 11,
+*Home and Needs you across projects after landing*).

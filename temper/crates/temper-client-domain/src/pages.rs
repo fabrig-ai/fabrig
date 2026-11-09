@@ -10,6 +10,7 @@ use skein_lib::{Env, Queue, Time};
 pub mod accounts;
 mod activity;
 pub mod away;
+pub mod away_all;
 pub mod builders;
 pub mod calls;
 pub mod changes;
@@ -77,6 +78,7 @@ pub struct Pages {
     notes: skein_lib::List<terminal::Note>,
     needs: needs::Session,
     away: Option<away::Pending>,
+    away_all: Option<away_all::Pending>,
     overturns: away::Overturns,
     away_focus: u64,
     address: Address,
@@ -341,6 +343,7 @@ impl Pages {
             notes: skein_lib::List::with_capacity(8),
             needs: needs::Session::default(),
             away: None,
+            away_all: None,
             overturns: away::Overturns::new(),
             away_focus: 0,
             address: Address::Inbox { filter: crate::address::Filter::ALL },
@@ -1551,7 +1554,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Adopt { .. } => false,
         };
         pages.roles_open = match &address {
-            Address::Role { .. } | Address::Rule { .. } => true,
+            Address::Settings { .. } | Address::Role { .. } | Address::Rule { .. } => true,
             Address::AllHome
             | Address::Inbox { .. }
             | Address::Chats { .. }
@@ -1569,7 +1572,6 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Home { .. }
             | Address::Goals { .. }
             | Address::Changes { .. }
-            | Address::Settings { .. }
             | Address::Repositories { .. }
             | Address::Models { .. }
             | Address::Builders { .. }
@@ -1672,6 +1674,10 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         }
         if let Address::Settings { .. } | Address::Ask { .. } | Address::NewChat { .. } = address {
             pages.chats = Some(chats::Chats::new(pages.next));
+        }
+        if let Address::Settings { .. } = address {
+            // How work runs' view read follows the rail's four chat handles.
+            pages.next = pages.next.checked_add(4).expect("rail chat handles fit");
         }
         if let Address::Chats { filter, .. } = address {
             let mut page = chats::Chats::new(pages.next);

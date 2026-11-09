@@ -2,6 +2,7 @@
 
 use skein_lib::usize_of;
 use skein_ui::{
+    Style,
     look::Names,
     scene::{Anchor, Mark, Scene},
 };
@@ -9,8 +10,9 @@ use skein_ui::{
 use crate::dom::Element;
 
 /// A refused scene is an empty fragment, so the page keeps its fallback.
+/// `ids` is a stem unique in the document; a fade's gradient is `<ids>-<mark index>` (ui-web.md, 8).
 #[must_use]
-pub fn draw(scene: &Scene, names: &[Names<'_>], width: u16, height: u16) -> Element {
+pub fn draw(scene: &Scene, names: &[Names<'_>], width: u16, height: u16, ids: &str) -> Element {
     if scene.refused() {
         return Element::new("");
     }
@@ -21,27 +23,39 @@ pub fn draw(scene: &Scene, names: &[Names<'_>], width: u16, height: u16) -> Elem
     svg.set("width", &width.to_string());
     svg.set("height", &height.to_string());
     svg.set("viewBox", &format!("0 0 {width} {height}"));
+    let mut defs = Element::new("defs");
+    for index in 0..scene.marks().len() {
+        let index = u32::try_from(index).expect("scene mark index fits u32");
+        if let Some(fade) = scene.mark_fade(index) {
+            let mut gradient = Element::new("linearGradient");
+            gradient.set("id", &format!("{ids}-{index}"));
+            gradient.set("gradientUnits", "userSpaceOnUse");
+            numbers(&mut gradient, &[("x1", fade.from.x), ("y1", fade.from.y), ("x2", fade.to.x), ("y2", fade.to.y)]);
+            for stop in fade.stops() {
+                let mut element = Element::new("stop");
+                element.set("offset", &format!("{}.{:03}", stop.offset / 1000, stop.offset % 1000));
+                classes(&mut element, stop.styles, names);
+                gradient.append(element);
+            }
+            defs.append(gradient);
+        }
+    }
+    if !defs.children.is_empty() {
+        svg.append(defs);
+    }
     let mut index = 0;
-    marks(scene, names, &mut index, scene.marks().len(), &mut svg);
+    marks(scene, names, &mut index, scene.marks().len(), ids, &mut svg);
     svg
 }
 
-fn marks(scene: &Scene, names: &[Names<'_>], index: &mut usize, end: usize, parent: &mut Element) {
+fn marks(scene: &Scene, names: &[Names<'_>], index: &mut usize, end: usize, ids: &str, parent: &mut Element) {
     while *index < end {
         let position = *index;
         let mark = scene.marks()[position];
         let number = u32::try_from(position).expect("scene mark index fits u32");
         *index += 1;
         let mut element = mark_element(mark, scene.data(number));
-        let classes: Vec<_> = scene
-            .styles(number)
-            .iter()
-            .filter_map(|style| names.iter().find_map(|owner| owner.style(*style)))
-            .map(|name| String::from_utf8_lossy(name).into_owned())
-            .collect();
-        if !classes.is_empty() {
-            element.set("class", &classes.join(" "));
-        }
+        classes(&mut element, scene.styles(number), names);
         if let Some(act) = scene.mark_act(number) {
             let mut hex = String::new();
             for byte in act {
@@ -49,6 +63,10 @@ fn marks(scene: &Scene, names: &[Names<'_>], index: &mut usize, end: usize, pare
                 write!(hex, "{byte:02x}").expect("writing a string succeeds");
             }
             element.set("data-act", &hex);
+        }
+        if scene.mark_fade(number).is_some() {
+            element.set("stroke", &format!("url(#{ids}-{number})"));
+            element.set("data-fade", "");
         }
         if let Some(hint) = scene.mark_hint(number) {
             let mut title = Element::new("title");
@@ -58,7 +76,7 @@ fn marks(scene: &Scene, names: &[Names<'_>], index: &mut usize, end: usize, pare
         match mark {
             Mark::Group { marks: count, .. } => {
                 let group_end = (*index + usize_of(count)).min(end);
-                marks(scene, names, index, group_end, &mut element);
+                marks(scene, names, index, group_end, ids, &mut element);
             }
             Mark::Text { .. } => element.text(scene.data(number)),
             Mark::Line { .. }
@@ -68,6 +86,17 @@ fn marks(scene: &Scene, names: &[Names<'_>], index: &mut usize, end: usize, pare
             | Mark::Circle { .. } => {}
         }
         parent.append(element);
+    }
+}
+
+fn classes(element: &mut Element, styles: &[Style], names: &[Names<'_>]) {
+    let classes: Vec<_> = styles
+        .iter()
+        .filter_map(|style| names.iter().find_map(|owner| owner.style(*style)))
+        .map(|name| String::from_utf8_lossy(name).into_owned())
+        .collect();
+    if !classes.is_empty() {
+        element.set("class", &classes.join(" "));
     }
 }
 

@@ -102,6 +102,79 @@ pub(super) fn deliver(root: &mut Domain, watch: Token, project: u32, name: Optio
     }
 }
 
+pub(super) fn roles(root: &mut Domain, read: Token, out: &mut Queue<Request>) {
+    let rows = [
+        (
+            2,
+            "Chat",
+            "For each chat",
+            "read the code and the forge; start sub-agents; never merge",
+            "Help the person with their work.",
+        ),
+        (
+            7,
+            "Ask temper",
+            "When you ask",
+            "read temper's records and the forge; propose settings; never change anything",
+            "Explain how temper works, where work stands and how to configure it.",
+        ),
+        (
+            5,
+            "Coordinator",
+            "For each goal",
+            "read the draft; plan and delegate changes; never merge",
+            "Cut the draft into changes and coordinate their work.",
+        ),
+        (
+            1,
+            "Coding agent",
+            "For each change",
+            "read the code and the forge; change and push its branch; run commands; never merge",
+            "Make the change on its branch and report what changed and what was checked.",
+        ),
+        (
+            6,
+            "Foreman",
+            "When a coding agent asks",
+            "read the facts in its task; never merge",
+            "Answer the coding agent's question within the person's direction.",
+        ),
+        (
+            9,
+            "Status agent",
+            "When you look at Home after landings",
+            "read temper's records and the forge; never merge",
+            "Summarise what landed and where the work stands.",
+        ),
+    ];
+    let roles = rows
+        .into_iter()
+        .map(|(charter, name, who, can, asked)| {
+            w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter, card: agent(who, name, can, asked) })
+                .expect("project role")
+        })
+        .collect();
+    let view = w::View::Roles(
+        w::RolesView::new(&w::CEILINGS, w::RolesViewParts { roles: List::from_boxed(roles) }).expect("project roles"),
+    );
+    let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view }).expect("roles answer");
+    step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Family {
+                        family: wire::FORGE,
+                        record: Some(wire::view_answer(&answer)),
+                    },
+                },
+            },
+        },
+        out,
+    );
+}
+
 fn act(root: &mut Domain, action: Act, out: &mut Queue<Request>) {
     step(root, Event::Act { action: Action::Pages(action) }, out);
 }
@@ -222,8 +295,8 @@ fn stop(step: w::PathStep) -> w::Stop {
     use w::{
         Actor::{Agent, Bar, Code, Person},
         PathStep::{
-            Approve, Ask, Branch, Check, Draft, Merge, Plan, Prepare, Produce, ProduceMany, Prove, Repair, Resolve,
-            Review, Turn, Update, Verify,
+            Approve, Ask, Branch, CatchUp, Check, Conflict, Draft, Merge, Plan, Prepare, Produce, ProduceMany, Prove,
+            Repair, Resolve, Review, Turn, Verify,
         },
     };
     let rule = w::Opens::Rule(
@@ -273,7 +346,7 @@ fn stop(step: w::PathStep) -> w::Stop {
                 agent(
                     who,
                     "the coding agent",
-                    "read the code and the forge; change and push its branch; run commands; never merge or update",
+                    "read the code and the forge; change and push its branch; run commands; never merge",
                     "Make the change on its branch and report what changed and what was checked.",
                 ),
             )
@@ -285,7 +358,10 @@ fn stop(step: w::PathStep) -> w::Stop {
             card(
                 "code · holds a change until CI passes",
                 "CI",
-                &[("Checks", "every check the repository's CI workflows report, at the change's head")],
+                &[
+                    ("Workflows", "ci.yml"),
+                    ("Checks", "every check the repository's CI workflows report, at the change's head"),
+                ],
             ),
         ),
         Review => (
@@ -307,14 +383,14 @@ fn stop(step: w::PathStep) -> w::Stop {
             rule,
             card("a person · decides whether it lands", "owner", &[("Role", "owner"), ("Asks", "1 of them")]),
         ),
-        Update => (
+        Conflict => (
             Code,
-            "update",
+            "conflict",
             w::Opens::Queue,
             card(
-                "code · brings the change up to date with its branch",
+                "code · main has moved in a way that clashes with the change",
                 "the queue",
-                &[("Does", "merges the branch's tip into the change, never by an agent")],
+                &[("When", "the change reaches the front of the queue: main is merged into it, never by an agent")],
             ),
         ),
         Merge => (
@@ -333,10 +409,13 @@ fn stop(step: w::PathStep) -> w::Stop {
             card("code · checks what landed", "main checks", &[("Runs", "the tier main checks after each landing")]),
         ),
         Branch => (Bar, "main", w::Opens::Nothing, card("a branch · where the change lands", "main", &[])),
-        Prepare | Prove | Turn => unreachable!("the gallery ways use the queue"),
+        CatchUp | Prepare | Prove | Turn => unreachable!("the gallery ways use the queue"),
     };
-    w::Stop::new(&w::CEILINGS, w::StopParts { actor, step, words: words.as_bytes().into(), opens, card })
-        .expect("path stop")
+    w::Stop::new(
+        &w::CEILINGS,
+        w::StopParts { needed: false, over: Box::default(), actor, step, words: words.as_bytes().into(), opens, card },
+    )
+    .expect("path stop")
 }
 
 fn branch(stops: Vec<w::Stop>) -> w::BranchPath {
@@ -352,13 +431,28 @@ fn branch(stops: Vec<w::Stop>) -> w::BranchPath {
 }
 fn path(index: usize) -> w::BranchPath {
     use w::PathStep::{
-        Approve, Ask, Branch, Check, Draft, Merge, Plan, Produce, ProduceMany, Repair, Resolve, Review, Update, Verify,
+        Approve, Ask, Branch, Check, Conflict, Draft, Merge, Plan, Produce, ProduceMany, Repair, Resolve, Review,
+        Verify,
     };
     let stops = match index {
-        0 => vec![Ask, Produce, Check, Repair, Check, Approve, Update, Resolve, Merge, Branch],
-        1 => vec![Ask, Produce, Check, Review, Repair, Check, Update, Resolve, Merge, Branch],
+        0 => vec![Ask, Produce, Check, Repair, Check, Approve, Conflict, Resolve, Merge, Branch],
+        1 => vec![Ask, Produce, Check, Review, Repair, Check, Conflict, Resolve, Merge, Branch],
         2 => {
-            vec![Draft, Plan, ProduceMany, Merge, Check, Repair, Branch, Check, Update, Resolve, Merge, Verify, Branch]
+            vec![
+                Draft,
+                Plan,
+                ProduceMany,
+                Merge,
+                Check,
+                Repair,
+                Branch,
+                Check,
+                Conflict,
+                Resolve,
+                Merge,
+                Verify,
+                Branch,
+            ]
         }
         _ => unreachable!("three stock ways"),
     };

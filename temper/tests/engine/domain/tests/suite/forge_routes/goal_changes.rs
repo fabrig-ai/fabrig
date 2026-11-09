@@ -327,6 +327,7 @@ fn inspecting_goal() -> (World, engine::Assignment, Box<[u8]>) {
     let people::Ask::Create { project, mut batch } = goal_request(&world, true) else { panic!("goal request") };
     batch[0].flags.conversation = true;
     let goal = assigned_chat(&mut world, GOAL_REQUEST, people::Ask::Create { project, batch });
+    world.until(Until::Ready);
     let branch = format!("temper/{}/g{}", goal.task, goal.task).into_bytes().into();
     (world, goal, branch)
 }

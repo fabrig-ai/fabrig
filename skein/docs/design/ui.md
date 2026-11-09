@@ -871,14 +871,34 @@ platform. Scenes are step code under the subset.
 - **Every mark** carries as well: style tokens, at most the limit on a
   node's tokens; a hint, text a platform shows on hover, never needed to
   decide; and an act, on a drawing acted on (11.3).
+- **A fade,** on a line, a polyline or a path, given after it as its hint
+  and act are (`Scene::fade(from, to, stops)`): its stroke painted along
+  the way from one point to the other, as a linear gradient is, by stops.
+  - *Its points* are in the scene's pixels as the mark's own are, a
+    group's offset added to them as to the mark's.
+  - *Each stop* has its place, in thousandths of that way, 0 to 1000,
+    none before the one before it, and its own style tokens, which say
+    its colour there. Short of the first stop the stroke is the first's,
+    past the last the last's.
+  - *Refused with its scene:* a fade with no stop, a place past 1000 or
+    before the one before it, a second fade on one mark, a fade on any
+    other mark or with no mark before it, and a fade past the scene's
+    limits (section 15).
+  - *Part of its scene,* drawn by the drawing code from the drawing's
+    data and its box's size as every mark is (11.1): it changes with the
+    data, in its one patch (11.4), and crosses no diff of its own.
+  - *A shell that paints no fade* draws the mark by its own tokens, as
+    if it had none.
 - **Its words come in its data,** written by its owner's view with its
   phrasebook: drawing code prints numbers and the data's words, and
   takes no phrasebook. Everything a person must read is in the fallback.
 - **No colour.** Colours, widths and fonts are each shell's, by the
-  marks' tokens.
-- **Bounded** by the limits on a scene's marks and bytes (section 15). A
-  mark past them is refused, and its scene with it: a refused scene
-  shows its drawing's fallback, never cut silently.
+  marks' tokens, and a fade's colours by its stops' tokens: a scene says
+  where a fade runs and what each stop is, never a colour.
+- **Bounded** by the limits on a scene's marks and bytes, and on a mark's
+  tokens, its fade's among them (section 15). A mark past them is
+  refused, and its scene with it: a refused scene shows its drawing's
+  fallback, never cut silently.
 - **Its size** is its box's, unless it says its own height: then its box's
   width and that height. A scene says it when no stylesheet could know it,
   as a flow's in a document (11.5), and must draw the same scene whatever
@@ -919,8 +939,8 @@ box's size changes, which is the shell's alone, with no step.
 
 | Shell | A scene |
 |---|---|
-| a browser's, through the page part | inline SVG of the scene's size, its tokens as classes, its hints as `<title>`; the SVG hidden from assistive technology, the fallback from sight while the scene is drawn (ui-web.md, section 8) |
-| the text shell, the fake person's tree face | not drawn: the fallback is read (ui-text.md, section 5; 17.1) |
+| a browser's, through the page part | inline SVG of the scene's size, its tokens as classes, its hints as `<title>`, its fades as linear gradients whose stops' tokens are classes; the SVG hidden from assistive technology, the fallback from sight while the scene is drawn (ui-web.md, section 8) |
+| the text shell, the full-screen shell, the fake person's tree face | not drawn, its fades with it: the fallback is read (ui-text.md, section 5; ui-screen.md, 5.3; 17.1) |
 | a phone's | its platform's drawing: Core Graphics or a SwiftUI `Canvas` on iOS, `android.graphics.Canvas` or a Compose `Canvas` on Android, the fallback kept for assistive technology (16.2, 16.3) |
 | any, for a kind the look maps to a component | the component draws the data its own way, the fallback kept (section 12) |
 
@@ -1067,12 +1087,12 @@ builder asserts each before it allocates.
 | `text_per_node` | a node's name, description, placeholder, hint, image address, runs, value and external target together |
 | `text_bytes` | the same, across the tree |
 | `drawing_bytes` | a drawing's data, an act on a drawing, and a flow's data, past which its block stays code (10.1) |
-| `styles_per_node` | a node's style tokens, and a mark's |
+| `styles_per_node` | a node's style tokens, and a mark's with its fade's stops' |
 | `patches` | one diff's patches |
 | `bindings` | the bindings and addresses a tree carries |
 | `slots` | a tree's slots, over every pass |
 | `markdown_depth` | the Markdown reader's nesting |
-| `scene_marks`, `scene_bytes` | a scene's marks, groups included; its texts, hints, acts and path commands |
+| `scene_marks`, `scene_bytes` | a scene's marks, groups included; its texts, hints, acts, path commands and fades |
 
 - **`skein_ui::valid(&Limits)`** checks the edges and derived capacities,
   including Markdown scratch and the scene's style capacity.
@@ -1082,6 +1102,12 @@ builder asserts each before it allocates.
   does not make otherwise representable limits invalid.
 - **`markdown_bound(bytes, depth)`** bounds the reader's scratch for the
   admitted text and nesting, a flow's among it (10.1).
+- **A fade's share** (11.2): of the scene's bytes, 8 for its two points
+  and 4 for each stop, its place and its count of tokens, which
+  `scene::fade_bytes(stops)` gives an owner deriving its limits; its
+  stops' tokens count with its mark's own against `styles_per_node`, so
+  the scene's store of tokens, `scene_marks × styles_per_node`, holds
+  them with no room of their own.
 - **`Limits::EMPTY`** holds no capacity: an empty tree without scenes. A
   caller sets over it the fields it means
   (`Limits { nodes, depth, ..Limits::EMPTY }`), so a tree without scenes
@@ -1307,7 +1333,7 @@ style tokens interpreted as hints, by the names it knows.
   builder's assertions, matching and ids, each patch and the diff's
   bound, the view's states, section 6's refusals, the outline's rules, the
   phrasebook's refusals and capacities, the Markdown reader, scenes'
-  bounds and their press order.
+  bounds, their fades' refusals and their press order.
 - **Golden text** fixes the text shell's renderer and command reader
   (ui-text.md, section 8), among its pages a tree with every role, state
   and property.
@@ -1407,6 +1433,8 @@ to 7 and 11 settle.
   joins, laid out in ranks, with an edge's label; other shapes, a
   decision's diamond, a store's cylinder; and sequence diagrams, the other
   diagram models write most.
+- **More of a fade** (11.2): a fill's, a radial one, and one on a
+  rectangle, a circle or a text; each waits for drawing code that asks.
 
 ## 19. Open questions
 

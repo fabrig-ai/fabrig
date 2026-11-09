@@ -1,6 +1,6 @@
 # ui-web: status
 
-2026-11-08. Where skein's code lags or departs from [ui-web.md](ui-web.md).
+2026-11-09. Where skein's code lags or departs from [ui-web.md](ui-web.md).
 
 Sections 6 and 7 have no known gap in a field's options: listbox and
 option mapping, retained active selection, arrows, Enter without a
@@ -38,6 +38,14 @@ height, the SVG in its figure's flow, its stated width with
 width and a press's point scaled to the scene's pixels, or the flow
 tokens' default look.
 The host table reads the Markdown cases and compares their SVG bytes.
+
+Sections 8, 12 and 13 have no known gap in a fade: `svg::draw` puts a
+`<linearGradient>` for each faded mark in the SVG's first `<defs>`, its
+stops' tokens classes, the mark `stroke="url(#ID)"` and `data-fade`,
+its id from the stem `ids` and the page part's `skein-ui-fade-<node
+id>`; `skein-ui.css`'s default stroke skips a faded mark. The golden
+scene and `two_drawings_paint_their_fades_by_ids_of_their_own` hold
+it; no browser has painted one on record.
 
 - **Departs:** 7: a press outside an open menu returns the focus to its button
   unless that press took it to another control, where the code asks only whether

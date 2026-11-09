@@ -3023,6 +3023,31 @@ keeps (`../protocol/configuration.md`, section 2).
     PROJECT’s limits." with the act "Limits", to Settings; "Away: agents
     decide within PROJECT’s limits." with `until` none; off, "Away is off:
     questions wait for you again."; refused, "Away didn’t change. Try again."
+  - *On All projects* (`../draft/surfaces.md`, section 2), while the page
+    is one across projects (`pages::rail::across`), the switch and the chip
+    are the person's projects' together: M, the projects `me` lists, and
+    N, those whose row is on at the wall (`Domain::away_on`), counted with
+    the earliest `until` of the rows on by one pure function,
+    `pages::away_all::across`, which the rail and the chip read:
+    - *Shown* while this section's *Shown* holds for any of them, the
+      rail's fact on All projects (5.3).
+    - *Its words:* with N 0, a project's off words, not pressed; with N
+      M, a project's on words with that earliest `until`, "Away" alone
+      where no row on has one, pressed; between, "Away on 2 of 4", N of
+      M, not pressed, so that the state says what a press does. The build
+      asks to wake at that earliest `until`.
+    - *Its act,* `away::Act::ToggleAll`: with N M, every project off;
+      otherwise every project on. Each project not already so is sent its
+      own `SetAway`, the request *Its act* above sends for that project's
+      switch, one decision each and all at once; one already so is sent
+      nothing. While any is out, every Away control is disabled and a
+      project's act waits, as while a project's request is out.
+    - *Its toast,* once every answer is in, says how many changed: "Away
+      turned on for 3 projects: agents decide within their limits.";
+      "Away turned off for 3 projects: questions wait for you again.";
+      "1 project" for one; with some refused or unknown, "Away changed for
+      2 of 3 projects. Try again.", of those sent; with none changed, "Away
+      didn’t change. Try again." No "Limits": limits are a project's.
   - *Home, while a decision shows.* A row (`decided`, 4.6) shows for 24
     hours from its `at`. With any showing and To begin gone, *Home on any
     project* takes this form, in the intro's one function; the build asks to
@@ -4518,10 +4543,14 @@ the person to check existence and grant the repository to the App.
   at most 24, in order, each a `Stop`:
   - `actor`, `Actor`: `person`, `agent`, `code` or `bar`;
   - `step`, `PathStep`: `ask`, `draft`, `plan`, `produce`, `produce_many`,
-    `check`, `review`, `repair`, `approve`, `update`, `resolve`, `merge`,
-    `prepare`, `prove`, `turn`, `verify` or `branch`;
+    `check`, `review`, `repair`, `approve`, `conflict`, `resolve`, `merge`,
+    `catch_up`, `prepare`, `prove`, `turn`, `verify` or `branch`;
   - `words`, at most 64 bytes, as the path draws them ("you ask",
     "produce ×n", "an owner approves", "main");
+  - `needed`, whether the stop is made only when needed, drawn outlined;
+    `over`, at most 16 bytes, the small words over its own ("tests,
+    review", "into goal"), empty for none (`../domain/forge.md`, 8.13,
+    *Drawn apart*);
   - `opens`, `Opens`: `nothing`, `charter` (`charter`), `rule` (`kind`,
     `scope`, `number`), `gate` (`number`, and `charter`, its reviews'
     charter, the role its card opens), `tier` (`name`), `queue` or
@@ -4561,7 +4590,9 @@ the person to check existence and grant the repository to the App.
   a `WayView`, `name`, `line`, `path` and `current`; `path`, a `BranchPath`;
   `proposal`, a `ProposalView`, `before` and `after`; `charter`, a
   `CharterView`, `charter` and its `card`; `rule`, a `RuleView`, `kind`,
-  `number` and its `card`; or `not_drawn`, `words`, at
+  `number` and its `card`; `roles`, a `RolesView`, `roles`, at most 16,
+  each a `CharterView` (`../domain/forge.md`, 8.13, *The project's
+  roles*); or `not_drawn`, `words`, at
   most 512 bytes, saying in a line why it is not drawn.
 - **A proposal's items, the read `ProposalItems`:** its answer,
   `ProposalItemsAnswer`, holds the items and `owned_approval`, whether one of
@@ -5012,7 +5043,7 @@ and what is current is the view's. Its rules:
 | "Needs you"'s count | it is more than zero | `pages().needs().count(..)`, as above |
 | "Team" | the project has a second member or a standing role | a project's members and its standing roles |
 | "Ask temper", in the rail, the tab bar and the new box's menu | `me` lists template 5 for the project | `me`'s templates |
-| the Away switch and chip | 3.5's *Away* shows it | `Domain::away_shown` |
+| the Away switch and chip | 3.5's *Away* shows it; on All projects, it shows for any of the person's projects (3.5, *Away*, *On All projects*) | `Domain::away_shown`; on All projects, `pages::away_all::across` |
 | the new box's menu, "+ New draft or change" | the project offers drafts | `drafts_offered`; else "+ New change" alone |
 | To begin's cut, above | `home::beginning` holds | `home::beginning(root, project, wall)` |
 | "Home", "Needs you", "Work", "How work runs", "Deployment" | always, To begin's cut aside | |
@@ -5077,15 +5108,15 @@ filter, `Goals`, its filter All, `Changes`, `Settings`, `Models`, `Builders`,
 **All projects** (`../draft/surfaces.md`, section 2): the switcher's first
 row while the person is in two projects or more, a button named "All
 projects", in small type at its right how many, "4 projects". Pressed, it
-goes to the page across projects, where a sign-in lands: `/`, `Inbox {
-filter }` with no project; on `Inbox`, its filter with the project taken
-out. While the page is one across projects, `Inbox` with no project, the
-switcher's summary names "All projects" and its row is the one pressed; the
-rail's other entries keep the open project, the one last open, so that
-"Work" and "How work runs" open on it, and the switcher names it again
-there. Whether the page is across projects is one function,
-`temper_client_domain::pages::rail::across(root)`, which Home across projects
-joins once it has an address (`../draft/surfaces.md`, section 3).
+goes to a page across projects: on `Inbox`, its filter with the project
+taken out, where a sign-in lands, `/`, having none; anywhere else
+`AllHome` (3.5, *Home on All projects*). While the page is one across
+projects, `AllHome` or `Inbox` with no project, the switcher's summary
+names "All projects" and its row is the one pressed; the rail's other
+entries keep the open project, the one last open, so that "Work" and "How
+work runs" open on it, and the switcher names it again there. Whether the
+page is across projects is one function,
+`temper_client_domain::pages::rail::across(root)`.
 
 The acts of both, each one act and one request (3.6):
 
@@ -6509,31 +6540,30 @@ Ask temper is reached from the rail and tab bar (5.3), and from this page's
     them (3.5): a tab a way of the read, in its order, then "Yours" where
     the project runs no stock way, the current one's "now", the shown one
     selected, and the line "From more of you to more of your agents"; the
-    shown way's `line`; its path in lanes (below); while a stop is open,
-    its card, as Ask temper's page draws a stop's card, with no caret; then
+    shown way's `line`; its path, the drawing Ask temper's page draws
+    (5.16), its stops pressed, laid out by the box's width, the legend
+    under it as Ask temper's page has it; while a stop is open, its card,
+    as Ask temper's page draws a stop's card, its caret across; then
     the shown way's act at the section's right, "Use this" or "Keep it"
     (*A way's acts,* below), and a refusal under it. The shown tab and the
     open stop are the page's state, as on Ask temper's page. Until the read
     answers the section holds its title alone; once its watch has ended,
     "The ways can't be read now.", muted.
-  - *A path in lanes,* a table named "The path of a change": its first row
-    column headers, an empty one, then one a stop of the path, in its
-    order, naming the stop's step: "Ask", "Draft", "Plan", "Produce" (for
-    `produce` and `produce_many`), "Check", "Review", "Repair", "Approve",
-    "Update", "Resolve", "Merge", "Prepare", "Prove", "Turn" and "Verify",
-    and for a bar its `words`, "goal branch" or the landing branch's name.
-    Then a row each for "You", "Agents" and "Code", its row header that
-    word, then a cell a stop: in the row of the stop's actor, a person's in
-    You, an agent's in Agents, code's in Code, a button opening the stop's
-    card as a stop of Ask temper's drawing does (`Act::WayStop`), pressed
-    again closing it, current while its card is open, named by what the
-    cell says: a person's stop's `words` ("you ask", "you approve", "an
-    owner approves"), an agent's or code's its card's `name` ("the coding
-    agent", "the reviewer", "CI", "the queue", a tier's name). A bar's
-    cells hold nothing and draw its column's bar; every other cell is
-    empty. Between the Agents and Code rows, a row of one cell across every
-    column, "authority: no merge tool above this line": no agent's stop
-    stands under it (`../domain/forge.md`, 8.13).
+  - *Roles,* every agent the project's work runs
+    (`../draft/surfaces.md`, section 7): a section "Roles", at its head's
+    right, small and muted, "every agent PROJECT runs"; a row a role of
+    the view `roles` (5.16; `../domain/forge.md`, 8.13, *The project's
+    roles*), in its order: a disclosure (`confirm.rs`' and the frame's
+    kind) whose summary is the role's `name`, its `who` in small muted
+    words, and at its right its "Model" fact's value; opened, its "Can"
+    and "Asked to" facts as terms, then "Read its instructions ›", a link
+    to the role's page, `Role { project, charter }` (3.5). Every row
+    closed as the page opens. The page reads the view as the role's page
+    reads `charter N`: once as How work runs opens, again when the
+    session's `settings` watch names a newer revision; until it answers,
+    or where it is refused or `not_drawn`, the section isn't drawn. What
+    a role does, past when it runs, waits for words saved with its
+    charter (`../draft/whole-story.execution.md`, P3e).
   - *Budgets,* while one is set (`../draft/surfaces.md`, section 12): what
     a goal is given when it starts, while kind 7 has Goals shown and its
     goal's template, the one `way` names or else the first tracked one in
@@ -6550,17 +6580,15 @@ Ask temper is reached from the rail and tab bar (5.3), and from this page's
     page's own rule shows (`../draft/surfaces.md`, section 12).
 
   A row is a label, small words and a control at its right, a phone
-  stacking them. On a phone the path's table keeps its columns and scrolls
-  sideways in its box. Nothing disabled is drawn: a mechanism not built
-  has no row until it is.
+  stacking them. On a phone the path runs down the page, as on Ask
+  temper's page (5.16, *Its layout*). Nothing disabled is drawn: a
+  mechanism not built has no row until it is.
 - **Its parts** are one pure function, `pages::how::parts`, of the facts
   `pages::how::facts` gathers (Ask temper's template in `me`, the `ways`
   read's state and current way, kind 7's Goals and its goal template's
   budget), which the web and the terminal share (`../draft/surfaces.md`,
   section 12): the heading's way, "Ask temper to change this", the path
-  section's state and Budgets' row. The lanes are another,
-  `pages::how::lanes`: a column a stop of a path, in its order, a stop's in
-  its actor's lane and a bar's in none, every stop placed once.
+  section's state, Roles' state and Budgets' row.
 - **Its rows:**
   - *What the project shows,* live, kind 7: a row each, the state's word then
     a switch:
@@ -6713,7 +6741,7 @@ Ask temper is reached from the rail and tab bar (5.3), and from this page's
   decision; and where a card stands, its proposal's lines draw none. A card and a row
   never both say it. A proposal with no card standing keeps its row.
 
-**Later: the fuller page.** Roles, ways to start work, rules, running work and
+**Later: the fuller page.** Roles as settings, ways to start work, rules, running work and
 history join the page, the review page opens, and the card gains "Review". The
 pages then read jig's `settings` document and each setting they show whole
 (`setting`, jig's `client/domain/contract.md`, 5.1 and 6), again as the document
@@ -7011,7 +7039,9 @@ terminal draw the same path.
   left out; `proposal tN/K`, a waiting proposal's path before and after
   over the project's home repository's landing branch; `charter N`, a
   role; `rule K/N`, a landing rule, K 1 for the deployment's and 2 for
-  the chat's project's, N its number. A path or a charter takes
+  the chat's project's, N its number; `roles`, every agent the project's
+  work runs, each its charter's role card (`../domain/forge.md`, 8.13,
+  *The project's roles*). A path or a charter takes
   `@revision N`, drawn when N is the newest revision; an older one is not
   drawn yet, and says so.
 - **Read when shown:** the chat page reads each address it shows once,
@@ -7026,12 +7056,21 @@ terminal draw the same path.
   the line rising to each judgement and falling back, the dotted line
   no merge tool crosses, each branch's bar, the landing branch's at its
   end; each stop its mark, an agent's a four-point star, a person's a
-  ring, code's a small square, and its words. A way draws its name and
+  ring, code's a small square, and its words; a stop made only when
+  needed (`needed`) its mark outlined, and a stop's small words
+  (`over`) over its own, smaller and fainter (`../domain/forge.md`,
+  8.13, *Drawn apart*). Who acts is the mark alone, the colours the
+  look's (`browser.md`, 2.5): a person's ring the signal's, an agent's
+  star ink, code's square grey. Under the path, on Ask temper's page and
+  How work runs, its legend: an agent, an agent when needed, a person,
+  code, and the dotted line, "no merge tool above". A way draws its name and
   line over its path; a proposal its two paths, "Before" and "After"; a
   charter or a rule its card, `who`, `name` and `facts`, as a list of
-  terms; a `not_drawn` its words. The drawing's fallback, which the terminal
+  terms; `roles` each role's card so, in its order; a `not_drawn` its words. The drawing's fallback, which the terminal
   prints, is a stop a line, its words and its actor in words ("produce,
-  an agent").
+  an agent"), then ", when needed" for a needed stop and its small words
+  in brackets: "repair, an agent, when needed (tests, review)", "merge,
+  code (into goal)".
 - **Its layout,** of the box's width `W` alone:
   - *across,* where `W` is 560 or more and its stops would stand at
     least 48 pixels apart in it (`W − 80` over the gaps between the stops
@@ -7048,26 +7087,34 @@ terminal draw the same path.
     branch's bar at `A − 8`, its words ending there at 88. The line runs
     along the base row through code's stops and the bars, rising to each
     judgement over 0.42 of a step and falling back over as much, a cubic
-    curve each way, and ends at the landing branch's bar: above the
-    dotted line it takes the
-    signal's faint tone, below it the line's, two tones in place of the
-    request's fade, since a scene carries no gradient (skein's `ui.md`,
-    11.2).
+    curve each way, and ends at the landing branch's bar: the base row
+    in the line's colour, each rise painted by a fade (skein's `ui.md`,
+    11.2) from its mark's colour at the marks' row, through a fainter
+    tone at the dotted line, to the line's colour at the base row, as the
+    look request's fade is, a person's rises in the signal's and an
+    agent's in ink, each tone one mark of the scene; a stop's small
+    words over its own at 9, centred on the stop, whichever side of the
+    line it stands.
   - *down the page,* narrower, in a column 360 pixels wide centred in the
-    box: the dotted line down its middle at 178; a person's and an
+    box, or, in a box under 360, a scene 360 wide that says its width and
+    is scaled to the box, keeping its proportions, as the look request's
+    narrow picture is: the dotted line down its middle at 178; a person's and an
     agent's marks at its right, at 206, their words after them; code's
-    at its left, at 150, its words before them; a stop every 40 pixels
+    at its left, at 150, its words before them; a stop's small words
+    under its own, 12 lower, on the same side; a stop every 40 pixels
     from 16, the landing branch's bar across the line's foot 38 under the
     last stop, its words before it; the scene's height its own, 14 under
-    that bar (skein's `ui.md`, 11.2).
-- **Pressed,** on Ask temper's page alone (3.5): each stop but a bar is a
+    that bar (skein's `ui.md`, 11.2); the line's fades run across the
+    column, from the marks' side to code's.
+- **Pressed,** on Ask temper's page and How work runs alone (3.5; 5.13): each stop but a bar is a
   group whose transparent area, 60 by 52 above the line and 60 by 44
   below it across, a row 28 high down the page, carries its act, so that
   a press anywhere on it opens the stop's card (skein's `ui.md`, 11.3);
   the open stop has a pale ring of 15 behind its mark and its words in
   ink, bold, and the scene grows at its foot by what is 14 pixels in the
-  box (14 × `A` / `W` across, rounded to a whole pixel of the scene; 14
-  down the page), so that the card, following the drawing with no gap of
+  box (14 × `A` / `W` across, and 14 × 360 / `W` down the page in a box
+  under 360, rounded to a whole pixel of the scene; 14 down the page
+  otherwise), so that the card, following the drawing with no gap of
   its own (3.5), stands 14 pixels under it as the request's does: across,
   that room holds the card's caret, a point under the open stop 6 pixels
   of the box high and 12 wide, its base on the scene's foot, where the
@@ -7872,8 +7919,9 @@ words, parts and order bind and whose figures don't), illustrative:
 ```
 
 - **Where it departs from its mockup,** each for a reason: the brief is
-  the project's, not one across projects, and so are the rows, until
-  Home reads every project (`../draft/surfaces.md`, 3; temper/ui's P2);
+  the project's, not one across projects, and so are the rows, since its
+  root is a project's Home, not `AllHome` (3.5, *Home on All projects*;
+  `../draft/surfaces.status.md`, 11);
   the header holds the brief's sentence and `/brief` its whole, since
   the engine keeps a sentence and a lede and no more (`../domain/forge.md`,
   5.7); a chat's row ends with `/chats N`, numbering the rows as the
@@ -7894,9 +7942,9 @@ words, parts and order bind and whose figures don't), illustrative:
   chats through `pages().chats()` and the project's goals through
   `pages().goals()` (3.5, *Home*). The TUI derives none of them again,
   and each is drawn at the next frame after it changes. They are the
-  project's: Home across projects is the browser's to design first
-  (`../draft/surfaces.md`, 3), and the launchpad reads it when the root
-  holds it.
+  project's: the reads across projects are `AllHome`'s, its joined brief
+  `pages::all_home::brief` (3.5, *Home on All projects*), which the
+  launchpad does not take (`../draft/surfaces.status.md`, 11).
 - **The header,** the region `tui-top`, framed, its level-1 heading in
   its border: "temper" (`tui-title`), " · " (`tui-faint`) and the
   project's name (`tui-name`); and, at the border's end, `HOST:PORT`
@@ -9863,7 +9911,12 @@ own tests:
   (`browser.md`, 2.5), the path at 1000 px 658 by 127.94, the open card
   14 px under it at every width, the gallery's print at 420 down the page
   (`browser.md`, 7.1), the reviewer's "Asked to" whole and CI's checks;
-  and a walk from each card's "Open NAME ›" to its role's or rule's page
+  then `look-round-25`'s: the open card at 1000 px and on a phone, four
+  tabs two by two at 760 px and under, a stop made only when needed
+  outlined with its small words over it, the agent's star and its rises
+  in ink, each rise's fade, CI's card naming the workflows, and How work
+  runs drawing the same path, with Roles under it (5.13); and a walk
+  from each card's "Open NAME ›" to its role's or rule's page
   (*A role's or a rule's page*), which no request draws and no gallery
   state prints. Owner: temper/ui. Default: each difference a finding
   filed back under the request's trailer.
@@ -10308,7 +10361,27 @@ own tests:
   tabs; and walks them on a box (`../draft/whole-story.execution.md`,
   section 2). Owner: temper/ui. Default: each difference a finding filed
   back to the plan's repair.
-- **How work runs' fuller page** (5.13, *Later: the fuller page*): roles, ways to
+- **Home and Needs you across projects after landing** (3.5, *Home*,
+  *Home on All projects* and *Needs you*): temper/ui compares main with
+  the whole story's `web/whole-story/home.html`, `needs.html`,
+  `phone-home.html` and `phone-need.html`, and `pair/`'s and `team/`'s
+  Home and Needs you, at 1440, 1000 and 390 px, by day and by night; walks
+  them on a box across two projects; and records the journey of Home to a
+  need, answered (`../draft/surfaces.md`, 14). Owner: temper/ui. Default:
+  each difference a finding filed back to the plan's repair.
+- **Home's and Needs you's later parts** (3.5, *Home on All projects*,
+  *Needs you* and *A page's parts*; `../draft/surfaces.md`, sections 3, 4,
+  12 and 15): a project's Now on its row, rolled from its owners', its
+  tiers, a follow's parity and "owned" (R1 to R3, F1); What follows what
+  (F1); who decided, on a Decided for you row, and a need's why with "Stop
+  asking" and "Keep asking", the intro's What reaches you and Only you
+  (N1, N3a); a need's goal, role and asker on its from line; Tell temper
+  at Needs you's foot (P5a); one brief across projects written per person,
+  `../draft/surfaces.md`, 15's open question; and more than 16 projects
+  read. Each joins *A page's parts* with the read that gives it. Default:
+  none is drawn until it is built, the brief is one a project, joined, and
+  the first 16 projects in `me`'s order are read.
+- **How work runs' fuller page** (5.13, *Later: the fuller page*): roles as settings, ways to
   start work, rules, running work and history on the page; `Proposal { proposal
   }`; and the card's "Review", with the grouping of what temper enforces and what
   agents follow that the mock's `.proposal-split` draws. Default: the page's parts

@@ -1,6 +1,6 @@
 # forge: status
 
-2026-11-08. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-09. Where temper's code lags or departs from [forge.md](forge.md).
 
 Section 11.1 has no known implementation gap in whole-goal child isolation:
 words-only calls and batch members use the nearest held goal branch,
@@ -18,22 +18,53 @@ eligibility across the project's repositories. The focused rule tables
 and branch-pattern fuzzy story are present; their real-forge observation
 remains section 20's after-landing work.
 
-Section 8.13 has no known gap: the crate `temper-engine-domain-ways`
-derives a branch's path from what the root gathers in the answering
-decision, for the `ways` read, `see ways` and the `View` read alike. A
-focused table holds the look request's three paths with CI and both
-tiers, the same with neither, and by turn; the fuzzy test, 64 seeds of
-random rules, finds no agent's stop for an update, a merge, a prepare,
-a proof or a turn, and every path ending at a bar. A card's "Asked to"
+Section 8.13 has no known gap but the drafter's role, below: the crate
+`temper-engine-domain-ways` derives a branch's path from what the root
+gathers in the answering decision, for the `ways` read, `see ways` and
+the `View` read alike. "conflict" and "resolve" stand where a change
+takes its branch at the front of its queue, the queue's update in the
+conflict's and the merge's cards with no stop of its own, and "catch
+up" ends a goal's segment where the project names a merge job; each
+repair, conflict, resolution and catch-up is made only when needed, a
+repair's small words say what it answers, and a merge on a goal's
+segment says "into goal". An agent's "Can" ends "never merge", and Ask
+temper's and the status agent's say what their runs hold (`words.rs`).
+A focused table holds the look request's three paths with CI and both
+tiers, the same with neither, and by turn
+(`paths_follow_the_stock_and_branch_rules_in_order`); the fuzzy test,
+64 seeds of random rules, finds no agent's stop for a conflict, a
+merge, a catch-up, a prepare, a proof or a turn, and every path ending
+at a bar. A card's "Asked to"
 is its charter's first sentence within `ASKED`, 184 bytes with its
 quotes, every fact past its bound cut on a word with "…"
 (`temper-engine-domain-ways`, `words.rs`, `cut_on_word`), the charter's
 and the rule's views alike; the worst small ways document still fits its
-decision. A review's stop names its gate's reviews' charter, CI's card
-names the landing branch's required checks or every check the
-workflows report, and the view `rule K/N` draws a landing rule's card,
+decision. A review's stop names its gate's reviews' charter; CI's card
+names the repository's workflows, less those a test gate or a tier
+dispatches, then the landing branch's required checks or every check
+the workflows report; the view `rule K/N` draws a landing rule's card,
 the stock rule of kind 2 among them, from the forge's rules as they
-stand. The workflows by name are section 20's.
+stand; and the view `roles` gives the project's roles, a card a charter
+at its first place, from where each charter runs
+(`route/ways/view/roles.rs`; `route/ways/tests.rs`,
+`inputs_gather_the_repository_start_and_readers_roles`).
+
+- **Not yet:** 8.13, *The project's roles*: the drafter, charter 12,
+  which the stock holds and its template 6 starts since P6 landed after
+  `look-round-25`'s cut, is no role, and the list gives it no place or
+  line (`../draft/surfaces.status.md`, 7).
+
+Sections 4 and 4.7 have no known gap in a repository's CI workflows:
+`temper-engine-domain-forge`'s `workflows.rs` reads `.github/workflows`,
+or on Forgejo `.forgejo/workflows` first, at the landing branch's tip
+once an adoption or a refusal's refresh saves the record, at the first
+tip observed and at a landing whose files touch it or are not known,
+keeps at most 16 names of 255 bytes on the record, saved only when they
+differ, and keeps what it held when a read is refused
+(`the_workflows_are_read_at_the_landing_tip_and_kept_when_refused`,
+`the_landing_branch_reads_its_workflows_again_only_when_they_may_have_changed`).
+No read of a real forge's directory is on record; section 20 keeps a
+workflow that runs on no pull request.
 
 Section 5.3 has no known implementation gap in read ownership: the root
 mints through `root_read`, the router recognizes `is_root_read`, and the

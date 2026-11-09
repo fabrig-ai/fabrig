@@ -137,7 +137,7 @@ record ProposalItem { kind: u32 scope: u32 number: u32 edit: SettingEdit }
 versioned record ProposalItemsAnswer { items: list 1024 ProposalItem owned_approval: bool }
 # A branch's path (temper/docs/design/domain/forge.md, 8.13; client/README.md, 4.6).
 enum Actor { person, agent, code, bar }
-enum PathStep { ask, draft, plan, produce, produce_many, check, review, repair, approve, update, resolve, merge, prepare, prove, turn, verify, branch }
+enum PathStep { ask, draft, plan, produce, produce_many, check, review, repair, approve, conflict, resolve, merge, catch_up, prepare, prove, turn, verify, branch }
 record OpensCharter { charter: u32 }
 record OpensRule { kind: u32 scope: u32 number: u32 }
 record OpensGate { number: u32 charter: u32 }
@@ -145,7 +145,7 @@ record OpensTier { name: bytes 32 }
 enum Opens { nothing, charter: OpensCharter, rule: OpensRule, gate: OpensGate, tier: OpensTier, queue, turn }
 record Fact { label: text 32 value: text 184 }
 record Card { who: text 128 name: text 64 facts: list 4 Fact }
-record Stop { actor: Actor step: PathStep words: text 64 opens: Opens card: Card }
+record Stop { actor: Actor step: PathStep words: text 64 needed: bool over: text 16 opens: Opens card: Card }
 record BranchPath { repository: option bytes 2048 branch: bytes 1024 stops: list 24 Stop }
 # A project's stock ways, watched (client/README.md, 4.6; configuration.md, 13.10).
 record StockWay { name: text 64 line: text 256 path: BranchPath items: list 8 ProposalItem delegation: bool }
@@ -157,8 +157,9 @@ record WayView { name: text 64 line: text 256 path: BranchPath current: bool }
 record ProposalView { before: BranchPath after: BranchPath }
 record CharterView { charter: u32 card: Card }
 record RuleView { kind: u32 number: u32 card: Card }
+record RolesView { roles: list 16 CharterView }
 record NotDrawn { words: text 512 }
-enum View { way: WayView, path: BranchPath, proposal: ProposalView, charter: CharterView, rule: RuleView, not_drawn: NotDrawn }
+enum View { way: WayView, path: BranchPath, proposal: ProposalView, charter: CharterView, rule: RuleView, roles: RolesView, not_drawn: NotDrawn }
 versioned record ViewAnswer { view: View }
 
 enum Read { playground, setting: SettingRead, proposal_items: ProposalItemsRead, deployment, revision_setting: RevisionSettingRead, program_environment, view: ViewRead }
