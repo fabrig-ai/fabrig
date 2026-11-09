@@ -3,8 +3,10 @@
 2026-11-09. Where the design lags or departs from [long-text-pages.md](long-text-pages.md).
 
 The plan landed whole into main as pull #157, merge `b4cba5159c78`,
-with all three ranked items and none dropped. It is complete on landing;
-no implementation or test gap remains.
+and then pull #181, merge `5d23327e4c8e`. All three ranked items are
+complete, with none dropped. Pull #181 carries the last `task turn --part`
+page's closing `no more` line (`../client/tools.md`, 6.4; draft item 1)
+and the status work; no implementation or test gap remains.
 
 **Draft fate:** its vision is folded into `../client/tools.md`, 6.4,
 11.1 and 12, with the two accepted departures below. Removal of the
