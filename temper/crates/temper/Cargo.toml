@@ -17,7 +17,7 @@ record = ["temper-client-shell-tui/record"]
 
 [dependencies]
 temper-engine-shell.workspace = true
-temper-fetch-shell.workspace = true
+temper-launcher.workspace = true
 temper-shell.workspace = true
 settings-form.workspace = true
 temper-docs.workspace = true

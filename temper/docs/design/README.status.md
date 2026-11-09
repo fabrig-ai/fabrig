@@ -6,8 +6,6 @@ Section 9's `temper-agent`, `temper-fetch` and `temper-fetch-shell` are
 present; their remaining deployment integration is kept in
 `draft/deployment-binaries.status.md`.
 
-- **Not yet:** 9: `temper-launcher`: Claude Code's launcher is
-  `temper-fetch-shell`'s (`protocol/README.status.md`, 4.1 to 4.4).
 
 The first milestone (section 2), including the stock chat's instructions to
 delegate repository changes, stands in the code, and section 9 names the crates

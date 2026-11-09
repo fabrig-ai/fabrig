@@ -14,11 +14,6 @@ outcome of this split (`../draft/deployment-binaries.execution.md`, 1).
 Section 15's real Claude download walk and other deferred work remain
 unchanged.
 
-- **Not yet:** 6.6, 11: `temper-launcher`: the launcher, the placing of
-  its links and the substitution are `temper-fetch-shell`'s
-  (`crates/temper-fetch-shell/src/launcher.rs`), on
-  `smith-agent-document`, so the forge's setup links smith's agent
-  document through it.
 
 Section 8.3 has no known implementation gap in the binary supplying
 every project's rule 1 and no deployment rule, or supplying stock

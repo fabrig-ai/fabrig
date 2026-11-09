@@ -153,7 +153,7 @@ pub fn run(command: Command) -> Result<u8, String> {
 
 fn decoded(configuration: &Path) -> Result<smith_agent_shell::config::Decoded, String> {
     let bytes = smith_agent_shell::config::read_bytes(configuration)?;
-    let bytes = temper_fetch_shell::launcher::substituted(&bytes)?.unwrap_or(bytes);
+    let bytes = temper_launcher::substituted(&bytes)?.unwrap_or(bytes);
     smith_agent_shell::config::decode(&bytes)
 }
 

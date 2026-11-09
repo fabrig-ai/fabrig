@@ -24,7 +24,7 @@ path = "tests/suite/main.rs"
 [dependencies]
 temper-shell.workspace = true
 smith-agent-shell.workspace = true
-temper-fetch-shell.workspace = true
+temper-launcher.workspace = true
 skein-shell.workspace = true
 skein-io.workspace = true
 skein-fail-stop.workspace = true
