@@ -179,3 +179,96 @@ pub(super) fn first(config: core::Config, env: &Env<core::Limits>) -> core::Core
     assert!(harness.core.start_opened());
     harness.core
 }
+
+#[test]
+fn a_store_that_fails_a_link_refuses_the_start_naming_both() {
+    use core::start::{Failure, Linked};
+    type Plant = fn(&mut World);
+    let rows: [(&str, Plant, core::Key, Linked); 4] = [
+        (
+            "requester",
+            |world| {
+                let mut row = fixtures::live_row(world, 1).clone();
+                row.requester = tasks::Party::Person(102);
+                world
+                    .store
+                    .seed(Box::new([root::Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(row))))]));
+            },
+            core::Key::Tasks(tasks::Key::Live(1)),
+            Linked::Record(core::Key::People(people::Key::Person(102))),
+        ),
+        (
+            "project",
+            |world| {
+                let mut row = fixtures::live_row(world, 1).clone();
+                row.project = 99;
+                world
+                    .store
+                    .seed(Box::new([root::Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(row))))]));
+            },
+            core::Key::Tasks(tasks::Key::Live(1)),
+            Linked::Project(99),
+        ),
+        (
+            "proof",
+            |world| {
+                world.delegate();
+                let mut proof = world
+                    .store
+                    .rows
+                    .values()
+                    .find_map(|record| match record {
+                        root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof))) => {
+                            Some(proof.clone())
+                        }
+                        _ => None,
+                    })
+                    .expect("delegated run proof");
+                proof.task = 99;
+                world.store.seed(Box::new([root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof)))]));
+            },
+            core::Key::Core(core::CoreKey::RunProof(99)),
+            Linked::Record(core::Key::Tasks(tasks::Key::Live(99))),
+        ),
+        (
+            "connector",
+            |world| {
+                world.store.seed(Box::new([root::Record::Core(core::Record::Core(core::CoreRecord::Projection(
+                    core::ProjectionRecord::Goal {
+                        goal: core::ProjectionGoal {
+                            number: 1,
+                            project: 1,
+                            priority: 0,
+                            words: Box::new([]),
+                            phase: tasks::Phase::Waiting,
+                        },
+                        pending: Box::new([99]),
+                        changed: true,
+                        fed_at: None,
+                    },
+                )))]));
+            },
+            core::Key::Core(core::CoreKey::Projection(core::ProjectionKey::Goal(1))),
+            Linked::Connector(99),
+        ),
+    ];
+    for (name, plant, record, linked) in rows {
+        let mut world = World::new(Setup { seed: SEED, ..Setup::default() });
+        // The planted store deliberately violates the writer promises.
+        world.observer.record();
+        plant(&mut world);
+        world.broken();
+        let before = world.store.rows.clone();
+        let commits = world.store.applied;
+        world.restart(SEED, false);
+        assert_eq!(
+            world.domain.start_failure().map(|(_, failure)| failure),
+            Some(Failure::Link { record, linked }),
+            "{name}"
+        );
+        assert!(!world.domain.ready(), "{name}");
+        assert_eq!(world.store.rows, before, "{name}");
+        assert_eq!(world.store.applied, commits, "{name}");
+        assert!(!world.restart_steps.contains(&Phase::Sweep), "{name}");
+    }
+}

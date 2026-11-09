@@ -1,4 +1,4 @@
-//! Load bounded live rows, assert required links, then rebuild derived state
+//! Load bounded live rows, refuse missing links, then rebuild derived state
 //! (jig/docs/design/domain/engine.md, 6; jig/docs/design/domain/tasks.md, 12).
 //! Retained rows stay in root storage. A fit refusal remains sticky.
 use crate::domain::{Domain, Startup, Task, activate, publish, record, snapshot, task_mut};
@@ -129,48 +129,44 @@ fn failed(domain: &mut Domain, failure: crate::RestoreFailure, out: &mut Queue<R
     });
 }
 
-fn live_link(domain: &Domain, key: crate::Key, target: u64) {
-    assert!(record(domain, target).is_some(), "restore {key:?}: missing task {target}");
+fn live_link(domain: &Domain, target: u64) -> Result<(), crate::RestoreCause> {
+    if record(domain, target).is_none() {
+        return Err(crate::RestoreCause::Link { target: crate::Key::Live(target) });
+    }
+    Ok(())
 }
 
-fn retained_link(domain: &Domain, key: crate::Key, target: u64) {
-    assert!(
-        record(domain, target).is_some() || domain.stubs.contains_key(&target),
-        "restore {key:?}: missing task or stub {target}"
-    );
+fn retained_link(domain: &Domain, target: u64) -> Result<(), crate::RestoreCause> {
+    if record(domain, target).is_none() && !domain.stubs.contains_key(&target) {
+        return Err(crate::RestoreCause::Link { target: crate::Key::Stub(target) });
+    }
+    Ok(())
 }
 
-fn links(domain: &Domain, task: &TaskRecord) {
-    let key = crate::Key::Live(task.number);
-    live_link(domain, key, task.root);
+fn links(domain: &Domain, task: &TaskRecord) -> Result<(), crate::RestoreCause> {
+    live_link(domain, task.root)?;
     match task.executor {
         Executor::Agent { charter } => {
-            assert!(
-                domain.charter_models(charter, task.settings.task).is_some(),
-                "restore {key:?}: missing charter {charter} at revision {}",
-                task.settings.task
-            );
-            if let Some(revision) = task.settings.run {
-                assert!(
-                    domain.charter_models(charter, revision).is_some(),
-                    "restore {key:?}: missing run charter {charter} at revision {revision}"
-                );
+            for revision in [Some(task.settings.task), task.settings.run].into_iter().flatten() {
+                if domain.charter_models(charter, revision).is_none() {
+                    return Err(crate::RestoreCause::Charter { charter, revision });
+                }
             }
         }
         Executor::Procedure { .. } | Executor::Person(_) | Executor::Job { .. } => {}
     }
     match task.requester {
-        Party::Task(parent) => live_link(domain, key, parent),
+        Party::Task(parent) => live_link(domain, parent)?,
         Party::Person(_) | Party::Deployment { .. } => {}
     }
     for target in &task.delegates {
-        live_link(domain, key, *target);
+        live_link(domain, *target)?;
     }
     for target in &task.waiting_on {
-        live_link(domain, key, *target);
+        live_link(domain, *target)?;
     }
     for target in &task.references {
-        retained_link(domain, key, *target);
+        retained_link(domain, *target)?;
     }
     // Completed dependencies and retained inputs are store-read identities;
     // only waiting_on consumes a live dependency here (domain/tasks.md, 5.7).
@@ -178,25 +174,26 @@ fn links(domain: &Domain, task: &TaskRecord) {
     if let Some(proposal) = &task.proposal {
         match proposal.state {
             crate::ProposalState::Pending { holder, .. } => match holder {
-                crate::ProposalHolder::Task(holder) => live_link(domain, key, holder),
+                crate::ProposalHolder::Task(holder) => live_link(domain, holder)?,
                 crate::ProposalHolder::Person(_) | crate::ProposalHolder::Policy { .. } => {}
             },
             crate::ProposalState::Accepted { .. }
             | crate::ProposalState::Rejected { .. }
             | crate::ProposalState::Withdrawn => {}
         }
-        proposal_links(domain, key, &proposal.action);
+        proposal_links(domain, &proposal.action)?;
     }
     match task.escalation {
         crate::Escalation::Waiting { holder, .. } => match holder {
-            crate::EscalationHolder::Task(holder) => live_link(domain, key, holder),
+            crate::EscalationHolder::Task(holder) => live_link(domain, holder)?,
             crate::EscalationHolder::Person(_) | crate::EscalationHolder::Role { .. } => {}
         },
         crate::Escalation::Unheld { .. } | crate::Escalation::Routing { .. } | crate::Escalation::Rejected { .. } => {}
     }
+    Ok(())
 }
 
-fn batch_links(domain: &Domain, key: crate::Key, batch: &[crate::New]) {
+fn batch_links(domain: &Domain, batch: &[crate::New]) -> Result<(), crate::RestoreCause> {
     for member in batch {
         for targets in [&*member.spec.inputs, &*member.dependencies] {
             for target in targets {
@@ -205,24 +202,26 @@ fn batch_links(domain: &Domain, key: crate::Key, batch: &[crate::New]) {
                     proposed |= other.number == *target;
                 }
                 if !proposed {
-                    retained_link(domain, key, *target);
+                    retained_link(domain, *target)?;
                 }
             }
         }
     }
+    Ok(())
 }
 
-fn proposal_links(domain: &Domain, key: crate::Key, action: &crate::ProposalAction) {
+fn proposal_links(domain: &Domain, action: &crate::ProposalAction) -> Result<(), crate::RestoreCause> {
     match action {
-        crate::ProposalAction::Batch(batch) => batch_links(domain, key, batch),
+        crate::ProposalAction::Batch(batch) => batch_links(domain, batch)?,
         crate::ProposalAction::Amend { task, .. }
         | crate::ProposalAction::Widen { task, .. }
         | crate::ProposalAction::Release { task }
-        | crate::ProposalAction::ReleasePlaced { task, .. } => live_link(domain, key, *task),
+        | crate::ProposalAction::ReleasePlaced { task, .. } => live_link(domain, *task)?,
         crate::ProposalAction::Settings { .. }
         | crate::ProposalAction::Effect { .. }
         | crate::ProposalAction::ProcedureEffect { .. } => {}
     }
+    Ok(())
 }
 
 pub(crate) fn check(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
@@ -231,14 +230,19 @@ pub(crate) fn check(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Requ
         Startup::Restoring => {}
     }
     for (number, _) in &domain.names {
-        links(domain, record(domain, *number).expect("name indexes task"));
+        if let Err(cause) = links(domain, record(domain, *number).expect("name indexes task")) {
+            return failed(domain, crate::RestoreFailure { key: crate::Key::Live(*number), cause }, out);
+        }
     }
     for (number, row) in &domain.person_proposals {
         let key = crate::Key::PersonProposal(*number);
-        match &row.action {
-            crate::PersonAction::Batch(batch) => batch_links(domain, key, batch),
-            crate::PersonAction::Amend { task, .. } => live_link(domain, key, *task),
-            crate::PersonAction::Settings { .. } => {}
+        let linked = match &row.action {
+            crate::PersonAction::Batch(batch) => batch_links(domain, batch),
+            crate::PersonAction::Amend { task, .. } => live_link(domain, *task),
+            crate::PersonAction::Settings { .. } => Ok(()),
+        };
+        if let Err(cause) = linked {
+            return failed(domain, crate::RestoreFailure { key, cause }, out);
         }
     }
     crate::placed::link(domain);

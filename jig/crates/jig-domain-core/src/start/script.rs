@@ -1,7 +1,7 @@
 //! Script transitions and journal release identities (jig/docs/design/domain/engine.md, 6).
 use crate::{
     Core, Key, Limits, Queue, Request, Write, people,
-    start::{Action, Continuation, Failure, LiveSet, Phase, SweepInput},
+    start::{Action, Continuation, Failure, Linked, LiveSet, Phase, SweepInput},
     tasks,
 };
 use skein_lib::Env;
@@ -238,16 +238,34 @@ impl Core {
             return;
         }
         let failure = if let Some(failure) = self.people.restore_failure() {
-            let people::RestoreCause::Bound { which, held, limit } = failure.cause;
-            Some(Failure::LiveSet { set: LiveSet::PeopleBound(which), key: Key::People(failure.key), held, limit })
+            let record = Key::People(failure.key);
+            Some(match failure.cause {
+                people::RestoreCause::Bound { which, held, limit } => {
+                    Failure::LiveSet { set: LiveSet::PeopleBound(which), key: record, held, limit }
+                }
+                people::RestoreCause::Link { target } => {
+                    Failure::Link { record, linked: Linked::Record(Key::People(target)) }
+                }
+            })
         } else if let Some(failure) = self.tasks.restore_failure() {
             let key = Key::Tasks(failure.key);
             Some(match failure.cause {
                 tasks::RestoreCause::Bound { which, held, limit } => {
                     Failure::LiveSet { set: LiveSet::TasksBound(which), key, held, limit }
                 }
+                tasks::RestoreCause::Link { target } => {
+                    Failure::Link { record: key, linked: Linked::Record(Key::Tasks(target)) }
+                }
+                tasks::RestoreCause::Charter { charter, revision } => {
+                    Failure::Link { record: key, linked: Linked::Charter { charter, revision } }
+                }
                 tasks::RestoreCause::Accounting => Failure::Accounting { key },
                 tasks::RestoreCause::LlmChoice { .. } => Failure::LlmChoice { key },
+            })
+        } else if let Some(failure) = self.accounts.restore_link() {
+            Some(Failure::Link {
+                record: Key::Accounts(failure.key),
+                linked: Linked::Record(Key::Accounts(failure.target)),
             })
         } else if let Some(failure) = &self.restore_failure {
             Some(failure.clone())
@@ -263,16 +281,19 @@ impl Core {
     }
 
     fn start_link(&mut self, env: &Env<Limits>, out: &mut Queue<Request>) {
-        if let Some((task, party, _)) = self.census_position {
-            assert!(
-                self.census_position.is_none(),
-                "{:?} links missing {:?}",
-                Key::People(people::Key::EndedRead { task, party }),
-                Key::Tasks(tasks::Key::Ended(task))
-            );
+        if self.start.failure.is_some() {
+            return;
         }
-        if let Some((record, target)) = &self.start.missing {
-            assert!(self.start.missing.is_none(), "{record:?} links missing {target:?}");
+        if let Some((task, party, _)) = self.census_position {
+            let _refused = self.start_refuse(Failure::Link {
+                record: Key::People(people::Key::EndedRead { task, party }),
+                linked: Linked::Record(Key::Tasks(tasks::Key::Ended(task))),
+            });
+            return;
+        }
+        if let Some((record, target)) = self.start.missing.clone() {
+            let _refused = self.start_refuse(Failure::Link { record, linked: Linked::Record(target) });
+            return;
         }
         if let Err((project, _reason)) = self.authority.start_link() {
             let _refused = self.start_refuse(Failure::ProjectPolicy { project });
@@ -288,7 +309,10 @@ impl Core {
         if self.start.failure.is_some() {
             return;
         }
-        self.start_cross_links();
+        if let Err(failure) = self.start_cross_links() {
+            let _refused = self.start_refuse(failure);
+            return;
+        }
         let mut accounts = crate::want_accounts(self, env);
         self.start_collect_failure();
         if self.start.failure.is_some() {

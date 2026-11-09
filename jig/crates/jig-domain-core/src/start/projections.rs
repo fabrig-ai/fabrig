@@ -3,7 +3,7 @@ use crate::{
     Core, CoreKey, Key, Limits, Projection, ProjectionKey, ProjectionMilestone, ProjectionRecord, ProjectionTask,
     effects::projections::phase_within,
     people,
-    start::{Failure, LiveSet},
+    start::{Failure, Linked, LiveSet},
     tasks,
 };
 use alloc::boxed::Box;
@@ -131,36 +131,44 @@ impl Core {
                     Some((&task, _)) => ProjectionKey::Task { goal, task },
                     None => *state.milestones.first().expect("assembly has a piece").0,
                 };
-                assert!(
-                    state.header.is_some(),
-                    "{:?} links missing {:?}",
-                    Key::Core(CoreKey::Projection(key)),
-                    Key::Core(CoreKey::Projection(ProjectionKey::Goal(goal)))
-                );
+                let _refused = self.start_refuse(Failure::Link {
+                    record: Key::Core(CoreKey::Projection(key)),
+                    linked: Linked::Record(Key::Core(CoreKey::Projection(ProjectionKey::Goal(goal)))),
+                });
+                return;
             }
             let mut projection = state.header.expect("assembled header linked");
             let source = Key::Core(CoreKey::Projection(ProjectionKey::Goal(goal)));
-            assert!(
-                projection.goal.project == people::DEPLOYMENT
-                    || self.authority.policy(projection.goal.project).is_some(),
-                "{source:?} links missing project {}",
-                projection.goal.project
-            );
-            for connector in &projection.pending {
-                assert!(self.connectors.contains(connector), "{source:?} links missing connector {connector}");
+            let linked = if projection.goal.project != people::DEPLOYMENT
+                && self.authority.policy(projection.goal.project).is_none()
+            {
+                Some(Linked::Project(projection.goal.project))
+            } else {
+                projection
+                    .pending
+                    .iter()
+                    .find(|connector| !self.connectors.contains(connector))
+                    .map(|connector| Linked::Connector(*connector))
+            };
+            if let Some(linked) = linked {
+                let _refused = self.start_refuse(Failure::Link { record: source, linked });
+                return;
             }
             match &projection.goal.phase {
                 tasks::Phase::Ended(_)
                 | tasks::Phase::Closing(_)
                 | tasks::Phase::Held { was: tasks::Was::Closing(_), .. } => {}
                 tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } => {
-                    assert!(
-                        self.tasks.task(goal).is_some(),
-                        "{source:?} links missing {:?}",
-                        Key::Tasks(tasks::Key::Live(goal))
-                    );
+                    if self.tasks.task(goal).is_none() {
+                        let _refused = self.start_refuse(Failure::Link {
+                            record: source,
+                            linked: Linked::Record(Key::Tasks(tasks::Key::Live(goal))),
+                        });
+                        return;
+                    }
                 }
             }
+
             let mut plan = List::with_capacity(state.tasks.len());
             for _ in 0..state.tasks.len() {
                 let (&number, _) = state.tasks.first().expect("bounded assembled plan");

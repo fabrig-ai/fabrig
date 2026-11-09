@@ -101,7 +101,7 @@ pub use crate::{
         charters::{Charter, CharterPart, Document},
         templates::Template,
     },
-    start::{Census, HeldLimit, ReadResults, Restore, RestoreRange, restore_cursor},
+    start::{Census, HeldLimit, Linked, ReadResults, Restore, RestoreRange, restore_cursor},
     stored::{
         CallKey, CallPart, CallRecord, CallReplay, CoreKey, CoreRecord, CurrentWindow, EscalationDecisionRecord, Key,
         Made, ProposalDecisionRecord, Record, Restored, RunProof, TerminalRecord, TurnProof, TurnRecord,
