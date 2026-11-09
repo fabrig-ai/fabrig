@@ -92,10 +92,12 @@ So the tasks split by what they build on:
 | Part | Task | Needs | Tree | Request item |
 |---|---|---|---|---|
 | `fit` | `tasks/fit.md` | | jig | 2 (the fit and the floor's measure) |
+| `named-floor` | `tasks/named-floor.md` | `fit` | temper | 2 (the configuration refused, naming the bound) |
+| `fit-room` | `tasks/fit-room.md` | `fit`; premise `worker-link-quiet`'s `engine-room` | jig | 1 (the failing story, joined, both stock profiles), 2 (the fit in the link, the floor in `valid`) |
+| `temper-fits` | `tasks/temper-fits.md` | `fit-room` | temper | 1 (temper's stock settings, both profiles) |
 
-Batches still to come in this call: `named-floor` (temper, needs `fit`),
-`fit-room` (jig, needs `fit`, premise `engine-room`) and `temper-fits`
-(temper, needs `fit-room`).
+Four tasks, the request's bound. Item 3, the design, is this cut's own
+writing. Nothing is dropped.
 
 ## Design written by this cut
 
@@ -116,10 +118,25 @@ Batches still to come in this call: `named-floor` (temper, needs `fit`),
 
 ## Critical path
 
-`fit` (60 min) now. The rest as written in later batches.
+`fit` (60 min) runs now; `named-floor` (40) follows it, beside
+`fit-room`. `fit-room` (120) can run only once `worker-link-quiet` has
+landed and this trunk caught up, so the path is `fit`, then that wait,
+then `fit-room` and `temper-fits` (60): about 240 implementer-minutes
+beside the wait, which is `worker-link-quiet`'s own path (its
+`engine-room` and `temper-room`, about 380 minutes, and its landing).
 
 ## Overlaps not avoided
 
+- `fit-room` owns `worker-link-quiet`'s `engine-room` files
+  (`jig/crates/jig-protocol-engine-workers/**`, the engine world, the
+  joined world's two files) and `temper-fits` its `temper-room` story
+  (`link_room.rs`, with an accessor in `fixtures/worker_peers.rs`), each
+  only after that plan has landed: no two writers at once.
+- `named-floor` adds a test to `temper/crates/temper-service/src/tests/checks.rs`,
+  under `ui-ask-m4`'s `see-withheld` glob (`src/tests/**`), and one call
+  line in `startup.rs` after `checks::hub`.
+- `jig/docs/design/domain/engine.status.md`: this plan's 7.2 entry sits
+  before the 17.5 entry, away from the 7.3 entries other plans keep.
 - `jig/docs/design/protocol/channel.status.md` and
   `temper/docs/design/domain/worker.status.md` carry `worker-link-quiet`'s
   entries too: this plan's entries sit apart from them, between entries
