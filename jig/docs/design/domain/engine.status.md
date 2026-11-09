@@ -1,6 +1,6 @@
 # engine: status
 
-2026-11-08. Where jig's code lags or departs from [engine.md](engine.md).
+2026-11-09. Where jig's code lags or departs from [engine.md](engine.md).
 
 Section 7.2's immutable failed run end retains the invalid-result kind
 computed for its attempt. No known gap remains in this field.
@@ -46,6 +46,12 @@ Section 17.2 has no known gap in an out-of-shape refusal's position:
 it names the last request item for the failing setting, counted from
 0, or 0 when no item names it. The refusal table covers a third item
 failing with position 2 and the settings rows left unchanged.
+
+Sections 8 and 17.8 have no known gap in retaining a host's optional
+reply bound and exposing it by a run's live attempt. The fleet returns
+none for an unnamed bound, a lost channel, a job or a non-live claim
+(`jig-domain-fleet/src/call.rs`, `reply_bound`). The parent supplies its
+fallback; the bound adds no hello-admission condition.
 
 Section 8 has no known gap in derived next-run refusals: standing hello
 facts retain their figures, and admitted hosts too small for the run's
