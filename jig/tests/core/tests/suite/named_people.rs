@@ -478,10 +478,15 @@ fn requester_agent(world: &mut World, person: u64) -> bool {
 fn proposed_funder(world: &mut World, person: u64) -> Option<Refusal> {
     let mut row = agent_new(world);
     row.funder = tasks::Funder::Pool { project: PROJECT, person, period: 1 };
-    named_action(world, 1, core::NamedAction::Propose {
-        action: tasks::ProposalAction::Batch(Box::new([row])),
-        reason: b"review the batch".as_slice().into(), as_holder: false,
-    })
+    named_action(
+        world,
+        1,
+        core::NamedAction::Propose {
+            action: tasks::ProposalAction::Batch(Box::new([row])),
+            reason: b"review the batch".as_slice().into(),
+            as_holder: false,
+        },
+    )
 }
 
 fn proposal(world: &mut World, person: u64) -> Option<Refusal> {
@@ -527,9 +532,11 @@ fn linked(world: &World, task: u64, named: u64, field: NamedLink) -> bool {
         NamedLink::Executor => row.executor == tasks::Executor::Person(tasks::PersonAddress::Person(named)),
         NamedLink::Funder => row.funder == tasks::Funder::Pool { project: PROJECT, person: named, period: 1 },
         NamedLink::Requester => row.requester == tasks::Party::Person(named),
-        NamedLink::ProposedFunder => row.proposal.as_ref().is_some_and(|proposal| matches!(&proposal.action,
+        NamedLink::ProposedFunder => row.proposal.as_ref().is_some_and(|proposal| {
+            matches!(&proposal.action,
             tasks::ProposalAction::Batch(batch) if batch.iter().any(|member| matches!(member.funder,
-                tasks::Funder::Pool { person, .. } if person == named)))),
+                tasks::Funder::Pool { person, .. } if person == named)))
+        }),
         NamedLink::Proposal => row.proposal.as_ref().is_some_and(|proposal| {
             matches!(proposal.state,
             tasks::ProposalState::Pending { holder: tasks::ProposalHolder::Person(person), .. } if person == named)
@@ -734,8 +741,14 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
             refusal: None,
             field: NamedLink::Executor,
         },
-        Route { name: "proposed batch funder", setup: world, input: proposed_funder, task: 1,
-            refusal: Some(Refusal::Task(tasks::Problem::new(Some(1), tasks::Refusal::Unknown))), field: NamedLink::ProposedFunder },
+        Route {
+            name: "proposed batch funder",
+            setup: world,
+            input: proposed_funder,
+            task: 1,
+            refusal: Some(Refusal::Task(tasks::Problem::new(Some(1), tasks::Refusal::Unknown))),
+            field: NamedLink::ProposedFunder,
+        },
     ];
     let mut failures = Vec::new();
     for Route { name: route, setup, input, task, refusal, field } in routes {

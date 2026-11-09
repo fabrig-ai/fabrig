@@ -222,6 +222,11 @@ impl Core {
         if let tasks::ProposalAction::Amend { amendment, .. } = action {
             self.amendment_person(amendment)?;
         }
+        if let tasks::ProposalAction::Batch(batch) = action
+            && let Err(problem) = self.batch_people(batch)
+        {
+            return Err(problem.why);
+        }
         self.proposed_action_accounts(action)?;
         let Some(checked) = action_for_check(self, action, decision) else { return Err(tasks::Refusal::Executor) };
         let Some(needed) = authority::needs(&checked) else { return Err(tasks::Refusal::AuthorityShape) };

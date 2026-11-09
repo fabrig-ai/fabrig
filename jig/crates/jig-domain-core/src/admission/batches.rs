@@ -1,5 +1,12 @@
 //! A batch names only people held by the core before any task child changes
 //! (jig/docs/design/domain/engine.md, 5.1).
+#![cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(
+        clippy::result_large_err,
+        reason = "batch admission keeps the task child's exact refusal without allocation"
+    )
+)]
 use crate::Core;
 use jig_domain_tasks as tasks;
 
@@ -8,13 +15,17 @@ impl Core {
         if let tasks::Party::Person(person) = creator
             && self.people.identity(person).is_none()
         {
-            return Err(tasks::Problem::new(batch.first().map(|row| row.number), tasks::Refusal::Unknown));
+            let task = match batch.first() {
+                Some(row) => Some(row.number),
+                None => None,
+            };
+            return Err(tasks::Problem::new(task, tasks::Refusal::Unknown));
         }
         self.batch_people(batch)?;
         self.resolve_llm(batch)
     }
 
-    fn batch_people(&self, batch: &[tasks::New]) -> Result<(), tasks::Problem> {
+    pub(crate) fn batch_people(&self, batch: &[tasks::New]) -> Result<(), tasks::Problem> {
         for row in batch {
             if let tasks::Executor::Person(tasks::PersonAddress::Person(person)) = row.executor
                 && self.people.identity(person).is_none()

@@ -19,7 +19,7 @@ impl Core {
         Ok(())
     }
 
-    /// Raw and accepted amendments keep the same named-person and account admission.
+    /// A raw or accepted amendment names a held person before account admission.
     pub(crate) fn admit_amendment(
         &self,
         task: u64,
