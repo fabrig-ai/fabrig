@@ -40,7 +40,7 @@ says so in the draft's status.
 | | Milestone | Executes (`ask-temper.md`) | Needs | State |
 |---|---|---|---|---|
 | M1 | Alone and small | 1, 4, 5.1 in part, 5.2, 5.3, 8, 9 | | built: plan `ui-ask-m1`; charter 3, template 3, `Configure` and Settings' offer gone by `ui-ask-drop`; its walk follows landing |
-| M2 | Reading | 2, 3, 5.1 | M1 | cut: plan `ui-ask-m2`, its design in `../domain/agent.md`, 8.4.1 and jig's `domain/engine.md`, 7.3 |
+| M2 | Reading | 2, 3, 5.1 | M1 | built: plan `ui-ask-m2`, its design in `../domain/agent.md`, 8.4.1 and jig's `domain/engine.md`, 7.3; its walk follows landing |
 | M3a | Ways | `stock-ways.md`, sections 4 to 6; 6.2's `path`, `way`, `proposal` and `charter` | M1; `stock-ways.md`, section 7's step 2 | built: plan `ui-ask-m3a`, and the page's drawing of the ways by the look request `ask-temper-ways`, plan `look-ask-ways`; its walk follows landing |
 | M3b | Showing the rest | 6; the rest of 8's Showing part | M2, M3a; after the whole story | not started |
 | M4 | Remembering | 5.4, 7 | M1 | not started |

@@ -281,10 +281,15 @@ walk follow landing (`domain/forge.status.md`;
 `draft/surfaces.status.md`, 4). Ask temper's
 first milestone stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
-the instructions' first step of Showing. Charter 3, template 3, `Configure`
-and Settings' offer are gone by plan `ui-ask-drop`. Its walks follow
-landing. The remaining reads, views, sketches and preferences belong to
-M2, M3b and M4 (`draft/ask-temper.status.md`).
+the instructions' first step of Showing, and its reading milestone, M2:
+`see`'s addresses of the project's work read as the chat's person, of
+its project alone, through jig's run read as its person, as tables of
+lines, with the reference page `see` (`domain/agent.md`, 8.4.1); its
+text names a charter, a role and a gate by number alone, and reads an
+inbox's words for questions alone (`domain/agent.status.md`). Charter
+3, template 3, `Configure` and Settings' offer are gone by plan
+`ui-ask-drop`. Its walks follow landing. The views, sketches and
+preferences belong to M3b and M4 (`draft/ask-temper.status.md`).
 Ask temper's bar tag and the first-run gallery's offered templates are
 present, and the three first-run journeys draw its navigation; temper/ui's
 rendered comparison follows landing (`client/browser.md`, section 5;
