@@ -25,7 +25,7 @@ pub struct Tui {
     written: u64,
     columns: u16,
     aside: Option<ObjectKey>,
-    unknown: Option<Box<[u8]>>,
+    notice: Option<Notice>,
     focus: u64,
     box_written: u64,
     left_off: Option<u64>,
@@ -73,6 +73,12 @@ pub enum Refusal {
     NotALink,
     OtherAddress { address: Box<[u8]> },
 }
+/// A one-line notice on the quiet line (temper/docs/design/client/README.md, 6.14).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Notice {
+    Unknown { words: Box<[u8]> },
+    SigningIn,
+}
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Told {
     Walk {
@@ -98,8 +104,8 @@ pub enum Told {
     Aside {
         object: Option<ObjectKey>,
     },
-    Unknown {
-        words: Option<Box<[u8]>>,
+    Notice {
+        notice: Option<Notice>,
     },
     Local {
         local: Local,
@@ -155,7 +161,7 @@ impl Tui {
             written: 0,
             columns: 0,
             aside: None,
-            unknown: None,
+            notice: None,
             focus: 1,
             box_written: 0,
             front: false,
@@ -229,8 +235,8 @@ impl Tui {
         self.aside
     }
     #[must_use]
-    pub fn unknown(&self) -> Option<&[u8]> {
-        self.unknown.as_deref()
+    pub fn notice(&self) -> Option<&Notice> {
+        self.notice.as_ref()
     }
     #[must_use]
     pub const fn focus(&self) -> u64 {
@@ -496,7 +502,8 @@ impl Tui {
                 let cleared = self.clear_launchpad();
                 self.command_words = Box::default();
                 let written = self.box_written.saturating_add(1);
-                let changed = self.box_written != written;
+                let changed = self.box_written != written || self.log_shown;
+                self.log_shown = false;
                 self.box_written = written;
                 changed || cleared
             }
@@ -505,10 +512,9 @@ impl Tui {
                 self.aside = object;
                 changed
             }
-            Told::Unknown { words } => {
-                let changed = self.unknown != words || self.log_shown;
-                self.log_shown = false;
-                self.unknown = words;
+            Told::Notice { notice } => {
+                let changed = self.notice != notice;
+                self.notice = notice;
                 changed
             }
             Told::Local { local } => self.set_local(local),

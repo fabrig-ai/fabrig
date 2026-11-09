@@ -35,6 +35,7 @@ pub(crate) struct Foot {
     pub paused: bool,
     pub launchpad: bool,
     pub needs: Count,
+    pub notice: Option<Box<[u8]>>,
     pub box_state: Option<(Box<[u8]>, Style)>,
     pub playground: bool,
     pub closed: Option<Box<[u8]>>,
@@ -93,6 +94,7 @@ fn state(tui: &Tui, root: &Domain) -> (Shared, Style) {
     }
 }
 
+#[expect(clippy::manual_map, reason = "the step subset spells out optional wording without closures")]
 pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Foot {
     let (state, style) = state(tui, root);
     let chat = root.pages().chat();
@@ -165,6 +167,10 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Foot
             })
         },
         running: if chat.is_some() { shared::running(root, words.view()) } else { None },
+        notice: match tui.notice() {
+            Some(notice) => Some(words.notice(notice)),
+            None => None,
+        },
         box_state: front::box_state(tui, words),
         playground: front::playground(root, project),
         project: project_name(root, project),
@@ -246,17 +252,21 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
         Box::default()
     };
     let mut right = List::with_capacity(5);
-    if let Some((state, style)) = &part.box_state {
-        right.push((copy_of(state), *style)).expect("five quiet line parts");
-    }
-    if part.playground {
-        right.push((words.say(Word::Playground, &[]), look::HINT)).expect("five quiet line parts");
-    }
-    if part.paused {
-        right.push((shared::say(words.view(), TerminalWord::Paused), look::HINT)).expect("five quiet line parts");
-    }
-    if !needing.is_empty() {
-        right.push((needing, look::SIGNAL)).expect("five quiet line parts");
+    if let Some(notice) = &part.notice {
+        right.push((copy_of(notice), look::SIGNAL)).expect("one notice fits");
+    } else {
+        if let Some((state, style)) = &part.box_state {
+            right.push((copy_of(state), *style)).expect("five quiet line parts");
+        }
+        if part.playground {
+            right.push((words.say(Word::Playground, &[]), look::HINT)).expect("five quiet line parts");
+        }
+        if part.paused {
+            right.push((shared::say(words.view(), TerminalWord::Paused), look::HINT)).expect("five quiet line parts");
+        }
+        if !needing.is_empty() {
+            right.push((needing, look::SIGNAL)).expect("five quiet line parts");
+        }
     }
     let mut right_width = 0_u32;
     for (index, (line, _style)) in right.iter().enumerate() {
@@ -277,11 +287,17 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
     let walk_width = width(&walk).saturating_add(width(&separator));
     let room = if part.columns == 0 { u32::MAX } else { u32::from(part.columns) };
     let total = left_width.saturating_add(closed_width).saturating_add(right_width).saturating_add(4);
-    let walking = part.launchpad && part.needs.count > 0 && total.saturating_add(walk_width) <= room;
-    let closed = part.closed.is_some() && total <= room;
+    let narrow_notice = part.notice.is_some() && total > room;
+    let walking =
+        part.notice.is_none() && part.launchpad && part.needs.count > 0 && total.saturating_add(walk_width) <= room;
+    let closed = part.closed.is_some() && (total <= room || narrow_notice);
     b.open(Role::ContentInfo);
     b.region(look::BOTTOM);
     b.open(Role::Status);
+    if narrow_notice {
+        text(b, Role::Text, part.notice.as_deref().expect("narrow notice is present"), Some(look::SIGNAL));
+        text(b, Role::Text, &separator, Some(look::FAINT));
+    }
     if let Some(project) = &part.project {
         text(b, Role::Text, project, Some(look::HINT));
         text(b, Role::Text, &separator, Some(look::FAINT));
@@ -293,11 +309,13 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
     text(b, Role::Text, &part.state, Some(part.style));
     b.close();
     b.open(Role::Paragraph);
-    for (index, (line, style)) in right.iter().enumerate() {
-        if index > 0 {
-            text(b, Role::Text, &separator, Some(look::FAINT));
+    if !narrow_notice {
+        for (index, (line, style)) in right.iter().enumerate() {
+            if index > 0 {
+                text(b, Role::Text, &separator, Some(look::FAINT));
+            }
+            text(b, Role::Text, line, Some(*style));
         }
-        text(b, Role::Text, line, Some(*style));
     }
     if walking {
         text(b, Role::Text, &separator, Some(look::FAINT));

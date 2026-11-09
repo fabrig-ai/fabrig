@@ -479,6 +479,7 @@ fn the_foot_says_each_state() {
     assert!(failures.is_empty(), "foot read rows: {failures:?}");
     read_states();
     quiet_states();
+    notice_states();
     rule_states();
     question_states();
     note_states();
@@ -581,8 +582,78 @@ fn read_states() {
         assert_eq!(focus.node, Some(f::find(view.tree(), Role::TextField, b"Link").id), "{name}");
     }
 }
-#[expect(clippy::disallowed_methods, reason = "test assertions search and collect the quiet line's nodes")]
-#[expect(clippy::disallowed_types, reason = "test assertions collect the signal nodes")]
+#[expect(clippy::disallowed_methods, reason = "notice rows inspect the quiet line's two children")]
+fn notice_states() {
+    let words = f::words();
+    let notice = crate::Notice::Unknown { words: b"/qiut".as_slice().into() };
+    let phrase = "Unknown command /qiut · /help lists them";
+    for (name, chat, state, box_state, playground, count, columns, left, right) in [
+        ("box", false, TaskState::Idle, true, false, 0, 110, "Demo · model · high · ● Live", phrase),
+        ("playground", false, TaskState::Idle, false, true, 0, 110, "Demo · model · high · ● Live", phrase),
+        ("paused", true, TaskState::Paused, false, false, 0, 110, "Demo · model · high · ● Live", phrase),
+        ("needs and walk", false, TaskState::Idle, false, false, 1, 110, "Demo · model · high · ● Live", phrase),
+        ("fits exactly", false, TaskState::Idle, false, false, 0, 72, "Demo · model · high · ● Live", phrase),
+        (
+            "one short",
+            false,
+            TaskState::Idle,
+            false,
+            false,
+            0,
+            71,
+            "Unknown command /qiut · /help lists them · Demo · model · high · ● Live",
+            "",
+        ),
+        (
+            "narrow",
+            false,
+            TaskState::Idle,
+            true,
+            true,
+            1,
+            40,
+            "Unknown command /qiut · /help lists them · Demo · model · high · ● Live",
+            "",
+        ),
+    ] {
+        let root = root_state(true, true, chat, false, false, state);
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Notice { notice: Some(notice.clone()) });
+        if box_state {
+            tui.step(Told::Front);
+            tui.step(Told::BoxLine { line: crate::BoxLine::Restarting { step: b"forgejo-3".as_slice().into() } });
+        }
+        let mut part = foot::read(&root, &tui, &words, f::NOW);
+        part.playground = playground;
+        part.needs = d::pages::needs::Count { count, cut: false };
+        part.columns = columns;
+        assert_eq!(part.notice.as_deref(), Some(phrase.as_bytes()), "{name}");
+        assert!(foot::read_notes(&root, &tui, &words).lines.is_empty(), "{name}: notice stays out of notes");
+        let view = draw(part);
+        let tree = view.tree();
+        let bottom = tree.nodes().iter().find(|node| node.region == Some(look::BOTTOM)).unwrap();
+        let first = &tree.nodes()[f::index(tree, bottom.id).checked_add(1).unwrap()];
+        let second = &tree.nodes()[f::index(tree, first.id).checked_add(usize::try_from(first.size).unwrap()).unwrap()];
+        assert_eq!(first.role, Role::Status);
+        assert_eq!(f::text(tree, first).as_ref(), left.as_bytes(), "{name}");
+        assert_eq!(f::text(tree, second).as_ref(), right.as_bytes(), "{name}");
+        assert!(has(tree, look::SIGNAL, phrase.as_bytes()), "{name}");
+        assert!(!has(tree, look::SIGNAL, b"forgejo-3 restarting"), "{name}");
+        assert!(!has(tree, look::HINT, b"playground"), "{name}");
+        assert!(!has(tree, look::HINT, b"paused \xc2\xb7 a message resumes it"), "{name}");
+        assert!(!has(tree, look::HINT, b"n to walk"), "{name}");
+        assert!(!has(tree, look::SIGNAL, b"1 needs you"), "{name}");
+    }
+    let mut tui = Tui::new(f::ADDRESS);
+    tui.step(Told::Notice { notice: Some(crate::Notice::SigningIn) });
+    let root = root_state(true, true, false, false, false, TaskState::Idle);
+    let part = foot::read(&root, &tui, &words, f::NOW);
+    assert_eq!(part.notice.as_deref(), Some(b"Still signing in".as_slice()));
+    assert!(has(draw(part).tree(), look::SIGNAL, b"Still signing in"));
+    let part = foot::read(&f::signed_out(), &tui, &words, f::NOW);
+    assert!(!has(draw(part).tree(), look::SIGNAL, b"Still signing in"));
+}
+#[expect(clippy::disallowed_methods, clippy::disallowed_types, reason = "quiet rows inspect their rendered parts")]
 fn quiet_states() {
     let root = root(true, true, false, false, false);
     let words = f::words();
@@ -863,7 +934,6 @@ fn note_states() {
     let mut tui = Tui::new(f::ADDRESS);
     act(&mut root, d::pages::Act::Terminal(d::pages::terminal::Act::Run { command: Command::Help }));
     act(&mut root, d::pages::Act::Terminal(d::pages::terminal::Act::Font));
-    tui.step(Told::Unknown { words: Some(b"/font".as_slice().into()) });
     let notes: foot::Notes = foot::read_notes(&root, &tui, &words);
     let want = [
         "/change  One change, run as the project's way says",
@@ -882,7 +952,6 @@ fn note_states() {
         "Esc closes a list",
         "Ctrl+C closes temper",
         "Font: IBM Plex Mono.",
-        "Unknown command /font. /help lists them.",
     ];
     assert_eq!(notes.lines.len(), want.len());
     let bounds = crate::limits(&f::limits(), &skein_ui::Limits::EMPTY, 512).unwrap();
@@ -918,10 +987,25 @@ fn note_states() {
 
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the golden table embeds its hand-written frame oracles")]
+#[expect(clippy::too_many_lines, reason = "one table holds the foot screens and their hand-written frames")]
 fn the_foots_are_their_goldens() {
     use skein_ui_screen::{Focus, Size};
     let full = Size { columns: 80, rows: 24 };
     let rows = [
+        (
+            "foot-notice-80x24-dark",
+            Scheme::Dark,
+            full,
+            4,
+            include_bytes!("golden/foot-notice-80x24-dark.txt").as_slice(),
+        ),
+        (
+            "foot-notice-40x12-dark",
+            Scheme::Dark,
+            Size { columns: 40, rows: 12 },
+            4,
+            include_bytes!("golden/foot-notice-40x12-dark.txt").as_slice(),
+        ),
         (
             "foot-commands-80x24-dark",
             Scheme::Dark,
@@ -958,7 +1042,7 @@ fn the_foots_are_their_goldens() {
             include_bytes!("golden/foot-walk-110x32-dark.txt").as_slice(),
         ),
     ];
-    let mut views = List::with_capacity(6);
+    let mut views = List::with_capacity(8);
     let words = f::words();
     for (_, _, size, kind, _) in &rows {
         if *kind == 3 {
@@ -969,8 +1053,16 @@ fn the_foots_are_their_goldens() {
         if *kind == 1 {
             act(&mut root, d::pages::Act::ChatWords { words: Box::from(*b"/") });
         }
-        let mut part = foot::read(&root, &Tui::new(f::ADDRESS), &words, f::NOW);
-        part.closed = Some("Claude Opus 5.5 · high".as_bytes().into());
+        let mut tui = Tui::new(f::ADDRESS);
+        if *kind == 4 {
+            tui.step(Told::Front);
+            tui.step(Told::BoxLine { line: crate::BoxLine::Restarting { step: b"forgejo-3".as_slice().into() } });
+            tui.step(Told::Notice { notice: Some(crate::Notice::Unknown { words: b"/qiut".as_slice().into() }) });
+        }
+        let mut part = foot::read(&root, &tui, &words, f::NOW);
+        if *kind != 4 {
+            part.closed = Some("Claude Opus 5.5 · high".as_bytes().into());
+        }
         part.needs = d::pages::needs::Count { count: 1, cut: false };
         part.columns = size.columns;
         if *kind == 2 {
@@ -984,7 +1076,7 @@ fn the_foots_are_their_goldens() {
         }
         views.push(draw(part)).unwrap();
     }
-    let mut checks = List::with_capacity(6);
+    let mut checks = List::with_capacity(8);
     for ((name, scheme, size, _, want), view) in rows.iter().zip(&views) {
         checks
             .push(goldens::Golden {

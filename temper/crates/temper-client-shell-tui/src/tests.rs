@@ -1503,7 +1503,11 @@ fn no_project_composer_accepts_commands() {
         empty(&host.report(Report::Key(Key::Tab)));
         assert_eq!(host.words(), words.as_bytes(), "Tab never completes the hidden alias");
         empty(&host.report(Report::Key(Key::Enter)));
-        assert_eq!(host.state().unknown(), Some(words.as_bytes()), "an alias prefix is unknown");
+        assert_eq!(
+            host.state().notice(),
+            Some(&temper_client_tui::Notice::Unknown { words: words.as_bytes().into() }),
+            "an alias prefix is unknown"
+        );
         assert!(host.words().is_empty(), "unknown commands clear the composer");
         assert!(!text(&mut host).contains("Close temper"), "an unknown command draws no list");
     }
@@ -1555,8 +1559,11 @@ fn no_project_keys(words: &str) {
             assert!(text(&mut host).contains("/quit"), "help must render its commands");
         }
         "/zz" => {
-            assert_eq!(host.state().unknown(), Some(b"/zz".as_slice()));
-            assert!(text(&mut host).contains("Unknown command /zz."));
+            assert_eq!(
+                host.state().notice(),
+                Some(&temper_client_tui::Notice::Unknown { words: b"/zz".as_slice().into() })
+            );
+            assert!(text(&mut host).contains("Unknown command /zz · /help lists them"));
         }
         "hello" | "q" => {
             assert_eq!(host.words(), words.as_bytes(), "ordinary words send nothing");
@@ -1577,6 +1584,67 @@ fn no_project_keys(words: &str) {
     }
     host.frame();
     assert!(host.report(Report::Key(Key::Control(b'c'))).close, "Ctrl+C closes anywhere");
+}
+
+#[test]
+fn a_notice_stands_six_seconds_and_a_newer_replaces_it() {
+    use temper_client_tui::Notice;
+    let (mut host, _, _) = signed_host(true);
+    let first = Notice::Unknown { words: b"/qiut".as_slice().into() };
+    let end = Time::ZERO.saturating_add(Duration::from_secs(6));
+    typed(&mut host, b"/qiut");
+    empty(&give(&mut host, Event::Send));
+    assert_eq!(host.state().notice(), Some(&first));
+    assert_eq!(host.deadline(), skein_lib::earliest(root::next_deadline(&host.root), Some(end)));
+    assert!(host.words().is_empty());
+    assert!(host.root.pages().notes().is_empty());
+    assert!(host.root.pages().listing().is_none());
+    let frame = text(&mut host);
+    let line = frame.lines().find(|line| line.contains("Unknown command /qiut")).expect("quiet notice");
+    assert!(line.contains("● Live"), "notice and link share the quiet line");
+    assert_eq!(frame.matches("Unknown command").count(), 1);
+    host.frame();
+    empty(&host.report(Report::Key(Key::Char('x'))));
+    assert_eq!(host.state().notice(), Some(&first), "a key leaves the notice");
+    typed(&mut host, b"");
+    give(&mut host, Event::Send);
+    assert_eq!(host.state().notice(), Some(&first), "a send leaves the notice");
+    typed(&mut host, b"/new");
+    give(&mut host, Event::Send);
+    assert_eq!(host.state().notice(), Some(&first), "/new leaves the notice");
+    host.clocks(Time::ZERO.saturating_add(Duration::from_secs(3)), Wall::EPOCH);
+    host.report(Report::Due);
+    assert_eq!(host.state().notice(), Some(&first), "a due before the end leaves it");
+    typed(&mut host, b"/other");
+    give(&mut host, Event::Send);
+    let second = Notice::Unknown { words: b"/other".as_slice().into() };
+    let later = Time::ZERO.saturating_add(Duration::from_secs(9));
+    assert_eq!(host.state().notice(), Some(&second));
+    assert_eq!(host.deadline(), skein_lib::earliest(root::next_deadline(&host.root), Some(later)));
+    host.clocks(end, Wall::EPOCH);
+    host.report(Report::Due);
+    assert_eq!(host.state().notice(), Some(&second), "the replaced end cannot lower it");
+    host.clocks(later, Wall::EPOCH);
+    host.report(Report::Due);
+    assert_eq!(host.state().notice(), None);
+    assert_eq!(host.deadline(), root::next_deadline(&host.root));
+    assert!(!text(&mut host).contains("Unknown command"));
+    // With no background retry pending, the notice itself is the next deadline.
+    let (mut quiet, _, _) = signed_host(false);
+    typed(&mut quiet, b"/zz");
+    give(&mut quiet, Event::Send);
+    assert_eq!(quiet.deadline(), Some(end));
+    for (words, seconds) in [(b"/chats 9".as_slice(), 6), (b"/zz".as_slice(), 7)] {
+        let (mut host, _, _) = signed_host(true);
+        typed(&mut host, words);
+        give(&mut host, Event::Send);
+        assert_eq!(host.state().notice(), Some(&Notice::Unknown { words: words.into() }));
+        assert!(host.words().is_empty());
+        assert!(host.root.pages().notes().is_empty());
+        host.clocks(Time::ZERO.saturating_add(Duration::from_secs(seconds)), Wall::EPOCH);
+        host.report(Report::Due);
+        assert_eq!(host.state().notice(), None, "at and past the end");
+    }
 }
 
 fn sent_ask(duties: &Duties) -> Vec<(skein_lib::Token, w::Ask)> {
@@ -1848,7 +1916,11 @@ fn the_launchpad_takes_its_own_words() {
             }
             LaunchWant::Words(expected) => assert_eq!(host.words(), expected, "{words:?}"),
             LaunchWant::Chat(task) => assert_eq!(host.root.pages().address(), &Address::Chat { task }, "{words:?}"),
-            LaunchWant::Unknown => assert_eq!(host.state().unknown(), Some(words), "{words:?}"),
+            LaunchWant::Unknown => assert_eq!(
+                host.state().notice(),
+                Some(&temper_client_tui::Notice::Unknown { words: words.into() }),
+                "{words:?}"
+            ),
             LaunchWant::Brief => assert!(host.state().brief_shown(), "{words:?}"),
             LaunchWant::Walk => {
                 assert!(host.state().walk().is_some_and(|walk| !walk.by_key()), "{words:?}");
@@ -2163,19 +2235,22 @@ fn each_event_becomes_its_acts() {
                 let before = host.state().box_written();
                 let duties = give(&mut host, Event::Send);
                 duties.asked.is_empty()
-                    && host.state().unknown() == Some(b"/zz".as_slice())
+                    && host.state().notice()
+                        == Some(&temper_client_tui::Notice::Unknown { words: b"/zz".as_slice().into() })
                     && host.root.pages().chats().is_some_and(|chat| chat.words.is_empty())
                     && host.state().box_written() > before
             }
             "unknown send" | "unknown went" => {
-                host.tell(temper_client_tui::Told::Unknown { words: Some(b"/zz".as_slice().into()) });
+                host.tell(temper_client_tui::Told::Notice {
+                    notice: Some(temper_client_tui::Notice::Unknown { words: b"/zz".as_slice().into() }),
+                });
                 if row == "unknown send" {
                     give(&mut host, Event::Send);
                 } else {
                     host.out.push(root::Request::Show { address: Address::Chat { task: 9 }, replace: false });
                     host.report(Report::Due);
                 }
-                host.state().unknown().is_none()
+                host.state().notice().is_some()
             }
             "no project" => {
                 typed(&mut host, b"Please help");
@@ -2712,7 +2787,8 @@ fn in_front_quitting_asks_while_work_runs() {
                     duties.asked.is_empty()
                         && !duties.close
                         && host.state().log_shown() == shown
-                        && host.state().unknown() == unknown
+                        && host.state().notice()
+                            == unknown.map(|words| temper_client_tui::Notice::Unknown { words: words.into() }).as_ref()
                         && host.words().is_empty()
                 }
                 FrontWant::Line(line) => {
