@@ -169,6 +169,10 @@ fn referee_signal_reaches_a_hosted_child_through_its_pipe() {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "skein's round: reads the child marker and TIERS_ONE_PROCESS for the isolated deadline test"
+)]
 fn a_zero_patience_deadline_reports_the_failing_iteration() {
     // Zero patience meets the runnable-wait threshold. Exercise its failure
     // diagnostic outside the runners so a starved pass cannot skip it.
@@ -250,6 +254,10 @@ fn a_zero_patience_deadline_reports_the_failing_iteration() {
 #[test]
 #[cfg(target_os = "linux")]
 #[expect(clippy::too_many_lines, reason = "the child checks host drop order for both failure and starved unwind")]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "skein's round: reads the child marker and TIERS_ONE_PROCESS for the isolated referee teardown test"
+)]
 fn a_starved_referee_drops_hosts_before_reporting_its_figures() {
     use skein_io::kernel::{Complete, Submit};
     use skein_lib::{Queue, Time, Wall};

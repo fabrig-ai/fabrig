@@ -10,6 +10,10 @@ mod tests {
     use skein_codegen::diff::{Kind, Rename, Version, diff};
 
     #[test]
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "skein's round: reads SKEIN_DIFF_WRITE, the diff golden rewrite switch"
+    )]
     fn task_store_changes_tell_each_kind_and_mixed_landing() {
         let rows = [
             (

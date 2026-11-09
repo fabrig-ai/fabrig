@@ -33,6 +33,10 @@ pub fn server_binary() -> std::path::PathBuf {
     binary
 }
 #[must_use]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "skein's round: reads SKEIN_TEST_CHROMIUM and PATH to locate the browser test executable"
+)]
 pub fn chromium() -> std::path::PathBuf {
     use std::path::PathBuf;
     if let Some(configured) = std::env::var_os("SKEIN_TEST_CHROMIUM") {
@@ -100,6 +104,10 @@ pub const SECOND: skein_lib::Duration = skein_lib::Duration::from_secs(2);
 
 /// The bundle made by the repository gate from its dev-profile module.
 #[must_use]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "skein's round: reads SKEIN_UI_EXAMPLE_BUNDLE to locate the browser test bundle"
+)]
 pub fn example_bundle() -> std::path::PathBuf {
     let directory = std::env::var_os("SKEIN_UI_EXAMPLE_BUNDLE")
         .map(std::path::PathBuf::from)

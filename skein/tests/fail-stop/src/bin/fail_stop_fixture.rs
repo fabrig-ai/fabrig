@@ -6,7 +6,10 @@
 use std::io::Write;
 use std::process::ExitCode;
 
-#[expect(clippy::disallowed_methods, reason = "the fixture proves a panic on a second thread aborts the process")]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "skein's round: reads the fixture command line and proves a panic on a second thread aborts the process"
+)]
 fn main() -> ExitCode {
     skein_fail_stop::install();
     let mut args = std::env::args().skip(1);

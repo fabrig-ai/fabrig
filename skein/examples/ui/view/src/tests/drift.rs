@@ -1,5 +1,6 @@
 //! The family and golden bytes cannot drift (codec.md, 6).
 #[test]
+#[expect(clippy::disallowed_methods, reason = "skein's round: reads SKEIN_CODEGEN_WRITE, the codegen rewrite switch")]
 fn records_match_their_generated_code() {
     let root = std::path::Path::new(".");
     let source = std::fs::read_to_string(root.join("schema/notes-v1.schema")).expect("schema readable");

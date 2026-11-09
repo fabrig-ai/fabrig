@@ -6,6 +6,10 @@ use skein_fake_person_browser::{
 };
 use skein_ui::Role;
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "skein's round: reads SKEIN_UI_EXAMPLE_BUNDLE to locate the browser test bundle"
+)]
 fn setup() -> Setup<'static> {
     let exe = std::env::current_exe().expect("test executable");
     let server = exe.parent().and_then(std::path::Path::parent).expect("target debug").join("skein-ui-example");
