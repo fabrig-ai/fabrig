@@ -152,7 +152,173 @@ enum Part {
     Goals { rows: &'static [&'static str] },
     Plan { live: u32, title: &'static str },
 }
+const REMEMBERED_THREE: &[&str] = &[
+    "Keep answers concise and start with the result.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Use Rust examples when explaining code.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Ask before changing a public interface.",
+    "Changed by you · Today · Thursday 22 October",
+];
+const REMEMBERED_FULL: &[&str] = &[
+    "Keep answers concise and start with the result.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Use Rust examples when explaining code.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Ask before changing a public interface.",
+    "Changed by you · Today · Thursday 22 October",
+    "Show the command that checks a change.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Explain unfamiliar abbreviations the first time.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Use metric units in examples.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Keep a summary of decisions at the end of a long chat.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Prefer plain text examples I can copy into a terminal.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Say which assumptions a calculation depends on.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Use UTC when comparing times from different places.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Give one next step when a check fails.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "When comparing approaches, explain the cost of each and which evidence would make you choose a different one next time.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+];
+const REMEMBERED_REFUSED: &[&str] = &[
+    "Keep answers concise and start with the result.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "Use Rust examples when explaining code.",
+    "Ask temper chat 14 · Today · Thursday 22 October",
+    "This line changed meanwhile; it shows as it is now.",
+    "Ask before changing a public interface.",
+    "Changed by you · Today · Thursday 22 October",
+];
 static HOLDS: [Holds; samples::N] = [
+    Holds {
+        name: "remembered-none",
+        heading: "What temper remembers about you",
+        parts: &[
+            Part::StyledText { style: temper_client_view::look::SETTINGS_TAG, text: &["Nothing kept yet"] },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Ask temper keeps a line here when you ask it to remember something, such as how you like its answers.",
+            },
+            Part::NoStyle { style: temper_client_view::look::REMEMBERED_ROWS },
+            Part::Absent { role: Role::TextField, name: "Line" },
+        ],
+    },
+    Holds {
+        name: "remembered-three",
+        heading: "What temper remembers about you",
+        parts: &[
+            Part::StyledText { style: temper_client_view::look::REMEMBERED_ROWS, text: REMEMBERED_THREE },
+            Part::Absent { role: Role::Text, name: "Nothing kept yet" },
+            Part::Absent { role: Role::TextField, name: "Line" },
+        ],
+    },
+    Holds {
+        name: "remembered-full",
+        heading: "What temper remembers about you",
+        parts: &[
+            Part::StyledText { style: temper_client_view::look::REMEMBERED_ROWS, text: REMEMBERED_FULL },
+            Part::Absent { role: Role::Text, name: "Nothing kept yet" },
+            Part::StyledText {
+                style: temper_client_view::look::SETTINGS_FACTS,
+                text: &["12 lines, the most Ask temper keeps: it asks you which to change before it keeps another."],
+            },
+            Part::Absent { role: Role::TextField, name: "Line" },
+        ],
+    },
+    Holds {
+        name: "remembered-changing",
+        heading: "What temper remembers about you",
+        parts: &[
+            Part::StyledText { style: temper_client_view::look::REMEMBERED_ROWS, text: REMEMBERED_THREE },
+            Part::Absent { role: Role::Text, name: "Nothing kept yet" },
+            Part::Value { role: Role::TextField, name: "Line", value: "Use short Rust examples with their output." },
+            Part::Named { role: Role::Button, name: "Save" },
+            Part::Named { role: Role::Button, name: "Cancel" },
+        ],
+    },
+    Holds {
+        name: "remembered-refused",
+        heading: "What temper remembers about you",
+        parts: &[
+            Part::StyledText { style: temper_client_view::look::REMEMBERED_ROWS, text: REMEMBERED_REFUSED },
+            Part::Absent { role: Role::Text, name: "Nothing kept yet" },
+            Part::Absent { role: Role::TextField, name: "Line" },
+            Part::StyledText {
+                style: temper_client_view::look::SETTINGS_REFUSAL,
+                text: &["This line changed meanwhile; it shows as it is now."],
+            },
+        ],
+    },
+    Holds {
+        name: "night-remembered-none",
+        heading: "What temper remembers about you",
+        parts: &[
+            Part::StyledText { style: temper_client_view::look::SETTINGS_TAG, text: &["Nothing kept yet"] },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Ask temper keeps a line here when you ask it to remember something, such as how you like its answers.",
+            },
+            Part::NoStyle { style: temper_client_view::look::REMEMBERED_ROWS },
+            Part::Absent { role: Role::TextField, name: "Line" },
+            Part::Pressed { name: "Night mode" },
+        ],
+    },
+    Holds {
+        name: "night-remembered-three",
+        heading: "What temper remembers about you",
+        parts: &[
+            Part::StyledText { style: temper_client_view::look::REMEMBERED_ROWS, text: REMEMBERED_THREE },
+            Part::Absent { role: Role::Text, name: "Nothing kept yet" },
+            Part::Absent { role: Role::TextField, name: "Line" },
+            Part::Pressed { name: "Night mode" },
+        ],
+    },
+    Holds {
+        name: "night-remembered-full",
+        heading: "What temper remembers about you",
+        parts: &[
+            Part::StyledText { style: temper_client_view::look::REMEMBERED_ROWS, text: REMEMBERED_FULL },
+            Part::Absent { role: Role::Text, name: "Nothing kept yet" },
+            Part::StyledText {
+                style: temper_client_view::look::SETTINGS_FACTS,
+                text: &["12 lines, the most Ask temper keeps: it asks you which to change before it keeps another."],
+            },
+            Part::Absent { role: Role::TextField, name: "Line" },
+            Part::Pressed { name: "Night mode" },
+        ],
+    },
+    Holds {
+        name: "night-remembered-changing",
+        heading: "What temper remembers about you",
+        parts: &[
+            Part::StyledText { style: temper_client_view::look::REMEMBERED_ROWS, text: REMEMBERED_THREE },
+            Part::Absent { role: Role::Text, name: "Nothing kept yet" },
+            Part::Value { role: Role::TextField, name: "Line", value: "Use short Rust examples with their output." },
+            Part::Named { role: Role::Button, name: "Save" },
+            Part::Named { role: Role::Button, name: "Cancel" },
+            Part::Pressed { name: "Night mode" },
+        ],
+    },
+    Holds {
+        name: "night-remembered-refused",
+        heading: "What temper remembers about you",
+        parts: &[
+            Part::StyledText { style: temper_client_view::look::REMEMBERED_ROWS, text: REMEMBERED_REFUSED },
+            Part::Absent { role: Role::Text, name: "Nothing kept yet" },
+            Part::Absent { role: Role::TextField, name: "Line" },
+            Part::StyledText {
+                style: temper_client_view::look::SETTINGS_REFUSAL,
+                text: &["This line changed meanwhile; it shows as it is now."],
+            },
+            Part::Pressed { name: "Night mode" },
+        ],
+    },
     Holds {
         name: "team",
         heading: "Who owns what on shop",
@@ -5151,7 +5317,9 @@ fn the_person_menu_sample_opens_above_its_row() {
     let menu = person.split("role=\"menu\"").nth(1).unwrap().split('>').next().unwrap();
     assert!(!menu.contains("hidden"), "{menu}");
     assert!(person.contains("role=\"menuitem\">Accounts</div>"));
+    assert!(person.contains("role=\"menuitem\">What temper remembers about you</div>"));
     assert!(person.contains("role=\"menuitem\">Sign out</div>"));
+    assert_eq!(person.matches("role=\"menuitem\"").count(), 3);
     let css = fs::read_to_string(STYLESHEETS[0]).unwrap();
     let panel = css
         .lines()

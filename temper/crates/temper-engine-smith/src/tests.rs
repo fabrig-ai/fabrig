@@ -209,8 +209,8 @@ fn settings_and_delegate_tools_need_the_charters_family() {
     let rows: [(u64, u64, AskingNames); 8] = [
         (u64::MAX, u64::MAX, None),
         (3_584, 3_584, None),
-        (3_072, 3_072, Some(&[b"see", b"document", b"propose_settings"])),
-        (2_048, 3_072, Some(&[b"see", b"document"])),
+        (3_072, 3_072, Some(&[b"see", b"document", b"remember", b"propose_settings"])),
+        (2_048, 3_072, Some(&[b"see", b"document", b"remember"])),
         (3_072, 1_024, Some(&[b"propose_settings"])),
         (1_023, u64::MAX, None),
         (1_920, u64::MAX, None),
@@ -281,7 +281,11 @@ fn settings_and_delegate_tools_need_the_charters_family() {
             assert_eq!(declarations.next(), None, "no additional tools for charter {charter}");
             let mut proposal = false;
             for tool in &offered {
-                assert!(tool.name.as_ref() != b"see" && tool.name.as_ref() != b"document");
+                assert!(
+                    tool.name.as_ref() != b"see"
+                        && tool.name.as_ref() != b"document"
+                        && tool.name.as_ref() != b"remember"
+                );
                 if tool.name.as_ref() == b"propose_settings" {
                     proposal = true;
                     assert!(
@@ -554,6 +558,7 @@ fn tool_cases() -> &'static [(&'static [u8], &'static [u8], &'static [u8])] {
     &[
         (b"see", br#"{"address":" settings charter 3 "}"#, br#"{"address":3}"#),
         (b"document", br##"{"action":"write","body":"# Title"}"##, br#"{"action":"unknown","body":""}"#),
+        (b"remember", br#"{"action":"add","text":"Keep it brief."}"#, br#"{"action":"unknown"}"#),
         (b"settings", br"{}", br#"{"from":-1}"#),
         (b"read_task", br#"{"task":23}"#, br#"{"task":0}"#),
         (b"propose_settings", br#"{"against":1,"items":[],"reason":"why"}"#, br#"{"against":0,"items":[],"reason":"why"}"#),
@@ -688,6 +693,40 @@ fn every_declared_tool_decodes_its_minimum_shape_and_rejects_a_wrong_shape() {
             decided(b"document", input.as_bytes()).unwrap().tool,
             engine::Tool::Document { action: expected, body: b"## Section".as_slice().into() }
         );
+    }
+    for (input, expected) in [
+        (
+            br#"{"action":"add","text":"Brief"}"#.as_slice(),
+            engine::RememberAction::Add { text: b"Brief".as_slice().into() },
+        ),
+        (
+            br#"{"action":"change","line":1,"text":"Brief"}"#,
+            engine::RememberAction::Change { line: 1, text: b"Brief".as_slice().into() },
+        ),
+        (br#"{"action":"drop","line":4294967295}"#, engine::RememberAction::Drop { line: u32::MAX }),
+    ] {
+        assert_eq!(decided(b"remember", input).unwrap().tool, engine::Tool::Remember { action: expected });
+    }
+    for (input, expected) in [
+        (br"{}".as_slice(), Problem::Missing(b"action")),
+        (br#"{"action":1}"#, Problem::Type(b"action")),
+        (br#"{"action":"unknown"}"#, Problem::Range(b"action")),
+        (br#"{"action":"add"}"#, Problem::Missing(b"text")),
+        (br#"{"action":"add","text":1}"#, Problem::Type(b"text")),
+        (br#"{"action":"add","text":"Brief","line":1}"#, Problem::Range(b"action")),
+        (br#"{"action":"change","text":"Brief"}"#, Problem::Missing(b"line")),
+        (br#"{"action":"change","line":1}"#, Problem::Missing(b"text")),
+        (br#"{"action":"change","line":1,"text":1}"#, Problem::Type(b"text")),
+        (br#"{"action":"drop"}"#, Problem::Missing(b"line")),
+        (br#"{"action":"drop","line":0}"#, Problem::Range(b"line")),
+        (br#"{"action":"drop","line":-1}"#, Problem::Range(b"line")),
+        (br#"{"action":"drop","line":1.5}"#, Problem::Range(b"line")),
+        (br#"{"action":"drop","line":4294967296}"#, Problem::Range(b"line")),
+        (br#"{"action":"drop","line":"1"}"#, Problem::Type(b"line")),
+        (br#"{"action":"drop","line":1,"text":"Brief"}"#, Problem::Range(b"action")),
+        (br#"{"action":"add","text":"Brief","other":1}"#, Problem::Range(b"remember")),
+    ] {
+        assert_eq!(decided(b"remember", input), Err(expected), "{input:?}");
     }
     let cases = tool_cases();
     let declared = tools(Duration::from_secs(10));
@@ -3649,3 +3688,6 @@ mod see;
 
 #[path = "tests/see_person.rs"]
 mod see_person;
+
+#[path = "tests/remember.rs"]
+mod remember;

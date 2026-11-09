@@ -1,4 +1,4 @@
-//! Activity summaries and whole turns (temper/docs/design/domain/agent.md, 8.4.1).
+//! Activity summaries and whole turns (temper/docs/design/domain/agent.md, 8.4.1 and 8.4.4).
 use super::{count, join, words};
 use alloc::boxed::Box;
 use jig_domain_core::reads::{Answer, EndedValue, PageRow, PageTurn, Why};
@@ -17,6 +17,7 @@ fn name(attempt: u64, turn: u32) -> Box<[u8]> {
 fn decode(
     record: &jig_domain_core::TurnRecord,
     inspect: bool,
+    withheld: bool,
 ) -> Result<c::Turn, jig_protocol_transcript::Undecodable> {
     let bound = jig_client_protocol_wire::v19::CEILINGS.turn_carried_bytes;
     let mut limits = jig_protocol_transcript::Limits::new(
@@ -30,10 +31,17 @@ fn decode(
     );
     limits.turn.messages = limits.smith.turn_messages.checked_add(1).expect("system message and transcript");
     limits.turn.blocks = limits.smith.message_blocks;
-    if inspect {
-        jig_protocol_transcript::decode(&limits, &record.transcript)
+    let projected;
+    let transcript = if withheld {
+        projected = c::withhold(&limits, &record.transcript, &crate::private())?;
+        projected.as_ref()
     } else {
-        jig_protocol_transcript::conversation(&limits, &record.transcript)
+        record.transcript.as_ref()
+    };
+    if inspect {
+        jig_protocol_transcript::decode(&limits, transcript)
+    } else {
+        jig_protocol_transcript::conversation(&limits, transcript)
     }
 }
 
@@ -102,8 +110,12 @@ fn activity_turn(
     lines: &mut List<Box<[u8]>>,
 ) {
     let heading = join(&[&words::time(at), " · its run · turn ".as_bytes(), &name(attempt, turn)]);
+    let withheld = match source {
+        Some(PageTurn::Withheld(_)) => true,
+        Some(PageTurn::Carried(_) | PageTurn::TooLarge { .. } | PageTurn::Unread) | None => false,
+    };
     match source {
-        Some(PageTurn::Carried(record)) => match decode(record, false) {
+        Some(PageTurn::Carried(record) | PageTurn::Withheld(record)) => match decode(record, false, withheld) {
             Ok(decoded) => {
                 let mut calls = 0_u64;
                 for message in &decoded.messages {
@@ -194,7 +206,8 @@ pub(super) fn turn(task: u64, attempt: u64, turn: u32, answer: &Answer, lines: &
     }
     let record = match answer {
         Answer::Ended(ended) => match &ended.value {
-            EndedValue::Turn(record) => Some(record),
+            EndedValue::Turn(record) => Some((record, false)),
+            EndedValue::WithheldTurn(record) => Some((record, true)),
             EndedValue::Task { .. }
             | EndedValue::Proposal(_)
             | EndedValue::PersonProposal { .. }
@@ -212,11 +225,11 @@ pub(super) fn turn(task: u64, attempt: u64, turn: u32, answer: &Answer, lines: &
         | Answer::Tasks(_)
         | Answer::Page(_) => None,
     };
-    let Some(record) = record else {
+    let Some((record, withheld)) = record else {
         lines.push(join(&[&heading, b": not read\n"])).expect("unread turn");
         return;
     };
-    let decoded = match decode(record, true) {
+    let decoded = match decode(record, true, withheld) {
         Ok(decoded) => decoded,
         Err(why) => {
             lines

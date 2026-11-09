@@ -147,7 +147,9 @@ Authority
   - *deadline:* by when it must end, in wall time, if at all.
 - **Notes:** the scopes it may write in (engine.md, section 10), a goal's
   meaning, for a root conversation, its own. It may read every scope its
-  project reaches.
+  project reaches. A party's scope, in no project, is no note scope of an
+  authority's: the asking family reaches it for the task's requester alone
+  (engine.md, 10.1).
 
 ## 4. Resources and their names
 

@@ -1,10 +1,10 @@
 # notes-memory: status
 
-2026-11-08. Where the design lags or departs from [notes-memory.md](notes-memory.md).
+2026-11-09. Where the design lags or departs from [notes-memory.md](notes-memory.md).
 
 - **Design lags:**
-  - 2: `../domain/engine.md`, section 10: an entry has no kind; the scopes are the deployment, a project, a goal (a chat's own among them) and a resource pattern, with no party and no task.
-  - 3: `../client/domain/pages.md`, 6.4: notes are shown by scope, with no page of a person's own.
+  - 2: `../domain/engine.md`, section 10: an entry has no kind; the scopes are the deployment, a project, a goal (a chat's own among them), a resource pattern and a party (10.1), whose entries are preferences by their scope, with no task's.
+  - 3: `../domain/engine.md`, 10.1: a party's preferences are written and read by the asking runs of the person's own tasks alone, where this section has every run working for them, the whole list in their brief where it has an index, and a run's turns show them to the person alone; `../client/domain/pages.md`, 6.4: jig's client shows notes by scope, with no page of a person's own, which temper's draws (temper's `client/README.md`, 5.17).
   - 4: `../domain/engine.md`, section 9: a brief carries the index of the notes in its scope, with no task's own index first.
   - 4: `../domain/engine.md`, section 10: no task's own working notes, under one name, read whole in every brief, as temper's standing roles keep their Now (`temper/docs/design/draft/standing-roles.md`, sections 2 and 9).
 - **Design departs:**

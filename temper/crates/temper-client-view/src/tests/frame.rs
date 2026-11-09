@@ -1964,3 +1964,25 @@ fn opening_rename_takes_focus_from_a_shown_document_section() {
         }
     }
 }
+
+#[test]
+#[expect(clippy::disallowed_types, clippy::disallowed_methods, reason = "ordinary tests inspect semantic menu rows")]
+fn the_persons_menu_keeps_accounts_remembered_and_sign_out_ordered() {
+    use temper_client_domain::Address;
+    let root = fixtures::root_at(Address::Home { project: fixtures::PROJECT }, &fixtures::domain_limits()).0;
+    let mut view = fixtures::browser_page_view(&root);
+    let nodes = view.tree().nodes();
+    let at = nodes.iter().position(|n| n.role == Role::Menu && n.name.as_deref() == Some(b"Pat")).unwrap();
+    let menu = &nodes[at..at.checked_add(usize::try_from(nodes[at].size).unwrap()).unwrap()];
+    let items: Vec<_> =
+        menu.iter().filter(|n| n.role == Role::MenuItem).map(|n| (n.id, n.name.clone().unwrap())).collect();
+    assert_eq!(items.len(), 3);
+    for ((id, name), (expected, act)) in items.into_iter().zip([
+        (b"Accounts".as_slice(), pages::Act::Go { address: Address::Accounts }),
+        (b"What temper remembers about you", pages::Act::Go { address: Address::Remembered }),
+        (b"Sign out", pages::Act::SignOut),
+    ]) {
+        assert_eq!(name.as_ref(), expected);
+        assert_eq!(crate::act(&mut view, id, Act::Press), Some(Action::Pages(act)));
+    }
+}

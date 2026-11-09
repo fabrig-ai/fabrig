@@ -105,6 +105,9 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
     let mut times = crate::words::Times::new(wall);
     view.forge.begin();
     view.pages.begin();
+    if root.pages().remembered().is_none() {
+        view.pages.remembered_field = None;
+    }
     view.pages.model_times = crate::words::Times::new(wall);
     view.accounts.begin(root.pages().accounts().is_none());
     let mut builder = view.render.builder();
@@ -132,6 +135,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         match root.pages().address() {
             temper_client_domain::Address::Welcome { .. } => {}
             temper_client_domain::Address::ConnectModel { .. }
+            | temper_client_domain::Address::Remembered
             | temper_client_domain::Address::Members
             | temper_client_domain::Address::Limits
             | temper_client_domain::Address::Accounts
@@ -169,6 +173,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             }
             temper_client_domain::Address::Welcome { .. }
             | temper_client_domain::Address::ConnectModel { .. }
+            | temper_client_domain::Address::Remembered
             | temper_client_domain::Address::Members
             | temper_client_domain::Address::Limits
             | temper_client_domain::Address::Accounts
@@ -230,6 +235,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         builder.state(skein_ui::State::Busy);
         builder.close();
     } else if no_project
+        && root.pages().address() != &temper_client_domain::Address::Remembered
         && root.pages().address() != &temper_client_domain::Address::Members
         && root.pages().address() != &temper_client_domain::Address::Limits
     {
@@ -323,6 +329,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         crate::pages::models::main(&mut builder, root, &view.forge_words, &mut view.pages, *project, &mut times);
     } else if let temper_client_domain::Address::Builders { project } = root.pages().address() {
         crate::pages::builders::main(&mut builder, root, &view.forge_words, &mut view.pages, *project);
+    } else if let temper_client_domain::Address::Remembered = root.pages().address() {
+        crate::pages::remembered::main(&mut builder, root, &view.forge_words, &mut view.pages, &mut times);
     } else if let temper_client_domain::Address::Members = root.pages().address() {
         crate::pages::deployment::members(&mut builder, root, &view.forge_words, &mut view.pages);
     } else if let temper_client_domain::Address::Limits = root.pages().address() {

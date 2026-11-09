@@ -46,7 +46,9 @@ pub(crate) fn loaded(domain: &mut Domain, limits: &Limits, owner: Token, rows: R
         match record {
             Record::Line(line) => {
                 let project = match &line.scope {
-                    Scope::Deployment => unreachable!("project load excludes deployment lines"),
+                    Scope::Deployment | Scope::Party { .. } => {
+                        unreachable!("project load excludes scopes outside projects")
+                    }
                     Scope::Project { project } | Scope::Goal { project, .. } | Scope::Resources { project, .. } => {
                         *project
                     }

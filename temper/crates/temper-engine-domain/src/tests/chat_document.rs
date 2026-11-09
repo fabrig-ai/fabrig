@@ -6,6 +6,8 @@ fn limits() -> jig_domain_notes::Limits {
     jig_domain_notes::Limits {
         scopes: 1,
         entries_per_scope: 1,
+        party_entries: 1,
+        party_bytes: 16,
         pattern_bytes: 32,
         description_bytes: 16,
         body_bytes: 128,

@@ -205,6 +205,7 @@ pub(crate) fn route_forge(
                     | Address::Inbox { .. }
                     | Address::Chats { .. }
                     | Address::NewChat { .. }
+                    | Address::Remembered
                     | Address::Members
                     | Address::Limits
                     | Address::Accounts
@@ -542,6 +543,7 @@ pub(crate) fn ways_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queu
         | Address::NewChat { .. }
         | Address::Chat { .. }
         | Address::Task { .. }
+        | Address::Remembered
         | Address::Members
         | Address::Limits
         | Address::Accounts

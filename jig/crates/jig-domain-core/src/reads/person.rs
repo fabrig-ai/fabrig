@@ -20,7 +20,9 @@ pub(crate) fn admitted(read: &Read, project: u32) -> Admission {
         Read::Inbox { filter, .. } => filter.project,
         Read::ScopedNotes { scope, .. } => match scope {
             crate::notes::Scope::Project { project } | crate::notes::Scope::Goal { project, .. } => Some(*project),
-            crate::notes::Scope::Deployment | crate::notes::Scope::Resources { .. } => None,
+            crate::notes::Scope::Party { .. }
+            | crate::notes::Scope::Deployment
+            | crate::notes::Scope::Resources { .. } => None,
         },
         Read::Application { scope, .. } => match scope {
             ApplicationScope::Project(project) => Some(*project),
@@ -118,7 +120,11 @@ pub(super) fn valid(core: &Core, key: CallKey, project: u32, party: u64) -> bool
 
 pub(super) fn answer(to: ReplyTo, key: CallKey, answer: Answer) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    out.push(Request::Now(Box::new(Now::PersonAnswer { to, key, answer: Box::new(answer) })));
+    out.push(Request::Now(Box::new(Now::PersonAnswer {
+        to,
+        key,
+        answer: Box::new(super::withheld::person_answer(answer)),
+    })));
     out
 }
 

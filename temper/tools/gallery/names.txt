@@ -284,6 +284,11 @@ night-home
 night-how
 night-limits
 night-needs
+night-remembered-changing
+night-remembered-full
+night-remembered-none
+night-remembered-refused
+night-remembered-three
 night-team
 night-work
 no-project
@@ -298,6 +303,11 @@ rail-away-on
 rail-new-change
 rail-new-menu
 rail-person-menu
+remembered-changing
+remembered-full
+remembered-none
+remembered-refused
+remembered-three
 repositories
 repositories-making
 repositories-none

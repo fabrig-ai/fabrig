@@ -417,6 +417,58 @@ fn a_note_written_corrected_by_a_person_and_recalled_keeps_the_corrected_body() 
 }
 
 #[test]
+fn another_partys_scope_is_refused_to_runs_and_unknown_to_parties() {
+    use core::reads::{Answer, Read, Why};
+    use jig_core_world::reads::{Parties, ask as read, latest};
+
+    let mut world = note_world(126, authority::Scopes(7));
+    let key = world.call_key(1);
+    let scope = notes::Scope::Party { party: OWNER + 1 };
+    let before: Vec<_> = world
+        .store
+        .rows
+        .iter()
+        .filter(|(key, _)| matches!(key, root::Key::Core(core::Key::Notes(_))))
+        .map(|(key, value)| (key.clone(), value.clone()))
+        .collect();
+    action(
+        &mut world,
+        1,
+        core::NamedAction::Note {
+            entry: notes::New {
+                name: 0,
+                scope: scope.clone(),
+                description: b"a preference".as_slice().into(),
+                body: Box::new([]),
+                references: List::with_capacity(0),
+                author: notes::Author::Task { task: key.task, attempt: key.attempt },
+            },
+            recalled: None,
+        },
+    );
+    assert_eq!(
+        world.answers.last().expect("refused write").2,
+        core::CallPart::ToolDenied {
+            answer: authority::Answer::Refuse,
+            findings: Box::new([authority::Finding::Scope { source: authority::Source::Task }]),
+        },
+    );
+    let after: Vec<_> = world
+        .store
+        .rows
+        .iter()
+        .filter(|(key, _)| matches!(key, root::Key::Core(core::Key::Notes(_))))
+        .map(|(key, value)| (key.clone(), value.clone()))
+        .collect();
+    assert_eq!(after, before, "a refused write leaves the notes store unchanged");
+    let before = world.store.rows.clone();
+    world.reads = Some(Parties::new(world.store.applied));
+    read(&mut world, 1, Read::ScopedNotes { scope, description: None, from: None });
+    assert_eq!(latest(&world), &Answer::None(Why::Unknown));
+    assert_eq!(world.store.rows, before, "an unknown read leaves the store unchanged");
+}
+
+#[test]
 fn a_chat_writes_its_own_scope_and_a_party_reads_it() {
     use core::reads::{Answer, PageRow, Read, Why};
     use jig_core_world::reads::{ask as read, latest};

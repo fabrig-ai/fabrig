@@ -441,6 +441,8 @@ fn set_notes(limits: &mut jig_domain_notes::Limits, name: &[u8], value: u64) -> 
     let jig_domain_notes::Limits {
         scopes,
         entries_per_scope,
+        party_entries,
+        party_bytes,
         pattern_bytes,
         description_bytes,
         body_bytes,
@@ -452,6 +454,8 @@ fn set_notes(limits: &mut jig_domain_notes::Limits, name: &[u8], value: u64) -> 
     match name {
         b"scopes" => *scopes = count(value)?,
         b"entries_per_scope" => *entries_per_scope = count(value)?,
+        b"party_entries" => *party_entries = count(value)?,
+        b"party_bytes" => *party_bytes = count(value)?,
         b"pattern_bytes" => *pattern_bytes = count(value)?,
         b"description_bytes" => *description_bytes = count(value)?,
         b"body_bytes" => *body_bytes = count(value)?,
@@ -576,7 +580,8 @@ fn set_core(limits: &mut jig_domain_core::Limits, name: &[u8], value: u64) -> Re
         documents: _,
         views: _,
     } = limits;
-    let jig_domain_core::CoreBriefBudgets { tail, task, dependencies, attempts, plan, notes } = brief_core_budgets;
+    let jig_domain_core::CoreBriefBudgets { tail, task, dependencies, attempts, plan, notes, preferences } =
+        brief_core_budgets;
     match name {
         b"settings.proposals" => {
             if value == 0 {
@@ -620,6 +625,7 @@ fn set_core(limits: &mut jig_domain_core::Limits, name: &[u8], value: u64) -> Re
         b"brief_core_budgets.attempts" => *attempts = count(value)?,
         b"brief_core_budgets.plan" => *plan = count(value)?,
         b"brief_core_budgets.notes" => *notes = count(value)?,
+        b"brief_core_budgets.preferences" => *preferences = count(value)?,
         _ => return Err(What::Override),
     }
     Ok(())

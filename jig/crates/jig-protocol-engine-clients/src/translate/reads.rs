@@ -82,6 +82,7 @@ fn group(parent: w::InboxReadGroup, kind: Option<w::InboxGroup>) -> Option<reads
 fn note_scope(value: w::NoteScope) -> Option<notes::Scope> {
     Some(match value {
         w::NoteScope::Tasks(_) => return None,
+        w::NoteScope::Party(value) => notes::Scope::Party { party: value.party() },
         w::NoteScope::Deployment => notes::Scope::Deployment,
         w::NoteScope::Project(value) => notes::Scope::Project { project: value.value() },
         w::NoteScope::Task(value) => notes::Scope::Goal { project: value.project(), goal: value.task() },
@@ -120,6 +121,7 @@ pub(crate) fn answer(
     read: &reads::Read,
     answer: &reads::Answer,
     models: &[crate::Model],
+    private: &crate::Private,
     limits: &w::Limits,
 ) -> Result<w::ReadAnswer, w::Problem> {
     let value = match answer {
@@ -134,8 +136,8 @@ pub(crate) fn answer(
         reads::Answer::Revisions(value) => w::ReadValue::Revisions(super::settings::revisions(value, limits)?),
         reads::Answer::TaskText(value) => w::ReadValue::TaskText(task_text(value, limits)?),
         reads::Answer::Tasks(page) => pages::tasks(page, limits)?,
-        reads::Answer::Page(page) => pages::page(models, read, page, limits)?,
-        reads::Answer::Document(_) | reads::Answer::Ended(_) => objects::document(answer, models, limits)?,
+        reads::Answer::Page(page) => pages::page(models, read, page, private, limits)?,
+        reads::Answer::Document(_) | reads::Answer::Ended(_) => objects::document(answer, models, private, limits)?,
     };
     let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut out).expect("measured value");
@@ -278,7 +280,8 @@ fn read_notes(value: w::ReadNotes) -> Option<reads::Read> {
             scope @ (w::NoteScope::Deployment
             | w::NoteScope::Project(_)
             | w::NoteScope::Resource(_)
-            | w::NoteScope::Task(_)) => {
+            | w::NoteScope::Task(_)
+            | w::NoteScope::Party(_)) => {
                 reads::Read::ScopedNotes { scope: note_scope(scope)?, description: parts.description, from }
             }
         }

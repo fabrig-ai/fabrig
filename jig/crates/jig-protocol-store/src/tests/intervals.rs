@@ -439,6 +439,8 @@ fn tasks_restore_includes_placed_holds_beyond_the_history_families() {
 #[test]
 fn project_notes_intervals_follow_the_full_key_cursor_across_scopes() {
     let scopes = [
+        notes::Scope::Party { party: 7 },
+        notes::Scope::Party { party: u64::MAX },
         notes::Scope::Deployment,
         notes::Scope::Project { project: 0 },
         notes::Scope::Project { project: 7 },
@@ -451,14 +453,14 @@ fn project_notes_intervals_follow_the_full_key_cursor_across_scopes() {
             pattern: notes::Pattern { segments: Box::new([]), last: notes::Last::Open(Box::new([])) },
         },
     ];
-    let mut keys = skein_lib::List::with_capacity(15);
-    keys.push(notes::Key::Entry { name: 1 }).expect("one entry and fourteen scope lines");
+    let mut keys = skein_lib::List::with_capacity(19);
+    keys.push(notes::Key::Entry { name: 1 }).expect("one entry and eighteen scope lines");
     for scope in scopes {
         for name in [1, 2] {
-            keys.push(notes::Key::Line { scope: scope.clone(), name }).expect("fourteen scope lines");
+            keys.push(notes::Key::Line { scope: scope.clone(), name }).expect("eighteen scope lines");
         }
     }
-    let mut cursors = skein_lib::List::with_capacity(16);
+    let mut cursors = skein_lib::List::with_capacity(20);
     cursors.push(None).expect("initial cursor");
     for key in &keys {
         cursors.push(Some(key.clone())).expect("one cursor per key");
@@ -470,7 +472,7 @@ fn project_notes_intervals_follow_the_full_key_cursor_across_scopes() {
                 let in_project = match key {
                     notes::Key::Entry { .. } => false,
                     notes::Key::Line { scope, .. } => match scope {
-                        notes::Scope::Deployment => false,
+                        notes::Scope::Deployment | notes::Scope::Party { .. } => false,
                         notes::Scope::Project { project: found }
                         | notes::Scope::Goal { project: found, .. }
                         | notes::Scope::Resources { project: found, .. } => project == *found,

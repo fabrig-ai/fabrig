@@ -130,6 +130,7 @@ pub(crate) fn source_summary(
     let jig_client_protocol_wire::ReadValue::Task(wire) = jig_protocol_engine_clients::translate::objects::document(
         &answer,
         models.as_slice(),
+        &jig_protocol_engine_clients::Private::none(),
         &jig_client_protocol_wire::CEILINGS,
     )
     .unwrap() else {

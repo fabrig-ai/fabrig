@@ -18,6 +18,10 @@ pub(super) fn write(writer: &mut KeyWriter, key: &Key) {
 }
 pub(super) fn scope(writer: &mut KeyWriter, scope: &Scope) {
     match scope {
+        Scope::Party { party } => {
+            writer.tag(4);
+            writer.u64(*party);
+        }
         Scope::Deployment => {
             writer.tag(0);
         }
@@ -62,6 +66,7 @@ pub(super) fn read(reader: &mut KeyReader<'_>, bytes: usize) -> Option<Key> {
 fn read_scope(reader: &mut KeyReader<'_>, bytes: usize) -> Option<Scope> {
     Some(match reader.tag()? {
         0 => Scope::Deployment,
+        4 => Scope::Party { party: reader.u64()? },
         1 => Scope::Project { project: u32::try_from(reader.u64()?).ok()? },
         2 => Scope::Goal { project: u32::try_from(reader.u64()?).ok()?, goal: reader.u64()? },
         3 => Scope::Resources {

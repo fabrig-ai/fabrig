@@ -282,6 +282,10 @@ fn asks_first_request_fits_both_shapes() {
         .host_part
         .checked_sub(u64::from(run::brief_room(&charter, None, &limits).expect("stock host part")))
         .unwrap();
+    assert_eq!(
+        charter.grants.host_tools.iter().map(|tool| tool.name.as_ref()).collect::<Box<[_]>>().as_ref(),
+        [b"see".as_slice(), b"document", b"remember", b"propose_settings"].as_slice()
+    );
     let host_declarations: u64 = charter
         .grants
         .host_tools

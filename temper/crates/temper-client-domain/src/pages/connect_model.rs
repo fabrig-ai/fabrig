@@ -60,6 +60,7 @@ pub const fn open(address: &Address) -> bool {
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        | Address::Remembered
         | Address::Members
         | Address::Limits
         | Address::Accounts
@@ -135,6 +136,7 @@ pub fn address(current: &Address, way: Option<ModelWay>) -> Address {
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        | Address::Remembered
         | Address::Members
         | Address::Limits
         | Address::Accounts
@@ -166,6 +168,7 @@ pub fn way(pages: &Pages, client: &Client) -> Option<Way> {
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        | Address::Remembered
         | Address::Members
         | Address::Limits
         | Address::Accounts

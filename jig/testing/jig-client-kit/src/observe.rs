@@ -156,7 +156,7 @@ fn read_cards(v: &ReadValue) -> Vec<Receipt> {
                     key: key(ObjectKey::Note { project: *project, note: n.number }),
                     revisions: vec![(4, n.revision.value)],
                 }),
-                NoteScope::Deployment => None,
+                NoteScope::Deployment | NoteScope::Party { .. } => None,
             })
             .collect(),
         ReadValue::Tasks(_)

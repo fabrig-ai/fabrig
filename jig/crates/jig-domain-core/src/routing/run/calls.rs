@@ -452,6 +452,7 @@ pub(crate) fn named_action(
         | NamedAction::ProposeGoal { .. }
         | NamedAction::Note { .. }
         | NamedAction::NoteLines { .. }
+        | NamedAction::NoteDelete { .. }
         | NamedAction::Recall { .. }) => action,
     };
     if let Some(part) = core.call_parts.get(&key) {
@@ -461,6 +462,9 @@ pub(crate) fn named_action(
     }
     if crate::routing::party::amendment_reads::waiting(core, key) {
         return Queue::uncapped();
+    }
+    if let NamedAction::NoteDelete { scope, name, recalled } = action {
+        return crate::routing::party::delete(core, work, Call { to, key }, scope, name, recalled);
     }
     if let Some(part) = core.authorize_tool(key, named_tool_kind(&action)) {
         let mut out = Queue::uncapped();
@@ -748,6 +752,7 @@ pub(crate) fn named_action(
             let owner = core.begin_note_route(NoteRoute::Call { to: ReplyTo::new(token), key });
             work.push(Work::Event(Event::Notes(notes::Event::WriteLines { owner, entry, recalled, range })));
         }
+        NamedAction::NoteDelete { .. } => unreachable!("party deletion routed after replay"),
         NamedAction::Recall { by, page } => {
             assert!(core.pending_calls.insert(key, true) == Ok(None), "recall call record room reserved");
             let owner = core.begin_note_route(NoteRoute::Call { to: ReplyTo::new(token), key });
@@ -777,6 +782,7 @@ pub(crate) fn named_tool_kind(action: &NamedAction) -> ToolKind {
         NamedAction::Note { entry, .. } | NamedAction::NoteLines { entry, .. } => {
             ToolKind::Note { scope: entry.scope.clone() }
         }
+        NamedAction::NoteDelete { scope, .. } => ToolKind::Note { scope: scope.clone() },
         NamedAction::Recall { by, .. } => ToolKind::Recall { by: by.clone() },
     }
 }

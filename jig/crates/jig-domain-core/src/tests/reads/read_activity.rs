@@ -80,6 +80,7 @@ fn an_activity_row_keeps_its_turn() {
 }
 #[test]
 fn a_turn_of_another_line_is_unknown() {
+    let (core, _) = tree_core();
     for (label, task, attempt, number) in [("task", 2, 1, 2), ("attempt", 1, 2, 2), ("turn", 1, 1, 3)] {
         for (carrier, related, unjoined) in [
             (
@@ -93,7 +94,11 @@ fn a_turn_of_another_line_is_unknown() {
             let mut row = stored_row(Record::Tasks(tasks::Stored::Activity(line())), None);
             row.related = related;
             row.unjoined = unjoined;
-            assert_eq!(crate::reads::activity::row(&line(), &row), Err(Missing::Unknown), "{carrier} {label}");
+            assert_eq!(
+                crate::reads::activity::row(&core, 1, &line(), &row),
+                Err(Missing::Unknown),
+                "{carrier} {label}"
+            );
         }
     }
 }

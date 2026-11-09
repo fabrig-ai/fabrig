@@ -452,6 +452,8 @@ fn welcome(root: &Domain) -> bool {
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        // page-view: draw Remembered.
+        | Address::Remembered
         | Address::Members
         | Address::Limits
         | Address::Accounts

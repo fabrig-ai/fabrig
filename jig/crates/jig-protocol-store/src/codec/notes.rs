@@ -120,6 +120,9 @@ pub fn decode(bytes: &[u8], limits: &wire::Limits) -> Result<domain::Record, wir
 
 fn encode_scope(scope: &domain::Scope, limits: &wire::Limits) -> Result<wire::Scope, wire::Problem> {
     Ok(match scope {
+        domain::Scope::Party { party } => {
+            wire::Scope::Party(wire::Party::new(limits, wire::PartyParts { party: *party })?)
+        }
         domain::Scope::Deployment => wire::Scope::Deployment,
         domain::Scope::Project { project } => {
             wire::Scope::Project(wire::Project::new(limits, wire::ProjectParts { project: *project })?)
@@ -162,6 +165,7 @@ fn encode_scope(scope: &domain::Scope, limits: &wire::Limits) -> Result<wire::Sc
 
 fn decode_scope(scope: wire::Scope, limits: &wire::Limits) -> Result<domain::Scope, wire::Problem> {
     Ok(match scope {
+        wire::Scope::Party(value) => domain::Scope::Party { party: value.party() },
         wire::Scope::Deployment => domain::Scope::Deployment,
         wire::Scope::Project(project) => {
             let wire::ProjectParts { project } = project.into_parts();

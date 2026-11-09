@@ -20,12 +20,14 @@ pub mod ended;
 pub mod forget;
 pub mod indexed;
 pub(crate) mod indexes;
+pub(crate) mod party;
 pub(crate) mod person;
 mod rows;
 pub mod run_task;
 pub mod settings;
 mod task_text;
 mod turn;
+pub(crate) mod withheld;
 pub use task_text::{TaskText, TaskTextField, task_text_from_row};
 mod vocabulary;
 pub(crate) mod watches;
@@ -90,7 +92,10 @@ pub fn admits(party: u64, scope: &Scope, key: &crate::Key) -> bool {
         Scope::Notes { project } => match key {
             Key::Notes(notes::Key::Line { scope, .. }) => match scope {
                 notes::Scope::Goal { project: owner, .. } => owner == project,
-                notes::Scope::Deployment | notes::Scope::Project { .. } | notes::Scope::Resources { .. } => false,
+                notes::Scope::Party { .. }
+                | notes::Scope::Deployment
+                | notes::Scope::Project { .. }
+                | notes::Scope::Resources { .. } => false,
             },
             Key::Notes(_) | Key::Tasks(_) | Key::Core(_) | Key::People(_) | Key::Accounts(_) => false,
         },

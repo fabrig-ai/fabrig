@@ -260,3 +260,125 @@ fn a_message_past_text_reads_back_whole_through_the_engine() {
         .expect("person's activity line");
     assert_eq!(read.bytes(), words.as_ref());
 }
+
+// The component's core peer supplies the carrier; the core world checks who gets each mark.
+fn private_turn() -> jig_domain_core::TurnRecord {
+    use smith_transcript::v7 as s;
+    let mut turn = smith_transcript::decode_archived(&s::CEILINGS, &fixtures::callable_turn())
+        .expect("callable turn")
+        .into_parts();
+    turn.system = Some(Box::from(b"## Preferences\n\n1. A private preference\n\n## Work\nDo the work.\n".as_slice()));
+    let turn = s::Turn::new(&s::CEILINGS, turn).expect("private section");
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(turn.measure()));
+    turn.encode(&mut bytes).expect("measured turn");
+    jig_domain_core::TurnRecord {
+        opens_window: true,
+        task: 1,
+        attempt: 1,
+        turn: 1,
+        spent: 1,
+        read: None,
+        at: skein_lib::Wall::EPOCH,
+        transcript: bytes.finish(),
+    }
+}
+
+fn private_turn_over_wire(record: jig_domain_core::TurnRecord, person: u64, withheld: bool) -> c::ArchivedTurn {
+    use jig_client_protocol_wire::v19 as w;
+    use jig_domain_core::{self as core, reads};
+    use jig_engine_clients_kit::fixtures as engine;
+    use skein_lib::{List, Reader, Writer};
+    let mut settings = engine::settings();
+    settings.private = jig_protocol_transcript::Private {
+        title: Box::from(b"Preferences".as_slice()),
+        tools: List::from_boxed(Box::new([Box::from(fixtures::TURN_TOOL)])),
+    };
+    let mut peer = engine::Peer::started(&settings);
+    let exchange = peer.post_link(&peer.printed_link());
+    peer.answer_signed_in(engine::FIRST_SIGN_IN, person);
+    peer.answer_kept(engine::FIRST_SIGN_IN);
+    let answer = peer.sign_in_answer(exchange);
+    let mut bearer = Writer::new(61);
+    bearer.put(b"Bearer ").expect("prefix");
+    skein_lib::base64::encode(
+        skein_lib::base64::Alphabet::Url,
+        answer.token().as_ref().expect("fake bearer").expose(),
+        &mut bearer,
+    )
+    .expect("bearer fits");
+    let bearer = bearer.finish();
+    let limits = engine::limits().wire;
+    let read = c::Read::Turn { task: record.task, attempt: record.attempt, turn: record.turn };
+    let owned = jig_client_protocol_link::translate::reads::owned(Readable::Jig(read.clone()), &limits)
+        .expect("turn read envelope");
+    let mut bytes = Writer::new(skein_lib::length::usize_of(owned.measure()));
+    owned.encode(&mut bytes).expect("measured read");
+    let socket = peer.post(b"/jig/v1/read", bytes.finish(), Some(&bearer));
+    let Some(core::Event::Read { reply, sign_in, read: requested }) = peer.take_core() else {
+        panic!("read reaches core")
+    };
+    assert_eq!(sign_in, engine::FIRST_SIGN_IN);
+    assert_eq!(requested, reads::Read::Turn { task: record.task, attempt: record.attempt, turn: record.turn });
+    assert!(peer.answered(socket).is_none());
+    peer.answer_read(
+        reply,
+        reads::Answer::Ended(Box::new(reads::Ended {
+            value: if withheld { reads::EndedValue::WithheldTurn(record) } else { reads::EndedValue::Turn(record) },
+            at: Some(skein_lib::Wall::EPOCH),
+            by: None,
+        })),
+    );
+    let w::ReadAnswer::Value(envelope) =
+        w::ReadAnswer::decode(&limits, &mut Reader::new(peer.answered(socket).expect("wire answer")))
+            .expect("read answer")
+    else {
+        panic!("turn value")
+    };
+    let limits = jig_client_protocol_link::Limits::new(fixtures::domain_limits(), 1).expect("client limits");
+    let c::ReadValue::Turn(archive) =
+        jig_client_protocol_link::translate::reads::value(envelope.record(), &limits).expect("client decodes turn")
+    else {
+        panic!("decoded archive")
+    };
+    *archive
+}
+
+#[test]
+fn a_turns_private_parts_reach_its_person_alone_over_the_wire() {
+    const P: u64 = jig_engine_clients_kit::fixtures::FIRST_PERSON;
+    const Q: u64 = P + 1;
+    for (person, withheld) in [(P, false), (Q, true)] {
+        let record = private_turn();
+        let whole = record.transcript.clone();
+        let archive = private_turn_over_wire(record, person, withheld);
+        assert_eq!((archive.task, archive.name.attempt, archive.name.number, archive.cumulative), (1, 1, 1, 1));
+        let c::TurnRead::Decoded(turn) = archive.turn else { panic!("whole decoded turn") };
+        assert!(!turn.cut);
+        let expected_system = if withheld {
+            format!("## Preferences\n\n{}\n\n## Work\nDo the work.\n", jig_protocol_transcript::WITHHELD).into_bytes()
+        } else {
+            b"## Preferences\n\n1. A private preference\n\n## Work\nDo the work.\n".to_vec()
+        };
+        let system = turn
+            .messages
+            .iter()
+            .find(|message| message.speaker == c::Speaker::System)
+            .expect("system text is inspected by a whole-turn read");
+        let [c::Block::Text(text)] = system.blocks.as_slice() else { panic!("system block") };
+        assert_eq!(text.bytes(), expected_system, "person {person}'s section");
+        let message =
+            turn.messages.iter().find(|message| message.speaker != c::Speaker::System).expect("source message");
+        let [c::Block::Text(text), c::Block::Call(call)] = message.blocks.as_slice() else { panic!("source blocks") };
+        assert_eq!(text.bytes(), fixtures::TURN_TEXT);
+        assert_eq!(call.tool.bytes(), fixtures::TURN_TOOL);
+        assert_eq!(call.number, fixtures::TURN_CALL_NUMBER);
+        assert_eq!(call.input.bytes(), if withheld { b"{}" } else { fixtures::TURN_INPUT });
+        if !withheld {
+            let limits = jig_protocol_transcript::Limits::new(
+                4096,
+                c::TurnLimits { messages: 8, blocks: 8, text: 4096, outcome: 128 },
+            );
+            assert_eq!(turn, jig_protocol_transcript::decode(&limits, &whole).expect("requester's whole turn"));
+        }
+    }
+}

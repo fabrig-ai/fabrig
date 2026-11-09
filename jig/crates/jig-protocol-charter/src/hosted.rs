@@ -99,6 +99,7 @@ const fn title(kind: brief::Core) -> &'static [u8] {
         brief::Core::Calls => b"Calls",
         brief::Core::Waiting => b"Waiting",
         brief::Core::NotesIndex => b"Notes",
+        brief::Core::Preferences => b"Preferences",
         brief::Core::TranscriptTail => b"Conversation",
     }
 }

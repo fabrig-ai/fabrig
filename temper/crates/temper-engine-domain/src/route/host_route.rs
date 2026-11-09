@@ -149,6 +149,7 @@ pub(crate) enum FlightRender {
     Change(Box<ChangeChoice>),
     PersonRoles(Box<[u32]>),
     Document(Box<DocumentFlight>),
+    Remember(Box<super::remember::RememberFlight>),
 }
 
 impl FlightRender {
@@ -160,7 +161,8 @@ impl FlightRender {
             | Self::Amended(_)
             | Self::Change(_)
             | Self::PersonRoles(_)
-            | Self::Document(_) => false,
+            | Self::Document(_)
+            | Self::Remember(_) => false,
         }
     }
 }
@@ -229,8 +231,10 @@ impl DocumentFlight {
             | CallAnswer::ReadRepositoryRefused { .. }
             | CallAnswer::SubscriptionRepositoryRefused { .. }
             | CallAnswer::ChangeRefused { .. }
+            | CallAnswer::NoteDeleted { .. }
             | CallAnswer::NoteRecalled { .. }
             | CallAnswer::Document(_)
+            | CallAnswer::Remember(_)
             | CallAnswer::Parts(_)
             | CallAnswer::Unavailable) => return answer,
         };
@@ -492,6 +496,7 @@ pub(crate) fn render(domain: &mut Domain, limits: &Limits, decision: &mut Decisi
     // Fresh and unsettled replay replies carry only the core's part.
     let answer = match &flight.render {
         FlightRender::Document(document) => document.join(answer),
+        FlightRender::Remember(remember) => remember.join(answer),
         FlightRender::Amended(changed) => {
             if let CallAnswer::Revised { task, revision } = answer {
                 CallAnswer::Amended { task, revision, changed: *changed }
@@ -577,6 +582,7 @@ pub(crate) fn rendered(domain: &mut Domain, to: ReplyTo, answer: SettledAnswer) 
             | FlightRender::Amended(_)
             | FlightRender::Change(_)
             | FlightRender::Document(_)
+            | FlightRender::Remember(_)
             | FlightRender::PersonRoles(_) => SettledAnswer::Host { error: true, body: Box::from(b"busy".as_slice()) },
         };
     }

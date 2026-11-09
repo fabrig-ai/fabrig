@@ -36,8 +36,14 @@ fn through_link(line: &t::ActivityLine) -> c::RunEnd {
 }
 
 fn wire_page(line: &t::ActivityLine) -> w::ActivityPage {
-    let row = jig_protocol_engine_clients::translate::activity::page_turn(1, line, None, &w::CEILINGS)
-        .expect("server translates end");
+    let row = jig_protocol_engine_clients::translate::activity::page_turn(
+        1,
+        line,
+        None,
+        &jig_protocol_engine_clients::Private::none(),
+        &w::CEILINGS,
+    )
+    .expect("server translates end");
     let mut bytes = Writer::new(usize::try_from(row.measure()).expect("row size") + 4);
     let mut row_bytes = Writer::new(usize::try_from(row.measure()).expect("row size"));
     row.encode(&mut row_bytes).expect("row encodes");

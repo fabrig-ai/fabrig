@@ -56,6 +56,7 @@ pub(super) fn read(captured: &mut Option<Captured>, source: &reads::Answer, inco
             for row in &page.rows {
                 let reads::PageRow::Note(source) = row else { continue };
                 let project = match source.scope {
+                    documents::NoteLocation::Party { .. } => continue,
                     documents::NoteLocation::Deployment => 0,
                     documents::NoteLocation::Project(project)
                     | documents::NoteLocation::Goal { project, .. }

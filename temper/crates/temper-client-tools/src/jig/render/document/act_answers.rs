@@ -101,6 +101,14 @@ pub(super) fn encode_made(value: &jig_client::contract::Made, out: &mut Encoder,
 
 pub(super) fn encode_note_scope(value: &jig_client::contract::NoteScope, out: &mut Encoder, budget: &mut super::Cut) {
     match value {
+        jig_client::contract::NoteScope::Party { party } => {
+            let number = skein_lib::Decimal::of(*party);
+            let length = 6_usize.checked_add(number.as_bytes().len()).expect("party label fits usize");
+            let mut text = skein_lib::Writer::new(length);
+            text.put(b"party ").expect("sized label");
+            text.put(number.as_bytes()).expect("sized number");
+            out.string(&text.finish());
+        }
         jig_client::contract::NoteScope::Tasks { .. } => out.string(b"goals' notes"),
         jig_client::contract::NoteScope::Deployment => out.string(b"deployment"),
         jig_client::contract::NoteScope::Project(field_0) => {
