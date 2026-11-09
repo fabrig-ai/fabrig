@@ -278,6 +278,10 @@ pub fn help(settings: &Settings, out: &mut Vec<u8>) {
 /// The process's arguments after its program name, as bytes.
 #[must_use]
 #[cfg(unix)]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "capture: what each binary's crate calls once (skein/docs/foundation/cli.md, 6)"
+)]
 pub fn arguments() -> Box<[Box<[u8]>]> {
     std::env::args_os().skip(1).map(|argument| Box::from(argument.as_bytes())).collect()
 }
@@ -286,6 +290,10 @@ pub fn arguments() -> Box<[Box<[u8]>]> {
 #[must_use]
 #[expect(clippy::type_complexity, reason = "shell.md, 6.5 returns byte environment pairs without a wrapper type")]
 #[cfg(unix)]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "capture: what each binary's crate calls once (skein/docs/foundation/cli.md, 6)"
+)]
 pub fn environment() -> Box<[(Box<[u8]>, Box<[u8]>)]> {
     std::env::vars_os().map(|(key, value)| (Box::from(key.as_bytes()), Box::from(value.as_bytes()))).collect()
 }

@@ -33,6 +33,10 @@ mod tests {
         }
     }
 
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "skein's round: reads SKEIN_CODEGEN_WRITE, the codegen rewrite switch"
+    )]
     fn check(schema_path: &str) {
         let (_, generated_path, golden_directory) =
             FAMILIES.into_iter().find(|row| row.0 == schema_path).expect("family registered");

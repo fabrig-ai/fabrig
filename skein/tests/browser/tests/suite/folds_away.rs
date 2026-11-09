@@ -36,6 +36,10 @@ fn arrive(steps: impl IntoIterator<Item = harness::Step>) -> Script {
     ];
     Script::new(arrived.into_iter().chain(steps).collect())
 }
+#[expect(
+    clippy::disallowed_methods,
+    reason = "skein's round: reads SKEIN_UI_EXAMPLE_BUNDLE to locate the browser test bundle"
+)]
 pub(super) fn setup() -> Setup<'static> {
     let exe = std::env::current_exe().expect("test executable");
     let server = exe.parent().and_then(std::path::Path::parent).expect("target debug").join("skein-ui-example");

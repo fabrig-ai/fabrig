@@ -12,6 +12,7 @@ const DESCRIPTORS: &str = "/proc/self/fd";
 #[cfg(target_os = "macos")]
 const DESCRIPTORS: &str = "/dev/fd";
 
+#[expect(clippy::disallowed_methods, reason = "skein's round: reads the process conformance fixture command line")]
 fn main() -> ExitCode {
     skein_fail_stop::install();
     let mut args = std::env::args();

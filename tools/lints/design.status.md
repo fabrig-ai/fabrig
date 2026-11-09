@@ -5,9 +5,7 @@
 Section 3's `skein-fork` takes the `ring` profile; its documented process
 boundary scopes its `unsafe` expectation. No gap remains in that addition.
 
-- **Not yet:** 4: the variants list `std::env::var` alone, `step` none of the environment's functions,
-  and no read says what it is.
-  5: `every_package_takes_a_lint_profile` (`tests/boundary/tests/lints.rs`), which
+- **Not yet:** 5: `every_package_takes_a_lint_profile` (`tests/boundary/tests/lints.rs`), which
   `.config/gate/always.txt` selects on every change, is the check's one run in this repository.
   The user's request of 2026-11-04 has it run beside `tools/citations/citations.py`, in a step this
   repository doesn't hold: whether that step has it awaits the user (7). `.config/gate/README.md`, 8

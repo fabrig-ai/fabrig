@@ -76,6 +76,10 @@ pub fn target_tmp() -> PathBuf {
     tmp
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "skein's round: reads the scratch directories supplied by Cargo and nextest"
+)]
 fn variable(name: &str) -> OsString {
     match std::env::var_os(name) {
         Some(value) => value,

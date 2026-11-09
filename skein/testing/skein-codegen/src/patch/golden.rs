@@ -32,6 +32,10 @@ pub fn golden<C: Default>(owner: &Path, patch: u32, written: Written<C>, mode: M
 }
 
 /// [`golden`], writing when `SKEIN_PATCH_WRITE=1` and checking otherwise.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "skein's round: reads SKEIN_PATCH_WRITE, the patch golden rewrite switch"
+)]
 pub fn goldens<C: Default>(owner: &Path, patch: u32, written: Written<C>) -> Result<(), Error> {
     let write = std::env::var_os("SKEIN_PATCH_WRITE").is_some_and(|value| value == "1");
     golden(owner, patch, written, if write { Mode::Write } else { Mode::Check })
