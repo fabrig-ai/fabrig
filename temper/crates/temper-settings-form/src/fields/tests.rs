@@ -5,7 +5,7 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 57] = [
+const SHAPES: [Shape; 58] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
@@ -61,6 +61,7 @@ const SHAPES: [Shape; 57] = [
     Shape::LandingPattern,
     Shape::LandingLast,
     Shape::ForgeCharter,
+    Shape::TemplateGoal,
     Shape::ProjectWays,
     Shape::ProjectQuestions,
 ];
@@ -594,7 +595,7 @@ LINE
 ## model
 
 - `"chosen"`: LINE
-- `set`: list of at most 32, each the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `project-policy`, `project-ways` or `project-questions`, or null.
+- `set`: list of at most 32, each the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways` or `project-questions`, or null.
 "#;
     assert_eq!(page.as_ref(), expected);
 }

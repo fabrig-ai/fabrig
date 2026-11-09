@@ -770,25 +770,28 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
     let newest = domain.core.current.newest();
     if let jig_domain_core::SettingsAnswer::Unknown = answer.as_ref()
         && let Some((
-            setting @ jig_domain_core::settings::Setting::Application { kind: kind @ (2 | 6 | 7), scope, number },
+            setting @ jig_domain_core::settings::Setting::Application { kind: kind @ (2 | 6 | 7 | 11), scope, number },
             revision,
         )) = *asked
         && (revision == 0 || revision == newest)
-        && domain.core.people.project_members(scope).is_some()
-        && let Some(value) = match kind {
-            2 => domain.forge.setting(kind, scope, number).cloned(),
+        && ((kind == 11 && scope == 0 && number > 0 && number <= domain.limits.templates)
+            || (kind != 11 && domain.core.people.project_members(scope).is_some()))
+    {
+        let value = match kind {
+            2 | 11 => domain.forge.setting(kind, scope, number).cloned(),
             6 | 7 if number == 1 => temper_engine_domain_forge::settings::project_stock(kind),
             _ => None,
+        };
+        if value.is_some() || kind == 11 {
+            application = value;
+            answer = Box::new(jig_domain_core::SettingsAnswer::Setting(jig_domain_core::reads::SettingDocument {
+                setting,
+                revision: newest,
+                value: None,
+                application: None,
+                proposed: None,
+            }));
         }
-    {
-        application = Some(value);
-        answer = Box::new(jig_domain_core::SettingsAnswer::Setting(jig_domain_core::reads::SettingDocument {
-            setting,
-            revision: newest,
-            value: None,
-            application: None,
-            proposed: None,
-        }));
     }
     let repositories = settings_repositories(domain, flight, &answer);
     let people = settings_people(domain, flight, &answer);

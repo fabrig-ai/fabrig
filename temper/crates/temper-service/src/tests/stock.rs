@@ -1383,6 +1383,7 @@ fn kinds_are_declared_with_their_bounds() {
     limits.forge.change_policy.gates = 2;
     limits.forge.roles = 3;
     limits.forge.landing_rules = 7;
+    limits.templates = 9;
     let rule = settings::Value::Rule(settings::LandingRule {
         pattern: forge::GatePattern {
             segments: Box::new([
@@ -1447,6 +1448,14 @@ fn kinds_are_declared_with_their_bounds() {
                 connector: CONNECTOR,
                 value_bytes: 8,
                 per_scope: 1,
+                charters: 0
+            },
+            Kind {
+                number: 11,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
+                value_bytes: 2,
+                per_scope: 9,
                 charters: 0
             },
         ]

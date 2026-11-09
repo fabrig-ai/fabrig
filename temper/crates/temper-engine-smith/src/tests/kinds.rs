@@ -67,17 +67,6 @@ fn each_kind_round_trips_its_value() {
     assert_eq!(temper_client_protocol_wire::CLIENT_VERSION, 16);
     for (kind, value) in values() {
         let bytes = encode(&value);
-        if let settings::Value::Goal(goal) = value {
-            let mut reader = skein_lib::Reader::new(&bytes);
-            let record = temper_client_protocol_wire::v1::TemplateGoal::decode(
-                &temper_client_protocol_wire::v1::CEILINGS,
-                &mut reader,
-            )
-            .expect("whole goal at the wire's ceilings");
-            assert_eq!((record.design(), record.close_out()), (goal.design, goal.close_out));
-            assert!(reader.is_empty());
-            continue;
-        }
         let back = decode(kind, &bytes, &BOUNDS).expect("whole value at its receiving bounds");
         assert_eq!(back, settings::SizedValue { value, size: u32::try_from(bytes.len()).expect("bounded encoding") });
     }
