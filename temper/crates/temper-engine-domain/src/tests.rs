@@ -20,6 +20,7 @@ mod looked;
 mod projection_room;
 mod projection_settled;
 mod public;
+mod remember;
 pub(crate) use projection_settled::live_task;
 mod kinds;
 mod release;

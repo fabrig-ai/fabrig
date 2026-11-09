@@ -114,6 +114,7 @@ fn query(read: Read) -> Query {
         | Read::GoalWords(_)
         | Read::InputCheck(_)
         | Read::Document(_)
+        | Read::Remember(_)
         | Read::SettingsNote { .. }
         | Read::Notes { .. } => unreachable!("only decision history loads here"),
     }

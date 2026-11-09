@@ -12,9 +12,23 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(test, expect(clippy::manual_map, reason = "step code matches optional fields without closures"))]
 extern crate alloc;
+use alloc::boxed::Box;
 
-/// The requester's preferences section title (jig domain/engine.md, 10.1).
+/// The requester's preferences section title (domain/agent.md, 8.4.4).
 pub const PREFERENCES_TITLE: &[u8] = b"Kept about this person";
+
+/// The tools whose calls are the person's alone (domain/agent.md, 8.4.4).
+pub const PRIVATE_TOOLS: [&[u8]; 1] = [b"remember"];
+
+/// The turn parts shown to its person alone (domain/agent.md, 8.4.4).
+#[must_use]
+pub fn private() -> jig_protocol_transcript::Private {
+    let mut tools = skein_lib::List::with_capacity(1);
+    for tool in PRIVATE_TOOLS {
+        tools.push(Box::from(tool)).expect("private tool names");
+    }
+    jig_protocol_transcript::Private { title: PREFERENCES_TITLE.into(), tools }
+}
 
 mod answers;
 mod calls;

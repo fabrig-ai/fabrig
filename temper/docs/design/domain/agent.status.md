@@ -208,9 +208,6 @@ record has run a real model on the sentence.
   run and How work runs' heading say a way by different words
   (`../protocol/configuration.md`, 13.10).
 
-- **Not yet:** 8.4.4: no call keeps, changes or drops a line of the
-  person's preferences; the root has no `route/remember.rs`.
-
 - **Departs:** 8.4.1, *Unknown*: an unknown address answers with
   `ask.txt`'s line of addresses and, in its settings bracket,
   `charter-words N | project-words`, which `ask.txt`'s *Finding out* doesn't
@@ -227,10 +224,6 @@ record has run a real model on the sentence.
   catalogue alone, and Ask temper's instructions, `../draft/ask-temper.md`,
   section 8, which win there (the user, 2026-11-07), say nothing of models
   outside the offer.
-
-- **Not yet:** 8.4.4, *Seen by the person alone*: temper names jig no
-  private section or tool, and `see task N turn A.T` and `see task N
-  activity` render a turn whole.
 
 The remaining gaps concern verdict follow-up tasks,
 what a delivery keeps of a run's history, change-refusal model wording, shell authority for runs that cannot deliver,

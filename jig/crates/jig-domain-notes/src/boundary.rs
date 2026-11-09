@@ -162,7 +162,7 @@ pub enum Refusal {
     RevisionExhausted,
     /// The range starts before line 1 or runs past the body's end.
     PastEnd { lines: u32 },
-    /// The body would pass its bound; `bytes` saturates at `u32::MAX`.
+    /// A body or a party's preference line would pass its bound; `bytes` saturates at `u32::MAX`.
     PastBound { bytes: u32, bound: u32 },
 }
 

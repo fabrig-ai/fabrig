@@ -246,6 +246,7 @@ fn ended(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, read: 
                 | Read::GoalWords(_)
                 | Read::InputCheck(_)
                 | Read::Document(_)
+                | Read::Remember(_)
                 | Read::SettingsNote { .. }
                 | Read::Notes { .. },
             )
