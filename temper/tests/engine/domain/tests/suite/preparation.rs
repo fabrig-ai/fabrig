@@ -128,7 +128,21 @@ fn park_turn(driver: &mut Driver, run: &engine::Assignment, read: Option<u64>, w
     driver.pump();
 }
 
-fn parked_chats() -> (Driver, Vec<(engine::Assignment, u8)>) {
+fn park_turns(driver: &mut Driver, run: &engine::Assignment, turns: usize, key: u8) {
+    for turn in 1..=turns {
+        let number = u32::try_from(turn).expect("short window");
+        driver.send(protocol::turn(CHANNEL, run.task, run.attempt, number, u64::from(number), None, &[key, u8::try_from(turn).expect("short window")]));
+        driver.pump();
+    }
+    driver.answer(CHANNEL, run.task, run.attempt, u64::try_from(turns).expect("short window"), tasks::End::Parked, engine::Parts::none());
+    driver.pump();
+}
+
+fn parked_chats(window_len: usize) -> (Driver, Vec<(engine::Assignment, u8)>) {
+    parked_windows(&[window_len; CHAT_KEYS.len()])
+}
+
+fn parked_windows(lengths: &[usize]) -> (Driver, Vec<(engine::Assignment, u8)>) {
     // Take the shipped task/request capacities; leave the world's other bounds,
     // including root.loads.loads=2, unchanged.
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
@@ -147,7 +161,7 @@ fn parked_chats() -> (Driver, Vec<(engine::Assignment, u8)>) {
     driver.sign_in();
     driver.settle();
     let mut parked = Vec::new();
-    for key in CHAT_KEYS {
+    for (key, turns) in CHAT_KEYS.into_iter().zip(lengths) {
         let people::Ask::Create { project, mut batch } = driver.chat_ask(PROJECT, b"standing chat") else {
             panic!("chat template creates a task")
         };
@@ -163,7 +177,7 @@ fn parked_chats() -> (Driver, Vec<(engine::Assignment, u8)>) {
         }));
         driver.settle();
         let run = driver.last_assignment();
-        park_turn(&mut driver, &run, None, &[key]);
+        park_turns(&mut driver, &run, *turns, key);
         parked.push((run, key));
     }
     (driver, parked)
@@ -172,7 +186,9 @@ fn parked_chats() -> (Driver, Vec<(engine::Assignment, u8)>) {
 /// temper/docs/design/domain/root.md, 8 and 9.1: due windows wait for load room.
 #[test]
 fn tasks_due_together_past_the_load_slots_each_load_their_window() {
-    let (mut driver, parked) = parked_chats();
+    for window_len in [1, 3] {
+        eprintln!("restart window length {window_len}");
+    let (mut driver, parked) = parked_chats(window_len);
     no_transcript_failure(&mut driver);
     // Commit all three wakes before answering any transcript read, then restart
     // the parked chats together with their wake messages durable.
@@ -206,7 +222,10 @@ fn tasks_due_together_past_the_load_slots_each_load_their_window() {
             .expect("every parked chat is assigned again");
         let (previous, key) = parked.iter().find(|(run, _)| run.task == next.task).expect("a parked chat resumed");
         assert!(next.attempt > previous.attempt);
-        assert_eq!(next.transcript.as_ref(), &[Box::<[u8]>::from([*key])]);
+        let expected: Vec<Box<[u8]>> = (1..=window_len)
+            .map(|turn| Box::<[u8]>::from([*key, u8::try_from(turn).expect("short window")]))
+            .collect();
+        assert_eq!(next.transcript.as_ref(), expected.as_slice(), "window length {window_len}");
         assert_eq!(driver.task(next.task).expect("resumed chat").tries, tasks::Tries::NONE, "room spends no try");
         resumed.push(next.task);
         let read = next.messages.last().expect("the wake message is offered").number;
@@ -221,6 +240,38 @@ fn tasks_due_together_past_the_load_slots_each_load_their_window() {
         assert_eq!(row.tries, tasks::Tries::NONE, "room spends no try");
         assert!(resumed.contains(&run.task), "every chat resumed");
         assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Idle));
+    }
+    }
+}
+
+/// temper/docs/design/domain/root.md, 8: later pages keep the first page's slot.
+#[test]
+fn a_window_of_any_length_loads_while_another_load_holds_a_slot() {
+    for window_len in [2, 3, 7] {
+        eprintln!("held-slot window length {window_len}");
+        let (mut driver, parked) = parked_windows(&[window_len, 1]);
+        let (first, key) = &parked[0];
+        let second = &parked[1].0;
+        assert_eq!((driver.env.limits.loads.loads, driver.env.limits.loads.rows), (2, 2));
+        driver.send(say_ask(driver.session(), second.task, 60));
+        let held = transcript_in_flight(&mut driver, second.task);
+        let index = driver.events.iter().position(|event| matches!(event,
+            engine::Event::Store(engine::StoreInput::Loaded { owner, .. }) if *owner == held
+        )).expect("the second chat's store answer is queued");
+        let answer = driver.events.remove(index).expect("held answer");
+        driver.send(say_ask(driver.session(), first.task, 61));
+        driver.pump();
+        no_transcript_failure(&mut driver);
+        let next = driver.last_assignment();
+        assert_eq!(next.task, first.task, "window length {window_len}");
+        assert!(next.attempt > first.attempt);
+        let expected: Vec<Box<[u8]>> = (1..=window_len)
+            .map(|turn| Box::<[u8]>::from([*key, u8::try_from(turn).expect("short window")]))
+            .collect();
+        assert_eq!(next.transcript.as_ref(), expected.as_slice(), "window length {window_len}");
+        assert_eq!(driver.task(first.task).expect("resumed chat").tries, tasks::Tries::NONE);
+        driver.send(answer);
+        driver.pump();
     }
 }
 
