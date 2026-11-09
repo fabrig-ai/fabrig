@@ -433,8 +433,9 @@ processes are 15.2's.
 
 A deployment's processes each run a binary of their own
 (`../draft/deployment-binaries.md`, section 4): the engine's,
-`temper-engine` (4.2), and the worker's, the agent's and the client's,
-each written here by its own milestone
+`temper-engine` (4.2), the agent's, `temper-agent` (4.3), the worker's,
+`temper-worker` (4.5), and the client's, each written here by its own
+milestone
 (`../draft/deployment-binaries.execution.md`). The box keeps `temper`,
 which links every one of them and keeps every command above. What holds
 of each:
@@ -464,11 +465,18 @@ of each:
 - **Code two binaries share is a crate each links,** never one binary's
   package another links: `temper-shell` (the commands' table and its
   renderings, the directories, `help`, the engine's link file) for every
-  binary, `temper-engine-shell` for the engine's commands, which the box
-  links too.
+  binary; `temper-service-shell` (serve's run, its host, its lines and
+  endings, the files a document names, `jig_directories`) for every
+  binary that serves; `temper-engine-shell` for the engine's commands
+  and its start, and `temper-worker-shell` for the worker's half of a
+  start and `program-login`, each of which the box links too.
 - **A binary's features are its package's.** `temper-service`'s worker
-  half is its `worker` feature (section 5), which the box's binary and
-  the worlds turn on and `temper-engine` leaves off. Cargo unifies the
+  half is its `worker` feature (section 5), which the box's binary,
+  `temper-worker-shell` and the worlds turn on and `temper-engine`
+  leaves off. `temper-worker-shell`'s switch is one of
+  `tests/boundary/tests/cli.rs`'s feature exceptions, until
+  `../draft/cli.execution.md`'s C5 makes the worker's half crates of its
+  own (the user, 2026-11-09). Cargo unifies the
   features of what one invocation builds, so the gate, which builds the
   workspace whole, builds the service with it, and only a binary's own
   build (`cargo build -p PACKAGE --bin NAME`, the release job's) and its
@@ -684,6 +692,68 @@ smith's crates and skein's are the agent's to hold: smith's agent and
 what it rests on. The client's, the engine's and the worker's rows are
 M5's (`../draft/deployment-binaries.execution.md`, 1).
 
+### 4.5 The worker's binary, `temper-worker`
+
+Each worker's host's binary, `bin/temper-worker`: a worker alone, its
+programs' sign-in and the pages:
+
+```
+documentation  temper-worker help [NAME | --search WORDS...]
+deployment     temper-worker serve [DIRECTORIES]
+               temper-worker program-login [DIRECTORIES] NAME
+               temper-worker --version
+```
+
+- **Each command is the box's of the same words,** run by the same
+  code, `temper-worker-shell`'s and `temper-service-shell`'s, with the
+  same exits, but for what follows. Its `help` and `program-login` rows
+  are the constants the box's table holds too, `temper-shell`'s `HELP`
+  and `temper-worker-shell`'s `PROGRAM_LOGIN`; its `serve` row is its
+  own, saying it serves a worker alone's document.
+- **Its lines name it:** serve's refusals and endings say
+  `temper-worker serve: …` and program-login's say
+  `temper-worker program-login: …`, where the box's say `temper`. The
+  lines a worker alone prints (15.3) are the same.
+- **A worker alone's document only.** `serve` and `program-login` read
+  its nearest shape first (15.1) and, for any other, print one line and
+  exit 1, before any other check, `COMMAND` the command's words:
+  - an engine alone's:
+    `temper-worker COMMAND: temper.json holds an engine alone; temper-engine serve runs it`;
+  - standalone's:
+    `temper-worker COMMAND: temper.json holds an engine and its worker in one process; the box's temper serve runs it`.
+
+  A document whose shape can't be read, not a JSON object, goes on to
+  the checks a worker alone's start makes, and is refused in their
+  words.
+- **No command is an unknown command:** `temper-worker: no command
+  WORDS; temper-worker --help lists them`, and exit 1, as 4.2 says it.
+- **Its `serve`** is the box's `temper serve` on a worker alone: the
+  worker's part read and checked, its agent's document read by
+  `smith-agent-document`, its root, program sources and the launcher's
+  links made (setup.md, 6.6), its link dialled, and its loop, ending and
+  exit its worker's (15.1). It takes no `--box`, and has no bundle, no
+  fakes and no store.
+- **Its `program-login`** is the box's on a worker alone (15.1;
+  credentials.md, section 3): it reads the worker's part alone, makes
+  the source's directory and replaces itself by the program's sign-in.
+- **What it links** (4.1): `temper-worker-shell`,
+  `temper-service-shell`, `temper-shell` and `temper-version`, and
+  `temper-service` with its `worker` feature, which until
+  `../draft/cli.execution.md`'s C5 composes the engine's half too, so
+  its closure holds the engine's domain and `temper-service`'s other
+  dependencies (`temper-forge-setup`, `temper-box`, the forge kit). Its
+  row, with that as its exception, is M5's
+  (`../draft/deployment-binaries.execution.md`, 1). It links no
+  `temper-engine-shell`, `temper-client-bundle`, `temper-fake`,
+  `temper-forge-setup-shell`, smith's agent shell or smith's agent
+  service.
+- **Its package,** `bin/temper-worker`, has skein's layout
+  (`skein/docs/foundation/cli.md`, section 2): a `main.rs` that installs
+  fail-stop and calls `temper-worker-shell`'s `main`, which holds the
+  table, its parser and the dispatch; `--version`'s line is
+  `temper-version`'s. Its step tests, one test binary of the package,
+  run the built binary.
+
 ## 5. Components and crates
 
 **jig's,** composed as they are (jig's `protocol/README.md`, section 5):
@@ -720,11 +790,11 @@ over its pipes (smith's `protocol/hosts.md`, sections 2 and 3);
 `smith-protocol-channel`, `smith-channel`, `smith-charter` and
 `smith-transcript`, smith's codecs, which the routing calls to decode and
 encode smith's payloads; `smith-agent-shell`, the agent's modes in
-`temper` and in `temper-agent` (4.3); `smith-agent-document`, programs'
-directories read without smith's agent, for the launcher's links
-(setup.md, 6.6); and
-`smith-local-service`'s profile, from which `temper serve` reads the
-agent's host limits at start, as jig's reference binary does.
+`temper` and in `temper-agent` (4.3); `smith-agent-document`, the agent's
+document and programs' directories read without smith's agent, for the
+launcher's links (setup.md, 6.6) and for the worker's half of a start,
+which reads the agent's host limits from its profile at start, as jig's
+reference binary does.
 
 **skein's:** `skein-lib` and `skein-io` everywhere, lib's HMAC-SHA256
 checking the deliveries' signatures (skein's `lib.md`, 6.2), io's
@@ -752,7 +822,7 @@ fake git program's core:
 | Crate | Kind | Holds | Depends on |
 |---|---|---|---|
 | `crates/temper-service` | services | the engine's and the worker's services and their one-process composition, in an engine, a worker and a system module, as jig's reference service is: each `iterate`, the routing, the clients' listener on jig's server part, with jig's clients' component and its default HTTP mapping mounted, temper's forge routes, and the browser's page and bundle served (`../client/browser.md`, 2.2), startup from configuration's bytes, start and end; temper's profile `small`. The worker's half is its `worker` feature (4.1), on by default and in the box's binary and the worlds: with it off, the worker's types are uninhabited, its modules and crates absent, and a start whose document's nearest shape (15.1) isn't an engine alone is refused; the engine's half names no worker crate, its limits of the worker's checkout and git component its own mirrors, which the worker's half converts | the roots, `temper-engine-smith`, `temper-protocol-brief`, jig's components, smith's codecs and `smith-protocol-translate`, temper's codec crates and components, `skein-forge-connection`, `skein-io`, `skein-json`; with `worker`, the worker's root, checkout and git component, `jig-protocol-worker-link`, `jig-protocol-worker-agents` and smith's host half |
-| `crates/temper` | binary | the box's binary: the commands of section 4, copied from jig's reference binary; for each that reads the document, `temper-service`'s startup, with `machine` and the setup's and the box's limits checked by their own crates (configuration.md, section 2); `serve` and the forge's commands are `temper-engine-shell`'s, given the worker's half of a start, its agent, root, program sources and launcher, which this binary holds | `temper-service` with `worker`, `temper-engine-shell`, `temper-shell`, `skein-shell`, `smith-agent-shell`, `smith-local-service`'s profile, `skein-oauth-accounts`, `jig-client-shell-native`, the client crates, `temper-forge-setup-shell`, `temper-launcher`, `temper-box`, `temper-client-bundle` |
+| `crates/temper` | binary | the box's binary: the commands of section 4, copied from jig's reference binary; for each that reads the document, `temper-service`'s startup, with `machine` and the setup's and the box's limits checked by their own crates (configuration.md, section 2); `serve` and the forge's commands are `temper-engine-shell`'s, given the worker's half of a start (`serve::WorkerHalf`), which this binary holds on `temper-worker-shell`'s; `program-login` is `temper-worker-shell`'s | `temper-service` with `worker`, `temper-engine-shell`, `temper-service-shell`, `temper-worker-shell`, `temper-shell`, `skein-shell`, `smith-agent-shell`, `skein-oauth-accounts`, `jig-client-shell-native`, the client crates, `temper-forge-setup-shell`, `temper-launcher`, `temper-box`, `temper-client-bundle` |
 | `crates/temper-client` | binary | `temper-client`, the deployment's client (section 4): its table of three rows, its parser and help, and `--version`; the TUI and `ctl` it runs are its shells' (`../client/README.md`, section 2) | `temper-shell`, `temper-version`, `temper-client-shell-tui`, `temper-client-shell-cli`, `skein-shell`, `skein-fail-stop` |
 | `crates/temper-agent` | binary | `temper-agent`, the deployment's agent (4.3): its table, its parser and help, and `--version`, `temper-version`'s; the run, the list and the program's modes it runs are smith's agent shell's, and the launcher `temper-launcher`'s | `temper-shell`, `temper-version`, `smith-agent-shell`, `temper-launcher`, `skein-shell`, `skein-io` (a run's exit), `skein-fail-stop` |
 | `crates/temper-forge-setup` | step code | the forge's setup, but for reconcile, which is skein's (`skein-forge-setup`): its types and checks, and the setup mapped onto reconcile's given values, with the kit's check of them; the preparation's machine; `app.ini` and the runner's files; the processes' specs; the configuration's steps, `steps` and `Step`. Names no host | setup.md, section 11 |
@@ -780,7 +850,10 @@ fake git program's core:
 | `crates/temper-settings-form` | codecs | the settings file's form and words and `FIELDS`, shared by the client and the engine (`../client/tools.md`, 5.3; documentation.md, section 8) | `skein-lib`, `skein-json`, `skein-codec`, `jig-client-protocol-wire` |
 | `crates/temper-docs` | data | the help pages compiled in, with their paging and search, of no side (documentation.md, sections 2 and 3) | `skein-lib` |
 | `crates/temper-engine` | binary | the engine's binary, its table and `main` (4.2) | `temper-engine-shell`, `temper-shell`, `temper-version`, `temper-service` without `worker`, `jig-protocol-store` and `temper-protocol-store` (for `versions`), `skein-shell`, `skein-io`, `skein-fail-stop` |
-| `crates/temper-engine-shell` | hosts | ordinary Rust: `serve`'s host and its start for any document, the worker's half given by the binary that holds one (`serve::WorkerHalf`), none by `temper-engine`; the forge's commands, beside `temper-forge-setup-shell`'s hosts; the bundle read or embedded; the GitHub, Google and accounts runtimes; the rows both tables hold (4.1); `setup`, the document's check that `serve` and the forge's commands make, the box's limits and the `demo` member included; `jig_directories`, jig's form of `temper-shell`'s three directories, for the box's binary too | `temper-service`, `temper-shell`, `jig-protocol-config`, `temper-forge-setup`, `temper-forge-setup-shell`, `temper-box` (the box's limits), `temper-fake` (the `demo` member), `temper-client-bundle`, `skein-shell` |
+| `bin/temper-worker` | binary | the worker's binary, its `main` alone (4.5) | `temper-worker-shell`, `skein-fail-stop` |
+| `crates/temper-engine-shell` | hosts | ordinary Rust: the engine's start for any document, which `temper-service-shell`'s run runs, the worker's half given by the binary that holds one (`serve::WorkerHalf`), none by `temper-engine`; the forge's commands, beside `temper-forge-setup-shell`'s hosts; the bundle read or embedded; the GitHub, Google and accounts runtimes; the rows both tables hold (4.1); `setup`, the document's check that `serve` and the forge's commands make, the box's limits and the `demo` member included; `printed`, the words of a command for this machine (`../client/README.md`, 4.6) | `temper-service`, `temper-service-shell`, `temper-shell`, `jig-protocol-config`, `temper-forge-setup`, `temper-forge-setup-shell`, `temper-box` (the box's limits), `temper-fake` (the `demo` member), `temper-client-bundle`, `skein-shell` |
+| `crates/temper-service-shell` | hosts | ordinary Rust, of no side: serve's run for every binary that serves, given its start, an engine's or a worker alone's: the inherited listeners, the box's pipes and first secrets, the termination signals, the kernel and `drive`; its host, `Host`, with the lines and endings it prints (15.3), the handover's file and the engine's link file; `read_files`, the files a document names; `jig_directories`, jig's form of `temper-shell`'s three directories | `temper-service`, `temper-shell`, `jig-protocol-config`, `skein-shell`, `skein-io`, `skein-lib`, and the vocabularies its lines name |
+| `crates/temper-worker-shell` | hosts | ordinary Rust: the worker's half of a start, a worker alone's whole, and the root, program sources and launcher's links a standalone start's worker takes; the agent's document read and preflighted (`agent`); `program-login` and its row, `PROGRAM_LOGIN`; `temper-worker`'s table, parser and `main` (4.5) | `temper-service` with `worker`, `temper-service-shell`, `temper-shell`, `temper-version`, `temper-launcher`, `smith-agent-document`, smith's host half, `jig-protocol-config`, `skein-shell`, `skein-io` |
 | `crates/temper-shell` | shell | ordinary Rust, of no side: the commands' table, `Row` and its renderings under a binary's name (4.1), and the shared `help`, `[ADDRESS]` and `ctl` rows; the directories and their settings; `help` over `temper-docs`; the engine's link file, written by serve and read by the TUI (`../client/README.md`, 6.12) | `skein-shell`, `skein-io` (a kernel error's number, in a file's refusal), `temper-docs`, `skein-lib`; no jig crate |
 | `crates/temper-version` | data | `VERSION` and `COMMIT` (`../release.md`, section 3): its build script reads git, its library holds both; linked by the binaries' packages alone | nothing; its script, `std` alone |
 | `crates/temper-protocol-brief` | translation | a charter's brief fitted to the room its run leaves, cut from its last section with each cut's line (`../domain/agent.md`, 4.3), for the engine's translation and the worker's service alike | `smith-domain-run`, `skein-lib` |
@@ -1476,16 +1549,21 @@ The cluster is temper on several processes of one machine: one engine
 alone, its workers alone, and the fakes, each a process of its own,
 joined over loopback. It is a primitive of temper's tests, and the
 shape of the case of `../domain/testing.md`, 5.3 on fakes: an engine and
-its workers, one of them added later. It is no deployment's: `temper init` writes standalone, and a box keeps its one
-worker inside `temper serve` (setup.md, 7.1). TLS, containment and other
-hosts are later (15.7).
+its workers, one of them added later. It is a deployment's shape too: a
+deployment runs its engine alone on `temper-engine serve` and each
+worker alone on `temper-worker serve`, `temper-agent` its agents'
+program (4.1), while `temper init` writes standalone and a box keeps its
+one worker inside `temper serve` (setup.md, 7.1). The cluster's stories
+run the box's `temper`, and one runs the deployment's binaries (15.6).
+TLS, containment and other hosts are later (15.7).
 
 ### 15.1 Its shapes
 
 `temper serve` takes its shape from its document's members, and from
 nothing else: no flag, no command of its own. A deployment's binary
 serves its own shape alone and refuses the others by their nearest
-shape, below (4.1): `temper-engine serve` an engine alone (4.2).
+shape, below (4.1): `temper-engine serve` an engine alone (4.2), and
+`temper-worker serve` a worker alone (4.5).
 
 | Shape | `engine` | `workers` | `application` |
 |---|---|---|---|
@@ -1525,7 +1603,8 @@ shape, below (4.1): `temper-engine serve` an engine alone (4.2).
 - **`temper program-login`** takes a worker alone's directories as it
   takes standalone's, and reads only the worker's part: each worker
   signs its programs in on its own, and none is copied to another
-  (credentials.md, section 3).
+  (credentials.md, section 3). `temper-worker program-login` takes a
+  worker alone's alone (4.5).
 
 ### 15.2 Its processes
 
@@ -1685,10 +1764,12 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   empty.
 - **The reader's bindings:** `{artifact.temper}` is the absolute
   binary Cargo names to the test (`CARGO_BIN_EXE_temper`);
-  `{artifact.git}` is its fake-git link; `{experiment}` is this
-  fixture's absolute directory; `{proc.P.dir}` is P's scratch
-  directory, made `0700`; and `{proc.P.ready.C}` is a capture once
-  P is ready. A seed, run directory, browser or other unknown binding
+  `{artifact.git}` is its fake-git link; `{artifact.temper-engine}`,
+  `{artifact.temper-worker}` and `{artifact.temper-agent}` are the
+  deployment's binaries beside it, bound by the story on them alone
+  (15.6); `{experiment}` is this fixture's absolute directory;
+  `{proc.P.dir}` is P's scratch directory, made `0700`; and
+  `{proc.P.ready.C}` is a capture once P is ready. A seed, run directory, browser or other unknown binding
   fails the test.
 - **Bounds:** readiness is 120 seconds per process from its
   start, stopping 20 seconds per process. The stop bound stays above
@@ -1727,6 +1808,15 @@ no more; the cluster's workers of several slots are later (15.7).
 - **A task on each worker:** two tasks on the fakes, one run on w1 and
   one on w2, each to its end; then the cluster stopped, each process
   exiting 0, no survivor.
+- **A task on each worker, on the deployment's binaries:** the same
+  story on the same description, its engine started by
+  `temper-engine serve`, each worker by `temper-worker serve`, and each
+  worker's agent `temper-agent AGENT.json` (configuration.md, section
+  5) in place of the box's `temper internal agent`; the fakes and the
+  client stay the box's `temper`. The process tier builds the three
+  beside the box's binary (`tools/tiers/design.md`). Written and
+  compiled in its plan, and run after landing
+  (`../draft/deployment-binaries.md`, section 10).
 - **A worker lost:** w1 killed mid-run; its task's run is placed on w2
   past the grace, and lands once. Its process is killed first, then
   its tree, so the engine sees its link close, not an agent's end, and
