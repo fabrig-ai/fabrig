@@ -749,6 +749,7 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
         (2, 1, settings::Value::Rule(review_rule())),
         (3, 1, settings::Value::Charter(2)),
         (3, 2, settings::Value::Charter(4)),
+        (11, 4, settings::Value::Goal(settings::TemplateGoal { design: false, close_out: false })),
         // Each stock charter's words (temper/docs/design/protocol/configuration.md, 13.4).
         (9, 1, settings::Value::CharterWords(bytes::copy_of(b"talks with you and asks for the changes"))),
         (
@@ -800,11 +801,11 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
             )),
         ),
     ];
-    let mut stock = List::with_capacity(12);
+    let mut stock = List::with_capacity(13);
     for (kind, number, value) in values {
         stock
             .push(settings::Stock { kind, scope: 0, number, value: settings::SizedValue { size: size(&value), value } })
-            .expect("one landing rule, two forge charters and nine charter lines");
+            .expect("one landing rule, two forge charters, nine charter lines and one goal template's work");
     }
     stock.into_boxed()
 }

@@ -38,6 +38,10 @@ settings show charter-words NUMBER [--revision REVISION]
   charter-words (kind): one of charter-words; required. A charter's words
   NUMBER (number): a number from 1 to 4294967295; required. The charter's number
   --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
+settings show template-goal NUMBER [--revision REVISION]
+  template-goal (kind): one of template-goal; required. A goal template's work
+  NUMBER (number): a number from 1 to 4294967295; required. The template's number
+  --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
 Read one setting's value whole
 Prints: `KIND N, revision R`, or `rules, revision R`, then the value as JSON; temper's settings also show their state
 --json: the record setting.

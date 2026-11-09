@@ -1373,6 +1373,7 @@ fn the_coders_words_preserve_both_sides_in_repairs_and_resolutions() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "each setting kind is checked against its admission bounds")]
 fn kinds_are_declared_with_their_bounds() {
     const CONNECTOR: u16 = 5;
     use jig_domain_core::settings::{Kind, KindScope};
@@ -1386,6 +1387,7 @@ fn kinds_are_declared_with_their_bounds() {
     limits.forge.change_policy.gates = 2;
     limits.forge.roles = 3;
     limits.forge.landing_rules = 7;
+    limits.templates = 9;
     let rule = settings::Value::Rule(settings::LandingRule {
         pattern: forge::GatePattern {
             segments: Box::new([
@@ -1466,6 +1468,14 @@ fn kinds_are_declared_with_their_bounds() {
                 connector: CONNECTOR,
                 value_bytes: 608,
                 per_scope: 1,
+                charters: 0,
+            },
+            Kind {
+                number: 11,
+                scope: KindScope::Deployment,
+                connector: CONNECTOR,
+                value_bytes: 2,
+                per_scope: 9,
                 charters: 0
             },
         ]
@@ -1476,8 +1486,8 @@ fn kinds_are_declared_with_their_bounds() {
 
 #[test]
 fn the_binary_gives_the_forges_stock_at_every_start() {
-    // configuration.md, 13.4: every project's rule 1, both forge charters and each charter's words.
-    const ITEMS: usize = 12;
+    // configuration.md, 13.4: every project's rule 1, both forge charters and each charter's words and template 4's work.
+    const ITEMS: usize = 13;
     use temper_engine_domain_forge::{self as forge, settings};
     let engine = fixtures::engine();
     let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
@@ -1502,11 +1512,15 @@ fn the_binary_gives_the_forges_stock_at_every_start() {
             approvals: Box::default(),
         })
     );
-    for (item, number, charter) in [(&stock[1], 1, 2), (&stock[2], 2, 4)] {
-        assert_eq!((item.kind, item.scope, item.number), (3, 0, number));
-        assert_eq!(item.value.value, settings::Value::Charter(charter));
+    for (item, kind, number, value) in [
+        (&stock[1], 3, 1, settings::Value::Charter(2)),
+        (&stock[2], 3, 2, settings::Value::Charter(4)),
+        (&stock[3], 11, 4, settings::Value::Goal(settings::TemplateGoal { design: false, close_out: false })),
+    ] {
+        assert_eq!((item.kind, item.scope, item.number), (kind, 0, number));
+        assert_eq!(item.value.value, value);
     }
-    for (item, (number, line)) in stock[3..].iter().zip([
+    for (item, (number, line)) in stock[4..].iter().zip([
         (1, b"talks with you and asks for the changes".as_slice()),
         (2, b"makes each change, repairs it and resolves its conflicts".as_slice()),
         (4, b"reviews each change at its head, and holds it until it approves".as_slice()),

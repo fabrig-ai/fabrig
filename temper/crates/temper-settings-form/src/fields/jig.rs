@@ -1,5 +1,5 @@
 use super::{Bound, Choice, Field, Form, Limit, Shape, Value, Width, Word};
-pub static FORMS: [Form; 59] = [
+pub static FORMS: [Form; 60] = [
     Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"A settings file, as `settings apply` and `settings propose` read it." },
     Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`." },
     Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Which setting: its kind and number, or project for project settings." },
@@ -80,6 +80,7 @@ pub static FORMS: [Form; 59] = [
     Form { shape: Shape::LandingPattern, name: b"landing-pattern", choice: Choice::Every, line: b"The exact base segments, then an exact last segment or an open prefix and all below it. A project's rule may begin at `branch`, covering that branch in each of its repositories." },
     Form { shape: Shape::LandingLast, name: b"landing-last", choice: Choice::One { words: &[] }, line: b"The final resource segment, in the same hex form as a pattern's last segment." },
     Form { shape: Shape::ForgeCharter, name: b"forge-charter", choice: Choice::Number, line: b"An integer from 0 to 4,294,967,295: the charter's number. Setting 1 selects the change's charter; setting 2 selects its reviews'." },
+    Form { shape: Shape::TemplateGoal, name: b"template-goal", choice: Choice::Every, line: b"A goal template's work: whether its coordinator designs first and makes a close-out. With none kept, it plans and makes no close-out." },
     Form { shape: Shape::ProjectWays, name: b"project-ways", choice: Choice::Every, line: b"What a project shows and the way its goals start. With none stored, drafts is true, the other switches false and way 0." },
     Form { shape: Shape::ProjectQuestions, name: b"project-questions", choice: Choice::One { words: &[
         Word { word: b"none", line: b"No question route; the stock's value." },
@@ -89,7 +90,7 @@ pub static FORMS: [Form; 59] = [
     Form { shape: Shape::CharterWords, name: b"charter-words", choice: Choice::Text, line: b"A JSON string: what the charter does, 1 to 120 UTF-8 bytes holding no control character. With none kept, Roles says the charter by its instructions' first sentence. Its selector requires the charter's number and has no project." },
     Form { shape: Shape::ProjectWords, name: b"project-words", choice: Choice::Every, line: b"How work runs' headline and lede for the project's own way, both required. With none kept, How work runs says the way's own words. Its selector requires project and has no number." },
 ];
-pub static FIELDS: [Field; 215] = [
+pub static FIELDS: [Field; 217] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -127,6 +128,7 @@ pub static FIELDS: [Field; 215] = [
             Word { word: b"rules", line: b"" },
             Word { word: b"landing-rule", line: b"" },
             Word { word: b"forge-charter", line: b"" },
+            Word { word: b"template-goal", line: b"" },
             Word { word: b"project-ways", line: b"" },
             Word { word: b"project-questions", line: b"" },
             Word { word: b"charter-words", line: b"" },
@@ -1254,6 +1256,8 @@ pub static FIELDS: [Field; 215] = [
     Field { shape: Shape::LandingPattern, name: b"last", value: Value::Shape(Shape::LandingLast), list: None, null: false, line: b"One more segment, equal to an exact value or beginning with an open value, with all below it." },
     Field { shape: Shape::LandingLast, name: b"exact", value: Value::Hex(Bound::Limit(Limit::LandingExact)), list: None, null: false, line: b"One last segment equal to these bytes." },
     Field { shape: Shape::LandingLast, name: b"open", value: Value::Hex(Bound::Limit(Limit::LandingOpen)), list: None, null: false, line: b"A final segment beginning with these bytes, with all below it." },
+    Field { shape: Shape::TemplateGoal, name: b"design", value: Value::Boolean, list: None, null: false, line: b"Whether the coordinator delivers a design before planning its changes; required." },
+    Field { shape: Shape::TemplateGoal, name: b"close_out", value: Value::Boolean, list: None, null: false, line: b"Whether the coordinator makes a close-out after the goal lands; required." },
     Field { shape: Shape::ProjectWays, name: b"drafts", value: Value::Boolean, list: None, null: false, line: b"Whether chats can write drafts." },
     Field { shape: Shape::ProjectWays, name: b"goals", value: Value::Boolean, list: None, null: false, line: b"Whether the rail shows Goals." },
     Field { shape: Shape::ProjectWays, name: b"changes", value: Value::Boolean, list: None, null: false, line: b"Whether the rail shows Changes." },

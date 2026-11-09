@@ -16,6 +16,8 @@ pub enum Kind {
     CharterWords,
     /// A project's words (temper/docs/design/protocol/configuration.md, 13.2).
     ProjectWords,
+    /// A goal template's work (temper/docs/design/protocol/configuration.md, 13.2).
+    TemplateGoal,
 }
 
 impl Kind {
@@ -29,6 +31,7 @@ impl Kind {
             Self::ProjectWays => 7,
             Self::CharterWords => 9,
             Self::ProjectWords => 10,
+            Self::TemplateGoal => 11,
         }
     }
 
@@ -42,6 +45,7 @@ impl Kind {
             7 => Some(Self::ProjectWays),
             9 => Some(Self::CharterWords),
             10 => Some(Self::ProjectWords),
+            11 => Some(Self::TemplateGoal),
             _ => None,
         }
     }
@@ -114,6 +118,14 @@ pub fn words_fit(words: &[u8], most: u32) -> bool {
     true
 }
 
+/// A goal template's work, kind 11 (temper/docs/design/protocol/configuration.md, 13.2):
+/// whether its coordinator designs first and makes a close-out; neither with none.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
+pub struct TemplateGoal {
+    pub design: bool,
+    pub close_out: bool,
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Value {
     Rule(LandingRule),
@@ -124,6 +136,8 @@ pub enum Value {
     CharterWords(Box<[u8]>),
     /// A project's headline and lede (temper/docs/design/protocol/configuration.md, 13.2).
     ProjectWords(ProjectWords),
+    /// A goal template's work (temper/docs/design/protocol/configuration.md, 13.2).
+    Goal(TemplateGoal),
 }
 
 /// A value and the bytes of its encoding counted by jig, measured where it
@@ -239,6 +253,8 @@ pub struct Bounds {
     pub charters: u32,
     pub segments: u32,
     pub segment_bytes: u32,
+    /// Template numbers (temper/docs/design/protocol/configuration.md, 13.2).
+    pub templates: u32,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -295,7 +311,9 @@ fn within(len: usize, bound: u32) -> bool {
 pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
     let kind = Kind::of(item.kind).ok_or(Refusal::Kind)?;
     match kind {
-        Kind::DeploymentRules | Kind::Charters | Kind::CharterWords if item.scope != 0 => return Err(Refusal::Scope),
+        Kind::DeploymentRules | Kind::Charters | Kind::CharterWords | Kind::TemplateGoal if item.scope != 0 => {
+            return Err(Refusal::Scope);
+        }
         Kind::ProjectRules | Kind::ProjectQuestions | Kind::ProjectWays | Kind::ProjectWords if item.scope == 0 => {
             return Err(Refusal::Scope);
         }
@@ -305,13 +323,15 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
         | Kind::ProjectQuestions
         | Kind::ProjectWays
         | Kind::CharterWords
-        | Kind::ProjectWords => {}
+        | Kind::ProjectWords
+        | Kind::TemplateGoal => {}
     }
     let numbers = match kind {
         Kind::DeploymentRules | Kind::ProjectRules => bounds.landing_rules,
         Kind::Charters => 2,
         Kind::CharterWords => bounds.charters,
         Kind::ProjectQuestions | Kind::ProjectWays | Kind::ProjectWords => 1,
+        Kind::TemplateGoal => bounds.templates,
     };
     if item.number == 0 || item.number > numbers {
         return Err(Refusal::Number);
@@ -321,6 +341,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
             Some(Value::Rule(rule)) => rule,
             Some(
                 Value::Charter(_)
+                | Value::Goal(_)
                 | Value::Questions(_)
                 | Value::Ways(_)
                 | Value::CharterWords(_)
@@ -334,6 +355,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 Some(Value::Charter(_)) | None => Err(Refusal::Charter),
                 Some(
                     Value::Rule(_)
+                    | Value::Goal(_)
                     | Value::Questions(_)
                     | Value::Ways(_)
                     | Value::CharterWords(_)
@@ -347,6 +369,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 Some(
                     Value::Rule(_)
                     | Value::Charter(_)
+                    | Value::Goal(_)
                     | Value::Ways(_)
                     | Value::CharterWords(_)
                     | Value::ProjectWords(_),
@@ -359,6 +382,7 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 Some(
                     Value::Rule(_)
                     | Value::Charter(_)
+                    | Value::Goal(_)
                     | Value::Questions(_)
                     | Value::CharterWords(_)
                     | Value::ProjectWords(_),
@@ -376,7 +400,12 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 }
                 None => Ok(()),
                 Some(
-                    Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Ways(_) | Value::ProjectWords(_),
+                    Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Goal(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
             };
         }
@@ -391,7 +420,25 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
                 }
                 None => Ok(()),
                 Some(
-                    Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Ways(_) | Value::CharterWords(_),
+                    Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Goal(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::CharterWords(_),
+                ) => Err(Refusal::Value),
+            };
+        }
+        Kind::TemplateGoal => {
+            return match &item.value {
+                Some(Value::Goal(_)) | None => Ok(()),
+                Some(
+                    Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_),
                 ) => Err(Refusal::Value),
             };
         }

@@ -12,7 +12,7 @@ pub enum Actor {
     Bar,
 }
 
-/// What a stop is, one per kind of step of 8.13's order.
+/// What a stop is, one per kind of step (temper/docs/design/domain/forge.md, 8.13).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Step {
     Ask,
@@ -33,6 +33,8 @@ pub enum Step {
     Turn,
     Verify,
     Branch,
+    Design,
+    CloseOut,
 }
 
 /// What a stop opens.
@@ -126,11 +128,17 @@ impl Path {
     }
 }
 
-/// How work starts on the project (kind 7 and its way's template).
+/// How work starts on the project (kind 7, its way's template and that template's work).
+/// See temper/docs/design/domain/forge.md, 8.13.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Start {
     Chat,
-    Goal { charter: u32 },
+    /// A goal: its template's charter, and the template's work, kind 11.
+    Goal {
+        charter: u32,
+        design: bool,
+        close_out: bool,
+    },
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

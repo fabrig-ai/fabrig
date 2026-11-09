@@ -58,6 +58,7 @@ pub(crate) fn read(value: &Value, bytes: &[u8]) -> Result<engine::Tool, Problem>
             b"landing-rule",
             b"forge-charter",
             b"charter-words",
+            b"template-goal",
         ] {
             if kind.as_ref() == name {
                 numbered = Some(name);
@@ -272,7 +273,7 @@ pub fn settings_text(
             )
             .or(Err(Problem::Range(b"items")))?,
         )),
-        SettingsAnswer::Unknown => return Ok(Box::from(b"not read: no such setting at that revision. This says nothing about the settings: read the inventory and name what it lists; project-ways, project-questions and project-words take project and no number; charter-words takes number and no project.\n".as_slice())),
+        SettingsAnswer::Unknown => return Ok(Box::from(b"not read: no such setting at that revision. This says nothing about the settings: read the inventory; project-ways, project-questions, project-words: project, no number; charter-words, template-goal: number, no project.\n".as_slice())),
     };
     Ok(settings_form::settings_text(&value, requested, &limits))
 }

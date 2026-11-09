@@ -4,7 +4,9 @@ mod derivation;
 mod invariants;
 use super::*;
 use alloc::boxed::Box;
-use temper_engine_domain_forge::settings::{Held, LandingRule, ProjectWays, RuleApproval, RuleGate, Value};
+use temper_engine_domain_forge::settings::{
+    Held, LandingRule, ProjectWays, RuleApproval, RuleGate, TemplateGoal, Value,
+};
 use temper_engine_domain_forge::{GateLast, GatePattern, JudgeFreshness};
 
 const PROJECT: u32 = 9;
@@ -243,6 +245,30 @@ fn laid_ways_sets_removes_and_ignores_other_settings() {
         ),
     ] {
         assert_eq!(laid_ways(ways, PROJECT, &edits), expected);
+    }
+    let both = TemplateGoal { design: true, close_out: true };
+    let neither = TemplateGoal { design: false, close_out: false };
+    for (name, held, edits, expected) in [
+        ("none", None, Box::from([]), neither),
+        ("held", Some(both), Box::from([]), both),
+        ("set", None, Box::from([Item { kind: 11, scope: 0, number: 4, edit: Edit::Set(Value::Goal(both)) }]), both),
+        ("remove", Some(both), Box::from([Item { kind: 11, scope: 0, number: 4, edit: Edit::Remove }]), neither),
+        ("another template", Some(both), Box::from([Item { kind: 11, scope: 0, number: 2, edit: Edit::Remove }]), both),
+        ("another kind", Some(both), Box::from([Item { kind: 7, scope: 0, number: 4, edit: Edit::Remove }]), both),
+        (
+            "another scope",
+            Some(both),
+            Box::from([Item { kind: 11, scope: PROJECT, number: 4, edit: Edit::Remove }]),
+            both,
+        ),
+        (
+            "another value",
+            Some(both),
+            Box::from([Item { kind: 11, scope: 0, number: 4, edit: Edit::Set(Value::Ways(own)) }]),
+            both,
+        ),
+    ] {
+        assert_eq!(laid_goal(held, 4, &edits), expected, "{name}");
     }
 }
 

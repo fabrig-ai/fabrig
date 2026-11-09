@@ -4670,7 +4670,9 @@ the person to check existence and grant the repository to the App.
   - `actor`, `Actor`: `person`, `agent`, `code` or `bar`;
   - `step`, `PathStep`: `ask`, `draft`, `plan`, `produce`, `produce_many`,
     `check`, `review`, `repair`, `approve`, `conflict`, `resolve`, `merge`,
-    `catch_up`, `prepare`, `prove`, `turn`, `verify` or `branch`;
+    `catch_up`, `prepare`, `prove`, `turn`, `verify`, `branch`, `design`
+    or `close_out`, the last two a goal's coordinator's
+    (`../domain/forge.md`, 8.13);
   - `words`, at most 64 bytes, as the path draws them ("you ask",
     "produce ×n", "an owner approves", "main");
   - `needed`, whether the stop is made only when needed, drawn outlined;
