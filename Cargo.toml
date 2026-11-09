@@ -112,9 +112,11 @@ members = [
     "skein/tests/world",
     "smith",
     "smith/benchmarks",
+    "smith/crates/smith-agent-profile",
     "smith/crates/smith-agent-service",
     "smith/crates/smith-protocol-events",
     "smith/crates/smith-agent-shell",
+    "smith/crates/smith-agent-document",
     "smith/crates/smith-channel",
     "smith/crates/smith-charter",
     "smith/crates/smith-domain",
@@ -460,6 +462,7 @@ smith-protocol-channel = { path = "smith/crates/smith-protocol-channel" }
 smith-protocol-translate = { path = "smith/crates/smith-protocol-translate" }
 smith-host-protocol = { path = "smith/crates/smith-host-protocol" }
 smith-agent-service = { path = "smith/crates/smith-agent-service" }
+smith-agent-profile = { path = "smith/crates/smith-agent-profile" }
 smith-protocol-events = { path = "smith/crates/smith-protocol-events" }
 smith-local-protocol = { path = "smith/crates/smith-local-protocol" }
 smith-local-service = { path = "smith/crates/smith-local-service" }
@@ -468,6 +471,7 @@ smith-real-world = { path = "smith/tests/real" }
 smith-local-process-world = { path = "smith/tests/local-process" }
 smith-local-shell = { path = "smith/crates/smith-local-shell" }
 smith-agent-shell = { path = "smith/crates/smith-agent-shell" }
+smith-agent-document = { path = "smith/crates/smith-agent-document" }
 smith-run-world = { path = "smith/tests/run" }
 smith-session-world = { path = "smith/tests/session" }
 smith-tools-world = { path = "smith/tests/tools" }

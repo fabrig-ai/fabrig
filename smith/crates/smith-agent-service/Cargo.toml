@@ -7,9 +7,10 @@ rust-version.workspace = true
 publish.workspace = true
 
 [features]
-fixture = []
+fixture = ["smith-agent-profile/fixture"]
 
 [dependencies]
+smith-agent-profile.workspace = true
 smith-protocol-events.workspace = true
 skein-http.workspace = true
 skein-llm-connection.workspace = true

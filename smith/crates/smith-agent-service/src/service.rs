@@ -36,15 +36,16 @@ mod dump;
 mod program;
 pub use dump::{Dump, Dumped, Model, Started};
 
-pub(crate) use program::bound;
-pub use program::{AdoptError, ProgramBackend, program_operations, program_valid};
+pub use program::AdoptError;
+pub(crate) use smith_agent_profile::programs::bound;
+pub use smith_agent_profile::{ProgramBackend, program_operations, program_valid};
 pub mod teardown;
 
 use teardown::Teardown;
 
 use skein_channel::{Lower as ChannelLower, StreamMode};
 use skein_io::{self as io, file, file_layer, kernel};
-use skein_lib::{Duration, Env, Map, Queue, Slab, Time, Token, Wall};
+use skein_lib::{Env, Map, Queue, Slab, Time, Token, Wall};
 use smith_domain::{self as domain, run};
 use smith_protocol_channel as channel;
 use smith_protocol_llm as llm;
@@ -58,48 +59,9 @@ struct PendingMessage {
     text: Box<[u8]>,
 }
 
-// Route names also cover component terminals that do not name native IO operations.
-pub(crate) const ROUTE_HEADROOM: u32 = 64;
+pub use smith_agent_profile::{Config, Limits, effects_valid, io_valid, valid};
 
 const COMPONENT_TAG: u8 = 8;
-
-/// Fixed limits for one agent process and every stage it owns.
-#[derive(Clone, Copy, Debug)]
-pub struct Limits {
-    pub domain: domain::Limits,
-    pub channel: channel::Limits,
-    pub llm: llm::ComponentLimits,
-    pub machine: machine::Limits,
-    pub io: io::Limits,
-    pub file_slots: u32,
-    pub file_read: u32,
-    pub file_entries: u32,
-    pub file_bytes: u32,
-    pub file_timeout: Duration,
-    /// Longest hold before projecting live bytes (smith/docs/design/protocol/limits.md 2.3).
-    pub live_interval: Duration,
-    /// Backlog watermark and maximum entries drained per iteration at each stage.
-    pub queue: u32,
-    /// Concurrent IO owner and kernel submission routes.
-    pub routes: u32,
-    /// Declared process memory in bytes, carried without a startup fit check.
-    pub memory: u64,
-    /// Event ownership, absent for a host that has no process stream.
-    pub events: Option<smith_protocol_events::EventLimits>,
-}
-
-/// All startup inputs except the inherited descriptors, which the shell
-/// adopts after constructing the service (smith/docs/design/protocol/agent.md, section 4).
-#[derive(Debug)]
-pub struct Config {
-    pub limits: Limits,
-    pub domain: domain::Config,
-    pub channel_endpoints: smith_protocol_translate::Endpoints,
-    pub llm_endpoints: llm::Endpoints,
-    pub environment: machine::Environment,
-    pub stream_mode: StreamMode,
-    pub program: Option<ProgramBackend>,
-}
 
 /// Why startup cannot build a bounded agent service.
 #[derive(Debug)]
@@ -220,50 +182,6 @@ const START_REPLY: Token = Token::new(1);
 const ROOT_CLOSE_OWNER: Token = Token::new(u64::MAX);
 
 const USAGE_OWNER: Token = Token::new(u64::MAX - 1);
-
-/// Whether the owned lower parts can be built (skein/docs/foundation/programming-model.md, 6.3).
-#[must_use]
-pub fn effects_valid(limits: &Limits, endpoints: &llm::Endpoints) -> bool {
-    // FileIo requires four positive capacities and a positive timeout.
-    limits.file_slots > 0
-        && limits.file_read > 0
-        && limits.file_entries > 0
-        && limits.file_bytes > 0
-        && limits.file_timeout.as_nanos() > 0
-        && limits.machine.processes.checked_mul(2).is_some()
-        && llm::component_valid(&limits.llm, endpoints)
-        && machine::valid(&limits.machine)
-        && smith_protocol_events::events::valid(&crate::projection::sources(limits))
-}
-
-/// Whether all service parts and their IO composition fit (skein/docs/foundation/programming-model.md, 6.3).
-#[must_use]
-pub fn valid(limits: &Limits, endpoints: &llm::Endpoints) -> bool {
-    effects_valid(limits, endpoints)
-        && domain::valid(&limits.domain)
-        && channel::valid(&limits.channel)
-        && io_valid(limits)
-}
-
-/// Whether native IO tables and the shared socket composition fit (skein/docs/foundation/programming-model.md, 6.3).
-#[must_use]
-pub fn io_valid(limits: &Limits) -> bool {
-    let Some(other) = limits.io.sockets.checked_sub(limits.llm.connection.connections) else { return false };
-    let writers = match limits.events {
-        Some(events) => match events.sinks.destinations.checked_add(1) {
-            Some(writers) => writers,
-            None => return false,
-        },
-        None => 1,
-    };
-    let child = limits.llm.connection.io;
-    io::valid(&limits.io)
-        && other >= writers
-        && child.intake == limits.io.intake
-        && child.receive == limits.io.receive
-        && child.output == limits.io.output
-        && child.sends == limits.io.sends
-}
 
 impl Service {
     /// Prepare every child and queue before a channel byte is read.
