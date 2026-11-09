@@ -45,6 +45,16 @@ what stopped a deployment's engine taking its worker back on
 2026-11-08 is unproven: that evidence is outside the repository, and no
 deployment on record has run since.
 
+- **Not yet:** 5.2, 9, 11, 12: the engine's side has no room. Its
+  component hands the channel every frame, and the channel asks io for
+  room for a whole frame, which io leaves unanswered past its output cap
+  (`skein/crates/skein-io/src/stream.rs`, `OutputDown::Room`): the frame waits below
+  for good, and while it is queued the component arms no ping
+  (`jig/crates/jig-protocol-engine-workers/src/connection.rs`, `next_deadline`), so
+  the worker loses the link at its silence deadline. A record the channel
+  refuses at its entrance for anything but a full queue is dropped
+  unanswered (its `component.rs`, `heard`), and a job that cannot encode
+  is discarded (its `component.rs`, `down`). No `Unsent` is told.
 - **Not yet:** 12: the engine's fifty-loss row loses its worker by
   silence, stall, a send held below, the stream failing and ending, not
   admitted, replaced and framing, but not by a full cap or the worker's
@@ -52,6 +62,11 @@ deployment on record has run since.
   `component.rs`, `loss`) and are named once each
   (`each_connections_end_says_why_once`).
 - **Not yet:** 1, 4.1, 8, 10.1, 10.2: TLS between hosts: the workers' listener and the worker's dial are plaintext on loopback or in-process (`jig/crates/jig-protocol-config/src/hosts.rs`, `address.rs`). 3, 6.4, 8: a worker whose root composes `smith-inline-agent`: none does, so no worker gives a tool begun with its call.
+- **Not yet:** 9, 11, 12: the worker's side has no room either: its
+  limits are made whatever the largest frame it sends, so a turn, call,
+  answer or hello past its stream's output cap would wait below
+  unanswered as the engine's start does
+  (`jig/crates/jig-protocol-worker-link/src/limits.rs`, `valid`).
 - **Departs:** 12: the `jig-world-cost` request says no story loses what it
   checks. Root checks at every step cover the six drawn fuzzy stories and
   the replaced-key and application-generation stories, but not the other

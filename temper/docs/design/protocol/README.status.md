@@ -96,6 +96,11 @@ engine has no stop deadline of its own (section 14).
   proof of that process boundary. No reference-case story runs in this tier; the task-per-worker,
   lost-worker, hung-worker and late-worker boundary stories remain.
 
+- **Not yet:** 15.3: the `worker unsent` line: jig's workers' component
+  tells no `Unsent` yet (jig's `protocol/channel.status.md`), and serve
+  has no note or line for one (`temper/crates/temper-service/src/lib.rs`,
+  `Note`; `temper/crates/temper-engine-shell/src/serve/host.rs`).
+
 - **Not yet:** 4: `temper versions`, `temper upgrade --check` and `--back`, and a patching start's lines: the binary's table has no row for them (`crates/temper/src/commands.rs`). A link the forge's restore cannot make still panics, with serve's fail-stop report and its backtrace, where jig's start's are refusals (`../domain/root.status.md`, 9.1). 6: the setup adapter's close kept as requested apart from `Close` sent, and sent once the host's room permits: `close()` sends `Close` at once (`temper-service/src/setup.rs`). 9: the baseline's set and its rehearsal: no owner's kept texts (`--baseline`), no real patch sets in place of jig's `PatchSets::NONE`, no gate check of patches, no golden store.
 - **Departs:** 4: a group's file holds its kind alone, which the box writes at `start FORGE owned|fake`, and `temper forge fetch`, `prepare` and `run` compose the setup entry from `application.machine` by that kind (`temper-engine-shell/src/forge.rs`, `entry`; `temper-forge-setup/src/machine.rs`, `group_file`); the code records no reason (`forge.status.md`, 2.8). 6, 7: `temper-worker-domain/src/translate.rs` rebuilds smith's `SourceName` with `.expect("same source name grammar")`, so a stored name smith refuses aborts the process, where `jig/crates/jig-protocol-worker-agents/src/sources.rs` answers its command `Unconfigured`; no reason is recorded. 15.5, 15.6: the cluster's description keeps the lab's format, cost label, file name, `{experiment}` binding and empty fields, and the ignored case 4.6 story uses it (`tests/support/case.rs`); their purposes, the lab and that case, are retired, and the code awaits removal with this design.
 
