@@ -572,6 +572,7 @@ fn deep_child_rows_and_arbitrary_internal_payloads_are_refused_before_retention(
                 message_bytes: 1,
                 inbox: 1,
                 unacknowledged: 1,
+                reply_bytes: None,
             },
         },
     });

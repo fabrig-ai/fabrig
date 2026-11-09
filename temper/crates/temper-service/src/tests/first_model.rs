@@ -508,6 +508,7 @@ impl StockBox {
             message_bytes: self.driver.env.limits.tasks.message_bytes,
             inbox: self.driver.env.limits.tasks.inbox_messages,
             unacknowledged: self.driver.env.limits.fleet.turns,
+            reply_bytes: None,
         };
         self.driver.send(greeting);
         self.pump();

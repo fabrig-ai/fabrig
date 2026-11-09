@@ -84,6 +84,7 @@ pub fn hello() -> Hello {
             message_bytes: 16,
             inbox: 1,
             unacknowledged: 1,
+            reply_bytes: None,
         },
     }
 }

@@ -1049,6 +1049,7 @@ pub fn signed_worker() -> crate::Service {
                     message_bytes: 512,
                     inbox: 8,
                     unacknowledged: 32,
+                    reply_bytes: None,
                 },
             },
         },
@@ -1818,6 +1819,7 @@ pub fn parsed_agent(config: smith_agent_shell::config::Configuration) -> setting
             message_bytes: limits.domain.run.message_bytes.checked_sub(2).unwrap(),
             inbox: config.profile.policy.inbox,
             unacknowledged: config.profile.policy.unacknowledged,
+            reply_bytes: None,
         },
     }
 }

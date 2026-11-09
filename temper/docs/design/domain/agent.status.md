@@ -1,6 +1,6 @@
 # agent: status
 
-2026-11-08. Where temper's code lags or departs from [agent.md](agent.md).
+2026-11-09. Where temper's code lags or departs from [agent.md](agent.md).
 
 Sections 4.2, 4.3 and 8.4 have the asking charter's three host tools,
 smith's wait, and no workspace. Sections 8.4.1 to 8.4.3 have M1's settings,
@@ -116,8 +116,14 @@ real-model behaviour or run the project's executable checks; the grant
 requires them, and smith's report-delivery process story checks the files.
 Stock and reference instructions remain separate work (section 10 and
 `../draft/goal-as-designer.status.md`).
-Section 4.3 has no gap in file, pull-file and compare fitting to the checked
-local receiving-agent allowance, size feedback, recovery and settled-call replay.
+Section 4.3 has no known implementation gap in task and forge reads
+fitting to the live attempt's worker reply bound, else the local agent's.
+Task reads use `documents.text_bytes` where neither names a bound; forge
+rendering retains the core allowance there (`root.md`, 5.2).
+File, pull-file and compare size feedback, recovery and settled-call replay
+have no known gap. A `see` answer uses the local agent's bound alone,
+without a call key; worker-specific `see` rendering remains deferred in
+section 10, not an absent task-read implementation.
 Sections 4.3, 4.4 and 6 have no known implementation gap in the compare's
 forge-size refusal, the stock report instructions,
 or the SHA-1 and SHA-256 widths in receipts and CI cancel reasons. Step tests
@@ -176,7 +182,6 @@ not prove a real model's approval-role judgement or GitHub's composed flow.
 - **Not yet:** 8.3: a document built in parts is proved on a script alone: no real model has built one, so whether it counts lines right, appends rather than rewrites, joins a line past one call, finds its note in a fresh brief and recovers from a refusal is unobserved. The real loop's `suite::notes::a_long_document_is_built_in_parts_and_revised_by_a_fresh_run` (`temper/tests/real-loop/tests/suite/notes.rs`) reads what the pane reads and draws nothing: the view's own test fits a full body in its limits (`a_full_document_fits_the_views_limits`, `temper-client-view/src/tests/document.rs`), and no walk or browser story draws a long one. Its fresh run is a chat's, under a charter the story sets to `resume: false` where the stock one resumes, so a goal's later run has no such story. It recalls nothing: a body past one call is recalled whole in jig's core world alone (`jig/tests/core/tests/stories/note_room.rs`).
 - **Design departs:** 8.3, from the request `note-parts` of 2026-11-05, decided by its plan's cut: a later write's words close with the note's lines, where the request keeps the answer as it stood, because an append's `first` is the body's lines + 1 and a later write printed no total, so a slip would insert in the wrong place with no refusal. The answer's values and how they are computed stay.
 - **Design departs:** 8.3, from the request `ui-chat-draft` of 2026-11-05, decided by the answer that day to its task `note-scope`: a goal keeps its own note scope, where the request has a goal keep no notes, because a goal's report is a note.
-- **Design departs:** 4.3, from the request `read-task-room` of 2026-11-06, decided by its plan's cut: a run whose process has no local agent's metadata reads a task's words in pieces of `documents.text_bytes`, where the request has it read up to what its reply holds (`root.status.md`, section 10 here keeping it open).
 - **Not yet:** 4.3.1: a change's refusal omits which model its charter
   refused, because `temper-engine-smith/src/answers.rs` renders
   `model outside the charter` without that detail although the typed

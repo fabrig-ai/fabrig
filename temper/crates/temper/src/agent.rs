@@ -50,6 +50,7 @@ pub(crate) fn read(configuration: &Path) -> Result<Agent, String> {
             directory: program.directory.as_os_str().as_bytes().into(),
         })
         .collect();
+    let reply_bytes = protocol.bodies.host_reply_text;
     Ok(Agent {
         run_limits: limits.domain.run,
         tool_payload: configuration.profile.declared.tool_payload,
@@ -68,6 +69,7 @@ pub(crate) fn read(configuration: &Path) -> Result<Agent, String> {
             message_bytes,
             inbox: policy.inbox,
             unacknowledged: policy.unacknowledged,
+            reply_bytes: Some(reply_bytes),
         },
     })
 }
