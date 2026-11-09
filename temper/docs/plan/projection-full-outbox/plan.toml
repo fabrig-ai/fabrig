@@ -4,3 +4,22 @@ sources = ["temper/docs/plan/projection-full-outbox/inputs/request.md", "AGENTS.
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/migration"
 priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "full-outbox"
+title = "A goal's issue projection that meets the full forge outbox waits an interval, and no step re-projects into a full outbox it met"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 12"
+
+[[slice]]
+id = 1
+story = "With the forge outbox at its bound, asking to project a goal ends the step with the projection due an interval later; once an entry leaves and the interval passes, the projection goes out"
+parts = ["full-outbox"]
+walk = false
