@@ -1,12 +1,15 @@
 //! Values of the forge's kinds and procedure waits
 //! (temper/docs/design/protocol/configuration.md, 13.2 and 13.3).
-use crate::settings::{Bounds, Held, Item, Kind, LandingRule, Refusal, RuleApproval, RuleGate, Value, judge, requires};
+use crate::settings::{
+    Bounds, Held, Item, Kind, LandingRule, Refusal, RuleApproval, RuleGate, TemplateGoal, Value, judge, requires,
+};
 use crate::{GateLast, GatePattern, JudgeFreshness, Requires};
 use alloc::boxed::Box;
 use skein_lib::List;
 
 // Tiny admission bounds: two gates and roles, five base segments, eight bytes each.
-const BOUNDS: Bounds = Bounds { landing_rules: 4, gates: 2, roles: 2, charters: 3, segments: 5, segment_bytes: 8 };
+const BOUNDS: Bounds =
+    Bounds { landing_rules: 4, gates: 2, roles: 2, charters: 3, segments: 5, segment_bytes: 8, templates: 4 };
 const PROJECT: u32 = 1;
 const FIRST_RULE: u32 = 1;
 const GATE: RuleGate = RuleGate { number: 1, blocking: true, freshness: JudgeFreshness::Exact };
@@ -140,6 +143,7 @@ fn judge_accepts_rules_within_their_bounds() {
         (3, Some(Kind::Charters)),
         (4, None),
         (5, None),
+        (11, Some(Kind::TemplateGoal)),
         (u32::MAX, None),
     ] {
         assert_eq!(Kind::of(number), expected, "kind {number}");
@@ -278,6 +282,22 @@ fn judge_refuses_each_fault_by_name() {
 
 #[test]
 fn judge_reads_the_forge_charters() {
+    let goal = Item { kind: Kind::TemplateGoal.number(), scope: 0, number: 1, value: None };
+    for (design, close_out) in [(false, false), (false, true), (true, false), (true, true)] {
+        for number in [1, BOUNDS.templates] {
+            let item = Item { number, value: Some(Value::Goal(TemplateGoal { design, close_out })), ..goal.clone() };
+            assert_eq!(judge(&item, &BOUNDS), Ok(()), "{item:?}");
+        }
+    }
+    for (label, item, expected) in [
+        ("goal project scope", Item { scope: PROJECT, ..goal.clone() }, Err(Refusal::Scope)),
+        ("goal number zero", Item { number: 0, ..goal.clone() }, Err(Refusal::Number)),
+        ("goal number past templates", Item { number: BOUNDS.templates + 1, ..goal.clone() }, Err(Refusal::Number)),
+        ("goal wrong value", Item { value: Some(Value::Charter(1)), ..goal.clone() }, Err(Refusal::Value)),
+        ("goal removal or reset", goal, Ok(())),
+    ] {
+        assert_eq!(judge(&item, &BOUNDS), expected, "{label}");
+    }
     let base = Item { kind: Kind::Charters.number(), scope: 0, number: 1, value: Some(Value::Charter(1)) };
     for number in [1, 2] {
         let rows = [

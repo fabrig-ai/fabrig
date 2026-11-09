@@ -17,6 +17,7 @@ pub fn forge_items(stock: &[temper_engine_domain_forge::settings::Stock]) -> Vec
         }
         let value = match &stock.value.value {
             settings::Value::Charter(charter) => json!(charter),
+            settings::Value::Goal(_) => unreachable!("template goals have no stock defaults"),
             settings::Value::Questions(_) | settings::Value::Ways(_) => {
                 unreachable!("project questions and ways have no stock defaults")
             }
