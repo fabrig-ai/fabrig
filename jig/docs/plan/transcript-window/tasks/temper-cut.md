@@ -3,7 +3,7 @@ id = "temper-cut"
 part = "temper-cut"
 kind = "feature"
 needs = ["window-pages", "turn-cut"]
-files = ["temper/crates/temper-service/src/store/route.rs", "temper/crates/temper-service/src/store/ranges.rs", "temper/crates/temper-service/src/tests/store_route.rs", "temper/crates/temper-engine-domain/src/boundary.rs", "temper/crates/temper-engine-domain/src/archive.rs", "temper/crates/temper-engine-domain/src/restart.rs", "temper/crates/temper-engine-domain/src/lib.rs", "temper/tests/engine/domain/tests/suite/preparation.rs", "temper/tests/engine/domain/src/store.rs", "temper/docs/design/domain/root.status.md", "jig/docs/design/domain/engine.status.md"]
+files = ["temper/crates/temper-service/src/store/route.rs", "temper/crates/temper-service/src/store/ranges.rs", "temper/crates/temper-service/src/tests/store_route.rs", "temper/crates/temper-engine-domain/src/boundary.rs", "temper/crates/temper-engine-domain/src/archive.rs", "temper/crates/temper-engine-domain/src/restart.rs", "temper/crates/temper-engine-domain/src/lib.rs", "temper/tests/engine/domain/tests/suite/preparation.rs", "temper/tests/engine/domain/src/store.rs", "temper/tests/engine/domain/src/direct.rs", "temper/docs/design/domain/root.status.md", "jig/docs/design/domain/engine.status.md"]
 effort = "high"
 minutes = 140
 +++
@@ -156,3 +156,18 @@ trunk, quoted, and the bounds in force; temper's shape and the service's
 cut as you built them; the rules broken by hand and what failed; the runs
 and their counts; the branch and commit pushed; implementation and check
 minutes apart.
+
+## Answers
+
+2026-11-09. *May temper-cut change `direct.rs`'s load forwarding and
+transcript-text helper so store terminals and cut texts reach the core, or
+is the table's real-store acceptance revised?* Change `direct.rs`; the
+acceptance stands. `temper/tests/engine/domain/src/direct.rs` is now in
+`files` (`window-pages`, its other editor, has landed). Let `store.rs`
+expose a page's typed terminal; let `Driver::collect` forward a store
+`Load`'s failed terminals (`Unloaded`, `Uncommitted`) to the root as the
+service answers them, and hand on the page's texts as the store gave them,
+a cut turn's length kept; whole turns keep the fixture's raw-text
+rendering. Keep `Store::page`'s panic for the callers that expect a page.
+No figure changes. The rows then check the real store, service and
+archive path, as Steps, 1 asks.
