@@ -270,11 +270,6 @@ try. A window's later pages keep its first page's slot there
   be representable instead of returning a named configuration refusal; the
   bounds check takes limits without declared kinds. No reason is recorded.
 
-- **Not yet:** 7.3, 10.1, *Its runs' parts are its party's*: every turn
-  reads whole to whoever may read its task, a run's read as its person
-  included, and a run's live call shows its input to every follower; the
-  core's and the clients' settings name no private section or tool.
-
 - **Not yet:** 5.1, 17.6: the whole project-deletion commit has no
   established admission price against `journal.writes`, because the
   established allowance covers settings-proposal withdrawals alone,
