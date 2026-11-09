@@ -830,3 +830,114 @@ fn repository_listing_waits_for_hints_within_the_poll_interval() {
     h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: h.env.now });
     assert!(h.send().is_none(), "one hint makes one listing");
 }
+
+const FALLBACK: skein_lib::Duration = skein_lib::Duration::from_secs(120);
+
+#[test]
+fn timed_reads_fall_back_while_their_repository_hears() {
+    use skein_lib::Duration;
+    // A large poll keeps the listing out of the slow-rest observations.
+    const LONG_POLL: Duration = Duration::from_secs(1000);
+    for (name, resource, participating, poll, result, own, listing) in [
+        ("listing repeat", issue(), false, LIMITS.poll, None, 110, true),
+        ("pull rest", pull(), false, LIMITS.poll, None, 110, false),
+        ("branch slow rest", branch(), false, LONG_POLL, None, 165, false),
+        ("missing rest", branch(), false, LONG_POLL, Some(Error::Missing), 165, false),
+        ("participating repair", pull(), true, Duration::from_secs(100), None, 165, false),
+        ("failure backoff", branch(), false, LONG_POLL, Some(Error::Unavailable), 106, false),
+    ] {
+        for hears in [false, true] {
+            let mut h = Harness::with_limits(Limits { fallback: FALLBACK, poll, poll_max: poll, rate: 100, ..LIMITS });
+            h.keep(Box::new([watch(resource.clone(), participating)]));
+            h.clock();
+            if hears {
+                h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(10), key: None } });
+            }
+            h.fire(105);
+            if hears || poll == LIMITS.poll {
+                let read = h.one();
+                assert_eq!(read.op, Op::Read(Read::Items { since: at(100), page: 1, kind: None }));
+                h.answer(read, Answer::Items { items: Box::new([]), more: false, now: at(105) });
+            }
+            if !listing {
+                let read = h.one();
+                if let Some(error) = result {
+                    h.event(Event::Answered { call: read.call, cost: 1, free: 0, rate: None, result: Err(error) });
+                } else if resource == branch() {
+                    h.answer(read, Answer::Commit([1; 32]));
+                } else {
+                    h.answer(read, Answer::Item { item: summary(), comments: Box::new([]), more: false });
+                    let read = h.one();
+                    if participating {
+                        h.env.now = at(115);
+                    }
+                    h.answer(read, Answer::Pull(current()));
+                    if participating {
+                        let read = h.one();
+                        h.answer(read, Answer::Reviews { reviews: Box::new([]), more: false });
+                    }
+                }
+                // Observe just this resource's armed deadline, not the listing.
+                h.domain.alarms.cancel(crate::domain::Alarm::Repository(REPO));
+            }
+            let expected = if hears && result != Some(Error::Unavailable) { 220 } else { own };
+            assert_eq!(h.domain.next_deadline(), Some(at(expected)), "{name}, hears={hears}");
+        }
+    }
+}
+
+#[test]
+fn a_repository_that_stops_hearing_polls_at_its_own_pace_again() {
+    let mut h = Harness::with_limits(Limits { fallback: FALLBACK, rate: 100, ..LIMITS });
+    h.keep(Box::new([watch(branch(), false)]));
+    h.clock();
+    h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(10), key: None } });
+    h.fire(101);
+    let listing = h.one();
+    h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(101) });
+    let read = h.one();
+    h.answer(read, Answer::Commit([1; 32]));
+    assert_eq!(h.domain.next_deadline(), Some(at(220)));
+    h.fire(219);
+    assert!(h.send().is_none());
+    h.fire(220);
+    let listing = h.one();
+    assert_eq!(listing.op, Op::Read(Read::Items { since: at(100), page: 1, kind: None }));
+    h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(220) });
+    let read = h.one();
+    assert_eq!(read.op, Op::Read(Read::Branch { branch: Box::from(&b"topic"[..]) }));
+    h.answer(read, Answer::Commit([1; 32]));
+    assert_eq!(h.domain.next_deadline(), Some(at(225)));
+    h.domain.alarms.cancel(crate::domain::Alarm::Repository(REPO));
+    assert_eq!(h.domain.next_deadline(), Some(at(280)));
+}
+
+#[test]
+fn a_hint_still_reads_at_hinted_while_its_repository_hears() {
+    let mut h = Harness::with_limits(Limits { fallback: FALLBACK, rate: 100, ..LIMITS });
+    h.keep(Box::new([watch(branch(), false)]));
+    h.clock();
+    let read = h.one();
+    h.answer(read, Answer::Commit([1; 32]));
+    h.event(Event::Hint {
+        hint: api::Hint { repository: REPO, change: Change::Branch(Box::from(&b"topic"[..])), key: None },
+    });
+    assert_eq!(h.domain.next_deadline(), Some(at(101)));
+    h.fire(101);
+    let listing = h.one();
+    h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(101) });
+    let read = h.one();
+    assert_eq!(read.op, Op::Read(Read::Branch { branch: Box::from(&b"topic"[..]) }));
+    // A hint received in flight still asks for a hinted rest, not fallback.
+    h.event(Event::Hint {
+        hint: api::Hint { repository: REPO, change: Change::Branch(Box::from(&b"topic"[..])), key: None },
+    });
+    h.answer(read, Answer::Commit([1; 32]));
+    assert_eq!(h.domain.next_deadline(), Some(at(102)));
+    h.fire(102);
+    let listing = h.one();
+    h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(102) });
+    let read = h.one();
+    h.answer(read, Answer::Commit([1; 32]));
+    assert_eq!(h.domain.next_deadline(), Some(at(221)));
+}
