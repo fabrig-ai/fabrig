@@ -469,16 +469,26 @@ fn a_chat_is_never_goals() {
     for (asking, expected) in [(false, b"Work".as_slice()), (true, b"Ask temper".as_slice())] {
         let (mut root, me, chat) = f::root_at(Address::Chat { task: GOAL_TASK }, &f::domain_limits());
         with_goal_fact(&mut root, me, Some(true));
+        let asking_me = f::asking_me(root.pages().me(root.client()).unwrap().clone());
+        f::deliver_me(&mut root, me, asking_me);
         let mut document = f::task::delegate();
         document.project = f::PROJECT;
         document.goal = Some(GOAL_TASK);
         document.priority = Some(GOAL_PRIORITY);
-        document.chip.executor = c::ChipExecutor::Agent { charter: if asking { 11 } else { 1 } };
+        document.chip.executor = c::ChipExecutor::Agent { charter: if asking { 37 } else { 1 } };
         deliver_document(&mut root, chat.unwrap(), c::Delivery::Task(Box::new(document)));
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             let nav = current_names(view.tree(), look::RAIL_NAV);
             let foot = current_names(view.tree(), look::RAIL_FOOT);
             assert_eq!(nav.into_iter().chain(foot).collect::<Vec<_>>(), [expected]);
+            if view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::TABBAR)) {
+                let tabs = styled(view.tree(), look::TABBAR);
+                assert_eq!(tabs[0].styles.as_slice().contains(&look::TABBAR_ASK), asking);
+                assert_eq!(current_names(view.tree(), look::TABBAR), [expected]);
+                let ask = children(tabs).into_iter().find(|n| n.name.as_deref() == Some(b"Ask temper")).unwrap();
+                assert_eq!(f::nodes_text(styled(view.tree(), look::TABBAR)).as_ref(), b"HomeNeedsWorkAsk");
+                assert_eq!(ask.states.as_slice().contains(&State::Current), asking);
+            }
         }
     }
 }
@@ -570,16 +580,31 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
             if view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::TABBAR)) {
                 assert!(browser);
                 assert_eq!(
+                    styled(view.tree(), look::TABBAR)[0].styles.as_slice().contains(&look::TABBAR_ASK),
+                    current == "Ask temper"
+                );
+                let links = children(styled(view.tree(), look::TABBAR));
+                assert_eq!(f::nodes_text(styled(view.tree(), look::TABBAR)).as_ref(), b"HomeNeedsWorkAsk");
+                let ids: Vec<_> = links.iter().map(|n| n.id).collect();
+                for (id, href) in ids.into_iter().zip([
+                    b"/projects/1".as_slice(),
+                    b"/?project=1",
+                    b"/projects/1/work",
+                    b"/projects/1/ask",
+                ]) {
+                    assert_eq!(crate::href(&mut view, id).as_deref(), Some(href));
+                }
+                assert_eq!(
                     children(styled(view.tree(), look::TABBAR))
                         .iter()
                         .map(|n| n.name.as_deref().unwrap())
                         .collect::<Vec<_>>(),
-                    [b"Home".as_slice(), b"Needs you", b"Work", b"Ask temper"]
+                    [b"Home".as_slice(), b"Needs", b"Work", b"Ask temper"]
                 );
                 assert_eq!(
                     current_names(view.tree(), look::TABBAR),
                     if ["Home", "Needs you", "Work", "Ask temper"].contains(&current) {
-                        vec![current.as_bytes()]
+                        vec![if current == "Needs you" { b"Needs".as_slice() } else { current.as_bytes() }]
                     } else {
                         vec![]
                     }
@@ -623,12 +648,13 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                     continue;
                 }
                 let nodes = styled(view.tree(), style);
-                let name = if count == 0 {
-                    "Needs you"
-                } else if cut {
-                    "Needs you 3+"
-                } else {
-                    "Needs you 3"
+                let name = match (style == look::TABBAR, count == 0, cut) {
+                    (true, true, _) => "Needs",
+                    (true, false, false) => "Needs 3",
+                    (true, false, true) => "Needs 3+",
+                    (false, true, _) => "Needs you",
+                    (false, false, false) => "Needs you 3",
+                    (false, false, true) => "Needs you 3+",
                 };
                 assert_eq!(current_names(view.tree(), style), [name.as_bytes()]);
                 let badges: Vec<_> = nodes.iter().filter(|n| n.styles.as_slice().contains(&look::NAV_COUNT)).collect();
@@ -638,6 +664,101 @@ fn rail_and_tabbar_keep_the_order_addresses_current_states_and_count() {
                 }
             }
         }
+    }
+    for (address, current, asking) in [
+        (Address::Home { project: f::PROJECT }, b"Home".as_slice(), false),
+        (Address::Ask { project: f::PROJECT }, b"Ask temper".as_slice(), true),
+    ] {
+        let (mut root, me, _, settings, ..) =
+            f::home_root(&f::domain_limits(), List::with_capacity(0), Some(&[]), false);
+        let me_document = f::asking_me(root.pages().me(root.client()).unwrap().clone());
+        let mut out = Queue::uncapped();
+        let env = Env { now: Time::ZERO, wall: f::NOW, limits: f::domain_limits() };
+        d::step(
+            &mut root,
+            &env,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Watched {
+                        watch: settings,
+                        event: c::WatchEvent::Delivered(c::Delivery::Settings(Box::new(c::SettingsDocument {
+                            newest: 0,
+                            settings: List::with_capacity(0),
+                            held: List::with_capacity(0),
+                            pending: List::with_capacity(0),
+                        }))),
+                    },
+                },
+            },
+            &mut out,
+        );
+        d::step(
+            &mut root,
+            &env,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Watched {
+                        watch: me,
+                        event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me_document))),
+                    },
+                },
+            },
+            &mut out,
+        );
+        d::step(&mut root, &env, Event::Went { place: d::Place::Address(address.clone()) }, &mut out);
+        while let Some(request) = out.pop() {
+            let d::Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else {
+                continue;
+            };
+            let up = match down {
+                jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Tasks { .. }) } => {
+                    jig_client::Up::Watched {
+                        watch,
+                        event: c::WatchEvent::Delivered(c::Delivery::Tasks(Box::new(c::Tasks {
+                            rows: List::with_capacity(0),
+                            more: false,
+                        }))),
+                    }
+                }
+                jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => {
+                    jig_client::Up::ReadDone {
+                        read,
+                        result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Tasks(Box::new(
+                            c::TaskPage {
+                                live: List::with_capacity(0),
+                                live_after: None,
+                                ended: c::EndedGroup::Rows { rows: List::with_capacity(0), after: None, cut: false },
+                            },
+                        )))),
+                    }
+                }
+                jig_client::Down::Open { .. }
+                | jig_client::Down::Read { .. }
+                | jig_client::Down::Continue { .. }
+                | jig_client::Down::Close { .. }
+                | jig_client::Down::Save { .. }
+                | jig_client::Down::Erase { .. }
+                | jig_client::Down::Send { .. } => continue,
+            };
+            d::step(&mut root, &env, Event::Client { event: jig_client::Event::Up { up } }, &mut out);
+        }
+        let mut view = f::browser_page_view(&root);
+        let tabs = styled(view.tree(), look::TABBAR);
+        assert!(
+            tabs[0].styles.as_slice().contains(&look::TABBAR_BEGINNING),
+            "{:?}",
+            pages::home::facts(&root, f::PROJECT, f::NOW)
+        );
+        assert_eq!(tabs[0].styles.as_slice().contains(&look::TABBAR_ASK), asking);
+        let links = children(tabs);
+        assert_eq!(
+            links.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(),
+            [b"Home".as_slice(), b"Ask temper", b"Deployment"]
+        );
+        assert_eq!(f::nodes_text(tabs).as_ref(), b"HomeAskDeployment");
+        assert_eq!(current_names(view.tree(), look::TABBAR), [current]);
+        let deployment = links[2].id;
+        assert_eq!(crate::href(&mut view, deployment).as_deref(), Some(b"/accounts".as_slice()));
     }
 }
 
@@ -844,7 +965,7 @@ fn kind_seven_changes_no_navigation_entry() {
                     if style == look::RAIL_NAV {
                         vec![b"Home".as_slice(), b"Needs you", b"Work", b"How work runs"]
                     } else {
-                        vec![b"Home".as_slice(), b"Needs you", b"Work"]
+                        vec![b"Home".as_slice(), b"Needs", b"Work"]
                     }
                 );
                 assert_eq!(current_names(view.tree(), style), [b"Work".as_slice()]);

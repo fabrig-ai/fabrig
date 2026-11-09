@@ -1422,6 +1422,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-ask-line",
         b"temper-needs-bar",
         b"temper-needs-bar-at",
+        b"temper-tabbar-ask",
     ],
     regions: &[b"temper-link"],
 };
@@ -1858,6 +1859,9 @@ pub const ASK_LINE: Style = Style { owner: owner(), token: 701 };
 pub const NEEDS_BAR: Style = Style { owner: owner(), token: 702 };
 /// Its place in the open cards (temper/docs/design/client/README.md, 3.5).
 pub const NEEDS_BAR_AT: Style = Style { owner: owner(), token: 703 };
+
+/// The phone's Ask tab (temper/docs/design/client/README.md, 5.3).
+pub const TABBAR_ASK: Style = Style { owner: owner(), token: 704 };
 
 #[cfg(test)]
 mod tests {
