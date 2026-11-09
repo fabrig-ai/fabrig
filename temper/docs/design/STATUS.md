@@ -227,7 +227,19 @@ need's why, owners' lines and What follows what wait for their
 milestones, and the launchpad still reads one project's brief
 (`client/README.md`, 3.5 and 11;
 `client/README.status.md`, 3.5; `client/browser.status.md`, 2.3 and
-7.2; `draft/surfaces.status.md`, 3, 4, 11 and 14). Ask temper's
+7.2; `draft/surfaces.status.md`, 3, 4, 11 and 14). The phone is the
+whole story's milestone P5a, by plan `ui-p5a-phone`: the tab bar from
+one pure rule over the rail's parts, "Needs" with its count, the Ask
+tab's tabs kept under Ask temper's page and its chats, Needs you's own
+bar on a phone, "‹ Needs you" and "1 of 2", and a 44 px target on the
+top bar, the tabs, Home, Needs you, Work and a chat's bar and composer,
+with a fuzz test of the tabs' rule and rows of the gallery's prints; an
+Ask temper chat's thread and the path's stops keep the mock's sizes, and
+the render check and walk follow landing. Tell temper is designed and
+not built, waiting for the engine to file a person's word as a finding
+and for a setting naming the project's triager (`client/README.md`, 3.5,
+5.3 and 11; `client/README.status.md`, 3.5; `client/browser.status.md`,
+2.5; `draft/surfaces.status.md`, 9, 10 and 14). Ask temper's
 first milestone stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
 the instructions' first step of Showing. Charter 3, template 3, `Configure`
