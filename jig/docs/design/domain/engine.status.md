@@ -49,6 +49,28 @@ assertion. temper's forge link still panics
 Section 7.2's immutable failed run end retains the invalid-result kind
 computed for its attempt. No known gap remains in this field.
 
+Sections 7.2 and 9 have no known gap in *A turn too large for a page*.
+`TranscriptLoad::Cut` hands the core a turn's fields and length.
+`Core::append_cut_transcript` admits it as `append_transcript` admits a
+turn, counting its length and 4 bytes. It keeps `CUT_TURN_TEXT`,
+`[a turn too large to load]`, in the tail and sets `Transcript.cut`, so
+the claim resumes nothing and counts no failure, try or refusal
+(`jig-domain-core`'s `cut_turns_keep_their_length_and_place_without_resuming`
+and `a_cut_page_finishes_a_fresh_brief_with_its_tail`). jig's reference
+root maps the store's cut page to it (`jig-test-store/src/route.rs`). The
+core world's rows, sized by the frame's charge, hold the room's edge:
+a turn charging exactly the room resumes whole, and one byte past
+starts fresh at once with the marker in its tail. A 4,096-byte turn
+between a 100- and a 50-byte one keeps its marker between their texts
+(`jig/tests/core`'s `runs::a_window_turn_charging_exactly_the_room_resumes_whole`,
+`a_window_turn_just_past_the_room_starts_fresh_with_a_marker` and
+`a_large_tool_turn_keeps_its_place_between_other_texts`). No bound of
+`append_transcript` refuses a long window: past the resume limit it
+starts fresh (`many_one_byte_turns_start_fresh_when_their_lengths_pass_the_limit`,
+`an_oversized_resume_turn_keeps_its_text_independently`). The ops
+example's root gets transcript pages as rows, from its tests alone. No
+store there cuts a turn, and it maps no cut.
+
 Section 7.3's asking-family routing and run proposal read are present.
 `reads/settings.rs` checks settings authority and project scope before
 reading, and checks them and the current attempt after loading a stored

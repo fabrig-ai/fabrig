@@ -135,8 +135,10 @@ check, but no walk on record has a real box run on it (`domain/accounts.md`).
 Its template preview can differ from its task's next-run model across a worker
 restart with mixed program and direct accounts (`client/domain/contract.md`,
 `domain/engine.md`).
-A transcript's load refused for want of a slot counts as a failure, where
-room should pause its task (`domain/engine.md`). A note's range names the
+A run's transcript window loads whatever its length: a turn past the
+store's page room is loaded cut, and the run starts fresh from the tail
+with the turn's marker, counting nothing (`domain/engine.md`, 7.2;
+`protocol/store.md`, 8.3). A note's range names the
 revision it read `recalled`, where the `note-parts` request of 2026-11-05 has
 `revision` (`domain/engine.md`). Four of the worlds' files name a fixture again,
 where the `debt-24` request of 2026-11-05 has each named once. The core's

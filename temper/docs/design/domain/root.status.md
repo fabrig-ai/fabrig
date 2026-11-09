@@ -49,16 +49,47 @@ Section 8's transcript load has no known gap at an activation: a task
 whose window would find every load slot taken, a retired one awaiting
 its reclaim among them, is answered busy and stays due, as with the
 archive's read table full (`temper-engine-domain/src/route.rs`,
-`activate`; `loads.rs`, `has_room`). With the shipped two load slots,
-tasks due together each load their window, none failing its preparation
-or spending a try (`tests/engine/domain`'s
-`tasks_due_together_past_the_load_slots_each_load_their_window`).
-Whether room was why about 23 briefs failed on their windows after a
-deployment's restart on 2026-11-08 is unproven: its evidence is outside
-the repository. A window's later pages retain their load slot, as
-`temper-engine-domain/src/archive.rs`'s
-`a_transcript_continuation_keeps_its_slot_while_every_other_slot_is_taken`
-checks. A turn too large for a page reaches the core cut.
+`activate`; `loads.rs`, `has_room`).
+
+Section 8 has no known gap in *A window's pages keep their load slot*.
+`loads.rs`, `loaded`, holds an answered window page that names a next
+one for its waiter, uncut, and `next` issues the next page in that
+slot in the same pass. A page not continued in its pass frees its slot
+at `reclaim` (`archive.rs`'s
+`a_transcript_continuation_keeps_its_slot_while_every_other_slot_is_taken`;
+`tests/engine/domain`'s `loads::an_uncontinued_transcript_page_releases_its_slot_at_reclaim`).
+With the shipped two load slots and two turns a page, windows of 2, 3
+and 7 turns load whole while another chat's read holds the other slot.
+A restart's due tasks with windows of one turn and of three each load
+theirs and resume, none failing its preparation or spending a try
+(`preparation::a_window_of_any_length_loads_while_another_load_holds_a_slot`,
+`tasks_due_together_past_the_load_slots_each_load_their_window`). The
+`transcript-window` request of 2026-11-09 reports goals held with
+`transcript: its window could not be loaded`, and about 23 briefs
+failed on their windows after a restart on 2026-11-08. Whether either
+took the path these rows close is unproven: that evidence is outside
+the repository. On that path, `root.loads.loads` refused a window's
+next page while its last page's slot awaited the pass's reclaim and the
+other slot was held. `documents.text_bytes` sizes a task read's room,
+never a transcript's page.
+
+Section 8 has no known gap in a window's turn handed on cut. The
+store's cut page reaches the core as `TranscriptLoad::Cut`, as a
+`TurnText::Cut` beside its row (`temper-engine-domain/src/boundary.rs`;
+`archive.rs`, `transcript_page`). `temper-service`'s `route.rs`, `page`,
+cuts a window page's first row past `root.loads.transcript_bytes`, or
+alone past `root.loads.bytes`, the same way, and a later row past them
+still ends the page before it. A store `Unread` or `Corrupt` page still
+reaches the core as `Unread`, and the archive's row and text guards
+still answer `Failed` (`store_route`'s
+`window_turns_past_store_row_or_page_room_are_carried_cut` and
+`unread_and_corrupt_window_pages_still_fail_the_load_once`;
+`archive.rs`'s `malformed_transcript_rows_and_texts_still_answer_failed`).
+Under the shipped `root.loads` and `root.journal`, a turn just inside
+the row bound loads whole. One just past it, one twice the store's page
+room, and one amid four short turns each start fresh at once, with the
+marker in the turn's place in the tail, no brief failed, no try spent
+and the root ready (`preparation::a_window_with_a_large_turn_starts_fresh_from_the_tail_that_fits`).
 
 Section 12 has no known gap in a duplicate person's identity: a store
 holding one refuses the start as jig's `Failure::Link`, the second
