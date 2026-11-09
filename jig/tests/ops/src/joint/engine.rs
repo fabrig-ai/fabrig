@@ -345,6 +345,7 @@ impl Application for OpsApplication {
                 | core::Now::TaskRead { .. }
                 | core::Now::ProposalRead { .. }
                 | core::Now::SettingsAnswer { .. }
+                | core::Now::PersonAnswer { .. }
                 | core::Now::SettledCallRefused { .. }
                 | core::Now::Call { .. }
                 | core::Now::RelayBusy { .. }
