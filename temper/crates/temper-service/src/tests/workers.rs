@@ -1203,3 +1203,83 @@ fn assert_pending_question(run: &temper_engine_domain::Assignment) {
     }
     panic!("the person's pending question remains whole");
 }
+
+#[test]
+fn worker_opening_ends_are_suppressed_by_name_and_reason_until_hello() {
+    use jig_protocol_engine_workers::{Loss, host::Output};
+    for (worker, position) in
+        [(Some(b"worker-a".as_slice()), Some(0)), (Some(b"worker-b".as_slice()), Some(1)), (None, None)]
+    {
+        let mut service = fixtures::started();
+        let workers = &mut service.engine.as_mut().unwrap().workers;
+        let worker = match worker {
+            Some(name) => Some(Box::from(name)),
+            None => None,
+        };
+        let mut events = skein_lib::Queue::uncapped();
+        let why = Loss::Refused { reason: 256 };
+        for _ in 0_u8..2 {
+            workers.route(Output::Ended { worker: worker.clone(), channel: None, why }, &mut events);
+        }
+        assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerOpeningEnded { worker: worker.clone(), why }));
+        assert!(workers.notes.is_empty(), "the same opening refusal prints once");
+        let other = u32::from(position == Some(0));
+        workers.route(hello_for_loss_notes(other), &mut events);
+        workers.route(Output::Ended { worker: worker.clone(), channel: None, why }, &mut events);
+        assert!(workers.notes.is_empty(), "another worker's hello does not reset this name");
+        if let Some(position) = position {
+            workers.route(hello_for_loss_notes(position), &mut events);
+            workers.route(Output::Ended { worker: worker.clone(), channel: None, why }, &mut events);
+            assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerOpeningEnded { worker: worker.clone(), why }));
+        }
+        let changed = Loss::Refused { reason: 257 };
+        workers.route(Output::Ended { worker: worker.clone(), channel: None, why: changed }, &mut events);
+        assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerOpeningEnded { worker: worker.clone(), why: changed }));
+        // A channel that said hello prints on every end, including the same cause.
+        for channel in [Token::new(7), Token::new(8)] {
+            workers.route(Output::Ended { worker: worker.clone(), channel: Some(channel), why }, &mut events);
+            assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerLost { worker: worker.clone(), channel, why }));
+        }
+        assert!(workers.notes.is_empty());
+    }
+}
+
+fn hello_for_loss_notes(worker: u32) -> jig_protocol_engine_workers::host::Output {
+    jig_protocol_engine_workers::host::Output::Hello {
+        worker,
+        channel: Token::new(7),
+        hello: jig_domain_link::Hello {
+            jobs: Box::new([]),
+            slots: 1,
+            stop_bound: skein_lib::Duration::from_millis(100),
+            workstreams: Box::new([]),
+            hosting: Box::new([]),
+            bounds: fixtures::worker_agent().bounds,
+        },
+    }
+}
+
+#[test]
+fn worker_loss_notes_wait_for_the_operator_sink_without_blocking_the_link() {
+    use jig_protocol_engine_workers::{Loss, host::Output};
+    let mut service = fixtures::started();
+    let engine = service.engine.as_mut().unwrap();
+    for _ in 0..engine.notes.capacity() {
+        engine.notes.push(crate::Note::ForgeLacking { number: 1, names: Box::new([]) });
+    }
+    let worker = Some(b"worker-a".as_slice().into());
+    let channel = Token::new(7);
+    engine.workers.route(
+        Output::Ended { worker: worker.clone(), channel: Some(channel), why: Loss::Silence },
+        &mut engine.events,
+    );
+    engine.workers.route(Output::Ended { worker: None, channel: None, why: Loss::NoRoom }, &mut engine.events);
+    engine.drain_worker_notes();
+    assert_eq!(engine.workers.notes.len(), 2, "a full diagnostic sink retains both lines");
+    while engine.notes.pop().is_some() {}
+    crate::engine::clock(engine, Time::ZERO, skein_lib::Wall::EPOCH);
+    assert_eq!(engine.notes.pop(), Some(crate::Note::WorkerLost { worker, channel, why: Loss::Silence }));
+    assert_eq!(engine.notes.pop(), Some(crate::Note::WorkerOpeningEnded { worker: None, why: Loss::NoRoom }));
+    assert!(engine.workers.notes.is_empty());
+    assert!(engine.notes.is_empty());
+}

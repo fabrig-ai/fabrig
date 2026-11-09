@@ -615,6 +615,7 @@ impl Service {
                         && engine.forge.above.is_empty()
                         && engine.store.closed()
                         && engine.workers.host.closed()
+                        && engine.workers.notes.is_empty()
                         && engine.clients.closed
                         && engine.clients.io.is_empty()
                         && match &engine.accounts {
@@ -933,11 +934,6 @@ fn held_listener_closed(service: &Service, event: &io::Event) -> bool {
 }
 fn route_events(service: &mut Service) {
     for _ in 0..service.told.len() {
-        if let Some(worker) = &service.worker
-            && !worker.link_taken()
-        {
-            break;
-        }
         if box_notes_full(service) {
             break;
         }
@@ -1009,12 +1005,11 @@ fn route_events(service: &mut Service) {
                     accounts.up(accounts::untag(event));
                 }
             } else if !engine.workers.up(service.io_env.now, event, &mut engine.events) && engine.end.is_none() {
-                engine.end = Some(End::Stopped(Stop::Listener {
-                    listener: crate::Listening::Workers,
-                    address: engine.workers.host.listener_address(owner),
-                    error,
-                }));
+                let address = engine.workers.host.listener_address(owner);
+                engine.workers.notes.push(crate::Note::WorkerListenerFailed { address, error });
+                engine.end = Some(End::Stopped(Stop::Listener { listener: crate::Listening::Workers, address, error }));
             }
+            engine.drain_worker_notes();
             for (listener, addr) in [
                 (crate::Listening::Clients, engine.clients.listening.take()),
                 (crate::Listening::Workers, engine.workers.host.listening.take()),
