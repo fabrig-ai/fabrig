@@ -49,6 +49,12 @@ fn standard_rows() {
         identity: 1,
         account: None,
     };
+    let path_bytes = fixtures::checkout().path_bytes;
+    let mut too_long = skein_lib::List::with_capacity(path_bytes.checked_add(2).expect("overlong path and NUL"));
+    for _ in 0..=path_bytes {
+        too_long.push(b'x').expect("overlong path fits the fixture");
+    }
+    too_long.push(0).expect("room for the NUL");
     let rows = [
         (&commit,Command::DiffIndex { parent:fixtures::PARENT },0,b"".as_slice(),Next::End(git::Done::Unchanged)),
         (&commit,Command::DiffIndex { parent:fixtures::PARENT },1,b"",Next::Run(Command::WriteTree)),
@@ -58,6 +64,7 @@ fn standard_rows() {
         (&merge,Command::Unmerged,0,b"conflict\0",Next::End(git::Done::Conflicted { files:Box::from([Box::from(&b"conflict"[..])]) })),
         (&merge,Command::Unmerged,0,b"one\0two\0three\0four\0five\0",Next::End(git::Done::Conflicted { files:Box::from([Box::from(b"one".as_slice()),Box::from(b"two".as_slice()),Box::from(b"three".as_slice()),Box::from(b"four".as_slice())]) })),
         (&merging,Command::Unmerged,0,b"one\0two\0three\0four\0five\0",Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
+        (&merge,Command::Unmerged,0,too_long.as_slice(),Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
         (&merge,Command::Unmerged,0,b"",Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
         (&fetch,Command::Fetch { remote:Box::from(fixtures::REMOTE),source:crate::invocation::Source::Default },0,b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/fetched\n",Next::End(git::Done::Fetched { commit:fixtures::COMMIT })),
     ];

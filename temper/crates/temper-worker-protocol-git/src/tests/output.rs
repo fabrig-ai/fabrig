@@ -51,7 +51,7 @@ fn one_carriage_return_before_the_newline_is_dropped() {
     }
 }
 #[test]
-fn a_nul_list_past_the_checkout_s_limits_is_refused() {
+fn nul_lists_are_complete_for_commits_and_bounded_prefixes_for_merges() {
     let mut checkout = fixtures::checkout();
     checkout.conflicts = 2;
     checkout.path_bytes = 4;
@@ -71,6 +71,17 @@ fn a_nul_list_past_the_checkout_s_limits_is_refused() {
         output::paths(b"one\0two\0", &checkout),
         Some(Box::from([Box::from(&b"one"[..]), Box::from(&b"two"[..])]))
     );
+    let two: Box<[Box<[u8]>]> = Box::from([Box::from(b"one".as_slice()), Box::from(b"two".as_slice())]);
+    for (bytes, expected) in [
+        (b"one\0two\0x\0".as_slice(), Some(two.clone())),
+        (b"one\0two\0longer\0", Some(two)),
+        (b"one\0cut", Some(Box::from([Box::from(b"one".as_slice())]))),
+        (b"longer\0", None),
+        (b"one\0longer\0", None),
+        (b"\0", None),
+    ] {
+        assert_eq!(output::conflict_paths(bytes, &checkout), expected, "{bytes:?}");
+    }
 }
 #[test]
 fn stderr_lines_decide_last_to_first_the_first_match_wins() {
