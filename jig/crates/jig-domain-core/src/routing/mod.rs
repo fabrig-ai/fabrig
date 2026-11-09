@@ -283,23 +283,11 @@ impl Core {
 /// The parent caller held while the notes child reads its store pages.
 #[derive(Hash, Debug)]
 pub(crate) enum NoteRoute {
-    Deletion {
-        project: u32,
-    },
-    Call {
-        to: ReplyTo,
-        key: CallKey,
-    },
-    Person {
-        request: Token,
-    },
-    Brief {
-        task: u64,
-    },
-    #[expect(dead_code, reason = "party-brief constructs its index route when the gather stub is filled")]
-    Preferences {
-        task: u64,
-    },
+    Deletion { project: u32 },
+    Call { to: ReplyTo, key: CallKey },
+    Person { request: Token },
+    Brief { task: u64 },
+    Preferences { task: u64 },
 }
 
 /// One brief's wait within the existing `limits.brief.briefs` table.

@@ -118,6 +118,7 @@ pub(super) fn repository_projects() -> World {
     owners.push(owner);
     config.core.owners = owners.into_boxed_slice();
     let mut bounds = limits();
+    bounds.brief.sections = 4; // Task, preferences, Home and a charter document.
     bounds.authority.segments = 8; // A charter document names a six-segment forge branch.
     bounds.authority.projects = 2;
     bounds.people.projects = 3; // Two projects and the deployment roster.

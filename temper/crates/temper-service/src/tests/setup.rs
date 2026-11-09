@@ -1850,11 +1850,14 @@ fn github_app_urls_use_the_clients_public_origin() {
 
 #[test]
 fn setup_reconciliation_waits_for_the_mark() {
+    fn restarting() -> Box<crate::Service> {
+        let mut previous = fixtures::ready().engine.unwrap();
+        kept_record(&mut previous.store, 1, Item::AdminToken, b"test-admin");
+        Box::new(fixtures::restarting_from(previous))
+    }
     // The shared service restart fixture's existing iteration horizon.
     const PASSES: u32 = 256;
-    let mut previous = fixtures::ready().engine.unwrap();
-    kept_record(&mut previous.store, 1, Item::AdminToken, b"test-admin");
-    let mut service = fixtures::restarting_from(previous);
+    let mut service = restarting();
     let config = local_config(true, false);
     let mut endpoints = fixtures::configured_endpoints(&config, fixtures::forge_runtime()).unwrap();
     let setup = fixture_setup(&config, &mut endpoints).unwrap();

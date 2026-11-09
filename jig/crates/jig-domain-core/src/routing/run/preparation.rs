@@ -457,7 +457,9 @@ pub(crate) fn plan_brief(
             })
             .expect("tail brief room");
     }
-    super::preferences::plan(core, &env.limits, task, &mut wanted);
+    if !super::preferences::plan(core, &env.limits, work, task, &mut wanted) {
+        return out;
+    }
     plan_note_index(&mut wanted, &env.limits, &lines, more);
     if !context.delegates.is_empty()
         && wanted.room() > 0
