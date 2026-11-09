@@ -1160,16 +1160,29 @@ fn invalid_nonfinal_people_restore_page_stops_before_issuing_its_continuation() 
 }
 
 #[test]
-#[should_panic(expected = "identity index collision at Person(2)")]
-fn a_duplicate_person_identity_panics_at_its_link_naming_its_row() {
+fn a_duplicate_person_identity_refuses_naming_both_rows() {
     let mut store = Store::new();
     for number in 1..=3 {
         store.seed(Box::new([person(number, 7, b"Same")]), Box::new([]));
     }
     let mut driver = Driver::new(store);
+    driver.broken("duplicate stored identities deliberately refuse startup");
     for _ in 0..30 {
         driver.advance(true);
     }
+    assert_eq!(
+        driver.root.start_stop(),
+        Some(engine::StartStop::Core {
+            phase: Some(jig_domain_core::start::Phase::LoadCore),
+            failure: jig_domain_core::start::Failure::Link {
+                record: jig_domain_core::Key::People(people::Key::Person(2)),
+                linked: jig_domain_core::Linked::Record(jig_domain_core::Key::People(people::Key::Person(1))),
+            },
+        })
+    );
+    assert!(driver.stopped);
+    assert!(!driver.root.ready());
+    assert!(driver.transactions.is_empty());
 }
 
 #[test]
@@ -3143,7 +3156,7 @@ fn calls_under_backpressure_are_handed_back_and_decided_once_on_retry() {
 }
 
 #[test]
-fn a_missing_current_proof_panics_before_any_restored_closing_effect_or_result() {
+fn a_missing_current_proof_refuses_before_any_restored_closing_effect_or_result() {
     let (driver, assignment) = running_fixture();
     let mut store = driver.store.fork();
     let mut rows = store.rows.clone();
@@ -3163,14 +3176,23 @@ fn a_missing_current_proof_panics_before_any_restored_closing_effect_or_result()
     store.seed(rows.into_values().collect(), Box::new([Key::Core(proof_key.clone())]));
     let before = store.rows.clone();
     let mut restarted = Driver::new(store);
-    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        for _ in 0..100 {
-            restarted.advance(true);
-        }
-    }))
-    .expect_err("a missing required proof is a writer bug");
-    assert_eq!(restarted.root.core_missing_proof_link(), Some((task_key, proof_key)));
-    assert_eq!(restarted.root.start_stop(), None);
+    restarted.broken("a closing task lacks its required current proof");
+    for _ in 0..100 {
+        restarted.advance(true);
+    }
+    assert_eq!(restarted.root.core_missing_proof_link(), Some((task_key.clone(), proof_key.clone())));
+    assert_eq!(
+        restarted.root.start_stop(),
+        Some(engine::StartStop::Core {
+            phase: Some(jig_domain_core::start::Phase::Link),
+            failure: jig_domain_core::start::Failure::Link {
+                record: task_key,
+                linked: jig_domain_core::Linked::Record(proof_key)
+            },
+        })
+    );
+    assert!(restarted.stopped);
+    assert!(!restarted.root.ready());
     assert_eq!(restarted.root.start_phase(), Some(jig_domain_core::start::Phase::Link));
     assert_eq!(restarted.store.rows, before, "no closing consequence committed");
     assert!(restarted.switches.is_empty());
@@ -3182,7 +3204,7 @@ fn a_missing_current_proof_panics_before_any_restored_closing_effect_or_result()
 }
 
 #[test]
-fn root_restore_loads_linked_task_shapes_and_panics_at_a_missing_charter() {
+fn root_restore_loads_linked_task_shapes_and_refuses_a_missing_charter() {
     let (driver, assignment) = running_fixture();
     for (requester, executor, contract) in [
         (Some(tasks::Party::Task(assignment.task)), None, None),
@@ -3210,11 +3232,29 @@ fn root_restore_loads_linked_task_shapes_and_panics_at_a_missing_charter() {
         store.seed(rows.into_values().collect(), Box::new([]));
         let mut restarted = Driver::new(store);
         if executor.is_some() {
-            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                restarted.settle();
-            }))
-            .expect_err("the task's absent charter cannot link");
-            assert_eq!(restarted.root.core_missing_charter_link(), Some((task_key, 99, expected.settings.task)));
+            restarted.broken("the task names an absent charter");
+            for _ in 0..100 {
+                restarted.advance(true);
+                if restarted.stopped {
+                    break;
+                }
+            }
+            assert_eq!(
+                restarted.root.core_missing_charter_link(),
+                Some((task_key.clone(), 99, expected.settings.task))
+            );
+            assert_eq!(
+                restarted.root.start_stop(),
+                Some(engine::StartStop::Core {
+                    phase: Some(jig_domain_core::start::Phase::Link),
+                    failure: jig_domain_core::start::Failure::Link {
+                        record: task_key,
+                        linked: jig_domain_core::Linked::Charter { charter: 99, revision: expected.settings.task },
+                    },
+                })
+            );
+            assert!(restarted.stopped);
+            assert!(!restarted.root.ready());
             assert_eq!(restarted.root.start_phase(), Some(jig_domain_core::start::Phase::Link));
             assert!(restarted.switches.is_empty());
             assert!(restarted.delivered.is_empty());
@@ -3228,7 +3268,9 @@ fn root_restore_loads_linked_task_shapes_and_panics_at_a_missing_charter() {
             assert_eq!(loaded.contract, expected.contract);
             assert_eq!(loaded.attempt, expected.attempt);
         }
-        assert_eq!(restarted.root.start_stop(), None);
+        if executor.is_none() {
+            assert_eq!(restarted.root.start_stop(), None);
+        }
         if executor.is_some() {
             restarted.store.seed(driver.store.rows.values().cloned().collect(), Box::new([]));
             restarted.reopen(config(91));
@@ -5336,7 +5378,6 @@ mod transcript_unread;
 mod held_restart;
 
 #[test]
-#[should_panic(expected = "links missing People(Person(999))")]
 fn restored_rejection_reaches_jigs_link_pass_after_temper_loads_it() {
     use temper_engine_domain_world::{escalation, escalation_referee::Story};
     let mut world = escalation::World::new(escalation::Settings::calm(9202, Story::Reject));
@@ -5344,11 +5385,13 @@ fn restored_rejection_reaches_jigs_link_pass_after_temper_loads_it() {
     let mut store = world.store.fork();
     let mut rows = store.rows.clone();
     let mut changed = 0;
+    let mut record = None;
     for row in rows.values_mut() {
         if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))) = row
             && let tasks::Escalation::Rejected { by, .. } = &mut task.escalation
         {
             *by = 999;
+            record = Some(jig_domain_core::Key::Tasks(tasks::Key::Live(task.number)));
             changed += 1;
         }
     }
@@ -5359,20 +5402,29 @@ fn restored_rejection_reaches_jigs_link_pass_after_temper_loads_it() {
     configured.people.people = 3;
     configured.people.sign_ins = 3;
     let mut driver = Driver::configured(store, [config(9202), config(9202)], &configured);
-    let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        for _ in 0..300 {
-            driver.advance(true);
-            if driver.stopped || driver.root.ready() {
-                break;
-            }
+    driver.broken("a restored rejection names a missing person");
+    for _ in 0..300 {
+        driver.advance(true);
+        if driver.stopped || driver.root.ready() {
+            break;
         }
-    }))
-    .expect_err("a rejected escalation links its owner during Link");
-    assert_eq!(driver.root.start_stop(), None);
+    }
+    assert_eq!(
+        driver.root.start_stop(),
+        Some(engine::StartStop::Core {
+            phase: Some(jig_domain_core::start::Phase::Link),
+            failure: jig_domain_core::start::Failure::Link {
+                record: record.expect("rejected task"),
+                linked: jig_domain_core::Linked::Record(jig_domain_core::Key::People(people::Key::Person(999))),
+            },
+        })
+    );
+    assert!(driver.stopped);
+    assert!(!driver.root.ready());
+    assert!(driver.transactions.is_empty());
     assert_eq!(driver.root.start_phase(), Some(jig_domain_core::start::Phase::Link));
     assert!(driver.loads.iter().any(|(_, range)| *range == engine::Range::Forge), "forge loaded before linking");
-    assert!(driver.switches.is_empty(), "the keyed link panic precedes the switch");
-    std::panic::resume_unwind(panic);
+    assert!(driver.switches.is_empty(), "the keyed link refusal precedes the switch");
 }
 
 #[test]

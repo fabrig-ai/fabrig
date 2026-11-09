@@ -53,6 +53,7 @@ pub(crate) fn checks(options: Tier) -> Box<[engine::TierCheck]> {
         format: Format::Junit,
         follows: temper_engine_domain_forge::Follows::Landing,
         span_ms: 0,
+        description: Box::default(),
     };
     if options.goals {
         let goal = engine::TierCheck {

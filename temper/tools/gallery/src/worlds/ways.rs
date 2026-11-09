@@ -7,6 +7,11 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 const PROJECT: u32 = 1;
 const REVISION: u32 = 1;
 const NAMES: [&str; 3] = ["You approve", "Agents review", "Draft first"];
+const HEADLINES: [&str; 3] = [
+    "You approve every change",
+    "Agents review every change, and code lands it",
+    "Draft first, then agents build it on its own branch",
+];
 const LINES: [&str; 3] = [
     "An agent makes each change; nothing reaches main until you approve it.",
     "An agent makes each change, another reviews it, and code lands it.",
@@ -59,6 +64,7 @@ pub(super) fn deliver(root: &mut Domain, watch: Token, project: u32, name: Optio
             w::StockWay::new(
                 &w::CEILINGS,
                 w::StockWayParts {
+                    headline: HEADLINES[index].as_bytes().into(),
                     name: way_name.as_bytes().into(),
                     line: line.as_bytes().into(),
                     path: delivered_path(index, name),
@@ -79,6 +85,17 @@ pub(super) fn deliver(root: &mut Domain, watch: Token, project: u32, name: Optio
     let panel = w::WaysPanel::new(
         &w::CEILINGS,
         w::WaysPanelParts {
+            words: if name == Some("how-yours") {
+                Some(w::ProjectWords::new(
+                    &w::CEILINGS,
+                    w::ProjectWordsParts {
+                        headline: b"Agents review everything, then one of you signs off".as_slice().into(),
+                        lede: b"shop runs a way of its own: agents review every change, and a rule of yours adds a sign-off.".as_slice().into(),
+                    },
+                ).expect("project words"))
+            } else {
+                None
+            },
             project,
             ways,
             current: if yours { None } else { Some(u32::try_from(current).expect("stock way")) },

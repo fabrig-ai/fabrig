@@ -25,7 +25,9 @@ A project is where work happens: the repositories adopted into it, one of them i
   Changes filters, the Away switch and the way a goal starts by. The filters'
   switches hide no rail entry; their work stays under Work's All filter.
   Its `project-questions` setting gives a change's question route when its
-  maker names none (temper help settings).
+  maker names none (temper help settings). Its `project-words` gives How work
+  runs its headline and lede when the project runs a way of its own;
+  Ask temper writes them with its proposals.
 - **Its period** holds what its work may spend; each member's pool is
   drawn from it (temper help budget).
 

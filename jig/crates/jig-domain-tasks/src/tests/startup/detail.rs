@@ -339,12 +339,13 @@ fn duplicate_live_is_an_assertion() {
 }
 
 #[test]
-#[should_panic(expected = "missing charter 99")]
 fn missing_charter_is_a_required_link() {
     let mut source = one_task();
     let Some(Stored::Live(row)) = source.stored.get_mut(&Key::Live(DUE)) else { panic!("row") };
     row.executor = crate::Executor::Agent { charter: 99 };
-    cold(&source).send(Event::Check);
+    let revision = row.settings.task;
+    let mut cold = cold(&source);
+    link_refused(&mut cold, Key::Live(DUE), crate::RestoreCause::Charter { charter: 99, revision });
 }
 
 #[test]
