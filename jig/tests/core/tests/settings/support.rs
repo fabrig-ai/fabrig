@@ -375,18 +375,18 @@ pub(super) fn updates(world: &mut World, signed: u64) -> Vec<documents::InboxEnt
 
 pub(super) fn run_configuration() -> (root::Config, root::Limits) {
     let (mut config, mut limits) = configuration();
-    config.core.defaults.rules.ceiling.tools.0 |= 1024;
+    config.core.defaults.rules.ceiling.tools.0 |= 1024 | core::ToolFamilies::JIG.ask.0;
     config.core.defaults.rules.maximum_run_spend = 20;
     for seed in &mut config.core.seed_projects {
-        seed.policy.policy.ceiling.tools.0 |= 1024;
+        seed.policy.policy.ceiling.tools.0 |= 1024 | core::ToolFamilies::JIG.ask.0;
         for role in &mut seed.policy.policy.roles {
-            role.authority.tools.0 |= 1024;
+            role.authority.tools.0 |= 1024 | core::ToolFamilies::JIG.ask.0;
         }
     }
     let policy = config.core.defaults.policies.get_mut(&1).expect("project policy");
-    policy.policy.ceiling.tools.0 |= 1024;
+    policy.policy.ceiling.tools.0 |= 1024 | core::ToolFamilies::JIG.ask.0;
     for role in &mut policy.policy.roles {
-        role.authority.tools.0 |= 1024;
+        role.authority.tools.0 |= 1024 | core::ToolFamilies::JIG.ask.0;
     }
     limits.core.settings.proposals = 2;
     peers::journal(&mut limits);

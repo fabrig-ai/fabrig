@@ -415,6 +415,9 @@ pub enum Now {
     TaskRead { to: ReplyTo, key: CallKey, answer: Box<Result<crate::reads::run_task::TaskRead, tasks::Refusal>> },
     /// A settings document leaves without a durable call record (engine.md, 7.3).
     SettingsAnswer { to: ReplyTo, key: CallKey, answer: Box<crate::reads::SettingsAnswer> },
+    /// A run's read as its person answered: the party read's own answer, `None(Why::Unknown)`
+    /// for what is not admitted, `None(Why::Busy)` where the loads are full (engine.md, 7.3).
+    PersonAnswer { to: ReplyTo, key: CallKey, answer: Box<crate::reads::Answer> },
     /// A run's proposal read answered (engine.md, 7.3).
     ProposalRead { to: ReplyTo, key: CallKey, answer: Box<crate::reads::ProposalRead> },
     /// The root answers this host call with its own busy payload.
@@ -918,6 +921,9 @@ pub enum NamedAction {
     },
     /// A settings read decides nothing and keeps no call record (engine.md, 7.3).
     Settings(crate::reads::SettingsRead),
+    /// A run reads as its task's requester, a person, of its task's project alone
+    /// (engine.md, 7.3, *A run's read as its person*). Decides nothing, keeps no call record.
+    PersonRead(crate::reads::Read),
     /// A run's read of one proposal of settings, by the `settings` family (engine.md, 7.3).
     ReadProposal {
         proposer: jig_domain_people::Proposer,

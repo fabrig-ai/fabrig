@@ -20,6 +20,7 @@ pub mod ended;
 pub mod forget;
 pub mod indexed;
 pub(crate) mod indexes;
+pub(crate) mod person;
 mod rows;
 pub mod run_task;
 pub mod settings;
