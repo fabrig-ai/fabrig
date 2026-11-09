@@ -29,6 +29,7 @@ const STYLE: StyleLook = StyleLook {
     mark: None,
     described: None,
     active_name: None,
+    focused_value: None,
     spaced: false,
 };
 const GLYPHS: Glyphs = Glyphs { focus: '>', mask: '●' };

@@ -220,7 +220,18 @@ fn the_themes_are_valid_and_name_every_look() {
             ] {
                 let style = Style { owner: look::OWNER, token };
                 let active_name = if style == look::COMMAND { Some(Paint::NONE) } else { None };
-                let want = StyleLook { style, paint, align, band, label, mark, described, active_name, spaced };
+                let want = StyleLook {
+                    style,
+                    paint,
+                    align,
+                    band,
+                    label,
+                    mark,
+                    described,
+                    active_name,
+                    focused_value: None,
+                    spaced,
+                };
                 let mut found = None;
                 for row in &theme.styles {
                     if row.style == style {
