@@ -654,9 +654,9 @@ process has exited and its tree is empty. temper's choices:
   when the engine and the worker share a process
   (`../protocol/README.md`, section 8); `smith-inline-agent` is not used
   (`../protocol/llm.md`, section 7).
-- **temper's own binary is the agent:** `temper internal agent`,
-  smith's agent shell (`../protocol/README.md`, section 4). temper
-  builds no code into it.
+- **temper's binary is the agent:** the box's `temper internal agent`,
+  or a deployment's `temper-agent` (`../protocol/README.md`, 4.3 and
+  section 7), smith's agent shell. temper builds no code into it.
 - **No credentials in its environment.** The tokens its LLM calls use
   come as grants on its channel (`../protocol/credentials.md`,
   section 3); git's never reach it.

@@ -20,6 +20,10 @@ M3's, not an outcome of this split
 (`../draft/deployment-binaries.execution.md`, 1). Section 15's real
 Claude download walk and other deferred work remain unchanged.
 
+- **Not yet:** 6.6: the `claude` link names the running executable,
+  not the worker's agent's program (`temper-launcher/src/lib.rs`,
+  `place`).
+
 Section 8.3 has no known implementation gap in the binary supplying
 every project's rule 1 and no deployment rule, or supplying stock
 charter 5 and template 4 with their delegation. The documents carry none
