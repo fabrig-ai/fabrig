@@ -5,7 +5,7 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 58] = [
+const SHAPES: [Shape; 60] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
@@ -64,6 +64,8 @@ const SHAPES: [Shape; 58] = [
     Shape::TemplateGoal,
     Shape::ProjectWays,
     Shape::ProjectQuestions,
+    Shape::CharterWords,
+    Shape::ProjectWords,
 ];
 fn kinds() -> &'static [Word] {
     for field in members(Shape::Setting) {
@@ -219,6 +221,10 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                 let fields = members(shape);
                 let selected = match form(shape).choice {
                     Choice::Every => None,
+                    Choice::Text => {
+                        out.string(b"words");
+                        continue;
+                    }
                     Choice::Number => {
                         out.unsigned(1);
                         continue;
@@ -266,13 +272,20 @@ fn emit(kind: &[u8], edit: Edit, route: &[bool; SHAPES.len()], changed: &mut boo
                         && kind != b"project-policy"
                         && kind != b"project-ways"
                         && kind != b"project-questions"
+                        && kind != b"project-words"
                     {
                         continue;
                     }
                     if shape == Shape::Setting
                         && field.name == b"number"
-                        && [b"rules".as_slice(), b"project-policy", b"project-ways", b"project-questions"]
-                            .contains(&kind)
+                        && [
+                            b"rules".as_slice(),
+                            b"project-policy",
+                            b"project-ways",
+                            b"project-questions",
+                            b"project-words",
+                        ]
+                        .contains(&kind)
                     {
                         continue;
                     }
@@ -595,7 +608,7 @@ LINE
 ## model
 
 - `"chosen"`: LINE
-- `set`: list of at most 32, each the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways` or `project-questions`, or null.
+- `set`: list of at most 32, each the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways`, `project-questions`, `charter-words` or `project-words`, or null.
 "#;
     assert_eq!(page.as_ref(), expected);
 }
