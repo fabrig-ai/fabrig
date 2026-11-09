@@ -1,0 +1,5 @@
+draft = "red-87-reading"
+repo = "fabrig"
+sources = ["temper/docs/plan/red-87-reading/inputs/request.md", "temper/AGENTS.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tui"
