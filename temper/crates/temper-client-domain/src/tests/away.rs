@@ -497,76 +497,7 @@ fn shown_by_classes_or_an_on_row() {
         assert_eq!(root.away_shown(f::PROJECT, Wall::EPOCH), expected, "on {on}, goal {goal}");
         assert!(!root.away_shown(17, Wall::EPOCH));
     }
-    asking_and_turning_rows();
 }
-fn asking_and_turning_rows() {
-    use crate::forge::classes::{Asking, asking, turned};
-    use temper_protocol_reaches::{Class, Classes, Item, Kind, Subject, Way};
-    // Settings lists kinds in kit order, followed by words and sets in table order.
-    let words = Item {
-        subject: Subject::Kind(Kind::Implementation),
-        words: Box::from(*b"inside the wasm crate"),
-        class: Class::AskAway,
-    };
-    let custom = Classes {
-        items: Box::new([
-            words.clone(),
-            Item { subject: Subject::Kind(Kind::Retry), words: Box::new([]), class: Class::Decide },
-        ]),
-        sets: Box::new([]),
-    };
-    for (table, expected) in [
-        (
-            Classes::stock(Way::AgentsReview),
-            Box::<[Asking]>::from([
-                Asking { subject: Subject::Kind(Kind::Implementation), item: 4, away: true },
-                Asking { subject: Subject::Kind(Kind::Dependency), item: 5, away: true },
-                Asking { subject: Subject::Kind(Kind::Departure), item: 6, away: true },
-            ]),
-        ),
-        (
-            custom.clone(),
-            Box::<[Asking]>::from([
-                Asking { subject: Subject::Kind(Kind::Wording), item: 0, away: false },
-                Asking { subject: Subject::Kind(Kind::Implementation), item: 0, away: false },
-                Asking { subject: Subject::Kind(Kind::Tests), item: 0, away: false },
-                Asking { subject: Subject::Kind(Kind::Dependency), item: 0, away: false },
-                Asking { subject: Subject::Kind(Kind::Departure), item: 0, away: false },
-                Asking { subject: Subject::Kind(Kind::Implementation), item: 1, away: false },
-            ]),
-        ),
-    ] {
-        assert_eq!(asking(&table), expected);
-    }
-    for (row, expected) in [
-        (
-            Asking { subject: Subject::Kind(Kind::Implementation), item: 0, away: false },
-            Classes {
-                items: Box::new([
-                    words.clone(),
-                    custom.items[1].clone(),
-                    Item { subject: Subject::Kind(Kind::Implementation), words: Box::new([]), class: Class::Ask },
-                ]),
-                sets: Box::new([]),
-            },
-        ),
-        (
-            Asking { subject: Subject::Kind(Kind::Implementation), item: 1, away: false },
-            Classes {
-                items: Box::new([Item { class: Class::Ask, ..words.clone() }, custom.items[1].clone()]),
-                sets: Box::new([]),
-            },
-        ),
-    ] {
-        assert_eq!(turned(&custom, row), expected);
-        assert_eq!(expected.check(), Ok(()));
-    }
-    let stock = Classes::stock(Way::AgentsReview);
-    let changed = turned(&stock, Asking { subject: Subject::Kind(Kind::Implementation), item: 4, away: true });
-    assert_eq!(changed.items[3].class, Class::AskAway);
-    assert_eq!(turned(&changed, Asking { subject: Subject::Kind(Kind::Implementation), item: 4, away: false }), stock);
-}
-
 fn goal_line() -> c::TaskLine {
     let task = f::chat::task();
     let budget = task.chip.details.details.budget.clone();

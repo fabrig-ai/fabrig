@@ -80,6 +80,28 @@ pub enum Word {
     HowRoles,
     HowRolesLine,
     HowRoleInstructions,
+    HowReaches,
+    HowReachesOn,
+    HowReachesEach,
+    HowReachDecide,
+    HowReachAsk,
+    HowReachWait,
+    HowReachDecideNote,
+    HowReachAwayAll,
+    HowReachAwayNone,
+    HowReachAwayBut,
+    HowReachWaitNote,
+    HowLineWording,
+    HowLineRetry,
+    HowLineImplementation,
+    HowLineTests,
+    HowLineDependency,
+    HowLineDeparture,
+    HowLineSet,
+    HowLineMoney,
+    HowLineIrreversible,
+    HowLineRules,
+    HowLineOther,
     WaysTitle,
     WaysNow,
     WaysAxis,
@@ -186,16 +208,11 @@ pub enum Word {
     SettingsProposalRejected,
     SettingsProposalWithdrawn,
 
-    ClassesDecideLine,
-    ClassesAsking,
-    ClassesAskingDetail,
-    ClassesLocked,
     ClassesDecide,
     ClassesTitle,
     ClassesAsk,
     ClassesAskAway,
     ClassesSet,
-    AwaySettingsTitle,
     AwaySettingsUntil,
     AwayUntilLine,
     AwayEight,
@@ -213,7 +230,6 @@ pub enum Word {
     SettingsHidden,
     SettingsWays,
     SettingsDefault,
-    SettingsNeeds,
     SettingsQuestions,
     SettingsForeman,
     SettingsUp,
@@ -1742,7 +1758,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2294;
+const PHRASES: u32 = 2310;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1769,10 +1785,10 @@ const PHRASES: u32 = 2294;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4119;
+const SEGMENTS: u32 = 4141;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 55673;
-const ALL: [Word; 1611] = [
+const ENGLISH_BYTES: u32 = 56089;
+const ALL: [Word; 1627] = [
     Word::StopAsking,
     Word::StopAskingDecide,
     Word::StopAskingWords,
@@ -1840,6 +1856,28 @@ const ALL: [Word; 1611] = [
     Word::HowRoles,
     Word::HowRolesLine,
     Word::HowRoleInstructions,
+    Word::HowReaches,
+    Word::HowReachesOn,
+    Word::HowReachesEach,
+    Word::HowReachDecide,
+    Word::HowReachAsk,
+    Word::HowReachWait,
+    Word::HowReachDecideNote,
+    Word::HowReachAwayAll,
+    Word::HowReachAwayNone,
+    Word::HowReachAwayBut,
+    Word::HowReachWaitNote,
+    Word::HowLineWording,
+    Word::HowLineRetry,
+    Word::HowLineImplementation,
+    Word::HowLineTests,
+    Word::HowLineDependency,
+    Word::HowLineDeparture,
+    Word::HowLineSet,
+    Word::HowLineMoney,
+    Word::HowLineIrreversible,
+    Word::HowLineRules,
+    Word::HowLineOther,
     Word::WaysTitle,
     Word::WaysNow,
     Word::WaysAxis,
@@ -1942,16 +1980,11 @@ const ALL: [Word; 1611] = [
     Word::SettingsProposalReplaced,
     Word::SettingsProposalRejected,
     Word::SettingsProposalWithdrawn,
-    Word::ClassesDecideLine,
-    Word::ClassesAsking,
-    Word::ClassesAskingDetail,
-    Word::ClassesLocked,
     Word::ClassesDecide,
     Word::ClassesTitle,
     Word::ClassesAsk,
     Word::ClassesAskAway,
     Word::ClassesSet,
-    Word::AwaySettingsTitle,
     Word::AwaySettingsUntil,
     Word::AwayUntilLine,
     Word::AwayEight,
@@ -1969,7 +2002,6 @@ const ALL: [Word; 1611] = [
     Word::SettingsHidden,
     Word::SettingsWays,
     Word::SettingsDefault,
-    Word::SettingsNeeds,
     Word::SettingsQuestions,
     Word::SettingsForeman,
     Word::SettingsUp,
@@ -3515,6 +3547,28 @@ impl Word {
             Self::HowRoles => 5120,
             Self::HowRolesLine => 5121,
             Self::HowRoleInstructions => 5122,
+            Self::HowReaches => 5630,
+            Self::HowReachesOn => 5631,
+            Self::HowReachesEach => 5632,
+            Self::HowReachDecide => 5633,
+            Self::HowReachAsk => 5634,
+            Self::HowReachWait => 5635,
+            Self::HowReachDecideNote => 5636,
+            Self::HowReachAwayAll => 5637,
+            Self::HowReachAwayNone => 5638,
+            Self::HowReachAwayBut => 5639,
+            Self::HowReachWaitNote => 5640,
+            Self::HowLineWording => 5641,
+            Self::HowLineRetry => 5642,
+            Self::HowLineImplementation => 5643,
+            Self::HowLineTests => 5644,
+            Self::HowLineDependency => 5645,
+            Self::HowLineDeparture => 5646,
+            Self::HowLineSet => 5647,
+            Self::HowLineMoney => 5648,
+            Self::HowLineIrreversible => 5649,
+            Self::HowLineRules => 5650,
+            Self::HowLineOther => 5651,
             Self::HowPath => 4929,
             Self::WaysTitle => 4303,
             Self::WaysNow => 4304,
@@ -3665,16 +3719,11 @@ impl Word {
             Self::SettingsProposalReplaced => 3433,
             Self::SettingsProposalRejected => 3929,
             Self::SettingsProposalWithdrawn => 3930,
-            Self::ClassesDecideLine => 4973,
-            Self::ClassesAsking => 4965,
-            Self::ClassesAskingDetail => 4966,
-            Self::ClassesLocked => 4967,
             Self::ClassesDecide => 4968,
             Self::ClassesTitle => 4969,
             Self::ClassesAsk => 4970,
             Self::ClassesAskAway => 4971,
             Self::ClassesSet => 4972,
-            Self::AwaySettingsTitle => 3658,
             Self::AwaySettingsUntil => 3666,
             Self::AwayUntilLine => 3667,
             Self::AwayEight => 3668,
@@ -3692,7 +3741,6 @@ impl Word {
             Self::SettingsHidden => 3446,
             Self::SettingsWays => 3447,
             Self::SettingsDefault => 3448,
-            Self::SettingsNeeds => 3457,
             Self::SettingsQuestions => 3458,
             Self::SettingsForeman => 3459,
             Self::SettingsUp => 3460,
@@ -5067,7 +5115,7 @@ const SETTINGS_PROJECT_NAMES_BYTES: u32 = 2208;
 const CLASSES_OBJECTS_BYTES: u32 = 6400;
 #[expect(clippy::too_many_lines, reason = "one table prices each phrase-specific input bound")]
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
-    if [Word::ClassesDecide, Word::ClassesDecideLine, Word::ClassesAsk, Word::ClassesAskAway].contains(&word) {
+    if [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut].contains(&word) {
         return Ok(CLASSES_OBJECTS_BYTES);
     }
     if word == Word::ClassesSet {
@@ -5425,7 +5473,7 @@ impl Words {
     /// Grouped classes occur only in Settings and a proposal's items (client/README.md, 5.13).
     pub(crate) fn classes_capacity(&self) -> Option<u32> {
         let mut most = 0;
-        for word in [Word::ClassesDecide, Word::ClassesDecideLine, Word::ClassesAsk, Word::ClassesAskAway] {
+        for word in [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut] {
             most = most.max(self.book.capacity(word.id(self.connector))?);
         }
         Some(most)
@@ -5433,7 +5481,7 @@ impl Words {
     pub(crate) fn ordinary_capacity(&self) -> Option<u32> {
         let mut most = 0;
         for word in ALL {
-            if [Word::ClassesDecide, Word::ClassesDecideLine, Word::ClassesAsk, Word::ClassesAskAway].contains(&word) {
+            if [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut].contains(&word) {
                 continue;
             }
             most = most.max(self.book.capacity(word.id(self.connector))?);
@@ -5583,6 +5631,28 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HowRolesLine => (&[b"every agent ", b" runs"], &[Name]),
         Word::HowRoleInstructions => (&[b"Read its instructions \xe2\x80\xba"], &[]),
         Word::HowPath => (&[b"The path of a change"], &[]),
+        Word::HowReaches => (&[b"What reaches you"], &[]),
+        Word::HowReachesOn => (&[b"on ", b""], &[Name]),
+        Word::HowReachesEach => (&[b"on ", b"; each project has its own"], &[Name]),
+        Word::HowReachDecide => (&[b"Agents decide, then tell you"], &[]),
+        Word::HowReachAsk => (&[b"Asks you"], &[]),
+        Word::HowReachWait => (&[b"Always waits for you"], &[]),
+        Word::HowReachDecideNote => (&[b"Listed in Decided for you for 24 hours, to overturn."], &[]),
+        Word::HowReachAwayAll => (&[b"While you\xe2\x80\x99re away, they are decided with the recommended choice and listed."], &[]),
+        Word::HowReachAwayNone => (&[b"They ask even while you\xe2\x80\x99re away."], &[]),
+        Word::HowReachAwayBut => (&[b"While you\xe2\x80\x99re away, all but ", b" are decided with the recommended choice and listed."], &[Name]),
+        Word::HowReachWaitNote => (&[b"Away or not."], &[]),
+        Word::HowLineWording => (&[b"wording and names inside a spec"], &[]),
+        Word::HowLineRetry => (&[b"retrying or splitting a task"], &[]),
+        Word::HowLineImplementation => (&[b"implementation choices a spec leaves open"], &[]),
+        Word::HowLineTests => (&[b"test-only changes"], &[]),
+        Word::HowLineDependency => (&[b"a new dependency"], &[]),
+        Word::HowLineDeparture => (&[b"a departure from a landed design"], &[]),
+        Word::HowLineSet => (&[b"a change to ", b""], &[Name]),
+        Word::HowLineMoney => (&[b"money past a budget"], &[]),
+        Word::HowLineIrreversible => (&[b"what can\xe2\x80\x99t be undone: rewriting history, a force-push, deleting unlanded work"], &[]),
+        Word::HowLineRules => (&[b"changes to this page"], &[]),
+        Word::HowLineOther => (&[b"anything an agent can\xe2\x80\x99t place"], &[]),
         Word::WaysTitle => (&[b"Ways of working"], &[]),
         Word::WaysNow => (match shell { Shell::Browser => &[b"now"], Shell::Terminal => &[b", now"] }, &[]),
         Word::WaysAxis => (&[b"From more of you to more of your agents"], &[]),
@@ -6649,16 +6719,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::LoadingEarlier => (&[b"Loading earlier messages\xe2\x80\xa6"], &[]),
         Word::LoadingEarlierName => (&[b"Loading earlier messages"], &[]),
         Word::LoadingEarlierFailed => (&[b"Couldn't load earlier messages"], &[]),
-        Word::ClassesDecideLine => (&[b"Agents decide, then tell you: ", b"."], &[Name]),
-        Word::ClassesAsking => (&[b"What asks you"], &[]),
-        Word::ClassesAskingDetail => (&[b"Ticked, Away decides it and lists it, with Overturn. Unticked, it asks you even when away."], &[]),
-        Word::ClassesLocked => (&[b"Money past a budget, what can\xe2\x80\x99t be undone, and changes to these rules: always wait"], &[]),
         Word::ClassesDecide => (&[b"Agents decide, then tell you: ", b""], &[Name]),
         Word::ClassesTitle => (&[b"What reaches you:"], &[]),
         Word::ClassesAsk => (&[b"Asks you; Away may decide: ", b""], &[Name]),
         Word::ClassesAskAway => (&[b"Asks you, even when away: ", b""], &[Name]),
         Word::ClassesSet => (&[b"", b": ", b""], &[Name, Name]),
-        Word::AwaySettingsTitle => (&[b"While you\xe2\x80\x99re away, agents may decide"], &[]),
         Word::AwaySettingsUntil => (&[b"Away until"], &[]),
         Word::AwayUntilLine => (&[b"When it isn\xe2\x80\x99t turned off by hand."], &[]),
         Word::AwayEight => (&[b"08:00, the end of quiet hours"], &[]),
@@ -6698,7 +6763,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::SettingsHidden => (&[b"Hidden"], &[]),
         Word::SettingsWays => (&[b"Ways of working"], &[]),
         Word::SettingsDefault => (&[b"The default"], &[]),
-        Word::SettingsNeeds => (&[b"What needs you"], &[]),
         Word::SettingsQuestions => (&[b"Questions a goal can answer from its plan"], &[]),
         Word::SettingsForeman => (&[b"Answered by the goal, kept in its decisions"], &[]),
         Word::SettingsUp => (&[b"Asked of me too"], &[]),

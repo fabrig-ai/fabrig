@@ -3599,29 +3599,6 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
-        name: "settings-away",
-        heading: "How work runs in tally.",
-        parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "While you’re away, agents may decide" },
-            Part::Named { role: Role::Check, name: "Implementation choices" },
-            Part::Named { role: Role::Check, name: "New dependencies" },
-            Part::Named { role: Role::Check, name: "Departures from a landed design" },
-            Part::Named { role: Role::Select, name: "Away until" },
-        ],
-    },
-    Holds {
-        name: "settings-away-you-approve",
-        heading: "How work runs in tally.",
-        parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "While you’re away, agents may decide" },
-            Part::Named { role: Role::Check, name: "Wording choices" },
-            Part::Named { role: Role::Check, name: "Implementation choices" },
-            Part::Absent { role: Role::Select, name: "Away until" },
-            Part::Absent { role: Role::Button, name: "Away" },
-            Part::Absent { role: Role::Button, name: "Away: off" },
-        ],
-    },
-    Holds {
         name: "settings",
         heading: "How work runs in tally.",
         parts: &[
@@ -5476,64 +5453,6 @@ fn home_away_deliveries_draw_the_mock_words_and_off_span() {
             assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_OVERTURNED)));
             assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_LATE)
                 && n.name.as_deref() == Some("landed 03:12 · a new goal can undo it".as_bytes())));
-        }
-    }
-}
-
-#[test]
-fn settings_away_draws_the_default_choices() {
-    for (name, checks, ticked, until) in [
-        (
-            "settings-away",
-            &["Implementation choices", "New dependencies", "Departures from a landed design"][..],
-            true,
-            true,
-        ),
-        (
-            "settings-away-you-approve",
-            &[
-                "Wording choices",
-                "Retries and splits",
-                "Implementation choices",
-                "Test-only changes",
-                "New dependencies",
-                "Departures from a landed design",
-            ][..],
-            false,
-            false,
-        ),
-    ] {
-        let sample = samples::samples().into_iter().find(|sample| sample.name == name).expect("Away settings");
-        assert_eq!(samples::mockup(&sample).as_deref(), Some("../greenfield/settings.html#away"));
-        let view = view(&sample);
-        let tree = view.tree();
-        for label in checks {
-            let id = find(tree, Role::Check, label, name);
-            let node = tree.nodes().iter().find(|node| node.id == id).expect("asking check");
-            assert_eq!(node.states.as_slice().contains(&skein_ui::State::Pressed), ticked, "{name}: {label}");
-            assert!(!node.states.as_slice().contains(&skein_ui::State::Disabled), "{name}: {label}");
-        }
-        let id = find(
-            tree,
-            Role::Check,
-            "Money past a budget, what can’t be undone, and changes to these rules: always wait",
-            name,
-        );
-        let locked = tree.nodes().iter().find(|node| node.id == id).expect("always wait");
-        assert!(locked.states.as_slice().contains(&skein_ui::State::Disabled));
-        assert!(!locked.states.as_slice().contains(&skein_ui::State::Pressed));
-        assert_eq!(
-            tree.nodes().iter().any(|node| node.role == Role::Select && node.name.as_deref() == Some(b"Away until")),
-            until
-        );
-        assert_eq!(
-            has_text(tree, "Agents decide, then tell you: wording choices, retries and splits, test-only changes."),
-            ticked
-        );
-        if until {
-            let id = find(tree, Role::Option, "08:00, the end of quiet hours", name);
-            let node = tree.nodes().iter().find(|node| node.id == id).expect("Away until");
-            assert!(node.states.as_slice().contains(&skein_ui::State::Selected));
         }
     }
 }

@@ -313,8 +313,6 @@ repositories-making
 repositories-none
 settings
 settings-all-hidden
-settings-away
-settings-away-you-approve
 settings-changes-off
 settings-chat-open
 settings-drafts-off

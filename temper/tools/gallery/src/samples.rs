@@ -127,7 +127,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 398;
+pub const N: usize = 396;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -934,13 +934,6 @@ pub fn samples() -> [Sample; N] {
         },
         Sample { name: "start-goal-draft", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
         Sample { name: "start-goal-refused", world: Solo, address: Address::Chat { task: 1 }, then: Shown },
-        Sample { name: "settings-away", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
-        Sample {
-            name: "settings-away-you-approve",
-            world: Solo,
-            address: Address::Settings { project: 1 },
-            then: Shown,
-        },
         Sample { name: "settings", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-drafts-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
         Sample { name: "settings-goals-off", world: Solo, address: Address::Settings { project: 1 }, then: Shown },
@@ -1330,7 +1323,6 @@ fn special_mockup(name: &str) -> Option<String> {
             return Some("../web/whole-story/how.html".to_owned());
         }
         "accounts-added" | "accounts-renewed" => return Some("accounts.html?world=reference&bare".to_owned()),
-        "settings-away" | "settings-away-you-approve" => return Some("../greenfield/settings.html#away".to_owned()),
         "home-decided" | "home-away" | "home-away-one" | "home-away-overturned" => {
             return Some("../greenfield/home.html".to_owned());
         }
