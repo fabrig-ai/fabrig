@@ -117,6 +117,8 @@ pub enum Word {
     WalkDone,
     OpenAt,
     KeyWalk,
+    UnknownNotice,
+    SigningInNotice,
     ThemeCommand,
     ThemeHead,
     ThemeAuto,
@@ -131,7 +133,7 @@ pub enum Word {
     ThemeNoticeLight,
     ThemeNoticeDark,
 }
-pub(crate) const ALL: [Word; 120] = [
+pub(crate) const ALL: [Word; 122] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -239,6 +241,8 @@ pub(crate) const ALL: [Word; 120] = [
     Word::WalkDone,
     Word::OpenAt,
     Word::KeyWalk,
+    Word::UnknownNotice,
+    Word::SigningInNotice,
     Word::ThemeCommand,
     Word::ThemeHead,
     Word::ThemeAuto,
@@ -416,19 +420,21 @@ impl Word {
             Self::WalkDone => 107,
             Self::OpenAt => 108,
             Self::KeyWalk => 109,
-            Self::ThemeCommand => 110,
-            Self::ThemeHead => 111,
-            Self::ThemeAuto => 112,
-            Self::ThemeLight => 113,
-            Self::ThemeDark => 114,
-            Self::ThemeAutoLight => 115,
-            Self::ThemeAutoDark => 116,
-            Self::ThemeAutoNone => 117,
-            Self::ThemeNoticeAutoLight => 118,
-            Self::ThemeNoticeAutoDark => 119,
-            Self::ThemeNoticeAutoNone => 120,
-            Self::ThemeNoticeLight => 121,
-            Self::ThemeNoticeDark => 122,
+            Self::UnknownNotice => 110,
+            Self::SigningInNotice => 111,
+            Self::ThemeCommand => 112,
+            Self::ThemeHead => 113,
+            Self::ThemeAuto => 114,
+            Self::ThemeLight => 115,
+            Self::ThemeDark => 116,
+            Self::ThemeAutoLight => 117,
+            Self::ThemeAutoDark => 118,
+            Self::ThemeAutoNone => 119,
+            Self::ThemeNoticeAutoLight => 120,
+            Self::ThemeNoticeAutoDark => 121,
+            Self::ThemeNoticeAutoNone => 122,
+            Self::ThemeNoticeLight => 123,
+            Self::ThemeNoticeDark => 124,
         }
     }
     const fn id(self) -> PhraseId {
@@ -547,6 +553,8 @@ impl Word {
             Self::ApprovalNotAskedRefused => (&[b"This temper doesn't sign terminals in from the browser. Paste the link it printed instead."], &[]),
             Self::ApprovalNotAskedBusy => (&[b"Too many terminals are waiting to sign in. Press Enter to ask again in a moment."], &[]),
             Self::ApprovalNotAskedDown => (&[b"temper is starting or stopping, or out of reach. Press Enter to ask again."], &[]),
+            Self::UnknownNotice => (&[b"Unknown command ", b" \xc2\xb7 /help lists them"], &[Slot::Title]),
+            Self::SigningInNotice => (&[b"Still signing in"], &[]),
             Self::ThemeCommand => (&[b"Auto, light or dark"], &[]),
             Self::ThemeHead => (&[b"Theme. Auto follows your terminal."], &[]),
             Self::ThemeAuto => (&[b"Auto"], &[]),
@@ -582,6 +590,7 @@ impl Word {
 #[derive(Debug)]
 pub struct Words {
     book: Phrasebook,
+    notice_bytes: u32,
     view: temper_client_view::words::Words,
 }
 impl Words {
@@ -659,7 +668,19 @@ impl Words {
             hole_bytes: domain.client.domain.text.max(98),
         };
         let book = Phrasebook::load(shapes.into_boxed(), Box::new([language]), &limits)?;
-        Ok(Words { book, view })
+        Ok(Words { book, view, notice_bytes: domain.client.domain.text })
+    }
+    pub(crate) fn notice(&self, notice: &crate::Notice) -> Box<[u8]> {
+        match notice {
+            crate::Notice::Unknown { words } => {
+                let bounded = skein_lib::bytes::utf8_prefix(
+                    words,
+                    usize::try_from(self.notice_bytes).expect("notice hole fits memory"),
+                );
+                self.say(Word::UnknownNotice, &[Hole::Name(copy_of(bounded))])
+            }
+            crate::Notice::SigningIn => self.say(Word::SigningInNotice, &[]),
+        }
     }
     #[must_use]
     pub fn say(&self, word: Word, holes: &[Hole]) -> Box<[u8]> {

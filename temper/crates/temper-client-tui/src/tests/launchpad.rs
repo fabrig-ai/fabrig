@@ -436,7 +436,7 @@ fn the_launchpad_says_each_state() {
     let (mut second, _) = f::live(Some(f::me(&[b"Hello", b"Demo"])));
     f::event(&mut second, Event::Went { place: d::Place::Address(Address::Home { project: OTHER_PROJECT }) });
     let mut noted = Tui::new(f::ADDRESS);
-    noted.step(Told::Unknown { words: Some(b"/unknown".as_slice().into()) });
+    noted.step(Told::Notice { notice: Some(crate::Notice::Unknown { words: b"/unknown".as_slice().into() }) });
     let playground = home_read(
         Some(true),
         &[line(CHAT, b"Away mode", 1, false)],
@@ -497,11 +497,7 @@ fn the_launchpad_says_each_state() {
             &left,
             &noted,
             header,
-            &[
-                "Where you left off",
-                "Hello   Away mode, a chat · 00:00 · waiting on you  /chats 1",
-                "Unknown command /unknown. /help lists them.",
-            ][..],
+            &["Where you left off", "Hello   Away mode, a chat · 00:00 · waiting on you  /chats 1"][..],
             None,
         ),
         (
@@ -580,16 +576,13 @@ fn the_launchpad_says_each_state() {
         let mut expected = List::with_capacity(LINES);
         expected.push(heading.as_bytes()).unwrap();
         let part = launchpad::read(root, tui, &f::words(), NOW);
-        let mut start = false;
         for line in lines {
-            if line.starts_with("Unknown command") {
-                start_lines(&mut expected, part.project.as_deref());
-                start = true;
-            }
             expected.push(line.as_bytes()).unwrap();
         }
-        if !start {
-            start_lines(&mut expected, part.project.as_deref());
+        start_lines(&mut expected, part.project.as_deref());
+        if tui.notice().is_some() {
+            let notice = f::find(view.tree(), Role::Text, "Unknown command /unknown · /help lists them".as_bytes());
+            assert_eq!(notice.styles.as_slice(), &[look::SIGNAL]);
         }
         let mut good =
             text.len() == expected.len() && view.tick() == tick && skein_ui::outline::check(view.tree()).is_none();
@@ -634,7 +627,7 @@ fn the_launchpad_says_each_state() {
         let root = home_rows(Some(true), &[], &[], false, None, Address::Home { project: PROJECT }, lede);
         let mut tui = Tui::new(f::ADDRESS);
         tui.step(Told::Brief);
-        tui.step(Told::Unknown { words: Some(b"/unknown".as_slice().into()) });
+        tui.step(Told::Notice { notice: Some(crate::Notice::Unknown { words: b"/unknown".as_slice().into() }) });
         let part = launchpad::read(&root, &tui, &f::words(), NOW);
         assert_eq!(part.lines.get(0).unwrap().words.as_ref(), SENTENCE.as_bytes());
         assert_eq!(part.lines.get(1).unwrap().words.ends_with(b"/brief"), !lede.is_empty());
@@ -647,14 +640,14 @@ fn the_launchpad_says_each_state() {
         }
         let view = build(&root, &tui);
         let lines = body(view.tree());
-        let mut after = None;
-        for (index, line) in lines.iter().enumerate() {
-            if line.starts_with(b"Unknown command") {
-                after = index.checked_add(1);
-            }
+        let mut sentence = false;
+        for line in &lines {
+            assert!(!line.starts_with(b"Unknown command"));
+            sentence |= line.as_ref() == SENTENCE.as_bytes();
         }
-        let after = after.unwrap();
-        assert_eq!(lines.get(u32::try_from(after).unwrap()).unwrap().as_ref(), SENTENCE.as_bytes());
+        let notice = f::find(view.tree(), Role::Text, "Unknown command /unknown · /help lists them".as_bytes());
+        assert_eq!(notice.styles.as_slice(), &[look::SIGNAL]);
+        assert!(sentence);
     }
     draw_states(&mut failures);
     assert!(failures.is_empty(), "launchpad rows: {failures:?}");
