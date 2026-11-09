@@ -196,6 +196,7 @@ fn panel(current: Option<u32>, may_change: bool) -> w::WaysPanel {
             w::StockWay::new(
                 &w::CEILINGS,
                 w::StockWayParts {
+                    headline: b"".as_slice().into(),
                     name: name.into(),
                     line: line.into(),
                     path: path(index),
@@ -212,7 +213,14 @@ fn panel(current: Option<u32>, may_change: bool) -> w::WaysPanel {
         .collect();
     w::WaysPanel::new(
         &w::CEILINGS,
-        w::WaysPanelParts { project: f::PROJECT, ways: List::from_boxed(ways), current, own: path(0), may_change },
+        w::WaysPanelParts {
+            words: None,
+            project: f::PROJECT,
+            ways: List::from_boxed(ways),
+            current,
+            own: path(0),
+            may_change,
+        },
     )
     .unwrap()
 }

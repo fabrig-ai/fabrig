@@ -172,6 +172,16 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
                     )
                     .expect(FITS),
                 ),
+                d::Value::CharterWords(line) => w::SettingValue::Line(
+                    w::CharterWords::new(&w::CEILINGS, w::CharterWordsParts { line: line.clone() }).expect(FITS),
+                ),
+                d::Value::ProjectWords(words) => w::SettingValue::Words(
+                    w::ProjectWords::new(
+                        &w::CEILINGS,
+                        w::ProjectWordsParts { headline: words.headline.clone(), lede: words.lede.clone() },
+                    )
+                    .expect(FITS),
+                ),
                 d::Value::Goal(goal) => w::SettingValue::Goal(
                     w::TemplateGoal::new(
                         &w::CEILINGS,
@@ -227,6 +237,20 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
                     classes.check().or(Err(Undecodable))?;
 
                     d::Value::Classes(classes)
+                }
+                w::SettingValue::Line(value) => {
+                    let line = value.into_parts().line;
+                    if !d::words_fit(&line, d::LINE_BYTES) {
+                        return Err(Undecodable);
+                    }
+                    d::Value::CharterWords(line)
+                }
+                w::SettingValue::Words(value) => {
+                    let w::ProjectWordsParts { headline, lede } = value.into_parts();
+                    if !d::words_fit(&headline, d::HEADLINE_BYTES) || !d::words_fit(&lede, d::LEDE_BYTES) {
+                        return Err(Undecodable);
+                    }
+                    d::Value::ProjectWords(d::ProjectWords { headline, lede })
                 }
                 w::SettingValue::Goal(value) => {
                     let w::TemplateGoalParts { design, close_out } = value.into_parts();

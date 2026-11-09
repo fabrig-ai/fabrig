@@ -5,6 +5,7 @@ use alloc::boxed::Box;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct StockWay {
     pub name: Box<[u8]>,
+    pub headline: Box<[u8]>,
     pub line: Box<[u8]>,
     /// The project's rules it sets, by number, each of 1 to `RULES`; every other number of 1 to `RULES` it removes.
     pub rules: Box<[(u32, temper_engine_domain_forge::settings::LandingRule)]>,
@@ -40,6 +41,7 @@ pub enum Edit {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct WayEntry {
     pub name: Box<[u8]>,
+    pub headline: Box<[u8]>,
     pub line: Box<[u8]>,
     pub path: Path,
     pub items: Box<[Item]>,
@@ -51,6 +53,7 @@ pub struct WaysDocument {
     pub ways: Box<[WayEntry]>,
     pub current: Option<u32>,
     pub own: Path,
+    pub words: Option<temper_engine_domain_forge::settings::ProjectWords>,
     pub may_change: bool,
 }
 
@@ -122,7 +125,13 @@ pub fn laid(rules: &[Held], stock: &[Held], project: u32, items: &[Item]) -> Box
                 Value::Rule(rule) => {
                     own.insert(item.number, rule.clone()).expect("edited project rule");
                 }
-                Value::Charter(_) | Value::Questions(_) | Value::Classes(_) | Value::Goal(_) | Value::Ways(_) => {}
+                Value::Charter(_)
+                | Value::Goal(_)
+                | Value::Questions(_)
+                | Value::CharterWords(_)
+                | Value::Classes(_)
+                | Value::ProjectWords(_)
+                | Value::Ways(_) => {}
             },
             Edit::Remove => {
                 own.remove(&item.number);
@@ -152,7 +161,13 @@ pub fn laid_ways(ways: Option<&ProjectWays>, project: u32, items: &[Item]) -> Pr
         match &item.edit {
             Edit::Set(value) => match value {
                 Value::Ways(ways) => result = *ways,
-                Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Classes(_) | Value::Goal(_) => {}
+                Value::Rule(_)
+                | Value::Charter(_)
+                | Value::Goal(_)
+                | Value::Questions(_)
+                | Value::CharterWords(_)
+                | Value::Classes(_)
+                | Value::ProjectWords(_) => {}
             },
             Edit::Remove => result = own_ways(None),
         }
@@ -173,7 +188,13 @@ pub fn laid_goal(goal: Option<TemplateGoal>, template: u32, items: &[Item]) -> T
         match &item.edit {
             Edit::Set(value) => match value {
                 Value::Goal(goal) => result = *goal,
-                Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Ways(_) | Value::Classes(_) => {}
+                Value::Rule(_)
+                | Value::Charter(_)
+                | Value::Questions(_)
+                | Value::Ways(_)
+                | Value::CharterWords(_)
+                | Value::Classes(_)
+                | Value::ProjectWords(_) => {}
             },
             Edit::Remove => result = TemplateGoal::default(),
         }
@@ -186,9 +207,13 @@ fn own_ways(ways: Option<&ProjectWays>) -> ProjectWays {
         Some(ways) => *ways,
         None => match project_stock(7).expect("kind 7 has stock").value {
             Value::Ways(ways) => ways,
-            Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Classes(_) | Value::Goal(_) => {
-                unreachable!("kind 7 is ways")
-            }
+            Value::Rule(_)
+            | Value::Charter(_)
+            | Value::Goal(_)
+            | Value::Questions(_)
+            | Value::CharterWords(_)
+            | Value::Classes(_)
+            | Value::ProjectWords(_) => unreachable!("kind 7 is ways"),
         },
     }
 }

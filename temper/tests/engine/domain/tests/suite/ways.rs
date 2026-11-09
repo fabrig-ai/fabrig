@@ -21,7 +21,7 @@ const HELD_PASSES: usize = 8;
 fn configuration() -> (engine::Config, engine::Limits) {
     let mut limits = kinds::limits();
     limits.documents.roles = limits.documents.roles.max(2);
-    limits.people.requests = 5; // Initial roles, two settings changes, adoption and changed roles.
+    limits.people.requests = 6; // Initial roles, three settings changes, adoption and changed roles.
     limits.authority.roles = 2; // Owner and member.
     limits.people.people = 3; // Owner, member and deployment service.
     limits.people.holdings = 3; // Owner of deployment and project, then member of project.
@@ -241,7 +241,7 @@ fn a_ways_watch_delivers_the_stock_items_and_readers_permission_after_commit() {
 #[test]
 fn committed_settings_adoptions_and_roles_mark_the_ways_watch() {
     let mut driver = driver();
-    member(&mut driver);
+    let next_owner = member(&mut driver);
     let session = driver.session();
     watch(&mut driver, session);
     driver.settle();
@@ -309,6 +309,32 @@ fn committed_settings_adoptions_and_roles_mark_the_ways_watch() {
             .collect::<Vec<_>>()
     );
     assert!(!got[4].may_change, "the reader is now a member");
+    assert!(got.iter().all(|document| document.words.is_none()), "no project's words have been held");
+    ack(&mut driver);
+    let words = settings::ProjectWords {
+        headline: b"Agents review every change".as_slice().into(),
+        lede: b"Agents make and review changes before they land.".as_slice().into(),
+    };
+    let before_words = documents(&driver).len();
+    driver.send(kinds::change(
+        next_owner,
+        kinds::revision(&driver.store.rows),
+        41,
+        Box::new([kinds::item(10, PROJECT, 1, &settings::Value::ProjectWords(words.clone()))]),
+    ));
+    for _ in 0..HELD_PASSES {
+        driver.advance(false);
+    }
+    assert_eq!(documents(&driver).len(), before_words, "the words wait for their commit");
+    driver.settle();
+    let got = documents(&driver);
+    assert_eq!(
+        got.len(),
+        before_words.checked_add(1).unwrap(),
+        "the project's words' commit marks ways: {:?}",
+        driver.delivered.iter().filter(|delivery| matches!(delivery, Delivery::WebReply { .. })).collect::<Vec<_>>()
+    );
+    assert_eq!(got.last().unwrap().words.as_ref(), Some(&words));
 }
 
 const VIEW_REPLY: Token = Token::new(800);
@@ -367,6 +393,7 @@ fn view_driver() -> (Driver, engine::Assignment) {
                         format: temper_engine_domain_forge_tiers::Format::Junit,
                         follows: forge::Follows::Branch(b"main".as_slice().into()),
                         span_ms: 0,
+                        description: Box::default(),
                     }]),
                 }]),
                 after: engine::AfterLandingCheck { tier_retries: 1, verification_bound_ms: 60_000 },
@@ -661,7 +688,7 @@ fn views_draw_stored_ways_paths_charters_and_waiting_proposals() {
 #[expect(clippy::too_many_lines, reason = "the fixture names the stock, adoption and restored tiers together")]
 fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
     let mut limits = kinds::limits();
-    limits.tasks.charters = 5;
+    limits.tasks.charters = 12; // Kind 9's stock lines run up to charter 12.
     limits.tasks.spec_bytes = 512;
     limits.tasks.parameters = 4;
     limits.people.requests = 8; // Adoption, chat and the owner's settings change.
@@ -712,6 +739,7 @@ fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
                 format: temper_engine_domain_forge_tiers::Format::Lines,
                 follows,
                 span_ms: 0,
+                description: Box::default(),
             },
         );
         assert!(

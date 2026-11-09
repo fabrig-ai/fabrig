@@ -417,7 +417,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "how",
-        heading: "Agents review",
+        heading: "Agents review every change, and code lands it",
         parts: &[
             Part::Text { text: "the way: Agents review" },
             Part::Text { text: "An agent makes each change, another reviews it, and code lands it." },
@@ -441,7 +441,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "how-approve",
-        heading: "You approve",
+        heading: "You approve every change",
         parts: &[
             Part::Text { text: "the way: You approve" },
             Part::Named { role: Role::Link, name: "Ask temper to change this" },
@@ -459,7 +459,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "how-draft",
-        heading: "Draft first",
+        heading: "Draft first, then agents build it on its own branch",
         parts: &[
             Part::Text { text: "the way: Draft first" },
             Part::Named { role: Role::Link, name: "Ask temper to change this" },
@@ -490,8 +490,12 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "how-yours",
-        heading: "A way of its own",
+        heading: "Agents review everything, then one of you signs off",
         parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "shop runs a way of its own: agents review every change, and a rule of yours adds a sign-off. Ask temper to change any of it, in words; an owner accepts its proposal, and new work follows it.",
+            },
             Part::Text { text: "the way: its own" },
             Part::Named { role: Role::Link, name: "Ask temper to change this" },
             Part::Tabs { names: &["You approve", "Agents review", "Draft first", "Yoursnow"], selected: 3 },
@@ -504,7 +508,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "how-card",
-        heading: "Agents review",
+        heading: "Agents review every change, and code lands it",
         parts: &[
             Part::Text { text: "the way: Agents review" },
             Part::Named { role: Role::Link, name: "Ask temper to change this" },

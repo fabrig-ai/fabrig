@@ -148,6 +148,7 @@ fn fixture(asking: bool, tracked: bool, ways: Option<(bool, u32)>, read: Read, r
                 w::StockWay::new(
                     &w::CEILINGS,
                     w::StockWayParts {
+                        headline: b"".as_slice().into(),
                         name: b"A way".as_slice().into(),
                         line: b"Its line".as_slice().into(),
                         path: path.clone(),
@@ -160,7 +161,7 @@ fn fixture(asking: bool, tracked: bool, ways: Option<(bool, u32)>, read: Read, r
             .unwrap();
             let panel = w::WaysPanel::new(
                 &w::CEILINGS,
-                w::WaysPanelParts { project: f::PROJECT, ways, current, own: path, may_change: false },
+                w::WaysPanelParts { words: None, project: f::PROJECT, ways, current, own: path, may_change: false },
             )
             .unwrap();
             up(

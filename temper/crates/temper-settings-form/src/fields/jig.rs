@@ -1,5 +1,5 @@
 use super::{Bound, Choice, Field, Form, Limit, Shape, Value, Width, Word};
-pub static FORMS: [Form; 61] = [
+pub static FORMS: [Form; 63] = [
     Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"A settings file, as `settings apply` and `settings propose` read it." },
     Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`." },
     Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Which setting: its kind and number, or project for project settings." },
@@ -90,8 +90,10 @@ pub static FORMS: [Form; 61] = [
     Form { shape: Shape::ProjectClasses, name: b"project-classes", choice: Choice::Every, line: b"What agents decide for a person and what asks them, by kind and by path set. With none stored, Agents review's table applies." },
     Form { shape: Shape::ClassItem, name: b"class-item", choice: Choice::Every, line: b"Exactly one of kind or set, optional words and a class. Only one item without words per subject. Money, irreversible, rules and other always wait and have no item." },
     Form { shape: Shape::PathSet, name: b"path-set", choice: Choice::Every, line: b"A named set of repository-relative path patterns, numbered distinctly from 1 to 6." },
+    Form { shape: Shape::CharterWords, name: b"charter-words", choice: Choice::Text, line: b"A JSON string: what the charter does, 1 to 120 UTF-8 bytes holding no control character. With none kept, Roles says the charter by its instructions' first sentence. Its selector requires the charter's number and has no project." },
+    Form { shape: Shape::ProjectWords, name: b"project-words", choice: Choice::Every, line: b"How work runs' headline and lede for the project's own way, both required. With none kept, How work runs says the way's own words. Its selector requires project and has no number." },
 ];
-pub static FIELDS: [Field; 223] = [
+pub static FIELDS: [Field; 225] = [
     Field {
         shape: Shape::File,
         name: b"items",
@@ -133,6 +135,8 @@ pub static FIELDS: [Field; 223] = [
             Word { word: b"project-ways", line: b"" },
             Word { word: b"project-questions", line: b"" },
             Word { word: b"project-classes", line: b"" },
+            Word { word: b"charter-words", line: b"" },
+            Word { word: b"project-words", line: b"" },
         ]),
         list: None,
         null: false,
@@ -144,9 +148,9 @@ pub static FIELDS: [Field; 223] = [
         value: Value::Integer(Width::U32),
         list: None,
         null: false,
-        line: b"The setting's number, from 1; left out for rules, project-policy, project-ways, project-questions and project-classes.",
+        line: b"The setting's number, from 1; left out for rules, project-policy, project-ways, project-questions, project-classes and project-words.",
     },
-    Field { shape: Shape::Setting, name: b"project", value: Value::Integer(Width::U32), list: None, null: false, line: b"Required for project-ways, project-questions and project-classes. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required." },
+    Field { shape: Shape::Setting, name: b"project", value: Value::Integer(Width::U32), list: None, null: false, line: b"Required for project-ways, project-questions, project-classes and project-words; absent for charter-words. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required." },
     Field { shape: Shape::Charter, name: b"rest", value: Value::Boolean, list: None, null: false, line: b"Whether the other catalogue models follow the named first choices; false when absent." },
     Field {
         shape: Shape::Charter,
@@ -1271,6 +1275,8 @@ pub static FIELDS: [Field; 223] = [
     Field { shape: Shape::PathSet, name: b"number", value: Value::Integer(Width::U8), list: None, null: false, line: b"Distinct within the table, from 1 to 6." },
     Field { shape: Shape::PathSet, name: b"name", value: Value::Text(Bound::Limit(Limit::SetName)), list: None, null: false, line: b"A nonempty name." },
     Field { shape: Shape::PathSet, name: b"patterns", value: Value::Text(Bound::Limit(Limit::SetPatternBytes)), list: Some(Bound::Limit(Limit::SetPatterns)), null: false, line: b"At least one nonempty repository-relative pattern: * within a segment, ** as a whole segment." },
+    Field { shape: Shape::ProjectWords, name: b"headline", value: Value::Text(Bound::Most(120)), list: None, null: false, line: b"Required: 1 to 120 UTF-8 bytes holding no control character." },
+    Field { shape: Shape::ProjectWords, name: b"lede", value: Value::Text(Bound::Most(480)), list: None, null: false, line: b"Required: 1 to 480 UTF-8 bytes holding no control character." },
 ];
 const FRESHNESS: &[Word] = &[
     Word { word: b"exact", line: b"The verdict counts at the head it was given at." },

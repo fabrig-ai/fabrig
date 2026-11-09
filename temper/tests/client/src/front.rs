@@ -158,10 +158,10 @@ fn asking_limits(projects: u32, chats: u32) -> engine::Limits {
     engine_limits.tasks.message_bytes = 512;
     engine_limits.tasks.inbox_bytes = 1024;
     engine_limits.journal.result_bytes = 512;
-    // Stock charter 11's instructions and framed run policy need 9,973 bytes.
-    engine_limits.journal.run_bytes = 9_973;
-    // A stored stock charter 11 has 8,677 payload bytes on settings reads.
-    engine_limits.loads.transcript_bytes = 8_677;
+    // Stock charter 11's instructions and framed run policy need 10,166 bytes.
+    engine_limits.journal.run_bytes = 10_166;
+    // A stored stock charter 11 has 8,870 payload bytes on settings reads.
+    engine_limits.loads.transcript_bytes = 8_870;
     engine_limits.documents.text_bytes = 4096;
     limits_for_chats(&mut engine_limits, chats);
     engine_limits
@@ -2508,7 +2508,14 @@ impl Front<Temper> for Joint {
         std::mem::take(&mut self.callbacks)
     }
     fn next_due(&self) -> Option<Time> {
-        self.offline_until.or(self.due).or_else(|| Some(self.now.saturating_add(Duration::from_millis(100))))
+        self.offline_until.or(self.due).or_else(|| {
+            // Engine replies left by the component are ready work for the next poll.
+            if self.engine.delivered.is_empty() && self.engine.immediate.is_empty() {
+                Some(self.now.saturating_add(Duration::from_millis(100)))
+            } else {
+                Some(self.now)
+            }
+        })
     }
     fn observed(&mut self) -> Vec<Observed> {
         std::mem::take(&mut self.observed)

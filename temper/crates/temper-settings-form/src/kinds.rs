@@ -36,7 +36,7 @@ pub(super) fn setting(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c
     }
 }
 fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Setting, Error> {
-    if [b"project-ways".as_slice(), b"project-questions", b"project-classes"].contains(&kind) {
+    if [b"project-ways".as_slice(), b"project-questions", b"project-classes", b"project-words"].contains(&kind) {
         if optional(fields, b"number").is_some() {
             return Err(error(b"number", b"project setting has no number"));
         }
@@ -49,6 +49,7 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
                 b"project-ways" => 7,
                 b"project-questions" => 6,
                 b"project-classes" => 8,
+                b"project-words" => 10,
                 _ => unreachable!("project kind selected"),
             },
             scope: project,
@@ -60,11 +61,21 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
         return Err(error(b"number", b"from 1"));
     }
     let project = optional(fields, b"project");
-    if kind == b"forge-charter" || kind == b"template-goal" {
+    if kind == b"forge-charter" || kind == b"charter-words" || kind == b"template-goal" {
         if project.is_some() {
             return Err(error(b"project", b"unknown member"));
         }
-        return Ok(c::Setting::Application { kind: if kind == b"forge-charter" { 3 } else { 11 }, scope: 0, number });
+        return Ok(c::Setting::Application {
+            kind: if kind == b"charter-words" {
+                9
+            } else if kind == b"template-goal" {
+                11
+            } else {
+                3
+            },
+            scope: 0,
+            number,
+        });
     }
     let scope = if project.is_some() {
         let project = self::number(d, fields, b"project")?;
@@ -82,6 +93,26 @@ pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Er
         let record = match crate::classes::read(d, at) {
             Ok(record) => record,
             Err(why) => return Err(why.at(b"project-classes")),
+        };
+        let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
+        record.encode(&mut out).expect("measured record");
+        return Ok(out.finish());
+    }
+    if kind == 9 {
+        let line = match d.string(at) {
+            Ok(value) => value.into(),
+            Err(why) => return Err(why.at(b"charter-words")),
+        };
+        let record = w::CharterWords::new(&d.kinds, w::CharterWordsParts { line })
+            .or(Err(error(b"charter-words", b"wire value bound")))?;
+        let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
+        record.encode(&mut out).expect("measured record");
+        return Ok(out.finish());
+    }
+    if kind == 10 {
+        let record = match project_words(d, at) {
+            Ok(value) => value,
+            Err(why) => return Err(why.at(b"project-words")),
         };
         let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
         record.encode(&mut out).expect("measured record");
@@ -140,6 +171,18 @@ pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Er
     let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
     record.encode(&mut out).expect("measured record");
     Ok(out.finish())
+}
+fn project_words(d: &Decoder<'_>, at: u32) -> Result<w::ProjectWords, Error> {
+    let fields = d.object(at, &[b"headline", b"lede"])?;
+    let headline = match d.string(field(&fields, b"headline")?) {
+        Ok(value) => value.into(),
+        Err(why) => return Err(why.at(b"headline")),
+    };
+    let lede = match d.string(field(&fields, b"lede")?) {
+        Ok(value) => value.into(),
+        Err(why) => return Err(why.at(b"lede")),
+    };
+    w::ProjectWords::new(&d.kinds, w::ProjectWordsParts { headline, lede }).or(Err(error(b"", b"wire value bound")))
 }
 fn goal(d: &Decoder<'_>, at: u32) -> Result<w::TemplateGoal, Error> {
     let fields = d.object(at, &[b"design", b"close_out"])?;
@@ -342,6 +385,25 @@ pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
                 return false;
             }
             return crate::classes::render(&value, out);
+        }
+        9 => {
+            let Ok(value) = w::CharterWords::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            out.string(value.line());
+        }
+        10 => {
+            let Ok(value) = w::ProjectWords::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            out.object_start();
+            out.key(b"headline");
+            out.string(value.headline());
+            out.key(b"lede");
+            out.string(value.lede());
+            out.object_end();
         }
         11 => {
             let Ok(value) = w::TemplateGoal::decode(&w::CEILINGS, &mut reader) else { return false };

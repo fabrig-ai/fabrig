@@ -3266,6 +3266,12 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
   the change's head", since CI then folds every check reported there. A
   name or a context not UTF-8 is left out whole. The workflows are the
   landing branch's on every segment of the path.
+- **A tier's card** names the tier: `who` "code · checks what landed"
+  on the landing branch, "code · checks the goal's branch" on a goal's;
+  `name` the tier's name; its fact "Runs", "the tier NAME after each
+  landing" or "the tier NAME on the goal's branch"; then, where the tier
+  has a description (`../protocol/configuration.md`, section 3), its fact
+  "Checks", the description whole, its 120 bytes within a fact's value.
 - **A rule's card,** the view `rule K/N` (`../client/README.md`, 5.16),
   for the landing rule N of kind K (1, the deployment's; 2, the
   project's), as the forge holds it then: `who` "a landing rule ·

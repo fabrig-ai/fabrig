@@ -15,6 +15,8 @@ declares, forgets and declares the same name again, observes the worker's
 login-check dispatch, and checks a live name's exit-2 refusal and advice.
 Its worker is fake; it establishes no real login's usability.
 
+
+
 - **Departs:** 5.5, from `ui-account-again`'s request for each fixable
   account-act refusal to say why and what next: the plan limits the new
   words to those three cases. Key add or replace and sign-in start or

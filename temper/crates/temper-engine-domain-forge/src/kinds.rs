@@ -298,7 +298,9 @@ impl Domain {
     pub fn erase_project_settings(&mut self, project: u32, out: &mut Queue<Request>) {
         let mut erases = List::with_capacity(self.setting_rows.capacity());
         for (key, _) in &self.setting_rows {
-            if (key.kind == 2 || key.kind == 6 || key.kind == 7 || key.kind == 8) && key.scope == project {
+            if (key.kind == 2 || key.kind == 6 || key.kind == 7 || key.kind == 8 || key.kind == 10)
+                && key.scope == project
+            {
                 erases.push(*key).expect("bounded project setting rows");
             }
         }
@@ -317,7 +319,14 @@ impl Domain {
         match self.setting(6, project, 1) {
             Some(settings::SizedValue { value: Value::Questions(route), .. }) => *route,
             Some(settings::SizedValue {
-                value: Value::Rule(_) | Value::Charter(_) | Value::Ways(_) | Value::Classes(_) | Value::Goal(_),
+                value:
+                    Value::Goal(_)
+                    | Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Ways(_)
+                    | Value::CharterWords(_)
+                    | Value::Classes(_)
+                    | Value::ProjectWords(_),
                 ..
             })
             | None => Route::None,
@@ -331,10 +340,58 @@ impl Domain {
         match self.setting(8, project, 1) {
             Some(settings::SizedValue { value: Value::Classes(classes), .. }) => classes.clone(),
             Some(settings::SizedValue {
-                value: Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Ways(_) | Value::Goal(_),
+                value:
+                    Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Goal(_)
+                    | Value::CharterWords(_)
+                    | Value::ProjectWords(_),
                 ..
             })
             | None => temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview),
+        }
+    }
+
+    /// A charter's words as held: its change, else the stock's; none where removed or never given
+    /// (temper/docs/design/protocol/configuration.md, 13.2).
+    #[must_use]
+    pub fn charter_words(&self, charter: u32) -> Option<&[u8]> {
+        match self.setting(9, 0, charter) {
+            Some(settings::SizedValue { value: Value::CharterWords(line), .. }) => Some(line),
+            Some(settings::SizedValue {
+                value:
+                    Value::Goal(_)
+                    | Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::Classes(_)
+                    | Value::ProjectWords(_),
+                ..
+            })
+            | None => None,
+        }
+    }
+
+    /// A project's words as held, none with none stored (temper/docs/design/protocol/configuration.md, 13.2).
+    #[must_use]
+    pub fn project_words(&self, project: u32) -> Option<&settings::ProjectWords> {
+        match self.setting(10, project, 1) {
+            Some(settings::SizedValue { value: Value::ProjectWords(words), .. }) => Some(words),
+            Some(settings::SizedValue {
+                value:
+                    Value::Goal(_)
+                    | Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::CharterWords(_)
+                    | Value::Classes(_),
+                ..
+            })
+            | None => None,
         }
     }
 
@@ -345,7 +402,14 @@ impl Domain {
         match self.setting(11, 0, template) {
             Some(settings::SizedValue { value: Value::Goal(goal), .. }) => Some(*goal),
             Some(settings::SizedValue {
-                value: Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Ways(_) | Value::Classes(_),
+                value:
+                    Value::Rule(_)
+                    | Value::Charter(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::CharterWords(_)
+                    | Value::Classes(_)
+                    | Value::ProjectWords(_),
                 ..
             })
             | None => None,
@@ -518,7 +582,14 @@ impl Domain {
         match self.setting(3, 0, number) {
             Some(settings::SizedValue { value: Value::Charter(charter), .. }) => *charter,
             Some(settings::SizedValue {
-                value: Value::Rule(_) | Value::Questions(_) | Value::Ways(_) | Value::Classes(_) | Value::Goal(_),
+                value:
+                    Value::Rule(_)
+                    | Value::Goal(_)
+                    | Value::Questions(_)
+                    | Value::Ways(_)
+                    | Value::CharterWords(_)
+                    | Value::Classes(_)
+                    | Value::ProjectWords(_),
                 ..
             })
             | None => 0,
@@ -557,7 +628,14 @@ fn value_state(value: Option<&settings::SizedValue>) -> (u32, Option<u32>) {
     match value {
         Some(settings::SizedValue { value: Value::Charter(charter), size }) => (*size, Some(*charter)),
         Some(settings::SizedValue {
-            value: Value::Rule(_) | Value::Questions(_) | Value::Ways(_) | Value::Classes(_) | Value::Goal(_),
+            value:
+                Value::Rule(_)
+                | Value::Goal(_)
+                | Value::Questions(_)
+                | Value::Ways(_)
+                | Value::CharterWords(_)
+                | Value::Classes(_)
+                | Value::ProjectWords(_),
             size,
         }) => (*size, None),
         None => (0, None),

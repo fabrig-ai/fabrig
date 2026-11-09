@@ -5,7 +5,7 @@ use jig_protocol_config::{self as config, Path};
 use skein_json::Document;
 use skein_lib::{List, Map};
 use temper_engine_domain as engine;
-use temper_engine_domain_forge::{CHECK_NAME_BYTES, WORKFLOW_BYTES};
+use temper_engine_domain_forge::{CHECK_NAME_BYTES, DESCRIPTION_BYTES, WORKFLOW_BYTES};
 use temper_engine_domain_forge_tiers::Format;
 
 #[expect(clippy::type_complexity, reason = "the document yields project landing ways and their order together")]
@@ -239,6 +239,39 @@ fn check(
     read::form(!workflow.contains(&b'/'), path.member(b"workflow"), problems);
     Some(Check { name, workflow, ignored: ignored.into_boxed() })
 }
+// A tier's words are optional, bounded UTF-8 without controls
+// (temper/docs/design/protocol/configuration.md, 3).
+#[expect(clippy::disallowed_methods, reason = "the configuration protocol checks Unicode controls in tier words")]
+fn description(
+    object: &mut crate::startup::members::Object,
+    document: &Document,
+    path: &Path,
+    problems: &mut Problems,
+) -> Option<Box<[u8]>> {
+    let Some(at) = object.member(document, b"description") else { return Some(Box::default()) };
+    if let Ok(value) = config::read::text(document, at, u32::try_from(DESCRIPTION_BYTES).expect("description bound")) {
+        let mut valid = !value.is_empty();
+        match core::str::from_utf8(&value) {
+            Ok(text) => {
+                for character in text.chars() {
+                    if character.is_control() {
+                        valid = false;
+                        break;
+                    }
+                }
+            }
+            Err(_) => valid = false,
+        }
+        if valid {
+            return Some(value);
+        }
+    }
+    problems.push(
+        path.member(b"description"),
+        What::Jig(config::What::Because(b"expected 1 to 120 bytes of UTF-8 without control characters")),
+    );
+    None
+}
 fn tier(
     document: &Document,
     at: u32,
@@ -275,6 +308,7 @@ fn tier(
         None => Some(temper_engine_domain_forge::Follows::Landing),
     };
     let span_ms = optional_integer(&mut object, document, b"span_ms", 0, u64::MAX, path, problems);
+    let description = description(&mut object, document, path, problems);
     read::finish(object, document, path, problems);
     if let Some(artifact) = &artifact {
         read::form(!artifact.contains(&b'/'), path.member(b"artifact"), problems);
@@ -297,6 +331,7 @@ fn tier(
         format: format?,
         follows: follows?,
         span_ms: span_ms?,
+        description: description?,
     })
 }
 fn repository_checks(

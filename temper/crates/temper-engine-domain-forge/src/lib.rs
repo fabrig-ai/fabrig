@@ -457,6 +457,12 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 }
                 Some(held)
             }
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::CharterWords(line), .. }) => {
+                Some(bytes(line))
+            }
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::ProjectWords(words), .. }) => {
+                bytes(&words.headline).checked_add(bytes(&words.lede))
+            }
             settings::Edit::Set(settings::SizedValue {
                 value:
                     settings::Value::Charter(_)

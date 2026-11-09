@@ -7,11 +7,10 @@ How work runs in a deployment: its charters, templates, policies and rules, whic
 ## What it is
 
 Settings cover charters, templates, policies, rules, landing rules, forge
-charters, goal templates' work, and project ways, questions and classes. Name one by kind and
-number, or project for ways, questions and classes; rules have no number:
-`charter 2`, `template 1`, `policy 1`, `rules`,
+charters, goal templates' work, charter words, and project ways, questions, classes and words. Name one
+by kind and number, or project for project settings; rules have no number: `charter 2`, `template 1`, `policy 1`, `rules`,
 `landing-rule 1`, `landing-rule 1 --project 2`, `forge-charter 1`, `template-goal 4`,
-`project-ways 2`, `project-questions 2`, `project-classes 2`.
+`project-ways 2`, `project-questions 2`, `project-classes 2`, `charter-words 2`, `project-words 2`.
 
 - A project's ways say whether chats can write drafts, whether Work's Goals
   and Changes filters show, and which offered template with
@@ -22,6 +21,10 @@ number, or project for ways, questions and classes; rules have no number:
   names none: `none`, `foreman` or `up`. The stock uses `none`.
 - A project's classes say which questions agents decide and tell you about,
   ask you, or ask you even when away (`temper help project`).
+- A charter's words (`charter-words`) are the line How work runs says the
+  charter by. A project's words (`project-words`) are How work runs' headline
+  and lede when the project runs a way of its own. Ask temper writes both
+  with its proposals.
 - A landing rule governs changes landing on matching branches, for the
   deployment or one project: `temper help landing-rule`.
 - The forge's charter 1 selects the change's charter, and 2 its reviews'.
@@ -123,13 +126,17 @@ its default. A stored change still wins over a changed default.
   changes settings; `settings propose` proposes a change.
   `settings show landing-rule NUMBER` reads a deployment landing rule;
   add `--project PROJECT` for a project's.
-  `settings show forge-charter NUMBER` reads one of the forge's charters.
-  `settings show template-goal NUMBER` reads a goal template's work and takes
-  `--revision` and `--json` for a settings file's `set` form.
-  `settings show project-ways PROJECT`, `settings show project-questions
-  PROJECT` and `settings show project-classes PROJECT` read by project
-  number or name, marking the stock when none is stored. All take
-  `--revision` for an earlier value and print state and value; `--json` gives the form a settings file's `set` takes.
+  `settings show forge-charter NUMBER` reads one of the forge's charters;
+  `settings show template-goal NUMBER` reads a goal template's work.
+  Both take `--revision` for an earlier value and `--json` for a settings
+  file's `set` form.
+  `settings show project-ways PROJECT` and `settings show project-questions
+  PROJECT` and `settings show project-classes PROJECT` read by project number or name, marking the stock when none is
+  stored. `settings show charter-words NUMBER` reads a charter's words,
+  marking the stock's with no stored value, or saying none is kept.
+  `settings show project-words PROJECT` reads a project's headline and lede,
+  or says none is kept. All take `--revision` for an earlier value and print
+  state and value; `--json` gives the form a settings file's `set` takes.
   `proposal show PROPOSAL` includes proposed values, removals and resets, and a project's current
   and proposed policy, each whole. Each verb's help gives its arguments:
   `temper ctl help settings apply`.
@@ -139,9 +146,10 @@ its default. A stored change still wins over a changed default.
   and the asking form of `propose_settings`
   (`temper help charter`). It reads and proposes `charter`, `template`,
   `policy`, `rules`, `landing-rule`, `forge-charter`, `template-goal` and
-  `project-policy`, `project-ways`, `project-questions` and `project-classes`,
-  in the settings file's form. Ways, questions and classes require `project`
-  and take no `number`. A landing rule names
+  `project-policy`, `project-ways`, `project-questions`, `project-classes`, `charter-words` and
+  `project-words`, in the settings file's form. Ways, questions, classes and project
+  words require `project` and take no `number`; charter words take the charter's
+  `number` and no `project`. A landing rule names
   its project, or none for the deployment; a project's policy names its
   project and is set alone. The tool reads a named project's policy,
   though the inventory omits it.
