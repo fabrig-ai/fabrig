@@ -540,3 +540,6 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
   `tasks.message_bytes` and marked with `…`, as a question passed up is.
   This keeps the message within its admission bound, where the design says
   the answer's words are whole.
+- **Not yet:** 6: a `Flight` row whose entry the forge does not hold
+  panics at its link, where the section refuses the start
+  (`root.status.md`, 9.1).

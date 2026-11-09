@@ -238,8 +238,8 @@ in a record of its own (3.7).
   *name taken* (section 5). Both shipped profiles admit 12 lifetime
   names. Restoring an existing live source reserves
   its name before admitting changes; a conflicting reservation is a
-  writer's bug, a link that cannot be made, and panics (engine.md,
-  section 6).
+  writer's bug, a link that cannot be made, and refuses the start,
+  naming the record and what it links to (engine.md, section 6).
   Exhaustion refuses a declaration before
   reserving its numbers or writing any row. It, not the account's
   number, names the configuration directory, so that a directory a
