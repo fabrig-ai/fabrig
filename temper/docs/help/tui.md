@@ -29,6 +29,13 @@ A short chat reads back to its opening automatically. Your opening question
 stays above the answer after the agent finishes. PgUp and PgDn read back
 through the conversation's visible rows.
 
+On the launchpad, Up or Down with an empty box selects a recent chat or
+goal. Type `/open` and press Enter to open its page in your browser; with
+no row selected, this opens the project's Home. If no browser opens,
+temper prints the page's address. Slash commands keep the selected row
+while you type. Ordinary message text, Esc and leaving the launchpad
+clear the selection.
+
 ## Acting on it
 
 Close the TUI, then run `temper open DIR http://HOST:PORT` with the
