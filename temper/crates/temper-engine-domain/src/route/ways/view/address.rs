@@ -9,6 +9,7 @@ pub(super) enum Address {
     Proposal { proposer: Proposer, number: u64 },
     Charter { number: u32, revision: Option<u32> },
     Rule { kind: u32, number: u32 },
+    Roles,
     Unknown,
 }
 
@@ -73,6 +74,7 @@ pub(super) fn parse(line: &[u8]) -> Address {
         words = rest;
     }
     match words {
+        [word] if revision.is_none() && word.eq_ignore_ascii_case(b"roles") => Address::Roles,
         [b"path", repository] if repository_name(repository) => {
             Address::Path { repository: (*repository).into(), branch: None, revision }
         }

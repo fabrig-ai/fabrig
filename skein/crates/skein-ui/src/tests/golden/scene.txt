@@ -1,7 +1,7 @@
 group +1,2 [7:9 8:10] hint="group\x00" act=00FF
   line 1,2 3,4
   polyline 0,0 1,2 3,4
-  path M 0,0 L 1,2 Q 1,2 3,4 C 0,0 1,2 3,4 Z
+  path M 0,0 L 1,2 Q 1,2 3,4 C 0,0 1,2 3,4 Z fade 0,0 3,4 0[7:9] 500[] 1000[8:10]
   rect 1,2 3x4 r5
   circle 3,4 r6
   text 1,2 start "hello\x0A\xC3\xA9"

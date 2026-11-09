@@ -202,10 +202,19 @@ fn drawing_with_height(
     drawing(kind, data, width, DRAWING_HEIGHT, scene)
 }
 fn drawing(_: skein_ui::DrawingKind, data: &[u8], width: u16, height: u16, scene: &mut skein_ui::scene::Scene) -> bool {
-    use skein_ui::scene::{Anchor, Point};
+    use skein_ui::scene::{Anchor, FadeStop, Point};
     if data == b"refuse" {
         scene.text(Point { x: 0, y: 0 }, Anchor::Start, &[b'x'; 300], &[]);
         return true;
+    }
+    if data == b"fade" {
+        let zero = Point { x: 0, y: 0 };
+        return scene.line(zero, Point { x: width, y: height }, &[])
+            && scene.fade(
+                zero,
+                Point { x: 0, y: height },
+                &[FadeStop { offset: 0, styles: &[] }, FadeStop { offset: 1000, styles: &[] }],
+            );
     }
     let radius = if data == b"two" { 2 } else { 1 };
     scene.rect(Point { x: 0, y: 0 }, Point { x: width, y: height }, radius, &[])

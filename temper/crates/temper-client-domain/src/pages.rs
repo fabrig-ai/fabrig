@@ -1595,7 +1595,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Adopt { .. } => false,
         };
         pages.roles_open = match &address {
-            Address::Role { .. } | Address::Rule { .. } => true,
+            Address::Settings { .. } | Address::Role { .. } | Address::Rule { .. } => true,
             Address::AllHome
             | Address::Inbox { .. }
             | Address::Chats { .. }
@@ -1614,7 +1614,6 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             | Address::Goals { .. }
             | Address::Changes { .. }
             | Address::Team { .. }
-            | Address::Settings { .. }
             | Address::Repositories { .. }
             | Address::Models { .. }
             | Address::Builders { .. }
@@ -1717,6 +1716,10 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
         }
         if let Address::Settings { .. } | Address::Ask { .. } | Address::NewChat { .. } = address {
             pages.chats = Some(chats::Chats::new(pages.next));
+        }
+        if let Address::Settings { .. } = address {
+            // How work runs' view read follows the rail's four chat handles.
+            pages.next = pages.next.checked_add(4).expect("rail chat handles fit");
         }
         if let Address::Chats { filter, .. } = address {
             let mut page = chats::Chats::new(pages.next);
