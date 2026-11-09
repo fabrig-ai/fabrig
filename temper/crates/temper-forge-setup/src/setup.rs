@@ -38,12 +38,7 @@ pub struct Mirror {
     pub forgejo: Origin,
     pub runner: Origin,
 }
-/// An HTTPS authority, without a path.
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Origin {
-    pub host: Box<[u8]>,
-    pub port: u16,
-}
+pub use temper_fetch::Origin;
 /// One of a fake forge's repositories.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Repository {

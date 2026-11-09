@@ -33,7 +33,7 @@ below remain; the Linux tests do not prove the Darwin arms.
 - **Departs:** 6.2: `read_trust_roots` gives its caller the counts, and only
   `smith-agent-shell`'s `trust_sources` says them. temper's own two readers
   (`temper/crates/temper/src/lib.rs`, `trust`, and
-  `temper-forge-setup-shell/src/fetch.rs`) say nothing of a malformed block, where
+  `temper-fetch-shell/src/fetch.rs`) say nothing of a malformed block, where
   the section has startup say the counts: the request `first-usable-model` of
   2026-11-06 asked only that smith's line go quiet. Seen by reading.
   6.7: the user's request of 2026-11-04 asked each part of its

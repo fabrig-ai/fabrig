@@ -286,6 +286,8 @@ members = [
     "temper/crates/temper-service",
     "temper/tests/worker/protocol-git",
     "temper/crates/temper-forge-setup",
+    "temper/crates/temper-fetch",
+    "temper/crates/temper-fetch-shell",
     "temper/crates/temper-init",
     "temper/crates/temper-forge-setup-shell",
     "temper/crates/temper-worker-protocol-git",
@@ -559,6 +561,8 @@ temper-playground-world = { path = "temper/tests/playground" }
 temper-protocol-records = { path = "temper/crates/temper-protocol-records", default-features = false }
 temper-box = { path = "temper/crates/temper-box" }
 temper-forge-setup-shell = { path = "temper/crates/temper-forge-setup-shell" }
+temper-fetch-shell = { path = "temper/crates/temper-fetch-shell" }
+temper-fetch = { path = "temper/crates/temper-fetch" }
 temper-forge-setup = { path = "temper/crates/temper-forge-setup" }
 temper-init = { path = "temper/crates/temper-init" }
 temper-client-bundle = { path = "temper/crates/temper-client-bundle" }

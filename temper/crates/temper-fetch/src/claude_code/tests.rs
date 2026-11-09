@@ -1,7 +1,7 @@
 use crate::{
+    Origin,
     claude_code::{self, Libc},
     fetch::{self, Failure, Fetched, Named},
-    setup::Origin,
 };
 use skein_forge::forgejo::pin::Platform;
 

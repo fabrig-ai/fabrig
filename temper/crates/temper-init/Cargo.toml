@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-fetch.workspace = true
 skein-lib.workspace = true
 skein-json.workspace = true
 skein-forge-setup.workspace = true

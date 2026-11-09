@@ -774,7 +774,7 @@ form; the others
 record what the
 design carries of them and where it lags or departs.
 `domain/README.md` and `protocol/llm.md` have no gap. The deployment's
-agent binary, `temper-agent`, its closure's test and its fetch crates are
+agent binary, `temper-agent`, its closure's test are
 designed and not built (`protocol/README.status.md`,
 `protocol/setup.status.md`).
 
