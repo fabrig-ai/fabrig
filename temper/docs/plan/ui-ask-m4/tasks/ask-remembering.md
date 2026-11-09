@@ -97,3 +97,20 @@ another run-bytes floor in a world's, the playground's or a test's
 document (`core.run_bytes`), raise it the same way, to the next 4 KiB above
 what the check prints, and name it. Raise no other bound. If the first
 request still passes 16,384 bytes, the spec's `Question:` stands.
+
+2026-11-09. **`temper/tests/client/src/front.rs`'s stored-charter read
+allowance, `loads.transcript_bytes = 8_870`, now fails
+`asking_chat::the_page_starts_the_asking_chat` on restart: raise it, or
+defer?** Raise it. "Raise no other bound" kept the box's and the reference
+room's bounds still; this allowance is a fixture's measurement of the stock
+charter 11 as stored, the same family as the run-bytes floors that answer
+let grow, and the restart oracle checks the fixture still restores it. Set
+it to the stored charter 11's payload bytes as measured with these words,
+not inferred (9,470 is a guess: the stored form may not grow byte for byte
+with `ask.txt`); keep the value exact, as it stands now, and its comment
+naming the new figure. Name it in the report. Then run
+`heavy cargo nextest run -p temper-client-world -E
+'test(/asking_chat/)'` and the spec's other runs. If the test still fails
+with the allowance at the measured size, or another product bound in
+`limits.rs` is named, report `Question:` with the failure; raise nothing
+else.
