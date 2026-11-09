@@ -15,6 +15,7 @@ mod net {
     pub struct Pipe {
         ends: [End; 2],
         pub frames: [Vec<u16>; 2],
+        pub assignment_bytes: Vec<u32>,
         closed: [bool; 2],
     }
     struct End {
@@ -27,6 +28,7 @@ mod net {
         grants: Option<usize>,
         cap: Option<u32>,
         asked: u32,
+        chunk: u32,
     }
     impl End {
         fn new(chunk: u32) -> Self {
@@ -40,6 +42,7 @@ mod net {
                 grants: None,
                 cap: None,
                 asked: 0,
+                chunk,
             }
         }
         fn tick(&mut self, rng: &mut Rng) -> Option<LowerEvent> {
@@ -59,7 +62,7 @@ mod net {
                 }));
             }
             while !self.bytes.is_empty() && self.intake.room() > 0 {
-                let count = usize::try_from(rng.between(1, 17))
+                let count = usize::try_from(rng.between(1, u64::from(self.chunk)))
                     .expect("small cut")
                     .min(self.bytes.len())
                     .min(skein_lib::length::usize_of(self.intake.room()));
@@ -80,7 +83,12 @@ mod net {
     }
     impl Pipe {
         pub fn new(chunk: u32) -> Self {
-            Self { ends: [End::new(chunk), End::new(chunk)], frames: [Vec::new(), Vec::new()], closed: [false; 2] }
+            Self {
+                ends: [End::new(chunk), End::new(chunk)],
+                frames: [Vec::new(), Vec::new()],
+                assignment_bytes: Vec::new(),
+                closed: [false; 2],
+            }
         }
         pub fn lower(&mut self, side: usize, lower: Lower) {
             let end = &mut self.ends[side];
@@ -105,7 +113,11 @@ mod net {
                     }
                     stream::OutputDown::Release { .. } => {}
                     stream::OutputDown::Send { bytes, .. } => {
-                        self.frames[side].push(skein_channel::parse_header(&bytes[..8]).expect("frame").kind);
+                        let kind = skein_channel::parse_header(&bytes[..8]).expect("frame").kind;
+                        self.frames[side].push(kind);
+                        if side == 1 && kind == jig_protocol_worker_wire::Kind::Assignment.number() {
+                            self.assignment_bytes.push(u32::try_from(bytes.len()).expect("frame length"));
+                        }
                         self.ends[1 - side].bytes.extend(bytes);
                     }
                 },
@@ -168,14 +180,24 @@ impl Joined {
     }
     #[must_use]
     pub fn with_credential(limits: &Limits, seed: u64, credential: Credential) -> Self {
-        Self::with_options(limits, seed, credential, None)
+        Self::with_options(limits, seed, credential, None, None)
     }
     #[must_use]
     pub fn with_engine_room(limits: &Limits, seed: u64, room: u32) -> Self {
-        Self::with_options(limits, seed, fixtures::credential(), Some(room))
+        Self::with_options(limits, seed, fixtures::credential(), Some(room), None)
     }
-    fn with_options(limits: &Limits, seed: u64, credential: Credential, engine_room: Option<u32>) -> Self {
-        let engine_limits = engine::Limits {
+    #[must_use]
+    pub fn with_limits(limits: &Limits, engine: engine::Limits, seed: u64) -> Self {
+        Self::with_options(limits, seed, fixtures::credential(), Some(engine.room), Some(engine))
+    }
+    fn with_options(
+        limits: &Limits,
+        seed: u64,
+        credential: Credential,
+        engine_room: Option<u32>,
+        engine: Option<engine::Limits>,
+    ) -> Self {
+        let engine_limits = engine.unwrap_or(engine::Limits {
             sizes: limits.sizes,
             names: 1,
             workers: 1,
@@ -187,7 +209,7 @@ impl Joined {
             ping: limits.ping,
             silence: limits.silence,
             stall: limits.stall,
-        };
+        });
         let workers = Box::new([engine::Worker {
             name: fixtures::WORKER_A.into(),
             digest: skein_io::digest::digest(fixtures::SECRET_A),
@@ -275,6 +297,7 @@ impl Joined {
                 self.dials.push(self.now);
                 self.pipe = Some(net::Pipe::new(self.chunk));
                 if let Some(room) = self.engine_room {
+                    self.pipe.as_mut().expect("new pipe").cap(0, room);
                     self.pipe.as_mut().expect("new pipe").cap(1, room);
                 }
                 self.engine_event(engine::Event::Accepted { connection: self.connection });
@@ -423,6 +446,10 @@ impl Joined {
     pub fn ping_counts(&self) -> [usize; 2] {
         let pipe = self.pipe.as_ref().expect("live pipe");
         pipe.frames.each_ref().map(|frames| frames.iter().filter(|kind| **kind == 5).count())
+    }
+    #[must_use]
+    pub fn assignment_bytes(&self) -> &[u32] {
+        &self.pipe.as_ref().expect("live pipe").assignment_bytes
     }
     pub fn acknowledge(&mut self, enabled: bool) {
         self.acknowledge = enabled;

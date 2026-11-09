@@ -861,7 +861,15 @@ have one, an engine alone none. Each:
     on the machine's places (the longest of `machine`'s remotes' bases
     and github.com's, an owner and a name of the forge's `name_bytes`,
     two `/` and `.git`), and the forge's names and branches, within the
-    checkout's `name_bytes` (channel.md, section 8);
+    checkout's `name_bytes` (channel.md, section 8); and the smallest
+    resumed start the engine's link can cut a start to (jig's
+    `protocol/channel.md`, 9 and 11), within the engine's room, its
+    `io.output`, so a run that committed every call `core.call_records`
+    admits can still resume. Its failure names both: `engine.limits.io.output:
+    4096 bytes, short of the smallest resumed start, 27201 bytes`, the
+    start's frame with its header, as `standard` has it. A document
+    reaches it only by an `io.output` override below that start, which
+    the worker wire's ceilings keep at most 218,177 bytes;
   - the worker's, against the agent's configuration
     (`temper-worker-domain::valid`, entrance constraints and count
     representability, with no heap sum), among its rules: the
@@ -885,6 +893,9 @@ have one, an engine alone none. Each:
     turn's body as the hub measures it, and each bound on its way holds
     it. Within each hub's `turn_bytes`, the engine's and the worker's,
     since each side of the link takes a turn of its own hub's bound;
+    as a frame of the worker's link, header included, within the
+    worker's `io.output`, the room its stream grants at once, or the
+    worker's link is not made (jig's `protocol/channel.md`, 9 and 11);
     with its 4-byte length, within `core.resume_bytes`, so that a chat's
     largest turn resumes rather than starting afresh, and so within
     `root.journal.transcript_bytes`, a journal row's (the resume
@@ -2629,6 +2640,7 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 | the engine's `core.resume_bytes` | T + 4 |
 | both `hub.transcript_bytes` | resume + 12 × ⌊resume / 4⌋ |
 | both `hub.turn_queue_bytes` | 8 × T |
+| each worker's `io.output` | a turn of T's frame on the worker's link, where it passes the profile's |
 | `root.journal.transcript_bytes` | resume |
 | `root.loads.transcript_bytes` | T |
 | `root.loads.bytes`, `root.loads.reply_bytes` | T + a temper record's size |
