@@ -136,11 +136,6 @@ rules, with no lanes and no colour of its own; and `look.rs` names each
 `how-draft` with Roles, and its table checks each. The rendered
 comparison follows landing (`README.md`, section 11).
 
-- **Not yet:** 2.5, *How work runs' look*, *What reaches you*, and 7.2:
-  no `temper-how-reaches`, `temper-how-reach`, `temper-how-who-agent`,
-  `temper-how-who-person` or `temper-how-reach-note`; the gallery prints
-  `settings-away` and `settings-away-you-approve`, whose section What
-  reaches you takes the place of.
 - **Not yet:** 7.2: the gallery prints no `how-reaches` or
   `night-how-reaches`; `how` and `how-approve` hold no What reaches you,
   and `how-approve` reads Agents review's stock classes.

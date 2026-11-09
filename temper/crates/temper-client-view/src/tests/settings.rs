@@ -1000,8 +1000,7 @@ fn no_project_draws_no_path() {
     }
 }
 
-const AWAY_TITLE: &str = "While you’re away, agents may decide";
-const LOCKED: &str = "Money past a budget, what can’t be undone, and changes to these rules: always wait";
+const AWAY_TITLE: &str = "What reaches you";
 const EIGHT: &[u8] = b"08:00, the end of quiet hours";
 fn away_settings(row: Option<w::AwayRowParts>) -> (d::Domain, Token) {
     let (mut root, _, _, _, _, _, _, _, watch) = f::root_at_with_values(
@@ -1114,97 +1113,299 @@ fn away_answer(root: &mut d::Domain, attempt: Token) {
     settings_answer(root, attempt, w::Outcome::Away);
 }
 fn drawn_choices(view: &crate::View, until: &[u8]) {
+    assert!(
+        section_nodes(view.tree(), AWAY_TITLE.as_bytes())
+            .iter()
+            .any(|node| node.role == Role::Select && node.name.as_deref() == Some(b"Away until"))
+    );
     assert_eq!(selected(view.tree(), b"Away until"), until);
 }
-#[test]
-fn the_section_follows_what_needs_you() {
-    let (root, _) = away_settings(None);
-    for view in [how_view(&root, false), how_view(&root, true)] {
-        let headings: Vec<_> = main(view.tree())
-            .iter()
-            .filter(|n| n.role == Role::Heading { level: 2 })
-            .map(|n| n.name.as_deref().unwrap())
-            .collect();
-        let at = headings.iter().position(|name| *name == AWAY_TITLE.as_bytes()).unwrap();
-        assert_eq!(headings[at - 1], b"What needs you");
-        assert_eq!(headings[at + 1], b"What the project shows");
-        assert_eq!(
-            section_nodes(view.tree(), AWAY_TITLE.as_bytes())
-                .iter()
-                .filter(|n| n.styles.as_slice().contains(&look::SETTINGS_SETTING))
-                .count(),
-            2
-        );
-        let section = section_nodes(view.tree(), AWAY_TITLE.as_bytes());
-        let checks: Vec<_> = section.iter().filter(|n| n.role == Role::Check).collect();
-        assert_eq!(checks.len(), 4);
-        for (check, label) in
-            checks.iter().zip(["Implementation choices", "New dependencies", "Departures from a landed design", LOCKED])
-        {
-            assert_eq!(check.name.as_deref(), Some(label.as_bytes()));
-            assert_eq!(check.states.as_slice().contains(&State::Pressed), label != LOCKED);
-            assert_eq!(check.states.as_slice().contains(&State::Disabled), label == LOCKED);
-        }
-        assert!(
-            skein_lib::bytes::find(
-                &f::nodes_text(section),
-                b"Agents decide, then tell you: wording choices, retries and splits, test-only changes."
-            )
-            .is_some()
-        );
-        assert!(
-            skein_lib::bytes::find(
-                &f::nodes_text(setting_row(view.tree(), b"What asks you")),
-                b"Ticked, Away decides it and lists it, with Overturn. Unticked, it asks you even when away."
-            )
-            .is_some()
-        );
-        assert_eq!(
-            f::nodes_text(setting_row(view.tree(), b"Away until")).as_ref(),
-            "Away untilWhen it isn’t turned off by hand.".as_bytes()
-        );
-    }
-    let mut items = vec![temper_protocol_reaches::Item {
-        subject: temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Wording),
-        words: Box::default(),
-        class: temper_protocol_reaches::Class::Decide,
-    }];
-    for _ in 1..temper_protocol_reaches::ITEMS {
-        items.push(temper_protocol_reaches::Item {
-            subject: temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Wording),
-            words: vec![b'x'; temper_protocol_reaches::WORDS_BYTES].into_boxed_slice(),
-            class: temper_protocol_reaches::Class::Decide,
-        });
-    }
-    let classes = temper_protocol_reaches::Classes { items: items.into_boxed_slice(), sets: Box::default() };
-    assert_eq!(classes.check(), Ok(()));
-    let root = f::root_with_classes(settings(), &classes);
-    for browser in [false, true] {
-        let view = how_view(&root, browser);
-        let text = f::nodes_text(section_nodes(view.tree(), AWAY_TITLE.as_bytes()));
-        assert!(
-            skein_lib::bytes::find(&text, b"Agents decide, then tell you: wording choices, wording choices under")
-                .is_some()
-        );
-        assert!(skein_lib::bytes::find(&text, &[b'x'; temper_protocol_reaches::WORDS_BYTES]).is_some());
-    }
+const DECIDE: &str = "Agents decide, then tell you";
+const ASK: &str = "Asks you";
+const WAIT: &str = "Always waits for you";
+const DECIDE_NOTE: &str = "Listed in Decided for you for 24 hours, to overturn.";
+const AWAY_ALL: &str = "While you’re away, they are decided with the recommended choice and listed.";
+const AWAY_NONE: &str = "They ask even while you’re away.";
+const MOVABLE_LINES: [&str; 6] = [
+    "wording and names inside a spec",
+    "retrying or splitting a task",
+    "implementation choices a spec leaves open",
+    "test-only changes",
+    "a new dependency",
+    "a departure from a landed design",
+];
+const FIXED_LINES: [&str; 4] = [
+    "money past a budget",
+    "what can’t be undone: rewriting history, a force-push, deleting unlanded work",
+    "changes to this page",
+    "anything an agent can’t place",
+];
+fn lines(words: &[&str]) -> Vec<String> {
+    words.iter().map(|word| (*word).to_owned()).collect()
+}
+struct ReachesCase {
+    name: &'static str,
+    classes: Option<temper_protocol_reaches::Classes>,
+    columns: [Vec<String>; 3],
+    notes: [Option<&'static str>; 3],
+    away: bool,
+    several: bool,
 }
 #[test]
-fn you_approves_section_asks_even_when_away_without_a_duration_select() {
-    use temper_protocol_reaches::{Classes, Way};
-    for (classes, unread) in [(Classes::stock(Way::YouApprove), false), (Classes::stock(Way::AgentsReview), true)] {
-        let root = if unread { how(None) } else { f::root_with_classes(settings(), &classes) };
+#[expect(
+    clippy::too_many_lines,
+    reason = "one table checks the columns, wording, unread state and full table in both shells"
+)]
+fn reaches_columns_follow_the_project_table() {
+    use temper_protocol_reaches::{Class, Classes, Item, Kind, PathSet, Subject, Way};
+    let review = Classes::stock(Way::AgentsReview);
+    let story = Classes {
+        items: Box::new([
+            Item { subject: Subject::Kind(Kind::Wording), words: Box::default(), class: Class::Decide },
+            Item { subject: Subject::Kind(Kind::Retry), words: Box::default(), class: Class::Decide },
+            Item { subject: Subject::Kind(Kind::Implementation), words: Box::default(), class: Class::Decide },
+            Item { subject: Subject::Kind(Kind::Tests), words: Box::default(), class: Class::Decide },
+            Item { subject: Subject::Set(1), words: Box::default(), class: Class::AskAway },
+            Item { subject: Subject::Kind(Kind::Dependency), words: Box::default(), class: Class::Ask },
+            Item { subject: Subject::Kind(Kind::Departure), words: Box::default(), class: Class::Ask },
+        ]),
+        sets: Box::new([PathSet {
+            number: 1,
+            name: "vsr’s protocol core".as_bytes().into(),
+            patterns: Box::new([b"include/vsr.h".as_slice().into()]),
+        }]),
+    };
+    let mut words = review.clone();
+    let mut items = words.items.to_vec();
+    items.push(Item { subject: Subject::Kind(Kind::Tests), words: b"WORDS".as_slice().into(), class: Class::Ask });
+    words.items = items.into_boxed_slice();
+    let decided = Classes {
+        items: story
+            .items
+            .iter()
+            .filter(|item| item.subject != Subject::Set(1))
+            .map(|item| Item { class: Class::Decide, ..item.clone() })
+            .collect(),
+        sets: Box::default(),
+    };
+    let full = Classes {
+        items: (0..temper_protocol_reaches::ITEMS)
+            .map(|index| Item {
+                subject: Subject::Kind(Kind::Wording),
+                words: if index == 0 {
+                    Box::default()
+                } else {
+                    vec![b'x'; temper_protocol_reaches::WORDS_BYTES].into_boxed_slice()
+                },
+                class: Class::Decide,
+            })
+            .collect(),
+        sets: Box::default(),
+    };
+    let full_lines = full
+        .items
+        .iter()
+        .enumerate()
+        .map(|(index, _)| {
+            if index == 0 {
+                MOVABLE_LINES[0].to_owned()
+            } else {
+                format!("wording and names inside a spec under “{}”", "x".repeat(temper_protocol_reaches::WORDS_BYTES))
+            }
+        })
+        .collect();
+    let cases = [
+        ReachesCase {
+            name: "Agents review",
+            classes: Some(review.clone()),
+            columns: [
+                lines(&[MOVABLE_LINES[0], MOVABLE_LINES[1], MOVABLE_LINES[3]]),
+                lines(&[MOVABLE_LINES[2], MOVABLE_LINES[4], MOVABLE_LINES[5]]),
+                lines(&FIXED_LINES),
+            ],
+            notes: [Some(DECIDE_NOTE), Some(AWAY_ALL), Some("Away or not.")],
+            away: true,
+            several: false,
+        },
+        ReachesCase {
+            name: "You approve",
+            classes: Some(Classes::stock(Way::YouApprove)),
+            columns: [vec![], lines(&MOVABLE_LINES), lines(&FIXED_LINES)],
+            notes: [None, Some(AWAY_NONE), Some("Away or not.")],
+            away: false,
+            several: false,
+        },
+        ReachesCase {
+            name: "whole story",
+            classes: Some(story),
+            columns: [
+                lines(&MOVABLE_LINES[..4]),
+                lines(&["a change to vsr’s protocol core", MOVABLE_LINES[4], MOVABLE_LINES[5]]),
+                lines(&FIXED_LINES),
+            ],
+            notes: [
+                Some(DECIDE_NOTE),
+                Some(
+                    "While you’re away, all but changes to vsr’s protocol core are decided with the recommended choice and listed.",
+                ),
+                Some("Away or not."),
+            ],
+            away: true,
+            several: false,
+        },
+        ReachesCase {
+            name: "item with words",
+            classes: Some(words),
+            columns: [
+                lines(&[MOVABLE_LINES[0], MOVABLE_LINES[1], MOVABLE_LINES[3]]),
+                lines(&[MOVABLE_LINES[2], MOVABLE_LINES[4], MOVABLE_LINES[5], "test-only changes under “WORDS”"]),
+                lines(&FIXED_LINES),
+            ],
+            notes: [Some(DECIDE_NOTE), Some(AWAY_ALL), Some("Away or not.")],
+            away: true,
+            several: false,
+        },
+        ReachesCase {
+            name: "all decided",
+            classes: Some(decided),
+            columns: [lines(&MOVABLE_LINES), vec![], lines(&FIXED_LINES)],
+            notes: [Some(DECIDE_NOTE), None, Some("Away or not.")],
+            away: false,
+            several: false,
+        },
+        ReachesCase {
+            name: "full table",
+            classes: Some(full),
+            columns: [full_lines, lines(&MOVABLE_LINES[1..]), lines(&FIXED_LINES)],
+            notes: [Some(DECIDE_NOTE), Some(AWAY_NONE), Some("Away or not.")],
+            away: false,
+            several: false,
+        },
+        ReachesCase {
+            name: "unread",
+            classes: None,
+            columns: [vec![], vec![], vec![]],
+            notes: [None, None, None],
+            away: false,
+            several: false,
+        },
+        ReachesCase {
+            name: "several projects",
+            classes: Some(review),
+            columns: [
+                lines(&[MOVABLE_LINES[0], MOVABLE_LINES[1], MOVABLE_LINES[3]]),
+                lines(&[MOVABLE_LINES[2], MOVABLE_LINES[4], MOVABLE_LINES[5]]),
+                lines(&FIXED_LINES),
+            ],
+            notes: [Some(DECIDE_NOTE), Some(AWAY_ALL), Some("Away or not.")],
+            away: true,
+            several: true,
+        },
+    ];
+    for case in cases {
+        let (mut root, watch, ..) = f::root_at_with_classes(
+            settings(),
+            &f::domain_limits(),
+            b"Shop",
+            None,
+            None,
+            None,
+            Some(&[]),
+            if case.classes.is_some() { Some(SHOWN) } else { None },
+            false,
+            true,
+            case.classes.as_ref(),
+        );
+        let mut me = root.pages().me(root.client()).unwrap().clone();
+        let first = me.projects.get(0).unwrap().clone();
+        me.projects = List::uncapped();
+        me.projects.push(first.clone()).unwrap();
+        if case.several {
+            let mut second = first;
+            second.project = f::SECOND_PROJECT;
+            me.projects.push(second).unwrap();
+        }
+        f::deliver_me(&mut root, watch, me);
         for browser in [false, true] {
             let view = how_view(&root, browser);
-            let section = section_nodes(view.tree(), AWAY_TITLE.as_bytes());
-            let checks: Vec<_> = section.iter().filter(|n| n.role == Role::Check).collect();
-            assert_eq!(checks.len(), if unread { 4 } else { 7 });
-            for check in checks {
-                let locked = check.name.as_deref() == Some(LOCKED.as_bytes());
-                assert_eq!(check.states.as_slice().contains(&State::Pressed), unread && !locked);
-                assert_eq!(check.states.as_slice().contains(&State::Disabled), unread || locked);
+            let tree = view.tree();
+            assert_eq!(skein_ui::outline::check(tree), None, "{}", case.name);
+            let section = section_nodes(tree, AWAY_TITLE.as_bytes());
+            let head = section.iter().find(|n| n.styles.as_slice().contains(&look::SETTINGS_SECTION_HEAD)).unwrap();
+            let right = if case.several { "on Shop; each project has its own" } else { "on Shop" };
+            assert!(
+                subtree(tree, head.id)
+                    .iter()
+                    .any(|n| n.role == Role::Text && n.name.as_deref() == Some(right.as_bytes())),
+                "{}",
+                case.name
+            );
+            assert_eq!(
+                section.iter().any(|n| n.styles.as_slice().contains(&look::HOW_REACHES)),
+                case.classes.is_some()
+            );
+            let groups: Vec<_> = section.iter().filter(|n| n.role == Role::Group).collect();
+            let expected: Vec<_> = [DECIDE, ASK, WAIT]
+                .into_iter()
+                .zip(&case.columns)
+                .filter(|(_, lines)| !lines.is_empty())
+                .map(|(title, _)| title.as_bytes())
+                .collect();
+            assert_eq!(
+                groups.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(),
+                expected,
+                "{}",
+                case.name
+            );
+            for ((title, expected), note) in [DECIDE, ASK, WAIT].into_iter().zip(&case.columns).zip(case.notes) {
+                let group = groups.iter().find(|n| n.name.as_deref() == Some(title.as_bytes()));
+                assert_eq!(group.is_some(), !expected.is_empty(), "{}: {title}", case.name);
+                if let Some(group) = group {
+                    assert_eq!(group.styles.as_slice(), &[look::HOW_REACH]);
+                    let nodes = subtree(tree, group.id);
+                    let list = nodes.iter().find(|n| n.role == Role::List).unwrap();
+                    let drawn: Vec<_> = subtree(tree, list.id)
+                        .iter()
+                        .filter(|n| n.role == Role::Item)
+                        .map(|n| core::str::from_utf8(n.name.as_deref().unwrap()).unwrap())
+                        .collect();
+                    assert_eq!(drawn, *expected, "{}: {title}", case.name);
+                    let note_node = nodes.iter().find(|n| n.role == Role::Paragraph).unwrap();
+                    assert_eq!(note_node.styles.as_slice(), &[look::HOW_REACH_NOTE]);
+                    assert_eq!(note_node.name.as_deref(), note.map(str::as_bytes), "{}: {title}", case.name);
+                    let chip =
+                        nodes.iter().find(|n| n.role == Role::Text && n.name.as_deref() == Some(title.as_bytes()));
+                    assert!(chip.is_some());
+                    if let Some(chip) = chip {
+                        assert_eq!(
+                            chip.styles.as_slice(),
+                            &[if title == DECIDE { look::HOW_WHO_AGENT } else { look::HOW_WHO_PERSON }]
+                        );
+                    }
+                }
             }
-            assert!(!section.iter().any(|n| n.role == Role::Select));
+            assert!(!section.iter().any(|n| n.role == Role::Check), "classes change by proposal");
+            assert!(
+                section.iter().any(|n| n.role == Role::Select
+                    && n.name.as_deref() == Some(b"Questions a goal can answer from its plan"))
+            );
+            assert_eq!(
+                section.iter().any(|n| n.role == Role::Select && n.name.as_deref() == Some(b"Away until")),
+                case.away,
+                "{}",
+                case.name
+            );
+            if !browser {
+                let mut print = skein_ui_text::Print::new(&view.limits().tree).unwrap();
+                skein_ui_text::render(tree, b"temper", None, &mut print);
+                let text = core::str::from_utf8(print.text.as_slice()).unwrap();
+                for (title, column) in [DECIDE, ASK, WAIT].into_iter().zip(&case.columns) {
+                    assert_eq!(text.matches(title).count(), usize::from(!column.is_empty()), "{}: {title}", case.name);
+                    for line in column {
+                        assert!(text.contains(line), "{}: {line}", case.name);
+                    }
+                }
+            }
         }
     }
 }
@@ -1217,50 +1418,6 @@ fn defaults_with_no_row() {
 }
 #[test]
 fn the_select_writes_until() {
-    use temper_protocol_reaches::{Class, Classes, Kind, Subject, Way};
-    for (classes, label, index, before, after) in [
-        (Classes::stock(Way::AgentsReview), b"Implementation choices".as_slice(), 3, Class::Ask, Class::AskAway),
-        (Classes::stock(Way::YouApprove), b"New dependencies".as_slice(), 0, Class::AskAway, Class::Ask),
-    ] {
-        for browser in [false, true] {
-            let mut root = f::root_with_classes(settings(), &classes);
-            let mut view = how_view(&root, browser);
-            let id = find(view.tree(), Role::Check, label);
-            let (attempt, change) = send(&mut root, &mut view, id, Act::Toggle);
-            let mut reader = skein_lib::Reader::new(sent_value(&change, 8));
-            let record = w::ProjectClasses::decode(&w::CEILINGS, &mut reader).unwrap();
-            assert!(reader.is_empty());
-            let actual = temper_protocol_reaches::classes_from(&record);
-            let mut expected = classes.clone();
-            if expected.items.is_empty() {
-                expected.items = Box::new([temper_protocol_reaches::Item {
-                    subject: Subject::Kind(Kind::Dependency),
-                    words: Box::default(),
-                    class: after,
-                }]);
-            } else {
-                expected.items[index].class = after;
-            }
-            assert_eq!(actual, expected, "one check changes the whole table");
-            f::build(&mut view, &root);
-            let checks: Vec<_> =
-                section_nodes(view.tree(), AWAY_TITLE.as_bytes()).iter().filter(|n| n.role == Role::Check).collect();
-            for check in checks {
-                assert!(check.states.as_slice().contains(&State::Disabled));
-            }
-            assert_eq!(
-                node(view.tree(), find(view.tree(), Role::Check, label)).states.as_slice().contains(&State::Pressed),
-                after == Class::Ask
-            );
-            refused_answer(&mut root, attempt, c::Refusal::Role { held: None });
-            f::build(&mut view, &root);
-            let row = setting_row(view.tree(), b"What asks you");
-            assert!(row.iter().any(|n| n.role == Role::Status));
-            let check = node(view.tree(), find(view.tree(), Role::Check, label));
-            assert_eq!(check.states.as_slice().contains(&State::Pressed), before == Class::Ask);
-            assert!(!check.states.as_slice().contains(&State::Disabled));
-        }
-    }
     for browser in [false, true] {
         for (label, until) in [(EIGHT, Some(28_800_000_000_000)), (b"I turn it off".as_slice(), None)] {
             let (mut root, _) = away_settings(Some(away_row(None, None)));
