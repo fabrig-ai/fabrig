@@ -117,8 +117,21 @@ pub enum Word {
     WalkDone,
     OpenAt,
     KeyWalk,
+    ThemeCommand,
+    ThemeHead,
+    ThemeAuto,
+    ThemeLight,
+    ThemeDark,
+    ThemeAutoLight,
+    ThemeAutoDark,
+    ThemeAutoNone,
+    ThemeNoticeAutoLight,
+    ThemeNoticeAutoDark,
+    ThemeNoticeAutoNone,
+    ThemeNoticeLight,
+    ThemeNoticeDark,
 }
-pub(crate) const ALL: [Word; 107] = [
+pub(crate) const ALL: [Word; 120] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -226,6 +239,19 @@ pub(crate) const ALL: [Word; 107] = [
     Word::WalkDone,
     Word::OpenAt,
     Word::KeyWalk,
+    Word::ThemeCommand,
+    Word::ThemeHead,
+    Word::ThemeAuto,
+    Word::ThemeLight,
+    Word::ThemeDark,
+    Word::ThemeAutoLight,
+    Word::ThemeAutoDark,
+    Word::ThemeAutoNone,
+    Word::ThemeNoticeAutoLight,
+    Word::ThemeNoticeAutoDark,
+    Word::ThemeNoticeAutoNone,
+    Word::ThemeNoticeLight,
+    Word::ThemeNoticeDark,
 ];
 
 #[derive(Clone, Copy)]
@@ -390,6 +416,19 @@ impl Word {
             Self::WalkDone => 107,
             Self::OpenAt => 108,
             Self::KeyWalk => 109,
+            Self::ThemeCommand => 110,
+            Self::ThemeHead => 111,
+            Self::ThemeAuto => 112,
+            Self::ThemeLight => 113,
+            Self::ThemeDark => 114,
+            Self::ThemeAutoLight => 115,
+            Self::ThemeAutoDark => 116,
+            Self::ThemeAutoNone => 117,
+            Self::ThemeNoticeAutoLight => 118,
+            Self::ThemeNoticeAutoDark => 119,
+            Self::ThemeNoticeAutoNone => 120,
+            Self::ThemeNoticeLight => 121,
+            Self::ThemeNoticeDark => 122,
         }
     }
     const fn id(self) -> PhraseId {
@@ -508,6 +547,20 @@ impl Word {
             Self::ApprovalNotAskedRefused => (&[b"This temper doesn't sign terminals in from the browser. Paste the link it printed instead."], &[]),
             Self::ApprovalNotAskedBusy => (&[b"Too many terminals are waiting to sign in. Press Enter to ask again in a moment."], &[]),
             Self::ApprovalNotAskedDown => (&[b"temper is starting or stopping, or out of reach. Press Enter to ask again."], &[]),
+            Self::ThemeCommand => (&[b"Auto, light or dark"], &[]),
+            Self::ThemeHead => (&[b"Theme. Auto follows your terminal."], &[]),
+            Self::ThemeAuto => (&[b"Auto"], &[]),
+            Self::ThemeLight => (&[b"Light"], &[]),
+            Self::ThemeDark => (&[b"Dark"], &[]),
+            Self::ThemeAutoLight => (&[b"light, as your terminal says"], &[]),
+            Self::ThemeAutoDark => (&[b"dark, as your terminal says"], &[]),
+            Self::ThemeAutoNone => (&[b"dark: your terminal doesn't say"], &[]),
+            Self::ThemeNoticeAutoLight => (&[b"Theme: auto, light as your terminal says."], &[]),
+            Self::ThemeNoticeAutoDark => (&[b"Theme: auto, dark as your terminal says."], &[]),
+            Self::ThemeNoticeAutoNone => (&[b"Theme: auto, dark: your terminal doesn't say."], &[]),
+            Self::ThemeNoticeLight => (&[b"Theme: light."], &[]),
+            Self::ThemeNoticeDark => (&[b"Theme: dark."], &[]),
+
         }
     }
     pub(crate) fn capacity(self, domain: &Limits) -> Option<u32> {

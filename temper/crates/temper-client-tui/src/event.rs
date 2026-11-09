@@ -19,6 +19,7 @@ pub enum Event {
     Open { address: Box<[u8]> },
     Walk { object: jig_client::contract::ObjectKey, step: WalkStep },
     EndWalk,
+    Theme { choice: Option<crate::theme::ThemeChoice> },
 }
 
 /// The TUI's own command (temper/docs/design/client/README.md, 6.17).
@@ -37,9 +38,10 @@ pub enum Own {
     Brief,
     Needs,
     Open,
+    Theme,
 }
 impl Own {
-    pub const ALL: [Own; 5] = [Own::Change, Own::Ask, Own::Brief, Own::Needs, Own::Open];
+    pub const ALL: [Own; 6] = [Own::Change, Own::Ask, Own::Brief, Own::Needs, Own::Open, Own::Theme];
     #[must_use]
     pub const fn name(self) -> &'static [u8] {
         match self {
@@ -48,6 +50,7 @@ impl Own {
             Self::Brief => b"/brief",
             Self::Needs => b"/needs",
             Self::Open => b"/open",
+            Self::Theme => b"/theme",
         }
     }
 }

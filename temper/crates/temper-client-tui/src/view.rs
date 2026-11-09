@@ -457,8 +457,8 @@ pub fn offered(root: &Domain, _words: &Words) -> Box<[temper_client_domain::page
             Command::Pause => chat,
             Command::Close | Command::StartOver => chat && no_delegate,
             Command::New | Command::Chats => project,
-            Command::Theme | Command::Help | Command::Exit => true,
-            Command::Draft | Command::Goal | Command::Font => false,
+            Command::Help | Command::Exit => true,
+            Command::Draft | Command::Goal | Command::Font | Command::Theme => false,
         };
         if screen && temper_client_view::shared::offered(root, task, command) {
             commands.push(command).expect("at most Command::ALL commands");
@@ -538,8 +538,9 @@ pub fn focus(view: &View) -> Option<&[u8]> {
 /// The TUI's own commands in their offered order (client/README.md, 6.14).
 #[must_use]
 pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
-    let mut commands = List::with_capacity(5);
+    let mut commands = List::with_capacity(6);
     if root.client().link().state == Link::SignedOut || welcome::shown(root, tui) {
+        commands.push(Own::Theme).expect("one theme command");
         return commands.into_boxed();
     }
     if root.pages().chat().is_some() {
@@ -553,6 +554,7 @@ pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
         for command in Own::ALL {
             let offered = match command {
                 Own::Change | Own::Ask | Own::Open => true,
+                Own::Theme => false,
                 Own::Brief => brief,
                 Own::Needs => no_list && has_needs(root),
             };
@@ -561,5 +563,6 @@ pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
             }
         }
     }
+    commands.push(Own::Theme).expect("theme counted");
     commands.into_boxed()
 }

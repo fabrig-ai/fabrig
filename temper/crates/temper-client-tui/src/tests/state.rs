@@ -557,3 +557,55 @@ fn walk_rows() {
         assert!(!walk.shown(&ObjectKey::Task(u64::from(HELD))));
     }
 }
+
+#[test]
+fn the_theme_list_steps() {
+    use crate::{Scheme, theme::ThemeChoice};
+    let light = Told::Theme { choice: ThemeChoice::Light, terminal: Some(Scheme::Dark) };
+    let open = Told::ThemeList { open: true };
+    let close = Told::ThemeList { open: false };
+    for (name, steps, choice, terminal, opened, revision) in [
+        ("default", &[][..], ThemeChoice::Auto, None, false, 0),
+        (
+            "same default",
+            &[Told::Theme { choice: ThemeChoice::Auto, terminal: None }][..],
+            ThemeChoice::Auto,
+            None,
+            false,
+            0,
+        ),
+        ("told", core::slice::from_ref(&light), ThemeChoice::Light, Some(Scheme::Dark), false, 1),
+        ("same told", &[light.clone(), light.clone()][..], ThemeChoice::Light, Some(Scheme::Dark), false, 1),
+        (
+            "terminal changed",
+            &[light.clone(), Told::Theme { choice: ThemeChoice::Light, terminal: None }][..],
+            ThemeChoice::Light,
+            None,
+            false,
+            2,
+        ),
+        ("open", core::slice::from_ref(&open), ThemeChoice::Auto, None, true, 1),
+        ("same open", &[open.clone(), open.clone()][..], ThemeChoice::Auto, None, true, 1),
+        ("close", &[open.clone(), close.clone()][..], ThemeChoice::Auto, None, false, 2),
+        ("same close", &[close.clone(), close.clone()][..], ThemeChoice::Auto, None, false, 0),
+        (
+            "cleared",
+            &[light.clone(), open.clone(), Told::Cleared][..],
+            ThemeChoice::Light,
+            Some(Scheme::Dark),
+            false,
+            3,
+        ),
+        ("went", &[light.clone(), open.clone(), Told::Went][..], ThemeChoice::Light, Some(Scheme::Dark), false, 3),
+    ] {
+        let mut tui = Tui::new(f::ADDRESS);
+        for told in steps {
+            tui.step(told.clone());
+        }
+        assert_eq!(
+            (tui.theme_choice(), tui.terminal_scheme(), tui.theme_list(), tui.revision()),
+            (choice, terminal, opened, revision),
+            "{name}"
+        );
+    }
+}

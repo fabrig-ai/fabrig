@@ -1,5 +1,5 @@
 //! The TUI's own state beside the client root (temper/docs/design/client/README.md, 6.14, 6.17 and 7.1).
-use crate::{BoxLine, limits};
+use crate::{BoxLine, Scheme, limits, theme::ThemeChoice};
 use alloc::boxed::Box;
 use jig_client::contract::ObjectKey;
 use skein_lib::{List, Queue, Secret, bytes::copy_of};
@@ -40,6 +40,9 @@ pub struct Tui {
     walk: Option<Walk>,
     brief_shown: bool,
     not_opened: Option<Box<[u8]>>,
+    theme_choice: ThemeChoice,
+    terminal_scheme: Option<Scheme>,
+    theme_list: bool,
 }
 /// The box's state, given up winning (temper/docs/design/client/README.md, 6.17).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -135,6 +138,13 @@ pub enum Told {
     Quitting,
     Stay,
     Log,
+    Theme {
+        choice: ThemeChoice,
+        terminal: Option<Scheme>,
+    },
+    ThemeList {
+        open: bool,
+    },
 }
 impl Tui {
     #[must_use]
@@ -170,6 +180,9 @@ impl Tui {
             not_opened: None,
             left_off: None,
             boxed: false,
+            theme_choice: ThemeChoice::Auto,
+            terminal_scheme: None,
+            theme_list: false,
         }
     }
     #[must_use]
@@ -282,9 +295,22 @@ impl Tui {
     pub fn not_opened(&self) -> Option<&[u8]> {
         self.not_opened.as_deref()
     }
+    #[must_use]
+    pub const fn theme_choice(&self) -> ThemeChoice {
+        self.theme_choice
+    }
+    #[must_use]
+    pub const fn terminal_scheme(&self) -> Option<Scheme> {
+        self.terminal_scheme
+    }
+    #[must_use]
+    pub const fn theme_list(&self) -> bool {
+        self.theme_list
+    }
     fn clear_launchpad(&mut self) -> bool {
-        let changed = self.walk.is_some() || self.brief_shown || self.not_opened.is_some();
+        let changed = self.walk.is_some() || self.brief_shown || self.not_opened.is_some() || self.theme_list;
         self.walk = None;
+        self.theme_list = false;
         self.brief_shown = false;
         self.not_opened = None;
         changed
@@ -567,6 +593,17 @@ impl Tui {
             Told::Kept { written } => {
                 let changed = self.unkept == written;
                 self.unkept = !written;
+                changed
+            }
+            Told::Theme { choice, terminal } => {
+                let changed = self.theme_choice != choice || self.terminal_scheme != terminal;
+                self.theme_choice = choice;
+                self.terminal_scheme = terminal;
+                changed
+            }
+            Told::ThemeList { open } => {
+                let changed = self.theme_list != open;
+                self.theme_list = open;
                 changed
             }
         };

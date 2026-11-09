@@ -203,43 +203,16 @@ fn root(project: bool, picker: bool, chat: bool, delegate: bool, draft: bool, ef
 
 #[test]
 fn the_tui_offers_its_commands() {
-    use Command::{Chats, Close, Effort, Exit, Help, Model, New, Pause, StartOver, Theme};
+    use Command::{Chats, Close, Effort, Exit, Help, Model, New, Pause, StartOver};
     let words = f::words();
     let mut failures = List::with_capacity(8);
     for (name, project, picker, chat, delegate, draft, efforts, want) in [
-        (
-            "launchpad picker",
-            true,
-            true,
-            false,
-            false,
-            false,
-            true,
-            &[Model, Effort, New, Chats, Theme, Help, Exit][..],
-        ),
-        ("launchpad no efforts", true, true, false, false, false, false, &[Model, New, Chats, Theme, Help, Exit][..]),
-        ("launchpad no picker", true, false, false, false, false, true, &[New, Chats, Theme, Help, Exit][..]),
-        ("no project", false, false, false, false, false, true, &[Theme, Help, Exit][..]),
-        (
-            "chat",
-            true,
-            true,
-            true,
-            false,
-            false,
-            true,
-            &[Model, Effort, Pause, Close, New, Chats, Theme, Help, Exit][..],
-        ),
-        (
-            "chat delegate",
-            true,
-            true,
-            true,
-            true,
-            false,
-            true,
-            &[Model, Effort, Pause, New, Chats, Theme, Help, Exit][..],
-        ),
+        ("launchpad picker", true, true, false, false, false, true, &[Model, Effort, New, Chats, Help, Exit][..]),
+        ("launchpad no efforts", true, true, false, false, false, false, &[Model, New, Chats, Help, Exit][..]),
+        ("launchpad no picker", true, false, false, false, false, true, &[New, Chats, Help, Exit][..]),
+        ("no project", false, false, false, false, false, true, &[Help, Exit][..]),
+        ("chat", true, true, true, false, false, true, &[Model, Effort, Pause, Close, New, Chats, Help, Exit][..]),
+        ("chat delegate", true, true, true, true, false, true, &[Model, Effort, Pause, New, Chats, Help, Exit][..]),
         (
             "chat draft",
             true,
@@ -248,7 +221,7 @@ fn the_tui_offers_its_commands() {
             false,
             true,
             true,
-            &[Model, Effort, Pause, Close, StartOver, New, Chats, Theme, Help, Exit][..],
+            &[Model, Effort, Pause, Close, StartOver, New, Chats, Help, Exit][..],
         ),
         (
             "chat draft delegate",
@@ -258,7 +231,7 @@ fn the_tui_offers_its_commands() {
             true,
             true,
             true,
-            &[Model, Effort, Pause, New, Chats, Theme, Help, Exit][..],
+            &[Model, Effort, Pause, New, Chats, Help, Exit][..],
         ),
     ] {
         let root = root(project, picker, chat, delegate, draft, efforts);
@@ -419,6 +392,7 @@ fn own_commands(words: &crate::words::Words) {
                 (Own::Brief, "The brief, whole"),
                 (Own::Needs, "Walk what needs you"),
                 (Own::Open, "Open this on the web"),
+                (Own::Theme, "Auto, light or dark"),
             ] {
                 if own.name() == expected.as_bytes() {
                     assert_eq!(item.event, crate::Event::Own { command: own }, "{name}");
@@ -479,4 +453,51 @@ fn own_commands(words: &crate::words::Words) {
         assert_eq!(item.name.as_ref(), expected.as_bytes());
     }
     assert_eq!(list.items.len(), expected.len());
+}
+
+#[test]
+fn theme_is_own_on_every_screen() {
+    for (name, project, chat, signed_out, front) in [
+        ("project", true, false, false, false),
+        ("chat", true, true, false, false),
+        ("no project", false, false, false, false),
+        ("signed out", false, false, true, false),
+        ("welcome", false, false, true, true),
+    ] {
+        let mut root = if signed_out { f::signed_out() } else { root(project, false, chat, false, false, false) };
+        let words = f::words();
+        let mut tui = crate::Tui::new(f::ADDRESS);
+        if front {
+            tui.step(crate::Told::Front);
+        }
+        tui.step(crate::Told::CommandWords { value: b"/".as_slice().into() });
+        assert!(!crate::offered(&root, &words).contains(&Command::Theme), "{name}");
+        assert!(crate::offered_own(&root, &tui).contains(&crate::Own::Theme), "{name}");
+        if name == "signed out" {
+            continue;
+        }
+        if front {
+            tui.step(crate::Told::Local { local: crate::Local::Signing });
+        }
+        let action = if root.pages().chat().is_some() {
+            d::pages::Act::MessageWords { words: b"/".as_slice().into() }
+        } else {
+            d::pages::Act::ChatWords { words: b"/".as_slice().into() }
+        };
+        f::event(&mut root, Event::Act { action: d::Action::Pages(action) });
+        let items = crate::view::foot::read(&root, &tui, &words, f::NOW).list.unwrap().items;
+        let mut theme = None;
+        for (index, item) in items.iter().enumerate() {
+            if item.name.as_ref() == b"/theme" {
+                theme = Some(index);
+            }
+        }
+        let index = theme.expect("theme offered");
+        assert_eq!(items[index].words.as_ref(), b"Auto, light or dark", "{name}");
+        assert_eq!(items[index].event, crate::Event::Own { command: crate::Own::Theme }, "{name}");
+        assert_eq!(items[index + 1].name.as_ref(), b"/help", "{name}");
+        if index > 0 {
+            assert_eq!(items[index - 1].name.as_ref(), b"/open", "{name}");
+        }
+    }
 }

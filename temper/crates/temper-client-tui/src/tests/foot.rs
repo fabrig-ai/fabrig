@@ -873,7 +873,7 @@ fn note_states() {
         "/new     Start a new chat",
         "/chats   Open another chat",
         "/open    Open this on the web",
-        "/theme   Dark or light",
+        "/theme   Auto, light or dark",
         "/help    Commands and keys",
         "/quit    Close temper",
         "Enter sends",
@@ -957,8 +957,16 @@ fn the_foots_are_their_goldens() {
             3,
             include_bytes!("golden/foot-walk-110x32-dark.txt").as_slice(),
         ),
+        ("foot-theme-80x24-dark", Scheme::Dark, full, 4, include_bytes!("golden/foot-theme-80x24-dark.txt").as_slice()),
+        (
+            "foot-theme-answered-80x24-dark",
+            Scheme::Dark,
+            full,
+            5,
+            include_bytes!("golden/foot-theme-answered-80x24-dark.txt").as_slice(),
+        ),
     ];
-    let mut views = List::with_capacity(6);
+    let mut views = List::with_capacity(8);
     let words = f::words();
     for (_, _, size, kind, _) in &rows {
         if *kind == 3 {
@@ -969,7 +977,15 @@ fn the_foots_are_their_goldens() {
         if *kind == 1 {
             act(&mut root, d::pages::Act::ChatWords { words: Box::from(*b"/") });
         }
-        let mut part = foot::read(&root, &Tui::new(f::ADDRESS), &words, f::NOW);
+        let mut tui = Tui::new(f::ADDRESS);
+        if *kind == 4 || *kind == 5 {
+            tui.step(Told::Theme {
+                choice: if *kind == 4 { crate::theme::ThemeChoice::Auto } else { crate::theme::ThemeChoice::Light },
+                terminal: if *kind == 4 { None } else { Some(Scheme::Dark) },
+            });
+            tui.step(Told::ThemeList { open: true });
+        }
+        let mut part = foot::read(&root, &tui, &words, f::NOW);
         part.closed = Some("Claude Opus 5.5 · high".as_bytes().into());
         part.needs = d::pages::needs::Count { count: 1, cut: false };
         part.columns = size.columns;
@@ -984,11 +1000,11 @@ fn the_foots_are_their_goldens() {
         }
         views.push(draw(part)).unwrap();
     }
-    let mut checks = List::with_capacity(6);
-    for ((name, scheme, size, _, want), view) in rows.iter().zip(&views) {
+    let mut checks = List::with_capacity(8);
+    for ((name, scheme, size, kind, want), view) in rows.iter().zip(&views) {
         checks
             .push(goldens::Golden {
-                background: Some(crate::theme::palette(*scheme)[0].1),
+                background: if *kind == 4 { None } else { Some(crate::theme::palette(*scheme)[0].1) },
                 name,
                 tree: view.tree(),
                 scheme: *scheme,
@@ -1717,4 +1733,48 @@ fn walk_golden(size: skein_ui_screen::Size) -> crate::View {
     let mut view = f::view();
     view::signed(&mut view, &view::Signed { body: view::Body::Launchpad(body), foot }, &mut Queue::uncapped());
     view
+}
+
+#[test]
+fn the_theme_list_reads_the_terminal_and_selected_choice() {
+    use crate::theme::ThemeChoice;
+    let words = f::words();
+    let mut root = root(true, true, false, false, false);
+    act(&mut root, d::pages::Act::Terminal(d::pages::terminal::Act::Run { command: Command::Model }));
+    for (terminal, description) in [
+        (Some(Scheme::Light), b"light, as your terminal says".as_slice()),
+        (Some(Scheme::Dark), b"dark, as your terminal says".as_slice()),
+        (None, b"dark: your terminal doesn't say".as_slice()),
+    ] {
+        for choice in ThemeChoice::ALL {
+            let mut tui = Tui::new(f::ADDRESS);
+            tui.step(Told::Theme { choice, terminal });
+            tui.step(Told::ThemeList { open: true });
+            let part = foot::read(&root, &tui, &words, f::NOW);
+            let list = part.list.as_ref().unwrap();
+            assert_eq!(list.head.as_deref(), Some(b"Theme. Auto follows your terminal.".as_slice()));
+            assert_eq!(list.escape, TuiEvent::Theme { choice: None });
+            assert_eq!(list.items.len(), 3);
+            for (item, (name, expected)) in list.items.iter().zip([
+                (b"Auto".as_slice(), ThemeChoice::Auto),
+                (b"Light", ThemeChoice::Light),
+                (b"Dark", ThemeChoice::Dark),
+            ]) {
+                assert_eq!(item.name.as_ref(), name);
+                assert_eq!(item.words.as_ref(), if expected == ThemeChoice::Auto { description } else { b"" });
+                assert_eq!(item.selected, choice == expected);
+                assert_eq!(item.event, TuiEvent::Theme { choice: Some(expected) });
+            }
+            let view = draw(part);
+            let head = f::find(view.tree(), Role::Text, b"Theme. Auto follows your terminal.");
+            assert_eq!(head.styles.as_slice(), &[look::LIST_HEAD]);
+            assert_eq!(crate::escape(&view), Some(TuiEvent::Theme { choice: None }));
+            for name in [b"Auto".as_slice(), b"Light", b"Dark"] {
+                assert_eq!(f::find(view.tree(), Role::MenuItem, name).styles.as_slice(), &[look::OPTION]);
+            }
+            tui.step(Told::Front);
+            tui.step(Told::Quitting);
+            assert_eq!(foot::read(&root, &tui, &words, f::NOW).list.unwrap().escape, TuiEvent::Stay);
+        }
+    }
 }

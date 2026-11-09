@@ -1447,6 +1447,10 @@ fn a_kept_theme_starts_the_next_host_in_it() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one ordered-write story takes choices before answering root and host writes"
+)]
 fn a_theme_write_answer_never_reaches_the_root() {
     use temper_client_tui::theme::{THEME_KEY, ThemeChoice};
     for (closing, erase_first) in [(false, false), (true, false), (false, true)] {
@@ -1461,6 +1465,9 @@ fn a_theme_write_answer_never_reaches_the_root() {
             },
         };
         key_words(&mut host, "/theme");
+        host.report(Report::Key(Key::Enter));
+        host.frame();
+        host.report(Report::Key(Key::Down));
         host.step(send(first));
         if erase_first {
             let duties = host.report(Report::Due);
@@ -1521,9 +1528,12 @@ fn a_theme_write_answer_never_reaches_the_root() {
         assert_eq!(host.root_writes.len(), 0);
         if !closing {
             key_words(&mut host, "/theme");
+            host.report(Report::Key(Key::Enter));
+            host.frame();
+            host.report(Report::Key(Key::Down));
             let duties = host.report(Report::Key(Key::Enter));
             let [Request::Save { records }] = duties.asked.as_slice() else {
-                panic!("next flip writes whole");
+                panic!("next choice writes whole");
             };
             assert_eq!(
                 records.as_slice(),
@@ -1544,6 +1554,80 @@ fn a_theme_write_answer_never_reaches_the_root() {
             );
         }
     }
+}
+
+#[test]
+fn the_theme_list_takes_keeps_and_notices_a_choice() {
+    use temper_client_tui::theme::{THEME_KEY, ThemeChoice};
+    let (mut host, _, _) = signed_host(false);
+    for command in ["/theme", "/th"] {
+        key_words(&mut host, command);
+        empty(&host.report(Report::Key(Key::Enter)));
+        host.frame();
+        assert!(host.state().theme_list());
+        assert!(host.words().is_empty());
+        assert_eq!(host.event_of(&Key::Enter), Some(Event::Theme { choice: Some(ThemeChoice::Auto) }));
+        empty(&host.report(Report::Key(Key::Escape)));
+        assert!(!host.state().theme_list());
+    }
+    give(&mut host, Event::Own { command: Own::Theme });
+    host.frame();
+    host.report(Report::Key(Key::Down));
+    let duties = host.report(Report::Key(Key::Enter));
+    let [Request::Save { records }] = duties.asked.as_slice() else {
+        panic!("one theme saved: {:?}", duties.asked);
+    };
+    let kept = records.as_slice().to_vec();
+    assert_eq!(kept, [jig_client::Record { key: THEME_KEY.into(), bytes: b"light".as_slice().into() }]);
+    assert_eq!(host.root.pages().look().theme, Theme::Light);
+    assert_eq!(host.state().theme_choice(), ThemeChoice::Light);
+    assert!(!host.state().theme_list());
+    assert!(host.words().is_empty());
+    assert_eq!(host.theme, temper_client_tui::theme(Scheme::Light, None));
+    let palette = temper_client_tui::theme::palette(Scheme::Light);
+    let frame = host.frame();
+    assert!(
+        (0..frame.size().rows)
+            .filter_map(|row| frame.row(row))
+            .flatten()
+            .any(|cell| palette.iter().any(|(_, colour)| cell.paint.fore == Some(*colour)))
+    );
+    host.report(Report::Heard(jig_client::Event::Stored));
+    give(&mut host, Event::Own { command: Own::Theme });
+    host.frame();
+    assert_eq!(host.event_of(&Key::Enter), Some(Event::Theme { choice: Some(ThemeChoice::Light) }));
+    host.report(Report::Key(Key::Char('h')));
+    assert!(!host.state().theme_list());
+    assert_eq!(host.words(), b"h");
+    give(&mut host, Event::Own { command: Own::Theme });
+    host.frame();
+    host.report(Report::Key(Key::Up));
+    host.report(Report::Key(Key::Enter));
+    assert_eq!(host.state().theme_choice(), ThemeChoice::Auto);
+    assert_eq!(host.root.pages().look().theme, Theme::Dark);
+
+    let mut restarted = self::host();
+    restarted.report(Report::Start(Start {
+        front: true,
+        size: Size { columns: 80, rows: 24 },
+        scheme: None,
+        background: None,
+        boxed: true,
+        address: b"127.0.0.1:8367".as_slice().into(),
+        local: false,
+        note: None,
+        kept,
+        credential: None,
+    }));
+    give(&mut restarted, Event::Own { command: Own::Theme });
+    restarted.frame();
+    assert_eq!(restarted.state().theme_choice(), ThemeChoice::Light);
+    assert_eq!(restarted.event_of(&Key::Enter), Some(Event::Theme { choice: Some(ThemeChoice::Light) }));
+    restarted.report(Report::Key(Key::Up));
+    restarted.report(Report::Key(Key::Enter));
+    assert_eq!(restarted.state().terminal_scheme(), None);
+    assert_eq!(restarted.state().theme_choice(), ThemeChoice::Auto);
+    assert_eq!(restarted.root.pages().look().theme, Theme::Dark);
 }
 
 fn person_chat(host: &mut Host) {
@@ -1699,14 +1783,17 @@ fn no_project_keys(words: &str) {
     key_words(&mut host, words);
     let written = host.state().box_written();
     let duties = host.report(Report::Key(if words == "/" { Key::Escape } else { Key::Enter }));
-    if words == "/theme" {
-        assert!(matches!(duties.asked.as_slice(), [Request::Save { .. }]));
-        empty(&host.report(Report::Heard(jig_client::Event::Stored)));
-    } else {
-        empty(&duties);
-    }
+    empty(&duties);
     match words {
-        "/theme" => assert_eq!(host.root.pages().look().theme, Theme::Light),
+        "/theme" => {
+            assert!(host.state().theme_list());
+            host.frame();
+            host.report(Report::Key(Key::Down));
+            let duties = host.report(Report::Key(Key::Enter));
+            assert!(matches!(duties.asked.as_slice(), [Request::Save { .. }]));
+            empty(&host.report(Report::Heard(jig_client::Event::Stored)));
+            assert_eq!(host.root.pages().look().theme, Theme::Light);
+        }
         "/help" => {
             assert_eq!(host.root.pages().notes().last(), Some(&terminal::Note::Help));
             assert!(text(&mut host).contains("/quit"), "help must render its commands");
@@ -1825,6 +1912,9 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
             "theme" => {
                 typed(&mut host, b"/theme");
                 give(&mut host, Event::Send);
+                host.frame();
+                host.report(Report::Key(Key::Down));
+                host.report(Report::Key(Key::Enter));
                 let palette = temper_client_tui::theme::palette(Scheme::Light);
                 let light = host.root.pages().look().theme == Theme::Light;
                 let frame = host.frame();
