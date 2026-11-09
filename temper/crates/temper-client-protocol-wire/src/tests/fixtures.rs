@@ -219,6 +219,14 @@ pub fn panel_rows() -> List<v1::ChangePanel> {
             Ci::Passed,
             [true, true, true],
         ),
+        (
+            Step::Repairing(
+                v1::Repairing::new(&limits, v1::RepairingParts { reason: Reason::Review }).expect("review repair"),
+            ),
+            None,
+            Ci::Passed,
+            [true, true, true],
+        ),
         (Step::Landing, None, Ci::Passed, [true, true, true]),
         (
             Step::Verifying(

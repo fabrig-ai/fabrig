@@ -4447,8 +4447,9 @@ the person to check existence and grant the repository to the App.
   - its step: producing, opening, recreating, reopening, checking,
     gating, queued (its place, from 1 (u32), and the tasks ahead of it,
     nearest first, at most 64 (u64 each)), first, updating, resolving,
-    repairing (its reason: CI, a gate by its number (u64), or a semantic
-    conflict), landing, or landed (its merge commit, 32 bytes); verifying,
+    repairing (its reason: CI, a gate by its number (u64), a semantic
+    conflict, or a person's request for changes on the forge,
+    `../domain/forge.md`, 8.3), landing, or landed (its merge commit, 32 bytes); verifying,
     red and cleared also carry the merge and at most 32 tier strings of at
     most 8192 bytes each. A tier string names its run and every full failing
     ID owned by or suspected of that landing, or explicitly `many tests`.
@@ -6353,7 +6354,7 @@ supplies it: the page computes none (jig's `client/domain/contract.md`,
   | first | "First in the queue for LANDING." |
   | updating | "Updating from LANDING." |
   | resolving | "Resolving its conflicts with LANDING." |
-  | repairing | "Repairing: CI failed at its head.", "Repairing: gate N asked for changes." or, for a semantic conflict, "Repairing: CI failed at its updated head.", which blames neither the change nor what it was updated with |
+  | repairing | "Repairing: CI failed at its head.", "Repairing: gate N asked for changes.", for a person's request on the forge "Repairing: a person asked for changes on the forge." (`../domain/forge.md`, 8.3) or, for a semantic conflict, "Repairing: CI failed at its updated head.", which blames neither the change nor what it was updated with |
   | landing | "Merging at its head." |
   | landed | "Landed · merge commit ABCDEFG", its first seven digits, as a delegation's card says it (5.7) |
 

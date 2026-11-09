@@ -153,6 +153,69 @@ fn the_landing_rules_meet_wait_and_refuse_as_their_criteria() {
 }
 
 #[test]
+fn a_refusal_names_a_persons_request_only_when_an_approval_refuses_first() {
+    use JudgeVerdict::{Refuse, Wait};
+    use change::Status::{Failed, Passed};
+    let older = [8; 32];
+    for (requested, clean, freshness, ci, gate, complete, expected, verdict) in [
+        (HEAD, [].as_slice(), JudgeFreshness::Exact, Passed, Passed, true, Some(HEAD), Refuse),
+        (
+            fixtures::BASE,
+            [fixtures::BASE].as_slice(),
+            JudgeFreshness::Clean,
+            Passed,
+            Passed,
+            true,
+            Some(fixtures::BASE),
+            Refuse,
+        ),
+        (
+            older,
+            [older, fixtures::BASE].as_slice(),
+            JudgeFreshness::Clean,
+            Passed,
+            Passed,
+            true,
+            Some(fixtures::BASE),
+            Refuse,
+        ),
+        (HEAD, [fixtures::BASE].as_slice(), JudgeFreshness::Clean, Passed, Passed, true, Some(HEAD), Refuse),
+        (fixtures::BASE, [].as_slice(), JudgeFreshness::Clean, Passed, Passed, true, None, Wait),
+        (fixtures::BASE, [fixtures::BASE].as_slice(), JudgeFreshness::Exact, Passed, Passed, true, None, Wait),
+        (HEAD, [].as_slice(), JudgeFreshness::Exact, Failed, Passed, true, None, Refuse),
+        (HEAD, [].as_slice(), JudgeFreshness::Exact, Passed, Failed, true, None, Refuse),
+        (HEAD, [].as_slice(), JudgeFreshness::Exact, Passed, Passed, false, None, Wait),
+    ] {
+        let (mut d, mut evidence) = fixture();
+        d.changes.get_mut(&CHANGE).expect("change").change.clean = clean.into();
+        let mut required = rule();
+        required.ci = true;
+        required.gates = Box::new([RuleGate { number: 1, blocking: true, freshness: JudgeFreshness::Exact }]);
+        required.approvals = Box::new([RuleApproval { role: 1, people: 1, freshness }]);
+        keep(&mut d, 0, 1, required);
+        evidence.ci = ci;
+        evidence.gates[0].status = gate;
+        evidence.reviews_complete = complete;
+        let mut requests: Box<[Reviewer]> = Box::new([Reviewer {
+            head: requested,
+            verdict: skein_forge::api::Verdict::RequestChanges,
+            ..reviewers()[0]
+        }]);
+        if requested == older || (requested == HEAD && freshness == JudgeFreshness::Clean) {
+            requests = Box::new([requests[0], Reviewer { person: 8, head: fixtures::BASE, ..requests[0] }]);
+        }
+        assert_eq!(judged(&d, 5, &evidence, &requests), Some(verdict));
+        assert_eq!(
+            d.review_request(CHANGE, HEAD, &evidence, &requests),
+            expected,
+            "{requested:?}, {freshness:?}, {ci:?}, {gate:?}, {complete}"
+        );
+        landing(&mut d);
+        assert_eq!(d.review_request(61, HEAD, &evidence, &requests), None, "no repair of a goal landing");
+    }
+}
+
+#[test]
 fn rules_that_do_not_enforce_hold_nothing() {
     let (mut d, mut evidence) = fixture();
     let mut advice = rule();

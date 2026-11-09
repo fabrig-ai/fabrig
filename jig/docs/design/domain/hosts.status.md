@@ -1,6 +1,6 @@
 # hosts: status
 
-2026-11-08. Where jig's code lags or departs from [hosts.md](hosts.md).
+2026-11-09. Where jig's code lags or departs from [hosts.md](hosts.md).
 
 Section 6.4 has no known gap in turn fences taking only offered messages:
 messages withheld by parts or a pace stay in the task's inbox when a
@@ -9,6 +9,12 @@ adds no host-side deferred work.
 
 Sections 2 and 8 have no known gap in endpoint bounds at hello and
 charter-supplied model names; the host keeps no model allowlist.
+
+Section 6.6 has no known gap in a loss told with why or a worker's
+return: each side's link component names each loss's cause, which
+temper's service prints (`../protocol/channel.status.md`;
+`temper/docs/design/protocol/README.md`, 15.3), and the engine's world takes back a worker
+lost fifty times, its closing connections aborted at the stall deadline.
 
 Section 6.7 has no known gap in a worker's hub saying it drains: a
 shutdown's `CancelAll` sends `LinkUp::Draining` before anything its

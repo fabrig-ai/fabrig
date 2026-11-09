@@ -1,6 +1,6 @@
 # engine: status
 
-2026-11-08. Where jig's code lags or departs from [engine.md](engine.md).
+2026-11-09. Where jig's code lags or departs from [engine.md](engine.md).
 
 Section 7.2's immutable failed run end retains the invalid-result kind
 computed for its attempt. No known gap remains in this field.
@@ -97,6 +97,10 @@ alone mark no Frame. The omitted-count mark below remains unimplemented.
 Later pages, later changes to a known name's figures
 and catalogue-number reuse remain section 16's open questions.
 
+Section 9.1's room as capacity holds at temper's activation: a task
+whose transcript window would find no load slot waits, due, spending no
+try. A window's later page without one still fails its preparation
+there (`temper/docs/design/domain/root.status.md`, 8).
 
 ## Gaps and departures
 
