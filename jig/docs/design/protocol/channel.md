@@ -953,9 +953,11 @@ ones in the fuzzy suite.
   as io does. The engine's world, one table: an assignment and a job at
   the room are sent; one byte past it, each is answered refused with its
   bytes and the room, told once as `Unsent`, and a ping still goes out
-  at each interval for two minutes, with the next record sent after it;
-  limits whose largest message, relayed answer or grant frame passes the
-  room are not made. The worker's world: limits whose largest turn,
+  at each interval for two minutes, with the next record sent after it.
+  The engine's component's step tests: limits whose largest message,
+  relayed answer or grant frame passes the room are not made, a job that
+  cannot encode is answered, and a record the channel refuses at its
+  entrance is answered once. The worker's world: limits whose largest turn,
   call, answer or hello frame passes the room are not made. Joined to
   the real engine's component, an assignment past the engine's room
   leaves the link up for two minutes, pings crossing both ways, its run
@@ -1095,7 +1097,13 @@ ones in the fuzzy suite.
   hello and be carried by the fleet.
 - **Large assignments:** a resumed run's transcript crosses in one frame,
   within the resume limit. If transcripts grow to many megabytes, an
-  assignment may stream its turns as records of their own after it.
+  assignment may stream its turns as records of their own after it. A
+  start past the room fails its run (section 9), and the domains' limits
+  admit one: making it start takes a room sized from what the
+  configuration admits, a start that carries fewer of its committed
+  calls, or frames that move below in pieces, a skein channel change.
+  The user chooses, from a deployment's refusal line (temper/migration,
+  2026-11-09). Default: it fails with its numbers.
 - **Facts dropped, told:** a piece past a gap marks the turn cut; a
   count of the activity dropped could cross too, for the deployment's
   document.

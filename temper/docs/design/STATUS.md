@@ -659,7 +659,13 @@ carry the fleet's reason and shortfall figures, sent as text and printed on the
 engine's stderr; the worker's own line keeps its reason code
 (`protocol/README.md`, 15.3). The worker reads its link on every pass,
 its entrance holding the engine's cap, and each side prints one line
-for each lost link or ended opening, naming the worker and why. Tasks
+for each lost link or ended opening, naming the worker and why. A
+start past the link's room fails its run with its bytes and the room,
+serve writing `worker unsent`, and the link and its pings go on; both
+stock profiles admit such a start, and making it run is an open
+question, while a worker whose turn's frame passes its `io.output` is
+refused naming no bound (`domain/worker.md`, 4.3 and 12;
+`protocol/configuration.status.md`, 7). Tasks
 due together past the load slots stay due until a slot frees, a
 transcript window's later pages keep its first page's slot, and a turn
 too large for a load page reaches the core cut, so its run starts fresh

@@ -37,7 +37,11 @@ it was lost, on each side, its silence counts bytes, and a closing
 connection is aborted at the stall deadline, so a worker lost fifty
 times each way is taken back each time; the fifty-loss row leaves out
 a full cap and the worker's refusal (`protocol/channel.md`, 9, 10.1,
-10.2 and 12; `domain/hosts.md`, 6.6). The store's retention,
+10.2 and 12; `domain/hosts.md`, 6.6). Each side's link takes its
+stream's room: a start past it fails its run with its bytes and the
+room, the link and its pings going on, and a side whose other frames
+could pass it is not made; making such a start run is an open question
+(`protocol/channel.md`, 5.2, 9, 11 and 14). The store's retention,
 rehearsal and going back are not built (`protocol/store.md`,
 `protocol/client.md`). A start whose store fails a link refuses,
 naming the record and what it links to, and no route writes a link to
