@@ -4,6 +4,7 @@ sources = ["temper/docs/plan/resume-fits-room/inputs/request.md", "AGENTS.md", "
 # Plan options, written by fab call cut --set; keep them
 owner = "temper/migration"
 priority = true
+after = ["worker-link-quiet"]  # agents/loop, 11-09 17:15Z: this trunk holds worker-link-quiet's merged trunk, so it lands only after that plan does
 
 # plan.md says what was decided and why.
 
