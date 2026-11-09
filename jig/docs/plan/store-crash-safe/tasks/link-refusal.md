@@ -3,7 +3,7 @@ id = "link-refusal"
 part = "link-refusal"
 kind = "feature"
 needs = []
-files = ["jig/crates/jig-domain-core/src/start.rs", "jig/crates/jig-domain-core/src/start/links.rs", "jig/crates/jig-domain-core/src/start/projections.rs", "jig/crates/jig-domain-core/src/start/script.rs", "jig/crates/jig-domain-core/src/lib.rs", "jig/crates/jig-domain-core/src/tests/start.rs", "jig/crates/jig-domain-core/src/tests/start/**", "jig/crates/jig-domain-people/src/restore.rs", "jig/crates/jig-domain-people/src/domain/start.rs", "jig/crates/jig-domain-people/src/tests/start.rs", "jig/crates/jig-domain-tasks/src/stored.rs", "jig/crates/jig-domain-tasks/src/stored/failure.rs", "jig/crates/jig-domain-tasks/src/tests/startup/**", "jig/tests/core/tests/suite/start_links.rs", "jig/tests/core/tests/suite/switch_step.rs", "temper/crates/temper-engine-shell/src/serve/host.rs", "temper/tests/engine/domain/tests/suite/root_routes.rs", "jig/docs/design/domain/engine.status.md"]
+files = ["jig/crates/jig-domain-core/src/start.rs", "jig/crates/jig-domain-core/src/start/links.rs", "jig/crates/jig-domain-core/src/start/projections.rs", "jig/crates/jig-domain-core/src/start/script.rs", "jig/crates/jig-domain-core/src/lib.rs", "jig/crates/jig-domain-core/src/tests/start.rs", "jig/crates/jig-domain-core/src/tests/start/**", "jig/crates/jig-domain-people/src/restore.rs", "jig/crates/jig-domain-people/src/domain/start.rs", "jig/crates/jig-domain-people/src/tests/start.rs", "jig/crates/jig-domain-tasks/src/stored.rs", "jig/crates/jig-domain-tasks/src/stored/failure.rs", "jig/crates/jig-domain-tasks/src/tests/startup.rs", "jig/crates/jig-domain-tasks/src/tests/startup/**", "jig/crates/jig-domain-tasks/src/placed.rs", "jig/crates/jig-domain-tasks/src/writers.rs", "jig/crates/jig-domain-tasks/src/funders.rs", "jig/tests/core/tests/suite/start_links.rs", "jig/tests/core/tests/suite/switch_step.rs", "temper/crates/temper-engine-shell/src/serve/host.rs", "temper/tests/engine/domain/tests/suite/root_routes.rs", "jig/docs/design/domain/engine.status.md"]
 effort = "high"
 minutes = 150
 +++
@@ -166,3 +166,31 @@ on the trunk; each link check moved, by file, and those left as
 assertions with why; each reader test changed; the hand-broken rule and
 the failure seen; the runs and their counts; your implementation and
 check minutes apart.
+
+## Answers
+
+2026-11-09. *Amend the contract for the checks `Linked` cannot name, and
+authorize the tasks child's helper files, or exempt those checks?*
+Amend, and authorize; `notes/contracts.md`, 1 now says so:
+
+- `link_settings_proposal`: a proposal number that fits `u32` refuses
+  with `Linked::Record` of the settings proposal key, as before; one past
+  `u32` refuses with the new `Linked::SettingsProposal { proposer,
+  proposal }` (words `settings proposal {proposer:?}/{proposal}`). No
+  truncation, no assertion.
+- A writer whose resource no hold owns (`writers.rs`'s `link`): the tasks
+  child's new `RestoreCause::Holder { resource }`, `record` the
+  `Writer(n)` key, mapped to the new `Linked::Holder(resource)` (words
+  `hold owner for {resource:?}`). Rename
+  `a_writer_without_a_holder_panics_at_link` for the refusal.
+- `placed.rs`, `writers.rs` and `funders.rs`'s restore links (scope task,
+  hold owner, placed and proposed hold, writer task, funder, parent
+  funder) are yours now (`files`, with `src/tests/startup.rs`): each sets
+  the restore failure as `stored.rs`'s links do, through
+  `RestoreCause::Link` with the tasks key it names, or `Holder`.
+- `link_resource_projects` is not a store's link: it walks connector
+  reports held in memory, which no stored row holds, so no store trips it.
+  It stays an assertion; name it in the report among those left.
+- Neither variant changes a stored format. temper's `start_failure`
+  gains their words, each pinned by a row of the existing wording table.
+
