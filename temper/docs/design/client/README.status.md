@@ -506,8 +506,6 @@ worker and hosted agent and checks one request, the new name in `me`,
 and unchanged accounting. No real-provider result is supplied;
 section 11 keeps that observation and the page comparison after landing.
 
-- **Not yet:** 4.6: `PathStep` has no `design` or `close_out`, and the
-  wire no `TemplateGoal` record (`goal-wire`).
 - **Not yet:** 3.5, *The `Models` tab*: the omitted count can stay stale
   when a provider read changes that count alone, because jig does not
   mark `me` for it (`jig/docs/design/domain/engine.status.md`, 17.12).
