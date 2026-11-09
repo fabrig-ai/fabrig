@@ -843,7 +843,7 @@ impl World {
                 *count += 1;
                 return;
             }
-            Prepared::Failed { failure } => {
+            Prepared::Failed { failure, .. } => {
                 let count = match failure {
                     Failure::Transient => &mut stats.transient,
                     Failure::Missing { missing: Missing::Repository, .. } => &mut stats.missing_repository,

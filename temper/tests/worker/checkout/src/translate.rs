@@ -200,6 +200,18 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
     }
 }
 
+/// `perform`, with the git layer's rules on the checkout's `conflicts`
+/// (temper/docs/design/protocol/git.md, 4.6 and 4.7).
+pub fn perform_within(forge: &mut impl Remote, disk: &mut Checkout, op: Op, conflicts: u32) -> Done {
+    let merge = matches!(op, Op::Merge { .. });
+    match perform(forge, disk, op) {
+        Done::Conflicted { files } if merge => Done::Conflicted {
+            files: files.into_iter().take(usize::try_from(conflicts).expect("conflicts fits usize")).collect(),
+        },
+        done => done,
+    }
+}
+
 fn failed(fault: git::Fault) -> Done {
     let fault = match fault {
         git::Fault::Missing(What::Repository) => Fault::Missing { missing: Missing::Repository },

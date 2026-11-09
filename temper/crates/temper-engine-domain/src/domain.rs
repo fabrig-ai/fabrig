@@ -138,13 +138,14 @@ pub struct Domain {
 pub(crate) struct RunDiagnostics {
     /// Accepted failed answers awaiting the operator sink.
     pub(crate) failed: Queue<crate::RunDiagnostic>,
+    pub(crate) jobs: Queue<crate::JobDiagnostic>,
     /// Accepted refused assignments awaiting the operator sink.
     pub(crate) refused: Queue<crate::RunRefusalDiagnostic>,
 }
 
 impl RunDiagnostics {
     fn new() -> Self {
-        Self { failed: Queue::uncapped(), refused: Queue::uncapped() }
+        Self { failed: Queue::uncapped(), refused: Queue::uncapped(), jobs: Queue::uncapped() }
     }
 }
 
@@ -741,6 +742,12 @@ impl Domain {
     pub fn pop_run_refusal(&mut self) -> Option<crate::RunRefusalDiagnostic> {
         self.changed();
         self.run_diagnostics.refused.pop()
+    }
+
+    /// Take an accepted job's operator evidence once (temper/docs/design/domain/worker.md, 4.4).
+    pub fn pop_job_diagnostic(&mut self) -> Option<crate::JobDiagnostic> {
+        self.changed();
+        self.run_diagnostics.jobs.pop()
     }
 
     /// The oldest of the root's own facts not drained yet.
