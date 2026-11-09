@@ -33,9 +33,6 @@ pub struct WorkerRuntime {
 }
 /// The filesystem's absolute path envelope, including the worker root.
 pub(crate) const WORKER_PATH_BYTES: usize = 4096;
-/// The link's capped edge holds new engine work at the watermark
-/// (`temper/docs/design/domain/worker.md`, 3.1).
-pub(crate) const HELD_ENTRANCE: u32 = 192;
 /// smith-host-protocol's `Process::new` caps `channel_below` at 16 entries.
 const PROCESS_CHANNEL_REQUESTS: u32 = 16;
 #[derive(Debug)]
@@ -98,6 +95,8 @@ struct Remote {
     notes: Queue<crate::Note>,
     end: Option<crate::End>,
     hello_pending: bool,
+    linked: bool,
+    loss_pending: bool,
     last_refusal: Option<(core::net::SocketAddr, crate::Refusal)>,
 }
 impl Worker {
@@ -145,7 +144,13 @@ impl Worker {
             out: Queue::uncapped(),
             events: Queue::uncapped(),
             engine: Queue::uncapped(),
-            held: Queue::with_capacity(HELD_ENTRANCE),
+            held: Queue::with_capacity(
+                jig_protocol_worker_wire::sizes::engine_cap(&prepared.link.sizes)
+                    .ok_or(problem(b"limits", What::Bound))?
+                    .frames
+                    .checked_add(3)
+                    .ok_or(problem(b"limits", What::Bound))?,
+            ),
             process_events: Queue::uncapped(),
             processes: Map::with_capacity(slots),
             owners: Map::with_capacity(slots),
@@ -167,6 +172,8 @@ impl Worker {
                     notes: Queue::uncapped(),
                     end: None,
                     hello_pending: false,
+                    linked: false,
+                    loss_pending: false,
                     last_refusal: None,
                 })),
             },
@@ -281,17 +288,6 @@ impl Worker {
             }
             None => false,
         }
-    }
-    /// A link step's whole output is dispatched before the link steps again
-    /// (`temper/docs/design/domain/worker.md`, 3.1, order 8): its engine records
-    /// are taken and its socket notes drained. The engine's records wait in
-    /// the socket while the held entrance is full.
-    pub(crate) fn link_taken(&self) -> bool {
-        self.engine.is_empty()
-            && match &self.connection {
-                Connection::InProcess(_) => true,
-                Connection::Socket(remote) => remote.notes.is_empty(),
-            }
     }
     /// Entries waiting between the worker's components. The engine entrance
     /// and capped held queue are excluded so new work cannot hold itself at the watermark.
@@ -412,9 +408,32 @@ impl Worker {
     }
     fn drain_link(&mut self, now: Time) {
         // One link invocation's finite batch; dispatch does not invoke the link.
+        let mut fault = false;
         for _ in 0..self.link_out.len() {
             let request = self.link_out.pop().expect("link output");
+            let waiting = self.engine.len();
             self.link(now, request);
+            if self.engine.len() > waiting
+                && let Some(event) = self.engine.iter().next_back()
+                && root::is_new_work(event)
+                && self.held.room() <= waiting
+            {
+                // Reject only this new record, preserving the entrance's order.
+                for _ in 0..waiting {
+                    let event = self.engine.pop().expect("earlier engine records");
+                    self.engine.push(event);
+                }
+                let _dropped = self.engine.pop().expect("new record past the entrance cap");
+                fault = true;
+            }
+        }
+        if fault {
+            // The whole invocation is dispatched before the fault invokes the link.
+            self.link.down(now, link::Event::SourceFault, &mut self.link_out);
+            for _ in 0..self.link_out.len() {
+                let request = self.link_out.pop().expect("source fault output");
+                self.link(now, request);
+            }
         }
         self.values.expire(now);
     }
@@ -428,8 +447,13 @@ impl Worker {
                 self.engine.push(root::Event::Ready);
             }
             link::Request::Lost => {
-                if let Connection::Socket(remote) = &mut self.connection {
-                    remote.hello_pending = false;
+                match &mut self.connection {
+                    Connection::InProcess(_) => {}
+                    Connection::Socket(remote) => {
+                        remote.hello_pending = false;
+                        remote.loss_pending |= remote.linked;
+                        remote.linked = false;
+                    }
                 }
                 self.engine.push(root::Event::Lost);
             }
@@ -496,6 +520,19 @@ impl Worker {
             }
             link::Request::Closed => self.closed = true,
             link::Request::Fact { why } => {
+                match &mut self.connection {
+                    Connection::InProcess(_) => {}
+                    Connection::Socket(remote) => {
+                        if remote.loss_pending {
+                            remote.loss_pending = false;
+                            remote.notes.push(crate::Note::Lost {
+                                worker: remote.worker.clone(),
+                                address: Box::new(remote.address),
+                                why,
+                            });
+                        }
+                    }
+                }
                 let reason = match why {
                     link::Loss::Closed(skein_channel::Closed::RefusedPeer(code)) => Some(crate::Refusal::Peer(code)),
                     link::Loss::Closed(skein_channel::Closed::RefusedHere(
@@ -647,6 +684,8 @@ impl Worker {
                 {
                     remote.hello_pending = false;
                     remote.last_refusal = None;
+                    remote.linked = true;
+                    remote.loss_pending = false;
                     remote
                         .notes
                         .push(crate::Note::Linked { worker: remote.worker.clone(), address: Box::new(remote.address) });
@@ -828,7 +867,7 @@ impl Worker {
             self.git.component.fire(now, &mut self.git.out);
             self.git_drain();
         }
-        if self.git.ready && self.link_taken() {
+        if self.git.ready {
             self.link.fire(now, &mut self.link_out);
             self.drain_link(now);
         }
