@@ -21,11 +21,6 @@ rows remain M5's. The box's modes and the worker's current program are
 unchanged; naming `temper-agent` is M3's
 (`../draft/deployment-binaries.execution.md`, 1).
 
-- **Not yet:** 7: a model list's launch for an agent given its
-  configuration alone: the worker launches a list only for `internal
-  agent AGENT.json` (`temper-service/src/worker.rs`, `list_launch`), so
-  a worker naming `temper-agent AGENT.json` reads no model list.
-
 Section 8.2's wait and recovery notes, ordered gate reasons, one-second
 threshold and suppression of repeats are present. Service tests step
 supplied times through refused startup inputs and a held watermark

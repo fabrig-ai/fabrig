@@ -20,19 +20,20 @@ fn command(
 ) -> Result<std::process::Command, String> {
     let name = source_name(name)?;
     let bytes = directories.read()?;
-    let agent = match temper_service::startup::shape(&bytes, &jig_directories(directories))
+    let worker = match temper_service::startup::shape(&bytes, &jig_directories(directories))
         .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?
     {
         temper_service::startup::Shape::WorkerAlone => {
             let part = temper_service::startup::worker_part(&bytes, &jig_directories(directories))
                 .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?;
-            super::agent::preflight_worker(&part.named)?
+            part.named
         }
         temper_service::startup::Shape::Standalone | temper_service::startup::Shape::EngineAlone => {
             let super::setup::Deployment { named, .. } = super::setup::check(&bytes, &jig_directories(directories))?;
-            super::agent::preflight(&named)?
+            named.worker.ok_or("workers: standalone takes one worker")?
         }
     };
+    let agent = super::agent::preflight_worker(&worker)?;
     let program = agent
         .programs
         .iter()
@@ -42,6 +43,7 @@ fn command(
         super::claude_code::place(
             super::path(&program.path).parent().expect("launcher parent"),
             super::path(&directories.cache),
+            super::path(&worker.program),
         )
         .map_err(|why| format!("programs.claude_code: {why}"))?;
     }
