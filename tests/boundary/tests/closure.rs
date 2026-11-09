@@ -13,7 +13,7 @@ struct Row {
 
 const ROWS: &[Row] = &[Row {
     package: "temper-agent",
-    temper: &["temper-agent", "temper-shell", "temper-docs", "temper-fetch", "temper-fetch-shell"],
+    temper: &["temper-agent", "temper-shell", "temper-docs", "temper-launcher", "temper-fetch", "temper-fetch-shell"],
     trees: &["jig"],
     exceptions: &[],
 }];

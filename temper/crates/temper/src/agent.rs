@@ -93,12 +93,12 @@ pub(crate) fn program_directory_refusal(why: &smith_agent_shell::program::Refusa
 
 /// Claude Code's launcher, beside its programs directory (protocol/setup.md, 6.6).
 pub(crate) fn launcher(directory: &Path) -> Option<PathBuf> {
-    temper_fetch_shell::launcher::beside(directory)
+    temper_launcher::beside(directory)
 }
 /// agent.json as smith decodes it: a program `"fetched"` names its launcher.
 pub(crate) fn decoded(configuration: &Path) -> Result<smith_agent_shell::config::Decoded, String> {
     let bytes = smith_agent_shell::config::read_bytes(configuration)?;
-    let bytes = temper_fetch_shell::launcher::substituted(&bytes)?.unwrap_or(bytes);
+    let bytes = temper_launcher::substituted(&bytes)?.unwrap_or(bytes);
     smith_agent_shell::config::decode(&bytes)
 }
 /// `decoded`, resolved with stderr's diagnostics, as `config::read` does.

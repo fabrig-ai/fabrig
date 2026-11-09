@@ -1,4 +1,4 @@
-//! Claude Code's launcher (protocol/setup.md, 6.6).
+//! Claude Code's launcher (temper/docs/design/protocol/setup.md, 6.6).
 use std::{
     ffi::OsStr,
     fs,
@@ -47,7 +47,7 @@ fn launch(program: &OsStr, arguments: &[Box<[u8]>]) -> Result<(), String> {
         build,
     );
     let file = claude_code::file(cache.as_os_str().as_bytes());
-    crate::fetch::claude_code(
+    temper_fetch_shell::fetch::claude_code(
         &IO,
         &skein_shell::Trust::Machine { ssl_cert_file: std::env::var_os("SSL_CERT_FILE").map(Into::into) },
         path(&file),
@@ -95,7 +95,7 @@ fn link(directory: &Path, name: &str, target: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// The launcher fetch's small io limits (protocol/setup.md, 6.6).
+/// The launcher fetch's small io limits (temper/docs/design/protocol/setup.md, 6.6).
 pub const IO: skein_io::Limits = skein_io::Limits {
     sockets: 16,
     names: 8,
@@ -114,7 +114,7 @@ fn path(bytes: &[u8]) -> &Path {
     Path::new(OsStr::from_bytes(bytes))
 }
 
-/// Claude Code's launcher, beside its programs directory (protocol/setup.md, 6.6).
+/// Claude Code's launcher, beside its programs directory (temper/docs/design/protocol/setup.md, 6.6).
 #[must_use]
 pub fn beside(directory: &Path) -> Option<PathBuf> {
     directory.parent().map(|parent| parent.join("claude-code/claude"))

@@ -12,12 +12,6 @@ remain M5's. The box's modes and the worker's current program are
 unchanged; naming `temper-agent` is M3's
 (`../draft/deployment-binaries.execution.md`, 1).
 
-- **Not yet:** 4.1 to 4.4, 5: `temper-launcher`: Claude Code's
-  launcher, the placing of its links and the substitution are
-  `temper-fetch-shell`'s (`crates/temper-fetch-shell/src/launcher.rs`),
-  which checks the links' directory through `smith-agent-document`, so
-  `temper-engine` links nine of smith's crates its row excludes through
-  `temper-forge-setup-shell`, and `binaries.rs` fails.
 - **Not yet:** 4.1, 4.3 to 4.4, 5: `temper-agent --version` prints the
   commit of a build script of its own (`crates/temper-agent/build/`,
   `TEMPER_AGENT_COMMIT`), not `temper-version`'s.

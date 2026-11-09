@@ -7,9 +7,9 @@ use temper_agent::NAME;
 fn main() -> ExitCode {
     skein_fail_stop::install();
     if let Some(program) = env::args_os().next()
-        && temper_fetch_shell::launcher::is_launcher(&program)
+        && temper_launcher::is_launcher(&program)
     {
-        return ExitCode::from(temper_fetch_shell::launcher::run(NAME, &program, &skein_shell::arguments()));
+        return ExitCode::from(temper_launcher::run(NAME, &program, &skein_shell::arguments()));
     }
     if env::args_os().nth(1).as_deref() == Some(OsStr::new(smith_agent_shell::relay::FLAG)) {
         return smith_agent_shell::relay::main();
