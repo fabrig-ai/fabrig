@@ -49,6 +49,13 @@ assertion. temper's forge link still panics
 Section 7.2's immutable failed run end retains the invalid-result kind
 computed for its attempt. No known gap remains in this field.
 
+Section 7.2 has no known gap in *Resuming* across a worker's link: the
+core hands the link every call committed since the run's last turn,
+whole and in commit order (`jig/tests/core`'s
+`settled_answers_resume_in_commit_order_and_a_replay_preserves_exact_bytes`),
+and the engine's link fits their answers to its room
+(`../protocol/channel.status.md`, 9).
+
 Sections 7.2 and 9 have no known gap in *A turn too large for a page*.
 `TranscriptLoad::Cut` hands the core a turn's fields and length.
 `Core::append_cut_transcript` admits it as `append_transcript` admits a

@@ -71,6 +71,24 @@ loss handling above, stands on reading alone: that evidence is outside the
 repository, and its proof is that deployment's next `worker unsent`
 line, which no record shows.
 
+Sections 5.2, 9, 11 and 12 have no known gap in *A resumed start fits
+its room first*. `jig-protocol-worker-wire`'s `fit::fit` keeps an
+assignment whole when its frame fits; otherwise it cuts every host
+answer longer than its words, `fit::cut_words`, and gives back from
+the newest call the answers whose frame still fits, stopping at the
+first that does not; a delivery's answer, and a host answer no longer
+than its words, stay whole; an assignment still past the room is
+returned cut, `Fitted::Past` with its bytes. `sizes::smallest_resumed`
+measures the smallest resumed start. The engine's component fits each
+assignment before measuring it, never a job, and refuses one `Past`
+with the bytes so cut (`component.rs`, `send`); `valid` refuses limits
+whose smallest resumed start passes the room (`limits.rs`). The wire's
+`a_resumed_start_is_fitted_to_its_room` and
+`the_smallest_resumed_start_is_measured`, the engine's world's
+`a_resumed_start_fits_the_room` and
+`the_room_holds_the_smallest_resumed_start`, and the joined
+`a_resumed_start_fits_the_room_on_each_stock_profile` hold it.
+
 - **Not yet:** 12: the engine's fifty-loss row loses its worker by
   silence, stall, a send held below, the stream failing and ending, not
   admitted, replaced and framing, but not by a full cap or the worker's

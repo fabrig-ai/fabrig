@@ -9,25 +9,38 @@ Section 4.3's busy start has no known gap: smith's busy, an agent with
 no room or a run it has no room for, reaches the hub as
 `FromAgent::StartBusy` (`temper-worker-domain`'s `agents.rs`, `ended`,
 and `hand_out.rs`, `Finish::of`), and spends no try.
-Section 4.3's start the link cannot carry has no known gap. The engine's
+Sections 4.1's *Transcript* and 4.3's start the link cannot carry have
+no known gap. The engine's
 link takes its `io.largest_room` and the worker's its own
 (`temper-service/src/workers.rs`, `limits`;
-`worker_settings.rs`, `link_limits`); a start past the room fails as an
+`worker_settings.rs`, `link_limits`); jig's engine link fits a resumed
+start's committed calls to that room, the newest answers whole and the
+older cut to words naming their bytes (jig's
+`protocol/channel.status.md`); a start still past the room fails as an
 invalid start naming its bytes and the room, serve writes its refused-run
 line and `worker unsent`, and the link, its pings and a later run go on.
 On each stock profile, `link_room.rs`'s
 `a_stock_start_crosses_the_link_or_fails_with_its_numbers` sends the
 largest charter, window and tree across, and the largest inbox on
-`small`; the committed calls, everything at once and `standard`'s
-largest inbox fail with their numbers; one byte past a part is refused
+`small`; a producer resumed with every call `core.call_records` admits
+at `core.call_answer_bytes` crosses on both, handed every call in
+order, the newest answers whole and the rest cut, its frame the bytes
+the fit gives; everything at once crosses on `small`, and on `standard`
+it and the largest inbox fail with their numbers, every answer cut
+first; one byte past a part is refused
 before the link, `assignment cannot encode`, but a brief section, which
 the charter's fitting omits (`agent.md`, 4.3). Its
 `stock_profiles_make_both_links_and_fit_every_nonstart_frame` and
 `workers.rs`'s `refused_answer_reason_reaches_operator_once` hold the
-rest. The deployment's start the request `worker-link-quiet` of
-2026-11-09 saw silence its link is, by reading, a resumed producer's
-committed calls past the room; its proof is that deployment's next
-`worker unsent` line, which no record shows.
+rest. Limits whose smallest resumed start passes the engine's room are
+refused at start (`../protocol/configuration.status.md`, 7). The
+deployment's start the request `worker-link-quiet` of 2026-11-09 saw
+silence its link is, by reading, a resumed producer's committed calls
+past the room, which the request `resume-fits-room` of the same day
+says such producers pass after an hour or so of work; such a start now
+crosses cut. Both stand on reading alone: that evidence is outside the
+repository, and no deployment on record has resumed such a producer
+since.
 
 Section 4.4's failure lines have no known gap but the result's why below.
 When its hub answers a job failed or refused, the worker writes its line
