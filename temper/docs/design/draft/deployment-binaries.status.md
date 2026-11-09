@@ -7,8 +7,9 @@ fetch and launcher, and the agent's dependency-closure row are present.
 M3 is present: `temper-worker` with `serve`, `program-login`, `help` and
 `--version`, and the worker naming the agent's program for list launches
 and the `claude` link. M5's box integration, remaining closure rows and
-help, M6's release job, and figures remain incomplete. Section 11's Later
-items are unchanged.
+help, M6's release job, and figures remain incomplete. The draft is kept
+for that work, not retired. Section 11's Later items are unchanged;
+nothing from M3 moves there.
 
 - **Design lags:**
   - 4 and 10: `../protocol/README.md`, 4.1 and 4.4, hold the binaries'

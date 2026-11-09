@@ -17,9 +17,13 @@ crates, no jig crate and no exception, since `temper-shell` links
 skein's crates and `temper-docs` alone and jig's form of the three
 directories is `temper-service-shell`'s `jig_directories`, which the
 box's `temper::directories` re-exports. The client's and the worker's
-rows remain M5's. The box's modes and the worker's current program are
-unchanged; naming `temper-agent` is M3's
-(`../draft/deployment-binaries.execution.md`, 1).
+rows remain M5's. Section 7's model-list launch uses the worker's named
+agent program, with the box's `internal agent-list AGENT.json` or the
+deployment's `AGENT.json` arguments, and smith's `--list` before them
+(`temper-service/src/worker.rs`, `list_launch`). The service's
+`a_one_argument_agent_lists_with_its_configuration_alone` and
+`list_reads_launch_temper_without_credentials_or_a_run_slot` hold both
+forms; other argument forms and unusable grants fail without IO.
 
 Section 8.2's wait and recovery notes, ordered gate reasons, one-second
 threshold and suppression of repeats are present. Service tests step
@@ -90,7 +94,7 @@ The binary's line tables
 it. Nor in `worker unsent`: the engine writes it once for each record its
 link did not send, naming the record, its frame's bytes and the room or
 the channel's reason (`workers.rs`, `route`, `Note::WorkerUnsent`;
-`serve/host.rs`, `note_line`), as
+`temper-service-shell/src/host.rs`, `note_line`), as
 `worker_unsent_lines_name_the_record_bytes_and_bound` and
 `each_unsent_record_reaches_the_operator_once` hold. The request `worker-relinks` of 2026-11-08 also asked that the
 engine stop on SIGTERM within its stop grace, where a service manager
