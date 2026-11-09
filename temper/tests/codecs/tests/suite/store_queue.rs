@@ -24,6 +24,10 @@ fn entry(queued: bool) -> Stored {
     }
 }
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE, through temper's test table once it exists"
+)]
 fn queued_and_unqueued_entries_have_v11_golden_bytes_and_round_trip() {
     let bounds =
         temper_protocol_store::bounds(&fixture::LIMITS, fixture::LIMITS.client.op_bytes).expect("fixture bounds");

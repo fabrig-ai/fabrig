@@ -2116,6 +2116,10 @@ fn a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a
 
 #[cfg(target_os = "linux")]
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: TEMPER_BOX_PARENT_TEST, through temper's test table once it exists"
+)]
 fn a_story_box_and_its_steps_die_when_the_test_process_is_killed() {
     use std::{
         fs,

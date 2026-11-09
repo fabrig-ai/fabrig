@@ -51,6 +51,10 @@ fn doubled_byte_bounds(deployment: &[u8]) -> Box<[u8]> {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE, through temper's test table once it exists"
+)]
 fn story_a_walks_from_the_welcome_to_the_csv_change_landed() {
     let mut page = Page::start(&A, SEED, Wall::EPOCH);
     let script = stories::a();
