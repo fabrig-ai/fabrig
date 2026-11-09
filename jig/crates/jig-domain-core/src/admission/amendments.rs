@@ -19,6 +19,17 @@ impl Core {
         Ok(())
     }
 
+    /// Raw and accepted amendments keep the same named-person and account admission.
+    pub(crate) fn admit_amendment(
+        &self,
+        task: u64,
+        amendment: &tasks::Amendment,
+        funder: Option<tasks::Funder>,
+    ) -> Result<(), tasks::Refusal> {
+        self.amendment_person(amendment)?;
+        self.amendment_account(task, amendment, funder)
+    }
+
     /// The models a task keeps through an amendment of its authority, which names none; none for
     /// an unknown task, which the amendment's admission refuses (domain/authority.md, section 3).
     #[must_use]
