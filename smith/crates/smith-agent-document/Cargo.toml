@@ -1,0 +1,64 @@
+[package]
+license.workspace = true
+name = "smith-agent-document"
+description = "The agent's document and its programs, read without smith's agent"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[features]
+fixture = []
+
+[dependencies]
+smith-protocol-program.workspace = true
+skein-shell.workspace = true
+
+skein-lib.workspace = true
+skein-channel.workspace = true
+skein-http.workspace = true
+skein-llm.workspace = true
+skein-llm-connection.workspace = true
+skein-tls.workspace = true
+smith-agent-profile.workspace = true
+smith-domain.workspace = true
+smith-events.workspace = true
+smith-charter.workspace = true
+smith-protocol-events.workspace = true
+smith-protocol-translate.workspace = true
+smith-protocol-llm.workspace = true
+smith-protocol-machine.workspace = true
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[dev-dependencies]
+skein-scratch.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+let_underscore_drop = "deny"
+unused_qualifications = "warn"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+wildcard_enum_match_arm = "deny"
+indexing_slicing = "deny"
+arithmetic_side_effects = "deny"
+as_conversions = "deny"
+unwrap_used = "deny"
+let_underscore_must_use = "deny"
+mem_forget = "deny"
+todo = "deny"
+unimplemented = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+disallowed_types = "deny"
+disallowed_methods = "deny"
+dbg_macro = "deny"
+missing_assert_message = "deny"
+iter_over_hash_type = "deny"

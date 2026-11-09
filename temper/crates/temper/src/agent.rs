@@ -1,5 +1,4 @@
 //! Checked agent metadata and effect-free programs-directory preflight (configuration.md, 5).
-use super::json::{self, Json};
 use jig_domain_link::{Bounds, EndpointBound};
 use std::{
     os::unix::ffi::OsStrExt,
@@ -94,72 +93,15 @@ pub(crate) fn program_directory_refusal(why: &smith_agent_shell::program::Refusa
 
 /// Claude Code's launcher, beside its programs directory (protocol/setup.md, 6.6).
 pub(crate) fn launcher(directory: &Path) -> Option<PathBuf> {
-    directory.parent().map(|parent| parent.join("claude-code/claude"))
+    temper_fetch_shell::launcher::beside(directory)
 }
 /// agent.json as smith decodes it: a program `"fetched"` names its launcher.
 pub(crate) fn decoded(configuration: &Path) -> Result<smith_agent_shell::config::Decoded, String> {
     let bytes = smith_agent_shell::config::read_bytes(configuration)?;
-    let bytes = substituted(&bytes)?.unwrap_or(bytes);
+    let bytes = temper_fetch_shell::launcher::substituted(&bytes)?.unwrap_or(bytes);
     smith_agent_shell::config::decode(&bytes)
 }
 /// `decoded`, resolved with stderr's diagnostics, as `config::read` does.
 pub(crate) fn configuration(path: &Path) -> Result<smith_agent_shell::config::Configuration, String> {
     decoded(path)?.resolve(&mut std::io::stderr()).map_err(smith_agent_shell::config::ConfigurationRefusal::detail)
-}
-fn substituted(bytes: &[u8]) -> Result<Option<Box<[u8]>>, String> {
-    // Inspect the bounded document first; smith keeps its own diagnostics for other documents.
-    let Ok(document) = jig_protocol_config::document(
-        bytes,
-        &jig_protocol_config::DocumentLimits { bytes: json::CONFIG_BYTES, tokens: 65_536, depth: 32 },
-    ) else {
-        return Ok(None);
-    };
-    let fetched = document
-        .member(0, b"programs")
-        .and_then(|programs| document.member(programs, b"claude_code"))
-        .and_then(|program| document.member(program, b"path"))
-        .and_then(|at| document.token(at))
-        .filter(|token| token.kind == skein_json::document::Kind::String)
-        .and_then(|token| document.text(token))
-        == Some(temper_init::FETCHED);
-    if !fetched {
-        return Ok(None);
-    }
-    let mut document = Json::decode(bytes)?;
-    let directory = document
-        .string("programs/claude_code/directory")
-        .map_err(|why| format!("programs.claude_code.directory: {why}"))?;
-    let launcher =
-        launcher(path(directory)).ok_or("programs.claude_code.directory: expected a directory with a parent")?;
-    document.set("programs/claude_code/path", Json::String(launcher.as_os_str().as_bytes().into()))?;
-    document.encode().map(Some)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn document(program: &serde_json::Value) -> Vec<u8> {
-        serde_json::to_vec(&serde_json::json!({"programs":{"claude_code":program}})).unwrap()
-    }
-    #[test]
-    fn fetched_names_the_launcher_beside_the_programs_directory() {
-        let bytes = document(&serde_json::json!({"path":"fetched","directory":"/data/programs"}));
-        let bytes = substituted(&bytes).unwrap().unwrap();
-        let expected = document(&serde_json::json!({"path":"/data/claude-code/claude","directory":"/data/programs"}));
-        json::Json::decode(&bytes).unwrap().same(&json::Json::decode(&expected).unwrap(), "agent.json").unwrap();
-    }
-    #[test]
-    fn an_absolute_program_document_goes_to_smith_byte_for_byte() {
-        let bytes =
-            b"{ \"programs\": {\"claude_code\": {\"path\": \"/bin/claude\", \"directory\": \"/data/programs\"}}}\n";
-        assert_eq!(substituted(bytes).unwrap(), None);
-    }
-    #[test]
-    fn fetched_requires_a_programs_directory_with_a_parent() {
-        for program in [serde_json::json!({"path":"fetched"}), serde_json::json!({"path":"fetched","directory":"/"})] {
-            let why = substituted(&document(&program)).unwrap_err();
-            assert!(why.contains("programs.claude_code.directory"), "{why}");
-        }
-    }
 }

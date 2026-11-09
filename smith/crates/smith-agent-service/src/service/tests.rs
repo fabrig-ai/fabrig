@@ -10,7 +10,7 @@ mod setup;
 pub(crate) use setup::{account_request, account_service, charter, configuration, domain_configuration};
 use setup::{
     admit_pending, admitted, assert_cancel, at_watermark, decoded_start, event_service, host_message,
-    interrupted_before_admission, limits, preparing_message_run, service, watermark, with_channel_streams, with_input,
+    interrupted_before_admission, preparing_message_run, service, watermark, with_channel_streams, with_input,
     without_channel,
 };
 
@@ -931,46 +931,6 @@ mod validity {
                 Err(ConfigError::Limits) => {}
                 other => panic!("expected invalid limits, got {other:?}"),
             }
-        }
-    }
-
-    mod native_io {
-        use super::*;
-
-        #[test]
-        fn invalid_limits_are_refused() {
-            let base = limits();
-            assert!(io_valid(&base));
-            for native in [
-                io::Limits { sockets: u32::MAX, ..base.io },
-                io::Limits { sockets: u32::MAX / 8 + 1, ..base.io },
-                io::Limits { sockets: 1 << 24, ..base.io },
-                io::Limits { sockets: 1, ..base.io },
-                io::Limits { sockets: 2, ..base.io },
-                io::Limits { intake: base.io.intake + 1, ..base.io },
-                io::Limits { receive: base.io.receive + 1, ..base.io },
-                io::Limits { output: base.io.output + 1, ..base.io },
-                io::Limits { sends: base.io.sends + 1, ..base.io },
-                io::Limits { refusals: 0, ..base.io },
-                io::Limits { accepts: 0, ..base.io },
-                io::Limits { retry: Duration::ZERO, ..base.io },
-            ] {
-                assert!(!io_valid(&Limits { io: native, ..base }), "{native:?}");
-            }
-            let mut limits = base;
-            limits.events = Some(smith_protocol_events::EventLimits {
-                sinks: smith_protocol_events::sinks::fixture::limits(u32::MAX),
-                capture: smith_protocol_events::sinks::Capture::None,
-                ..smith_protocol_events::fixture::event_limits()
-            });
-            assert!(!io_valid(&limits));
-            limits.events.as_mut().unwrap().sinks.destinations = base.io.sockets - base.llm.connection.connections;
-            assert!(!io_valid(&limits));
-            limits.events.as_mut().unwrap().sinks.destinations -= 1;
-            assert!(io_valid(&limits));
-            // Only the four shared buffer capacities must agree.
-            limits.llm.connection.io.refusals += 1;
-            assert!(io_valid(&limits));
         }
     }
 

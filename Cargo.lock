@@ -4061,6 +4061,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "smith-agent-document"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "skein-channel",
+ "skein-http",
+ "skein-lib",
+ "skein-llm",
+ "skein-llm-connection",
+ "skein-scratch",
+ "skein-shell",
+ "skein-tls",
+ "smith-agent-profile",
+ "smith-charter",
+ "smith-domain",
+ "smith-events",
+ "smith-protocol-events",
+ "smith-protocol-llm",
+ "smith-protocol-machine",
+ "smith-protocol-program",
+ "smith-protocol-translate",
+]
+
+[[package]]
 name = "smith-agent-process-world"
 version = "0.0.0"
 dependencies = [
@@ -4104,6 +4129,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "smith-agent-profile"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "skein-channel",
+ "skein-http",
+ "skein-io",
+ "skein-lib",
+ "skein-llm",
+ "skein-llm-connection",
+ "skein-tls",
+ "smith-channel",
+ "smith-charter",
+ "smith-domain",
+ "smith-events",
+ "smith-host-domain",
+ "smith-protocol-channel",
+ "smith-protocol-events",
+ "smith-protocol-llm",
+ "smith-protocol-machine",
+ "smith-protocol-program",
+ "smith-protocol-translate",
+ "smith-transcript",
+]
+
+[[package]]
 name = "smith-agent-service"
 version = "0.0.0"
 dependencies = [
@@ -4116,6 +4167,7 @@ dependencies = [
  "skein-llm",
  "skein-llm-connection",
  "skein-tls",
+ "smith-agent-profile",
  "smith-agent-service",
  "smith-agent-world",
  "smith-channel",
@@ -4146,6 +4198,7 @@ dependencies = [
  "skein-scratch",
  "skein-shell",
  "skein-tls",
+ "smith-agent-document",
  "smith-agent-service",
  "smith-agent-shell",
  "smith-channel",
@@ -4503,6 +4556,7 @@ dependencies = [
  "skein-tls-kit",
  "skein-world",
  "smith-agent-process-world",
+ "smith-agent-profile",
  "smith-agent-service",
  "smith-agent-world",
  "smith-channel",
@@ -4906,6 +4960,8 @@ dependencies = [
  "temper-engine-smith",
  "temper-fake",
  "temper-fake-git",
+ "temper-fetch",
+ "temper-fetch-shell",
  "temper-fixtures",
  "temper-forge-setup",
  "temper-forge-setup-shell",
@@ -4919,6 +4975,22 @@ dependencies = [
  "temper-worker-domain",
  "temper-worker-domain-checkout",
  "temper-worker-protocol-git",
+]
+
+[[package]]
+name = "temper-agent"
+version = "0.0.0"
+dependencies = [
+ "skein-fail-stop",
+ "skein-forge",
+ "skein-io",
+ "skein-scratch",
+ "skein-shell",
+ "smith-agent-shell",
+ "smith-protocol-program",
+ "temper-fetch",
+ "temper-fetch-shell",
+ "temper-shell",
 ]
 
 [[package]]
@@ -5718,6 +5790,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-fetch"
+version = "0.0.0"
+dependencies = [
+ "skein-forge",
+ "skein-lib",
+]
+
+[[package]]
+name = "temper-fetch-shell"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "skein-forge",
+ "skein-http",
+ "skein-io",
+ "skein-json",
+ "skein-lib",
+ "skein-shell",
+ "skein-tls",
+ "smith-agent-document",
+ "temper-fetch",
+]
+
+[[package]]
 name = "temper-fixtures"
 version = "0.0.0"
 dependencies = [
@@ -5735,6 +5831,7 @@ dependencies = [
  "skein-forge-setup",
  "skein-json",
  "skein-lib",
+ "temper-fetch",
 ]
 
 [[package]]
@@ -5751,6 +5848,7 @@ dependencies = [
  "skein-tls",
  "skein-tls-kit",
  "skein-world",
+ "temper-fetch-shell",
  "temper-forge-setup",
 ]
 
@@ -5789,6 +5887,7 @@ dependencies = [
  "smith-agent-shell",
  "smith-agent-world",
  "smith-domain",
+ "temper-fetch",
 ]
 
 [[package]]

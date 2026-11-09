@@ -50,6 +50,8 @@ skein-fake-peers
 smith-protocol-events
 smith-protocol-llm
 smith-protocol-program
+smith-agent-profile
 smith-agent-service
 smith-agent-shell
+smith-agent-document
 temper-playground

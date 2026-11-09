@@ -306,7 +306,8 @@ default; the document is `temper.json` in the configuration directory
   `smith_agent_shell::run_decoded`, on smith's agent configuration as
   temper reads it, a `"fetched"` program naming its launcher
   (configuration.md, section 5; setup.md, 6.6). The worker's protocol layer spawns it,
-  one process per run; a person never does.
+  one process per run; a person never does. `temper-agent` runs the
+  same modes as a binary of its own (4.3).
 - **smith's agent modes,** `temper --mcp-relay 127.0.0.1:PORT` and
   `temper --program-child PARENT PROGRAM ARGUMENTS...`: temper's binary
   is its agents' own executable, so the agent shell starts each program
@@ -550,6 +551,132 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
   `temper-version`'s (section 5). Its step tests, one test binary, run
   the built binary.
 
+### 4.3 The agent's binary, `temper-agent`
+
+A deployment runs smith's agent from a binary of its own, `temper-agent`
+(`crates/temper-agent`; `../draft/deployment-binaries.md`, sections 4
+and 9, item 3), ordinary Rust, one process per run, which its worker starts
+and a person never does. It holds every mode in which `temper` runs
+smith's agent, run by the same code, and nothing else of `temper`'s.
+`temper` keeps those modes, as `temper internal agent` and by the same
+flags, until a worker names `temper-agent` as its agent's program
+(setup.md, 8.2, as `../draft/deployment-binaries.execution.md`'s M3
+makes it), so the box and its tests don't change. It starts from
+`temper-shell` (section 5), as `temper-client` does:
+
+```
+documentation  temper-agent help [NAME | --search WORDS...]
+spawned        temper-agent AGENT.json
+               temper-agent --list AGENT.json
+               temper-agent --mcp-relay 127.0.0.1:PORT
+               temper-agent --program-child PARENT PROGRAM ARGUMENTS...
+```
+
+- **Its table** is five rows of `temper_shell::commands::Row`: `help`,
+  `temper-shell`'s own, so that its `--help`'s second line, naming
+  `temper-agent help`, holds; and four of its own, each `Who::Spawned`,
+  their notes empty:
+
+  | Row | `words` | `forms` | `line` | `arguments` |
+  |---|---|---|---|---|
+  | `RUN` | none | `AGENT.json` | Run one agent for a worker's run, on smith's agent configuration. | `AGENT.json`: The agent's configuration, as the worker's agent.configuration names it. |
+  | `LIST` | `--list` | `AGENT.json` | Read one endpoint's model list, on smith's agent configuration. | `AGENT.json`, as `RUN`'s |
+  | `RELAY` | `--mcp-relay` | `127.0.0.1:PORT` | Relay a program's MCP connection to its agent. | `PORT`: The agent's relay listener on loopback; the secret is in SMITH_MCP_SECRET. |
+  | `PROGRAM_CHILD` | `--program-child` | `PARENT PROGRAM ARGUMENTS...` | Run a program as the agent's child, which ends with its parent. | `PARENT`: The agent's process id. `PROGRAM`: The program's path, with its `ARGUMENTS`. |
+
+  `RUN`'s and `LIST`'s lines and argument are `temper`'s `internal
+  agent` and `internal agent-list` rows' words.
+- **Its arguments,** read once `main` has installed skein's fail-stop
+  hook, as every binary's `main` does first, in this order:
+  1. run by a name whose file name is `claude`: Claude Code's launcher,
+     `temper-fetch-shell`'s, its arguments unchanged (setup.md, 6.6);
+  2. a first argument `--mcp-relay` or `--program-child`: smith's
+     `relay::main` or `program_child::main`, which read every argument
+     themselves (smith's `protocol/programs.md`, 5.1 and 5.3), `--help`
+     after either among them, as in `temper`;
+  3. `--help` alone: the table's help, exit 0; `--version` alone: one
+     line, `temper-agent VERSION (COMMIT)`, exit 0, VERSION and COMMIT
+     as `temper-client`'s (section 4), COMMIT set by the package's own
+     build script;
+  4. the table's lookup by its words, as `temper-client`'s: `help` and
+     its arguments, `--list AGENT.json`, and a row's `--help`;
+  5. a first argument that no row begins and that doesn't begin with
+     `-`: `RUN`, that argument AGENT.json. A document named as a row's
+     word is given by a path holding a slash, `./help`; a worker gives
+     an absolute path.
+- **One run:** AGENT.json read as `temper` reads an agent's document,
+  its bytes with a `"fetched"` program's path replaced by its launcher
+  (setup.md, 6.6; `temper-fetch-shell`'s), then smith's decode; then
+  smith's agent shell, `run_dumping` into `TEMPER_DUMP_LLM`'s directory
+  when the variable names one (`../draft/dogfood-hacks.md`, 2.13),
+  `run_decoded` otherwise, what `temper internal agent` does. A
+  document that doesn't read prints `smith: ` and the reason, then each
+  line of the reason after `temper-agent: `; a run that fails prints
+  each line of its reason after `temper-agent: `. A `TEMPER_DUMP_LLM`
+  that can't be made absolute prints `temper-agent: TEMPER_DUMP_LLM: `
+  and why, and the run goes on without its dumps.
+- **The list mode:** the same read, then smith's `list::run_decoded`,
+  what `temper internal agent-list` does; a failure prints each line of
+  its reason after `temper-agent --list: `. smith's host half puts
+  `--list` before its list launch's arguments (smith's
+  `protocol/agent.md`, 6.1), so a worker that names `temper-agent` with
+  the arguments `AGENT.json` for its runs launches `temper-agent --list
+  AGENT.json` for a list, with no word of temper's.
+- **Refusals,** exit 1, stdout empty, in `temper-shell`'s words for the
+  binary's name: no argument, `temper-agent: no command; temper-agent
+  --help lists them`; a first argument beginning with `-` that no row
+  begins, `--version` or `--help` with more arguments among them,
+  `temper-agent: no command ARGUMENT; temper-agent --help lists them`;
+  a row's form with other arguments, `temper-agent: invalid arguments`
+  or `temper-agent --list: invalid arguments`, then `usage: ` and the
+  form.
+- **Its exit status:** smith's agent shell's code, a signal's 1
+  (section 4); the launcher's, the build's once it has replaced itself,
+  or 1 with `temper-agent: claude: ` and the reason when it can't; the
+  relay's and the program child's, smith's.
+- **It links** `temper-shell`, smith's agent shell and what that links,
+  `temper-fetch-shell` and `temper-fetch` for the launcher and the
+  substitution, and skein's crates: no other temper crate and no jig
+  crate (`../draft/deployment-binaries.md`, section 4). `temper-shell`
+  brings `temper-docs`, the pages its `help` row answers from. 4.4's
+  test holds it there.
+- **Its file** is the Cargo target `temper-agent`, built alone as the
+  release job builds it (`cargo build -p temper-agent --bin
+  temper-agent`), with no Cargo feature of its own.
+- **Its tests,** in its package: its parser's table, a row per form and
+  per refusal, as `temper-client`'s; and one table in its suite, a row
+  per mode, each running the built `temper-agent` with an empty
+  environment and stdin closed and comparing its exit, stdout and
+  stderr: `--version`, `--help` and `--list --help`; the refusals; the
+  relay's usage, alone and before `--help`; the program child's refusal
+  and both statuses, as `crates/temper/tests/suite/agent_modes.rs` has
+  them; a run and a list refused for a missing document; a run and a
+  list started on a loopback plaintext document, ending as `temper
+  internal agent` and `temper internal agent-list` end with stdin
+  closed; and Claude Code's launcher by a link named `claude`, reaching
+  a build placed in the cache with its arguments unchanged and
+  `DISABLE_AUTOUPDATER=1`, and refusing a build of another size.
+
+### 4.4 Each binary's closure
+
+The dependency rule (`../draft/deployment-binaries.md`, sections 4 and
+10) is one table test, `tests/boundary/tests/closure.rs`, in the
+repository's boundary tests: a row per binary's package, naming the
+temper crates its closure may hold, the trees it may not, and its
+exceptions, each with its reason. A row reads `cargo tree --locked
+--offline -p PACKAGE -e normal --prefix none --format {p}` at the
+workspace's root, the package's normal dependencies, and fails naming
+each crate the row excludes and isn't its exception. A row whose closure
+reads empty, or lacks its own package, fails too.
+
+| Package | temper's crates it may hold | Trees it may not | Exceptions |
+|---|---|---|---|
+| `temper-agent` | `temper-agent`, `temper-shell`, `temper-docs`, `temper-fetch`, `temper-fetch-shell` | jig | none |
+
+smith's crates and skein's are the agent's to hold: smith's agent and
+what it rests on. The client's, the engine's and the worker's rows are
+M5's (`../draft/deployment-binaries.execution.md`, 1).
+
 ## 5. Components and crates
 
 **jig's,** composed as they are (jig's `protocol/README.md`, section 5):
@@ -585,7 +712,10 @@ on skein's UI kit (`../client/README.md`, section 5).
 over its pipes (smith's `protocol/hosts.md`, sections 2 and 3);
 `smith-protocol-channel`, `smith-channel`, `smith-charter` and
 `smith-transcript`, smith's codecs, which the routing calls to decode and
-encode smith's payloads; `smith-agent-shell`, the `agent` command; and
+encode smith's payloads; `smith-agent-shell`, the agent's modes in
+`temper` and in `temper-agent` (4.3); `smith-agent-document`, programs'
+directories read without smith's agent, for the launcher's links
+(setup.md, 6.6); and
 `smith-local-service`'s profile, from which `temper serve` reads the
 agent's host limits at start, as jig's reference binary does.
 
@@ -609,16 +739,19 @@ simulator, fake machine, fake LLM peer, fake issuer and fake person.
 
 **temper's own,** each step code under the subset but the binaries,
 `temper-shell`, the terminal's host, `temper ctl`'s host,
-`temper-forge-setup-shell`, the box's host and the fake git program's
-core:
+`temper-forge-setup-shell`, `temper-fetch-shell`, the box's host and the
+fake git program's core:
 
 | Crate | Kind | Holds | Depends on |
 |---|---|---|---|
 | `crates/temper-service` | services | the engine's and the worker's services and their one-process composition, in an engine, a worker and a system module, as jig's reference service is: each `iterate`, the routing, the clients' listener on jig's server part, with jig's clients' component and its default HTTP mapping mounted, temper's forge routes, and the browser's page and bundle served (`../client/browser.md`, 2.2), startup from configuration's bytes, start and end; temper's profile `small`. The worker's half is its `worker` feature (4.1), on by default and in the box's binary and the worlds: with it off, the worker's types are uninhabited, its modules and crates absent, and a start whose document's nearest shape (15.1) isn't an engine alone is refused; the engine's half names no worker crate, its limits of the worker's checkout and git component its own mirrors, which the worker's half converts | the roots, `temper-engine-smith`, `temper-protocol-brief`, jig's components, smith's codecs and `smith-protocol-translate`, temper's codec crates and components, `skein-forge-connection`, `skein-io`, `skein-json`; with `worker`, the worker's root, checkout and git component, `jig-protocol-worker-link`, `jig-protocol-worker-agents` and smith's host half |
-| `crates/temper` | binary | the box's binary: the commands of section 4, copied from jig's reference binary; for each that reads the document, `temper-service`'s startup, with `machine` and the setup's and the box's limits checked by their own crates (configuration.md, section 2); `serve` and the forge's commands are `temper-engine-shell`'s, given the worker's half of a start, its agent, root, program sources and launcher, which this binary holds | `temper-service` with `worker`, `temper-engine-shell`, `temper-shell`, `skein-shell`, `smith-agent-shell`, `smith-local-service`'s profile, `skein-oauth-accounts`, `jig-client-shell-native`, the client crates, `temper-forge-setup-shell`, `temper-box`, `temper-client-bundle` |
+| `crates/temper` | binary | the box's binary: the commands of section 4, copied from jig's reference binary; for each that reads the document, `temper-service`'s startup, with `machine` and the setup's and the box's limits checked by their own crates (configuration.md, section 2); `serve` and the forge's commands are `temper-engine-shell`'s, given the worker's half of a start, its agent, root, program sources and launcher, which this binary holds | `temper-service` with `worker`, `temper-engine-shell`, `temper-shell`, `skein-shell`, `smith-agent-shell`, `smith-local-service`'s profile, `skein-oauth-accounts`, `jig-client-shell-native`, the client crates, `temper-forge-setup-shell`, `temper-fetch-shell`, `temper-box`, `temper-client-bundle` |
 | `crates/temper-client` | binary | `temper-client`, the deployment's client (section 4): its table of three rows, its parser and help, and `--version`; the TUI and `ctl` it runs are its shells' (`../client/README.md`, section 2) | `temper-shell`, `temper-version`, `temper-client-shell-tui`, `temper-client-shell-cli`, `skein-shell`, `skein-fail-stop` |
+| `crates/temper-agent` | binary | `temper-agent`, the deployment's agent (4.3): its table, its parser and help, `--version` and the build script that sets its commit; the run, the list and the program's modes it runs are smith's agent shell's, and the launcher `temper-fetch-shell`'s | `temper-shell`, `smith-agent-shell`, `temper-fetch-shell`, `skein-shell`, `skein-fail-stop` |
 | `crates/temper-forge-setup` | step code | the forge's setup, but for reconcile, which is skein's (`skein-forge-setup`): its types and checks, and the setup mapped onto reconcile's given values, with the kit's check of them; the preparation's machine; `app.ini` and the runner's files; the processes' specs; the configuration's steps, `steps` and `Step`. Names no host | setup.md, section 11 |
 | `crates/temper-forge-setup-shell` | hosts | ordinary Rust: the hosts of `temper forge prepare` and `run`: commands, files, the forge's locks and the exec (setup.md, 6.4); HTTP on skein-http over skein-io | setup.md, section 11 |
+| `crates/temper-fetch` | step code | a pinned binary's fetch: its machine, its pins' fields and their origin, Forgejo's and Claude Code's alike; Claude Code's pin and the word `fetched` (setup.md, 6.6). Names no host | setup.md, section 11 |
+| `crates/temper-fetch-shell` | host | ordinary Rust: the fetch's host over TLS on skein-io; Claude Code's fetch under its lock, its launcher, the placing of its links, and the substitution of `"fetched"` in an agent's document (setup.md, 6.6) | setup.md, section 11 |
 | `crates/temper-box` | machine, host | the box's machine, step code, and its host, ordinary Rust, on skein-io's processes; nothing of the setup but its steps (setup.md, 7.3) | setup.md, section 11 |
 | `crates/temper-fake-git` | program | the fake git program's core, ordinary Rust, which the binary runs as `temper fake git`: its checks, answers, step core, replay and two remotes (`../domain/testing.md`, 4.3) | setup.md, section 11 |
 | `crates/temper-fake` | step code | the fake backends' documents and seeds, for `temper fake forge`, `temper fake llm` and the box's fake backends (setup.md, 7.5 and 8.4; configuration.md, 12.1); no io | skein's fake forge and fake LLM, `skein-forge-setup`, `temper-forge-setup`, `temper-protocol-store`, `temper-engine-domain-forge` |
