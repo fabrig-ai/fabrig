@@ -64,8 +64,8 @@ pub(crate) fn read_notes(root: &Domain, tui: &Tui, words: &Words) -> Notes {
         8_u32
             .checked_mul(25)
             .expect("eight notes, nineteen commands and six keys")
-            .checked_add(3)
-            .expect("unknown, walk and opener notes fit")
+            .checked_add(2)
+            .expect("walk and opener notes fit")
             .checked_add(limits::BOX_LOG)
             .expect("box log fits")
             .checked_add(2)
@@ -78,9 +78,6 @@ pub(crate) fn read_notes(root: &Domain, tui: &Tui, words: &Words) -> Notes {
                 lines.push(shared::note(note)).expect("root notes counted");
             }
         }
-    }
-    if let Some(unknown) = tui.unknown() {
-        lines.push(shared::note(&Note::Unknown { words: unknown.into() })).expect("TUI note counted");
     }
     if tui.walk().is_some() && super::lists::walk(root, tui, words).is_none() {
         lines.push(words.say(Word::WalkDone, &[])).expect("walk note counted");

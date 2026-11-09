@@ -1,6 +1,7 @@
 # journeys: status
 
-2026-11-08. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-09. Where temper's code lags or departs from [journeys.md](journeys.md).
+
 
 - **Not yet:** 8.3 and 9's `box-welcome`: `again` drives `temper` in its
   pseudo-terminal and starts the box apart on pipes, reading the printed

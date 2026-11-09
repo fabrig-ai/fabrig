@@ -48,6 +48,7 @@ pub(super) fn fits(tree: &Tree, limits: &skein_ui::Limits) {
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "one table checks all own phrases and both sources of the tree bound")]
+#[expect(clippy::disallowed_macros, reason = "boundary fixtures format full notice holes and their expected phrases")]
 fn the_trees_fit_their_limits() {
     let domain = f::limits();
     let bounds = crate::limits(&domain, &skein_ui::Limits::EMPTY, 512).expect("fixture limits fit");
@@ -93,8 +94,27 @@ fn the_trees_fit_their_limits() {
     // Seven scheme bytes, 64 authority bytes, seven path bytes and twenty task digits.
     let page_address = skein_lib::bytes::concat(&[b"http://", &[b'a'; 64], b"/tasks/18446744073709551615"]);
     let open_at = skein_lib::bytes::concat(&[b"Open ", &page_address, b" in your browser."]);
-    let mut failures = skein_lib::List::with_capacity(76);
+    assert_eq!(crate::limits::NOTICE, skein_lib::Duration::from_secs(6));
+    // A multibyte scalar crossing the hole's byte bound is left out whole.
+    let bound = usize::try_from(domain.client.domain.text).unwrap();
+    for (raw, cut) in [
+        (
+            format!("/{}", "x".repeat(bound.checked_sub(1).unwrap())),
+            format!("/{}", "x".repeat(bound.checked_sub(1).unwrap())),
+        ),
+        (format!("/{}", "x".repeat(bound)), format!("/{}", "x".repeat(bound.checked_sub(1).unwrap()))),
+        (
+            format!("/{}界", "x".repeat(bound.checked_sub(2).unwrap())),
+            format!("/{}", "x".repeat(bound.checked_sub(2).unwrap())),
+        ),
+    ] {
+        let notice = crate::Notice::Unknown { words: raw.as_bytes().into() };
+        assert_eq!(words.notice(&notice).as_ref(), format!("Unknown command {cut} · /help lists them").as_bytes());
+    }
+    let mut failures = skein_lib::List::with_capacity(91);
     for (word, holes, want) in [
+        (Word::UnknownNotice, &[Hole::Name(title.as_bytes().into())][..], skein_lib::bytes::concat(&[b"Unknown command ", title.as_bytes(), " · /help lists them".as_bytes()]).as_ref()),
+        (Word::SigningInNotice, &[][..], b"Still signing in".as_slice()),
         (Word::KindChat, &[][..], ", a chat".as_bytes()),
         (Word::KindGoal, &[][..], ", a goal".as_bytes()),
         (Word::WalksThem, &[][..], "n walks them".as_bytes()),
@@ -112,6 +132,19 @@ fn the_trees_fit_their_limits() {
         (Word::OpenOnWeb, &[][..], "Open it on the web".as_bytes()),
         (Word::WalkDone, &[][..], "Nothing else needs you.".as_bytes()),
         (Word::KeyWalk, &[][..], "n walks what needs you".as_bytes()),
+        (Word::ThemeCommand, &[][..], b"Auto, light or dark".as_slice()),
+        (Word::ThemeHead, &[][..], b"Theme. Auto follows your terminal.".as_slice()),
+        (Word::ThemeAuto, &[][..], b"Auto".as_slice()),
+        (Word::ThemeLight, &[][..], b"Light".as_slice()),
+        (Word::ThemeDark, &[][..], b"Dark".as_slice()),
+        (Word::ThemeAutoLight, &[][..], b"light, as your terminal says".as_slice()),
+        (Word::ThemeAutoDark, &[][..], b"dark, as your terminal says".as_slice()),
+        (Word::ThemeAutoNone, &[][..], b"dark: your terminal doesn't say".as_slice()),
+        (Word::ThemeNoticeAutoLight, &[][..], b"Theme: auto, light as your terminal says.".as_slice()),
+        (Word::ThemeNoticeAutoDark, &[][..], b"Theme: auto, dark as your terminal says.".as_slice()),
+        (Word::ThemeNoticeAutoNone, &[][..], b"Theme: auto, dark: your terminal doesn't say.".as_slice()),
+        (Word::ThemeNoticeLight, &[][..], b"Theme: light.".as_slice()),
+        (Word::ThemeNoticeDark, &[][..], b"Theme: dark.".as_slice()),
         (Word::ChatNumber, &[Hole::Number(u64::MAX)][..], "/chats 18446744073709551615".as_bytes()),
         (Word::ChangeStart, &[Hole::Name(title.as_bytes().into())][..], &change_start),
         (Word::OpenAt, &[Hole::Name(page_address)][..], &open_at),

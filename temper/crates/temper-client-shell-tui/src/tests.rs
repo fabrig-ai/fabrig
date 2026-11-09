@@ -29,7 +29,7 @@ fn start_look(host: &mut Host, credential: Option<Secret>, background: Option<Rg
     host.report(Report::Start(Start {
         front: false,
         size: Size { columns: 80, rows: 24 },
-        scheme: Scheme::Dark,
+        scheme: Some(Scheme::Dark),
         background,
         boxed,
         address: b"127.0.0.1:8367".as_slice().into(),
@@ -286,7 +286,7 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
         let duties = host.report(Report::Start(Start {
             front: false,
             size: Size { columns: 80, rows: 24 },
-            scheme: Scheme::Dark,
+            scheme: Some(Scheme::Dark),
             background: None,
             boxed: false,
             address: address.as_bytes().into(),
@@ -809,20 +809,25 @@ fn the_engines_link_signs_in_and_falls_back() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-fn local_row(row: LocalRow, failures: &mut Vec<String>) {
-    let mut host = host();
-    let duties = host.report(Report::Start(Start {
-        front: row.front,
+fn start_local(host: &mut Host, front: bool, local: bool, credential: Option<Secret>, note: Option<Note>) -> Duties {
+    host.report(Report::Start(Start {
+        front,
         size: Size { columns: 80, rows: 24 },
-        scheme: Scheme::Dark,
+        scheme: Some(Scheme::Dark),
         background: None,
         boxed: false,
         address: b"127.0.0.1:8367".as_slice().into(),
-        local: row.local,
+        local,
         kept: Vec::new(),
-        credential: row.held.then(|| Secret::new(Box::new([7; 40]))),
-        note: row.note,
-    }));
+        credential,
+        note,
+    }))
+}
+
+fn local_row(row: LocalRow, failures: &mut Vec<String>) {
+    let mut host = host();
+    let duties =
+        start_local(&mut host, row.front, row.local, row.held.then(|| Secret::new(Box::new([7; 40]))), row.note);
     if host.state().front() != row.front {
         failures.push(format!("{}: front state", row.name));
     }
@@ -1394,6 +1399,251 @@ fn launchpad_selection_clears_after_command_composition() {
     }
 }
 
+#[test]
+fn a_kept_theme_starts_the_next_host_in_it() {
+    use temper_client_tui::theme::{THEME_KEY, ThemeChoice};
+    for (bytes, scheme, expected) in [
+        (Some(b"light".as_slice()), None, Scheme::Light),
+        (Some(b"junk".as_slice()), None, Scheme::Dark),
+        (Some(b"junk".as_slice()), Some(Scheme::Light), Scheme::Light),
+        (None, None, Scheme::Dark),
+    ] {
+        let mut host = host();
+        let mut kept = vec![jig_client::Record { key: b"other".as_slice().into(), bytes: Box::new([]) }];
+        if let Some(bytes) = bytes {
+            kept.push(jig_client::Record { key: THEME_KEY.into(), bytes: b"dark".as_slice().into() });
+            kept.push(jig_client::Record { key: THEME_KEY.into(), bytes: bytes.into() });
+        }
+        host.start(
+            Start {
+                front: false,
+                size: Size { columns: 80, rows: 24 },
+                scheme,
+                background: None,
+                boxed: false,
+                address: b"127.0.0.1:8367".as_slice().into(),
+                local: false,
+                note: None,
+                kept,
+                credential: None,
+            },
+            &mut Duties::default(),
+        );
+        // Only the other record reaches jig's store reader, which drops its invalid bytes.
+        let mut dropped = 0;
+        while let Some(request) = host.out.pop() {
+            if let root::Request::Dropped { count } = request {
+                dropped += count;
+            }
+        }
+        assert_eq!(dropped, 1, "every theme record is taken before the root's Start");
+        host.report(Report::Due);
+        assert_eq!(
+            host.root.pages().look().theme,
+            match expected {
+                Scheme::Light => Theme::Light,
+                Scheme::Dark => Theme::Dark,
+            }
+        );
+        assert_eq!(host.theme, temper_client_tui::theme(expected, None));
+        let expected_choice = bytes.map_or(ThemeChoice::Auto, ThemeChoice::read);
+        assert_eq!(host.choice, expected_choice);
+        assert_eq!(host.state().theme_choice(), expected_choice);
+        assert_eq!(host.state().terminal_scheme(), scheme);
+    }
+}
+
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one ordered-write story takes choices before answering root and host writes"
+)]
+fn a_theme_write_answer_never_reaches_the_root() {
+    use temper_client_tui::theme::{THEME_KEY, ThemeChoice};
+    for (closing, erase_first) in [(false, false), (true, false), (false, true)] {
+        let (mut host, _, _) = signed_host(false);
+        let first = jig_client::Key { asker: jig_client::Asker::JIG, number: 1001 };
+        let second = jig_client::Key { asker: jig_client::Asker::JIG, number: 1002 };
+        let send = |key| root::Event::Client {
+            event: jig_client::Event::Send {
+                key,
+                name: None,
+                request: jig_client::Ask::Jig(Box::new(jig_client::contract::Ask::Stop { project: 3, task: 9 })),
+            },
+        };
+        key_words(&mut host, "/theme");
+        host.report(Report::Key(Key::Enter));
+        host.frame();
+        host.report(Report::Key(Key::Down));
+        host.step(send(first));
+        if erase_first {
+            let duties = host.report(Report::Due);
+            assert!(matches!(duties.asked.as_slice(), [Request::Save { .. }]));
+            host.heard(jig_client::Event::NotStored);
+            assert!(host.root.client().pending(first).is_none());
+        }
+        let duties = host.report(Report::Key(Key::Enter));
+        let writes: Vec<_> = duties
+            .asked
+            .iter()
+            .filter(|request| matches!(request, Request::Save { .. } | Request::Erase { .. }))
+            .collect();
+        let [root_write, Request::Save { records }] = writes.as_slice() else {
+            panic!("root write followed by theme save: {writes:?}");
+        };
+        if erase_first {
+            assert!(matches!(root_write, Request::Erase { .. }));
+        } else {
+            let Request::Save { records: root_records } = root_write else {
+                panic!("root save");
+            };
+            assert!(!root_records.as_slice().iter().any(|record| record.key.as_ref() == THEME_KEY));
+        }
+        assert_eq!(
+            records.as_slice(),
+            &[jig_client::Record { key: THEME_KEY.into(), bytes: b"light".as_slice().into() }]
+        );
+        assert_eq!(host.theme, temper_client_tui::theme(Scheme::Light, None));
+        host.step(send(second));
+        let duties = host.report(Report::Due);
+        assert_eq!(duties.asked.iter().filter(|request| matches!(request, Request::Save { .. })).count(), 1);
+        if closing {
+            assert!(host.report(Report::Key(Key::Control(b'c'))).close);
+        }
+        let requests = |duties: &Duties| {
+            duties
+                .asked
+                .iter()
+                .filter(|request| matches!(request, Request::Exchange { message: Message::Request(_), .. }))
+                .count()
+        };
+        assert_eq!(requests(&host.report(Report::Heard(jig_client::Event::Stored))), 0);
+        let before = host.root.client().pending(second).expect("second root write waits");
+        let refused = host.report(Report::Heard(jig_client::Event::NotStored));
+        assert!(refused.asked.is_empty(), "host refusal emits no root duties: {:?}", refused.asked);
+        empty(&refused);
+        assert_eq!(
+            host.root.client().pending(second),
+            Some(before),
+            "host refusal cannot answer the root's next write"
+        );
+        assert_eq!(
+            requests(&host.report(Report::Heard(jig_client::Event::Stored))),
+            if erase_first { 1 } else { 2 },
+            "three answers release only the root's saved requests"
+        );
+        assert_eq!(host.root_writes.len(), 0);
+        if !closing {
+            key_words(&mut host, "/theme");
+            host.report(Report::Key(Key::Enter));
+            host.frame();
+            host.report(Report::Key(Key::Down));
+            let duties = host.report(Report::Key(Key::Enter));
+            let [Request::Save { records }] = duties.asked.as_slice() else {
+                panic!("next choice writes whole");
+            };
+            assert_eq!(
+                records.as_slice(),
+                &[jig_client::Record { key: THEME_KEY.into(), bytes: b"dark".as_slice().into() }]
+            );
+            host.report(Report::Heard(jig_client::Event::Stored));
+            let look = host.root.pages().look();
+            let mut duties = Duties::default();
+            host.keep_theme(ThemeChoice::Auto, &mut duties);
+            assert_eq!(host.root.pages().look(), look, "keeping a theme preserves the root's other look fields");
+            assert_eq!(host.choice, ThemeChoice::Auto);
+            let [Request::Save { records }] = duties.asked.as_slice() else {
+                panic!("Auto is saved too");
+            };
+            assert_eq!(
+                records.as_slice(),
+                &[jig_client::Record { key: THEME_KEY.into(), bytes: b"auto".as_slice().into() }]
+            );
+        }
+    }
+}
+
+#[test]
+fn the_theme_list_takes_keeps_and_notices_a_choice() {
+    use temper_client_tui::theme::{THEME_KEY, ThemeChoice};
+    let (mut host, _, _) = signed_host(false);
+    for (command, sent) in [("/theme", false), ("/th", false), ("/theme", true), ("/th", true)] {
+        key_words(&mut host, command);
+        let duties = if sent { give(&mut host, Event::Send) } else { host.report(Report::Key(Key::Enter)) };
+        empty(&duties);
+        host.frame();
+        assert!(host.state().theme_list());
+        assert!(host.words().is_empty());
+        assert_eq!(host.event_of(&Key::Enter), Some(Event::Theme { choice: Some(ThemeChoice::Auto) }));
+        empty(&host.report(Report::Key(Key::Escape)));
+        assert!(!host.state().theme_list());
+    }
+    give(&mut host, Event::Own { command: Own::Theme });
+    host.frame();
+    host.report(Report::Key(Key::Down));
+    let duties = host.report(Report::Key(Key::Enter));
+    let [Request::Save { records }] = duties.asked.as_slice() else {
+        panic!("one theme saved: {:?}", duties.asked);
+    };
+    let kept = records.as_slice().to_vec();
+    assert_eq!(kept, [jig_client::Record { key: THEME_KEY.into(), bytes: b"light".as_slice().into() }]);
+    assert_eq!(host.root.pages().look().theme, Theme::Light);
+    assert_eq!(host.state().theme_choice(), ThemeChoice::Light);
+    assert_eq!(
+        host.state().notice(),
+        Some(&temper_client_tui::Notice::Theme { choice: ThemeChoice::Light, terminal: Some(Scheme::Dark) })
+    );
+    assert!(text(&mut host).contains("Theme: light."));
+    assert!(!host.state().theme_list());
+    assert!(host.words().is_empty());
+    assert_eq!(host.theme, temper_client_tui::theme(Scheme::Light, None));
+    let palette = temper_client_tui::theme::palette(Scheme::Light);
+    let frame = host.frame();
+    assert!(
+        (0..frame.size().rows)
+            .filter_map(|row| frame.row(row))
+            .flatten()
+            .any(|cell| palette.iter().any(|(_, colour)| cell.paint.fore == Some(*colour)))
+    );
+    host.report(Report::Heard(jig_client::Event::Stored));
+    give(&mut host, Event::Own { command: Own::Theme });
+    host.frame();
+    assert_eq!(host.event_of(&Key::Enter), Some(Event::Theme { choice: Some(ThemeChoice::Light) }));
+    host.report(Report::Key(Key::Char('h')));
+    assert!(!host.state().theme_list());
+    assert_eq!(host.words(), b"h");
+    give(&mut host, Event::Own { command: Own::Theme });
+    host.frame();
+    host.report(Report::Key(Key::Up));
+    host.report(Report::Key(Key::Enter));
+    assert_eq!(host.state().theme_choice(), ThemeChoice::Auto);
+    assert_eq!(host.root.pages().look().theme, Theme::Dark);
+
+    let mut restarted = self::host();
+    restarted.report(Report::Start(Start {
+        front: true,
+        size: Size { columns: 80, rows: 24 },
+        scheme: None,
+        background: None,
+        boxed: true,
+        address: b"127.0.0.1:8367".as_slice().into(),
+        local: false,
+        note: None,
+        kept,
+        credential: None,
+    }));
+    give(&mut restarted, Event::Own { command: Own::Theme });
+    restarted.frame();
+    assert_eq!(restarted.state().theme_choice(), ThemeChoice::Light);
+    assert_eq!(restarted.event_of(&Key::Enter), Some(Event::Theme { choice: Some(ThemeChoice::Light) }));
+    restarted.report(Report::Key(Key::Up));
+    restarted.report(Report::Key(Key::Enter));
+    assert_eq!(restarted.state().terminal_scheme(), None);
+    assert_eq!(restarted.state().theme_choice(), ThemeChoice::Auto);
+    assert_eq!(restarted.root.pages().look().theme, Theme::Dark);
+    assert!(text(&mut restarted).contains("Theme: auto, dark: your terminal doesn't say."));
+}
+
 fn person_chat(host: &mut Host) {
     let duties = give(host, Event::Act { act: Act::Go { address: Address::Chat { task: NEWEST } } });
     let task_watch = watch(
@@ -1477,13 +1727,40 @@ fn no_project_composer_accepts_commands() {
     let (mut host, _, _) = signed_host(false);
     key_words(&mut host, "/");
     let frame = text(&mut host);
-    for command in ["/theme", "/help", "/exit", "Close temper"] {
+    for command in ["/theme", "/help", "/quit", "Close temper"] {
         assert!(frame.contains(command), "offered command list: {command}\n{frame}");
     }
-    key_words(&mut host, "exit");
-    assert!(text(&mut host).contains("❯ /exit"));
-    assert!(host.report(Report::Key(Key::Enter)).close, "/exit must close from the launchpad");
+    key_words(&mut host, "quit");
+    assert!(text(&mut host).contains("❯ /quit"));
+    assert!(host.report(Report::Key(Key::Enter)).close, "/quit must close from the launchpad");
     assert!(host.words().is_empty(), "closing clears the command composer");
+    for (words, complete) in [("/q", false), ("/q", true), ("/qu", true), ("/exit", false)] {
+        let (mut host, _, _) = signed_host(false);
+        key_words(&mut host, words);
+        if complete {
+            host.frame();
+            empty(&host.report(Report::Key(Key::Tab)));
+            assert_eq!(host.words(), b"/quit", "Tab completes the listed closing command");
+        }
+        assert!(host.report(Report::Key(Key::Enter)).close, "{words} must close from the launchpad");
+        assert!(host.words().is_empty(), "closing clears the command composer");
+    }
+    for words in ["/ex", "/exi"] {
+        let (mut host, _, _) = signed_host(false);
+        key_words(&mut host, words);
+        assert!(!text(&mut host).contains("Close temper"), "an alias prefix draws no list");
+        host.frame();
+        empty(&host.report(Report::Key(Key::Tab)));
+        assert_eq!(host.words(), words.as_bytes(), "Tab never completes the hidden alias");
+        empty(&host.report(Report::Key(Key::Enter)));
+        assert_eq!(
+            host.state().notice(),
+            Some(&temper_client_tui::Notice::Unknown { words: words.as_bytes().into() }),
+            "an alias prefix is unknown"
+        );
+        assert!(host.words().is_empty(), "unknown commands clear the composer");
+        assert!(!text(&mut host).contains("Close temper"), "an unknown command draws no list");
+    }
     for words in ["/theme", "/help", "/zz", "hello", "q", "/"] {
         no_project_keys(words);
     }
@@ -1508,14 +1785,66 @@ fn no_project_lifecycle() {
             host.frame();
             empty(&host.report(Report::Key(Key::Char('q'))));
             assert_eq!(host.state().field(), b"q", "sign-in typing uses its own field");
+            assert_eq!(host.state().command_words(), b"/he", "sign-out keeps command words");
+            assert_eq!(host.state().box_written(), written);
         } else {
             delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(true)));
             assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
-            assert!(host.words().is_empty(), "navigation opens an empty project composer");
-            assert!(!text(&mut host).contains("❯ /he"));
+            assert_eq!(host.words(), b"/he", "navigation carries words into the project composer");
+            assert!(text(&mut host).contains("❯ /he"));
+            assert!(host.state().command_words().is_empty(), "navigation clears the no-project composer");
+            assert!(host.state().box_written() > written);
         }
-        assert!(host.state().command_words().is_empty(), "screen transitions clear command words");
-        assert!(host.state().box_written() > written);
+    }
+}
+
+#[test]
+fn keys_typed_during_the_file_sign_in_stay_in_the_box() {
+    for (front, first) in [(true, "Welcome. Set temper up"), (false, "Connecting to 127.0.0.1:8367")] {
+        let mut host = host();
+        let start = start_local(&mut host, front, true, None, None);
+        assert!(start.local);
+        assert!(text(&mut host).contains(first));
+        empty(&host.report(Report::Key(Key::Char('a'))));
+        assert!(text(&mut host).contains("❯ a"), "first frame, front {front}");
+        assert!(host.state().field().is_empty());
+        let signing = host.report(Report::Local { link: Some(local_link("127.0.0.1:8367", LOCAL_SECRET)) });
+        let exchange = local_exchange(&signing);
+        assert_eq!(signing.asked.len(), 1, "only the sign-in request");
+        empty(&host.report(Report::Key(Key::Enter)));
+        assert!(text(&mut host).contains("Still signing in"));
+        assert_eq!(host.words(), b"a");
+        let duties = reply(&mut host, exchange, sign_in_bytes(&signed_in_answer()));
+        admit(&mut host, duties);
+        assert_eq!(host.words(), b"a", "the sign-in's link change keeps words");
+        let hello = hello_for(&host);
+        let duties =
+            host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
+        let duties = admit(&mut host, duties);
+        let me = watch(&duties, &w::Subject::Me);
+        empty(&host.report(Report::Key(Key::Enter)));
+        assert_eq!(host.words(), b"a", "Enter before me keeps words");
+        assert!(text(&mut host).contains("Still signing in"));
+        let duties = delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(false)));
+        admit(&mut host, duties);
+        assert_eq!(host.words(), b"a", "no project keeps words");
+        assert!(text(&mut host).contains("❯ a"));
+        let duties = delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(true)));
+        admit(&mut host, duties);
+        assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
+        assert_eq!(host.root.pages().chats().expect("Home composer").words.as_ref(), b"a");
+        assert!(text(&mut host).contains("❯ a"));
+        let duties = host.report(Report::Key(Key::Enter));
+        let duties = admit(&mut host, duties);
+        let asks = sent_ask(&duties);
+        let [(_, w::Ask::Create(create))] = asks.as_slice() else {
+            panic!("Enter after landing starts a chat: {asks:?}");
+        };
+        let mut reader = Reader::new(create.tasks());
+        let bytes = skein_codec::piece::split(&mut reader).expect("task piece").expect("created task");
+        let task = w::NewTask::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("new task");
+        assert_eq!(create.project(), 3);
+        assert_eq!(task.spec().words(), b"a");
     }
 }
 
@@ -1526,14 +1855,25 @@ fn no_project_keys(words: &str) {
     let duties = host.report(Report::Key(if words == "/" { Key::Escape } else { Key::Enter }));
     empty(&duties);
     match words {
-        "/theme" => assert_eq!(host.root.pages().look().theme, Theme::Light),
+        "/theme" => {
+            assert!(host.state().theme_list());
+            host.frame();
+            host.report(Report::Key(Key::Down));
+            let duties = host.report(Report::Key(Key::Enter));
+            assert!(matches!(duties.asked.as_slice(), [Request::Save { .. }]));
+            empty(&host.report(Report::Heard(jig_client::Event::Stored)));
+            assert_eq!(host.root.pages().look().theme, Theme::Light);
+        }
         "/help" => {
             assert_eq!(host.root.pages().notes().last(), Some(&terminal::Note::Help));
-            assert!(text(&mut host).contains("/exit"), "help must render its commands");
+            assert!(text(&mut host).contains("/quit"), "help must render its commands");
         }
         "/zz" => {
-            assert_eq!(host.state().unknown(), Some(b"/zz".as_slice()));
-            assert!(text(&mut host).contains("Unknown command /zz."));
+            assert_eq!(
+                host.state().notice(),
+                Some(&temper_client_tui::Notice::Unknown { words: b"/zz".as_slice().into() })
+            );
+            assert!(text(&mut host).contains("Unknown command /zz · /help lists them"));
         }
         "hello" | "q" => {
             assert_eq!(host.words(), words.as_bytes(), "ordinary words send nothing");
@@ -1554,6 +1894,67 @@ fn no_project_keys(words: &str) {
     }
     host.frame();
     assert!(host.report(Report::Key(Key::Control(b'c'))).close, "Ctrl+C closes anywhere");
+}
+
+#[test]
+fn a_notice_stands_six_seconds_and_a_newer_replaces_it() {
+    use temper_client_tui::Notice;
+    let (mut host, _, _) = signed_host(true);
+    let first = Notice::Unknown { words: b"/qiut".as_slice().into() };
+    let end = Time::ZERO.saturating_add(Duration::from_secs(6));
+    typed(&mut host, b"/qiut");
+    empty(&give(&mut host, Event::Send));
+    assert_eq!(host.state().notice(), Some(&first));
+    assert_eq!(host.deadline(), skein_lib::earliest(root::next_deadline(&host.root), Some(end)));
+    assert!(host.words().is_empty());
+    assert!(host.root.pages().notes().is_empty());
+    assert!(host.root.pages().listing().is_none());
+    let frame = text(&mut host);
+    let line = frame.lines().find(|line| line.contains("Unknown command /qiut")).expect("quiet notice");
+    assert!(line.contains("● Live"), "notice and link share the quiet line");
+    assert_eq!(frame.matches("Unknown command").count(), 1);
+    host.frame();
+    empty(&host.report(Report::Key(Key::Char('x'))));
+    assert_eq!(host.state().notice(), Some(&first), "a key leaves the notice");
+    typed(&mut host, b"");
+    give(&mut host, Event::Send);
+    assert_eq!(host.state().notice(), Some(&first), "a send leaves the notice");
+    typed(&mut host, b"/new");
+    give(&mut host, Event::Send);
+    assert_eq!(host.state().notice(), Some(&first), "/new leaves the notice");
+    host.clocks(Time::ZERO.saturating_add(Duration::from_secs(3)), Wall::EPOCH);
+    host.report(Report::Due);
+    assert_eq!(host.state().notice(), Some(&first), "a due before the end leaves it");
+    typed(&mut host, b"/other");
+    give(&mut host, Event::Send);
+    let second = Notice::Unknown { words: b"/other".as_slice().into() };
+    let later = Time::ZERO.saturating_add(Duration::from_secs(9));
+    assert_eq!(host.state().notice(), Some(&second));
+    assert_eq!(host.deadline(), skein_lib::earliest(root::next_deadline(&host.root), Some(later)));
+    host.clocks(end, Wall::EPOCH);
+    host.report(Report::Due);
+    assert_eq!(host.state().notice(), Some(&second), "the replaced end cannot lower it");
+    host.clocks(later, Wall::EPOCH);
+    host.report(Report::Due);
+    assert_eq!(host.state().notice(), None);
+    assert_eq!(host.deadline(), root::next_deadline(&host.root));
+    assert!(!text(&mut host).contains("Unknown command"));
+    // With no background retry pending, the notice itself is the next deadline.
+    let (mut quiet, _, _) = signed_host(false);
+    typed(&mut quiet, b"/zz");
+    give(&mut quiet, Event::Send);
+    assert_eq!(quiet.deadline(), Some(end));
+    for (words, seconds) in [(b"/chats 9".as_slice(), 6), (b"/zz".as_slice(), 7)] {
+        let (mut host, _, _) = signed_host(true);
+        typed(&mut host, words);
+        give(&mut host, Event::Send);
+        assert_eq!(host.state().notice(), Some(&Notice::Unknown { words: words.into() }));
+        assert!(host.words().is_empty());
+        assert!(host.root.pages().notes().is_empty());
+        host.clocks(Time::ZERO.saturating_add(Duration::from_secs(seconds)), Wall::EPOCH);
+        host.report(Report::Due);
+        assert_eq!(host.state().notice(), None, "at and past the end");
+    }
 }
 
 fn sent_ask(duties: &Duties) -> Vec<(skein_lib::Token, w::Ask)> {
@@ -1627,7 +2028,7 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
                 host.report(Report::Start(Start {
                     front: false,
                     size: Size { columns: 80, rows: 24 },
-                    scheme: if light { Scheme::Light } else { Scheme::Dark },
+                    scheme: Some(if light { Scheme::Light } else { Scheme::Dark }),
                     background: None,
                     boxed: false,
                     address: b"127.0.0.1:8367".as_slice().into(),
@@ -1645,6 +2046,9 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
             "theme" => {
                 typed(&mut host, b"/theme");
                 give(&mut host, Event::Send);
+                host.frame();
+                host.report(Report::Key(Key::Down));
+                host.report(Report::Key(Key::Enter));
                 let palette = temper_client_tui::theme::palette(Scheme::Light);
                 let light = host.root.pages().look().theme == Theme::Light;
                 let frame = host.frame();
@@ -1825,7 +2229,11 @@ fn the_launchpad_takes_its_own_words() {
             }
             LaunchWant::Words(expected) => assert_eq!(host.words(), expected, "{words:?}"),
             LaunchWant::Chat(task) => assert_eq!(host.root.pages().address(), &Address::Chat { task }, "{words:?}"),
-            LaunchWant::Unknown => assert_eq!(host.state().unknown(), Some(words), "{words:?}"),
+            LaunchWant::Unknown => assert_eq!(
+                host.state().notice(),
+                Some(&temper_client_tui::Notice::Unknown { words: words.into() }),
+                "{words:?}"
+            ),
             LaunchWant::Brief => assert!(host.state().brief_shown(), "{words:?}"),
             LaunchWant::Walk => {
                 assert!(host.state().walk().is_some_and(|walk| !walk.by_key()), "{words:?}");
@@ -1958,9 +2366,10 @@ fn each_event_becomes_its_acts() {
         if taken {
             host.tell(Told::Walked { object: shared_question(&host) });
         }
-        typed(&mut host, b"o");
+        host.typed(b"o".as_slice().into());
         assert_eq!(host.words(), expected, "by_key={by_key}, taken={taken}");
         assert!(host.state().walk().is_none(), "typing ends the prompt");
+        assert!(host.state().field().is_empty(), "walking keys belong only to the box");
     }
     for (step, label, open) in [
         (
@@ -2140,19 +2549,22 @@ fn each_event_becomes_its_acts() {
                 let before = host.state().box_written();
                 let duties = give(&mut host, Event::Send);
                 duties.asked.is_empty()
-                    && host.state().unknown() == Some(b"/zz".as_slice())
+                    && host.state().notice()
+                        == Some(&temper_client_tui::Notice::Unknown { words: b"/zz".as_slice().into() })
                     && host.root.pages().chats().is_some_and(|chat| chat.words.is_empty())
                     && host.state().box_written() > before
             }
             "unknown send" | "unknown went" => {
-                host.tell(temper_client_tui::Told::Unknown { words: Some(b"/zz".as_slice().into()) });
+                host.tell(temper_client_tui::Told::Notice {
+                    notice: Some(temper_client_tui::Notice::Unknown { words: b"/zz".as_slice().into() }),
+                });
                 if row == "unknown send" {
                     give(&mut host, Event::Send);
                 } else {
                     host.out.push(root::Request::Show { address: Address::Chat { task: 9 }, replace: false });
                     host.report(Report::Due);
                 }
-                host.state().unknown().is_none()
+                host.state().notice().is_some()
             }
             "no project" => {
                 typed(&mut host, b"Please help");
@@ -2606,14 +3018,15 @@ fn in_front_quitting_asks_while_work_runs() {
         ("front idle", true, false, vec![(close(), closed())]),
         ("ask twice", true, true, vec![(close(), asked()), (close(), FrontWant::Quit { close: true, asking: true })]),
         (
-            "exit",
+            "quit",
             true,
             true,
             vec![
-                (FrontAct::Send(b"/exit"), asked()),
-                (FrontAct::Send(b"/exit"), FrontWant::Quit { close: true, asking: true }),
+                (FrontAct::Send(b"/quit"), asked()),
+                (FrontAct::Send(b"/quit"), FrontWant::Quit { close: true, asking: true }),
             ],
         ),
+        ("exit alias", true, true, vec![(FrontAct::Send(b"/exit"), asked())]),
         (
             "stay",
             true,
@@ -2688,7 +3101,8 @@ fn in_front_quitting_asks_while_work_runs() {
                     duties.asked.is_empty()
                         && !duties.close
                         && host.state().log_shown() == shown
-                        && host.state().unknown() == unknown
+                        && host.state().notice()
+                            == unknown.map(|words| temper_client_tui::Notice::Unknown { words: words.into() }).as_ref()
                         && host.words().is_empty()
                 }
                 FrontWant::Line(line) => {

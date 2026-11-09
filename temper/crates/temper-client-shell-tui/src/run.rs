@@ -453,7 +453,7 @@ impl Run {
             Background::Answered(rgb) => Some(rgb),
             Background::Waiting | Background::Unanswered => None,
         };
-        let scheme = scheme.unwrap_or_else(|| background.map_or(Scheme::Dark, Scheme::of_background));
+        let scheme = scheme.or_else(|| background.map(Scheme::of_background));
         let size = self.terminal.size();
         self.size = Some(size);
         let start = host::Start {

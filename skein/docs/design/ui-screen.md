@@ -123,6 +123,14 @@ host chose (its own design says how).
     beneath active and focus paint. None keeps the composed paint; the
     last of the item's tokens naming a replacement wins. It affects only
     the name, leaving descriptions, focus marks and bands unchanged (5.3);
+  - *a focused value's paint* (`focused_value`), or none: on a text
+    field or a text area carrying this token while it has the focus,
+    laid over the node's own paint in place of the focus's paint on its
+    value and its caret's cell, its placeholder taking the placeholder's
+    paint over that; its focus mark, and its label where it lays one,
+    keep the focus's paint. None lays the focus's paint over them all,
+    as on any focused node; the last of the node's tokens naming one
+    wins (5.4);
   - *spaced* (`spaced`): one blank row between each two children of the
     node that carries it, and of no node under it (5.3).
   The nearest token whose look aligns `End`, or bands, decides it for
@@ -315,7 +323,10 @@ the tree's nodes and the frame's cells.
   that keeps the caret in view, or, where its token's look says no
   label, its value alone after its focus columns, its name still the
   tree's; an empty value shows its placeholder in
-  the placeholder's paint, if it has one. A secret's value is the
+  the placeholder's paint, if it has one. Focused, its mark and its
+  value are in the focus's paint, or its value and its caret's cell in
+  its token's focused value's paint where the look names one (section
+  3). A secret's value is the
   theme's mask, once per character, and never its bytes. A text area
   wraps its value as lines (5.1).
 - **The cursor** is shown at the caret while a field or a text area has
@@ -510,7 +521,9 @@ completions to it, as the text shell's terminal (ui-text.md, section 3).
   - wrapping, a wide glyph at a row's end, control characters and bytes
     that are not UTF-8;
   - a field focused with its caret, a secret masked, a value scrolled to
-    its caret, a placeholder; the body scrolled to keep the focus;
+    its caret, a placeholder; the body scrolled to keep the focus; a
+    field and a text area whose token names a focused value's paint,
+    their marks alone in the focus's paint;
   - a region framed by rules; a title with a part at the border's end,
     in a frame wide enough for both and in one that cuts the title; a
     line aligned to its end; a band, indented and wrapped;

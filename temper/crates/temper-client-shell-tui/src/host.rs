@@ -14,6 +14,7 @@ use temper_client_domain::{
     },
 };
 use temper_client_shell_terminal::route::{self, Down, Duty};
+use temper_client_tui::theme::{THEME_KEY, ThemeChoice};
 use temper_client_tui::{self as tui, Local, Note, Refusal, Told};
 use temper_client_view::shared;
 
@@ -41,7 +42,7 @@ enum Opening {
 
 pub struct Start {
     pub size: Size,
-    pub scheme: tui::Scheme,
+    pub scheme: Option<tui::Scheme>,
     pub background: Option<Rgb>,
     pub address: Box<[u8]>,
     pub local: bool,
@@ -102,6 +103,10 @@ pub struct Host {
     theme: Theme,
     size: Size,
     background: Option<Rgb>,
+    terminal: Option<tui::Scheme>,
+    choice: ThemeChoice,
+    // Each write in asked order: true for the root, false for the host.
+    root_writes: Queue<bool>,
     boxed: bool,
     focus: Focus,
     frame: Frame,
@@ -111,6 +116,7 @@ pub struct Host {
     local: bool,
     note: Option<Note>,
     need: Option<Need>,
+    notice_end: Option<Time>,
     local_signing: bool,
     asked_opening: Option<u64>,
     browse: bool,
@@ -138,6 +144,9 @@ impl Host {
             theme: tui::theme(tui::Scheme::Dark, None),
             size: Size { rows: 0, columns: 0 },
             background: None,
+            terminal: None,
+            choice: ThemeChoice::Auto,
+            root_writes: Queue::uncapped(),
             boxed: false,
             focus: Focus::default(),
             frame: Frame::new(limits.most),
@@ -147,6 +156,7 @@ impl Host {
             local: false,
             note: None,
             need: None,
+            notice_end: None,
             local_signing: false,
             asked_opening: None,
             browse: false,
@@ -176,6 +186,10 @@ impl Host {
             Report::Front(line) => self.tell(Told::BoxLine { line }),
             Report::Start(start) => self.start(start, &mut duties),
             Report::Due => {
+                if self.notice_end.is_some_and(|end| end <= self.env.now) {
+                    self.notice_end = None;
+                    self.tell(Told::Notice { notice: None });
+                }
                 root::fire(&mut self.root, &self.env, &mut self.out);
                 if let Some(need) = &mut self.need
                     && let Phase::Again(at) = need.phase
@@ -229,13 +243,6 @@ impl Host {
         {
             self.tell(Told::Aside { object: None });
         }
-        self.theme = tui::theme(
-            match self.root.pages().look().theme {
-                terminal::Theme::Dark => tui::Scheme::Dark,
-                terminal::Theme::Light => tui::Scheme::Light,
-            },
-            self.background,
-        );
         if self.need.as_ref().is_some_and(|need| matches!(need.phase, Phase::Signing(None))) {
             self.end_local();
         }
@@ -271,6 +278,11 @@ impl Host {
             duties.note = self.note;
         }
         self.approval(&mut duties);
+        let scheme = match self.root.pages().look().theme {
+            terminal::Theme::Dark => tui::Scheme::Dark,
+            terminal::Theme::Light => tui::Scheme::Light,
+        };
+        self.theme = tui::theme(scheme, self.background);
         tui::build(
             &mut self.view,
             self.state.as_ref().expect("started TUI"),
@@ -290,6 +302,7 @@ impl Host {
         }
         self.size = start.size;
         self.background = start.background;
+        self.terminal = start.scheme;
         self.boxed = start.boxed;
         if self.boxed {
             self.tell(Told::Boxed);
@@ -300,8 +313,13 @@ impl Host {
         self.note = start.note;
         let mut kept = List::with_capacity(u32::try_from(start.kept.len()).expect("bounded store"));
         for record in start.kept {
-            kept.push(record).expect("counted store");
+            if record.key.as_ref() == THEME_KEY {
+                self.choice = ThemeChoice::read(&record.bytes);
+            } else {
+                kept.push(record).expect("counted store");
+            }
         }
+        self.tell(Told::Theme { choice: self.choice, terminal: self.terminal });
         self.step(Event::Start {
             address: Address::Inbox { filter: Filter::ALL },
             kept,
@@ -310,7 +328,7 @@ impl Host {
         self.step(Event::LookKept {
             look: Look {
                 terminal: true,
-                theme: match start.scheme {
+                theme: match self.choice.scheme(self.terminal) {
                     tui::Scheme::Dark => terminal::Theme::Dark,
                     tui::Scheme::Light => terminal::Theme::Light,
                 },
@@ -426,9 +444,11 @@ impl Host {
                 value = skein_lib::bytes::concat(&[b"n", &value]);
                 self.tell(Told::Cleared);
             }
-            self.tell(Told::Typed { value: value.clone() });
+            if !value.is_empty() {
+                self.tell(Told::EndWalk);
+            }
         }
-        if self.root.client().link().state == Link::SignedOut {
+        if tui::sign_in_drawn(&self.root, self.state()) {
             self.tell(Told::Typed { value });
         } else if self.root.pages().chat().is_some() {
             self.act(Act::MessageWords { words: value });
@@ -455,7 +475,18 @@ impl Host {
                 self.tell(Told::Walked { object });
             }
             tui::Event::EndWalk => self.tell(Told::EndWalk),
-            tui::Event::Typed { value } => self.typed(value),
+            tui::Event::Typed { value } => {
+                self.tell(Told::ThemeList { open: false });
+                self.typed(value);
+            }
+            tui::Event::Theme { choice } => {
+                self.tell(Told::ThemeList { open: false });
+                if let Some(choice) = choice {
+                    self.keep_theme(choice, duties);
+                    self.tell(Told::Cleared);
+                    self.notice(tui::Notice::Theme { choice, terminal: self.terminal });
+                }
+            }
             tui::Event::LeftOff { task } => self.tell(Told::LeftOff { task }),
             tui::Event::SignIn if self.state().field().is_empty() && tui::may_ask_again(self.state(), &self.root) => {
                 self.ask();
@@ -493,8 +524,8 @@ impl Host {
             tui::Event::Log => {
                 if self.state().front() {
                     self.act(Act::Terminal(terminal::Act::Dismiss));
-                    self.tell(Told::Log);
                     self.tell(Told::Cleared);
+                    self.tell(Told::Log);
                 }
             }
             tui::Event::Send => self.send(duties),
@@ -527,6 +558,12 @@ impl Host {
                 self.tell(Told::Cleared);
                 self.tell(Told::Walk { by_key: false });
             }
+            tui::Own::Theme => {
+                self.act(Act::Terminal(terminal::Act::Dismiss));
+                self.tell(Told::Cleared);
+                self.tell(Told::ThemeList { open: true });
+                self.focus.active = None;
+            }
             tui::Own::Open => {
                 if let Some(address) = tui::focus(&self.view) {
                     let address = address.into();
@@ -558,7 +595,10 @@ impl Host {
     }
 
     fn send(&mut self, duties: &mut Duties) {
-        self.tell(Told::Unknown { words: None });
+        if tui::landing(&self.root) {
+            self.notice(tui::Notice::SigningIn);
+            return;
+        }
         self.tell(Told::NotOpened { address: None });
         let words = self.words();
         let command_words = words.starts_with(b"/")
@@ -572,10 +612,14 @@ impl Host {
                 .iter()
                 .find(|command| command.name().starts_with(words))
                 .copied();
-            let root = tui::offered(&self.root, self.view.words())
-                .iter()
-                .find(|command| command.name().starts_with(words))
-                .copied();
+            let root = if words == tui::EXIT {
+                Some(TuiCommand::Exit)
+            } else {
+                tui::offered(&self.root, self.view.words())
+                    .iter()
+                    .find(|command| tui::command_name(**command).starts_with(words))
+                    .copied()
+            };
             if let Some(command @ (tui::Own::Change | tui::Own::Ask)) = own {
                 self.event(tui::Event::Own { command }, duties);
             } else if let Some(command) = root {
@@ -652,15 +696,19 @@ impl Host {
         true
     }
 
+    fn notice(&mut self, notice: tui::Notice) {
+        self.tell(Told::Notice { notice: Some(notice) });
+        self.notice_end = Some(self.env.now.saturating_add(tui::limits::NOTICE));
+    }
+
     fn unknown(&mut self) {
-        let words = Some(self.words().into());
+        let words = self.words().into();
         self.act(Act::Terminal(terminal::Act::Dismiss));
-        self.tell(Told::Unknown { words });
+        self.notice(tui::Notice::Unknown { words });
         self.tell(Told::Cleared);
     }
 
     fn went(&mut self, address: Address) {
-        self.tell(Told::Unknown { words: None });
         self.step(Event::Went { place: Place::Address(address) });
         self.tell(Told::Went);
     }
@@ -679,7 +727,11 @@ impl Host {
             && let Some(me) = self.root.pages().me(self.root.client())
             && let Some(project) = me.projects.get(0)
         {
+            let words: Box<[u8]> = self.state().command_words().into();
             self.went(Address::Home { project: project.project });
+            if !words.is_empty() {
+                self.act(Act::ChatWords { words });
+            }
         }
     }
 
@@ -751,6 +803,11 @@ impl Host {
     }
 
     fn heard(&mut self, event: jig_client::Event) {
+        if matches!(&event, jig_client::Event::Stored | jig_client::Event::NotStored)
+            && self.root_writes.pop() != Some(true)
+        {
+            return;
+        }
         let local = match &event {
             jig_client::Event::Reply { exchange, .. } | jig_client::Event::Lost { exchange } => self
                 .need
@@ -827,6 +884,9 @@ impl Host {
                     if matches!(&request, jig_client::Request::Exchange { message: Message::SignInApproval(_), .. }) {
                         self.local_signing = false;
                     }
+                    if matches!(&request, jig_client::Request::Save { .. } | jig_client::Request::Erase { .. }) {
+                        self.root_writes.push(true);
+                    }
                     duties.asked.push(request);
                 }
                 Down::Duty(Duty::Copy { token }) => {
@@ -835,6 +895,24 @@ impl Host {
                 Down::Duty(Duty::Show { address, .. }) => self.show(address),
             }
         }
+    }
+
+    fn keep_theme(&mut self, choice: ThemeChoice, duties: &mut Duties) {
+        self.choice = choice;
+        self.tell(Told::Theme { choice, terminal: self.terminal });
+        let theme = match choice.scheme(self.terminal) {
+            tui::Scheme::Dark => terminal::Theme::Dark,
+            tui::Scheme::Light => terminal::Theme::Light,
+        };
+        self.step(Event::LookKept { look: Look { theme, ..self.root.pages().look() } });
+        self.theme = tui::theme(choice.scheme(self.terminal), self.background);
+        self.route(duties);
+        let mut records = List::with_capacity(1);
+        records
+            .push(jig_client::Record { key: THEME_KEY.into(), bytes: choice.print().into() })
+            .expect("one theme record");
+        duties.asked.push(jig_client::Request::Save { records });
+        self.root_writes.push(false);
     }
 
     fn quit(&mut self, duties: &mut Duties) {
@@ -909,7 +987,10 @@ impl Host {
             Phase::Again(at) => Some(at),
             Phase::Reading | Phase::Signing(_) => None,
         });
-        skein_lib::earliest(skein_lib::earliest(root::next_deadline(&self.root), tick), local)
+        skein_lib::earliest(
+            skein_lib::earliest(skein_lib::earliest(root::next_deadline(&self.root), tick), local),
+            self.notice_end,
+        )
     }
 }
 

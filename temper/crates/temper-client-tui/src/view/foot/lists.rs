@@ -1,6 +1,6 @@
 //! The first standing list (temper/docs/design/client/README.md, 6.14 and 6.17).
 use super::{Binds, Event, OptionItem, Options, Words, look, text};
-use crate::{Own, Tui, WalkStep, view::front, words::Word};
+use crate::{Own, Scheme, Tui, WalkStep, theme::ThemeChoice, view::front, words::Word};
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
 use skein_ui::{Builder, Role, State, phrases::Hole};
@@ -17,6 +17,9 @@ use temper_client_view::shared;
 pub(super) fn read(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Option<Options> {
     if let Some(quit) = front::quit(root, tui, words) {
         return Some(quit);
+    }
+    if tui.theme_list() {
+        return Some(theme(tui, words));
     }
     if let Some(prompt) = walk(root, tui, words) {
         return Some(prompt);
@@ -80,9 +83,46 @@ pub(super) fn read(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Opt
     question_list(question, tui.aside(), words)
 }
 
+fn theme(tui: &Tui, words: &Words) -> Options {
+    let mut items = List::with_capacity(3);
+    for choice in ThemeChoice::ALL {
+        let name = match choice {
+            ThemeChoice::Auto => Word::ThemeAuto,
+            ThemeChoice::Light => Word::ThemeLight,
+            ThemeChoice::Dark => Word::ThemeDark,
+        };
+        let description = if choice == ThemeChoice::Auto {
+            words.say(
+                match tui.terminal_scheme() {
+                    Some(Scheme::Light) => Word::ThemeAutoLight,
+                    Some(Scheme::Dark) => Word::ThemeAutoDark,
+                    None => Word::ThemeAutoNone,
+                },
+                &[],
+            )
+        } else {
+            Box::default()
+        };
+        items
+            .push(OptionItem {
+                name: words.say(name, &[]),
+                words: description,
+                selected: choice == tui.theme_choice(),
+                event: Event::Theme { choice: Some(choice) },
+            })
+            .expect("three theme choices");
+    }
+    Options {
+        head: Some(words.say(Word::ThemeHead, &[])),
+        name: words.say(Word::ThemeHead, &[]),
+        items: items.into_boxed(),
+        escape: Event::Theme { choice: None },
+    }
+}
+
 #[expect(clippy::disallowed_methods, reason = "commands reject Unicode whitespace in validated UTF-8 composer words")]
 fn commands(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Option<Options> {
-    if !value.starts_with(b"/") {
+    if crate::landing(root) || !value.starts_with(b"/") {
         return None;
     }
     for character in core::str::from_utf8(value).expect("composer words are UTF-8").chars() {
@@ -108,7 +148,7 @@ fn commands(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Option<Opt
         })
     }
 }
-// Both the list and /help read this order, including front's /log before /exit.
+// Both the list and /help read this order, including front's /log before /quit.
 pub(super) fn command_items(root: &Domain, tui: &Tui, words: &Words) -> Box<[OptionItem]> {
     let commands = crate::offered(root, words);
     let own = crate::offered_own(root, tui);
@@ -117,10 +157,13 @@ pub(super) fn command_items(root: &Domain, tui: &Tui, words: &Words) -> Box<[Opt
     for command in &own {
         match command {
             Own::Change | Own::Ask => items.push(own_item(*command, words)).expect("own commands counted"),
-            Own::Brief | Own::Needs | Own::Open => {}
+            Own::Brief | Own::Needs | Own::Open | Own::Theme => {}
         }
     }
     for command in commands {
+        if command == Command::Help {
+            items.push(own_item(Own::Theme, words)).expect("theme counted");
+        }
         if tui.front() && command == Command::Exit {
             items
                 .push(OptionItem {
@@ -133,7 +176,7 @@ pub(super) fn command_items(root: &Domain, tui: &Tui, words: &Words) -> Box<[Opt
         }
         items
             .push(OptionItem {
-                name: copy_of(command.name()),
+                name: copy_of(crate::command_name(command)),
                 words: description(command, words, tui.front()),
                 selected: false,
                 event: Event::Command { command },
@@ -145,7 +188,7 @@ pub(super) fn command_items(root: &Domain, tui: &Tui, words: &Words) -> Box<[Opt
                     Own::Brief | Own::Needs | Own::Open => {
                         items.push(own_item(*command, words)).expect("own commands counted");
                     }
-                    Own::Change | Own::Ask => {}
+                    Own::Change | Own::Ask | Own::Theme => {}
                 }
             }
         }
@@ -159,6 +202,7 @@ fn own_item(command: Own, words: &Words) -> OptionItem {
         Own::Brief => Word::BriefCommand,
         Own::Needs => Word::NeedsCommand,
         Own::Open => Word::OpenCommand,
+        Own::Theme => Word::ThemeCommand,
     };
     OptionItem {
         name: copy_of(command.name()),

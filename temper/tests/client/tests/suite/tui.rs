@@ -146,7 +146,7 @@ fn a_tuis_launchpad_asks_temper_and_draws_the_chat() {
     tui.type_words(&mut world, "/");
     tui.run(&mut world, STEP);
     let text = tui.text();
-    for command in ["/model", "/new", "/chats", "/theme", "/help", "/exit"] {
+    for command in ["/model", "/new", "/chats", "/theme", "/help", "/quit"] {
         assert!(text.contains(command), "missing {command}: {text}");
     }
     assert!(!text.contains("/font"), "{text}");
@@ -154,7 +154,7 @@ fn a_tuis_launchpad_asks_temper_and_draws_the_chat() {
     tui.run(&mut world, STEP);
     let text = tui.text();
     assert!(text.contains("❯ Ask for a change, or ask temper.  / for commands"), "Esc clears the box: {text}");
-    assert!(!text.contains("/exit"), "Esc closes the commands: {text}");
+    assert!(!text.contains("/quit"), "Esc closes the commands: {text}");
     assert!(text.contains(PROJECTS), "{text}");
 
     tui.type_words(&mut world, QUESTION);
@@ -188,10 +188,10 @@ fn a_tuis_launchpad_asks_temper_and_draws_the_chat() {
     assert!(text.contains("● Live"), "{text}");
     assert!(!world.front().release_reply(), "no reply remains held after commit");
 
-    tui.type_words(&mut world, "/exit");
+    tui.type_words(&mut world, "/quit");
     tui.press(&mut world, vec![Key::Enter]);
     tui.run(&mut world, STEP);
-    assert!(tui.closed, "/exit asks the shipped host to close");
+    assert!(tui.closed, "/quit asks the shipped host to close");
 }
 
 #[test]

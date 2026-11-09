@@ -10,7 +10,7 @@ fn tui_help_explains_closing_and_ending_the_sign_in() {
     let page = help::answer(&configured(&["help", "tui"])).expect("TUI page");
     let text = page.split_whitespace().collect::<Vec<_>>().join(" ");
     for required in [
-        "`/exit` or Ctrl+C closes the TUI and keeps the sign-in",
+        "`/quit` (`/exit` works too) or Ctrl+C closes the TUI and keeps the sign-in",
         "On the sign-in screen, use Ctrl+C",
         "`q` types a character on every screen",
         "The TUI has no sign-out action",
