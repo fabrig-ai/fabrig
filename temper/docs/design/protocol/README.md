@@ -1533,15 +1533,6 @@ Each document keeps its own; these cross them:
   (`../draft/deployment-binaries.md`, sections 4 and 10). Default: both,
   each with its row, until M5's test of the dependency rule keeps one
   shape for every binary (`../draft/deployment-binaries.execution.md`).
-- **jig's form of the directories without the engine's shell**
-  (section 5): `jig_directories` is `temper-engine-shell`'s, which the
-  box's binary and the engine's link; the worker's binary (M3) won't
-  link it, its closure holding no engine domain and no web bundle
-  (`../draft/deployment-binaries.md`, section 4), and `temper-shell`,
-  which every binary links, holds no jig crate. Default: a crate of
-  the worker's converts by `jig_protocol_config::Directories::given`
-  itself, until a crate the worker and the engine both link can hold
-  it.
 
 ## 15. The cluster
 
