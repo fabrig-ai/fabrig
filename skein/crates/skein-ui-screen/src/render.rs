@@ -647,9 +647,9 @@ fn control(
     frame: &mut Frame,
 ) -> Option<u16> {
     let n = tree.get(at).expect("control exists");
-    let paint = info.get(at).expect("control information exists").paint;
+    let own = info.get(at).expect("control information exists").paint;
     let focused = focus.node == Some(n.id);
-    let paint = if focused { theme.focus.over(paint) } else { paint };
+    let paint = if focused { theme.focus.over(own) } else { own };
     out.clip_line(n.role == Role::TextField);
     out.control(focused, theme.glyphs.focus, paint, frame);
     words::mark(n, paint, out, frame);
@@ -661,7 +661,8 @@ fn control(
         if labelled {
             out.safe(b": ", paint, focused, frame);
         }
-        out.field(n, focus, theme, paint, frame);
+        let value_paint = if focused { focused_value_paint(n, theme, own, paint) } else { paint };
+        out.field(n, focus, theme, value_paint, frame);
         if labelled {
             words::entry(n, paint, out, frame);
         }
@@ -835,6 +836,20 @@ fn option_width(tree: &Tree, at: u32, end: u32) -> u16 {
         }
     }
     longest
+}
+
+fn focused_value_paint(node: &Node, theme: &crate::Theme, own: Paint, focused: Paint) -> Paint {
+    let mut paint = focused;
+    for token in &node.styles {
+        for look in &theme.styles {
+            if *token == look.style
+                && let Some(value) = look.focused_value
+            {
+                paint = value.over(own);
+            }
+        }
+    }
+    paint
 }
 
 fn active_name_paint(node: &Node, theme: &crate::Theme, region: Paint, composed: Paint) -> Paint {
