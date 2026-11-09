@@ -61,6 +61,15 @@ deployment on record has run since.
   refusal, which end through the same close (the engine's
   `component.rs`, `loss`) and are named once each
   (`each_connections_end_says_why_once`).
+- **Not yet:** 11: `jig-protocol-worker-wire` neither fits a resumed
+  start's committed calls to a room nor measures the smallest resumed
+  start (`jig/crates/jig-protocol-worker-wire/src/sizes.rs`).
+- **Not yet:** 9, 11, 12, *A resumed start fits its room first*: the
+  engine's component fits no start, so an assignment past the room by
+  the calls committed since its run's last turn goes the way of any
+  start past the room, and limits whose smallest resumed start passes
+  the room are made (`jig/crates/jig-protocol-engine-workers/src/limits.rs`,
+  `valid`); no joined row carries such a start.
 - **Not yet:** 1, 4.1, 8, 10.1, 10.2: TLS between hosts: the workers' listener and the worker's dial are plaintext on loopback or in-process (`jig/crates/jig-protocol-config/src/hosts.rs`, `address.rs`). 3, 6.4, 8: a worker whose root composes `smith-inline-agent`: none does, so no worker gives a tool begun with its call.
 - **Not yet:** 9, 11, 12: the worker's side has no room either: its
   limits are made whatever the largest frame it sends, so a turn, call,

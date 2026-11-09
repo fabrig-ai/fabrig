@@ -260,6 +260,10 @@ try. A window's later pages keep its first page's slot there
   the project's deletion (`connectors.md`, 17); whether they pass
   unignored is unknown. The core's own tests of a restore run
   (`jig-domain-core/src/tests/settings/restore.rs`).
+- **Not yet:** 7.2, *Resuming*: a start that crosses a worker's link
+  carries every committed call's answer whole, so a run that made more
+  calls since its last turn than the link's room holds cannot resume on
+  a worker (`../protocol/channel.status.md`, 9).
 - **Not yet:** 17.5: validation of declared application kinds against
   configured limits before construction is missing, because
   `jig-domain-core/src/settings.rs`, `Current::new`, expects the capacity to

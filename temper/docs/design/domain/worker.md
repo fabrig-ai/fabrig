@@ -232,7 +232,12 @@ temper's workspace items beside it:
   3.2).
 - **Transcript,** for a run that resumes: its current window, and the
   calls committed after its last turn (jig's `domain/engine.md`, 7.2;
-  jig's `domain/hosts.md`, 6.4). A delivery among those calls comes with
+  jig's `domain/hosts.md`, 6.4). Across the link, those calls' answers
+  fit its room: the newest whole, each older host answer cut to words
+  saying the call ran and how many bytes its answer had (jig's
+  `protocol/channel.md`, 9, *A resumed start fits its room first*), so a
+  producer whose program worked an hour since its last turn resumes,
+  told of every call it made. A delivery among those calls comes with
   its evidence, smith's record of the push's terminal, which must decode
   and agree with the outcome the engine committed (4.3;
   `../protocol/channel.md`, section 2). The worker carries the rest
@@ -305,11 +310,16 @@ jig's types (jig's `domain/hosts.md`, 6.3), with temper's detail:
   does, with serve's operator line below, and serve writes the link's
   `worker unsent` line too (`../protocol/README.md`, 15.3). The link, its
   pings and the worker's other runs go on; nothing waits for an answer
-  the worker was never sent. Both profiles admit a resumed start past
-  their room: a whole charter and window with every call committed since
-  the last turn and a full inbox. Such a start fails so, with its
-  numbers, rather than silencing the link until the worker's silence
-  deadline drops it and every run on it.
+  the worker was never sent. A resumed start's committed calls are cut
+  to the room first (4.1, *Transcript*), so a start fails so only when
+  it is past the room with every answer cut, by its charter, window,
+  inbox and grants, as `standard` admits by its inbox alone. Such a
+  start fails so, with its numbers, rather than silencing the link
+  until the worker's silence deadline drops it and every run on it.
+  Limits under which even the smallest resumed start, every call
+  `core.call_records` admits cut beside an assignment's fixed fields,
+  passes the engine's room are refused at start, naming the bound
+  (`../protocol/configuration.md`, section 7).
 - **An answer past the agent's reply bound** (`Limits::reply_bytes`,
   smith's `host_reply_bytes`) is given to smith as its `TooLarge`,
   never as a body its host codec would refuse: such a send would
