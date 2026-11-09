@@ -127,7 +127,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 398;
+pub const N: usize = 402;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -384,6 +384,18 @@ pub fn samples() -> [Sample; N] {
         Sample {
             name: "needs-decided",
             world: FirstRun { step: 7 },
+            address: Address::Inbox { filter: Filter::ALL },
+            then: Shown,
+        },
+        Sample {
+            name: "needs-only-you",
+            world: Reference,
+            address: Address::Inbox { filter: Filter::ALL },
+            then: Shown,
+        },
+        Sample {
+            name: "needs-only-you-done",
+            world: Reference,
             address: Address::Inbox { filter: Filter::ALL },
             then: Shown,
         },
@@ -839,6 +851,12 @@ pub fn samples() -> [Sample; N] {
         },
         Sample { name: "night-needs", world: Solo, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample {
+            name: "night-needs-only-you",
+            world: Reference,
+            address: Address::Inbox { filter: Filter::ALL },
+            then: Shown,
+        },
+        Sample {
             name: "needs-one",
             world: Solo,
             address: Address::Inbox { filter: Filter { project: Some(1), ..Filter::ALL } },
@@ -1126,6 +1144,7 @@ pub fn samples() -> [Sample; N] {
             then: Shown,
         },
         Sample { name: "accounts-states", world: Reference, address: Address::Accounts, then: Shown },
+        Sample { name: "accounts-expiring", world: Reference, address: Address::Accounts, then: Shown },
         Sample { name: "accounts-key", world: Reference, address: Address::Accounts, then: Shown },
         Sample { name: "accounts-removing", world: Reference, address: Address::Accounts, then: Shown },
         Sample { name: "accounts-signing-in", world: Reference, address: Address::Accounts, then: Shown },
@@ -1666,6 +1685,7 @@ pub fn domain(sample: &Sample) -> Domain {
     let base = match sample.name {
         "night-team" => Some("team"),
         "night-needs" => Some("needs-list"),
+        "night-needs-only-you" => Some("needs-only-you"),
         "night-home" => Some("home-begin-ask-left"),
         "night-all-home" => Some("all-home"),
         "night-ask" => Some("ask-first-run"),
@@ -2041,7 +2061,7 @@ pub fn domain(sample: &Sample) -> Domain {
         };
         step(&mut root, Event::Act { action: Action::Forge(forge::Act::Forges(act)) }, &mut out);
     }
-    account_states(&mut root, sample, accounts_watch, &mut out);
+    account_states(&mut root, sample.name, accounts_watch, &mut out);
     account_editor(&mut root, sample, &mut out);
     if sample.then == Then::Paste(PasteFrame::Expired) {
         let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("sample accounts").clone();
@@ -2066,10 +2086,17 @@ pub fn domain(sample: &Sample) -> Domain {
     }
     root
 }
-fn account_states(root: &mut Domain, sample: &Sample, accounts_watch: Option<Token>, out: &mut Queue<Request>) {
-    if sample.name == "accounts-states" || sample.name == "accounts-program-needs-sign-in" {
+pub(super) fn account_states(root: &mut Domain, name: &str, accounts_watch: Option<Token>, out: &mut Queue<Request>) {
+    if matches!(
+        name,
+        "accounts-states"
+            | "accounts-program-needs-sign-in"
+            | "accounts-expiring"
+            | "needs-only-you"
+            | "needs-only-you-done"
+    ) {
         let mut doc = temper_client_domain::pages::accounts::document(root.client()).expect("sample accounts").clone();
-        if sample.name == "accounts-states" {
+        if name == "accounts-states" {
             let template = doc.accounts.get(1).expect("plan account").clone();
             let states = [
                 c::AccountState::Granted,
@@ -2102,7 +2129,7 @@ fn account_states(root: &mut Domain, sample: &Sample, accounts_watch: Option<Tok
                 source.usable = index == 0;
                 doc.accounts.push(row).expect("sample state");
             }
-        } else {
+        } else if name == "accounts-program-needs-sign-in" {
             let row = doc.accounts.get_mut(0).expect("program account");
             let source = row.sources.get_mut(0).expect("program source");
             source.state = c::AccountState::SignInAgain;
@@ -2110,6 +2137,27 @@ fn account_states(root: &mut Domain, sample: &Sample, accounts_watch: Option<Tok
             for host in doc.program_hosts.iter_mut() {
                 for program in host.programs.iter_mut() {
                     program.state = Some(c::ProgramState::NotSignedIn);
+                }
+            }
+        } else {
+            for row in doc.accounts.iter_mut() {
+                let source = row.sources.get_mut(0).expect("deciding source");
+                match source.kind {
+                    c::AccountKind::SignIn => {
+                        source.state = if name == "accounts-expiring" {
+                            c::AccountState::Granted
+                        } else {
+                            c::AccountState::SignInAgain
+                        };
+                        source.usable = name == "accounts-expiring";
+                        source.expiring = name == "accounts-expiring";
+                    }
+                    c::AccountKind::Program => {
+                        source.state = c::AccountState::Granted;
+                        source.usable = true;
+                        source.expiring = name == "needs-only-you";
+                    }
+                    c::AccountKind::Key | c::AccountKind::None => {}
                 }
             }
         }

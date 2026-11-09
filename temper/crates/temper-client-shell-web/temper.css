@@ -2355,6 +2355,15 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 
 
 
+.temper-needs .temper-only { display: flex; flex-direction: column; gap: 14px; }
+.temper-needs .temper-only-item { background: var(--gf-surface); border: 1px solid var(--gf-line); border-radius: 12px; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px; }
+.temper-needs .temper-only-item p { margin: 0; }
+.temper-needs .temper-only-q { font-size: 19px; font-weight: 500; line-height: 1.45; }
+.temper-needs .temper-only-item .temper-ask-choices { flex-direction: row; flex-wrap: wrap; }
+@media (max-width: 760px) {
+  #app > .temper-needs .temper-only-item .temper-ask-choices a.temper-recommended { box-sizing: border-box; width: 100%; min-height: 44px; }
+}
+
 /* ==== ui: work ==== */
 #app > .temper-work-page { width: 100%; max-width: 816px; margin: 0 auto; padding: 64px 48px 96px; display: flex; flex-direction: column; gap: 60px; font: 15px/1.6 var(--gf-sans); color: var(--gf-ink); letter-spacing: normal; }
 .temper-work-intro { display: flex; flex-direction: column; gap: 14px; }

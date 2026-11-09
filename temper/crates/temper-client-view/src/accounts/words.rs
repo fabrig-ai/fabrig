@@ -238,6 +238,7 @@ pub(crate) enum Word {
     ProgramNameTaken,
     ProgramNotOffered,
     ResumeNotOffered,
+    ExpiringPlan,
 }
 const ROWS: &[(Word, &[u8])] = &[
     (Word::ProgramNote, "If this machine has no Claude Code, this fetches it first. Claude Code asks you to sign in. temper never reads its login.".as_bytes()),
@@ -432,6 +433,7 @@ const ROWS: &[(Word, &[u8])] = &[
     (Word::PasteAgain, b"That address wasn't sent. Paste it again."),
     (Word::ProgramNotOffered, b"This provider offers you no program login. Choose another way to connect."),
     (Word::ResumeNotOffered, b"This source isn't limited, so there's nothing to resume. Its state above is current."),
+    (Word::ExpiringPlan, b"Expiring: sign in again before it ends."),
 ];
 // Both names are borrowed; no configured name is replaced by a guessed brand.
 pub(crate) fn provider_words(name: &[u8]) -> (&[u8], &[u8]) {

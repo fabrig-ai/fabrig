@@ -1681,6 +1681,13 @@ pub enum Word {
     NeedsAllowed,
     NeedsDecidedOne,
     NeedsDecidedMany,
+    OnlyCount,
+    OnlyCountCut,
+    OnlyAround,
+    OnlyAccount,
+    OnlySignedOut,
+    OnlyExpiring,
+    OnlySignInAgain,
     NeedsTab,
     NeedsTabCount,
     NeedsTabCountCut,
@@ -1758,7 +1765,7 @@ pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
 // The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
 // Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
-const PHRASES: u32 = 2310;
+const PHRASES: u32 = 2318;
 // Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
 // Overturn adds its button and three toast phrases (client/README.md, 3.5).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -1785,10 +1792,10 @@ const PHRASES: u32 = 2310;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/README.md, 3.5).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 4141;
+const SEGMENTS: u32 = 4157;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 56089;
-const ALL: [Word; 1627] = [
+const ENGLISH_BYTES: u32 = 56270;
+const ALL: [Word; 1634] = [
     Word::StopAsking,
     Word::StopAskingDecide,
     Word::StopAskingWords,
@@ -3413,6 +3420,13 @@ const ALL: [Word; 1627] = [
     Word::NeedsAllowed,
     Word::NeedsDecidedOne,
     Word::NeedsDecidedMany,
+    Word::OnlyCount,
+    Word::OnlyCountCut,
+    Word::OnlyAround,
+    Word::OnlyAccount,
+    Word::OnlySignedOut,
+    Word::OnlyExpiring,
+    Word::OnlySignInAgain,
     Word::NeedsTab,
     Word::NeedsTabCount,
     Word::NeedsTabCountCut,
@@ -5074,6 +5088,13 @@ impl Word {
             Self::NeedsDecidedLifetime => 4473,
             Self::HomeAsk => 4472,
             Self::HomeAskPlaceholder => 4471,
+            Self::OnlyCount => 4480,
+            Self::OnlyCountCut => 4481,
+            Self::OnlyAround => 4482,
+            Self::OnlyAccount => 4483,
+            Self::OnlySignedOut => 4484,
+            Self::OnlyExpiring => 4485,
+            Self::OnlySignInAgain => 4486,
             Self::NeedsTab => 4477,
             Self::NeedsTabCount => 4478,
             Self::NeedsTabCountCut => 4479,
@@ -5953,6 +5974,13 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::NeedsDecidedOne => (&[b"One was decided for you."], &[]),
         Word::NeedsAllowed => (&[b"Allowed: "], &[]),
         Word::NeedsDecidedLifetime => (&[b"for 24 hours, then in each task's history"], &[]),
+        Word::OnlyCount => (&[b"Only you \xc2\xb7 ", b""], &[Number]),
+        Word::OnlyCountCut => (&[b"Only you \xc2\xb7 ", b"+"], &[Number]),
+        Word::OnlyAround => (&[b"work goes on around it"], &[]),
+        Word::OnlyAccount => (&[b"an LLM account"], &[]),
+        Word::OnlySignedOut => (&[b"Your ", b" is signed out. Sign in again?"], &[Name]),
+        Word::OnlyExpiring => (&[b"Your ", b" is expiring. Sign in again?"], &[Name]),
+        Word::OnlySignInAgain => (&[b"Sign in again"], &[]),
         Word::HomeAsk => (&[b"Ask"], &[]),
         Word::HomeAskPlaceholder => (&[b"Ask temper about your projects"], &[]),
         Word::HomeBranchRed => (&[b"", b" red"], &[Name]),
