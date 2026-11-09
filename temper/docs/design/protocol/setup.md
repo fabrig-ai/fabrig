@@ -1125,11 +1125,14 @@ its own for any other host.
     is replaced by a new one and a rename, and a right one left as it is,
     so that two starts at once are harmless and a person's own command
     never fetches by a stale name. The launcher, the placing of its
-    links and the substitution are `temper-fetch-shell`'s (section 11),
+    links and the substitution are `temper-launcher`'s (section 11),
     which a worker's commands and the agent's binary both link and which
-    reads programs' directories through smith's `smith-agent-document`,
-    never smith's agent. The `claude` link names the running executable,
-    the binary that places it.
+    checks the links' directory private through smith's
+    `smith-agent-document`, never smith's agent. Claude Code's fetch
+    beneath it is `temper-fetch-shell`'s, the fetch's host the forge's
+    setup links too, which links no smith crate, so the engine links no
+    launcher (`README.md`, 4.1). The `claude` link names the running
+    executable, the binary that places it.
   - **Found by its size:** every command of the source passes through
     the launcher, so it hashes nothing it finds. A file at the pin's
     size runs; one of any other size is refused, naming its path, and
@@ -3635,10 +3638,14 @@ temper-forge-setup           step code: the setup's types and checks; the machin
 ├── temper-fetch, skein-forge-setup, skein-forge
 └── jig-protocol-config, skein-lib, skein-json
 temper-fetch-shell           ordinary Rust: the fetch's host, its requests over TLS, on skein-io;
-│                              Claude Code's fetch, under its lock; its launcher, the placing of its
-│                              links and the substitution of "fetched" in an agent's document (6.6)
-├── temper-fetch, smith-agent-document
-└── skein-io, skein-http, skein-tls, skein-lib, skein-json, skein-shell
+│                              Claude Code's fetch, under its lock (6.6); no smith crate
+├── temper-fetch
+└── skein-io, skein-http, skein-tls, skein-lib, skein-shell
+temper-launcher              ordinary Rust: Claude Code's launcher, the placing of its links in a
+│                              private directory and the substitution of "fetched" in an agent's
+│                              document (6.6); for the box's binary, a worker's and the agent's
+├── temper-fetch-shell, temper-fetch, smith-agent-document
+└── skein-io, skein-lib, skein-json, skein-shell, skein-forge
 temper-forge-setup-shell     ordinary Rust: the hosts of fetch, prepare and run: commands, files, the
 │                              forge's locks, the exec; Forgejo's fetch on temper-fetch-shell's host,
 │                              with its bottle's extraction
@@ -3670,14 +3677,13 @@ temper-engine-shell          ordinary Rust: temper forge fetch|prepare|run|sign-
 │                              binaries below (README.md, 4.1)
 ├── temper-forge-setup-shell, temper-forge-setup, temper-box, temper-fake (the demo member's check)
 └── temper-service, temper-shell
-temper-agent                 the deployment's agent: its table, its modes, its help and --version, the
-│                              commit set by its build script (README.md, 4.3); Claude Code's launcher
-│                              by its name
-├── temper-shell, smith-agent-shell, temper-fetch-shell
+temper-agent                 the deployment's agent: its table, its modes, its help and --version,
+│                              temper-version's (README.md, 4.3); Claude Code's launcher by its name
+├── temper-shell, temper-version, smith-agent-shell, temper-launcher
 └── skein-shell, skein-fail-stop
 temper                       the box's binary: the forge's commands through temper-engine-shell,
                                temper box, temper init, temper fake llm|forge|git; Claude Code's
-                               launcher by its name, temper-fetch-shell's (6.6)
+                               launcher by its name, temper-launcher's (6.6)
 temper-engine                the engine's binary: the forge's commands through temper-engine-shell,
                                on an engine alone's document (README.md, 4.2)
 ```
@@ -3688,9 +3694,13 @@ temper-engine                the engine's binary: the forge's commands through t
   `temper-forge-setup-shell`, and on `temper-box` only for the `box.`
   limits' reference page (`temper-service/src/limits/reference.rs`).
 - **The agent's binary links no forge setup:** `temper-agent` reaches
-  Claude Code's fetch through `temper-fetch` and `temper-fetch-shell`
-  alone, so neither `temper-forge-setup` nor its shell is in its closure
-  (`README.md`, 4.3).
+  Claude Code's fetch through `temper-launcher`, `temper-fetch-shell`
+  and `temper-fetch` alone, so neither `temper-forge-setup` nor its
+  shell is in its closure (`README.md`, 4.3).
+- **The forge's setup links no launcher:** `temper-forge-setup-shell`
+  links `temper-fetch-shell`, the fetch's host, which links no smith
+  crate, so `temper-engine`'s closure holds none of smith's agent
+  document through it (`README.md`, 4.1 and 4.2).
 - **The binary checks the machine's part and its limits** for every
   command, `temper serve`'s included, the box's and the engine's
   through `temper-engine-shell`: `temper-forge-setup` checks

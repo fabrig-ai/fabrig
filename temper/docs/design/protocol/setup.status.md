@@ -2,18 +2,23 @@
 
 2026-11-09. Where temper's code lags or departs from [setup.md](setup.md).
 
-Sections 6.6 and 11 have no known gap in the shared fetch and launcher
-at main's `fdc26f71c6`: `temper-fetch` owns the machine and Claude pin;
-`temper-fetch-shell` owns the TLS host, launcher, link placement and
-bounded document substitution, on `smith-agent-document`. Forgejo's
-pins and bottle extraction stay with forge setup, whose old fetch
-paths are re-exports. The moved pin/progress and substitution tests,
-the retained local-TLS fetch suite and the agent's launcher rows cover
-the split. Neither forge-setup crate is in the agent's normal closure.
-The link still names the executable placing it; the worker's naming of
-`temper-agent` remains M3's, not an outcome of this split
-(`../draft/deployment-binaries.execution.md`, 1). Section 15's real
-Claude download walk and other deferred work remain unchanged.
+Sections 6.6 and 11's shared fetch is present: `temper-fetch` owns the
+machine and Claude pin, `temper-fetch-shell` the TLS host and Claude
+Code's fetch under its lock. Forgejo's pins and bottle extraction stay
+with forge setup, whose old fetch paths are re-exports. The moved
+pin/progress and substitution tests, the retained local-TLS fetch suite
+and the agent's launcher rows cover the split. Neither forge-setup crate
+is in the agent's normal closure. The link still names the executable
+placing it; the worker's naming of `temper-agent` remains M3's, not an
+outcome of this split (`../draft/deployment-binaries.execution.md`, 1).
+Section 15's real Claude download walk and other deferred work remain
+unchanged.
+
+- **Not yet:** 6.6, 11: `temper-launcher`: the launcher, the placing of
+  its links and the substitution are `temper-fetch-shell`'s
+  (`crates/temper-fetch-shell/src/launcher.rs`), on
+  `smith-agent-document`, so the forge's setup links smith's agent
+  document through it.
 
 Section 8.3 has no known implementation gap in the binary supplying
 every project's rule 1 and no deployment rule, or supplying stock

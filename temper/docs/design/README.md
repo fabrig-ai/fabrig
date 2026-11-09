@@ -260,7 +260,7 @@ temper's side before the layer:
   `skein-forge-setup` (reconcile); its setup's rest, outside the
   services, `temper-forge-setup`, `temper-forge-setup-shell` and
   `temper-box`; a pinned binary's fetch and Claude Code's launcher, of
-  no side, `temper-fetch` and `temper-fetch-shell`;
+  no side, `temper-fetch`, `temper-fetch-shell` and `temper-launcher`;
 - the user documentation's, of no side, `temper-docs`
   (`protocol/documentation.md`); the settings' form, `temper-settings-form`;
   `temper init`'s files, `temper-init`; the fakes the binary ships,
