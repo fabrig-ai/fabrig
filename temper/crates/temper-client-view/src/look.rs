@@ -1019,10 +1019,10 @@ pub const NAMES: Names<'static> = Names {
         b"temper-reserved-299",
         b"temper-toast",
         b"temper-needs",
-        b"temper-flow-head",
-        b"temper-dots",
-        b"temper-dot",
-        b"temper-dot-done",
+        b"temper-reserved-302",
+        b"temper-reserved-303",
+        b"temper-reserved-304",
+        b"temper-reserved-305",
         b"temper-flow-q",
         b"temper-ask-context",
         b"temper-ask-saw",
@@ -1034,7 +1034,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-answered",
         b"temper-answered-label",
         b"temper-answered-undo",
-        b"temper-next-up",
+        b"temper-reserved-317",
         b"temper-answered-section",
         b"temper-needs-home",
         b"temper-needs-intro",
@@ -1436,24 +1436,15 @@ pub const NAMES: Names<'static> = Names {
         b"temper-team-person",
         b"temper-team-role",
         b"temper-team-line",
+        b"temper-needs-bar",
+        b"temper-needs-bar-at",
+        b"temper-tabbar-ask",
     ],
     regions: &[b"temper-link"],
 };
 
 /// Needs you (temper/docs/design/client/README.md, 3.5).
 pub const NEEDS: Style = Style { owner: owner(), token: 301 };
-
-/// Needs you (temper/docs/design/client/README.md, 3.5).
-pub const FLOW_HEAD: Style = Style { owner: owner(), token: 302 };
-
-/// Needs you (temper/docs/design/client/README.md, 3.5).
-pub const DOTS: Style = Style { owner: owner(), token: 303 };
-
-/// Needs you (temper/docs/design/client/README.md, 3.5).
-pub const DOT: Style = Style { owner: owner(), token: 304 };
-
-/// Needs you (temper/docs/design/client/README.md, 3.5).
-pub const DOT_DONE: Style = Style { owner: owner(), token: 305 };
 
 /// Needs you (temper/docs/design/client/README.md, 3.5).
 pub const FLOW_Q: Style = Style { owner: owner(), token: 306 };
@@ -1487,9 +1478,6 @@ pub const ANSWERED_LABEL: Style = Style { owner: owner(), token: 315 };
 
 /// Needs you (temper/docs/design/client/README.md, 3.5).
 pub const ANSWERED_UNDO: Style = Style { owner: owner(), token: 316 };
-
-/// Needs you (temper/docs/design/client/README.md, 3.5).
-pub const NEXT_UP: Style = Style { owner: owner(), token: 317 };
 
 /// Needs you (temper/docs/design/client/README.md, 3.5).
 pub const ANSWERED_SECTION: Style = Style { owner: owner(), token: 318 };
@@ -1894,6 +1882,13 @@ pub const WAYS_FADE_AGENT: Style = Style { owner: owner(), token: 708 };
 pub const WAYS_FADE_AGENT_FAINT: Style = Style { owner: owner(), token: 709 };
 pub const WAYS_FADE_BASE: Style = Style { owner: owner(), token: 710 };
 pub const WAYS_KIND_MAYBE: Style = Style { owner: owner(), token: 711 };
+/// Needs you's phone bar (temper/docs/design/client/README.md, 3.5).
+pub const NEEDS_BAR: Style = Style { owner: owner(), token: 718 };
+/// Its place in the open cards (temper/docs/design/client/README.md, 3.5).
+pub const NEEDS_BAR_AT: Style = Style { owner: owner(), token: 719 };
+
+/// The phone's Ask tab (temper/docs/design/client/README.md, 5.3).
+pub const TABBAR_ASK: Style = Style { owner: owner(), token: 720 };
 
 #[cfg(test)]
 mod tests {
