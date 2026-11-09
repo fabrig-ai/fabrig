@@ -120,3 +120,18 @@ Run through heavy, with `TEMPER_BUNDLE=none`:
 Then verify the focused replay:
 `heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=walk::story_a_kept_log_replays_natively)'`
 Commit the regenerated fixture and report it as the task’s generated-file repair.
+
+## Rebase (2026-11-09, step merge, foreman ui-p3e-words/charter-lines/foreman-3)
+
+rebase onto integration and regenerate Story A’s fixture from the combined code
+The merge conflicts only in `temper/tests/playground/tests/fixtures/story-a.log`.
+Branch commit `7315247732` updated the recording for stock charter words.
+Integration commit `99d31c445a` regenerated it while merging main’s changes.
+Preserve both source changes when rebasing onto the landing’s current integration tip.
+Regenerate the entire fixture; neither side’s recording represents the combined code.
+The generator is `temper/tests/playground/tests/suite/walk.rs`, enabled by `SKEIN_CODEGEN_WRITE`.
+Run generation through heavy:
+`TEMPER_BUNDLE=none SKEIN_CODEGEN_WRITE=1 heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=walk::story_a_walks_from_the_welcome_to_the_csv_change_landed)'`
+Then verify the focused replay:
+`TEMPER_BUNDLE=none heavy cargo nextest run -p temper-playground-world --test suite -E 'test(=walk::story_a_kept_log_replays_natively)'`
+Confirm each command selects one test. Commit the regenerated fixture and report it as the task’s generated-file repair.
