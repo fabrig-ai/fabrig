@@ -3023,6 +3023,31 @@ keeps (`../protocol/configuration.md`, section 2).
     PROJECT’s limits." with the act "Limits", to Settings; "Away: agents
     decide within PROJECT’s limits." with `until` none; off, "Away is off:
     questions wait for you again."; refused, "Away didn’t change. Try again."
+  - *On All projects* (`../draft/surfaces.md`, section 2), while the page
+    is one across projects (`pages::rail::across`), the switch and the chip
+    are the person's projects' together: M, the projects `me` lists, and
+    N, those whose row is on at the wall (`Domain::away_on`), counted with
+    the earliest `until` of the rows on by one pure function,
+    `pages::away_all::across`, which the rail and the chip read:
+    - *Shown* while this section's *Shown* holds for any of them, the
+      rail's fact on All projects (5.3).
+    - *Its words:* with N 0, a project's off words, not pressed; with N
+      M, a project's on words with that earliest `until`, "Away" alone
+      where no row on has one, pressed; between, "Away on 2 of 4", N of
+      M, not pressed, so that the state says what a press does. The build
+      asks to wake at that earliest `until`.
+    - *Its act,* `away::Act::ToggleAll`: with N M, every project off;
+      otherwise every project on. Each project not already so is sent its
+      own `SetAway`, the request *Its act* above sends for that project's
+      switch, one decision each and all at once; one already so is sent
+      nothing. While any is out, every Away control is disabled and a
+      project's act waits, as while a project's request is out.
+    - *Its toast,* once every answer is in, says how many changed: "Away
+      turned on for 3 projects: agents decide within their limits.";
+      "Away turned off for 3 projects: questions wait for you again.";
+      "1 project" for one; with some refused or unknown, "Away changed for
+      2 of 3 projects. Try again.", of those sent; with none changed, "Away
+      didn’t change. Try again." No "Limits": limits are a project's.
   - *Home, while a decision shows.* A row (`decided`, 4.6) shows for 24
     hours from its `at`. With any showing and To begin gone, *Home on any
     project* takes this form, in the intro's one function; the build asks to
@@ -5018,7 +5043,7 @@ and what is current is the view's. Its rules:
 | "Needs you"'s count | it is more than zero | `pages().needs().count(..)`, as above |
 | "Team" | the project has a second member or a standing role | a project's members and its standing roles |
 | "Ask temper", in the rail, the tab bar and the new box's menu | `me` lists template 5 for the project | `me`'s templates |
-| the Away switch and chip | 3.5's *Away* shows it | `Domain::away_shown` |
+| the Away switch and chip | 3.5's *Away* shows it; on All projects, it shows for any of the person's projects (3.5, *Away*, *On All projects*) | `Domain::away_shown`; on All projects, `pages::away_all::across` |
 | the new box's menu, "+ New draft or change" | the project offers drafts | `drafts_offered`; else "+ New change" alone |
 | To begin's cut, above | `home::beginning` holds | `home::beginning(root, project, wall)` |
 | "Home", "Needs you", "Work", "How work runs", "Deployment" | always, To begin's cut aside | |

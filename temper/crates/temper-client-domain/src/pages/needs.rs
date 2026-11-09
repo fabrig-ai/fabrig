@@ -80,6 +80,11 @@ pub enum Toasted {
     },
     AwayOff,
     AwayRefused,
+    AwayAll {
+        on: bool,
+        changed: u32,
+        sent: u32,
+    },
     Overturned,
     OverturnEnded,
     OverturnAlready,
@@ -691,6 +696,7 @@ pub(crate) fn act(
                     Toasted::Way { .. }
                     | Toasted::AwayOn { .. }
                     | Toasted::AwayOff
+                    | Toasted::AwayAll { .. }
                     | Toasted::AwayRefused
                     | Toasted::Overturned
                     | Toasted::OverturnEnded
