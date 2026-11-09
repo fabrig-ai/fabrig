@@ -1,4 +1,4 @@
-//! Serve's host and start (temper/docs/design/protocol/README.md, 4.1, 4.2 and 5).
+//! The engine's start for serve (temper/docs/design/protocol/README.md, 4.1, 4.2 and 5).
 use crate::{address, path, prefixed, setup};
 use jig_protocol_config::{self as config, read};
 use skein_io::kernel::{Exit, Fd};

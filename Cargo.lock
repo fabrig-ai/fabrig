@@ -5649,12 +5649,7 @@ name = "temper-engine-shell"
 version = "0.0.0"
 dependencies = [
  "jig-channel-kit",
- "jig-domain-core",
- "jig-domain-host",
- "jig-domain-people",
- "jig-domain-tasks",
  "jig-protocol-config",
- "jig-protocol-store",
  "serde_json",
  "skein-forge",
  "skein-forge-connection",
@@ -5668,8 +5663,6 @@ dependencies = [
  "temper-box",
  "temper-client-bundle",
  "temper-client-protocol-wire",
- "temper-engine-domain",
- "temper-engine-domain-forge",
  "temper-fake",
  "temper-forge-setup",
  "temper-forge-setup-shell",
