@@ -141,6 +141,12 @@ user numbers on different forges, unknown accounts and each forge's writer.
 Section 12.1's questions on the forge remain unbuilt, as listed below;
 their designed account mapping also requires the repository's forge.
 
+- **Not yet:** 12, *A full outbox defers it*: a projection whose next
+  write meets the full outbox asks to be projected again at once
+  (`temper-engine-domain-forge/src/domain.rs`, `project`, `ProjectAfter`
+  with no time), which the root answers in the same step, so the step
+  never ends.
+
 Sections 8.1, 8.5, 11 and 11.1 have no known implementation gap in a
 goal's delivery through r. The six engine domain stories in
 `tests/engine/domain/tests/suite/forge_routes/goal_delivery.rs` cover
@@ -165,6 +171,11 @@ Section 4.5's `DismissMaking` is present: an owner can erase a failed row
 and free its place, absence is kept, and running rows or another scope
 are refused. The request carries `into`, so its keyed scope survives the
 row's erasure. The connector's making tables cover these decisions.
+
+- **Not yet:** 12, *A full outbox defers it*: the root answers a
+  projection asked for at once by projecting it again whatever the
+  outbox holds, in the step that has met it full too
+  (`temper-engine-domain/src/route/forge_route.rs`, `ProjectAfter`).
 
 Section 8.1 has no known implementation gap in bounding a pull request's
 body at 65,536 bytes independently of `forge.client.op_bytes`, with a
