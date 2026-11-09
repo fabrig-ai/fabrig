@@ -375,17 +375,17 @@ pub(crate) fn transcript_loaded(
         load: jig_domain_core::TranscriptLoad::Page { rows: loaded.into_boxed(), done: next.is_none() },
     }));
     if let Some(after) = next {
-        let Some(Some(Read::Transcript { .. })) = domain.archive_reads.get(Id::from_token(waiter)) else {
-            unreachable!("transcript read survives its page")
-        };
-        let from = domain
-            .core
-            .transcripts
-            .get(&task)
-            .expect("live transcript preparation")
-            .window
-            .expect("transcript page belongs to its opening window");
-        request_load(domain, waiter, Range::Core(crate::CoreRange::TaskTranscript { task, from }), Some(after), out);
+        let mut issued = Queue::with_capacity(1);
+        loads::next(&mut domain.loads, waiter, after, domain.limits.loads.rows, &mut issued)
+            .expect("uncut transcript continuation keeps its load slot");
+        match issued.pop().expect("continuation issued") {
+            loads::Request::Load { owner, range, after, most, bytes } => {
+                out.push(Request::Store(crate::StoreRequest::Load { owner, range, after, most, bytes }));
+            }
+            loads::Request::Loaded { .. } | loads::Request::Unloaded { .. } => {
+                unreachable!("continuation only issues IO")
+            }
+        }
         return;
     }
     let Some(Read::Transcript { .. }) = take_read(domain, waiter) else { unreachable!("finished transcript read") };
@@ -497,44 +497,67 @@ mod tests {
     }
 
     #[test]
-    fn a_transcript_continuation_without_load_room_remains_preparation_failure() {
+    fn a_transcript_continuation_keeps_its_slot_while_every_other_slot_is_taken() {
         let (mut domain, env) = root();
-        // Saturate the real IO table without adding a world hook.
-        let mut issued = Queue::with_capacity(1);
-        for number in 0..env.limits.loads.loads {
-            assert!(
-                loads::begin(
-                    &mut domain.loads,
-                    Token::new(u64::from(number)),
-                    Range::Core(crate::CoreRange::Tasks),
-                    None,
-                    1,
-                    &mut issued,
-                )
-                .is_some()
-            );
-            assert!(issued.pop().is_some());
-        }
-        // Page continuations request their next load without another activation.
         domain.core.begin_transcript(TASK, PREVIOUS_ATTEMPT, Some((PREVIOUS_ATTEMPT, 1)));
         let waiter = transcript_read(&mut domain);
+        let range = Range::Core(crate::CoreRange::TaskTranscript { task: TASK, from: (PREVIOUS_ATTEMPT, 1) });
+        let mut issued = Queue::with_capacity(1);
+        let owner = loads::begin(&mut domain.loads, waiter, range.clone(), None, 1, &mut issued)
+            .expect("first transcript page admitted");
+        issued.pop().expect("first page issued");
+        for number in 1..env.limits.loads.loads {
+            loads::begin(
+                &mut domain.loads,
+                Token::new(u64::MAX - u64::from(number)),
+                Range::Core(crate::CoreRange::Tasks),
+                None,
+                1,
+                &mut issued,
+            )
+            .expect("other slot held");
+            issued.pop().expect("other load issued");
+        }
+        assert!(!domain.loads.has_room());
+        let row = crate::TurnRecord {
+            task: TASK,
+            attempt: PREVIOUS_ATTEMPT,
+            turn: 1,
+            spent: 1,
+            read: None,
+            at: skein_lib::Wall::EPOCH,
+            opens_window: true,
+            transcript: Box::new([b'x']),
+        };
+        let rows = Box::new([Record::Core(core::Record::Core(core::CoreRecord::Turn(row)))]);
+        let after = Key::Core(core::Key::Core(core::CoreKey::Turn { task: TASK, attempt: PREVIOUS_ATTEMPT, turn: 1 }));
+        loads::loaded(&mut domain.loads, owner, rows, Some(after.clone()), &mut issued);
+        let Some(loads::Request::Loaded { waiter: found, rows, next, cut }) = issued.pop() else {
+            panic!("page delivered to its waiter");
+        };
+        assert_eq!(found, waiter);
         let mut out = Queue::with_capacity(1);
-        request_load(
-            &mut domain,
-            waiter,
-            Range::Core(crate::CoreRange::TaskTranscript { task: TASK, from: (PREVIOUS_ATTEMPT, 1) }),
-            Some(Key::Core(core::Key::Core(core::CoreKey::Turn { task: TASK, attempt: PREVIOUS_ATTEMPT, turn: 1 }))),
-            &mut out,
+        transcript_loaded(&mut domain, waiter, rows, None, next, cut, &mut out);
+        assert_eq!(
+            out.pop(),
+            Some(Request::Store(crate::StoreRequest::Load {
+                owner,
+                range,
+                after: Some(after),
+                most: env.limits.loads.rows,
+                bytes: env.limits.loads.reply_bytes,
+            }))
         );
-        assert!(out.is_empty(), "no store request issued");
-        let Some(Work::Core(core::Event::TranscriptLoaded { task, load: core::TranscriptLoad::Failed })) =
-            domain.work.pop()
+        let Some(Work::Core(core::Event::TranscriptLoaded {
+            task,
+            load: core::TranscriptLoad::Page { rows, done: false },
+        })) = domain.work.pop()
         else {
-            panic!("unissued continuation remains preparation failure")
+            panic!("the core hears its page, never Failed for room");
         };
         assert_eq!(task, TASK);
+        assert_eq!(rows.len(), 1);
         assert!(domain.work.is_empty());
-        domain.archive_reads.reclaim();
-        assert!(domain.archive_reads.is_empty());
+        assert!(out.is_empty());
     }
 }
