@@ -2,20 +2,25 @@
 
 2026-11-09. Where temper's code lags or departs from [README.md](README.md).
 
-Sections 4.3 and the agent's row of 4.4 have no known implementation gap
-at main's `fdc26f71c6`. The feature-free `temper-agent` has its own build
-identity, shared help, run, list, relay, program-child and argv0 Claude
-launcher dispatch. Its parser table and twenty-row suite cover its
-forms, refusals and modes; the normal-closure boundary table holds the
-agent's five permitted temper crates, no jig and no exceptions. The
-client's, engine's and worker's rows remain M5's. The box's modes and the
-worker's current program are unchanged; naming `temper-agent` is M3's
+Section 4.3's feature-free `temper-agent` is present, with its shared
+help, run, list, relay, program-child and argv0 Claude launcher
+dispatch. Its parser table and twenty-row suite cover its forms,
+refusals and modes. 4.1's two closure tests are present, each with its
+row: `binaries.rs`'s `temper-engine` and `closure.rs`'s `temper-agent`,
+the agent's with no exception. The client's and the worker's rows
+remain M5's. The box's modes and the worker's current program are
+unchanged; naming `temper-agent` is M3's
 (`../draft/deployment-binaries.execution.md`, 1).
 
-- **Not yet:** 4.1 and 4.4: two tests hold a binary's closure, written
-  apart by M2 and M4: `binaries.rs`, by the crates a row excludes, holds
-  `temper-engine`'s, and `closure.rs`, by the temper crates and trees a
-  row allows, holds `temper-agent`'s. 4.1 names `binaries.rs` alone.
+- **Not yet:** 4.1 to 4.4, 5: `temper-launcher`: Claude Code's
+  launcher, the placing of its links and the substitution are
+  `temper-fetch-shell`'s (`crates/temper-fetch-shell/src/launcher.rs`),
+  which checks the links' directory through `smith-agent-document`, so
+  `temper-engine` links nine of smith's crates its row excludes through
+  `temper-forge-setup-shell`, and `binaries.rs` fails.
+- **Not yet:** 4.1, 4.3 to 4.4, 5: `temper-agent --version` prints the
+  commit of a build script of its own (`crates/temper-agent/build/`,
+  `TEMPER_AGENT_COMMIT`), not `temper-version`'s.
 
 Section 8.2's wait and recovery notes, ordered gate reasons, one-second
 threshold and suppression of repeats are present. Service tests step
@@ -110,8 +115,8 @@ the forge's commands are `temper-engine-shell`'s, which the box's
 feature is on in the box's build and the worlds' and off in
 `temper-engine`'s, where a start of any shape but an engine alone is
 refused. `tests/boundary/tests/binaries.rs` holds `temper-engine`'s
-closure free of the worker's domain and smith's agent, but its four
-named exceptions. It also holds the box's machine, `temper-box`, and the
+row: the worker's domain and smith's agent excluded, but its four named
+exceptions (4.1). It also holds the box's machine, `temper-box`, and the
 fakes' crates, `temper-fake` with skein's fake forge, LLM and OAuth
 beneath it, which `temper-engine-shell`'s check of the document reads
 for its `box` limits and `demo` member, as the box's does (section 5;
@@ -139,6 +144,10 @@ temper-client`). No test holds that closure yet: its row in
 story is written and compiled in the process tier, and runs after
 landing.
 
+- **Not yet:** 4.3, 4.4, 5: `temper-shell` links `jig-protocol-config`
+  for `Directories::jig` (`crates/temper-shell/src/directories.rs`), in
+  place of `temper-engine-shell`'s `jig_directories`, so `temper-agent`
+  links sixteen of jig's crates and `closure.rs` fails.
 - **Departs:** 4: `temper-client`'s story runs the box's `temper serve` as its engine
   (`crates/temper/tests/suite/client_binary.rs`), written before `temper-engine`
   was built; M5 switches it to `temper-engine`

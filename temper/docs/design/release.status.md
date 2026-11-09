@@ -1,6 +1,6 @@
 # release: status
 
-2026-11-08. Where temper's code lags or departs from [release.md](release.md).
+2026-11-09. Where temper's code lags or departs from [release.md](release.md).
 
 5.1's workflow, `.github/workflows/release-macos.yml`, is built, its
 strip and ad hoc signature with it, and has not yet run: no dispatch
@@ -23,3 +23,5 @@ its own (`protocol/README.status.md`, 4).
   its start; only `temper init` warns of a missing git
   (`crates/temper/src/init.rs`). 5: `scripts/release.sh`. 6: the walk on a
   fresh machine.
+- **Not yet:** 3: `temper-agent --version` prints from a build script of
+  its own, not `temper-version` (`protocol/README.status.md`, 4.3).
