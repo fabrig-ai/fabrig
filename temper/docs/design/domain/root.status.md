@@ -19,6 +19,19 @@ the fixed preset, without changing records. This proves no cause for the
 request's public read of a private project returning 503; that remains unexplained
 (section 13).
 
+Section 5.1 has no known gap in a run's read as its person: a `see`
+flight of a person's address asks the core `PersonRead` and takes
+`Now::PersonAnswer` back (`route/see/person.rs`, `route/now.rs`), and an
+`Ask::Read` whose reply is such a flight is answered by the forge's
+document for the person and the project's scope, any other connector's
+by none (`route/asks.rs`); nothing of it is committed. The root's own
+tests read each address's reads as a step function
+(`temper-engine-domain/src/tests/see.rs`) and the engine world's
+`configuring/asking_person.rs` reads them through jig and the forge. The
+run's proposal read that `see proposal` makes is jig's
+`domain/engine.md`, 7.3, *A run's proposal read*, routed as 5.2 routes
+jig's named actions (`route/see/proposal.rs`, `NamedAction::ReadProposal`).
+
 Section 7.1 has no known gap in assigning an asking charter no home,
 explicit, saved-work or context repository. Its run therefore has no
 workspace; the other charters keep their repository selection.
@@ -104,10 +117,6 @@ LINKED`, as for every link jig's start cannot make
 - **Not yet:** 5.1 and 5.3: a party's read of the forge's is answered
   unknown: the forge makes its documents for watches and a run's read as
   its person alone.
-- **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
-  according to the retirement brief. Its landed run proposal read needs
-  design coverage reconciliation against `jig/docs/design/domain/engine.md`,
-  7.3; this is a design gap, not an absent implementation.
 
 - **Not yet:** 5.2: real-deployment savings are unobserved: no supplied
   real goal's `read_task` count establishes what the room saves, where the
