@@ -800,10 +800,13 @@ sections 4.3 and 4.5, list them.
   them over the page asked for), so a status listing has more after it
   when its page came full, never by its `total_count`. A first page
   that comes short holds every status of the commit, so its `state`,
-  each context's latest folded as 5.2's notes on CI read it, is the
-  commit's verdict: a read that needs the verdict alone (`Pull`'s) takes
-  it from that page, its rows skipped as they stream, and reads and folds
-  every page only when the first came full.
+  each context's latest folded by Forgejo, is the commit's verdict, read
+  as 5.2's notes on CI map it: a read that needs the verdict alone
+  (`Pull`'s) takes it from that page, and reads and folds every page
+  only when the first came full. A `warning` state is the one exception:
+  Forgejo may rank it above a pending context, so a short page whose
+  `state` is `warning` has its own rows folded, which the read keeps
+  folding as they stream, keeping none.
   Listings Forgejo does not page are read whole and cut as they stream.
 - **Users by id.** The vocabulary names people by their forge user id;
   the API names them by login in paths and bodies. The component keeps
@@ -820,7 +823,7 @@ first failure, but where a row says otherwise.
 |---|---|---|
 | `Read::Items { since, page, kind }` | `GET R/issues?state=all&type=issues\|pulls&since=<since>&sort=leastupdate&page=<page>&limit=<size>`, `type` only with a kind | each row a `Summary` (5.3): `number`; a `pull_request` object makes it a pull; `state`; `user.id`; `labels[].name`, for display; `updated_at`; `title`; `body` and its key; `more` when the page came full; `now` from `Date` |
 | `Read::Item { number, after, since }` | `GET R/issues/<number>`; `GET R/issues/<number>/comments?since=<since>` (unpaged), `since` only when not 0 | the issue as a `Summary`; its comments with ids above `after`, oldest first, as many as the answer holds (5.3): `id`, `user.id`, `created_at`, `body` and its key, its provenance and revision; `more` when one is left |
-| `Read::Pull { number }` | `GET R/pulls/<number>`; then `Read::Checks`' status pages for `head.sha`, from page 1, until one comes short, with none of its job reads | `number`; `state`; `head.ref`, `base.ref`; `head.sha` as `commit`; `base.sha` as `base_commit`, none when empty; `merge_commit_sha` when `merged`; `mergeable`; `requested_reviewers[].id`; CI the first page's combined `state` when that page came short (5.1), its rows skipped as they stream; else folded from every context's latest status over every page, as `Checks` folds them |
+| `Read::Pull { number }` | `GET R/pulls/<number>`; then `Read::Checks`' status pages for `head.sha`, from page 1, until one comes short, with none of its job reads | `number`; `state`; `head.ref`, `base.ref`; `head.sha` as `commit`; `base.sha` as `base_commit`, none when empty; `merge_commit_sha` when `merged`; `mergeable`; `requested_reviewers[].id`; CI the first page's combined `state` when that page came short and its `state` is not `warning` (5.1); else folded from every context's latest status over every page, as `Checks` folds them, no row kept |
 | `Read::PullFor { head, base }` | `GET R/pulls/<base>/<head>`; when it names a pull request that is not open, `GET R/pulls?state=open&head=<head>&base=<base>&sort=oldest&page=<n>&limit=<size>` from page 1, until a row has the head and base or a page comes short; then the status read, as `Pull`, of the pull request answered | the open pull request for the head and base, else the one the lookup named; as `Pull` |
 | `Read::Reviews { number, page }` | `GET R/pulls/<number>/reviews?page=<page>&limit=<size>` | submitted reviews, oldest first: `id`, `user.id`, `state` as the verdict, `commit_id`, `body` and its key, `submitted_at` as `at`, `official`, provenance and revision; `more` when the page came full |
 | `Read::Statuses { commit, page }` | `GET R/commits/<commit>/status?page=<page>&limit=<size>`; for each status whose link names a run of this repository's Actions, the job resolved as `Checks` resolves it | each context's latest status on the page: `updated_at`, `context`, `status`, `description`, `target_url` as its link (links are absolute, below), its `job` as for `Checks`; `more` when the page came full, never by `total_count` (5.1); `ci` the page's combined `state` and `total_count`, the commit's verdict only on a first page that came short (5.1) |

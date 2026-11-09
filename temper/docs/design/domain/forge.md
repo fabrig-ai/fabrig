@@ -1062,7 +1062,10 @@ for it, never a read of another kind or another party's.
   (Forgejo 17 does: a read of one status reads success while a job is
   still pending), so CI on a commit, a pull request's included, is
   every row of every page, folded as above, and a combined state read
-  from a limited page is never a verdict. The fake forge computes a
+  from a page that came full is never a verdict. A first page that came
+  short holds every row, so its combined state is their fold, which
+  skein's Forgejo dialect takes for a pull request's CI but where it
+  reads `warning` (skein's `forge.md`, 5.1). The fake forge computes a
   page's combined state as Forgejo does, so that the worlds meet it.
 
 ### 5.4 The request budget
