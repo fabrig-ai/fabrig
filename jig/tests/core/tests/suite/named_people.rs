@@ -106,6 +106,70 @@ fn agent(world: &mut World, person: u64) -> Option<Refusal> {
     }
 }
 
+// The application has no caller for raw task batches. These rows drive the
+// core event through its root; admission's output is checked in the core's
+// named-people unit table because the root has no raw-batch reply fixture.
+fn raw_batch(world: &mut World, person: u64, field: NamedLink) -> Option<Refusal> {
+    let number = core::fresh(&mut world.domain.core_mut().counters, core::Family::Task).expect("task number");
+    let source = live_row(world, PERSON_TASK);
+    let mut row = tasks::New {
+        number,
+        project: PROJECT,
+        label: 0,
+        flags: tasks::Flags::PLAIN,
+        executor: tasks::Executor::Person(tasks::PersonAddress::Role(ROLE)),
+        llm: None,
+        spec: source.spec.clone(),
+        contract: source.contract.clone(),
+        authority: source.authority.clone(),
+        deadline: tasks::Deadline::Named,
+        numbers: tasks::Numbers { budget: 0, spent: 0, spent_below: 0, reserved: 0 },
+        funder: tasks::Funder::Period { project: PROJECT, period: 1 },
+        dependencies: Box::new([]),
+        holdings: Box::new([]),
+        wake: tasks::WakePolicy::DEFAULT,
+        recurring: None,
+        tracked: None,
+    };
+    let mut creator = tasks::Party::Deployment { project: PROJECT };
+    match field {
+        NamedLink::Executor => row.executor = tasks::Executor::Person(tasks::PersonAddress::Person(person)),
+        NamedLink::Funder => row.funder = tasks::Funder::Pool { project: PROJECT, person, period: 1 },
+        NamedLink::Requester => creator = tasks::Party::Person(person),
+    }
+    world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Make {
+        reply_to: ReplyTo::new(Token::new(9053)),
+        creator,
+        batch: Box::new([row]),
+    })));
+    None
+}
+
+#[derive(Clone, Copy)]
+enum NamedLink {
+    Executor,
+    Funder,
+    Requester,
+}
+
+fn executor_batch(world: &mut World, person: u64) -> Option<Refusal> {
+    raw_batch(world, person, NamedLink::Executor)
+}
+fn funder_batch(world: &mut World, person: u64) -> Option<Refusal> {
+    raw_batch(world, person, NamedLink::Funder)
+}
+fn requester_batch(world: &mut World, person: u64) -> Option<Refusal> {
+    raw_batch(world, person, NamedLink::Requester)
+}
+
+fn linked(row: &tasks::TaskRecord, named: u64, field: NamedLink) -> bool {
+    match field {
+        NamedLink::Executor => row.executor == tasks::Executor::Person(tasks::PersonAddress::Person(named)),
+        NamedLink::Funder => row.funder == tasks::Funder::Pool { project: PROJECT, person: named, period: 1 },
+        NamedLink::Requester => row.requester == tasks::Party::Person(named),
+    }
+}
+
 fn task_rows(world: &World) -> Vec<tasks::Stored> {
     world
         .store
@@ -121,12 +185,17 @@ fn task_rows(world: &World) -> Vec<tasks::Stored> {
 #[test]
 fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
     type Input = fn(&mut World, u64) -> Option<Refusal>;
-    let routes: [(&str, Input, u64, Refusal); 2] = [
-        ("party amendment", amend, PERSON_TASK, Refusal::Person(people::Refusal::Unknown)),
-        ("agent person task", agent, DELEGATE, Refusal::Task(tasks::Problem::new(None, tasks::Refusal::Unknown))),
+    let routes: [(&str, Input, u64, Option<Refusal>, NamedLink); 5] = [
+        ("party amendment", amend, PERSON_TASK, Some(Refusal::Person(people::Refusal::Unknown)), NamedLink::Executor),
+        ("agent person task", agent, DELEGATE, Some(Refusal::Task(tasks::Problem::new(None, tasks::Refusal::Unknown))), NamedLink::Executor),
+        ("connector batch executor", executor_batch, DELEGATE, None, NamedLink::Executor),
+        ("connector batch funder", funder_batch, DELEGATE, None, NamedLink::Funder),
+        ("connector batch requester", requester_batch, DELEGATE, None, NamedLink::Requester),
     ];
-    for (route, input, task, refusal) in routes {
+    let mut failures = Vec::new();
+    for (route, input, task, refusal, field) in routes {
         for (named, held) in [(PERSON, true), (PERSON_TASK, false)] {
+            let result = std::panic::catch_unwind(|| {
             let mut world = world();
             let before = task_rows(&world);
             let answer = input(&mut world, named);
@@ -137,22 +206,21 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
             assert_eq!(world.domain.start_phase(), None, "{route} completed Open, named {named}");
             if held {
                 assert_eq!(answer, None, "{route}");
-                assert_eq!(
-                    live_row(&world, task).executor,
-                    tasks::Executor::Person(tasks::PersonAddress::Person(named)),
-                    "{route}"
-                );
+                assert!(linked(live_row(&world, task), named, field), "{route}: named {named}");
             } else {
-                assert_eq!(answer.as_ref(), Some(&refusal), "{route}");
+                assert_eq!(answer, refusal, "{route}");
                 assert_eq!(after, before, "{route} changes nothing");
             }
             assert!(
                 !world.store.rows.values().any(|row| matches!(row,
                     root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row)))
-                        if row.executor == tasks::Executor::Person(tasks::PersonAddress::Person(PERSON_TASK))
+                        if linked(row, PERSON_TASK, field)
                 )),
                 "{route} saves no absent person"
             );
+            });
+            if result.is_err() { failures.push((route, named)); }
         }
     }
+    assert!(failures.is_empty(), "failed rows: {failures:?}");
 }
