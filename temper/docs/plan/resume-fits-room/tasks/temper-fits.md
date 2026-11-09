@@ -146,3 +146,12 @@ nor main holds `link_room.rs`. The run 3 answer stands unchanged. A run
 first checks the trunk's tree for
 `temper/crates/temper-service/src/tests/link_room.rs`; absent, it reports
 the same `Failed:` line at once and changes nothing.
+
+2026-11-09. *Run 6 found the base still lacks `link_room.rs`; what now?*
+Run 6 started at 17:57Z on `5373702063`, the trunk that took the run 5
+answer; at 17:58Z `temper-room`'s branch (`3367b92274`, 17:44Z) is still
+unmerged, and neither `worker-link-quiet/integration` (`85e9293560`) nor
+main holds `link_room.rs`. The run 3 answer stands unchanged. A run first
+checks the trunk's tree for
+`temper/crates/temper-service/src/tests/link_room.rs`; absent, it reports
+the same `Failed:` line at once and changes nothing.
