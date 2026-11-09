@@ -5,7 +5,7 @@ use crate::{Store, world::World};
 use jig_domain_core::{self as core, reads};
 use jig_test_domain as root;
 use skein_lib::{ReplyTo, Token};
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 /// Independent prerequisite for an admitted read's one answer.
 #[derive(Debug)]
@@ -37,6 +37,7 @@ pub struct Parties {
     admissions: VecDeque<u64>,
     queued: VecDeque<u64>,
     flights: BTreeMap<u64, u64>,
+    person: BTreeSet<u64>,
     pub loads: Vec<(Token, reads::Range)>,
     pub hold_loads: bool,
     pub receipts: Vec<(u64, u64, reads::Answer)>,
@@ -53,6 +54,7 @@ impl Parties {
             admissions: VecDeque::new(),
             queued: VecDeque::new(),
             flights: BTreeMap::new(),
+            person: BTreeSet::new(),
             loads: Vec::new(),
             hold_loads: false,
             receipts: Vec::new(),
@@ -70,6 +72,9 @@ impl Parties {
             root::Event::Core(core::Event::ReadLoaded { load, .. }) => {
                 let reply = self.flights.remove(&load.raw()).expect("one terminal for the observed load");
                 self.awaiting.get_mut(&reply).expect("admitted read").0 = self.made;
+                if self.person.contains(&reply) {
+                    self.admissions.push_front(reply);
+                }
             }
             root::Event::Core(_)
             | root::Event::Link { .. }
@@ -100,12 +105,21 @@ impl Parties {
         }
     }
 
+    /// A typed run call has the same durable fence as a client read.
+    pub fn person_requested(&mut self, reply: Token) {
+        let reply = reply.raw();
+        assert!(self.awaiting.insert(reply, Fence(self.made)).is_none());
+        assert!(self.person.insert(reply));
+        self.admissions.push_back(reply);
+    }
+
     pub fn commit(&mut self, number: u64) {
         self.made = number;
     }
 
     pub fn replied(&mut self, reply: ReplyTo, answer: reads::Answer, store: &Store) {
         let reply = reply.into_token().raw();
+        self.person.remove(&reply);
         let fence = self.awaiting.remove(&reply).expect("one answer for the admitted read");
         fence.answered(store.applied).expect("read follows every prior commit");
         if self.admissions.front() == Some(&reply) {
@@ -122,6 +136,7 @@ impl Parties {
         store: &Store,
     ) {
         let reply = reply.into_token().raw();
+        self.person.remove(&reply);
         let fence = self.awaiting.remove(&reply).expect("one application read terminal");
         fence.answered(store.applied).expect("application read follows every prior commit");
         if self.admissions.front() == Some(&reply) {
@@ -166,6 +181,7 @@ impl Parties {
         self.admissions.clear();
         self.queued.clear();
         self.flights.clear();
+        self.person.clear();
         self.loads.clear();
         self.made = durable;
     }

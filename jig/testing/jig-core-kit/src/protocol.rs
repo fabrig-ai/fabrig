@@ -160,11 +160,17 @@ impl crate::world::World {
 
     /// Send a typed person read as the assigned run's call, reusing its name on retry.
     pub fn person_read(&mut self, read: core::reads::Read) -> Token {
-        const COMPLETION: u32 = 500;
+        self.person_read_at(500, read)
+    }
+
+    /// Keep a distinct destination for concurrent typed person reads.
+    pub fn person_read_at(&mut self, completion: u32, read: core::reads::Read) -> Token {
         let assignment = self.assigned.as_ref().expect("assigned run");
-        let key =
-            core::CallKey { task: assignment.task, attempt: assignment.attempt, completion: COMPLETION, position: 0 };
-        let token = Token::new(u64::from(COMPLETION));
+        let key = core::CallKey { task: assignment.task, attempt: assignment.attempt, completion, position: 0 };
+        let token = Token::new(u64::from(completion));
+        if let Some(reads) = &mut self.reads {
+            reads.person_requested(token);
+        }
         self.send(root::Event::Core(core::Event::NamedAction {
             to: ReplyTo::new(token),
             key,

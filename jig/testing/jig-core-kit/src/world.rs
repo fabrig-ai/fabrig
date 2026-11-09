@@ -534,7 +534,11 @@ impl World {
                         self.proposal_reads.push((token, key, *answer));
                     }
                     root::Request::Now(core::Now::PersonAnswer { to, key, answer }) => {
-                        self.person_answers.push((to.into_token(), key, *answer));
+                        let token = to.into_token();
+                        if let Some(reads) = &mut self.reads {
+                            reads.replied(ReplyTo::new(token), (*answer).clone(), &self.store);
+                        }
+                        self.person_answers.push((token, key, *answer));
                     }
                     root::Request::Now(core::Now::SettingsAnswer { to, key, answer }) => {
                         let token = to.into_token();
