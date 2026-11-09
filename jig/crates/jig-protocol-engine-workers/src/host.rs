@@ -29,6 +29,7 @@ pub enum Output {
     Hello { channel: Token, worker: u32, hello: jig_domain_link::Hello },
     Up { channel: Token, up: hub::LinkUp, parts: Box<[Part]> },
     Lost { channel: Token },
+    Unsent { worker: Box<[u8]>, channel: Token, unsent: crate::Unsent },
     Ended { worker: Option<Box<[u8]>>, channel: Option<Token>, why: Loss },
 }
 
@@ -246,6 +247,16 @@ impl Workers {
             Request::Hello { channel, worker, hello } => return Some(Output::Hello { channel, worker, hello }),
             Request::Up { channel, up, parts } => return Some(Output::Up { channel, up, parts }),
             Request::Lost { channel } => return Some(Output::Lost { channel }),
+            Request::Unsent { worker, channel, unsent } => {
+                let worker = self
+                    .component
+                    .workers
+                    .get(skein_lib::length::usize_of(worker))
+                    .expect("authenticated worker")
+                    .name
+                    .clone();
+                return Some(Output::Unsent { worker, channel, unsent });
+            }
             Request::Ended { worker, channel, why, .. } => {
                 let worker = match worker {
                     Some(worker) => Some(

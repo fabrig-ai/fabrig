@@ -50,6 +50,7 @@ impl LinkPeer {
     ) -> Self {
         let prepared = worker_settings::prepare(settings, agent, own).unwrap();
         let limits = engine_link::Limits {
+            room: settings.jig.limits.io.largest_room(),
             sizes: prepared.link.sizes,
             names: 1,
             workers: 1,
@@ -159,7 +160,8 @@ impl LinkPeer {
                 }
                 engine_link::Request::Take { .. }
                 | engine_link::Request::Close { .. }
-                | engine_link::Request::Abort { .. } => {}
+                | engine_link::Request::Abort { .. }
+                | engine_link::Request::Unsent { .. } => {}
                 request @ (engine_link::Request::Hello { .. } | engine_link::Request::Up { .. }) => {
                     if let engine_link::Request::Hello { .. } = &request {
                         self.records.push(LinkRecord::Hello).expect("bounded link records");

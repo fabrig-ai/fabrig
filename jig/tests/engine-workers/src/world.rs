@@ -78,7 +78,11 @@ impl World {
                     self.net(connection).gone = true;
                     self.component.down(self.now, Event::Gone { connection }, &mut self.out);
                 }
-                Request::Hello { .. } | Request::Up { .. } | Request::Lost { .. } | Request::Closed => {
+                Request::Unsent { .. }
+                | Request::Hello { .. }
+                | Request::Up { .. }
+                | Request::Lost { .. }
+                | Request::Closed => {
                     self.root.push(request);
                 }
             }
@@ -142,6 +146,9 @@ impl World {
     #[must_use]
     pub fn dropped_down(&self) -> u64 {
         self.component.dropped_down()
+    }
+    pub fn cap_write_room(&mut self, connection: Token, room: u32) {
+        self.net(connection).cap = Some(room);
     }
     pub fn withhold_write_room(&mut self, connection: Token) {
         self.net(connection).write_room = WriteRoom::Withheld;

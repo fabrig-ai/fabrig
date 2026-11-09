@@ -25,6 +25,8 @@ mod net {
         events: VecDeque<LowerEvent>,
         ended: bool,
         grants: Option<usize>,
+        cap: Option<u32>,
+        asked: u32,
     }
     impl End {
         fn new(chunk: u32) -> Self {
@@ -36,13 +38,16 @@ mod net {
                 events: VecDeque::new(),
                 ended: false,
                 grants: None,
+                cap: None,
+                asked: 0,
             }
         }
         fn tick(&mut self, rng: &mut Rng) -> Option<LowerEvent> {
             if let Some(event) = self.events.pop_front() {
                 return Some(event);
             }
-            if self.grants != Some(0)
+            if self.cap.is_none_or(|cap| self.asked <= cap)
+                && self.grants != Some(0)
                 && let Some(right) = self.right.take()
             {
                 if let Some(grants) = &mut self.grants {
@@ -87,7 +92,10 @@ mod net {
                 Lower::Read(stream::Down::Finish) => self.ends[1 - side].ended = true,
                 Lower::Read(stream::Down::Send(_)) | Lower::FinishWrite => panic!("independent output"),
                 Lower::Write(write) => match write {
-                    stream::OutputDown::Room { right, .. } => assert!(end.right.replace(right).is_none()),
+                    stream::OutputDown::Room { right, bytes } => {
+                        end.asked = bytes;
+                        assert!(end.right.replace(right).is_none());
+                    }
                     stream::OutputDown::Cancel { right } => {
                         assert_eq!(end.right.take(), Some(right));
                         end.events.push_back(LowerEvent::Write(stream::OutputUp::Settled {
@@ -105,6 +113,9 @@ mod net {
         }
         pub fn tick(&mut self, side: usize, rng: &mut Rng) -> Option<LowerEvent> {
             if self.closed[side] { None } else { self.ends[side].tick(rng) }
+        }
+        pub fn cap(&mut self, side: usize, room: u32) {
+            self.ends[side].cap = Some(room);
         }
         pub fn grants(&mut self, side: usize, frames: Option<usize>) {
             self.ends[side].grants = frames;
@@ -131,6 +142,7 @@ pub struct Joined {
     worker: Component,
     pipe: Option<net::Pipe>,
     pub engine_root: Vec<engine::Request>,
+    pub engine_ended: Vec<engine::Request>,
     pub worker_root: Vec<Request>,
     pub values: Vec<Request>,
     pub worker_order: Vec<&'static str>,
@@ -143,6 +155,7 @@ pub struct Joined {
     next: u64,
     channel: Option<Token>,
     chunk: u32,
+    engine_room: Option<u32>,
     retained_turn: bool,
     acknowledge: bool,
     committed: BTreeSet<(Token, Token, u32)>,
@@ -155,12 +168,20 @@ impl Joined {
     }
     #[must_use]
     pub fn with_credential(limits: &Limits, seed: u64, credential: Credential) -> Self {
+        Self::with_options(limits, seed, credential, None)
+    }
+    #[must_use]
+    pub fn with_engine_room(limits: &Limits, seed: u64, room: u32) -> Self {
+        Self::with_options(limits, seed, fixtures::credential(), Some(room))
+    }
+    fn with_options(limits: &Limits, seed: u64, credential: Credential, engine_room: Option<u32>) -> Self {
         let engine_limits = engine::Limits {
             sizes: limits.sizes,
             names: 1,
             workers: 1,
             opening: 1,
             chunk: limits.chunk,
+            room: engine_room.unwrap_or(u32::MAX),
             handshake: limits.handshake,
             hello: limits.handshake,
             ping: limits.ping,
@@ -176,6 +197,7 @@ impl Joined {
             worker: Component::new(limits, credential, seed).expect("worker limits"),
             pipe: None,
             engine_root: Vec::new(),
+            engine_ended: Vec::new(),
             worker_root: Vec::new(),
             values: Vec::new(),
             worker_order: Vec::new(),
@@ -188,6 +210,7 @@ impl Joined {
             next: 1,
             channel: None,
             chunk: limits.chunk,
+            engine_room,
             retained_turn: false,
             acknowledge: true,
             committed: BTreeSet::new(),
@@ -251,6 +274,9 @@ impl Joined {
                 self.next += 1;
                 self.dials.push(self.now);
                 self.pipe = Some(net::Pipe::new(self.chunk));
+                if let Some(room) = self.engine_room {
+                    self.pipe.as_mut().expect("new pipe").cap(1, room);
+                }
                 self.engine_event(engine::Event::Accepted { connection: self.connection });
                 self.worker_event(Event::Dialled { connection: self.connection });
             }
@@ -334,8 +360,10 @@ impl Joined {
                     self.engine_event(engine::Event::Down { channel, down, parts: Box::new([]), values: Box::new([]) });
                 }
             }
-            engine::Request::Ended { .. } => {}
-            engine::Request::Lost { .. } | engine::Request::Closed => self.engine_root.push(request),
+            engine::Request::Ended { .. } => self.engine_ended.push(request),
+            engine::Request::Unsent { .. } | engine::Request::Lost { .. } | engine::Request::Closed => {
+                self.engine_root.push(request)
+            }
         }
     }
     fn lower(&mut self, side: usize, connection: Token, lower: Lower) {
@@ -391,6 +419,11 @@ impl Joined {
         let pipe = self.pipe.as_ref().expect("live pipe");
         [pipe.waiting(0), pipe.waiting(1)]
     }
+    #[must_use]
+    pub fn ping_counts(&self) -> [usize; 2] {
+        let pipe = self.pipe.as_ref().expect("live pipe");
+        pipe.frames.each_ref().map(|frames| frames.iter().filter(|kind| **kind == 5).count())
+    }
     pub fn acknowledge(&mut self, enabled: bool) {
         self.acknowledge = enabled;
     }
@@ -410,6 +443,7 @@ impl Joined {
                 | engine::Request::Close { .. }
                 | engine::Request::Abort { .. }
                 | engine::Request::Up { .. }
+                | engine::Request::Unsent { .. }
                 | engine::Request::Ended { .. }
                 | engine::Request::Lost { .. }
                 | engine::Request::Closed => None,
