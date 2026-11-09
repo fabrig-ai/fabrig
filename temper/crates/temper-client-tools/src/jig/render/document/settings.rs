@@ -33,6 +33,17 @@ pub(crate) fn text(
     if let c::ReadValue::Setting(document) = value
         && let c::Setting::Application { .. } = document.setting
     {
+        if let c::Setting::Application { kind: 11, .. } = document.setting
+            && document.value.is_none()
+        {
+            settings_form::render::text(
+                &a::form_read_value(value),
+                crate::jig::call::number(call, 0),
+                &a::limits(limits),
+                out,
+            );
+            return;
+        }
         setting_text(document.setting, vocabulary, out);
         out.put(b", revision ");
         out.number(u64::from(document.revision));

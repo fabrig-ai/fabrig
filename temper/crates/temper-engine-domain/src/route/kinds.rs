@@ -145,7 +145,8 @@ fn way_refusal(domain: &Domain, owner: Option<skein_lib::Token>, asked: &setting
         settings::Value::Rule(_)
         | settings::Value::Charter(_)
         | settings::Value::Questions(_)
-        | settings::Value::Classes(_) => return None,
+        | settings::Value::Classes(_)
+        | settings::Value::Goal(_) => return None,
     };
     if ways.way == 0 {
         return None;
@@ -200,6 +201,7 @@ fn approval_for_projects(domain: &Domain, asked: &settings::Asked, projects: &[u
         settings::Value::Charter(_)
         | settings::Value::Questions(_)
         | settings::Value::Classes(_)
+        | settings::Value::Goal(_)
         | settings::Value::Ways(_) => return None,
     };
     if !rule.enforce || rule.approvals.is_empty() {
@@ -317,6 +319,7 @@ fn bounds(limits: &Limits) -> settings::Bounds {
         segments: limits.authority.segments,
         segment_bytes: limits.authority.segment_bytes.min(limits.forge.name_bytes),
         charters: limits.tasks.charters,
+        templates: limits.templates,
     }
 }
 

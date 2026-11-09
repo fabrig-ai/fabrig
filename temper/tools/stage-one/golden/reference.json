@@ -354,6 +354,34 @@
       "test": "contains"
     },
     {
+      "id": "goal-template.design",
+      "row": "the goal template's work",
+      "kind": "setting",
+      "subject": {
+        "setting": {
+          "kind": "template-goal",
+          "number": 4
+        }
+      },
+      "member": "design",
+      "test": "equal",
+      "value": true
+    },
+    {
+      "id": "goal-template.close_out",
+      "row": "the goal template's work",
+      "kind": "setting",
+      "subject": {
+        "setting": {
+          "kind": "template-goal",
+          "number": 4
+        }
+      },
+      "member": "close_out",
+      "test": "equal",
+      "value": true
+    },
+    {
       "id": "small-goal-template.stock",
       "row": "a small goal's template",
       "kind": "setting",

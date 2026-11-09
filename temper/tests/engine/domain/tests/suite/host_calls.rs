@@ -1267,7 +1267,7 @@ fn reference_person_settings() -> Vec<jig_domain_core::settings::Item> {
         serde_json::from_slice(include_bytes!("../../../../../docs/examples/reference/settings.json"))
             .expect("reference settings");
     let entries = file["items"].as_array_mut().expect("items");
-    entries.retain(|item| item["setting"]["kind"] != "landing-rule");
+    entries.retain(|item| item["setting"]["kind"] != "landing-rule" && item["setting"]["kind"] != "template-goal");
     for item in entries {
         if item["setting"]["kind"] == "template" {
             item["set"]["llm"] = serde_json::Value::Null;

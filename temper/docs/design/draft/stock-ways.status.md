@@ -8,7 +8,10 @@ and 13.9, with the forge and setup contracts following it; sections 4 to
 `../protocol/configuration.md`, 13.10 (the ways and their items),
 `../client/README.md`, 3.5, 4.6, 5.13 and 5.16 (Ask temper's opening,
 the `ways` read, its acts and the views) and `../domain/agent.md`, 8.4 and 8.4.1 (`see ways` and the
-instructions); section 7 orders the steps.
+instructions); section 7 orders the steps. Section 4's words of a
+goal's coordinator, "plan" or "design", and its "close-out" are a
+template's setting, kind 11 (`../protocol/configuration.md`, 13.2), drawn
+by `../domain/forge.md`, 8.13.
 
 - **Design lags:** 4, *What a goal's charter adds*: `../domain/forge.md`,
   8.13, words a goal's coordinator's stop "plan" alone, with no "design"

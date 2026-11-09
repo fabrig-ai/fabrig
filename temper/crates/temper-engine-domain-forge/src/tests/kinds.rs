@@ -4,13 +4,16 @@ use super::fixtures::{CHANGE, opening_row};
 use super::*;
 use crate::settings::{
     Asked, Bounds, DefaultState, Edit, Held, Judged, LandingRule, Refusal, SettingKey, SettingRow, SettingSlot,
-    SizedValue, Stock, Value,
+    SizedValue, Stock, TemplateGoal, Value,
 };
 use core::slice::from_ref;
 use jig_domain_core::settings::application::{Restored, RestoredEdit};
 use skein_lib::List;
 
-const BOUNDS: Bounds = Bounds { landing_rules: 4, gates: 2, roles: 2, charters: 8, segments: 8, segment_bytes: 32 };
+const GOAL: TemplateGoal = TemplateGoal { design: true, close_out: false };
+
+const BOUNDS: Bounds =
+    Bounds { landing_rules: 4, gates: 2, roles: 2, charters: 8, segments: 8, segment_bytes: 32, templates: 4 };
 
 fn rule(ci: bool) -> SizedValue {
     SizedValue {
@@ -764,6 +767,10 @@ fn project_values() -> [(u32, SizedValue); 3] {
 #[test]
 fn a_deleted_project_loses_its_questions_and_ways() {
     let mut d = stocked();
+    let goal = item(11, 0, 1, Edit::Set(SizedValue { value: Value::Goal(GOAL), size: 2 }));
+    for slot in [SettingSlot::Default, SettingSlot::Change, SettingSlot::Proposal(7), SettingSlot::Replaced(3)] {
+        restore(&mut d, &goal, slot);
+    }
     for (kind, value) in project_values() {
         let project = item(kind, 1, 1, Edit::Set(value.clone()));
         for slot in [SettingSlot::Default, SettingSlot::Change, SettingSlot::Proposal(7), SettingSlot::Replaced(3)] {
@@ -781,6 +788,10 @@ fn a_deleted_project_loses_its_questions_and_ways() {
         }
         assert_eq!(d.setting(kind, 1, 1), None);
         assert_eq!(d.setting(kind, 2, 1), Some(&value));
+    }
+    assert_eq!(d.template_goal(1), Some(GOAL));
+    for slot in [SettingSlot::Default, SettingSlot::Change, SettingSlot::Proposal(7), SettingSlot::Replaced(3)] {
+        assert_eq!(d.setting_rows.get(&key(&goal, slot)), Some(&goal.edit));
     }
     assert_eq!(sent.len(), 13);
     assert_eq!(d.charters(), ForgeCharters { change: 2, review: 4 });
@@ -807,37 +818,58 @@ fn project_questions_reads_none_until_set_then_the_route() {
         assert_eq!(d.project_questions(1), Route::None);
         assert_eq!(d.judge_settings(&BOUNDS, &[item(6, 1, 1, edit)]).as_ref(), &[Judged::Same]);
     }
+    assert_eq!(d.template_goal(1), None);
+    let value = SizedValue { value: Value::Goal(GOAL), size: 2 };
+    let asked = item(11, 0, 1, Edit::Set(value.clone()));
+    d.keep_settings(&env(), 4, None, from_ref(&asked), &mut out);
+    assert_eq!(d.template_goal(1), Some(GOAL));
+    assert_eq!(d.template_goal(2), None);
+    assert_eq!(
+        d.judge_settings(&BOUNDS, &[item(11, 0, 1, Edit::Remove)]).as_ref(),
+        &[Judged::Accept { size: 0, charter: None }]
+    );
+    d.keep_settings(&env(), 5, None, &[item(11, 0, 1, Edit::Remove)], &mut out);
+    assert_eq!(d.template_goal(1), None);
+    d.give_settings_defaults(Box::new([Stock { kind: 11, scope: 0, number: 1, value }]));
+    assert_eq!(d.template_goal(1), None, "removal hides the stock default");
+    assert_eq!(
+        d.judge_settings(&BOUNDS, &[item(11, 0, 1, Edit::Reset)]).as_ref(),
+        &[Judged::Accept { size: 2, charter: None }]
+    );
+    d.keep_settings(&env(), 6, None, &[item(11, 0, 1, Edit::Reset)], &mut out);
+    assert_eq!(d.template_goal(1), Some(GOAL), "reset reveals the stock default");
 }
 
 #[test]
 fn project_values_keep_replace_restore_and_propose_as_rules_do() {
     let mut d = stocked();
     let mut out = Queue::uncapped();
-    for (kind, value) in project_values() {
+    for (kind, value) in [(11, SizedValue { value: Value::Goal(GOAL), size: 2 })].into_iter().chain(project_values()) {
         let stock = temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview);
         assert_eq!(d.project_classes(1), stock);
-        let asked = item(kind, 1, 1, Edit::Set(value.clone()));
+        let scope = u32::from(kind != 11);
+        let asked = item(kind, scope, 1, Edit::Set(value.clone()));
         d.keep_settings(&env(), 2, None, from_ref(&asked), &mut out);
         if let Value::Classes(classes) = &value.value {
             assert_eq!(d.project_classes(1), *classes);
             assert_eq!(d.project_classes(2), stock);
         }
         assert_eq!(d.judge_settings(&BOUNDS, from_ref(&asked)).as_ref(), &[Judged::Same]);
-        d.keep_settings(&env(), 3, None, &[item(kind, 1, 1, Edit::Remove)], &mut out);
+        d.keep_settings(&env(), 3, None, &[item(kind, scope, 1, Edit::Remove)], &mut out);
         assert_eq!(d.project_classes(1), stock);
         assert_eq!(d.setting_rows.get(&key(&asked, SettingSlot::Replaced(3))), Some(&asked.edit));
         assert_eq!(
             d.restore_settings(
                 &BOUNDS,
                 7,
-                &[Restored { kind, scope: 1, number: 1, edit: RestoredEdit::Set { revision: 3 } }],
+                &[Restored { kind, scope, number: 1, edit: RestoredEdit::Set { revision: 3 } }],
                 &mut out
             )
             .as_ref(),
             &[Judged::Accept { size: value.size, charter: None }]
         );
         d.keep_settings(&env(), 4, Some(7), from_ref(&asked), &mut out);
-        assert_eq!(d.setting(kind, 1, 1), Some(&value));
+        assert_eq!(d.setting(kind, scope, 1), Some(&value));
         assert!(d.proposal_settings(7).is_empty());
     }
 }

@@ -53,14 +53,19 @@ pub(super) fn first(build: Option<&[u8]>, seed: u64, start: skein_lib::Wall) -> 
 }
 
 pub(super) fn entry(entry: &super::Entry) -> String {
-    use crate::{bridge::Input, transport::StreamDuty};
-    let mut out = format!(
-        "input step={} instant={} said={} ",
+    format!(
+        "input step={} instant={} said={} {}\n",
         entry.stamp.step,
         entry.stamp.instant.as_nanos(),
-        digest(entry.said)
-    );
-    match &entry.input {
+        digest(entry.said),
+        input(&entry.input)
+    )
+}
+
+pub(super) fn input(input: &bridge::Input) -> String {
+    use crate::{bridge::Input, transport::StreamDuty};
+    let mut out = String::new();
+    match input {
         Input::Exchange(exchange) => {
             write!(
                 out,
@@ -98,7 +103,6 @@ pub(super) fn entry(entry: &super::Entry) -> String {
         },
         Input::ReadOn => out.push_str("read-on"),
     }
-    out.push('\n');
     out
 }
 

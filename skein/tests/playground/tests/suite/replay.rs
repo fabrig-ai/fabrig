@@ -4,7 +4,7 @@ mod site;
 
 use skein_lib::{Duration, Rng, Time, Wall};
 use skein_playground::{
-    replay::{self, Differs, Why},
+    replay::{self, Differs, LAST_LINE_BYTES, LAST_LINES, Why},
     slices::Slices,
 };
 use skein_sim_world::{Turns, World};
@@ -19,6 +19,8 @@ const BUILD: &[u8] = b"another-build";
 struct Recorded {
     log: log::Read,
     trace: Vec<skein_sim::Entry>,
+    reports: Vec<fetch::Report>,
+    printed: Vec<bridge::Printed>,
     steps: u64,
     now: Time,
 }
@@ -61,7 +63,7 @@ fn record_bounded(seed: u64, build: Option<&[u8]>, bound: u32) -> Recorded {
     let mut schedule = schedule.into_iter().peekable();
     let mut browser = Time::ZERO;
     let mut reports = Vec::new();
-    let mut lines = 0;
+    let mut printed = Vec::new();
     let mut rounds = 0;
     loop {
         let pace = match draw(&mut random, 4) {
@@ -83,7 +85,7 @@ fn record_bounded(seed: u64, build: Option<&[u8]>, bound: u32) -> Recorded {
             log.heard(post);
             match post {
                 ToPage::Report(report) => reports.push(report.clone()),
-                ToPage::Printed(_) => lines += 1,
+                ToPage::Printed(line) => printed.push(line.clone()),
                 ToPage::Stamp(_) | ToPage::Clock(_) | ToPage::Stopped => {}
                 ToPage::Failed { words } => unreachable!("seed {seed}: {words:?}"),
             }
@@ -95,7 +97,7 @@ fn record_bounded(seed: u64, build: Option<&[u8]>, bound: u32) -> Recorded {
         assert!(rounds < 10_000, "seed {seed}: the site answers all exchanges");
     }
     assert!(site::listening(slices.world()), "seed {seed}: the site keeps listening");
-    assert_eq!(lines, 3, "seed {seed}: both printed streams");
+    assert_eq!(printed.len(), 3, "seed {seed}: both printed streams");
     assert!(
         reports.iter().any(|report| matches!(report, fetch::Report::Answered { .. })),
         "seed {seed}: HTTP answered"
@@ -106,15 +108,17 @@ fn record_bounded(seed: u64, build: Option<&[u8]>, bound: u32) -> Recorded {
     }
     Recorded {
         log: read,
+        reports,
+        printed,
         steps: slices.world().steps(),
         now: slices.world().now(),
         trace: slices.world_mut().parts().0.trace().to_vec(),
     }
 }
 
-fn run(log: &log::Read) -> Result<World<site::Process>, Differs> {
+fn run(log: &log::Read) -> Result<World<site::Process>, Box<Differs>> {
     let (world, reach) = site::world(log.seed, log.start);
-    replay::replay(world, reach, log, &mut ())
+    replay::replay(world, reach, log, &mut ()).map_err(Box::new)
 }
 
 #[test]
@@ -132,7 +136,7 @@ fn a_log_recorded_in_slices_replays() {
 fn differs(log: &log::Read) -> Differs {
     match run(log) {
         Ok(_) => panic!("seed {}: the changed log replayed", log.seed),
-        Err(error) => error,
+        Err(error) => *error,
     }
 }
 
@@ -144,7 +148,12 @@ fn a_replay_that_differs_fails_at_its_first_input() {
             let mut changed = recorded.log.clone();
             changed.entries.get_mut(index).expect("kept input").said = log::Said([0; 32]);
             let line = u32::try_from(index + 2).expect("short log");
-            assert_eq!(differs(&changed), Differs { line, build: None, why: Why::Said }, "seed {seed}");
+            let Differs { line: found_line, build, input, why } = differs(&changed);
+            assert_eq!((found_line, build, input), (line, None, Some(log::input_text(&entry.input))), "seed {seed}");
+            let Why::Said { expected, found, last } = why else { panic!("seed {seed}: digest difference") };
+            assert_eq!(expected, log::Said([0; 32]), "seed {seed}: log digest");
+            assert_eq!(found, entry.said, "seed {seed}: replay digest");
+            assert!(last.len() <= LAST_LINES, "seed {seed}: bounded history");
             assert_ne!(entry.said, log::Said([0; 32]), "seed {seed}: digest changed");
         }
         let mut changed = recorded.log;
@@ -152,9 +161,10 @@ fn a_replay_that_differs_fails_at_its_first_input() {
         let found = entry.stamp;
         entry.stamp.instant = if entry.stamp.instant == Time::ZERO { Time::from_nanos(1) } else { Time::ZERO };
         let expected = entry.stamp;
+        let input = Some(log::input_text(&entry.input));
         assert_eq!(
             differs(&changed),
-            Differs { line: 3, build: None, why: Why::Moment { expected, found } },
+            Differs { line: 3, build: None, input, why: Why::Moment { expected, found } },
             "seed {seed}: second stamp at another instant"
         );
     }
@@ -166,12 +176,20 @@ fn a_replay_of_another_build_goes_on() {
         let mut recorded = record(seed, Some(BUILD));
         assert_eq!(recorded.log.build.as_deref(), Some(BUILD), "seed {seed}");
         assert!(run(&recorded.log).is_ok(), "seed {seed}: the digest decides across builds");
-        recorded.log.entries.last_mut().expect("recorded inputs").said = log::Said([0; 32]);
+        let entry = recorded.log.entries.last_mut().expect("recorded inputs");
+        let said = entry.said;
+        let input = Some(log::input_text(&entry.input));
+        entry.said = log::Said([0; 32]);
+        let Differs { line, build, input: found_input, why } = differs(&recorded.log);
         assert_eq!(
-            differs(&recorded.log),
-            Differs { line: 9, build: Some(BUILD.into()), why: Why::Said },
+            (line, build, found_input),
+            (9, Some(BUILD.into()), input),
             "seed {seed}: a difference names its build"
         );
+        let Why::Said { expected, found, last } = why else { panic!("seed {seed}: digest difference") };
+        assert_eq!(expected, log::Said([0; 32]), "seed {seed}: log digest");
+        assert_eq!(found, said, "seed {seed}: replay digest");
+        assert!(last.len() <= LAST_LINES, "seed {seed}: bounded history");
     }
 }
 
@@ -240,10 +258,15 @@ fn the_last_line_checks_its_moment_and_digest() {
         let mut changed = recorded.log;
         let log::End::At { step, instant, said } = changed.end else { panic!("seed {seed}: complete log") };
         changed.end = log::End::At { step, instant, said: log::Said([0; 32]) };
-        assert_eq!(differs(&changed), Differs { line: 10, build: None, why: Why::Said }, "seed {seed}: end digest");
+        let Differs { line, build, input, why } = differs(&changed);
+        assert_eq!((line, build, input), (10, None, None), "seed {seed}: end digest");
+        let Why::Said { expected, found, last } = why else { panic!("seed {seed}: digest difference") };
+        assert_eq!(expected, log::Said([0; 32]), "seed {seed}: log digest");
+        assert_eq!(found, said, "seed {seed}: replay digest");
+        assert!(last.len() <= LAST_LINES, "seed {seed}: bounded history");
         changed.end = log::End::At { step: step + 1, instant, said };
         let error = differs(&changed);
-        assert_eq!(error.line, 10, "seed {seed}: last line's moment");
+        assert_eq!((error.line, error.build, error.input), (10, None, None), "seed {seed}: last line's moment");
         assert!(matches!(error.why, Why::Moment { .. }), "seed {seed}: a step with no work due");
     }
 }
@@ -321,10 +344,44 @@ fn a_stamp_behind_the_world_names_the_first_bad_line() {
         entry.stamp.step -= 1;
         let expected = entry.stamp;
         let line = u32::try_from(index + 2).expect("short log");
+        let input = Some(log::input_text(&entry.input));
         assert_eq!(
             differs(&recorded.log),
-            Differs { line, build: Some(BUILD.into()), why: Why::Moment { expected, found } },
+            Differs { line, build: Some(BUILD.into()), input, why: Why::Moment { expected, found } },
             "seed {seed}: step count already past the stamp"
         );
+    }
+}
+
+#[test]
+fn a_said_difference_shows_its_last_lines() {
+    for seed in SEEDS {
+        let mut recorded = record(seed, None);
+        let log::End::At { step, instant, .. } = recorded.log.end else { panic!("seed {seed}: complete log") };
+        recorded.log.end = log::End::At { step, instant, said: log::Said([0; 32]) };
+        let Why::Said { last, .. } = differs(&recorded.log).why else { panic!("seed {seed}: digest difference") };
+        assert_eq!(last.len(), LAST_LINES, "seed {seed}: history spans inputs");
+        assert!(last.iter().all(|line| line.len() <= LAST_LINE_BYTES + 3), "seed {seed}: bounded line bytes");
+        let entry = recorded.log.entries.last().expect("recorded input");
+        let input = format!(
+            "input step={} instant={} {}",
+            entry.stamp.step,
+            entry.stamp.instant.as_nanos(),
+            log::input_text(&entry.input)
+        );
+        assert!(last.contains(&input), "seed {seed}: last input in the log's text");
+        let heard: Vec<_> = recorded
+            .reports
+            .iter()
+            .map(log::report_line)
+            .chain(recorded.printed.iter().map(log::printed_line))
+            .map(|line| line.trim_end_matches('\n').to_owned())
+            .collect();
+        for line in &last {
+            assert!(
+                line.starts_with("input step=") || heard.contains(line) || line == "stopped",
+                "seed {seed}: line in the log's text: {line}"
+            );
+        }
     }
 }

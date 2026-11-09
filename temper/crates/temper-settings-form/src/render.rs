@@ -25,6 +25,11 @@ pub fn setting_text(setting: c::Setting, out: &mut Text) {
             out.number(u64::from(number));
             return;
         }
+        c::Setting::Application { kind: 11, number, .. } => {
+            out.put(b"template-goal ");
+            out.number(u64::from(number));
+            return;
+        }
         c::Setting::Application { kind: kind @ 6..=8, scope, .. } => {
             out.put(match kind {
                 6 => b"project-questions ",
@@ -82,6 +87,7 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
             match kind {
                 1 | 2 => out.string(b"landing-rule"),
                 3 => out.string(b"forge-charter"),
+                11 => out.string(b"template-goal"),
                 6 => out.string(b"project-questions"),
                 7 => out.string(b"project-ways"),
                 8 => out.string(b"project-classes"),
@@ -90,7 +96,7 @@ pub fn encode_setting(setting: c::Setting, out: &mut Encoder) {
             if kind == 2 || kind == 6 || kind == 7 || kind == 8 {
                 out.key(b"project");
                 out.unsigned(u64::from(scope));
-            } else if kind != 1 && kind != 3 {
+            } else if kind != 1 && kind != 3 && kind != 11 {
                 out.key(b"scope");
                 out.unsigned(u64::from(scope));
             }
@@ -294,6 +300,12 @@ pub fn text(value: &c::ReadValue, requested: Option<u64>, limits: &Limits, out: 
         c::ReadValue::Settings(document) => inventory_text(document, out),
         c::ReadValue::Setting(document) => {
             setting_text(document.setting, out);
+            if let c::Setting::Application { kind: 11, .. } = document.setting
+                && document.value.is_none()
+            {
+                out.put(b": none kept; its coordinator plans and makes no close-out.\n");
+                return;
+            }
             out.put(b", revision ");
             out.number(u64::from(document.revision));
             out.put(b"\n");

@@ -118,7 +118,7 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
         (6, false, 27_143, 372_992),
         (9, false, 24_586, 375_549),
         (10, false, 24_301, 375_834),
-        (11, true, 10_640, 389_495),
+        (11, true, 10_667, 389_468),
         (12, true, 27_691, 372_444),
     ] {
         let assignment = assignment(number, open, 14_592);
