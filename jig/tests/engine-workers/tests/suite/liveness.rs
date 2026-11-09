@@ -170,3 +170,85 @@ fn draining_one_frame_restarts_the_stall_deadline() {
     assert!(world.gone(connection));
     assert_eq!(lost(&world), 1);
 }
+
+#[test]
+fn a_start_past_the_room_is_answered_and_the_link_lives() {
+    use jig_domain_host as host;
+    use jig_protocol_worker_wire as wire;
+    fn linked() -> (World, Token, Token) {
+        let limits = jig_protocol_engine_workers::Limits {
+            sizes: wire::sizes::Sizes { charter: 1024, ..fixtures::SIZES },
+            ..fixtures::LIMITS
+        };
+        let codec = wire::sizes::limits(&limits.sizes).expect("row codec");
+        let schema = wire::schema(&codec).expect("row schema");
+        let mut peer = fixtures::peer(schema, wire::VERSION, WORKER_A, SECRET_A, fixtures::PAYLOAD);
+        peer.play(fixtures::hello_frame());
+        let mut world = World::new(&limits, &fixtures::workers(), 1);
+        let connection = world.connect(peer);
+        world.run();
+        let Request::Hello { channel, .. } = world.root()[0] else { panic!("hello") };
+        (world, connection, channel)
+    }
+    fn record(job: bool) -> host::LinkDown {
+        if job {
+            host::LinkDown::AssignJob { job: host::JobAssignment {
+                run: Token::new(7), attempt: Token::new(2), kind: jig_domain_link::JobKind(1),
+                spec: vec![b'x'; 1024].into(), deadline: Duration::from_secs(60), workspace: None, grants: Box::new([]),
+            }}
+        } else {
+            let mut assignment = fixtures::assignment();
+            assignment.assignment.charter = vec![b'x'; 1024].into();
+            host::LinkDown::Assign { assignment }
+        }
+    }
+    fn send(world: &mut World, channel: Token, job: bool) {
+        world.down(Event::Down { channel, down: record(job), parts: fixtures::parts(), values: fixtures::values() });
+        world.run();
+    }
+    let mut failures = Vec::new();
+    for (name, job, past) in [
+        ("assignment at the room", false, false), ("assignment past the room", false, true),
+        ("job at the room", true, false), ("job past the room", true, true),
+    ] {
+        let kind = if job { wire::Kind::Job } else { wire::Kind::Assignment };
+        let (mut probe, connection, channel) = linked();
+        send(&mut probe, channel, job);
+        let body = probe.observed(connection).iter().find(|r| r.kind == kind.number()).expect("start encodes").body.clone();
+        let bytes = u32::try_from(body.len()).expect("small frame") + 8;
+        let room = bytes - u32::from(past);
+        let (mut world, connection, channel) = linked();
+        world.cap_write_room(connection, room);
+        send(&mut world, channel, job);
+        world.down(Event::Down { channel, down: host::LinkDown::Acknowledge { run: Token::new(7), attempt: Token::new(2) }, parts: Box::new([]), values: Box::new([]) });
+        world.run();
+        let mut ping_seconds = Vec::new();
+        let mut previous = 0;
+        for second in 1..=120 {
+            ping(&mut world, connection);
+            world.advance(Duration::from_secs(1));
+            let count = world.observed(connection).iter().filter(|r| r.kind == 5).count();
+            if count > previous { ping_seconds.push(second); }
+            previous = count;
+        }
+        let starts: Vec<_> = world.observed(connection).iter().filter(|r| r.kind == kind.number()).collect();
+        let answers: Vec<_> = world.root().iter().filter_map(|r| match r {
+            Request::Up { up: host::LinkUp::Answer { answer, .. }, .. } => Some(format!("{:?}", answer.ending)),
+            Request::Up { up: host::LinkUp::JobAnswer { answer, .. }, .. } => Some(format!("{answer:?}")),
+            _ => None,
+        }).collect();
+        let unsent = world.root().iter().filter(|r| format!("{r:?}").starts_with("Unsent {")).count();
+        let words = format!("{} of {bytes} bytes past the link's room of {room} bytes", if job { "job" } else { "assignment" });
+        let prefix = &words[..usize::try_from(fixtures::SIZES.detail).expect("detail")];
+        let refused = answers.len() == 1 && answers[0].contains("Refused(Invalid(Start")
+            && format!("{:?}", world.root()).contains(&format!("{:?}", prefix.as_bytes()));
+        let ok = if past { starts.is_empty() && refused && unsent == 1 }
+            else { starts.len() == 1 && starts[0].body == body && answers.is_empty() && unsent == 0 };
+        let expected_pings: Vec<_> = (5..=120).step_by(5).collect();
+        let acknowledge = world.observed(connection).iter().any(|r| r.kind == wire::Kind::Acknowledge.number());
+        if !ok || ping_seconds != expected_pings || !acknowledge || !world.ended().is_empty() || lost(&world) != 0 {
+            failures.push(format!("{name}: answers={answers:?}, unsent={unsent}, pings={ping_seconds:?}, acknowledge={acknowledge}, ended={:?}, lost={}", world.ended(), lost(&world)));
+        }
+    }
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}

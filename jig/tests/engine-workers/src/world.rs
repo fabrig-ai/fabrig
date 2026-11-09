@@ -143,6 +143,9 @@ impl World {
     pub fn dropped_down(&self) -> u64 {
         self.component.dropped_down()
     }
+    pub fn cap_write_room(&mut self, connection: Token, room: u32) {
+        self.net(connection).cap = Some(room);
+    }
     pub fn withhold_write_room(&mut self, connection: Token) {
         self.net(connection).write_room = WriteRoom::Withheld;
     }
