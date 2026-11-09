@@ -9,6 +9,19 @@ use skein_lib::{List, Time, Token, Writer};
 use temper_engine_domain as root;
 use temper_protocol_worker_wire as wire;
 
+/// A worker's charter allowance where the engine doesn't know it: smith's
+/// `run_bytes` at its floor, which the stock agent's `tool_payload` doesn't
+/// raise (smith/docs/design/protocol/limits.md, 3.10;
+/// temper/docs/design/domain/agent.md, 4.3).
+pub const WORKER_CHARTER_BYTES: u64 = 65_536;
+
+/// The bound a charter is fitted to: the hub's, and no more than its
+/// worker takes (temper/docs/design/domain/agent.md, 4.3).
+#[must_use]
+pub fn charter_bound(hub: u64, agent: Option<u64>) -> u64 {
+    hub.min(agent.unwrap_or(WORKER_CHARTER_BYTES))
+}
+
 /// The checked channel limits, endpoint names and deployment identity.
 #[derive(Debug)]
 pub struct Encoding {
