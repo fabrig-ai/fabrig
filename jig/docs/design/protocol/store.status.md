@@ -53,6 +53,26 @@ and its fuzzy restart sweep). The store's world's random crash table
 alternates a person's commit and a task's naming it, killed twice in a
 row (`fuzzy::crashes::random_commits_and_crashes_keep_the_referees_promises`).
 
+Section 8.3 has no known gap in a window's turn past its page's room.
+A `Window` read answers it alone and cut, as `Event::Turns` with its
+fields, its transcript empty, `cut` its transcript's length, and `next`
+past its frame or none at the window's end. A page already holding a
+turn ends before it. A cut opening turn is still checked as the
+window's opening turn, and no window read answers `Unread` for a turn's
+size. A window that starts at another turn, and a frame unread or
+refused, still answer `Unread`
+(`jig-protocol-store`'s `window_pages_cut_oversized_turns_alone_and_advance`,
+`a_nonempty_prefix_continues_before_a_turn_that_is_cut` and
+`direct_reads_without_room_are_unread_except_windows_cut_with_byte_room_zero`).
+The room is the whole frame's charge (8.6). A current frame past it is
+cut from its head, its body never read. A frame behind is read whole,
+patched, then cut from the patched record
+(`frame_patches.rs`'s `patched_frame_sizes_bound_resumes_turns_pages_and_tails`;
+`jig/tests/store`'s
+`upgrades::frames::patched_frames_past_bounds_match_current_boundaries`
+and `upgrades::upgrade_edges`, whose `native_pages_without_room_end_as_unread`
+keeps its name while its window reads expect the cut).
+
 - **Not yet:** 7.3, 11.1: retention: no horizon shrinks an ended task to its summary or drops its transcript; a page of history, spend or notes cut before its first row. 10.5, 14: rehearsing and going back: `jig/crates/jig-protocol-store` has no `Request::Rehearse`, `Request::Back`, `Event::Back` or `BackRefusal`, and `jig/tests/store` no story of them. 14: the reference binary killed around each phase of a turn's commit (`jig/testing/jig-test/tests/process.rs` kills and restarts it once); `jig/tests/ops` and `jig/testing/jig-conformance` run `jig-fake-store`, where no world fakes the store.
 - **Departs:** 14: the core's world on the simulated disk kills no
   snapshot racing commits and no group of several commits in flight:
