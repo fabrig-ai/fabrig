@@ -2,6 +2,21 @@
 
 2026-11-09. Where the design lags or departs from [long-text-pages.md](long-text-pages.md).
 
+The plan landed whole into main as pull #157, merge `b4cba5159c78`,
+with all three ranked items and none dropped. It is complete on landing;
+no implementation or test gap remains.
+
+**Draft fate:** its vision is folded into `../client/tools.md`, 6.4,
+11.1 and 12, with the two accepted departures below. Removal of the
+completed draft is proposed under `DESIGN.md`, section 4; the user's
+text is retained read-only, not deleted or marked as an active plan.
+
+**Later:** the draft's "Not in this plan" stays outside this close-out:
+any other figure and charter wording. The charters are generated
+elsewhere, and the owner adds their line separately; neither is
+follow-up work for this plan. `../client/tools.md`, section 14, keeps
+the deferred larger outcomes and first-line notices in whole reads.
+
 - **Design lags:** none.
 - **Design departs:**
   - Item 1: a read that prints a cut text inside a larger answer, `task show`'s asked words, `task turn` without `--part`, `task activity` and `chat show`, is no paged read and keeps its end line alone; the paged read its call names says so first (`../client/tools.md`, 6.4). The cut's call, 2026-11-09.
