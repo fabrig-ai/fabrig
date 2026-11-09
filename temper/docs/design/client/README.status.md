@@ -4,16 +4,16 @@
 
 Sections 3.5 (*Away*, *Decided for you*, *Home on any project*, and
 *Needs you*'s *Why it reached you*, *Stop asking* and *Keep asking*),
-4.6, 5.8, 5.13 (*While you're away, agents may decide*, *What the
-project shows* and *The card in a chat*'s kind 8) and 5.14 have no known
+4.6, 5.8, 5.13 (*What the project shows* and *The card in a chat*'s
+kind 8) and 5.14 have no known
 gap in the web client but those below: the whole story's milestone N1,
 by plan `ui-reaches`. `pages::decided` holds the open page's `decided`
 watches, at most four projects unfiltered, "+" past them; a row says
 what allowed it from its reach, and Overturn works from Home and Needs
-you; Away shows by the project's classes or an on row; Settings' section
-is a view of kind 8; each need's reason line comes from its task's newest
-asked row, its card waiting for that document; Stop asking applies or
-proposes the kit's narrowed table; and Keep asking sends the person's
+you; Away shows by the project's classes or an on row; each need's
+reason line comes from its task's newest asked row, its card waiting
+for that document; Stop asking applies or proposes the kit's narrowed
+table; and Keep asking sends the person's
 fact, which holds Stop asking back for 7 days. The domain's and view's
 tables hold them (`shown_by_classes_or_an_on_row`,
 `why_matches_the_asking_task_and_time_and_waits_for_its_document`,
@@ -97,6 +97,34 @@ post-landing walk and M3b's views remain section 11's work.
   no person's word as a finding and no project's settings name a triager
   (`../domain/findings.status.md`; `../domain/landing.md`, 13.1),
   so it waits for both, with nothing in its place.
+
+Sections 3.5, **Only you** and its row of *A page's parts*, and 5.5,
+*Each state*'s expiring rows, have no known gap in the web client, by
+plan `ui-n3a-only`, the whole story's milestone N3a. `pages::only_you`
+reads each of the person's own accounts, but the playground provider's,
+whose deciding source is a sign-in or a program's login signed out or
+expiring, in the document's order, the head "N+" where the document is
+cut; `NeedsParts::only` draws the region once the inbox has answered,
+and no card's count holds it. Needs you draws it after the cards'
+*Answered* or Done's "Home" and before Decided for you, each item's
+question naming its source as Accounts does and its link "Sign in again"
+to Accounts, full width on a phone, its 44 px the need's choices' rule;
+Accounts offers an expiring deciding source its renewal, "Continue with
+PLAN", or a program's command and "Check again". The domain's
+`only_you_reads_the_persons_deciding_login_sources_in_document_order`
+and `needs_parts_wait_for_known_and_keep_decided_independent`, and the
+view's `only_you_follows_the_answered_inbox_and_links_its_sources_to_accounts`,
+`each_account_state_draws_its_words_and_state_controls` and
+`a_programs_missing_login_names_its_host_command_and_check` hold them.
+The joint world's `a_login_is_listed_only_while_it_needs_its_person`
+drives temper's engine through a signed-in plan made expiring, then
+signed out, then renewed by Accounts' "Continue with ChatGPT", on the
+domain's read; Needs you's link it leaves to the view's table. The
+density fuzz, `random_facts_and_settings_keep_each_part_and_card`,
+holds the part's rule. What waits for a login, Only you's other kinds
+and the terminal's inbox are section 11's later parts; the render check
+and walk follow landing (section 11, *Home and Needs you across projects
+after landing*).
 
 Sections 3.5, *Needs you*'s *Its head* and *On a phone* and *Ask temper's
 page*'s composer, and 5.3, *On a phone*, have no known implementation
@@ -259,16 +287,43 @@ How work runs has plan `ui-p3a-how`'s implementation, with
 `look-round-25`'s drawing and Roles above (3.5, *Settings and
 Deployment*, 4.6 and 5.13): `pages::how::parts`, of what
 `pages::how::facts` gathers, decides the heading's way, "Ask temper to
-change this", the path section's state, Roles' state and Budgets' row.
+change this", the path section's state, What reaches you's columns and
+its head's words, Roles' state and Budgets' row.
 `Settings { project }` watches the project's `ways` as Ask temper's page
 does, `Act::WayTab` and `Act::WayStop` heard on either. The page heads
-itself with the words saved with the settings (below), draws the path, Roles, a
-goal's amount or cap, What needs you and Away, and the switches at its
-foot; the disabled Status, Funds and Telling you rows are gone. The
+itself with the words saved with the settings (below), draws the path,
+What reaches you (below), Roles, a goal's amount or cap, and the
+switches at its foot; the disabled Status, Funds and Telling you rows
+are gone. The
 domain's and the view's tables, the joint world's
 `the_three_ways_draw_ci_and_tiers_or_neither` and the text shell's
 `settings.txt` golden hold it. The page's render check and walk remain
 section 11's after-landing work.
+
+Sections 5.13, *What reaches you*, *Its parts* and *Its rows*, and 3.5,
+*Away*'s *On How work runs*, have no known gap, by plan
+`ui-p3b-reaches`, the whole story's milestone P3b. `pages::how::facts`
+gathers kind 8 read and `me`'s second project, and
+`pages::how::reaches` lays the project's table in its three columns, in
+the proposal card's settings order, each subject once. The view draws the section
+after the path: its heading, which "Limits" focuses, "on PROJECT" or
+"on PROJECT; each project has its own" at its right, a box a column
+with a line, its chip in who acts' mark, its lines in `how.html`'s
+words and its small line, "Asks you"'s saying what Away changes; then
+the question route and "Away until". The checks owners ticked are gone,
+`forge::classes` and `WaysRow::Classes` with them: the page has no
+control of kind 8, which changes by a proposal or Stop asking's Apply.
+The domain's
+`parts_and_facts_follow_the_project_rules`, the view's
+`reaches_columns_follow_the_project_table` and
+`limits_focuses_the_section`, the fuzzy suite's
+`what_reaches_you_places_each_subject_once` and
+`parts_and_drawing_follow_only_the_current_facts`, the joint world's
+`what_reaches_a_person_follows_the_classes_away_and_stop_asking`,
+reading the columns before and after Stop asking's Apply, the text
+shell's `settings.txt` golden and the gallery's `how`, `how-approve`,
+`how-reaches` and `night-how-reaches` hold it. Its render check and
+walk follow landing (section 11, *What reaches you after landing*).
 
 Sections 4.6 and 5.13 have no known gap in the words saved with the
 settings, the whole story's P3e, by plan `ui-p3e-words`: the wire's
@@ -1080,7 +1135,7 @@ read's head explicit.
 - **Not yet:** 3.5, *Away*, 4.6: with the `away` watch refused, ended or not
   delivered yet the switch draws off, but its act is still offered, where 4.6
   has it not offered: `temper-client-view`'s `frame.rs`, `away`, and
-  `pages/settings.rs`, `away_settings`, draw their controls enabled, and
+  `pages/settings.rs`, `away_until`, draw their controls enabled, and
   `temper-client-domain`'s `pages/away.rs`, `act`, then sends nothing and says
   nothing, so a press does nothing. Seen by reading; no test holds it and no
   reason is recorded.

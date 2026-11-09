@@ -1399,11 +1399,11 @@ pub const NAMES: Names<'static> = Names {
         b"temper-how-roles",
         b"temper-how-role",
         b"temper-how-role-more",
-        b"temper-reserved-681",
-        b"temper-reserved-682",
-        b"temper-reserved-683",
-        b"temper-reserved-684",
-        b"temper-reserved-685",
+        b"temper-how-reaches",
+        b"temper-how-reach",
+        b"temper-how-who-agent",
+        b"temper-how-who-person",
+        b"temper-how-reach-note",
         b"temper-reserved-686",
         b"temper-how-row",
         b"temper-decision-allowed",
@@ -1863,6 +1863,11 @@ pub const HOW_ROLES: Style = Style { owner: owner(), token: 678 };
 pub const HOW_ROLE: Style = Style { owner: owner(), token: 679 };
 pub const HOW_ROLE_MORE: Style = Style { owner: owner(), token: 680 };
 pub const HOW_ROW: Style = Style { owner: owner(), token: 687 };
+pub const HOW_REACHES: Style = Style { owner: owner(), token: 681 };
+pub const HOW_REACH: Style = Style { owner: owner(), token: 682 };
+pub const HOW_WHO_AGENT: Style = Style { owner: owner(), token: 683 };
+pub const HOW_WHO_PERSON: Style = Style { owner: owner(), token: 684 };
+pub const HOW_REACH_NOTE: Style = Style { owner: owner(), token: 685 };
 /// Needs you's list, reply and project identity (client/README.md, 3.5).
 pub const NEED_ROW: Style = Style { owner: owner(), token: 691 };
 pub const NEED_TELL: Style = Style { owner: owner(), token: 692 };

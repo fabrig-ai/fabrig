@@ -314,10 +314,9 @@ pub(crate) fn how_work_runs(
             Some(Asked::Questions(_) | Asked::Classes(_)) | None => stored.unwrap_or(Ways::STOCK),
         };
         super::how::path(b, root, w, bindings, project);
+        super::how::reaches(b, root, w, bindings, forge, project, wall);
         super::how::roles(b, root, w, bindings, project);
         super::how::budgets(b, root, w, project);
-        needs(b, root, w, forge, project);
-        away_settings(b, root, w, bindings, forge, project, wall);
         shows(b, root, w, forge, project, stored.is_none(), shown);
         if shown.goals {
             working(b, root, w, forge, project, shown);
@@ -410,8 +409,8 @@ fn shows(
         let word = match (key, value) {
             (WaysRow::Drafts, true) => Word::SettingsOn,
             (WaysRow::Drafts, false) => Word::SettingsOff,
-            (WaysRow::Goals | WaysRow::Changes | WaysRow::Classes | WaysRow::Way(_), true) => Word::SettingsShown,
-            (WaysRow::Goals | WaysRow::Changes | WaysRow::Classes | WaysRow::Way(_), false) => Word::SettingsHidden,
+            (WaysRow::Goals | WaysRow::Changes | WaysRow::Way(_), true) => Word::SettingsShown,
+            (WaysRow::Goals | WaysRow::Changes | WaysRow::Way(_), false) => Word::SettingsHidden,
         };
         crate::cards::text(b, Role::Text, &w.say(word, &[]));
         b.open(Role::Check);
@@ -468,8 +467,7 @@ fn working(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindin
     b.close();
     b.close();
 }
-fn needs(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, project: u32) {
-    section(b, w, Word::SettingsNeeds);
+pub(super) fn questions(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, project: u32) {
     let stored = root.forge().questions(project);
     let shown = match root.forge().ways_asked(Control::Questions) {
         Some(Asked::Questions(route)) => *route,
@@ -496,76 +494,16 @@ fn needs(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings
     b.close();
     refused(b, root, w, Control::Questions);
     b.close();
-    b.close();
 }
-/// Settings draws the classes; the row's duration stays editable while off (client/README.md, 5.13).
-fn away_settings(
+/// The duration stays editable while Away is off (client/README.md, 5.13, *Its rows*).
+pub(super) fn away_until(
     b: &mut Builder,
     root: &Domain,
     w: &Words,
     bindings: &mut Bindings,
-    forge: &mut ForgeBindings,
     project: u32,
     wall: skein_lib::Wall,
 ) {
-    use temper_protocol_reaches::{Class, Classes, Way};
-    let stock = Classes::stock(Way::AgentsReview);
-    let stored = root.forge().classes(project);
-    let asked = root.forge().ways_asked(Control::Classes);
-    let shown = match asked {
-        Some(Asked::Classes(classes)) => classes,
-        Some(Asked::Ways(_) | Asked::Questions(_)) | None => stored.unwrap_or(&stock),
-    };
-    let asking = forge::classes::asking(shown);
-    if asking.is_empty() {
-        return;
-    }
-    b.open(Role::Slot);
-    b.style(look::SETTINGS_SECTION);
-    b.open(Role::Heading { level: 2 });
-    b.style(look::SETTINGS_SECTION_TITLE);
-    let title = w.say(Word::AwaySettingsTitle, &[]);
-    b.name(&title);
-    b.text(Run::Plain, &title);
-    let count = root.pages().away_focus();
-    if count > 0 && root.pages().switcher().renaming().is_none() {
-        b.focus(count);
-    }
-    b.close();
-    let decides = crate::cards::proposal::class_objects(w, shown, Class::Decide);
-    if !decides.is_empty() {
-        text(b, Role::Text, &w.say(Word::ClassesDecideLine, &[Hole::Name(decides)]), look::SETTINGS_DETAIL);
-    }
-    row(b, w, &w.say(Word::ClassesAsking, &[]), Some(Word::ClassesAskingDetail));
-    b.open(Role::Slot);
-    b.style(look::SETTINGS_CHECKS);
-    for item in asking {
-        let mut name = crate::shared::object(w, item.subject, item.item, Some(shown));
-        if let Some(first) = name.first_mut() {
-            first.make_ascii_uppercase();
-        }
-        b.open(Role::Check);
-        b.name(&name);
-        b.bind(forge.insert_way(
-            ways::Act::Set { project, asked: Asked::Classes(forge::classes::turned(shown, item)) },
-            WaysRow::Classes,
-        ));
-        if item.away {
-            b.state(State::Pressed);
-        }
-        if stored.is_none() || asked.is_some() {
-            b.state(State::Disabled);
-        }
-        b.close();
-    }
-    b.open(Role::Check);
-    let locked = w.say(Word::ClassesLocked, &[]);
-    b.name(&locked);
-    b.state(State::Disabled);
-    b.close();
-    b.close();
-    refused(b, root, w, Control::Classes);
-    b.close();
     if root.away_shown(project, wall) {
         let row_value = root.forge().away(project);
         let eight = match row_value {
@@ -591,7 +529,6 @@ fn away_settings(
         b.close();
         b.close();
     }
-    b.close();
 }
 pub(crate) fn repositories(
     b: &mut Builder,
