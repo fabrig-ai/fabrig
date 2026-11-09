@@ -47,7 +47,18 @@ the stock rule of kind 2 among them, from the forge's rules as they
 stand; and the view `roles` gives the project's roles, a card a charter
 at its first place, from where each charter runs
 (`route/ways/view/roles.rs`; `route/ways/tests.rs`,
-`inputs_gather_the_repository_start_and_readers_roles`).
+`inputs_gather_the_repository_start_and_readers_roles`). A goal's
+coordinator draws "design", its card's "Its order" after the agent's
+facts, where its template's work, kind 11, says it designs first, and
+"plan" otherwise; where it makes a close-out, "close-out", the
+coordinator's, its card's "Lands" naming the landing branch, follows the
+merge or the turn on the landing branch's segment after a goal's, before
+its tiers. The root reads the work of the template a goal starts by,
+with a decision's items laid over it (`ways.rs`, `laid_goal`). Rows of
+the focused paths' and cards' tables and of the root's table hold them,
+and the fuzzy test, over random template work, draws "design" and
+"close-out" only with their settings, the close-out once, an agent's,
+after the landing and before the bar.
 
 - **Not yet:** 8.13, *The project's roles*: the drafter, charter 12,
   which the stock holds and its template 6 starts since P6 landed after

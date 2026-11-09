@@ -180,7 +180,17 @@ function, with a fuzz test of their rules, the joint world's paths over
 CI and tiers and over neither, and six gallery states; its render check
 and walk follow landing. A role's model is among its opened terms, and
 the drafter is no role yet (`client/README.status.md`, 5.13;
-`domain/forge.status.md`, 8.13; `draft/surfaces.status.md`, 7). The rail, Work and
+`domain/forge.status.md`, 8.13; `draft/surfaces.status.md`, 7). A
+goal's path draws "design" in place of "plan", and a "close-out" after
+the landing, from kind 11, its template's work, the whole story's
+milestone P3f, by plan `ui-p3f-design`: the stock's template 4 neither,
+the reference's both, read and proposed by ctl and Ask temper's tools,
+with derivation rows and a fuzz test. The reference's runs still make
+their close-out into the goal's branch before the landing, nothing tells
+Ask temper to propose a template's work, and stage one's golden asks it
+at template 4 by number (`protocol/configuration.status.md`, 13.9;
+`domain/agent.status.md`, 8.1; `domain/testing.status.md`, 6.5.1;
+`draft/surfaces.status.md`, 7). The rail, Work and
 Deployment are the whole story's milestone P1, by plan `ui-p1-rail`: the
 rail and the tab bar from one pure function of their parts, Work, the
 hairline, How work runs, the new box and Deployment at the foot, the
