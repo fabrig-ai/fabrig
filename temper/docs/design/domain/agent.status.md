@@ -1,6 +1,6 @@
 # agent: status
 
-2026-11-08. Where temper's code lags or departs from [agent.md](agent.md).
+2026-11-09. Where temper's code lags or departs from [agent.md](agent.md).
 
 Sections 4.2, 4.3 and 8.4 have the asking charter's three host tools,
 smith's wait, and no workspace. Sections 8.4.1 to 8.4.3 have M1's settings,
@@ -116,8 +116,14 @@ real-model behaviour or run the project's executable checks; the grant
 requires them, and smith's report-delivery process story checks the files.
 Stock and reference instructions remain separate work (section 10 and
 `../draft/goal-as-designer.status.md`).
-Section 4.3 has no gap in file, pull-file and compare fitting to the checked
-local receiving-agent allowance, size feedback, recovery and settled-call replay.
+Section 4.3 has no known implementation gap in task and forge reads
+fitting to the live attempt's worker reply bound, else the local agent's.
+Task reads use `documents.text_bytes` where neither names a bound; forge
+rendering retains the core allowance there (`root.md`, 5.2).
+File, pull-file and compare size feedback, recovery and settled-call replay
+have no known gap. A `see` answer uses the local agent's bound alone,
+without a call key; worker-specific `see` rendering remains deferred in
+section 10, not an absent task-read implementation.
 Sections 4.3, 4.4 and 6 have no known implementation gap in the compare's
 forge-size refusal, the stock report instructions,
 or the SHA-1 and SHA-256 widths in receipts and CI cancel reasons. Step tests
