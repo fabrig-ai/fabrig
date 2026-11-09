@@ -10,6 +10,21 @@ story cover the mechanism in code. No implementation gap is known in
 these paths; real-forge observation remains after-landing work
 (`../domain/forge.md`, section 20).
 
+Sections 13.2, 13.4 and 13.9 have kind 11, a goal template's work, with
+no known gap but the reference's close-out, below: the forge's
+`TemplateGoal`, judged at scope 0 and a template's number, kept,
+removed, reset and restored as kind 3 is, read by `template_goal`, with
+neither where none is held; the store's and smith's codecs; its
+declaration to jig, `limits.templates` per scope; `template-goal` in a
+settings file, the settings form, a run's `settings`, `see` and
+`propose_settings`, and the "none kept" answer; and the stock's template
+4 at neither, the reference's at both. The forge's judge and kinds tables, smith's round
+trip, `kinds_are_declared_with_their_bounds`,
+`the_binary_gives_the_forges_stock_at_every_start`,
+`the_reference_settings_file_decodes` and the engine world's
+`a_projects_stored_ways_read_as_stored` hold it. Only the path reads it
+(`../domain/forge.md`, 8.13).
+
 Section 13.4 has stock charters 1, 2, 4, 5, 6, 9, 10, 11 and 12 and
 templates 1, 2, 4, 5 and 6; charter 3, template 3 and `configuring.txt`
 are absent. Charter 12's `drafter.txt` is the words temper/ui handed,
@@ -197,6 +212,17 @@ Section 13.8 has no gap in note-backed settings transport within the call payloa
   the case's project's rule 1, so a box Ask temper configures from the
   reference's description keeps the stock's rule 1 over its goals'
   branches until its owner sets the project's.
+- **Not yet:** 13.9, *template 4's work*: the reference sets
+  `close_out`, which 13.2 makes a change into the landing branch once
+  the goal has landed, so its path draws "close-out" after main's
+  merge; but its charter 5's instructions make the close-out, X, a
+  designer's change into the goal's branch, and land the goal after it
+  (`docs/examples/reference/settings.json`), as
+  `../draft/reference-case.md` has it. `../draft/goal-as-designer.md`,
+  section 2, moves the close-out after the landing, which the reference's
+  charters don't take yet (`../draft/goal-as-designer.status.md`); until
+  then the reference's path draws its close-out where its runs don't
+  make it.
 
 - **Not yet:** 13.4, 13.8: the supplied retirement inventory has no outcome
   for the seven-model stock's largest-turn remeasurement or its affected

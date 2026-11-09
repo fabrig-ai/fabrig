@@ -71,8 +71,8 @@ or the nearest thing, and says so in that draft's status.
 | P3b | How work runs: What reaches you | `surfaces.md`, 7 | P3a, N1 | temper/ui | nice | not started |
 | P3c | How work runs: Rules by path, and the path's stops for a path set, "if core" and "one of you" | `surfaces.md`, 7; `what-reaches-you.md`, 7 | P3a, N2 | temper/ui | should | not started |
 | P3d | How work runs: What follows a landing, and a role's budget | `surfaces.md`, 7 | P3a, F1, R1 | temper/ui | nice | not started |
-| P3e | Words saved with a setting: a charter's line on Roles, How work runs' headline, a tier's description | `surfaces.md`, 7; its entry below | P3a | temper/ui | should | not started |
-| P3f | The path's "design" and "close-out", from what a goal's template says its coordinator does | `stock-ways.md`, 4; its entry below | P3a | temper/ui | should | not started |
+| P3e | Words saved with a setting: a charter's line on Roles, How work runs' headline, a tier's description | `surfaces.md`, 7; its entry below | P3a | temper/ui | should | in flight |
+| P3f | The path's "design" and "close-out", from what a goal's template says its coordinator does | `stock-ways.md`, 4; its entry below | P3a | temper/ui | should | done |
 | P4a | Team: its people, what waits on each, and the project's triager | `surfaces.md`, 6 | M0 | temper/ui | must | landed; its repair starts (section 5) |
 | P4b | Team: a role's card, but for "Talk to it" | `surfaces.md`, 6 | P4a, R1 | temper/ui | must | not started |
 | P4c | Team: areas and their owners, "Hand an area to a role" and "Talk to it" | `surfaces.md`, 6 | P4b, R2; R3 for "Talk to it" | temper/ui | nice | not started |
@@ -85,7 +85,7 @@ or the nearest thing, and says so in that draft's status.
 | N2 | Rules by path | `what-reaches-you.md`, 7 | N1 | temper/migration | must | not started |
 | N3a | Only you | `what-reaches-you.md`, 8 | N1 | temper/ui | nice | not started |
 | N3b | Being told: a push, a mail | `what-reaches-you.md`, 9 | N1 | temper/ui | must for a push, nice for a mail | not started |
-| N4 | A person's request for changes on the forge starts a repair with their remarks, as a blocking review's does | `../domain/forge.md`, 8.3; its entry below | | temper/migration | should | not started |
+| N4 | A person's request for changes on the forge starts a repair with their remarks, as a blocking review's does | `../domain/forge.md`, 8.3; its entry below | | temper/migration | should | done |
 | N5 | Who can still sign: the people a waiting sign-off can still come from, on its card | `what-reaches-you.md`, 7; its entry below | N2 | temper/ui | should | not started |
 | N6 | Sign-offs kept at landing: who signed, when and at which head, for Work, Team and the brief | `what-reaches-you.md`, 7; its entry below | N2 | temper/migration | nice | not started |
 | R1 | A standing role and its sessions | `standing-roles.md`, 2, 3, 5, 9 | | temper/migration | must | in flight |
@@ -290,7 +290,8 @@ P1's and P8's at 22:55Z, as P1 retired, and P2's, P5a's and P7's at
 23:32Z, as P2 retired, and P3a's and P3e's on 2026-11-09 at 00:10Z,
 as P3a's repair, `look-round-25`, retired, and P1's at 00:42Z, as
 `ui-away-all` retired, and P1's and P4a's at 01:02Z, as P4a retired,
-and P1's, P5a's and P5b's at 01:30Z, as P5a retired. Plans
+and P1's, P5a's and P5b's at 01:30Z, as P5a retired, and P3e's and
+P3f's at 02:25Z, as P3f retired. Plans
 land meanwhile, so read what a row waits on afresh before starting it.
 
 | | State | Waits on, and why |
@@ -300,7 +301,8 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | P2 | landed; its repair starts | `ui-p2-home` drew the byline across projects as this draft stood at its cut; a repair, or a look request, words it as section 3 now does and gives the phone's headline `phone-home.html`'s words (`surfaces.status.md`, 3); the launchpad's brief across projects is T1's repair, temper/tui's (`surfaces.status.md`, 11) |
 | P3a | landed; its repair starts | `ui-p3a-how` drew the path in lanes, and its repair, `look-round-25`, draws it as Ask temper's ways do, their agent's star and its rise in ink, and Roles; a second repair gives the drafter, in the stock since P6, its place among Roles (`surfaces.status.md`, 7) |
 | P3b, P3c, P3d | wait | N1, N2 or F1 and R1, by their needs |
-| P3e, P3f | start | |
+| P3e | in flight | `ui-p3e-words` |
+| P3f | done | |
 | P4a | landed; its repair starts | `ui-p4a-team` drew Team's people as this draft and `team/team.html` stood before its cut; a repair, or a look request, gives a box the role "Owner", People's head "owners of shop" and a line's count in words; the triager as Who routes, under the areas, is P4c's; a line's sign-offs wait on N2, N5 and N6 (`surfaces.status.md`, 6); its walk follows (`../client/README.md`, 11) |
 | P4b, P4c | wait | R1, then R2 and R3, by their needs |
 | P5a | landed; Tell temper waits | `ui-p5a-phone` drew the phone's tabs from one pure rule, "Needs" with its count and the Ask tab's tabs under Ask temper's page and its chats, Needs you's phone bar, and every target of the frame, Home, Needs you, Work and a chat's bar and composer at 44 px; its render check and walk follow landing (`../client/README.md`, 11). Tell temper is designed and drawn nowhere: it waits for the engine to file a person's word as a finding and for a setting naming the project's triager, which no milestone above builds, and follows as a milestone of its own once they land (temper/ui's answer to the plan's question `tell-temper-findings`; `surfaces.status.md`, 9) |
@@ -311,7 +313,7 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | N1 | in flight | `ui-reaches` |
 | N2 | waits | N1, by its needs |
 | N3a, N3b | wait | N1, by their needs |
-| N4 | starts | |
+| N4 | done | goal 147, PR #41 |
 | N5, N6 | wait | N2 |
 | R1 | in flight | goal 101 |
 | R2, R3 | wait | R1, by their needs |
@@ -326,5 +328,5 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | V2 to V5 | wait | V1, and each its needs in section 3 |
 
 - **Next to start:** P4a's repair, as temper/ui's places allow; P3a's
-  repair, P3e and P3f; P2's repair, then P7; T2, whose needs have landed: T1 by
+  repair; P2's repair, then P7; T2, whose needs have landed: T1 by
   `tui-whole-t1`, P6 by `ui-drafter`, and finding-465's repair.

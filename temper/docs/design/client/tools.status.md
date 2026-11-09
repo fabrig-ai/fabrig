@@ -1,6 +1,6 @@
 # tools: status
 
-2026-11-08. Remaining gaps between temper's code and [tools.md](tools.md).
+2026-11-09. Remaining gaps between temper's code and [tools.md](tools.md).
 
 Section 5.3's Ask temper start uses `chat start --template 5`, under
 charter 11, in the help and chat-template fixtures. The joined world
@@ -51,6 +51,14 @@ Section 5.3 also has the stored-policy refusal's supplied bytes and
 the JSON member is `stored_policy`. The refusal table holds charter 5,
 supplied 70112 and maximum 65536. Malformed parts still name no part
 in the engine's refusal, as the draft's status records.
+Section 5.3 has no known gap in a goal template's work: `settings show
+template-goal N [--revision R] [--json]` prints `design` and `close_out`,
+or with none "none kept", a settings file's `template-goal` item is
+read, proposed and applied, and a proposal card names it
+`template-goal N` (`temper-client-tools`' tables
+`forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_json`
+and `forge_setting_commands_print_removed_and_unset_values_and_preserve_refusals`;
+`tests/client`'s `each_kind_through_ctl_proposed_shown_accepted_and_restored`).
 
 Section 11.2's joined story of a settings file of each kind proposed,
 shown, accepted and restored (`tests/client`'s `settings_tools.rs`,
