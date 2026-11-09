@@ -8,7 +8,7 @@ marked, `/` opens the commands, Escape closes them, and a question sent
 to Ask temper opens a chat and receives the fake model's answer.
 
 - `01.html` and `01.txt`: the launchpad as drawn in Hello, its Start
-  commands `/change` and `/ask`, the "Ask for a change, or ask temper"
+  commands `/draft`, `/change` and `/ask`, the "Ask for a change, or ask temper"
   box and the project, model, effort and live link in the quiet line,
   marked by Alt+Shift+M. Home's facts have not answered at this mark,
   so the framed header has no headline yet.

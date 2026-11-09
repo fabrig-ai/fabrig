@@ -203,14 +203,24 @@ fn root(project: bool, picker: bool, chat: bool, delegate: bool, draft: bool, ef
 
 #[test]
 fn the_tui_offers_its_commands() {
-    use Command::{Chats, Close, Effort, Exit, Help, Model, New, Pause, StartOver};
+    use Command::{Chats, Close, Draft, Effort, Exit, Help, Model, New, Pause, StartOver};
     let words = f::words();
-    let mut failures = List::with_capacity(8);
+    let mut failures = List::with_capacity(9);
     for (name, project, picker, chat, delegate, draft, efforts, want) in [
         ("launchpad picker", true, true, false, false, false, true, &[Model, Effort, New, Chats, Help, Exit][..]),
         ("launchpad no efforts", true, true, false, false, false, false, &[Model, New, Chats, Help, Exit][..]),
         ("launchpad no picker", true, false, false, false, false, true, &[New, Chats, Help, Exit][..]),
         ("no project", false, false, false, false, false, true, &[Help, Exit][..]),
+        (
+            "chat writing",
+            true,
+            true,
+            true,
+            false,
+            false,
+            true,
+            &[Model, Effort, Draft, Pause, Close, New, Chats, Help, Exit][..],
+        ),
         ("chat", true, true, true, false, false, true, &[Model, Effort, Pause, Close, New, Chats, Help, Exit][..]),
         ("chat delegate", true, true, true, true, false, true, &[Model, Effort, Pause, New, Chats, Help, Exit][..]),
         (
@@ -221,7 +231,7 @@ fn the_tui_offers_its_commands() {
             false,
             true,
             true,
-            &[Model, Effort, Pause, Close, StartOver, New, Chats, Help, Exit][..],
+            &[Model, Effort, Draft, Pause, Close, StartOver, New, Chats, Help, Exit][..],
         ),
         (
             "chat draft delegate",
@@ -231,17 +241,26 @@ fn the_tui_offers_its_commands() {
             true,
             true,
             true,
-            &[Model, Effort, Pause, New, Chats, Help, Exit][..],
+            &[Model, Effort, Draft, Pause, New, Chats, Help, Exit][..],
         ),
     ] {
-        let root = root(project, picker, chat, delegate, draft, efforts);
+        let mut root = root(project, picker, chat, delegate, draft, efforts);
+        if name == "chat writing" {
+            f::event(
+                &mut root,
+                Event::Act {
+                    action: d::Action::Pages(d::pages::Act::Terminal(d::pages::terminal::Act::Run { command: Draft })),
+                },
+            );
+            assert!(root.pages().chat().unwrap().writing);
+        }
         let task = if let Some(chat) = root.pages().chat() { chat.task(root.client()) } else { None };
         if chat {
             assert!(temper_client_view::shared::offered(&root, task, Close), "{name}");
         }
         if draft {
             assert!(root.pages().chat().unwrap().draft.is_some());
-            assert!(temper_client_view::shared::offered(&root, task, Command::Draft));
+            assert!(temper_client_view::shared::offered(&root, task, Draft));
             assert!(temper_client_view::shared::offered(&root, task, Command::Font));
         }
         let found = crate::offered(&root, &words);
@@ -316,8 +335,8 @@ fn own_commands(words: &crate::words::Words) {
             true,
             false,
             &[
-                "/change", "/ask", "/model", "/effort", "/new", "/chats", "/brief", "/needs", "/open", "/theme",
-                "/help", "/quit",
+                "/draft", "/change", "/ask", "/model", "/effort", "/new", "/chats", "/brief", "/needs", "/open",
+                "/theme", "/help", "/quit",
             ][..],
         ),
         (
@@ -328,7 +347,7 @@ fn own_commands(words: &crate::words::Words) {
             false,
             true,
             false,
-            &["/change", "/ask", "/new", "/chats", "/open", "/theme", "/help", "/quit"][..],
+            &["/draft", "/change", "/ask", "/new", "/chats", "/open", "/theme", "/help", "/quit"][..],
         ),
         ("c prefix", true, true, "/c", false, true, false, &["/change", "/chats"][..]),
         ("b prefix", true, true, "/b", false, true, false, &["/brief"][..]),
@@ -353,7 +372,10 @@ fn own_commands(words: &crate::words::Words) {
             false,
             true,
             true,
-            &["/change", "/ask", "/new", "/chats", "/brief", "/needs", "/open", "/theme", "/help", "/log", "/quit"][..],
+            &[
+                "/draft", "/change", "/ask", "/new", "/chats", "/brief", "/needs", "/open", "/theme", "/help", "/log",
+                "/quit",
+            ][..],
         ),
     ] {
         let mut root = if name == "brief and need" {
@@ -387,6 +409,7 @@ fn own_commands(words: &crate::words::Words) {
         for (item, expected) in items.iter().zip(expected) {
             assert_eq!(item.name.as_ref(), expected.as_bytes(), "{name}");
             for (own, description) in [
+                (Own::Draft, "A design session that ends in a draft and a goal"),
                 (Own::Change, "One change, run as the project's way says"),
                 (Own::Ask, "Ask temper"),
                 (Own::Brief, "The brief, whole"),
@@ -429,7 +452,8 @@ fn own_commands(words: &crate::words::Words) {
         );
         if name == "brief and need" {
             for line in [
-                b"/change  One change, run as the project's way says".as_slice(),
+                b"/draft   A design session that ends in a draft and a goal".as_slice(),
+                b"/change  One change, run as the project's way says",
                 b"/ask     Ask temper",
                 b"/brief   The brief, whole",
                 b"/needs   Walk what needs you",

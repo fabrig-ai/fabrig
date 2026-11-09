@@ -25,6 +25,7 @@ mod notes;
 pub(crate) use notes::{Notes, draw_notes, read_notes};
 
 #[derive(Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "independent view facts read from the root, not a lifecycle")]
 pub(crate) struct Foot {
     pub rule: Option<Rule>,
     pub state: Box<[u8]>,
@@ -33,6 +34,7 @@ pub(crate) struct Foot {
     pub running: Option<Box<[u8]>>,
     pub project: Option<Box<[u8]>>,
     pub paused: bool,
+    pub session: bool,
     pub launchpad: bool,
     pub needs: Count,
     pub notice: Option<Box<[u8]>>,
@@ -95,6 +97,7 @@ fn state(tui: &Tui, root: &Domain) -> (Shared, Style) {
 }
 
 #[expect(clippy::manual_map, reason = "the step subset spells out optional wording without closures")]
+#[expect(clippy::too_many_lines, reason = "the foot and launchpad retain their existing section layout")]
 pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Foot {
     let (state, style) = state(tui, root);
     let chat = root.pages().chat();
@@ -115,6 +118,10 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Foot
     };
     let paused = match (task, root.pages().me(root.client())) {
         (Some(task), Some(me)) => chat::paused(&task.chip, me),
+        (Some(_), None) | (None, Some(_) | None) => false,
+    };
+    let session = match (task, root.pages().me(root.client())) {
+        (Some(task), Some(me)) => chats::drafting(me, task.project, &task.chip.executor),
         (Some(_), None) | (None, Some(_) | None) => false,
     };
     let ended = match task {
@@ -152,7 +159,11 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Foot
     };
     Foot {
         rule,
-        state: words.say(Word::State, &[Hole::Name(words.view().say(state, &[]))]),
+        state: if session && root.client().link().state == Link::Live {
+            Box::default()
+        } else {
+            words.say(Word::State, &[Hole::Name(words.view().say(state, &[]))])
+        },
         style,
         composer: if signing_in {
             None
@@ -175,6 +186,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Foot
         playground: front::playground(root, project),
         project: project_name(root, project),
         paused,
+        session,
         launchpad: chat.is_none(),
         needs: match project {
             Some(project) => root.pages().needs().count(root.client(), root.forge().approvals(), project),
@@ -275,7 +287,14 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
         }
         right_width = right_width.saturating_add(width(line));
     }
+    let drafter = words.say(Word::Drafter, &[]);
     let mut left_width = width(&part.state);
+    if part.session {
+        left_width = left_width.saturating_add(width(&drafter));
+        if !part.state.is_empty() {
+            left_width = left_width.saturating_add(width(&separator));
+        }
+    }
     if let Some(project) = &part.project {
         left_width = left_width.saturating_add(width(project)).saturating_add(width(&separator));
     }
@@ -302,11 +321,21 @@ fn quiet(b: &mut Builder, part: &Foot, words: &Words) {
         text(b, Role::Text, project, Some(look::HINT));
         text(b, Role::Text, &separator, Some(look::FAINT));
     }
+    if part.session {
+        text(b, Role::Text, &drafter, Some(look::HINT));
+        if closed || !part.state.is_empty() {
+            text(b, Role::Text, &separator, Some(look::FAINT));
+        }
+    }
     if closed {
         text(b, Role::Text, part.closed.as_deref().expect("closed line is present"), Some(look::HINT));
-        text(b, Role::Text, &separator, Some(look::FAINT));
+        if !part.state.is_empty() {
+            text(b, Role::Text, &separator, Some(look::FAINT));
+        }
     }
-    text(b, Role::Text, &part.state, Some(part.style));
+    if !part.state.is_empty() {
+        text(b, Role::Text, &part.state, Some(part.style));
+    }
     b.close();
     b.open(Role::Paragraph);
     if !narrow_notice {

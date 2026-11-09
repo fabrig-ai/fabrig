@@ -75,7 +75,11 @@ pub(super) fn root_state(
 ) -> Domain {
     let mut me = f::me(if project { &[b"Demo"] } else { &[] });
     if let Some(project) = me.projects.get_mut(0) {
-        project.templates = List::from_boxed(Box::new([template(1), template(5)]));
+        project.templates = List::from_boxed(Box::new([template(1), template(5), {
+            let mut draft = template(6);
+            draft.executor = c::TemplateExecutor::Charter(12);
+            draft
+        }]));
         if picker {
             project.defaults = List::from_boxed(Box::new([c::MeDefault {
                 template: d::pages::chats::ASKING_TEMPLATE,
@@ -104,8 +108,18 @@ pub(super) fn root_state(
             manage_usage: None,
         }]));
     }
-    let (mut root, _) = f::live(Some(me));
-    f::event(
+    let (mut root, me_watch) = f::starting();
+    f::client(&mut root, jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } });
+    let mut out = f::client(
+        &mut root,
+        jig_client::Event::Up {
+            up: jig_client::Up::Watched {
+                watch: me_watch,
+                event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
+            },
+        },
+    );
+    let mut looked = f::event(
         &mut root,
         Event::LookKept {
             look: d::pages::terminal::Look {
@@ -116,6 +130,9 @@ pub(super) fn root_state(
             },
         },
     );
+    while let Some(request) = looked.pop() {
+        out.push(request);
+    }
     let address = if chat {
         Address::Chat { task: 9 }
     } else if project {
@@ -123,7 +140,10 @@ pub(super) fn root_state(
     } else {
         Address::Inbox { filter: d::address::Filter::ALL }
     };
-    let mut out = f::event(&mut root, Event::Went { place: Place::Address(address) });
+    let mut went = f::event(&mut root, Event::Went { place: Place::Address(address) });
+    while let Some(request) = went.pop() {
+        out.push(request);
+    }
     if chat {
         let mut task_watch = None;
         for _ in 0..out.len() {
@@ -222,12 +242,45 @@ pub(super) fn root_state(
             }
         }
     }
+    if !chat {
+        while let Some(request) = out.pop() {
+            if let d::Request::Unlinked {
+                request:
+                    jig_client::UnlinkedRequest::Down {
+                        down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
+                    },
+            } = request
+                && f::ways_read(&record.bytes)
+            {
+                f::client(
+                    &mut root,
+                    jig_client::Event::Up {
+                        up: jig_client::Up::ReadDone {
+                            read,
+                            result: jig_client::Readout::Family {
+                                family: temper_client_protocol_wire::FORGE,
+                                record: Some(f::draft_setting(true)),
+                            },
+                        },
+                    },
+                );
+            }
+        }
+    }
+    if state == TaskState::SessionOffline {
+        f::client(
+            &mut root,
+            jig_client::Event::Up { up: jig_client::Up::WatchEnded { watch: me_watch, end: c::WatchEnd::Dropped } },
+        );
+    }
     root
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum TaskState {
     Idle,
+    Session,
+    SessionOffline,
     Ended,
     Result,
     Paused,
@@ -240,6 +293,9 @@ fn root(project: bool, picker: bool, chat: bool, delegate: bool, draft: bool) ->
 fn set_state(task: &mut c::Task, state: TaskState) {
     match state {
         TaskState::Idle => {}
+        TaskState::Session | TaskState::SessionOffline => {
+            task.chip.executor = c::ChipExecutor::Agent { charter: 12 };
+        }
         TaskState::Ended => {
             task.chip.details.phase = c::ChipPhase::Ended;
         }
@@ -293,7 +349,9 @@ fn draw(part: foot::Foot) -> crate::View {
             notes: foot::read_notes(&root, &Tui::new(f::ADDRESS), &f::words()),
         })
     } else {
-        view::Body::Launchpad(view::launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), f::NOW))
+        let mut launchpad = view::launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), f::NOW);
+        launchpad.drafts = true;
+        view::Body::Launchpad(launchpad)
     };
     let mut view = f::view();
     view::signed(&mut view, &view::Signed { body, foot: part }, &mut Queue::uncapped());
@@ -312,7 +370,7 @@ fn active_command_name_is_plain_weight() {
         let theme = crate::theme(scheme, None);
         let mut focus = Focus::default();
         let mut frame = Frame::new(size);
-        for active in [b"/change".as_slice(), b"/new"] {
+        for active in [b"/draft".as_slice(), b"/new"] {
             if active == b"/new" {
                 focus.active = Some(f::find(view.tree(), Role::MenuItem, active).id);
             }
@@ -354,7 +412,7 @@ fn command_paints(frame: &skein_ui_screen::Frame, active: &[u8], theme: &skein_u
             }
         }
     }
-    assert_eq!(commands, 10);
+    assert_eq!(commands, 11);
 }
 #[expect(clippy::disallowed_methods, reason = "test assertions search the rendered tree")]
 fn has(tree: &skein_ui::Tree, style: skein_ui::Style, words: &[u8]) -> bool {
@@ -636,6 +694,7 @@ fn notice_states() {
         let second = &tree.nodes()[f::index(tree, first.id).checked_add(usize::try_from(first.size).unwrap()).unwrap()];
         assert_eq!(first.role, Role::Status);
         assert_eq!(f::text(tree, first).as_ref(), left.as_bytes(), "{name}");
+
         assert_eq!(f::text(tree, second).as_ref(), right.as_bytes(), "{name}");
         assert!(has(tree, look::SIGNAL, phrase.as_bytes()), "{name}");
         assert!(!has(tree, look::SIGNAL, b"forgejo-3 restarting"), "{name}");
@@ -654,6 +713,7 @@ fn notice_states() {
     assert!(!has(draw(part).tree(), look::SIGNAL, b"Still signing in"));
 }
 #[expect(clippy::disallowed_methods, clippy::disallowed_types, reason = "quiet rows inspect their rendered parts")]
+#[expect(clippy::too_many_lines, reason = "one table checks quiet-line parts and width boundaries")]
 fn quiet_states() {
     let root = root(true, true, false, false, false);
     let words = f::words();
@@ -716,6 +776,18 @@ fn quiet_states() {
         ),
         ("medium", true, true, false, TaskState::Idle, 60, "Demo · Claude Opus 5.5 · high · ● Live", "1 needs you"),
         ("narrow", true, true, false, TaskState::Idle, 40, "Demo · ● Live", "1 needs you"),
+        ("session", true, true, true, TaskState::Session, 80, "Demo · drafter · Claude Opus 5.5 · high", "1 needs you"),
+        ("session narrow", true, true, true, TaskState::Session, 30, "Demo · drafter", "1 needs you"),
+        (
+            "session offline",
+            true,
+            true,
+            true,
+            TaskState::SessionOffline,
+            110,
+            "Demo · drafter · Claude Opus 5.5 · high · ● Offline",
+            "1 needs you",
+        ),
         ("chat", true, true, true, TaskState::Idle, 80, "Demo · Claude Opus 5.5 · high · ● Live", "1 needs you"),
         (
             "paused",
@@ -741,6 +813,11 @@ fn quiet_states() {
         let first = &tree.nodes()[f::index(tree, bottom.id).checked_add(1).unwrap()];
         let second = &tree.nodes()[f::index(tree, first.id).checked_add(usize::try_from(first.size).unwrap()).unwrap()];
         assert_eq!(f::text(tree, first).as_ref(), left.as_bytes(), "{name}");
+        assert_eq!(
+            has(tree, look::HINT, b"drafter"),
+            task == TaskState::Session || task == TaskState::SessionOffline,
+            "{name}"
+        );
         assert_eq!(f::text(tree, second).as_ref(), right.as_bytes(), "{name}");
     }
     front_quiet(&root, &words);
@@ -936,6 +1013,7 @@ fn note_states() {
     act(&mut root, d::pages::Act::Terminal(d::pages::terminal::Act::Font));
     let notes: foot::Notes = foot::read_notes(&root, &tui, &words);
     let want = [
+        "/draft   A design session that ends in a draft and a goal",
         "/change  One change, run as the project's way says",
         "/ask     Ask temper",
         "/model   Change the model, from the next turn",
@@ -980,8 +1058,8 @@ fn note_states() {
             exit = Some(index);
         }
     }
-    assert_eq!(log, Some(9));
-    assert_eq!(exit, Some(10));
+    assert_eq!(log, Some(10));
+    assert_eq!(exit, Some(11));
     assert!(notes.lines.iter().any(|line| line.as_ref() == b"Ctrl+C closes temper and stops the box"));
 }
 
@@ -1386,7 +1464,11 @@ pub(super) fn walk_root(choices: bool) -> Domain {
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) } => {
                 let mut me = f::me(&[b"Hello"]);
                 let project = me.projects.get_mut(0).unwrap();
-                project.templates = List::from_boxed(Box::new([template(1), template(5)]));
+                project.templates = List::from_boxed(Box::new([template(1), template(5), {
+                    let mut draft = template(6);
+                    draft.executor = c::TemplateExecutor::Charter(12);
+                    draft
+                }]));
                 project.models = List::from_boxed(Box::new([super::commands::model()]));
                 project.defaults = List::from_boxed(Box::new([c::MeDefault {
                     template: d::pages::chats::ASKING_TEMPLATE,
@@ -1495,6 +1577,17 @@ pub(super) fn walk_root(choices: bool) -> Domain {
                             &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Looked }).unwrap(),
                         ),
                     })),
+                }
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } }
+                if f::ways_read(&record.bytes) =>
+            {
+                Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Family {
+                        family: temper_client_protocol_wire::FORGE,
+                        record: Some(f::draft_setting(true)),
+                    },
                 }
             }
             jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Question { task, message }) } => {
