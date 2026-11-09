@@ -845,7 +845,7 @@ fn refused_answer_reason_reaches_operator_once() {
 /// A restored job claim uses the same fencing and channel as the run fixture.
 fn claimed_job() -> (crate::Service, temper_engine_domain::Assignment) {
     use temper_engine_domain::{Record, Write};
-    let (mut service, run) = fixtures::claimed_chat();
+    let (mut service, mut run) = fixtures::claimed_chat();
     let engine = service.engine.as_mut().unwrap();
     let mut task = engine.domain.tasks().task(run.task).unwrap().clone();
     task.executor = tasks::Executor::Job { kind: 3 };
@@ -884,13 +884,20 @@ fn claimed_job() -> (crate::Service, temper_engine_domain::Assignment) {
     assert!(domain.ready(), "stop {:?}, phase {:?}, proof {:?}", domain.start_stop(), domain.start_phase(), domain.core_missing_proof_link());
     let jig_protocol_engine_workers::host::Output::Hello { mut hello, .. } = hello_for_loss_notes(0) else { unreachable!() };
     hello.jobs = Box::new([crate::limits::merge_bound()]);
-    hello.hosting = Box::new([jig_domain_link::Hosting {
-        run: Token::new(run.task), attempt: Token::new(run.attempt), phase: jig_domain_link::Phase::Answered,
-    }]);
     restored.engine.as_mut().unwrap().step(temper_engine_domain::Event::Worker(temper_engine_domain::WorkerInput::Link {
         channel: Token::new(7), link: temper_engine_domain::Link::Hello { worker: 0, hello },
     }));
-    fixtures::settle_root(&mut restored, &mut skein_lib::Queue::uncapped());
+    let engine = restored.engine.as_mut().unwrap();
+    crate::engine::clock(engine, Time::from_nanos(2_000_000_000), skein_lib::Wall::from_nanos(2_000_000_000));
+    temper_engine_domain::fire(&mut engine.domain, &engine.env);
+    let mut delivered = skein_lib::Queue::uncapped();
+    fixtures::settle_root(&mut restored, &mut delivered);
+    let mut assigned = None;
+    while let Some(delivery) = delivered.pop() {
+        if let temper_engine_domain::Delivery::AssignedJob { job, .. } = delivery { assigned = Some(job); }
+    }
+    assert!(assigned.is_some(), "task {:?}, notes {:?}", restored.engine.as_ref().unwrap().domain.tasks().task(run.task), restored.engine.as_ref().unwrap().notes);
+    run.attempt = assigned.unwrap().attempt.raw();
     (restored, run)
 }
 
@@ -963,7 +970,7 @@ fn job_answer_evidence_reaches_operator_once() {
                         found += 1;
                     }
                 }
-                assert_eq!(found, u32::from(delivery == 0), "once per accepted job answer");
+                assert_eq!(found, u32::from(delivery == 0), "once per accepted job answer; task {:?}", service.engine.as_ref().unwrap().domain.tasks().task(run.task));
             }
         }
     }

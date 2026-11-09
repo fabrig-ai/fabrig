@@ -141,8 +141,28 @@ pub(crate) fn answer(domain: &mut Domain, run: Token, attempt: Token, payload: T
                 });
             }
             hub::Ending::Link(host::Ending::Ended { .. } | host::Ending::Parked { .. })
-            | hub::Ending::Scripted(_)
-            | hub::Ending::Job(_) => {}
+            | hub::Ending::Scripted(_) => {}
+            hub::Ending::Job(ending) => {
+                let ending = match ending {
+                    host::JobEnding::Failed { failure, detail, .. } => Some(crate::JobDiagnosticEnding::Failed {
+                        failure: *failure, detail: detail.clone(),
+                    }),
+                    host::JobEnding::Refused(reason) => Some(crate::JobDiagnosticEnding::Refused(reason.clone())),
+                    host::JobEnding::Finished { .. } => None,
+                };
+                if let Some(ending) = ending {
+                    let executor = domain.core.tasks.executor(*task).expect("an accepted answer has a task");
+                    let kind = match executor {
+                        tasks::Executor::Job { kind } => kind,
+                        tasks::Executor::Agent { .. } | tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) => {
+                            unreachable!("a job answer belongs to a job task")
+                        }
+                    };
+                    domain.run_diagnostics.jobs.push(crate::JobDiagnostic {
+                        task: *task, run: run.raw(), attempt: attempt.raw(), kind, ending,
+                    });
+                }
+            }
         }
     }
     if match domain.answer_parts.get(&payload) {
