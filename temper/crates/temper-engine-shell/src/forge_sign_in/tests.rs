@@ -1,10 +1,10 @@
 use super::make_missing;
-use crate::jig_directories;
 use crate::test_configuration as configuration;
 use std::{
     fs,
     os::unix::fs::{MetadataExt, PermissionsExt},
 };
+use temper_service_shell::jig_directories;
 
 #[test]
 fn credentials_are_private_whole_and_left_in_place_on_a_second_run() {

@@ -85,7 +85,7 @@ fn configuration(directories: &Directories) -> Result<temper_service::startup::S
     let agent = named
         .worker
         .as_ref()
-        .map(|worker| crate::agent::read(Path::new(std::ffi::OsStr::from_bytes(&worker.agent))))
+        .map(|worker| temper_worker_shell::agent::read(Path::new(std::ffi::OsStr::from_bytes(&worker.agent))))
         .transpose()?;
     let limits = temper_service::startup::store_limits(&bytes, &jig, agent.as_ref())
         .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?;

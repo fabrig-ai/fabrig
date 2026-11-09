@@ -110,7 +110,7 @@ person's row naming the first's, and the engine stops with that reason,
 `temper serve: restart refused during PHASE: RECORD links missing
 LINKED`, as for every link jig's start cannot make
 (`tests/engine/domain`'s `a_duplicate_person_identity_refuses_naming_both_rows`;
-`temper-engine-shell/src/serve/host.rs`, `start_failure`).
+`temper-service-shell/src/host.rs`, `start_failure`).
 
 ## Gaps and departures
 

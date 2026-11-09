@@ -462,7 +462,7 @@ fn reference_worker_bounds(room: &serde_json::Value) -> jig_domain_link::Bounds 
     }});
     let path = scratch.path().join("agent.json");
     std::fs::write(&path, serde_json::to_vec(&agent).expect("agent JSON")).expect("scratch agent");
-    crate::agent::read(&path).expect("stock worker with reference room").bounds
+    temper_worker_shell::agent::read(&path).expect("stock worker with reference room").bounds
 }
 
 #[test]

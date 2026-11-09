@@ -1,0 +1,48 @@
+[package]
+name = "temper-worker-shell"
+description = "The worker's half of a start and program-login, for the box and temper-worker (temper/docs/design/protocol/README.md, 4.5)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+temper-service = { workspace = true, features = ["worker"] }
+temper-service-shell.workspace = true
+temper-shell.workspace = true
+temper-version.workspace = true
+temper-launcher.workspace = true
+smith-agent-document.workspace = true
+smith-host-protocol.workspace = true
+smith-host-domain.workspace = true
+jig-domain-link.workspace = true
+jig-protocol-config.workspace = true
+temper-worker-domain.workspace = true
+skein-shell.workspace = true
+skein-io.workspace = true
+
+[dev-dependencies]
+skein-scratch.workspace = true
+serde_json.workspace = true
+skein-tls-kit.workspace = true
+jig-channel-kit.workspace = true
+temper-playground.workspace = true
+[lints.rust] # binary: tools/lints/design.md, 2.2
+unsafe_code = "forbid"
+elided_lifetimes_in_paths = "deny"
+unused_must_use = "deny"
+
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+wildcard_enum_match_arm = "deny"
+match_wildcard_for_single_variants = "deny"
+unwrap_used = "deny"
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"
+disallowed_types = "deny"
+disallowed_macros = "deny"
+disallowed_methods = "deny"
