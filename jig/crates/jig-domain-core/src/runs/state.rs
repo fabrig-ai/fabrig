@@ -1,4 +1,4 @@
-//! Live run and restart correlation held by the core (domain/engine.md, 3 and 7).
+//! Live run and restart correlation held by the core (domain/engine.md, 3 and 7.2).
 
 use crate::{CallKey, Core, RunChoice, TurnRecord};
 use alloc::boxed::Box;
@@ -28,6 +28,8 @@ pub struct Transcript {
     pub window: Option<(u64, u32)>,
     /// An upgrade closed the loaded window or crossed its claim.
     pub closed: bool,
+    /// A loaded turn was past its store page room (domain/engine.md, 7.2).
+    pub cut: bool,
     /// The preparation has received its final store page.
     pub loaded: bool,
     pub previous_attempt: u64,
@@ -234,6 +236,7 @@ impl Core {
                     Transcript {
                         window,
                         closed,
+                        cut: false,
                         loaded: false,
                         previous_attempt,
                         last: None,
@@ -258,6 +261,25 @@ impl Core {
     /// Text is UTF-8 supplied by the host protocol; `None` keeps an unreadable marker.
     #[must_use]
     pub fn append_transcript(&mut self, task: u64, turn: TurnRecord, text: Option<Box<[u8]>>) -> bool {
+        let length = len_u64(turn.transcript.len());
+        self.append_loaded_transcript(task, turn, text, length, false)
+    }
+
+    /// Admit a window turn's fields and length without its body, retaining its
+    /// fixed text in the tail and preventing resume (domain/engine.md, 7.2).
+    #[must_use]
+    pub fn append_cut_transcript(&mut self, task: u64, turn: TurnRecord, bytes: u64) -> bool {
+        self.append_loaded_transcript(task, turn, Some(Box::from(crate::CUT_TURN_TEXT)), bytes, true)
+    }
+
+    fn append_loaded_transcript(
+        &mut self,
+        task: u64,
+        turn: TurnRecord,
+        text: Option<Box<[u8]>>,
+        length: u64,
+        cut: bool,
+    ) -> bool {
         self.start_input();
         let transcript = self.transcripts.get_mut(&task).expect("load belongs to prepared task");
         if turn.task != task || turn.attempt > transcript.previous_attempt || turn.attempt == 0 || turn.turn == 0 {
@@ -274,13 +296,13 @@ impl Core {
         {
             return false;
         }
-        let length = len_u64(turn.transcript.len());
         let Some(framed) = length.checked_add(4) else { return false };
         let Some(total) = transcript.bytes.checked_add(framed) else { return false };
         transcript.bytes = total;
+        transcript.cut |= cut;
         transcript.last = Some((turn.attempt, turn.turn));
         transcript.append_text(text, self.settings.tail_bytes);
-        if transcript.closed {
+        if transcript.closed || transcript.cut {
             return true;
         }
         let bound = u64::from(self.settings.resume_bytes);
@@ -324,7 +346,8 @@ impl Core {
     /// Whether the current window exceeded the deployment's resume bound.
     #[must_use]
     pub fn transcript_oversized(&self, task: u64) -> bool {
-        self.transcripts.get(&task).expect("prepared transcript state").bytes > u64::from(self.settings.resume_bytes)
+        let transcript = self.transcripts.get(&task).expect("prepared transcript state");
+        transcript.cut || transcript.bytes > u64::from(self.settings.resume_bytes)
     }
 
     /// Select whole prior turns only while their cumulative bytes fit the
@@ -332,7 +355,7 @@ impl Core {
     #[must_use]
     pub fn resumed_turns(&self, transcript: Transcript) -> Box<[Box<[u8]>]> {
         let mut turns = List::with_capacity(transcript.turns.len());
-        if !transcript.closed && transcript.bytes <= u64::from(self.settings.resume_bytes) {
+        if !transcript.closed && !transcript.cut && transcript.bytes <= u64::from(self.settings.resume_bytes) {
             let mut kept = transcript.turns;
             for _ in 0..kept.len() {
                 turns.push(kept.pop().expect("counted transcript turn")).expect("bounded transcript turns");

@@ -98,7 +98,7 @@ fn read(world: &mut World, read: TranscriptRead, bytes: u32) -> Vec<Event> {
 }
 
 fn whole(events: &[Event], expected: &core::TurnRecord) {
-    let [Event::Turns { owner, turns, next: None }] = events else {
+    let [Event::Turns { owner, turns, next: None, cut: None }] = events else {
         panic!("one complete turn: {events:?}");
     };
     assert_eq!(*owner, READER);
@@ -121,7 +121,7 @@ fn snapshot_rows(world: &mut World) -> Restored {
 fn snapshot(world: &mut World, room: u32) -> Restored {
     let mut before = snapshot_rows(world);
     let events = read(world, TranscriptRead::Page { task: TASK, backwards: false, after: None }, room);
-    let [Event::Turns { owner, turns, next: None }] = events.as_slice() else {
+    let [Event::Turns { owner, turns, next: None, cut: None }] = events.as_slice() else {
         panic!("complete snapshot with ample decoded room: {events:?}");
     };
     assert_eq!(*owner, READER);

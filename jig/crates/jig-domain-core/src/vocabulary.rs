@@ -1473,7 +1473,18 @@ pub(crate) enum Work {
 /// The store transport's transcript answer (jig/docs/design/domain/engine.md, 4.1 and 7.2).
 #[derive(Hash, Debug)]
 pub enum TranscriptLoad {
-    Page { rows: Box<[crate::TranscriptRow]>, done: bool },
+    Page {
+        rows: Box<[crate::TranscriptRow]>,
+        done: bool,
+    },
+    /// A window's turn past its store page's room, alone in its page: its
+    /// fields, `turn.transcript` empty and its transcript's length
+    /// (jig/docs/design/domain/engine.md, 7.2).
+    Cut {
+        turn: crate::TurnRecord,
+        bytes: u64,
+        done: bool,
+    },
     Unread,
     Failed,
 }

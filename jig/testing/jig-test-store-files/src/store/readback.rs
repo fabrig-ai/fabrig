@@ -197,7 +197,7 @@ impl Store {
                 rows: self.component_limits.store.page.rows,
                 bytes: u64::from(self.component_limits.store.page.bytes),
             });
-            let Event::Turns { owner: READER, turns, next } = event else {
+            let Event::Turns { owner: READER, turns, next, cut: None } = event else {
                 panic!("complete transcript requires successful Turns: {event:?}")
             };
             assert!(turns.iter().all(|turn| turn.task == task), "transcript task agreement");

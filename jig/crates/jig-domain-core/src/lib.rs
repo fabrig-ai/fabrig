@@ -95,7 +95,7 @@ pub use crate::{
             PersonProposalRoute, PersonTaskRoute, RestoringProof, RoutedCall, RunAdmission, RunCharter, RunPolicy,
             Transcript, most_costly, reserve_floor,
         },
-        transcript_text::{TranscriptRow, TranscriptText},
+        transcript_text::{CUT_TURN_TEXT, TranscriptRow, TranscriptText},
     },
     settings::{
         charters::{Charter, CharterPart, Document},

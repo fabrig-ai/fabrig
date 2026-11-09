@@ -256,37 +256,7 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
                 }
             }
         }
-        Event::Turns { owner, turns, next } => {
-            let Some(Flight::Window { task, .. }) = routes.pending.get(&owner) else {
-                return;
-            };
-            let mut rows = List::with_capacity(u32::try_from(turns.len()).expect("bounded store page"));
-            for turn in turns {
-                let limits = jig_protocol_transcript::Limits::new(
-                    u32::try_from(turn.transcript.len()).expect("stored turn bound"),
-                    jig_protocol_transcript::TurnLimits {
-                        messages: u32::MAX,
-                        blocks: u32::MAX,
-                        text: u32::try_from(turn.transcript.len()).expect("stored turn bound"),
-                        outcome: u32::try_from(turn.transcript.len()).expect("stored turn bound"),
-                    },
-                );
-                let text = jig_protocol_transcript::brief_text(&limits, &turn.transcript).ok();
-                rows.push((turn, text)).expect("bounded store page");
-            }
-            into.push(Up::Root(root::Event::TranscriptLoaded {
-                task: *task,
-                rows: rows.into_boxed(),
-                done: next.is_none(),
-            }));
-            if let Some(after) = next {
-                if let Some(request) = transcript(routes, owner, Some(after)) {
-                    into.push(Up::Ask(request));
-                }
-            } else {
-                routes.pending.remove(&owner);
-            }
-        }
+        Event::Turns { owner, turns, next, cut } => window_loaded(routes, owner, turns, next, cut, into),
         Event::Unread { owner } => {
             if let Some(Flight::Window { task, .. }) = routes.pending.remove(&owner) {
                 into.push(Up::Root(root::Event::Core(core::Event::TranscriptLoaded {
@@ -313,6 +283,55 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
         | Event::SecretsLoaded { .. } => {}
     }
 }
+fn window_loaded(
+    routes: &mut Routes,
+    owner: Token,
+    turns: Box<[core::TurnRecord]>,
+    next: Option<u64>,
+    cut: Option<u32>,
+    into: &mut Queue<Up>,
+) {
+    let Some(Flight::Window { task, .. }) = routes.pending.get(&owner) else {
+        return;
+    };
+    if let Some(bytes) = cut {
+        let mut turns = turns.into_iter();
+        let turn = turns.next().expect("a cut page has one turn");
+        assert!(turns.next().is_none(), "a cut turn is alone in its page");
+        into.push(Up::Root(root::Event::Core(core::Event::TranscriptLoaded {
+            task: *task,
+            load: core::TranscriptLoad::Cut { turn, bytes: u64::from(bytes), done: next.is_none() },
+        })));
+    } else {
+        let mut rows = List::with_capacity(u32::try_from(turns.len()).expect("bounded store page"));
+        for turn in turns {
+            let limits = jig_protocol_transcript::Limits::new(
+                u32::try_from(turn.transcript.len()).expect("stored turn bound"),
+                jig_protocol_transcript::TurnLimits {
+                    messages: u32::MAX,
+                    blocks: u32::MAX,
+                    text: u32::try_from(turn.transcript.len()).expect("stored turn bound"),
+                    outcome: u32::try_from(turn.transcript.len()).expect("stored turn bound"),
+                },
+            );
+            let text = jig_protocol_transcript::brief_text(&limits, &turn.transcript).ok();
+            rows.push((turn, text)).expect("bounded store page");
+        }
+        into.push(Up::Root(root::Event::TranscriptLoaded {
+            task: *task,
+            rows: rows.into_boxed(),
+            done: next.is_none(),
+        }));
+    }
+    if let Some(after) = next {
+        if let Some(request) = transcript(routes, owner, Some(after)) {
+            into.push(Up::Ask(request));
+        }
+    } else {
+        routes.pending.remove(&owner);
+    }
+}
+
 fn switched(routes: &mut Routes, owner: Token, into: &mut Queue<Up>) {
     match routes.pending.remove(&owner) {
         Some(Flight::Start { phase: core::start::Phase::Switch, .. }) => {

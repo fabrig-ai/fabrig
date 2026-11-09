@@ -569,6 +569,10 @@ pub enum Event {
         owner: Token,
         turns: Box<[core::TurnRecord]>,
         next: Option<u64>,
+        /// A window's page whose one turn is past the read's room (store.md, 8.3):
+        /// `turns` holds that turn alone, its fields read and its `transcript`
+        /// empty, and this is its transcript's length.
+        cut: Option<u32>,
     },
     /// A transcript read failed: a frame's checksum, a window at another
     /// turn, a dropped transcript, or no complete turn fitting the direct
