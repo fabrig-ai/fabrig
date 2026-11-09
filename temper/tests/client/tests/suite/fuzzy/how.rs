@@ -1,4 +1,4 @@
-//! Parts follow their facts and drawings keep every stop
+//! Parts follow their facts, drawings keep every stop and columns keep every subject
 //! (temper/docs/design/client/README.md, 5.13; temper/docs/design/draft/surfaces.md, 12).
 use jig_client::contract::TemplateBudget;
 use skein_lib::{List, Rng};
@@ -6,18 +6,24 @@ use skein_ui::{Builder, Role};
 use std::{collections::BTreeSet, panic::catch_unwind};
 use temper_client_domain::{
     forge,
-    pages::how::{self, Budget, Facts, Head, Path, Read},
+    pages::how::{self, Budget, Facts, Head, Line, Path, Read},
 };
 use temper_client_protocol_wire::v1 as w;
 use temper_client_view::paths;
 use temper_client_world::fixtures;
+use temper_protocol_reaches::{
+    Class, Classes, ITEMS, Item, Kind, NAME_BYTES, PATTERNS, PathSet, SETS, Subject, WORDS_BYTES, Way,
+};
 
 // Match public_address's independently replayable 2,000 draws.
 const SEEDS: u64 = 2_000;
 // A draw follows sixteen settings moves, mixing each of the six moves below.
 const MOVES: u32 = 16;
-// Four reads, two Ask offerings, two Goals settings and five budget forms.
-const FACT_COMBINATIONS: usize = 4 * 2 * 2 * 5;
+// Four reads, two Ask offerings, two Goals settings, five budget forms,
+// two classes-read states and two project-count states.
+const FACT_COMBINATIONS: usize = 4 * 2 * 2 * 5 * 2 * 2;
+
+type Combination = (u8, bool, bool, u8, bool, bool);
 
 fn amount(rng: &mut Rng) -> u64 {
     match rng.below(3) {
@@ -55,8 +61,8 @@ fn facts(rng: &mut Rng) -> Facts {
         },
         goals: rng.chance(500),
         budget: budget(rng),
-        classes: false,
-        several: false,
+        classes: rng.chance(500),
+        several: rng.chance(500),
     }
 }
 
@@ -65,6 +71,8 @@ fn facts(rng: &mut Rng) -> Facts {
 fn check_parts(facts: &Facts, seed: u64, step: u32) {
     let shown = how::parts(facts);
     assert_eq!(shown.ask, facts.asking, "seed {seed}, step {step}, {facts:?}: Ask follows its template");
+    assert_eq!(shown.reaches, facts.classes, "seed {seed}, step {step}, {facts:?}: reaches follows its read");
+    assert_eq!(shown.several, facts.several, "seed {seed}, step {step}, {facts:?}: head follows project count");
     let (head, path) = match facts.read {
         Read::Reading => (Head::Reading, Path::Reading),
         Read::Ended => (Head::Reading, Path::Ended),
@@ -183,7 +191,7 @@ fn check_drawing(path: &w::BranchPath, bounds: &skein_ui::Limits, seed: u64, ste
     }
 }
 
-fn combination(facts: &Facts) -> (u8, bool, bool, u8) {
+fn combination(facts: &Facts) -> Combination {
     let read = match facts.read {
         Read::Reading => 0,
         Read::Ended => 1,
@@ -197,14 +205,14 @@ fn combination(facts: &Facts) -> (u8, bool, bool, u8) {
         Some(TemplateBudget::AsAllowed { cap: None }) => 3,
         Some(TemplateBudget::AsAllowed { cap: Some(_) }) => 4,
     };
-    (read, facts.asking, facts.goals, budget)
+    (read, facts.asking, facts.goals, budget, facts.classes, facts.several)
 }
 
 fn sweep(
     seed: u64,
     limits: &w::Limits,
     bounds: &skein_ui::Limits,
-    combinations: &mut BTreeSet<(u8, bool, bool, u8)>,
+    combinations: &mut BTreeSet<Combination>,
     lengths: &mut BTreeSet<u32>,
 ) {
     let mut rng = Rng::new(seed);
@@ -263,5 +271,224 @@ fn parts_and_drawing_follow_only_the_current_facts() {
         lengths,
         (0..=limits.branch_path_stops).collect(),
         "every path length, including empty and full, was drawn"
+    );
+}
+
+fn draw(rng: &mut Rng, bound: usize) -> usize {
+    usize::try_from(rng.below(u64::try_from(bound).expect("public table bound"))).expect("bounded draw")
+}
+
+fn random_class(rng: &mut Rng) -> Class {
+    match rng.below(3) {
+        0 => Class::Decide,
+        1 => Class::Ask,
+        _ => Class::AskAway,
+    }
+}
+
+fn pattern(rng: &mut Rng) -> Box<[u8]> {
+    let segments: [&[u8]; 5] = [b"src", b"docs", b"*", b"**", b"a*b"];
+    let first = segments[draw(rng, segments.len())];
+    let second = segments[draw(rng, segments.len())];
+    [first, second].join(&b'/').into_boxed_slice()
+}
+
+fn random_set(number: u8, rng: &mut Rng) -> PathSet {
+    PathSet {
+        number,
+        name: vec![b'n'; 1 + draw(rng, NAME_BYTES)].into_boxed_slice(),
+        patterns: (0..=draw(rng, PATTERNS)).map(|_| pattern(rng)).collect(),
+    }
+}
+
+fn random_subject(sets: &[PathSet], rng: &mut Rng) -> Subject {
+    let kinds: Vec<_> = Kind::ALL.into_iter().filter(|kind| !kind.fixed()).collect();
+    if !sets.is_empty() && rng.chance(500) {
+        Subject::Set(sets[draw(rng, sets.len())].number)
+    } else {
+        Subject::Kind(kinds[draw(rng, kinds.len())])
+    }
+}
+
+fn words_item(sets: &[PathSet], rng: &mut Rng) -> Item {
+    Item {
+        subject: random_subject(sets, rng),
+        words: vec![b'w'; 1 + draw(rng, WORDS_BYTES)].into_boxed_slice(),
+        class: random_class(rng),
+    }
+}
+
+fn random_table(rng: &mut Rng) -> Classes {
+    let mut numbers: Vec<_> = (1..=u8::try_from(SETS).expect("public set bound")).collect();
+    for index in 0..numbers.len() {
+        let other = draw(rng, numbers.len());
+        numbers.swap(index, other);
+    }
+    let sets: Vec<_> = numbers.into_iter().take(draw(rng, SETS + 1)).map(|number| random_set(number, rng)).collect();
+    // Whole subjects and uniform classes make empty columns and both homogeneous
+    // forms of Asks you ordinary draws, alongside missing own items and mixed classes.
+    let all_own = rng.chance(500);
+    let uniform = if rng.chance(500) { Some(random_class(rng)) } else { None };
+    let subjects = Kind::ALL
+        .into_iter()
+        .filter(|kind| !kind.fixed())
+        .map(Subject::Kind)
+        .chain(sets.iter().map(|set| Subject::Set(set.number)));
+    let mut items = Vec::new();
+    for subject in subjects {
+        if all_own || rng.chance(500) {
+            items.push(Item { subject, words: Box::default(), class: random_class(rng) });
+        }
+    }
+    for _ in 0..draw(rng, ITEMS - items.len() + 1) {
+        items.push(words_item(&sets, rng));
+    }
+    for index in 0..items.len() {
+        let other = draw(rng, items.len());
+        items.swap(index, other);
+    }
+    if let Some(class) = uniform {
+        for item in &mut items {
+            item.class = class;
+        }
+    }
+    Classes { items: items.into_boxed_slice(), sets: sets.into_boxed_slice() }
+}
+
+fn moved_table(classes: &Classes, rng: &mut Rng) -> Classes {
+    let mut items = classes.items.to_vec();
+    let mut sets = classes.sets.to_vec();
+    match rng.below(6) {
+        0 => {
+            let index = draw(rng, items.len());
+            if let Some(item) = items.get_mut(index) {
+                item.class = random_class(rng);
+            }
+        }
+        1 => items.push(words_item(&sets, rng)),
+        2 => {
+            let free: Vec<_> = (1..=u8::try_from(SETS).expect("public set bound"))
+                .filter(|number| !sets.iter().any(|set| set.number == *number))
+                .collect();
+            if let Some(number) = free.get(draw(rng, free.len())).copied() {
+                sets.push(random_set(number, rng));
+                if rng.chance(500) {
+                    items.push(Item { subject: Subject::Set(number), words: Box::default(), class: random_class(rng) });
+                }
+            }
+        }
+        3 => {
+            if !items.is_empty() {
+                let index = draw(rng, items.len());
+                items.remove(index);
+            }
+        }
+        4 => {
+            if !sets.is_empty() {
+                let index = draw(rng, sets.len());
+                let removed = sets.remove(index);
+                items.retain(|item| item.subject != Subject::Set(removed.number));
+            }
+        }
+        _ => {
+            return Classes::stock(match rng.below(3) {
+                0 => Way::YouApprove,
+                1 => Way::AgentsReview,
+                _ => Way::DraftFirst,
+            });
+        }
+    }
+    Classes { items: items.into_boxed_slice(), sets: sets.into_boxed_slice() }
+}
+
+// Build the settings order once (temper/docs/design/client/README.md, 5.13),
+// independently of reaches' per-column traversal. Item identity includes its
+// place: two rules with words may share a subject and still each need a line.
+fn settings_order(classes: &Classes) -> Vec<Line> {
+    let mut lines: Vec<_> = Kind::ALL
+        .into_iter()
+        .filter(|kind| !kind.fixed())
+        .map(|kind| {
+            let subject = Subject::Kind(kind);
+            let own = classes.items.iter().position(|item| item.subject == subject && item.words.is_empty());
+            own.map_or(Line { subject, item: 0, class: Class::AskAway }, |index| Line {
+                subject,
+                item: u8::try_from(index + 1).expect("checked item bound"),
+                class: classes.items[index].class,
+            })
+        })
+        .collect();
+    lines.extend(classes.items.iter().enumerate().filter_map(|(index, item)| {
+        let kind_own = match item.subject {
+            Subject::Kind(_) => item.words.is_empty(),
+            Subject::Set(_) => false,
+        };
+        (!kind_own).then_some(Line {
+            subject: item.subject,
+            item: u8::try_from(index + 1).expect("checked item bound"),
+            class: item.class,
+        })
+    }));
+    lines.extend(classes.sets.iter().filter_map(|set| {
+        let subject = Subject::Set(set.number);
+        let own = classes.items.iter().any(|item| item.subject == subject && item.words.is_empty());
+        (!own).then_some(Line { subject, item: 0, class: Class::AskAway })
+    }));
+    lines
+}
+
+#[derive(Default)]
+struct ReachesCoverage {
+    decide: BTreeSet<bool>,
+    // AskAway present, Ask present: includes the empty column.
+    ask: BTreeSet<(bool, bool)>,
+}
+
+fn check_reaches(classes: &Classes, seed: u64, step: u32, coverage: &mut ReachesCoverage) {
+    classes.check().expect("only checked tables reach the page");
+    let order = settings_order(classes);
+    let select = |class| order.iter().copied().filter(move |line| line.class == class);
+    let decide: Vec<_> = select(Class::Decide).collect();
+    let ask: Vec<_> = select(Class::AskAway).chain(select(Class::Ask)).collect();
+    let wait: Vec<_> = Kind::ALL
+        .into_iter()
+        .filter(|kind| kind.fixed())
+        .map(|kind| Line { subject: Subject::Kind(kind), item: 0, class: Class::Wait })
+        .collect();
+    let shown = how::reaches(classes);
+    assert_eq!(shown.decide.as_ref(), decide, "seed {seed}, step {step}, {classes:?}: Decide in settings order");
+    assert_eq!(shown.ask.as_ref(), ask, "seed {seed}, step {step}, {classes:?}: AskAway then Ask in settings order");
+    assert_eq!(shown.wait.as_ref(), wait, "seed {seed}, step {step}, {classes:?}: fixed kinds alone, in kit order");
+    coverage.decide.insert(!shown.decide.is_empty());
+    coverage.ask.insert((select(Class::AskAway).next().is_some(), select(Class::Ask).next().is_some()));
+}
+
+fn reaches_sweep(seed: u64, coverage: &mut ReachesCoverage) {
+    let mut rng = Rng::new(seed);
+    let mut classes = random_table(&mut rng);
+    check_reaches(&classes, seed, 0, coverage);
+    for step in 1..=MOVES {
+        let moved = moved_table(&classes, &mut rng);
+        if moved.check().is_ok() {
+            classes = moved;
+        }
+        check_reaches(&classes, seed, step, coverage);
+    }
+}
+
+#[test]
+fn what_reaches_you_places_each_subject_once() {
+    let mut coverage = ReachesCoverage::default();
+    for seed in 1..=SEEDS {
+        assert!(
+            catch_unwind(std::panic::AssertUnwindSafe(|| reaches_sweep(seed, &mut coverage))).is_ok(),
+            "seed {seed}: replay with reaches_sweep({seed})"
+        );
+    }
+    assert_eq!(coverage.decide, BTreeSet::from([false, true]), "with and without a Decide line");
+    assert_eq!(
+        coverage.ask,
+        BTreeSet::from([(false, false), (false, true), (true, false), (true, true)]),
+        "Asks you absent, all Ask, all AskAway and mixed"
     );
 }
