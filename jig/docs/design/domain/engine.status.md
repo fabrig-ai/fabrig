@@ -2,6 +2,50 @@
 
 2026-11-09. Where jig's code lags or departs from [engine.md](engine.md).
 
+Section 5.1 has no known gap in *Whole across families, through a kill*:
+the core world over its directory-backed store on the simulated disk,
+killed at each file operation of a decision that makes a task and the
+person task it links, of the one that saves a caller's `Person` row and
+of the one that saves the task it requested, then again at chosen
+operations of the restart and at each of the next decision's, starts to
+Open with the rows of a whole decision
+(`jig/tests/core`'s `faults::a_kill_at_each_file_operation_of_a_decision_starts_from_a_whole_one`;
+every restart operation under
+`fuzzy::faults::every_operation_of_a_restart_after_a_torn_decision_can_be_killed_again`).
+A snapshot racing commits and several commits in flight are proven in
+the store's world alone (`../protocol/store.status.md`, 14).
+
+Section 5.1 has no known gap in *Nothing links ahead of what it names*:
+seventeen routes that take a person's number from outside the core
+(a connector's batch, as executor, pool funder or requester; a party's
+and a procedure's batch, as executor; an agent's person task; a
+party's, a compound, an agent's, a proposed, a party's proposed, a
+procedure's and an application's amendment; a role's holding; a
+proposal's and an escalation's holder; a proposed batch's pool funder)
+write and link a held person and refuse one the people child lacks,
+each with its route's `Unknown`, before any child changes
+(`jig-domain-core/src/admission/batches.rs`, `amendments.rs`'s
+`amendment_person`, `proposals.rs`, `runs/delegation.rs`;
+`jig/tests/core`'s
+`named_people::a_person_named_from_outside_is_held_or_refused_and_the_start_links`,
+and the raw batch and amendment refusals in
+`tests/admission/named_people.rs`).
+
+Section 6 has no known gap in a link the start cannot make: the core's
+link pass, its projections and its census, and the people, tasks and
+accounts children's restore links each refuse as `Failure::Link`, the
+first found, with no commit and no sweep, and temper's shell prints it
+as `RECORD links missing LINKED` (`jig/tests/core`'s
+`start_links::a_store_that_fails_a_link_refuses_the_start_naming_both`;
+temper-engine-shell's
+`start_failures_name_the_set_key_setting_and_measured_limit`). A
+duplicate person's identity refuses as the second `Person` linking the
+first. `start/links.rs`'s `link_resource_projects` stays an assertion:
+it reads connectors' reports held in memory, which no stored row holds.
+A duplicate key, which the store's map cannot hold, also stays an
+assertion. temper's forge link still panics
+(`temper/docs/design/domain/root.status.md`, 9.1).
+
 Section 7.2's immutable failed run end retains the invalid-result kind
 computed for its attempt. No known gap remains in this field.
 

@@ -711,9 +711,11 @@ a kept GitHub forge whose base ends
 in `/` keeps remotes with two after the host, and a clients'
 listener off loopback is refused in every engine shape, where the
 design admits one with the printed link off
-(`protocol/configuration.md`). A duplicate person's identity panics
-at a start, which the user's request counts a bug
-(`domain/root.md`). The render check of `ready-account-email` on a real
+(`protocol/configuration.md`). A link jig's start cannot make, a
+duplicate person's identity among them, refuses the start naming the
+record and what it links to, but the forge's link of its restored
+records still panics (`domain/root.md`, `domain/forge.md`,
+`protocol/README.md`). The render check of `ready-account-email` on a real
 sign-in and a real Claude Code login follows landing, owned by temper/ui
 (`client/README.md`, section 11). Ready draws no words for a
 sign-in made with no model usable, which has none yet, or for an

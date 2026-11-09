@@ -57,6 +57,14 @@ Whether room was why about 23 briefs failed on their windows after a
 deployment's restart on 2026-11-08 is unproven: its evidence is outside
 the repository. A window's later page is below.
 
+Section 12 has no known gap in a duplicate person's identity: a store
+holding one refuses the start as jig's `Failure::Link`, the second
+person's row naming the first's, and the engine stops with that reason,
+`temper serve: restart refused during PHASE: RECORD links missing
+LINKED`, as for every link jig's start cannot make
+(`tests/engine/domain`'s `a_duplicate_person_identity_refuses_naming_both_rows`;
+`temper-engine-shell/src/serve/host.rs`, `start_failure`).
+
 ## Gaps and departures
 
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
@@ -85,18 +93,18 @@ the repository. A window's later page is below.
   slot its previous page held stays taken until the iteration's reclaim,
   so a window past one page, loading beside another load, can spend a
   transient try on room; no story shows whether one does.
+- **Not yet:** 9.1: the forge's link of its restored records panics at
+  the first it cannot make, `forge link KIND -> NEED for KEY`, where
+  step 3 refuses the start naming the record and what it links to, as
+  jig's children's do
+  (`temper-engine-domain-forge/src/reconcile.rs`, `reconcile`;
+  `missing_link` already finds the link). The request
+  `store-crash-safe` of 2026-11-09 asks that a store failing a link
+  check at start stop with a reason, not a panic; its plan built that
+  in jig alone.
 - **Not yet:** 10: the settings-answer bound must include temper's declared
   application kinds, because `temper-engine-domain/src/limits.rs`, `valid`,
   passes an empty kinds slice to the core's `reads::answer_bound`, while
   `decision.rs`, `host_within`, relies on that bound for settings output
   held before its commit. The application settings' contribution is omitted;
   no reason is recorded.
-- **Departs:** 12: a duplicate person's identity panics at its link,
-  naming its row (`jig-domain-people/src/domain/start.rs`, `fits`;
-  `tests/engine/domain/tests/suite/root_routes.rs`,
-  `a_duplicate_person_identity_panics_at_its_link_naming_its_row`),
-  where the user's request of 11-04 counts that panic a bug, because
-  `jig/docs/design/domain/engine.md`, 6 has a start judge no record and
-  panic at a link it cannot make (the user, 10-28). Which holds is the
-  user's, unanswered (that document's section 16).
-

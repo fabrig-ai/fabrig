@@ -933,7 +933,8 @@ each step the core asks for:
 3. **The forge's records,** `Range::Forge`, a page at a time; then the
    forge links them, judging none: a record whose forge, repository or
    task the restart does not hold is a writer's bug, and its link
-   panics, as jig's children's do (jig's `domain/engine.md`, section 6).
+   refuses the start, naming the record and what it links to, as jig's
+   children's do (jig's `domain/engine.md`, section 6).
    Before them, the forge loads its kinds' values from its family
    `Setting`, is given temper's stock defaults, and tells the core which
    differ (5.6). Once both are loaded, the root hands the forge the
