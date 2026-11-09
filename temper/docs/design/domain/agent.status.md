@@ -2,6 +2,23 @@
 
 2026-11-09. Where temper's code lags or departs from [agent.md](agent.md).
 
+Sections 4.3's `decided`, 8.1 and 8.4.1 have no known implementation gap
+but the one below in what reaches a person, the whole story's milestone
+N1, by plan `ui-reaches`: the tool takes the ten kinds, `paths` and
+`under`, its Ask names the reach in 4.3's words, a call from a task
+whose question reaches no person is answered "no person is asked
+through you: ask your requester", and the stock charters tell a goal and
+a chat to call it before asking the person, a goal under `Asks: always`
+too; a run's `settings`, `see settings project-classes` and
+`propose_settings` name kind 8 (`temper-engine-smith`'s
+`tests/decided.rs` and `tests/settings.rs`; the engine world's
+`each_callers_person_and_reach_are_kept`).
+
+- **Not yet:** 4.3: the stock charters (`chat.txt`, `coordinator.md`)
+  say sign-ins, machines and a plan's go-ahead always wait but name no
+  kind for them, where this section has them `money` or `irreversible`;
+  a call naming them `other` waits all the same.
+
 Section 4.3.1 has no known implementation gap in whole-goal child isolation:
 words-only calls and batch members use the nearest held goal branch,
 including callers in its subtree; an explicit destination outside it is

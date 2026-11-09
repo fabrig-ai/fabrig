@@ -261,7 +261,24 @@ the render check and walk follow landing. Tell temper is designed and
 not built, waiting for the engine to file a person's word as a finding
 and for a setting naming the project's triager (`client/README.md`, 3.5,
 5.3 and 11; `client/README.status.md`, 3.5; `client/browser.status.md`,
-2.5; `draft/surfaces.status.md`, 9, 10 and 14). Ask temper's
+2.5; `draft/surfaces.status.md`, 9, 10 and 14). What reaches a person is
+the whole story's milestone N1, by plan `ui-reaches`: kind 8, a
+project's classes, judged by one pure crate, `temper-protocol-reaches`,
+with a fuzz test, its stock Agents review's table and each stock way
+setting its own, read, proposed and set through ctl, settings files and
+a run's tools; `decided` for any task whose question would reach a
+person, judged by the classes, the person's Away and `Asks: always`,
+each call kept as a row, decided or asked, for 7 days under
+`forge.decided_per_project`; Away without kinds, shown by the classes;
+Decided for you on Home and Needs you, each row saying what allowed it;
+each need's why, Stop asking and Keep asking; and kind 7 without
+`away`. The joint world walks it on Agents review's table. A standing
+role's case waits for R1 and an asker's change's paths for N2; the TUI
+draws no why; Needs you's Decided head, a words offer's order and
+Home's spell with no row showing lag the design; its render check and
+walk follow landing (`domain/forge.status.md`;
+`client/README.status.md`, 3.5; `draft/what-reaches-you.status.md`;
+`draft/surfaces.status.md`, 4). Ask temper's
 first milestone stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
 the instructions' first step of Showing. Charter 3, template 3, `Configure`
@@ -729,7 +746,7 @@ leaves out (`client/README.md`). Home says what changed since the person
 last looked and the status agent is built, but a stock project's room is
 no brief's own, the reference names no charter 9, and a project's first run
 counts its span from the epoch (`domain/forge.md`,
-`protocol/configuration.md`). The Away switch, a goal's
+`protocol/configuration.md`). The Away switch,
 `decided`, Home's away form, Overturn and Settings' section are built, but the
 switch still offers its act with its watch refused or ended, an Overturn or its
 message gone astray reads as overturned already or as ended, where a live task

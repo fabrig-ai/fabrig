@@ -20,8 +20,7 @@
   - 3: `../client/README.md`, 3.5, *Home on All projects*, has no owners'
     Now on a project's row, no tiers, follow's parity or "owned" chip, and
     no What follows what; its Decided for you rows name the task, not who
-    decided, and its cards, as a project's Home's, have no why and name no
-    asker (4). Its byline says "Written by the status agent at 07:52",
+    decided, and its cards, as a project's Home's, name no asker (4). Its byline says "Written by the status agent at 07:52",
     where this section, redrawn after the plan `ui-p2-home` was cut, says
     "Each project's brief, its first line · the newest, vsr's, by the
     status agent at 07:52"; and on a phone its headline is the wide
@@ -29,11 +28,15 @@
     `phone-home.html` says "31 changes landed.". `../domain/forge.md`,
     5.7, has the status agent write a project's brief from what the
     engine keeps, not from owners' Nows.
-  - 4: `../client/README.md`, 3.5, *Needs you*, has no why, no "Stop
-    asking" or "Keep asking", no "What reaches you" lede, no Only you,
-    and no terminal command to talk a need
+  - 4: `../client/README.md`, 3.5, *Needs you*, has no "What reaches
+    you" lede, no Only you, and no terminal command to talk a need
     through; its from line names no goal, role or asker; an approval's
     card is `forge-identity.md`, section 8's, not yet a sign-off by path.
+    A need's why ends with "Stop asking" alone, which opens the offers
+    and "Keep asking" under the line (*Why it reached you*, *Stop
+    asking*), where this section and `needs.html` put "Keep asking" and
+    the narrower rule, "Stop asking: let goals decide …", on the line
+    itself; and a path set's why names the set, not its paths.
   - 6: `../client/README.md`, 3.5, *Team*, holds a project's people and
     what waits on each, and the project's triager once a setting names
     one; no design holds a project's areas, an area's owner, a person's
@@ -104,17 +107,18 @@
     one pure function (*Its parts*), as 5.3, *The rail's parts*, does the
     rail's and the tab bar's, Team's among them, and 3.5, *Work*, Work's,
     kind 7's Goals and Changes hiding its filters; Team's page decides its
-    parts by one pure function too (3.5, *Team*, *Its parts*); 3.5, *Away*,
-    shows Away by `Domain::away_shown`, not by the project's classes, and
-    Decided for you by goals' rows alone.
+    parts by one pure function too (3.5, *Team*, *Its parts*); and 3.5,
+    *Away*, shows Away by the project's classes in its own function,
+    `Domain::away_shown`, outside *A page's parts*.
   - 13: `../client/greenfield/README.md` names the whole story's
     mockups, and `../client/mockups/README.md`,
     section 1, not at all; and no design marks who acts on the chips,
     as the path's marks are (`../client/README.md`, 5.16).
   - 14: `../client/browser.md`, section 7, holds Home's and Needs you's
     states, but for a red "owned", a project's Home at the standing
-    roles' step, a need with its why and its offer, and Only you, which
-    nothing draws yet (3 and 4); 7.2 holds How work runs under each stock
+    roles' step and Only you, which nothing draws yet (3 and 4), a need's
+    why and its offers being `needs-why`'s, `needs-stop-asking`'s and
+    `needs-stop-asking-set`'s; 7.2 holds How work runs under each stock
     way and its own, a stop's card and night (`how` to `night-how`), with no rule by path
     or follow, and the rail, Work at Pair and with drafts first, and
     Deployment's Members and Limits (`rail-new-change` to `night-limits`);
