@@ -13,11 +13,13 @@ records, so a store like it stops with a reason.
 | Part | Task | Needs | Trees | Request item |
 |---|---|---|---|---|
 | `link-refusal` | `tasks/link-refusal.md` | | jig, temper (a reason's words, required arms) | 2 (a refusal, not a panic) |
+| `crash-rows` | `tasks/crash-rows.md` | | jig (skein if a row shows it) | 1 (the failing story), 2 (the fix, if a kill is the cause) |
+| `writer-rows` | `tasks/writer-rows.md` | `link-refusal` | jig | 2 (the fix, if a writer is the cause) |
 
-Batches still to come in this cut: `crash-rows` (item 1, and item 2's
-fix if a kill is the cause) and `writer-rows` (item 2's fix if a writer
-is the cause). Item 3 is dropped to `worker-relinks`; item 4 is this
-cut's own writing.
+Three tasks, within the request's four. Item 3 is dropped to
+`worker-relinks` (below); item 4 is this cut's own writing.
+`writer-rows` waits for `link-refusal` because both write
+`jig-domain-core` and its rows read the refusal.
 
 ## Design written by this cut
 
@@ -83,4 +85,8 @@ cut's own writing.
 
 ## Critical path
 
-`link-refusal` (150 minutes) alone so far.
+`link-refusal` (150 minutes), then `writer-rows` (180): about 5.5 hours.
+`crash-rows` (240) runs beside them from the start. A row that rules a
+candidate in adds its fix to its own task; one that rules both out
+leaves `link-refusal` standing as the request's guard and the cause
+unknown, which the report then says.
