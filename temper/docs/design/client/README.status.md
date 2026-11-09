@@ -1,6 +1,6 @@
 # README: status
 
-2026-11-08. Where temper's code lags or departs from [README.md](README.md).
+2026-11-09. Where temper's code lags or departs from [README.md](README.md).
 
 Sections 3.5 and 5.3 have the two-step To begin, repository first,
 the two-count facts and notes, and restricted navigation on Home and
@@ -110,29 +110,45 @@ state draws the two pages (`browser.status.md`, 7.3). The repairs'
 render check and the pages' walk remain section 11's after-landing
 work.
 
+Sections 4.6, 5.13 and 5.16 have no known gap but the departure below
+in `look-round-25`'s repairs of `ask-temper-ways` and of How work runs:
+the wire's `PathStep` holds `conflict` and `catch_up` and no `update`,
+its `Stop` `needed` and `over`, and `View` `roles`, a card a role,
+which a reply draws; a stop made only when needed is drawn outlined, its
+small words over its own, and the fallback says ", when needed" and the
+small words in brackets; who acts is the mark alone, an agent's star
+and its rises in ink, a person's ring and its rises the signal's,
+code's square grey, each rise a fade of skein's (skein's `ui.md`,
+11.2), the legend with an agent when needed; and in a box under 360 the
+narrow path is a scene 360 wide scaled to the box, as the request's
+picture is. How work runs draws its path with Ask temper's drawing,
+legend, tabs, card and act, shared in the view's `pages/ways.rs`, and
+Roles, a disclosure a role of the view `roles`, read as the page opens
+and again at a newer revision. The view's `tests/ask.rs`, `tests/how.rs`
+and `tests/views.rs`, the fuzzy suite's
+`parts_and_drawing_follow_only_the_current_facts` and the gallery's
+`ask-ways-*` and `how` to `night-how` hold them. Their render check and
+the page's walk remain section 11's after-landing work.
+
 - **Departs:** 5.13: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and
   one description (`skein/docs/design/ui.md`, *A disclosure*); the
   right-hand model waits for a structured summary in skein.
 
-How work runs has plan `ui-p3a-how`'s implementation, with the role summary
-departure above (3.5, *Settings and Deployment*, 4.6 and 5.13):
-`pages::how::parts`, of what `pages::how::facts` gathers, decides the
-heading's way, "Ask temper to change this", the path section's state and
-Budgets' row, and `pages::how::lanes` places each stop once in its
-actor's lane and a bar in none. `Settings { project }` watches the
-project's `ways` as Ask temper's page does, `Act::WayTab` and
-`Act::WayStop` heard on either, and the view's `pages/ways.rs` draws
-both pages' tabs, card, act and refusal. The page names the way, or "A
-way of its own", with its line, draws the path in lanes under the
-authority row, a goal's amount or cap, What needs you and Away, and the
-switches at its foot; the disabled Status, Funds and Telling you rows
-are gone. The domain's and the view's tables, the fuzzy suite's
-`parts_and_lanes_follow_only_the_current_facts`, the joint world's
-`the_three_ways_draw_ci_and_tiers_or_neither` and the gallery's `how`
-to `night-how` hold it, and the text shell's `settings.txt` golden and
-the `chat-draft` journey are reprinted with it. The page's render check
-and walk remain section 11's after-landing work.
+How work runs has plan `ui-p3a-how`'s implementation, with
+`look-round-25`'s drawing and Roles above (3.5, *Settings and
+Deployment*, 4.6 and 5.13): `pages::how::parts`, of what
+`pages::how::facts` gathers, decides the heading's way, "Ask temper to
+change this", the path section's state, Roles' state and Budgets' row.
+`Settings { project }` watches the project's `ways` as Ask temper's page
+does, `Act::WayTab` and `Act::WayStop` heard on either. The page names
+the way, or "A way of its own", with its line, draws the path, Roles, a
+goal's amount or cap, What needs you and Away, and the switches at its
+foot; the disabled Status, Funds and Telling you rows are gone. The
+domain's and the view's tables, the joint world's
+`the_three_ways_draw_ci_and_tiers_or_neither` and the text shell's
+`settings.txt` golden hold it. The page's render check and walk remain
+section 11's after-landing work.
 
 Sections 3.5, *Work*, *Goals*, *Changes* and *Settings and Deployment*,
 and 5.3, *The rail*, *The rail's parts*, *Projects in the rail* and *All
