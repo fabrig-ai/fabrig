@@ -1,6 +1,7 @@
 //! Scripted Ask temper and settings-family chats through the root and jig's store
 //! (temper/docs/design/domain/testing.md, 6.4; temper/docs/design/domain/agent.md, 8.4).
 mod asking_forge;
+mod asking_person;
 mod asking_proposal;
 mod fixture;
 use fixture::*;
