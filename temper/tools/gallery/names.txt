@@ -240,6 +240,7 @@ how
 how-approve
 how-card
 how-draft
+how-reaches
 how-yours
 inbox-empty
 inbox-reference
@@ -285,6 +286,7 @@ night-ask
 night-chat-split
 night-home
 night-how
+night-how-reaches
 night-limits
 night-needs
 night-needs-only-you
@@ -317,8 +319,6 @@ repositories-making
 repositories-none
 settings
 settings-all-hidden
-settings-away
-settings-away-you-approve
 settings-changes-off
 settings-chat-open
 settings-drafts-off

@@ -1904,8 +1904,7 @@ fn opening_rename_takes_focus_from_the_limits_heading() {
             let limits = crate::Limits::of(&fixtures::domain_limits(), &words).unwrap();
             let mut view = crate::View::new(&limits, &fixtures::domain_limits(), words, fixtures::FORGE);
             fixtures::build(&mut view, &root);
-            let heading =
-                switcher_node(&view, Role::Heading { level: 2 }, "While you’re away, agents may decide".as_bytes());
+            let heading = switcher_node(&view, Role::Heading { level: 2 }, "What reaches you".as_bytes());
             assert_eq!(heading.focus, if renaming { None } else { Some(1) });
             if renaming {
                 assert_eq!(switcher_node(&view, Role::TextField, b"Rename").focus, Some(0));

@@ -953,7 +953,7 @@ pub(crate) fn class_objects(
     }
     comma_join(objects.as_slice())
 }
-fn comma_join(objects: &[Box<[u8]>]) -> Box<[u8]> {
+pub(crate) fn comma_join(objects: &[Box<[u8]>]) -> Box<[u8]> {
     let mut length = 0_usize;
     for (index, object) in objects.iter().enumerate() {
         if index != 0 {

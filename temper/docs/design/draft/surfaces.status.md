@@ -59,9 +59,9 @@
     which waits for rules by path; and `../domain/forge.md`, 8.13, *The
     project's roles*, gives the drafter no place among Roles, though the
     stock holds it and template 6 starts it since P6, which landed
-    after the cut of `look-round-25`. What reaches you, Rules by path,
+    after the cut of `look-round-25`. Rules by path,
     What follows a landing and a role's budget wait for their milestones (`whole-story.execution.md`,
-    section 3, P3b to P3d). What a role does, past when it runs, is kept
+    section 3, P3c and P3d). What a role does, past when it runs, is kept
     since P3e, a charter's words (`../protocol/configuration.md`, 13.2,
     kind 9), but no design says it on Roles: the view `roles` carries no
     such fact, and `../domain/forge.md`, section 20, *A role's words on
@@ -180,6 +180,17 @@
     close-out's own charter is an open question
     (`../domain/forge.md`, section 20). Decided by the cut of
     `ui-p3f-design`.
+  - 7 and 13: `../client/README.md`, 5.13, *What reaches you*, draws a
+    project's classes alone, in `how.html`'s words, where `pair/how.html`
+    and `team/how.html` put a landing rule's approvals and a change's
+    questions under "Asks you", "Asks one of you" on `team/how.html`, and
+    an agent's own choices, "repairs after a red check", under "Agents
+    decide", which no class holds: an approval is the path's stop and
+    Rules by path's (P3c of `whole-story.execution.md`), and a change's
+    question route is the section's row. It also lists `other`, "anything
+    an agent can’t place", under "Always waits for you", which no mockup
+    lists, because the classes hold it and it always waits. Decided by
+    the cut of `ui-p3b-reaches`: the page draws what the engine holds.
   - 11.1 and 11.4, the user's requests of 2026-11-09 (plan
     `tui-box-polish`): the quiet line holds, at its right end, a
     one-line notice for 6 seconds over the rest of its right half; and

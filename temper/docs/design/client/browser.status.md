@@ -126,7 +126,7 @@ small words `--gf-faint`; and each rise's fade colours its stops by the
 with them.
 
 Sections 2.5, *How work runs' look*, and 7.2 have no known
-implementation gap but the departure above: `temper.css`'s `/* ==== ui:
+implementation gap but the departure above and the entries below: `temper.css`'s `/* ==== ui:
 how ==== */`, after the ways' rules, holds the wide column, the
 section's head and "the way: NAME", Roles' rows and terms, and Budgets'
 row, by day and by night; the path is Ask temper's drawing under its own
