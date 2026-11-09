@@ -37,15 +37,70 @@ pub enum Event {
     Close,
     Abort,
 }
+/// Why a worker's connection ended (protocol/channel.md, 9 and 10.2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Loss {
+    /// Nothing heard for the silence deadline.
+    Silence,
+    /// Output queued with no frame drained for the stall deadline.
+    Stall,
+    /// The output cap filled.
+    Full,
+    /// The opening's handshake or the hello did not come within its deadline.
+    Deadline,
+    /// The stream ended or failed.
+    Stream,
+    /// A frame that does not parse, or a record that does not decode or
+    /// comes outside its phase.
+    Framing,
+    /// Refused here, with the reason sent: jig's (`jig_protocol_worker_wire::Reason`),
+    /// or skein's channel's (2, limits; 3, framing).
+    Refused { reason: u16 },
+    /// The worker refused, with its reason.
+    RefusedPeer { reason: u16 },
+    /// No room for another connection: turned away at its accept.
+    NoRoom,
+    /// The engine closed it, stopping.
+    Stopping,
+}
 pub enum Request {
-    Take { connection: Token },
-    TurnAway { connection: Token },
-    Lower { connection: Token, lower: Lower },
-    Close { connection: Token },
-    Abort { connection: Token },
-    Hello { channel: Token, worker: u32, hello: jig_domain_link::Hello },
-    Up { channel: Token, up: host::LinkUp, parts: Box<[Part]> },
-    Lost { channel: Token },
+    Take {
+        connection: Token,
+    },
+    TurnAway {
+        connection: Token,
+    },
+    Lower {
+        connection: Token,
+        lower: Lower,
+    },
+    Close {
+        connection: Token,
+    },
+    Abort {
+        connection: Token,
+    },
+    Hello {
+        channel: Token,
+        worker: u32,
+        hello: jig_domain_link::Hello,
+    },
+    Up {
+        channel: Token,
+        up: host::LinkUp,
+        parts: Box<[Part]>,
+    },
+    Lost {
+        channel: Token,
+    },
+    /// Once per accepted connection, when it ends, whatever ended it: the
+    /// worker it authenticated as, the channel its hello opened, and why.
+    Ended {
+        connection: Token,
+        worker: Option<u32>,
+        channel: Option<Token>,
+        why: Loss,
+    },
     Closed,
 }
 impl core::fmt::Debug for Event {
@@ -84,6 +139,9 @@ impl core::fmt::Debug for Request {
             Self::Hello { channel, worker, .. } => f.debug_tuple("Hello").field(channel).field(worker).finish(),
             Self::Up { channel, parts, .. } => f.debug_tuple("Up").field(channel).field(&parts.len()).finish(),
             Self::Lost { channel } => f.debug_tuple("Lost").field(channel).finish(),
+            Self::Ended { connection, worker, channel, why } => {
+                f.debug_tuple("Ended").field(connection).field(worker).field(channel).field(why).finish()
+            }
             Self::Closed => f.write_str("Closed"),
         }
     }

@@ -9,7 +9,7 @@ pub mod host;
 pub mod limits;
 mod opening;
 mod translate;
-pub use boundary::{Event, GrantValue, Request, Scheme, Worker};
+pub use boundary::{Event, GrantValue, Loss, Request, Scheme, Worker};
 pub use component::{Component, Unusable};
 pub use limits::{Limits, valid};
 #[cfg(test)]

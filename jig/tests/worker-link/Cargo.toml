@@ -23,6 +23,8 @@ skein-fake-channel.workspace = true
 skein-world.workspace = true
 
 [dev-dependencies]
+jig-protocol-config.workspace = true
+jig-test-service.workspace = true
 jig-protocol-engine-workers.workspace = true
 skein-io.workspace = true
 

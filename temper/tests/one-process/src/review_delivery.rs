@@ -139,6 +139,7 @@ struct Judge {
     change: Option<u64>,
     checked: u64,
     steps: u32,
+    wake: Option<Time>,
 }
 impl Judge {
     fn new(controls: skein_world::Controls, store: Rc<RefCell<Store>>, warm: bool, goal: bool, exercise: bool) -> Self {
@@ -156,6 +157,7 @@ impl Judge {
             change: None,
             checked: 0,
             steps: 0,
+            wake: None,
         }
     }
 
@@ -265,7 +267,31 @@ impl Judge {
         );
         self.stage = Stage::Cancel;
     }
+    fn can_progress(&self) -> bool {
+        match self.stage {
+            Stage::Cancel => {
+                let tasks = self.tasks();
+                [self.change.expect("checked fixture"), self.review.expect("checked fixture")].iter().all(|number| {
+                    tasks
+                        .iter()
+                        .any(|task| task.number == *number && matches!(task.phase, jig_domain_tasks::Phase::Ended(_)))
+                })
+            }
+            Stage::Close | Stage::RecoveryClose => {
+                self.tasks().iter().all(|task| matches!(task.phase, jig_domain_tasks::Phase::Ended(_)))
+            }
+            Stage::Recovery => self.tasks().iter().any(|task| {
+                task.spec.words.as_ref() == b"@recovery"
+                    && task.ever_turned
+                    && matches!(task.phase, jig_domain_tasks::Phase::Active(jig_domain_tasks::Active::Idle))
+            }),
+            Stage::Setup | Stage::Review | Stage::Done => true,
+        }
+    }
     fn progress(&mut self, caller: &mut Caller) {
+        if !self.can_progress() {
+            return;
+        }
         match self.stage {
             Stage::Setup => {
                 let expected = if self.warm { 1 } else { 5 };
@@ -285,48 +311,31 @@ impl Judge {
             Stage::Review => self.review(caller),
             Stage::Cancel => {
                 let tasks = self.tasks();
-                if ![self.change.expect("checked fixture"), self.review.expect("checked fixture")].iter().all(
-                    |number| {
-                        tasks.iter().any(|task| {
-                            task.number == *number && matches!(task.phase, jig_domain_tasks::Phase::Ended(_))
-                        })
-                    },
-                ) {
-                    return;
-                }
                 let chat = tasks.iter().find(|task| task.flags.conversation).expect("chat");
                 Self::command(caller, &["chat", "close", &chat.number.to_string(), "--key", "delivery-close"]);
                 self.stage = Stage::Close;
             }
             Stage::Close => {
-                if !self.tasks().iter().all(|task| matches!(task.phase, jig_domain_tasks::Phase::Ended(_))) {
-                    return;
-                }
                 Self::command(caller, &["chat", "start", "--project", "1", "--key", "delivery-recovery", "@recovery"]);
                 self.stage = Stage::Recovery;
             }
             Stage::Recovery => self.recovery(caller),
             Stage::RecoveryClose => {
-                if self.tasks().iter().all(|task| matches!(task.phase, jig_domain_tasks::Phase::Ended(_))) {
-                    self.stage = Stage::Done;
-                }
+                self.stage = Stage::Done;
             }
             Stage::Done => {}
         }
     }
     fn recovery(&mut self, caller: &mut Caller) {
         let tasks = self.tasks();
-        let Some(task) = tasks.iter().find(|task| task.spec.words.as_ref() == b"@recovery") else {
-            return;
-        };
-        if task.ever_turned && matches!(task.phase, jig_domain_tasks::Phase::Active(jig_domain_tasks::Active::Idle)) {
-            Self::command(caller, &["chat", "close", &task.number.to_string(), "--key", "recovery-close"]);
-            self.stage = Stage::RecoveryClose;
-        }
+        let task = tasks.iter().find(|task| task.spec.words.as_ref() == b"@recovery").expect("ready recovery");
+        Self::command(caller, &["chat", "close", &task.number.to_string(), "--key", "recovery-close"]);
+        self.stage = Stage::RecoveryClose;
     }
 }
 impl skein_world::Referee<Proc> for Judge {
     fn act(&mut self, _now: Time, procs: &mut [Proc]) {
+        self.wake = None;
         self.steps += 1;
         assert!(self.steps < STEPS, "stage {:?}, {} answers", self.stage, self.answered);
         let (first, others) = procs.split_at_mut(1);
@@ -367,17 +376,51 @@ impl skein_world::Referee<Proc> for Judge {
         let Proc::Service(service) = &procs[0] else { panic!("service") };
         referee::Referee::check_roots(&service.service);
     }
+    fn idle(&mut self, now: Time, _procs: &[Proc], _settled: bool) {
+        // Referee::next_deadline includes when the judge will act, even if
+        // the product has no work left to wake the world (testing-strategy.md, 7).
+        self.wake = (!self.stopping
+            && matches!(self.stage, Stage::Cancel | Stage::Close | Stage::Recovery | Stage::RecoveryClose)
+            && self.can_progress())
+        .then_some(now);
+    }
     fn next_deadline(&self) -> Option<Time> {
-        (!self.stopping).then_some(DEADLINE)
+        (!self.stopping).then(|| self.wake.map_or(DEADLINE, |wake| wake.min(DEADLINE)))
     }
     fn overdue(&self, now: Time) -> Option<String> {
         (!self.stopping && now >= DEADLINE).then(|| {
             format!(
-                "stage {:?}; tasks {:?}",
+                "stage {:?}; {} answers; agent starts {:?}; agent answers {:?}; tasks {:?}",
                 self.stage,
+                self.answered,
+                self.store
+                    .borrow()
+                    .agent_records
+                    .iter()
+                    .filter_map(|record| match record {
+                        referee::AgentRecord::Start { task, attempt, .. } => Some((*task, *attempt)),
+                        referee::AgentRecord::Answer { .. } => None,
+                    })
+                    .collect::<Vec<_>>(),
+                self.store
+                    .borrow()
+                    .agent_records
+                    .iter()
+                    .filter_map(|record| match record {
+                        referee::AgentRecord::Answer { task, attempt, .. } => Some((*task, *attempt)),
+                        referee::AgentRecord::Start { .. } => None,
+                    })
+                    .collect::<Vec<_>>(),
                 self.tasks()
                     .iter()
-                    .map(|task| (task.number, task.executor, &task.phase, task.run_reserved, &task.retry_notice))
+                    .map(|task| (
+                        task.number,
+                        task.executor,
+                        &task.phase,
+                        task.ever_turned,
+                        task.run_reserved,
+                        &task.retry_notice
+                    ))
                     .collect::<Vec<_>>()
             )
         })
