@@ -102,6 +102,7 @@ pub struct BriefBudgets {
     pub attempts: u32,
     pub plan: u32,
     pub notes: u32,
+    pub preferences: u32,
 }
 
 /// A task read's room (temper/docs/design/domain/root.md, 5.2): its worker's
@@ -187,6 +188,7 @@ pub fn core_limits(limits: &Limits) -> jig_domain_core::Limits {
             attempts: limits.brief.budgets.attempts,
             plan: limits.brief.budgets.plan,
             notes: limits.brief.budgets.notes,
+            preferences: limits.brief.budgets.preferences,
         },
         accounts: limits.accounts,
         notes: limits.notes,

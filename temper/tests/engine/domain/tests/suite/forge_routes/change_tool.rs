@@ -70,11 +70,11 @@ const CHAT_AND_BOTH_PRODUCERS: usize = 3;
 const TWO_CHANGES: usize = 2;
 
 fn plan_world(control: bool) -> (World, engine::Assignment) {
-    plan_world_with_limits(control, StoryLimits { tasks_batch: Some(2), ..StoryLimits::default() })
+    plan_world_with_limits(control, &StoryLimits { tasks_batch: Some(2), ..StoryLimits::default() })
 }
 
-fn plan_world_with_limits(control: bool, limits: StoryLimits) -> (World, engine::Assignment) {
-    let mut world = World::configured_limits(true, true, false, PLAN_STEPS, Gate::default(), None, limits);
+fn plan_world_with_limits(control: bool, limits: &StoryLimits) -> (World, engine::Assignment) {
+    let mut world = World::configured_limits(true, true, false, PLAN_STEPS, Gate::default(), None, *limits);
     world.adopt();
     world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
     let people::Ask::Create { project, mut batch } = adoption_chat(&world) else { panic!("create") };
@@ -260,7 +260,7 @@ fn a_change_batch_admits_thirty_two_members_and_refuses_one_more() {
     ] {
         let (mut world, chat) = plan_world_with_limits(
             true,
-            StoryLimits {
+            &StoryLimits {
                 authority_batch: Some(BATCH),
                 tasks_batch: Some(ONE_MORE),
                 task_delegates: Some(ONE_MORE),

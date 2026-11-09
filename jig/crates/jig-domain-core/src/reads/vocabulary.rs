@@ -372,6 +372,9 @@ pub enum EndedValue {
     Reply(tasks::Word),
     /// Immutable opaque transcript bytes, not decoded by the core.
     Turn(crate::TurnRecord),
+    /// A turn carried to a party other than its task's requester, projected before it leaves
+    /// (domain/engine.md, 10.1).
+    WithheldTurn(crate::TurnRecord),
 }
 
 /// A transcript frame not carried beside its activity line (store.md, 7.3).
@@ -384,7 +387,15 @@ pub enum UnjoinedTurn {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum PageTurn {
     Carried(crate::TurnRecord),
-    TooLarge { spent: u64, read: Option<u64>, at: Wall, bytes: u64 },
+    /// A turn carried to a party other than its task's requester, projected before it leaves
+    /// (domain/engine.md, 10.1).
+    Withheld(crate::TurnRecord),
+    TooLarge {
+        spent: u64,
+        read: Option<u64>,
+        at: Wall,
+        bytes: u64,
+    },
     Unread,
 }
 
@@ -564,7 +575,7 @@ pub(crate) fn row_visible(core: &Core, party: u64, row: &Row) -> bool {
             tasks::Funder::Task(_) | tasks::Funder::Recurring { .. } => false,
         },
         Record::Notes(notes::Record::Entry(entry)) => match &entry.scope {
-            notes::Scope::Party { .. } => false,
+            notes::Scope::Party { party: owner } => super::party::scope_visible(core, party, *owner),
             notes::Scope::Deployment => core.people.role(party, people::DEPLOYMENT).is_some(),
             notes::Scope::Project { project }
             | notes::Scope::Goal { project, .. }

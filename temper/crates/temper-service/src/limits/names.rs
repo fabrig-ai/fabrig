@@ -74,6 +74,9 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
         b"root.brief.budgets.notes" => {
             limits.root.brief.budgets.notes = u32::try_from(value).or(Err(Refused::Range))?;
         }
+        b"root.brief.budgets.preferences" => {
+            limits.root.brief.budgets.preferences = u32::try_from(value).or(Err(Refused::Range))?;
+        }
         b"forge.forges" => limits.forge.forges = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.repositories" => limits.forge.repositories = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.tasks" => limits.forge.tasks = u32::try_from(value).or(Err(Refused::Range))?,
@@ -323,7 +326,7 @@ pub struct Name {
 }
 
 /// Every name the service override parser takes, including delegated setup host names.
-pub static NAMES: [Name; 168] = [
+pub static NAMES: [Name; 169] = [
     Name {
         name: "sign_in.members",
         unit: Unit::Count,
@@ -545,6 +548,12 @@ pub static NAMES: [Name; 168] = [
         unit: Unit::Bytes,
         line: "Bounds note section bytes in a gathered brief.",
         value: |limits| u64::from(limits.root.brief.budgets.notes),
+    },
+    Name {
+        name: "root.brief.budgets.preferences",
+        unit: Unit::Bytes,
+        line: "Bounds whole requester preferences in a gathered brief.",
+        value: |limits| u64::from(limits.root.brief.budgets.preferences),
     },
     Name {
         name: "forge.forges",

@@ -324,9 +324,9 @@ pub(crate) fn start_brief(core: &mut Core, env: &Env<Limits>, work: &mut Queue<W
     let Some(context) = core.contexts.get(&task) else {
         return out;
     };
-    let Some(current) = core.tasks.task(task) else {
+    if core.tasks.task(task).is_none() {
         return out;
-    };
+    }
     if !super::parts::preparation_current(core, context) {
         return out;
     }
@@ -342,6 +342,11 @@ pub(crate) fn start_brief(core: &mut Core, env: &Env<Limits>, work: &mut Queue<W
             .expect("brief count bounds waiting notes");
         return out;
     }
+    if super::preferences::gather(core, env, work, task) {
+        return out;
+    }
+    let context = core.contexts.get(&task).expect("current preparation context");
+    let current = core.tasks.task(task).expect("current preparation task");
     let mut scopes = List::with_capacity(env.limits.notes.scopes);
     if let Some(goal) = core.note_goal(current) {
         scopes.push(notes::Scope::Goal { project: context.project, goal }).expect("goal scope room");
@@ -452,6 +457,7 @@ pub(crate) fn plan_brief(
             })
             .expect("tail brief room");
     }
+    super::preferences::plan(core, &env.limits, task, &mut wanted);
     plan_note_index(&mut wanted, &env.limits, &lines, more);
     if !context.delegates.is_empty()
         && wanted.room() > 0

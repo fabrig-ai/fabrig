@@ -121,6 +121,7 @@ pub(crate) fn answer(
     read: &reads::Read,
     answer: &reads::Answer,
     models: &[crate::Model],
+    private: &crate::Private,
     limits: &w::Limits,
 ) -> Result<w::ReadAnswer, w::Problem> {
     let value = match answer {
@@ -135,8 +136,8 @@ pub(crate) fn answer(
         reads::Answer::Revisions(value) => w::ReadValue::Revisions(super::settings::revisions(value, limits)?),
         reads::Answer::TaskText(value) => w::ReadValue::TaskText(task_text(value, limits)?),
         reads::Answer::Tasks(page) => pages::tasks(page, limits)?,
-        reads::Answer::Page(page) => pages::page(models, read, page, limits)?,
-        reads::Answer::Document(_) | reads::Answer::Ended(_) => objects::document(answer, models, limits)?,
+        reads::Answer::Page(page) => pages::page(models, read, page, private, limits)?,
+        reads::Answer::Document(_) | reads::Answer::Ended(_) => objects::document(answer, models, private, limits)?,
     };
     let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut out).expect("measured value");

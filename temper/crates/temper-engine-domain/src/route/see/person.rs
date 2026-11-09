@@ -258,7 +258,8 @@ fn tracked(part: &Part) -> bool {
             | core::reads::EndedValue::Question { .. }
             | core::reads::EndedValue::PersonTask { .. }
             | core::reads::EndedValue::Reply(_)
-            | core::reads::EndedValue::Turn(_) => false,
+            | core::reads::EndedValue::Turn(_)
+            | core::reads::EndedValue::WithheldTurn(_) => false,
         },
         Part::Jig(
             Answer::TaskText(_)

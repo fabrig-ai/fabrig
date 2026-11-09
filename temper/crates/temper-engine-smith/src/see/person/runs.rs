@@ -103,7 +103,8 @@ fn activity_turn(
 ) {
     let heading = join(&[&words::time(at), " · its run · turn ".as_bytes(), &name(attempt, turn)]);
     match source {
-        Some(PageTurn::Carried(record)) => match decode(record, false) {
+        // see-withheld projects the private parts before rendering.
+        Some(PageTurn::Carried(record) | PageTurn::Withheld(record)) => match decode(record, false) {
             Ok(decoded) => {
                 let mut calls = 0_u64;
                 for message in &decoded.messages {
@@ -194,7 +195,8 @@ pub(super) fn turn(task: u64, attempt: u64, turn: u32, answer: &Answer, lines: &
     }
     let record = match answer {
         Answer::Ended(ended) => match &ended.value {
-            EndedValue::Turn(record) => Some(record),
+            // see-withheld projects the private parts before rendering.
+            EndedValue::Turn(record) | EndedValue::WithheldTurn(record) => Some(record),
             EndedValue::Task { .. }
             | EndedValue::Proposal(_)
             | EndedValue::PersonProposal { .. }

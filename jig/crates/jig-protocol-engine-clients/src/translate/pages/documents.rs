@@ -9,6 +9,7 @@ pub(super) fn activity(
     page: &reads::Page,
     before: Option<w::Cursor>,
     after: Option<w::Cursor>,
+    private: &crate::Private,
     limits: &w::Limits,
 ) -> Result<w::ReadValue, w::Problem> {
     let invalid = w::Problem { path: w::Path::ReadValueTag, reason: skein_codec::Reason::Tag };
@@ -25,7 +26,7 @@ pub(super) fn activity(
             | reads::PageRow::Note(_)
             | reads::PageRow::Spend(_) => return Err(invalid),
         };
-        rows.push(activity::page_turn(task, line, turn.as_ref(), limits)?).expect("selected rows fit");
+        rows.push(activity::page_turn(task, line, turn.as_ref(), private, limits)?).expect("selected rows fit");
     }
     Ok(w::ReadValue::Activity(w::ActivityPage::new(
         limits,

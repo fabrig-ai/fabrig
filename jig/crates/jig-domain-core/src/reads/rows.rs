@@ -38,7 +38,13 @@ pub(super) fn scope_allowed(core: &Core, party: u64, scope: &Scope) -> bool {
         Scope::Notes { project } | Scope::Spend { project } => project_allowed(core, party, *project),
         Scope::ScopedNotes { scope, .. } => match note_project(scope) {
             Some(project) => project_allowed(core, party, project),
-            None => false,
+            None => match scope {
+                notes::Scope::Party { party: owner } => super::party::scope_visible(core, party, *owner),
+                notes::Scope::Deployment
+                | notes::Scope::Project { .. }
+                | notes::Scope::Goal { .. }
+                | notes::Scope::Resources { .. } => false,
+            },
         },
         Scope::Inbox { filter, .. } => match filter.project {
             Some(project) => project_allowed(core, party, project),
@@ -954,7 +960,11 @@ fn object(
                     if value.task != *task || value.attempt != *attempt || value.turn != *turn {
                         return Err(Missing::Unknown);
                     }
-                    Ok(Some(ended_answer(EndedValue::Turn(value.clone()), Some(value.at), None)))
+                    Ok(Some(ended_answer(
+                        super::withheld::turn(core, range.party, row_owner(&row), value.clone()),
+                        Some(value.at),
+                        None,
+                    )))
                 }
                 tasks::Line::Words { .. }
                 | tasks::Line::Heard(_)
@@ -973,7 +983,11 @@ fn object(
             if value.task != *task || value.attempt != *attempt || value.turn != *turn || !owner_matches(&row, *task) {
                 return Ok(None);
             }
-            Ok(Some(ended_answer(EndedValue::Turn(value.clone()), Some(value.at), None)))
+            Ok(Some(ended_answer(
+                super::withheld::turn(core, range.party, row_owner(&row), value.clone()),
+                Some(value.at),
+                None,
+            )))
         }
         Scope::EndedTasks
         | Scope::TaskRows { .. }
@@ -1046,7 +1060,7 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
             {
                 return Ok(None);
             }
-            Ok(Some(super::activity::row(line, &row)?))
+            Ok(Some(super::activity::row(core, range.party, line, &row)?))
         }
         Scope::ScopedNotes { scope, description } => {
             let Some(value) = note(&row.value) else { return Ok(None) };

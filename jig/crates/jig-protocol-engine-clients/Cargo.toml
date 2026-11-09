@@ -20,6 +20,7 @@ jig-client-protocol-wire.workspace = true
 jig-domain-core.workspace = true
 jig-domain-notes.workspace = true
 jig-protocol-store.workspace = true
+jig-protocol-transcript.workspace = true
 jig-domain-people.workspace = true
 jig-domain-views.workspace = true
 
@@ -27,6 +28,7 @@ jig-domain-views.workspace = true
 workspace = true
 
 [dev-dependencies]
+smith-transcript.workspace = true
 jig-client-view = {path = "../jig-client-view"}
 jig-client-protocol-link = {path = "../jig-client-protocol-link"}
 jig-client-domain.workspace = true
