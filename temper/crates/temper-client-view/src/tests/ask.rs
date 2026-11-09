@@ -324,7 +324,9 @@ fn path(index: usize) -> w::BranchPath {
                 | S::Prepare
                 | S::Turn
                 | S::CatchUp
-                | S::Branch => None,
+                | S::Branch
+                | S::Design
+                | S::CloseOut => None,
             };
             let code = if *actor == Code { code } else { None };
             w::Stop::new(
