@@ -144,9 +144,15 @@ fn check_redirects(engine: &config::Engine, application: &application::Members, 
 pub struct NamedWorker {
     pub root: Box<[u8]>,
     pub agent: Box<[u8]>,
+    /// The agent's program, `workers[0].agent.program`, which Claude Code's `claude` link names (protocol/setup.md, 6.6).
+    pub program: Box<[u8]>,
 }
 fn named_worker(worker: &config::Worker, own: &application::Worker) -> NamedWorker {
-    NamedWorker { root: own.root.clone(), agent: worker.agent.configuration.clone() }
+    NamedWorker {
+        root: own.root.clone(),
+        agent: worker.agent.configuration.clone(),
+        program: worker.agent.program.clone(),
+    }
 }
 
 /// The files and directories the binary reads and opens before startup.

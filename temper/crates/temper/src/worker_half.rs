@@ -64,6 +64,7 @@ impl WorkerHalf for Half {
             service,
             agent,
             path(&named.worker.as_ref().expect("local agent checked").agent),
+            path(&named.worker.as_ref().expect("local agent checked").program),
             path(&directories.cache),
             skein_shell::effective_user(),
         )
@@ -73,12 +74,13 @@ fn configure_sources(
     service: &mut service::Service,
     agent: &service::settings::Agent,
     configuration: &std::path::Path,
+    agent_program: &std::path::Path,
     cache: &std::path::Path,
     user: u32,
 ) -> Result<(), String> {
     if let Some(program) = agent.programs.first() {
         if agent::launcher(path(&program.directory)).as_deref() == Some(path(&program.path)) {
-            claude_code::place(path(&program.path).parent().expect("launcher parent"), cache)
+            claude_code::place(path(&program.path).parent().expect("launcher parent"), cache, agent_program)
                 .map_err(|why| format!("programs.claude_code: {why}"))?;
         }
         // Source commands use the agent's explicit command environment.

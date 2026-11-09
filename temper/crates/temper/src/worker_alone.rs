@@ -23,6 +23,7 @@ pub(super) fn prepare(
     crate::private_root(root_path, user).map_err(|why| format!("application.workers[0].root: {why}"))?;
     let runtime = service::WorkerRuntime { root, path: root_path.as_os_str().as_bytes().into() };
     let seed = skein_shell::seed().map_err(|errno| format!("random seed: errno {errno}"))?;
+    let agent_program = part.named.program.clone();
     let mut service = service::startup::worker_alone(part, &files, &agent, runtime, seed)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     if crate::workspace_reuse() {
@@ -36,6 +37,7 @@ pub(super) fn prepare(
             crate::claude_code::place(
                 crate::path(&program.path).parent().expect("launcher parent"),
                 crate::path(&directories.cache),
+                crate::path(&agent_program),
             )
             .map_err(|why| format!("programs.claude_code: {why}"))?;
         }

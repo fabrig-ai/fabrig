@@ -8,6 +8,6 @@ pub fn run(program: &OsStr, arguments: &[Box<[u8]>]) -> u8 {
     temper_launcher::run("temper", program, arguments)
 }
 
-pub(crate) fn place(directory: &Path, cache: &Path) -> Result<(), String> {
-    temper_launcher::place(directory, cache)
+pub(crate) fn place(directory: &Path, cache: &Path, program: &Path) -> Result<(), String> {
+    temper_launcher::place(directory, cache, program)
 }
