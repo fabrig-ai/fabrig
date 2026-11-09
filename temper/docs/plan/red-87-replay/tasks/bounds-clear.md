@@ -174,3 +174,27 @@ new values; any bound left out of the doubling and why; the kept log's
 re-recording (its length and input count before and after, from the
 walk's `eprintln`); the browser story's runs and what each gave; the
 memory binary's figures if they moved; the readers you edited.
+
+## Answers
+
+2026-11-09. **More browser runs, or land the doubled replay test alone?**
+Land the doubled test alone, as run 1 left it (`06fcd7f6f9`, only
+`walk.rs`); no more browser runs. At the rate seen (6 in about 180
+runs over two days), three or ten more runs would most likely pass too
+and prove nothing. The after-landing browser tier runs the story about
+90 times a day, and `differs-says` now makes its next `Differs` name the
+input, both digests and the last lines; a red there comes back as a
+repair that starts from that cause (the request, item 2). For this task:
+
+- The acceptance items *fails before the fix* and *the fix* are waived:
+  no bound is reached, so `deployment.json` and the kept log stay as
+  they are, and the request's items 1 and 3 pass to that later repair.
+- The doubled row stays as a guard, with its six exclusions as run 1
+  named them.
+- Both **Not yet** entries in `temper/docs/design/playground.status.md`
+  (8 and 9) stay, with their date line: their premise is unproven, not
+  built.
+- The next run checks the branch as it stands (the replay test alone,
+  then the Steps, 4 focused runs other than the browser story; no
+  browser run), reports `Done`, and names the waived items and the
+  unproven cause under `## Left`.
