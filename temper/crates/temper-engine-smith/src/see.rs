@@ -1,5 +1,7 @@
 //! Decode an address read (temper/docs/design/domain/agent.md, 8.4.1).
 
+mod person;
+
 use crate::{Problem, json::Value};
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Writer, bytes};
@@ -51,7 +53,11 @@ pub fn see_answer(
 ) -> HostAnswer {
     let text = match answer {
         SeeAnswer::Ways(document) => Ok(ways_text(document)),
-        SeeAnswer::Person(_) | SeeAnswer::NotYet => return refused(line, b"not there yet.", max_bytes),
+        SeeAnswer::Person(value) => match person::text(value, catalogue) {
+            Some(text) => Ok(text),
+            None => return refused(line, b"not there yet.", max_bytes),
+        },
+        SeeAnswer::NotYet => return refused(line, b"not there yet.", max_bytes),
         SeeAnswer::NotRead(why) => {
             let message = match why {
                 engine::SeeNotRead::Unknown => b"not read: nothing you may read in this project is there.".as_slice(),
@@ -141,7 +147,18 @@ fn following(line: &[u8], answer: &SeeAnswer) -> &'static [u8] {
         SeeAnswer::Gates(_) => "settings landing · file OWNER/NAME PATH".as_bytes(),
         SeeAnswer::Proposal(_) => "revision N · revisions · help proposal".as_bytes(),
         SeeAnswer::Ways(_) => "settings rules · settings landing · settings project-ways · settings project-classes · settings project-words · settings charter-words N · help settings".as_bytes(),
-        SeeAnswer::Person(_) | SeeAnswer::NotRead(_) | SeeAnswer::NotYet | SeeAnswer::Unknown => {
+        SeeAnswer::Person(value) => match &value.read {
+            engine::SeeRead::Tasks { .. } => "task N · goals · inbox".as_bytes(),
+            engine::SeeRead::Me { .. } => "inbox · project · goals · tasks".as_bytes(),
+            engine::SeeRead::Project { .. } => "goals · tasks · changes · inbox · settings".as_bytes(),
+            engine::SeeRead::Goals { ended: false, .. } => "task N · task N tree · goals ended".as_bytes(),
+            engine::SeeRead::Goals { ended: true, .. } => "task N · goals".as_bytes(),
+            engine::SeeRead::Task { .. } => "task N tree · task N activity · change N · tasks".as_bytes(),
+            engine::SeeRead::Tree { .. } => "task N · task N activity · task N tree".as_bytes(),
+            engine::SeeRead::Inbox { .. } => "task N · me".as_bytes(),
+            engine::SeeRead::Activity { .. } | engine::SeeRead::Turn { .. } | engine::SeeRead::Change { .. } | engine::SeeRead::Changes { .. } => unreachable!("only rendered addresses have following forms"),
+        },
+        SeeAnswer::NotRead(_) | SeeAnswer::NotYet | SeeAnswer::Unknown => {
             unreachable!("errors have no following addresses")
         }
     }
