@@ -46,7 +46,7 @@ pub const ENGINE_OVERRIDES: [(&str, u32); 22] = [
     ("people.inbox_tasks", 8),
     ("fleet.attempts", 4),
     ("fleet.turns", 16),
-    ("brief.sections", 8),
+    ("brief.sections", 9),
     ("brief.brief_bytes", 4096),
     ("tasks.result_bytes", 128),
     ("tasks.resource_reports", 4),

@@ -466,21 +466,29 @@ pub(super) fn project(
 }
 /// Make a note from the owning child's loaded record, checking scope visibility.
 pub fn note_from_entry(core: &Core, limits: &Limits, party: u64, value: &notes::Entry) -> Result<Note, Missing> {
-    let project = match value.scope {
-        notes::Scope::Party { .. } => return Err(Missing::Unknown),
-        notes::Scope::Deployment => 0,
+    let (project, party_scope) = match value.scope {
+        notes::Scope::Party { party: owner } => {
+            if !crate::reads::party::scope_visible(core, party, owner) {
+                return Err(Missing::Unknown);
+            }
+            (people::DEPLOYMENT, true)
+        }
+        notes::Scope::Deployment => (people::DEPLOYMENT, false),
         notes::Scope::Project { project }
         | notes::Scope::Goal { project, .. }
-        | notes::Scope::Resources { project, .. } => project,
+        | notes::Scope::Resources { project, .. } => (project, false),
     };
     if core.people.identity(party).is_none() {
         return Err(Missing::Unknown);
     }
-    if (project != people::DEPLOYMENT && !core.open_project(project)) || core.people.role(party, project).is_none() {
+    if !party_scope
+        && ((project != people::DEPLOYMENT && !core.open_project(project))
+            || core.people.role(party, project).is_none())
+    {
         return Err(Missing::NotAllowed);
     }
     let scope = match &value.scope {
-        notes::Scope::Party { .. } => return Err(Missing::Unknown),
+        notes::Scope::Party { party } => NoteLocation::Party { party: *party },
         notes::Scope::Deployment => NoteLocation::Deployment,
         notes::Scope::Project { project } => NoteLocation::Project(*project),
         notes::Scope::Goal { project, goal } => NoteLocation::Goal { project: *project, task: *goal },
@@ -509,7 +517,7 @@ pub fn note_from_entry(core: &Core, limits: &Limits, party: u64, value: &notes::
         tasks.push(*task).expect("bounded referenced tasks");
     }
     let edit_scope = match &value.scope {
-        notes::Scope::Party { .. } => return Err(Missing::Unknown),
+        notes::Scope::Party { party } => people::NoteScope::Party { party: *party },
         notes::Scope::Deployment => people::NoteScope::Deployment,
         notes::Scope::Project { .. } => people::NoteScope::Project,
         notes::Scope::Goal { goal, .. } => people::NoteScope::Goal { goal: *goal },

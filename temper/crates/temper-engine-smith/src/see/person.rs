@@ -534,6 +534,7 @@ fn inbox_words(entry: &d::InboxEntry, words: &[SeeWords]) -> Option<Box<[u8]>> {
                 | jig_domain_core::reads::EndedValue::Escalation { .. }
                 | jig_domain_core::reads::EndedValue::PersonTask { .. }
                 | jig_domain_core::reads::EndedValue::Reply(_)
+                | jig_domain_core::reads::EndedValue::WithheldTurn(_)
                 | jig_domain_core::reads::EndedValue::Turn(_) => None,
             },
             Answer::TaskText(_)
@@ -593,6 +594,7 @@ fn task_document(answer: &Answer) -> Option<&d::Task> {
             | jig_domain_core::reads::EndedValue::Question { .. }
             | jig_domain_core::reads::EndedValue::PersonTask { .. }
             | jig_domain_core::reads::EndedValue::Reply(_)
+            | jig_domain_core::reads::EndedValue::WithheldTurn(_)
             | jig_domain_core::reads::EndedValue::Turn(_) => None,
         },
         Answer::TaskText(_)
@@ -687,6 +689,7 @@ fn task_text(
             | jig_domain_core::reads::EndedValue::Question { .. }
             | jig_domain_core::reads::EndedValue::PersonTask { .. }
             | jig_domain_core::reads::EndedValue::Reply(_)
+            | jig_domain_core::reads::EndedValue::WithheldTurn(_)
             | jig_domain_core::reads::EndedValue::Turn(_) => None,
         },
         Answer::Document(_) => task.result.as_ref(),

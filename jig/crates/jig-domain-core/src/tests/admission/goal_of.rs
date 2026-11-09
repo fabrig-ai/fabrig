@@ -135,7 +135,7 @@ fn a_goals_task_cannot_write_a_chats_scope() {
 
 #[test]
 fn a_goal_writes_only_its_own() {
-    let (core, _) = nested();
+    let (mut core, limits) = nested();
     assert_eq!(core.note_goal(core.tasks.task(CHILD).unwrap()), Some(CHILD));
     assert!(core.note_readable(CHILD, &notes::Scope::Goal { project: PROJECT, goal: CHILD }));
     assert!(
@@ -146,6 +146,48 @@ fn a_goal_writes_only_its_own() {
         .is_none()
     );
     scope_refused(&core, CHILD, PROJECT, ROOT);
+    core.proofs.insert(CHILD, RunProof::claimed(CHILD, 1, 1, None, fleet::HostKind::Engine)).unwrap();
+    let key = CallKey { task: CHILD, attempt: 1, completion: 1, position: 0 };
+    let part = CallPart::ToolDenied {
+        answer: authority::Answer::Refuse,
+        findings: Box::new([authority::Finding::Scope { source: authority::Source::Task }]),
+    };
+    for replay in [false, true] {
+        let out = watch_outputs(
+            &mut core,
+            &limits,
+            Event::NamedAction {
+                to: ReplyTo::new(Token::new(91)),
+                key,
+                action: NamedAction::NoteDelete {
+                    scope: notes::Scope::Goal { project: PROJECT, goal: CHILD },
+                    name: 1,
+                    recalled: 1,
+                },
+            },
+        );
+        let mut answered = false;
+        for request in out {
+            match request {
+                Request::Held(held) => {
+                    let Held::CallAnswer { key: got, part: got_part, .. } = held.as_ref() else {
+                        panic!("no notes load or other held effect")
+                    };
+                    assert_eq!(*got, key);
+                    assert_eq!(*got_part, part);
+                    answered = true;
+                }
+                Request::Write(Write::Save(Record::Core(CoreRecord::Call(record)))) => assert_eq!(record.part, part),
+                Request::Write(write) => panic!("store changed by refused deletion: {write:?}"),
+                Request::Now(now) => panic!("unexpected immediate answer: {now:?}"),
+                other @ (Request::ProjectMade { .. } | Request::Ask { .. }) => {
+                    panic!("unexpected deletion request: {other:?}");
+                }
+            }
+        }
+        assert!(answered, "deletion refused, including replay {replay}");
+        assert!(!core.notes.busy());
+    }
 }
 
 #[test]

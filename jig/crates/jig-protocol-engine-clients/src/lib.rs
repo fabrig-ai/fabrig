@@ -3,6 +3,8 @@
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
+
+pub use jig_protocol_transcript::Private;
 #[rustfmt::skip]
 #[path = "generated/cursor_v1.rs"]
 pub mod cursor_v1;
