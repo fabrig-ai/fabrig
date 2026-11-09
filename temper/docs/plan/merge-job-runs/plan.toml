@@ -1,6 +1,0 @@
-draft = "merge-job-runs"
-repo = "fabrig"
-sources = ["temper/docs/plan/merge-job-runs/inputs/request.md", "AGENTS.md", "DESIGN.md"]
-# Plan options, written by fab call cut --set; keep them
-owner = "temper/migration"
-priority = true
