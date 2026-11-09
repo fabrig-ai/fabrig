@@ -218,6 +218,8 @@ pub fn hub(engine: &config::Engine, problems: &mut Problems) {
         }
     }
 }
+/// The smallest resumed start within the engine's room (temper/docs/design/protocol/configuration.md, 7).
+pub fn resumed_start(_engine: &config::Engine, _problems: &mut Problems) {}
 /// The deployment's provider is not 0, which the root keeps for the forge's
 /// sign-in (domain/root.md, 6).
 pub fn provider(engine: &config::Engine, problems: &mut Problems) {
