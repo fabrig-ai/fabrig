@@ -79,6 +79,7 @@ fn facts() -> Facts {
 }
 fn heard() -> Heard {
     Heard {
+        review_request: None,
         start_conflict: None,
         lacking: None,
         spend: None,
@@ -389,7 +390,9 @@ fn a_released_failed_ci_repairs_replacement_requires_current_authority() {
 #[test]
 fn a_released_failed_repair_keeps_its_reason_and_checks_the_current_base() {
     let (c, mut f, h, limits) = failed_ci_repair();
-    for why in [Repair::Ci, Repair::Semantic, Repair::Gate(9), Repair::Landing { gate: 3 }] {
+    for why in
+        [Repair::Ci, Repair::Semantic, Repair::Gate(9), Repair::Landing { gate: 3 }, Repair::Review { head: NEW }]
+    {
         let mut held = c.clone();
         held.state = State::Held { was: Box::new(State::Repairing { requested: true, why }), why: Hold::Failed };
         let reset = step(&released(&held, at(3)), &f, &h, at(3), &limits);
@@ -676,6 +679,25 @@ fn an_update_conflict_resolves_after_release_and_keeps_its_resolution_bound() {
     }
 }
 #[test]
+fn a_persons_request_in_first_repairs_with_its_reviewed_head() {
+    for (request, repairs, contains_base, expected, count) in [
+        (Some(NEW), 0, Status::Passed, Decision::Delegate(Delegate::Repair(Repair::Review { head: NEW })), 1),
+        (Some(NEW), LIMITS.repairs, Status::Passed, Decision::Hold(Hold::Repairs), LIMITS.repairs),
+        (Some(NEW), 0, Status::Failed, Decision::Effect(Effect::Update { head: HEAD, base: BASE }), 0),
+        (None, 0, Status::Passed, Decision::Effect(Effect::Merge { head: HEAD, base: BASE }), 0),
+    ] {
+        let mut c = change(State::First { head: HEAD, ready_since: at(0) });
+        c.repairs = repairs;
+        let mut f = facts();
+        f.contains_base = contains_base;
+        let h = Heard { review_request: request, ..heard() };
+        let next = decide(&c, &f, &h);
+        assert_eq!(next.decision, expected, "{request:?}, {repairs}, {contains_base:?}");
+        assert_eq!(next.change.repairs, count);
+    }
+}
+
+#[test]
 fn a_failed_check_takes_the_base_before_a_repair_and_both_bounds_hold() {
     let mut f = facts();
     f.ci.status = Status::Failed;
@@ -727,7 +749,7 @@ fn a_semantic_repair_keeps_clean_predecessors_until_its_push_is_taken() {
 
 #[test]
 fn ci_and_gate_repairs_clear_clean_predecessors_when_due() {
-    for why in [Repair::Ci, Repair::Gate(9)] {
+    for why in [Repair::Ci, Repair::Gate(9), Repair::Review { head: NEW }] {
         let mut c = change(State::Repairing { requested: false, why });
         c.clean = Box::new([NEW]);
         let mut f = facts();
