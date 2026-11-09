@@ -25,24 +25,7 @@ pub(super) fn assert_cancel(events: &mut Queue<domain::Event>, run: Token) {
     }
 }
 
-pub(super) fn limits() -> Limits {
-    crate::fixture::small()
-}
-
-pub(crate) fn configuration() -> Config {
-    let limits = limits();
-    let channel_endpoints = smith_protocol_translate::Endpoints::new(List::with_capacity(1));
-    let llm_endpoints = llm::Endpoints::new(Box::new([]), 1).expect("empty endpoint table");
-    Config {
-        program: None,
-        limits,
-        domain: domain::Config { programs: Box::new([]), endpoints: Box::new([]), limits: Box::new([]) },
-        channel_endpoints,
-        llm_endpoints,
-        environment: machine::Environment::encode(&[], &limits.machine).expect("empty environment fits"),
-        stream_mode: StreamMode::Two,
-    }
-}
+pub(crate) use smith_agent_profile::fixture::configuration;
 
 pub(crate) fn charter(settings: &smith_agent_world::Settings) -> run::Charter {
     let mut charter = smith_agent_world::scripted_charter(settings);

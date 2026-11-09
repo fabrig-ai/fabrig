@@ -13,7 +13,7 @@ pub mod dump;
 pub mod fixture;
 pub mod list;
 #[cfg(unix)]
-pub mod program;
+pub use smith_agent_document::program;
 #[cfg(unix)]
 pub mod program_child;
 #[cfg(unix)]
