@@ -171,3 +171,50 @@ out, each by its row; the store's read and the core's admission as you
 built them; the rules broken by hand and what failed; temper's two lines;
 the runs and their counts; the branch and commit pushed; implementation
 and check minutes apart.
+
+## Answers
+
+2026-11-09, to run `turn-cut-1` (its rows at `b73e31364c` on this branch).
+
+- **A frame behind the binary's versions, past the room: read whole, or
+  header-only patching first?** Read it whole and patch it, then judge it,
+  as `jig/docs/design/protocol/store.md`, 8.6, *Bounds on patched bytes*,
+  already says for every read kind: the head-only path serves frames at
+  the binary's versions alone. This replaces the pre-approval's "stop if
+  cutting needs a body read" for behind frames; build no header-only
+  patcher. A behind frame goes through `whole_from_head` and the machines
+  as today; its charge is its patched size; past the window's remaining
+  room it is cut from the patched record: its fields, `transcript`
+  emptied, `cut: Some(` the patched transcript's length `)`, alone in its
+  page. A current frame past the room is cut from its head
+  (`extend_header`, `Step::Sized`), its body never read. A patched record
+  past its machine's bytes or nodes still halts (`Room`) and is unread,
+  as 8.6 says: that is a refused frame, not a turn's size. Every real
+  set is empty until the baseline, so no machine is made and every frame
+  takes the head path in the worlds; the behind path keeps its existing
+  tests, with a window row past the room expecting the cut.
+- **The room's accounting: transcript bytes, or the whole frame?** The
+  whole frame, as 8.6 says a direct Window/Page read charges (metadata,
+  payload and its 12 bytes of framing); change no accounting and no
+  design. The spec's rows wrongly sized the room by transcript bytes;
+  they are sized by the frame's charge instead. Let F be a turn's frame
+  less its transcript in this world (state it in the report), so a turn
+  of transcript length T charges T + F:
+  - Steps, 1, the world's rows (`runs.rs`): replace the R − 4 and R
+    guards with one guard, a turn charging exactly R (T = R − F): loaded
+    whole and resumed, the turn whole in the run's transcript; then the
+    row charging R + 1 (T = R − F + 1): fresh at once, the marker in the
+    tail, failing on the trunk; and the 100 / 4096 / 50 row as written
+    (100 and 50 fit the room whole). The "loaded whole, past the resume
+    limit" guard has no single-turn case under frame accounting (T + 4 <
+    T + F for any whole turn): drop it; the two core tests Steps, 3 names
+    keep that path.
+  - Steps, 2, the store's table: "a turn of R" is a turn charging R
+    (whole); "R + 1 alone" a turn charging R + 1, answered
+    `cut: Some(R + 1 − F)`; the rest as written.
+  - `tests::transcripts::current_and_patched_frames_share_the_exact_direct_read_bound`
+    keeps its charges for every read kind; its `Window` cases one byte
+    under now expect the cut page (the turn's fields, `cut:
+    Some(` its transcript's length `)`), not `Unread`, as 8.3 now says a
+    window's read is never unread for a turn's size. Its other kinds keep
+    `Unread`.
