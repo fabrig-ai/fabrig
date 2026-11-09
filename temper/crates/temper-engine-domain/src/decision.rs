@@ -835,6 +835,8 @@ fn host_within(host: &crate::HostDelivery, limits: &Limits) -> bool {
             }
             crate::SeeAnswer::Ways(_)
             | crate::SeeAnswer::Settings(_)
+            | crate::SeeAnswer::Person(_)
+            | crate::SeeAnswer::NotRead(_)
             | crate::SeeAnswer::Page { .. }
             | crate::SeeAnswer::Search { .. }
             | crate::SeeAnswer::Landing(_)

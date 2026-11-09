@@ -51,7 +51,15 @@ pub fn see_answer(
 ) -> HostAnswer {
     let text = match answer {
         SeeAnswer::Ways(document) => Ok(ways_text(document)),
-        SeeAnswer::NotYet => return refused(line, b"not there yet.", max_bytes),
+        SeeAnswer::Person(_) | SeeAnswer::NotYet => return refused(line, b"not there yet.", max_bytes),
+        SeeAnswer::NotRead(why) => {
+            let message = match why {
+                engine::SeeNotRead::Unknown => b"not read: nothing you may read in this project is there.".as_slice(),
+                engine::SeeNotRead::Busy => b"not read: temper is busy; read it again.",
+                engine::SeeNotRead::NoPerson => b"not read: this chat has no person to read as.",
+            };
+            return refused(line, message, max_bytes);
+        }
         SeeAnswer::Unknown => {
             return error(&join(&[b"see: no address ", line, b"; addresses: ", ADDRESSES.as_bytes()]), max_bytes);
         }
@@ -133,7 +141,9 @@ fn following(line: &[u8], answer: &SeeAnswer) -> &'static [u8] {
         SeeAnswer::Gates(_) => "settings landing · file OWNER/NAME PATH".as_bytes(),
         SeeAnswer::Proposal(_) => "revision N · revisions · help proposal".as_bytes(),
         SeeAnswer::Ways(_) => "settings rules · settings landing · settings project-ways · settings project-classes · settings project-words · settings charter-words N · help settings".as_bytes(),
-        SeeAnswer::NotYet | SeeAnswer::Unknown => unreachable!("errors have no following addresses"),
+        SeeAnswer::Person(_) | SeeAnswer::NotRead(_) | SeeAnswer::NotYet | SeeAnswer::Unknown => {
+            unreachable!("errors have no following addresses")
+        }
     }
 }
 
