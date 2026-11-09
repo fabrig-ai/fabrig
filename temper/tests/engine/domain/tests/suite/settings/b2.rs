@@ -104,7 +104,8 @@ fn limits() -> engine::Limits {
     limits.forge.tasks = 16;
     limits.journal.deliveries = 128;
     limits.journal.held = 512;
-    limits.journal.run_bytes = 16384;
+    // Charter 11's resolved stock run policy needs 16,601 bytes.
+    limits.journal.run_bytes = 20_480;
     limits.journal.result_bytes = 1024;
     limits.journal.transcript_bytes = 32768;
     limits.loads.transcript_bytes = 32768;

@@ -366,8 +366,8 @@ const ROOT: Root = Root {
         transcript_bytes: 65_536,
         // At least brief.brief_bytes and jig small people.words: the root's worst case.
         result_bytes: 14_592,
-        // The fake backends' stock charter carrier needs 16,446 bytes.
-        run_bytes: 20_480,
+        // The stock's largest run policy, charter 11's, needs 20,795 bytes.
+        run_bytes: 24_576,
     },
     loads: engine::loads::Limits {
         // Concurrent loads, from the root world.
