@@ -81,6 +81,14 @@ applies to a directory's crates through one copy, or to a crate through its own.
   mmdebstrap; and in five kits of skein's that hold neither: `skein-sim-world`, `skein-playground`,
   `skein-conformance`, `skein-heap` and `skein-scratch`.
 
+**The process's arguments and environment,** in every variant: `disallowed-methods` lists `std::env`'s
+`args`, `args_os`, `var`, `var_os`, `vars`, `vars_os`, `set_var` and `remove_var`, and
+`skein_shell::arguments` and `skein_shell::environment`, which read them for a binary's crate, those two
+`allow-invalid`, since most crates don't link the shell. Each with one reason, citing
+`skein/docs/foundation/cli.md`, 6. A read is a scoped `#[expect(clippy::disallowed_methods, reason =
+"...")]` whose reason starts with what it is: the binary's capture, a build script, a test harness, or
+the round or milestone that removes it (`skein/docs/foundation/cli.md`, 9, check 4).
+
 A crate's lint profile and its variant are separate choices: `skein-sim` is on `step` with `ring`'s
 bans, since it holds to the step crates' lints and is ordinary Rust.
 
