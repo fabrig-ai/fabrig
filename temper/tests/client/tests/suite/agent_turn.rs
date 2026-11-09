@@ -32,8 +32,8 @@ fn a_large_turn_in_a_chat_prints_as_its_size_line() {
     assert!(stdout.contains(&format!("read with: task turn {task} {attempt}.{number}\n")), "{stdout}");
 }
 
-// The 24 KiB text crosses PART=16 KiB, needing exactly two printed reads.
-const TURN_READS: u32 = 2;
+// The 24 KiB text fits PART=64 KiB, needing one printed read.
+const TURN_READS: u32 = 1;
 #[test]
 fn a_large_turn_is_read_whole_by_its_parts() {
     let (mut world, agent, task, (attempt, number)) = agent_chat();

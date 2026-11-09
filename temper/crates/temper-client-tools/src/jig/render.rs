@@ -550,14 +550,14 @@ pub fn settings_text(value: &ReadValue, requested: Option<u64>, limits: &Limits)
         &mut measure,
     );
     let structural = measure.structural();
-    let mut measure = Text::bounded(limits.text, structural);
+    let mut measure = Text::bounded(limits.words, structural);
     settings_form::render::text(
         &crate::jig::settings_adapter::form_read_value(value),
         requested,
         &crate::jig::settings_adapter::limits(limits),
         &mut measure,
     );
-    let mut out = measure.writing(limits.text, structural);
+    let mut out = measure.writing(limits.words, structural);
     settings_form::render::text(
         &crate::jig::settings_adapter::form_read_value(value),
         requested,

@@ -93,9 +93,10 @@ pub(crate) fn print(
         if accounts && structural > usize::try_from(limits.text).expect("text fits") {
             return super::failure(b"result limit", false, 1);
         }
-        let mut measure = Text::bounded(limits.text, structural);
+        let text_bound = if settings { limits.words } else { limits.text };
+        let mut measure = Text::bounded(text_bound, structural);
         text(&document, &book, limits, vocabulary, &mut measure);
-        let mut out = measure.writing(limits.text, structural);
+        let mut out = measure.writing(text_bound, structural);
         text(&document, &book, limits, vocabulary, &mut out);
         out.finish()
     };
