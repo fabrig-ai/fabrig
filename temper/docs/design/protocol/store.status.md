@@ -19,6 +19,14 @@ v11 in place: `TemplateGoal`, `design` and `close_out`, and
 migration; the store's codec reads and writes it and its slot table
 holds it (`temper-protocol-store`'s `tests/settings.rs`).
 
+Section 2's family 20 keeps kinds 9 and 10, a charter's words and a
+project's words, in store v11 in place: `CharterWords`, `line`, and
+`ProjectWords`, `headline` and `lede`, and `SettingValue`'s `line` and
+`words`, with no version bump or migration; the schema's ceilings bound
+them, the codec refuses words that are empty or hold a control
+character on reading, and its round trip at the bounds and the goldens
+hold it (`tests/settings.rs`).
+
 Sections 2 and 4 have no known gap in a repository's CI workflows:
 family 2's record, the schema's `Adopted`, holds `workflows` in store
 v11 in place, its ceilings the store's limits `adopted_workflows` and

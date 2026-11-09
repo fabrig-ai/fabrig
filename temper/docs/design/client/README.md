@@ -6715,8 +6715,9 @@ Ask temper is reached from the rail and tab bar (5.3), and from this page's
     reads `charter N`: once as How work runs opens, again when the
     session's `settings` watch names a newer revision; until it answers,
     or where it is refused or `not_drawn`, the section isn't drawn. What
-    a role does, past when it runs, waits for words saved with its
-    charter (`../draft/whole-story.execution.md`, P3e).
+    a role does, past when it runs, its charter's words
+    (`../protocol/configuration.md`, 13.2, kind 9), is section 11's
+    (*How work runs' later parts*).
   - *Budgets,* while one is set (`../draft/surfaces.md`, section 12): what
     a goal is given when it starts, while kind 7 has Goals shown and its
     goal's template, the one `way` names or else the first tracked one in
@@ -10587,12 +10588,16 @@ own tests:
   a role's budget (P3d), each drawn by its milestone from the engine's reads;
   the heading's chief departure, "Draft first, with the protocol core asking
   you", once a rule by path can be one (P3c);
+  what a role does on Roles, its charter's words after when it runs, "For
+  each chat: talks with you and asks for the changes", or its instructions'
+  first sentence where none is kept, once the view `roles` carries them
+  (P3e; `../domain/forge.md`, section 20, *A role's words on its card*);
   "History · N changes" beside "Ask temper to change this", once a page lists
   the settings' revisions (*Later: the fuller page*); the next step suggested
   when the facts earn it; and the project's repositories at the page's foot
   rather than its frame's second tab. Default: none of them is drawn until it
-  is built, the heading is the way's headline or the project's words, and
-  Repositories stays the second tab.
+  is built, the heading is the way's headline or the project's words, a
+  role's row says when it runs alone, and Repositories stays the second tab.
 - **How many goals take a way** (5.13): " Used by N." and " Used by none yet."
   need a goal's template, and jig's `TaskLine`, what a client is given of a goal,
   records none. Default: the sentence is left out.

@@ -107,10 +107,34 @@ rendering room remains deferred in section 10.
 Section 4.6 has no known gap in a chat's new model or effort answering its
 person's next words, whether the previous run still listens or has parked.
 
+Sections 8.1, 8.4.1 and 8.4.2 have no known gap but those below in the
+words saved with a setting: `charter-words` and `project-words` in a
+run's `settings` read, `see` and `propose_settings`, read and proposed as
+a settings file names them, a charter's at the stock's where none is
+stored and either "none kept" with none; `see settings gates` naming a
+tier's description, "checks" and its words; and Ask temper's
+*Configuring* asking for both with what it proposes, in the person's
+terms (`ask.txt`). The engine world's `the_asking_chat_reads_each_kind`,
+`an_asking_chat_reads_each_address` and
+`an_owners_asking_chat_proposes_and_hears_it_accepted`, whose proposal
+carries a charter, its words and the project's, accepted and read back,
+and smith's `tests/see.rs` and `tests/settings.rs` hold it. No walk on
+record has run a real model on the sentence.
+
 ## Gaps and departures
 
+- **Not yet:** 8.4.1: `see ways` says no way's headline: smith's
+  `ways_text` prints a way's name, `now`, its line and its path, so the
+  run and How work runs' heading say a way by different words
+  (`../protocol/configuration.md`, 13.10).
 
-
+- **Departs:** 8.4.1, *Unknown*: an unknown address answers with
+  `ask.txt`'s line of addresses and, in its settings bracket,
+  `charter-words N | project-words`, which `ask.txt`'s *Finding out* doesn't
+  name (smith's `see.rs`, `ADDRESSES`): Ask temper's instructions are held
+  to 8,192 bytes and had no room for them, so the run learns the two
+  kinds from its tools' declarations and `see settings`; decided by the
+  `ui-p3e-words` cut.
 
 - **Design departs:** 8.1, from `../draft/model-catalogue.md`, 3, decided
   by the `model-catalogue-1` cut: settings reads return whole charters,

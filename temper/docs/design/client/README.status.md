@@ -167,14 +167,29 @@ Deployment*, 4.6 and 5.13): `pages::how::parts`, of what
 `pages::how::facts` gathers, decides the heading's way, "Ask temper to
 change this", the path section's state, Roles' state and Budgets' row.
 `Settings { project }` watches the project's `ways` as Ask temper's page
-does, `Act::WayTab` and `Act::WayStop` heard on either. The page names
-the way, or "A way of its own", with its line, draws the path, Roles, a
+does, `Act::WayTab` and `Act::WayStop` heard on either. The page heads
+itself with the words saved with the settings (below), draws the path, Roles, a
 goal's amount or cap, What needs you and Away, and the switches at its
 foot; the disabled Status, Funds and Telling you rows are gone. The
 domain's and the view's tables, the joint world's
 `the_three_ways_draw_ci_and_tiers_or_neither` and the text shell's
 `settings.txt` golden hold it. The page's render check and walk remain
 section 11's after-landing work.
+
+Sections 4.6 and 5.13 have no known gap in the words saved with the
+settings, the whole story's P3e, by plan `ui-p3e-words`: the wire's
+`StockWay` `headline` and `WaysPanel` `words`, a `ProjectWords`, each
+stock way's headline and the project's kind 10 carried by the `ways`
+read; How work runs' heading the headline of the way the project runs,
+its lede "PROJECT runs the stock way NAME." and the way's line, and,
+where it runs none, the project's headline and lede, else "A way of its
+own" and "PROJECT runs settings of its own, drawn below."; a proposal's
+card names kinds 9 and 10 `charter-words` and `project-words`. The domain's `forge_stock_ways` and `pages/how` tables, the
+view's `parts_draw_the_current_way_and_the_shown_path`, the joint
+world's `the_three_ways_draw_ci_and_tiers_or_neither` and the gallery's
+`how`, `how-approve`, `how-draft` and `how-yours` hold it; their render
+check follows landing. Roles says no charter's words (section 11, *How
+work runs' later parts*).
 
 Sections 3.5, *Work*, *Goals*, *Changes* and *Settings and Deployment*,
 and 5.3, *The rail*, *The rail's parts*, *Projects in the rail* and *All
@@ -438,7 +453,11 @@ its 320 px, as the user accepted in `look-round-17`.
 
 ## Gaps and departures
 
-
+- **Departs:** 5.13: a way the `ways` read gives with an empty
+  `headline`, which no stock way has and a test world's may, heads How
+  work runs by its name, where 5.13 has its headline
+  (`temper-client-view`'s `pages/how.rs`, `head`): the wire admits an
+  empty one, and the page keeps a heading.
 
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs

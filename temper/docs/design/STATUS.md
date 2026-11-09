@@ -190,7 +190,19 @@ their close-out into the goal's branch before the landing, nothing tells
 Ask temper to propose a template's work, and stage one's golden asks it
 at template 4 by number (`protocol/configuration.status.md`, 13.9;
 `domain/agent.status.md`, 8.1; `domain/testing.status.md`, 6.5.1;
-`draft/surfaces.status.md`, 7). The rail, Work and
+`draft/surfaces.status.md`, 7). Words saved with a setting are the
+whole story's milestone P3e, by plan `ui-p3e-words`: kind 9, a
+charter's words, the stock's nine lines among them, and kind 10, a
+project's headline and lede, kept, judged, read and proposed by ctl and
+Ask temper's tools, Ask temper's *Configuring* asking for both; each
+stock way's headline and the project's words in the `ways` read, heading
+How work runs; and a tier's description from the configuration, on its
+card and in `see settings gates`. Roles says no charter's words, which
+the help says it does, `see ways` no way's headline, and no record shows
+the user's review of Ask temper's sentence; the render check follows
+landing (`protocol/configuration.status.md`, 3 and 13.2;
+`client/README.status.md`, 5.13; `domain/agent.status.md`, 8.4.1;
+`draft/ask-temper.status.md`, 5.2; `draft/surfaces.status.md`, 7). The rail, Work and
 Deployment are the whole story's milestone P1, by plan `ui-p1-rail`: the
 rail and the tab bar from one pure function of their parts, Work, the
 hairline, How work runs, the new box and Deployment at the foot, the

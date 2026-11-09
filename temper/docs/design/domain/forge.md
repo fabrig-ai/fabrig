@@ -3177,10 +3177,10 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
   the facts an agent's stop's card has, "Model", the model and effort a
   run of it would take now for the reader, "Can" (*What an agent can*)
   and "Asked to", its instructions' first sentence. What a role
-  does, past when it runs, is words saved with its charter, a later
-  milestone's (`../draft/whole-story.execution.md`, P3e); a standing
-  role, a drafter and a close-out join as the settings come to hold
-  them.
+  does, past when it runs, its charter's words
+  (`../protocol/configuration.md`, 13.2, kind 9), is no part of its card
+  (section 20, *A role's words on its card*); a standing role, a drafter
+  and a close-out join as the settings come to hold them.
 - **The project's path** is the path over its home repository's landing
   branch, or its first adopted repository's with no home; with none,
   over a branch named `main` of no repository: no CI, no tier, the
@@ -3894,6 +3894,17 @@ whole.
   it would be a member of the template's work, kind 11, read where it is
   set. Default: the coordinator's card, until a draft asks for a
   close-out's role of its own (8.13, *The project's roles*).
+
+- **A role's words on its card** (8.13, *The project's roles*): the
+  forge keeps a charter's words, kind 9, what its runs do in a line, and
+  the draft has Roles say them after when the role runs, "For each chat:
+  talks with you and asks for the changes", its instructions' first
+  sentence where none is kept (`../draft/surfaces.md`, section 7;
+  `../draft/whole-story.execution.md`, P3e). The view `roles` would read
+  them as the root reads a charter (`charter_words`) and carry them on
+  each role's card, beside its `who`, within the card's bounds; How work
+  runs draws them (`../client/README.md`, section 11, *How work runs'
+  later parts*). Default: a role's card says when it runs alone.
 
 - **Project-scoped rules on a real forge** (8.9): observe the
   every-project default, its override and reset, and branch-relative
