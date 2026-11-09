@@ -38,6 +38,12 @@ before. No real terminal has run it; that check follows landing
 (`../client/README.md`, section 11), and section 15 keeps a box started
 in the background and a front killed outright.
 
+- **Not yet:** 6.4, 6.6, 11, 13.1: `temper-fetch` and
+  `temper-fetch-shell` aren't built: the fetch's machine and Claude Code's
+  pin are `temper-forge-setup`'s, the fetch's host and Claude Code's fetch
+  `temper-forge-setup-shell`'s, and the launcher, the placing of its links
+  and the substitution `temper`'s, which reads programs' directories
+  through `smith-agent-shell`; `temper-init` owns the word `fetched`.
 - **Not yet:** 13.4: the file's secret on no log: the fresh box's story
   reads stdout, stderr and `box.log` for it, not `serve.log`, which
   holds serve's stderr. By reading, serve writes none there: its host

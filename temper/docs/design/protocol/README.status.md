@@ -17,6 +17,14 @@ incident's unexplained 503 (`../domain/root.md`, section 13).
   `temper-service/src/clients/translation.rs`, `not_ready`, still refuses
   watches as `Busy`. The sign-in line is present, but other calls can
   still claim all watches are in use while the gate is shut.
+- **Not yet:** 5: `temper-fetch` and `temper-fetch-shell` aren't built:
+  the fetch's machine and Claude Code's pin are `temper-forge-setup`'s,
+  the fetch's host and Claude Code's fetch `temper-forge-setup-shell`'s,
+  and the launcher and the substitution `temper`'s.
+- **Not yet:** 4.1, 5: `temper-agent` isn't built: the agent's modes
+  are `temper`'s alone.
+- **Not yet:** 4.2: `tests/boundary/tests/closure.rs` doesn't exist; no
+  test reads a binary's `cargo tree`.
 
 Section 4's `temper [ADDRESS]` command is present, including bare
 `temper` choosing the TUI only when stdin and stdout are terminals.
