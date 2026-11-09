@@ -42,6 +42,10 @@ fn layouts() -> String {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "jig's round: reads SKEIN_CODEGEN_WRITE to refresh generated store layouts"
+)]
 fn the_stores_layouts_have_no_drift() {
     let path = store().join("src/generated/layouts.rs");
     if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {

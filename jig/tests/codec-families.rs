@@ -154,6 +154,10 @@ pub const FAMILIES: &[Family] = &[
     },
 ];
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "jig's round: reads SKEIN_CODEGEN_WRITE to refresh generated codecs and goldens"
+)]
 pub fn check() {
     let tree = skein_scratch::paths::tree();
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");

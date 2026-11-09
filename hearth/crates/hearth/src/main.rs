@@ -11,6 +11,7 @@ use skein_io::kernel::{Exit, Fd};
 use skein_shell::{Clock, Config, Kernel};
 use std::{ffi::OsString, io::Write, process::ExitCode};
 
+#[expect(clippy::disallowed_methods, reason = "hearth's round: reads the binary's arguments, XDG_CACHE_HOME and HOME")]
 fn main() -> ExitCode {
     skein_fail_stop::install();
     let args: Vec<OsString> = std::env::args_os().skip(1).collect();
