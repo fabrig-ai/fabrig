@@ -413,7 +413,12 @@ fn an_accounts_document_is_watched_but_never_read() {
         ))
     );
     assert_eq!(
-        crate::translate::objects::document(&reads::Answer::Document(Box::new(document)), &[], &limits),
+        crate::translate::objects::document(
+            &reads::Answer::Document(Box::new(document)),
+            &[],
+            &crate::Private::none(),
+            &limits
+        ),
         Err(w::Problem { path: w::Path::ReadValueTag, reason: skein_codec::Reason::Tag })
     );
 }

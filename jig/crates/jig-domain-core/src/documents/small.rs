@@ -211,19 +211,20 @@ pub(super) fn run(core: &Core, limits: &Limits, party: u64, number: u64) -> Resu
         Some(turn) => turn.turn,
         None => 0,
     };
-    let writing =
+    let mut writing =
         match jig_domain_views::writing(&core.views, skein_lib::Token::new(number), limits.documents.text_bytes) {
             Some(writing) if writing.turn.attempt == proof.attempt && writing.turn.turn > committed_turn => {
                 Some(writing)
             }
             Some(_) | None => None,
         };
-    let call = jig_domain_views::current_call(
+    let mut call = jig_domain_views::current_call(
         &core.views,
         skein_lib::Token::new(number),
         proof.attempt,
         limits.documents.text_bytes,
     );
+    crate::reads::withheld::snapshot(core, party, number, &mut call, &mut writing);
     Ok(Run { task: number, attempt: Some(proof.attempt), committed_turn, writing, call })
 }
 

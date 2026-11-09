@@ -21,6 +21,7 @@ pub fn section(section: &engine::BriefSection) -> run::Section {
         engine::BriefKind::Core(brief::Core::Calls) => b"Calls",
         engine::BriefKind::Core(brief::Core::Waiting) => b"Waiting",
         engine::BriefKind::Core(brief::Core::NotesIndex) => b"Notes",
+        engine::BriefKind::Core(brief::Core::Preferences) => crate::PREFERENCES_TITLE,
         engine::BriefKind::Core(brief::Core::TranscriptTail) => b"Transcript tail",
         engine::BriefKind::Forge(engine::ForgeBriefKind::Document(words)) => {
             let mut title = Writer::new(b"Document ".len().checked_add(words.len()).expect("bounded document title"));

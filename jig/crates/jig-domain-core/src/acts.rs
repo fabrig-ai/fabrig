@@ -230,7 +230,13 @@ pub(crate) fn note(
     act: Act,
 ) -> Result<(), people::Refusal> {
     match scope {
-        people::NoteScope::Party { .. } => return Err(people::Refusal::Unknown),
+        people::NoteScope::Party { party: owner } => {
+            return if project == people::DEPLOYMENT && crate::reads::party::scope_visible(core, party, *owner) {
+                Ok(())
+            } else {
+                Err(people::Refusal::Unknown)
+            };
+        }
         people::NoteScope::Deployment
         | people::NoteScope::Project
         | people::NoteScope::Goal { .. }
@@ -238,7 +244,7 @@ pub(crate) fn note(
     }
     let held = core.people.role(party, project);
     role(core, project, held, act)?;
-    if core.note_authorized(project, held, scope) {
+    if core.note_authorized(party, project, held, scope) {
         Ok(())
     } else {
         Err(people::Refusal::Authority { proposable: None, lacking: people::Lack::Shape })

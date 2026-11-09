@@ -21,7 +21,7 @@ pub struct Name {
 }
 
 /// Every name the engine and worker override parser takes, owner by owner in parser order.
-pub static NAMES: [Name; 235] = [
+pub static NAMES: [Name; 236] = [
     Name {
         name: "tasks.placed_holds",
         unit: Unit::Count,
@@ -1233,6 +1233,12 @@ pub static NAMES: [Name; 235] = [
         unit: Unit::Bytes,
         line: "Bounds note index text bytes in one brief.",
         value: |limits| u64::from(limits.core.brief_core_budgets.notes),
+    },
+    Name {
+        name: "core.brief_core_budgets.preferences",
+        unit: Unit::Bytes,
+        line: "Bounds whole requester preferences in one brief.",
+        value: |limits| u64::from(limits.core.brief_core_budgets.preferences),
     },
     Name {
         name: "core.public.goals",

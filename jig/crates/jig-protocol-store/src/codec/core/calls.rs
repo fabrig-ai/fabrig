@@ -156,6 +156,10 @@ pub(super) fn encode_call_part(value: &domain::CallPart, limits: &View) -> Resul
                 wire::CallPartDelegationRefusedParts { value: encode_task_problem(value, limits)? },
             )?)
         }
+        domain::CallPart::NoteDeleted { name } => wire::CallPart::NoteDeleted(wire::CallPartNoteDeleted::new(
+            &limits.core,
+            wire::CallPartNoteDeletedParts { name: *name },
+        )?),
         domain::CallPart::NoteWritten { name, revision, lines, added, removed, first } => {
             wire::CallPart::NoteWritten(wire::CallPartNoteWritten::new(
                 &limits.core,
@@ -271,6 +275,7 @@ pub(super) fn decode_call_part(value: wire::CallPart, limits: &View) -> Result<d
             let wire::CallPartDelegationRefusedParts { value } = value.into_parts();
             domain::CallPart::DelegationRefused(decode_task_problem(value, limits)?)
         }
+        wire::CallPart::NoteDeleted(value) => domain::CallPart::NoteDeleted { name: value.name() },
         wire::CallPart::NoteWritten(value) => {
             let wire::CallPartNoteWrittenParts { name, revision, lines, added, removed, first } = value.into_parts();
             domain::CallPart::NoteWritten { name, revision, lines, added, removed, first }

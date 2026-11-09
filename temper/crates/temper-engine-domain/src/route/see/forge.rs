@@ -267,6 +267,7 @@ fn read_head(answer: &CallAnswer) -> Option<api::Commit> {
         | CallAnswer::SubscriptionRepositoryRefused { .. }
         | CallAnswer::ChangeRefused { .. }
         | CallAnswer::NoteWritten { .. }
+        | CallAnswer::NoteDeleted { .. }
         | CallAnswer::NoteRecalled { .. }
         | CallAnswer::NoteRefused(_)
         | CallAnswer::Document(_)

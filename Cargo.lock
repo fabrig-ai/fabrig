@@ -1970,9 +1970,11 @@ dependencies = [
  "jig-domain-tasks",
  "jig-domain-views",
  "jig-protocol-store",
+ "jig-protocol-transcript",
  "skein-codec",
  "skein-lib",
  "skein-oauth-issuer",
+ "smith-transcript",
 ]
 
 [[package]]
