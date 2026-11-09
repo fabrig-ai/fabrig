@@ -854,3 +854,18 @@ fn restart_configured_world(world: &mut World, run: &engine::Assignment, config:
     world.driver.settle();
     world.owner = world.driver.session();
 }
+
+/// Stock Ask temper with the production party bounds and private tool names.
+pub(super) fn remembering_world() -> World {
+    let mut config = member_config();
+    config.core.settings.private_tools = temper_engine_smith::PRIVATE_TOOLS.map(Into::into).into();
+    let mut bounds = limits();
+    bounds.notes.entries_per_scope = 12;
+    bounds.notes.party_entries = 12;
+    bounds.notes.party_bytes = 120;
+    bounds.notes.description_bytes = 120;
+    bounds.brief.budgets.preferences = 2048;
+    bounds.brief.brief_bytes = 4096;
+    bounds.journal.result_bytes = 4096;
+    World::with_limits(config, &bounds)
+}
