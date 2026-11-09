@@ -10,3 +10,4 @@ mod live;
 mod jobs;
 
 mod lists;
+mod fit;
