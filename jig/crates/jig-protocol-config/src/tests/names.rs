@@ -45,9 +45,16 @@ fn each_line_is_within_its_bound() {
 #[test]
 fn an_unknown_name_is_refused() {
     let small = profile(Profile::Small);
-    for name in
-        [b"".as_slice(), b"absent", b"tasks.absent", b"tasks.retries", b"accounts.token.absent", b"clients_http.absent"]
-    {
+    for name in [
+        b"".as_slice(),
+        b"absent",
+        b"tasks.absent",
+        b"tasks.retries",
+        b"accounts.token.absent",
+        b"clients_http.absent",
+        b"io.input",
+        b"io.sends",
+    ] {
         let mut limits = small;
         assert!(names::find(name).is_none(), "{name:?}");
         assert_eq!(overrides::apply(&mut limits, name, 1), Err(What::Override), "{name:?}");

@@ -21,7 +21,7 @@ pub struct Name {
 }
 
 /// Every name the engine and worker override parser takes, owner by owner in parser order.
-pub static NAMES: [Name; 236] = [
+pub static NAMES: [Name; 237] = [
     Name {
         name: "tasks.placed_holds",
         unit: Unit::Count,
@@ -1437,6 +1437,12 @@ pub static NAMES: [Name; 236] = [
         unit: Unit::Count,
         line: "Bounds public HTTP calls in flight apart from signed-in calls.",
         value: |limits| u64::from(limits.clients_http.public_calls),
+    },
+    Name {
+        name: "io.output",
+        unit: Unit::Bytes,
+        line: "Bounds queued output per stream and the largest whole frame the stream can send.",
+        value: |limits| u64::from(limits.io.output),
     },
 ];
 

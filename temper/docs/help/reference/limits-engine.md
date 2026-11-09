@@ -287,3 +287,7 @@ temper sizes the engine's watch rooms itself: a stream holds 22 watches, and the
 - `clients_http.streams`: count, 2. Bounds HTTP client streams admitted at once.
 - `clients_http.calls`: count, 6. Bounds HTTP client calls admitted at once.
 - `clients_http.public_calls`: count, 0. Bounds public HTTP calls in flight apart from signed-in calls.
+
+## io
+
+- `io.output`: bytes, 1,048,576. Bounds queued output per stream and the largest whole frame the stream can send.
