@@ -59,8 +59,9 @@ pub struct SeePerson {
 /// first may be `Answer::None(_)`: its part says it was not read.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum SeeRead {
-    /// `Read::Project`, then `Read::Inbox { group: Needs, filter: { project, goal: None }, from: None }`.
-    Me { person: u64, project: Answer, needs: Answer },
+    /// `Read::Project`, then `Read::Inbox { group: Needs, filter: { project, goal: None }, from: None }`,
+    /// then `Read::Question` for each question in that page, in order.
+    Me { person: u64, project: Answer, needs: Answer, words: Box<[SeeWords]> },
     /// `Read::Project`, then `Read::Tasks` of the project's held tasks
     /// (`phase: Some(Held)`, `order: Number`), live group; repositories as the inventory names them.
     Project { project: Answer, held: Answer, repositories: Box<[RepositoryIdentity]> },
@@ -85,8 +86,17 @@ pub enum SeeRead {
         changes: Option<Box<temper_engine_domain_forge::Document>>,
         landings: Option<Box<temper_engine_domain_forge::Document>>,
     },
-    /// `Read::Inbox { group: Needs, filter: { project, goal: None }, from: None }`.
-    Inbox { needs: Answer },
+    /// `Read::Inbox { group: Needs, filter: { project, goal: None }, from: None }`,
+    /// then `Read::Question` for each question in that page, in order.
+    Inbox { needs: Answer, words: Box<[SeeWords]> },
+}
+
+/// A needs-page question's words as its person read answered (domain/agent.md, 8.4.1).
+#[derive(PartialEq, Eq, Hash, Debug)]
+pub struct SeeWords {
+    pub task: u64,
+    pub message: u64,
+    pub words: Answer,
 }
 
 /// Names the answer's numbers need (8.4.1, *How an answer reads*).

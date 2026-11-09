@@ -11,7 +11,7 @@ use jig_domain_core::{
     reads::{Answer, EndedGroup, PageRow},
 };
 use skein_lib::List;
-use temper_engine_domain::{SeeNames, SeePerson, SeeRead};
+use temper_engine_domain::{SeeNames, SeePerson, SeeRead, SeeWords};
 
 pub(super) fn text(person: &SeePerson, catalogue: &[jig_domain_core::settings::CatalogueModel]) -> Box<[u8]> {
     let names = &person.names;
@@ -45,7 +45,7 @@ pub(super) fn text(person: &SeePerson, catalogue: &[jig_domain_core::settings::C
                     .expect("task row");
             }
         }
-        SeeRead::Me { person, project, needs } => me(*person, project, needs, names, &mut lines),
+        SeeRead::Me { person, project, needs, words } => me(*person, project, needs, words, names, &mut lines),
         SeeRead::Project { project, held, repositories } => {
             project_text(project, held, repositories, names, catalogue, &mut lines);
         }
@@ -54,7 +54,7 @@ pub(super) fn text(person: &SeePerson, catalogue: &[jig_domain_core::settings::C
             task_text(*number, task, report.as_ref(), names, catalogue, &mut lines);
         }
         SeeRead::Tree { number, live, ended } => tree(*number, live, ended, names, catalogue, &mut lines),
-        SeeRead::Inbox { needs } => inbox(needs, names, &mut lines),
+        SeeRead::Inbox { needs, words } => inbox(needs, words, names, &mut lines),
         SeeRead::Activity { number, activity } => runs::activity(*number, activity, names, &mut lines),
         SeeRead::Turn { number, attempt, turn, read } => runs::turn(*number, *attempt, *turn, read, &mut lines),
         SeeRead::Change { number, panel } => changes::change(*number, panel, &mut lines),
@@ -77,7 +77,14 @@ fn project_document(answer: &Answer) -> Option<&d::Project> {
     let d::Document::Project(value) = document.as_ref() else { return None };
     Some(value)
 }
-fn me(person: u64, project: &Answer, needs: &Answer, names: &SeeNames, lines: &mut List<Box<[u8]>>) {
+fn me(
+    person: u64,
+    project: &Answer,
+    needs: &Answer,
+    words: &[SeeWords],
+    names: &SeeNames,
+    lines: &mut List<Box<[u8]>>,
+) {
     let Some(project) = project_document(project) else {
         lines.push(b"me: not read\n".as_slice().into()).expect("unread");
         return;
@@ -174,7 +181,7 @@ fn me(person: u64, project: &Answer, needs: &Answer, names: &SeeNames, lines: &m
         }
     }
     lines.push(join(&[&heading, b"\n"])).expect("needs heading");
-    inbox_rows(page, lines);
+    inbox_rows(page, words, lines);
 }
 
 fn project_text(
@@ -437,7 +444,7 @@ fn tree(
         }
     }
 }
-fn inbox(needs: &Answer, names: &SeeNames, lines: &mut List<Box<[u8]>>) {
+fn inbox(needs: &Answer, words: &[SeeWords], names: &SeeNames, lines: &mut List<Box<[u8]>>) {
     let Answer::Page(page) = needs else {
         lines.push(b"inbox: not read\n".as_slice().into()).expect("unread inbox");
         return;
@@ -451,12 +458,12 @@ fn inbox(needs: &Answer, names: &SeeNames, lines: &mut List<Box<[u8]>>) {
             b", oldest first; each is answered on Needs you\n",
         ]))
         .expect("inbox heading");
-    inbox_rows(page, lines);
+    inbox_rows(page, words, lines);
     if page.next.is_some() || page.cut {
         lines.push(b"more wait on you\n".as_slice().into()).expect("more needs");
     }
 }
-fn inbox_rows(page: &jig_domain_core::reads::Page, lines: &mut List<Box<[u8]>>) {
+fn inbox_rows(page: &jig_domain_core::reads::Page, words: &[SeeWords], lines: &mut List<Box<[u8]>>) {
     for row in &page.rows {
         let PageRow::Inbox(entry) = row else { continue };
         let kind = match entry.object {
@@ -471,8 +478,73 @@ fn inbox_rows(page: &jig_domain_core::reads::Page, lines: &mut List<Box<[u8]>>) 
             d::TaskLink::Live(chip) | d::TaskLink::Retained { chip, .. } => task_name(b"task", chip),
             d::TaskLink::Stored { number: n, .. } => join(&[b"task ", &number(*n)]),
         };
-        lines.push(join(&[kind, " · ".as_bytes(), &task, b"\n"])).expect("inbox row");
+        let mut line = join(&[kind, " · ".as_bytes(), &task]);
+        if let Some(text) = inbox_words(entry, words) {
+            line = join(&[&line, " · ".as_bytes(), &text]);
+        }
+        lines.push(join(&[&line, b"\n"])).expect("inbox row");
     }
+}
+
+fn inbox_words(entry: &d::InboxEntry, words: &[SeeWords]) -> Option<Box<[u8]>> {
+    let message = match entry.object {
+        d::InboxObject::Question { message } => message,
+        d::InboxObject::Proposal { .. }
+        | d::InboxObject::Escalation { .. }
+        | d::InboxObject::PersonTask
+        | d::InboxObject::Reply { .. }
+        | d::InboxObject::Result { .. } => return None,
+    };
+    let task = match &entry.task {
+        d::TaskLink::Live(chip) | d::TaskLink::Retained { chip, .. } => chip.number,
+        d::TaskLink::Stored { number, .. } => *number,
+    };
+    for read in words {
+        if read.task != task || read.message != message {
+            continue;
+        }
+        return match &read.words {
+            Answer::Document(document) => match document.as_ref() {
+                d::Document::Question(question) => Some(words::short(&question.words.bytes, question.words.cut)),
+                d::Document::Frame(_)
+                | d::Document::Chips(_)
+                | d::Document::Run(_)
+                | d::Document::Tree(_)
+                | d::Document::Lines(_)
+                | d::Document::Proposal(_)
+                | d::Document::Escalation(_)
+                | d::Document::PersonTask(_)
+                | d::Document::Result(_)
+                | d::Document::Project(_)
+                | d::Document::Note(_)
+                | d::Document::Inbox(_)
+                | d::Document::Accounts(_)
+                | d::Document::Deployment(_)
+                | d::Document::Settings(_)
+                | d::Document::Task(_) => None,
+            },
+            Answer::Ended(ended) => match &ended.value {
+                jig_domain_core::reads::EndedValue::Question { question, .. } => {
+                    Some(words::short(&question.words.bytes, question.words.cut))
+                }
+                jig_domain_core::reads::EndedValue::Task { .. }
+                | jig_domain_core::reads::EndedValue::Proposal(_)
+                | jig_domain_core::reads::EndedValue::PersonProposal { .. }
+                | jig_domain_core::reads::EndedValue::Escalation { .. }
+                | jig_domain_core::reads::EndedValue::PersonTask { .. }
+                | jig_domain_core::reads::EndedValue::Reply(_)
+                | jig_domain_core::reads::EndedValue::Turn(_) => None,
+            },
+            Answer::TaskText(_)
+            | Answer::Setting(_)
+            | Answer::Revision(_)
+            | Answer::Revisions(_)
+            | Answer::Tasks(_)
+            | Answer::Page(_)
+            | Answer::None(_) => None,
+        };
+    }
+    None
 }
 fn chip_hold(chip: &d::Chip) -> Box<[u8]> {
     match &chip.details.hold {

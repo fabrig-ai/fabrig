@@ -5,7 +5,7 @@ use jig_domain_core::{
 };
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Wall};
-use temper_engine_domain::{SeeAnswer, SeeName, SeeNames, SeePerson, SeeRead};
+use temper_engine_domain::{SeeAnswer, SeeName, SeeNames, SeePerson, SeeRead, SeeWords};
 
 fn text(words: &[u8]) -> d::Text {
     d::Text { bytes: words.into(), cut: false }
@@ -185,6 +185,47 @@ fn needs(more: bool) -> Answer {
         .unwrap();
     }
     page(rows, more)
+}
+
+fn question_needs() -> Answer {
+    let mut rows = List::uncapped();
+    for (task, message) in [(41, 4), (42, 4), (41, 5)] {
+        let mut chip = chip();
+        chip.number = task;
+        let object = d::InboxObject::Question { message };
+        rows.push(jig_domain_core::reads::PageRow::Inbox(d::InboxEntry {
+            reply: None,
+            task: d::TaskLink::Live(chip),
+            project: Some(7),
+            object,
+            activity: None,
+            at: Some(Wall::EPOCH),
+            unread: None,
+            cursor: d::Cursor::Inbox { task, object, at: Some(Wall::EPOCH) },
+            projects: List::uncapped(),
+        }))
+        .unwrap();
+    }
+    page(rows, false)
+}
+
+fn question_words(words: &[u8]) -> Box<[SeeWords]> {
+    Box::new([
+        SeeWords {
+            task: 41,
+            message: 4,
+            words: Answer::Document(Box::new(d::Document::Question(d::Question {
+                acts: List::uncapped(),
+                task: chip(),
+                message: 4,
+                from: tasks::Party::Task(41),
+                at: Wall::EPOCH,
+                words: text(words),
+            }))),
+        },
+        SeeWords { task: 42, message: 4, words: Answer::None(jig_domain_core::reads::Why::Unknown) },
+        SeeWords { task: 41, message: 5, words: Answer::None(jig_domain_core::reads::Why::Busy) },
+    ])
 }
 fn page(rows: List<jig_domain_core::reads::PageRow>, more: bool) -> Answer {
     Answer::Page(Box::new(jig_domain_core::reads::Page {
@@ -637,7 +678,35 @@ fn person_answers_read_as_named_bounded_lines() {
     let input_past = format!("{input_exact} ");
     let exact_input_line = format!("see: {input_exact}");
     let cut_input_line = format!("see: {input_exact}…");
+    let long_question = "é".repeat(TITLE_BYTES / 2 + 1);
+    let cut_question_line = format!("question · task 41, Add CSV export · {}…", "é".repeat(78));
     for (address, read, first, required, following) in [
+        (
+            "inbox",
+            SeeRead::Inbox {
+                needs: question_needs(),
+                words: question_words(b"Which delimiter should the export use?\nKeep this second line out."),
+            },
+            "waiting on you in project 7, Shop: 3, oldest first; each is answered on Needs you",
+            &[
+                "question · task 41, Add CSV export · Which delimiter should the export use?…",
+                "question · task 42, Add CSV export",
+                "question · task 41, Add CSV export",
+            ][..],
+            "task N · me",
+        ),
+        (
+            "me",
+            SeeRead::Me {
+                person: 9,
+                project: project(),
+                needs: question_needs(),
+                words: question_words(long_question.as_bytes()),
+            },
+            "you: Ada · owner in project 7, Shop",
+            &[cut_question_line.as_str()],
+            ME_NEXT,
+        ),
         (
             "task 41 turn 3.2",
             SeeRead::Turn { number: 41, attempt: 3, turn: 2, read: whole_turn(input_exact.as_bytes()) },
@@ -741,7 +810,7 @@ fn person_answers_read_as_named_bounded_lines() {
         ),
         (
             "me",
-            SeeRead::Me { person: 9, project: project(), needs: needs(false) },
+            SeeRead::Me { person: 9, project: project(), needs: needs(false), words: Box::new([]) },
             "you: Ada · owner in project 7, Shop",
             &[
                 "your pool this period: $12.50, $7.26 left",
@@ -827,7 +896,7 @@ fn person_answers_read_as_named_bounded_lines() {
         ),
         (
             "inbox",
-            SeeRead::Inbox { needs: needs(false) },
+            SeeRead::Inbox { needs: needs(false), words: Box::new([]) },
             "waiting on you in project 7, Shop: 3, oldest first; each is answered on Needs you",
             &["question · task 41, Add CSV export", "proposal · task 41, Add CSV export"],
             "task N · me",
@@ -855,7 +924,7 @@ fn person_answers_read_as_named_bounded_lines() {
         ),
         (
             "inbox",
-            SeeRead::Inbox { needs: needs(true) },
+            SeeRead::Inbox { needs: needs(true), words: Box::new([]) },
             "waiting on you in project 7, Shop: 3 or more, oldest first; each is answered on Needs you",
             &["more wait on you"],
             "task N · me",
@@ -956,6 +1025,7 @@ fn person_answers_read_as_named_bounded_lines() {
             "abababababababab",
             "Brief continuation",
             "More project context",
+            "Keep this second line out",
         ] {
             assert!(!rendered.contains(hidden), "{address}: {rendered}");
         }

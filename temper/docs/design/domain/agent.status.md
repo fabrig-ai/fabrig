@@ -140,6 +140,9 @@ record has run a real model on the sentence.
 
 ## Gaps and departures
 
+- **Not yet:** 8.4.1: an inbox row's words are read for questions alone;
+  proposals, escalations and person tasks keep their kind and task.
+
 - **Not yet:** 8.4.1: `see ways` says no way's headline: smith's
   `ways_text` prints a way's name, `now`, its line and its path, so the
   run and How work runs' heading say a way by different words

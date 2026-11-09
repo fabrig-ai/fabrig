@@ -27,6 +27,7 @@ pub(crate) mod see;
 pub(crate) mod ways;
 pub use see::{
     SeeAnswer, SeeLanding, SeeName, SeeNames, SeeNotRead, SeePerson, SeeProposal, SeeRead, SeeRepository, SeeSettings,
+    SeeWords,
 };
 pub(crate) mod settings_parts;
 mod tools;

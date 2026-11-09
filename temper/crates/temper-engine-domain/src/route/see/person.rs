@@ -1,7 +1,7 @@
 //! Sequential reads as the chat's requester (domain/agent.md, 8.4.1; domain/root.md, 5.1).
 use super::{
     Address, Decision, Domain, Env, FlightRender, Limits, ReplyTo, SeeAnswer, SeeFlight, SeeNames, SeeNotRead,
-    SeePerson, SeeRead, SeeReading, Work,
+    SeePerson, SeeRead, SeeReading, SeeWords, Work,
 };
 use alloc::boxed::Box;
 use jig_domain_core::{
@@ -9,15 +9,16 @@ use jig_domain_core::{
     reads::{Answer, Read, Why},
 };
 use jig_domain_people::ApplicationScope;
-use skein_lib::Token;
+use skein_lib::{List, Token};
 use temper_engine_domain_forge as forge;
 
-/// Each address asks at most two reads, keeping every answer whole until delivery.
+/// An address's primary reads and its needs-page question words, kept whole until delivery.
 #[derive(Hash, Debug)]
 pub(crate) struct Gathered {
     pub connector: u16,
     pub first: Option<Part>,
     pub second: Option<Part>,
+    pub words: List<SeeWords>,
 }
 
 #[derive(Hash, Debug)]
@@ -35,10 +36,14 @@ pub(crate) enum Step {
 
 impl Gathered {
     pub(crate) fn new(connector: u16) -> Self {
-        Self { connector, first: None, second: None }
+        Self { connector, first: None, second: None, words: List::uncapped() }
     }
 
-    fn push(&mut self, answer: Part) {
+    pub(crate) fn push(&mut self, address: &Address, answer: Part) {
+        if let Some((task, message)) = question(address, self) {
+            self.words.push(SeeWords { task, message, words: jig(Some(answer)) }).expect("needs-page question");
+            return;
+        }
         if self.first.is_none() {
             self.first = Some(answer);
         } else {
@@ -53,6 +58,9 @@ pub(crate) fn next(address: &Address, project: u32, gathered: &Gathered) -> Step
     if let Some(first) = &gathered.first {
         if let Some(why) = refused(first) {
             return Step::Deliver(Some(why));
+        }
+        if let Some((task, message)) = question(address, gathered) {
+            return Step::Read(Read::Question { task, message });
         }
         if gathered.second.is_some() {
             return Step::Deliver(None);
@@ -126,6 +134,80 @@ pub(crate) fn next(address: &Address, project: u32, gathered: &Gathered) -> Step
         | Address::File { .. }
         | Address::Unknown => unreachable!("a person's address"),
     })
+}
+
+/// Select only questions from the answered page, skipping the word reads already gathered.
+fn question(address: &Address, gathered: &Gathered) -> Option<(u64, u64)> {
+    let part = match address {
+        Address::Me => gathered.second.as_ref(),
+        Address::Inbox => gathered.first.as_ref(),
+        Address::Project
+        | Address::Goals { .. }
+        | Address::Tasks
+        | Address::Task { .. }
+        | Address::Tree { .. }
+        | Address::Activity { .. }
+        | Address::Turn { .. }
+        | Address::Change { .. }
+        | Address::Changes
+        | Address::Ways
+        | Address::Inventory
+        | Address::Setting(_)
+        | Address::Landing
+        | Address::Gates { .. }
+        | Address::Revisions
+        | Address::Revision { .. }
+        | Address::Proposal { .. }
+        | Address::Page { .. }
+        | Address::Search { .. }
+        | Address::File { .. }
+        | Address::Unknown => None,
+    };
+    let page = match part? {
+        Part::Jig(Answer::Page(page)) => page,
+        Part::Jig(
+            Answer::TaskText(_)
+            | Answer::Setting(_)
+            | Answer::Revision(_)
+            | Answer::Revisions(_)
+            | Answer::Tasks(_)
+            | Answer::Document(_)
+            | Answer::Ended(_)
+            | Answer::None(_),
+        )
+        | Part::Forge(_) => return None,
+    };
+    let mut skip = gathered.words.len();
+    for row in &page.rows {
+        let entry = match row {
+            core::reads::PageRow::Inbox(entry) => entry,
+            core::reads::PageRow::Line(_)
+            | core::reads::PageRow::EndedDelegate(_)
+            | core::reads::PageRow::History(_)
+            | core::reads::PageRow::Milestone(_)
+            | core::reads::PageRow::Activity { .. }
+            | core::reads::PageRow::Note(_)
+            | core::reads::PageRow::Spend(_) => continue,
+        };
+        let message = match entry.object {
+            documents::InboxObject::Question { message } => message,
+            documents::InboxObject::Proposal { .. }
+            | documents::InboxObject::Escalation { .. }
+            | documents::InboxObject::PersonTask
+            | documents::InboxObject::Reply { .. }
+            | documents::InboxObject::Result { .. } => continue,
+        };
+        if skip != 0 {
+            skip = skip.checked_sub(1).expect("remaining answered questions");
+            continue;
+        }
+        let task = match &entry.task {
+            documents::TaskLink::Live(chip) | documents::TaskLink::Retained { chip, .. } => chip.number,
+            documents::TaskLink::Stored { number, .. } => *number,
+        };
+        return Some((task, message));
+    }
+    None
 }
 
 fn refused(part: &Part) -> Option<SeeNotRead> {
@@ -337,7 +419,7 @@ fn answered_part(domain: &mut Domain, to: ReplyTo, answer: Part) {
             unreachable!("see person flight")
         }
     };
-    gathered.push(answer);
+    gathered.push(&address, answer);
     let answer = match next(&address, project, gathered) {
         Step::Read(read) => {
             ask(domain, ReplyTo::new(right), key, read);
@@ -386,9 +468,9 @@ fn forge(part: Option<Part>) -> Option<Box<forge::Document>> {
 }
 
 fn record(domain: &Domain, address: Address, person: u64, project: u32, gathered: Gathered) -> SeeRead {
-    let Gathered { first, second, .. } = gathered;
+    let Gathered { first, second, words, .. } = gathered;
     match address {
-        Address::Me => SeeRead::Me { person, project: jig(first), needs: jig(second) },
+        Address::Me => SeeRead::Me { person, project: jig(first), needs: jig(second), words: words.into_boxed() },
         Address::Project => SeeRead::Project {
             project: jig(first),
             held: jig(second),
@@ -409,7 +491,7 @@ fn record(domain: &Domain, address: Address, person: u64, project: u32, gathered
         Address::Turn { number, attempt, turn } => SeeRead::Turn { number, attempt, turn, read: jig(first) },
         Address::Change { number } => SeeRead::Change { number, panel: forge(first).expect("read change panel") },
         Address::Changes => SeeRead::Changes { changes: forge(first), landings: forge(second) },
-        Address::Inbox => SeeRead::Inbox { needs: jig(first) },
+        Address::Inbox => SeeRead::Inbox { needs: jig(first), words: words.into_boxed() },
         Address::Ways
         | Address::Inventory
         | Address::Setting(_)
