@@ -1709,6 +1709,12 @@ pub enum Path {
     ForgeCharterCharter,
     /// Bytes after `ForgeCharter`.
     ForgeCharterTail,
+    /// The `design` field of `TemplateGoal`.
+    TemplateGoalDesign,
+    /// The `close_out` field of `TemplateGoal`.
+    TemplateGoalCloseOut,
+    /// Bytes after `TemplateGoal`.
+    TemplateGoalTail,
     /// The tag of `QuestionsRoute`.
     QuestionsRouteTag,
     /// The `route` field of `ProjectQuestions`.
@@ -6239,6 +6245,10 @@ pub enum PathStep {
     Verify,
     /// `branch` without a payload.
     Branch,
+    /// `design` without a payload.
+    Design,
+    /// `close_out` without a payload.
+    CloseOut,
 }
 
 impl PathStep {
@@ -11192,6 +11202,44 @@ impl ForgeCharter {
 
 }
 
+/// Movable fields of `TemplateGoal`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TemplateGoalParts {
+    /// The `design` field.
+    pub design: bool,
+    /// The `close_out` field.
+    pub close_out: bool,
+}
+
+/// `TemplateGoal` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct TemplateGoal {
+    design: bool,
+    close_out: bool,
+}
+
+impl TemplateGoal {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: TemplateGoalParts) -> Result<Self, Problem> {
+        let TemplateGoalParts { design, close_out } = parts;
+        let value = Self { design, close_out };
+        Ok(value)
+    }
+
+    /// Reads the `design` field.
+    #[must_use]
+    pub fn design(&self) -> bool { self.design }
+
+    /// Reads the `close_out` field.
+    #[must_use]
+    pub fn close_out(&self) -> bool { self.close_out }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> TemplateGoalParts { TemplateGoalParts { design: self.design, close_out: self.close_out } }
+
+}
+
 /// `QuestionsRoute` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum QuestionsRoute {
@@ -15972,7 +16020,7 @@ impl PathStep {
     #[must_use]
     pub fn measure(&self) -> u32 {
         match self {
-            Self::Ask | Self::Draft | Self::Plan | Self::Produce | Self::ProduceMany | Self::Check | Self::Review | Self::Repair | Self::Approve | Self::Conflict | Self::Resolve | Self::Merge | Self::CatchUp | Self::Prepare | Self::Prove | Self::Turn | Self::Verify | Self::Branch => 1,
+            Self::Ask | Self::Draft | Self::Plan | Self::Produce | Self::ProduceMany | Self::Check | Self::Review | Self::Repair | Self::Approve | Self::Conflict | Self::Resolve | Self::Merge | Self::CatchUp | Self::Prepare | Self::Prove | Self::Turn | Self::Verify | Self::Branch | Self::Design | Self::CloseOut => 1,
         }
     }
 
@@ -15997,6 +16045,8 @@ impl PathStep {
             Self::Turn => writer.put(&[15_u8])?,
             Self::Verify => writer.put(&[16_u8])?,
             Self::Branch => writer.put(&[17_u8])?,
+            Self::Design => writer.put(&[18_u8])?,
+            Self::CloseOut => writer.put(&[19_u8])?,
         }
         Ok(())
     }
@@ -16029,6 +16079,8 @@ impl PathStep {
             15 => Self::Turn,
             16 => Self::Verify,
             17 => Self::Branch,
+            18 => Self::Design,
+            19 => Self::CloseOut,
             _ => return Err(Problem { path: Path::PathStepTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -21046,6 +21098,39 @@ impl ForgeCharter {
     fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_charter = reader.u32().ok_or(Problem { path: Path::ForgeCharterCharter, reason: skein_codec::Reason::Short })?;
         Ok(Self { charter: decoded_charter })
+    }
+}
+
+impl TemplateGoal {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_design = &self.design;
+        writer.put(&[u8::from(*field_design)])?;
+        let field_close_out = &self.close_out;
+        writer.put(&[u8::from(*field_close_out)])?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::TemplateGoalTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_design = match reader.u8().ok_or(Problem { path: Path::TemplateGoalDesign, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::TemplateGoalDesign, reason: skein_codec::Reason::Bool }) };
+        let decoded_close_out = match reader.u8().ok_or(Problem { path: Path::TemplateGoalCloseOut, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::TemplateGoalCloseOut, reason: skein_codec::Reason::Bool }) };
+        Ok(Self { design: decoded_design, close_out: decoded_close_out })
     }
 }
 
@@ -27555,6 +27640,34 @@ impl ForgeCharter {
     }
 }
 
+impl TemplateGoal {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(1_u64)?.checked_add(1_u64)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
 impl QuestionsRoute {
     /// Maximum encoded bytes among variants.
     #[must_use]
@@ -27881,6 +27994,7 @@ fn encoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(RuleApproval::encoded_bound_within(limits)?);
     biggest = biggest.max(LandingRule::encoded_bound_within(limits)?);
     biggest = biggest.max(ForgeCharter::encoded_bound_within(limits)?);
+    biggest = biggest.max(TemplateGoal::encoded_bound_within(limits)?);
     biggest = biggest.max(QuestionsRoute::encoded_bound_within(limits)?);
     biggest = biggest.max(ProjectQuestions::encoded_bound_within(limits)?);
     biggest = biggest.max(ProjectWays::encoded_bound_within(limits)?);
@@ -28127,6 +28241,7 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
     biggest = biggest.max(RuleApproval::decoded_bound_within(limits)?);
     biggest = biggest.max(LandingRule::decoded_bound_within(limits)?);
     biggest = biggest.max(ForgeCharter::decoded_bound_within(limits)?);
+    biggest = biggest.max(TemplateGoal::decoded_bound_within(limits)?);
     biggest = biggest.max(QuestionsRoute::decoded_bound_within(limits)?);
     biggest = biggest.max(ProjectQuestions::decoded_bound_within(limits)?);
     biggest = biggest.max(ProjectWays::decoded_bound_within(limits)?);
@@ -28135,7 +28250,7 @@ fn decoded_bound_2(limits: &Limits, mut biggest: u64) -> Option<u64> {
 
 #[cfg(test)]
 mod golden_tests {
-    use super::{CEILINGS, Role, Adopt, AdoptParts, Kept, KeptParts, ManagedForge, ManagedForgeParts, ForgeAsk, NewForge, NewForgeParts, Making, FirstEmpty, FirstEmptyParts, CopyAddresses, CopyAddressesParts, SetUpFirst, SetUp, SetUpParts, GitHubApp, GitHubAppParts, GitHubManifest, GitHubManifestParts, FirstAsk, FirstAskParts, ForgejoAdmin, ForgejoAdminParts, ForgejoTokens, ForgejoTokensParts, How, Replace, ReplaceParts, Connect, ConnectParts, Install, InstallParts, Reachable, ReachableParts, Accept, AcceptParts, ToBegin, ToBeginParts, GoalFrom, GoalFromParts, PersonFact, Dismiss, DismissParts, Dismissals, DismissalsParts, TryAccount, TryAccountParts, TrialStep, TrialClass, TrialEnded, TrialEndedParts, TrialWhy, TrialAnswered, TrialAnsweredParts, TrialFailed, TrialFailedParts, TrialState, TrialRow, TrialRowParts, Trials, TrialsParts, Kind, ApprovalYours, ApprovalRow, ApprovalRowParts, Approvals, ApprovalsParts, Looked, LookedParts, SetAway, SetAwayParts, Overturn, OverturnParts, AwayRow, AwayRowParts, Aways, AwaysParts, Decision, DecisionParts, Decisions, DecisionsParts, OverturnRefusal, OverturnRefused, OverturnRefusedParts, RemoveForge, RemoveForgeParts, MakeCopy, MakeCopyParts, MakeFrom, MakeInto, MakeIntoParts, MakeRepository, MakeRepositoryParts, DismissMaking, DismissMakingParts, Request, Requesting, RequestingParts, SetUpRefusal, SetUpRefused, SetUpRefusedParts, StartRefusal, StartRefused, StartRefusedParts, GroupFailed, GroupFailedParts, StartFailure, StartFailed, StartFailedParts, Mode, SetUpStep, SetUpBinary, SetUpFetched, SetUpFetchedParts, SettingUp, SettingUpParts, FailedStep, SetUpFailed, SetUpFailedParts, Connected, ConnectedParts, Stopped, StoppedParts, Connection, Offer, CreateStep, Made, MadeParts, CreateFailed, CreateFailedParts, FirstState, FirstRepository, FirstRepositoryParts, Account, AccountParts, Installation, InstallationParts, ConnectStopped, ConnectStoppedParts, SetupStage, AdminRefused, AdminRefusedParts, AdminStop, AppWay, Adoption, AdoptionParts, OwnedForge, OwnedForgeParts, MakingMade, MakingMadeParts, MakeStep, Refused, RefusedParts, MakeFailure, MakingFailed, MakingFailedParts, MakingState, RepositoryMaking, RepositoryMakingParts, StartsWith, ForgeRow, ForgeRowParts, Forges, ForgesParts, SettingRead, SettingReadParts, ProposalItemsRead, ProposalItemsReadParts, RevisionSettingRead, RevisionSettingReadParts, SettingAnswer, SettingAnswerParts, SettingValue, SettingValueParts, SettingEdit, ProposalItem, ProposalItemParts, ProposalItemsAnswer, ProposalItemsAnswerParts, Actor, PathStep, OpensCharter, OpensCharterParts, OpensRule, OpensRuleParts, OpensGate, OpensGateParts, OpensTier, OpensTierParts, Opens, Fact, FactParts, Card, CardParts, Stop, StopParts, BranchPath, BranchPathParts, StockWay, StockWayParts, WaysSubject, WaysSubjectParts, WaysPanel, WaysPanelParts, ViewRead, ViewReadParts, WayView, WayViewParts, ProposalView, ProposalViewParts, CharterView, CharterViewParts, RuleView, RuleViewParts, RolesView, RolesViewParts, NotDrawn, NotDrawnParts, View, ViewAnswer, ViewAnswerParts, Read, Reading, ReadingParts, PlaygroundState, PlaygroundAnswer, PlaygroundAnswerParts, DeploymentAnswer, DeploymentAnswerParts, ProgramEnvironmentAnswer, ProgramEnvironmentAnswerParts, ChangeSubject, ChangeSubjectParts, Pull, PullParts, LandingSubject, LandingSubjectParts, LandingsSubject, LandingsSubjectParts, ChangesSubject, ChangesSubjectParts, StatusSubject, StatusSubjectParts, DecidedSubject, DecidedSubjectParts, Watch, LandingPhase, Receipted, ReceiptedParts, Dispatched, DispatchedParts, Proof, GateProof, GateProofParts, Member, MemberParts, HeldFaults, HeldFaultsParts, LandingHold, LandingPanel, LandingPanelParts, LandingLine, LandingLineParts, LandingsPanel, LandingsPanelParts, ChangesQueued, ChangesQueuedParts, ChangesQueue, ChangesQueueParts, ChangesLanded, ChangesLandedParts, ChangesPanel, ChangesPanelParts, StatusBrief, StatusBriefParts, ProjectStatus, ProjectStatusParts, Watching, WatchingParts, Queued, QueuedParts, GateReason, GateReasonParts, Reason, Repairing, RepairingParts, Landed, LandedParts, InLanding, InLandingParts, Verifying, VerifyingParts, Red, RedParts, Cleared, ClearedParts, Step, AuthorityHold, AuthorityHoldParts, Hold, Ci, GateKind, Verdict, Gate, GateParts, Used, UsedParts, Way, Route, Foreman, ForemanParts, Stands, Question, QuestionParts, Questions, QuestionsParts, RuleFreshness, ReviewRead, CountedReview, CountedReviewParts, UnmappedReview, UnmappedReviewParts, Approval, ApprovalParts, ChangePanel, ChangePanelParts, Kinds, KindsParts, Rule, RuleParts, Protection, Adopted, AdoptedParts, CoreRefused, CoreRefusedParts, ForgeReason, ForgeRefused, ForgeRefusedParts, ForgeRefusal, ConnectRefused, ConnectRefusedParts, Link, LinkParts, Reached, ReachedParts, Page, PageParts, AcceptedInstallation, AcceptedInstallationParts, EndRefusal, EndRefused, EndRefusedParts, RemoveRefused, RemoveRefusedParts, MakeRefusal, MakeRefused, MakeRefusedParts, Outcome, Answer, AnswerParts, LandingExact, LandingExactParts, LandingOpen, LandingOpenParts, LandingLast, LandingPattern, LandingPatternParts, RuleGate, RuleGateParts, RuleApproval, RuleApprovalParts, LandingRule, LandingRuleParts, ForgeCharter, ForgeCharterParts, QuestionsRoute, ProjectQuestions, ProjectQuestionsParts, ProjectWays, ProjectWaysParts, Path};
+    use super::{CEILINGS, Role, Adopt, AdoptParts, Kept, KeptParts, ManagedForge, ManagedForgeParts, ForgeAsk, NewForge, NewForgeParts, Making, FirstEmpty, FirstEmptyParts, CopyAddresses, CopyAddressesParts, SetUpFirst, SetUp, SetUpParts, GitHubApp, GitHubAppParts, GitHubManifest, GitHubManifestParts, FirstAsk, FirstAskParts, ForgejoAdmin, ForgejoAdminParts, ForgejoTokens, ForgejoTokensParts, How, Replace, ReplaceParts, Connect, ConnectParts, Install, InstallParts, Reachable, ReachableParts, Accept, AcceptParts, ToBegin, ToBeginParts, GoalFrom, GoalFromParts, PersonFact, Dismiss, DismissParts, Dismissals, DismissalsParts, TryAccount, TryAccountParts, TrialStep, TrialClass, TrialEnded, TrialEndedParts, TrialWhy, TrialAnswered, TrialAnsweredParts, TrialFailed, TrialFailedParts, TrialState, TrialRow, TrialRowParts, Trials, TrialsParts, Kind, ApprovalYours, ApprovalRow, ApprovalRowParts, Approvals, ApprovalsParts, Looked, LookedParts, SetAway, SetAwayParts, Overturn, OverturnParts, AwayRow, AwayRowParts, Aways, AwaysParts, Decision, DecisionParts, Decisions, DecisionsParts, OverturnRefusal, OverturnRefused, OverturnRefusedParts, RemoveForge, RemoveForgeParts, MakeCopy, MakeCopyParts, MakeFrom, MakeInto, MakeIntoParts, MakeRepository, MakeRepositoryParts, DismissMaking, DismissMakingParts, Request, Requesting, RequestingParts, SetUpRefusal, SetUpRefused, SetUpRefusedParts, StartRefusal, StartRefused, StartRefusedParts, GroupFailed, GroupFailedParts, StartFailure, StartFailed, StartFailedParts, Mode, SetUpStep, SetUpBinary, SetUpFetched, SetUpFetchedParts, SettingUp, SettingUpParts, FailedStep, SetUpFailed, SetUpFailedParts, Connected, ConnectedParts, Stopped, StoppedParts, Connection, Offer, CreateStep, Made, MadeParts, CreateFailed, CreateFailedParts, FirstState, FirstRepository, FirstRepositoryParts, Account, AccountParts, Installation, InstallationParts, ConnectStopped, ConnectStoppedParts, SetupStage, AdminRefused, AdminRefusedParts, AdminStop, AppWay, Adoption, AdoptionParts, OwnedForge, OwnedForgeParts, MakingMade, MakingMadeParts, MakeStep, Refused, RefusedParts, MakeFailure, MakingFailed, MakingFailedParts, MakingState, RepositoryMaking, RepositoryMakingParts, StartsWith, ForgeRow, ForgeRowParts, Forges, ForgesParts, SettingRead, SettingReadParts, ProposalItemsRead, ProposalItemsReadParts, RevisionSettingRead, RevisionSettingReadParts, SettingAnswer, SettingAnswerParts, SettingValue, SettingValueParts, SettingEdit, ProposalItem, ProposalItemParts, ProposalItemsAnswer, ProposalItemsAnswerParts, Actor, PathStep, OpensCharter, OpensCharterParts, OpensRule, OpensRuleParts, OpensGate, OpensGateParts, OpensTier, OpensTierParts, Opens, Fact, FactParts, Card, CardParts, Stop, StopParts, BranchPath, BranchPathParts, StockWay, StockWayParts, WaysSubject, WaysSubjectParts, WaysPanel, WaysPanelParts, ViewRead, ViewReadParts, WayView, WayViewParts, ProposalView, ProposalViewParts, CharterView, CharterViewParts, RuleView, RuleViewParts, RolesView, RolesViewParts, NotDrawn, NotDrawnParts, View, ViewAnswer, ViewAnswerParts, Read, Reading, ReadingParts, PlaygroundState, PlaygroundAnswer, PlaygroundAnswerParts, DeploymentAnswer, DeploymentAnswerParts, ProgramEnvironmentAnswer, ProgramEnvironmentAnswerParts, ChangeSubject, ChangeSubjectParts, Pull, PullParts, LandingSubject, LandingSubjectParts, LandingsSubject, LandingsSubjectParts, ChangesSubject, ChangesSubjectParts, StatusSubject, StatusSubjectParts, DecidedSubject, DecidedSubjectParts, Watch, LandingPhase, Receipted, ReceiptedParts, Dispatched, DispatchedParts, Proof, GateProof, GateProofParts, Member, MemberParts, HeldFaults, HeldFaultsParts, LandingHold, LandingPanel, LandingPanelParts, LandingLine, LandingLineParts, LandingsPanel, LandingsPanelParts, ChangesQueued, ChangesQueuedParts, ChangesQueue, ChangesQueueParts, ChangesLanded, ChangesLandedParts, ChangesPanel, ChangesPanelParts, StatusBrief, StatusBriefParts, ProjectStatus, ProjectStatusParts, Watching, WatchingParts, Queued, QueuedParts, GateReason, GateReasonParts, Reason, Repairing, RepairingParts, Landed, LandedParts, InLanding, InLandingParts, Verifying, VerifyingParts, Red, RedParts, Cleared, ClearedParts, Step, AuthorityHold, AuthorityHoldParts, Hold, Ci, GateKind, Verdict, Gate, GateParts, Used, UsedParts, Way, Route, Foreman, ForemanParts, Stands, Question, QuestionParts, Questions, QuestionsParts, RuleFreshness, ReviewRead, CountedReview, CountedReviewParts, UnmappedReview, UnmappedReviewParts, Approval, ApprovalParts, ChangePanel, ChangePanelParts, Kinds, KindsParts, Rule, RuleParts, Protection, Adopted, AdoptedParts, CoreRefused, CoreRefusedParts, ForgeReason, ForgeRefused, ForgeRefusedParts, ForgeRefusal, ConnectRefused, ConnectRefusedParts, Link, LinkParts, Reached, ReachedParts, Page, PageParts, AcceptedInstallation, AcceptedInstallationParts, EndRefusal, EndRefused, EndRefusedParts, RemoveRefused, RemoveRefusedParts, MakeRefusal, MakeRefused, MakeRefusedParts, Outcome, Answer, AnswerParts, LandingExact, LandingExactParts, LandingOpen, LandingOpenParts, LandingLast, LandingPattern, LandingPatternParts, RuleGate, RuleGateParts, RuleApproval, RuleApprovalParts, LandingRule, LandingRuleParts, ForgeCharter, ForgeCharterParts, TemplateGoal, TemplateGoalParts, QuestionsRoute, ProjectQuestions, ProjectQuestionsParts, ProjectWays, ProjectWaysParts, Path};
     use super::Limits;
 
     use alloc::boxed::Box;
@@ -28188,7 +28303,7 @@ mod golden_tests {
         };
         at && past
     }
-    static GOLDEN_0: [Case; 984] = [
+    static GOLDEN_0: [Case; 990] = [
         ("enum_role_owned_smallest", || { let value = Role::Owned; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Role::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_role_owned_full", || { let value = Role::Owned; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Role::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_role_adopted_smallest", || { let value = Role::Adopted; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, Role::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -28657,6 +28772,10 @@ mod golden_tests {
         ("enum_path_step_verify_full", || { let value = PathStep::Verify; let bytes: &[u8] = &[16]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PathStep::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_path_step_branch_smallest", || { let value = PathStep::Branch; let bytes: &[u8] = &[17]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PathStep::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_path_step_branch_full", || { let value = PathStep::Branch; let bytes: &[u8] = &[17]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PathStep::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_path_step_design_smallest", || { let value = PathStep::Design; let bytes: &[u8] = &[18]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PathStep::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_path_step_design_full", || { let value = PathStep::Design; let bytes: &[u8] = &[18]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PathStep::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_path_step_close_out_smallest", || { let value = PathStep::CloseOut; let bytes: &[u8] = &[19]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PathStep::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("enum_path_step_close_out_full", || { let value = PathStep::CloseOut; let bytes: &[u8] = &[19]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, PathStep::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_opens_charter_smallest", || { let value = OpensCharter::new(&CEILINGS, OpensCharterParts { charter: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, OpensCharter::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_opens_charter_full", || { let value = OpensCharter::new(&CEILINGS, OpensCharterParts { charter: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, OpensCharter::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_opens_rule_smallest", || { let value = OpensRule::new(&CEILINGS, OpensRuleParts { kind: 0_u32, scope: 0_u32, number: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, OpensRule::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
@@ -29163,6 +29282,8 @@ mod golden_tests {
         ("record_landing_rule_full", || { let value = LandingRule::new(&CEILINGS, LandingRuleParts { pattern: LandingPattern::new(&CEILINGS, LandingPatternParts { segments: { let mut items = skein_lib::List::with_capacity(1); items.push(Box::from([0_u8, 127_u8, 255_u8].as_slice())).expect("one slot"); items }, last: LandingLast::Exact(LandingExact::new(&CEILINGS, LandingExactParts { value: Box::from([0_u8, 127_u8, 255_u8].as_slice()) }).expect("golden within ceilings")) }).expect("golden within ceilings"), enforce: true, ci: true, up_to_date: true, gates: { let mut items = skein_lib::List::with_capacity(1); items.push(RuleGate::new(&CEILINGS, RuleGateParts { number: u32::MAX, blocking: true, freshness: RuleFreshness::Exact }).expect("golden within ceilings")).expect("one slot"); items }, approvals: { let mut items = skein_lib::List::with_capacity(1); items.push(RuleApproval::new(&CEILINGS, RuleApprovalParts { role: u32::MAX, people: u32::MAX, freshness: RuleFreshness::Exact }).expect("golden within ceilings")).expect("one slot"); items } }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 1, 0, 0, 0, 3, 0, 127, 255, 0, 0, 0, 0, 3, 0, 127, 255, 1, 1, 1, 0, 0, 0, 1, 255, 255, 255, 255, 1, 0, 0, 0, 0, 1, 255, 255, 255, 255, 255, 255, 255, 255, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, LandingRule::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_forge_charter_smallest", || { let value = ForgeCharter::new(&CEILINGS, ForgeCharterParts { charter: 0_u32 }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0, 0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeCharter::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("record_forge_charter_full", || { let value = ForgeCharter::new(&CEILINGS, ForgeCharterParts { charter: u32::MAX }).expect("golden within ceilings"); let bytes: &[u8] = &[255, 255, 255, 255]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, ForgeCharter::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_template_goal_smallest", || { let value = TemplateGoal::new(&CEILINGS, TemplateGoalParts { design: false, close_out: false }).expect("golden within ceilings"); let bytes: &[u8] = &[0, 0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TemplateGoal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
+        ("record_template_goal_full", || { let value = TemplateGoal::new(&CEILINGS, TemplateGoalParts { design: true, close_out: true }).expect("golden within ceilings"); let bytes: &[u8] = &[1, 1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, TemplateGoal::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_questions_route_none_smallest", || { let value = QuestionsRoute::None; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, QuestionsRoute::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_questions_route_none_full", || { let value = QuestionsRoute::None; let bytes: &[u8] = &[0]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, QuestionsRoute::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
         ("enum_questions_route_foreman_smallest", || { let value = QuestionsRoute::Foreman; let bytes: &[u8] = &[1]; let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("size fits usize")); let encoded = match value.encode(&mut writer) { Ok(()) => Ok(writer.finish()), Err(problem) => Err(problem) }; golden(value, bytes, encoded, QuestionsRoute::decode(&CEILINGS, &mut skein_lib::Reader::new(bytes))) }),
