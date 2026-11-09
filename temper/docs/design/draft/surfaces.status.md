@@ -99,15 +99,17 @@
     routing to an area's owner is P5b's (`whole-story.execution.md`,
     section 3).
   - 11: `../client/README.md`, 6.13 and 6.14, hold the launchpad as
-    11.1 draws it but for its team lines and `/draft` and `/talk` in
-    Start, 11.4's commands but for `/draft`, `/talk` and `/tell`, and
+    11.1 draws it but for its team lines and `/talk` in
+    Start, 11.4's commands but for `/talk` and `/tell`, and
     11.5's printed views (the plan `tui-whole-t1`); its brief, Where you
     left off and Needs you are the project's, where 11.1 has them across
     the person's projects: 3.5, *Home on All projects*, reads every
     project and joins their briefs in `pages::all_home::brief`, which the
-    launchpad doesn't read (3). No design holds 11.2's design session, the
-    drafter in the terminal or the side pane, or 11.3's talking with a
-    role.
+    launchpad doesn't read (3). 6.14, *A design session*, holds 11.2 and
+    11.1's and 11.4's `/draft` (the plan `tui-design-session`), where it
+    departs from `design-session.html` as it says and
+    `tui-design-session.status.md` records. No design holds 11.3's
+    talking with a role.
   - 12: `../client/README.md`, 3.5, *A page's parts*, holds Home's and
     Needs you's rules, without owners' lines, follows or Away; 5.13,
     *The page*, keeps "What the project shows" at How work runs' foot as
@@ -162,7 +164,8 @@
     opens, where the mockups draw "/chats" once, on the first row, and
     number no row. Decided by the cut of `tui-whole-t1`, from 15's
     default, a list numbered as the launchpad numbers it; the mockups
-    win (13), so a look request or T2 draws the rows as they do.
+    win (13), so a look request draws the rows as they do: T2's request
+    (`tui-design-session.md`) leaves them.
   - 11.1 and 13: `../client/README.md`, 6.14, draws a need's row as
     Home's line alone (*Needs you*), with no asker or age, where the Pair
     mockup (`../client/tui/whole-story/pair/launchpad.html`) has "asked
