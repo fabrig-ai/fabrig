@@ -1059,6 +1059,16 @@ fn a_task_runs_on_each_worker() {
     cluster_chats("cluster_each_worker", ClusterStory::Each);
 }
 
+/// A task on each worker, on the deployment's binaries (protocol/README.md, 15.6).
+#[test]
+fn a_task_runs_on_each_worker_of_the_deployments_binaries() {
+    cluster_chats_with(
+        "cluster_binaries_each_worker",
+        ClusterStory::Each,
+        support::cluster::Cluster::deployment_binaries,
+    );
+}
+
 // A waiting reply is uncommitted: killing w1 loses it. The retry on w2
 // resumes without an assistant message, so the same cue replies and waits
 // again. Only after close/end is that reply committed, exactly once; the
@@ -1106,8 +1116,13 @@ fn an_unexpected_member_exit_is_reported_after_its_client_settles() {
 }
 
 fn cluster_chats(case: &str, story: ClusterStory) {
+    cluster_chats_with(case, story, |_| {});
+}
+
+fn cluster_chats_with(case: &str, story: ClusterStory, shape: fn(&mut support::cluster::Cluster)) {
     let scratch = support::Scratch::new(case);
     let mut cluster = support::cluster::Cluster::read(scratch.path());
+    shape(&mut cluster);
     if matches!(story, ClusterStory::Kill | ClusterStory::Hung) {
         cluster.record_llm();
     }

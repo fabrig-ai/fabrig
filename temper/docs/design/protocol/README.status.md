@@ -37,11 +37,11 @@ incident's unexplained 503 (`../domain/root.md`, section 13).
   watches as `Busy`. The sign-in line is present, but other calls can
   still claim all watches are in use while the gate is shut.
 
-Section 4.5's worker binary and its two crates are M3's, under way
-(`../draft/deployment-binaries.execution.md`, 1).
-
-- **Not yet:** 15.6: the process tier has no story on the deployment's
-  binaries.
+Section 4.5's `temper-worker` is present on `temper-worker-shell` and
+`temper-service-shell`, with its step test (`bin/temper-worker/tests/suite/main.rs`).
+15.6's story on the deployment's binaries is written and compiled, and runs
+after landing (`crates/temper/tests/process.rs`,
+`a_task_runs_on_each_worker_of_the_deployments_binaries`).
 
 Section 4's `temper [ADDRESS]` command is present, including bare
 `temper` choosing the TUI only when stdin and stdout are terminals.
