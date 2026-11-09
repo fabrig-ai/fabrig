@@ -118,3 +118,15 @@ Acceptance:
 
 As the implementer's text asks; the rows changed from cleared to kept,
 the journeys touched, and the bites.
+
+## Answers
+
+### 2026-11-09: Wait for notice's contracted API and resume typing (recommended), or expand typing's scope to implement notice? (tui-box-polish/typing-1, foreman tui-box-polish/typing/foreman-1)
+
+Wait for notice’s contracted API, then resume typing within its existing scope.
+The typing spec declares `needs = ["notice"]`.
+Its acceptance requires “`Host::send` gives `Notice::SigningIn` (the `notice` task’s `fn notice`)”.
+`temper/docs/plan/tui-box-polish/notes/contracts.md` assigns both `Notice` and `Host::notice` to `notice`.
+These contracts settle ownership; typing does not expand its scope to implement notice.
+After notice supplies the API, the next run merges that dependency and completes typing’s pending acceptance checks, guard bite, combined focused suite, journey print test and final clippy.
+The task is not accepted as done: the report explicitly says final acceptance remains blocked.
