@@ -133,6 +133,7 @@ pub(crate) type ConnectionState = (crate::Connection, Option<crate::FailedStep>)
 
 /// The bounded forge connector subtree.
 #[derive(Hash, Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "the volatile full-outbox mark is independent of connector phases")]
 pub struct Domain {
     retire_pending: bool,
     watch_due: Option<skein_lib::Time>,
@@ -235,6 +236,9 @@ pub struct Domain {
     pub(crate) brief_held: Map<Token, held::Held>,
     merge_kind: Option<(u32, u32)>,
     projection_due: Map<u64, skein_lib::Wall>,
+    /// Volatile: a projection met the full outbox since the root's step began
+    /// (temper/docs/design/domain/forge.md, 12). Never saved; false after a restore.
+    full_outbox_met: bool,
     change_due: Map<u64, skein_lib::Wall>,
     /// True wakes the procedure too; false steps only its pending dependents.
     pub(crate) procedure_wakes: Map<u64, bool>,
@@ -587,6 +591,18 @@ impl Domain {
         self.projection_due.remove(&goal);
     }
 
+    /// Whether a projection met the full outbox since the root's step began
+    /// (temper/docs/design/domain/forge.md, 12).
+    #[must_use]
+    pub fn full_outbox_met(&self) -> bool {
+        self.full_outbox_met
+    }
+
+    /// The root's step begins: forget what the last one's projections met.
+    pub fn begin_step(&mut self) {
+        self.full_outbox_met = false;
+    }
+
     /// Available outbox room including the root's staged descriptions.
     #[must_use]
     pub fn effect_room(&self, limits: &Limits, staged: u32) -> bool {
@@ -734,6 +750,7 @@ impl Domain {
             brief_held: Map::with_capacity(l.brief_sections),
             merge_kind: None,
             projection_due: Map::with_capacity(l.issues),
+            full_outbox_met: false,
             change_due: Map::with_capacity(l.changes),
             procedure_wakes: Map::with_capacity(l.changes),
             settling: Map::with_capacity(l.changes),
@@ -4959,7 +4976,11 @@ fn project(
         },
         issues::Decision::Hold => fail_projection(d, env, goal, Some(repository), closing, out),
         issues::Decision::Effect(effect) => {
-            if d.entries.len() == env.limits.entries || d.entries.contains_key(&number) {
+            if d.entries.len() == env.limits.entries {
+                wait_for_room(d, env, goal, out);
+                return;
+            }
+            if d.entries.contains_key(&number) {
                 emit(out, Request::ProjectAfter { goal, when: None });
                 return;
             }
@@ -4994,6 +5015,16 @@ fn project(
             emit(out, Request::ProjectionEffect { row, entry, description });
         }
     }
+}
+
+/// A projection meeting the full outbox waits the policy's interval
+/// (temper/docs/design/domain/forge.md, 12).
+fn wait_for_room(d: &mut Domain, env: &Env<Limits>, goal: u64, out: &mut Queue<Request>) {
+    let when =
+        skein_lib::Wall::from_nanos(env.wall.as_nanos().saturating_add(env.limits.issue_policy.interval.as_nanos()));
+    d.projection_due.insert(goal, when).expect("one deadline per issue");
+    d.full_outbox_met = true;
+    emit(out, Request::ProjectAfter { goal, when: Some(when) });
 }
 
 fn projection_limits(d: &Domain, limits: &Limits, prior: &IssueRow, view: &issues::GoalView) -> Option<issues::Limits> {

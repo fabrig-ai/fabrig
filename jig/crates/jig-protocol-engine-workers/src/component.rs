@@ -1,6 +1,6 @@
 //! Routing (protocol/channel.md, sections 4 and 10.2); Debug (jig/docs/design/protocol/service.md, 11.3).
 use crate::{
-    Event, Limits, Request, Worker,
+    Event, Limits, Loss, Request, Worker,
     connection::{Connection, Ending, Phase},
     opening::Verdict,
 };
@@ -78,6 +78,7 @@ impl Component {
             Event::Lower { connection, event } => self.lower(now, connection, event, out),
             Event::Gone { connection } => {
                 if let Some(mut state) = self.connections.remove(&connection) {
+                    ended(connection, &mut state, Loss::Stream, out);
                     lost(&mut state, out);
                 }
             }
@@ -242,6 +243,10 @@ impl Component {
             || self.connections.len() == self.connections.capacity()
             || self.connections.contains_key(&connection)
         {
+            if !self.connections.contains_key(&connection) {
+                let why = if self.life == Life::Closed { Loss::Stopping } else { Loss::NoRoom };
+                out.push(Request::Ended { connection, worker: None, channel: None, why });
+            }
             out.push(Request::TurnAway { connection });
             return;
         }
@@ -313,7 +318,7 @@ impl Component {
                             for _ in 0..skein_channel::MAX_UP {
                                 let Some(event) = old.above.pop() else { break };
                                 match event {
-                                    ChannelEvent::Closed { why } => closed(older, &mut old, why, out),
+                                    ChannelEvent::Closed { why } => closed(older, &mut old, why, self.life, out),
                                     ChannelEvent::Opening { .. }
                                     | ChannelEvent::Ready { .. }
                                     | ChannelEvent::Body { .. }
@@ -350,7 +355,7 @@ impl Component {
                     state.down(ChannelRequest::Read, connection, out);
                 }
             }
-            ChannelEvent::Closed { why } => closed(connection, state, why, out),
+            ChannelEvent::Closed { why } => closed(connection, state, why, self.life, out),
             ChannelEvent::Body { kind, body } => self.body(now, connection, state, kind, &body, out),
             ChannelEvent::Ping | ChannelEvent::Unsupported { .. } => {
                 if state.phase == Phase::Open {
@@ -360,12 +365,14 @@ impl Component {
                     state.down(ChannelRequest::Read, connection, out);
                 }
             }
-            ChannelEvent::Ended
-            | ChannelEvent::Refused { .. }
-            | ChannelEvent::Unsent { why: skein_channel::Unsent::Full, .. }
-            | ChannelEvent::OutputFailed => {
-                lose(state, out);
-                state.down(ChannelRequest::Close, connection, out);
+            ChannelEvent::Ended | ChannelEvent::OutputFailed => {
+                self.loss(now, connection, state, Loss::Stream, out);
+            }
+            ChannelEvent::Refused { reason, .. } => {
+                self.loss(now, connection, state, Loss::RefusedPeer { reason }, out);
+            }
+            ChannelEvent::Unsent { why: skein_channel::Unsent::Full, .. } => {
+                self.loss(now, connection, state, Loss::Full, out);
             }
             ChannelEvent::Drained => {
                 if state.phase == Phase::Open {
@@ -375,6 +382,11 @@ impl Component {
             }
             ChannelEvent::Sent { .. } | ChannelEvent::Unsent { .. } => {}
         }
+    }
+    fn loss(&self, now: Time, connection: Token, state: &mut Connection, why: Loss, out: &mut Queue<Request>) {
+        ended(connection, state, why, out);
+        lose(now, self.limits.stall, state, out);
+        state.down(ChannelRequest::Close, connection, out);
     }
     fn body(
         &mut self,
@@ -434,12 +446,9 @@ impl Component {
         text: Box<[u8]>,
         out: &mut Queue<Request>,
     ) {
-        lost(state, out);
+        ended(connection, state, Loss::Refused { reason }, out);
+        lose(now, self.limits.stall, state, out);
         state.worker = None;
-        state.phase = Phase::Closing;
-        state.ping = None;
-        state.silence = None;
-        state.deadline = Some(now.saturating_add(self.limits.stall));
         state.down(ChannelRequest::Refuse { reason, text }, connection, out);
     }
     pub fn fire(&mut self, now: Time, out: &mut Queue<Request>) {
@@ -453,25 +462,32 @@ impl Component {
         if let Some(connection) = due {
             let mut state = self.connections.remove(&connection).expect("due connection exists");
             if self.shutdown_pending(&state) {
+                ended(connection, &mut state, Loss::Stopping, out);
                 state.phase = Phase::Closing;
                 state.ping = None;
                 state.silence = None;
-                state.deadline = None;
+                state.stall = None;
+                state.deadline = Some(now.saturating_add(self.limits.stall));
                 state.ending = if self.life == Life::Aborting { Ending::Abort } else { Ending::Graceful };
                 if self.life == Life::Aborting {
-                    lost(&mut state, out);
-                    state.down(ChannelRequest::Close, connection, out);
+                    terminate(connection, &mut state, out);
                 } else {
                     state.down(ChannelRequest::Finish, connection, out);
                 }
+            } else if state.phase == Phase::Closing && expired(state.deadline, now) && !state.terminal {
+                ended(connection, &mut state, Loss::Stream, out);
+                terminate(connection, &mut state, out);
             } else if expired(state.deadline, now) || expired(state.silence, now) || expired(state.stall, now) {
-                lost(&mut state, out);
-                state.deadline = None;
-                state.silence = None;
-                state.stall = None;
-                state.ping = None;
+                let why = if expired(state.deadline, now) {
+                    Loss::Deadline
+                } else if expired(state.silence, now) {
+                    Loss::Silence
+                } else {
+                    Loss::Stall
+                };
+                ended(connection, &mut state, why, out);
+                lose(now, self.limits.stall, &mut state, out);
                 state.worker = None;
-                state.phase = Phase::Closing;
                 state.down(ChannelRequest::Close, connection, out);
             } else {
                 state.ping = Some(now.saturating_add(self.limits.ping));
@@ -511,10 +527,24 @@ impl Component {
     }
 }
 
-fn closed(connection: Token, state: &mut Connection, why: Closed, out: &mut Queue<Request>) {
+fn closed(connection: Token, state: &mut Connection, why: Closed, life: Life, out: &mut Queue<Request>) {
     if state.terminal {
         return;
     }
+    let loss = match why {
+        Closed::RefusedHere(reason) => Loss::Refused { reason },
+        Closed::RefusedPeer(reason) => Loss::RefusedPeer { reason },
+        Closed::Framing => Loss::Framing,
+        Closed::Stream | Closed::Truncated => Loss::Stream,
+        Closed::Owner => {
+            if life == Life::Closing || life == Life::Aborting {
+                Loss::Stopping
+            } else {
+                Loss::Stream
+            }
+        }
+    };
+    ended(connection, state, loss, out);
     lost(state, out);
     state.terminal = true;
     state.worker = None;
@@ -546,11 +576,40 @@ fn expired(deadline: Option<Time>, now: Time) -> bool {
     }
 }
 
-fn lose(state: &mut Connection, out: &mut Queue<Request>) {
+fn lose(now: Time, stall: skein_lib::Duration, state: &mut Connection, out: &mut Queue<Request>) {
+    if state.phase == Phase::Closing || state.terminal {
+        return;
+    }
     lost(state, out);
     state.phase = Phase::Closing;
     state.ping = None;
     state.silence = None;
     state.stall = None;
+    state.deadline = Some(now.saturating_add(stall));
+}
+
+fn ended(connection: Token, state: &mut Connection, why: Loss, out: &mut Queue<Request>) {
+    if state.loss.is_some() {
+        return;
+    }
+    state.loss = Some(why);
+    assert!(!state.ended, "one end per accepted connection");
+    state.ended = true;
+    out.push(Request::Ended {
+        connection,
+        worker: state.worker,
+        channel: if state.heard { Some(state.channel) } else { None },
+        why,
+    });
+}
+
+fn terminate(connection: Token, state: &mut Connection, out: &mut Queue<Request>) {
+    lost(state, out);
+    state.terminal = true;
+    state.worker = None;
     state.deadline = None;
+    state.ping = None;
+    state.silence = None;
+    state.stall = None;
+    out.push(Request::Abort { connection });
 }

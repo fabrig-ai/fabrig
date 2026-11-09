@@ -765,11 +765,13 @@ replay says the same clocks (`README.md`, 5.12).
   stops clear of the tab bar, and every target stands at least 44 px tall to
   a press (`../draft/surfaces.md`, section 10): the connection flows'
   primaries, Settings' and a dialog's, and every control of the frame, Home,
-  Needs you, Work, Ask temper's page and an Ask temper chat. A control the mockups draw smaller,
+  Needs you, Work, Ask temper's page and an Ask temper chat; and any chat's
+  bar and composer, which one layout gives every chat (`README.md`, 3.5,
+  *One layout for every chat*). A control the mockups draw smaller,
   the Away chip's 36 px pill, the night switch's 30 px circle, a way's tab,
   keeps its drawing and takes a 44 px target around it, by its padding or a
   transparent `::after` over it. A link inside a line of words is no target
-  of its own. Every other page keeps what the mock draws.
+  of its own. Every other control keeps what the mock draws.
 - **No frame but the top bar outside a project** (`README.md`, 5.1; the
   look request `outside-pages`): a page that is no project's has no
   navigation, switcher or menu, at any width; the top bar is drawn as

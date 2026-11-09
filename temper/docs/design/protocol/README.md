@@ -1408,6 +1408,25 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   |---|---|---|
   | `listening <listener> <address>` | each shape with an engine, for `clients`, `webhooks` and a socket's `workers` | once that listener is bound, with the address bound (`listening workers 127.0.0.1:41733`; an IPv6 one bracketed, `[::1]:41733`) |
   | `linked <worker> <address>` | a worker alone | at each opening of its link: the engine has taken its secret and its hello is sent, with the engine's address |
+  | `lost <worker> <address> <why>` | a worker alone | once each linked link is lost, with its `Loss` (below) |
+  | `temper serve: worker lost worker=<worker> channel=<n>: <why>` | each shape with an engine | once each worker's channel that said hello ends |
+  | `temper serve: worker opening ended worker=<worker>: <why>` | each shape with an engine | once a worker's connection ends before its hello: refused, turned away, out of time or cut; `worker=-` before its name is taken |
+
+  **A link that drops is never silent** (jig's `protocol/channel.md`, 9,
+  *A lost link says why*). `<why>` is the link's `Loss` in one word or
+  two: `silence`, `stall`, `full`, `deadline` (the engine's opening or
+  hello), `handshake` (the worker's opening), `stream`, `truncated`,
+  `framing`, `owner`, `busy` (the worker's busy table), `fault`,
+  `unreachable`, `no-room`, `stopping`, `refused <reason>` for a refusal
+  this side sent and `refused-by-peer <reason>` for one it received,
+  `<reason>` as the refused line names it (`terms`, `malformed`,
+  `unauthorized`, `application`, `busy`, `replaced`, `not-admitted`,
+  `stopping`, `code-<n>`). Each loss of a linked link and each lost
+  channel prints its line; an opening that ends prints once until that
+  worker's reason changes or it links, as a refusal does. A workers'
+  listener that fails prints its line, `temper serve: worker listener
+  <address> failed: <why>`, when it fails, not only once the service has
+  ended.
 
   A refused opening or hello is a note on the worker's stderr with jig's
   reason, and the worker redials, as a worker between hosts would; it
