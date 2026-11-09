@@ -11009,6 +11009,16 @@ own tests:
   `phone-home.html` draw them, and walks a press on a box across two
   projects. Owner: temper/ui. Default: each difference a
   finding filed back as a repair.
+- **What reaches you after landing** (5.13, *What reaches you*; 3.5,
+  *Away*): temper/ui compares main with the section of the whole story's
+  `web/whole-story/how.html`, `pair/how.html` and `team/how.html`, through
+  `browser.md`, 7.2's `how-reaches`, `night-how-reaches`, `how` and
+  `how-approve`, at 1440, 1000 and 390 px, by day and by night, the
+  agent's star and the person's ring on the chips; and walks on a box a
+  need's Stop asking applied by an owner, its subject moving from "Asks
+  you" to "Agents decide, then tell you", and "Limits" bringing the
+  section into view. Owner: temper/ui. Default: each difference a
+  finding filed back as a repair.
 - **Team after landing** (3.5, *Team*; 5.3): temper/ui compares main with
   the intro and People of the whole story's `web/whole-story/team/team.html`,
   and the rail's Team in each page's `nav.rail`, through `browser.md`, 7.2's
@@ -11065,7 +11075,7 @@ own tests:
   agents follow that the mock's `.proposal-split` draws. Default: the page's parts
   and the card alone.
 - **How work runs' later parts** (`../draft/surfaces.md`, sections 7 and 12;
-  `../draft/whole-story.execution.md`, section 3): What reaches you (P3b), Rules
+  `../draft/whole-story.execution.md`, section 3): Rules
   by path and the path's stops for a path set (P3c), What follows a landing and
   a role's budget (P3d), each drawn by its milestone from the engine's reads;
   the heading's chief departure, "Draft first, with the protocol core asking

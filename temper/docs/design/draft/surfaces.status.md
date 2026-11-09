@@ -61,7 +61,8 @@
     digits, "2 questions wait on you.", where this section writes "Two
     questions wait on you.".
   - 7: `../client/README.md`, 5.13, *The page*, draws the way, the path
-    as Ask temper's ways draw it, Roles by when each runs, and a goal's
+    as Ask temper's ways draw it, What reaches you from the project's
+    classes, Roles by when each runs, and a goal's
     budget; its heading names the way without its chief departure,
     which waits for rules by path; and `../domain/forge.md`, 8.13, *The
     project's roles*, gives the drafter no place among Roles, though the
@@ -120,13 +121,16 @@
   - 13: `../client/greenfield/README.md` names the whole story's
     mockups, and `../client/mockups/README.md`,
     section 1, not at all; and no design marks who acts on the chips,
-    as the path's marks are (`../client/README.md`, 5.16).
+    as the path's marks are (`../client/README.md`, 5.16), but Work's
+    tags and What reaches you's columns (3.5, *Work*; 5.13).
   - 14: `../client/browser.md`, section 7, holds Home's and Needs you's
     states, but for a red "owned" and a project's Home at the standing
     roles' step, which nothing draws yet (3 and 4), a need's
     why and its offers being `needs-why`'s, `needs-stop-asking`'s and
     `needs-stop-asking-set`'s; 7.2 holds How work runs under each stock
-    way and its own, a stop's card and night (`how` to `night-how`), with no rule by path
+    way and its own, a stop's card and night (`how` to `night-how`), and
+    What reaches you on `how.html`'s classes (`how-reaches`,
+    `night-how-reaches`), with no rule by path
     or follow, and the rail, Work at Pair and with drafts first, and
     Deployment's Members and Limits (`rail-new-change` to `night-limits`);
     and Team's people, alone and at night (`team`, `team-alone`,
@@ -202,6 +206,14 @@
     an agent can’t place", under "Always waits for you", which no mockup
     lists, because the classes hold it and it always waits. Decided by
     the cut of `ui-p3b-reaches`: the page draws what the engine holds.
+    By the same cut, "Asks you" lists those asking even when away first,
+    then the rest, each in the settings order, so "a new dependency"
+    stands before "a departure from a landed design", where `how.html`
+    puts the departure first; and its small line names the exceptions,
+    "While you’re away, all but changes to vsr’s protocol core are decided with
+    the recommended choice and listed.", where `how.html` counts, "the
+    last two are decided … The protocol core still asks.", since a table
+    of up to 32 subjects can't be counted well in words.
   - 11.1 and 11.4, the user's requests of 2026-11-09 (plan
     `tui-box-polish`): the quiet line holds, at its right end, a
     one-line notice for 6 seconds over the rest of its right half; and
