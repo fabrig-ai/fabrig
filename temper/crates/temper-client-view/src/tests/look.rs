@@ -845,3 +845,9 @@ fn each_phone_target_stands_44_pixels() {
         );
     }
 }
+
+#[test]
+fn team_and_how_resolve_to_distinct_style_names() {
+    assert_eq!(NAMES.style(TEAM), Some(b"temper-team".as_slice()));
+    assert_eq!(NAMES.style(HOW_WIDE), Some(b"temper-how-wide".as_slice()));
+}
