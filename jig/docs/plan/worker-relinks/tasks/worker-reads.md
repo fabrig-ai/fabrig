@@ -202,3 +202,28 @@ not released in order. If the cause proves to be the fixture relying on
 an order the design does not promise, or a figure, stop with a
 `Question:` and the evidence; never change a figure or what the story
 expects.
+
+2026-11-09. *Let the review-delivery fixture wake itself once its awaited
+close is durable, or require a product order that gives it another pass?*
+The fixture: the run's trace shows the product done at 5.39 s (every task
+ended, the host released, nothing pending) and the judge never asked to
+act on it. skein's `Referee::next_deadline`
+(`skein/testing/skein-world/src/referee.rs`) is "the earliest of its
+expectations' deadlines and of what it will act on": a judge whose
+`progress` would queue a command must name that time, and this one names
+only `DEADLINE`, so it leaned on extra passes the old routing gate
+happened to leave. No product order changes, and no new product row is
+owed. In `review_delivery.rs`, `Judge` keeps a wake: `idle` (or
+`observe`) sets it to `now` when the current stage's condition in
+`progress` holds (Cancel: change and review ended; Close: every task
+ended; Recovery: the recovery task turned and idle; RecoveryClose: every
+task ended), `act` clears it, and `next_deadline` is the earlier of the
+wake and `DEADLINE` while not stopping. Read the conditions from one
+place, so `progress` and the wake cannot disagree; clear the wake in
+`act` so a met condition never spins the world at one instant. Stages,
+assertions, `DEADLINE`, `STEPS`, overrides and every figure stay; the
+sharpened `overdue` message stays. Acceptance is the one-process test
+green with that change alone (and the runs of Steps, 8); say in the
+report that the fix is the referee's wake, citing `referee.rs`. Other
+referees of `temper/tests/one-process` with a fixed deadline only are
+not this task's; name them under `## Left`.
