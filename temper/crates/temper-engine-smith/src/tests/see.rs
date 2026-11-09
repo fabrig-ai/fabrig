@@ -17,9 +17,12 @@ fn rendered(line: &str, from: u32, answer: SeeAnswer, maximum: u32) -> (String, 
 
 #[test]
 fn tokens_round_trip_and_malformed_tokens_stay_unknown() {
-    for (line, from, token) in
-        [("settings policy 1", 6120, "settings+policy+1@6120"), ("a+b@c%d", 1, "a%2Bb%40c%25d@1")]
-    {
+    for (line, from, token) in [
+        ("settings policy 1", 6120, "settings+policy+1@6120"),
+        ("a+b@c%d", 1, "a%2Bb%40c%25d@1"),
+        ("settings charter-words 4", 12, "settings+charter-words+4@12"),
+        ("settings project-words", 12, "settings+project-words@12"),
+    ] {
         assert_eq!(crate::see::token(line.as_bytes(), from).as_ref(), token.as_bytes());
         let input = format!(r#"{{"address":"more {token}"}}"#);
         assert_eq!(decided(b"see", input.as_bytes()).unwrap().tool, Tool::See { line: line.as_bytes().into(), from });
@@ -164,7 +167,7 @@ fn errors_and_pages_use_the_address_form() {
                 held: skein_lib::List::with_capacity(0),
                 pending: skein_lib::List::with_capacity(0),
             }),
-            "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings template-goal N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings",
+            "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings template-goal N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · settings charter-words N · settings project-words · revisions · help settings",
         ),
         (
             jig_domain_core::SettingsAnswer::Revisions(jig_domain_core::reads::RevisionsPage {
@@ -310,6 +313,7 @@ fn landing_and_gates_read_the_configured_values() {
                 ignored: Box::new([b"docs".as_slice().into()]),
                 follows,
                 span: None,
+                description: b"the slow suites".as_slice().into(),
             })
             .into(),
     };
@@ -317,7 +321,7 @@ fn landing_and_gates_read_the_configured_values() {
         (none, "gates of org/empty:\n  none\ntiers of org/empty:\n  none\n"),
         (
             SeeRepository { name: b"org/repo".as_slice().into(), checks },
-            "gates of org/repo:\n  tests: workflow tests.yml, not blocking, ignoring docs, notes\ntiers of org/repo:\n  smoke: workflow smoke.yml, artifact result, follows the landing branch, ignoring docs\n  smoke: workflow smoke.yml, artifact result, follows stable, ignoring docs\n  smoke: workflow smoke.yml, artifact result, follows goals' branches, ignoring docs\n",
+            "gates of org/repo:\n  tests: workflow tests.yml, not blocking, ignoring docs, notes\ntiers of org/repo:\n  smoke: workflow smoke.yml, artifact result, follows the landing branch, checks the slow suites, ignoring docs\n  smoke: workflow smoke.yml, artifact result, follows stable, checks the slow suites, ignoring docs\n  smoke: workflow smoke.yml, artifact result, follows goals' branches, checks the slow suites, ignoring docs\n",
         ),
     ] {
         assert_eq!(
@@ -358,8 +362,7 @@ fn branch_path() -> temper_engine_domain::ways::Path {
 fn ways_text_names_the_current_path_and_the_readers_permission() {
     use temper_engine_domain::ways::{WayEntry, WaysDocument};
     const PATH: &str = "ask (a person) → make (an agent) → repair (an agent, when needed; tests, review) → merge (code; into goal) → main (a branch)";
-    const FOLLOWING: &str =
-        "see: settings rules · settings landing · settings project-ways · settings project-classes · help settings\n";
+    const FOLLOWING: &str = "see: settings rules · settings landing · settings project-ways · settings project-classes · settings project-words · settings charter-words N · help settings\n";
     for (current, may_change, first, second, own, permission) in [
         (Some(0), true, "One · now", "Two", "", "You may change this project's settings."),
         (Some(1), false, "One", "Two · now", "", "You may not change this project's settings; an owner may."),
@@ -371,6 +374,7 @@ fn ways_text_names_the_current_path_and_the_readers_permission() {
             ways: ["One", "Two"]
                 .map(|name| WayEntry {
                     name: name.as_bytes().into(),
+                    headline: b"A way to work.".as_slice().into(),
                     line: b"A way.".as_slice().into(),
                     path: branch_path(),
                     items: Box::new([]),
@@ -379,6 +383,7 @@ fn ways_text_names_the_current_path_and_the_readers_permission() {
                 .into(),
             current,
             own: branch_path(),
+            words: None,
             may_change,
         };
         let own = if own.is_empty() { String::new() } else { format!("\n{own}{PATH}\n") };

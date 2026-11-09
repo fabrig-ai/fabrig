@@ -3075,6 +3075,7 @@ fn ways_document(path: &ways::Path) -> ways::WaysDocument {
         entries
             .push(ways::WayEntry {
                 name: name.into(),
+                headline: b"A way to work.".as_slice().into(),
                 line: b"How it lands".as_slice().into(),
                 path: path.clone(),
                 delegation,
@@ -3098,7 +3099,17 @@ fn ways_document(path: &ways::Path) -> ways::WaysDocument {
             })
             .unwrap();
     }
-    ways::WaysDocument { project: 7, ways: entries.into_boxed(), current: Some(1), own: path.clone(), may_change: true }
+    ways::WaysDocument {
+        project: 7,
+        ways: entries.into_boxed(),
+        current: Some(1),
+        own: path.clone(),
+        words: Some(forge::settings::ProjectWords {
+            headline: b"Agents review everything, then one of you signs off".as_slice().into(),
+            lede: b"Agents make and review each change; an owner approves it before it lands.".as_slice().into(),
+        }),
+        may_change: true,
+    }
 }
 
 #[test]
@@ -3110,11 +3121,18 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
     let panel = wire::decode_ways_panel(&record, &w::CEILINGS).unwrap();
     assert_eq!((panel.project(), *panel.current(), panel.may_change()), (7, Some(1), true));
     assert_eq!(panel.own(), &expected);
+    let words = document.words.as_ref().unwrap();
+    let panel_words = panel.words().as_ref().expect("the project's words are sent");
+    assert_eq!((panel_words.headline(), panel_words.lede()), (words.headline.as_ref(), words.lede.as_ref()));
+    let mut without_words = document.clone();
+    without_words.words = None;
+    let record = family::ways_panel(without_words, &w::CEILINGS).unwrap();
+    assert!(wire::decode_ways_panel(&record, &w::CEILINGS).unwrap().words().is_none());
     assert_eq!(panel.ways().len(), 3);
     for (got, entry) in panel.ways().iter().zip(document.ways.iter()) {
         assert_eq!(
-            (got.name(), got.line(), got.delegation()),
-            (entry.name.as_ref(), entry.line.as_ref(), entry.delegation)
+            (got.name(), got.headline(), got.line(), got.delegation()),
+            (entry.name.as_ref(), entry.headline.as_ref(), entry.line.as_ref(), entry.delegation)
         );
         assert_eq!(got.path(), &expected);
         assert_eq!(got.items().len(), 3);
@@ -3253,6 +3271,8 @@ fn ways_and_views_refuse_over_bound_values_without_cutting_them() {
         w::Limits { stock_way_items: 1, ..w::CEILINGS },
         w::Limits { ways_panel_ways: 2, ..w::CEILINGS },
         w::Limits { setting_value_value: 3, ..w::CEILINGS },
+        w::Limits { project_words_headline: 1, ..w::CEILINGS },
+        w::Limits { project_words_lede: 1, ..w::CEILINGS },
     ] {
         assert!(family::ways_panel(ways_document(&path), &limits).is_none(), "panel: {limits:?}");
     }
@@ -3539,6 +3559,8 @@ fn the_worst_small_changes_document_fits_its_decision() {
 
 #[test]
 fn the_worst_small_ways_document_fits_its_decision() {
+    // A stock headline's bound (temper/docs/design/protocol/configuration.md, 13.10).
+    const HEADLINE_BYTES: u32 = 120;
     let limits = crate::limits::profile(crate::limits::Profile::Small);
     let worst_view = w::ViewAnswer::encoded_bound(&w::CEILINGS).unwrap();
     let delivery_bytes = limits.root.journal.result_bytes.max(limits.root.journal.transcript_bytes);
@@ -3590,6 +3612,7 @@ fn the_worst_small_ways_document_fits_its_decision() {
         entries
             .push(ways::WayEntry {
                 name: way.name,
+                headline: repeated(b'h', HEADLINE_BYTES),
                 line: way.line,
                 path: path.clone(),
                 items,
@@ -3597,8 +3620,17 @@ fn the_worst_small_ways_document_fits_its_decision() {
             })
             .unwrap();
     }
-    let document =
-        ways::WaysDocument { project, ways: entries.into_boxed(), current: None, own: path, may_change: true };
+    let document = ways::WaysDocument {
+        project,
+        ways: entries.into_boxed(),
+        current: None,
+        own: path,
+        words: Some(forge::settings::ProjectWords {
+            headline: repeated(b'h', forge::settings::HEADLINE_BYTES),
+            lede: repeated(b'l', forge::settings::LEDE_BYTES),
+        }),
+        may_change: true,
+    };
     let bytes = family::ways_panel(document.clone(), &w::CEILINGS).unwrap();
     assert!(wire::decode_ways_panel(&bytes, &w::CEILINGS).is_some());
     let mut journal = root::Journal::uncapped(1, 0);

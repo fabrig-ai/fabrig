@@ -121,7 +121,11 @@ fn repository_inputs(domain: &Domain, project: u32, repository: &forge::Reposito
                 continue;
             }
             tiers
-                .push(ways::Tier { name: tier.name.clone(), follows: tier.follows.clone() })
+                .push(ways::Tier {
+                    name: tier.name.clone(),
+                    follows: tier.follows.clone(),
+                    description: tier.description.clone(),
+                })
                 .expect("configured tiers");
         }
     }
@@ -148,9 +152,11 @@ fn project_ways(domain: &Domain, project: u32) -> Option<&settings::ProjectWays>
             value:
                 settings::Value::Rule(_)
                 | settings::Value::Charter(_)
+                | settings::Value::Goal(_)
                 | settings::Value::Questions(_)
+                | settings::Value::CharterWords(_)
                 | settings::Value::Classes(_)
-                | settings::Value::Goal(_),
+                | settings::Value::ProjectWords(_),
             ..
         })
         | None => None,
@@ -220,6 +226,7 @@ pub(crate) fn document(domain: &Domain, project: u32, party: u64) -> ways::WaysD
         entries
             .push(ways::WayEntry {
                 name: way.name.clone(),
+                headline: way.headline.clone(),
                 line: way.line.clone(),
                 path,
                 items,
@@ -233,6 +240,7 @@ pub(crate) fn document(domain: &Domain, project: u32, party: u64) -> ways::WaysD
         ways: entries.into_boxed(),
         current: ways::current(&paths.into_boxed(), &own),
         own,
+        words: domain.forge.project_words(project).cloned(),
         may_change: domain.core.people.role(party, project) == Some(jig_domain_people::Role::Owner),
     }
 }

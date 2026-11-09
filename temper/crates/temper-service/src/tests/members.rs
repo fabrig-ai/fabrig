@@ -38,7 +38,7 @@ const APPLICATION: &[u8] = br#"{
 "limits":{"profile":"small","overrides":{}},"workers":[{"root":"workspaces","git":"/usr/bin/git"}],
 "landing":{"projects":[{"project":1,"by":"turn","merge_job":".temper/merge","tier_retries":2,"verification_bound_ms":7200000,
  "gates":[{"forge":1,"repository":1,"gates":[{"name":"gate","workflow":"gate.yml","ignored":["docs"],"blocking":true}],
- "tiers":[{"name":"tier","workflow":"tier.yml","ignored":["docs"],"artifact":"failing","format":"lines","branch":"goal","span_ms":1200000}]}]}]}
+ "tiers":[{"name":"tier","workflow":"tier.yml","ignored":["docs"],"artifact":"failing","format":"lines","branch":"goal","span_ms":1200000,"description":"the slow suites"}]}]}]}
 }"#;
 
 fn expanded() -> Box<[u8]> {

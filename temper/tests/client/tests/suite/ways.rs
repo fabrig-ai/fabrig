@@ -111,8 +111,8 @@ fn roles_fixture() -> Joint {
     use temper_engine_domain_world::{direct::Driver, oracle, store::Store};
     let limits = fixtures::domain_limits();
     let mut bounds = temper_client_world::front::engine_limits();
-    // The stock's chat, producer, reviewer, status and Ask temper charters.
-    bounds.tasks.charters = 5;
+    // The stock's kind 9 lines run up to charter 12 beside these five charters.
+    bounds.tasks.charters = 12;
     let mut config = kinds::configuration(&bounds);
     let mut charters = config.core.defaults.charters.into_vec();
     for number in [9, 11] {
@@ -210,7 +210,10 @@ fn the_three_ways_draw_ci_and_tiers_or_neither() {
             world.act(person, tab, skein_ui::Act::Press);
             settle(&mut world);
             let nodes = world.tree(person).nodes();
-            assert!(named(nodes, Role::Heading { level: 1 }, b"Agents review"), "heading names the current way");
+            assert!(
+                named(nodes, Role::Heading { level: 1 }, b"Agents review every change, and code lands it"),
+                "heading says the current way's headline"
+            );
             let tab = u32::try_from(index).expect("tab index");
             assert_eq!(page(&world, person).shown(), Some(tab), "pressed tab is shown");
             assert_eq!(drawn_path(under(nodes, Role::Group, name)), expected, "{}", String::from_utf8_lossy(name));

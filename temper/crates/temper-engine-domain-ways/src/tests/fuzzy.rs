@@ -72,6 +72,7 @@ fn paths_end_at_a_bar_and_only_code_lands() {
                         2 => Follows::Branch(b"release/v1".as_slice().into()),
                         _ => Follows::Branch(b"temper/0/g0".as_slice().into()),
                     },
+                    description: Box::default(),
                 })
                 .collect();
         }

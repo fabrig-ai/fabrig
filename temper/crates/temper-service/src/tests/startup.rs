@@ -1246,6 +1246,7 @@ fn queue_tiers_can_name_a_project_adopted_after_the_seed() {
                 format: Format::Lines,
                 follows: Follows::Landing,
                 span_ms: 0,
+                description: Box::default(),
             }]
         );
         assert_landing_projects_start(projects.as_bytes());
@@ -1295,7 +1296,7 @@ fn landing_configuration_reads_the_way_and_bounded_repository_gates() {
     );
 }
 
-const TIER: &str = r#"{"name":"slow-1_A","workflow":"slow.yml","ignored":["docs","fixtures/data"],"artifact":"failures","format":"junit","branch":"release/next","span_ms":0}"#;
+const TIER: &str = r#"{"name":"slow-1_A","workflow":"slow.yml","ignored":["docs","fixtures/data"],"artifact":"failures","format":"junit","branch":"release/next","span_ms":0,"description":"the slow suites"}"#;
 
 fn tier_projects(tiers: &str, settings: &str) -> Box<[u8]> {
     format!(
@@ -1334,6 +1335,7 @@ fn landing_configuration_reads_tiers_and_project_settings_by_queue_and_turn() {
                     format: Format::Junit,
                     follows: temper_engine_domain_forge::Follows::Branch(Box::from(b"release/next".as_slice())),
                     span_ms: 0,
+                    description: b"the slow suites".as_slice().into(),
                 },
                 TierCheck {
                     name: longest.as_bytes().into(),
@@ -1343,6 +1345,7 @@ fn landing_configuration_reads_tiers_and_project_settings_by_queue_and_turn() {
                     format: Format::Lines,
                     follows: temper_engine_domain_forge::Follows::Landing,
                     span_ms: 0,
+                    description: Box::default(),
                 },
             ]
         );
@@ -1436,6 +1439,16 @@ fn landing_configuration_tier_refusals_name_the_member() {
         ("artifact", r#""""#, "invalid form"),
         ("artifact", r#""reports/failures""#, "invalid form"),
         ("artifact", r#""aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa""#, "past its bound"),
+        ("description", r#""""#, "expected 1 to 120 bytes of UTF-8 without control characters"),
+        (
+            "description",
+            r#""aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa""#,
+            "expected 1 to 120 bytes of UTF-8 without control characters",
+        ),
+        ("description", r#""the slow\nsuites""#, "expected 1 to 120 bytes of UTF-8 without control characters"),
+        ("description", r#""the slow\tsuites""#, "expected 1 to 120 bytes of UTF-8 without control characters"),
+        ("description", r#""the slow\u0085suites""#, "expected 1 to 120 bytes of UTF-8 without control characters"),
+        ("description", "null", "expected 1 to 120 bytes of UTF-8 without control characters"),
         ("format", r#""json""#, "invalid form"),
         ("branch", r#""""#, "invalid form"),
         ("branch", "null", "wrong value kind"),

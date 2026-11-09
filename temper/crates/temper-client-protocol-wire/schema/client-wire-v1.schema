@@ -157,9 +157,11 @@ record Card { who: text 128 name: text 64 facts: list 4 Fact }
 record Stop { actor: Actor step: PathStep words: text 64 needed: bool over: text 16 opens: Opens card: Card }
 record BranchPath { repository: option bytes 2048 branch: bytes 1024 stops: list 24 Stop }
 # A project's stock ways, watched (client/README.md, 4.6; configuration.md, 13.10).
-record StockWay { name: text 64 line: text 256 path: BranchPath items: list 8 ProposalItem delegation: bool }
+record CharterWords { line: text 120 }
+record ProjectWords { headline: text 120 lede: text 480 }
+record StockWay { name: text 64 headline: text 120 line: text 256 path: BranchPath items: list 8 ProposalItem delegation: bool }
 record WaysSubject { project: u32 }
-versioned record WaysPanel { project: u32 ways: list 4 StockWay current: option u32 own: BranchPath may_change: bool }
+versioned record WaysPanel { project: u32 ways: list 4 StockWay current: option u32 own: BranchPath words: option ProjectWords may_change: bool }
 # A view, read when shown (client/README.md, 4.6 and 5.16).
 record ViewRead { project: u32 address: text 512 }
 record WayView { name: text 64 line: text 256 path: BranchPath current: bool }
