@@ -161,6 +161,13 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
                     )
                     .expect(FITS),
                 ),
+                d::Value::Goal(goal) => w::SettingValue::Goal(
+                    w::TemplateGoal::new(
+                        &w::CEILINGS,
+                        w::TemplateGoalParts { design: goal.design, close_out: goal.close_out },
+                    )
+                    .expect(FITS),
+                ),
                 d::Value::Charter(number) => w::SettingValue::Charter(
                     w::CharterValue::new(&w::CEILINGS, w::CharterValueParts { number: *number }).expect(FITS),
                 ),
@@ -199,7 +206,10 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
                     d::Value::Ways(d::ProjectWays { drafts, goals, changes, away, way })
                 }
                 w::SettingValue::Charter(number) => d::Value::Charter(number.into_parts().number),
-                w::SettingValue::Goal(_) => return Err(Undecodable),
+                w::SettingValue::Goal(value) => {
+                    let w::TemplateGoalParts { design, close_out } = value.into_parts();
+                    d::Value::Goal(d::TemplateGoal { design, close_out })
+                }
             };
             d::Edit::Set(d::SizedValue { value, size })
         }
