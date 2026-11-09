@@ -497,7 +497,7 @@ mod tests {
     }
 
     #[test]
-    fn an_unissued_transcript_load_remains_preparation_failure() {
+    fn a_transcript_continuation_without_load_room_remains_preparation_failure() {
         let (mut domain, env) = root();
         // Saturate the real IO table without adding a world hook.
         let mut issued = Queue::with_capacity(1);
@@ -515,21 +515,22 @@ mod tests {
             );
             assert!(issued.pop().is_some());
         }
-        domain.core.begin_transcript(TASK, PREVIOUS_ATTEMPT, None);
+        // Page continuations request their next load without another activation.
+        domain.core.begin_transcript(TASK, PREVIOUS_ATTEMPT, Some((PREVIOUS_ATTEMPT, 1)));
         let waiter = transcript_read(&mut domain);
         let mut out = Queue::with_capacity(1);
         request_load(
             &mut domain,
             waiter,
             Range::Core(crate::CoreRange::TaskTranscript { task: TASK, from: (PREVIOUS_ATTEMPT, 1) }),
-            None,
+            Some(Key::Core(core::Key::Core(core::CoreKey::Turn { task: TASK, attempt: PREVIOUS_ATTEMPT, turn: 1 }))),
             &mut out,
         );
         assert!(out.is_empty(), "no store request issued");
         let Some(Work::Core(core::Event::TranscriptLoaded { task, load: core::TranscriptLoad::Failed })) =
             domain.work.pop()
         else {
-            panic!("unissued load remains preparation failure")
+            panic!("unissued continuation remains preparation failure")
         };
         assert_eq!(task, TASK);
         assert!(domain.work.is_empty());
