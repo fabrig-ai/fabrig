@@ -1051,6 +1051,12 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     agent.host_limits.message_bytes = 10_662;
     agent.host_limits.messages = 82;
     let part = crate::startup::worker_part(&input, &directories).unwrap();
+    let payload = crate::worker_settings::payload_limits(&part.limits).unwrap();
+    let link = crate::worker_settings::link_limits(&part.worker.jig, &payload, part.limits.forge.forges).unwrap();
+    assert_eq!(
+        link.room,
+        jig_protocol_worker_wire::sizes::largest_body(&link.sizes, jig_protocol_worker_wire::Kind::Turn).unwrap() + 8
+    );
     let operations = crate::system::worker_alone_operations(
         &part.worker.jig.limits.io,
         crate::worker_settings::operations(&part.limits.git_component.into()).unwrap(),

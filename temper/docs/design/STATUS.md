@@ -909,7 +909,8 @@ focused stylesheet and view tables hold that shape. The keys and layout
 rewalk follows landing, including opening at the end; a PgUp at the head
 while earlier lines load is not queued (`client/README.md`, 5.9 and 11).
 In the terminal PgUp and PgDn are lines followed
-by Enter and a chat opens on one page, `lines` stays for jig's reference UI and
+by Enter and a chat opens, as in the TUI, whole or with 2,880 bytes held, a screen
+and a half of an 80 by 24 terminal, `lines` stays for jig's reference UI and
 tools, past what temper's bytes hold, and sending on an agent's page leaves the view
 where it is. The browser tier runs Chromium alone, with
 `overflow-anchor: none` as the nearest run to Safari; Firefox and Safari

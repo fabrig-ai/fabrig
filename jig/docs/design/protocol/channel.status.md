@@ -52,11 +52,6 @@ deployment on record has run since.
   `component.rs`, `loss`) and are named once each
   (`each_connections_end_says_why_once`).
 - **Not yet:** 1, 4.1, 8, 10.1, 10.2: TLS between hosts: the workers' listener and the worker's dial are plaintext on loopback or in-process (`jig/crates/jig-protocol-config/src/hosts.rs`, `address.rs`). 3, 6.4, 8: a worker whose root composes `smith-inline-agent`: none does, so no worker gives a tool begun with its call.
-- **Not yet:** 9, 11, 12: the worker's side has no room either: its
-  limits are made whatever the largest frame it sends, so a turn, call,
-  answer or hello past its stream's output cap would wait below
-  unanswered as the engine's start does
-  (`jig/crates/jig-protocol-worker-link/src/limits.rs`, `valid`).
 - **Departs:** 12: the `jig-world-cost` request says no story loses what it
   checks. Root checks at every step cover the six drawn fuzzy stories and
   the replaced-key and application-generation stories, but not the other

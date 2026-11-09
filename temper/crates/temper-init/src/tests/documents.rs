@@ -148,6 +148,7 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
             "{row}"
         );
         let mut expected = owned.clone();
+        expected["workers"][0]["limits"]["overrides"].as_object_mut().unwrap().remove("io.output");
         expected["engine"]["acts"] =
             json!([{ "connector": 1_u16, "may": ["remove_project", "remove_account", "adopt"] }]);
         assert!(!actual["engine"]["owners"].as_array().unwrap().is_empty());

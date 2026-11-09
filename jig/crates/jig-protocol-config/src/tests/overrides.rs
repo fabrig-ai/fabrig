@@ -34,6 +34,24 @@ fn an_override_replaces_one_limit_of_the_profile() {
 }
 
 #[test]
+fn io_output_overrides_only_a_positive_representable_room() {
+    for (json, output) in [
+        (br#"{"profile":"small","overrides":{"io.output":1}}"#.as_slice(), Some(1)),
+        (br#"{"profile":"small","overrides":{"io.output":4294967295}}"#, Some(u32::MAX)),
+        (br#"{"profile":"small","overrides":{"io.output":0}}"#, None),
+        (br#"{"profile":"small","overrides":{"io.output":4294967296}}"#, None),
+    ] {
+        if let Some(output) = output {
+            let mut expected = small();
+            expected.io.output = output;
+            assert_eq!(parse(json), Ok(expected));
+        } else {
+            problem(json, &[b"limits", b"overrides", b"io.output"], What::Override);
+        }
+    }
+}
+
+#[test]
 fn the_charter_documents_limit_can_be_overridden() {
     let mut expected = small();
     expected.core.tasks.charter_documents = 0;
