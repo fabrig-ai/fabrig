@@ -1,5 +1,6 @@
 //! A command's settings, their sources, help and refusals (shell.md, 6.5).
 
+use crate::{HOME, Set, table::lookup};
 use std::fmt;
 #[cfg(unix)]
 use std::os::unix::ffi::OsStrExt;
@@ -11,11 +12,12 @@ type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 pub struct Settings {
     /// The tool's name, lowercase ASCII letters, digits and `-`: `temper`, `skein-echo`.
     pub tool: &'static str,
+    /// One line for the group's flags in help.
+    pub about: &'static str,
     pub table: &'static [Setting],
 }
 
-/// One setting: the flag `--name VALUE`, the variable `<TOOL>_<NAME>`
-/// (capitals, `-` as `_`), and its default.
+/// One setting: its flag `--name VALUE`, set, declared twin and default (shell.md, 6.5).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Setting {
     /// The flag's name without its dashes, lowercase ASCII letters, digits and `-`: `config`.
@@ -25,6 +27,11 @@ pub struct Setting {
     /// One line for help.
     pub about: &'static str,
     pub fallback: Fallback,
+    pub set: Set,
+    /// Its environment twin, declared, never derived.
+    pub twin: Option<&'static str>,
+    /// Notes for the reference documents; empty for none.
+    pub notes: &'static str,
 }
 
 /// What a setting is when neither its flag nor its variable gives it.
@@ -52,15 +59,6 @@ pub enum Base {
 }
 
 impl Base {
-    fn variable(self) -> &'static str {
-        match self {
-            Self::Config => "XDG_CONFIG_HOME",
-            Self::Data => "XDG_DATA_HOME",
-            Self::State => "XDG_STATE_HOME",
-            Self::Cache => "XDG_CACHE_HOME",
-        }
-    }
-
     fn suffix(self) -> &'static [u8] {
         match self {
             Self::Config => b".config",
@@ -138,17 +136,29 @@ pub enum Reason {
 impl fmt::Display for Refusal {
     fn fmt(&self, out: &mut fmt::Formatter<'_>) -> fmt::Result {
         let Setting { name, value, .. } = self.setting;
-        let variable = variable(self.tool, name);
+        let twin = self.setting.twin;
         match self.reason {
-            Reason::Missing => write!(out, "--{name} {value} is not given, and {variable} is not set"),
+            Reason::Missing => {
+                write!(out, "--{name} {value} is not given")?;
+                if let Some(twin) = twin {
+                    write!(out, ", and {twin} is not set")?;
+                }
+                Ok(())
+            }
             Reason::NoValue => write!(out, "--{name} takes a value: {value}"),
             Reason::Twice => write!(out, "--{name} is given twice"),
-            Reason::NoBase(base) => write!(
-                out,
-                "--{name} {value} is not given, {variable} is not set, and its default {} needs {} or HOME as an absolute path",
-                base_default(self.tool, base),
-                base.variable(),
-            ),
+            Reason::NoBase(base) => {
+                write!(out, "--{name} {value} is not given")?;
+                if let Some(twin) = twin {
+                    write!(out, ", {twin} is not set")?;
+                }
+                write!(
+                    out,
+                    ", and its default {} needs {} or HOME as an absolute path",
+                    base_default(self.tool, base),
+                    base.variable().name
+                )
+            }
         }
     }
 }
@@ -156,6 +166,10 @@ impl fmt::Display for Refusal {
 /// Resolves a command's settings (shell.md, 6.5) from the arguments after
 /// the binary's own command words, and the process's environment.
 #[expect(clippy::type_complexity, reason = "shell.md, 6.5 takes byte environment pairs without a wrapper type")]
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(clippy::result_large_err, reason = "shell.md, 6.5 returns the refused setting with its documentation")
+)]
 pub fn resolve(
     settings: &Settings,
     arguments: &[Box<[u8]>],
@@ -194,7 +208,7 @@ pub fn resolve(
             values.push(value);
             continue;
         }
-        let value = if let Some(bytes) = lookup(environment, variable(settings.tool, setting.name).as_bytes()) {
+        let value = if let Some(bytes) = setting.twin.and_then(|twin| lookup(environment, twin.as_bytes())) {
             Value { bytes: Box::from(bytes), origin: Origin::Variable }
         } else {
             fallback(settings.tool, setting.fallback, environment).map_err(|reason| Refusal {
@@ -213,17 +227,16 @@ fn fallback(tool: &str, fallback: Fallback, environment: &[EnvironmentEntry]) ->
         Fallback::Refuse => Err(Reason::Missing),
         Fallback::Text(text) => Ok(Value { bytes: Box::from(text.as_bytes()), origin: Origin::Default }),
         Fallback::Base(base) => {
-            let (mut path, origin) = if let Some(path) =
-                lookup(environment, base.variable().as_bytes()).filter(|path| path.starts_with(b"/"))
-            {
-                (path.to_vec(), Origin::Base)
-            } else if let Some(home) = lookup(environment, b"HOME").filter(|path| path.starts_with(b"/")) {
-                let mut path = home.to_vec();
-                join(&mut path, base.suffix());
-                (path, Origin::Home)
-            } else {
-                return Err(Reason::NoBase(base));
-            };
+            let (mut path, origin) =
+                if let Some(path) = base.variable().value(environment).filter(|path| path.starts_with(b"/")) {
+                    (path.to_vec(), Origin::Base)
+                } else if let Some(home) = HOME.value(environment).filter(|path| path.starts_with(b"/")) {
+                    let mut path = home.to_vec();
+                    join(&mut path, base.suffix());
+                    (path, Origin::Home)
+                } else {
+                    return Err(Reason::NoBase(base));
+                };
             join(&mut path, tool.as_bytes());
             Ok(Value { bytes: path.into_boxed_slice(), origin })
         }
@@ -237,21 +250,8 @@ fn join(path: &mut Vec<u8>, component: &[u8]) {
     path.extend_from_slice(component);
 }
 
-fn lookup<'a>(environment: &'a [EnvironmentEntry], name: &[u8]) -> Option<&'a [u8]> {
-    for (key, value) in environment {
-        if key.as_ref() == name {
-            return if value.is_empty() { None } else { Some(value) };
-        }
-    }
-    None
-}
-
-fn variable(tool: &str, name: &str) -> String {
-    format!("{tool}_{name}").replace('-', "_").to_ascii_uppercase()
-}
-
 fn base_default(tool: &str, base: Base) -> String {
-    format!("${}/{tool}", base.variable())
+    format!("${}/{tool}", base.variable().name)
 }
 
 /// Appends one entry per setting for a binary's `--help`.
@@ -262,15 +262,12 @@ pub fn help(settings: &Settings, out: &mut Vec<u8>) {
             Fallback::Text(text) => format!("default {text}"),
             Fallback::Base(base) => format!("default {}", base_default(settings.tool, base)),
         };
+        let source = match setting.twin {
+            Some(twin) => format!("{twin}; {default}"),
+            None => default,
+        };
         out.extend_from_slice(
-            format!(
-                "  --{} {} ({}; {default})\n      {}\n",
-                setting.name,
-                setting.value,
-                variable(settings.tool, setting.name),
-                setting.about,
-            )
-            .as_bytes(),
+            format!("  --{} {} ({source})\n      {}\n", setting.name, setting.value, setting.about).as_bytes(),
         );
     }
 }

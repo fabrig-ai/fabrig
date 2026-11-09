@@ -22,8 +22,6 @@ below remain; the Linux tests do not prove the Darwin arms.
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).
   6.4: the helper's dispatch, and the service's own cgroup opened at
   startup.
-  6.5: a setting derives its twin from the tool's name and its own, and
-  has no set; a table of settings has no line of its own.
   6.6: that macOS answers `ENOPROTOOPT` to `SO_ACCEPTCONN` is
   read from published XNU, whose `main` may lag `macos-26`'s kernel, and
   no recorded run shows it: a Linux test holds `listening`
