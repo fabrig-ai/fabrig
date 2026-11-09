@@ -341,7 +341,7 @@ Sections 6.13 and 6.14's no-project command composer has no known
 implementation gap. The host's focused key-and-frame regression covers
 completion, command execution, Escape, ordinary words, quit keys,
 revision stability, navigation and separation from the sign-in field.
-The help pages name `/exit` and Ctrl+C as closing keys and `q` as typing.
+The help pages name the closing command and Ctrl+C as closing keys and `q` as typing.
 
 
 - **Not yet:** 6.13's `Typed` and `Send`, and 6.14, *The box* and *Typed
