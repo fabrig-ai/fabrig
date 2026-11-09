@@ -1,4 +1,5 @@
 //! Store adapters for the core's restart script (jig's domain/root.md, 8).
+//! Window texts keep cut turns and their lengths (temper/docs/design/domain/root.md, 8).
 use crate::archive::{
     Waiting, goal_failed, goal_loaded, input_failed, input_loaded, note_failed, note_loaded, transcript_failed,
     transcript_loaded, transcript_unread, waiting,
