@@ -523,10 +523,6 @@ offer, which nothing yet draws (`../draft/surfaces.status.md`, 14). The
 rendered comparison follows landing (`README.md`, section 11, *Home and
 Needs you across projects after landing*).
 
-- **Not yet:** 7.2, Only you's states: the gallery has no
-  `needs-only-you`, `needs-only-you-done`, `night-needs-only-you` or
-  `accounts-expiring` (`temper/tools/gallery`).
-
 Section 7.2 has no known implementation gap in Away on All projects, by
 plan `ui-away-all`: the gallery's `all-home-away`, the switch and the
 chip "Away on 2 of 4", not pressed, and `all-home-away-on`, after a
