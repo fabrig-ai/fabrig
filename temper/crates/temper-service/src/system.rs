@@ -583,7 +583,7 @@ impl Service {
     /// Operator diagnostics, taken by the binary.
     pub fn notes(&mut self) -> &mut Queue<crate::Note> {
         match &mut self.engine {
-            Some(engine) => &mut engine.notes,
+            Some(engine) => { if let Some(worker) = &mut self.worker { worker.drain_notes(&mut engine.notes); } &mut engine.notes },
             None => self.worker.as_mut().expect("worker alone").notes(),
         }
     }

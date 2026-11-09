@@ -65,9 +65,12 @@ fn merge_git(op: root::checkout::git::Op) -> root::checkout::git::Done {
     }
 }
 
+#[derive(Clone, Copy)]
+enum PrepareFault { None, CloneRefused, BaseBroken }
+
 // The root and service encoding are real; only job and git completions are scripted.
 #[expect(clippy::wildcard_enum_match_arm, reason = "all other root requests use the service's routing")]
-fn merge_step_script(worker: &mut Worker, event: root::Event, refused: bool) -> Box<[(Token, Request)]> {
+fn merge_step_script(worker: &mut Worker, event: root::Event, fault: PrepareFault) -> Box<[(Token, Request)]> {
     let mut out = Queue::uncapped();
     root::step(&mut worker.root, &worker.env, event, &mut out);
     let mut jobs = List::with_capacity(1);
@@ -75,12 +78,18 @@ fn merge_step_script(worker: &mut Worker, event: root::Event, refused: bool) -> 
         let Some(request) = out.pop() else { return jobs.into_boxed() };
         match request {
             root::Request::Io { owner, op, .. } => {
-                let done = if let root::checkout::git::Op::Clone { .. } = &op
-                    && refused
-                {
-                    root::checkout::git::Done::Failed { fault: root::checkout::git::Fault::Refused }
-                } else {
-                    merge_git(op)
+                let done = match (&op, fault) {
+                    (root::checkout::git::Op::Clone { .. }, PrepareFault::CloneRefused) => {
+                        root::checkout::git::Done::Failed { fault: root::checkout::git::Fault::Refused }
+                    }
+                    (root::checkout::git::Op::Fetch { want: root::checkout::git::Want::Commit { commit }, .. }, PrepareFault::BaseBroken)
+                        if commit.raw() == MERGE_BASE => {
+                        root::checkout::git::Done::FailedWithOutput {
+                            fault: root::checkout::git::Fault::Broken,
+                            diagnostic: root::checkout::git::PushDiagnostic::new(b"fatal: base fetch failed", 0),
+                        }
+                    }
+                    _ => merge_git(op),
                 };
                 root::step(&mut worker.root, &worker.env, root::Event::Done { owner, done }, &mut out);
             }
@@ -92,7 +101,7 @@ fn merge_step_script(worker: &mut Worker, event: root::Event, refused: bool) -> 
 }
 
 fn merge_step(worker: &mut Worker, event: root::Event) -> Box<[(Token, Request)]> {
-    merge_step_script(worker, event, false)
+    merge_step_script(worker, event, PrepareFault::None)
 }
 
 fn merge_event(worker: &mut Worker, owner: Token, event: Event) -> Box<[(Token, Request)]> {
@@ -178,6 +187,9 @@ fn a_delivering_job_answers_with_left_parts_and_replays_until_acknowledged() {
     assert!(merge_event(&mut worker, owner, Event::Gone { owner }).is_empty());
     let (answer, parts) = merge_answer(&mut peer, &mut worker);
     assert_merge_answer(&answer, &parts);
+    while let Some(note) = worker.notes().pop() {
+        assert!(!matches!(note, crate::Note::WorkerJob { .. }), "finished jobs have no failure note");
+    }
     assert_eq!(worker.root.kept_answers(), 1);
     assert_eq!(worker.root.workspaces(), 0);
     worker.up(fixtures::NOW, io::Event::Closed { owner: peer.owner });
@@ -204,7 +216,7 @@ fn failed_job_answers_carry_their_resources_and_refusals_carry_none() {
     for unprepared in [false, true] {
         let (mut worker, mut peer) = merge_worker();
         if unprepared {
-            assert!(merge_step_script(&mut worker, merge_assignment(), true).is_empty());
+            assert!(merge_step_script(&mut worker, merge_assignment(), PrepareFault::CloneRefused).is_empty());
         } else {
             let owner = start_merge(&mut worker);
             deliver_merge(&mut worker, owner);
@@ -239,5 +251,34 @@ fn failed_job_answers_carry_their_resources_and_refusals_carry_none() {
             panic!("undecodable workspace is refused");
         };
         assert!(parts.is_empty());
+    }
+}
+
+#[test]
+fn a_failed_base_fetch_names_its_step_and_fault_once() {
+    let (mut worker, mut peer) = merge_worker();
+    while worker.notes().pop().is_some() {}
+    assert!(merge_step_script(&mut worker, merge_assignment(), PrepareFault::BaseBroken).is_empty());
+    let (answer, _) = merge_answer(&mut peer, &mut worker);
+    let hub::LinkUp::JobAnswer {
+        answer: hub::JobEnding::Failed { failure, detail, .. }, ..
+    } = answer else { panic!("failed preparation answers"); };
+    let expected = b"fetch base: Broken: fatal: base fetch failed";
+    assert_eq!(failure, hub::JobFailure::Unprepared(hub::Preparation::Transient));
+    assert_eq!(detail.as_ref(), expected);
+    let mut found = 0;
+    while let Some(note) = worker.notes().pop() {
+        if let crate::Note::WorkerJob { run, attempt, kind, verb, ending, why } = note {
+            assert_eq!((run, attempt, kind, verb.as_ref()), (JOB.raw(), 2, 3, b"merge".as_slice()));
+            assert_eq!(why.as_ref(), expected);
+            assert_eq!(ending, temper_engine_domain::JobDiagnosticEnding::Failed { failure, detail: detail.clone() });
+            found += 1;
+        }
+    }
+    assert_eq!(found, 1, "the worker names a failed job once");
+    merge_step(&mut worker, root::Event::Lost);
+    merge_step(&mut worker, root::Event::Ready);
+    while let Some(note) = worker.notes().pop() {
+        assert!(!matches!(note, crate::Note::WorkerJob { .. }), "a kept answer resent has no second note");
     }
 }
