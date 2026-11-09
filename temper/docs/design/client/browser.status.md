@@ -46,6 +46,7 @@ these repairs. The existing history story has the night reload row and
 story 11's phone Ask row (4.6), which compares the composer's and
 picker's boxes with the tabs' top at 420 px; neither adds a test
 function, and both pass in that story's runs alone (4.6, below).
+
 Section 5 keeps the rendered comparison, reload proof, palette refinement,
 system preference and night placeholder separate.
 
@@ -293,7 +294,7 @@ establish no rendered equality.
   foot and the toast take the home bar's inset, which the request asks of the
   tab bar alone: a covered page leaves them under it. "Every tab and primary
   button at least 44 tall" holds where the mock draws no shorter: the welcome's
-  primaries stand 40 px, Home's acts 34, and a goal's primary outside its
+  primaries stand 40 px, and a goal's primary outside its
   choices, the sheet's among them, 40, as the mock's `.btn` and `.btn.small` do.
   The mock's `box.html` draws a terminal, what `temper box` prints, and no page
   of the client's draws it.

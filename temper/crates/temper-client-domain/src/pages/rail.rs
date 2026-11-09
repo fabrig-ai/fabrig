@@ -1,4 +1,5 @@
-//! The rail's parts (temper/docs/design/client/README.md, 5.3).
+//! The rail's parts and the phone's tabs (temper/docs/design/client/README.md,
+//! 5.3, The rail's parts and On a phone).
 use crate::{Address, Domain};
 use skein_lib::Wall;
 
@@ -67,6 +68,37 @@ pub fn parts(facts: &Facts) -> Parts {
         } else {
             New::Change
         },
+    }
+}
+
+/// The phone's tab bar, one pure function over the rail's parts
+/// (temper/docs/design/client/README.md, 5.3, On a phone). "Home" always
+/// shows, first; the others in this order.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[expect(clippy::struct_excessive_bools, reason = "one switch per tab")]
+pub struct Tabs {
+    /// "Needs", while the rail's "Needs you" shows.
+    pub needs: bool,
+    /// Its count, drawn after "Needs" while more than zero, and "+" while cut.
+    pub count: u32,
+    pub cut: bool,
+    /// "Work", while the rail's "Work" shows.
+    pub work: bool,
+    /// "Ask", while the rail's "Ask temper" shows.
+    pub ask: bool,
+    /// "Deployment", To begin's cut: while the rail's "Work" does not show.
+    pub deployment: bool,
+}
+
+#[must_use]
+pub fn tabs(parts: &Parts) -> Tabs {
+    Tabs {
+        needs: parts.needs_you,
+        count: parts.count,
+        cut: parts.cut,
+        work: parts.work,
+        ask: parts.ask,
+        deployment: !parts.work,
     }
 }
 

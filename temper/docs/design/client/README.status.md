@@ -49,6 +49,12 @@ reaches Ask temper by "Ask temper to change this" alone. The
 post-landing walk, M3b's views and preferences remain section 11's
 work.
 
+- **Not yet:** 3.5, *Tell temper*, whole: no `Tell` address, no region at
+  Needs you's foot, no link under Ask temper's composer. The engine files
+  no person's word as a finding and no project's settings name a triager
+  (`../domain/findings.status.md`; `../domain/landing.md`, 13.1),
+  so it waits for both, with nothing in its place.
+
 Sections 4.6, 5.13 and 5.16 have no known gap. The wire carries
 `BranchPath`, the subject `ways` with its `WaysPanel` and the read `View`;
 Ask temper's page watches its project's `ways` while open, and its domain
