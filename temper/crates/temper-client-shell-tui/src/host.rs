@@ -14,6 +14,7 @@ use temper_client_domain::{
     },
 };
 use temper_client_shell_terminal::route::{self, Down, Duty};
+use temper_client_tui::theme::{THEME_KEY, ThemeChoice};
 use temper_client_tui::{self as tui, Local, Note, Refusal, Told};
 use temper_client_view::shared;
 
@@ -41,7 +42,7 @@ enum Opening {
 
 pub struct Start {
     pub size: Size,
-    pub scheme: tui::Scheme,
+    pub scheme: Option<tui::Scheme>,
     pub background: Option<Rgb>,
     pub address: Box<[u8]>,
     pub local: bool,
@@ -102,6 +103,10 @@ pub struct Host {
     theme: Theme,
     size: Size,
     background: Option<Rgb>,
+    terminal: Option<tui::Scheme>,
+    choice: ThemeChoice,
+    // Each write in asked order: true for the root, false for the host.
+    root_writes: Queue<bool>,
     boxed: bool,
     focus: Focus,
     frame: Frame,
@@ -138,6 +143,9 @@ impl Host {
             theme: tui::theme(tui::Scheme::Dark, None),
             size: Size { rows: 0, columns: 0 },
             background: None,
+            terminal: None,
+            choice: ThemeChoice::Auto,
+            root_writes: Queue::uncapped(),
             boxed: false,
             focus: Focus::default(),
             frame: Frame::new(limits.most),
@@ -229,13 +237,6 @@ impl Host {
         {
             self.tell(Told::Aside { object: None });
         }
-        self.theme = tui::theme(
-            match self.root.pages().look().theme {
-                terminal::Theme::Dark => tui::Scheme::Dark,
-                terminal::Theme::Light => tui::Scheme::Light,
-            },
-            self.background,
-        );
         if self.need.as_ref().is_some_and(|need| matches!(need.phase, Phase::Signing(None))) {
             self.end_local();
         }
@@ -271,6 +272,20 @@ impl Host {
             duties.note = self.note;
         }
         self.approval(&mut duties);
+        let scheme = match self.root.pages().look().theme {
+            terminal::Theme::Dark => tui::Scheme::Dark,
+            terminal::Theme::Light => tui::Scheme::Light,
+        };
+        if scheme != self.choice.scheme(self.terminal) {
+            self.keep_theme(
+                match scheme {
+                    tui::Scheme::Dark => ThemeChoice::Dark,
+                    tui::Scheme::Light => ThemeChoice::Light,
+                },
+                &mut duties,
+            );
+        }
+        self.theme = tui::theme(scheme, self.background);
         tui::build(
             &mut self.view,
             self.state.as_ref().expect("started TUI"),
@@ -290,6 +305,7 @@ impl Host {
         }
         self.size = start.size;
         self.background = start.background;
+        self.terminal = start.scheme;
         self.boxed = start.boxed;
         if self.boxed {
             self.tell(Told::Boxed);
@@ -300,7 +316,11 @@ impl Host {
         self.note = start.note;
         let mut kept = List::with_capacity(u32::try_from(start.kept.len()).expect("bounded store"));
         for record in start.kept {
-            kept.push(record).expect("counted store");
+            if record.key.as_ref() == THEME_KEY {
+                self.choice = ThemeChoice::read(&record.bytes);
+            } else {
+                kept.push(record).expect("counted store");
+            }
         }
         self.step(Event::Start {
             address: Address::Inbox { filter: Filter::ALL },
@@ -310,7 +330,7 @@ impl Host {
         self.step(Event::LookKept {
             look: Look {
                 terminal: true,
-                theme: match start.scheme {
+                theme: match self.choice.scheme(self.terminal) {
                     tui::Scheme::Dark => terminal::Theme::Dark,
                     tui::Scheme::Light => terminal::Theme::Light,
                 },
@@ -751,6 +771,11 @@ impl Host {
     }
 
     fn heard(&mut self, event: jig_client::Event) {
+        if matches!(&event, jig_client::Event::Stored | jig_client::Event::NotStored)
+            && self.root_writes.pop() != Some(true)
+        {
+            return;
+        }
         let local = match &event {
             jig_client::Event::Reply { exchange, .. } | jig_client::Event::Lost { exchange } => self
                 .need
@@ -827,6 +852,9 @@ impl Host {
                     if matches!(&request, jig_client::Request::Exchange { message: Message::SignInApproval(_), .. }) {
                         self.local_signing = false;
                     }
+                    if matches!(&request, jig_client::Request::Save { .. } | jig_client::Request::Erase { .. }) {
+                        self.root_writes.push(true);
+                    }
                     duties.asked.push(request);
                 }
                 Down::Duty(Duty::Copy { token }) => {
@@ -835,6 +863,22 @@ impl Host {
                 Down::Duty(Duty::Show { address, .. }) => self.show(address),
             }
         }
+    }
+
+    fn keep_theme(&mut self, choice: ThemeChoice, duties: &mut Duties) {
+        self.choice = choice;
+        let theme = match choice.scheme(self.terminal) {
+            tui::Scheme::Dark => terminal::Theme::Dark,
+            tui::Scheme::Light => terminal::Theme::Light,
+        };
+        self.step(Event::LookKept { look: Look { theme, ..self.root.pages().look() } });
+        self.theme = tui::theme(choice.scheme(self.terminal), self.background);
+        let mut records = List::with_capacity(1);
+        records
+            .push(jig_client::Record { key: THEME_KEY.into(), bytes: choice.print().into() })
+            .expect("one theme record");
+        duties.asked.push(jig_client::Request::Save { records });
+        self.root_writes.push(false);
     }
 
     fn quit(&mut self, duties: &mut Duties) {

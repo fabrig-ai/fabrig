@@ -336,3 +336,27 @@ fn the_band_steps_toward_the_ink_and_saturates() {
         assert_eq!(theme::band(background), expected, "{background:?}");
     }
 }
+
+#[test]
+fn a_theme_choice_prints_reads_and_draws_its_scheme() {
+    use theme::{THEME_KEY, ThemeChoice};
+    assert_eq!(THEME_KEY, b"theme");
+    assert_eq!(ThemeChoice::ALL, [ThemeChoice::Auto, ThemeChoice::Light, ThemeChoice::Dark]);
+    for (choice, bytes) in
+        [(ThemeChoice::Auto, b"auto".as_slice()), (ThemeChoice::Light, b"light"), (ThemeChoice::Dark, b"dark")]
+    {
+        assert_eq!(choice.print(), bytes);
+        assert_eq!(ThemeChoice::read(bytes), choice);
+        for terminal in [None, Some(Scheme::Light), Some(Scheme::Dark)] {
+            let expected = match choice {
+                ThemeChoice::Auto => terminal.unwrap_or(Scheme::Dark),
+                ThemeChoice::Light => Scheme::Light,
+                ThemeChoice::Dark => Scheme::Dark,
+            };
+            assert_eq!(choice.scheme(terminal), expected, "{choice:?}, {terminal:?}");
+        }
+    }
+    for bytes in [b"".as_slice(), b"junk", b"Light", b"dark\n"] {
+        assert_eq!(ThemeChoice::read(bytes), ThemeChoice::Auto);
+    }
+}

@@ -424,12 +424,6 @@ read-once requirement remains section 11's parsed-block work and
 in `../draft/tui.status.md`; no rendered-equality result is supplied.
 
 
-- **Not yet:** 6.13's `Start.scheme` and `Duties.asked`, and 6.15, *The
-  scheme* and *The theme chosen*: `Start.scheme` is a scheme always,
-  dark where the terminal says none; no `ThemeChoice` exists, and no
-  `theme` record is kept, read or kept from the root, so each run
-  starts in the terminal's scheme; the recording's `screen` takes no
-  `none` (plan `tui-box-polish`).
 
 Sections 6.13 to 6.15 and 10 have no known implementation gap in the
 launchpad as drawn and views printed (`../draft/surfaces.md`, 11.1,

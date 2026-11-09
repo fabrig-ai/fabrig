@@ -29,7 +29,7 @@ fn start_look(host: &mut Host, credential: Option<Secret>, background: Option<Rg
     host.report(Report::Start(Start {
         front: false,
         size: Size { columns: 80, rows: 24 },
-        scheme: Scheme::Dark,
+        scheme: Some(Scheme::Dark),
         background,
         boxed,
         address: b"127.0.0.1:8367".as_slice().into(),
@@ -286,7 +286,7 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
         let duties = host.report(Report::Start(Start {
             front: false,
             size: Size { columns: 80, rows: 24 },
-            scheme: Scheme::Dark,
+            scheme: Some(Scheme::Dark),
             background: None,
             boxed: false,
             address: address.as_bytes().into(),
@@ -814,7 +814,7 @@ fn local_row(row: LocalRow, failures: &mut Vec<String>) {
     let duties = host.report(Report::Start(Start {
         front: row.front,
         size: Size { columns: 80, rows: 24 },
-        scheme: Scheme::Dark,
+        scheme: Some(Scheme::Dark),
         background: None,
         boxed: false,
         address: b"127.0.0.1:8367".as_slice().into(),
@@ -1394,6 +1394,158 @@ fn launchpad_selection_clears_after_command_composition() {
     }
 }
 
+#[test]
+fn a_kept_theme_starts_the_next_host_in_it() {
+    use temper_client_tui::theme::{THEME_KEY, ThemeChoice};
+    for (bytes, scheme, expected) in [
+        (Some(b"light".as_slice()), None, Scheme::Light),
+        (Some(b"junk".as_slice()), None, Scheme::Dark),
+        (Some(b"junk".as_slice()), Some(Scheme::Light), Scheme::Light),
+        (None, None, Scheme::Dark),
+    ] {
+        let mut host = host();
+        let mut kept = vec![jig_client::Record { key: b"other".as_slice().into(), bytes: Box::new([]) }];
+        if let Some(bytes) = bytes {
+            kept.push(jig_client::Record { key: THEME_KEY.into(), bytes: b"dark".as_slice().into() });
+            kept.push(jig_client::Record { key: THEME_KEY.into(), bytes: bytes.into() });
+        }
+        host.start(
+            Start {
+                front: false,
+                size: Size { columns: 80, rows: 24 },
+                scheme,
+                background: None,
+                boxed: false,
+                address: b"127.0.0.1:8367".as_slice().into(),
+                local: false,
+                note: None,
+                kept,
+                credential: None,
+            },
+            &mut Duties::default(),
+        );
+        // Only the other record reaches jig's store reader, which drops its invalid bytes.
+        let mut dropped = 0;
+        while let Some(request) = host.out.pop() {
+            if let root::Request::Dropped { count } = request {
+                dropped += count;
+            }
+        }
+        assert_eq!(dropped, 1, "every theme record is taken before the root's Start");
+        host.report(Report::Due);
+        assert_eq!(
+            host.root.pages().look().theme,
+            match expected {
+                Scheme::Light => Theme::Light,
+                Scheme::Dark => Theme::Dark,
+            }
+        );
+        assert_eq!(host.theme, temper_client_tui::theme(expected, None));
+        let expected_choice = bytes.map_or(ThemeChoice::Auto, ThemeChoice::read);
+        assert_eq!(host.choice, expected_choice);
+    }
+}
+
+#[test]
+fn a_theme_write_answer_never_reaches_the_root() {
+    use temper_client_tui::theme::{THEME_KEY, ThemeChoice};
+    for (closing, erase_first) in [(false, false), (true, false), (false, true)] {
+        let (mut host, _, _) = signed_host(false);
+        let first = jig_client::Key { asker: jig_client::Asker::JIG, number: 1001 };
+        let second = jig_client::Key { asker: jig_client::Asker::JIG, number: 1002 };
+        let send = |key| root::Event::Client {
+            event: jig_client::Event::Send {
+                key,
+                name: None,
+                request: jig_client::Ask::Jig(Box::new(jig_client::contract::Ask::Stop { project: 3, task: 9 })),
+            },
+        };
+        key_words(&mut host, "/theme");
+        host.step(send(first));
+        if erase_first {
+            let duties = host.report(Report::Due);
+            assert!(matches!(duties.asked.as_slice(), [Request::Save { .. }]));
+            host.heard(jig_client::Event::NotStored);
+            assert!(host.root.client().pending(first).is_none());
+        }
+        let duties = host.report(Report::Key(Key::Enter));
+        let writes: Vec<_> = duties
+            .asked
+            .iter()
+            .filter(|request| matches!(request, Request::Save { .. } | Request::Erase { .. }))
+            .collect();
+        let [root_write, Request::Save { records }] = writes.as_slice() else {
+            panic!("root write followed by theme save: {writes:?}");
+        };
+        if erase_first {
+            assert!(matches!(root_write, Request::Erase { .. }));
+        } else {
+            let Request::Save { records: root_records } = root_write else {
+                panic!("root save");
+            };
+            assert!(!root_records.as_slice().iter().any(|record| record.key.as_ref() == THEME_KEY));
+        }
+        assert_eq!(
+            records.as_slice(),
+            &[jig_client::Record { key: THEME_KEY.into(), bytes: b"light".as_slice().into() }]
+        );
+        assert_eq!(host.theme, temper_client_tui::theme(Scheme::Light, None));
+        host.step(send(second));
+        let duties = host.report(Report::Due);
+        assert_eq!(duties.asked.iter().filter(|request| matches!(request, Request::Save { .. })).count(), 1);
+        if closing {
+            assert!(host.report(Report::Key(Key::Control(b'c'))).close);
+        }
+        let requests = |duties: &Duties| {
+            duties
+                .asked
+                .iter()
+                .filter(|request| matches!(request, Request::Exchange { message: Message::Request(_), .. }))
+                .count()
+        };
+        assert_eq!(requests(&host.report(Report::Heard(jig_client::Event::Stored))), 0);
+        let before = host.root.client().pending(second).expect("second root write waits");
+        let refused = host.report(Report::Heard(jig_client::Event::NotStored));
+        assert!(refused.asked.is_empty(), "host refusal emits no root duties: {:?}", refused.asked);
+        empty(&refused);
+        assert_eq!(
+            host.root.client().pending(second),
+            Some(before),
+            "host refusal cannot answer the root's next write"
+        );
+        assert_eq!(
+            requests(&host.report(Report::Heard(jig_client::Event::Stored))),
+            if erase_first { 1 } else { 2 },
+            "three answers release only the root's saved requests"
+        );
+        assert_eq!(host.root_writes.len(), 0);
+        if !closing {
+            key_words(&mut host, "/theme");
+            let duties = host.report(Report::Key(Key::Enter));
+            let [Request::Save { records }] = duties.asked.as_slice() else {
+                panic!("next flip writes whole");
+            };
+            assert_eq!(
+                records.as_slice(),
+                &[jig_client::Record { key: THEME_KEY.into(), bytes: b"dark".as_slice().into() }]
+            );
+            host.report(Report::Heard(jig_client::Event::Stored));
+            let look = host.root.pages().look();
+            let mut duties = Duties::default();
+            host.keep_theme(ThemeChoice::Auto, &mut duties);
+            assert_eq!(host.root.pages().look(), look, "keeping a theme preserves the root's other look fields");
+            assert_eq!(host.choice, ThemeChoice::Auto);
+            let [Request::Save { records }] = duties.asked.as_slice() else {
+                panic!("Auto is saved too");
+            };
+            assert_eq!(
+                records.as_slice(),
+                &[jig_client::Record { key: THEME_KEY.into(), bytes: b"auto".as_slice().into() }]
+            );
+        }
+    }
+}
+
 fn person_chat(host: &mut Host) {
     let duties = give(host, Event::Act { act: Act::Go { address: Address::Chat { task: NEWEST } } });
     let task_watch = watch(
@@ -1524,7 +1676,12 @@ fn no_project_keys(words: &str) {
     key_words(&mut host, words);
     let written = host.state().box_written();
     let duties = host.report(Report::Key(if words == "/" { Key::Escape } else { Key::Enter }));
-    empty(&duties);
+    if words == "/theme" {
+        assert!(matches!(duties.asked.as_slice(), [Request::Save { .. }]));
+        empty(&host.report(Report::Heard(jig_client::Event::Stored)));
+    } else {
+        empty(&duties);
+    }
     match words {
         "/theme" => assert_eq!(host.root.pages().look().theme, Theme::Light),
         "/help" => {
@@ -1627,7 +1784,7 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
                 host.report(Report::Start(Start {
                     front: false,
                     size: Size { columns: 80, rows: 24 },
-                    scheme: if light { Scheme::Light } else { Scheme::Dark },
+                    scheme: Some(if light { Scheme::Light } else { Scheme::Dark }),
                     background: None,
                     boxed: false,
                     address: b"127.0.0.1:8367".as_slice().into(),
