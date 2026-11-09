@@ -290,7 +290,18 @@ draws no why; Needs you's Decided head, a words offer's order and
 Home's spell with no row showing lag the design; its render check and
 walk follow landing (`domain/forge.status.md`;
 `client/README.status.md`, 3.5; `draft/what-reaches-you.status.md`;
-`draft/surfaces.status.md`, 4). Ask temper's
+`draft/surfaces.status.md`, 4). Only you is the whole story's milestone
+N3a, by plan `ui-n3a-only`: one pure read of the person's own accounts,
+a sign-in signed out or a login read as expiring listed apart on Needs
+you, counted in no card's count, its link to Accounts, which offers an
+expiring source its renewal, with the joint world's story through
+temper's engine, the density fuzz's part and four gallery states. What
+waits on a login, a forge's token and a person task asking an act wait
+for reads, the terminal's inbox lists none, and its item's look lags
+`needs.html`; its render check and walk follow landing
+(`client/README.status.md`, 3.5 and 5.5; `client/browser.status.md`,
+7.2; `draft/what-reaches-you.status.md`, 8; `draft/surfaces.status.md`,
+4). Ask temper's
 first milestone stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
 the instructions' first step of Showing, and its reading milestone, M2:
