@@ -322,6 +322,14 @@ end step=<u64> instant=<ns> said=<digest>       or: cut
 - **A difference** fails the replay at its line: a stamp's step reached
   at another instant, or its instant passed before its step, or a
   digest that differs; the failure names the build the log came from.
+- **What a difference says,** so one met once shows its cause without
+  another run: the line's input, in the log's text (6.1), none on the
+  last line; and for a digest, the log's and the replay's, and the
+  replay's last lines before it, at most 8, oldest first. Those lines
+  are each input it entered, `input step=<u64> instant=<ns> <input>`,
+  each report and printed line it folded, and `stopped` when it folded
+  the stop, each in the log's text without its newline; a line past
+  200 bytes is cut to its first 200 and `...` (decided 2026-11-09).
 
 ## 7. The page, the worker and the bundle
 
