@@ -1,6 +1,6 @@
 # forge: status
 
-2026-11-08. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-09. Where temper's code lags or departs from [forge.md](forge.md).
 
 Section 8.9 has no known implementation gap in every-project given
 rules, their project-scoped reads and held values, removal and reset, or
@@ -50,15 +50,6 @@ and leave when the merge is admitted. A vetoed approval wait stays First,
 retaining its branch turn. Step tables and the owned-Forgejo engine story
 cover these paths; GitHub's composed story remains in `testing.status.md`,
 6.4.
-
-- **Not yet:** 8.3, 8.4, 8.7, 13, from the request `n4-request-changes` of
-  2026-11-08: a person's request for changes on the forge still holds the
-  change at its merge (`temper-engine-domain/src/route/forge_route.rs`, the
-  `Ask::Drop` arm's procedure hold); the change procedure has no repair for it
-  (`temper-engine-domain-forge-change`, `Repair`), the store's `Repair` and
-  the wires' `PublicRepair` and `Reason` no variant, and the repair's reviews
-  section neither reads a reviewed head of its own nor says that no remarks
-  were given (`temper-engine-domain-forge/src/brief.rs`, `brief_reviews`).
 
 - **Not yet:** 4.6: a link restored outside `--box` survives when its
   person remains the deployment's sole owner. `link.rs`, `owner`, clears
