@@ -182,7 +182,8 @@ fn start(domain: &Domain, project: u32, items: &[ways::Item]) -> ways::Start {
             {
                 return match template.executor {
                     TemplateExecutor::Charter(charter) => {
-                        ways::Start::Goal { charter, design: false, close_out: false }
+                        let goal = ways::laid_goal(domain.forge.template_goal(template.number), template.number, items);
+                        ways::Start::Goal { charter, design: goal.design, close_out: goal.close_out }
                     }
                     TemplateExecutor::Chosen => ways::Start::Chat,
                 };
