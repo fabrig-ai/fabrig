@@ -1109,11 +1109,13 @@ terminal client, the captures and the faults.
   `crates/temper/tests/support/cluster.rs`, which starts the fake forge,
   the fake LLM, the engine alone and two workers alone as processes,
   each in a cgroup of its own, awaits their ready lines and stops them
-  in reverse. Its stories: a task on each worker; a worker lost, killed
-  mid-run; a worker hung, stopped past the grace and continued; a worker
-  started later, and one restarted; and a mixed document refused, exit
-  1. Each story's referee is the tier's: what the engine records, read
-  through the client (the forge's state, from the fake forge's API, once
+  in reverse. Its stories: a task on each worker, on the box's binary
+  and on the deployment's binaries (../protocol/README.md, 15.6); a
+  worker lost, killed mid-run; a worker hung, stopped past the grace and
+  continued; a worker started later, and one restarted; and a mixed
+  document refused, exit 1. Each story's referee is the tier's: what the
+  engine records, read through the client (the forge's state, from the
+  fake forge's API, once
   it joins: ../protocol/README.md, 15.5), and no process of the cluster
   outliving it. Without delegated cgroups the cluster's tests fail at
   their start, saying why (section 10). These remain in the process

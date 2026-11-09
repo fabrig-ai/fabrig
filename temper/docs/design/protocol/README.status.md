@@ -15,7 +15,7 @@ crates hold them: `binaries.rs`'s `temper-engine` row, unchanged, since
 no launcher; and `closure.rs`'s `temper-agent` row, 4.4's seven temper
 crates, no jig crate and no exception, since `temper-shell` links
 skein's crates and `temper-docs` alone and jig's form of the three
-directories is `temper-engine-shell`'s `jig_directories`, which the
+directories is `temper-service-shell`'s `jig_directories`, which the
 box's `temper::directories` re-exports. The client's and the worker's
 rows remain M5's. The box's modes and the worker's current program are
 unchanged; naming `temper-agent` is M3's
@@ -36,6 +36,12 @@ incident's unexplained 503 (`../domain/root.md`, section 13).
   `temper-service/src/clients/translation.rs`, `not_ready`, still refuses
   watches as `Busy`. The sign-in line is present, but other calls can
   still claim all watches are in use while the gate is shut.
+
+Section 4.5's `temper-worker` is present on `temper-worker-shell` and
+`temper-service-shell`, with its step test (`bin/temper-worker/tests/suite/main.rs`).
+15.6's story on the deployment's binaries is written and compiled, and runs
+after landing (`crates/temper/tests/process.rs`,
+`a_task_runs_on_each_worker_of_the_deployments_binaries`).
 
 Section 4's `temper [ADDRESS]` command is present, including bare
 `temper` choosing the TUI only when stdin and stdout are terminals.
@@ -72,7 +78,7 @@ Section 15.3 has no known gap in a link's loss lines: the worker prints
 channel that said hello and `worker opening ended` for an opening, once
 until that worker's reason changes or it links, and a failed workers'
 listener prints its line when it fails (`temper-service/src/worker.rs`,
-`link`; `workers.rs`, `route`; `temper-engine-shell/src/serve/host.rs`).
+`link`; `workers.rs`, `route`; `temper-service-shell/src/host.rs`).
 The binary's line tables
 `worker_loss_lines_name_each_cause_and_refusal_exactly`,
 `engine_worker_loss_lines_name_each_cause_and_refusal_exactly` and

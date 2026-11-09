@@ -53,8 +53,10 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
          (the direct backend) or through a program (the program backend)
 ```
 
-- **The agent process** is temper's binary as `temper internal agent
-  AGENT.json`, spawned by the worker's protocol layer for each run
+- **The agent process** is the worker's agent's program, the box's
+  `temper internal agent AGENT.json` or a deployment's `temper-agent
+  AGENT.json` (README.md, 4.3), spawned by the worker's protocol layer for
+  each run
   (configuration.md, section 5; jig's `protocol/service.md`, section 6).
   It reads smith's agent configuration, dials the endpoints it declares,
   and takes its run's grants from smith's host half (smith's

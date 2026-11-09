@@ -543,16 +543,23 @@ have one, an engine alone none. Each:
 
 - **smith's agent configuration** (smith's `protocol/agent.md`, section
   4), a file of smith's, named by jig's worker part's `agent` member:
-  - `program`: the absolute path of temper's binary;
-  - `configuration`: the absolute path of smith's agent configuration;
-  - `arguments`: `["internal", "agent", <that same path>]`,
+  `configuration` the absolute path of smith's agent configuration, and
+  `program` and `arguments` in one of two forms:
+  - **the box's:** `program` the absolute path of temper's binary and
+    `arguments` `["internal", "agent", <that same path>]`, so each agent
+    process is `temper internal agent AGENT.json` (README.md, section
+    4); `temper init` writes them so, with smith's agent configuration
+    as `agent.json` in the configuration directory (setup.md, 8.2);
+  - **a deployment's:** `program` the absolute path of `temper-agent`
+    (README.md, 4.3) and `arguments` `[<that same path>]`, so each agent
+    process is `temper-agent AGENT.json`; a worker alone's document,
+    written by hand until a cluster's `init` is designed
+    (`../draft/deployment-binaries.md`, section 3), names it so.
 
-  so each agent process is `temper internal agent AGENT.json`
-  (README.md, section 4). They are absolute because the worker spawns
-  the agent with its arguments as written (jig's
-  `protocol/configuration.md`, section 10); `temper init` writes them
-  so, with smith's agent configuration as `agent.json` in the
-  configuration directory (setup.md, 8.2).
+  Any other `program`, each of its `arguments` absolute, runs as
+  written, with no model list (README.md, section 7). They are absolute
+  because the worker spawns the agent with its arguments as written
+  (jig's `protocol/configuration.md`, section 10).
 - **Read twice:** by `temper serve` at start, for smith's host limits,
   the channel's limits and the agent's bounds, as jig's reference binary
   reads it; and by each agent process as it starts.
