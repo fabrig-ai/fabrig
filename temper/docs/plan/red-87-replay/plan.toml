@@ -1,0 +1,25 @@
+draft = "red-87-replay"
+repo = "fabrig"
+sources = ["temper/docs/plan/red-87-replay/inputs/request.md", "skein/crates/skein-playground/src/replay.rs", "temper/tests/client-browser/tests/browser_all/browser_playground.rs", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/tiers"
+early = false
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "differs-says"
+title = "A replay that differs names the line's input, both digests and its last lines"
+mode = "direct"
+needs = []
+design = "skein/docs/design/playground.md, 6.2"
+
+[[slice]]
+id = 1
+story = "A native replay of a session log whose digest differs fails naming the line's input, the log's and the replay's digests and the replay's last 8 lines"
+parts = ["differs-says"]
+walk = false
