@@ -13,3 +13,5 @@ pub(in crate::tests) mod task_query;
 mod closed;
 
 mod proposal_facts;
+
+mod person;
