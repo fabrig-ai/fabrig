@@ -156,7 +156,7 @@ pub(super) fn command_items(root: &Domain, tui: &Tui, words: &Words) -> Box<[Opt
     let mut items = List::with_capacity(u32::try_from(capacity).expect("commands fit"));
     for command in &own {
         match command {
-            Own::Change | Own::Ask => items.push(own_item(*command, words)).expect("own commands counted"),
+            Own::Draft | Own::Change | Own::Ask => items.push(own_item(*command, words)).expect("own commands counted"),
             Own::Brief | Own::Needs | Own::Open | Own::Theme => {}
         }
     }
@@ -188,7 +188,7 @@ pub(super) fn command_items(root: &Domain, tui: &Tui, words: &Words) -> Box<[Opt
                     Own::Brief | Own::Needs | Own::Open => {
                         items.push(own_item(*command, words)).expect("own commands counted");
                     }
-                    Own::Change | Own::Ask | Own::Theme => {}
+                    Own::Draft | Own::Change | Own::Ask | Own::Theme => {}
                 }
             }
         }
@@ -197,6 +197,7 @@ pub(super) fn command_items(root: &Domain, tui: &Tui, words: &Words) -> Box<[Opt
 }
 fn own_item(command: Own, words: &Words) -> OptionItem {
     let word = match command {
+        Own::Draft => Word::DraftCommand,
         Own::Change => Word::ChangeCommand,
         Own::Ask => Word::AskTemper,
         Own::Brief => Word::BriefCommand,

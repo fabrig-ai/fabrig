@@ -543,7 +543,7 @@ impl Host {
 
     fn own(&mut self, command: tui::Own, duties: &mut Duties) {
         match command {
-            tui::Own::Change | tui::Own::Ask => {
+            tui::Own::Draft | tui::Own::Change | tui::Own::Ask => {
                 let words = skein_lib::bytes::concat(&[command.name(), b" "]);
                 self.act(Act::ChatWords { words });
                 self.tell(Told::Cleared);
@@ -620,7 +620,7 @@ impl Host {
                     .find(|command| tui::command_name(**command).starts_with(words))
                     .copied()
             };
-            if let Some(command @ (tui::Own::Change | tui::Own::Ask)) = own {
+            if let Some(command @ (tui::Own::Draft | tui::Own::Change | tui::Own::Ask)) = own {
                 self.event(tui::Event::Own { command }, duties);
             } else if let Some(command) = root {
                 self.event(tui::Event::Command { command }, duties);
@@ -663,7 +663,15 @@ impl Host {
 
     fn launchpad_words(&mut self) -> bool {
         let words = self.words();
-        if let Some(words) = words.strip_prefix(b"/change ").filter(|words| !words.is_empty()) {
+        if let Some(words) = words.strip_prefix(b"/draft ").filter(|words| !words.is_empty())
+            && self.root.pages().project().is_some_and(|project| root::pages::drafts_offered(&self.root, project))
+        {
+            let words = words.into();
+            self.went(Address::NewChat { draft: true });
+            self.act(Act::ChatWords { words });
+            self.act(Act::StartChat);
+            self.tell(Told::Cleared);
+        } else if let Some(words) = words.strip_prefix(b"/change ").filter(|words| !words.is_empty()) {
             let words = words.into();
             self.went(Address::NewChat { draft: false });
             self.act(Act::ChatWords { words });
