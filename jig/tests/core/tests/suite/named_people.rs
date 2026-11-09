@@ -102,15 +102,7 @@ fn amend(world: &mut World, person: u64) -> Option<Refusal> {
 }
 
 fn agent(world: &mut World, person: u64) -> Option<Refusal> {
-    let mut member = jig_core_world::fixtures::member(
-        world,
-        tasks::Executor::Person(tasks::PersonAddress::Person(person)),
-        b"ask the person",
-    );
-    member.authority.tools = tasks::Tools(0);
-    member.authority.models = tasks::Models::NONE;
-    member.authority.budget.spend = 0;
-    member.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    let member = person_member(world, person);
     world.send(root::Event::Core(core::Event::DelegateValidated {
         to: ReplyTo::new(Token::new(9052)),
         key: world.call_key(1),
@@ -130,7 +122,7 @@ fn person_reply(world: &World) -> Option<Refusal> {
         Some(people::Reply::Outcome(people::Outcome::CompoundRefused { at, why })) => {
             Some(Refusal::Compound { at: *at, why: why.clone() })
         }
-        Some(people::Reply::Outcome(people::Outcome::Created { .. } | people::Outcome::RolesSet { .. }
+        Some(people::Reply::Outcome(people::Outcome::Created { .. } | people::Outcome::Proposed { .. } | people::Outcome::RolesSet { .. }
             | people::Outcome::Compound { .. } | people::Outcome::Amended { .. })) => None,
         other => Some(Refusal::Unexpected(format!("{other:?}"))),
     }
@@ -252,6 +244,53 @@ fn proposed_amend(world: &mut World, person: u64) -> Option<Refusal> {
 // The application has no caller for raw task batches. These rows drive the
 // core event through its root; admission's output is checked in the core's
 // named-people unit table because the root has no raw-batch reply fixture.
+fn party_proposed_amend(world: &mut World, person: u64) -> Option<Refusal> {
+    ask(world, 52, people::Ask::Propose { project: PROJECT,
+        action: people::Action::Amend { task: PERSON_TASK, revision: live_row(world, PERSON_TASK).revisions.spec,
+            amendment: Box::new(amendment(person)) },
+        reason: b"review the address".as_slice().into(),
+    });
+    person_reply(world)
+}
+
+fn procedure_person_world() -> World {
+    let mut world = procedure_world();
+    let _answer = procedure(&mut world, PERSON);
+    world.send(root::Event::Core(core::Event::Tasks(tasks::Event::WakeProcedure { task: DELEGATE })));
+    world
+}
+
+fn procedure_amend(world: &mut World, person: u64) -> Option<Refusal> {
+    let amendment = task_amendment(world, person, 4);
+    let limits = world.env().limits.core;
+    let answer = world.domain.core_mut().task_amend_admit(DELEGATE, 4, &amendment, limits.tasks.depth, &limits.tasks);
+    let (step, connector, code, _) = world.procedure_inputs.last().expect("next procedure context");
+    world.send(root::Event::Core(core::Event::ProcedureStep {
+        task: DELEGATE, step: *step, connector: *connector, code: u32::from(*code),
+        decision: core::ProcedureStep {
+            amendments: Box::new([core::StepAmendment { task: 4, revision: live_row(world, 4).revisions.spec, amendment }]),
+            ..core::ProcedureStep::new(core::StepEnd::Wait)
+        },
+    }));
+    match answer {
+        Ok(_) => None,
+        Err(core::TaskAmendDenied::Refused { task, why }) => Some(Refusal::Step(core::StepRefusal::Refused(tasks::Problem::new(Some(task), why)))),
+        Err(core::TaskAmendDenied::Denied(answer)) => Some(Refusal::Unexpected(format!("{answer:?}"))),
+    }
+}
+
+#[expect(clippy::unnecessary_wraps, reason = "the raw amendment has no application reply; the core unit table checks its refusal")]
+fn raw_amend(world: &mut World, person: u64) -> Option<Refusal> {
+    let message = core::fresh(&mut world.domain.core_mut().counters, core::Family::Message).expect("message number");
+    let amendment = task_amendment(world, person, PERSON_TASK);
+    world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Amend {
+        reply_to: ReplyTo::new(Token::new(9053)), by: tasks::Party::Person(PERSON),
+        funder: None, places: Box::new([]),
+        operation: tasks::Amend { task: PERSON_TASK, message, stop_run: false, amendment: Box::new(amendment) },
+    })));
+    None
+}
+
 fn raw_new(world: &mut World) -> tasks::New {
     let number = core::fresh(&mut world.domain.core_mut().counters, core::Family::Task).expect("task number");
     let source = live_row(world, PERSON_TASK);
@@ -297,7 +336,7 @@ fn raw_batch(world: &mut World, person: u64, field: BatchName) -> Option<Refusal
 enum BatchName { Executor, Funder, Requester }
 
 #[derive(Clone, Copy)]
-enum NamedLink { Executor, Funder, Requester, Proposal, Escalation, Holding, ProposedAddress }
+enum NamedLink { Executor, Funder, Requester, Proposal, Escalation, Holding, ProposedAddress, PartyProposedAddress }
 
 fn executor_batch(world: &mut World, person: u64) -> Option<Refusal> {
     raw_batch(world, person, BatchName::Executor)
@@ -338,6 +377,12 @@ fn escalation(world: &mut World, person: u64) -> Option<Refusal> {
 }
 
 fn linked(world: &World, task: u64, named: u64, field: NamedLink) -> bool {
+    if let NamedLink::PartyProposedAddress = field {
+        return world.store.rows.values().any(|record| matches!(record,
+            root::Record::Core(core::Record::Tasks(tasks::Stored::PersonProposal(row)))
+                if matches!(&row.action, tasks::PersonAction::Amend { amendment, .. }
+                    if amendment.addressed.is_some_and(|address| address.address == tasks::PersonAddress::Person(named)))));
+    }
     if let NamedLink::Holding = field {
         return world.store.rows.values().any(|record| matches!(record,
             root::Record::Core(core::Record::People(people::Stored::Roles { project: PROJECT, holdings }))
@@ -355,7 +400,7 @@ fn linked(world: &World, task: u64, named: u64, field: NamedLink) -> bool {
         NamedLink::ProposedAddress => row.proposal.as_ref().is_some_and(|proposal| matches!(&proposal.action,
             tasks::ProposalAction::Amend { amendment, .. } if amendment.addressed.is_some_and(|address|
                 address.address == tasks::PersonAddress::Person(named)))),
-        NamedLink::Holding => unreachable!("holding checked in people rows"),
+        NamedLink::Holding | NamedLink::PartyProposedAddress => unreachable!("checked in separate rows"),
     }
 }
 
@@ -373,6 +418,10 @@ fn names_absent(record: &root::Record) -> bool {
                     || matches!(&proposal.action, tasks::ProposalAction::Amend { amendment, .. }
                         if amendment.addressed.is_some_and(|address| address.address == tasks::PersonAddress::Person(PERSON_TASK)))
                 })
+        }
+        root::Record::Core(core::Record::Tasks(tasks::Stored::PersonProposal(row))) => {
+            matches!(&row.action, tasks::PersonAction::Amend { amendment, .. }
+                if amendment.addressed.is_some_and(|address| address.address == tasks::PersonAddress::Person(PERSON_TASK)))
         }
         root::Record::Core(core::Record::People(people::Stored::Roles { holdings, .. })) => {
             holdings.iter().any(|holding| holding.person == PERSON_TASK)
@@ -430,6 +479,12 @@ fn a_person_named_from_outside_is_held_or_refused_and_the_start_links() {
             refusal: Some(Refusal::Task(tasks::Problem::new(Some(DELEGATE), tasks::Refusal::Unknown))), field: NamedLink::Executor },
         Route { name: "proposed amendment", setup: person_delegate_world, input: proposed_amend, task: 1,
             refusal: Some(Refusal::Task(tasks::Problem::new(Some(1), tasks::Refusal::Unknown))), field: NamedLink::ProposedAddress },
+        Route { name: "party proposed amendment", setup: world, input: party_proposed_amend, task: PERSON_TASK,
+            refusal: Some(Refusal::Person(people::Refusal::Unknown)), field: NamedLink::PartyProposedAddress },
+        Route { name: "procedure amendment", setup: procedure_person_world, input: procedure_amend, task: 4,
+            refusal: Some(Refusal::Step(core::StepRefusal::Refused(tasks::Problem::new(Some(4), tasks::Refusal::Unknown)))), field: NamedLink::Executor },
+        Route { name: "application amendment", setup: world, input: raw_amend, task: PERSON_TASK,
+            refusal: None, field: NamedLink::Executor },
     ];
     let mut failures = Vec::new();
     for Route { name: route, setup, input, task, refusal, field } in routes {

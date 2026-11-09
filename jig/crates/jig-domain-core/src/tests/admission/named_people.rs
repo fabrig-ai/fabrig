@@ -30,12 +30,36 @@ fn requester(_row: &mut tasks::New, creator: &mut tasks::Party, named: u64) {
     *creator = tasks::Party::Person(named);
 }
 
+fn batch_input(core: &Core, named: u64, name: fn(&mut tasks::New, &mut tasks::Party, u64)) -> Event {
+    let mut row = person_task(core, CREATED);
+    let mut creator = tasks::Party::Deployment { project: 1 };
+    name(&mut row, &mut creator, named);
+    Event::Tasks(tasks::Event::Make { reply_to: ReplyTo::new(Token::new(9053)), creator, batch: Box::new([row]) })
+}
+fn executor_input(core: &Core, named: u64) -> Event { batch_input(core, named, executor) }
+fn funder_input(core: &Core, named: u64) -> Event { batch_input(core, named, funder) }
+fn requester_input(core: &Core, named: u64) -> Event { batch_input(core, named, requester) }
+fn amendment_input(core: &Core, named: u64) -> Event {
+    let mut amendment = fixtures::unchanged(b"name a person");
+    amendment.addressed = Some(tasks::AddressChange {
+        revision: core.tasks.task(PERSON_TASK).expect("person task").revisions.person,
+        address: tasks::PersonAddress::Person(named),
+    });
+    Event::Tasks(tasks::Event::Amend {
+        reply_to: ReplyTo::new(Token::new(9053)), by: tasks::Party::Person(PERSON), funder: None, places: Box::new([]),
+        operation: tasks::Amend { task: PERSON_TASK, message: 1, stop_run: false, amendment: Box::new(amendment) },
+    })
+}
+
 #[test]
-fn raw_batches_refuse_unknown_people_before_any_child_changes() {
-    type Name = fn(&mut tasks::New, &mut tasks::Party, u64);
-    let routes: [(&str, Name); 3] = [("executor", executor), ("funder", funder), ("requester", requester)];
+fn raw_writers_refuse_unknown_people_before_any_child_changes() {
+    type Input = fn(&Core, u64) -> Event;
+    let routes: [(&str, Input, u64); 4] = [
+        ("executor", executor_input, CREATED), ("funder", funder_input, CREATED),
+        ("requester", requester_input, CREATED), ("amendment", amendment_input, PERSON_TASK),
+    ];
     let mut failures = Vec::new();
-    for (route, name) in routes {
+    for (route, input, target) in routes {
         for named in [PERSON, PERSON_TASK] {
             let result = std::panic::catch_unwind(|| {
             let (mut core, limits) = tree_core();
@@ -50,13 +74,8 @@ fn raw_batches_refuse_unknown_people_before_any_child_changes() {
             });
             let before = [core.tasks.task(PERSON).cloned(), core.tasks.task(PERSON_TASK).cloned()];
             let funding = core.tasks.funding(PERIOD).cloned();
-            let mut row = person_task(&core, CREATED);
-            let mut creator = tasks::Party::Deployment { project: 1 };
-            name(&mut row, &mut creator, named);
-            let mut out = step(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
-                Event::Tasks(tasks::Event::Make {
-                    reply_to: ReplyTo::new(Token::new(9053)), creator, batch: Box::new([row]),
-                }));
+            let event = input(&core, named);
+            let mut out = step(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, event);
             let mut refused = None;
             let mut writes = Vec::new();
             while let Some(request) = out.pop() {
@@ -70,9 +89,9 @@ fn raw_batches_refuse_unknown_people_before_any_child_changes() {
             }
             if named == PERSON {
                 assert_eq!(refused, None, "{route}");
-                assert!(core.tasks.task(CREATED).is_some(), "{route} admitted");
+                assert!(core.tasks.task(target).is_some(), "{route} admitted");
             } else {
-                assert_eq!(refused, Some(tasks::Problem::new(Some(CREATED), tasks::Refusal::Unknown)), "{route}");
+                assert_eq!(refused, Some(tasks::Problem::new(Some(target), tasks::Refusal::Unknown)), "{route}");
                 assert!(writes.is_empty(), "{route}: {writes:?}");
                 assert!(core.tasks.task(CREATED).is_none(), "{route}");
                 assert_eq!([core.tasks.task(PERSON).cloned(), core.tasks.task(PERSON_TASK).cloned()], before, "{route}");
