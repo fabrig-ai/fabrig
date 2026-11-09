@@ -132,8 +132,18 @@ pub struct Project {
 pub enum NoteLocation {
     Deployment,
     Project(u32),
-    Goal { project: u32, task: u64 },
-    Resources { project: u32, scope: NoteScope },
+    Goal {
+        project: u32,
+        task: u64,
+    },
+    Resources {
+        project: u32,
+        scope: NoteScope,
+    },
+    /// A person's own preferences, in no project (domain/engine.md, 10.1).
+    Party {
+        party: u64,
+    },
 }
 /// A note made from its child's store-loaded entry. The child currently retains
 /// no changed wall time; its revision is carried unchanged.
@@ -457,6 +467,7 @@ pub(super) fn project(
 /// Make a note from the owning child's loaded record, checking scope visibility.
 pub fn note_from_entry(core: &Core, limits: &Limits, party: u64, value: &notes::Entry) -> Result<Note, Missing> {
     let project = match value.scope {
+        notes::Scope::Party { .. } => return Err(Missing::Unknown),
         notes::Scope::Deployment => 0,
         notes::Scope::Project { project }
         | notes::Scope::Goal { project, .. }
@@ -469,6 +480,7 @@ pub fn note_from_entry(core: &Core, limits: &Limits, party: u64, value: &notes::
         return Err(Missing::NotAllowed);
     }
     let scope = match &value.scope {
+        notes::Scope::Party { .. } => return Err(Missing::Unknown),
         notes::Scope::Deployment => NoteLocation::Deployment,
         notes::Scope::Project { project } => NoteLocation::Project(*project),
         notes::Scope::Goal { project, goal } => NoteLocation::Goal { project: *project, task: *goal },
@@ -497,6 +509,7 @@ pub fn note_from_entry(core: &Core, limits: &Limits, party: u64, value: &notes::
         tasks.push(*task).expect("bounded referenced tasks");
     }
     let edit_scope = match &value.scope {
+        notes::Scope::Party { .. } => return Err(Missing::Unknown),
         notes::Scope::Deployment => people::NoteScope::Deployment,
         notes::Scope::Project { .. } => people::NoteScope::Project,
         notes::Scope::Goal { goal, .. } => people::NoteScope::Goal { goal: *goal },

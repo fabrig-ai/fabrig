@@ -7,8 +7,8 @@ record Pattern { segments: list 4096 Segment last: Last }
 record Project { project: u32 }
 record Goal { project: u32 goal: u64 }
 record Resources { project: u32 connector: u16 pattern: Pattern }
-enum Scope { deployment, project: Project, goal: Goal, resources: Resources }
 record Party { party: u64 }
+enum Scope { deployment, project: Project, goal: Goal, resources: Resources, party: Party }
 record Task { task: u64 attempt: u64 }
 enum Author { party: Party, task: Task }
 record Reference { task: u64 }

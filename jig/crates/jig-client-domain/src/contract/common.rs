@@ -254,6 +254,8 @@ pub enum NoteScope {
     Task { project: u32, task: u64 },
     /// Read-only list of a project's goal-scoped notes, without bodies.
     Tasks { project: u32 },
+    /// A person's own preferences, in no project (domain/engine.md, 10.1).
+    Party { party: u64 },
 }
 
 /// How an object ended.

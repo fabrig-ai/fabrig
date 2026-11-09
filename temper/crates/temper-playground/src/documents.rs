@@ -175,6 +175,7 @@ pub fn world_document_with(edit: impl FnOnce(&mut serde_json::Value)) -> serde_j
         // Nine slots hold the stock charters.
         ("tasks.charters", 9),
         ("notes.entries_per_scope", 2),
+        ("notes.party_entries", 2),
         ("notes.recalled", 2),
         ("people.holdings", 2),
         ("people.pending", 5),
@@ -380,6 +381,7 @@ pub fn configure(value: &mut serde_json::Value) {
         "people.projects",
         "tasks.hold_bytes",
         "notes.entries_per_scope",
+        "notes.party_entries",
         "notes.recalled",
         "views.runs",
         "people.holdings",

@@ -21,7 +21,7 @@ pub struct Name {
 }
 
 /// Every name the engine and worker override parser takes, owner by owner in parser order.
-pub static NAMES: [Name; 233] = [
+pub static NAMES: [Name; 235] = [
     Name {
         name: "tasks.placed_holds",
         unit: Unit::Count,
@@ -891,6 +891,18 @@ pub static NAMES: [Name; 233] = [
         unit: Unit::Count,
         line: "Bounds entries admitted in one scope.",
         value: |limits| u64::from(limits.core.notes.entries_per_scope),
+    },
+    Name {
+        name: "notes.party_entries",
+        unit: Unit::Count,
+        line: "Bounds entries admitted in one party's scope.",
+        value: |limits| u64::from(limits.core.notes.party_entries),
+    },
+    Name {
+        name: "notes.party_bytes",
+        unit: Unit::Bytes,
+        line: "Bounds description bytes in one party's scope.",
+        value: |limits| u64::from(limits.core.notes.party_bytes),
     },
     Name {
         name: "notes.pattern_bytes",

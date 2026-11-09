@@ -445,6 +445,7 @@ impl<A: crate::Application> Engine<A> {
             }
             Read::Notes { scope, .. } => {
                 return match scope {
+                    NoteScope::Party { .. } => false,
                     NoteScope::Deployment => self.truth.frames.get(&party).is_some_and(|f| f.deployment_role.is_some()),
                     NoteScope::Project(project)
                     | NoteScope::Resource { project, .. }

@@ -30,6 +30,7 @@ pub(crate) fn route_notes(
 
 pub(crate) fn person_note_scope(project: u32, scope: people::NoteScope) -> notes::Scope {
     match scope {
+        people::NoteScope::Party { party } => notes::Scope::Party { party },
         people::NoteScope::Deployment => notes::Scope::Deployment,
         people::NoteScope::Project => notes::Scope::Project { project },
         people::NoteScope::Goal { goal } => notes::Scope::Goal { project, goal },

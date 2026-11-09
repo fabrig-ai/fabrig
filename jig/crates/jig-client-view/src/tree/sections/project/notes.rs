@@ -54,6 +54,12 @@ pub(super) fn notes(b: &mut Builder, client: &Borrowed<'_>, project: u32, words:
 fn scope_choice(b: &mut Builder, words: &Words, bindings: &mut JigBindings, filter: &NoteFilter, scope: NoteScope) {
     let text_limit = bindings.text_limit();
     let (phrase, holes): (JigPhrase, Box<[Hole]>) = match &scope {
+        NoteScope::Party { .. } => {
+            b.open(Role::Paragraph);
+            b.text(skein_ui::Run::Plain, b"Yours");
+            b.close();
+            return;
+        }
         NoteScope::Tasks { .. } => {
             b.open(Role::Paragraph);
             b.text(skein_ui::Run::Plain, b"goals' notes");
