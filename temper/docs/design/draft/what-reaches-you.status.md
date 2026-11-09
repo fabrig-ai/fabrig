@@ -6,7 +6,10 @@ Sections 2 to 6 are carried by the design, milestone N1 of
 `whole-story.execution.md`, but for lag 4 and the departures below:
 `../domain/forge.md`, 5.5 and 5.8 to 5.10, `../protocol/configuration.md`,
 section 7 and 13.2, `../domain/agent.md`, 4.3, and
-`../client/README.md`, 3.5, 5.13 and 5.14. Section 8 is carried by
+`../client/README.md`, 3.5, 5.13 and 5.14; section 3's view of the
+table is 5.13's *What reaches you*, the three columns `surfaces.md`,
+section 7, draws, milestone P3b, in place of Settings' section and its
+checks. Section 8 is carried by
 `../client/README.md`, 3.5, **Only you**, and 5.5, *Each state*,
 milestone N3a, but for lag 8. Where the code lags them is their status
 files'.
