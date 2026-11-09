@@ -105,6 +105,7 @@ pub fn bounds() -> Bounds {
         message_bytes: 1024,
         inbox: 16,
         unacknowledged: walking::HUB_TURNS,
+        reply_bytes: None,
     }
 }
 

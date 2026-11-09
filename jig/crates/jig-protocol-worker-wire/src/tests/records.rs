@@ -4,8 +4,8 @@ use alloc::boxed::Box;
 use skein_channel::{Direction, Role, Term};
 use skein_lib::{Duration, List, Reader};
 
-// Hello146 + endpoint count4 + 64 identities of4 + jobs count4 + two bounds of20.
-const HELLO_MAX: u32 = 146 + 4 + crate::v9::CEILINGS.bounds_program_endpoints * 4 + 4 + 2 * 20;
+// Hello151 + endpoint count4 + 64 identities of4 + jobs count4 + two bounds of20.
+const HELLO_MAX: u32 = 151 + 4 + crate::v9::CEILINGS.bounds_program_endpoints * 4 + 4 + 2 * 20;
 fn hello_schema() -> skein_channel::Schema {
     crate::schema(&fixtures::LIMITS).expect("small schema")
 }

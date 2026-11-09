@@ -47,6 +47,12 @@ it names the last request item for the failing setting, counted from
 0, or 0 when no item names it. The refusal table covers a third item
 failing with position 2 and the settings rows left unchanged.
 
+Sections 8 and 17.8 have no known gap in retaining a host's optional
+reply bound and exposing it by a run's live attempt. The fleet returns
+none for an unnamed bound, a lost channel, a job or a non-live claim
+(`jig-domain-fleet/src/call.rs`, `reply_bound`). The parent supplies its
+fallback; the bound adds no hello-admission condition.
+
 Section 8 has no known gap in derived next-run refusals: standing hello
 facts retain their figures, and admitted hosts too small for the run's
 charter version give the first shared shortfall and their best offer,

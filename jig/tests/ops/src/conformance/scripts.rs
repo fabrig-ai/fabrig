@@ -677,6 +677,7 @@ pub fn agent_bounds() -> Bounds {
         message_bytes: u32::MAX,
         inbox: u32::MAX,
         unacknowledged: u32::MAX,
+        reply_bytes: None,
     }
 }
 

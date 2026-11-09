@@ -9,6 +9,9 @@ adds no host-side deferred work.
 
 Sections 2 and 8 have no known gap in endpoint bounds at hello and
 charter-supplied model names; the host keeps no model allowlist.
+Section 2's optional application-supplied reply bound crosses the hello
+as a byte count, independent of run admission, with no known gap.
+The fleet exposes it for the attempt hosted there (`engine.md`, section 8).
 
 Section 6.6 has no known gap in a loss told with why or a worker's
 return: each side's link component names each loss's cause, which

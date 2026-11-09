@@ -237,10 +237,11 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
   direct delegates remain readable. `field=result` reads kept terminal reports,
   including descendants reached through a proven same-project requester chain
   of live or retained intermediate tasks (jig's `domain/engine.md`, 7.3).
-  In a process with a local agent's metadata, one answer holds as much of the
-  words as the run's reply takes, whatever a client's `documents.text_bytes`, so a
-  spec within that room comes back in one call; in one with none, a piece of
-  `documents.text_bytes` (`root.md`, 5.2; section 10).
+  One answer holds as much of the words as the run's reply takes, whatever a
+  client's `documents.text_bytes`, so a spec within that room comes back in one
+  call: the reply bound its worker names in its hello, else the local agent's.
+  Where neither names one, it holds a piece of `documents.text_bytes`
+  (`root.md`, 5.2).
   A cut answer prints `next: OFFSET`; pass that byte offset as `from` with the
   same field, and restart specification reads at zero if the spec revision changes.
   Task reads decide nothing and keep no named-call record. Escalations name
@@ -471,11 +472,15 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
   `domain/run.md`, 5.2).
 - **An answer fits what the agent takes** (`domain/worker.md`, 4.3):
   rendering a forge read or a task read uses the minimum of `core.call_answer_bytes` less
-  the tool name and the checked receiving `agent.limits.bodies.host_reply_text`.
-  The latter comes from the local agent's `agent.json`
-  `profile.declared.tool_payload`. Raising `core.call_answer_bytes` alone
-  cannot overcome a smaller agent allowance. Engine-only processes without
-  local agent metadata retain their configured core allowance.
+  the tool name and the receiving agent's reply bound, the root's
+  `Domain::reply_bound` for the call's key (`root.md`, 5.2): the
+  `agent.limits.bodies.host_reply_text` the run's worker names in its
+  hello, from its agent's `agent.json` `profile.declared.tool_payload`
+  (`worker.md`, section 6); where it names none, the local agent's.
+  Raising `core.call_answer_bytes` alone cannot overcome a smaller agent
+  allowance. Where neither names one, the configured core allowance stands.
+  A `see` answer is rendered within the local agent's bound alone
+  (section 10).
   A call past the worker's input bound, `core.call_answer_bytes`, is
   answered `call too large` under its name, and the run goes on (jig's
   worker link). An answer past the agent's `host_reply_bytes` (smith's,
@@ -1908,28 +1913,20 @@ host:
   coding charter and the reference's tell a run its own history isn't kept. A
   deployment's own charter is its author's, so a run under one isn't told.
   Default: so.
-- **A task read where the process has no local agent.** The engine does not
-  know its remote agents' reply bound, so a run there reads a task's words in
-  pieces of `documents.text_bytes` (`root.md`, 5.2). Going past it needs each
-  worker's reply bound at the engine, by one of two ways: each worker names
-  its agents' host reply bound in its hello on jig's worker link, a byte
-  count jig carries without naming smith, and the engine sizes each read by
-  the worker running the attempt, as a local agent's is (a change of jig's
-  link); or the engine's document names each worker's bound in
-  `hosts.workers` (a configuration change, unchecked against the worker's
-  own). temper/migration's answer of 2026-11-08 to the request
-  `goal-call-faults` names the first as the way to a page as large as the
-  reply allows and leaves the choice to the design owner, a protocol
-  decision a plan of its own follows. Default: the documents' window, which
-  a deployment raises by its own `documents.text_bytes`.
 - **A charter where the process has no local agent.** The engine does not
-  know its remote worker's charter allowance either, so it fits a charter
+  know its remote worker's charter allowance, so it fits a charter
   to the smaller of `hub.charter_bytes` and smith's 65,536 (4.3), and a
   remote worker that takes more, the reference's 127,480 among them,
-  receives its brief cut at 65,536. The same two ways would carry the
-  allowance beside the reply bound, and the request `landing-behind-main`
-  of 2026-11-08 asks it be sized as that bound is. Default: the smaller of
-  the two defaults.
+  receives its brief cut at 65,536. The worker's hello on jig's link, which
+  names its reply bound (4.3), could carry the allowance beside it, or the
+  engine's document could name it in `hosts.workers`, and the request
+  `landing-behind-main` of 2026-11-08 asks it be sized as that bound is.
+  Default: the smaller of the two defaults.
+- **A `see` answer by its worker's reply bound** (4.3). The protocol layer
+  renders a `see` answer within the local agent's bound alone, since its
+  hand-out (`HostDelivery::See`) names no call key, so a run on a remote
+  worker whose bound is smaller may meet smith's `TooLarge`. Default: the
+  local agent's bound.
 - **The person's forge identity in a chat's brief,** rather than in the
   settings inventory (8.1), which Ask temper reads first.
   A brief section would spend every chat's room for what one charter
