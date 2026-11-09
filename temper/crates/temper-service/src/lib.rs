@@ -238,6 +238,28 @@ pub enum Note {
         worker: Box<[u8]>,
         address: Box<core::net::SocketAddr>,
     },
+    /// Once per linked link lost (protocol/README.md, 15.3).
+    Lost {
+        worker: Box<[u8]>,
+        address: Box<core::net::SocketAddr>,
+        why: WorkerLoss,
+    },
+    /// A channel that said hello ended (protocol/README.md, 15.3).
+    WorkerLost {
+        worker: Option<Box<[u8]>>,
+        channel: skein_lib::Token,
+        why: EngineWorkerLoss,
+    },
+    /// An opening ended, suppressed by name and reason until hello (protocol/README.md, 15.3).
+    WorkerOpeningEnded {
+        worker: Option<Box<[u8]>>,
+        why: EngineWorkerLoss,
+    },
+    /// A workers' listener failed, reported at once (protocol/README.md, 15.3).
+    WorkerListenerFailed {
+        address: Option<skein_io::Addr>,
+        error: Option<skein_io::Error>,
+    },
     Refused {
         worker: Box<[u8]>,
         address: Box<core::net::SocketAddr>,
@@ -304,7 +326,10 @@ pub enum Refusal {
     Malformed,
 }
 
+pub use jig_protocol_engine_workers::Loss as EngineWorkerLoss;
+pub use jig_protocol_worker_link::Loss as WorkerLoss;
 pub use jig_protocol_worker_wire::Reason as WorkerRefusalReason;
+pub use skein_channel::Closed as WorkerClosed;
 
 pub use temper_engine_domain::Unsettled;
 

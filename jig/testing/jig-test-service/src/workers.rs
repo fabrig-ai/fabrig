@@ -120,7 +120,7 @@ impl Workers {
                 Some(kit::host::Output::Lost { channel }) => {
                     events.push(root::Event::Link { channel, link: root::link::Event::Lost });
                 }
-                None => {}
+                Some(kit::host::Output::Ended { .. }) | None => {}
             }
         }
     }

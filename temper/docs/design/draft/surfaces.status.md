@@ -110,9 +110,12 @@
     or follow, and the rail, Work at Pair and with drafts first, and
     Deployment's Members and Limits (`rail-new-change` to `night-limits`);
     and Team's people, alone and at night (`team`, `team-alone`,
-    `night-team`), with no areas or role's card. None of Tell temper or
-    the phone's tabs at 390 pixels is held, and `../client/journeys.md`
-    records none of this section's four journeys.
+    `night-team`), with no areas or role's card. No state holds Tell
+    temper's card, which nothing draws yet (9); the phone's tabs and a
+    need at 390 pixels are `all-home`'s, `needs-list`'s and `ask-chat`'s
+    prints read at a phone's width, a print being one page at every
+    width. `../client/journeys.md` records none of this section's four
+    journeys.
 - **Design departs:**
   - 6: a person's line on Team counts, for anyone but the person reading,
     what waits on them on the tasks they requested, a task once by its
@@ -149,10 +152,12 @@
     parts bind (13). Decided by the cut of `ui-p5a-phone`.
   - 10: `../client/browser.md`, 2.5, *What a phone presses*, holds every
     target at 44 pixels on the frame and the four tabs' pages, Ask
-    temper's chats among them; a goal's, a task's, another chat's and How
-    work runs' controls keep the greenfield mock's sizes, as the request
-    `ui-phone` of 2026-11-05 has them (`../client/browser.status.md`).
-    Decided by the cut of `ui-p5a-phone`: section 10 draws the four tabs.
+    temper's chats among them, and on any chat's bar and composer, which
+    one layout gives every chat; a goal's, a task's and How work runs'
+    controls, and another chat's past its bar and composer, keep the
+    greenfield mock's sizes, as the request `ui-phone` of 2026-11-05 has
+    them (`../client/browser.status.md`). Decided by the cut of
+    `ui-p5a-phone`: section 10 draws the four tabs.
 - **Open:**
   - 11.1 and 15: `/chats` or `/resume N` for Where you left off. The
     design takes `/chats N` (above).

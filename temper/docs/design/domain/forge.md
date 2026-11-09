@@ -1369,6 +1369,11 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
 | 9 | create a branch at a commit | a creation, named | unrecoverable: another hand can delete it, and nothing then shows it was made | the branch exists at that commit |
 | 15 | delete a branch | a set: temper's own branches only | idempotent | it is gone |
 
+- **The outbox is bounded** by the connector's `entries` limit: no entry
+  is committed past it, and room frees only as an entry leaves it, by its
+  write's outcome or its withdrawal. What asks for an effect while it is
+  full waits or is refused by its own rule; a goal's projection waits
+  (section 12).
 - **Each row is a kind of its own** (jig's `domain/connectors.md`,
   3.1): a policy that grants writing issues grants each kind it means.
 - **A write in flight is a row of its own,** `Flight { task, entry }`
@@ -3476,6 +3481,15 @@ history they keep if temper is unplugged. Issues are projections (jig's
   on to its next milestone, the finishing one and the close; the issue's
   open so lost fails the projection, which has nothing to write on, and
   settles failed at the goal's close.
+- **A full outbox defers it.** A projection whose next write meets the
+  outbox at its bound (section 6) waits for room, neither failed nor
+  settled: it is tried again after the policy's interval, as a failed
+  write is, and goes out at the first try that finds room; a restart
+  tries it at once, as it does every projection with nothing in flight.
+  Nothing asks for it sooner: once a step has met the full outbox, a
+  projection due at once in that step, by a write's outcome, a release
+  or its timer, waits the interval too while the outbox stays full, so
+  the step ends.
 - **Issues others open** in an adopted repository are participating
   objects, which may become intake later.
 

@@ -279,7 +279,14 @@ impl Engine {
                 None => false,
             }
     }
+    pub(crate) fn drain_worker_notes(&mut self) {
+        for _ in 0..self.notes.room() {
+            let Some(note) = self.workers.notes.pop() else { break };
+            self.notes.push(note);
+        }
+    }
     fn drain_notes(&mut self) {
+        self.drain_worker_notes();
         for _ in 0..self.notes.room() {
             let note = if let Some(diagnostic) = self.domain.pop_run_diagnostic() {
                 crate::Note::RunFailed(diagnostic)
@@ -345,6 +352,7 @@ impl Engine {
             || self.store.work_pending(now)
             || effects && self.forge.work_pending(now)
             || (self.store.opened || self.end.is_some()) && self.workers.host.work_pending(now)
+            || !self.workers.notes.is_empty() && self.notes.room() > 0
             || effects
                 && match &self.accounts {
                     Some(accounts) => accounts.work_pending(now, true),
@@ -407,6 +415,7 @@ impl Engine {
 
 /// Every child sees this iteration's time before an input can arm a deadline.
 pub(crate) fn clock(engine: &mut Engine, now: Time, wall: Wall) {
+    engine.drain_worker_notes();
     if engine.facts_waiting && engine.notes.room() > 0 {
         engine.drain_notes();
     }
@@ -449,6 +458,7 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     }
     forge_pass(engine);
     engine.workers.iterate(now, &mut engine.events);
+    engine.drain_worker_notes();
     let open = !engine.begin
         && engine.domain.ready()
         && engine.forge_records.done()

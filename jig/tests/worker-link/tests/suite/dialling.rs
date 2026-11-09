@@ -1,4 +1,4 @@
-use jig_protocol_worker_link::{REFUSED_FRAMING, REFUSED_LIMITS, Request};
+use jig_protocol_worker_link::{Loss, REFUSED_FRAMING, REFUSED_LIMITS, Request};
 use jig_worker_link_world::{Trace, World, fixtures};
 use skein_channel::Closed;
 use skein_lib::Duration;
@@ -22,7 +22,7 @@ fn check_redial(world: &mut World, low: u64, high: u64) {
     assert!(gap >= Duration::from_millis(low) && gap <= Duration::from_millis(high), "{gap:?}");
 }
 fn check_local_loss(world: &World, reason: u16) {
-    assert_eq!(world.facts(), [Closed::RefusedHere(reason)]);
+    assert_eq!(world.facts(), [Loss::Closed(Closed::RefusedHere(reason))]);
     assert!(!world.root().iter().any(|request| matches!(request, Request::Down { .. })));
     assert!(world.values().is_empty());
 }
@@ -62,7 +62,7 @@ fn each_jig_reason_is_redialled_after_the_backoff() {
     for reason in 256..=261 {
         let mut world = engine_world(fixtures::engine_refusing(reason));
         world.run();
-        assert!(world.facts().contains(&Closed::RefusedPeer(reason)), "reason {reason}");
+        assert!(world.facts().contains(&Loss::Closed(Closed::RefusedPeer(reason))), "reason {reason}");
         check_redial(&mut world, 50, 100);
     }
 }

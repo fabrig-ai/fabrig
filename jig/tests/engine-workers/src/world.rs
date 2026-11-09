@@ -9,6 +9,7 @@ pub struct World {
     nets: BTreeMap<Token, Net>,
     out: Queue<Request>,
     root: Vec<Request>,
+    ended: Vec<Request>,
     now: Time,
     rng: Rng,
     next: u64,
@@ -23,6 +24,7 @@ impl World {
             nets: BTreeMap::new(),
             out: Queue::uncapped(),
             root: Vec::new(),
+            ended: Vec::new(),
             now: Time::ZERO,
             rng: Rng::new(seed),
             next: 100,
@@ -66,6 +68,7 @@ impl World {
     fn route(&mut self) {
         while let Some(request) = self.out.pop() {
             match request {
+                Request::Ended { .. } => self.ended.push(request),
                 Request::Take { connection } => self.net(connection).taken = true,
                 Request::TurnAway { connection } => self.net(connection).gone = true,
                 Request::Lower { connection, lower } => {
@@ -117,6 +120,10 @@ impl World {
         self.nets.get(&connection)?.refused.clone()
     }
     #[must_use]
+    pub fn ended(&self) -> &[Request] {
+        &self.ended
+    }
+    #[must_use]
     pub fn root(&self) -> &[Request] {
         &self.root
     }
@@ -138,6 +145,10 @@ impl World {
     }
     pub fn withhold_write_room(&mut self, connection: Token) {
         self.net(connection).write_room = WriteRoom::Withheld;
+    }
+    /// Hold the output request below, including its cancellation settlement.
+    pub fn hold_send(&mut self, connection: Token) {
+        self.net(connection).write_room = WriteRoom::Held;
     }
     pub fn grant_one_frame(&mut self, connection: Token) {
         let net = self.net(connection);

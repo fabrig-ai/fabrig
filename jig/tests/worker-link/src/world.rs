@@ -1,5 +1,5 @@
 use crate::{fixtures, net::Net};
-use jig_protocol_worker_link::{Component, Event, Limits, Request};
+use jig_protocol_worker_link::{Component, Event, Limits, Loss, Request};
 use skein_fake_channel::ScriptedPeer;
 use skein_lib::{Duration, Queue, Rng, Time, Token};
 use std::collections::VecDeque;
@@ -33,7 +33,7 @@ pub struct World {
     next: u64,
     dials: Vec<Time>,
     root: Vec<Request>,
-    facts: Vec<skein_channel::Closed>,
+    facts: Vec<Loss>,
     rng: Rng,
     silence_next: bool,
     other_version_next: bool,
@@ -366,7 +366,7 @@ impl World {
         &self.refused
     }
     #[must_use]
-    pub fn facts(&self) -> &[skein_channel::Closed] {
+    pub fn facts(&self) -> &[Loss] {
         &self.facts
     }
     #[must_use]
