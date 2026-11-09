@@ -1738,15 +1738,16 @@ Ask temper is the first, its `draft/ask-temper.md`, section 7).
   read is answered unknown, a correction or a deletion refused as unknown.
 - **Its runs' parts are its party's:** a turn of a task whose requester is a
   person shows its brief's `preferences` section and the calls of the
-  application's private tools to that person alone. The application names,
-  in the core's settings and the client component's, the section's title as
-  its runs' briefs render it and its private tools by name, temper's
-  `remember` among them. Each turn the core answers to any other party, on
-  its own (`Turn`) or in an activity page, and every turn a run reads as its
-  person (7.3), is marked *withheld*, and the protocol layer that carries it
-  projects it before it leaves: in every text of the turn, the section's
-  heading line and the lines after it that are empty, `None kept.` or a
-  number then `. ` become the heading and one line, `Withheld: shown to its
+  application's private tools to that person alone. The application names
+  its private tools in the core's settings, temper's `remember` among them,
+  and those tools and the section's title as its runs' briefs render it in
+  the client component's, which projects. Each turn the core answers to any
+  other party, on its own (`Turn`) or in an activity page, and every turn a
+  run reads as its person (7.3), is marked *withheld*, and the protocol
+  layer that carries it projects it before it leaves: in the turn's system
+  text and each text block of its messages, the section's heading line and
+  the lines after it that are empty, `None kept.` or a number then `. `
+  become the heading and one line, `Withheld: shown to its
   person alone.`, and each private tool's call keeps its tool and position
   with its input `{}` and its result that line. A run's live document
   (`../client/domain/contract.md`, 7.3) shows a private tool's call and the

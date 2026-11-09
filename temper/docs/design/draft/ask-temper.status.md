@@ -22,6 +22,18 @@ with its tree, activity and turns, `change N`, `changes` and `inbox`
 read as the chat's person, of its project alone, through jig's run read
 as its person, and render as tables of lines in temper's words; `see`
 has its reference page. Its walk on the playground follows landing.
+M4 is built: `remember` keeps, changes and drops a line of the person's
+preferences in jig's party scope, at most twelve lines of 120 bytes, each with
+the chat that first kept it and when it last changed; each Ask temper
+brief carries the whole list, which a turn's read and `remember`'s calls
+show to the person alone but in a fresh start's transcript tail
+(`../domain/agent.status.md`, 8.4.4);
+`ask.txt`'s Remembering part is section 8's word for word; and the page
+"What temper remembers about you", in the person's menu and on a phone's
+Accounts tab, reads, changes and deletes the lines, but for the gaps
+`../client/README.status.md`, 5.17 names. Its walk follows landing. The plan's request kept the Remembering part for the user's
+review before landing; no record shows that review, so their judgement
+of it follows landing with the walk.
 
 ## Gaps and departures
 
@@ -32,6 +44,7 @@ has its reference page. Its walk on the playground follows landing.
   - 6.2: `../client/README.md`, 5.16 designs the `view` block and the views `path`, `way`, `proposal` and `charter`; `queue`, `task N tree` and `task N timeline`, and a part of a view opening its own view, are M3b's. The TUI prints the four views as 6.2 has it (`../client/README.md`, 6.14).
   - 8: `../domain/agent.md`, 8.4: the instructions carry the Showing part's first step alone; its other views and the paragraph on sketches join with M3b.
   - 6.3: skein's `ui.md`, 3.5: a flow's node takes no mark but `:::strong`; M3 adds the actors' marks.
+  - 7: jig's `domain/engine.md`, 10.1 gives a brief the person's preferences where its task's requester is the person and its authority holds the asking family, and `../domain/agent.md`, 8.4 has policy 1's roles hold that family; the stock's roles hold it for every task their person starts (`temper-service`'s `stock.rs`, `project_role`), so a person's chats of charter 1, goals and design sessions read the list in their briefs too, where this section has charter 11's runs alone read it, "for now". Found by reading the code; no test reads another charter's brief for the section. The repair keys the section on the run's charter naming the asking family, as `remember`'s declaration is (`../domain/agent.md`, 4.3).
 - **Design departs:** 5.2: `../domain/agent.md`, 8.4.2 judges a landing rule's approvals at the call for the chat's own project alone, and leaves another project's to acceptance, which says it to the owner who decides, so that nothing of another project reaches this chat's transcript (5.1); decided by the `ui-ask-m1` cut, 2026-11-07. Proposal parts are held in engine memory and lost at restart, with the next proposing call refused once; section 10 keeps durable parts for later if needed.
 - **Design departs:** 5.1: `../domain/agent.md`, 8.4.1 makes `me` of the
   project read and the inbox's needs filtered by the project, where 5.1
@@ -54,6 +67,6 @@ has its reference page. Its walk on the playground follows landing.
   charter-words for each charter, what it does; project-words for the
   project's own way, a headline and a short lede.", is the user's to
   review, and no record shows that review; its *Finding out* names
-  neither kind, for its 8,192 bytes, though `see`'s answer to an unknown
-  address does (`../domain/agent.status.md`, 8.4.1).
+  neither kind, decided when it was held to 8,192 bytes, though `see`'s
+  answer to an unknown address does (`../domain/agent.status.md`, 8.4.1).
 - **Open:** 12.

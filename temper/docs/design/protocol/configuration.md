@@ -2517,7 +2517,7 @@ side never waits on the part of jig it does not use:
    (13.5) move with it: their landing rules become stock or a world's
    defaults, or a settings file applied after the start.
 3. **Ask temper:** charter 11 and template 5 (13.4), with the run's
-   asking tools, `see`, `document` and `propose_settings`' asking form
+   asking tools, `see`, `document`, `remember` and `propose_settings`' asking form
    (`../domain/agent.md`, 4.3 and 8.4), and the rules' and policy 1's
    delegation to charter 11. A deployment made before takes them as new
    defaults, by a revision recorded as the release's; a project made
