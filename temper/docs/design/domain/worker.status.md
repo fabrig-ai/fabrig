@@ -46,6 +46,16 @@ them (`temper/crates/temper/src/agent.rs`). The service gives the worker's
   where such a start spends a permanent try, and a hold for it says
   permanent failures; `temper-docs`'s `tests/rules.rs` finds that page by
   those words.
+  4.4: a job's failure lines (plan `merge-job-runs-2`): the worker writes
+  none when its hub answers a job failed or refused, a preparation's
+  failure reaches the hub with no detail
+  (`temper-worker-domain/src/workspace.rs`, `unprepared`), and the engine's
+  4.3 line skips a job's answer (`temper-engine-domain/src/link.rs`,
+  `answer`).
+  4.4, 5: a merge with more files in conflict than the checkout's
+  `conflicts` fails its preparation as transient, its listing `Broken`
+  (`../protocol/git.md`, 4.6), so its job or resolution is retried until it
+  is held out of tries (plan `merge-job-runs-2`).
   4.4: the prepare and key kinds: neither kind's entry is
   built, so the worker's hello declares the merge kind alone
   (`temper/crates/temper-service/src/worker.rs`), and with prepare the

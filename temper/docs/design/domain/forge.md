@@ -2251,7 +2251,11 @@ delegate's terminal wakes it to offer the landed result.
   means the command left conflicts, and the change makes a resolution
   of the same base, its words carrying the job's result, cut to the
   resolution's words' room and marked. A job that fails for good holds
-  the change as a resolution that fails does. Without a `merge_job`,
+  the change as a resolution that fails does. Each of its failures, a
+  try that will be spent again included, is a line on the worker that met
+  it and on the engine, naming the job, its kind and why (`worker.md`,
+  4.4); the job's own hold, out of tries, names its failures' class,
+  and its way out points at the engine's log, where each is named. Without a `merge_job`,
   without the kind declared (`worker.md`, 4.4) or in its authority, or
   with the job's spec past the kind's bound, a conflict goes to a
   resolution at once. A merge job counts as one of the change's
