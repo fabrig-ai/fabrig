@@ -23,6 +23,7 @@ pub enum Address {
     Builders { project: u32 },
     Role { project: u32, charter: u32 },
     Rule { project: u32, kind: u32, number: u32 },
+    Team { project: u32 },
     Ask { project: u32 },
     Adopt { project: u32 },
     Work { project: u32, filter: WorkFilter },
@@ -120,9 +121,9 @@ pub enum Place {
 }
 
 /// The page's path (client/browser.md, 2.3): `/`, `/chats`, `/chats/new`, `/chats/<task>`, `/tasks/<task>`,
-/// `/projects/<project>/work`, `/deployment/members`, `/deployment/limits`, `/projects/<project>/goals`, `/projects/<project>`, `/projects/<project>/settings`, `/projects/<project>/settings/repositories`, `/projects/<project>/settings/models`, `/projects/<project>/settings/builders`, `/projects/<project>/settings/roles/<charter>`, `/projects/<project>/settings/rules/<kind>/<number>`, `/projects/<project>/ask`, `/projects/<project>/adopt`, `/accounts`. The pages add their set filter fields as a query.
+/// `/projects/<project>/team`, `/projects/<project>/work`, `/deployment/members`, `/deployment/limits`, `/projects/<project>/goals`, `/projects/<project>`, `/projects/<project>/settings`, `/projects/<project>/settings/repositories`, `/projects/<project>/settings/models`, `/projects/<project>/settings/builders`, `/projects/<project>/settings/roles/<charter>`, `/projects/<project>/settings/rules/<kind>/<number>`, `/projects/<project>/ask`, `/projects/<project>/adopt`, `/accounts`. The pages add their set filter fields as a query.
 #[must_use]
-#[expect(clippy::too_many_lines, reason = "one exhaustive table prints every page address")]
+#[expect(clippy::too_many_lines, reason = "one closed address match prints each path and its query")]
 pub fn print(address: &Address) -> Box<[u8]> {
     let (name, number, tail) = match address {
         Address::Inbox { filter } => return print_filter(*filter),
@@ -158,6 +159,7 @@ pub fn print(address: &Address) -> Box<[u8]> {
         Address::Home { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"".as_slice()),
         Address::Work { project, .. } => (b"projects".as_slice(), Some(u64::from(*project)), b"work".as_slice()),
         Address::Goals { project, .. } => (b"projects".as_slice(), Some(u64::from(*project)), b"goals".as_slice()),
+        Address::Team { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"team".as_slice()),
         Address::Changes { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"changes".as_slice()),
         Address::Settings { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"settings".as_slice()),
         Address::Models { project } => {
@@ -294,6 +296,10 @@ pub fn parse(path: &[u8]) -> Place {
         (b"projects", _, b"goals") => {
             let Some(project) = project_decimal(number) else { return Place::Missing };
             Address::Goals { project, filter: parse_goals(fields) }
+        }
+        (b"projects", _, b"team") => {
+            let Some(project) = project_decimal(number) else { return Place::Missing };
+            Address::Team { project }
         }
         (b"projects", _, b"changes") => {
             let Some(project) = project_decimal(number) else { return Place::Missing };

@@ -35,7 +35,10 @@
     no Tell temper at its foot; its from line names no goal, role or
     asker; an approval's
     card is `forge-identity.md`, section 8's, not yet a sign-off by path.
-  - 6: no design holds Team, an area's owner or a role's card
+  - 6: `../client/README.md`, 3.5, *Team*, holds a project's people and
+    what waits on each, and the project's triager once a setting names
+    one; no design holds a project's areas, an area's owner, a person's
+    areas on their box, a role's card or "Hand an area to a role"
     (`standing-roles.md` has no design yet either).
   - 7: `../client/README.md`, 5.13, *The page*, draws the way, the path
     as Ask temper's ways draw it, Roles by when each runs, and a goal's
@@ -79,10 +82,10 @@
     overrides of each page's rule, and decides How work runs' own parts by
     one pure function (*Its parts*), as 5.3, *The rail's parts*, does the
     rail's and the tab bar's, Team's among them, and 3.5, *Work*, Work's,
-    kind 7's Goals and Changes hiding its filters; but Team's page's parts
-    have their rule in no design; 3.5, *Away*, shows Away by
-    `Domain::away_shown`, not by the project's classes, and Decided for
-    you by goals' rows alone.
+    kind 7's Goals and Changes hiding its filters; Team's page decides its
+    parts by one pure function too (3.5, *Team*, *Its parts*); 3.5, *Away*,
+    shows Away by `Domain::away_shown`, not by the project's classes, and
+    Decided for you by goals' rows alone.
   - 13: `../client/greenfield/README.md` names the whole story's
     mockups, and `../client/mockups/README.md`,
     section 1, not at all; and no design marks who acts on the chips,
@@ -94,10 +97,17 @@
     way and its own, a stop's card and night (`how` to `night-how`), with no rule by path
     or follow, and the rail, Work at Pair and with drafts first, and
     Deployment's Members and Limits (`rail-new-change` to `night-limits`);
-    none of Team, Tell temper or the phone's tabs at 390 pixels is held,
-    and `../client/journeys.md` records none of this section's four
-    journeys.
+    and Team's people, alone and at night (`team`, `team-alone`,
+    `night-team`), with no areas or role's card. None of Tell temper or
+    the phone's tabs at 390 pixels is held, and `../client/journeys.md`
+    records none of this section's four journeys.
 - **Design departs:**
+  - 6: a person's line on Team counts, for anyone but the person reading,
+    what waits on them on the tasks they requested, a task once by its
+    oldest entry, and not what waits on them on another's task or on a
+    role they hold (`../client/README.md`, 3.5, *Team*): no read gives
+    another party's inbox (jig's `domain/people.md`, section 6). Decided
+    by `ui-p4a-team`'s cut, 2026-11-08, on today's engine.
   - 3 and 13: `../client/README.md`, 3.5, *Home on All projects*, sets
     each joined sentence after its project's name and ": " in the strong
     weight, where `home.html`'s lede names each project in its own words,
