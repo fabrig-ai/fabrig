@@ -93,3 +93,18 @@ fn a_closed_component_has_only_one_terminal() {
     world.down(Event::Close);
     assert_eq!(closed(&world), 1);
 }
+
+#[test]
+fn a_close_with_a_send_held_below_closes_within_the_stall_deadline() {
+    let mut world = world();
+    let (connection, channel) = reporting(&mut world);
+    world.hold_send(connection);
+    busy(&mut world, channel);
+    world.run();
+    world.down(Event::Close);
+    world.advance(Duration::from_millis(29_999));
+    assert!(!world.gone(connection));
+    world.advance(Duration::from_millis(1));
+    assert!(world.gone(connection));
+    assert_eq!(closed(&world), 1);
+}

@@ -1,6 +1,6 @@
 //! Opening, loss and redial transitions (protocol/channel.md, 4 and 10.1).
 use crate::{
-    Event, Limits, REFUSED_FRAMING, REFUSED_LIMITS, Request,
+    Event, Limits, Loss, REFUSED_FRAMING, REFUSED_LIMITS, Request,
     backoff::Backoff,
     busy::Busy,
     connection::{Connection, Phase},
@@ -86,7 +86,7 @@ impl Component {
             return;
         }
         match event {
-            Event::SourceFault => self.lose(now, Closed::Owner, out),
+            Event::SourceFault => self.lose(now, Loss::Fault, out),
             Event::Stop => self.end(now, false, out),
             Event::Abort => self.end(now, true, out),
             Event::CancelRelay { run, attempt, call } => {
@@ -103,12 +103,23 @@ impl Component {
                     }
                     let span = self.backoff.next();
                     self.phase = Phase::Idle { at: now.saturating_add(span) };
-                    out.push(Request::Fact { why: Closed::Stream });
+                    out.push(Request::Fact { why: Loss::Unreachable });
                 }
                 Phase::Idle { .. } | Phase::Opening { .. } | Phase::Open { .. } | Phase::Closing { .. } => {}
             },
             Event::Lower { connection, event } => {
                 if self.phase.token() == Some(connection) {
+                    match &event {
+                        channel::LowerEvent::Read(skein_lib::stream::Up::Bytes(_)) => match &mut self.phase {
+                            Phase::Open { connection, .. } => {
+                                connection.silence = Some(now.saturating_add(self.limits.silence));
+                            }
+                            Phase::Idle { .. } | Phase::Connecting | Phase::Opening { .. } | Phase::Closing { .. } => {}
+                        },
+                        channel::LowerEvent::Read(_)
+                        | channel::LowerEvent::Write(_)
+                        | channel::LowerEvent::WriteFailed(_) => {}
+                    }
                     if let Some(link) = self.phase.connection() {
                         link.machine.up(event, &mut self.events, &mut self.below);
                     }
@@ -151,7 +162,7 @@ impl Component {
             }
             Phase::Opening { until, .. } => {
                 if now >= until {
-                    self.lose(now, Closed::Owner, out);
+                    self.lose(now, Loss::Handshake, out);
                     self.pump(now, out);
                 }
             }
@@ -169,8 +180,15 @@ impl Component {
                 }
             }
             Phase::Open { proved, ref mut connection, .. } => {
-                if expired(connection.silence, now) || expired(connection.stall, now) {
-                    self.lose(now, Closed::Stream, out);
+                let why = if expired(connection.silence, now) {
+                    Some(Loss::Silence)
+                } else if expired(connection.stall, now) {
+                    Some(Loss::Stall)
+                } else {
+                    None
+                };
+                if let Some(why) = why {
+                    self.lose(now, why, out);
                     self.pump(now, out);
                     return;
                 }
@@ -259,12 +277,12 @@ impl Component {
                 self.busy.clear();
                 self.grace.lost(now, self.limits.grace);
                 out.push(Request::Lost);
-                out.push(Request::Fact { why: Closed::Stream });
+                out.push(Request::Fact { why: Loss::Closed(Closed::Stream) });
                 let span = self.backoff.next();
                 now.saturating_add(span)
             }
             Phase::Opening { .. } => {
-                out.push(Request::Fact { why: Closed::Stream });
+                out.push(Request::Fact { why: Loss::Closed(Closed::Stream) });
                 let span = self.backoff.next();
                 now.saturating_add(span)
             }
@@ -473,7 +491,7 @@ impl Component {
                         reason: REFUSED_LIMITS,
                         text: bytes::copy_of(Decimal::of(u64::from(kind)).as_bytes()),
                     });
-                    let started = self.begin_loss(now, Closed::RefusedHere(REFUSED_LIMITS), out);
+                    let started = self.begin_loss(now, Loss::Closed(Closed::RefusedHere(REFUSED_LIMITS)), out);
                     assert!(started, "terms are checked during opening");
                 } else {
                     let phase = mem::replace(&mut self.phase, Phase::Connecting);
@@ -492,7 +510,7 @@ impl Component {
                     self.command(channel::Request::Read);
                 }
             }
-            channel::Event::Refused { reason, .. } => self.lose(now, Closed::RefusedPeer(reason), out),
+            channel::Event::Refused { reason, .. } => self.lose(now, Loss::Closed(Closed::RefusedPeer(reason)), out),
             channel::Event::Closed { why } => {
                 if self.life != Life::Active {
                     if let Some(connection) = self.phase.token() {
@@ -504,7 +522,7 @@ impl Component {
                     }
                     return;
                 }
-                let started = self.begin_loss(now, why, out);
+                let started = self.begin_loss(now, Loss::Closed(why), out);
                 if started {
                     self.command(channel::Request::Close);
                 }
@@ -512,13 +530,22 @@ impl Component {
                     out.push(Request::Close { connection });
                 }
             }
-            channel::Event::Ended | channel::Event::OutputFailed => self.lose(now, Closed::Stream, out),
+            channel::Event::Ended | channel::Event::OutputFailed => self.lose(now, Loss::Closed(Closed::Stream), out),
             channel::Event::Body { kind, body } => self.body(now, kind, &body, out),
             channel::Event::Ping | channel::Event::Unsupported { .. } => {
                 self.command(channel::Request::Read);
             }
-            channel::Event::Unsent { .. } => self.lose(now, Closed::Owner, out),
-            channel::Event::Opening { .. } => self.lose(now, Closed::Framing, out),
+            channel::Event::Unsent { why, .. } => {
+                let why = match why {
+                    channel::Unsent::Full => Loss::Full,
+                    channel::Unsent::WrongDirection
+                    | channel::Unsent::PeerDoesNotTake
+                    | channel::Unsent::TooLarge
+                    | channel::Unsent::Closed => Loss::Closed(Closed::Owner),
+                };
+                self.lose(now, why, out);
+            }
+            channel::Event::Opening { .. } => self.lose(now, Loss::Closed(Closed::Framing), out),
             channel::Event::Drained => {
                 self.send_logins();
                 if let Some(connection) = self.phase.connection() {
@@ -541,10 +568,10 @@ impl Component {
                 {
                     self.command(channel::Request::Read);
                 }
-                Ok(_) => self.lose(now, Closed::Owner, out),
+                Ok(_) => self.lose(now, Loss::Busy, out),
                 Err(_) => {
                     self.command(channel::Request::Refuse { reason: REFUSED_FRAMING, text: Box::new([]) });
-                    self.begin_loss(now, Closed::RefusedHere(REFUSED_FRAMING), out);
+                    self.begin_loss(now, Loss::Closed(Closed::RefusedHere(REFUSED_FRAMING)), out);
                 }
             }
             return;
@@ -584,7 +611,7 @@ impl Component {
             }
             None => {
                 self.command(channel::Request::Refuse { reason: REFUSED_FRAMING, text: Box::new([]) });
-                let started = self.begin_loss(now, Closed::RefusedHere(REFUSED_FRAMING), out);
+                let started = self.begin_loss(now, Loss::Closed(Closed::RefusedHere(REFUSED_FRAMING)), out);
                 assert!(started, "a body arrives on an open channel");
             }
         }
@@ -648,7 +675,7 @@ impl Component {
         self.busy.clear();
         out.push(Request::Closed);
     }
-    fn lose(&mut self, now: Time, why: Closed, out: &mut Queue<Request>) {
+    fn lose(&mut self, now: Time, why: Loss, out: &mut Queue<Request>) {
         if self.life != Life::Active {
             self.life = Life::Aborting;
             self.close_ending(now);
@@ -658,7 +685,7 @@ impl Component {
             self.command(channel::Request::Close);
         }
     }
-    fn begin_loss(&mut self, now: Time, why: Closed, out: &mut Queue<Request>) -> bool {
+    fn begin_loss(&mut self, now: Time, why: Loss, out: &mut Queue<Request>) -> bool {
         self.pending_logins = None;
         let phase = mem::replace(&mut self.phase, Phase::Connecting);
         let mut started = false;
