@@ -2,7 +2,7 @@
 
 Kind: reference
 
-Read temper with see, by address, in your project. Each answer ends with what to read next. When it ends with more: TOKEN, read see more TOKEN to continue from that part.
+Read temper with see, by address, in your project. Each answer ends with what to read next. When a part shows more: TOKEN, read see more TOKEN for the next part.
 
 ## me
 

@@ -515,7 +515,7 @@ pub static PAGES: [Page; 63] = [
         name: "see",
         kind: Kind::Reference,
         title: "Ask temper's addresses",
-        summary: "Read temper with see, by address, in your project. Each answer ends with what to read next. When it ends with more: TOKEN, read see more TOKEN to continue from that part.",
+        summary: "Read temper with see, by address, in your project. Each answer ends with what to read next. When a part shows more: TOKEN, read see more TOKEN for the next part.",
         text: include_str!("../../../docs/help/reference/see.md"),
     },
     Page {

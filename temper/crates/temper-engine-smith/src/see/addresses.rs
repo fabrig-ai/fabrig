@@ -281,7 +281,7 @@ pub(super) fn following(form: &str) -> &'static [u8] {
 
 /// The reference page `see`, whole (protocol/documentation.md, 8).
 pub fn see_reference(out: &mut Writer) -> Result<(), Overflow> {
-    out.put(b"# Ask temper's addresses\n\nKind: reference\n\nRead temper with see, by address, in your project. Each answer ends with what to read next. When it ends with more: TOKEN, read see more TOKEN to continue from that part.\n")?;
+    out.put(b"# Ask temper's addresses\n\nKind: reference\n\nRead temper with see, by address, in your project. Each answer ends with what to read next. When a part shows more: TOKEN, read see more TOKEN for the next part.\n")?;
     for group in GROUPS {
         for row in group.rows {
             out.put(b"\n## ")?;
