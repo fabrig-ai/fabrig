@@ -3,6 +3,7 @@ use hearth_builder_world::fixtures::{self, Repository};
 use skein_io::kernel::Exit;
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "hearth's round: reads PATH for the real git repository fixture")]
 fn a_written_repository_is_the_one_git_makes() {
     use fixtures::File;
     let files = fixtures::thin_with(&[

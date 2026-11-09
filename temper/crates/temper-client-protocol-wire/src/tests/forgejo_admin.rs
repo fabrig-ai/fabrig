@@ -43,6 +43,10 @@ fn forgejo_admin_without_first_round_trips_its_golden() {
 fn forgejo_admin_with_first_round_trips_its_golden() {
     golden(Some(first(b"docker").unwrap()), "connect_forgejo_admin_with_first.bin");
 }
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: CARGO_MANIFEST_DIR locates goldens and SKEIN_CODEGEN_WRITE selects regeneration; the test table will pass them"
+)]
 fn golden(first: Option<v1::FirstAsk>, name: &str) {
     let record = request(first);
     let path = std::path::PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").expect("test package"))

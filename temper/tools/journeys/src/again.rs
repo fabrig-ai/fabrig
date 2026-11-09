@@ -31,6 +31,7 @@ pub struct Paths {
 /// # Errors
 /// Refuses an unwalkable journey, a page that stays moving, a missing event,
 /// a different walk, an unproved save, or a browser, box or filesystem failure.
+#[expect(clippy::disallowed_methods, reason = "cli C8: PATH for the journey tool's child programs")]
 pub fn again(journeys: &Path, name: &str, paths: &Paths) -> Result<(), Refusal> {
     let steps = starting(journeys, name)?;
     let prepared = prepared(journeys, name)?;

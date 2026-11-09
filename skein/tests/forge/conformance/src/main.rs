@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+#[expect(clippy::disallowed_methods, reason = "skein's round: reads the Forgejo conformance command line")]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     skein_fail_stop::install();
     let mut forgejo = None;

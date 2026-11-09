@@ -35,6 +35,7 @@ struct Configuration {
     limits: Limits,
 }
 
+#[expect(clippy::disallowed_methods, reason = "skein's round: reads the echo example command line")]
 fn main() -> ExitCode {
     skein_fail_stop::install();
     let configuration = match configure(env::args().skip(1)) {

@@ -45,6 +45,10 @@ fn identity(root: &Path) -> Option<(String, bool)> {
     Some((head.trim().into(), !status.is_empty()))
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "build script: Cargo's CARGO_MANIFEST_DIR locates the client build identity"
+)]
 fn main() {
     println!("cargo:rerun-if-changed=build/");
     let root = PathBuf::from(env::var_os("CARGO_MANIFEST_DIR").expect("cargo sets CARGO_MANIFEST_DIR"));

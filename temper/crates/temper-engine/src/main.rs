@@ -12,6 +12,10 @@ use temper_shell::{
     help,
 };
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: arguments select the engine command; temper-engine's table will read them"
+)]
 fn main() -> ExitCode {
     skein_fail_stop::install();
     match run(&skein_shell::arguments()) {
@@ -23,6 +27,10 @@ fn main() -> ExitCode {
     }
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: the process environment resolves directories and forge commands; temper-engine's table will pass it"
+)]
 fn run(arguments: &[Box<[u8]>]) -> Result<u8, String> {
     if arguments == [Box::from(b"--version".as_slice())] {
         println!("{}", temper_version::line("temper-engine"));

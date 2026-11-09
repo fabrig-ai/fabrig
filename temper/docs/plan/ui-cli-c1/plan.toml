@@ -1,0 +1,50 @@
+draft = "ui-cli-c1"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-cli-c1/inputs/request.md", "temper/docs/design/draft/cli.md", "temper/docs/design/draft/cli.execution.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "checks"
+title = "The command line's checks 1, 2, 3 and 5 in fabrig-boundary, green, each exception named for what removes it"
+mode = "direct"
+needs = []
+design = "skein/docs/foundation/cli.md, 9"
+
+[[part]]
+id = "shell-table"
+title = "skein-shell's table: entries, sets, declared twins, help and the reference documents"
+mode = "direct"
+needs = []
+design = "skein/docs/design/shell.md, 15"
+
+[[part]]
+id = "env-access"
+title = "Every read of the process's arguments and environment is banned but where an expect says what it is"
+mode = "direct"
+needs = []
+design = "tools/lints/design.md, 4"
+
+[[slice]]
+id = 1
+story = "A binary target outside <tree>/bin/, a main.rs past 30 lines or a feature fails fabrig-boundary unless an exception names its milestone, and a stale exception fails too"
+parts = ["checks"]
+walk = false
+
+[[slice]]
+id = 2
+story = "A binary's table in skein-shell declares its commands, flags, twins and variables in their sets"
+parts = ["shell-table"]
+walk = false
+
+[[slice]]
+id = 3
+story = "A read of std::env outside a binary's capture or a build script fails clippy unless its expect names the round or milestone that removes it"
+parts = ["env-access"]
+walk = false

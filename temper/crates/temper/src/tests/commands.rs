@@ -237,6 +237,10 @@ fn rows_are_within_bounds() {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
+)]
 fn the_page_commands_is_what_the_table_renders() {
     let rendered = commands::reference();
     let write = match std::env::var_os("SKEIN_CODEGEN_WRITE") {
@@ -256,6 +260,10 @@ fn the_page_commands_is_what_the_table_renders() {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
+)]
 fn the_page_host_tools_is_what_the_declarations_render() {
     let mut measured = skein_lib::Writer::new(temper_docs::PAGE_BYTES);
     temper_engine_smith::reference(&mut measured).expect("host-tools fits PAGE_BYTES");
@@ -275,6 +283,10 @@ fn the_page_host_tools_is_what_the_declarations_render() {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
+)]
 fn every_ctl_group_page_is_what_the_table_renders() {
     use temper_client_tools::{help, table::GROUPS};
     let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/help/reference");

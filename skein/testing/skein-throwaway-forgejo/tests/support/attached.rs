@@ -1,6 +1,7 @@
 //! Child process used by the attachment tests; no Forgejo binary is needed.
 use std::io::{Read, Write};
 use std::net::TcpListener;
+#[expect(clippy::disallowed_methods, reason = "skein's round: reads the attachment fixture command line")]
 fn main() {
     skein_fail_stop::install();
     let args: Vec<_> = std::env::args().collect();

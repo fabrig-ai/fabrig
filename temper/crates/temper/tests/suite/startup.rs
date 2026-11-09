@@ -1745,6 +1745,10 @@ fn the_store_page_holds_the_templates_largest_turn_frame() {
 }
 
 /// Hold only the limit maps this derivation owns; keep the document's other text.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE, through temper's test table once it exists"
+)]
 fn turn_bound_document(path: &std::path::Path, turn: u32, escaped: bool) {
     use support::configuration::turn_bounds;
     let text = fs::read_to_string(path).expect("turn-bound document");
@@ -2072,6 +2076,10 @@ fn observing_parent_descendants_leaves_cleanup_with_their_world() {
 
 #[cfg(target_os = "linux")]
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: TEMPER_FORGE_PARENT_HELPER, through temper's test table once it exists"
+)]
 fn forge_parent_listener_helper() {
     if std::env::var_os("TEMPER_FORGE_PARENT_HELPER").is_some() {
         support::forge_parent::serve();

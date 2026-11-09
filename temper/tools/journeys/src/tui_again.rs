@@ -93,6 +93,7 @@ pub fn again(
     unreachable!("the third attempt returns its result")
 }
 
+#[expect(clippy::disallowed_methods, reason = "cli C8: the process environment for the journey tool's TUI child")]
 fn record(journeys: &Path, tui_journeys: &Path, name: &str, starting: &Starting, paths: &Paths) -> Result<(), Refusal> {
     let fail = |report: String| Refusal::TuiAgain { name: name.to_owned(), step: 1, report };
     let environment = environment(&std::env::vars_os().collect::<Vec<_>>(), &paths.scratch)
@@ -177,6 +178,7 @@ fn record(journeys: &Path, tui_journeys: &Path, name: &str, starting: &Starting,
     crate::add_to(journeys, tui_journeys, name, &recording, &[]).map(|_| ())
 }
 
+#[expect(clippy::disallowed_methods, reason = "cli C8: PATH for the journey tool's child programs")]
 fn program(name: &str) -> Option<std::path::PathBuf> {
     std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default())
         .filter(|path| path.is_absolute())

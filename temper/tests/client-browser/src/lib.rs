@@ -43,6 +43,10 @@ pub fn temper() -> PathBuf {
     binary
 }
 #[must_use]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_TEST_CHROMIUM and PATH, through temper's test table once it exists"
+)]
 pub fn chromium() -> PathBuf {
     if let Some(path) = std::env::var_os("SKEIN_TEST_CHROMIUM") {
         let path = PathBuf::from(path);
@@ -59,6 +63,7 @@ pub fn chromium() -> PathBuf {
 }
 /// The bundle scripts/browser.sh builds, named by `TEMPER_TEST_BUNDLE`.
 #[must_use]
+#[expect(clippy::disallowed_methods, reason = "cli C4: TEMPER_TEST_BUNDLE, through temper's test table once it exists")]
 pub fn bundle() -> PathBuf {
     let path = PathBuf::from(
         std::env::var_os("TEMPER_TEST_BUNDLE")

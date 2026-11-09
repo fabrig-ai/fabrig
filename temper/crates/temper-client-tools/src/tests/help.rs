@@ -46,6 +46,10 @@ fn the_help_is_the_page_ctl_then_the_tools() {
     fixtures::check_golden("help", tools);
 }
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
+)]
 fn the_help_prints_as_its_golden_files() {
     for (tool, name) in GOLDENS {
         if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some() {
@@ -467,6 +471,10 @@ fn each_row_says_what_it_does_and_prints() {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
+)]
 fn the_project_reference_is_what_the_table_renders() {
     let mut project = None;
     for group in table::GROUPS {
@@ -516,6 +524,10 @@ fn the_forge_reference_is_what_the_table_renders() {
 fn the_playground_reference_is_what_the_table_renders() {
     reference_matches(b"playground", b"ctl-playground");
 }
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
+)]
 fn reference_matches(group_name: &[u8], page_name: &[u8]) {
     let mut group = None;
     for candidate in table::GROUPS {

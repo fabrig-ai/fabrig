@@ -38,6 +38,10 @@ testing.md, 6.)
   kernel below the floor stop the service before its loop runs. The one
   fallback, to the readiness backend, is said on standard error (7.1).
 - **Optimisations stay behind the records.** None changes code above io.
+- **A binary's table is the shell's,** with its settings: its commands,
+  flags and variables, each in its set, and the help, version line and
+  reference documents rendered from it, in one format for every tree's
+  binaries (section 15; `../foundation/cli.md`, 6 to 8).
 
 ## 2. In skein
 
@@ -410,20 +414,25 @@ world gives the service its own cgroup (simulator.md, 3.4).
 Every binary of every repository built on skein reads what it is given
 alike, before startup's step 1:
 
-- **Each setting is three things:** a flag, `--name VALUE`; an
-  environment variable, the tool's name and the setting's in capitals,
-  `-` as `_` (`TEMPER_CONFIG` for temper's `--config`); and a default,
-  documented with the flag. A setting with no sensible default has
-  none, and its absence refuses the start, naming the flag and the
-  variable.
-- **The flag wins over the variable, and the variable over the
-  default.** An empty variable is unset.
+- **Each setting is a flag,** `--name VALUE`, with its set (public,
+  internal or test: `../foundation/cli.md`, 4), its environment twin
+  where the table declares one, and a default, documented with the
+  flag. The twin is declared by name, never derived from the flag's,
+  and its name says the setting's set (`TEMPER_CONFIG` for temper's
+  public `--config`; `../foundation/cli.md`, 5). A setting with no
+  sensible default has none, and its absence refuses the start, naming
+  the flag and its twin.
+- **A table of settings is a group** with one line of its own, which
+  help prints once for the group's flags (15.2): temper's three
+  directories are one group.
+- **The flag wins over its twin, and the twin over the default.** An
+  empty variable is unset.
 - **Directories default to XDG's base directories:**
   `$XDG_CONFIG_HOME`, `$XDG_DATA_HOME`, `$XDG_STATE_HOME` and
   `$XDG_CACHE_HOME`, each with the specification's fallback under
   `$HOME` when unset, empty or not absolute, then the tool's name.
 - **The kit resolves them:** a function of `skein-shell` takes the
-  settings' table (name, variable, default) with the arguments and the
+  settings' table (name, set, twin, default) with the arguments and the
   environment, and answers each setting's value and where it came
   from, or the setting it refused, so that a binary's `--help` and its
   refusals say the same. Positional arguments stay the binary's own.
@@ -1246,10 +1255,11 @@ reads the system to hand them over. So the shell has two faces, chosen
 by the target, and a world built for a browser hosts the same `Host`
 its native worlds do (world.md; playground.md).
 
-- **Portable:** `Host` (section 12), and a command's settings (6.5):
+- **Portable:** `Host` (section 12), a command's settings (6.5):
   `Settings`, `Setting`, `Fallback`, `Base`, `Value`, `Resolved`,
-  `Origin`, `Refusal`, `Reason`, `resolve` and `help`, which take the
-  arguments and the environment as bytes and read nothing. They build
+  `Origin`, `Refusal`, `Reason`, `resolve` and `help`, and a binary's
+  table and its rendering (section 15), which take the arguments and
+  the environment as bytes and read nothing. They build
   for `wasm32-unknown-unknown`, the portable target, and on it they are
   the whole crate.
 - **Native, under `cfg(unix)`:** everything that reads the system or
@@ -1276,3 +1286,110 @@ its native worlds do (world.md; playground.md).
   world for `wasm32-unknown-unknown`, warnings denied, so a native
   item reached from the portable face fails the build, and a fence that
   leaves dead code warns (testing.md, 10).
+
+## 15. A binary's table
+
+What `../foundation/cli.md`, 6 to 8 asks of skein: one table per binary,
+whose types and rendering every tree's binaries share. A tree's rows are
+its own; the binary's crate holds them as constants. It is portable
+(section 14): it takes bytes and returns text, and reads nothing.
+
+### 15.1 Entries and sets
+
+- **`Set`:** `Public`, `Internal` or `Test` (`../foundation/cli.md`, 4).
+- **`Table`:** the binary's name; its one line, what the binary is; its
+  version and commit, as its tree's build identity words them; its
+  commands; the settings every command takes, as groups (6.5); the
+  variables it reads or sets beside its settings' twins; and its last
+  line, where to read more.
+- **`Command`:** how it's reached, its set, its forms (each one's
+  arguments as usage shows them after the name), its one line, its
+  positional arguments, its settings' groups, its switches, its
+  variables, and its notes. It's reached by its words after the
+  binary's name, none for the bare binary's form, or by the name the
+  binary runs as, for a delegated grammar
+  (`../foundation/cli.md`, 5).
+- **`Argument`:** a positional argument as usage shows it, and its line.
+- **`Switch`:** a flag with no value, `--name`: its name, set, line and
+  notes. A setting (6.5) is a flag with a value.
+- **`Variable`:** its name, set, form, line, what holds when it's
+  absent, notes, and whether the binary reads it or sets it for the
+  programs it runs.
+- **The host's variables** that the kit itself reads are its constants,
+  public: `HOME` and the four XDG base directories, read by a setting's
+  `Fallback::Base` (6.5). A table that holds such a setting reads them,
+  and its documents say so without the tree declaring them again.
+- **`TestTable`:** a tree's test set: its variables, all `Test`, held in
+  its test-support crate (`../foundation/cli.md`, 8).
+- **A lookup names a declared entry:** `Variable::value` answers a
+  variable's bytes from the captured environment, the pairs
+  `environment` returns, and an empty value is unset. No lookup takes a
+  string.
+
+### 15.2 Help
+
+Every page is lines of at most 80 columns. A two-column line puts its
+first column at column 2 and its second at column 37; a first column
+of more than 33 characters takes the line's own row, with the second
+column on the next. A second column, or a one-column line, wraps at
+spaces to 80 columns, a two-column line's continuation at column 37 and
+a one-column line's at its own indent.
+
+- **The page,** for `-h`, `--help` and `help` alike, its parts
+  separated by one blank line:
+  1. `BINARY: LINE`;
+  2. `usage:`, then `  BINARY FORM` for each form of a public bare
+     command, and `  BINARY COMMAND [ARGUMENT...]` when a public command
+     has words;
+  3. `commands:`, then each public command with words: `WORDS FORM` and
+     its line, the line beside the first form only;
+  4. `flags:`, then each of the table's groups of settings that has a
+     public one: its public flags, `--name VALUE` joined by `, `, and
+     the group's line; then `-h, --help` with `Print this.` and
+     `--version` with `Print the name, version and commit.`;
+  5. `environment:`, when there is any: for each group of the table's
+     or of a public command's, the twins of its public settings, joined
+     by `, `, with `As --a, --b and --c.`; then each public variable
+     that the table or a public command reads, once, with its line;
+  6. the table's last line.
+- **A command's page,** for `COMMAND -h` or `--help`: an internal
+  command's first line is `internal: not part of BINARY's public
+  command line; it may change without notice.` Then `usage:` with its
+  forms; its line; `arguments:`; `flags:`, each setting with its line,
+  `Default: DEFAULT.` or `Required.`, and `Environment: TWIN.` where it
+  has one, then each switch with its line; `environment:` with the
+  variables it reads; and its notes. A public command's page lists its
+  public entries; an internal command's lists all of its own. A part
+  with nothing in it is left out.
+- **The version line:** `BINARY VERSION (COMMIT)`, as temper's
+  `release.md`, section 3 words it for every binary of temper's.
+
+### 15.3 The reference documents
+
+Rendered for `../foundation/cli.md`, 8, each a Markdown document whose
+first line is its title and whose second paragraph says it's generated:
+
+- **`<binary>-args.md`:** `# BINARY: arguments`, then `## Public` and
+  `## Internal`, each holding the commands then the flags of that set.
+  A command's heading is `` ### `BINARY WORDS` `` (`` `BINARY` `` for
+  the bare form, `` run as `NAME` `` for a delegated grammar), followed
+  by a list: `**Set:**`, `**Forms:**`, its line, `**Arguments:**`,
+  `**Flags:**` and `**Notes:**`, each item only where it has one. A
+  flag's heading is `` ### `--name VALUE` `` or `` ### `--name` ``,
+  with `**Set:**`, `**Default:**` (or `**Required.**`), `**Twin:**`,
+  its line and `**Notes:**`.
+- **`<binary>-env.md`:** `# BINARY: environment`, then `## Public` and
+  `## Internal`, holding the variables the binary alone reads or sets,
+  its settings' twins among them. A variable's entry is its heading,
+  `` ### `NAME` ``, then a list whose first item is `- **Set:** public`,
+  `internal` or `test`, then `**Reads**` or `**Sets**`, `**Form:**`,
+  `**Absent:**`, `**Twin of:**` for a twin, its line and `**Notes:**`.
+- **`<tree>/docs/design/cli/common-env.md`:** `# TREE: common environment`, the variables two
+  or more of the tree's tables read, the host's among them, as
+  `<binary>-env.md` holds them, with `**Read by:**` naming the binaries.
+- **`<tree>/docs/design/cli/test-env.md`:** `# TREE: test environment`, the tree's test table,
+  as `<binary>-env.md` holds a variable.
+
+Entries keep their table's order; a variable read by several commands
+appears once. The checks read these headings and `**Set:**` items
+(`../foundation/cli.md`, 9, check 5), so their form is the contract.

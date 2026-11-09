@@ -86,6 +86,7 @@ fn the_app_ini_allows_local_migrations_only_when_requested() {
 
 #[test]
 #[ignore = "needs SKEIN_FORGEJO"]
+#[expect(clippy::disallowed_methods, reason = "skein's round: reads SKEIN_FORGEJO to locate the pinned test binary")]
 fn a_repository_survives_a_kill_and_restart_on_the_same_scratch_and_port() {
     let forgejo = crate::Forgejo::from_path(Path::new(
         &std::env::var_os("SKEIN_FORGEJO").expect("SKEIN_FORGEJO must name the pinned Forgejo"),

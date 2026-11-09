@@ -1,6 +1,6 @@
 //! The shell kit (shell.md): what a service's `main` runs its
 //! loop on (programming-model.md, section 2). The root holds a service's calls.
-//! Host and settings are portable; system access and the drive loop are native,
+//! Host, settings and tables are portable; system access and the drive loop are native,
 //! under `cfg(unix)` (shell.md, 14).
 //!
 //! - [`Kernel`]: the ring or readiness backend of io's kernel records
@@ -60,6 +60,7 @@ mod seed;
 mod settings;
 #[cfg(unix)]
 mod startup;
+mod table;
 #[cfg(unix)]
 mod terminal;
 #[cfg(all(test, unix))]
@@ -100,3 +101,5 @@ pub use terminal::{
     Input, Kept, Keys, Modes, Watch, open_signals, open_terminal, raw_input, resize_terminal, take_foreground,
     terminal_modes,
 };
+
+pub use table::{Argument, Command, HOME, Reach, Set, Switch, Table, TestTable, Variable, Way};

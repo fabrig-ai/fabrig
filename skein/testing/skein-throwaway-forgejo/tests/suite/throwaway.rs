@@ -36,6 +36,7 @@ fn a_scratch_directory_that_is_not_empty_is_refused() {
 }
 #[test]
 #[ignore = "needs SKEIN_FORGEJO"]
+#[expect(clippy::disallowed_methods, reason = "skein's round: reads SKEIN_FORGEJO to locate the pinned test binary")]
 fn a_throwaway_forgejo_starts_serves_its_admin_and_is_removed() {
     let forgejo = Forgejo::from_path(Path::new(
         &std::env::var_os("SKEIN_FORGEJO").expect("SKEIN_FORGEJO must name the pinned Forgejo"),

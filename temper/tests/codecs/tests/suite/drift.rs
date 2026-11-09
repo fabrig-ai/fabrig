@@ -2,6 +2,10 @@
 use skein_codegen::{generate, parse};
 use std::fs;
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE, through temper's test table once it exists"
+)]
 fn schema_matches(crate_name: &str, family: &str, version: &str) {
     let root = skein_scratch::paths::tree().join("crates").join(crate_name);
     let source =

@@ -2,6 +2,10 @@
 use std::os::unix::ffi::OsStrExt;
 use std::{env, process::ExitCode};
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: arguments select entry modes and the environment resolves commands; temper-box's table will read them"
+)]
 fn main() -> ExitCode {
     skein_fail_stop::install();
     if env::args_os().next().as_deref().is_some_and(temper::fake::git::is_git) {

@@ -12,6 +12,10 @@ use temper_forge_setup_shell::process as host;
 use temper_service::startup::Named;
 
 /// A dogfood hack's switch (temper/docs/design/draft/dogfood-hacks.md, 2.8).
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: TEMPER_FORGE_NO_REGISTRATION selects first sign-in; temper-box's table will pass it"
+)]
 pub(crate) fn first_sign_in() -> sign_in::FirstSignIn {
     if std::env::var_os("TEMPER_FORGE_NO_REGISTRATION").is_some_and(|value| !value.is_empty()) {
         sign_in::FirstSignIn::LinksOnly
