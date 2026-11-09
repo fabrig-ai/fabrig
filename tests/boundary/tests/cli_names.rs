@@ -1,8 +1,8 @@
 //! Declared environment names (skein/docs/foundation/cli.md, 5 and 9, check 5).
 //! Tracked UTF-8 files outside docs name only variables declared by their tree,
 //! in the set their names say. Every declaration is read or set outside docs.
-//! The document parser follows temper/docs/plan/ui-cli-c1/notes/contracts.md, 5;
-//! the meeting test checks skein/docs/design/shell.md, 15.3's rendered form.
+//! The document parser reads skein/docs/design/shell.md, 15.3's headings and
+//! `**Set:**` items alone; the meeting test checks its rendered form.
 
 use std::collections::BTreeSet;
 use std::fs;

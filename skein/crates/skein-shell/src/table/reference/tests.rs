@@ -249,7 +249,7 @@ fn the_four_documents_follow_the_reference_form_byte_for_byte() {
     }
 }
 
-/// Only headings and the first Set item belong to contracts.md, 5.
+/// Only headings and the first Set item belong to check 5's reading (shell.md, 15.3).
 fn environment_entries(document: &str) -> Vec<(&str, &str)> {
     let mut entries = Vec::new();
     let mut name = None;
