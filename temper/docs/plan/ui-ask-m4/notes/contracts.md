@@ -74,7 +74,7 @@ where a doc comment is quoted, write it.
   `temper-engine-smith`'s `lib.rs`; jig's own hosted charter
   (`jig-protocol-charter/src/hosted.rs`) titles it `Preferences`.
 - **Private names, in settings:** `jig_domain_core::Settings` gains
-  `pub private_tools: List<Box<[u8]>>`, the tool names whose calls are their
+  `pub private_tools: Box<[Box<[u8]>]>`, the tool names whose calls are their
   task's requester's alone; `jig_protocol_engine_clients::Settings` gains
   `pub private: jig_protocol_transcript::Private` (section 3). Both default
   to none: no tool, an empty title.

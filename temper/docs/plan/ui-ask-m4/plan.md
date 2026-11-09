@@ -84,19 +84,29 @@ The first batch, released with this plan:
   `ask-remembering`, medium, 45, needs `remember-surface`: the
   instructions' Remembering part and the 10 KB bound.
 
-Still to release (the plan's next batches):
+The second batch:
 
-- **core** (jig): `core-surface`, needs `party-scope` and `withhold`: the
-  named action `NoteDelete`, the call part, the `preferences` section's
-  kind and budget, the private settings, the withheld carriers and their
-  translation, four stub modules wired at their call sites.
+- **core** (jig): `core-surface`, high, 240, needs `party-scope` and
+  `withhold`: the named action `NoteDelete`, the call part, the
+  `preferences` section's kind and budget, the private settings, the
+  withheld carriers and their projection on the clients' wire, four stub
+  modules wired at their call sites, so that the party tasks share no file
+  but a call site's line.
+- **route** (temper): `remember-route`, high, 200, needs `remember-surface`
+  and `core-surface`: the root's load, checks and writes, its answer the
+  whole list; `see-withheld`, high, 120, needs `core-surface`: temper's
+  private names in the core's and the clients' settings, `see`'s
+  projection.
+- **page** (temper's client): `page-domain`, high, 180, needs
+  `party-scope`: `Address::Remembered`, the page's read and acts.
+
+Still to release (the plan's next batch):
+
 - **party** (jig, beside one another in `jig-domain-core`, each in its own
   module): `party-runs`, `party-reads`, `party-brief`, `withheld`, each
   needing `core-surface`.
-- **route** (temper): `remember-route`, needs `remember-surface` and
-  `core-surface`; `see-withheld`, needs `core-surface`.
-- **page** (temper's client): `page-domain`, needs `party-scope`;
-  `page-view`, needs `page-domain`; `page-gallery`, needs `page-view`.
+- **page:** `page-view`, needs `page-domain`; `page-gallery`, needs
+  `page-view`.
 - **stories** (the engine's domain world): `remember-stories`, needs the
   party tasks, `remember-route`, `see-withheld` and `ask-remembering`: a
   line kept in one Ask temper chat, read in the next one's brief, deleted
@@ -135,7 +145,12 @@ the call part's forced arm. `temper-engine-domain-forge` is not changed.
 
 ## Overlaps
 
-`tui-box-polish` (at its trunk) changes `temper-client-tui/src/view.rs`,
-where `page-domain`'s forced arm for `Remembered` falls; the arm is one
-line in the address match, away from that plan's hunks. No other draft
-beside this one names this plan's files.
+`tui-box-polish`, beside this draft when it was cut, has landed; its
+`temper-client-tui/src/view.rs` is on main before `page-domain`'s one-line
+arm there. No other draft beside this one names this plan's files.
+
+**One writer per crate, departed from for `jig-domain-core`:** the four
+party tasks run beside one another in it, each in a module `core-surface`
+makes and wires (`notes/contracts.md`, section 2), because serialising them
+would put about 600 more minutes on the critical path; the files they
+share are `core-surface`'s alone, and each may add a call site's line.
