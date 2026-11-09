@@ -2,6 +2,7 @@
 use std::io::{Read, Write};
 use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
 
+#[expect(clippy::disallowed_methods, reason = "skein's round: reads the browser harness fixture command line")]
 fn main() {
     skein_fail_stop::install();
     let args: Vec<_> = std::env::args().skip(1).collect();
@@ -64,6 +65,10 @@ fn server(peers: &[String], held: bool) {
         stream.write_all(body.as_bytes()).expect("fixture body");
     }
 }
+#[expect(
+    clippy::disallowed_methods,
+    reason = "skein's round: checks that the browser harness child has an explicit environment"
+)]
 fn command(args: &[String]) {
     match args[0].as_str() {
         "stdin" => {

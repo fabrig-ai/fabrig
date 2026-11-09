@@ -86,6 +86,10 @@ fn the_same_inputs_give_the_same_bundle() {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "skein's round: reads SKEIN_UPDATE_GOLDENS, the bundle golden rewrite switch"
+)]
 fn no_placeholder_keeps_the_page_and_the_starter() {
     let scratch = Scratch::new("bundle-golden");
     let inputs = inputs(&scratch);
@@ -355,6 +359,10 @@ fn placeholder(scratch: &Scratch) -> super::Placeholder {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "skein's round: reads SKEIN_UPDATE_GOLDENS, the bundle golden rewrite switch"
+)]
 fn a_placeholder_makes_the_page() {
     let scratch = Scratch::new("bundle-placeholder");
     let mut inputs = inputs(&scratch);
