@@ -76,10 +76,10 @@ fn conversation_continuation(json: bool) {
     root.end(call, &fixtures::run_watch(), c::WatchEnd::SubjectEnded);
     let answer = root.answer(call).expect("paged conversation");
     assert_eq!(answer.status, 0);
-    assert!(skein_lib::bytes::find(&answer.stdout, b"task turn 41 1.1 --part 4 --from 16384").is_some());
+    assert!(skein_lib::bytes::find(&answer.stdout, b"task turn 41 1.1 --part 4 --from 65536").is_some());
     assert!(answer.stdout.len() < usize::try_from(crate::limits::TEXT).expect("text bound fits"));
     let argv = fixtures::extended(
-        &["task", "turn", "41", "1.1", "--part", "4", "--from", "16384"],
+        &["task", "turn", "41", "1.1", "--part", "4", "--from", "65536"],
         if json { &["--json"] } else { &[] },
     );
     let answer = fixtures::read_answer(argv.as_slice(), ReadResult::Value(c::ReadValue::Turn(Box::new(archive))));

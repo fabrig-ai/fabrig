@@ -101,12 +101,12 @@ pub const ACTIVITY: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"A turn's conversation prints whole; read its supplied system text with task turn TASK TURN.\nEach part is cut at 16 KB with `read on with:`;\na turn past a page's bytes prints as its size and\n`read with: task turn TASK TURN`.\nWith `--limit`, the page keeps its last COUNT lines, and `read on\nwith:` repeats the read without the limit.\n",
+    notes: b"A turn's conversation prints whole; read its supplied system text with task turn TASK TURN.\nEach part is cut at 64 KB with `read on with:`;\na turn past a page's bytes prints as its size and\n`read with: task turn TASK TURN`.\nWith `--limit`, the page keeps its last COUNT lines, and `read on\nwith:` repeats the read without the limit.\n",
 };
 pub const TURN: Tool = Tool {
     name: b"task turn",
     line: b"Read one turn of a task's run, part by part",
-    prints: b"A turn's header, then its words including the brief supplied to the run, calls and results in order; a cut part ends with `N bytes left; read on with: task turn TASK TURN --part PART --from OFFSET`",
+    prints: b"With --part, a cut part first prints `part P page N of M holds B bytes;` and the bytes left with the call that reads on, or `no more`; then a turn's header, then its words including the brief supplied to the run, calls and results in order; a cut part ends with `N bytes left; read on with: task turn TASK TURN --part PART --from OFFSET`",
     result: b"turn",
     forms: &[&[
         positional(b"task", b"TASK", Kind::Number, Required, b"The task's number"),
@@ -116,7 +116,7 @@ pub const TURN: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"Read task activity TASK to find the attempt and turn as A.T, then\ntask turn TASK A.T. Archived turn text includes the brief supplied to the run,\nwith the selected charter-part instructions, charter document sections and\ntheir recorded commits. These are the retained supplied words. Older turns\nthat did not retain system text have that context unavailable; task text\nand current settings cannot recover it.\nA part prints at most 16384 bytes at a time. A turn past ctl's\nbound prints its size and `past the limit; report it`, and one it\ncannot decode `unreadable; report it`, both with exit 0: report\neither as a finding.\n",
+    notes: b"Read task activity TASK to find the attempt and turn as A.T, then\ntask turn TASK A.T. Archived turn text includes the brief supplied to the run,\nwith the selected charter-part instructions, charter document sections and\ntheir recorded commits. These are the retained supplied words. Older turns\nthat did not retain system text have that context unavailable; task text\nand current settings cannot recover it.\nA part prints at most 65536 bytes at a time. A turn past ctl's\nbound prints its size and `past the limit; report it`, and one it\ncannot decode `unreadable; report it`, both with exit 0: report\neither as a finding.\n",
 };
 pub const RUN: Tool = Tool {
     name: b"task run",
@@ -900,7 +900,7 @@ pub const TASK_TEXT_AT: u8 = 61;
 pub const TASK_TEXT: Tool = Tool {
     name: b"task text",
     line: b"Read a chunk of a task's specification, effective instructions or kept report",
-    prints: b"The source words, byte offsets and total size; then a continuation call or `no more`",
+    prints: b"A cut page first prints `FIELD page N of M holds B bytes;` and the bytes left with the call that reads on, or `no more`; then the source words, byte offsets and total size; then a continuation call or `no more`",
     result: b"task-text",
     forms: &[&[
         positional(b"task", b"TASK", Kind::Number, Required, b"The task's number"),

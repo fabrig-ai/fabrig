@@ -251,7 +251,7 @@ fn a_model_name_requires_utf8() {
 #[test]
 fn model_names_follow_the_text_bound() {
     let mut limits = crate::limits::tools();
-    limits.text = 4;
+    limits.words = 4;
     for name in [b"name".as_slice(), b"names".as_slice()] {
         let parsed = crate::jig::argv::parse(
             crate::table::TOOLS,
@@ -269,7 +269,7 @@ fn model_names_follow_the_text_bound() {
 #[test]
 fn effort_names_follow_the_text_bound() {
     let mut limits = crate::limits::tools();
-    limits.text = 4;
+    limits.words = 4;
     for name in [b"name".as_slice(), b"names".as_slice()] {
         let parsed = crate::jig::argv::parse(
             crate::table::TOOLS,

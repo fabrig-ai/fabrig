@@ -962,9 +962,15 @@ fn human_forges_prints_an_app_installed_nowhere_yet() {
 
 #[test]
 fn human_forges_bounds_the_wire_maximum_installations_with_longest_logins() {
-    let limits = f::limits_root();
+    let mut limits = f::limits_root();
     let preset = forge::wire_limits(&limits.domain.forge).unwrap();
-    for bounds in [preset, w::CEILINGS] {
+    // The 80 KiB result fits both wire bounds; 32 KiB still exercises refusal.
+    for (bounds, text, status) in [
+        (preset, crate::limits::TEXT, 0),
+        (w::CEILINGS, crate::limits::TEXT, 0),
+        (w::CEILINGS, crate::limits::CLIENT_TEXT, 1),
+    ] {
+        limits.tools.text = text;
         let mut login = skein_lib::Writer::new(usize::try_from(bounds.account_login).unwrap());
         for _ in 0..bounds.account_login {
             login.put(b"x").unwrap();
@@ -1033,8 +1039,8 @@ fn human_forges_bounds_the_wire_maximum_installations_with_longest_logins() {
         domain_limits.field_bytes = bounds.account_login;
         let rows = forge::forges::rows(&record, &domain_limits).unwrap();
         let plain = forges::print_rows(Some(&rows), false, None, &limits);
-        if bounds.account_login == preset.account_login {
-            assert_eq!(plain.status, 0);
+        assert_eq!(plain.status, status);
+        if status == 0 {
             for words in [login.as_ref(), b"suspended", b"kept"] {
                 let mut count = 0u32;
                 for window in plain.stdout.windows(words.len()) {
@@ -1047,7 +1053,6 @@ fn human_forges_bounds_the_wire_maximum_installations_with_longest_logins() {
             assert!(plain.stdout.len() <= usize::try_from(limits.tools.text).unwrap());
         } else {
             // The digest's JSON exceeds tools.text before the human row is rendered.
-            assert_eq!(plain.status, 1);
             assert!(plain.stdout.is_empty());
             assert_eq!(plain.stderr.as_ref(), b"result limit\n");
         }

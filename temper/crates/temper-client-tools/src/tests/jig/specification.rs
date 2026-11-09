@@ -176,8 +176,70 @@ fn task_text_joins_to_its_bounds_with_exact_utf8_offsets() {
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "the step table inspects rendered UTF-8 lines")]
+fn task_text_cut_pages_say_so_first() {
+    // tools.md, 6.4: 600 source bytes span three 259-byte pages; 200 fit whole.
+    let limits = crate::jig::Limits { part: 259, ..crate::limits::tools() };
+    let mut failures = skein_lib::List::with_capacity(5); // Five page/control rows (tools.md, 11.1).
+    let words = [b'x'; 600]; // Three 259-byte pages, with the last short.
+    for (size, from, json, first, last, absent, present) in [
+        (
+            600,
+            0,
+            false,
+            Some(
+                "instructions page 1 of 3 holds 259 bytes; 341 bytes left; read on with: task text 1 --field instructions --from 259",
+            ),
+            Some("341 bytes left; read on with: task text 1 --field instructions --from 259"),
+            None,
+            None,
+        ),
+        (
+            600,
+            259,
+            false,
+            Some(
+                "instructions page 2 of 3 holds 259 bytes; 82 bytes left; read on with: task text 1 --field instructions --from 518",
+            ),
+            None,
+            None,
+            None,
+        ),
+        (600, 518, false, Some("instructions page 3 of 3 holds 82 bytes; no more"), Some("no more"), None, None),
+        (200, 0, false, Some("instructions from 0 of 200 bytes:"), None, Some(" page "), None),
+        (600, 0, true, None, None, Some("\"page\""), Some("\"next\":259")),
+    ] {
+        let printed = text_read(words.get(..size).unwrap(), from, &limits, json);
+        let stdout = core::str::from_utf8(&printed.stdout).unwrap();
+        let first_matches = match first {
+            Some(line) => stdout.lines().next() == Some(line),
+            None => true,
+        };
+        let last_matches = match last {
+            Some(line) => stdout.lines().last() == Some(line),
+            None => true,
+        };
+        let absent_matches = match absent {
+            Some(words) => !stdout.contains(words),
+            None => true,
+        };
+        let present_matches = match present {
+            Some(words) => stdout.contains(words),
+            None => true,
+        };
+        let correct = printed.status == 0 && first_matches && last_matches && absent_matches && present_matches;
+        if !correct {
+            failures.push((size, from, json, Box::<str>::from(stdout.lines().next().unwrap_or("")))).unwrap();
+        }
+    }
+    assert!(failures.is_empty(), "cut page positions: {failures:?}");
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the step table inspects rendered UTF-8 lines")]
 fn task_text_keeps_a_continuation_when_retrieval_stalls_or_is_refused() {
     let (core, limits, row) = f::source_task(&[b'x'; 300]);
+    let mut failures = skein_lib::List::with_capacity(2); // Stalled and refused retrievals.
     for refused in [false, true] {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit(&["task", "text", "1", "--field", "instructions"]);
@@ -203,5 +265,14 @@ fn task_text_keeps_a_continuation_when_retrieval_stalls_or_is_refused() {
         let printed = root.answer(call).expect("stopped retrieval");
         assert_eq!(printed.status, 0);
         assert!(find(&printed.stdout, b"--from 128").is_some());
+        let stdout = core::str::from_utf8(&printed.stdout).unwrap();
+        if stdout.lines().next()
+            != Some(
+                "instructions page 1 of 2 holds 128 bytes; 172 bytes left; read on with: task text 1 --field instructions --from 128",
+            )
+        {
+            failures.push(refused).unwrap();
+        }
     }
+    assert!(failures.is_empty(), "stalled/refused retrievals keep their continuation first; refused: {failures:?}");
 }

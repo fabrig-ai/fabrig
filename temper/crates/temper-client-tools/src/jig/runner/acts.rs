@@ -290,13 +290,13 @@ pub(crate) fn words(call: &Call, index: usize, limits: &Limits) -> Result<c::Tex
         None => b"",
         _ => return Err(Failed::Fixed(b"text not loaded")),
     };
-    match c::Text::new(Box::from(bytes), limits.text) {
+    match c::Text::new(Box::from(bytes), limits.words) {
         Ok(text) => Ok(text),
         Err(_) => Err(Failed::Fixed(b"text limit")),
     }
 }
 fn empty(limits: &Limits) -> c::Text {
-    c::Text::new(Box::default(), limits.text).expect("empty words fit")
+    c::Text::new(Box::default(), limits.words).expect("empty words fit")
 }
 pub(super) fn page(
     runner: &mut Runner,
