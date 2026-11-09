@@ -51,7 +51,7 @@ fn start(kept: &[Kept]) -> (World, [u64; 2]) {
             scope,
             name: *name,
             description: description.clone().into(),
-            body: description.clone().into(),
+            body: Box::default(),
             author: notes::Author::Party { party: *party },
             revision: 1,
             references: List::with_capacity(0),

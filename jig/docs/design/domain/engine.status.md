@@ -223,10 +223,6 @@ try. A window's later pages keep its first page's slot there
   `../client/domain/contract.status.md`, 5.1 records the source paths and
   reason. The offer remains available as this section requires.
 
-- **Not yet:** 9, 10.1, *Read by those runs*: a brief has no `preferences`
-  section; no run reads a party's scope.
-
-
 - **Not yet:** 2, 8: runs on the engine's own slots under
   `smith-inline-agent`; the engine hub's hello before placement; the
   two-claim placement balance. 4.2, 5.3: the remaining point-load fences.

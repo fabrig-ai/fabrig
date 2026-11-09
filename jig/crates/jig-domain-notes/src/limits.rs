@@ -21,7 +21,7 @@ pub struct Limits {
     pub references: u32,
     /// Records in one store load page.
     pub load_rows: u32,
-    /// Index lines in one answer.
+    /// Index lines in one answer; a party's scope answers up to `party_entries`.
     pub lines: u32,
     /// Entries in one recall page.
     pub recalled: u32,
