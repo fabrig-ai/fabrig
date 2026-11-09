@@ -436,7 +436,7 @@ A read.
 
 ## see
 
-Read temper by address, in your project: settings, revisions, proposals, temper's pages, a repository's file. Each answer ends with what to read next.
+Read temper by address, as your person, in your project: its work, changes, settings, proposals, pages and files. Each answer ends with what to read next.
 
 A read.
 
