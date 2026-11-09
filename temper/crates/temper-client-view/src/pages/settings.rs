@@ -135,7 +135,6 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Work { .. }
-        // page-view: draw Remembered.
         | Address::Remembered
         | Address::Members
         | Address::Limits
@@ -836,6 +835,7 @@ pub(crate) fn sign_out(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut
     b.close();
     b.open(Role::Slot);
     b.style(look::SETTINGS_END);
+    link(b, w, bindings, Word::RememberedTitle, Address::Remembered);
     b.open(Role::Button);
     b.style(look::SETTINGS_BTN);
     b.style(look::SETTINGS_SMALL);
