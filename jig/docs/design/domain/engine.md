@@ -2202,12 +2202,13 @@ section 5).
   the start instead, beside section 6's refusals, a cause of people's
   and a failure of the core's. Default: it panics; the user's to
   decide.
-- **A transcript's load with no slot** (9.1, 7.2): a root whose load table
-  is full answers `TranscriptLoad::Failed`, as it does for a page it cannot
-  take, so room that frees by itself counts as transient, and the try it
-  spends makes the next run start fresh from the tail rather than resume.
-  Capacity would need `TranscriptLoad` to say which. Default: as built,
-  until the user says.
+- **A transcript's load with no slot** (9.1, 7.2): `TranscriptLoad` has
+  no capacity answer, so a root never answers one for room: it keeps the
+  activation due while its load table is full, and a window's later pages
+  in the slot its first took (temper's `domain/root.md`, 8). A root that
+  answered `TranscriptLoad::Failed` for room would count it as transient,
+  and the try it spent would make the next run start fresh from the tail
+  rather than resume. Default: no capacity answer, until the user says.
 
 - **A fresh attempt's tail, lost before its first turn.** An attempt
   that starts fresh from a closed window, or past the resume limit,
