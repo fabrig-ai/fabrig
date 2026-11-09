@@ -10531,6 +10531,15 @@ own tests:
   and by night, with the switcher's menu open on a phone; and walks Team on
   a box with two people, each reading what waits on the other. Owner:
   temper/ui. Default: each difference a finding filed back as a repair.
+- **The phone after landing** (3.5, *Needs you*, *On a phone*, and *Ask
+  temper's page*; 5.3, *On a phone*): temper/ui compares main with the
+  whole story's `web/whole-story/phone-home.html` and `phone-need.html`,
+  and the Ask tab with `phone-tell.html`'s top bar and tabs, at 390 px, by
+  day and by night, through `browser.md`, 7.2's `all-home`, `needs-list`
+  and `ask-chat`; presses each target of the top bar, the tab bar, Home,
+  Needs you, Work and a chat's bar and composer, measuring its 44 px; and
+  walks a need answered from Home and back on a phone-sized page. Owner:
+  temper/ui. Default: each difference a finding filed back as a repair.
 - **Team's later parts** (3.5, *Team*; `../draft/surfaces.md`, sections 6
   and 12; `../draft/whole-story.execution.md`, P4b and P4c): a role's card
   (R1); a project's areas and their owners, a person's areas on their box,
@@ -10552,7 +10561,9 @@ own tests:
   (F1); who decided, on a Decided for you row, and a need's why with "Stop
   asking" and "Keep asking", the intro's What reaches you and Only you
   (N1, N3a); a need's goal, role and asker on its from line; Tell temper
-  at Needs you's foot (P5a); one brief across projects written per person,
+  at Needs you's foot, as *Tell temper* has it, once the engine files a
+  person's word as a finding and a setting names the project's triager
+  (`../domain/findings.md`, sections 4 and 6); one brief across projects written per person,
   `../draft/surfaces.md`, 15's open question; and more than 16 projects
   read. Each joins *A page's parts* with the read that gives it. Default:
   none is drawn until it is built, the brief is one a project, joined, and
