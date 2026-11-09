@@ -115,7 +115,7 @@ pub fn laid(rules: &[Held], stock: &[Held], project: u32, items: &[Item]) -> Box
                 Value::Rule(rule) => {
                     own.insert(item.number, rule.clone()).expect("edited project rule");
                 }
-                Value::Charter(_) | Value::Questions(_) | Value::Ways(_) => {}
+                Value::Charter(_) | Value::Goal(_) | Value::Questions(_) | Value::Ways(_) => {}
             },
             Edit::Remove => {
                 own.remove(&item.number);
@@ -145,7 +145,7 @@ pub fn laid_ways(ways: Option<&ProjectWays>, project: u32, items: &[Item]) -> Pr
         match &item.edit {
             Edit::Set(value) => match value {
                 Value::Ways(ways) => result = *ways,
-                Value::Rule(_) | Value::Charter(_) | Value::Questions(_) => {}
+                Value::Rule(_) | Value::Charter(_) | Value::Goal(_) | Value::Questions(_) => {}
             },
             Edit::Remove => result = own_ways(None),
         }
@@ -158,7 +158,7 @@ fn own_ways(ways: Option<&ProjectWays>) -> ProjectWays {
         Some(ways) => *ways,
         None => match project_stock(7).expect("kind 7 has stock").value {
             Value::Ways(ways) => ways,
-            Value::Rule(_) | Value::Charter(_) | Value::Questions(_) => unreachable!("kind 7 is ways"),
+            Value::Rule(_) | Value::Charter(_) | Value::Goal(_) | Value::Questions(_) => unreachable!("kind 7 is ways"),
         },
     }
 }

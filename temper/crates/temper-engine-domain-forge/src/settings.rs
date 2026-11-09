@@ -12,6 +12,8 @@ pub enum Kind {
     Charters,
     ProjectQuestions,
     ProjectWays,
+    /// A goal template's work (temper/docs/design/protocol/configuration.md, 13.2).
+    TemplateGoal,
 }
 
 impl Kind {
@@ -23,6 +25,7 @@ impl Kind {
             Self::Charters => 3,
             Self::ProjectQuestions => 6,
             Self::ProjectWays => 7,
+            Self::TemplateGoal => 11,
         }
     }
 
@@ -34,6 +37,7 @@ impl Kind {
             3 => Some(Self::Charters),
             6 => Some(Self::ProjectQuestions),
             7 => Some(Self::ProjectWays),
+            11 => Some(Self::TemplateGoal),
             _ => None,
         }
     }
@@ -73,12 +77,22 @@ pub struct ProjectWays {
     pub way: u32,
 }
 
+/// A goal template's work, kind 11 (temper/docs/design/protocol/configuration.md, 13.2):
+/// whether its coordinator designs first and makes a close-out; neither with none.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
+pub struct TemplateGoal {
+    pub design: bool,
+    pub close_out: bool,
+}
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Value {
     Rule(LandingRule),
     Charter(u32),
     Questions(temper_engine_domain_forge_change::Route),
     Ways(ProjectWays),
+    /// A goal template's work (temper/docs/design/protocol/configuration.md, 13.2).
+    Goal(TemplateGoal),
 }
 
 /// A value and the bytes of its encoding counted by jig, measured where it
@@ -194,6 +208,8 @@ pub struct Bounds {
     pub charters: u32,
     pub segments: u32,
     pub segment_bytes: u32,
+    /// Template numbers (temper/docs/design/protocol/configuration.md, 13.2).
+    pub templates: u32,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -246,15 +262,21 @@ fn within(len: usize, bound: u32) -> bool {
 pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
     let kind = Kind::of(item.kind).ok_or(Refusal::Kind)?;
     match kind {
-        Kind::DeploymentRules | Kind::Charters if item.scope != 0 => return Err(Refusal::Scope),
+        Kind::DeploymentRules | Kind::Charters | Kind::TemplateGoal if item.scope != 0 => return Err(Refusal::Scope),
         Kind::ProjectRules | Kind::ProjectQuestions | Kind::ProjectWays if item.scope == 0 => {
             return Err(Refusal::Scope);
         }
-        Kind::DeploymentRules | Kind::ProjectRules | Kind::Charters | Kind::ProjectQuestions | Kind::ProjectWays => {}
+        Kind::DeploymentRules
+        | Kind::ProjectRules
+        | Kind::Charters
+        | Kind::ProjectQuestions
+        | Kind::ProjectWays
+        | Kind::TemplateGoal => {}
     }
     let numbers = match kind {
         Kind::DeploymentRules | Kind::ProjectRules => bounds.landing_rules,
         Kind::Charters => 2,
+        Kind::TemplateGoal => bounds.templates,
         Kind::ProjectQuestions | Kind::ProjectWays => 1,
     };
     if item.number == 0 || item.number > numbers {
@@ -263,26 +285,34 @@ pub fn judge(item: &Item, bounds: &Bounds) -> Result<(), Refusal> {
     let rule = match kind {
         Kind::DeploymentRules | Kind::ProjectRules => match &item.value {
             Some(Value::Rule(rule)) => rule,
-            Some(Value::Charter(_) | Value::Questions(_) | Value::Ways(_)) => return Err(Refusal::Value),
+            Some(Value::Charter(_) | Value::Questions(_) | Value::Ways(_) | Value::Goal(_)) => {
+                return Err(Refusal::Value);
+            }
             None => return Ok(()),
         },
         Kind::Charters => {
             return match &item.value {
                 Some(Value::Charter(charter)) if *charter > 0 && *charter <= bounds.charters => Ok(()),
                 Some(Value::Charter(_)) | None => Err(Refusal::Charter),
-                Some(Value::Rule(_) | Value::Questions(_) | Value::Ways(_)) => Err(Refusal::Value),
+                Some(Value::Rule(_) | Value::Questions(_) | Value::Ways(_) | Value::Goal(_)) => Err(Refusal::Value),
             };
         }
         Kind::ProjectQuestions => {
             return match &item.value {
                 Some(Value::Questions(_)) | None => Ok(()),
-                Some(Value::Rule(_) | Value::Charter(_) | Value::Ways(_)) => Err(Refusal::Value),
+                Some(Value::Rule(_) | Value::Charter(_) | Value::Ways(_) | Value::Goal(_)) => Err(Refusal::Value),
             };
         }
         Kind::ProjectWays => {
             return match &item.value {
                 Some(Value::Ways(_)) | None => Ok(()),
-                Some(Value::Rule(_) | Value::Charter(_) | Value::Questions(_)) => Err(Refusal::Value),
+                Some(Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Goal(_)) => Err(Refusal::Value),
+            };
+        }
+        Kind::TemplateGoal => {
+            return match &item.value {
+                Some(Value::Goal(_)) | None => Ok(()),
+                Some(Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Ways(_)) => Err(Refusal::Value),
             };
         }
     };

@@ -83,6 +83,12 @@ pub fn encode(value: &settings::Value) -> Box<[u8]> {
             record.encode(&mut writer).expect("measured room");
             writer.finish()
         }
+        settings::Value::Goal(goal) => {
+            let record = wire_goal(*goal);
+            let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+            record.encode(&mut writer).expect("measured room");
+            writer.finish()
+        }
         settings::Value::Ways(ways) => {
             let record = wire_ways(*ways);
             let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
@@ -100,6 +106,7 @@ pub fn size(value: &settings::Value) -> u32 {
         settings::Value::Charter(charter) => wire_charter(*charter).measure(),
         settings::Value::Questions(route) => wire_questions(*route).measure(),
         settings::Value::Ways(ways) => wire_ways(*ways).measure(),
+        settings::Value::Goal(goal) => wire_goal(*goal).measure(),
     }
 }
 
@@ -231,4 +238,10 @@ fn wire_ways(ways: settings::ProjectWays) -> v1::ProjectWays {
         v1::ProjectWaysParts { skein_bools: [ways.drafts, ways.goals, ways.changes, ways.away], way: ways.way },
     )
     .expect("fixed ways fields")
+}
+
+// A goal template's work (temper/docs/design/protocol/configuration.md, 13.2).
+fn wire_goal(goal: settings::TemplateGoal) -> v1::TemplateGoal {
+    v1::TemplateGoal::new(&v1::CEILINGS, v1::TemplateGoalParts { design: goal.design, close_out: goal.close_out })
+        .expect("fixed goal fields")
 }

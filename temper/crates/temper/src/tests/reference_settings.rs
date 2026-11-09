@@ -678,8 +678,15 @@ fn the_reference_project_file_shows_its_goals_and_lands_main_alone() {
         &temper_engine_smith::kinds::Bounds { segments: 8, segment_bytes: 64, gates: 4, approvals: 4 },
     )
     .expect("reference project rule codec");
-    let bounds =
-        settings::Bounds { landing_rules: 2, gates: 4, roles: 4, charters: 12, segments: 8, segment_bytes: 64 };
+    let bounds = settings::Bounds {
+        landing_rules: 2,
+        gates: 4,
+        roles: 4,
+        charters: 12,
+        segments: 8,
+        segment_bytes: 64,
+        templates: 4,
+    };
     for (kind, scope, expected) in [(2, 1, Ok(())), (1, 0, Err(settings::Refusal::Pattern))] {
         let item = settings::Item { kind, scope, number: 1, value: Some(decoded.value.clone()) };
         assert_eq!(settings::judge(&item, &bounds), expected, "reference rule as kind {kind}");
