@@ -45,6 +45,14 @@ three and nine memberships, and rejects ten; the one-process reduced,
 whole-incident and stored-state stories check answers across a restart.
 The browser boundary check remains later work (section 14).
 
+- **Not yet:** 6.4 and 11.1: the last `task turn TASK TURN --part P
+  --from OFFSET` page prints `no more` in its first line, but not at
+  its end. `render/turn.rs`'s `words` emits an end line only while
+  bytes remain; `turn_part_next.txt` ends with the payload. The final-part
+  rows of `a_part_read_says_its_cut_first` leave the last-line expectation
+  unset, so they do not check the closing `no more` required by 6.4.
+  This long-text-pages implementation and test gap remains after landing.
+
 - **Not yet:** 6.3: the accepted `core-after-project` not-ready watch
   refusal and ctl deadline diagnostic are absent. Jig has no
   `WatchRefusal::NotReady`, and a shut service gate still sends `Busy`,
