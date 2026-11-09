@@ -1469,7 +1469,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::Chats { .. } => ("chats", None),
         Address::Chat { task } => ("chat", Some(task)),
         Address::AllHome | Address::Inbox { .. } => ("inbox", None),
-        Address::Members | Address::Limits | Address::Accounts => ("accounts", None),
+        Address::Remembered | Address::Members | Address::Limits | Address::Accounts => ("accounts", None),
         Address::ConnectModel { .. } => ("connect-model", None),
         Address::Welcome { .. } => ("welcome", None),
         Address::Task { task, .. } => ("task", Some(task)),
@@ -1503,6 +1503,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::NewChat { .. }
+        | Address::Remembered
         | Address::Members
         | Address::Limits
         | Address::Accounts

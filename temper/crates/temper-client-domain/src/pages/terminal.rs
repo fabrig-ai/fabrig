@@ -74,6 +74,7 @@ pub fn draws(address: &crate::Address) -> bool {
         Address::AllHome
         | Address::Inbox { .. }
         | Address::Chats { .. }
+        | Address::Remembered
         | Address::Members
         | Address::Limits
         | Address::Accounts
