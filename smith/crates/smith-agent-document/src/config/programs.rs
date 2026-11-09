@@ -7,7 +7,7 @@ use std::{
 };
 
 use serde::Deserialize;
-use smith_agent_service::profile::{Layer, LimitName, Per, Refusal};
+use smith_agent_profile::profile::{Layer, LimitName, Per, Refusal};
 
 use super::{ConfigurationRefusal, Endpoint};
 
@@ -90,10 +90,10 @@ pub(super) fn endpoints(
 pub(super) fn backend(
     program: Option<&Program>,
     endpoints: &BTreeSet<u32>,
-) -> Option<smith_agent_service::ProgramBackend> {
+) -> Option<smith_agent_profile::ProgramBackend> {
     use std::os::unix::ffi::OsStrExt;
     let program = program?;
-    Some(smith_agent_service::ProgramBackend {
+    Some(smith_agent_profile::ProgramBackend {
         program: smith_protocol_program::Programs {
             claude: program.path.as_os_str().as_bytes().into(),
             directory: program.directory.as_os_str().as_bytes().into(),
@@ -110,7 +110,7 @@ pub(super) fn backend(
 pub(super) fn backend(
     _program: Option<&Program>,
     _endpoints: &BTreeSet<u32>,
-) -> Option<smith_agent_service::ProgramBackend> {
+) -> Option<smith_agent_profile::ProgramBackend> {
     None
 }
 

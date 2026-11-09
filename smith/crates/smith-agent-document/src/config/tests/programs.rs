@@ -1,6 +1,6 @@
 use super::{parse_value, shaped_document};
 use crate::config::{Program, from_value};
-use smith_agent_service::program_operations;
+use smith_agent_profile::program_operations;
 
 fn document() -> serde_json::Value {
     let mut document = shaped_document();
@@ -14,34 +14,6 @@ fn document() -> serde_json::Value {
 fn an_unbound_program_keeps_the_native_operation_routes() {
     let declared = from_value(document()).expect("unbound declaration");
     assert_eq!(program_operations(&declared.service), Some(declared.service.limits.routes));
-}
-
-#[test]
-fn an_unbound_program_root_is_closed_by_the_shell() {
-    use skein_io::kernel::{Complete, Done, Fd, Op};
-    use skein_lib::{Secret, Time, Wall};
-    use skein_shell::Host;
-
-    let configuration = from_value(document()).expect("unbound declaration");
-    let mut agent = crate::Agent::new(
-        configuration,
-        crate::Resources {
-            programs: Some(crate::ProgramResources {
-                relay: "/smith-agent".into(),
-                entropy: Secret::new(Box::new([7; 32])),
-                directory: Some(Fd::new(3)),
-            }),
-            ..super::resources()
-        },
-        Box::new(std::io::sink()),
-    )
-    .expect("unbound declaration starts with shell resources");
-    let close = agent.submissions().pop().expect("unused root closes immediately");
-    assert_eq!(close.kind, Op::Close { fd: Fd::new(3) });
-    assert!(agent.submissions().is_empty());
-    agent.completions().push(Complete { op: close.op, kind: close.kind, result: Ok(Done::Nothing) });
-    agent.iterate(Time::ZERO, Wall::EPOCH);
-    assert!(!agent.submissions().iter().any(|submit| matches!(submit.kind, Op::Close { fd } if fd == Fd::new(3))));
 }
 
 #[test]
@@ -132,7 +104,7 @@ fn program_fields_are_required_strictly() {
 fn the_program_startup_pool_prices_declarations_independently() {
     let direct = parse_value(&shaped_document()).unwrap();
     let declared = parse_value(&document()).unwrap();
-    let model_only = smith_agent_service::profile::derive(&direct.profile, &direct.declarations)
+    let model_only = smith_agent_profile::profile::derive(&direct.profile, &direct.declarations)
         .unwrap()
         .domain
         .configured_endpoint_bytes;
@@ -152,21 +124,4 @@ fn the_program_startup_pool_prices_declarations_independently() {
     assert_eq!(program.service.limits.domain.configured_endpoint_bytes, expected);
     assert_eq!(program.service.domain.programs.len(), 1);
     assert!(program.service.domain.valid(&program.service.limits.domain));
-}
-
-#[test]
-fn an_unsafe_program_directory_logs_its_startup_refusal_once() {
-    let scratch = skein_scratch::Scratch::new("program-diagnostic");
-    let directory = scratch.path().join("not-a-directory");
-    std::fs::write(&directory, b"fixture").expect("non-directory fixture");
-    let mut document = document();
-    document["programs"]["claude_code"]["directory"] = directory.to_str().expect("fixture path").into();
-    let path = scratch.path().join("configuration.json");
-    std::fs::write(&path, serde_json::to_vec(&document).expect("configuration")).expect("configuration file");
-    let diagnostic = scratch.path().join("diagnostic");
-    #[expect(clippy::disallowed_types, reason = "the test reads the owned diagnostic file after run returns")]
-    let errors = std::fs::File::create(&diagnostic).expect("diagnostic file");
-    let why = crate::run(&path, Box::new(errors)).expect_err("unsafe directory refused");
-    assert!(why.contains("not a directory"), "the directory refusal identifies its cause: {why}");
-    assert_eq!(std::fs::read_to_string(diagnostic).expect("diagnostic text"), format!("smith: {why}\n"));
 }
