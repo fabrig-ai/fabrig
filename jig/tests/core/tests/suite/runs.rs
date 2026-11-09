@@ -121,6 +121,58 @@ fn a_chat_past_the_resume_limit_starts_fresh() {
     assert!(world.assigned.as_ref().expect("fresh chat").transcript.is_empty());
 }
 
+// The reference root asks resume_bytes (256), below the store page bound.
+const WINDOW_ROOM: usize = 256;
+// A protocol rendering need not retain opaque replay bytes; ten text bytes per turn
+// leaves both neighbours and the cut marker within the fixture's 128-byte tail.
+fn window_text(body: &[u8]) -> Option<Box<[u8]>> {
+    Some(body.get(..10)?.into())
+}
+
+fn window_page_case(seed: u64, bodies: &[&[u8]], resume: bool, tail: Option<&[u8]>) {
+    let mut world = World::new(Setup { seed, ..Setup::default() });
+    world.store.transcript_text(window_text);
+    let task = world.assigned.as_ref().expect("chat assigned").task;
+    for (index, body) in bodies.iter().enumerate() {
+        world.turn(u32::try_from(index + 1).expect("fixture turn number"), 0, None, body);
+    }
+    world.park_for_message(0);
+    let tries = jig_core_world::fixtures::live_row(&world, task).tries;
+    let refusals = jig_core_world::fixtures::live_row(&world, task).refusals;
+    let assignments = world.assignments.len();
+    world.say(91);
+    assert_eq!(world.domain.take_brief_failure(), None, "a turn's size must not fail its brief");
+    assert_eq!(jig_core_world::fixtures::live_row(&world, task).tries, tries);
+    assert_eq!(jig_core_world::fixtures::live_row(&world, task).refusals, refusals);
+    assert_eq!(world.assignments.len(), assignments + 1, "assigned without retry_due");
+    let assignment = world.assigned.as_ref().expect("woken chat assigned at once");
+    assert_eq!(assignment.run.policy.resume, resume);
+    let expected: Vec<Box<[u8]>> = if resume { bodies.iter().map(|body| Box::from(*body)).collect() } else { vec![] };
+    assert_eq!(assignment.transcript.as_ref(), expected);
+    assert_eq!(fresh_windows::tail(&world), tail);
+}
+
+fn a_window_turn_just_inside_the_room_resumes_whole() {
+    window_page_case(171, &[&[b'a'; WINDOW_ROOM - 4]], true, None);
+}
+
+fn a_window_turn_at_the_room_starts_fresh_with_text() {
+    window_page_case(172, &[&[b'a'; WINDOW_ROOM]], false, Some(b"aaaaaaaaaa"));
+}
+
+fn a_window_turn_just_past_the_room_starts_fresh_with_a_marker() {
+    window_page_case(173, &[&[b'a'; WINDOW_ROOM + 1]], false, Some(b"[a turn too large to load]\n"));
+}
+
+fn a_large_tool_turn_keeps_its_place_between_other_texts() {
+    window_page_case(
+        174,
+        &[&[b'a'; 100], &[b'b'; 4096], &[b'c'; 50]],
+        false,
+        Some(b"aaaaaaaaaa[a turn too large to load]\ncccccccccc"),
+    );
+}
+
 fn transcript_core(window: (u64, u32)) -> core::Core {
     let limits = jig_test_profile::limits().core;
     let config = jig_test_profile::config(105).core;
@@ -526,6 +578,10 @@ fn runs_scenarios() {
     crate::bundle::case!(bundle, 105, loaded_transcript_pages_reject_repeated_and_reversed_turns);
     crate::bundle::case!(bundle, 106, an_unusable_transcript_fails_transient_and_the_next_conversation_starts_fresh);
     crate::bundle::case!(bundle, 107, settled_answers_resume_in_commit_order_and_a_replay_preserves_exact_bytes);
+    crate::bundle::case!(bundle, 171, a_window_turn_just_inside_the_room_resumes_whole);
+    crate::bundle::case!(bundle, 172, a_window_turn_at_the_room_starts_fresh_with_text);
+    crate::bundle::case!(bundle, 173, a_window_turn_just_past_the_room_starts_fresh_with_a_marker);
+    crate::bundle::case!(bundle, 174, a_large_tool_turn_keeps_its_place_between_other_texts);
     bundle.finish().unwrap_or_else(|failures| panic!("{failures}"));
 }
 
