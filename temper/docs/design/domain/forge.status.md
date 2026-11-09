@@ -26,11 +26,9 @@ narrowed table deciding the next call; the forge's tables hold the bound
 person and the paths an asker's change touches at its head are the
 draft's lags (`../draft/what-reaches-you.status.md`, 4).
 
-- **Not yet:** 5.2, by plan `forge-polls-quiet`: temper drops its own
-  echoes before the client, so they keep no repository hearing; no
-  `fallback` reaches the client (`forge.client.fallback_ms`), and the
-  landing's and tiers' flights poll their runs every `poll`, not at
-  `poll_at`.
+- **Not yet:** 5.2, by plan `forge-polls-quiet`: no `fallback`
+  reaches the client (`forge.client.fallback_ms`), and the landing's
+  and tiers' flights poll their runs every `poll`, not at `poll_at`.
 - **Not yet:** 5.9: a call answered ask at the bound, with no row past
   its day, erases the project's rows older than 7 days without marking
   `decided`, so its document lists them until the next mark
