@@ -6,6 +6,8 @@ use std::{
     os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
 };
+mod binary;
+pub use binary::main;
 pub mod agent;
 pub mod program_login;
 pub mod worker;
