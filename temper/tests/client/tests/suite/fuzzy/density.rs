@@ -274,7 +274,9 @@ impl World {
             let value = w::ProjectWays::new(
                 &w::CEILINGS,
                 w::ProjectWaysParts {
-                    skein_bools: [true, false, true, true],
+                    drafts: true,
+                    goals: false,
+                    changes: true,
                     way: self.ways[usize::try_from(project - 1).expect("bounded density fixture")],
                 },
             )
@@ -337,6 +339,19 @@ impl World {
                 w::Decision::new(
                     &w::CEILINGS,
                     w::DecisionParts {
+                        reach: w::Reach::new(
+                            &w::CEILINGS,
+                            w::ReachParts {
+                                kind: w::ReachKind::Tests,
+                                class: w::ReachClass::Decide,
+                                reason: w::ReachReason::Kind,
+                                under: 0,
+                                sets: 0,
+                                matched: 0,
+                                away: false,
+                            },
+                        )
+                        .expect("density reach"),
                         number: u32::try_from(number).expect("bounded density fixture"),
                         task: 100 + number,
                         at: self.env.wall.as_nanos().saturating_sub(match self.rng.below(3) {
@@ -361,8 +376,11 @@ impl World {
             self.decision_rows.retain(|(held, _, _)| *held != watch);
             self.decision_rows.push((watch, project, rows.iter().map(w::Decision::at).collect()));
         }
-        let document =
-            w::Decisions::new(&w::CEILINGS, w::DecisionsParts { project, rows }).expect("bounded density fixture");
+        let document = w::Decisions::new(
+            &w::CEILINGS,
+            w::DecisionsParts { project, rows, asked: List::with_capacity(0), cut: false },
+        )
+        .expect("bounded density fixture");
         self.family(forge::decided::watch(project, &self.env.limits.forge), wire::decisions(&document));
         self.drain();
     }
@@ -499,8 +517,8 @@ impl World {
             }
             Address::Home { project } => {
                 let page = home::facts(&self.root, project, self.env.wall);
-                let decisions = page.away.as_ref().map_or(0, |away| away.rows.len());
-                let showing = page.away.as_ref().map_or(0, |away| away.showing);
+                let decisions = page.decided.as_ref().map_or(0, |away| away.rows.len());
+                let showing = page.decided.as_ref().map_or(0, |away| away.showing);
                 assert_eq!(
                     usize::try_from(showing).expect("small decision count"),
                     if page.to_begin() { 0 } else { self.showing(Some(project)) },

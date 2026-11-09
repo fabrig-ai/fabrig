@@ -284,20 +284,18 @@ fn a_saves_control_skips_a_menu_item_for_the_pages_link() {
         .iter()
         .position(|line| matches!(line, Line::Act { event, .. } if event.as_ref() == b"Act { action: Pages(Go { address: NewChat { draft: false } }) }"))
         .expect("new chat press");
-    let Line::Act { event, .. } = &records[at] else { unreachable!("new chat press") };
-    let event = event.clone();
     records.truncate(at);
     records.push(Line::End(None));
     let save = written(&records);
     let mut replay = Replay::new(&save).expect("chat save");
     while replay.next().expect("chat prefix replays").is_some() {}
     let host = replay.host();
-    let nodes = giving(host, &Act::Press, &event);
-    assert_eq!(nodes.len(), 2, "menu item and page link give the same event");
-    assert_eq!(Control::of(host.tree(), nodes[0]).expect("menu item").role, Role::MenuItem);
+    let event = b"Act { action: Pages(Go { address: Ask { project: 1 } }) }";
+    let nodes = giving(host, &Act::Press, event);
+    assert!(nodes.iter().any(|node| Control::of(host.tree(), *node).expect("control").role == Role::MenuItem));
     assert_eq!(
-        control(&save, &Act::Press, &event),
-        Ok(Some(Control { role: Role::Link, name: b"+ New chat".as_slice().into(), order: 0 }))
+        control(&save, &Act::Press, event),
+        Ok(Some(Control { role: Role::Link, name: b"Ask temper".as_slice().into(), order: 0 }))
     );
     let draft = b"Act { action: Pages(Go { address: NewChat { draft: true } }) }";
     assert_eq!(giving(host, &Act::Press, draft).len(), 1, "only the menu offers a new draft");

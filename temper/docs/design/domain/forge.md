@@ -1082,7 +1082,10 @@ What is true of a person, kept by the engine so that it holds on every
 device and across restarts, each a `PersonFact`: `ToBegin { project }`, "Skip"
 on that project's "To begin" (`../draft/to-begin.md`, section 5); and `GoalFrom
 { project, chat, goal, at }`, that the person started goal `goal` from chat `chat`'s
-document, at the client's clock's `at` (`../client/README.md`, 3.5). It owes nothing to the forge: the
+document, at the client's clock's `at` (`../client/README.md`, 3.5); and `KeepAsking
+{ project, subject, at }`, that the person pressed Keep asking on a need's reason
+for the item of `subject` (5.10) at the client's clock's `at`, so that its Stop
+asking is not offered for 7 days (`../draft/what-reaches-you.md`, section 5). It owes nothing to the forge: the
 connector keeps it because `Stored` holds every family of temper's, as it does
 `Binding` (`../protocol/store.md`, section 2).
 
@@ -1095,6 +1098,9 @@ connector keeps it because `Stored` holds every family of temper's, as it does
   may dismiss too, having no Home, its rows doing no harm. The core's
   ask names the party, and the root hands the connector the request
   with it. In the decision:
+  - a `KeepAsking` where the party holds one of that project and subject
+    with another `at`: that row erased and the new one saved, the subject
+    `dismissed` marked, answered dismissed;
   - a row held already: answered dismissed, nothing written;
   - the bound reached, all rows' or the party's own (`DISMISSED`, the document's):
     answered too large, nothing written;
@@ -1248,12 +1254,13 @@ new to say. Its charter is the stock's 9
   next chance is the next sitting. The procedure then ends.
 ### 5.8 The Away switch
 
-A person's switch on one project: while it is on, the goals that person
-asked for may decide for themselves what its kinds allow, and show it
-afterwards (5.9). It is the person's own, no setting of the project. It
-owes nothing to the forge: the connector keeps it as it keeps a
-dismissal (5.5). No engine answers for an agent: the switch only changes
-what `decided` says.
+A person's switch on one project: while it is on, what the project's
+classes let Away decide (5.10, the class `Ask`) is decided for that
+person, and shown afterwards (5.9). It is the person's own, no setting of
+the project: the classes are the project's, Away each person's. It owes
+nothing to the forge: the connector keeps it as it keeps a dismissal
+(5.5). No engine answers for an agent: the switch only changes what
+`decided` says.
 
 - **Its row,** `Away { party, project }`, at most one a party a project,
   held in memory, restored whole at the restart step, at most `bindings`
@@ -1263,28 +1270,24 @@ what `decided` says.
   - `until`, a wall or none: when it goes off by itself, which the
     client works out (`../client/README.md`, 3.5), none for "I turn it
     off";
-  - `kinds`, bits of what agents may decide: 1 `implementation`, 2
-    `retry`, 4 `wording`, 8 `dependency`. `other` has no bit, so no row
-    lets it;
   - `landed`, `ProjectFacts.landed` (5.6) at `since`, 0 with no facts;
   - `off`, a wall or none: when it went off, none while it has not.
 - **On at a wall** when `off` is none and `until` is none or after that
-  wall. Past `until` nothing is written: `decided` says ask, the client
-  draws it off, and the spell's end reads as `until`.
-- **`SetAway { project, on, until, kinds }`** (`../client/README.md`,
-  4.6) is admitted by the core as `Dismiss` is: the project its scope, a
-  party with a role there, in a project not being deleted. Its bits past
-  the four are refused by the wire. In the decision, at its wall:
-  - `on`, the row on: `until` and `kinds` replaced, the spell kept;
+  wall. Past `until` nothing is written: `decided` judges Away off, the
+  client draws it off, and the spell's end reads as `until`.
+- **`SetAway { project, on, until }`** (`../client/README.md`, 4.6) is
+  admitted by the core as `Dismiss` is: the project its scope, a party
+  with a role there, in a project not being deleted. In the decision, at
+  its wall:
+  - `on`, the row on: `until` replaced, the spell kept;
   - `on`, no row or the row not on: a new spell: `since` the wall,
-    `landed` the project's count, `off` none, `until` and `kinds` as
-    asked;
-  - not `on`, the row on: `off` the wall, `until` and `kinds` as asked;
-  - not `on`, the row not on: `until` and `kinds` as asked, and `off`
-    its `until` where it ran out with none written, so the spell's end
-    stays where it was;
+    `landed` the project's count, `off` none, `until` as asked;
+  - not `on`, the row on: `off` the wall, `until` as asked;
+  - not `on`, the row not on: `until` as asked, and `off` its `until`
+    where it ran out with none written, so the spell's end stays where it
+    was;
   - not `on`, no row: a row with `since` and `off` the wall, `landed` the
-    count: Settings' choices kept while off;
+    count: Settings' choice of `until` kept while off;
   - a row to make with the bound reached: answered too large, nothing
     written;
   - a row that comes out the same: answered, nothing written.
@@ -1300,50 +1303,179 @@ what `decided` says.
 
 ### 5.9 Decided for you
 
-What a goal decided while its person was away, kept so that Home says so
-(`../client/README.md`, 3.5) and the person can overturn it. The agent
-decides: the host tool `decided` (`agent.md`, 4.3) asks the connector
-whether it may, and its answer is live, so a running goal needs no brief
-or wake.
+What an agent decided for a person, and why each question that asked
+reached them, kept so that Needs you and Home say so
+(`../client/README.md`, 3.5) and the person can overturn a decision. The
+agent decides: the host tool `decided` (`agent.md`, 4.3) asks the
+connector whether it may, and its answer is live, so a running task needs
+no brief or wake (`../draft/what-reaches-you.md`, sections 4 and 6).
 
-- **The caller's person,** which the root finds and hands over: a task
-  that is a goal (it is tracked), whose requester is a person, or a
-  conversation whose requester is a person (jig's `served_chat`), and
-  whose words hold no line `Asks: always`. Any other caller is answered
-  ask, by the root, with nothing asked of the connector.
-- **The judgement,** in the call's decision: decided where that party's
-  `Away` row for the task's project is on at the decision's wall (5.8)
-  and `kind` is among its `kinds`, and `other` never; otherwise ask,
-  nothing written.
-- **Its answer is kept as the call's,** `CallPayload::Decided`: its taken
-  option's words, or none for ask. A call answered replays that answer
-  whatever the switch says by then, and writes nothing again: calls are
-  named and decided once (`agent.md`, 4.3), as `change`'s are.
-- **Its row,** `Decided { project, number }`: `party`, the person's;
-  `task`, the caller; `at`, the decision's wall; `question`, at most 400
-  bytes; `options`, 2 to 6, each at most 120 bytes; `took`, an index into
-  them; `why`, at most 400 bytes; `overturned`. `number` is one above the
-  project's highest, 1 with none. At most `DECIDED_PER_PROJECT`, 64, a
-  project: the row that would pass that erases the project's oldest in
-  its decision. So the family is bounded by 64 times `judge_projects`,
-  and a row past that is refused at restart.
+- **The caller's person,** which the root finds and hands over: the
+  person the question would have reached. Of a task whose requester is a
+  person, a goal, a chat or any task a person made, that person; of a
+  task whose requester is a task, the person of the chat serving it
+  (jig's `served_chat`) where that chat's requester is a person. A
+  standing role's person is not yet designed (`../draft/standing-roles.md`,
+  section 2). Any other caller is answered ask by the root, with nothing
+  asked of the connector: its questions go to its requester, a task,
+  which asks in turn. The root hands over too whether the caller's words
+  hold a line `Asks: always`, as `always`.
+- **The judgement,** in the call's decision: 5.10's `judge` of the
+  project's classes (kind 8, or its stock), the call's `kind`, `paths`
+  and `under`, the party's `Away` row for the task's project on at the
+  decision's wall (5.8), and `always`. A `took` past the options is
+  answered ask, whatever the judgement, with no reach and no row.
+- **Its answer is kept as the call's,** `CallPayload::Decided { took,
+  reach }`: the taken option's words, or none for ask, and the reach. A
+  call answered replays that answer whatever the switch or the classes
+  say by then, and writes nothing again: calls are named and decided once
+  (`agent.md`, 4.3), as `change`'s are.
+- **Its row:** every call the connector judges with its `took` among the
+  options writes one, decided or asked, so that a question that follows says why it came (5.10;
+  `../client/README.md`, 3.5). `Decided { project, number }`: `party`, the
+  person's; `task`, the caller; `at`, the decision's wall; `question`, at
+  most 400 bytes; `options`, 2 to 6, each at most 120 bytes, and none for
+  an asked row; `took`, an index into them, none for an asked row; `why`,
+  at most 400 bytes, empty for an asked row; `reach`, the judgement's;
+  `overturned`. `number` is one above the project's highest, 1 with none.
+- **Kept 7 days, bounded by a limit:** a decision that writes a
+  project's row first erases that project's rows older than 7 days
+  (`DECIDED_KEPT_NS`). A project holds at most `forge.decided_per_project`
+  rows (`../protocol/configuration.md`, section 7), 1,024: at the bound,
+  the project's oldest row past its day (24 hours, `DECIDED_DAY_NS`) is
+  erased in the same decision; with none past its day, no row is
+  written and the call is answered ask, its reach as judged, since a row
+  still inside its day is never erased for room. So the family is
+  bounded by `decided_per_project` times `judge_projects`, and a row past
+  that is refused at restart.
 - **Its document:** the subject `decided`, per project,
   `(1 << 62) | (1 << 35) | project`, beside `status_subject` (5.6), of
-  the project's scope. It answers the asking party's rows alone, in
-  number order, each with its taken option's words in place of the
-  options and the index, as 5.6's is the asking party's own: what was
-  decided for one person is not another's to see or overturn.
+  the project's scope. It answers the asking party's rows alone, as 5.6's
+  is the asking party's own: what was decided for one person is not
+  another's to see or overturn. `rows`, the decided ones, each with its
+  taken option's words in place of the options and the index; `asked`,
+  the asked ones, each its number, task, `at` and reach; each list the
+  newest `DECISIONS_SHOWN`, 128, in number order, and `cut` where either
+  left a row out.
 - **`Overturn { project, number }`** (`../client/README.md`, 4.6) is
-  admitted as `SetAway` is. In the decision: no such row, or another
-  party's: refused, unknown; `overturned` already: refused, overturned;
-  otherwise `overturned` set, the row saved, the subject `decided`
-  marked, answered. It sends no word to the task: the client does, once
-  answered, by its existing message, so that a refused message leaves
-  the row as it stands.
+  admitted as `SetAway` is. In the decision: no such row, another
+  party's, or an asked row: refused, unknown; `overturned` already:
+  refused, overturned; otherwise `overturned` set, the row saved, the
+  subject `decided` marked, answered. It sends no word to the task: the
+  client does, once answered, by its existing message, so that a refused
+  message leaves the row as it stands.
 - **Erased with its project,** as 5.5's, marking its subject.
-- **Only goals call it.** A question that skips the tool waits as ever,
-  and held tasks and proposals always wait, away or not: nothing here
-  answers for anyone.
+- **Nothing answers for anyone.** A question that skips the tool waits as
+  ever, and held tasks and proposals always wait, away or not. A
+  change's question passed up (8.11) reaches its maker, which calls
+  `decided` before it would ask its person, as any caller does.
+
+### 5.10 What reaches a person
+
+What an agent may decide for a person, and what reaches them, is one
+setting of a project's, its classes (`../protocol/configuration.md`,
+13.2, kind 8), judged by one pure function that the forge's `decided`
+(5.9) and the client (`../client/README.md`, 3.5) both call: the crate
+`temper-protocol-reaches`, a step crate on `skein-lib` and the client
+wire's records alone (`../draft/what-reaches-you.md`, sections 2 to 5).
+
+- **The kinds,** `Kind`, named in the asker's call as the draft's table
+  names them: `wording`, `retry`, `implementation`, `tests`, `dependency`
+  and `departure`, which a project's classes may move; `money`,
+  `irreversible`, `rules` and `other`, *fixed*, which always wait. The
+  draft's `paths` is no call's kind: a call names its own kind and the
+  paths it would touch, and each path set those touch is an item of its
+  own beside the kind.
+- **The classes,** `Class`, strictest last: `Decide`, agents decide, then
+  tell you; `Ask`, asks you, and Away may decide (5.8); `AskAway`, asks
+  you, even when away; `Wait`, always waits for you, the fixed kinds'
+  alone.
+- **The table,** `Classes { items, sets }`:
+  - `items`, at most 20, each `Item { subject, words, class }`: `subject`
+    a movable kind or a path set's number (`Subject::Kind`,
+    `Subject::Set`); `words` empty for the subject's own item, or at most
+    120 bytes of a rule in words that narrows it ("fixes that keep the
+    wire format"), for agents to follow and no code to check, so that a
+    decision taken under them is listed as any other; `class` one of the
+    first three. An item is numbered by its place, from 1. A subject has
+    at most one item without words; a subject with none is `AskAway`.
+  - `sets`, at most 6, each `PathSet { number, name, patterns }`:
+    `number` 1 to 6, unique in the table; `name`, 1 to 40 bytes, as the
+    person reads it ("vsr's protocol core"); `patterns`, 1 to 6, each 1 to
+    80 bytes, over the paths of any repository of the project.
+  - `Classes::check` refuses, naming the first fault by item or set: more
+    items or sets than the bounds; an item of a fixed kind, of `Wait`, of
+    words past 120 bytes, naming a set the table lacks, or a second item
+    without words of its subject; a set numbered twice or outside 1 to 6,
+    a name or a pattern empty or past its bound, no pattern or more than
+    6, a pattern not well formed (below).
+- **A pattern** is segments joined by `/`, matched against a path's own:
+  a segment `**` matches no segment or any run of them; `*` inside a
+  segment matches any run of bytes but `/`; every other byte matches
+  itself. Well formed: no empty segment, no leading or trailing `/`, and
+  `**` only as a whole segment. So `include/vsr.h`, `src/protocol.*` and
+  `docs/protocol/**`. A call's path is relative to its repository's root,
+  1 to 256 bytes, with no leading `/`; a call names at most 16.
+- **The stock tables,** `Classes::stock(Way)`, the draft's defaults
+  (`../draft/what-reaches-you.md`, section 2): *You approve*, no item, so
+  every movable kind asks even when away; *Agents review* and *Draft
+  first*, `wording`, `retry` and `tests` at `Decide`, then
+  `implementation`, `dependency` and `departure` at `Ask`, in that order;
+  no set in any. A project whose kind 8 holds no value has Agents
+  review's, the stock way of kind 2's stock rule 1
+  (`../protocol/configuration.md`, 13.4).
+- **The judgement,** `judge(classes, ask) -> Reach`, of an
+  `Ask { kind, paths, under, away, always }`: the call's kind, its
+  paths, `under` the number of an item with words it says its choice
+  falls under (0 for none), whether the person's Away is on at the
+  decision's wall (5.8), and whether the asker's words hold `Asks:
+  always`:
+  - *its subjects:* the kind, and each set one of whose patterns matches
+    one of the paths;
+  - *each subject's class:* a fixed kind's `Wait`; otherwise its own
+    item's, or `AskAway` with none, but where `under` names an item with
+    words of that subject, which gives its class instead. An `under`
+    naming anything else is not used;
+  - *`Asks: always`* lifts every class below `AskAway` to `AskAway`, as
+    the goal's own choice (`../client/README.md`, 5.14);
+  - *the strictest class wins;* its reason the kind where the kind's
+    class is the strictest, otherwise the lowest-numbered set at it, or
+    `Always` where only the lift made it;
+  - *decided* where that class is `Decide`, or `Ask` with Away on;
+    otherwise ask.
+
+  Its answer, `Reach { kind, class, reason, under, sets, matched, away
+  }`: `reason` `Reason::Kind`, `Reason::Set(number)` or `Reason::Always`;
+  `under` the item used, 0 for none; `sets` the touched sets, bit
+  `number − 1` each; `matched` the reason set's patterns a path matched,
+  bit `i` for its pattern `i`, 0 for any other reason; `away` whether Away
+  was on. `Reach::decided` says which. On the wire and in the store a
+  reach is the record `Reach`, and a table `ProjectClasses`
+  (`../protocol/configuration.md`, 13.2).
+- **Away may decide** while the table holds an item of `Ask`
+  (`Classes::away_may_decide`): what the client's switch is shown by
+  (`../client/README.md`, 3.5).
+- **Stop asking,** `offers(classes, reach)` and `narrowed(classes, reach,
+  offer, words)`: the narrowest changes that would have decided a reach
+  that asked, each a whole table the person proposes or an owner applies
+  (`../client/README.md`, 3.5; `../draft/what-reaches-you.md`, section
+  5):
+  - `Offer::Decide(subject)`, for a reason `Kind` of a movable kind: the
+    item `under` named moved to `Decide`, or with none the kind's own
+    item, added at the end where it has none;
+  - `Offer::Words(set)`, for a reason `Set`: an item of that set with the
+    person's words, 1 to 120 bytes, at `Decide`, added at the end;
+  - `Offer::Split(set)`, for a reason `Set` whose set holds two patterns
+    or more of which `matched` is some but not all: the matched patterns
+    leave it for a new set at the lowest free number, named the set's
+    name and ", in part", cut at a character to 40 bytes, with an item
+    at `Decide`; the set keeps its number, its other patterns and its
+    items.
+
+  None for a fixed kind, for `Always`, or for a reach decided; an offer
+  the table has no room for is left out. Where a second subject asked as
+  strictly, the narrowed table still asks, and the need it raises next
+  names that one.
 
 ## 6. Effects
 
@@ -1390,7 +1522,8 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
   past its bound is rare, and the remedy is one more settled stop. The
   forge's restore links a `Flight` row to its entry, and one whose entry
   it does not hold is a writer's bug, a link that cannot be made, which
-  panics (`root.md`, 9.1; jig's `domain/engine.md`, section 6).
+  refuses the start (`root.md`, 9.1; jig's `domain/engine.md`, section
+  6).
 - **Classes follow what the forges offer** (skein's `forge-client.md`,
   section 7.3; the facts, skein's `forge.md`, section 9, and
   `forge-github.md`, section 13). Neither Forgejo nor GitHub keeps a
@@ -3177,10 +3310,10 @@ Ask temper's `see ways` and views (`agent.md`, 8.4.1;
   the facts an agent's stop's card has, "Model", the model and effort a
   run of it would take now for the reader, "Can" (*What an agent can*)
   and "Asked to", its instructions' first sentence. What a role
-  does, past when it runs, is words saved with its charter, a later
-  milestone's (`../draft/whole-story.execution.md`, P3e); a standing
-  role, a drafter and a close-out join as the settings come to hold
-  them.
+  does, past when it runs, its charter's words
+  (`../protocol/configuration.md`, 13.2, kind 9), is no part of its card
+  (section 20, *A role's words on its card*); a standing role, a drafter
+  and a close-out join as the settings come to hold them.
 - **The project's path** is the path over its home repository's landing
   branch, or its first adopted repository's with no home; with none,
   over a branch named `main` of no repository: no CI, no tier, the
@@ -3894,6 +4027,17 @@ whole.
   it would be a member of the template's work, kind 11, read where it is
   set. Default: the coordinator's card, until a draft asks for a
   close-out's role of its own (8.13, *The project's roles*).
+
+- **A role's words on its card** (8.13, *The project's roles*): the
+  forge keeps a charter's words, kind 9, what its runs do in a line, and
+  the draft has Roles say them after when the role runs, "For each chat:
+  talks with you and asks for the changes", its instructions' first
+  sentence where none is kept (`../draft/surfaces.md`, section 7;
+  `../draft/whole-story.execution.md`, P3e). The view `roles` would read
+  them as the root reads a charter (`charter_words`) and carry them on
+  each role's card, beside its `who`, within the card's bounds; How work
+  runs draws them (`../client/README.md`, section 11, *How work runs'
+  later parts*). Default: a role's card says when it runs alone.
 
 - **Project-scoped rules on a real forge** (8.9): observe the
   every-project default, its override and reset, and branch-relative

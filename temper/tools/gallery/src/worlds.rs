@@ -706,14 +706,17 @@ fn world_in_layout(
                             let drafts =
                                 matches!(then, Then::Mode(_) | Then::DraftEmpty) || goals == Some("chats-drafts");
                             if setting.kind() == 7 && (goals.is_some() || drafts) {
-                                project_ways(&mut root, read, drafts, goals.is_some(), false, false, &mut out);
+                                project_ways(&mut root, read, drafts, goals.is_some(), false, &mut out);
                                 continue;
                             }
-                            let bytes = settings.map(|name| {
+                            let bytes = settings.and_then(|name| {
+                                if setting.kind() == 8 && name != "settings-away-you-approve" {
+                                    return None;
+                                }
                                 if how && setting.kind() == 7 {
-                                    ways::setting(name)
+                                    Some(ways::setting(name))
                                 } else {
-                                    settings_bytes(name, setting.kind())
+                                    Some(settings_bytes(name, setting.kind()))
                                 }
                             });
                             let value = v1::SettingAnswer::new(&v1::CEILINGS, v1::SettingAnswerParts { value: bytes })
@@ -859,7 +862,7 @@ fn world_in_layout(
                             continue;
                         }
                         w::Watch::Away => {
-                            if settings == Some("settings-away") {
+                            if matches!(settings, Some("settings-away" | "settings-away-you-approve")) {
                                 step(
                                     &mut root,
                                     Event::Client {
@@ -4601,7 +4604,7 @@ pub(super) fn sample_now(world: World, name: &str) -> Wall {
         name if name.starts_with("chat-work-") || name == "agent-work" => {
             Wall::from_nanos(chat_work::AT + 60_000_000_000)
         }
-        "home-morning" | "home-away" | "home-away-one" | "home-away-overturned" => {
+        "home-morning" | "home-decided" | "needs-decided" | "home-away" | "home-away-one" | "home-away-overturned" => {
             Wall::from_nanos(1_792_483_440_000_000_000)
         }
         "rail-away-on" | "rail-away-off" => Wall::from_nanos(1_792_479_840_000_000_000),
@@ -4670,8 +4673,13 @@ pub(super) fn changes_world(name: &str) -> Domain {
                 if let v::Read::Setting(setting) =
                     wire::decode_reading(&record.bytes, &v::CEILINGS).expect("gallery setting read").read()
                 {
-                    assert_eq!(setting.kind(), 7);
-                    project_ways(&mut root, read, false, false, name != "changes-landed-only", false, &mut out);
+                    match setting.kind() {
+                        7 => {
+                            project_ways(&mut root, read, false, false, name != "changes-landed-only", &mut out);
+                        }
+                        8 => project_classes(&mut root, read, &mut out),
+                        _ => panic!("gallery setting read"),
+                    }
                 }
             }
             Down::Read { read, what: Readable::Jig(c::Read::Task { task }) } => {
@@ -4707,24 +4715,39 @@ pub(super) fn changes_world(name: &str) -> Domain {
     assert!(limits.client.domain.reads >= 7, "the sample's shown rows fit");
     root
 }
-#[expect(clippy::fn_params_excessive_bools, reason = "the gallery supplies each independent project visibility bit")]
 pub(super) fn project_ways(
     root: &mut Domain,
     read: Token,
     drafts: bool,
     goals: bool,
     changes: bool,
-    away: bool,
     out: &mut Queue<Request>,
 ) {
     use temper_client_protocol_wire::{self as wire, v1 as v};
-    let ways =
-        v::ProjectWays::new(&v::CEILINGS, v::ProjectWaysParts { skein_bools: [drafts, goals, changes, away], way: 0 })
-            .expect("gallery project ways");
+    let ways = v::ProjectWays::new(&v::CEILINGS, v::ProjectWaysParts { drafts, goals, changes, way: 0 })
+        .expect("gallery project ways");
     let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways fit"));
     ways.encode(&mut writer).expect("measured ways");
     let value = v::SettingAnswer::new(&v::CEILINGS, v::SettingAnswerParts { value: Some(writer.finish()) })
         .expect("gallery setting answer");
+    step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Family { family: FORGE, record: Some(wire::setting_answer(&value)) },
+                },
+            },
+        },
+        out,
+    );
+}
+
+pub(super) fn project_classes(root: &mut Domain, read: Token, out: &mut Queue<Request>) {
+    use temper_client_protocol_wire::{self as wire, v1 as v};
+    let value =
+        v::SettingAnswer::new(&v::CEILINGS, v::SettingAnswerParts { value: None }).expect("stock project classes");
     step(
         root,
         Event::Client {
@@ -4871,21 +4894,24 @@ pub(super) fn home_status(name: &str) -> Option<temper_client_protocol_wire::v1:
     )
 }
 
-/// Settings' delivered kinds 6 and 7 (client/browser.md, 7.2).
+/// Settings' delivered kinds 6, 7 and 8 (temper/docs/design/client/browser.md, 7.2).
 fn settings_bytes(name: &str, kind: u32) -> Box<[u8]> {
     use temper_client_protocol_wire::v1 as v;
-    if kind == 7 {
+    if kind == 8 {
+        use temper_protocol_reaches::{Classes, Way, classes_record};
+        let classes = classes_record(&Classes::stock(Way::YouApprove)).expect("You approve's classes");
+        let mut writer = skein_lib::Writer::new(usize::try_from(classes.measure()).expect("classes bytes"));
+        classes.encode(&mut writer).expect("measured classes");
+        writer.finish()
+    } else if kind == 7 {
         let shown = name != "settings-all-hidden";
         let all = shown && name != "settings-goals";
         let ways = v::ProjectWays::new(
             &v::CEILINGS,
             v::ProjectWaysParts {
-                skein_bools: [
-                    all && name != "settings-drafts-off",
-                    shown && name != "settings-goals-off",
-                    all && name != "settings-changes-off",
-                    all && name != "settings-away-off",
-                ],
+                drafts: all && name != "settings-drafts-off",
+                goals: shown && name != "settings-goals-off",
+                changes: all && name != "settings-changes-off",
                 way: if shown { 4 } else { 0 },
             },
         )
@@ -5367,7 +5393,6 @@ pub(super) fn away_record(on: bool) -> Box<[u8]> {
             project: PROJECT,
             since: wall.as_nanos(),
             until: Some(until.as_nanos()),
-            kinds: 7,
             landed: 0,
             off: if on { None } else { Some(wall.as_nanos()) },
         },
@@ -5425,12 +5450,16 @@ pub(super) fn home_away_record(name: &str) -> Box<[u8]> {
             project: PROJECT,
             since: now - 534 * minute,
             until: None,
-            kinds: 7,
             landed: 0,
             off: if name == "home-away-one" { Some(now - minute) } else { None },
         },
     )
     .expect("Home away spell");
+    if matches!(name, "home-decided" | "needs-decided") {
+        return wire::aways(
+            &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: List::with_capacity(0) }).expect("no Away spell"),
+        );
+    }
     wire::aways(
         &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: List::from_boxed(Box::new([row])) })
             .expect("Home away rows"),
@@ -5467,7 +5496,7 @@ pub(super) fn home_away_status() -> temper_client_protocol_wire::v1::ProjectStat
     )
     .expect("Home away status")
 }
-fn home_away_task(name: &str, task: u64) -> c::Task {
+fn home_away_task(name: &str, task: u64, project: u32) -> c::Task {
     let mut document = base_task(
         task,
         match task {
@@ -5476,6 +5505,12 @@ fn home_away_task(name: &str, task: u64) -> c::Task {
             _ => "forge-cards",
         },
     );
+    document.project = project;
+    document.chip.details.details.project = project;
+    if name == "home-decided" && task == 104 {
+        document.priority = Some(1);
+        document.goal = Some(task);
+    }
     if name == "home-away-one" || (name == "home-away-overturned" && task == 101) {
         document.chip.details.phase = c::ChipPhase::Ended;
         document.chip.details.details.ended_at =
@@ -5484,7 +5519,7 @@ fn home_away_task(name: &str, task: u64) -> c::Task {
     }
     document
 }
-pub(super) fn home_away_decisions(name: &str) -> Box<[u8]> {
+pub(super) fn home_away_decisions(name: &str, project: u32) -> Box<[u8]> {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let now = sample_now(FirstRun { step: 7 }, name).as_nanos();
     let mut rows = List::with_capacity(4);
@@ -5522,6 +5557,12 @@ pub(super) fn home_away_decisions(name: &str) -> Box<[u8]> {
             "A wording choice inside the task’s spec.",
         ),
     ] {
+        if name == "home-decided" && number != 1 && number != 4 {
+            continue;
+        }
+        if name == "needs-decided" && ((project == 1 && number != 1) || (project == 2 && number != 4)) {
+            continue;
+        }
         if name == "home-away-one" && number != 1 {
             continue;
         }
@@ -5536,6 +5577,23 @@ pub(super) fn home_away_decisions(name: &str) -> Box<[u8]> {
                     took: took.as_bytes().into(),
                     why: why.as_bytes().into(),
                     overturned: name == "home-away-overturned" && number == 2,
+                    reach: w::Reach::new(
+                        &w::CEILINGS,
+                        w::ReachParts {
+                            kind: match number {
+                                3 => w::ReachKind::Retry,
+                                4 => w::ReachKind::Wording,
+                                _ => w::ReachKind::Implementation,
+                            },
+                            class: if number == 4 { w::ReachClass::Decide } else { w::ReachClass::Ask },
+                            reason: w::ReachReason::Kind,
+                            under: 0,
+                            sets: 0,
+                            matched: 0,
+                            away: number != 4,
+                        },
+                    )
+                    .expect("fixture reach fits"),
                 },
             )
             .expect("Home decision"),
@@ -5543,7 +5601,11 @@ pub(super) fn home_away_decisions(name: &str) -> Box<[u8]> {
         .expect("four Home decisions");
     }
     wire::decisions(
-        &w::Decisions::new(&w::CEILINGS, w::DecisionsParts { project: PROJECT, rows }).expect("Home decisions"),
+        &w::Decisions::new(
+            &w::CEILINGS,
+            w::DecisionsParts { project, rows, asked: List::with_capacity(0), cut: false },
+        )
+        .expect("Home decisions"),
     )
 }
 
@@ -5556,7 +5618,7 @@ fn home_away_step(root: &mut Domain, name: &str, event: Event, out: &mut Queue<R
     );
 }
 /// Decision reads use the sample's wall so the shown rows remain within their day.
-pub(super) fn home_away_deliveries(root: &mut Domain, watch: Token, name: &str) {
+pub(super) fn home_away_deliveries(root: &mut Domain, watch: Token, name: &str, project: u32) {
     use jig_client::{Down, Readable, Readout, Up};
     let mut out = Queue::uncapped();
     home_away_step(
@@ -5569,7 +5631,7 @@ pub(super) fn home_away_deliveries(root: &mut Domain, watch: Token, name: &str) 
                     record: jig_client::Family {
                         family: FORGE,
                         version: temper_client_protocol_wire::CLIENT_VERSION,
-                        bytes: home_away_decisions(name),
+                        bytes: home_away_decisions(name, project),
                     },
                 },
             },
@@ -5587,7 +5649,7 @@ pub(super) fn home_away_deliveries(root: &mut Domain, watch: Token, name: &str) 
                         up: Up::ReadDone {
                             read,
                             result: Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(home_away_task(
-                                name, task,
+                                name, task, project,
                             ))))),
                         },
                     },

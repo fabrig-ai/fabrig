@@ -771,7 +771,7 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
     if let jig_domain_core::SettingsAnswer::Unknown = answer.as_ref()
         && let Some((
             setting @ jig_domain_core::settings::Setting::Application {
-                kind: kind @ (2 | 6 | 7 | 9 | 10 | 11),
+                kind: kind @ (2 | 6 | 7 | 8 | 9 | 10 | 11),
                 scope,
                 number,
             },
@@ -781,7 +781,7 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
         && match kind {
             11 => scope == 0 && number > 0 && number <= domain.limits.templates,
             9 => scope == 0 && number > 0 && number <= domain.limits.tasks.charters,
-            2 | 6 | 7 | 10 => domain.core.people.project_members(scope).is_some(),
+            2 | 6 | 7 | 8 | 10 => domain.core.people.project_members(scope).is_some(),
             _ => false,
         }
         && let Some(value) = match kind {
@@ -791,7 +791,7 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
             },
             9 | 11 => Some(domain.forge.setting(kind, scope, number).cloned()),
             10 if number == 1 => Some(domain.forge.setting(kind, scope, number).cloned()),
-            6 | 7 if number == 1 => match temper_engine_domain_forge::settings::project_stock(kind) {
+            6..=8 if number == 1 => match temper_engine_domain_forge::settings::project_stock(kind) {
                 Some(value) => Some(Some(value)),
                 None => None,
             },

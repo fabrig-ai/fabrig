@@ -2,8 +2,9 @@
 use super::{Limits, Request, Side, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Ask, Family, Handle, Latest, Link, Told, Watchable, contract as c};
-use skein_lib::{List, Queue};
+use skein_lib::{List, Queue, Wall};
 use temper_client_protocol_wire::{self as wire, v1 as w};
+use temper_protocol_reaches::{Subject, subject_from, subject_record};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 /// Facts the party keeps (temper/docs/design/client/README.md, 4.6).
@@ -12,6 +13,8 @@ pub enum PersonFact {
     ToBegin { project: u32 },
     /// The person started `goal` from `chat`'s document.
     GoalFrom { project: u32, chat: u64, goal: u64, at: u64 },
+    /// The person kept asking for this reach's subject.
+    KeepAsking { project: u32, subject: Subject, at: Wall },
 }
 
 /// An ended watch stays ended until the next sign-in.
@@ -45,6 +48,16 @@ pub fn ask(what: PersonFact, limits: &Limits) -> Option<Ask> {
             project,
             w::PersonFact::GoalFrom(w::GoalFrom::new(&bounds, w::GoalFromParts { project, chat, goal, at }).ok()?),
         ),
+        PersonFact::KeepAsking { project, subject, at } => (
+            project,
+            w::PersonFact::KeepAsking(
+                w::KeepAsking::new(
+                    &bounds,
+                    w::KeepAskingParts { project, subject: subject_record(subject), at: at.as_nanos() },
+                )
+                .ok()?,
+            ),
+        ),
     };
     let dismiss = w::Dismiss::new(&bounds, w::DismissParts { what }).ok()?;
     let record = w::Requesting::new(&bounds, w::RequestingParts { request: w::Request::Dismiss(dismiss) }).ok()?;
@@ -55,6 +68,39 @@ pub fn ask(what: PersonFact, limits: &Limits) -> Option<Ask> {
 }
 
 impl Side {
+    /// The person's dismissal rows have been delivered.
+    #[must_use]
+    pub fn dismissals_delivered(&self) -> bool {
+        match self.dismissed {
+            State::Rows(_) => true,
+            State::Unknown | State::Ended => false,
+        }
+    }
+
+    /// The newest held Keep asking of this project's subject.
+    #[must_use]
+    pub fn keep_asking(&self, project: u32, subject: Subject) -> Option<Wall> {
+        let rows = match &self.dismissed {
+            State::Rows(rows) => rows.as_ref(),
+            State::Unknown | State::Ended => return None,
+        };
+        let mut newest = None;
+        for fact in rows {
+            match *fact {
+                PersonFact::KeepAsking { project: held_project, subject: held_subject, at }
+                    if held_project == project && held_subject == subject =>
+                {
+                    newest = Some(match newest {
+                        Some(held) => Wall::max(held, at),
+                        None => at,
+                    });
+                }
+                PersonFact::KeepAsking { .. } | PersonFact::ToBegin { .. } | PersonFact::GoalFrom { .. } => {}
+            }
+        }
+        newest
+    }
+
     /// The dismissals have been delivered or their watch has ended.
     #[must_use]
     pub fn settled(&self) -> bool {
@@ -88,7 +134,7 @@ impl Side {
             {
                 Some((goal, at))
             }
-            PersonFact::ToBegin { .. } | PersonFact::GoalFrom { .. } => None,
+            PersonFact::ToBegin { .. } | PersonFact::GoalFrom { .. } | PersonFact::KeepAsking { .. } => None,
         })
     }
 }
@@ -172,6 +218,11 @@ fn rows(record: &Family, limits: Limits) -> Option<Box<[PersonFact]>> {
     let mut rows = List::with_capacity(wire::DISMISSED);
     for what in document.into_parts().dismissed.into_boxed() {
         let what = match what {
+            w::PersonFact::KeepAsking(value) => PersonFact::KeepAsking {
+                project: value.project(),
+                subject: subject_from(value.subject()),
+                at: Wall::from_nanos(value.at()),
+            },
             w::PersonFact::ToBegin(value) => PersonFact::ToBegin { project: value.project() },
             w::PersonFact::GoalFrom(value) => PersonFact::GoalFrom {
                 project: value.project(),

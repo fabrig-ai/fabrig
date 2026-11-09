@@ -2239,6 +2239,20 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
 #app > .temper-terminal .temper-terminal-details .temper-settings-proposal-items { color: var(--dim); }
 
 /* ==== ui: needs ==== */
+#app .temper-why > button { margin-left: 8px; padding: 0; border: 0; background: none; color: var(--gf-muted); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+#app .temper-why > button:hover { color: var(--gf-ink); }
+#app .temper-why-offers { display: flex; flex-direction: column; gap: 8px; }
+#app .temper-why-offers > section { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+#app .temper-why-offers .temper-why { margin: 0; font-size: 14px; color: var(--gf-ink-2); }
+#app .temper-why-offers button { flex-shrink: 0; align-self: flex-start; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 13.5px/1.6 var(--gf-sans); cursor: pointer; }
+#app .temper-why-offers > .temper-ask-quiet { border-color: transparent; background: none; color: var(--gf-muted); }
+#app .temper-why-offers input { width: 100%; padding: 8px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: inherit; }
+#app .temper-why-offers button:disabled, #app .temper-why button:disabled { opacity: .45; cursor: default; }
+
+#app :is(.temper-needs, .temper-home) .temper-ask > .temper-why { font-size: 14px; color: var(--gf-ink-2); margin-top: -8px; }
+#app > .temper-needs > section:has(> .temper-decided) > .temper-home-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+#app > .temper-needs > section:has(> .temper-decided) > .temper-home-head > h2 { margin: 0; font: 600 13px/1.6 var(--gf-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--gf-muted); }
+#app .temper-decision-allowed { font-size: 13.5px; color: var(--gf-muted); }
 .temper-needs > section[aria-label] { display: flex; flex-direction: column; gap: 14px; }
 .temper-needs .temper-decided-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; padding-bottom: 8px; border-bottom: 1px solid var(--gf-line); }
 .temper-needs .temper-decided-head > h2 { margin: 0; font: 600 15px/1.6 var(--gf-sans); color: var(--gf-ink); }
@@ -3050,24 +3064,24 @@ html:root[data-night] #app > .temper-settings .temper-ways-acts > .temper-ways-u
 .temper-settings-checks > div { display: flex; align-items: baseline; gap: 10px; }
 .temper-settings-checks > div > input { flex: none; width: 13px; height: 13px; margin: revert; }
 .temper-settings-checks > div > label { min-width: 0; }
-#app > .temper-home .temper-decided { display: flex; flex-direction: column; border-top: 1px solid var(--gf-line); }
-#app > .temper-home .temper-decision { display: flex; align-items: center; gap: 16px; padding: 16px 4px; border-bottom: 1px solid var(--gf-line); }
-#app > .temper-home .temper-decision > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-#app > .temper-home .temper-decision > :first-child { font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
-#app > .temper-home .temper-decision > div > :nth-child(2) { color: var(--gf-muted); }
-#app > .temper-home .temper-decision-took { font-weight: 500; }
-#app > .temper-home .temper-decision-why { font-size: 14px; color: var(--gf-muted); }
-#app > .temper-home .temper-decision-late { flex: none; max-width: 14em; font-size: 12.5px; color: var(--gf-faint); text-align: right; }
-#app > .temper-home .temper-decision-overturned .temper-decision-took { text-decoration: line-through; color: var(--gf-faint); }
-#app > .temper-home .temper-decision > .temper-home-small { flex: none; display: inline-flex; align-items: center; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 13.5px/1.6 var(--gf-sans); }
-#app > .temper-home .temper-decision > .temper-home-small:hover { border-color: var(--gf-control-hover-line); }
-#app > .temper-home .temper-decision > .temper-home-small:disabled { opacity: .45; cursor: default; }
-#app > .temper-home > section:has(> .temper-decided) > .temper-home-head > button { min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; font-size: 13px; color: var(--gf-ink); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
-#app > .temper-home > section:has(> .temper-decided) > .temper-home-head > button:hover { text-decoration-color: var(--gf-ink); }
+#app > :is(.temper-home, .temper-needs) .temper-decided { display: flex; flex-direction: column; border-top: 1px solid var(--gf-line); }
+#app > :is(.temper-home, .temper-needs) .temper-decision { display: flex; align-items: center; gap: 16px; padding: 16px 4px; border-bottom: 1px solid var(--gf-line); }
+#app > :is(.temper-home, .temper-needs) .temper-decision > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+#app > :is(.temper-home, .temper-needs) .temper-decision > div > :first-child { font-family: var(--gf-mono); font-size: 12px; color: var(--gf-faint); }
+#app > :is(.temper-home, .temper-needs) .temper-decision > div > :nth-child(2) { color: var(--gf-muted); }
+#app > :is(.temper-home, .temper-needs) .temper-decision-took { font-weight: 500; }
+#app > :is(.temper-home, .temper-needs) .temper-decision-why { font-size: 14px; color: var(--gf-muted); }
+#app > :is(.temper-home, .temper-needs) .temper-decision-late { flex: none; max-width: 14em; font-size: 12.5px; color: var(--gf-faint); text-align: right; }
+#app > :is(.temper-home, .temper-needs) .temper-decision-overturned .temper-decision-took { text-decoration: line-through; color: var(--gf-faint); }
+#app > :is(.temper-home, .temper-needs) .temper-decision > .temper-home-small { flex: none; display: inline-flex; align-items: center; min-height: 34px; padding: 5px 12px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); color: var(--gf-ink); font: 400 13.5px/1.6 var(--gf-sans); }
+#app > :is(.temper-home, .temper-needs) .temper-decision > .temper-home-small:hover { border-color: var(--gf-control-hover-line); }
+#app > :is(.temper-home, .temper-needs) .temper-decision > .temper-home-small:disabled { opacity: .45; cursor: default; }
+#app > :is(.temper-home, .temper-needs) > section:has(> .temper-decided) > .temper-home-head > button { min-height: 0; padding: 0; border: 0; border-radius: 0; background: none; font-size: 13px; color: var(--gf-ink); text-decoration: underline; text-decoration-color: var(--gf-line-2); text-underline-offset: 3px; }
+#app > :is(.temper-home, .temper-needs) > section:has(> .temper-decided) > .temper-home-head > button:hover { text-decoration-color: var(--gf-ink); }
 @media (max-width: 760px) {
-  #app > .temper-home .temper-decision { padding: 12px 0; }
-  #app > .temper-home .temper-decision .temper-decision-why { display: none; }
-  #app > .temper-home .temper-decision .temper-decision-late { max-width: 8em; }
+  #app > :is(.temper-home, .temper-needs) .temper-decision { padding: 12px 0; }
+  #app > :is(.temper-home, .temper-needs) .temper-decision .temper-decision-why { display: none; }
+  #app > :is(.temper-home, .temper-needs) .temper-decision .temper-decision-late { max-width: 8em; }
 }
 
 #app > .temper-rail > .temper-rail-foot > .temper-away { display: flex; justify-content: space-between; align-items: center; gap: 8px; width: 100%; margin-bottom: 8px; padding: 8px 10px; border: 1px solid var(--gf-line); border-radius: 8px; background: var(--gf-surface); font: 400 13.5px/1.6 var(--gf-sans); color: var(--gf-muted); text-align: left; }

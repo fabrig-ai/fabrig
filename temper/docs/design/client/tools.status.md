@@ -15,7 +15,13 @@ declares, forgets and declares the same name again, observes the worker's
 login-check dispatch, and checks a live name's exit-2 refusal and advice.
 Its worker is fake; it establishes no real login's usability.
 
-
+Section 5.3 has no known gap in a setting's words: `settings show
+charter-words NUMBER` and `settings show project-words PROJECT`, with
+`--revision` and `--json`, the stock's line marked so and "none kept"
+with none, and `charter-words` and `project-words` as a settings file's
+SETTING and VALUE, applied and read back. The joint world's
+`settings_show_prints_a_projects_ways_and_questions`, the settings
+form's tables and the `help_settings_show` golden hold it.
 
 - **Departs:** 5.5, from `ui-account-again`'s request for each fixable
   account-act refusal to say why and what next: the plan limits the new

@@ -43,6 +43,7 @@ pub(crate) fn hello(hello: Hello, limits: &wire::v9::Limits) -> Option<Frame> {
             message_bytes: bounds.message_bytes,
             inbox: bounds.inbox,
             unacknowledged: bounds.unacknowledged,
+            reply_bytes: bounds.reply_bytes,
         },
     )
     .ok()?;

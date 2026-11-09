@@ -67,6 +67,9 @@ pub enum Shape {
     TemplateGoal,
     ProjectWays,
     ProjectQuestions,
+    ProjectClasses,
+    ClassItem,
+    PathSet,
     CharterWords,
     ProjectWords,
 }
@@ -177,6 +180,12 @@ pub enum Limit {
     LandingOpen,
     LandingGates,
     LandingApprovals,
+    ClassesItems,
+    ClassesSets,
+    ClassWords,
+    SetName,
+    SetPatterns,
+    SetPatternBytes,
 }
 
 pub use jig::{FIELDS, FORMS};
@@ -237,6 +246,12 @@ pub fn most(bound: Bound, limits: &crate::Limits) -> u64 {
             Limit::PatternEndExactValue => limits.settings.pattern_end_exact_value,
             Limit::PatternEndOpenValue => limits.settings.pattern_end_open_value,
             Limit::DelegationKinds => limits.settings.delegation_kinds,
+            Limit::ClassesItems => limits.kinds.project_classes_items.min(kinds::CEILINGS.project_classes_items),
+            Limit::ClassesSets => limits.kinds.project_classes_sets.min(kinds::CEILINGS.project_classes_sets),
+            Limit::ClassWords => limits.kinds.class_item_words.min(kinds::CEILINGS.class_item_words),
+            Limit::SetName => limits.kinds.path_set_name.min(kinds::CEILINGS.path_set_name),
+            Limit::SetPatterns => limits.kinds.path_set_patterns.min(kinds::CEILINGS.path_set_patterns),
+            Limit::SetPatternBytes => limits.kinds.path_set_patterns_item.min(kinds::CEILINGS.path_set_patterns_item),
             Limit::LandingSegments
             | Limit::LandingSegmentBytes
             | Limit::LandingExact
@@ -290,6 +305,7 @@ pub fn shape_of_kind(kind: &[u8]) -> Option<Shape> {
         b"template-goal" => Some(Shape::TemplateGoal),
         b"project-ways" => Some(Shape::ProjectWays),
         b"project-questions" => Some(Shape::ProjectQuestions),
+        b"project-classes" => Some(Shape::ProjectClasses),
         _ => None,
     }
 }

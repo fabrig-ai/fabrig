@@ -137,6 +137,15 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
     let edit = match edit {
         d::Edit::Set(d::SizedValue { value, size }) => {
             let value = match value {
+                d::Value::Classes(classes) => {
+                    let record = temper_protocol_reaches::classes_record(classes).expect(FITS);
+                    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured classes length"));
+                    record.encode(&mut writer).expect("measured classes room");
+                    w::SettingValue::Classes(
+                        w::ProjectClasses::decode(&w::CEILINGS, &mut Reader::new(&writer.finish()))
+                            .expect("matching table records"),
+                    )
+                }
                 d::Value::Rule(rule) => w::SettingValue::Rule(encode_rule(rule)),
                 d::Value::Questions(route) => w::SettingValue::Questions(
                     w::ProjectQuestions::new(
@@ -155,7 +164,9 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
                     w::ProjectWays::new(
                         &w::CEILINGS,
                         w::ProjectWaysParts {
-                            skein_bools: [ways.drafts, ways.goals, ways.changes, ways.away],
+                            drafts: ways.drafts,
+                            goals: ways.goals,
+                            changes: ways.changes,
                             way: ways.way,
                         },
                     )
@@ -212,10 +223,21 @@ pub(super) fn decode(value: w::SettingRow, bounds: &Bounds) -> Result<d::Setting
                     w::Route::Up => temper_engine_domain_forge_change::Route::Up,
                 }),
                 w::SettingValue::Ways(value) => {
-                    let w::ProjectWaysParts { skein_bools: [drafts, goals, changes, away], way } = value.into_parts();
-                    d::Value::Ways(d::ProjectWays { drafts, goals, changes, away, way })
+                    let w::ProjectWaysParts { drafts, goals, changes, way } = value.into_parts();
+                    d::Value::Ways(d::ProjectWays { drafts, goals, changes, way })
                 }
                 w::SettingValue::Charter(number) => d::Value::Charter(number.into_parts().number),
+                w::SettingValue::Classes(record) => {
+                    use temper_client_protocol_wire::v1;
+                    let mut writer = Writer::new(usize::try_from(record.measure()).or(Err(Undecodable))?);
+                    record.encode(&mut writer).or(Err(Undecodable))?;
+                    let record = v1::ProjectClasses::decode(&v1::CEILINGS, &mut Reader::new(&writer.finish()))
+                        .or(Err(Undecodable))?;
+                    let classes = temper_protocol_reaches::classes_from(&record);
+                    classes.check().or(Err(Undecodable))?;
+
+                    d::Value::Classes(classes)
+                }
                 w::SettingValue::Line(value) => {
                     let line = value.into_parts().line;
                     if !d::words_fit(&line, d::LINE_BYTES) {

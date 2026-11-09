@@ -16,7 +16,15 @@ impl Limits {
     )]
     pub fn of(domain: &temper_client_domain::Limits, words: &Words) -> Option<Limits> {
         let receiving = &domain.client.domain;
-        let phrase = words.capacity()?;
+        let phrase = words.ordinary_capacity()?;
+        let classes_phrase = words.classes_capacity()?;
+        // Three class lines per proposal item and card; Settings holds its summary as name and text.
+        let classes_text = receiving
+            .rows
+            .checked_mul(3)?
+            .checked_mul(temper_client_domain::pages::inbox::card_capacity(receiving.reads).checked_add(1)?)?
+            .checked_add(2)?
+            .checked_mul(classes_phrase)?;
         let text =
             phrase.max(receiving.text.checked_mul(2)?).max(domain.forge.field_bytes.checked_mul(3)?.checked_add(128)?);
         // An account heading joins the provider, plan/display and holder's words.
@@ -144,8 +152,8 @@ impl Limits {
             .max(temper_client_domain::forge::forges::ROWS.checked_mul(16)?.checked_add(152)?)
             // The menu feedback uses the ordinary text bound.
             .checked_add(40)?
-            // Away’s Settings heading (3), kinds row (6), checks (11), until row and select (9).
-            .checked_add(29)?
+            // Away's Settings heading, summary, asking row, 27 checks, duration and refusal (5.13).
+            .checked_add(51)?
             // Each of Home's seven live decision rows can offer Overturn (3.5).
             .checked_add(7)?
             // Owned rows add Runs and First password: a slot, term and description each.
@@ -191,7 +199,8 @@ impl Limits {
             .checked_add(receiving.long_text.checked_mul(2)?)?
             // One question read whole.
             .checked_add(receiving.long_text)?
-            .checked_add(text.checked_mul(24)?)?;
+            .checked_add(text.checked_mul(24)?)?
+            .checked_add(classes_text)?;
         let nodes = choices
             .checked_add(structural)?
             .checked_add(request_nodes)?
@@ -201,7 +210,7 @@ impl Limits {
         let tree = skein_ui::Limits {
             nodes,
             depth: receiving.rows.checked_add(34)?,
-            text_per_node: text.max(turn.checked_mul(2)?).max(builder_name).max(
+            text_per_node: text.max(classes_phrase.checked_mul(2)?).max(turn.checked_mul(2)?).max(builder_name).max(
                 temper_client_protocol_wire::v1::CEILINGS
                     .deployment_answer_program_login_some
                     .checked_add(phrase)?
@@ -232,7 +241,8 @@ fn card_nodes(receiving: &jig_client::DomainLimits, markdown: u32) -> Option<u32
     let proposed = markdown
         .checked_mul(2)?
         .checked_add(authority)?
-        .checked_add(receiving.rows.checked_mul(16)?)?
+        // A classes preview has a heading, three classes and six sets, each with its text leaf.
+        .checked_add(receiving.rows.checked_mul(20)?)?
         .checked_add(32)?;
     // Conversation controls share one slot.
     let card = proposed.checked_mul(receiving.rows)?.checked_add(129)?;

@@ -989,14 +989,8 @@ fn forge_reads_wait_for_the_preceding_settings_commit() {
 
 fn ways(way: u32) -> settings::SizedValue {
     settings::SizedValue {
-        size: 8,
-        value: settings::Value::Ways(settings::ProjectWays {
-            drafts: true,
-            goals: false,
-            changes: true,
-            away: false,
-            way,
-        }),
+        size: 7,
+        value: settings::Value::Ways(settings::ProjectWays { drafts: true, goals: false, changes: true, way }),
     }
 }
 
@@ -1068,7 +1062,7 @@ fn a_restore_refuses_a_way_the_project_does_not_offer() {
 fn a_project_reads_its_own_kinds_with_a_role_there() {
     use jig_domain_core::reads::{Answer, Why};
     use jig_domain_people::{ApplicationScope, DEPLOYMENT, Role};
-    for kind in [2, 6, 7, 10] {
+    for kind in [2, 6, 7, 8, 10] {
         for (role, membership, scope, query_scope, good) in [
             (Some(Role::Member), PROJECT, ApplicationScope::Project(PROJECT), PROJECT, true),
             (None, PROJECT, ApplicationScope::Project(PROJECT), PROJECT, false),
@@ -1085,6 +1079,7 @@ fn a_project_reads_its_own_kinds_with_a_role_there() {
                     size: 1,
                 },
                 7 => ways(0),
+                8 => settings::project_stock(8).expect("project classes stock"),
                 10 => settings::SizedValue {
                     value: settings::Value::ProjectWords(settings::ProjectWords {
                         headline: b"Our way".as_slice().into(),

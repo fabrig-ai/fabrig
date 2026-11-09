@@ -16,10 +16,7 @@ use temper_client_domain::{
     },
     pages::{
         Act,
-        home::{
-            AddField, AddRefused, AddSheet, AwayForm, CopyLine, CopyState, DecisionLine, DecisionTask, Facts, Needs,
-            Repository, Status,
-        },
+        home::{AddField, AddRefused, AddSheet, CopyLine, CopyState, Facts, Needs, Repository, Status},
         needs::{self, ANSWERED_ON_HOME},
         parts,
     },
@@ -59,9 +56,9 @@ pub(crate) fn main(
         to_begin(b, root, w, bindings, project, name, &facts);
     }
     if parts.decided
-        && let Some(away) = &facts.away
+        && let Some(shown) = &facts.decided
     {
-        decided(b, w, bindings, project, away, root.pages().overturn_busy(), times);
+        super::decided::main(b, root, w, bindings, Some(project), shown, times);
     }
     if !facts.to_begin() {
         if parts.needs {
@@ -167,29 +164,27 @@ pub(crate) fn intro_words(w: &Words, name: &[u8], facts: &Facts, times: &mut Tim
         }
         None => (None, None),
     };
-    if let Some(away) = &facts.away {
-        times.next = [times.next, Some(away.expires)].into_iter().flatten().min();
-        kicker = match away.span {
-            Some((since, end)) => {
-                let since = times.say(w, TimeForm::Clock, since);
-                let end = match end {
-                    Some(end) => times.say(w, TimeForm::Clock, end),
-                    None => w.say(Word::HomeAwayNow, &[]),
-                };
-                w.say(Word::HomeAwaySpan, &[Hole::Name(since), Hole::Name(end)])
-            }
-            None => w.say(Word::HomeAway, &[]),
+    if let (Some(spell), Some(shown)) = (&facts.spell, &facts.decided) {
+        if let Some(end) = spell.end {
+            let expires = skein_lib::Wall::from_nanos(end.as_nanos().saturating_add(86_400_000_000_000));
+            times.next = [times.next, Some(expires)].into_iter().flatten().min();
+        }
+        let since = times.say(w, TimeForm::Clock, spell.since);
+        let end = match spell.end {
+            Some(end) => times.say(w, TimeForm::Clock, end),
+            None => w.say(Word::HomeAwayNow, &[]),
         };
-        let decided = if away.showing == 1 {
+        kicker = w.say(Word::HomeAwaySpan, &[Hole::Name(since), Hole::Name(end)]);
+        let decided = if shown.showing == 1 {
             w.say(Word::HomeDecidedOne, &[])
         } else {
-            let number = match number_word(away.showing) {
+            let number = match number_word(shown.showing) {
                 Some(word) => w.say(word, &[]),
-                None => skein_lib::Decimal::of(u64::from(away.showing)).as_bytes().into(),
+                None => skein_lib::Decimal::of(u64::from(shown.showing)).as_bytes().into(),
             };
             w.say(Word::HomeDecidedMany, &[Hole::Name(number)])
         };
-        let landed = match away.landed {
+        let landed = match spell.landed {
             None | Some(0) => Box::default(),
             Some(1) => w.say(Word::HomeAwayLandedOne, &[]),
             Some(count) => w.say(Word::HomeAwayLandedMany, &[Hole::Number(count)]),
@@ -315,116 +310,6 @@ pub(crate) fn number_word(count: u32) -> Option<Word> {
 }
 // The first need has a card, followed by at most five other needs and five chats (3.5).
 const ROWS: usize = 5;
-fn decided(
-    b: &mut Builder,
-    w: &Words,
-    bindings: &mut Bindings,
-    project: u32,
-    away: &AwayForm,
-    busy: bool,
-    times: &mut Times,
-) {
-    let heading = w.say(Word::HomeDecidedCount, &[Hole::Number(u64::from(away.showing))]);
-    b.open(Role::Region);
-    b.name(&heading);
-    b.open(Role::Slot);
-    b.style(look::HOME_HEAD);
-    text(b, Role::Heading { level: 2 }, &heading, None);
-    b.open(Role::Button);
-    b.name(&w.say(Word::AwayLimits, &[]));
-    b.bind(bindings.insert(Act::Away(temper_client_domain::pages::away::Act::Limits { project })));
-    b.close();
-    b.close();
-    b.open(Role::Slot);
-    b.style(look::DECIDED);
-    for row in &away.rows {
-        decision(b, w, bindings, project, row, busy, times, None);
-    }
-    b.close();
-    b.close();
-}
-#[expect(clippy::too_many_arguments, reason = "a shared decision row carries its optional project label")]
-pub(crate) fn decision(
-    b: &mut Builder,
-    w: &Words,
-    bindings: &mut Bindings,
-    project: u32,
-    row: &DecisionLine,
-    busy: bool,
-    times: &mut Times,
-    name: Option<&[u8]>,
-) {
-    b.open(Role::Slot);
-    b.style(look::DECISION);
-    if row.overturned {
-        b.style(look::DECISION_OVERTURNED);
-    }
-    let fallback = w.say(Word::Task, &[Hole::Number(row.task)]);
-    let title = row.title.as_deref().unwrap_or(&fallback);
-    let at = times.say(w, TimeForm::Clock, row.at);
-    let title = crate::accounts::words::join(&[title, &w.say(Word::ToolSeparator, &[]), &at]);
-    let title = match name {
-        Some(name) => crate::accounts::words::join(&[name, &w.say(Word::ToolSeparator, &[]), &title]),
-        None => title,
-    };
-    if w.shell == Shell::Browser && name.is_some() {
-        text(b, Role::Text, &title, None);
-    }
-    b.open(if w.shell == Shell::Terminal { Role::Paragraph } else { Role::Slot });
-    if w.shell == Shell::Terminal || name.is_none() {
-        text(b, Role::Text, &title, None);
-    }
-    if w.shell == Shell::Terminal {
-        b.text(Run::Plain, b" ");
-    }
-    text(b, Role::Text, &row.question, None);
-    if w.shell == Shell::Terminal {
-        b.text(Run::Plain, b" ");
-    }
-    text(b, Role::Text, &row.took, Some(look::DECISION_TOOK));
-    if w.shell == Shell::Terminal {
-        b.text(Run::Plain, b" ");
-    }
-    text(b, Role::Text, &row.why, Some(look::DECISION_WHY));
-    let late = match row.state {
-        DecisionTask::Done(at) => {
-            Some(w.say(Word::HomeDecisionLanded, &[Hole::Name(times.say(w, TimeForm::Clock, at))]))
-        }
-        DecisionTask::Ended(at) => {
-            Some(w.say(Word::HomeDecisionEnded, &[Hole::Name(times.say(w, TimeForm::Clock, at))]))
-        }
-        DecisionTask::Live | DecisionTask::Unknown => {
-            if row.overturned {
-                Some(w.say(Word::HomeDecisionOverturned, &[]))
-            } else {
-                None
-            }
-        }
-    };
-    if w.shell == Shell::Browser {
-        b.close();
-    }
-    if let Some(late) = late {
-        if w.shell == Shell::Terminal {
-            b.text(Run::Plain, b" ");
-        }
-        text(b, Role::Text, &late, Some(look::DECISION_LATE));
-    }
-    if row.state == DecisionTask::Live && !row.overturned {
-        button(
-            b,
-            bindings,
-            &w.say(Word::Overturn, &[]),
-            Act::Away(temper_client_domain::pages::away::Act::Overturn { project, number: row.number }),
-            look::HOME_SMALL,
-            busy,
-        );
-    }
-    if w.shell == Shell::Terminal {
-        b.close();
-    }
-    b.close();
-}
 fn inbox_address(project: u32) -> Address {
     Address::Inbox { filter: temper_client_domain::address::Filter { project: Some(project), kind: None, goal: None } }
 }

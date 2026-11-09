@@ -8,6 +8,7 @@ use temper_engine_domain_forge::settings::{
     Held, LandingRule, ProjectWays, RuleApproval, RuleGate, TemplateGoal, Value,
 };
 use temper_engine_domain_forge::{GateLast, GatePattern, JudgeFreshness};
+use temper_protocol_reaches::{Classes, Way};
 
 const PROJECT: u32 = 9;
 const OTHER: u32 = 10;
@@ -45,6 +46,7 @@ fn stock_ways() -> [StockWay; 3] {
             line: b"An agent makes each change; nothing reaches main until you approve it.".as_slice().into(),
             rules: Box::new([(1, approve)]),
             ways: None,
+            classes: Some(Classes::stock(Way::YouApprove)),
             delegation: false,
         },
         StockWay {
@@ -53,6 +55,7 @@ fn stock_ways() -> [StockWay; 3] {
             line: b"An agent makes each change, another reviews it, and code lands it.".as_slice().into(),
             rules: Box::new([(1, review)]),
             ways: None,
+            classes: Some(Classes::stock(Way::AgentsReview)),
             delegation: false,
         },
         StockWay {
@@ -66,18 +69,21 @@ fn stock_ways() -> [StockWay; 3] {
                 (2, rule(GateLast::Open(b"temper".as_slice().into()), false, false)),
             ]),
             ways: Some(Laid { drafts: true, goals: true, way: 4 }),
+            classes: Some(Classes::stock(Way::DraftFirst)),
             delegation: true,
         },
     ]
 }
 
 fn project_ways() -> ProjectWays {
-    ProjectWays { drafts: false, goals: false, changes: true, away: true, way: 8 }
+    ProjectWays { drafts: false, goals: false, changes: true, way: 8 }
 }
 
 #[test]
 fn items_set_the_ways_rules_and_preserve_other_visibility() {
     let [approve, review, draft] = stock_ways();
+    let mut no_classes = approve.clone();
+    no_classes.classes = None;
     let own = project_ways();
     let approval = approval_rule();
     let reviewed = review_rule();
@@ -90,6 +96,7 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
                 (2, 2, Edit::Remove),
                 (2, 3, Edit::Remove),
                 (2, 4, Edit::Remove),
+                (8, 1, Edit::Set(Value::Classes(Classes::stock(Way::YouApprove)))),
             ]),
         ),
         (
@@ -100,6 +107,7 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
                 (2, 2, Edit::Remove),
                 (2, 3, Edit::Remove),
                 (2, 4, Edit::Remove),
+                (8, 1, Edit::Set(Value::Classes(Classes::stock(Way::YouApprove)))),
             ]),
         ),
         (
@@ -110,6 +118,7 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
                 (2, 2, Edit::Remove),
                 (2, 3, Edit::Remove),
                 (2, 4, Edit::Remove),
+                (8, 1, Edit::Set(Value::Classes(Classes::stock(Way::AgentsReview)))),
             ]),
         ),
         (
@@ -120,6 +129,7 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
                 (2, 2, Edit::Remove),
                 (2, 3, Edit::Remove),
                 (2, 4, Edit::Remove),
+                (8, 1, Edit::Set(Value::Classes(Classes::stock(Way::AgentsReview)))),
             ]),
         ),
         (
@@ -130,17 +140,8 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
                 (2, 2, Edit::Set(Value::Rule(rule(GateLast::Open(b"temper".as_slice().into()), false, false)))),
                 (2, 3, Edit::Remove),
                 (2, 4, Edit::Remove),
-                (
-                    7,
-                    1,
-                    Edit::Set(Value::Ways(ProjectWays {
-                        drafts: true,
-                        goals: true,
-                        changes: false,
-                        away: false,
-                        way: 4,
-                    })),
-                ),
+                (7, 1, Edit::Set(Value::Ways(ProjectWays { drafts: true, goals: true, changes: false, way: 4 }))),
+                (8, 1, Edit::Set(Value::Classes(Classes::stock(Way::DraftFirst)))),
             ]),
         ),
         (
@@ -151,17 +152,18 @@ fn items_set_the_ways_rules_and_preserve_other_visibility() {
                 (2, 2, Edit::Set(Value::Rule(rule(GateLast::Open(b"temper".as_slice().into()), false, false)))),
                 (2, 3, Edit::Remove),
                 (2, 4, Edit::Remove),
-                (
-                    7,
-                    1,
-                    Edit::Set(Value::Ways(ProjectWays {
-                        drafts: true,
-                        goals: true,
-                        changes: true,
-                        away: true,
-                        way: 4,
-                    })),
-                ),
+                (7, 1, Edit::Set(Value::Ways(ProjectWays { drafts: true, goals: true, changes: true, way: 4 }))),
+                (8, 1, Edit::Set(Value::Classes(Classes::stock(Way::DraftFirst)))),
+            ]),
+        ),
+        (
+            &no_classes,
+            None,
+            Box::from([
+                (2, 1, Edit::Set(Value::Rule(approval_rule()))),
+                (2, 2, Edit::Remove),
+                (2, 3, Edit::Remove),
+                (2, 4, Edit::Remove),
             ]),
         ),
     ] {
@@ -228,7 +230,7 @@ fn laid_keeps_deployment_order_and_overlays_project_numbers() {
 #[test]
 fn laid_ways_sets_removes_and_ignores_other_settings() {
     let own = project_ways();
-    let stock = ProjectWays { drafts: true, goals: false, changes: false, away: false, way: 0 };
+    let stock = ProjectWays { drafts: true, goals: false, changes: false, way: 0 };
     for (ways, edits, expected) in [
         (None, Box::from([]), stock),
         (Some(&own), Box::from([]), own),

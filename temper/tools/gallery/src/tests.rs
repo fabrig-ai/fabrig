@@ -1021,6 +1021,24 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "home-decided",
+        heading: "57 changes landed. One thing needs you.",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Decided for you · 2" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Needs you · 1" },
+            Part::Named { role: Role::Text, name: "Allowed: wording choices are decided and listed." },
+        ],
+    },
+    Holds {
+        name: "needs-decided",
+        heading: "The repository has no license. Name one in the README?",
+        parts: &[
+            Part::Named { role: Role::Region, name: "Decided for you" },
+            Part::Named { role: Role::Text, name: "fabrig · welcome-stall · 01:05" },
+            Part::Named { role: Role::Text, name: "Widget · forge-cards · 06:15" },
+        ],
+    },
+    Holds {
         name: "home-away",
         heading: "57 changes landed. Four things were decided for you.",
         parts: &[
@@ -1079,7 +1097,10 @@ static HOLDS: [Holds; samples::N] = [
             Part::Value { role: Role::TextField, name: "Name", value: "away-mode" },
             Part::Named { role: Role::ChoiceGroup, name: "How it runs" },
             Part::Named { role: Role::ChoiceGroup, name: "When it needs you" },
-            Part::Named { role: Role::Choice, name: "Follow the away switch" },
+            Part::Named { role: Role::Choice, name: "As the project says" },
+            Part::Text {
+                text: "Decides what the project’s settings let agents decide, Away included, and tells you; asks you the rest.",
+            },
             Part::Named { role: Role::Choice, name: "Always ask" },
             Part::Named { role: Role::Button, name: "Start goal" },
         ],
@@ -1126,7 +1147,7 @@ static HOLDS: [Holds; samples::N] = [
         name: "goal-running",
         heading: "Six of nine tasks landed. The store task is split in two after two size failures, and needs about 8 more to finish.",
         parts: &[
-            Part::Text { text: "Plan, tasks, land whole · follows the away switch" },
+            Part::Text { text: "Plan, tasks, land whole · asks as the project says" },
             Part::Text { text: "31 of 40 spent" },
             Part::Text { text: "since Mon 19:10" },
             Part::Text { text: "waits on 2 tasks" },
@@ -1581,6 +1602,42 @@ static HOLDS: [Holds; samples::N] = [
         ],
     },
     Holds {
+        name: "needs-stop-asking",
+        heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+        parts: &[
+            Part::Expanded { name: "Stop asking" },
+            Part::Reader { role: jig_client::contract::HeldRole::Owner },
+            Part::Text { text: "Let agents decide implementation choices, then tell you." },
+            Part::Named { role: Role::Button, name: "Apply" },
+            Part::Named { role: Role::Button, name: "Keep asking" },
+            Part::Absent { role: Role::Button, name: "Propose" },
+        ],
+    },
+    Holds {
+        name: "needs-stop-asking-set",
+        heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+        parts: &[
+            Part::Expanded { name: "Stop asking" },
+            Part::Reader { role: jig_client::contract::HeldRole::Member },
+            Part::Text { text: "Let agents decide changes to protocol core that are:" },
+            Part::Named { role: Role::TextField, name: "Which changes" },
+            Part::Text { text: "Let agents decide changes to src/wire/**, apart from the rest of protocol core." },
+            Part::Named { role: Role::Button, name: "Propose" },
+            Part::Named { role: Role::Button, name: "Keep asking" },
+            Part::Absent { role: Role::Button, name: "Apply" },
+        ],
+    },
+    Holds {
+        name: "needs-why",
+        heading: "Fix the dropped watch in jig’s store, or keep it alive in temper serve?",
+        parts: &[
+            Part::Text {
+                text: "Reached you because it is an implementation choice, which asks you unless you’re away.",
+            },
+            Part::Named { role: Role::Button, name: "Stop asking" },
+        ],
+    },
+    Holds {
         name: "needs-held",
         heading: "Three things need you.",
         parts: &[
@@ -1773,7 +1830,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "home-step-team",
-        heading: "One thing was decided for you.",
+        heading: "9 changes landed since Friday. One thing needs you.",
         parts: &[
             Part::HomeCards { primary: &["Keep them case-insensitive"], projects: &[] },
             Part::Named { role: Role::Heading { level: 2 }, name: "Decided for you · 1" },
@@ -1785,7 +1842,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "home-step-stock",
-        heading: "One thing was decided for you.",
+        heading: "12 changes landed. Nothing needs you.",
         parts: &[
             Part::Named { role: Role::Paragraph, name: "Its membership-handoff goal is six of nine tasks in." },
             Part::Named { role: Role::Paragraph, name: "Written by the status agent at 07:52" },
@@ -1796,7 +1853,7 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "home-step-scale",
-        heading: "One thing was decided for you.",
+        heading: "12 changes landed. Two things need you.",
         parts: &[
             Part::HomeCards { primary: &["Only once caught up", "Release"], projects: &[] },
             Part::Text { text: "49 of 60 used." },
@@ -3379,8 +3436,22 @@ static HOLDS: [Holds; samples::N] = [
         heading: "How work runs in tally.",
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "While you’re away, agents may decide" },
-            Part::Named { role: Role::Check, name: "Implementation choices within a task" },
+            Part::Named { role: Role::Check, name: "Implementation choices" },
+            Part::Named { role: Role::Check, name: "New dependencies" },
+            Part::Named { role: Role::Check, name: "Departures from a landed design" },
             Part::Named { role: Role::Select, name: "Away until" },
+        ],
+    },
+    Holds {
+        name: "settings-away-you-approve",
+        heading: "How work runs in tally.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "While you’re away, agents may decide" },
+            Part::Named { role: Role::Check, name: "Wording choices" },
+            Part::Named { role: Role::Check, name: "Implementation choices" },
+            Part::Absent { role: Role::Select, name: "Away until" },
+            Part::Absent { role: Role::Button, name: "Away" },
+            Part::Absent { role: Role::Button, name: "Away: off" },
         ],
     },
     Holds {
@@ -3388,7 +3459,7 @@ static HOLDS: [Holds; samples::N] = [
         heading: "How work runs in tally.",
         parts: &[
             Part::Named { role: Role::Heading { level: 2 }, name: "Ways of working" },
-            Part::Named { role: Role::Check, name: "Away switch" },
+            Part::Absent { role: Role::Check, name: "Away switch" },
             Part::Links { style: temper_client_view::look::SETTINGS_TABS, names: &["How work runs", "Repositories"] },
             Part::Absent { role: Role::Link, name: "Start" },
             Part::Named { role: Role::Navigation, name: "How work runs" },
@@ -3408,11 +3479,6 @@ static HOLDS: [Holds; samples::N] = [
         name: "settings-changes-off",
         heading: "How work runs in tally.",
         parts: &[Part::Named { role: Role::Check, name: "Changes" }],
-    },
-    Holds {
-        name: "settings-away-off",
-        heading: "How work runs in tally.",
-        parts: &[Part::Named { role: Role::Check, name: "Away switch" }],
     },
     Holds {
         name: "settings-all-hidden",
@@ -4987,14 +5053,16 @@ fn each_settings_switch_off_keeps_its_value_and_changes_its_navigation() {
         ("settings-drafts-off", "Chats can write drafts", true),
         ("settings-goals-off", "Goals", true),
         ("settings-changes-off", "Changes", false),
-        ("settings-away-off", "Away switch", true),
     ] {
         let sample = samples::samples().into_iter().find(|sample| sample.name == name).expect("switch-off sample");
         let view = view(&sample);
         let tree = view.tree();
-        for label in ["Chats can write drafts", "Goals", "Changes", "Away switch"] {
-            let id = find(tree, Role::Check, label, name);
-            let check = tree.nodes().iter().find(|node| node.id == id).expect("switch node");
+        for label in ["Chats can write drafts", "Goals", "Changes"] {
+            let check = tree
+                .nodes()
+                .iter()
+                .find(|node| node.role == Role::Check && node.name.as_deref() == Some(label.as_bytes()))
+                .expect("exact project switch name");
             assert_eq!(check.states.as_slice().contains(&skein_ui::State::Pressed), label != off, "{name}: {label}");
         }
         let root = samples::domain(&sample);
@@ -5172,10 +5240,35 @@ fn the_chat_log_follows_its_end_until_the_person_scrolls_away() {
 #[test]
 fn home_away_deliveries_draw_the_mock_words_and_off_span() {
     use temper_client_view::look;
-    for (name, count, headline) in [
-        ("home-away", 4, "57 changes landed. Four things were decided for you."),
-        ("home-away-one", 1, "57 changes landed. One thing was decided for you."),
-        ("home-away-overturned", 4, "57 changes landed. Four things were decided for you."),
+    for (name, count, headline, expected_kicker, overturns, landed, overturned) in [
+        ("home-decided", 2, "57 changes landed. One thing needs you.", "Tuesday, 08:04", 2, false, false),
+        (
+            "home-away",
+            4,
+            "57 changes landed. Four things were decided for you.",
+            "While you were away · Mon 23:10 to now",
+            4,
+            false,
+            false,
+        ),
+        (
+            "home-away-one",
+            1,
+            "57 changes landed. One thing was decided for you.",
+            "While you were away · Mon 23:10 to 08:03",
+            0,
+            true,
+            false,
+        ),
+        (
+            "home-away-overturned",
+            4,
+            "57 changes landed. Four things were decided for you.",
+            "While you were away · Mon 23:10 to now",
+            2,
+            true,
+            true,
+        ),
     ] {
         let sample = samples::samples().into_iter().find(|s| s.name == name).expect("Home away sample");
         let view = view(&sample);
@@ -5190,20 +5283,15 @@ fn home_away_deliveries_draw_the_mock_words_and_off_span() {
             tree.nodes().iter().any(|n| n.name.as_deref() == Some("welcome-stall · 01:05".as_bytes())),
             "the decision task read supplies its title"
         );
-        if count == 1 {
+        if landed {
             assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_LATE)
                 && n.name.as_deref() == Some("landed 03:12 · a new goal can undo it".as_bytes())));
         }
         let kicker =
             tree.nodes().iter().find(|n| n.styles.as_slice().contains(&look::HOME_KICKER)).expect("away kicker");
-        assert_eq!(
-            kicker.name.as_deref(),
-            Some(if count == 4 {
-                "While you were away · Mon 23:10 to now".as_bytes()
-            } else {
-                "While you were away · Mon 23:10 to 08:03".as_bytes()
-            })
-        );
+        assert_eq!(kicker.name.as_deref(), Some(expected_kicker.as_bytes()));
+        assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_ALLOWED)
+            && n.name.as_deref() == Some("Allowed: implementation choices are decided while you’re away.".as_bytes())));
         assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_TOOK)
             && n.name.as_deref() == Some(b"In temper serve".as_slice())));
         assert_eq!(
@@ -5211,13 +5299,9 @@ fn home_away_deliveries_draw_the_mock_words_and_off_span() {
                 .iter()
                 .filter(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Overturn".as_slice()))
                 .count(),
-            match name {
-                "home-away" => 4,
-                "home-away-overturned" => 2,
-                _ => 0,
-            }
+            overturns
         );
-        if name == "home-away-overturned" {
+        if overturned {
             assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_LATE)
                 && n.name.as_deref() == Some(b"Overturned: it asks you again".as_slice())));
             assert!(tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::DECISION_OVERTURNED)));
@@ -5229,19 +5313,59 @@ fn home_away_deliveries_draw_the_mock_words_and_off_span() {
 
 #[test]
 fn settings_away_draws_the_default_choices() {
-    let sample = samples::samples().into_iter().find(|sample| sample.name == "settings-away").expect("Away settings");
-    assert_eq!(samples::mockup(&sample).as_deref(), Some("../greenfield/settings.html#away"));
-    let view = view(&sample);
-    for (role, name, state, expected) in [
-        (Role::Check, "Implementation choices within a task", skein_ui::State::Pressed, true),
-        (Role::Check, "Retries and splitting a failing task", skein_ui::State::Pressed, true),
-        (Role::Check, "A design document’s wording", skein_ui::State::Pressed, true),
-        (Role::Check, "Adding a dependency", skein_ui::State::Pressed, false),
-        (Role::Option, "08:00, the end of quiet hours", skein_ui::State::Selected, true),
+    for (name, checks, ticked, until) in [
+        (
+            "settings-away",
+            &["Implementation choices", "New dependencies", "Departures from a landed design"][..],
+            true,
+            true,
+        ),
+        (
+            "settings-away-you-approve",
+            &[
+                "Wording choices",
+                "Retries and splits",
+                "Implementation choices",
+                "Test-only changes",
+                "New dependencies",
+                "Departures from a landed design",
+            ][..],
+            false,
+            false,
+        ),
     ] {
-        let id = find(view.tree(), role, name, sample.name);
-        let node = view.tree().nodes().iter().find(|node| node.id == id).expect("Away control");
-        assert_eq!(node.states.as_slice().contains(&state), expected, "{name}");
+        let sample = samples::samples().into_iter().find(|sample| sample.name == name).expect("Away settings");
+        assert_eq!(samples::mockup(&sample).as_deref(), Some("../greenfield/settings.html#away"));
+        let view = view(&sample);
+        let tree = view.tree();
+        for label in checks {
+            let id = find(tree, Role::Check, label, name);
+            let node = tree.nodes().iter().find(|node| node.id == id).expect("asking check");
+            assert_eq!(node.states.as_slice().contains(&skein_ui::State::Pressed), ticked, "{name}: {label}");
+            assert!(!node.states.as_slice().contains(&skein_ui::State::Disabled), "{name}: {label}");
+        }
+        let id = find(
+            tree,
+            Role::Check,
+            "Money past a budget, what can’t be undone, and changes to these rules: always wait",
+            name,
+        );
+        let locked = tree.nodes().iter().find(|node| node.id == id).expect("always wait");
+        assert!(locked.states.as_slice().contains(&skein_ui::State::Disabled));
+        assert!(!locked.states.as_slice().contains(&skein_ui::State::Pressed));
+        assert_eq!(
+            tree.nodes().iter().any(|node| node.role == Role::Select && node.name.as_deref() == Some(b"Away until")),
+            until
+        );
+        assert_eq!(
+            has_text(tree, "Agents decide, then tell you: wording choices, retries and splits, test-only changes."),
+            ticked
+        );
+        if until {
+            let id = find(tree, Role::Option, "08:00, the end of quiet hours", name);
+            let node = tree.nodes().iter().find(|node| node.id == id).expect("Away until");
+            assert!(node.states.as_slice().contains(&skein_ui::State::Selected));
+        }
     }
 }
 

@@ -1,0 +1,90 @@
+draft = "ui-reaches"
+repo = "fabrig"
+sources = ["temper/docs/plan/ui-reaches/inputs/request.md", "temper/docs/design/draft/what-reaches-you.md", "temper/docs/design/draft/whole-story.execution.md", "temper/docs/design/client/greenfield/README.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/ui"
+priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "kit"
+title = "What reaches a person as one pure judgement: kinds, classes, a project's table, path sets, Stop asking's offers"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 5.10"
+
+[[part]]
+id = "wire"
+title = "The records of a project's classes and of a reach, on the client wire and in the store"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/configuration.md, 13.2"
+
+[[slice]]
+id = 1
+story = "The judgement, fuzzed over kinds, classes, Away, its marks and paths: an always-waits kind never decided, the strictest class wins, Away decides only what it may, You approve decides nothing"
+parts = ["kit"]
+walk = false
+
+[[slice]]
+id = 2
+story = "A project's classes and a reach encode and decode at every bound, on the wire and in the store"
+parts = ["wire"]
+walk = false
+
+[[part]]
+id = "classes"
+title = "Kind 8, a project's classes: its value and stock, declared, read and proposed, in ctl and settings files, laid by the stock ways"
+mode = "direct"
+needs = ["kit", "wire"]
+design = "temper/docs/design/protocol/configuration.md, 13.2"
+
+[[part]]
+id = "decide"
+title = "Away without kinds; decided judged by the classes for any task's person, asked rows, kept 7 days under a limit; the tool's kinds, paths, under and words"
+mode = "direct"
+needs = ["classes"]
+design = "temper/docs/design/domain/forge.md, 5.9"
+
+[[part]]
+id = "keep"
+title = "Keep asking, a person's fact that stops Stop asking for a week"
+mode = "direct"
+needs = ["decide"]
+design = "temper/docs/design/domain/forge.md, 5.5"
+
+[[slice]]
+id = 3
+story = "An owner sets a project's classes by ChangeSettings, a proposal or a settings file, a member reads them back, and each stock way sets its own"
+parts = ["classes"]
+walk = false
+
+[[slice]]
+id = 4
+story = "A goal, a chat and a person's task each ask or decide as the project's classes and the person's Away say, every call listed as decided or asked for the right person, an always-waits kind never decided, and an owner's change of the classes deciding the next question"
+parts = ["decide"]
+walk = false
+
+[[slice]]
+id = 5
+story = "Keep asking pressed twice on one item keeps one fact, read back on every device"
+parts = ["keep"]
+walk = false
+
+[[part]]
+id = "client"
+title = "Both clients' pages: Decided for you on Needs you and Home, Away by the classes, each need's reason, Stop asking and Keep asking, kind 7's away member gone"
+mode = "direct"
+needs = ["decide", "classes", "keep"]
+design = "temper/docs/design/client/README.md, 3.5"
+
+[[slice]]
+id = 6
+story = "On Agents review's table an implementation question asks and its card says why; with Away on the next is decided and listed under Decided for you on Needs you; money waits Away or not; Stop asking applied by an owner decides the next question of that item"
+parts = ["client"]
+walk = false

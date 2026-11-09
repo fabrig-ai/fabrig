@@ -140,6 +140,9 @@ pub(crate) fn address(line: &[u8], project: u32) -> Address {
         [b"settings", b"project-questions"] => {
             Address::Setting(Setting::Application { kind: 6, scope: project, number: 1 })
         }
+        [b"settings", b"project-classes"] => {
+            Address::Setting(Setting::Application { kind: 8, scope: project, number: 1 })
+        }
         [b"settings", b"charter", number] => setting_number(b"charter", number),
         [b"settings", b"template", number] => setting_number(b"template", number),
         [b"settings", b"policy", number] => setting_number(b"policy", number),

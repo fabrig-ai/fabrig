@@ -237,10 +237,11 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
   direct delegates remain readable. `field=result` reads kept terminal reports,
   including descendants reached through a proven same-project requester chain
   of live or retained intermediate tasks (jig's `domain/engine.md`, 7.3).
-  In a process with a local agent's metadata, one answer holds as much of the
-  words as the run's reply takes, whatever a client's `documents.text_bytes`, so a
-  spec within that room comes back in one call; in one with none, a piece of
-  `documents.text_bytes` (`root.md`, 5.2; section 10).
+  One answer holds as much of the words as the run's reply takes, whatever a
+  client's `documents.text_bytes`, so a spec within that room comes back in one
+  call: the reply bound its worker names in its hello, else the local agent's.
+  Where neither names one, it holds a piece of `documents.text_bytes`
+  (`root.md`, 5.2).
   A cut answer prints `next: OFFSET`; pass that byte offset as `from` with the
   same field, and restart specification reads at zero if the spec revision changes.
   Task reads decide nothing and keep no named-call record. Escalations name
@@ -440,21 +441,33 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
 - **Reads and writes:** the forge's reads, `recall`, `settings` and `read_docs` are reads; every
   other host tool is a write, which smith runs alone (smith's
   `domain/run.md`, 5.2).
-- **`decided`,** of the control family, offered as every host tool is, a
-  goal's alone by what it answers: `{ question, options, took, why, kind
-  }`, `options` 2 to 6 words of the agent's, `took` an index into them,
-  `kind` one of `implementation`, `retry`, `wording`, `dependency` and
-  `other`; `question` at most 400 bytes, each option 120, `why` 400, a
-  call past those refused at decoding, saying so. The forge judges it
-  (`forge.md`, 5.9): "Decided: carry on with TOOK." with a `Decided` row
-  saved, or "Ask: your person is here or this kind waits for them. Ask
-  with message, as a question; if your brief says [Requested by person N],
-  with delegate, a person task addressed to person N." Named and decided
+- **`decided`,** of the control family, offered as every host tool is, to
+  every task whose question would reach a person (`forge.md`, 5.9): `{
+  question, options, took, why, kind, paths, under }`, `options` 2 to 6
+  words of the agent's, `took` an index into them, `kind` one of the ten
+  of `forge.md`, 5.10, `wording`, `retry`, `implementation`, `tests`,
+  `dependency`, `departure`, `money`, `irreversible`, `rules` and `other`;
+  `paths`, optional, at most 16 repository-relative paths of at most 256
+  bytes that the choice would change; `under`, optional, the number of an
+  item with words of the project's classes the choice falls under;
+  `question` at most 400 bytes, each option 120, `why` 400, a call past
+  those refused at decoding, saying so. The forge judges it (`forge.md`,
+  5.9 and 5.10): "Decided: carry on with TOOK." with a `Decided` row
+  saved, or "Ask: REASON. Ask with message, as a question; if your brief
+  says [Requested by person N], with delegate, a person task addressed to
+  person N.", REASON from its reach: "money always waits for your
+  person", "implementation asks your person, even when away",
+  "implementation asks your person while they are here", "changes to
+  path set N ask your person, even when away", whose name `settings
+  project-classes` reads (8.4.1), "your words say Asks: always", "your person's decided list is full for today" where the
+  class decided and no row had room, and, for a caller with no person,
+  "no person is asked through you: ask your requester". Named and decided
   once, as `change`. Funds, sign-ins, machines, a plan's go-ahead and
-  anything hard to reverse are
-  kind `other`, by the charter's words (`../protocol/configuration.md`,
-  13.4). A goal that overturned words reach (`../client/README.md`, 3.5)
-  asks it by its requester's route (8.2), and waits. Nothing in the engine
+  anything hard to reverse are `money` or `irreversible` and always wait,
+  by the charter's words (`../protocol/configuration.md`, 13.4); a change
+  to the classes, a landing rule or a standing role's rules is `rules`.
+  A task that overturned words reach (`../client/README.md`, 3.5) asks it
+  by its requester's route (8.2), and waits. Nothing in the engine
   answers a question for it, and one that skips the tool waits as ever.
 - **Declared, decoded and rendered in one place,** `temper-engine-smith`:
   each tool's JSON Schema, description and effect, written once
@@ -471,11 +484,15 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
   `domain/run.md`, 5.2).
 - **An answer fits what the agent takes** (`domain/worker.md`, 4.3):
   rendering a forge read or a task read uses the minimum of `core.call_answer_bytes` less
-  the tool name and the checked receiving `agent.limits.bodies.host_reply_text`.
-  The latter comes from the local agent's `agent.json`
-  `profile.declared.tool_payload`. Raising `core.call_answer_bytes` alone
-  cannot overcome a smaller agent allowance. Engine-only processes without
-  local agent metadata retain their configured core allowance.
+  the tool name and the receiving agent's reply bound, the root's
+  `Domain::reply_bound` for the call's key (`root.md`, 5.2): the
+  `agent.limits.bodies.host_reply_text` the run's worker names in its
+  hello, from its agent's `agent.json` `profile.declared.tool_payload`
+  (`worker.md`, section 6); where it names none, the local agent's.
+  Raising `core.call_answer_bytes` alone cannot overcome a smaller agent
+  allowance. Where neither names one, the configured core allowance stands.
+  A `see` answer is rendered within the local agent's bound alone
+  (section 10).
   A call past the worker's input bound, `core.call_answer_bytes`, is
   answered `call too large` under its name, and the run goes on (jig's
   worker link). An answer past the agent's `host_reply_bytes` (smith's,
@@ -1134,7 +1151,7 @@ otherwise teach.
   (`../client/tools.md`, 5.3): `charter`, `template`, `policy`, `model`,
   `rules`, `landing-rule` (with its `project`, the deployment's when left
   out), `forge-charter`, `charter-words` (with the charter's number),
-  `project-policy`, `project-ways`, `project-questions` and
+  `project-policy`, `project-ways`, `project-questions`, `project-classes` and
   `project-words` (each with its `project`), each named and valued as
   the file names and values it, so that a description's landing rules,
   the forge's charters and a project's own policy are proposed as its
@@ -1532,15 +1549,15 @@ are its second milestone's (section 10).
 
 | Address | Answers | Over | `see:` |
 |---|---|---|---|
-| `settings` | the inventory, as the `settings` read gives it (4.3): the newest revision; each setting by kind and number with the revision that last changed it; the revisions held; the proposals of settings waiting; then the project's repositories, its people with their roles and forge identities, the owned forges' accounts and the offer (8.1) | the `settings` family's inventory, with the root's context of 8.1 | `settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings charter-words N · settings project-words · revisions · help settings` |
+| `settings` | the inventory, as the `settings` read gives it (4.3): the newest revision; each setting by kind and number with the revision that last changed it; the revisions held; the proposals of settings waiting; then the project's repositories, its people with their roles and forge identities, the owned forges' accounts and the offer (8.1) | the `settings` family's inventory, with the root's context of 8.1 | `settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · settings project-classes · revisions · help settings` |
 | `settings charter N`, `template N`, `policy N`, `model N`, `forge-charter N`, `settings rules` | that setting whole, at the newest revision, as `settings` gives it | the family's setting read | `settings · revisions · help settings-fields` |
 | `settings template-goal N` | template N's work: whether its coordinator designs first and makes a close-out, or, with none stored, that it plans and makes none, marked so (8.1) | the family's setting read, kind 11 | `settings template N · ways · help settings-fields` |
 | `settings landing-rule N [project]` | a landing rule whole: the deployment's, or with `project` the chat's project's | the family's setting read, kinds 1 and 2 | `settings landing · settings · help landing-rule` |
-| `settings project-ways`, `settings project-questions` | the chat's project's ways or questions, at their stock where none is stored, marked so (8.1) | the family's setting read, kinds 7 and 6 | `settings · revisions · help settings-fields` |
+| `settings project-ways`, `settings project-questions`, `settings project-classes` | the chat's project's ways, questions or classes, at their stock where none is stored, marked so (8.1) | the family's setting read, kinds 7, 6 and 8 | `settings · revisions · help settings-fields` |
 | `settings charter-words N`, `settings project-words` | a charter's words, at the stock's where none is stored, marked so, or that it has none; the chat's project's words, or that it has none (8.1) | the family's setting read, kinds 9 and 10 | `settings · revisions · help settings-fields` |
 | `settings landing` | the project's landing: by queue or by turn, its merge job or none, its after-landing retries and a verification's bound, and each of its repositories with how many gates and tiers it has; then that it is no setting yet, set in temper's configuration by whoever runs temper here, so that no proposal changes it | the forge's landing state, from the configuration's `landing` member (`../protocol/configuration.md`, section 3), which kinds 4 and 5 are to hold (13.2) | `settings gates OWNER/NAME · settings landing-rule N [project] · help landing` |
 | `settings gates OWNER/NAME` | a repository's test gates, each with its workflow, its ignored paths and whether it blocks, and its tiers, each with its workflow, artifact and the branch it follows, and its description where it has one (`../protocol/configuration.md`, section 3); then the same line on its being no setting yet | the same state | `settings landing · file OWNER/NAME PATH` |
-| `ways` | the stock ways over the chat's project, from the forge's `ways` document for the chat's person (`../protocol/configuration.md`, 13.10): a block a way, its name, then `now` where the project runs it, its line, and its path as one line of stops, each its words and, in brackets, its actor, then `, when needed` for a stop made only when needed and `; ` and its small words where it has them (`repair (an agent, when needed; tests, review)`), joined by ` → `; then, where the project runs none, `Yours`, its own path; then whether the person may change the settings, in a line | the root's `ways` document (`forge.md`, 8.13), made as the client's is | `settings rules · settings landing · settings project-ways · help settings` |
+| `ways` | the stock ways over the chat's project, from the forge's `ways` document for the chat's person (`../protocol/configuration.md`, 13.10): a block a way, its name, then `now` where the project runs it, its headline, its line, and its path as one line of stops, each its words and, in brackets, its actor, then `, when needed` for a stop made only when needed and `; ` and its small words where it has them (`repair (an agent, when needed; tests, review)`), joined by ` → `; then, where the project runs none, `Yours`, its own path; then whether the person may change the settings, in a line | the root's `ways` document (`forge.md`, 8.13), made as the client's is | `settings rules · settings landing · settings project-ways · settings project-words · settings charter-words N · help settings` |
 | `revisions` | the history's newest page, as `settings`' history read gives it: each revision with who decided it, when, the proposal it came from, and its items without values | the family's history read | `revision N · settings · help revision` |
 | `revision N` | one revision: who decided it, when, from which proposal, whether it moved running work, its items with their values or sizes | the family's revision read | `revisions · proposal tN/K · proposal pN/K · settings` |
 | `proposal tN/K`, `proposal pN/K` | a proposal of settings, a task's in the chat's project or a party's: its reason, its items, its review against the newest settings while waiting, its state and outcome | the family's proposal read (jig's `domain/engine.md`, 7.3), rendered compactly by `temper-settings-form` beside a revision | `revision N · revisions · help proposal` |
@@ -1908,28 +1925,20 @@ host:
   coding charter and the reference's tell a run its own history isn't kept. A
   deployment's own charter is its author's, so a run under one isn't told.
   Default: so.
-- **A task read where the process has no local agent.** The engine does not
-  know its remote agents' reply bound, so a run there reads a task's words in
-  pieces of `documents.text_bytes` (`root.md`, 5.2). Going past it needs each
-  worker's reply bound at the engine, by one of two ways: each worker names
-  its agents' host reply bound in its hello on jig's worker link, a byte
-  count jig carries without naming smith, and the engine sizes each read by
-  the worker running the attempt, as a local agent's is (a change of jig's
-  link); or the engine's document names each worker's bound in
-  `hosts.workers` (a configuration change, unchecked against the worker's
-  own). temper/migration's answer of 2026-11-08 to the request
-  `goal-call-faults` names the first as the way to a page as large as the
-  reply allows and leaves the choice to the design owner, a protocol
-  decision a plan of its own follows. Default: the documents' window, which
-  a deployment raises by its own `documents.text_bytes`.
 - **A charter where the process has no local agent.** The engine does not
-  know its remote worker's charter allowance either, so it fits a charter
+  know its remote worker's charter allowance, so it fits a charter
   to the smaller of `hub.charter_bytes` and smith's 65,536 (4.3), and a
   remote worker that takes more, the reference's 127,480 among them,
-  receives its brief cut at 65,536. The same two ways would carry the
-  allowance beside the reply bound, and the request `landing-behind-main`
-  of 2026-11-08 asks it be sized as that bound is. Default: the smaller of
-  the two defaults.
+  receives its brief cut at 65,536. The worker's hello on jig's link, which
+  names its reply bound (4.3), could carry the allowance beside it, or the
+  engine's document could name it in `hosts.workers`, and the request
+  `landing-behind-main` of 2026-11-08 asks it be sized as that bound is.
+  Default: the smaller of the two defaults.
+- **A `see` answer by its worker's reply bound** (4.3). The protocol layer
+  renders a `see` answer within the local agent's bound alone, since its
+  hand-out (`HostDelivery::See`) names no call key, so a run on a remote
+  worker whose bound is smaller may meet smith's `TooLarge`. Default: the
+  local agent's bound.
 - **The person's forge identity in a chat's brief,** rather than in the
   settings inventory (8.1), which Ask temper reads first.
   A brief section would spend every chat's room for what one charter

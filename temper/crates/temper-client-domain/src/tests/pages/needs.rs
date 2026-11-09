@@ -1180,3 +1180,769 @@ fn a_paste_past_the_bound_stays_and_sends_nothing() {
         assert_eq!(sent(&mut fire(&mut pages, HOLD_DUE)).1, expected(FIRST, b"short", fixtures::PROJECT));
     }
 }
+
+fn why_root(state: &str, rows: &[(u64, u64, temper_protocol_reaches::Reach)]) -> crate::Domain {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let limits = fixtures::limits();
+    let env = fixtures::env(&limits);
+    let mut root = crate::unlinked(&limits, fixtures::SEED);
+    let me = fixtures::start(&mut root, List::with_capacity(0));
+    fixtures::confirm(&mut root, me, fixtures::PARTY, &mut Queue::uncapped());
+    if state == "unwatched" {
+        return root;
+    }
+    let mut out = Queue::uncapped();
+    crate::step(
+        &mut root,
+        &env,
+        crate::Event::Went { place: crate::Place::Address(Address::Home { project: fixtures::PROJECT }) },
+        &mut out,
+    );
+    let subject = crate::forge::decided::watch(fixtures::PROJECT, &limits.forge).unwrap();
+    let mut watch = None;
+    for request in &out {
+        if let crate::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch: found, subject: opened } },
+        } = request
+            && *opened == subject
+        {
+            watch = Some(*found);
+        }
+    }
+    let watch = watch.unwrap();
+    if state == "unknown" {
+        return root;
+    }
+    let up = if state == "ended" {
+        jig_client::Up::WatchEnded { watch, end: c::WatchEnd::NotAllowed }
+    } else {
+        let mut asked = List::with_capacity(16);
+        for (index, (task, at, reach)) in rows.iter().enumerate() {
+            asked
+                .push(
+                    w::Asked::new(
+                        &w::CEILINGS,
+                        w::AskedParts {
+                            number: u32::try_from(index.checked_add(1).unwrap()).unwrap(),
+                            task: *task,
+                            at: *at,
+                            reach: temper_protocol_reaches::reach_record(reach),
+                        },
+                    )
+                    .unwrap(),
+                )
+                .unwrap();
+        }
+        let document = w::Decisions::new(
+            &w::CEILINGS,
+            w::DecisionsParts { project: fixtures::PROJECT, rows: List::with_capacity(0), asked, cut: state == "cut" },
+        )
+        .unwrap();
+        jig_client::Up::FamilyDelivered {
+            watch,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::decisions(&document),
+            },
+        }
+    };
+    crate::step(&mut root, &env, crate::Event::Client { event: jig_client::Event::Up { up } }, &mut Queue::uncapped());
+    root
+}
+#[test]
+#[expect(clippy::too_many_lines, reason = "each row names one question matching or document readiness rule")]
+fn why_matches_the_asking_task_and_time_and_waits_for_its_document() {
+    use temper_protocol_reaches::{Class, Kind, Reach, Reason};
+    let reach = Reach {
+        kind: Kind::Implementation,
+        class: Class::Ask,
+        reason: Reason::Kind,
+        under: 0,
+        sets: 0,
+        matched: 0,
+        away: false,
+    };
+    let other = Reach { kind: Kind::Tests, ..reach };
+    let expected = Some(needs::Why::Reach { project: fixtures::PROJECT, reach });
+    let mut question = f::question();
+    if let c::ReadValue::Question(q) = &mut question {
+        q.from = Some(c::Requester::Task(42));
+        q.since = Wall::from_nanos(20);
+    }
+    let mut own = question.clone();
+    if let c::ReadValue::Question(q) = &mut own {
+        q.from = None;
+    }
+    let mut person = f::person(c::ActKind::Answer);
+    if let c::ReadValue::PersonTask(p) = &mut person {
+        p.requester = c::Requester::Task(42);
+    }
+    let mut timed_person = person.clone();
+    if let c::ReadValue::PersonTask(p) = &mut timed_person {
+        p.since = Some(Wall::from_nanos(20));
+    }
+    let mut funds = f::held(c::ActKind::Release);
+    if let c::ReadValue::Escalation(e) = &mut funds {
+        e.task.hold.as_mut().unwrap().reason = c::HoldCategory::Budget;
+    }
+    let mut ordinary = person.clone();
+    if let c::ReadValue::PersonTask(p) = &mut ordinary {
+        p.address = c::PersonAddress::Role(1);
+    }
+    for (name, page, group, state, rows, why, ready) in [
+        (
+            "newest eligible",
+            question.clone(),
+            c::InboxGroup::Questions,
+            "delivered",
+            Box::from([(42, 20, reach), (42, 10, other)].as_slice()),
+            expected,
+            true,
+        ),
+        (
+            "later ignored",
+            question.clone(),
+            c::InboxGroup::Questions,
+            "delivered",
+            Box::from([(42, 20, reach), (42, 21, other)].as_slice()),
+            expected,
+            true,
+        ),
+        (
+            "other task ignored",
+            question.clone(),
+            c::InboxGroup::Questions,
+            "delivered",
+            Box::from([(42, 20, reach), (43, 20, other)].as_slice()),
+            expected,
+            true,
+        ),
+        (
+            "own task",
+            own,
+            c::InboxGroup::Questions,
+            "delivered",
+            Box::from([(f::TASK, 20, reach)].as_slice()),
+            expected,
+            true,
+        ),
+        (
+            "person requester newest",
+            person,
+            c::InboxGroup::PersonTasks,
+            "delivered",
+            Box::from([(42, 50, reach), (42, 20, other)].as_slice()),
+            expected,
+            true,
+        ),
+        (
+            "person timestamp",
+            timed_person,
+            c::InboxGroup::PersonTasks,
+            "delivered",
+            Box::from([(42, 20, reach), (42, 21, other)].as_slice()),
+            expected,
+            true,
+        ),
+        (
+            "direct",
+            question.clone(),
+            c::InboxGroup::Questions,
+            "delivered",
+            Box::from([].as_slice()),
+            Some(needs::Why::Direct),
+            true,
+        ),
+        ("cut", question.clone(), c::InboxGroup::Questions, "cut", Box::from([].as_slice()), None, true),
+        (
+            "cut with row",
+            question.clone(),
+            c::InboxGroup::Questions,
+            "cut",
+            Box::from([(42, 20, reach)].as_slice()),
+            expected,
+            true,
+        ),
+        ("unwatched", question.clone(), c::InboxGroup::Questions, "unwatched", Box::from([].as_slice()), None, true),
+        ("ended", question.clone(), c::InboxGroup::Questions, "ended", Box::from([].as_slice()), None, true),
+        ("unknown", question.clone(), c::InboxGroup::Questions, "unknown", Box::from([].as_slice()), None, false),
+        (
+            "decided",
+            question,
+            c::InboxGroup::Questions,
+            "delivered",
+            Box::from([(42, 20, Reach { class: Class::Decide, ..reach })].as_slice()),
+            Some(needs::Why::Direct),
+            true,
+        ),
+        (
+            "invalid reach",
+            f::question(),
+            c::InboxGroup::Questions,
+            "delivered",
+            Box::from([(f::TASK, 0, Reach { reason: Reason::Set(0), ..reach })].as_slice()),
+            Some(needs::Why::Direct),
+            true,
+        ),
+        (
+            "proposal",
+            f::proposal(c::ActKind::Accept, c::Admission::Allowed),
+            c::InboxGroup::Proposals,
+            "unknown",
+            Box::from([].as_slice()),
+            Some(needs::Why::Proposal),
+            true,
+        ),
+        (
+            "held",
+            f::held(c::ActKind::Release),
+            c::InboxGroup::Escalations,
+            "unknown",
+            Box::from([].as_slice()),
+            Some(needs::Why::Held),
+            true,
+        ),
+        (
+            "funds",
+            funds,
+            c::InboxGroup::Escalations,
+            "unknown",
+            Box::from([].as_slice()),
+            Some(needs::Why::Funds),
+            true,
+        ),
+        ("ordinary person", ordinary, c::InboxGroup::PersonTasks, "unknown", Box::from([].as_slice()), None, true),
+    ] {
+        let root = why_root(state, &rows);
+        let mut pages = fixture();
+        let card = pages.inbox.as_mut().unwrap().cards.get_mut(0).unwrap();
+        card.page = Some(page);
+        card.group = group;
+        assert_eq!(needs::why(&root, needs::Need::Card(card)), why, "{name}");
+        assert_eq!(needs::ready(&root, needs::Need::Card(card)), ready, "{name}");
+    }
+    let root = why_root("unknown", &[]);
+    let approval = crate::forge::approvals::Row {
+        task: f::TASK,
+        project: fixtures::PROJECT,
+        goal: None,
+        forge: 1,
+        kind: crate::forge::forges::Kind::Forgejo,
+        owner: b"work".as_slice().into(),
+        name: b"hello".as_slice().into(),
+        pull: 1,
+        address: Box::default(),
+        title: Box::default(),
+        since: Wall::EPOCH,
+        scope: fixtures::PROJECT,
+        rule: 1,
+        role: 1,
+        required: 1,
+        counted: 0,
+        behind: 0,
+        whole: true,
+        yours: crate::forge::approvals::Yours::Counts,
+    };
+    assert_eq!(needs::why(&root, needs::Need::Approval(&approval)), None, "approval");
+    assert!(needs::ready(&root, needs::Need::Approval(&approval)), "approval");
+}
+
+const STOP_DAY: u64 = 86_400_000_000_000;
+const STOP_WALL: Wall = Wall::from_nanos(864_000_000_000_000);
+const STOP_NEWEST: u32 = 8;
+fn stop_limits() -> crate::Limits {
+    let mut limits = fixtures::limits();
+    limits.client.domain.text = 512;
+    limits.client.domain.long_text = 512;
+    limits.client.domain.turn_text = 512;
+    limits
+}
+fn stop_reach() -> temper_protocol_reaches::Reach {
+    use temper_protocol_reaches::{Class, Kind, Reach, Reason};
+    Reach {
+        kind: Kind::Implementation,
+        class: Class::Ask,
+        reason: Reason::Kind,
+        under: 0,
+        sets: 0,
+        matched: 0,
+        away: false,
+    }
+}
+fn stop_watch(out: &Queue<crate::Request>, subject: &jig_client::Watchable) -> skein_lib::Token {
+    for request in out {
+        if let crate::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Open { watch, subject: found } },
+        } = request
+            && found == subject
+        {
+            return *watch;
+        }
+    }
+    panic!("stop asking watch")
+}
+fn stop_classes_read(out: &Queue<crate::Request>) -> Option<skein_lib::Token> {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    for request in out {
+        if let crate::Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
+                },
+        } = request
+            && let w::Read::Setting(setting) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
+            && setting.kind() == 8
+        {
+            return Some(*read);
+        }
+    }
+    None
+}
+struct StopFixture {
+    root: crate::Domain,
+    settings: skein_lib::Token,
+    dismissed: skein_lib::Token,
+}
+fn stop_fixture(
+    owner: bool,
+    reach: temper_protocol_reaches::Reach,
+    read: bool,
+    delivered: bool,
+    keep: Option<(temper_protocol_reaches::Subject, u64)>,
+) -> StopFixture {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    use temper_protocol_reaches::{Classes, Way};
+    let mut root = crate::unlinked(&stop_limits(), fixtures::SEED);
+    let me_watch = fixtures::start(&mut root, List::with_capacity(0));
+    let mut me = fixtures::chats::me();
+    me.projects.get_mut(0).unwrap().role = if owner { c::HeldRole::Owner } else { c::HeldRole::Member };
+    let initial = super::welcome::deliver(&mut root, me_watch, c::Delivery::Me(Box::new(me)));
+    let settings = stop_watch(&initial, &jig_client::Watchable::Jig(c::Subject::Settings));
+    let dismissed = stop_watch(&initial, &crate::forge::dismissed::watch(&fixtures::limits().forge).unwrap());
+    let out = root_event(
+        &mut root,
+        crate::Event::Went { place: crate::Place::Address(Address::Home { project: fixtures::PROJECT }) },
+    );
+    let decided =
+        stop_watch(&out, &crate::forge::decided::watch(fixtures::PROJECT, &fixtures::limits().forge).unwrap());
+    let classes_read = stop_classes_read(&initial).or(stop_classes_read(&out)).unwrap();
+    super::welcome::deliver(
+        &mut root,
+        settings,
+        c::Delivery::Settings(Box::new(c::SettingsDocument {
+            newest: STOP_NEWEST,
+            settings: List::with_capacity(0),
+            held: List::with_capacity(0),
+            pending: List::with_capacity(0),
+        })),
+    );
+    if read {
+        let record = temper_protocol_reaches::classes_record(&Classes::stock(Way::YouApprove)).unwrap();
+        let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
+        record.encode(&mut writer).unwrap();
+        let bytes = wire::setting_answer(
+            &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) }).unwrap(),
+        );
+        super::welcome::up(
+            &mut root,
+            jig_client::Up::ReadDone {
+                read: classes_read,
+                result: jig_client::Readout::Family { family: wire::FORGE, record: Some(bytes) },
+            },
+        );
+    }
+    let mut asked = List::with_capacity(1);
+    asked
+        .push(
+            w::Asked::new(
+                &w::CEILINGS,
+                w::AskedParts { number: 1, task: f::TASK, at: 0, reach: temper_protocol_reaches::reach_record(&reach) },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let decisions = w::Decisions::new(
+        &w::CEILINGS,
+        w::DecisionsParts { project: fixtures::PROJECT, rows: List::with_capacity(0), asked, cut: false },
+    )
+    .unwrap();
+    super::welcome::up(
+        &mut root,
+        jig_client::Up::FamilyDelivered {
+            watch: decided,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::decisions(&decisions),
+            },
+        },
+    );
+    root.pages.inbox = fixture().inbox.take();
+    add(&mut root.pages, SECOND, fixtures::PROJECT);
+    let mut fixture = StopFixture { root, settings, dismissed };
+    if delivered {
+        stop_dismissals(&mut fixture, keep);
+    }
+    fixture
+}
+fn stop_dismissals(fixture: &mut StopFixture, keep: Option<(temper_protocol_reaches::Subject, u64)>) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut dismissed = List::with_capacity(1);
+    if let Some((subject, at)) = keep {
+        dismissed
+            .push(w::PersonFact::KeepAsking(
+                w::KeepAsking::new(
+                    &w::CEILINGS,
+                    w::KeepAskingParts {
+                        project: fixtures::PROJECT,
+                        subject: temper_protocol_reaches::subject_record(subject),
+                        at,
+                    },
+                )
+                .unwrap(),
+            ))
+            .unwrap();
+    }
+    let document = w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap();
+    super::welcome::up(
+        &mut fixture.root,
+        jig_client::Up::FamilyDelivered {
+            watch: fixture.dismissed,
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::dismissals(&document),
+            },
+        },
+    );
+}
+fn stop_act(root: &mut crate::Domain, act: pages::stop_asking::Act) -> Queue<crate::Request> {
+    let limits = stop_limits();
+    let mut env = fixtures::env(&limits);
+    env.wall = STOP_WALL;
+    let mut out = Queue::uncapped();
+    crate::route::event(
+        root,
+        &env,
+        crate::Event::Act { action: crate::Action::Pages(pages::Act::StopAsking(act)) },
+        &mut out,
+    );
+    out
+}
+fn stop_sent(out: &Queue<crate::Request>) -> Box<[(Key, jig_client::Ask)]> {
+    let mut sent = List::with_capacity(out.len());
+    for request in out {
+        if let crate::Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: jig_client::Down::Save { record } },
+        } = request
+        {
+            sent.push((record.request.key, record.request.request.clone())).unwrap();
+        }
+    }
+    sent.into_boxed()
+}
+fn stop_answer(root: &mut crate::Domain, key: Key, outcome: Outcome) -> Queue<crate::Request> {
+    let mut out = Queue::uncapped();
+    crate::route::told(root, &fixtures::env(&fixtures::limits()), Told::Answered { key, outcome }, &mut out);
+    out
+}
+fn stop_show_elsewhere(root: &mut crate::Domain) {
+    use crate::forge::{self, ways};
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut child = Queue::uncapped();
+    ways::progress(
+        &mut root.forge,
+        Time::ZERO,
+        Some(OTHER_PROJECT),
+        Some(fixtures::PROJECT),
+        false,
+        fixtures::limits().forge,
+        &mut child,
+    );
+    let mut shown = None;
+    for request in &child {
+        if let forge::Request::Client {
+            asked:
+                jig_client::Event::Read {
+                    handle,
+                    read: jig_client::Readable::Family { scope: c::Scope::Project(project), record, .. },
+                },
+        } = request
+            && *project == fixtures::PROJECT
+            && let w::Read::Setting(setting) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
+            && setting.kind() == 8
+        {
+            shown = Some(*handle);
+        }
+    }
+    let classes = temper_protocol_reaches::classes_record(&temper_protocol_reaches::Classes::default()).unwrap();
+    let mut writer = skein_lib::Writer::new(usize::try_from(classes.measure()).unwrap());
+    classes.encode(&mut writer).unwrap();
+    let record = wire::setting_answer(
+        &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) }).unwrap(),
+    );
+    ways::told(
+        &mut root.forge,
+        Time::ZERO,
+        &root.client,
+        &Told::Page {
+            handle: shown.expect("shown project's classes read"),
+            page: jig_client::Readout::Family { family: wire::FORGE, record: Some(record) },
+        },
+        fixtures::limits().forge,
+        &mut Queue::uncapped(),
+    );
+}
+fn stop_item(classes: &temper_protocol_reaches::Classes) -> c::SettingItem {
+    let record = temper_protocol_reaches::classes_record(classes).unwrap();
+    let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
+    record.encode(&mut writer).unwrap();
+    c::SettingItem {
+        setting: c::Setting::Application { kind: 8, scope: fixtures::PROJECT, number: 1 },
+        edit: c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(writer.finish()) }),
+    }
+}
+enum Closing {
+    Offers(pages::stop_asking::Act),
+    Needs(Act),
+    AnswerWords(ObjectKey),
+    Leave(Address),
+}
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one table of Stop asking rules includes readiness, closing and its three sends"
+)]
+fn stop_asking_offers_closes_and_sends_the_narrowed_change_or_person_fact() {
+    use pages::stop_asking::{self, Act as Stop};
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    use temper_protocol_reaches::{Class, Classes, Item, Kind, Offer, Reason, Subject};
+    let reach = stop_reach();
+    let subject = Subject::Kind(Kind::Implementation);
+    let offer = Offer::Decide(subject);
+    for (name, reach, read, delivered, keep, expected) in [
+        ("asked", reach, true, true, None, true),
+        ("decided", temper_protocol_reaches::Reach { class: Class::Decide, ..reach }, true, true, None, false),
+        ("away decided", temper_protocol_reaches::Reach { away: true, ..reach }, true, true, None, false),
+        ("fixed", temper_protocol_reaches::Reach { kind: Kind::Money, ..reach }, true, true, None, false),
+        ("always", temper_protocol_reaches::Reach { reason: Reason::Always, ..reach }, true, true, None, false),
+        ("classes unread", reach, false, true, None, false),
+        ("dismissals undelivered", reach, true, false, None, false),
+        (
+            "six days",
+            reach,
+            true,
+            true,
+            Some((subject, STOP_WALL.as_nanos().checked_sub(STOP_DAY.checked_mul(6).unwrap()).unwrap())),
+            false,
+        ),
+        (
+            "seven days",
+            reach,
+            true,
+            true,
+            Some((subject, STOP_WALL.as_nanos().checked_sub(STOP_DAY.checked_mul(7).unwrap()).unwrap())),
+            true,
+        ),
+        (
+            "eight days",
+            reach,
+            true,
+            true,
+            Some((subject, STOP_WALL.as_nanos().checked_sub(STOP_DAY.checked_mul(8).unwrap()).unwrap())),
+            true,
+        ),
+        ("another subject", reach, true, true, Some((Subject::Kind(Kind::Tests), STOP_WALL.as_nanos())), true),
+    ] {
+        let fixture = stop_fixture(true, reach, read, delivered, keep);
+        let card = fixture.root.pages().inbox().unwrap().cards.get(0).unwrap();
+        assert_eq!(
+            stop_asking::offered(&fixture.root, needs::Need::Card(card), STOP_WALL),
+            expected.then_some(Box::from([offer].as_slice())),
+            "{name}"
+        );
+    }
+    for (name, closing, expected) in [
+        ("toggle", Closing::Offers(Stop::Open { object: FIRST }), None),
+        ("other offers", Closing::Offers(Stop::Open { object: SECOND }), Some(SECOND)),
+        ("other card", Closing::Needs(Act::Open { object: SECOND }), None),
+        ("answer", Closing::Needs(Act::Choose { object: FIRST, words: Box::from(CHOICE) }), None),
+        ("terminal answer", Closing::AnswerWords(FIRST), None),
+        ("later", Closing::Needs(Act::Later { object: FIRST }), None),
+        ("undo", Closing::Needs(Act::Undo { object: FIRST }), None),
+        ("leave", Closing::Leave(chats()), None),
+    ] {
+        let mut fixture = stop_fixture(true, reach, true, true, None);
+        stop_act(&mut fixture.root, Stop::Open { object: FIRST });
+        assert_eq!(fixture.root.pages().stop_asking().unwrap().object(), FIRST);
+        stop_act(&mut fixture.root, Stop::Words { words: b"wire changes".as_slice().into() });
+        assert_eq!(fixture.root.pages().stop_asking().unwrap().words(), b"wire changes");
+        match closing {
+            Closing::Offers(act) => {
+                stop_act(&mut fixture.root, act);
+            }
+            Closing::Needs(act) => {
+                root_event(
+                    &mut fixture.root,
+                    crate::Event::Act { action: crate::Action::Pages(pages::Act::Needs(act)) },
+                );
+            }
+            Closing::AnswerWords(object) => {
+                for act in [
+                    pages::Act::CardWords { object, words: Box::from(CHOICE) },
+                    pages::Act::Decide { object, revision: None, act: c::ActKind::Answer },
+                ] {
+                    root_event(&mut fixture.root, crate::Event::Act { action: crate::Action::Pages(act) });
+                }
+            }
+            Closing::Leave(address) => {
+                root_event(&mut fixture.root, crate::Event::Went { place: crate::Place::Address(address) });
+            }
+        }
+        let opened = match fixture.root.pages().stop_asking() {
+            Some(open) => Some(open.object()),
+            None => None,
+        };
+        assert_eq!(opened, expected, "{name}");
+    }
+    for (owner, shown) in [(true, false), (false, false), (true, true)] {
+        let mut fixture = stop_fixture(owner, reach, true, true, None);
+        if shown {
+            stop_show_elsewhere(&mut fixture.root);
+        }
+        assert_eq!(stop_asking::owner(&fixture.root, fixtures::PROJECT), owner);
+        stop_act(&mut fixture.root, Stop::Open { object: FIRST });
+        let wrong = if owner { Stop::Propose { offer } } else { Stop::Apply { offer } };
+        assert!(stop_sent(&stop_act(&mut fixture.root, wrong)).is_empty(), "role guard");
+        let apply = if owner { Stop::Apply { offer } } else { Stop::Propose { offer } };
+        let sent = stop_sent(&stop_act(&mut fixture.root, apply.clone()));
+        assert_eq!(sent.len(), 1);
+        assert!(fixture.root.pages().stop_asking().unwrap().busy());
+        assert!(stop_sent(&stop_act(&mut fixture.root, apply)).is_empty(), "one request while out");
+        let table = Classes {
+            items: Box::new([Item { subject, words: Box::default(), class: Class::Decide }]),
+            sets: Box::default(),
+        };
+        let mut items = List::with_capacity(1);
+        items.push(stop_item(&table)).unwrap();
+        let expected = if owner {
+            c::Ask::ChangeSettings(c::ChangeSettings { against: STOP_NEWEST, items, running: c::Running::Stays })
+        } else {
+            c::Ask::Propose { project: 0, action: c::ProposeAction::Settings(c::ProposeSettings { against: STOP_NEWEST, items }), reason: c::Text::new(Box::from(b"Stop asking in Project 1: let agents decide implementation choices, then tell whoever they would have asked.".as_slice()), 512).unwrap() }
+        };
+        assert_eq!(sent[0].1, jig_client::Ask::Jig(Box::new(expected)), "owner {owner}");
+        let key = if owner {
+            let retried = stop_sent(&stop_answer(
+                &mut fixture.root,
+                sent[0].0,
+                Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+                    refusal: c::Refusal::Stale(c::RefusalStale { newest: 9 }),
+                    at: None,
+                })),
+            ));
+            assert_eq!(retried.len(), 1, "stale is retried once");
+            let jig_client::Ask::Jig(ask) = &retried[0].1 else { panic!("settings retry") };
+            let c::Ask::ChangeSettings(change) = &**ask else { panic!("settings retry") };
+            assert_eq!(change.against, 9);
+            assert_eq!(change.items.get(0), Some(&stop_item(&table)));
+            assert!(fixture.root.pages().stop_asking().unwrap().busy());
+            retried[0].0
+        } else {
+            sent[0].0
+        };
+        let out = stop_answer(
+            &mut fixture.root,
+            key,
+            Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused {
+                refusal: c::Refusal::NotOffered,
+                at: None,
+            })),
+        );
+        assert!(stop_sent(&out).is_empty());
+        assert_eq!(fixture.root.pages().stop_asking().unwrap().refused(), Some(&c::Refusal::NotOffered));
+        assert!(!fixture.root.pages().stop_asking().unwrap().busy());
+        let apply = if owner { Stop::Apply { offer } } else { Stop::Propose { offer } };
+        let sent = stop_sent(&stop_act(&mut fixture.root, apply));
+        let answer = if owner {
+            c::Outcome::SettingsChanged(c::OutcomeSettingsChanged { revision: 9 })
+        } else {
+            c::Outcome::Document(c::DocumentOutcome::Proposed { proposal: 31, to: 1 })
+        };
+        stop_answer(
+            &mut fixture.root,
+            sent[0].0,
+            Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(answer))),
+        );
+        assert!(fixture.root.pages().stop_asking().is_none());
+        assert!(!fixture.root.pages().needs().held(FIRST), "the current need still waits");
+        if owner {
+            assert_eq!(fixture.root.forge().classes(fixtures::PROJECT), Some(&table));
+        }
+    }
+    for owner in [true, false] {
+        let mut fixture = stop_fixture(owner, reach, true, true, None);
+        super::welcome::up(
+            &mut fixture.root,
+            jig_client::Up::WatchEnded { watch: fixture.settings, end: c::WatchEnd::NotAllowed },
+        );
+        stop_act(&mut fixture.root, Stop::Open { object: FIRST });
+        let apply = if owner { Stop::Apply { offer } } else { Stop::Propose { offer } };
+        assert!(stop_sent(&stop_act(&mut fixture.root, apply)).is_empty(), "newest revision unread");
+    }
+    let mut fixture = stop_fixture(true, reach, true, true, None);
+    stop_act(&mut fixture.root, Stop::Open { object: FIRST });
+    assert!(
+        stop_sent(&stop_act(&mut fixture.root, Stop::Apply { offer: Offer::Decide(Subject::Kind(Kind::Money)) }))
+            .is_empty(),
+        "narrowed refusal sends nothing"
+    );
+    assert!(fixture.root.pages().stop_asking().unwrap().refused().is_some());
+    let dismissed = Outcome::Answered(jig_client::Answered::Family(jig_client::Family {
+        family: wire::FORGE,
+        version: wire::CLIENT_VERSION,
+        bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Dismissed }).unwrap()),
+    }));
+    let refused =
+        Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None }));
+    for (name, outcome, toast, offered_after) in [
+        ("kept before watch", dismissed, Some(Toasted::KeptAsking), false),
+        ("unknown follows subject", Outcome::Unknown, None, true),
+        ("lost", Outcome::Lost, Some(Toasted::KeepAskingRefused), true),
+        ("refused", refused, Some(Toasted::KeepAskingRefused), true),
+    ] {
+        let mut fixture = stop_fixture(true, reach, true, true, None);
+        stop_act(&mut fixture.root, Stop::Open { object: FIRST });
+        let sent = stop_sent(&stop_act(&mut fixture.root, Stop::Keep));
+        assert_eq!(sent.len(), 1);
+        assert_eq!(
+            sent[0].1,
+            crate::forge::dismissed::ask(
+                crate::forge::dismissed::PersonFact::KeepAsking { project: fixtures::PROJECT, subject, at: STOP_WALL },
+                &fixtures::limits().forge
+            )
+            .unwrap()
+        );
+        assert!(fixture.root.pages().stop_asking().is_none());
+        let card = fixture.root.pages().inbox().unwrap().cards.get(0).unwrap();
+        assert!(stop_asking::offered(&fixture.root, needs::Need::Card(card), STOP_WALL).is_none(), "held subject");
+        stop_act(&mut fixture.root, Stop::Open { object: SECOND });
+        assert!(fixture.root.pages().stop_asking().is_none(), "another card of held subject");
+        assert!(stop_sent(&stop_act(&mut fixture.root, Stop::Keep)).is_empty());
+        stop_answer(&mut fixture.root, sent[0].0, outcome);
+        assert_eq!(fixture.root.pages().needs().toast(), toast.as_ref(), "{name}");
+        let card = fixture.root.pages().inbox().unwrap().cards.get(0).unwrap();
+        assert_eq!(
+            stop_asking::offered(&fixture.root, needs::Need::Card(card), STOP_WALL).is_some(),
+            offered_after,
+            "{name}"
+        );
+        stop_dismissals(&mut fixture, Some((subject, STOP_WALL.as_nanos())));
+        let card = fixture.root.pages().inbox().unwrap().cards.get(0).unwrap();
+        assert!(
+            stop_asking::offered(&fixture.root, needs::Need::Card(card), STOP_WALL).is_none(),
+            "held fact answers {name}"
+        );
+    }
+}

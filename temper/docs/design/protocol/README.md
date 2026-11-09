@@ -279,7 +279,8 @@ default; the document is `temper.json` in the configuration directory
     `temper serve: and {n} more forge writes in flight`.
   - A start refused at a step of its restart (jig's `domain/engine.md`,
     section 6; `../domain/root.md`, 9.1), which only a store that does
-    not decode or a live set past the limits can be, prints the refusal
+    not decode, a live set past the limits or a link that cannot be
+    made can be, prints the refusal
     in the restart's own words, `temper serve: ` then the step and what
     it refused (`restore tasks: live tasks past limits.tasks`), and
     exits 1. The catch-all `unknown reference` is left for a refusal nothing
@@ -295,10 +296,9 @@ default; the document is `temper.json` in the configuration directory
     twice; a cause repaired during the backoff (a setting, the disk)
     lets the next attempt start.
   - A link a start cannot make (a writer's bug, jig's
-    `domain/engine.md`, section 6) is a panic: serve's fail-stop report
-    names the record and the link, with its backtrace (skein's
-    `shell.md`, 6), and under the box it is a long step's exit like any
-    other.
+    `domain/engine.md`, section 6) is such a refusal, naming the record
+    and what it links to: `temper serve: restart refused during PHASE:
+    RECORD links missing LINKED`.
 - **`temper init`:** writes a deployment that starts, the default
   document among it, into the three directories, refusing when the
   configuration directory holds a document (setup.md, 8.2).

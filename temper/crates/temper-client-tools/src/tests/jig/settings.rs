@@ -618,6 +618,10 @@ fn setting_json(setting: c::Setting, value: c::SettingValue) -> Vec<u8> {
 fn file_from_setting(bytes: &[u8]) -> Vec<u8> {
     // The document's selector and value are the FILE item's exact values.
     let text = core::str::from_utf8(bytes).expect("JSON");
+    let text = match text.split_once(",\"application\":") {
+        Some((value, _)) => format!("{value}}}"),
+        None => text.to_owned(),
+    };
     let text = text.replace(",\"revision\":5,\"value\":", ",\"set\":");
     format!("{{\"items\":[{text}]}}").into_bytes()
 }
@@ -2127,7 +2131,13 @@ fn unknown_settings_decisions_explain_that_the_proposal_is_not_waiting() {
 }
 
 fn forge_value(kind: u32) -> Box<[u8]> {
-    let json = if kind == 9 {
+    let json = if kind == 8 {
+        br#"{"items":[{"setting":{"kind":"project-classes","project":7},"set":{"items":[{"kind":"wording","class":"decide"},{"kind":"implementation","words":"keep the format","class":"ask"},{"set":2,"class":"ask-away"}],"sets":[{"number":2,"name":"protocol","patterns":["src/protocol.*","docs/protocol/**"]}]}}]}"#.as_slice()
+    } else if kind == 7 {
+        br#"{"items":[{"setting":{"kind":"project-ways","project":7},"set":{"drafts":true,"goals":false,"changes":false,"way":0}}]}"#.as_slice()
+    } else if kind == 6 {
+        br#"{"items":[{"setting":{"kind":"project-questions","project":7},"set":"foreman"}]}"#.as_slice()
+    } else if kind == 9 {
         br#"{"items":[{"setting":{"kind":"charter-words","number":1},"set":"reviews every change"}]}"#.as_slice()
     } else if kind == 10 {
         br#"{"items":[{"setting":{"kind":"project-words","project":7},"set":{"headline":"Our way","lede":"We review every change."}}]}"#.as_slice()
@@ -2205,66 +2215,111 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
         (vec!["settings", "show", "project-words", "7"], 10, 7, "project-words 7", false),
         (vec!["settings", "show", "project-words", "shop"], 10, fixtures::PROJECT, "project-words", false),
         (vec!["settings", "show", "template-goal", "1"], 11, 0, "template-goal 1", false),
+        (vec!["settings", "show", "project-questions", "7"], 6, 7, "project-questions 7", false),
+        (vec!["settings", "show", "project-ways", "7"], 7, 7, "project-ways 7", false),
+        (vec!["settings", "show", "project-classes", "7"], 8, 7, "project-classes 7", false),
+        (vec!["settings", "show", "project-classes", "shop"], 8, fixtures::PROJECT, "project-classes", false),
+        (vec!["settings", "show", "project-classes", "7", "--revision", "5"], 8, 7, "project-classes 7", false),
     ] {
         for json in [false, true] {
             let setting = c::Setting::Application { kind, scope, number: 1 };
             let mut root = fixtures::signed_in(fixtures::PARTY);
             let call = root.submit_prepared(fixtures::call(&argv), json, None);
-            assert_eq!(root.reads.get(&call).unwrap().1, c::Read::Settings);
-            root.serve(
-                call,
-                forge_inventory(
-                    setting,
-                    if stock { c::ApplicationFollows::Default } else { c::ApplicationFollows::Changed { revision: 5 } },
-                ),
-            );
+            let historical = argv.contains(&"--revision");
+            if historical {
+                assert!(!root.reads.contains_key(&call), "historical reads go straight to the forge");
+            } else {
+                assert_eq!(root.reads.get(&call).unwrap().1, c::Read::Settings);
+                root.serve(
+                    call,
+                    forge_inventory(
+                        setting,
+                        if stock {
+                            c::ApplicationFollows::Default
+                        } else {
+                            c::ApplicationFollows::Changed { revision: 5 }
+                        },
+                    ),
+                );
+            }
             assert!(root.answer(call).is_none());
-            let w::Read::Setting(query) = forge_query(&root, call) else { panic!("setting query") };
-            assert_eq!((query.kind(), query.scope(), query.number()), (kind, scope, 1));
+            if historical {
+                let w::Read::RevisionSetting(query) = forge_query(&root, call) else { panic!("revision query") };
+                assert_eq!((query.kind(), query.scope(), query.number(), query.revision()), (kind, scope, 1, 5));
+            } else {
+                let w::Read::Setting(query) = forge_query(&root, call) else { panic!("setting query") };
+                assert_eq!((query.kind(), query.scope(), query.number()), (kind, scope, 1));
+            }
             root.serve_readout(call, forge_setting_page(Some(forge_value(kind))));
             let answer = root.answer(call).expect("joined setting");
             assert_eq!(answer.status, 0);
             let text = core::str::from_utf8(&answer.stdout).unwrap();
             if json {
-                assert!(
-                    text.contains(match kind {
-                        3 => "\"value\":6",
-                        11 => "\"design\":true,\"close_out\":true",
-                        9 => "\"value\":\"reviews every change\"",
-                        10 => "\"value\":{\"headline\":\"Our way\",\"lede\":\"We review every change.\"}",
-                        _ => "\"ci\":false",
-                    }),
-                    "{text}"
+                let expected = match kind {
+                    3 => "\"value\":6",
+                    6 => "\"value\":\"foreman\"",
+                    7 => "\"drafts\":true",
+                    8 => "\"class\":\"ask-away\"",
+                    9 => "\"value\":\"reviews every change\"",
+                    10 => "\"value\":{\"headline\":\"Our way\",\"lede\":\"We review every change.\"}",
+                    11 => "\"design\":true,\"close_out\":true",
+                    _ => "\"ci\":false",
+                };
+                assert!(text.contains(expected), "{text}");
+                let decoded = settings_file::decode(&file_from_setting(&answer.stdout), &fixtures::limits())
+                    .expect("show JSON applies");
+                assert_eq!(
+                    decoded.as_slice(),
+                    &[c::SettingItem {
+                        setting,
+                        edit: c::SettingEdit::Set(c::SettingSet {
+                            value: c::SettingValue::Application(forge_value(kind))
+                        })
+                    }]
                 );
-                assert!(
-                    text.contains(if stock {
-                        "\"application\":{\"follows\":\"default\""
-                    } else {
-                        "\"application\":{\"follows\":\"change\",\"revision\":5"
-                    }),
-                    "{text}"
-                );
+                if historical {
+                    assert!(!text.contains("\"application\":"), "{text}");
+                } else if stock {
+                    assert!(text.contains("\"application\":{\"follows\":\"default\""), "{text}");
+                } else {
+                    assert!(text.contains("\"application\":{\"follows\":\"change\",\"revision\":5"), "{text}");
+                }
                 assert!(text.contains(label.split_whitespace().next().unwrap()), "{text}");
             } else {
                 let canonical = setting_json(setting, c::SettingValue::Application(forge_value(kind)));
                 let canonical = core::str::from_utf8(&canonical).unwrap();
                 let (_, value) = canonical.split_once("\"value\":").unwrap();
                 let value = value.trim_end().strip_suffix('}').unwrap();
-                assert!(text.contains(value), "inline value differs from the shared settings form: {text}");
+                if kind == 8 {
+                    for line in [
+                        "wording: agents decide, then tell you",
+                        "implementation: asks you — keep the format",
+                        "path set 2 (protocol): asks you, even when away",
+                        "  path set 2 (protocol):\n    src/protocol.*\n    docs/protocol/**",
+                        "Always waits: money, irreversible, rules, other.",
+                    ] {
+                        assert!(text.contains(line), "{text}");
+                    }
+                } else {
+                    assert!(text.contains(value), "inline value differs from the shared settings form: {text}");
+                }
                 assert!(text.starts_with(label), "{text}");
-                assert!(text.contains(if stock { "the stock" } else { "changed at revision 5" }), "{text}");
                 assert!(
-                    text.contains(match kind {
-                        3 => "\n6\n",
-                        11 => "\"design\":true,\"close_out\":true",
-                        9 => "\n\"reviews every change\"\n",
-                        10 => "\n{\"headline\":\"Our way\",\"lede\":\"We review every change.\"}\n",
-                        _ => "\"ci\":false",
+                    text.contains(if historical {
+                        "revision 5"
+                    } else if stock {
+                        "the stock"
+                    } else {
+                        "changed at revision 5"
                     }),
                     "{text}"
                 );
+                assert_eq!(text.contains("the stock"), stock, "{text}");
             }
             assert_eq!(root.watches.len(), 1);
+            if historical {
+                continue;
+            }
             let mut root = fixtures::signed_in(fixtures::PARTY);
             let mut historical = argv.clone();
             historical.extend_from_slice(&["--revision", "5"]);
@@ -2276,16 +2331,23 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             assert_eq!(answer.status, 0);
             let text = core::str::from_utf8(&answer.stdout).unwrap();
             assert!(text.contains(if json { "\"revision\":5" } else { ", revision 5" }), "{text}");
-            assert!(
-                text.contains(match kind {
-                    3 => "6",
-                    9 => "reviews every change",
-                    10 => "We review every change.",
-                    11 => "\"design\":true,\"close_out\":true",
-                    _ => "\"ci\":false",
-                }),
-                "{text}"
-            );
+            let expected = match kind {
+                3 => "6",
+                6 => "\"foreman\"",
+                7 => "\"drafts\":true",
+                8 => {
+                    if json {
+                        "\"class\":\"ask-away\""
+                    } else {
+                        "path set 2 (protocol): asks you, even when away"
+                    }
+                }
+                9 => "reviews every change",
+                10 => "We review every change.",
+                11 => "\"design\":true,\"close_out\":true",
+                _ => "\"ci\":false",
+            };
+            assert!(text.contains(expected), "{text}");
         }
     }
 }
@@ -2296,6 +2358,8 @@ fn forge_setting_commands_print_removed_and_unset_values_and_preserve_refusals()
             for (kind, scope, number, argv) in [
                 (3, 0, 2, vec!["settings", "show", "forge-charter", "2"]),
                 (11, 0, 2, vec!["settings", "show", "template-goal", "2"]),
+                (7, 2, 1, vec!["settings", "show", "project-ways", "2"]),
+                (8, 2, 1, vec!["settings", "show", "project-classes", "2"]),
                 (9, 0, 1, vec!["settings", "show", "charter-words", "1"]),
                 (10, 7, 1, vec!["settings", "show", "project-words", "7"]),
             ] {
@@ -2306,16 +2370,44 @@ fn forge_setting_commands_print_removed_and_unset_values_and_preserve_refusals()
                 let answer = root.answer(call).unwrap();
                 assert_eq!(answer.status, 0);
                 let text = core::str::from_utf8(&answer.stdout).unwrap();
-                assert!(
-                    text.contains(if json {
-                        "\"value\":null"
-                    } else if kind == 11 {
-                        "template-goal 2: none kept; its coordinator plans and makes no close-out.\n"
-                    } else {
-                        "\nnone\n"
-                    }),
-                    "{text}"
-                );
+                if kind == 3 || kind == 9 || kind == 10 || kind == 11 {
+                    assert!(
+                        text.contains(if json {
+                            "\"value\":null"
+                        } else if kind == 11 {
+                            "template-goal 2: none kept; its coordinator plans and makes no close-out.\n"
+                        } else {
+                            "\nnone\n"
+                        }),
+                        "{text}"
+                    );
+                } else if json {
+                    let decoded = settings_file::decode(&file_from_setting(&answer.stdout), &fixtures::limits())
+                        .expect("stock JSON applies");
+                    let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(bytes) }) =
+                        &decoded.as_slice()[0].edit
+                    else {
+                        panic!("stock value")
+                    };
+                    if kind == 8 {
+                        let mut reader = skein_lib::Reader::new(bytes);
+                        let record = temper_client_protocol_wire::v1::ProjectClasses::decode(
+                            &temper_client_protocol_wire::v1::CEILINGS,
+                            &mut reader,
+                        )
+                        .unwrap();
+                        assert_eq!(
+                            temper_protocol_reaches::classes_from(&record),
+                            temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview)
+                        );
+                    }
+                } else {
+                    assert!(text.contains("the stock"), "{text}");
+                    if kind == 8 {
+                        assert!(text.contains("tests: agents decide, then tell you"), "{text}");
+                        assert!(text.contains("dependency: asks you"), "{text}");
+                    }
+                }
             }
         }
         for page in [
@@ -2572,6 +2664,8 @@ fn forge_setting_commands_refuse_selectors_outside_their_forms() {
         vec!["settings", "show", "forge-charter", "0"],
         vec!["settings", "show", "forge-charter", "3"],
         vec!["settings", "show", "forge-charter", "1", "--project", "1"],
+        vec!["settings", "show", "project-classes"],
+        vec!["settings", "show", "project-classes", "7", "1"],
         vec!["settings", "show", "template-goal", "0"],
         vec!["settings", "show", "template-goal", "4", "--project", "1"],
     ] {

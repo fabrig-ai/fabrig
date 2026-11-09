@@ -37,5 +37,32 @@ The focused stray-cleanup cut's mismatch with `../domain/testing.md`, 9
 is recorded in `../domain/testing.status.md`; it does not remove a fuzzy
 cut or a recovery check. Whole-suite budget proof remains open there.
 
+Section 14's core world on the simulated disk has no known gap in a
+decision's commit and the restart after it: `jig-test-store-files`
+runs the core world's store on the simulated disk without patch sets
+and kills it at a chosen file operation, counted from a commit's
+submission or from the store's open
+(`a_kill_before_the_first_operation_loses_the_commit_and_past_the_last_keeps_it`).
+Killed at each operation of a decision making a task and the person
+task linking a person, and of the decisions saving a person and a task
+naming it, then again during the restart and in the next decision, the
+start opens, never refused, with the last acknowledged decision or that
+and one whole uncertain one (`jig/tests/core`'s
+`faults::a_kill_at_each_file_operation_of_a_decision_starts_from_a_whole_one`
+and its fuzzy restart sweep). The store's world's random crash table
+alternates a person's commit and a task's naming it, killed twice in a
+row (`fuzzy::crashes::random_commits_and_crashes_keep_the_referees_promises`).
+
 - **Not yet:** 7.3, 11.1: retention: no horizon shrinks an ended task to its summary or drops its transcript; a page of history, spend or notes cut before its first row. 10.5, 14: rehearsing and going back: `jig/crates/jig-protocol-store` has no `Request::Rehearse`, `Request::Back`, `Event::Back` or `BackRefusal`, and `jig/tests/store` no story of them. 14: the reference binary killed around each phase of a turn's commit (`jig/testing/jig-test/tests/process.rs` kills and restarts it once); `jig/tests/ops` and `jig/testing/jig-conformance` run `jig-fake-store`, where no world fakes the store.
+- **Departs:** 14: the core's world on the simulated disk kills no
+  snapshot racing commits and no group of several commits in flight:
+  those rows run in the store's world
+  (`jig/tests/store`'s `crashes::snapshots_racing_linked_commits_and_several_commits_in_flight_keep_whole_prefixes`),
+  a person and a task naming it queued below the component and swept
+  over every file operation, with and without a snapshot's map chunk
+  pending, whose referee checks a whole prefix and the task's requester
+  present, not the start's link pass, because the plan
+  `store-crash-safe`'s cut judged the core world to reach neither
+  cheaply: a snapshot waits for the log past its bound (skein's
+  `kv.md`, 5), and a group for commits queued below the component.
 - **Departs:** 14: `jig/tests/store/src/model.rs` reads a copy as a settings revision's and panics on any other row, because the core copies only that one, so no story reaches it; `jig/crates/jig-protocol-store/src/tests/commits.rs` holds a copy of another row and section 6's two rules of a copy.

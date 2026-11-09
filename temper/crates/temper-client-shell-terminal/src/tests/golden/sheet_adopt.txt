@@ -16,37 +16,38 @@ First:
       A design session that ends in a goal, best had in the terminal.
     [12] Change
       Ask for one change.
-  [13] Deployment
+  [13] Away
+  [14] Deployment
   * Pat
 First · how work runs
 The repositories chats and goals in First read and change.
 How work runs:
-  [14] How work runs
-  [15] Repositories (current)
+  [15] How work runs
+  [16] Repositories (current)
 ## Repositories
-[16] Add repositories
+[17] Add repositories
 Add repositories to First:
   Find by name:
-    [17] Find by name: (empty)
+    [18] Find by name: (empty)
   Repositories:
     - Reading repositories…
   0 so far · more as you scroll
   Not listed:
-    [18] Owner: (empty)
-    [19] Name: (empty)
+    [19] Owner: (empty)
+    [20] Name: (empty)
   More: · Owned, it runs CI
     What temper does with it
     Role:
-      [20] (*) Owned
+      [21] (*) Owned
       temper pushes, opens pull requests and lands
-      [21] ( ) Fork
+      [22] ( ) Fork
       temper contributes through a fork
-      [22] ( ) Context
+      [23] ( ) Context
       temper only reads
-    [23] Branch prefix: temper/
-    [24] Landing branch: (empty)
-    [25] Checks: gate numbers, separated by spaces or commas: (empty)
-    [26] [x] It runs CI
-    [27] [x] Make it the project's home
-  [28] Cancel
+    [24] Branch prefix: temper/
+    [25] Landing branch: (empty)
+    [26] Checks: gate numbers, separated by spaces or commas: (empty)
+    [27] [x] It runs CI
+    [28] [x] Make it the project's home
+  [29] Cancel
   [-] Adopt (disabled)

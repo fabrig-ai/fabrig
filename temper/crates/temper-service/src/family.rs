@@ -297,6 +297,11 @@ pub fn to_root(
                 }
                 w::Request::Dismiss(value) => {
                     let what = match value.into_parts().what {
+                        w::PersonFact::KeepAsking(value) => forge::PersonFact::KeepAsking {
+                            project: value.project(),
+                            subject: temper_protocol_reaches::subject_from(value.subject()),
+                            at: value.at(),
+                        },
                         w::PersonFact::ToBegin(value) => forge::PersonFact::ToBegin { project: value.project() },
                         w::PersonFact::GoalFrom(value) => forge::PersonFact::GoalFrom {
                             project: value.project(),
@@ -342,7 +347,6 @@ pub fn to_root(
                                 Some(until) => Some(Wall::from_nanos(until)),
                                 None => None,
                             },
-                            kinds: value.kinds,
                         },
                     }));
                 }
@@ -1409,6 +1413,7 @@ fn project_status(value: forge::StatusView, limits: &w::Limits) -> Option<Box<[u
 
 /// Encode a whole forge document, with deployment addresses at this boundary.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one exhaustive encoding map for forge documents")]
 pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
     match value {
         forge::Document::Change(value) => panel(value, forges, limits),
@@ -1416,6 +1421,17 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             let mut dismissed = List::with_capacity(u32::try_from(rows.len()).ok()?);
             for row in rows {
                 let value = match row {
+                    forge::PersonFact::KeepAsking { project, subject, at } => w::PersonFact::KeepAsking(
+                        w::KeepAsking::new(
+                            limits,
+                            w::KeepAskingParts {
+                                project,
+                                subject: temper_protocol_reaches::subject_record(subject),
+                                at,
+                            },
+                        )
+                        .ok()?,
+                    ),
                     forge::PersonFact::ToBegin { project } => {
                         w::PersonFact::ToBegin(w::ToBegin::new(limits, w::ToBeginParts { project }).ok()?)
                     }
@@ -1520,7 +1536,6 @@ fn aways(value: forge::AwaysView, limits: &w::Limits) -> Option<Box<[u8]>> {
                         Some(at) => Some(at.as_nanos()),
                         None => None,
                     },
-                    kinds: row.kinds,
                     landed: row.landed,
                     off: match row.off {
                         Some(at) => Some(at.as_nanos()),
@@ -1550,13 +1565,32 @@ fn decisions(value: forge::DecisionsView, limits: &w::Limits) -> Option<Box<[u8]
                     took: row.took,
                     why: row.why,
                     overturned: row.overturned,
+                    reach: temper_protocol_reaches::reach_record(&row.reach),
                 },
             )
             .ok()?,
         )
         .ok()?;
     }
-    let document = w::Decisions::new(limits, w::DecisionsParts { project: value.project, rows }).ok()?;
+    let mut asked = List::with_capacity(u32::try_from(value.asked.len()).ok()?);
+    for row in value.asked {
+        asked
+            .push(
+                w::Asked::new(
+                    limits,
+                    w::AskedParts {
+                        number: row.number,
+                        task: row.task,
+                        at: row.at.as_nanos(),
+                        reach: temper_protocol_reaches::reach_record(&row.reach),
+                    },
+                )
+                .ok()?,
+            )
+            .ok()?;
+    }
+    let document =
+        w::Decisions::new(limits, w::DecisionsParts { project: value.project, rows, asked, cut: value.cut }).ok()?;
     Some(wire::decisions(&document))
 }
 

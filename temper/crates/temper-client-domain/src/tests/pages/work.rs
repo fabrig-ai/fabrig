@@ -655,11 +655,9 @@ fn only_read_hidden_settings_override_filters() {
             let result = match value {
                 None => Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)),
                 Some([goals, changes]) => {
-                    let ways = w::ProjectWays::new(
-                        &w::CEILINGS,
-                        w::ProjectWaysParts { skein_bools: [true, goals, changes, false], way: 0 },
-                    )
-                    .unwrap();
+                    let ways =
+                        w::ProjectWays::new(&w::CEILINGS, w::ProjectWaysParts { drafts: true, goals, changes, way: 0 })
+                            .unwrap();
                     let mut bytes = Writer::new(usize::try_from(ways.measure()).unwrap());
                     ways.encode(&mut bytes).unwrap();
                     Readout::Family {
