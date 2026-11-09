@@ -6,7 +6,10 @@ fn forbidden(source: &str) -> bool {
         || ["CommandExt", "try_lock", "lock_shared", ".lock()"].iter().any(|name| compact.contains(name))
 }
 fn forbidden_at(path: &Path, source: &str) -> bool {
-    let source = if path.ends_with("temper/src/main.rs") || path.ends_with("temper-client/src/main.rs") {
+    let source = if path.ends_with("temper/src/main.rs")
+        || path.ends_with("temper-client/src/main.rs")
+        || path.ends_with("temper-agent/src/main.rs")
+    {
         source.replace("std::process::ExitCode", "ExitCode").replace("process::ExitCode", "ExitCode")
     } else if path.ends_with("temper/src/lib.rs") {
         // Serve reads the first link's secret from stdin (protocol/setup.md, 7.1).
@@ -66,7 +69,7 @@ fn process_and_file_locks_stay_in_their_declared_modules() {
 }
 #[test]
 fn binary_exit_codes_do_not_exempt_processes_or_file_locks() {
-    for path in ["temper/src/main.rs", "temper-client/src/main.rs"] {
+    for path in ["temper/src/main.rs", "temper-client/src/main.rs", "temper-agent/src/main.rs"] {
         for (source, expected) in [
             ("use std::process::ExitCode;", false),
             ("use std::{process::ExitCode};", false),
