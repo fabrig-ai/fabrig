@@ -244,6 +244,25 @@ fn project_reads(project: &ProjectTasks) -> Vec<reads::Read> {
     ]
 }
 
+// A run's answer can join its transcript, so even its person's own turns are marked withheld.
+fn withheld_turns(mut answer: reads::Answer) -> reads::Answer {
+    if let reads::Answer::Ended(ended) = &mut answer
+        && let reads::EndedValue::Turn(record) = &ended.value
+    {
+        ended.value = reads::EndedValue::WithheldTurn(record.clone());
+    }
+    if let reads::Answer::Page(page) = &mut answer {
+        for row in page.rows.iter_mut() {
+            if let reads::PageRow::Activity { turn: Some(turn), .. } = row
+                && let reads::PageTurn::Carried(record) = turn
+            {
+                *turn = reads::PageTurn::Withheld(record.clone());
+            }
+        }
+    }
+    answer
+}
+
 #[test]
 fn a_run_reads_its_project_as_its_person_and_no_other() {
     let (mut world, signed, own, other) = two_projects();
@@ -280,7 +299,7 @@ fn a_run_reads_its_project_as_its_person_and_no_other() {
     for (read, refused) in rows {
         let stored = world.store.rows.clone();
         let applied = world.store.applied;
-        let expected = refused.unwrap_or_else(|| support::read(&mut world, signed, read.clone()));
+        let expected = withheld_turns(refused.unwrap_or_else(|| support::read(&mut world, signed, read.clone())));
         let token = world.person_read(read.clone());
         let (to, key, answer) = world.person_answers.pop().expect("person read answer");
         assert_eq!(to, token, "{read:?}");

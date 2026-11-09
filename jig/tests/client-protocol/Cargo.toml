@@ -42,6 +42,8 @@ disallowed_methods = "deny"
 
 [dev-dependencies]
 jig-domain-notes.workspace = true
+jig-protocol-transcript.workspace = true
+smith-transcript.workspace = true
 jig-client-domain.workspace = true
 skein-ui.workspace = true
 jig-test-connector.workspace = true
