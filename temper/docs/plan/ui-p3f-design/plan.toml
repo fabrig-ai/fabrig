@@ -23,3 +23,16 @@ id = 1
 story = "An owner sets template 4's work, design and close-out, and reads it back from the forge, in ctl and in a run's see"
 parts = ["goal"]
 walk = false
+
+[[part]]
+id = "path"
+title = "The path draws \"design\" and \"close-out\" from what a goal's template says its coordinator does"
+mode = "direct"
+needs = []
+design = "temper/docs/design/domain/forge.md, 8.13"
+
+[[slice]]
+id = 2
+story = "A project whose goal template designs first and makes a close-out reads \"design\" and \"close-out\" on its path; one whose template doesn't reads \"plan\""
+parts = ["path"]
+walk = false
