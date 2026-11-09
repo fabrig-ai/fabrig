@@ -72,7 +72,7 @@ its journeys. The reasons are `notes.md`, section 9.
   focus on the web; a chat's or a goal's page there gives the terminal
   command to copy; a chat begun in the TUI is an ordinary chat on the
   web.
-- **`temper open` and `temper ctl` stay what they are:** the line client
+- **`temper open`, in `temper-box` (`cli.md`, section 4), and `temper ctl` stay what they are:** the line client
   is the tests' surface (`../client/README.md`, 6.9), `temper ctl` the
   agents' (`../client/tools.md`, section 8). The TUI is the person's.
 

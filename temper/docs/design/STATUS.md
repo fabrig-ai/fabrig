@@ -1,6 +1,6 @@
 # Status
 
-2026-11-08. Where temper's code lags or departs from its design, and
+2026-11-09. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The TUI's
 connected milestone is built: bare `temper` or `temper ADDRESS`, a
 pasted-link sign-in and a live launchpad, with golden frames,
@@ -142,8 +142,8 @@ domain and drawn on Ask temper's opening, with its lede, tabs, axis,
 path, stop's card, legend and acts from the `ways` read. The old starters,
 own way's card and reference pane are gone; responsive paths share their
 look with replies. The design departs from the request `ask-temper-ways`
-in one drawing laid out by its width, the line's two tones, the scene's
-caret and stops with no ARIA; temper/ui's rendered comparison follows
+in one drawing laid out by its width, the scene's caret and stops with
+no ARIA; temper/ui's rendered comparison follows
 landing (`domain/forge.md`, 8.13; `protocol/configuration.md`, 11 and
 13.2 to 13.10; `client/README.md`, 3.5, 5.13, 5.16 and 11;
 `client/README.status.md`; `draft/stock-ways.status.md`). Its render
@@ -156,17 +156,31 @@ page in How work runs' frame, and the terminal prints "Ways of working:" and "Th
 way a change goes:" once each. No gallery state draws those two pages,
 and the repairs' render check follows landing (`client/README.status.md`,
 3.5 and 5.16; `client/browser.status.md`, 2.5 and 7.1;
-`domain/forge.status.md`, 4.7 and 8.13; `domain/forge.md`, 20). How work
-runs, Settings' first tab, is the whole story's milestone P3a, by plan
-`ui-p3a-how`: the way the project runs, "Ask temper to change this",
-the ways as tabs over the path in lanes, You, Agents and Code, a goal's
-budget and the switches at its foot, its parts and lanes one pure
-function each, with a fuzz test of their rules, the joint world's
-lanes over CI and tiers and over neither, and six gallery states; its
-render check and walk follow landing. The path is drawn as Ask temper's
-ways are, the agent's star in ink, with the project's Roles below it;
-a role's model is among its opened terms (`client/README.status.md`,
-5.13; `client/browser.md`, 2.5 and 7.2). The rail, Work and
+`domain/forge.status.md`, 8.13). Its last misses, and How work runs as
+the final `how.html`, are `look-round-25`'s: the engine's path as
+amended, "conflict" and "resolve" at the front of the queue, the
+queue's update in the cards, "catch up" on a goal's branch, each stop
+made only when needed marked so and drawn outlined, a repair saying
+what it answers, and an agent's "Can" ending "never merge"; who acts by
+mark alone, an agent's star and its rises in ink; each rise a fade,
+skein's linear fade of a mark's stroke (skein's `ui.md`, 11.2); the
+open card's place at 1000 px and on a phone, and four tabs two by two
+at 760 px and under; and CI's card naming the repository's workflows,
+which the forge reads at the landing branch's tip and keeps on its
+record. Their render check follows landing (`client/README.status.md`,
+4.6, 5.13 and 5.16; `client/browser.status.md`, 2.5;
+`domain/forge.status.md`, 4.7 and 8.13; `protocol/store.status.md`, 2;
+`domain/forge.md`, 20). How work runs, Settings' first tab, is the whole
+story's milestone P3a, by plan `ui-p3a-how` and its repair
+`look-round-25`: the way the project runs, "Ask temper to change this",
+the ways as tabs over the path drawn as Ask temper's ways draw it,
+Roles, every agent the project's work runs, from the view `roles`, a
+goal's budget and the switches at its foot, its parts one pure
+function, with a fuzz test of their rules, the joint world's paths over
+CI and tiers and over neither, and six gallery states; its render check
+and walk follow landing. A role's model is among its opened terms, and
+the drafter is no role yet (`client/README.status.md`, 5.13;
+`domain/forge.status.md`, 8.13; `draft/surfaces.status.md`, 7). The rail, Work and
 Deployment are the whole story's milestone P1, by plan `ui-p1-rail`: the
 rail and the tab bar from one pure function of their parts, Work, the
 hairline, How work runs, the new box and Deployment at the foot, the
@@ -176,11 +190,16 @@ new; with a fuzz test of the draft's density rules, the joint world's Work
 across two projects and fifteen gallery states; their render check and
 walk follow landing. Team is never shown, as no read gives the rail a
 project's members or roles; the draft, redrawn after the plan's cut,
-adds a hairline and How work runs to To begin's rail, drops the words
-that still name Settings and takes Away across projects, which the
-design doesn't yet say (`client/README.status.md`, 3.5 and 5.3;
+adds a hairline and How work runs to To begin's rail and drops the words
+that still name Settings, which the design doesn't yet say
+(`client/README.status.md`, 3.5 and 5.3;
 `client/browser.status.md`, 2.3, 2.5 and 7.2;
-`draft/surfaces.status.md`, 2, 5, 8 and 10). Home and Needs you across
+`draft/surfaces.status.md`, 2, 5, 8 and 10). Away on All projects, by
+plan `ui-away-all`, sets every project the person is in, each by its own
+`SetAway`, one after another, reads "Away on N of M" while they differ
+and toasts how many changed, with two gallery states; its render check
+and walk follow landing (`client/README.md`, 3.5 and 11;
+`client/README.status.md`, 3.5; `client/browser.status.md`, 7.2). Home and Needs you across
 projects, and the brief, are the whole story's milestone P2, by plan
 `ui-p2-home`: Home on All projects at `/home`, reading every project's
 status and decisions, the briefs' first sentences joined, Projects, the
@@ -349,7 +368,10 @@ findings, whole (`domain/findings.md`, with their families in
 worker runs temper's merge kind, and the merge job settles a
 change's conflict before a resolution and produces a catch-up into a
 goal's branch; a goal's landing whose update conflicts takes it, but
-no story runs that (`domain/forge.md`). Lost updates and prepares recover
+no story runs that (`domain/forge.md`). A head behind its base takes it
+however far behind, any listed commit or a range too large to list
+proving it lacks the base's tip, and Forgejo answers a long range's
+oldest page (`domain/forge.md`; skein's `forge.md`). Lost updates and prepares recover
 in the worlds, with a reason at their retry bound; the three-thread
 real-process restart proof awaits its after-landing trial
 (`domain/forge.md`, `domain/landing.md`). The prepare and key kinds
@@ -487,7 +509,10 @@ reads a spec in pieces of it (`protocol/setup.md`). A run reads a task's words i
 its reply's room, but in those pieces where its process has no local agent, by the
 `read-task-room` plan's cut, and no goal on record has counted what the room saves
 (`domain/root.md`); how the engine is to learn its workers' reply bound is the
-design owner's decision (`domain/agent.md`, section 10). A live delegate counts no stall and a stall's hold reaches its
+design owner's decision (`domain/agent.md`, section 10). A charter is fitted to
+its worker's allowance, smith's 65,536 where the process has no local agent, as
+that section leaves it, and a resolution names a file too large for its brief
+(`domain/agent.md`; `domain/forge.md`). A live delegate counts no stall and a stall's hold reaches its
 task's holder, but no record shows the rerun of the replay the `parallel-faults`
 request has as its proof, nor why its hold came about 57 minutes in, and a no-change
 under another hold is said only once a release holds it again (`domain/forge.md`). A
@@ -948,6 +973,7 @@ Drafts:
 - [`draft/box-link-first.md`](draft/box-link-first.status.md)
 - [`draft/chat-reading.md`](draft/chat-reading.status.md)
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
+- [`draft/cli.md`](draft/cli.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
 - [`draft/deployment-binaries.md`](draft/deployment-binaries.status.md)

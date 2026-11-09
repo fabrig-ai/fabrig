@@ -127,7 +127,7 @@ impl Sample {
         }
     }
 }
-pub const N: usize = 378;
+pub const N: usize = 383;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -140,6 +140,9 @@ fn task(task: u64) -> Address {
 #[expect(clippy::large_stack_arrays, reason = "the gallery returns its bounded named-state table as a fixed array")]
 pub fn samples() -> [Sample; N] {
     let mut samples = [
+        Sample { name: "team", world: Bare, address: Address::Team { project: 1 }, then: Shown },
+        Sample { name: "team-alone", world: Bare, address: Address::Team { project: 1 }, then: Shown },
+        Sample { name: "night-team", world: Bare, address: Address::Team { project: 1 }, then: Shown },
         Sample {
             name: "rail-new-change",
             world: Reference,
@@ -376,6 +379,8 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "all-home", world: World::WholeStory, address: Address::AllHome, then: Shown },
         Sample { name: "all-home-nothing-new", world: World::WholeStory, address: Address::AllHome, then: Shown },
         Sample { name: "all-home-one-project", world: World::WholeStory, address: Address::AllHome, then: Shown },
+        Sample { name: "all-home-away", world: World::WholeStory, address: Address::AllHome, then: Shown },
+        Sample { name: "all-home-away-on", world: World::WholeStory, address: Address::AllHome, then: Shown },
         Sample { name: "night-all-home", world: World::WholeStory, address: Address::AllHome, then: Shown },
         Sample { name: "home-step-pair", world: Solo, address: Address::Home { project: 1 }, then: Shown },
         Sample { name: "home-step-team", world: Solo, address: Address::Home { project: 1 }, then: Shown },
@@ -1264,8 +1269,11 @@ fn special_mockup(name: &str) -> Option<String> {
         return Some("../greenfield/needs.html".to_owned());
     }
     match name {
+        "team" | "night-team" => return Some("../whole-story/team/team.html".to_owned()),
         "all-home"
         | "all-home-nothing-new"
+        | "all-home-away"
+        | "all-home-away-on"
         | "all-home-one-project"
         | "night-all-home"
         | "home-step-stock"
@@ -1433,6 +1441,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::Work { .. }
         | Address::Goals { .. }
         | Address::Changes { .. }
+        | Address::Team { .. }
         | Address::Home { .. }
         | Address::Settings { .. }
         | Address::Models { .. }
@@ -1477,6 +1486,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::Task { .. }
         | Address::Home { .. }
         | Address::Changes { .. }
+        | Address::Team { .. }
         | Address::Settings { .. }
         | Address::Models { .. }
         | Address::Builders { .. }
@@ -1612,6 +1622,7 @@ pub fn domain(sample: &Sample) -> Domain {
         return crate::worlds::view_world(sample.name);
     }
     let base = match sample.name {
+        "night-team" => Some("team"),
         "night-needs" => Some("needs-list"),
         "night-home" => Some("home-begin-ask-left"),
         "night-all-home" => Some("all-home"),
@@ -1761,6 +1772,9 @@ pub fn domain(sample: &Sample) -> Domain {
     }
     if sample.name.starts_with("changes") {
         return crate::worlds::changes_world(sample.name);
+    }
+    if sample.name == "team" || sample.name == "team-alone" {
+        return crate::worlds::team_world(sample.name);
     }
     if sample.name.starts_with("ask-") {
         return ask_domain(sample);

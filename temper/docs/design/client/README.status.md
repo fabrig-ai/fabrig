@@ -1,6 +1,6 @@
 # README: status
 
-2026-11-08. Where temper's code lags or departs from [README.md](README.md).
+2026-11-09. Where temper's code lags or departs from [README.md](README.md).
 
 Sections 3.5 and 5.3 have the two-step To begin, repository first,
 the two-count facts and notes, and restricted navigation on Home and
@@ -104,29 +104,45 @@ state draws the two pages (`browser.status.md`, 7.3). The repairs'
 render check and the pages' walk remain section 11's after-landing
 work.
 
+Sections 4.6, 5.13 and 5.16 have no known gap but the departure below
+in `look-round-25`'s repairs of `ask-temper-ways` and of How work runs:
+the wire's `PathStep` holds `conflict` and `catch_up` and no `update`,
+its `Stop` `needed` and `over`, and `View` `roles`, a card a role,
+which a reply draws; a stop made only when needed is drawn outlined, its
+small words over its own, and the fallback says ", when needed" and the
+small words in brackets; who acts is the mark alone, an agent's star
+and its rises in ink, a person's ring and its rises the signal's,
+code's square grey, each rise a fade of skein's (skein's `ui.md`,
+11.2), the legend with an agent when needed; and in a box under 360 the
+narrow path is a scene 360 wide scaled to the box, as the request's
+picture is. How work runs draws its path with Ask temper's drawing,
+legend, tabs, card and act, shared in the view's `pages/ways.rs`, and
+Roles, a disclosure a role of the view `roles`, read as the page opens
+and again at a newer revision. The view's `tests/ask.rs`, `tests/how.rs`
+and `tests/views.rs`, the fuzzy suite's
+`parts_and_drawing_follow_only_the_current_facts` and the gallery's
+`ask-ways-*` and `how` to `night-how` hold them. Their render check and
+the page's walk remain section 11's after-landing work.
+
 - **Departs:** 5.13: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and
   one description (`skein/docs/design/ui.md`, *A disclosure*); the
   right-hand model waits for a structured summary in skein.
 
-How work runs has plan `ui-p3a-how`'s implementation, with the role summary
-departure above (3.5, *Settings and Deployment*, 4.6 and 5.13):
-`pages::how::parts`, of what `pages::how::facts` gathers, decides the
-heading's way, "Ask temper to change this", the path section's state and
-Budgets' row, and `pages::how::lanes` places each stop once in its
-actor's lane and a bar in none. `Settings { project }` watches the
-project's `ways` as Ask temper's page does, `Act::WayTab` and
-`Act::WayStop` heard on either, and the view's `pages/ways.rs` draws
-both pages' tabs, card, act and refusal. The page names the way, or "A
-way of its own", with its line, draws the path in lanes under the
-authority row, a goal's amount or cap, What needs you and Away, and the
-switches at its foot; the disabled Status, Funds and Telling you rows
-are gone. The domain's and the view's tables, the fuzzy suite's
-`parts_and_lanes_follow_only_the_current_facts`, the joint world's
-`the_three_ways_draw_ci_and_tiers_or_neither` and the gallery's `how`
-to `night-how` hold it, and the text shell's `settings.txt` golden and
-the `chat-draft` journey are reprinted with it. The page's render check
-and walk remain section 11's after-landing work.
+How work runs has plan `ui-p3a-how`'s implementation, with
+`look-round-25`'s drawing and Roles above (3.5, *Settings and
+Deployment*, 4.6 and 5.13): `pages::how::parts`, of what
+`pages::how::facts` gathers, decides the heading's way, "Ask temper to
+change this", the path section's state, Roles' state and Budgets' row.
+`Settings { project }` watches the project's `ways` as Ask temper's page
+does, `Act::WayTab` and `Act::WayStop` heard on either. The page names
+the way, or "A way of its own", with its line, draws the path, Roles, a
+goal's amount or cap, What needs you and Away, and the switches at its
+foot; the disabled Status, Funds and Telling you rows are gone. The
+domain's and the view's tables, the joint world's
+`the_three_ways_draw_ci_and_tiers_or_neither` and the text shell's
+`settings.txt` golden hold it. The page's render check and walk remain
+section 11's after-landing work.
 
 Sections 3.5, *Work*, *Goals*, *Changes* and *Settings and Deployment*,
 and 5.3, *The rail*, *The rail's parts*, *Projects in the rail* and *All
@@ -825,10 +841,8 @@ read's head explicit.
   `Builder::focus`, at most one per tree, which asserts. The `ui-rename-focus` task
   `rename-row` has opening the form on such a page not panic; no reason is recorded
   for this site. Seen by reading; no test holds it.
-- **Not yet:** 5.3, *The rail's parts*: Team is never shown. No read gives the
-  rail a project's members (jig's `Read::Project` is the Members tab's) or a
-  standing role (`../draft/standing-roles.md`), and Team has no page
-  (`../draft/surfaces.md`, section 6), so `rail::facts` gathers neither.
+- **Not yet:** 5.3, *The rail's parts*: no read gives the rail a standing
+  role (`../draft/standing-roles.md`).
 - **Not yet:** 3.5, *Away*, 4.6: with the `away` watch refused, ended or not
   delivered yet the switch draws off, but its act is still offered, where 4.6
   has it not offered: `temper-client-view`'s `frame.rs`, `away`, and
@@ -854,6 +868,25 @@ read's head explicit.
   at a character boundary to fit 512 bytes (`forge/decided.rs`, `overturn_words`),
   where the section has it whole, because the smallest deployed composer admits
   that (5.4).
+
+Section 3.5, *Away*, *On All projects*, and 5.3's Away row have no known
+gap, by plan `ui-away-all`: `pages::away_all::across` counts `me`'s
+projects, those on at the wall and the earliest `until` of those on, and
+whether Away shows for any, which `rail::facts` reads on a page across
+projects; `frame.rs`'s `away` draws the switch and the chip from it,
+"Away on N of M" between, and binds `away::Act::ToggleAll`, whose
+`away_all::act` builds each changing project's request by
+`pages::away::request`, which a project's own act calls, and sends them
+one after another, toasting `Toasted::AwayAll`, or `AwayRefused` with
+none changed. The domain's `tests/away.rs`, its
+`across_counts_the_projects_on`, `toggle_all_sets_each_project_that_differs`
+and `a_second_toggle_waits`, `tests/pages/rail.rs`'s "across" row, the
+view's `the_switch_shows_with_ways_away` and the gallery's
+`all-home-away` and `all-home-away-on` (`browser.status.md`, 7.2) hold
+it. No render of the words is on record and no client-world story
+presses the switch across projects: the render check and the walk remain
+section 11's after-landing work (*Away on All projects after landing*).
+
 - **Design departs:** 5.8, from the request `ui-goal-page` of 2026-11-05, decided
   by its plan's cut and its proof. A goal's bar is `figure.bar` in the browser
   and `Role::Image` in the terminal, where the request has `div.bar` and
@@ -1038,6 +1071,9 @@ read's head explicit.
   word change: `the_button_reads_each_label_once_in_the_browser` holds the three names in
   the view's tree, and that a name's patch rewrites the button's text
   (`skein-ui-web/src/page/web.rs`, `refresh` and `content`) is seen by reading too.
+- **Not yet:** 3.5, *Team*, *The project's triager*: no setting names a
+  triager (`../domain/landing.status.md`, 13.1; `../domain/findings.status.md`),
+  so no read gives `team::Facts`' `triager`, and its line is never drawn.
 - **Design departs:** 3.5, *Needs you*, `.rec`, from the request `ui-copy-once` of
   2026-11-06, decided by its plan's cut. The request has no button, tab or option with
   both a name and a text child in a browser, and a recommended choice's button has its
