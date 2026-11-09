@@ -11,6 +11,8 @@ use crate::{
 const LIMITS: Limits = Limits {
     scopes: 2,
     entries_per_scope: 1,
+    party_entries: 1,
+    party_bytes: 16,
     pattern_bytes: 16,
     description_bytes: 16,
     body_bytes: 32,

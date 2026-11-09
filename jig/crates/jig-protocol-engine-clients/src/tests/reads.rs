@@ -20,7 +20,20 @@ fn a_read_is_answered_only_once_held_is_released() {
 }
 #[test]
 fn a_cursor_round_trips_to_the_same_position() {
-    for (label, position) in f::cursors() {
+    let party = (
+        "Party",
+        reads::Cursor::Store {
+            scope: reads::Scope::ScopedNotes {
+                scope: jig_domain_notes::Scope::Party { party: u64::MAX },
+                description: Some(Box::from(b"filter".as_slice())),
+            },
+            after: Some(reads::Position::Owner(jig_domain_core::Key::Notes(jig_domain_notes::Key::Line {
+                scope: jig_domain_notes::Scope::Party { party: u64::MAX },
+                name: u64::MAX,
+            }))),
+        },
+    );
+    for (label, position) in f::cursors().into_iter().chain([party]) {
         let encoded = crate::translate::cursor::encode(&position, 1024).expect(label);
         assert_eq!(crate::translate::cursor::decode(&encoded), Some(position.clone()), "{label}");
         let size = u32::try_from(encoded.len()).expect("small cursor");

@@ -217,6 +217,8 @@ pub fn limits() -> engine::Limits {
         notes: jig_domain_notes::Limits {
             scopes: 4,
             entries_per_scope: 1,
+            party_entries: 1,
+            party_bytes: 64,
             pattern_bytes: 64,
             description_bytes: 64,
             body_bytes: 256,

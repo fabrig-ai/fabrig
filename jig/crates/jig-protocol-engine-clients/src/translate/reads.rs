@@ -82,6 +82,7 @@ fn group(parent: w::InboxReadGroup, kind: Option<w::InboxGroup>) -> Option<reads
 fn note_scope(value: w::NoteScope) -> Option<notes::Scope> {
     Some(match value {
         w::NoteScope::Tasks(_) => return None,
+        w::NoteScope::Party(value) => notes::Scope::Party { party: value.party() },
         w::NoteScope::Deployment => notes::Scope::Deployment,
         w::NoteScope::Project(value) => notes::Scope::Project { project: value.value() },
         w::NoteScope::Task(value) => notes::Scope::Goal { project: value.project(), goal: value.task() },
@@ -278,7 +279,8 @@ fn read_notes(value: w::ReadNotes) -> Option<reads::Read> {
             scope @ (w::NoteScope::Deployment
             | w::NoteScope::Project(_)
             | w::NoteScope::Resource(_)
-            | w::NoteScope::Task(_)) => {
+            | w::NoteScope::Task(_)
+            | w::NoteScope::Party(_)) => {
                 reads::Read::ScopedNotes { scope: note_scope(scope)?, description: parts.description, from }
             }
         }

@@ -148,6 +148,7 @@ pub(crate) fn pattern(value: &w::Pattern) -> c::Pattern {
 pub(crate) fn note_scope(value: &w::NoteScope) -> Result<c::NoteScope, w::Problem> {
     Ok(match value {
         w::NoteScope::Tasks(_) => return Err(super::piece_problem(skein_codec::Reason::Malformed)),
+        w::NoteScope::Party(row) => c::NoteScope::Party { party: row.party() },
         w::NoteScope::Deployment => c::NoteScope::Deployment,
         w::NoteScope::Project(row) => c::NoteScope::Project(row.value()),
         w::NoteScope::Resource(row) => c::NoteScope::Resource {

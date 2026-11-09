@@ -12,6 +12,8 @@ pub const APPLICATION: sizes::Application = sizes::Application { version: 1, key
 pub const NOTES_LIMITS: jig_domain_notes::Limits = jig_domain_notes::Limits {
     scopes: 2,
     entries_per_scope: 2,
+    party_entries: 2,
+    party_bytes: 32,
     pattern_bytes: 16,
     description_bytes: 32,
     body_bytes: 64,

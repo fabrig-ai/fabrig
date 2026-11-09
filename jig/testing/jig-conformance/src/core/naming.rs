@@ -104,7 +104,7 @@ fn proposer_task(proposer: people::Proposer) -> Option<u64> {
 }
 fn note_scope(scope: &notes::Scope, name: &mut r::Naming) {
     match scope {
-        notes::Scope::Deployment => {}
+        notes::Scope::Deployment | notes::Scope::Party { .. } => {}
         notes::Scope::Project { project } | notes::Scope::Resources { project, .. } => name.project = Some(*project),
         notes::Scope::Goal { project, goal } => {
             name.project = Some(*project);

@@ -7,6 +7,10 @@ pub struct Limits {
     pub scopes: u32,
     /// Entries admitted in one scope.
     pub entries_per_scope: u32,
+    /// Entries admitted in one party's scope (domain/engine.md, 10.1).
+    pub party_entries: u32,
+    /// Largest description of an entry in a party's scope, in bytes.
+    pub party_bytes: u32,
     /// Largest connector pattern, in bytes.
     pub pattern_bytes: u32,
     /// Largest one-line description, in bytes.
@@ -28,6 +32,9 @@ pub struct Limits {
 pub fn valid(limits: &Limits) -> bool {
     limits.scopes > 0
         && limits.entries_per_scope > 0
+        && limits.party_entries > 0
+        && limits.party_entries <= limits.entries_per_scope
+        && limits.party_bytes <= limits.description_bytes
         && limits.load_rows > 0
         && limits.recalled > 0
         && limits.scopes.checked_mul(limits.entries_per_scope).is_some()

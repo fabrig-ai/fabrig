@@ -34,6 +34,7 @@
         "link.ping_ms": 100,
         "link.silence_ms": 1000,
         "notes.entries_per_scope": 1,
+        "notes.party_entries": 1,
         "notes.recalled": 1,
         "notes.scopes": 17,
         "people.amendment_bytes": 2048,

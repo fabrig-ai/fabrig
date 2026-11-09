@@ -617,7 +617,7 @@ fn notes_contains(range: &jig_domain_notes::Range, child: &jig_domain_notes::Key
         jig_domain_notes::Range::Project { project, after } => match child {
             jig_domain_notes::Key::Line { scope, .. } => {
                 let in_project = match scope {
-                    jig_domain_notes::Scope::Deployment => false,
+                    jig_domain_notes::Scope::Deployment | jig_domain_notes::Scope::Party { .. } => false,
                     jig_domain_notes::Scope::Project { project: found }
                     | jig_domain_notes::Scope::Goal { project: found, .. }
                     | jig_domain_notes::Scope::Resources { project: found, .. } => project == found,
@@ -836,7 +836,8 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                         let scope_bytes = match scope.as_ref() {
                             jig_domain_people::NoteScope::Deployment
                             | jig_domain_people::NoteScope::Project
-                            | jig_domain_people::NoteScope::Goal { .. } => 0,
+                            | jig_domain_people::NoteScope::Goal { .. }
+                            | jig_domain_people::NoteScope::Party { .. } => 0,
                             jig_domain_people::NoteScope::Resources { pattern, .. } => {
                                 let mut bytes = skein_lib::len_u64(pattern.segments.len())
                                     .checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
@@ -955,7 +956,8 @@ fn note_scope_bytes(scope: &jig_domain_notes::Scope) -> Option<u64> {
         }
         jig_domain_notes::Scope::Deployment
         | jig_domain_notes::Scope::Project { .. }
-        | jig_domain_notes::Scope::Goal { .. } => Some(0),
+        | jig_domain_notes::Scope::Goal { .. }
+        | jig_domain_notes::Scope::Party { .. } => Some(0),
     }
 }
 
