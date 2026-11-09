@@ -93,7 +93,7 @@ fn every_settings_read_form_and_offset_decodes() {
 fn settings_bad_fields_are_refused_by_name() {
     for spec in &crate::calls::SPECS {
         if [b"settings".as_slice(), b"propose_settings"].contains(&spec.name) {
-            assert!(skein_lib::bytes::find(spec.schema, br#""description":"Required for charter, template, policy, model, landing-rule, forge-charter or template-goal (template's); else none.""#).is_some());
+            assert!(skein_lib::bytes::find(spec.schema, br#""description":"Charter/template/policy/model/landing-rule/forge-charter/charter-words number; template-goal: template's; else none.""#).is_some());
         }
     }
     for (input, why) in [
@@ -125,6 +125,8 @@ fn settings_bad_fields_are_refused_by_name() {
         (br#"{"history":[],"from":0}"#, Problem::Type(b"history")),
         (br#"{"history":{"before":0}}"#, Problem::Range(b"before")),
         (br#"{"history":{},"revision":1}"#, Problem::Range(b"history")),
+        (br#"{"setting":{"kind":"charter-words"}}"#, Problem::Needs { kind: b"charter-words", member: b"number" }),
+        (br#"{"setting":{"kind":"charter-words","number":4,"project":7}}"#, Problem::Range(b"project")),
     ] {
         assert_eq!(decoded(b"settings", input).expect_err("invalid read"), why);
     }
@@ -516,6 +518,14 @@ fn settings_proposals_carry_typed_landing_values() {
                 approvals: Box::new([]),
             }),
         ),
+        (
+            br#"{"against":1,"reason":"words","items":[{"setting":{"kind":"charter-words","number":1},"set":"Reviews changes"}]}"#,
+            9, 0, settings::Value::CharterWords(b"Reviews changes".as_slice().into()),
+        ),
+        (
+            br#"{"against":1,"reason":"words","items":[{"setting":{"kind":"project-words","project":7},"set":{"headline":"Our way","lede":"We review changes."}}]}"#,
+            10, 7, settings::Value::ProjectWords(settings::ProjectWords { headline: b"Our way".as_slice().into(), lede: b"We review changes.".as_slice().into() }),
+        ),
     ] {
         let bytes = crate::kinds::encode(&value);
         let size = u32::try_from(bytes.len()).expect("fixture encoding");
@@ -736,7 +746,7 @@ fn settings_proposals_carry_typed_project_questions() {
 }
 #[test]
 fn project_settings_reads_require_project_and_refuse_number() {
-    for (kind, number) in [("project-ways", 7), ("project-questions", 6)] {
+    for (kind, number) in [("project-ways", 7), ("project-questions", 6), ("project-words", 10)] {
         let bytes = format!(r#"{{"setting":{{"kind":"{kind}","project":7}},"revision":2}}"#);
         let call = decided(b"settings", bytes.as_bytes()).expect("project read");
         assert_eq!(
@@ -929,7 +939,7 @@ fn inventory_people_forms_share_repository_pagination() {
     )
     .into_parts();
     assert!(error);
-    assert_eq!(unknown.as_ref(), b"not read: no such setting at that revision. This says nothing about the settings: read the inventory and name what it lists; template-goal takes a template number and no project; project-ways and project-questions take project and no number.\nend\n", "context belongs only to an inventory");
+    assert_eq!(unknown.as_ref(), b"not read: no such setting at that revision. This says nothing about the settings: read the inventory; project-ways, project-questions, project-words: project, no number; charter-words, template-goal: number, no project.\nend\n", "context belongs only to an inventory");
 }
 
 #[test]

@@ -145,6 +145,7 @@ pub enum Start {
 pub struct Tier {
     pub name: Box<[u8]>,
     pub follows: temper_engine_domain_forge::Follows,
+    pub description: Box<[u8]>,
 }
 
 /// The repository the path is over, as the forge holds it.

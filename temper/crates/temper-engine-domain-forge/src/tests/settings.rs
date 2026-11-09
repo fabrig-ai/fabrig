@@ -351,6 +351,7 @@ fn refusal_words_are_distinct() {
         Refusal::Approvals,
         Refusal::Charter,
         Refusal::Value,
+        Refusal::Words,
     ];
     for (at, refusal) in refusals.iter().enumerate() {
         assert!(!refusal.words().is_empty(), "{refusal:?}");
@@ -418,7 +419,7 @@ fn requires_reads_rules_that_do_not_enforce() {
 
 #[test]
 fn a_projects_kinds_are_judged() {
-    use crate::settings::ProjectWays;
+    use crate::settings::{ProjectWays, ProjectWords};
     use temper_engine_domain_forge_change::Route;
     for (kind, expected) in [
         (6, Value::Questions(Route::None)),
@@ -427,6 +428,7 @@ fn a_projects_kinds_are_judged() {
         assert_eq!(crate::settings::project_stock(kind).unwrap().value, expected, "stock {kind}");
     }
     let values = [
+        (10, Value::ProjectWords(ProjectWords { headline: Box::new([b'h'; 120]), lede: Box::new([b'l'; 480]) })),
         (6, Value::Questions(Route::None)),
         (6, Value::Questions(Route::Foreman)),
         (6, Value::Questions(Route::Up)),
@@ -452,5 +454,45 @@ fn a_projects_kinds_are_judged() {
             Value::Questions(Route::None)
         };
         assert_eq!(judge(&Item { value: Some(other), ..base }, &BOUNDS), Err(Refusal::Value));
+    }
+    let ways = Value::Ways(ProjectWays { drafts: true, goals: false, changes: false, away: false, way: 0 });
+    for (line, expected) in [
+        (Box::from([b'x'; 120].as_slice()), Ok(())),
+        (Box::from([b'x'; 121].as_slice()), Err(Refusal::Words)),
+        (Box::from(b"".as_slice()), Err(Refusal::Words)),
+        (Box::from(b"line\nbreak".as_slice()), Err(Refusal::Words)),
+        (Box::from(b"tab\t".as_slice()), Err(Refusal::Words)),
+        (Box::from("é\u{0085}".as_bytes()), Err(Refusal::Words)),
+        (Box::from(b"\xff".as_slice()), Err(Refusal::Words)),
+        (Box::from("é".as_bytes()), Ok(())),
+    ] {
+        let item = Item { kind: 9, scope: 0, number: 1, value: Some(Value::CharterWords(line)) };
+        assert_eq!(judge(&item, &BOUNDS), expected, "line {item:?}");
+    }
+    let base = Item { kind: 9, scope: 0, number: 1, value: Some(Value::CharterWords(Box::from(b"line".as_slice()))) };
+    assert_eq!(Kind::of(9).unwrap().number(), 9);
+    for (label, item, expected) in [
+        ("scope", Item { scope: PROJECT, ..base.clone() }, Err(Refusal::Scope)),
+        ("zero", Item { number: 0, ..base.clone() }, Err(Refusal::Number)),
+        ("last charter", Item { number: BOUNDS.charters, ..base.clone() }, Ok(())),
+        ("past charters", Item { number: BOUNDS.charters + 1, ..base.clone() }, Err(Refusal::Number)),
+        ("remove or reset", Item { value: None, ..base.clone() }, Ok(())),
+        ("ways", Item { value: Some(ways.clone()), ..base }, Err(Refusal::Value)),
+        ("project ways", Item { kind: 10, scope: PROJECT, number: 1, value: Some(ways) }, Err(Refusal::Value)),
+    ] {
+        assert_eq!(judge(&item, &BOUNDS), expected, "{label}");
+    }
+    for (headline, lede, expected) in [
+        (Box::from([b'h'; 120].as_slice()), Box::from([b'l'; 480].as_slice()), Ok(())),
+        (Box::from([b'h'; 121].as_slice()), Box::from(b"lede".as_slice()), Err(Refusal::Words)),
+        (Box::from(b"headline".as_slice()), Box::from([b'l'; 481].as_slice()), Err(Refusal::Words)),
+    ] {
+        let item = Item {
+            kind: 10,
+            scope: PROJECT,
+            number: 1,
+            value: Some(Value::ProjectWords(ProjectWords { headline, lede })),
+        };
+        assert_eq!(judge(&item, &BOUNDS), expected, "project words {item:?}");
     }
 }

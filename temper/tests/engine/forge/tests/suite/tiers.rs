@@ -67,6 +67,7 @@ fn following_world(seed: u64, workflow: raw::Workflow, follows: top::Follows) ->
                 format: p::Format::Lines,
                 follows,
                 span: None,
+                description: Box::default(),
             }]),
         }])
     ));

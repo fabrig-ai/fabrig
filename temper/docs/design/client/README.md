@@ -4699,13 +4699,16 @@ the person to check existence and grant the repository to the App.
   roles, charters and models are the core's (`../domain/forge.md`, 8.13).
   Its document, `WaysPanel` (`../protocol/configuration.md`, 13.10):
   - `project`; `ways`, at most 4, the stock's in their order, each a
-    `StockWay`: `name`, at most 64 bytes; `line`, at most 256; `path`, its
+    `StockWay`: `name`, at most 64 bytes; `headline`, at most 120, How
+    work runs' heading while the project runs it; `line`, at most 256; `path`, its
     path over the project; `items`, at most 8, each a `ProposalItem`, what
     "Use this" sends; `delegation`, whether the project's policy lacks the
     delegation the way needs (13.10 there);
   - `current`, option, the index of the way the project runs; `own`, the
-    project's own path; `may_change`, whether the reader may change the
-    project's settings, an owner of it.
+    project's own path; `words`, option, the project's words, kind 10, a
+    `ProjectWords`, `headline` at most 120 bytes and `lede` at most 480
+    (`../protocol/configuration.md`, 13.2); `may_change`, whether the
+    reader may change the project's settings, an owner of it.
 
   Marked at each committed change of settings, at each adoption into the
   project or removal from it, and at a change of the reader's role. A
@@ -6668,15 +6671,19 @@ Ask temper is reached from the rail and tab bar (5.3), and from this page's
   section, a placeholder or a made-up value. Under the frame's kicker, in
   order, its sections 44 apart, each a section title and its rows:
   - *Its heading and lede,* in the frame's place for them (3.5,
-    *Settings and Deployment*): the heading names the way the project runs, the `ways`
-    read's `name` of its current way ("Agents review"), or "A way of its
-    own" where it runs no stock way; the lede is that way's `line`, or
-    "PROJECT runs settings of its own, drawn below." with none, then "Ask
-    temper to change any of it, in words; an owner accepts its proposal,
-    and new work follows it." Until the read answers, and once its watch
-    has ended, the heading is "How work runs in PROJECT." and the lede
-    that last sentence alone. A way's name and line are the read's, never
-    written here.
+    *Settings and Deployment*), the words saved with the settings
+    (`../draft/whole-story.execution.md`, P3e): the heading is the `ways`
+    read's `headline` of the way the project runs ("You approve every
+    change"); where it runs no stock way, the project's words' `headline`
+    the read carries (`../protocol/configuration.md`, 13.2, kind 10),
+    else "A way of its own". The lede is "PROJECT runs the stock way
+    NAME." and that way's `line`; where it runs none, the project's words'
+    `lede`, else "PROJECT runs settings of its own, drawn below."; then
+    "Ask temper to change any of it, in words; an owner accepts its
+    proposal, and new work follows it." Until the read answers, and once
+    its watch has ended, the heading is "How work runs in PROJECT." and
+    the lede that last sentence alone. A way's words and the project's are
+    the read's, never written here.
   - *"Ask temper to change this,"* under the lede, a primary link to `Ask {
     project }`, while `me` lists Ask temper's template among the project's
     (3.5, *Ask temper's page*); then the frame's tabs.
@@ -10579,13 +10586,12 @@ own tests:
   by path and the path's stops for a path set (P3c), What follows a landing and
   a role's budget (P3d), each drawn by its milestone from the engine's reads;
   the heading's chief departure, "Draft first, with the protocol core asking
-  you", once a rule by path can be one (P3c); the heading's and the lede's
-  words saved with the settings, a person's or Ask temper's (P3e);
+  you", once a rule by path can be one (P3c);
   "History · N changes" beside "Ask temper to change this", once a page lists
   the settings' revisions (*Later: the fuller page*); the next step suggested
   when the facts earn it; and the project's repositories at the page's foot
   rather than its frame's second tab. Default: none of them is drawn until it
-  is built, the heading names the way alone and the lede is its line, and
+  is built, the heading is the way's headline or the project's words, and
   Repositories stays the second tab.
 - **How many goals take a way** (5.13): " Used by N." and " Used by none yet."
   need a goal's template, and jig's `TaskLine`, what a client is given of a goal,

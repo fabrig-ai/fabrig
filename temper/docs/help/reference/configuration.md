@@ -162,6 +162,7 @@ Shape: `tier-check`. Paths: `application.landing.projects[].gates[].tiers[]`. A 
 - `format`: text, junit or lines; required; init leaves it out. The format of the failing-tests artifact.
 - `branch`: text, nonempty; goal, a branch name, or absent for the landing branch; optional; init leaves it out. The branch whose tier this follows.
 - `span_ms`: integer, at most 18,446,744,073,709,551,615; 0 when absent; optional; init leaves it out. The interval in milliseconds between tier runs.
+- `description`: text, 1 to 120 bytes of UTF-8; no control character; optional; init leaves it out. What the tier checks, shown on its card and by see settings gates.
 
 ## application.demo
 

@@ -945,6 +945,8 @@ fn setting_base(setting: c::Setting) -> Box<[u8]> {
         c::Setting::Application { kind: 11, number, .. } => (b"template-goal".as_slice(), Some(number)),
         c::Setting::Application { kind: 6, scope, .. } => (b"project-questions".as_slice(), Some(scope)),
         c::Setting::Application { kind: 7, scope, .. } => (b"project-ways".as_slice(), Some(scope)),
+        c::Setting::Application { kind: 9, number, .. } => (b"charter-words".as_slice(), Some(number)),
+        c::Setting::Application { kind: 10, scope, .. } => (b"project-words".as_slice(), Some(scope)),
         c::Setting::Application { kind, scope, number } => {
             return joined(&[
                 b"application kind ",

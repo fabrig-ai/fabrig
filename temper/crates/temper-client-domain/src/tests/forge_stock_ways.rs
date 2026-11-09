@@ -37,8 +37,21 @@ const COMPLETED_PARTIAL: &[c::AuthorityExecutor] = &[
     c::AuthorityExecutor::Charter(5),
     c::AuthorityExecutor::Job(3),
 ];
-const WORDS: &[(&[u8], &[u8], &[u8])] =
-    &[(b"You approve", b"You decide", b"approval"), (b"Agents review", b"Code lands", b"review")];
+struct WayWords {
+    name: &'static [u8],
+    headline: &'static [u8],
+    line: &'static [u8],
+    branch: &'static [u8],
+}
+const WORDS: &[WayWords] = &[
+    WayWords { name: b"You approve", headline: b"You approve every change", line: b"You decide", branch: b"approval" },
+    WayWords {
+        name: b"Agents review",
+        headline: b"Agents review every change",
+        line: b"Code lands",
+        branch: b"review",
+    },
+];
 struct Fixture {
     root: Domain,
     watch: Token,
@@ -161,7 +174,7 @@ fn panel(project: u32, current: Option<u32>, may_change: bool) -> w::WaysPanel {
 }
 fn panel_delegation(project: u32, current: Option<u32>, may_change: bool, delegation: bool) -> w::WaysPanel {
     let mut ways = List::with_capacity(WAYS);
-    for (name, line, branch) in WORDS {
+    for WayWords { name, headline, line, branch } in WORDS {
         let mut items = List::with_capacity(ITEMS);
         for (kind, number, edit) in [
             (2, 4, w::SettingEdit::Removed),
@@ -187,14 +200,24 @@ fn panel_delegation(project: u32, current: Option<u32>, may_change: bool, delega
         ways.push(
             w::StockWay::new(
                 &w::CEILINGS,
-                w::StockWayParts { name: (*name).into(), line: (*line).into(), path: path(branch), items, delegation },
+                w::StockWayParts {
+                    headline: (*headline).into(),
+                    name: (*name).into(),
+                    line: (*line).into(),
+                    path: path(branch),
+                    items,
+                    delegation,
+                },
             )
             .unwrap(),
         )
         .unwrap();
     }
-    w::WaysPanel::new(&w::CEILINGS, w::WaysPanelParts { project, ways, current, own: path(b"own"), may_change })
-        .unwrap()
+    w::WaysPanel::new(
+        &w::CEILINGS,
+        w::WaysPanelParts { words: None, project, ways, current, own: path(b"own"), may_change },
+    )
+    .unwrap()
 }
 fn show(f: &mut Fixture, panel: &w::WaysPanel) -> Queue<Request> {
     family(f, wire::FORGE, wire::CLIENT_VERSION, wire::ways_panel(panel))
@@ -387,11 +410,26 @@ fn ways_watch_has_project_scope_and_the_pages_lifetime() {
 
 #[test]
 fn tabs_preserve_the_reads_order_and_append_yours() {
-    for (current, expected, shown) in
-        [(Some(1), [false, true].as_slice(), 1), (None, [false, false, true].as_slice(), 2)]
-    {
+    for (current, expected, shown, words) in [
+        (Some(1), [false, true].as_slice(), 1, None),
+        (None, [false, false, true].as_slice(), 2, Some((b"Our headline".as_slice(), b"Our lede".as_slice()))),
+    ] {
         let mut f = fixture();
-        show(&mut f, &panel(f::PROJECT, current, true));
+        assert_eq!(f.root.pages().stock_ways().unwrap().words(), None);
+        let mut parts = panel(f::PROJECT, current, true).into_parts();
+        parts.words = match words {
+            Some((headline, lede)) => Some(
+                w::ProjectWords::new(
+                    &w::CEILINGS,
+                    w::ProjectWordsParts { headline: headline.into(), lede: lede.into() },
+                )
+                .unwrap(),
+            ),
+            None => None,
+        };
+        let panel = w::WaysPanel::new(&w::CEILINGS, parts).unwrap();
+        show(&mut f, &panel);
+        assert_eq!(f.root.pages().stock_ways().unwrap().words(), panel.words().as_ref());
         assert_eq!(f.root.pages().stock_ways().unwrap().shown(), Some(shown));
         assert_eq!(f.root.pages().stock_ways().unwrap().open(), None);
         let tabs = f.root.pages().stock_ways().unwrap().tabs();
@@ -400,16 +438,16 @@ fn tabs_preserve_the_reads_order_and_append_yours() {
             current_tabs.push(tab.current).unwrap();
         }
         assert_eq!(current_tabs.as_slice(), expected);
-        for (index, (name, line, branch)) in WORDS.iter().enumerate() {
+        for (index, WayWords { name, headline, line, branch }) in WORDS.iter().enumerate() {
             let tab = tabs.get(u32::try_from(index).unwrap()).unwrap();
             assert_eq!(tab.index, Some(u32::try_from(index).unwrap()));
-            assert_eq!((&*tab.name, &*tab.line, &tab.path), (*name, *line, &path(branch)));
+            assert_eq!((&*tab.name, &*tab.headline, &*tab.line, &tab.path), (*name, *headline, *line, &path(branch)));
         }
         if current.is_none() {
             let yours = tabs.get(TABS.checked_sub(1).unwrap()).unwrap();
             assert_eq!(
-                (&*yours.name, &*yours.line, &yours.path, yours.index),
-                (b"Yours".as_slice(), b"".as_slice(), &path(b"own"), None)
+                (&*yours.name, &*yours.headline, &*yours.line, &yours.path, yours.index),
+                (b"Yours".as_slice(), b"".as_slice(), b"".as_slice(), &path(b"own"), None)
             );
         }
     }
@@ -655,6 +693,7 @@ fn wrong_project_invalid_or_ended_documents_end_the_watch() {
         let page = f.root.pages().stock_ways().unwrap();
         assert_eq!(page.state(), &State::Ended);
         assert!(page.tabs().is_empty());
+        assert_eq!(page.words(), None);
         assert_eq!((page.shown(), page.open()), (None, None));
         assert_eq!(page.act(0), None);
     }

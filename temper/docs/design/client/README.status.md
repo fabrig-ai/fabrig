@@ -438,6 +438,8 @@ its 320 px, as the user accepted in `look-round-17`.
 
 ## Gaps and departures
 
+
+
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs
   design coverage reconciliation against `jig/docs/design/domain/engine.md`,
