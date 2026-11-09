@@ -98,3 +98,12 @@ Acceptance:
 ## Report
 
 As the implementer's text asks.
+
+## Rebase (2026-11-09, step merge, foreman ui-ask-m4/withheld/foreman-1)
+
+resolve the client-protocol manifest conflict by retaining all three added dev-dependencies
+Rebase onto the landing trunk; the conflict is in `jig/tests/client-protocol/Cargo.toml` under `[dev-dependencies]`.
+Trunk commit `da6bdaa446` (“Keep each person's preferences private to them”), merged by `91ef676e6d`, adds `jig-domain-notes.workspace = true`.
+This branch's `95106f9e4d` adds `jig-protocol-transcript.workspace = true` and `smith-transcript.workspace = true`, both used by the new `turn_read.rs` story.
+Resolve the adjacent insertions by keeping all three entries once, alongside the existing dependencies.
+Preserve the automatically merged Cargo.lock and status-file changes.
