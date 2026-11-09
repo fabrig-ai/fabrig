@@ -166,3 +166,14 @@ worker-link-quiet has landed and this trunk has caught up with main. A run
 first checks the trunk's tree for
 `temper/crates/temper-service/src/tests/link_room.rs`; absent, it reports
 the same `Failed:` line at once and changes nothing.
+
+2026-11-09. *Run 8 found the base still lacks `link_room.rs`; what now?*
+Run 8 checked at 18:04:35Z on `f2bf003689`, the trunk that took the run 7
+answer. At 18:05Z `worker-link-quiet/integration` is at `be7f0e9b81` and
+holds `link_room.rs`; this trunk (`f2bf003689`) has not merged it, and main
+(`c1c439e660`) does not hold it. The run 3 answer stands unchanged: run
+temper-fits again once this trunk has merged `worker-link-quiet/integration`
+at `be7f0e9b81` or later, or worker-link-quiet has landed and this trunk has
+caught up with main. A run first checks the trunk's tree for
+`temper/crates/temper-service/src/tests/link_room.rs`; absent, it reports
+the same `Failed:` line at once and changes nothing.
