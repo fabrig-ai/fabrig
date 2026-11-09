@@ -50,7 +50,7 @@ impl Table {
         out
     }
 
-    /// `common-env.md`: the variables two or more of `tables` read.
+    /// `<tree>/docs/design/cli/common-env.md`: the variables two or more of `tables` read.
     #[must_use]
     pub fn common_document(tree: &str, tables: &[&Table]) -> String {
         let mut out = document(tree, "common environment", "the tree's tables");
@@ -81,7 +81,7 @@ impl Table {
 }
 
 impl TestTable {
-    /// `test-env.md`.
+    /// `<tree>/docs/design/cli/test-env.md`: the tree's test table.
     #[must_use]
     pub fn document(&self) -> String {
         let mut out = document(self.tree, "test environment", "the tree's test table");
