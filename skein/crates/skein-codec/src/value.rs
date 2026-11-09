@@ -171,11 +171,6 @@ impl Value {
         }
     }
 
-    #[cfg(test)]
-    pub(crate) fn allocation(&self) -> (u32, *const ()) {
-        (self.room(), self.entries.as_slice().as_ptr().cast())
-    }
-
     pub(crate) fn decode_count(
         &mut self,
         schema: &Schema,

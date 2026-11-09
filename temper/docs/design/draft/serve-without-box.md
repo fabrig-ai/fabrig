@@ -2,7 +2,7 @@
 
 Draft, 2026-11-04, from a session with the user that day, whose
 decisions it records. Which deployments show the welcome and its
-playground, what `temper init` writes for each, and what a person
+playground, what `temper-box init` writes for each, and what a person
 finds after signing in to one with no welcome. It keeps
 `first-run-projects.md` as it stands: no project at the first start,
 "Demo" for the playground and gone with its reset, "Default" made at
@@ -10,14 +10,14 @@ Ready.
 
 ## 1. In one page
 
-- **`temper init` writes a bare deployment:** no welcome, no
+- **`temper-box init` writes a bare deployment:** no welcome, no
   playground and no Forgejo on this machine; at its first start no
   forge, no model account and no project (`first-run-projects.md`,
-  2). It ends saying to start it with `temper serve` (section 2).
+  2). It ends saying to start it with `temper-box serve` (section 2).
 - **`temper box` drives init:** its first run passes `--box`, with
   which init also writes the welcome's member, the owned Forgejo and
   the playground, as init writes the last two today (section 2).
-- **`temper serve` reads the document, whoever wrote it:** the welcome
+- **`temper-box serve` reads the document, whoever wrote it:** the welcome
   shows where the document says so. A person may write that by hand or
   run a box's document from a systemd unit; outside `temper box` it is
   never the default (section 2).
@@ -33,22 +33,22 @@ Ready.
 
 - **The welcome's member:** `application.welcome`, `true` to show the
   welcome; absent, none (`../protocol/configuration.md`, 3).
-- **The box's parts, one flag:** `temper init --box` writes them, and
+- **The box's parts, one flag:** `temper-box init --box` writes them, and
   `temper box`'s first run passes it; a person may pass it too. They
   are the welcome's member; the owned Forgejo, its person and its
   port; and the playground, `application.demo` with its `demo/` files
   and its two ports (`../protocol/setup.md`, 7.1, 8.2 and 8.4). The
   document keeps them as three members, so that splitting the flag
   later changes no format.
-- **`temper init` alone** writes none of them, and its last line says
-  to start the deployment with `temper serve`, with the flags init was
+- **`temper-box init` alone** writes none of them, and its last line says
+  to start the deployment with `temper-box serve`, with the flags init was
   given.
-- **`temper serve` reads the document:** the welcome follows its
+- **`temper-box serve` reads the document:** the welcome follows its
   member, whoever wrote it. It grows no flag, and the welcome does not
   follow `--box`, which only the box gives `temper internal serve`, for
   the pipe its owned Forgejo runs by (`../protocol/setup.md`, 7.1). A systemd unit
   running `temper box` shows the welcome as any box does; one running
-  `temper serve` on a hand-written document shows it only if that
+  `temper-box serve` on a hand-written document shows it only if that
   document asks (`../protocol/setup.md`, 7.4).
 - **The playground is the welcome's:** offered only where the document
   shows the welcome and has `application.demo`
@@ -97,7 +97,7 @@ Ready.
 
 ## 6. Later
 
-- **The deployment's own UX:** what `temper init` alone writes and
+- **The deployment's own UX:** what `temper-box init` alone writes and
   says beyond section 2, and how a server is set up, are designed
   later. For now init alone is the cheapest bare deployment, and the
   work goes to the box's mechanics (the user, 2026-11-04).

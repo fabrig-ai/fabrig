@@ -1,15 +1,13 @@
 //! Ask temper before its first words (temper/docs/design/client/README.md, 3.5).
 use crate::{
     frame::Bindings,
-    look, paths,
+    look,
     words::{Word, Words},
 };
 use alloc::boxed::Box;
-use skein_lib::List;
 use skein_ui::{Builder, Role, Run, State, phrases::Hole};
 use temper_client_domain::forge::stock_ways::{State as WaysState, StockWays};
 use temper_client_domain::{Domain, pages::Act};
-use temper_client_protocol_wire::v1 as wire;
 
 pub(crate) fn main(
     b: &mut Builder,
@@ -130,7 +128,7 @@ fn opening(b: &mut Builder, ways: &StockWays, w: &Words, bindings: &mut Bindings
         if !tab.line.is_empty() {
             paragraph(b, &tab.line, look::WAYS_SAYS);
         }
-        path(b, &tab.path, ways.open(), w, bindings, project);
+        super::ways::drawing(b, &tab.path, ways.open(), w, bindings, project);
         if let Some(open) = ways.open()
             && let Some(stop) = tab.path.stops().get(open)
         {
@@ -142,43 +140,10 @@ fn opening(b: &mut Builder, ways: &StockWays, w: &Words, bindings: &mut Bindings
     }
 }
 
-fn path(b: &mut Builder, path: &wire::BranchPath, open: Option<u32>, w: &Words, bindings: &mut Bindings, project: u32) {
-    let mut stops = List::with_capacity(paths::STOPS);
-    let mut acts = List::with_capacity(paths::STOPS);
-    for (index, stop) in path.stops().iter().enumerate() {
-        let index = u32::try_from(index).expect("wire bounds stops");
-        let (mark, act) = match stop.actor() {
-            wire::Actor::Person => (paths::Mark::Person, Some(bindings.insert(Act::WayStop { project, stop: index }))),
-            wire::Actor::Agent => (paths::Mark::Agent, Some(bindings.insert(Act::WayStop { project, stop: index }))),
-            wire::Actor::Code => (paths::Mark::Code, Some(bindings.insert(Act::WayStop { project, stop: index }))),
-            wire::Actor::Bar => (paths::Mark::Bar, None),
-        };
-        stops.push(paths::Stop { mark, words: stop.words() }).expect("wire bounds stops");
-        acts.push(act).expect("one act per stop");
-    }
-    let pressed =
-        paths::Pressed { drawing: bindings.insert(Act::WayStop { project, stop: 0 }), stops: acts.as_slice(), open };
-    paths::path(b, &w.say(Word::WaysPath, &[]), stops.as_slice(), Some(&pressed)).expect("wire bounds path");
-}
-
 fn foot(b: &mut Builder, ways: &StockWays, index: u32, w: &Words, bindings: &mut Bindings, project: u32) {
     b.open(Role::Slot);
     b.style(look::WAYS_FOOT);
-    b.open(Role::Paragraph);
-    b.name(&w.say(Word::WaysLegend, &[]));
-    b.style(look::WAYS_LEGEND);
-    for (word, style) in [
-        (Word::WaysAgent, look::WAYS_KIND_AGENT),
-        (Word::WaysPerson, look::WAYS_KIND_PERSON),
-        (Word::WaysCode, look::WAYS_KIND_CODE),
-        (Word::WaysLine, look::WAYS_KIND_LINE),
-    ] {
-        b.open(Role::Text);
-        b.style(style);
-        b.text(Run::Plain, &w.say(word, &[]));
-        b.close();
-    }
-    b.close();
+    super::ways::legend(b, w);
     super::ways::act(b, ways, index, w, bindings, project);
     b.close();
 }

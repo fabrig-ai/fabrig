@@ -858,6 +858,12 @@ replay says the same clocks (`README.md`, 5.12).
   tab an `<a role="tab">`, a scene's stop a `<g>` with no ARIA, an open stop a token, one
   SVG laid out by width where the page has two), the selector names what is drawn and
   keeps the request's declarations.
+  The drawing's rules (the path's and the legend's) and the tabs', line's,
+  card's and act's hold under How work runs' frame as under Ask temper's
+  page (`README.md`, 5.13), each selector naming both. With a fourth tab,
+  "Yours", at 760 px and under the tabs stand two by two, as the whole
+  story's `whole-story.css` has them, so that "Agents review" keeps its
+  words whole on a phone.
   A path's marks take no stroke but their own rules', as the request's
   page has none: skein's default stroke for a scene's marks (skein's
   `ui-web.md`, 12) gives way under `.temper-ways-path` by one rule of the
@@ -865,6 +871,20 @@ replay says the same clocks (`README.md`, 5.12).
   rule names, outweighing skein's rule and outweighed by every mark's own
   (the line's, the boundary's, a person's ring, the halo, the caret, a
   focused stop's area); skein's rule stays as it is.
+  Who acts is the whole story's marks (`web/whole-story/whole-story.css`,
+  `.ways-*`; `../draft/surfaces.md`, 13), orange the person's alone: a
+  person's ring `--gf-paper` stroked `--gf-signal` at 2; an agent's star
+  `--gf-ink`, and outlined when needed, `--gf-paper` stroked `--gf-ink`
+  at 1.3 with round joins; code's square `--gf-muted`, and outlined,
+  `--gf-paper` stroked `--gf-muted` at 1.3; a stop's small words 10 px
+  in `--gf-faint`; the legend's agent "✦" in `--gf-ink` and its agent
+  when needed the outlined star. The line's base is `--gf-line-2` at
+  1.5; each rise's fade (`README.md`, 5.16) is the look request's, its
+  stops coloured by their tokens: a person's `--gf-signal` at .8 at its
+  mark, .28 at the dotted line, `--gf-line-2` at the base; an agent's
+  `--gf-ink` at .3 and .1, the whole story's lighter tone for an agent
+  (`.ways-rise.a`), then `--gf-line-2`. Night takes the same tokens'
+  night values.
 - **How work runs' look** (`README.md`, 5.13, *The page*) is the whole
   story's `web/whole-story/how.html`, its `whole-story.css` rules taken
   exactly, values and all, in `temper.css` under `/* ==== ui: how ==== */`,
@@ -876,30 +896,24 @@ replay says the same clocks (`README.md`, 5.12).
     "Ask temper to change this" a `.btn.dark`, Settings' primary;
   - *a section's head,* `.shead`: its title and, at its right,
     `temper-how-way`, "the way: NAME", as `.shead span`;
-  - *the path in lanes,* `temper-how-scroll`, `.scroll`, holding the table
-    `temper-how-path`, `.path`'s border, radius, surface and cells' padding
-    and hairlines, its columns 84 px for the lanes' names and at least 92
-    px a stop, so that it scrolls sideways in its box where they don't fit;
-    a column header `temper-how-head`, `.path .h`; a lane's row header
-    `temper-how-lane`, `.path .lane`; a stop's button a pill, `.step`, in
-    who acts' colours, `temper-how-person` the signal's pale ground and
-    ink (`.step.p`), `temper-how-agent` blue (`.step.a`) and
-    `temper-how-code` slate (`.step.c`), the open one ringed in its own
-    ink; a bar's cells `temper-how-bar`, a rule 2 px wide of ink down
-    their middle, its header in ink; the authority row's cell
-    `temper-how-line`, `.line`'s dashed rule and faint mono words; the
-    last row with no hairline under it, as `.path .last`;
-  - *who acts' colours* as tokens of the frame, `--gf-agent`,
-    `--gf-agent-pale`, `--gf-code` and `--gf-code-pale`, the mock's values by
-    day and the night palette's by night (*Day and night,* below), a
-    person's the signal's existing tokens;
+  - *the path,* Ask temper's drawing and legend under their own rules
+    (*Ask temper's ways,* above), who acts by the path's marks alone: no
+    lanes, no pills, no colour of its own;
   - *the ways' tabs, line, card and act* take Ask temper's ways' rules
     (above), the same declarations under the frame's scope: the card under
-    the table with no caret;
+    the drawing, its caret across;
+  - *Roles,* `whole-story.css`' `.rows` and `.role` rules taken exactly:
+    a role's row `.role > summary`'s grid, 200 px for the name, its line
+    small and muted, the model at its right with a "›" turning down while
+    open; opened, `.role > dl`'s terms and `.role-more`'s link under its
+    hairline; at 760 px and under the line under the name, the terms
+    stacked; on tokens of its own, `temper-how-roles`, `temper-how-role`,
+    `temper-how-role-line`, `temper-how-role-model` and
+    `temper-how-role-more`;
   - *Budgets' row,* `temper-how-row`, `.row`'s grid with the first column
     200 px, its small words muted and its figure at its right;
   - *on a phone,* at 760 px and under, the column takes the frame's phone
-    width and the table keeps its columns, scrolling sideways.
+    width and the path runs down the page, as on Ask temper's page.
 - **A flow** (`skein/docs/design/ui.md`, 11.5) has the look of
   `skein/docs/design/draft/diagrams/preview.html`, in `temper.css` under
   `/* ==== ui: chats ==== */`: `--gf-paper` boxes on a `--gf-line-2` line, a strong
@@ -2113,12 +2127,12 @@ from the engine's own answers, is where the look is tuned.
 | `settings-changes-off` | `settings` with Changes hidden: the rail without "Changes" |
 | `settings-away-off` | `settings` with the Away switch hidden |
 | `settings-refused` | a switch pressed and refused, jig's words under its row, the switch back at its value |
-| `how` | hand-made `ways` delivery over a repository with CI and tiers, Agents review current and shown: the heading "Agents review", its line, "Ask temper to change this", the path in lanes with "verify" before main's bar, no act but "Keep it" while To begin's first step is left; the foot's switches (`README.md`, 5.13, *The page*) |
-| `how-approve` | hand-made `ways` delivery over a repository with neither CI nor tiers, You approve current: its path with no "check" and no tier, "you approve" in You's lane |
-| `how-draft` | `how` with Draft first current, Goals shown and its template giving 80: two landings, the goal branch's bar, Budgets' row "Goals", "80" |
+| `how` | hand-made `ways` delivery over a repository with CI and tiers, Agents review current and shown: the heading "Agents review", its line, "Ask temper to change this", its path drawn with "verify" before main's bar and the legend under it, no act but "Keep it" while To begin's first step is left; the foot's switches (`README.md`, 5.13, *The page*) |
+| `how-approve` | hand-made `ways` delivery over a repository with neither CI nor tiers, You approve current: its path with no "check" and no tier, "you approve" above the line |
+| `how-draft` | `how` with Draft first current, Goals shown and its template giving 80: two landings, the goal branch's bar, Roles from a hand-made `roles` answer with the coordinator and the foreman, Budgets' row "Goals", "80" |
 | `how-yours` | hand-made `ways` delivery whose project runs no stock way: "A way of its own", the way "its own", a fourth tab, "Yours", current and shown, no act |
-| `how-card` | `how` with the review's stop pressed: its cell current, its card under the table, its model, what it can do and what it is asked to, "Open the reviewer ›" |
-| `night-how` | `how` with the night switch pressed: who acts' colours by night |
+| `how-card` | `how` with the review's stop pressed: its ring and words, its card under the drawing with its caret, its model, what it can do and what it is asked to, "Open the reviewer ›" |
+| `night-how` | `how` with the night switch pressed: the path's marks by night |
 | `repositories` | the Repositories tab with rows |
 | `repositories-none` | the Repositories tab's quiet band |
 | `forges-in-settings` | `Forges` inside Deployment's frame |

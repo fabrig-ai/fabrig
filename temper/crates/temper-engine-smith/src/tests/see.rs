@@ -331,10 +331,19 @@ fn branch_path() -> temper_engine_domain::ways::Path {
     let stops = [
         (Actor::Person, Step::Ask, "ask"),
         (Actor::Agent, Step::Produce, "make"),
+        (Actor::Agent, Step::Repair, "repair"),
         (Actor::Code, Step::Merge, "merge"),
         (Actor::Bar, Step::Branch, "main"),
     ]
     .map(|(actor, step, words)| Stop {
+        needed: step == Step::Repair,
+        over: if step == Step::Repair {
+            b"tests, review".as_slice().into()
+        } else if step == Step::Merge {
+            b"into goal".as_slice().into()
+        } else {
+            Box::default()
+        },
         actor,
         step,
         words: words.as_bytes().into(),
@@ -347,7 +356,7 @@ fn branch_path() -> temper_engine_domain::ways::Path {
 #[test]
 fn ways_text_names_the_current_path_and_the_readers_permission() {
     use temper_engine_domain::ways::{WayEntry, WaysDocument};
-    const PATH: &str = "ask (a person) → make (an agent) → merge (code) → main (a branch)";
+    const PATH: &str = "ask (a person) → make (an agent) → repair (an agent, when needed; tests, review) → merge (code; into goal) → main (a branch)";
     const FOLLOWING: &str = "see: settings rules · settings landing · settings project-ways · help settings\n";
     for (current, may_change, first, second, own, permission) in [
         (Some(0), true, "One · now", "Two", "", "You may change this project's settings."),

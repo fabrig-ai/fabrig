@@ -70,7 +70,7 @@ section 7).
 |---|---|---|---|---|
 | 0 | `Call` | `Call(NamedCall)`: task, attempt, completion, position | the connector's part of a live named call | `named_calls` |
 | 1 | `ProposedEffect` | `ProposedEffect(u64)`: the proposal's number | an effect awaiting an authority holder's decision | `tasks` |
-| 2 | `Repository` | `Repository(Repository)`: forge, repository | an adopted repository: its project, role, kinds, protection and settings | `repositories` |
+| 2 | `Repository` | `Repository(Repository)`: forge, repository | an adopted repository: its project, role, kinds, protection, settings and CI workflows (`../domain/forge.md`, 4.7) | `repositories` |
 | 3 | `Hold` | `Hold(Name)` | a held resource, its task, its writer and its drift | `holds` |
 | 4 | `Names` | `Names(u64)`: the task | the resources one live task names; or a kept task's: the repositories its names lie in, kept from its release until jig erases the task (`../domain/forge.md`, 4.1) | `tasks` live rows, and `repositories` kept ones |
 | 5 | `Subscription` | `Subscription { task, topic }` | one task's subscription to a topic | `subscriptions` |
@@ -311,6 +311,13 @@ with no duplicate. Its runtime bound is `forge.holds`; a value above 256
 refuses the start. The ceiling keeps the tier row's worst-case encoding,
 including each goal's failing-test IDs, within the codec's u32 length
 envelope (2026-11-04).
+
+A repository's stored CI workflows, the record's `workflows`, are a list
+with a ceiling of 16 names, each of at most 255 bytes: its bounds are the
+forge's constants `WORKFLOWS` and `WORKFLOW_BYTES` (`../domain/forge.md`,
+4.7), not configured, and the schema's ceilings equal them. The field
+joins family 2's record in place, in store v11 with no migration
+(2026-11-08).
 
 ## 5. The restart
 

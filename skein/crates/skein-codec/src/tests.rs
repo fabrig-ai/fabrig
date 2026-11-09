@@ -3,6 +3,10 @@ use skein_lib::Reader;
 
 mod piece;
 
+// The patcher's step tests count what a reused pass allocates (codec.md, 11.8).
+#[global_allocator]
+static HEAP: skein_heap::Counting = skein_heap::Counting;
+
 #[test]
 fn length_checks_header_limit_and_remaining() {
     assert_eq!(read_len(&mut Reader::new(&[0, 0, 0]), 2), Err(Reason::Short));

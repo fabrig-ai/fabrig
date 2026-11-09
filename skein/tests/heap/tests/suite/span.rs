@@ -7,6 +7,19 @@ use std::hint::black_box;
 use skein_heap::{Grown, Span};
 
 #[test]
+fn a_span_counts_the_allocations_its_thread_made() {
+    let mut before = black_box(vec![0_u8; 8]);
+    let span = Span::start();
+    assert_eq!(span.made(), 0, "the vector predates the span");
+    before.reserve_exact(before.capacity().checked_add(1).expect("small capacity"));
+    assert_eq!(span.made(), 1, "a reallocation counts once");
+    drop(black_box(Box::new(7_u8)));
+    assert_eq!(span.made(), 2, "a freed allocation still counts");
+    drop(before);
+    assert_eq!(span.made(), 2, "a free adds no allocation");
+}
+
+#[test]
 fn a_span_measures_the_peak_and_the_net_growth_of_a_call() {
     let span = Span::start();
     let kept = black_box(vec![0_u8; 100]);
