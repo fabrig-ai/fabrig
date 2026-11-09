@@ -32,6 +32,8 @@ pub enum Scope {
     Goal { project: u32, goal: u64 },
     /// Resources matching a connector's pattern in a project.
     Resources { project: u32, connector: u16, pattern: Pattern },
+    /// A person's own preferences, in no project (domain/engine.md, 10.1).
+    Party { party: u64 },
 }
 
 /// Who last wrote an entry.

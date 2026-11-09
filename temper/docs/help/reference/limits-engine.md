@@ -178,6 +178,8 @@ temper sizes the engine's watch rooms itself: a stream holds 22 watches, and the
 
 - `notes.scopes`: count, 8. Bounds scope indexes kept in memory at once.
 - `notes.entries_per_scope`: count, 16. Bounds entries admitted in one scope.
+- `notes.party_entries`: count, 12. Bounds entries admitted in one party's scope.
+- `notes.party_bytes`: bytes, 120. Bounds description bytes in one party's scope.
 - `notes.pattern_bytes`: bytes, 256. Bounds bytes in one connector pattern.
 - `notes.description_bytes`: bytes, 256. Bounds bytes in one note description line.
 - `notes.body_bytes`: bytes, 32,768. Bounds bytes in one note body.

@@ -18,11 +18,23 @@ fn a_read_cursor_past_its_wire_bound_is_refused() {
 }
 #[test]
 fn a_notes_read_keeps_its_scope_and_filter_with_its_cursor() {
-    let actual = translate::reads::read(&fixtures::notes_read(), fixtures::limits().wire()).unwrap();
-    let w::Read::Notes(record) = actual else { panic!("notes record") };
-    assert_eq!(record.scope(), &fixtures::notes_scope_record());
-    assert_eq!(record.description().as_deref(), Some(b"filter".as_slice()));
-    assert_eq!(record.after().as_ref().unwrap().value(), fixtures::READ_CURSOR);
+    use jig_client_domain::contract as c;
+    for party in [None, Some(u64::MAX)] {
+        let mut read = fixtures::notes_read();
+        let mut expected = fixtures::notes_scope_record();
+        if let Some(party) = party {
+            let c::Read::Notes { scope, .. } = &mut read else { panic!("notes read") };
+            *scope = c::NoteScope::Party { party };
+            expected = w::NoteScope::Party(
+                w::NoteScopeParty::new(fixtures::limits().wire(), w::NoteScopePartyParts { party }).unwrap(),
+            );
+        }
+        let actual = translate::reads::read(&read, fixtures::limits().wire()).unwrap();
+        let w::Read::Notes(record) = actual else { panic!("notes record") };
+        assert_eq!(record.scope(), &expected);
+        assert_eq!(record.description().as_deref(), Some(b"filter".as_slice()));
+        assert_eq!(record.after().as_ref().unwrap().value(), fixtures::READ_CURSOR);
+    }
 }
 
 #[test]

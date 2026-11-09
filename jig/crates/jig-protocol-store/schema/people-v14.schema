@@ -59,7 +59,8 @@ record SeenConversation { task: u64 through: u64 }
 enum Seen { results: SeenResults, conversation: SeenConversation }
 record NoteScopeTask { task: u64 }
 record NoteScopeResources { connector: u16 pattern: Pattern }
-enum NoteScope { deployment, project, task: NoteScopeTask, resources: NoteScopeResources }
+record NoteScopeParty { party: u64 }
+enum NoteScope { deployment, project, task: NoteScopeTask, resources: NoteScopeResources, party: NoteScopeParty }
 record NoteChangeCorrect { description: bytes 135168 body: bytes 135168 references: bytes 405504 pieces Number64 recalled: u32 }
 record NoteChangeDelete { recalled: u32 }
 enum NoteChange { correct: NoteChangeCorrect, delete: NoteChangeDelete }

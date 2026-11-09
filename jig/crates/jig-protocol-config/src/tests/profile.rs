@@ -55,6 +55,15 @@ fn child_validity_keeps_semantic_and_count_refusals() {
     notes.entries_per_scope = 0;
     assert!(!jig_domain_notes::valid(&notes));
     notes = limits.notes;
+    notes.party_entries = 0;
+    assert!(!jig_domain_notes::valid(&notes));
+    notes = limits.notes;
+    notes.party_entries = notes.entries_per_scope.checked_add(1).unwrap();
+    assert!(!jig_domain_notes::valid(&notes));
+    notes = limits.notes;
+    notes.party_bytes = notes.description_bytes.checked_add(1).unwrap();
+    assert!(!jig_domain_notes::valid(&notes));
+    notes = limits.notes;
     notes.load_rows = 0;
     assert!(!jig_domain_notes::valid(&notes));
     notes = limits.notes;

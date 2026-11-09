@@ -296,7 +296,7 @@ pub(super) fn finish(world: &mut World) {
 
 fn scope_names(scope: &notes::Scope, project: u32) -> bool {
     match scope {
-        notes::Scope::Deployment => false,
+        notes::Scope::Deployment | notes::Scope::Party { .. } => false,
         notes::Scope::Project { project: owner }
         | notes::Scope::Goal { project: owner, .. }
         | notes::Scope::Resources { project: owner, .. } => *owner == project,

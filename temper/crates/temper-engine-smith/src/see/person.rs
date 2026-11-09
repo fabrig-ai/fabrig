@@ -358,7 +358,8 @@ fn goal_note(answer: &Answer, task: u64, project: u64) -> Option<&d::Note> {
             d::NoteLocation::Goal { .. }
             | d::NoteLocation::Deployment
             | d::NoteLocation::Project(_)
-            | d::NoteLocation::Resources { .. } => {}
+            | d::NoteLocation::Resources { .. }
+            | d::NoteLocation::Party { .. } => {}
         }
     }
     newest

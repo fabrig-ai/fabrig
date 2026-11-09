@@ -17,9 +17,20 @@ fn problem(bytes: &[u8], segments: &[&[u8]], what: What) {
 
 #[test]
 fn an_override_replaces_one_limit_of_the_profile() {
-    let mut expected = small();
-    expected.core.tasks.inbox_messages = 9;
-    assert_eq!(parse(br#"{"profile":"small","overrides":{"tasks.inbox_messages":9}}"#), Ok(expected));
+    for (name, value, json) in [
+        ("tasks.inbox_messages", 9, br#"{"profile":"small","overrides":{"tasks.inbox_messages":9}}"#.as_slice()),
+        ("notes.party_entries", 11, br#"{"profile":"small","overrides":{"notes.party_entries":11}}"#.as_slice()),
+        ("notes.party_bytes", 119, br#"{"profile":"small","overrides":{"notes.party_bytes":119}}"#.as_slice()),
+    ] {
+        let mut expected = small();
+        match name {
+            "tasks.inbox_messages" => expected.core.tasks.inbox_messages = value,
+            "notes.party_entries" => expected.core.notes.party_entries = value,
+            "notes.party_bytes" => expected.core.notes.party_bytes = value,
+            _ => unreachable!("table names"),
+        }
+        assert_eq!(parse(json), Ok(expected));
+    }
 }
 
 #[test]
