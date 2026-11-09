@@ -531,3 +531,9 @@ fn the_dump_directory_is_set_by_a_value_and_made_absolute() {
     }
     assert_eq!(super::DUMP_BOUND, 4_294_967_296);
 }
+
+// temper/docs/design/protocol/setup.md, 6.6.
+#[test]
+fn the_launchers_io_is_the_small_profiles() {
+    assert_eq!(temper_fetch_shell::launcher::IO, jig_protocol_config::profile(jig_protocol_config::Profile::Small).io,);
+}

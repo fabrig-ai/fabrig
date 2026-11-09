@@ -1,8 +1,8 @@
 //! Claude Code's pinned native builds (protocol/setup.md, 6.6).
 use crate::{
-    check::joined,
+    Origin,
     fetch::{Failure, Named, Pin},
-    setup::Origin,
+    joined,
 };
 use alloc::boxed::Box;
 use skein_forge::forgejo::pin::Platform;
@@ -112,3 +112,9 @@ pub fn pin(cache: &[u8], origin: Origin, build: &Build) -> Pin {
         bottle: None,
     }
 }
+
+/// Claude Code is fetched when its program is first needed (protocol/setup.md, 6.6).
+pub const FETCHED: &[u8] = b"fetched";
+
+#[cfg(test)]
+mod tests;

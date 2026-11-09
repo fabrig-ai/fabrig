@@ -16,6 +16,7 @@ test = false
 record = ["temper-client-shell-tui/record"]
 
 [dependencies]
+temper-fetch-shell.workspace = true
 temper-shell.workspace = true
 settings-form.workspace = true
 temper-docs.workspace = true
@@ -67,6 +68,7 @@ skein-fake-forge-domain.workspace = true
 skein-kv.workspace = true
 
 [dev-dependencies]
+temper-fetch.workspace = true
 jig-client-kit.workspace = true
 temper-engine-domain-world = { path = "../../tests/engine/domain" }
 temper-fixtures.workspace = true
