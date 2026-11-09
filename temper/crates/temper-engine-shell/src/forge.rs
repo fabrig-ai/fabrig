@@ -1,5 +1,4 @@
 //! Forge commands and slot removal (temper/docs/design/protocol/setup.md, 7.1).
-use crate::jig_directories;
 use std::{
     ffi::OsString,
     fs,
@@ -18,6 +17,7 @@ use temper_forge_setup::{
     upgrade::Course,
 };
 use temper_forge_setup_shell::{command, prepare, run as host};
+use temper_service_shell::jig_directories;
 use temper_shell::{
     commands::{Argument, DIRECTORIES, Row, Who},
     directories::{self, EnvironmentEntry},
@@ -175,7 +175,7 @@ fn inherited_listener(which: Which) -> Result<Option<std::net::SocketAddr>, Stri
         return Err("LISTEN_FDS: forgejo requires exactly 1 listener at fd 3".into());
     }
     // Unlike inherited_listeners, listener_at preserves fd 3's exec flags.
-    skein_shell::listener_at(skein_io::kernel::Fd::new(3)).map(Some).map_err(super::listeners_refusal)
+    skein_shell::listener_at(skein_io::kernel::Fd::new(3)).map(Some).map_err(temper_service_shell::listeners_refusal)
 }
 pub fn start(
     directories: &super::Directories,

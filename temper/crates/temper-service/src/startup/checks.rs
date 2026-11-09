@@ -218,6 +218,29 @@ pub fn hub(engine: &config::Engine, problems: &mut Problems) {
         }
     }
 }
+/// The smallest resumed start within the engine's room (temper/docs/design/protocol/configuration.md, 7).
+pub fn resumed_start(engine: &config::Engine, problems: &mut Problems) {
+    let core = &engine.limits.core;
+    let needs = match u32::try_from(core.fleet.call_name_bytes) {
+        Ok(name) => match jig_protocol_worker_wire::sizes::smallest_resumed(
+            core.call_records,
+            name,
+            jig_protocol_worker_wire::CEILINGS.call_tool,
+            core.call_answer_bytes,
+        ) {
+            Some(bytes) => Some(u64::from(bytes)),
+            None => None,
+        },
+        Err(_) => None,
+    };
+    short(
+        problems,
+        Path::root().member(b"engine").member(b"limits").member(b"io").member(b"output"),
+        u64::from(engine.limits.io.largest_room()),
+        b"the smallest resumed start",
+        needs,
+    );
+}
 /// The deployment's provider is not 0, which the root keeps for the forge's
 /// sign-in (domain/root.md, 6).
 pub fn provider(engine: &config::Engine, problems: &mut Problems) {

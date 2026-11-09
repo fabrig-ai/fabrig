@@ -244,7 +244,11 @@ pub fn worker_part(input: &[u8], directories: &config::Directories) -> Result<Wo
     }
     Ok(WorkerPart {
         call_answer: CallAnswer::read(&document, *ats.get(0).expect("one worker")),
-        named: NamedWorker { root: own.root.clone(), agent: jig.agent.configuration.clone() },
+        named: NamedWorker {
+            root: own.root.clone(),
+            agent: jig.agent.configuration.clone(),
+            program: jig.agent.program.clone(),
+        },
         worker: settings::Worker { jig, root: own.root, git: own.git },
         limits,
         files,

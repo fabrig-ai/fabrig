@@ -67,7 +67,8 @@ fn launch(program: &OsStr, arguments: &[Box<[u8]>]) -> Result<(), String> {
     Err(format!("{}: {why}", path(&file).display()))
 }
 
-pub fn place(directory: &Path, cache: &Path) -> Result<(), String> {
+/// Write the launcher's links in `directory`: `claude` to the agent's program, `cache` to the cache (setup.md, 6.6).
+pub fn place(directory: &Path, cache: &Path, program: &Path) -> Result<(), String> {
     let why = |why| format!("{}: {why}", directory.display());
     if !smith_agent_document::program::private_directory(directory).map_err(|error| error.to_string())? {
         match fs::DirBuilder::new().recursive(true).mode(0o700).create(directory) {
@@ -77,8 +78,7 @@ pub fn place(directory: &Path, cache: &Path) -> Result<(), String> {
         }
     }
     smith_agent_document::program::private_directory(directory).map_err(|error| error.to_string())?;
-    let executable = std::env::current_exe().map_err(why)?;
-    link(directory, "claude", &executable)?;
+    link(directory, "claude", program)?;
     link(directory, "cache", cache)
 }
 
@@ -194,6 +194,24 @@ fn substituted_document(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn place_links_claude_to_the_given_program() {
+        use std::os::unix::fs::PermissionsExt;
+        let scratch = skein_scratch::Scratch::new("launcher-links");
+        let directory = scratch.path();
+        fs::set_permissions(directory, fs::Permissions::from_mode(0o700)).unwrap();
+        let launcher = directory.join("claude-code");
+        let cache = directory.join("cache");
+        let program = Path::new("/opt/agent/temper-agent");
+        place(&launcher, &cache, program).unwrap();
+        assert_eq!(fs::read_link(launcher.join("claude")).unwrap(), program);
+        assert_eq!(fs::read_link(launcher.join("cache")).unwrap(), cache);
+        let replacement = Path::new("/opt/replacement/temper-agent");
+        place(&launcher, &cache, replacement).unwrap();
+        assert_eq!(fs::read_link(launcher.join("claude")).unwrap(), replacement);
+        assert_eq!(fs::read_link(launcher.join("cache")).unwrap(), cache);
+    }
 
     fn document(program: &serde_json::Value) -> Vec<u8> {
         serde_json::to_vec(&serde_json::json!({"programs":{"claude_code":program}})).unwrap()

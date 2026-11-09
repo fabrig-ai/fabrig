@@ -543,16 +543,23 @@ have one, an engine alone none. Each:
 
 - **smith's agent configuration** (smith's `protocol/agent.md`, section
   4), a file of smith's, named by jig's worker part's `agent` member:
-  - `program`: the absolute path of temper's binary;
-  - `configuration`: the absolute path of smith's agent configuration;
-  - `arguments`: `["internal", "agent", <that same path>]`,
+  `configuration` the absolute path of smith's agent configuration, and
+  `program` and `arguments` in one of two forms:
+  - **the box's:** `program` the absolute path of temper's binary and
+    `arguments` `["internal", "agent", <that same path>]`, so each agent
+    process is `temper internal agent AGENT.json` (README.md, section
+    4); `temper init` writes them so, with smith's agent configuration
+    as `agent.json` in the configuration directory (setup.md, 8.2);
+  - **a deployment's:** `program` the absolute path of `temper-agent`
+    (README.md, 4.3) and `arguments` `[<that same path>]`, so each agent
+    process is `temper-agent AGENT.json`; a worker alone's document,
+    written by hand until a cluster's `init` is designed
+    (`../draft/deployment-binaries.md`, section 3), names it so.
 
-  so each agent process is `temper internal agent AGENT.json`
-  (README.md, section 4). They are absolute because the worker spawns
-  the agent with its arguments as written (jig's
-  `protocol/configuration.md`, section 10); `temper init` writes them
-  so, with smith's agent configuration as `agent.json` in the
-  configuration directory (setup.md, 8.2).
+  Any other `program`, each of its `arguments` absolute, runs as
+  written, with no model list (README.md, section 7). They are absolute
+  because the worker spawns the agent with its arguments as written
+  (jig's `protocol/configuration.md`, section 10).
 - **Read twice:** by `temper serve` at start, for smith's host limits,
   the channel's limits and the agent's bounds, as jig's reference binary
   reads it; and by each agent process as it starts.
@@ -854,7 +861,15 @@ have one, an engine alone none. Each:
     on the machine's places (the longest of `machine`'s remotes' bases
     and github.com's, an owner and a name of the forge's `name_bytes`,
     two `/` and `.git`), and the forge's names and branches, within the
-    checkout's `name_bytes` (channel.md, section 8);
+    checkout's `name_bytes` (channel.md, section 8); and the smallest
+    resumed start the engine's link can cut a start to (jig's
+    `protocol/channel.md`, 9 and 11), within the engine's room, its
+    `io.output`, so a run that committed every call `core.call_records`
+    admits can still resume. Its failure names both: `engine.limits.io.output:
+    4096 bytes, short of the smallest resumed start, 27201 bytes`, the
+    start's frame with its header, as `standard` has it. A document
+    reaches it only by an `io.output` override below that start, which
+    the worker wire's ceilings keep at most 218,177 bytes;
   - the worker's, against the agent's configuration
     (`temper-worker-domain::valid`, entrance constraints and count
     representability, with no heap sum), among its rules: the
@@ -878,6 +893,9 @@ have one, an engine alone none. Each:
     turn's body as the hub measures it, and each bound on its way holds
     it. Within each hub's `turn_bytes`, the engine's and the worker's,
     since each side of the link takes a turn of its own hub's bound;
+    as a frame of the worker's link, header included, within the
+    worker's `io.output`, the room its stream grants at once, or the
+    worker's link is not made (jig's `protocol/channel.md`, 9 and 11);
     with its 4-byte length, within `core.resume_bytes`, so that a chat's
     largest turn resumes rather than starting afresh, and so within
     `root.journal.transcript_bytes`, a journal row's (the resume
@@ -2622,6 +2640,7 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 | the engine's `core.resume_bytes` | T + 4 |
 | both `hub.transcript_bytes` | resume + 12 × ⌊resume / 4⌋ |
 | both `hub.turn_queue_bytes` | 8 × T |
+| each worker's `io.output` | a turn of T's frame on the worker's link, where it passes the profile's |
 | `root.journal.transcript_bytes` | resume |
 | `root.loads.transcript_bytes` | T |
 | `root.loads.bytes`, `root.loads.reply_bytes` | T + a temper record's size |

@@ -144,9 +144,15 @@ fn check_redirects(engine: &config::Engine, application: &application::Members, 
 pub struct NamedWorker {
     pub root: Box<[u8]>,
     pub agent: Box<[u8]>,
+    /// The agent's program, `workers[0].agent.program`, which Claude Code's `claude` link names (protocol/setup.md, 6.6).
+    pub program: Box<[u8]>,
 }
 fn named_worker(worker: &config::Worker, own: &application::Worker) -> NamedWorker {
-    NamedWorker { root: own.root.clone(), agent: worker.agent.configuration.clone() }
+    NamedWorker {
+        root: own.root.clone(),
+        agent: worker.agent.configuration.clone(),
+        program: worker.agent.program.clone(),
+    }
 }
 
 /// The files and directories the binary reads and opens before startup.
@@ -558,6 +564,7 @@ fn load_document(
         problems.push(root.member(b"application").member(b"workers"), What::Jig(config::What::Bound));
     }
     checks::hub(engine.as_ref().expect("required engine checked"), &mut problems);
+    checks::resumed_start(engine.as_ref().expect("required engine checked"), &mut problems);
     checks::provider(engine.as_ref().expect("required engine checked"), &mut problems);
     checks::credentials(
         engine.as_ref().expect("required engine checked"),
@@ -801,7 +808,7 @@ pub(crate) fn checked_start_with(
             None => None,
         },
         agent_charter_bytes: match agent {
-            Some(agent) => Some(agent.host_limits.charter_bytes),
+            Some(agent) => Some(agent.charter_bytes()),
             None => None,
         },
         host_part,

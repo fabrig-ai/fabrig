@@ -14,11 +14,12 @@ local-TLS fetch suite and the agent's launcher rows cover the split; the
 process scan exempts `temper-launcher/src/lib.rs` for the launcher's
 exec and process id. Neither forge-setup crate is in the agent's normal
 closure, and the forge's setup links no launcher, so `temper-engine`'s
-closure row holds (`README.status.md`, 4.1). The link still names the
-executable placing it; the worker's naming of `temper-agent` remains
-M3's, not an outcome of this split
-(`../draft/deployment-binaries.execution.md`, 1). Section 15's real
-Claude download walk and other deferred work remain unchanged.
+closure row holds (`README.status.md`, 4.1). Section 6.6's `claude`
+link names the worker's agent program, the box's `temper` or a
+deployment's `temper-agent`, both at worker start and at program login
+(`temper-worker-shell/src/worker.rs`, `sources`;
+`temper-worker-shell/src/program_login.rs`, `command`). Section 15's
+real Claude download walk and other deferred work remain unchanged.
 
 Section 8.3 has no known implementation gap in the binary supplying
 every project's rule 1 and no deployment rule, or supplying stock
@@ -60,7 +61,7 @@ in the background and a front killed outright.
   reads stdout, stderr and `box.log` for it, not `serve.log`, which
   holds serve's stderr. By reading, serve writes none there: its host
   keeps each local link in the file and prints none
-  (`temper-engine-shell/src/serve/host.rs`).
+  (`temper-service-shell/src/host.rs`).
 
 Sections 5.2, 5.3 and 17.2 have the identity handoff: an owned Forgejo's
 given values include its person's login, managed and fake entries give
