@@ -2,11 +2,12 @@
 
 2026-11-09. Where the design lags or departs from [deployment-binaries.md](deployment-binaries.md).
 
-M4 is carried onto main by the `agent-binary-closure` plan: the agent's
-binary and modes, the smith document/profile split, the shared fetch and
-launcher, and the agent's dependency-closure row are present. M3's worker naming
-that program, M5's box integration, remaining closure rows and help, M6's
-release job, and figures are not completed by M4. Section 11's Later
+M4's agent binary and modes, the smith document/profile split, the shared
+fetch and launcher, and the agent's dependency-closure row are present.
+M3 is present: `temper-worker` with `serve`, `program-login`, `help` and
+`--version`, and the worker naming the agent's program for list launches
+and the `claude` link. M5's box integration, remaining closure rows and
+help, M6's release job, and figures remain incomplete. Section 11's Later
 items are unchanged.
 
 - **Design lags:**
@@ -17,7 +18,14 @@ items are unchanged.
     boundary test hold each binary's closure. Which shape the rule's test
     keeps is M5's (`deployment-binaries.execution.md`, 1).
   - 1 and 4: `../README.md`, section 1, heads its binary's point "One binary" and names `temper-engine` alone of a deployment's binaries.
-  - 3 and 4: `../client/README.md`, 4.6, prints `temper program-login … NAME` for a deployment whose workers are elsewhere. With the set, that's `temper-worker program-login`.
+  - 3 and 4: `../client/README.md`, 4.6, prints the placeholder
+    `temper program-login --config CONFIG --data DATA --cache CACHE NAME`
+    for a deployment whose workers are elsewhere. An engine-alone
+    deployment's `program_environment` answer composes `temper-engine`'s
+    word, but `temper-engine` has no `program-login` command. With the
+    set, the command is `temper-worker program-login`, run on each
+    worker's host. The CLI draft's renames (`cli.execution.md`) take this
+    lag, not deployment-binaries M3.
   - 2, 6 and 8: `../release.md`, sections 1, 2 and 5, give one file a release, the whole product. Missing: the deployment set, its `v{MAJOR}` path and commit directories, and the release job building both sets.
   - 3: `../../help/server.md` builds and copies one binary, runs `temper serve`, and copies the example documents from a checkout.
   - 3: `../protocol/documentation.md`, section 8: the `commands` page is the box's table alone and names no command's binary, and `temper-client help commands` prints that page.
