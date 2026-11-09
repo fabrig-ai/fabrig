@@ -63,7 +63,7 @@ Acceptance:
   only when the notice changes; `notice()` in `unknown()`'s place),
   `src/lib.rs` (the `pub use state::{...}` line gains `Notice`; no other
   line), `src/limits.rs` (`NOTICE`, after `WALK`), `src/words.rs` (two
-  words at the end: `UnknownNotice` and `SigningIn`), `src/view/foot.rs`
+  words at the end: `UnknownNotice` and `SigningInNotice`), `src/view/foot.rs`
   (`Foot` gains the notice's words; `read` says them; `quiet` draws
   them), `src/view/foot/notes.rs` (the TUI's unknown note leaves; the
   root's own notes stay), and the tests and goldens in `files`.
@@ -87,7 +87,7 @@ Acceptance:
 ## Steps
 
 1. State and words: `Notice`, the field, `Told::Notice`, `notice()`;
-   `UnknownNotice` with one hole for the words, `SigningIn` with none;
+   `UnknownNotice` with one hole for the words, `SigningInNotice` with none;
    `limits::NOTICE`. Rows in `tests/state.rs` replace the `unknown` rows:
    a notice told, the same told again (no revision move), another
    replacing it, `None` lowering it, `Cleared` and `Went` leaving it.
@@ -135,3 +135,12 @@ Acceptance:
 
 As the implementer's text asks; name the goldens added and changed, the
 journeys reprinted if any, and each bite.
+
+## Answers
+
+- 2026-11-09. *`Word::SigningIn` already exists ("Signing in…", phrase 10,
+  `view.rs`'s `Signing::Asked`): what is the new word named?*
+  `Word::SigningInNotice`, "Still signing in", at the end of `words.rs`
+  after `UnknownNotice`. `Word::SigningIn`, its phrase and its caller stay
+  as they are. `Notice::SigningIn` keeps its name (`notes/contracts.md`).
+  Steps 1 and *Owns* now say `SigningInNotice`.
