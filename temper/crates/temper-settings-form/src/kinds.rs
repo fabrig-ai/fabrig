@@ -55,11 +55,11 @@ fn setting_value(d: &Decoder<'_>, fields: &Fields, kind: &[u8]) -> Result<c::Set
         return Err(error(b"number", b"from 1"));
     }
     let project = optional(fields, b"project");
-    if kind == b"forge-charter" {
+    if kind == b"forge-charter" || kind == b"template-goal" {
         if project.is_some() {
             return Err(error(b"project", b"unknown member"));
         }
-        return Ok(c::Setting::Application { kind: 3, scope: 0, number });
+        return Ok(c::Setting::Application { kind: if kind == b"forge-charter" { 3 } else { 11 }, scope: 0, number });
     }
     let scope = if project.is_some() {
         let project = self::number(d, fields, b"project")?;
@@ -99,6 +99,15 @@ pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Er
         record.encode(&mut out).expect("measured record");
         return Ok(out.finish());
     }
+    if kind == 11 {
+        let record = match goal(d, at) {
+            Ok(record) => record,
+            Err(why) => return Err(why.at(b"template-goal")),
+        };
+        let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
+        record.encode(&mut out).expect("measured record");
+        return Ok(out.finish());
+    }
     if kind == 3 {
         let charter = match d.number(at) {
             Ok(value) => u32::try_from(value).or(Err(error(b"forge-charter", b"u32 bound")))?,
@@ -117,6 +126,14 @@ pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Er
     let mut out = Writer::new(usize::try_from(record.measure()).expect("record length fits"));
     record.encode(&mut out).expect("measured record");
     Ok(out.finish())
+}
+fn goal(d: &Decoder<'_>, at: u32) -> Result<w::TemplateGoal, Error> {
+    let fields = d.object(at, &[b"design", b"close_out"])?;
+    w::TemplateGoal::new(
+        &d.kinds,
+        w::TemplateGoalParts { design: boolean(d, &fields, b"design")?, close_out: boolean(d, &fields, b"close_out")? },
+    )
+    .or(Err(error(b"", b"wire value bound")))
 }
 fn ways(d: &Decoder<'_>, at: u32) -> Result<w::ProjectWays, Error> {
     let fields = d.object(at, &[b"drafts", b"goals", b"changes", b"away", b"way"])?;
@@ -308,6 +325,18 @@ pub(super) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
             out.boolean(value.away());
             out.key(b"way");
             out.unsigned(u64::from(value.way()));
+            out.object_end();
+        }
+        11 => {
+            let Ok(value) = w::TemplateGoal::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            out.object_start();
+            out.key(b"design");
+            out.boolean(value.design());
+            out.key(b"close_out");
+            out.boolean(value.close_out());
             out.object_end();
         }
         _ => return false,

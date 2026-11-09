@@ -215,10 +215,6 @@ The startup table holds the derived carriers, including the forge answer's
 cuts past the receiving room. The larger pair and real-program observation
 remain section 11's deferred work.
 
-- **Not yet:** 13.2: kind 11 is declared to no one: jig doesn't know it,
-  the wire's entrances refuse it, and a settings file, a run's
-  `settings`, `see` and `propose_settings` and the settings form have no
-  `template-goal` (`goal-kind`).
 - **Not yet:** 13.4, 13.9: template 4's work: the stock gives the forge
   none, and `docs/examples/reference/settings.json` sets none
   (`goal-stock`).
