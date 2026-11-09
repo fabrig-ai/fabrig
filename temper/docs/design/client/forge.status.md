@@ -1,6 +1,6 @@
 # forge: status
 
-2026-11-08. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-09. Where temper's code lags or departs from [forge.md](forge.md).
 
 Section 4.1's approval card is present on Needs you, Home and a goal's
 band, with rule, count behind, partial-read notice, Open and Later. A
@@ -37,9 +37,6 @@ stale-proof count draws nothing; a positive count remains (`browser.md`,
   mode, so the client cannot tell selected repositories from all repositories.
   "Not listed" asks the person to check that the repository exists and grant it
   to the App for either mode.
-- **Not yet:** 2.2, 4.1, 6.1, from the request `n4-request-changes` of
-  2026-11-08: a person's request for changes on the forge holds the change as a
-  refused requirement; no panel shows a repair of it.
 - **Not yet:** 2.1: "in GitHub's merge queue, n": `Pull.queued` is not
   read (`../domain/forge.md`, 9.1). 2.3:
   amending a change's gates from its panel. 4: approvals, a person
