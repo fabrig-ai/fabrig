@@ -52,6 +52,7 @@ pub fn fetch(owner: skein_lib::Token, deadline: skein_lib::Time) -> crate::Reque
     crate::Request::Io {
         owner,
         op: git::Op::Fetch {
+            into: git::Into::Fetched,
             at: at(),
             remote: Box::from(REMOTE),
             want: git::Want::Default,

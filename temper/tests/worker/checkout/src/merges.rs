@@ -39,6 +39,7 @@ struct World {
     hold: Option<Token>,
     trace: Vec<String>,
     commits: Vec<(Commit, Commit, u32, Vec<u8>)>,
+    landing_fetches: usize,
     expected: temper_fake_checkout::git::Tree,
     ours: u64,
     base: u64,
@@ -117,6 +118,7 @@ impl World {
             hold: None,
             trace: Vec::new(),
             commits: Vec::new(),
+            landing_fetches: 0,
             expected,
             ours,
             base,
@@ -165,6 +167,9 @@ impl World {
             if let Op::Commit { parent, merging: Some(second), identity, title, .. } = &op {
                 self.commits.push((*parent, *second, *identity, title.to_vec()));
             }
+            if matches!(op, Op::Fetch { into: temper_worker_domain_checkout::git::Into::Landing, .. }) {
+                self.landing_fetches += 1;
+            }
             let pushing = matches!(op, Op::Push { .. });
             let mut done = translate::perform_within(&mut self.forge, &mut self.disk, op, self.env.limits.conflicts);
             if ambiguous && pushing {
@@ -199,6 +204,7 @@ impl World {
 /// Run one complete scenario, checking every promised terminal and observable
 /// tree/ref against its independent prediction. Seed changes file content.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "the merge scenario checks its prepare pin and resulting tree together")]
 pub fn run(seed: u64, case: Case, facts: u32) -> Report {
     let mut world = World::new(seed, case, facts);
     let spec = Spec {
@@ -213,7 +219,7 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
             account: None,
             push: Some(b"topic".as_slice().into()),
             expected: Some(translate::commit(world.ours)),
-            landing: if matches!(case, Case::Contained | Case::Resumed) {
+            landing: if matches!(case, Case::Contained | Case::Resumed | Case::Conflict) {
                 Some(b"main".as_slice().into())
             } else {
                 None
@@ -232,6 +238,16 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
         workspace,
         repository: b"temper".as_slice().into(),
     });
+    if matches!(case, Case::Contained | Case::Resumed | Case::Conflict) {
+        assert_eq!(world.landing_fetches, 1, "one pin during prepare, contained starts included");
+        assert_eq!(
+            world.disk.content(&[at.as_slice(), b"/.git/refs/temper/landing"].concat()),
+            Some(world.base.to_le_bytes().as_slice()),
+            "prepare pins the landing tip"
+        );
+    } else {
+        assert_eq!(world.landing_fetches, 0, "no landing named");
+    }
     if matches!(case, Case::Conflict) {
         assert_eq!(conflicts.len(), 1);
         assert_eq!(conflicts[0].repository, 0);
@@ -258,6 +274,11 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
         assert_eq!(world.forge.branch(b"forge/temper", b"topic"), Some(world.ours));
     }
     let landed = world.push(false, matches!(case, Case::Ambiguous));
+    assert_eq!(
+        world.landing_fetches,
+        usize::from(matches!(case, Case::Contained | Case::Resumed | Case::Conflict)),
+        "pushes and verification never move the pin"
+    );
     let commit = if matches!(case, Case::Moved) {
         assert_eq!(&*landed, &[Landing::Moved]);
         assert_eq!(world.forge.branch(b"forge/temper", b"topic"), Some(world.base));

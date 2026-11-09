@@ -620,7 +620,11 @@ fn hosted_git_fires_past_an_older_due_read_and_keeps_its_reply_once() {
     let mut disk = Disk::new(&scenario);
     let result = disk.run(
         &scenario,
-        &Command::Fetch { remote: scenario.remote.clone().into(), source: invocation::Source::Default },
+        &Command::Fetch {
+            into: git::Into::Fetched,
+            remote: scenario.remote.clone().into(),
+            source: invocation::Source::Default,
+        },
         b"",
     );
     assert_eq!(result.exit, 0, "{:?}", result.stderr);

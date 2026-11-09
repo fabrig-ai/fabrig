@@ -2474,68 +2474,98 @@ fn a_merge_delegate_asks_for_a_merge_in_progress_named_as_its_repository() {
 }
 
 #[test]
-fn workspace_landing_is_only_for_an_existing_inherited_writable_producer() {
+fn workspace_landing_is_for_every_writable_producer_start() {
     use temper_engine_domain_forge_change as change;
     for kind in [
         change::Delegate::Produce,
         change::Delegate::Repair(change::Repair::Gate(1)),
         change::Delegate::Resolve { base: [1; 32] },
+        change::Delegate::Merge { base: [1; 32], from: Some([2; 32]) },
         change::Delegate::Gate { number: 1, head: [1; 32] },
     ] {
-        for existing in [false, true] {
-            for saved in [false, true] {
-                for writable in [false, true] {
-                    let mut d = domain();
-                    let mut repo = adopted();
-                    repo.kinds.push = writable;
-                    outputs(&mut d, Event::Restore { record: Stored::Repository(repo) });
-                    let mut row = fixtures::opening_row();
-                    row.delegate = Some((90, kind));
-                    let task = row.task;
-                    let branch = row.branch.clone();
-                    let base = row.base.clone();
-                    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
-                    if existing {
-                        let name = run_branch(b"51");
-                        assert!(items::branch_matches(&name, &branch), "the fixture's producer branch");
-                        outputs(
-                            &mut d,
-                            Event::Restore {
-                                record: Stored::BranchHead(BranchHead { name, commit: [1; 32], owned: true }),
-                            },
-                        );
-                    }
-                    let item = d
-                        .workspace_item(items::Seed {
-                            modify: false,
-                            task: 90,
-                            parent: Some(task),
-                            repository: REPO,
-                            run_branch: Box::from(&b"run"[..]),
-                            saved_branch: if saved { Some(Box::from(&b"saved"[..])) } else { None },
-                        })
-                        .expect("item");
-                    let eligible = kind == change::Delegate::Produce && existing && !saved && writable;
-                    assert_eq!(item.landing.as_deref(), if eligible { Some(base.as_ref()) } else { None });
-                    let start = match &item.start {
-                        items::Start::Base(b)
-                        | items::Start::Branch(b)
-                        | items::Start::Saved(b)
-                        | items::Start::Merged { branch: b, .. }
-                        | items::Start::Merge { branch: b, .. } => b,
-                    };
-                    let pushed = match &item.push {
-                        Some(branch) => branch.len(),
-                        None => 0,
-                    };
-                    let landing = match &item.landing {
-                        Some(branch) => branch.len(),
-                        None => 0,
-                    };
-                    let payload: usize =
-                        item.name.len() + item.host.len() + item.owner.len() + start.len() + pushed + landing;
-                    assert_eq!(item.bytes, u64::try_from(size_of::<items::Item>() + payload).expect("sized item"));
+        for (existing, saved, early) in [
+            (false, false, false), // Base
+            (false, false, true),  // Merged
+            (false, true, false),  // Saved
+            (true, false, false),  // Branch
+            (true, false, true),   // Merge
+        ] {
+            for writable in [false, true] {
+                let mut d = domain();
+                let mut repo = adopted();
+                repo.kinds.push = writable;
+                outputs(&mut d, Event::Restore { record: Stored::Repository(repo) });
+                let mut row = fixtures::opening_row();
+                row.delegate = Some((90, kind));
+                if early {
+                    row.change.early =
+                        change::Early::Started(Box::new([change::StartedFrom { task: 41, head: fixtures::HEAD }]));
+                    outputs(
+                        &mut d,
+                        Event::Restore {
+                            record: Stored::BranchHead(BranchHead {
+                                name: Name {
+                                    forge: REPO.forge,
+                                    repository: REPO.repository,
+                                    what: What::Branch(Box::new([Box::from(b"main".as_slice())])),
+                                },
+                                commit: fixtures::BASE,
+                                owned: false,
+                            }),
+                        },
+                    );
                 }
+                let task = row.task;
+                let branch = row.branch.clone();
+                let base = row.base.clone();
+                outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+                if existing {
+                    let name = run_branch(b"51");
+                    assert!(items::branch_matches(&name, &branch), "the fixture's producer branch");
+                    outputs(
+                        &mut d,
+                        Event::Restore {
+                            record: Stored::BranchHead(BranchHead { name, commit: [1; 32], owned: true }),
+                        },
+                    );
+                }
+                let item = d
+                    .workspace_item(items::Seed {
+                        modify: false,
+                        task: 90,
+                        parent: Some(task),
+                        repository: REPO,
+                        run_branch: Box::from(&b"run"[..]),
+                        saved_branch: if saved { Some(Box::from(&b"saved"[..])) } else { None },
+                    })
+                    .expect("item");
+                let eligible = kind == change::Delegate::Produce && writable;
+                assert_eq!(item.landing.as_deref(), if eligible { Some(base.as_ref()) } else { None });
+                let start = match &item.start {
+                    items::Start::Base(b)
+                    | items::Start::Branch(b)
+                    | items::Start::Saved(b)
+                    | items::Start::Merged { branch: b, .. }
+                    | items::Start::Merge { branch: b, .. } => b,
+                };
+                let pushed = match &item.push {
+                    Some(branch) => branch.len(),
+                    None => 0,
+                };
+                let landing = match &item.landing {
+                    Some(branch) => branch.len(),
+                    None => 0,
+                };
+                let heads = match &item.start {
+                    items::Start::Merged { heads, .. } => heads.len() * size_of::<skein_forge::api::Commit>(),
+                    items::Start::Base(_)
+                    | items::Start::Branch(_)
+                    | items::Start::Saved(_)
+                    | items::Start::Merge { .. } => 0,
+                };
+                let payload: usize =
+                    item.name.len() + item.host.len() + item.owner.len() + start.len() + pushed + landing + heads;
+                assert_eq!(item.bytes, u64::try_from(size_of::<items::Item>() + payload).expect("sized item"));
             }
         }
     }

@@ -13,6 +13,7 @@ fn an_argument_vector_the_builders_did_not_make_exits_129() {
 fn a_token_outside_the_header_or_a_path_variable_is_refused() {
     for (name, extra) in [("PATH", b"PATH=/usr/bin".as_slice()), ("token", b"HOME=/fake-git-identity-token")] {
         let mut spawn = fixtures::spawn_of(&Command::Fetch {
+            into: temper_worker_domain_checkout::git::Into::Fetched,
             remote: b"https://forge.example/acme/app".as_slice().into(),
             source: Source::Default,
         });
@@ -31,7 +32,11 @@ fn a_remote_over_plaintext_off_loopback_is_refused() {
         (b"http://[::1]:3000/acme/app", None),
         (b"https://forge.example/acme/app", None),
     ] {
-        let spawn = fixtures::spawn_of(&Command::Fetch { remote: url.into(), source: Source::Default });
+        let spawn = fixtures::spawn_of(&Command::Fetch {
+            into: temper_worker_domain_checkout::git::Into::Fetched,
+            remote: url.into(),
+            source: Source::Default,
+        });
         assert_eq!(check(&spawn).err(), expected, "{url:?}");
     }
 }
@@ -44,9 +49,38 @@ fn each_builder_vector_is_admitted_with_its_whole_environment() {
     let rows = [
         ("version", Command::Version),
         ("clone", Command::Clone { remote: remote.into(), directory: b"app".as_slice().into() }),
-        ("fetch default", Command::Fetch { remote: remote.into(), source: Source::Default }),
-        ("fetch branch", Command::Fetch { remote: remote.into(), source: Source::Branch(b"main".as_slice().into()) }),
-        ("fetch commit", Command::Fetch { remote: remote.into(), source: Source::Commit(one) }),
+        (
+            "fetch default",
+            Command::Fetch {
+                into: temper_worker_domain_checkout::git::Into::Fetched,
+                remote: remote.into(),
+                source: Source::Default,
+            },
+        ),
+        (
+            "fetch branch",
+            Command::Fetch {
+                into: temper_worker_domain_checkout::git::Into::Fetched,
+                remote: remote.into(),
+                source: Source::Branch(b"main".as_slice().into()),
+            },
+        ),
+        (
+            "fetch landing",
+            Command::Fetch {
+                into: temper_worker_domain_checkout::git::Into::Landing,
+                remote: remote.into(),
+                source: Source::Branch(b"main".as_slice().into()),
+            },
+        ),
+        (
+            "fetch commit",
+            Command::Fetch {
+                into: temper_worker_domain_checkout::git::Into::Fetched,
+                remote: remote.into(),
+                source: Source::Commit(one),
+            },
+        ),
         ("create", Command::Create { remote: remote.into(), branch: b"topic".as_slice().into(), commit: one }),
         ("checkout", Command::CheckOut { commit: one }),
         ("clean", Command::Clean),
@@ -86,7 +120,11 @@ fn a_missing_or_reordered_setting_names_the_broken_contract() {
 #[test]
 fn an_admitted_credential_is_absent_from_debug_output() {
     let remote = b"https://forge.example/acme/app".as_slice();
-    let spawn = fixtures::spawn_of(&Command::Fetch { remote: remote.into(), source: Source::Default });
+    let spawn = fixtures::spawn_of(&Command::Fetch {
+        into: temper_worker_domain_checkout::git::Into::Fetched,
+        remote: remote.into(),
+        source: Source::Default,
+    });
     let checked = check(&spawn).expect("valid invocation");
     let text = format!("{checked:?}");
     assert!(!text.as_bytes().windows(fixtures::TOKEN.len()).any(|part| part == fixtures::TOKEN));
