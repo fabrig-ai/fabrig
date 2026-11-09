@@ -126,7 +126,7 @@ small words `--gf-faint`; and each rise's fade colours its stops by the
 with them.
 
 Sections 2.5, *How work runs' look*, and 7.2 have no known
-implementation gap but the departure above: `temper.css`'s `/* ==== ui:
+implementation gap but the departure above and the entries below: `temper.css`'s `/* ==== ui:
 how ==== */`, after the ways' rules, holds the wide column, the
 section's head and "the way: NAME", Roles' rows and terms, and Budgets'
 row, by day and by night; the path is Ask temper's drawing under its own
@@ -135,6 +135,15 @@ rules, with no lanes and no colour of its own; and `look.rs` names each
 `how-draft`, `how-yours`, `how-card` and `night-how` at both widths,
 `how-draft` with Roles, and its table checks each. The rendered
 comparison follows landing (`README.md`, section 11).
+
+- **Not yet:** 2.5, *How work runs' look*, *What reaches you*, and 7.2:
+  no `temper-how-reaches`, `temper-how-reach`, `temper-how-who-agent`,
+  `temper-how-who-person` or `temper-how-reach-note`; the gallery prints
+  `settings-away` and `settings-away-you-approve`, whose section What
+  reaches you takes the place of.
+- **Not yet:** 7.2: the gallery prints no `how-reaches` or
+  `night-how-reaches`; `how` and `how-approve` hold no What reaches you,
+  and `how-approve` reads Agents review's stock classes.
 
 Sections 2.3, 2.5 and 7.2 have no known implementation gap in the rail,
 Work and Deployment, by plan `ui-p1-rail`: Work's path with `?show=drafts`

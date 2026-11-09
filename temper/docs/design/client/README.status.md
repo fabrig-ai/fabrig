@@ -220,6 +220,15 @@ domain's and the view's tables, the joint world's
 `settings.txt` golden hold it. The page's render check and walk remain
 section 11's after-landing work.
 
+- **Not yet:** 5.13, *Its parts*: `pages::how::facts` gathers neither
+  kind 8 read nor `me`'s second project, `pages::how::parts` decides no
+  What reaches you, and no `pages::how::reaches` lays its columns.
+- **Not yet:** 5.13, *What reaches you* and *Its rows*, and 3.5, *Away*'s
+  *On How work runs*: the page draws *What needs you* and *While you're
+  away, agents may decide*, the classes' checks owners tick, where What
+  reaches you's columns take their place, the question route and "Away
+  until" its rows; "Limits" focuses the old section's heading.
+
 Sections 4.6 and 5.13 have no known gap in the words saved with the
 settings, the whole story's P3e, by plan `ui-p3e-words`: the wire's
 `StockWay` `headline` and `WaysPanel` `words`, a `ProjectWords`, each
