@@ -537,6 +537,165 @@ fn post_approval(world: &mut World, change: u64, user: u64) {
     }
 }
 
+// The fake forge has no inline-remark write; its domain read supplies that row.
+fn request_reads(world: &mut World, review: u64, reviewed: [u8; 32], remarks: bool) {
+    use skein_forge::api::Answer;
+    for event in &mut world.events {
+        if let engine::Event::Forge(event) = event
+            && let forge_top::Event::Client(skein_forge_client::Event::Answered { result: Ok(answer), .. }) =
+                event.as_mut()
+        {
+            match answer {
+                Answer::Reviews { reviews, .. } => {
+                    for row in reviews {
+                        if row.id == review {
+                            row.commit = reviewed;
+                        }
+                    }
+                }
+                Answer::Remarks { remarks: rows, .. } if remarks => {
+                    *rows = Box::new([skein_forge::api::Remark {
+                        id: 901,
+                        author: 7,
+                        path: b"file".as_slice().into(),
+                        line: 1,
+                        body: b"Keep the blank line.".as_slice().into(),
+                    }]);
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+fn repaired_request_waits_for_approval(world: &mut World, change: u64, repair: &engine::Assignment) {
+    use temper_engine_domain_forge_change::State;
+    let row = light_rules::change_row(world, change);
+    let head = row.change.last_head.expect("repaired head");
+    let repairs = row.change.repairs;
+    let branch = row.branch.clone();
+    let assigned = world.assigned.len();
+    // A repair's new head asks the gate and the person's approval afresh.
+    let new = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"repaired edge", 2)
+        .expect("repair push");
+    assert_ne!(translate::commit(new), head);
+    reviews::finish_review(
+        world,
+        repair,
+        tasks::TaskResult::Change {
+            title: jig_domain_tasks::ChangeTitle::new(b"Repaired".as_slice().into()),
+            connector: 0,
+            kind: 2,
+            resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
+            words: b"repaired".as_slice().into(),
+        },
+    );
+    let reviewer = reviews::next_assignment(world, assigned);
+    reviews::finish_review(
+        world,
+        &reviewer,
+        tasks::TaskResult::Verdict {
+            code: 1,
+            fields: Box::new([]),
+            words: b"approved repaired head".as_slice().into(),
+        },
+    );
+    settle(world);
+    let row = light_rules::change_row(world, change);
+    assert_eq!(row.change.last_head, Some(translate::commit(new)));
+    assert_eq!(row.change.repairs, repairs, "old request cannot repair again");
+    assert!(matches!(row.change.state, State::First { .. } | State::Queued { .. }), "{row:?}");
+    assert!(!matches!(live_task(world, change).phase, tasks::Phase::Held { .. }));
+    assert_eq!(world.merges, 0, "approval still needed at the new head");
+}
+
+#[test]
+fn a_persons_request_for_changes_repairs_with_its_remarks() {
+    use temper_engine_domain_forge_change::{Delegate, Hold, Repair, State};
+    for (body, remarks, moved_past, bound) in [
+        (b"Please repair the edge.".as_slice(), true, false, false),
+        (b"".as_slice(), false, false, false),
+        (b"Old request".as_slice(), false, true, false),
+        (b"At the bound".as_slice(), false, false, true),
+    ] {
+        let (mut world, change) = waiting_approval();
+        if bound {
+            let mut row = light_rules::change_row(&world, change).clone();
+            row.change.repairs = world.env.limits.forge.change_policy.repairs;
+            world.store.seed(Box::new([Record::Forge { row: Box::new(forge_top::Stored::Change(row)) }]), Box::new([]));
+            world.restart_same();
+            settle(&mut world);
+        }
+        let row = light_rules::change_row(&world, change);
+        let head = row.change.last_head.expect("head awaiting approval");
+        let reviewed = if moved_past { [99; 32] } else { head };
+        let pull = row.pull.expect("opened pull");
+        let repairs = row.change.repairs;
+        let assigned = world.assigned.len();
+        fake::grant(&mut world.fake, b"org/repo", 7, raw::Permission::Write);
+        let raw::Answer::Reviewed(review) = world.external(
+            7,
+            raw::Op::Write(raw::Write::Review {
+                number: pull,
+                verdict: Some(raw::Verdict::RequestChanges),
+                body: body.into(),
+            }),
+        ) else {
+            panic!("person's request posted")
+        };
+        world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+            hint: skein_forge::api::Hint {
+                repository: forge_world::REPO,
+                change: skein_forge::api::Change::Item(pull),
+                key: None,
+            },
+        })));
+        world.env.now = world.env.now.saturating_add(world.env.limits.forge.queue_window);
+        for _ in 0..200 {
+            request_reads(&mut world, review, reviewed, remarks);
+            world.tick();
+        }
+        let row = light_rules::change_row(&world, change);
+        assert_eq!(world.merges, 0);
+        if moved_past {
+            assert_eq!(row.change.repairs, repairs);
+            assert_eq!(world.assigned.len(), assigned, "old requests make no repair");
+            assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
+            assert!(matches!(row.change.state, State::First { .. } | State::Queued { .. }));
+        } else if bound {
+            assert_eq!(row.change.repairs, repairs);
+            assert_eq!(world.assigned.len(), assigned, "no repair past the bound");
+            assert!(matches!(row.change.state, State::Held { why: Hold::Repairs, .. }), "{row:?}");
+            assert!(matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
+        } else {
+            assert_eq!(row.change.repairs, repairs + 1, "{row:?}");
+            assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
+            let repair = world.assigned.get(assigned).expect("request delegates a repair").clone();
+            assert_eq!(row.delegate, Some((repair.task, Delegate::Repair(Repair::Review { head: reviewed }))));
+            let hex = engine::commit_text(&head);
+            let short = core::str::from_utf8(&hex[..12]).expect("head12");
+            assert!(live_task(&world, repair.task).spec.words.starts_with(
+                format!("Repair a person's request for changes at {short}: changes requested on the forge").as_bytes()
+            ));
+            let section = repair
+                .sections
+                .iter()
+                .find(|section| section.kind == engine::BriefKind::Forge(engine::ForgeBriefKind::Reviews))
+                .expect("reviews section");
+            let engine::BriefBody::Text(words) = &section.body else { panic!("quoted review words") };
+            let words = core::str::from_utf8(words).expect("review text");
+            if remarks {
+                assert!(words.contains("Review: Please repair the edge."), "{words}");
+                assert!(words.contains("Remark at file:1 Keep the blank line."), "{words}");
+            } else {
+                assert!(words.contains("[the request for changes gave no remarks]"), "{words}");
+            }
+            repaired_request_waits_for_approval(&mut world, change, &repair);
+        }
+        world.close();
+    }
+}
+
 fn approvals_of(world: &World, watcher: Token) -> engine::Approvals {
     world
         .approvals

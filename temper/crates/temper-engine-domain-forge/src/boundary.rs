@@ -41,6 +41,8 @@ pub enum BriefSource {
     Ci { item: BriefItem, head: BriefCommit },
     /// Reviews and remarks on a pinned head.
     Reviews { item: BriefItem, head: BriefCommit },
+    /// A person's request at the reviewed head, pinned to the change's head (domain/forge.md, 8.4).
+    Request { item: BriefItem, head: BriefCommit, reviewed: BriefCommit },
     /// A pull request against its base at a pinned head.
     Pull { item: BriefItem, head: BriefCommit },
     /// Why a task reads its project's adopted home without pushing.
@@ -1773,6 +1775,11 @@ pub enum Event {
     StartConflicted {
         child: u64,
         tag: u64,
+        head: skein_forge::api::Commit,
+    },
+    /// A counted person's request refused the change's merge (domain/forge.md, 8.3).
+    ReviewRequested {
+        task: u64,
         head: skein_forge::api::Commit,
     },
     /// Gather fresh forge facts and step one registered change.

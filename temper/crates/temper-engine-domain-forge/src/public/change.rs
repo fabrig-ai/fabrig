@@ -125,6 +125,7 @@ impl Domain {
             c::State::Repairing { why, .. } => {
                 repair = Some(match why {
                     c::Repair::Ci => w::PublicRepair::Ci,
+                    c::Repair::Review { .. } => w::PublicRepair::Review,
                     c::Repair::Semantic => w::PublicRepair::Semantic,
                     c::Repair::Gate(gate) => w::PublicRepair::Gate(
                         w::PublicGateNumber::new(&w::CEILINGS, w::PublicGateNumberParts { gate: *gate }).ok()?,

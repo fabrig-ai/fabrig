@@ -130,6 +130,9 @@ fn decode_effect_result(value: w::EffectResult) -> d::EffectResult {
 fn encode_repair(value: d::Repair) -> w::Repair {
     match value {
         d::Repair::Ci => w::Repair::Ci,
+        d::Repair::Review { head } => {
+            w::Repair::Review(w::Commit::new(&w::CEILINGS, w::CommitParts { commit: head }).expect(FITS))
+        }
         d::Repair::Gate(number) => {
             w::Repair::Gate(w::Number::new(&w::CEILINGS, w::NumberParts { number }).expect(FITS))
         }
@@ -142,6 +145,7 @@ fn encode_repair(value: d::Repair) -> w::Repair {
 fn decode_repair(value: w::Repair) -> d::Repair {
     match value {
         w::Repair::Ci => d::Repair::Ci,
+        w::Repair::Review(value) => d::Repair::Review { head: *value.commit() },
         w::Repair::Gate(value) => d::Repair::Gate(value.number()),
         w::Repair::Semantic => d::Repair::Semantic,
         w::Repair::Landing(value) => d::Repair::Landing { gate: value.gate() },

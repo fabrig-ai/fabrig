@@ -186,6 +186,7 @@ fn start_opening_kept(d: &mut Domain, task: u64, entry: u64, kept: bool) {
             heard: change::Heard {
                 delegate_running: false,
                 delegate_live: false,
+                review_request: None,
                 start_conflict: None,
                 lacking: None,
                 spend: None,
@@ -523,6 +524,59 @@ fn passed_pull_ci_reads_the_head_contexts_for_its_landed_result() {
         assert_eq!(row.pending, None);
         assert_eq!(row.effect, change::EffectResult::None);
         assert!(!d.entries.contains_key(&entry), "a veto removes the uncommitted merge");
+    }
+}
+
+#[test]
+fn a_persons_request_is_taken_by_one_step_and_not_restored() {
+    use skein_forge::api::{Answer, Ci};
+    use temper_engine_domain_forge_change as change;
+    for restart in [false, true] {
+        let mut d = first_change(Protection::Absent, Ci::Passed, true, false);
+        let row = d.change(fixtures::CHANGE).expect("first change").clone();
+        let requested = outputs(&mut d, Event::ReviewRequested { task: fixtures::CHANGE, head: fixtures::BASE });
+        assert!(requested.is_empty(), "no durable record carries the request");
+        assert!(d.procedure_wakes.contains_key(&fixtures::CHANGE));
+        if restart {
+            // The same durable change starts without the volatile request.
+            d = first_change(Protection::Absent, Ci::Passed, true, false);
+        }
+        fixtures::finish_open(&mut d);
+        let finished = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+        let expected = if restart {
+            change::Decision::Effect(change::Effect::Merge { head: fixtures::HEAD, base: fixtures::BASE })
+        } else {
+            change::Decision::Delegate(change::Delegate::Repair(change::Repair::Review { head: fixtures::BASE }))
+        };
+        let mut decided = false;
+        for request in &finished {
+            if let Request::ChangeDecision { decision, .. } = request {
+                assert_eq!(*decision, expected, "restart {restart}");
+                decided = true;
+            }
+        }
+        assert!(decided, "{restart}: {finished:?}");
+        if !restart {
+            // Put the procedure at First again: the previous step already took its input.
+            d.changes.insert(fixtures::CHANGE, row).expect("retained change");
+            fixtures::step_change(&mut d);
+            fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
+            fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
+            fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
+            fixtures::finish_open(&mut d);
+            let finished = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+            let mut merging = false;
+            for request in &finished {
+                if let Request::ChangeDecision {
+                    decision: change::Decision::Effect(change::Effect::Merge { .. }),
+                    ..
+                } = request
+                {
+                    merging = true;
+                }
+            }
+            assert!(merging, "a request is read once: {finished:?}");
+        }
     }
 }
 
@@ -1021,6 +1075,7 @@ fn waiting_step(live: bool, released: bool) -> Event {
         task: fixtures::CHANGE,
         entry: fixtures::OPEN + 1,
         heard: change::Heard {
+            review_request: None,
             start_conflict: None,
             lacking: None,
             spend: None,

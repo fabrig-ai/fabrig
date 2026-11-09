@@ -881,7 +881,7 @@ pub fn merge_change_row(from: Option<[u8; 32]>) -> top::ChangeRow {
 
 pub fn change_states() -> List<temper_engine_domain_forge_change::State> {
     use temper_engine_domain_forge_change::{Hold, Repair, State};
-    let mut states = List::with_capacity(22);
+    let mut states = List::with_capacity(23);
     for state in [
         State::Producing { requested: true },
         State::Opening { requested: false },
@@ -895,6 +895,7 @@ pub fn change_states() -> List<temper_engine_domain_forge_change::State> {
         State::Updating { from: [10; 32], base: [11; 32], ready_since: skein_lib::Wall::from_nanos(12) },
         State::Resolving { requested: true, base: [13; 32] },
         State::Repairing { requested: true, why: Repair::Gate(14) },
+        State::Repairing { requested: true, why: Repair::Review { head: [7; 32] } },
         State::Landing { head: [15; 32] },
         State::Landed { merge: [16; 32], since: skein_lib::Wall::from_nanos(17) },
         State::Red { merge: [18; 32], since: skein_lib::Wall::from_nanos(19) },

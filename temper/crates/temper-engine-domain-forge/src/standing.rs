@@ -73,6 +73,43 @@ impl Domain {
         evidence: &ChangeEvidence,
         reviewers: &[Reviewer],
     ) -> Option<JudgeVerdict> {
+        match self.held_landing_verdict(up_to_date, task, head, evidence, reviewers) {
+            Some((verdict, _criterion)) => Some(verdict),
+            None => None,
+        }
+    }
+
+    /// Name the counted request only when requirement 5 first refuses on an approval
+    /// of a change, never a goal landing (temper/docs/design/domain/forge.md, 8.3).
+    #[must_use]
+    pub fn review_request(
+        &self,
+        task: u64,
+        head: skein_forge::api::Commit,
+        evidence: &ChangeEvidence,
+        reviewers: &[Reviewer],
+    ) -> Option<skein_forge::api::Commit> {
+        if self.landing.rows.contains_key(&task) {
+            return None;
+        }
+        let (JudgeVerdict::Refuse, Some(Criterion::Approval { role, freshness, .. })) =
+            self.held_landing_verdict(false, task, head, evidence, reviewers)?
+        else {
+            return None;
+        };
+        let row = self.changes.get(&task)?;
+        let (_, requested) = judge::approval_count(role, freshness, head, &row.change.clean, reviewers);
+        requested
+    }
+
+    fn held_landing_verdict(
+        &self,
+        up_to_date: bool,
+        task: u64,
+        head: skein_forge::api::Commit,
+        evidence: &ChangeEvidence,
+        reviewers: &[Reviewer],
+    ) -> Option<(JudgeVerdict, Option<Criterion>)> {
         let landing = self.landing.rows.get(&task);
         let mut change_task = task;
         if let Some(row) = landing {
@@ -130,12 +167,12 @@ impl Domain {
                 None => judge::judge(criterion, repository, head, &row.change.clean, evidence, reviewers),
             };
             match verdict {
-                JudgeVerdict::Refuse => return Some(JudgeVerdict::Refuse),
+                JudgeVerdict::Refuse => return Some((JudgeVerdict::Refuse, Some(criterion))),
                 JudgeVerdict::Wait => result = JudgeVerdict::Wait,
                 JudgeVerdict::Met => {}
             }
         }
-        Some(result)
+        Some((result, None))
     }
 }
 
@@ -185,7 +222,7 @@ impl Domain {
         let have = u32::try_from(counted.len()).expect("admitted reviewers");
         line.remaining = Some(rule.people.saturating_sub(have));
         line.counted = counted;
-        line.refused = refused;
+        line.refused = refused.is_some();
         line
     }
 

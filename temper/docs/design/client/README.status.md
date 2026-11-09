@@ -88,7 +88,10 @@ with the project's policy joined where a way's `delegation` holds, offers
 "Keep it" only while To begin's first step is left. A turn's and a chat
 document's top-level `view` blocks are split out, read through `View` and
 redrawn at a newer revision, drawn as temper's path drawing kind with a
-stop a line as the terminal's fallback.
+stop a line as the terminal's fallback. `PathStep` holds `design` and
+`close_out`, a goal's coordinator's, and the wire a `TemplateGoal`;
+clients draw those stops by their words, as every other, and no gallery
+state draws either.
 
 Sections 3.5, *Ask temper's page* and *temper's own way*, 5.13 and 5.16
 have no known gap in Ask temper's opening, by the look request

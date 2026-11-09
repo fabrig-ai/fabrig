@@ -204,6 +204,7 @@ pub fn step_change(d: &mut Domain) {
             heard: change::Heard {
                 delegate_running: false,
                 delegate_live: false,
+                review_request: None,
                 start_conflict: None,
                 lacking: None,
                 spend: None,

@@ -676,7 +676,7 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
   | The change decides | The core hears |
   |---|---|
   | finished, merged | its result: the change and its pull request, the merge's id its words (below) |
-  | a delegate: producing, a repair (CI, a semantic conflict, a gate's remarks), a resolution, a gate | a batch of one delegate (below); the step waits |
+  | a delegate: producing, a repair (CI, a semantic conflict, a gate's remarks, a person's request on the forge), a resolution, a gate | a batch of one delegate (below); the step waits |
   | ready; a wait | a wait; ready steps it again |
   | a queue repair | the repair started (5.4) and a wait, or, when it cannot start, held for its effects |
   | held: its branch moved or missing, its pull request retargeted or closed | held for drift |
