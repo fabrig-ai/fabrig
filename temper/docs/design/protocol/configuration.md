@@ -887,6 +887,9 @@ have one, an engine alone none. Each:
     turn's body as the hub measures it, and each bound on its way holds
     it. Within each hub's `turn_bytes`, the engine's and the worker's,
     since each side of the link takes a turn of its own hub's bound;
+    as a frame of the worker's link, header included, within the
+    worker's `io.output`, the room its stream grants at once, or the
+    worker's link is not made (jig's `protocol/channel.md`, 9 and 11);
     with its 4-byte length, within `core.resume_bytes`, so that a chat's
     largest turn resumes rather than starting afresh, and so within
     `root.journal.transcript_bytes`, a journal row's (the resume
@@ -2631,6 +2634,7 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 | the engine's `core.resume_bytes` | T + 4 |
 | both `hub.transcript_bytes` | resume + 12 × ⌊resume / 4⌋ |
 | both `hub.turn_queue_bytes` | 8 × T |
+| each worker's `io.output` | a turn of T's frame on the worker's link, where it passes the profile's |
 | `root.journal.transcript_bytes` | resume |
 | `root.loads.transcript_bytes` | T |
 | `root.loads.bytes`, `root.loads.reply_bytes` | T + a temper record's size |

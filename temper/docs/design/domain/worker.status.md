@@ -9,6 +9,25 @@ Section 4.3's busy start has no known gap: smith's busy, an agent with
 no room or a run it has no room for, reaches the hub as
 `FromAgent::StartBusy` (`temper-worker-domain`'s `agents.rs`, `ended`,
 and `hand_out.rs`, `Finish::of`), and spends no try.
+Section 4.3's start the link cannot carry has no known gap. The engine's
+link takes its `io.largest_room` and the worker's its own
+(`temper-service/src/workers.rs`, `limits`;
+`worker_settings.rs`, `link_limits`); a start past the room fails as an
+invalid start naming its bytes and the room, serve writes its refused-run
+line and `worker unsent`, and the link, its pings and a later run go on.
+On each stock profile, `link_room.rs`'s
+`a_stock_start_crosses_the_link_or_fails_with_its_numbers` sends the
+largest charter, window and tree across, and the largest inbox on
+`small`; the committed calls, everything at once and `standard`'s
+largest inbox fail with their numbers; one byte past a part is refused
+before the link, `assignment cannot encode`, but a brief section, which
+the charter's fitting omits (`agent.md`, 4.3). Its
+`stock_profiles_make_both_links_and_fit_every_nonstart_frame` and
+`workers.rs`'s `refused_answer_reason_reaches_operator_once` hold the
+rest. The deployment's start the request `worker-link-quiet` of
+2026-11-09 saw silence its link is, by reading, a resumed producer's
+committed calls past the room; its proof is that deployment's next
+`worker unsent` line, which no record shows.
 
 Section 4.4's failure lines have no known gap but the result's why below.
 When its hub answers a job failed or refused, the worker writes its line

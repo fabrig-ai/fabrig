@@ -925,3 +925,14 @@ for; and that nothing is live once it settles.
   design of keeping them starts from who may read them
   (`../draft/dogfood-hacks.md`, 2.12 and 2.13). Default: nothing past what an
   agent's document asks its trace to keep.
+- **A start past the link's room, made to start.** Both stock profiles
+  admit a start past their 1,048,576-byte room (4.3): a resumed run's
+  committed calls alone, `core.call_records` of them at
+  `core.call_answer_bytes`, 32 of 69,632 bytes on `small` and 128 of
+  135,168 on `standard`, and on `standard` a full run inbox alone, 82
+  messages of up to 262,144 bytes. Making such a start run takes a figure
+  or a form (jig's `protocol/channel.md`, section 14). temper/migration
+  answered on 2026-11-09 that a later plan chooses from the deployment's
+  refusal line: a start near the room sizes `io.output` from the
+  configured room, and one far past it bounds what a resumed start
+  carries. Default: it fails with its numbers.
