@@ -440,7 +440,7 @@ fn the_address_table_keeps_the_instructions_forms_and_short_lines() {
     let instructions = include_str!("../../../temper-service/src/stock/ask.txt");
     let line = instructions.split_once("see reads by address, in your project:\n").unwrap().1.lines().next().unwrap();
     assert_eq!(ADDRESSES, line);
-    let mut seen = std::collections::BTreeSet::new();
+    let mut seen = alloc::collections::BTreeSet::new();
     for group in GROUPS {
         assert!(!group.rows.is_empty(), "{}: no addresses", group.form);
         for row in group.rows {
