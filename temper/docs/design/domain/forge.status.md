@@ -191,6 +191,14 @@ restart is dropped with its jig row (`temper-engine-domain-forge/src/domain.rs`,
 `restored`, by `Request::GoalUntopic`), while a task's own stays.
 
 - **Not yet:**
+  - 8.3, 8.4: the user's N4 request of 2026-11-08 asks for focused and
+    fuzzy tests. The focused story
+    `a_persons_request_for_changes_repairs_with_its_remarks`
+    (`tests/engine/domain/tests/suite/forge_routes/approval_identity.rs`)
+    has all four requested rows and checks the repaired head's new review
+    wait, but no fuzzy story exercising this person's request-to-repair
+    path is identified in main or the supplied reports. The existing
+    fuzzy stories do not establish that coverage.
   - 10, 18: no supplied result shows the three-thread real-process trial
     passing after update recovery. Both styles' lost answers, retries,
     exhausted counts, release and late-copy holds have world stories;

@@ -5,7 +5,7 @@ family temper-public-wire 1
 # Tasks are places in PublicApplication.tasks; commits are the panels' fixed hashes.
 enum PublicStep { producing, opening, recreating, reopening, checking, gating, queued, first, updating, resolving, repairing, landing, landed, ended, ready, preparing, verifying, red, cleared }
 record PublicGateNumber { gate: u64 }
-enum PublicRepair { ci, gate: PublicGateNumber, semantic, landing: PublicGateNumber }
+enum PublicRepair { ci, gate: PublicGateNumber, semantic, landing: PublicGateNumber, review }
 enum PublicHold { stalled, repairs, resolutions, updates, moved, missing, closed, retargeted, failed, rejected, authority, questions }
 enum PublicCi { unknown, pending, passed, failed }
 enum PublicGateKind { review, approval, check }
