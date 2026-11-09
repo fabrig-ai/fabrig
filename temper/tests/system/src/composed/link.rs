@@ -51,6 +51,36 @@ pub fn assignment(assignment: &engine::Assignment) -> (host::Assignment, wire::W
     (hub, assigned)
 }
 
+/// A job crosses the same production translation and receiving bounds as a worker link.
+pub fn job(
+    job: host::JobAssignment,
+    workspace: Option<&engine::ForgeWorkspace>,
+    limits: &v1::Limits,
+) -> temper_worker_domain::Event {
+    let encoding = temper_service::assignment::Encoding {
+        limits: *limits,
+        endpoints: worker_protocol::endpoints(),
+        deployment: [0; 16],
+        charter_bytes: 65_536,
+    };
+    let event = temper_service::assignment::job_down(
+        job,
+        workspace,
+        &forges(),
+        &encoding,
+        &temper_service::values::Values::new(0, 0),
+        Token::new(7),
+        skein_lib::Time::ZERO,
+    )
+    .expect("production job assignment fits");
+    let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::AssignJob { job }, parts, .. } = event else {
+        panic!("job assignment down")
+    };
+    let items = temper_service::worker_route::job_items(&job, &parts, limits);
+    let spec = temper_service::worker_route::job_spec(&job.spec, limits);
+    temper_worker_domain::Event::AssignJob { job, items, spec }
+}
+
 /// The worker's parts through the service's channel records, without bytes.
 #[must_use]
 pub fn parts(work: &wire::Work, preparation: Option<wire::Preparation>) -> engine::Parts {

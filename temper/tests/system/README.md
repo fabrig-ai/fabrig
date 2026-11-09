@@ -31,7 +31,9 @@ and its journal before returning.
 Focused cases cover a committed chat report, a durable host-call reply,
 live human words, cancellation, a read-only adopted repository prepared by
 the worker, park/resume from the committed concrete smith prefix, and
-withheld store acknowledgements. Assertions independently read durable
+withheld store acknowledgements. A change’s merge job crosses production’s job
+translation to its worker, whose command settles a conflict or leaves it to
+a resolution. Assertions independently read durable
 task and call records and native smith observations. The worker's answer
 must carry smith's actual result, turns and cumulative spend; every turn the
 worker sends is kept by the engine, and the process is reaped.
