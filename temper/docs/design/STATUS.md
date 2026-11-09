@@ -190,11 +190,16 @@ new; with a fuzz test of the draft's density rules, the joint world's Work
 across two projects and fifteen gallery states; their render check and
 walk follow landing. Team is never shown, as no read gives the rail a
 project's members or roles; the draft, redrawn after the plan's cut,
-adds a hairline and How work runs to To begin's rail, drops the words
-that still name Settings and takes Away across projects, which the
-design doesn't yet say (`client/README.status.md`, 3.5 and 5.3;
+adds a hairline and How work runs to To begin's rail and drops the words
+that still name Settings, which the design doesn't yet say
+(`client/README.status.md`, 3.5 and 5.3;
 `client/browser.status.md`, 2.3, 2.5 and 7.2;
-`draft/surfaces.status.md`, 2, 5, 8 and 10). Home and Needs you across
+`draft/surfaces.status.md`, 2, 5, 8 and 10). Away on All projects, by
+plan `ui-away-all`, sets every project the person is in, each by its own
+`SetAway`, one after another, reads "Away on N of M" while they differ
+and toasts how many changed, with two gallery states; its render check
+and walk follow landing (`client/README.md`, 3.5 and 11;
+`client/README.status.md`, 3.5; `client/browser.status.md`, 7.2). Home and Needs you across
 projects, and the brief, are the whole story's milestone P2, by plan
 `ui-p2-home`: Home on All projects at `/home`, reading every project's
 status and decisions, the briefs' first sentences joined, Projects, the

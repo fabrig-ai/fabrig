@@ -10,9 +10,8 @@
     work's account and model*'s All models still send the person to
     Settings, which the rail
     no longer names: "they stay in Settings and Ask temper", "it stays in
-    Settings" and "Choose what the list shows, in Settings". The Away
-    switch is the open project's, with no "Away on 2 of 4" across
-    projects, and on a page across projects the rail's "Needs you" counts
+    Settings" and "Choose what the list shows, in Settings". On a page
+    across projects the rail's "Needs you" counts
     the open project's needs, where this section counts across what it
     shows (sections 3 and 4); under All projects the rail's "Home" and
     "Needs you" open the open project's pages (5.3, *All projects*),

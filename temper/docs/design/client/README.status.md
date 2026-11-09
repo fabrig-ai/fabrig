@@ -870,6 +870,25 @@ read's head explicit.
   at a character boundary to fit 512 bytes (`forge/decided.rs`, `overturn_words`),
   where the section has it whole, because the smallest deployed composer admits
   that (5.4).
+
+Section 3.5, *Away*, *On All projects*, and 5.3's Away row have no known
+gap, by plan `ui-away-all`: `pages::away_all::across` counts `me`'s
+projects, those on at the wall and the earliest `until` of those on, and
+whether Away shows for any, which `rail::facts` reads on a page across
+projects; `frame.rs`'s `away` draws the switch and the chip from it,
+"Away on N of M" between, and binds `away::Act::ToggleAll`, whose
+`away_all::act` builds each changing project's request by
+`pages::away::request`, which a project's own act calls, and sends them
+one after another, toasting `Toasted::AwayAll`, or `AwayRefused` with
+none changed. The domain's `tests/away.rs`, its
+`across_counts_the_projects_on`, `toggle_all_sets_each_project_that_differs`
+and `a_second_toggle_waits`, `tests/pages/rail.rs`'s "across" row, the
+view's `the_switch_shows_with_ways_away` and the gallery's
+`all-home-away` and `all-home-away-on` (`browser.status.md`, 7.2) hold
+it. No render of the words is on record and no client-world story
+presses the switch across projects: the render check and the walk remain
+section 11's after-landing work (*Away on All projects after landing*).
+
 - **Design departs:** 5.8, from the request `ui-goal-page` of 2026-11-05, decided
   by its plan's cut and its proof. A goal's bar is `figure.bar` in the browser
   and `Role::Image` in the terminal, where the request has `div.bar` and
