@@ -15,6 +15,17 @@ fn rendered(line: &str, from: u32, answer: SeeAnswer, maximum: u32) -> (String, 
     (String::from_utf8(body.into_vec()).unwrap(), error)
 }
 
+fn person_pending(read: temper_engine_domain::SeeRead) -> SeeAnswer {
+    SeeAnswer::Person(Box::new(temper_engine_domain::SeePerson {
+        read,
+        names: temper_engine_domain::SeeNames {
+            project: temper_engine_domain::SeeName { number: 7, name: b"Shop".as_slice().into() },
+            people: Box::new([]),
+            charters: Box::new([]),
+        },
+    }))
+}
+
 #[test]
 fn tokens_round_trip_and_malformed_tokens_stay_unknown() {
     for (line, from, token) in [
@@ -121,6 +132,29 @@ fn settings(answer: jig_domain_core::SettingsAnswer) -> SeeAnswer {
 fn errors_and_pages_use_the_address_form() {
     for (line, answer, expected) in [
         ("me", SeeAnswer::NotYet, "see me: not there yet.".to_string()),
+        (
+            "task 41 activity",
+            person_pending(temper_engine_domain::SeeRead::Activity {
+                number: 41,
+                activity: jig_domain_core::reads::Answer::None(jig_domain_core::reads::Why::Busy),
+            }),
+            "see task 41 activity: not there yet.".to_string(),
+        ),
+        (
+            "task 41 turn 1.2",
+            person_pending(temper_engine_domain::SeeRead::Turn {
+                number: 41,
+                attempt: 1,
+                turn: 2,
+                read: jig_domain_core::reads::Answer::None(jig_domain_core::reads::Why::Busy),
+            }),
+            "see task 41 turn 1.2: not there yet.".to_string(),
+        ),
+        (
+            "changes",
+            person_pending(temper_engine_domain::SeeRead::Changes { changes: None, landings: None }),
+            "see changes: not there yet.".to_string(),
+        ),
         ("bogus", SeeAnswer::Unknown, format!("see: no address bogus; addresses: {ADDRESSES}")),
         (
             "help search x",

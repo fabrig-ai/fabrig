@@ -1,0 +1,612 @@
+//! Hand-made person documents read as lines (domain/agent.md, 8.4.1).
+use jig_domain_core::{
+    documents as d,
+    reads::{Answer, EndedGroup, TaskPage},
+};
+use jig_domain_tasks as tasks;
+use skein_lib::{List, Wall};
+use temper_engine_domain::{SeeAnswer, SeeName, SeeNames, SeePerson, SeeRead};
+
+fn text(words: &[u8]) -> d::Text {
+    d::Text { bytes: words.into(), cut: false }
+}
+fn budget() -> d::BudgetLine {
+    d::BudgetLine {
+        numbers: tasks::Numbers { budget: 1250, spent: 123, spent_below: 101, reserved: 300 },
+        left: 726,
+        funder: tasks::Funder::Task(1),
+        deadline: None,
+    }
+}
+fn chip() -> d::Chip {
+    d::Chip {
+        number: 41,
+        title: text(b"Add CSV export"),
+        executor: d::ExecutorKind::Agent,
+        phase: d::PhaseLine::Active(tasks::Active::Running { attempt: 1 }),
+        details: Box::new(d::ChipDetails {
+            dependencies: List::uncapped(),
+            project: 7,
+            executor: tasks::Executor::Agent { charter: 2 },
+            phase_since: Wall::EPOCH,
+            run_since: None,
+            attempt: None,
+            retry: None,
+            wake: tasks::WakePolicy::DEFAULT,
+            person_wait: None,
+            hold: None,
+            budget: budget(),
+            activity: 1,
+            resources: List::uncapped(),
+            resources_cut: false,
+            resources_observed: false,
+            procedure: None,
+            live_delegates: 0,
+            closing_connectors: None,
+            ending: None,
+            ended_at: None,
+            observation: None,
+        }),
+    }
+}
+fn row() -> d::TaskLine {
+    d::TaskLine {
+        chip: chip(),
+        project: 7,
+        requester: tasks::Party::Person(9),
+        tracked: None,
+        label: 1,
+        flags: tasks::Flags::PLAIN,
+        changed: Wall::EPOCH,
+        last_activity: Wall::from_nanos(1_794_210_000_000_000_000),
+        ended_at: None,
+        budget: budget(),
+        waits_on: d::WaitsOn::Nothing,
+        phases: d::PhaseCounts::ZERO,
+        delegates_done: 1,
+        delegates_total: 3,
+        held_below: 0,
+        conversation: None,
+    }
+}
+fn names() -> SeeNames {
+    SeeNames {
+        project: SeeName { number: 7, name: b"Shop".as_slice().into() },
+        people: Box::new([SeeName { number: 9, name: b"Ada".as_slice().into() }]),
+        charters: Box::new([SeeName { number: 2, name: b"the producer's".as_slice().into() }]),
+    }
+}
+fn tasks_page(rows: &[d::TaskLine]) -> Answer {
+    let mut live = List::uncapped();
+    for row in rows {
+        live.push(row.clone()).unwrap();
+    }
+    Answer::Tasks(Box::new(TaskPage { live, live_next: None, ended: EndedGroup::None }))
+}
+
+fn list_row(value: d::TaskLine, ended: bool, more: bool) -> Answer {
+    let mut rows = List::uncapped();
+    rows.push(value).unwrap();
+    let next = more.then_some(continuation());
+    Answer::Tasks(Box::new(if ended {
+        TaskPage { live: List::uncapped(), live_next: None, ended: EndedGroup::Rows { rows, next, cut: false } }
+    } else {
+        TaskPage { live: rows, live_next: next, ended: EndedGroup::None }
+    }))
+}
+fn continuation() -> jig_domain_core::reads::Cursor {
+    jig_domain_core::reads::Cursor::Store { scope: jig_domain_core::reads::Scope::EndedTasks, after: None }
+}
+fn authority() -> d::AuthorityLine {
+    d::AuthorityLine {
+        models: tasks::Models::NONE,
+        tools: tasks::Tools(0),
+        grants: List::uncapped(),
+        executors: List::uncapped(),
+        tasks: 0,
+        depth: 0,
+        ceiling: tasks::Budget { spend: 0, deadline: None },
+        notes: tasks::Scopes(0),
+        note_resources: List::uncapped(),
+    }
+}
+fn ledger(source: tasks::Funder) -> d::Ledger {
+    d::Ledger {
+        source,
+        parent: None,
+        numbers: budget().numbers,
+        left: budget().left,
+        closed: false,
+        began: Some(Wall::EPOCH),
+        next: Some(Wall::from_nanos(604_800_000_000_000)),
+    }
+}
+fn project() -> Answer {
+    let mut members = List::uncapped();
+    for (party, role) in [(9, jig_domain_people::Role::Owner), (88, jig_domain_people::Role::Member)] {
+        members
+            .push(d::Member {
+                party,
+                kind: jig_domain_people::Kind::Person,
+                role,
+                login: text(b"unused-login"),
+                name: text(b"unused-name"),
+            })
+            .unwrap();
+    }
+    let mut pools = List::uncapped();
+    pools.push(ledger(tasks::Funder::Pool { project: 7, person: 9, period: 3 })).unwrap();
+    Answer::Document(Box::new(d::Document::Project(Box::new(d::Project {
+        acts: List::uncapped(),
+        number: 7,
+        name: text(b"Shop"),
+        resources: List::uncapped(),
+        policy: d::Policy {
+            ceiling: authority(),
+            period_spend: 1250,
+            escalation_role: None,
+            projections: List::uncapped(),
+            roles: List::uncapped(),
+            requirements: List::uncapped(),
+            permissions: None,
+            permissions_cut: false,
+            templates: List::uncapped(),
+            cut: false,
+        },
+        members,
+        current_period: Some(ledger(tasks::Funder::Period { project: 7, period: 3 })),
+        pools,
+        configured_period: 3,
+        configured_pools: List::uncapped(),
+        configured_pools_cut: false,
+        spend: List::uncapped(),
+        recurring: List::uncapped(),
+        cut: false,
+    }))))
+}
+fn needs(more: bool) -> Answer {
+    let mut rows = List::uncapped();
+    for object in [
+        d::InboxObject::Question { message: 4 },
+        d::InboxObject::Proposal { proposer: jig_domain_people::Proposer::Task(41), number: 1 },
+        d::InboxObject::Proposal { proposer: jig_domain_people::Proposer::Task(41), number: 2 },
+    ] {
+        rows.push(jig_domain_core::reads::PageRow::Inbox(d::InboxEntry {
+            reply: None,
+            task: d::TaskLink::Live(chip()),
+            project: Some(7),
+            object,
+            activity: None,
+            at: Some(Wall::EPOCH),
+            unread: None,
+            cursor: d::Cursor::Inbox { task: 41, object, at: Some(Wall::EPOCH) },
+            projects: List::uncapped(),
+        }))
+        .unwrap();
+    }
+    page(rows, more)
+}
+fn page(rows: List<jig_domain_core::reads::PageRow>, more: bool) -> Answer {
+    Answer::Page(Box::new(jig_domain_core::reads::Page {
+        rows,
+        before: None,
+        next: more.then_some(continuation()),
+        cut: false,
+        inbox_selection: None,
+    }))
+}
+fn goal_row(ended: bool) -> d::TaskLine {
+    let mut value = row();
+    value.chip.number = 12;
+    value.label = 2;
+    value.tracked = Some(1);
+    if ended {
+        value.chip.phase = d::PhaseLine::Ended;
+        value.chip.details.ending = Some(d::Ending::Done(d::ResultValue::Report(text(b"Export landed."))));
+    } else {
+        value.waits_on = d::WaitsOn::Party {
+            whom: jig_domain_people::Whom::Person(9),
+            entries: 1,
+            task: 12,
+            kind: jig_domain_people::EntryKind::Question { message: 4 },
+        };
+    }
+    value
+}
+fn reports() -> Answer {
+    let mut rows = List::uncapped();
+    for (number, description, body, changed) in [
+        (1, b"work: scratch".as_slice(), b"not a report".as_slice(), 0),
+        (2, b"report: An older headline.", b"older body", 1),
+        (3, b"report: The export lands this week.", b"The first paragraph.\n\nLeft: Choose a delimiter.", 2),
+    ] {
+        rows.push(jig_domain_core::reads::PageRow::Note(d::Note {
+            acts: List::uncapped(),
+            number,
+            scope: d::NoteLocation::Goal { project: 7, task: 12 },
+            description: text(description),
+            body: text(body),
+            writer: jig_domain_notes::Author::Task { task: 12, attempt: 1 },
+            tasks: List::uncapped(),
+            changed: Some(Wall::from_nanos(changed)),
+            revision: 1,
+            cut: false,
+        }))
+        .unwrap();
+    }
+    page(rows, false)
+}
+fn task() -> d::Task {
+    d::Task {
+        settings: None,
+        waits_on: d::WaitsOn::Nothing,
+        label: 2,
+        flags: tasks::Flags::PLAIN,
+        last_activity: row().last_activity,
+        made: Wall::EPOCH,
+        chip: goal_row(false).chip,
+        acts: List::uncapped(),
+        project: 7,
+        goal: Some(12),
+        priority: Some(1),
+        executor: tasks::Executor::Agent { charter: 2 },
+        requester: tasks::Party::Person(9),
+        lineage: List::uncapped(),
+        delegates: List::uncapped(),
+        changed: Wall::EPOCH,
+        spec_revision: 1,
+        person_revision: None,
+        taken_by: None,
+        activity: 3,
+        spec: d::SpecLine {
+            words: text(b"Add CSV export"),
+            parameters: List::uncapped(),
+            inputs: List::uncapped(),
+            cut: false,
+            asks: false,
+        },
+        words: text(b"Add CSV export\nsecret metadata stays off the summary"),
+        parameters: List::uncapped(),
+        instructions: None,
+        llm: Some(tasks::LlmChoice {
+            account: None,
+            main: tasks::ModelEffort { model: 1, effort: None },
+            subagents: Box::new([]),
+            later: None,
+        }),
+        kept_account: None,
+        run_wait: None,
+        resources: List::uncapped(),
+        inputs: List::uncapped(),
+        dependencies: List::uncapped(),
+        dependency_facts: List::uncapped(),
+        references: List::uncapped(),
+        subscriptions: List::uncapped(),
+        wake: tasks::WakePolicy::DEFAULT,
+        contract: d::ContractLine::Report { words: 1024 },
+        result: None,
+        budget: budget(),
+        authority: authority(),
+        hold: None,
+        proposals: List::uncapped(),
+        cut: false,
+    }
+}
+fn task_answer(value: d::Task) -> Answer {
+    Answer::Document(Box::new(d::Document::Task(Box::new(value))))
+}
+fn held_row() -> d::TaskLine {
+    let mut value = row();
+    value.chip.phase = d::PhaseLine::Held { reason: tasks::Hold::Budget, revision: 3 };
+    value
+}
+fn ended_task() -> Answer {
+    let mut value = task();
+    value.chip.phase = d::PhaseLine::Ended;
+    value.contract = d::ContractLine::Change { connector: temper_client_protocol_wire::FORGE, kind: 1, words: 1024 };
+    value.label = 0;
+    let mut parent = chip();
+    parent.number = 6;
+    parent.title = text(b"Make export available");
+    value.lineage.push(parent).unwrap();
+    value.requester = tasks::Party::Task(6);
+    let ending = d::Ending::Done(d::ResultValue::Change {
+        kind: 1,
+        part: tasks::Part {
+            connector: temper_client_protocol_wire::FORGE,
+            kind: tasks::PartKind::Resource,
+            key: tasks::PartKey::Number(1),
+        },
+        words: text(b"Export landed.\nMore retained words."),
+    });
+    value.chip.details.ending = Some(ending.clone());
+    let result = d::ResultDoc {
+        acts: List::uncapped(),
+        task: value.chip.clone(),
+        contract: value.contract.clone(),
+        ending,
+        at: Some(Wall::EPOCH),
+        requester: value.requester,
+        executor: value.executor,
+        chosen_by: None,
+        followups: None,
+        delegates: List::uncapped(),
+        proposal: None,
+        cut: false,
+    };
+    Answer::Ended(Box::new(jig_domain_core::reads::Ended {
+        value: jig_domain_core::reads::EndedValue::Task { document: Box::new(value), result: Box::new(result) },
+        at: Some(Wall::EPOCH),
+        by: None,
+    }))
+}
+fn catalogue() -> [jig_domain_core::settings::CatalogueModel; 1] {
+    [jig_domain_core::settings::CatalogueModel {
+        number: 2,
+        model: jig_domain_core::Model { name: b"gpt-6".as_slice().into(), ..jig_domain_core::Model::hole() },
+        shown: None,
+        description: None,
+        picker: true,
+        withdrawn: false,
+        source: jig_domain_core::settings::ModelSource::Stock,
+        estimated: false,
+        first_read: None,
+    }]
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the test inspects rendered UTF-8 text")]
+#[expect(clippy::too_many_lines, reason = "each address and its boundary cases share one answer contract table")]
+fn person_answers_read_as_named_bounded_lines() {
+    const TITLE_BYTES: usize = 160;
+    const TASKS_NEXT: &str = "task N · goals · inbox";
+    const PROJECT_NEXT: &str = "goals · tasks · changes · inbox · settings";
+    const GOALS_NEXT: &str = "task N · task N tree · goals ended";
+    const TASK_NEXT: &str = "task N tree · task N activity · change N · tasks";
+    const TREE_NEXT: &str = "task N · task N activity · task N tree";
+    const ME_NEXT: &str = "inbox · project · goals · tasks";
+    let mut unnamed = row();
+    unnamed.chip.details.executor = tasks::Executor::Person(tasks::PersonAddress::Person(88));
+    unnamed.label = 15;
+    let mut live_delegate = row();
+    live_delegate.chip.details.executor =
+        tasks::Executor::Procedure { connector: temper_client_protocol_wire::FORGE, code: 2 };
+    let mut ended_delegate = row();
+    ended_delegate.chip.phase = d::PhaseLine::Ended;
+    ended_delegate.chip.details.executor = tasks::Executor::Person(tasks::PersonAddress::Person(9));
+    let mut long = row();
+    long.chip.title = text("é".repeat(TITLE_BYTES / 2 + 1).as_bytes());
+    let long_line = format!(
+        "task 41, {}… · a chat · an agent, charter 2, the producer's · working · 2026-11-09 07:40",
+        "é".repeat(78)
+    );
+    let mut exact = row();
+    exact.chip.title = text("é".repeat(TITLE_BYTES / 2).as_bytes());
+    let exact_line = format!(
+        "task 41, {} · a chat · an agent, charter 2, the producer's · working · 2026-11-09 07:40",
+        "é".repeat(80)
+    );
+    for (address, read, first, required, following) in [
+        (
+            "tasks",
+            SeeRead::Tasks { tasks: tasks_page(&[row()]) },
+            "live tasks of project 7, Shop: 1, the latest active first",
+            &["task 41, Add CSV export · a chat · an agent, charter 2, the producer's · working · 2026-11-09 07:40"][..],
+            TASKS_NEXT,
+        ),
+        (
+            "me",
+            SeeRead::Me { person: 9, project: project(), needs: needs(false) },
+            "you: Ada · owner in project 7, Shop",
+            &[
+                "your pool this period: $12.50, $7.26 left",
+                "waiting on you here: 3 · 1 question · 2 proposals",
+                "question · task 41, Add CSV export",
+            ],
+            ME_NEXT,
+        ),
+        (
+            "project",
+            SeeRead::Project {
+                project: project(),
+                held: tasks_page(&[held_row()]),
+                repositories: Box::new([temper_engine_domain::RepositoryIdentity {
+                    host: b"forge.example".as_slice().into(),
+                    owner: b"shop".as_slice().into(),
+                    name: b"app".as_slice().into(),
+                }]),
+            },
+            "project 7, Shop",
+            &[
+                "repositories: 1",
+                "forge.example/shop/app",
+                "people: 2",
+                "Ada, owner",
+                "person 88, member",
+                "this period: 3, from 1970-01-01 00:00 to 1970-01-08 00:00 · budget $12.50 · reserved $3.00 · spent $2.24 · left $7.26",
+                "held tasks: 1",
+                "task 41, Add CSV export · held · an agent, charter 2, the producer's · the budget is exhausted",
+            ],
+            PROJECT_NEXT,
+        ),
+        (
+            "goals",
+            SeeRead::Goals { ended: false, goals: tasks_page(&[goal_row(false)]), reports: reports() },
+            "goals of project 7, Shop: 1, by priority",
+            &["goal 12, Add CSV export · priority 1 · working, waiting on Ada · report: The export lands this week."],
+            GOALS_NEXT,
+        ),
+        (
+            "goals ended",
+            SeeRead::Goals { ended: true, goals: list_row(goal_row(true), true, false), reports: reports() },
+            "ended goals of project 7, Shop: 1, the latest ended first",
+            &["goal 12, Add CSV export · priority 1 · done · report: The export lands this week."],
+            "task N · goals",
+        ),
+        (
+            "task 12",
+            SeeRead::Task { number: 12, task: task_answer(task()), report: Some(reports()) },
+            "task 12, Add CSV export · a goal · working",
+            &[
+                "requested by: Ada",
+                "executor: an agent, charter 2, the producer's, on gpt-6",
+                "spent: $2.24 of $12.50",
+                "delegates: 0 live",
+                "asked: Add CSV export…",
+                "report: The export lands this week.",
+                "The first paragraph.",
+                "Left: Choose a delimiter.",
+            ],
+            TASK_NEXT,
+        ),
+        (
+            "task 12",
+            SeeRead::Task { number: 12, task: ended_task(), report: None },
+            "task 12, Add CSV export · a change · done",
+            &["requested by: task 6, Make export available", "result: done: Export landed.…"],
+            TASK_NEXT,
+        ),
+        (
+            "task 41 tree",
+            SeeRead::Tree {
+                number: 41,
+                live: tasks_page(&[live_delegate.clone()]),
+                ended: list_row(ended_delegate, true, false),
+            },
+            "delegates of task 41: 1 live, 1 ended",
+            &[
+                "task 41, Add CSV export · a procedure · working · spent $2.24 · delegates: 3",
+                "task 41, Add CSV export · Ada · ended · spent $2.24 · delegates: 3",
+            ],
+            TREE_NEXT,
+        ),
+        (
+            "inbox",
+            SeeRead::Inbox { needs: needs(false) },
+            "waiting on you in project 7, Shop: 3, oldest first; each is answered on Needs you",
+            &["question · task 41, Add CSV export", "proposal · task 41, Add CSV export"],
+            "task N · me",
+        ),
+        (
+            "tasks",
+            SeeRead::Tasks { tasks: tasks_page(&[]) },
+            "live tasks of project 7, Shop: 0, the latest active first",
+            &[],
+            TASKS_NEXT,
+        ),
+        (
+            "tasks",
+            SeeRead::Tasks { tasks: list_row(live_delegate, false, true) },
+            "live tasks of project 7, Shop: 1 or more, the latest active first",
+            &["task 41, Add CSV export · a change · a procedure · working · 2026-11-09 07:40"],
+            TASKS_NEXT,
+        ),
+        (
+            "goals ended",
+            SeeRead::Goals { ended: true, goals: list_row(goal_row(true), true, true), reports: reports() },
+            "ended goals of project 7, Shop: 1 or more, the latest ended first",
+            &[],
+            "task N · goals",
+        ),
+        (
+            "inbox",
+            SeeRead::Inbox { needs: needs(true) },
+            "waiting on you in project 7, Shop: 3 or more, oldest first; each is answered on Needs you",
+            &["more wait on you"],
+            "task N · me",
+        ),
+        (
+            "project",
+            SeeRead::Project {
+                project: project(),
+                held: Answer::None(jig_domain_core::reads::Why::Busy),
+                repositories: Box::new([]),
+            },
+            "project 7, Shop",
+            &["repositories: 0", "held tasks: not read"],
+            PROJECT_NEXT,
+        ),
+        (
+            "goals",
+            SeeRead::Goals {
+                ended: false,
+                goals: tasks_page(&[goal_row(false)]),
+                reports: Answer::None(jig_domain_core::reads::Why::Unknown),
+            },
+            "goals of project 7, Shop: 1, by priority",
+            &["goal 12, Add CSV export · priority 1 · working, waiting on Ada · report: not read"],
+            GOALS_NEXT,
+        ),
+        (
+            "task 12",
+            SeeRead::Task {
+                number: 12,
+                task: task_answer(task()),
+                report: Some(Answer::None(jig_domain_core::reads::Why::Busy)),
+            },
+            "task 12, Add CSV export · a goal · working",
+            &["report: not read", "spent: $2.24 of $12.50"],
+            TASK_NEXT,
+        ),
+        (
+            "goals",
+            SeeRead::Goals {
+                ended: false,
+                goals: tasks_page(&[goal_row(false)]),
+                reports: page(List::uncapped(), false),
+            },
+            "goals of project 7, Shop: 1, by priority",
+            &["goal 12, Add CSV export · priority 1 · working, waiting on Ada · no report yet"],
+            GOALS_NEXT,
+        ),
+        (
+            "tasks",
+            SeeRead::Tasks { tasks: tasks_page(&[unnamed]) },
+            "live tasks of project 7, Shop: 1, the latest active first",
+            &["task 41, Add CSV export · label 15 · person 88 · working · 2026-11-09 07:40"],
+            TASKS_NEXT,
+        ),
+        (
+            "tasks",
+            SeeRead::Tasks { tasks: tasks_page(&[long]) },
+            "live tasks of project 7, Shop: 1, the latest active first",
+            &[long_line.as_str()],
+            TASKS_NEXT,
+        ),
+        (
+            "tasks",
+            SeeRead::Tasks { tasks: tasks_page(&[exact]) },
+            "live tasks of project 7, Shop: 1, the latest active first",
+            &[exact_line.as_str()],
+            TASKS_NEXT,
+        ),
+        (
+            "goals",
+            SeeRead::Goals {
+                ended: false,
+                goals: tasks_page(&[]),
+                reports: Answer::None(jig_domain_core::reads::Why::Busy),
+            },
+            "goals of project 7, Shop: 0, by priority",
+            &["report: not read"],
+            GOALS_NEXT,
+        ),
+    ] {
+        let answer = SeeAnswer::Person(Box::new(SeePerson { read, names: names() }));
+        let (bytes, error) = crate::see_answer(address.as_bytes(), 0, &answer, &catalogue(), 20_000).into_parts();
+        let rendered = core::str::from_utf8(&bytes).unwrap();
+        assert!(!error, "{address}: {rendered}");
+        assert_eq!(rendered.lines().next(), Some(first), "{address}");
+        for line in required {
+            let mut found = false;
+            for value in rendered.lines() {
+                found |= value == *line;
+            }
+            assert!(found, "{address}: missing {line}: {rendered}");
+        }
+        for hidden in ["digest", "cursor", "temper ctl", "unused-login", "unused-name", "secret metadata"] {
+            assert!(!rendered.contains(hidden), "{address}: {rendered}");
+        }
+        assert!(rendered.ends_with(&format!("see: {following}\n")), "{address}: {rendered}");
+    }
+}
