@@ -1869,3 +1869,24 @@ fn the_theme_list_reads_the_terminal_and_selected_choice() {
         }
     }
 }
+
+#[test]
+fn a_theme_notice_says_the_choice_and_terminals_word() {
+    use crate::{Notice, theme::ThemeChoice};
+    let root = root(true, true, false, false, false);
+    let words = f::words();
+    for (choice, terminal, expected) in [
+        (ThemeChoice::Auto, Some(Scheme::Light), b"Theme: auto, light as your terminal says.".as_slice()),
+        (ThemeChoice::Auto, Some(Scheme::Dark), b"Theme: auto, dark as your terminal says.".as_slice()),
+        (ThemeChoice::Auto, None, b"Theme: auto, dark: your terminal doesn't say.".as_slice()),
+        (ThemeChoice::Light, Some(Scheme::Dark), b"Theme: light.".as_slice()),
+        (ThemeChoice::Dark, Some(Scheme::Light), b"Theme: dark.".as_slice()),
+    ] {
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Notice { notice: Some(Notice::Theme { choice, terminal }) });
+        let part = foot::read(&root, &tui, &words, f::NOW);
+        assert_eq!(part.notice.as_deref(), Some(expected));
+        assert!(foot::read_notes(&root, &tui, &words).lines.is_empty());
+        assert!(has(draw(part).tree(), look::SIGNAL, expected));
+    }
+}

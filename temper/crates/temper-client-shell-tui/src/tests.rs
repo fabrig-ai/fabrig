@@ -1443,6 +1443,8 @@ fn a_kept_theme_starts_the_next_host_in_it() {
         assert_eq!(host.theme, temper_client_tui::theme(expected, None));
         let expected_choice = bytes.map_or(ThemeChoice::Auto, ThemeChoice::read);
         assert_eq!(host.choice, expected_choice);
+        assert_eq!(host.state().theme_choice(), expected_choice);
+        assert_eq!(host.state().terminal_scheme(), scheme);
     }
 }
 
@@ -1560,9 +1562,10 @@ fn a_theme_write_answer_never_reaches_the_root() {
 fn the_theme_list_takes_keeps_and_notices_a_choice() {
     use temper_client_tui::theme::{THEME_KEY, ThemeChoice};
     let (mut host, _, _) = signed_host(false);
-    for command in ["/theme", "/th"] {
+    for (command, sent) in [("/theme", false), ("/th", false), ("/theme", true), ("/th", true)] {
         key_words(&mut host, command);
-        empty(&host.report(Report::Key(Key::Enter)));
+        let duties = if sent { give(&mut host, Event::Send) } else { host.report(Report::Key(Key::Enter)) };
+        empty(&duties);
         host.frame();
         assert!(host.state().theme_list());
         assert!(host.words().is_empty());
@@ -1581,6 +1584,11 @@ fn the_theme_list_takes_keeps_and_notices_a_choice() {
     assert_eq!(kept, [jig_client::Record { key: THEME_KEY.into(), bytes: b"light".as_slice().into() }]);
     assert_eq!(host.root.pages().look().theme, Theme::Light);
     assert_eq!(host.state().theme_choice(), ThemeChoice::Light);
+    assert_eq!(
+        host.state().notice(),
+        Some(&temper_client_tui::Notice::Theme { choice: ThemeChoice::Light, terminal: Some(Scheme::Dark) })
+    );
+    assert!(text(&mut host).contains("Theme: light."));
     assert!(!host.state().theme_list());
     assert!(host.words().is_empty());
     assert_eq!(host.theme, temper_client_tui::theme(Scheme::Light, None));
@@ -1628,6 +1636,7 @@ fn the_theme_list_takes_keeps_and_notices_a_choice() {
     assert_eq!(restarted.state().terminal_scheme(), None);
     assert_eq!(restarted.state().theme_choice(), ThemeChoice::Auto);
     assert_eq!(restarted.root.pages().look().theme, Theme::Dark);
+    assert!(text(&mut restarted).contains("Theme: auto, dark: your terminal doesn't say."));
 }
 
 fn person_chat(host: &mut Host) {

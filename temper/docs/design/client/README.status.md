@@ -454,9 +454,6 @@ mockups is `../draft/surfaces.status.md`.
   `tui-launchpad`'s build left it (`../draft/tui.status.md`).
 
 
-- **Not yet:** 6.14, *`/theme`*: taking a theme gives no notice;
-  `Notice::Theme` and its host wiring await the notice's state and time
-  (plan `tui-box-polish`).
 
 Sections 3.5, 4.6, 5.8 and 5.13 have the approvals watch and wire document,
 the merge into Needs you, project and goal filters, Home and goal bands,

@@ -482,6 +482,7 @@ impl Host {
                 if let Some(choice) = choice {
                     self.keep_theme(choice, duties);
                     self.tell(Told::Cleared);
+                    self.notice(tui::Notice::Theme { choice, terminal: self.terminal });
                 }
             }
             tui::Event::LeftOff { task } => self.tell(Told::LeftOff { task }),

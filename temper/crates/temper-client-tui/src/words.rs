@@ -680,6 +680,18 @@ impl Words {
                 self.say(Word::UnknownNotice, &[Hole::Name(copy_of(bounded))])
             }
             crate::Notice::SigningIn => self.say(Word::SigningInNotice, &[]),
+            crate::Notice::Theme { choice, terminal } => {
+                let word = match choice {
+                    crate::theme::ThemeChoice::Auto => match terminal {
+                        Some(crate::Scheme::Light) => Word::ThemeNoticeAutoLight,
+                        Some(crate::Scheme::Dark) => Word::ThemeNoticeAutoDark,
+                        None => Word::ThemeNoticeAutoNone,
+                    },
+                    crate::theme::ThemeChoice::Light => Word::ThemeNoticeLight,
+                    crate::theme::ThemeChoice::Dark => Word::ThemeNoticeDark,
+                };
+                self.say(word, &[])
+            }
         }
     }
     #[must_use]

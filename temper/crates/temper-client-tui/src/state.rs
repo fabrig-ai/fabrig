@@ -81,6 +81,7 @@ pub enum Refusal {
 pub enum Notice {
     Unknown { words: Box<[u8]> },
     SigningIn,
+    Theme { choice: ThemeChoice, terminal: Option<Scheme> },
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Told {
