@@ -1,0 +1,39 @@
+draft = "agent-binary-closure"
+repo = "fabrig"
+sources = ["temper/docs/plan/agent-binary-closure/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/migration"
+priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "engine-closure"
+title = "Claude Code's launcher in a crate of its own, so the forge setup's fetch host links no smith crate and the engine's row holds"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/setup.md, 11"
+
+[[part]]
+id = "agent-closure"
+title = "temper-shell links no jig crate: jig's form of the directories moves to temper-engine-shell, so the agent's row holds"
+mode = "direct"
+needs = []
+design = "temper/docs/design/protocol/README.md, 4.4"
+
+[[part]]
+id = "agent-commit"
+title = "temper-agent's commit is temper-version's, its own build script gone"
+mode = "direct"
+needs = ["engine-closure"]
+design = "temper/docs/design/release.md, 3"
+
+[[slice]]
+id = 1
+story = "Both closure rows pass: temper-engine links none of the smith crates its row excludes, temper-agent no jig crate, and temper-agent --version prints temper-version's line"
+parts = ["engine-closure", "agent-closure", "agent-commit"]
+walk = false

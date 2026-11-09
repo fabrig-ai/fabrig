@@ -112,9 +112,11 @@ members = [
     "skein/tests/world",
     "smith",
     "smith/benchmarks",
+    "smith/crates/smith-agent-profile",
     "smith/crates/smith-agent-service",
     "smith/crates/smith-protocol-events",
     "smith/crates/smith-agent-shell",
+    "smith/crates/smith-agent-document",
     "smith/crates/smith-channel",
     "smith/crates/smith-charter",
     "smith/crates/smith-domain",
@@ -269,6 +271,7 @@ members = [
     "temper/testing/temper-fixtures",
     "temper/crates/temper",
     "temper/crates/temper-client",
+    "temper/crates/temper-agent",
     "temper/crates/temper-client-bundle",
     "temper/crates/temper-version",
     "temper/tests/engine/protocol-forge",
@@ -285,6 +288,9 @@ members = [
     "temper/crates/temper-service",
     "temper/tests/worker/protocol-git",
     "temper/crates/temper-forge-setup",
+    "temper/crates/temper-fetch",
+    "temper/crates/temper-fetch-shell",
+    "temper/crates/temper-launcher",
     "temper/crates/temper-init",
     "temper/crates/temper-shell",
     "temper/crates/temper-forge-setup-shell",
@@ -465,6 +471,7 @@ smith-protocol-channel = { path = "smith/crates/smith-protocol-channel" }
 smith-protocol-translate = { path = "smith/crates/smith-protocol-translate" }
 smith-host-protocol = { path = "smith/crates/smith-host-protocol" }
 smith-agent-service = { path = "smith/crates/smith-agent-service" }
+smith-agent-profile = { path = "smith/crates/smith-agent-profile" }
 smith-protocol-events = { path = "smith/crates/smith-protocol-events" }
 smith-local-protocol = { path = "smith/crates/smith-local-protocol" }
 smith-local-service = { path = "smith/crates/smith-local-service" }
@@ -473,6 +480,7 @@ smith-real-world = { path = "smith/tests/real" }
 smith-local-process-world = { path = "smith/tests/local-process" }
 smith-local-shell = { path = "smith/crates/smith-local-shell" }
 smith-agent-shell = { path = "smith/crates/smith-agent-shell" }
+smith-agent-document = { path = "smith/crates/smith-agent-document" }
 smith-run-world = { path = "smith/tests/run" }
 smith-session-world = { path = "smith/tests/session" }
 smith-tools-world = { path = "smith/tests/tools" }
@@ -561,6 +569,9 @@ temper-protocol-reaches = { path = "temper/crates/temper-protocol-reaches" }
 temper-protocol-records = { path = "temper/crates/temper-protocol-records", default-features = false }
 temper-box = { path = "temper/crates/temper-box" }
 temper-forge-setup-shell = { path = "temper/crates/temper-forge-setup-shell" }
+temper-fetch-shell = { path = "temper/crates/temper-fetch-shell" }
+temper-launcher = { path = "temper/crates/temper-launcher" }
+temper-fetch = { path = "temper/crates/temper-fetch" }
 temper-forge-setup = { path = "temper/crates/temper-forge-setup" }
 temper-init = { path = "temper/crates/temper-init" }
 temper-client-bundle = { path = "temper/crates/temper-client-bundle" }

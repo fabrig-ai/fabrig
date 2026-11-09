@@ -15,7 +15,7 @@ mod template;
 mod tests;
 
 /// Claude Code is fetched when its program is first needed (protocol/setup.md, 6.6).
-pub const FETCHED: &[u8] = b"fetched";
+pub use temper_fetch::claude_code::FETCHED;
 
 /// What the binary finds on the machine, each path absolute (setup.md, 8.2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

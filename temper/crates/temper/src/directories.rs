@@ -1,4 +1,5 @@
 //! The binary's three directories (protocol/configuration.md, 12).
+pub use temper_engine_shell::jig_directories;
 pub use temper_engine_shell::serve::program_environment;
 pub use temper_shell::directories::*;
 #[cfg(test)]

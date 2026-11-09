@@ -259,7 +259,8 @@ temper's side before the layer:
   call plans, which the forge component and the setup share) and
   `skein-forge-setup` (reconcile); its setup's rest, outside the
   services, `temper-forge-setup`, `temper-forge-setup-shell` and
-  `temper-box`;
+  `temper-box`; a pinned binary's fetch and Claude Code's launcher, of
+  no side, `temper-fetch`, `temper-fetch-shell` and `temper-launcher`;
 - the user documentation's, of no side, `temper-docs`
   (`protocol/documentation.md`); the settings' form, `temper-settings-form`;
   `temper init`'s files, `temper-init`; the fakes the binary ships,
@@ -270,7 +271,9 @@ temper's side before the layer:
 - the client's, under `temper-client` (`client/README.md`, section 2);
 - the services, `temper-service`; the box's binary, `temper`, and the
   engine's, `temper-engine`, with the shells they share,
-  `temper-engine-shell` and `temper-shell`, and `temper-version`.
+  `temper-engine-shell` and `temper-shell`, and `temper-version`; the
+  deployment's client, `temper-client`, and its agent, `temper-agent`
+  (`protocol/README.md`, section 4 and 4.3).
 
 `protocol/README.md`, section 5 says what each holds and depends on. Test
 kits are named by their kind (`testing/temper-github-app`); the

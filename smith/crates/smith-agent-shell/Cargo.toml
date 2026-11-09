@@ -7,9 +7,10 @@ rust-version.workspace = true
 publish.workspace = true
 
 [features]
-fixture = []
+fixture = ["smith-agent-document/fixture"]
 
 [dependencies]
+smith-agent-document.workspace = true
 smith-protocol-program.workspace = true
 skein-lib.workspace = true
 skein-io.workspace = true

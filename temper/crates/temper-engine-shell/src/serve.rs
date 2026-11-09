@@ -1,4 +1,5 @@
 //! Serve's host and start (temper/docs/design/protocol/README.md, 4.1, 4.2 and 5).
+use crate::jig_directories;
 use crate::{address, listener_words, setup};
 use jig_protocol_config::{self as config, read};
 use skein_io::kernel::{Exit, Fd};
@@ -234,7 +235,7 @@ fn prepare_with_limits(
     {
         return Err(format!("temper.json names a worker, and {binary} runs none"));
     }
-    if service::startup::shape_with(bytes, &directories.jig(), given)
+    if service::startup::shape_with(bytes, &jig_directories(directories), given)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?
         == service::startup::Shape::WorkerAlone
     {
@@ -243,16 +244,21 @@ fn prepare_with_limits(
             .alone(directories, bytes, owned)
             .map(|service| (service, Box::new([]) as Box<[u8]>, 0));
     }
-    let setup::Deployment { mut named, checked, limits, .. } = setup::check_with(bytes, &directories.jig(), given)?;
+    let setup::Deployment { mut named, checked, limits, .. } =
+        setup::check_with(bytes, &jig_directories(directories), given)?;
     if worker.is_none() && named.worker.is_some() {
         return Err(format!("temper.json names a worker, and {binary} runs none"));
     }
     let document =
         config::document(bytes, &config::DocumentLimits { bytes: CONFIG_BYTES, tokens: CONFIG_BYTES, depth: 32 })
             .expect("named checked document");
-    let engine =
-        temper_service::startup::engine_with(&document, member(&document, 0, b"engine"), &directories.jig(), given)
-            .expect("named checked engine");
+    let engine = temper_service::startup::engine_with(
+        &document,
+        member(&document, 0, b"engine"),
+        &jig_directories(directories),
+        given,
+    )
+    .expect("named checked engine");
     let roots = trust(None)?;
     let github = github_runtime(binary, named.machine.github.as_ref(), &roots, address)?;
     let forges = List::with_capacity(0);
@@ -303,7 +309,7 @@ fn prepare_with_limits(
     installation.copy_from_slice(drawn.expose().get(..16).expect("32-byte seed"));
     let mut service = service::startup::with_setup_given(
         bytes,
-        &directories.jig(),
+        &jig_directories(directories),
         &files,
         agent.as_ref(),
         &Seeds { deployment, installation, seed, crypto, link_secret, local_secret },

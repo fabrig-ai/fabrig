@@ -1,4 +1,3 @@
-mod claude_code;
 mod fetch;
 mod files;
 mod fixtures;

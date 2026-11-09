@@ -1,6 +1,7 @@
 //! The check's offline readers (protocol/setup.md, 8.4).
 use super::Check;
 use crate::directories::Directories;
+use crate::directories::jig_directories;
 use jig_protocol_store::{codec::component::Format, format, keys};
 use skein_fake_forge_domain::promises::Judge;
 use skein_fake_forge_domain::promises::Recorded;
@@ -79,7 +80,7 @@ fn configuration(directories: &Directories) -> Result<temper_service::startup::S
     let document = directories.document();
     let bytes = skein_shell::read_file(&document, crate::CONFIG_BYTES)
         .map_err(|why| format!("configuration {}: {}", document.display(), crate::unread(why)))?;
-    let jig = directories.jig();
+    let jig = jig_directories(directories);
     let crate::setup::Deployment { named, .. } = crate::setup::check(&bytes, &jig)?;
     let agent = named
         .worker

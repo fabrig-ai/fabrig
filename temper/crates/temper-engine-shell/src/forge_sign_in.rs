@@ -1,4 +1,5 @@
 //! Host the sign-in file effects; all printable bytes belong to forge-setup.
+use crate::jig_directories;
 use jig_protocol_config as config;
 use std::{
     fs,
@@ -30,8 +31,12 @@ pub(crate) fn run(directories: &super::Directories, bytes: &[u8], named: &Named,
         &config::DocumentLimits { bytes: super::CONFIG_BYTES, tokens: super::CONFIG_BYTES, depth: 32 },
     )
     .expect("checked document");
-    let engine = temper_service::startup::engine(&document, super::member(&document, 0, b"engine"), &directories.jig())
-        .expect("checked engine");
+    let engine = temper_service::startup::engine(
+        &document,
+        super::member(&document, 0, b"engine"),
+        &jig_directories(directories),
+    )
+    .expect("checked engine");
     let provider = engine.clients.provider.as_ref().ok_or("engine.clients.provider is not configured")?;
     let client = provider.clients.iter().find(|client| client.id == row.client).expect("checked sign-in client");
     let secret = client.secret.as_ref().ok_or("its client has no secret; a box adds its own source")?;

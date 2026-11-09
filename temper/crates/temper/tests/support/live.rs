@@ -12,6 +12,7 @@ use std::{
     path::{Path, PathBuf},
     rc::Rc,
 };
+use temper::directories::jig_directories;
 
 #[must_use]
 pub fn configure(directory: &Path, forge: &Throwaway) -> String {
@@ -459,7 +460,8 @@ fn count_completions(config: &Path, directories: &temper::directories::Directori
         .expect("object")
         .member(&document, b"engine")
         .expect("engine member");
-    let engine = temper_service::startup::engine(&document, at, &directories.jig()).expect("engine configuration");
+    let engine =
+        temper_service::startup::engine(&document, at, &jig_directories(directories)).expect("engine configuration");
     let limits = codec::limits(&engine.limits.core).expect("store codec limits");
     let mut paths = Vec::new();
     let deployment = Path::new(std::ffi::OsStr::from_bytes(&engine.deployment.directory));

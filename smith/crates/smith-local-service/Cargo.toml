@@ -11,6 +11,7 @@ publish.workspace = true
 fixture = []
 
 [dependencies]
+smith-agent-profile.workspace = true
 skein-oauth.workspace = true
 skein-oauth-accounts.workspace = true
 skein-http.workspace = true

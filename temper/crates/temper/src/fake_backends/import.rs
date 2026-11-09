@@ -1,5 +1,6 @@
 //! Only current init output, with an explicit bundle, is importable in M1.
 use super::{Directories, Json, bytes, public, resolved};
+use crate::directories::jig_directories;
 use std::{
     num::NonZeroU16,
     os::unix::ffi::OsStrExt,
@@ -60,7 +61,7 @@ impl Source {
         normalize_resources(dirs, &mut temper, &mut agent, &expected, &expected_agent)?;
         temper.same(&expected, "temper.json")?;
         agent.same(&expected_agent, "agent.json")?;
-        let checked = crate::setup::check(&temper.encode()?, &dirs.jig())?;
+        let checked = crate::setup::check(&temper.encode()?, &jig_directories(dirs))?;
         marker.extend_from_slice(&skein_lib::sha256::digest(&temper_bytes));
         marker.extend_from_slice(&skein_lib::sha256::digest(&agent_bytes));
         Ok(Self {

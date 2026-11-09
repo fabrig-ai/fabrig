@@ -549,7 +549,7 @@ fn claude_fetches_once_and_refuses_a_wrong_digest_or_existing_size() {
         };
         let trust = skein_shell::Trust::Machine { ssl_cert_file: Some(roots) };
         let mut out = Vec::new();
-        let result = fetch::claude_code(&support::io(), &trust, &file, pin.clone(), 3, &mut out);
+        let result = temper_fetch_shell::fetch::claude_code(&support::io(), &trust, &file, pin.clone(), 3, &mut out);
         if let Some(peer) = peer {
             assert!(peer.join().unwrap().unwrap_or_else(|starved| starved.pass()).starts_with(b"GET /binary "));
         }
@@ -564,7 +564,7 @@ fn claude_fetches_once_and_refuses_a_wrong_digest_or_existing_size() {
             // No roots are needed on a cache hit, and no lock is opened.
             fs::remove_file(file.with_extension("lock")).unwrap();
             fs::create_dir(file.with_extension("lock")).unwrap();
-            fetch::claude_code(&support::io(), &trust, &file, pin, 3, &mut out).unwrap();
+            temper_fetch_shell::fetch::claude_code(&support::io(), &trust, &file, pin, 3, &mut out).unwrap();
             assert!(out.is_empty());
         } else if let Some(initial) = initial {
             assert_eq!(fs::read(&file).unwrap(), initial);
@@ -605,7 +605,7 @@ fn concurrent_claude_commands_make_one_request() {
                 };
                 barrier.wait();
                 let mut out = Vec::new();
-                let result = fetch::claude_code(
+                let result = temper_fetch_shell::fetch::claude_code(
                     &support::io(),
                     &skein_shell::Trust::Machine { ssl_cert_file: Some(roots) },
                     &file,
