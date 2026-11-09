@@ -1,5 +1,5 @@
 //! Stock starts either reach the worker root or fail with their numbers;
-//! the socket stays live (temper/docs/design/domain/worker.md, 4.3;
+//! the socket stays live (temper/docs/design/domain/worker.md, 4.1 and 4.3;
 //! temper/docs/design/protocol/channel.md, 7 and 8).
 use super::{fixtures, fixtures::worker_peers::LinkPeer};
 use crate::{limits, settings, values::Values, workers::Workers};
@@ -117,8 +117,8 @@ fn a_stock_start_crosses_the_link_or_fails_with_its_numbers() {
             (Part::Window, 0, Outcome::Crosses),
             (Part::Tree, 0, Outcome::Crosses),
             (Part::Inbox, 0, inbox),
-            (Part::Calls, 0, Outcome::Past),
-            (Part::All, 0, Outcome::Past),
+            (Part::Calls, 0, Outcome::Crosses),
+            (Part::All, 0, inbox),
             (Part::Charter, 1, Outcome::Crosses),
             (Part::FixedCharter, 1, Outcome::CannotEncode),
             (Part::Window, 1, Outcome::CannotEncode),
@@ -307,6 +307,7 @@ fn check_start(profile: config::Profile, part: Part, extra: usize, outcome: Outc
     let values = Values::new(settings.jig.limits.core.accounts.accounts, settings.jig.limits.token);
     let assignment = assignment(&settings, &workers, part, extra);
     let mut expected_items = None;
+    let mut frame = None;
     let mut joint = Joint::new(&settings);
     let sent = joint.peer.sent;
     match workers.encoded_assignment(Time::ZERO, CHANNEL, assignment.clone(), &values) {
@@ -324,6 +325,10 @@ fn check_start(profile: config::Profile, part: Part, extra: usize, outcome: Outc
                     .unwrap(),
                 );
             }
+            frame = match outcome {
+                Outcome::Crosses | Outcome::Past => Some(fitted_frame(assignment, parts, &settings)),
+                Outcome::CannotEncode => None,
+            };
             joint.peer.component.down(Time::ZERO, event, &mut joint.peer.out);
         }
         None => {
@@ -347,15 +352,14 @@ fn check_start(profile: config::Profile, part: Part, extra: usize, outcome: Outc
     match outcome {
         Outcome::Crosses => {
             assert_eq!(joint.assignments.len(), 1, "{profile:?} {part:?}+{extra}");
-            let kit::Event::Down { down: hub::LinkDown::Assign { assignment: mut expected }, .. } =
+            let kit::Event::Down { down: hub::LinkDown::Assign { assignment: expected }, .. } =
                 workers.encoded_assignment(Time::ZERO, CHANNEL, assignment.clone(), &values).unwrap()
             else {
                 panic!("assignment")
             };
-            if let Some(workspace) = &mut expected.assignment.workspace {
-                workspace.items = joint.assignments.get(0).unwrap().assignment.workspace.as_ref().unwrap().items;
-            }
-            assert_eq!(*joint.assignments.get(0).unwrap(), expected, "the whole assignment reaches the worker root");
+            let (frame_bytes, whole) = frame.unwrap();
+            assert_eq!(bytes, frame_bytes, "{profile:?} {part:?}+{extra}: fitted frame bytes");
+            assert_assignment(joint.assignments.get(0).unwrap(), expected, whole, &settings);
             if let Part::Charter = part {
                 assert_charter(&joint.assignments.get(0).unwrap().assignment.charter, &assignment, &workers, extra);
             }
@@ -372,6 +376,9 @@ fn check_start(profile: config::Profile, part: Part, extra: usize, outcome: Outc
             assert_eq!(unsent.kind, Kind::Assignment);
             assert_eq!(unsent.bound, kit::Bound::Room(room));
             assert!(unsent.bytes > room);
+            let (frame_bytes, whole) = frame.unwrap();
+            assert_eq!(whole, 0, "every answer is cut before refusing the start");
+            assert_eq!(usize::try_from(unsent.bytes).unwrap(), frame_bytes, "the frame with every answer cut");
             assert_refusal(
                 joint.answers.as_slice(),
                 format!("assignment of {} bytes past the link's room of {room} bytes", unsent.bytes).as_bytes(),
@@ -393,6 +400,78 @@ fn check_start(profile: config::Profile, part: Part, extra: usize, outcome: Outc
     joint.settle();
     assert_eq!(joint.assignments.len(), previous.checked_add(1).unwrap(), "the next run crosses");
     assert_eq!(joint.assignments.last().unwrap().assignment.run, Token::new(SMALL_RUN));
+}
+
+fn assert_assignment(
+    actual: &hub::Assignment,
+    mut expected: hub::Assignment,
+    whole: usize,
+    settings: &settings::Engine,
+) {
+    let cut = expected.answered.len().checked_sub(whole).unwrap();
+    for call in expected.answered.iter_mut().take(cut) {
+        let hub::SettledAnswer::Host { body, .. } = &mut call.answer else {
+            panic!("the stock calls carry host answers")
+        };
+        *body = wire::fit::cut_words(u32::try_from(body.len()).unwrap());
+    }
+    if !expected.answered.is_empty() {
+        assert_eq!(expected.answered.len(), usize::try_from(settings.jig.limits.core.call_records).unwrap());
+        assert!(cut > 0, "older answers are cut");
+        assert!(whole > 0, "newest answers stay whole");
+    }
+    if let Some(workspace) = &mut expected.assignment.workspace {
+        workspace.items = actual.assignment.workspace.as_ref().unwrap().items;
+    }
+    assert_eq!(*actual, expected, "every call reaches the worker root in order, newest answers whole");
+}
+
+// The frame's fixed fields and list counts take 65 bytes with its header;
+// workspace, turn, message and host-call overheads follow the wire schema
+// (jig/docs/design/protocol/channel.md, 5.2 and 11).
+fn fitted_frame(assignment: &hub::Assignment, parts: &[wire::Part], settings: &settings::Engine) -> (usize, usize) {
+    assert!(assignment.assignment.grants.is_empty(), "these stock starts carry no grants");
+    let mut bytes = 65_usize.checked_add(assignment.assignment.charter.len()).unwrap();
+    if let Some(workspace) = &assignment.assignment.workspace {
+        assert_eq!(parts.len(), 1, "the workspace is the start's only part");
+        let items = parts.first().unwrap();
+        assert_eq!(items.token, workspace.items);
+        bytes = bytes.checked_add(12).unwrap().checked_add(items.bytes.len()).unwrap();
+    }
+    for turn in &assignment.turns {
+        bytes = bytes.checked_add(4).unwrap().checked_add(turn.len()).unwrap();
+    }
+    for message in &assignment.messages {
+        bytes = bytes
+            .checked_add(17)
+            .unwrap()
+            .checked_add(message.sender.len())
+            .unwrap()
+            .checked_add(message.words.len())
+            .unwrap();
+    }
+    let answer = settings.jig.limits.core.call_answer_bytes;
+    let words = wire::fit::cut_words(answer);
+    for call in &assignment.answered {
+        let hub::SettledAnswer::Host { body, .. } = &call.answer else { panic!("the stock calls carry host answers") };
+        assert_eq!(body.len(), usize::try_from(answer).unwrap());
+        bytes = bytes
+            .checked_add(14)
+            .unwrap()
+            .checked_add(call.name.len())
+            .unwrap()
+            .checked_add(call.tool.len())
+            .unwrap()
+            .checked_add(words.len())
+            .unwrap();
+    }
+    // All these answers have the same size: the remaining room admits this
+    // many whole answers, kept as a suffix in commit order
+    // (jig/docs/design/protocol/channel.md, 9).
+    let saving = usize::try_from(answer).unwrap().checked_sub(words.len()).unwrap();
+    let room = usize::try_from(settings.jig.limits.io.output).unwrap();
+    let whole = room.saturating_sub(bytes).checked_div(saving).unwrap().min(assignment.answered.len());
+    (bytes.checked_add(whole.checked_mul(saving).unwrap()).unwrap(), whole)
 }
 
 fn assert_charter(bytes: &[u8], assignment: &root::Assignment, workers: &Workers, extra: usize) {
