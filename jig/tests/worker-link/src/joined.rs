@@ -83,7 +83,12 @@ mod net {
     }
     impl Pipe {
         pub fn new(chunk: u32) -> Self {
-            Self { ends: [End::new(chunk), End::new(chunk)], frames: [Vec::new(), Vec::new()], assignment_bytes: Vec::new(), closed: [false; 2] }
+            Self {
+                ends: [End::new(chunk), End::new(chunk)],
+                frames: [Vec::new(), Vec::new()],
+                assignment_bytes: Vec::new(),
+                closed: [false; 2],
+            }
         }
         pub fn lower(&mut self, side: usize, lower: Lower) {
             let end = &mut self.ends[side];
@@ -185,7 +190,13 @@ impl Joined {
     pub fn with_limits(limits: &Limits, engine: engine::Limits, seed: u64) -> Self {
         Self::with_options(limits, seed, fixtures::credential(), Some(engine.room), Some(engine))
     }
-    fn with_options(limits: &Limits, seed: u64, credential: Credential, engine_room: Option<u32>, engine: Option<engine::Limits>) -> Self {
+    fn with_options(
+        limits: &Limits,
+        seed: u64,
+        credential: Credential,
+        engine_room: Option<u32>,
+        engine: Option<engine::Limits>,
+    ) -> Self {
         let engine_limits = engine.unwrap_or(engine::Limits {
             sizes: limits.sizes,
             names: 1,

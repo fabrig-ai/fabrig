@@ -350,14 +350,22 @@ fn a_resumed_start_fits_the_room() {
         world.run();
         let Request::Hello { channel, .. } = world.root()[0] else { panic!("hello") };
         let mut assignment = fixtures::assignment();
-        assignment.answered = (0..calls).map(|index| host::AnsweredCall {
-            name: vec![index].into(),
-            tool: b"read".as_slice().into(),
-            answer: host::SettledAnswer::Host { error: true, body: vec![index; ANSWER].into() },
-        }).collect();
-        world.down(Event::Down { channel, down: host::LinkDown::Assign { assignment }, parts: fixtures::parts(), values: fixtures::values() });
+        assignment.answered = (0..calls)
+            .map(|index| host::AnsweredCall {
+                name: vec![index].into(),
+                tool: b"read".as_slice().into(),
+                answer: host::SettledAnswer::Host { error: true, body: vec![index; ANSWER].into() },
+            })
+            .collect();
+        world.down(Event::Down {
+            channel,
+            down: host::LinkDown::Assign { assignment },
+            parts: fixtures::parts(),
+            values: fixtures::values(),
+        });
         world.run();
-        let frames: Vec<_> = world.observed(connection).iter().filter(|r| r.kind == wire::Kind::Assignment.number()).collect();
+        let frames: Vec<_> =
+            world.observed(connection).iter().filter(|r| r.kind == wire::Kind::Assignment.number()).collect();
         assert_eq!(frames.len(), 1, "{calls} committed calls: {:?}", world.root());
         let frame = frames[0];
         assert!(frame.body.len() + 8 <= usize::try_from(ROOM).expect("small room"));
@@ -381,9 +389,9 @@ fn a_resumed_start_fits_the_room() {
 fn the_room_holds_the_smallest_resumed_start() {
     use jig_protocol_engine_workers::{Component, Limits, valid};
     use jig_protocol_worker_wire::sizes;
-    let sizes = sizes::Sizes { answered: 5, ..fixtures::SIZES };
     // Header8 + fixed57 + five calls (fields14 + name16 + tool16 + words66).
     const FLOOR: u32 = 625;
+    let sizes = sizes::Sizes { answered: 5, ..fixtures::SIZES };
     for (room, accepted) in [(FLOOR, true), (FLOOR - 1, false)] {
         let limits = Limits { sizes, room, ..fixtures::LIMITS };
         let valid = valid(&limits);
