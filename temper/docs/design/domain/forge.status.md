@@ -141,12 +141,6 @@ user numbers on different forges, unknown accounts and each forge's writer.
 Section 12.1's questions on the forge remain unbuilt, as listed below;
 their designed account mapping also requires the repository's forge.
 
-- **Not yet:** 12, *A full outbox defers it*: a projection whose next
-  write meets the full outbox asks to be projected again at once
-  (`temper-engine-domain-forge/src/domain.rs`, `project`, `ProjectAfter`
-  with no time), which the root answers in the same step, so the step
-  never ends.
-
 Sections 8.1, 8.5, 11 and 11.1 have no known implementation gap in a
 goal's delivery through r. The six engine domain stories in
 `tests/engine/domain/tests/suite/forge_routes/goal_delivery.rs` cover
