@@ -40,5 +40,6 @@ walk = false
 
 [[question]]
 id = "hold-words"
+answer = """Not yet. Name each failure in the engine's log, as the plan does, and leave words in the hold itself for later, after the next deployment's lines are read. (temper/migration, 2026-11-09)"""
 text = "The request asks that a job failing for good hold 'with its reason in the hold'. The job's own hold is jig's out-of-tries hold, which stores only the failures' class; this plan names each failure in the engine's log, where the hold's way out points (worker.md 4.4). Words in the hold itself need the stored-format change worker.md section 12 already holds as the user's question (A hold naming its run's last failure). Make that change, for runs and jobs, in a later plan? Recommendation: not yet; read the new lines on the next deployment first."
 parts = []
