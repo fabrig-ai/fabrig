@@ -97,14 +97,19 @@ fn an_index_past_its_bound_says_how_many_more_and_recall_pages_through_them() {
 
 #[test]
 fn an_index_orders_the_requested_scopes_and_evicts_the_least_recently_used() {
-    let mut world = World::default();
     let deployment = Scope::Deployment;
     let goal = Scope::Goal { project: 7, goal: 11 };
-    let project = Scope::Project { project: 7 };
+    for project in [Scope::Project { project: 7 }, Scope::Party { party: 5 }] {
+        index_scopes(&mut World::default(), &deployment, &goal, project);
+    }
+}
+
+fn index_scopes(world: &mut World, deployment: &Scope, goal: &Scope, project: Scope) {
     for (name, scope) in [(20, deployment.clone()), (21, goal.clone()), (22, project.clone())] {
+        let body = if matches!(scope, Scope::Party { .. }) { b"".as_slice() } else { b"body".as_slice() };
         let _written = world.call(Event::Write {
             owner: Token::new(name),
-            entry: task_entry(name, scope, b"warm item", b"body", 9),
+            entry: task_entry(name, scope, b"warm item", body, 9),
             recalled: None,
         });
     }
@@ -117,10 +122,10 @@ fn an_index_orders_the_requested_scopes_and_evicts_the_least_recently_used() {
     };
     assert_eq!(lines.get(0).expect("goal first").name, 21);
     assert_eq!(lines.get(1).expect("deployment second").name, 20);
-    let _touch = world.call(Event::Index { owner: Token::new(31), scopes: one_scope(goal), most: 1 });
+    let _touch = world.call(Event::Index { owner: Token::new(31), scopes: one_scope(goal.clone()), most: 1 });
     let _new = world.call(Event::Index { owner: Token::new(32), scopes: one_scope(project), most: 1 });
     let loads_before = world.trace().iter().filter(|line| line.contains("out Load")).count();
-    let got = world.call(Event::Index { owner: Token::new(33), scopes: one_scope(deployment), most: 1 });
+    let got = world.call(Event::Index { owner: Token::new(33), scopes: one_scope(deployment.clone()), most: 1 });
     let Answer::Indexed { lines, more: 0 } = got else {
         panic!("evicted scope indexed: {got:?}");
     };
