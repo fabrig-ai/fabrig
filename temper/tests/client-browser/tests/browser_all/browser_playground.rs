@@ -119,6 +119,7 @@ fn download_size(directory: &Path) -> (u64, u64) {
 }
 
 #[test]
+#[expect(clippy::result_large_err, reason = "the replay wrapper preserves the complete mismatch diagnostic")]
 fn story_a_walks_on_the_built_playground() {
     let out = PathBuf::from(std::env::var_os("TEMPER_TEST_PLAYGROUND").expect("run temper/scripts/browser.sh"))
         .canonicalize()
