@@ -141,11 +141,27 @@ fn patched_frames_past_bounds_match_current_boundaries() {
     for read in kinds() {
         let reference = settled(&mut current, ask(read, charge - 1));
         let patched = settled(&mut behind, ask(read, charge - 1));
-        assert!(
-            matches!(reference.as_slice(), [Event::Unread { owner }] if *owner == READER),
-            "{read:?}: {reference:?}"
-        );
-        assert!(matches!(patched.as_slice(), [Event::Unread { owner }] if *owner == READER), "{read:?}: {patched:?}");
+        if matches!(read, TranscriptRead::Window { .. }) {
+            for events in [&reference, &patched] {
+                let [Event::Turns { owner, turns, next: None, cut }] = events.as_slice() else {
+                    panic!("cut window {read:?}: {events:?}")
+                };
+                assert_eq!(*owner, READER);
+                assert_eq!(*cut, Some(u32::try_from(expected.len()).expect("fixture length")));
+                let mut turn = root::turn(frames::TASK, frames::ATTEMPT, frames::TURN, &[]);
+                turn.spent = frames::SPENT;
+                assert_eq!(turns.as_ref(), &[turn]);
+            }
+        } else {
+            assert!(
+                matches!(reference.as_slice(), [Event::Unread { owner }] if *owner == READER),
+                "{read:?}: {reference:?}"
+            );
+            assert!(
+                matches!(patched.as_slice(), [Event::Unread { owner }] if *owner == READER),
+                "{read:?}: {patched:?}"
+            );
+        }
     }
 }
 

@@ -75,7 +75,18 @@ fn native_pages_without_room_end_as_unread() {
     let rooms = [("zero rows", 0, bytes), ("zero bytes", ONE_ROW, 0), ("one byte short", ONE_ROW, bytes - 1)];
     for read in starts() {
         for (label, rows, bytes) in rooms {
-            unread(&page(&mut world, read, rows, bytes), (label, read));
+            let events = page(&mut world, read, rows, bytes);
+            if matches!(read, TranscriptRead::Window { .. }) && rows != 0 {
+                let [Event::Turns { owner, turns, next, cut }] = events.as_slice() else {
+                    panic!("cut native turn {label} {read:?}: {events:?}")
+                };
+                assert_eq!(*owner, OWNER);
+                assert_eq!(turns.as_ref(), &[root::turn(TASK, ATTEMPT, FIRST_TURN, &[])]);
+                assert_eq!(*cut, Some(u32::try_from(NATIVE.len()).expect("fixture length")));
+                assert_eq!(*next, None, "the cut turn ends the transcript");
+            } else {
+                unread(&events, (label, read));
+            }
         }
     }
 }
@@ -125,7 +136,20 @@ fn machine_pages_charge_framing_before_accepting_any_turn() {
     // Forward/window encounter a patched turn first; backward encounters a
     // current turn. Both need the same complete current-body frame charge.
     for read in starts() {
-        unread(&page(&mut world, read, TWO_ROWS, charge - 1), read);
+        let events = page(&mut world, read, TWO_ROWS, charge - 1);
+        if matches!(read, TranscriptRead::Window { .. }) {
+            let [Event::Turns { owner, turns, next, cut }] = events.as_slice() else {
+                panic!("cut patched turn {read:?}: {events:?}")
+            };
+            assert_eq!(*owner, OWNER);
+            assert_eq!(turns.as_ref(), &[root::turn(TASK, ATTEMPT, FIRST_TURN, &[])]);
+            let current = patches::fixture_turn(2, SAID, &[], 0);
+            assert_eq!(*cut, Some(u32::try_from(current.len()).expect("fixture length")));
+            let old = patches::fixture_turn(1, SAID, REPLAY, 0);
+            assert_eq!(*next, Some(direct_frame_bytes(&old)), "continue past the stored frame");
+        } else {
+            unread(&events, read);
+        }
     }
 }
 
@@ -146,7 +170,19 @@ fn accepted_prefix_continues_without_skipping_after_an_unread() {
             [charge]
         );
         let next = continued(read, *offset);
-        unread(&page(&mut world, next, TWO_ROWS, charge - 1), next);
+        let events = page(&mut world, next, TWO_ROWS, charge - 1);
+        if matches!(next, TranscriptRead::Window { .. }) {
+            let [Event::Turns { owner, turns, next, cut }] = events.as_slice() else {
+                panic!("cut continuation turn: {events:?}")
+            };
+            assert_eq!(*owner, OWNER);
+            assert_eq!(turns.as_ref(), &[root::turn(TASK, ATTEMPT, second, &[])]);
+            let current = patches::fixture_turn(2, SAID, &[], 0);
+            assert_eq!(*cut, Some(u32::try_from(current.len()).expect("fixture length")));
+            assert_eq!(*next, None, "the cut continuation ends the transcript");
+        } else {
+            unread(&events, next);
+        }
         let events = page(&mut world, next, TWO_ROWS, charge);
         let [Event::Turns { owner, turns, next: None, cut: None }] = events.as_slice() else {
             panic!("retry keeps the next committed turn {read:?}: {events:?}")

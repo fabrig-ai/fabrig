@@ -312,6 +312,25 @@ fn patched_frame_sizes_bound_resumes_turns_pages_and_tails() {
             if accepted {
                 let [Event::Turns { turns, .. }] = &*events else { panic!("turns: {events:?}") };
                 assert!(!turns.is_empty(), "replay {}, kind {kind}, bound {budget}", replay.len());
+            } else if kind == 0 || kind == 4 {
+                let [Event::Turns { owner, turns, next: None, cut: Some(bytes) }] = &*events else {
+                    panic!("cut window: {events:?}")
+                };
+                assert_eq!(*owner, OWNER);
+                assert_eq!(u64::from(*bytes), len_u64(expected(1).len()));
+                assert_eq!(
+                    turns.as_ref(),
+                    &[domain::TurnRecord {
+                        task: frames::TASK,
+                        attempt: frames::ATTEMPT,
+                        turn: frames::TURN,
+                        opens_window: true,
+                        spent: frames::SPENT,
+                        read: None,
+                        at: Wall::EPOCH,
+                        transcript: Box::new([]),
+                    }]
+                );
             } else {
                 assert!(unread(&events), "replay {}, kind {kind}, bound {budget}: {events:?}", replay.len());
             }
