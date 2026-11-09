@@ -338,6 +338,14 @@ impl Store {
         after: Option<&Key>,
         most: u32,
     ) -> (Box<[Record]>, Option<Key>, Option<engine::TranscriptTexts>) {
+        match self.page_terminal(range, after, most) {
+            engine::StoreInput::Loaded { rows, next, texts, .. } => (rows, next, texts),
+            reply => panic!("load {range:?} after {after:?} did not return its page: {reply:?}"),
+        }
+    }
+    /// A page's typed terminal, including the service's load and journal failures.
+    #[must_use]
+    pub fn page_terminal(&mut self, range: &Range, after: Option<&Key>, most: u32) -> engine::StoreInput {
         self.request(engine::StoreRequest::Load {
             owner: Token::new(1),
             range: range.clone(),
@@ -349,15 +357,15 @@ impl Store {
             if !self.replies.is_empty() {
                 let reply = self.replies.remove(0);
                 match reply {
-                    engine::StoreInput::Loaded { rows, next, texts, .. } => return (rows, next, texts),
+                    reply @ (engine::StoreInput::Loaded { .. }
+                    | engine::StoreInput::Unloaded { .. }
+                    | engine::StoreInput::Uncommitted { .. }) => return reply,
                     engine::StoreInput::MissingLink { record, target, .. } => {
                         self.missing.push((record, target));
                         continue;
                     }
                     engine::StoreInput::Committed { .. } => continue,
                     reply @ (engine::StoreInput::Switched
-                    | engine::StoreInput::Uncommitted { .. }
-                    | engine::StoreInput::Unloaded { .. }
                     | engine::StoreInput::ReadLoaded { .. }) => {
                         panic!("load {range:?} after {after:?} did not return its page: {reply:?}");
                     }
