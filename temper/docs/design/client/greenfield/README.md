@@ -31,9 +31,9 @@ filters, How work runs and Deployment (`../README.md`, 5.3); and its
 **How work runs** is the whole story's `../web/whole-story/how.html`
 (`../README.md`, 5.13, *The page*): this mock's `settings.html` leads its
 How work runs tab only for the rows the page keeps, What the project shows
-and Ways of working at its foot, and What needs you and Away until What
-reaches you takes their place; its Status, Funds and Telling you rows are
-not drawn.
+and Ways of working at its foot, and its question route and "Away until",
+which What reaches you holds under its columns; its Status, Funds and
+Telling you rows, and its checks of what Away decides, are not drawn.
 
 Open a page from a checkout; it needs no server. Budgets are drawn here
 but matter least: the flow, look and mechanics come first (the user,

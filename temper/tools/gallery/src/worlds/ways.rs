@@ -23,7 +23,7 @@ const REFUSED: &str =
 
 pub(super) fn world(name: &str) -> Domain {
     world_in_layout(
-        if name == "how-draft" { super::Reference } else { FirstRun { step: 7 } },
+        if is_draft(name) { super::Reference } else { FirstRun { step: 7 } },
         if is_how(name) { Address::Settings { project: PROJECT } } else { Address::Ask { project: PROJECT } },
         Then::Shown,
         false,
@@ -38,8 +38,12 @@ pub(super) fn is_how(name: &str) -> bool {
     name == "how" || name.starts_with("how-")
 }
 
+pub(super) fn is_draft(name: &str) -> bool {
+    matches!(name, "how-draft" | "how-reaches")
+}
+
 pub(super) fn frame(me: &mut c::Me, name: &str) {
-    if name == "how-draft" {
+    if is_draft(name) {
         let project = me.projects.get_mut(0).expect("How project");
         let template = project.templates.iter_mut().find(|template| template.number == 4).expect("draft goal template");
         template.budget = c::TemplateBudget::Amount(80);
@@ -47,7 +51,7 @@ pub(super) fn frame(me: &mut c::Me, name: &str) {
 }
 
 pub(super) fn setting(name: &str) -> Box<[u8]> {
-    let draft = name == "how-draft";
+    let draft = is_draft(name);
     let ways = w::ProjectWays::new(
         &w::CEILINGS,
         w::ProjectWaysParts { drafts: draft, goals: draft, changes: false, way: if draft { 4 } else { 0 } },
@@ -55,6 +59,35 @@ pub(super) fn setting(name: &str) -> Box<[u8]> {
     .expect("How project ways");
     let mut writer = Writer::new(usize::try_from(ways.measure()).expect("ways bytes"));
     ways.encode(&mut writer).expect("measured ways");
+    writer.finish()
+}
+
+pub(super) fn reaches_setting() -> Box<[u8]> {
+    use temper_protocol_reaches::{Class, Item, Kind, PathSet, Subject};
+    let classes = Classes {
+        items: [
+            (Subject::Kind(Kind::Wording), Class::Decide),
+            (Subject::Kind(Kind::Retry), Class::Decide),
+            (Subject::Kind(Kind::Implementation), Class::Decide),
+            (Subject::Kind(Kind::Tests), Class::Decide),
+            (Subject::Set(1), Class::AskAway),
+            (Subject::Kind(Kind::Dependency), Class::Ask),
+            (Subject::Kind(Kind::Departure), Class::Ask),
+        ]
+        .into_iter()
+        .map(|(subject, class)| Item { subject, words: Box::default(), class })
+        .collect(),
+        sets: Box::new([PathSet {
+            number: 1,
+            name: "vsr’s protocol core".as_bytes().into(),
+            patterns: ["include/vsr.h", "src/protocol.*", "src/transition.*", "docs/protocol.md"]
+                .map(|pattern| pattern.as_bytes().into())
+                .into(),
+        }]),
+    };
+    let record = classes_record(&classes).expect("whole story's classes");
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("classes bytes"));
+    record.encode(&mut writer).expect("measured classes");
     writer.finish()
 }
 
@@ -80,7 +113,7 @@ pub(super) fn deliver(root: &mut Domain, watch: Token, project: u32, name: Optio
     let yours = matches!(name, Some("ask-ways-yours" | "how-yours"));
     let current = match name {
         Some("how-approve") => 0,
-        Some("how-draft") => 2,
+        Some("how-draft" | "how-reaches") => 2,
         _ => 1,
     };
     let panel = w::WaysPanel::new(

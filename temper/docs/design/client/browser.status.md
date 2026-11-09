@@ -21,7 +21,9 @@
   CPU figure on record either; so do the six states `ui-reaches` added,
   `home-decided`, `needs-decided`, `needs-why`, `needs-stop-asking`,
   `needs-stop-asking-set` and `settings-away-you-approve`, in place of
-  `settings-away-off`, with none on record.
+  `settings-away-off`, with none on record, and the four `ui-n3a-only`
+  added, `needs-only-you`, `needs-only-you-done`, `night-needs-only-you`
+  and `accounts-expiring`, with none on record either.
 
 Section 7.2 holds what reaches a person, by plan `ui-reaches`: those six
 states, `settings-away` as a view of Agents review's classes and
@@ -126,7 +128,7 @@ small words `--gf-faint`; and each rise's fade colours its stops by the
 with them.
 
 Sections 2.5, *How work runs' look*, and 7.2 have no known
-implementation gap but the departure above: `temper.css`'s `/* ==== ui:
+implementation gap but the departure above and the entries below: `temper.css`'s `/* ==== ui:
 how ==== */`, after the ways' rules, holds the wide column, the
 section's head and "the way: NAME", Roles' rows and terms, and Budgets'
 row, by day and by night; the path is Ask temper's drawing under its own
@@ -518,10 +520,22 @@ forms; and the gallery's `all-home`, `all-home-nothing-new`,
 `all-home-one-project`, `night-all-home`, the four `home-step-*`,
 `needs-list`, `needs-list-second`, `needs-tell`, `needs-approval-first`
 and `night-needs`, which its table checks. 7.2's states hold no red
-"owned", no Home at the standing roles' step, and no need's why or
-offer, which nothing yet draws (`../draft/surfaces.status.md`, 14). The
+"owned" and no Home at the standing roles' step, which nothing yet draws
+(`../draft/surfaces.status.md`, 14). The
 rendered comparison follows landing (`README.md`, section 11, *Home and
 Needs you across projects after landing*).
+
+Section 7.2 has no known implementation gap in Only you, by plan
+`ui-n3a-only`: `temper.css`'s `/* ==== ui: needs ==== */` holds the
+region, its item and its question, and the item's link full width on a
+phone; and the gallery's `needs-only-you`, a question then "Only you ·
+2", a signed-out ChatGPT sign-in and an expiring Claude Code login,
+`needs-only-you-done`, "Home" then "Only you · 1", `night-needs-only-you`
+and `accounts-expiring`, "Expiring: sign in again before it ends." and
+"Continue with ChatGPT", each with its row of
+`each_state_holds_what_its_name_says`. The rendered comparison follows
+landing (`README.md`, section 11, *Home and Needs you across projects
+after landing*).
 
 Section 7.2 has no known implementation gap in Away on All projects, by
 plan `ui-away-all`: the gallery's `all-home-away`, the switch and the

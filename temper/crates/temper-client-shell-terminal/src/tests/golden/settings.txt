@@ -26,35 +26,44 @@ How work runs:
   [16] How work runs (current)
   [17] Repositories
 ## The path of a change
-## What needs you
+## What reaches you
+on demo
+Agents decide, then tell you
+- wording and names inside a spec
+- retrying or splitting a task
+- test-only changes
+Listed in Decided for you for 24 hours, to overturn.
+Asks you
+- implementation choices a spec leaves open
+- a new dependency
+- a departure from a landed design
+While you’re away, they are decided with the recommended choice and listed.
+Always waits for you
+- money past a budget
+- what can’t be undone: rewriting history, a force-push, deleting unlanded work
+- changes to this page
+- anything an agent can’t place
+Away or not.
 Questions a goal can answer from its plan
 Questions a goal can answer from its plan:
   [18] ( ) Answered by the goal, kept in its decisions
   [19] ( ) Asked of me too
   [20] (*) Not asked: each agent decides alone
-## While you’re away, agents may decide
-Agents decide, then tell you: wording choices, retries and splits, test-only changes.
-What asks you
-Ticked, Away decides it and lists it, with Overturn. Unticked, it asks you even when away.
-[21] [x] Implementation choices
-[22] [x] New dependencies
-[23] [x] Departures from a landed design
-[-] [ ] Money past a budget, what can’t be undone, and changes to these rules: always wait (disabled)
 Away until
 When it isn’t turned off by hand.
 Away until:
-  [24] (*) 08:00, the end of quiet hours
-  [25] ( ) I turn it off
+  [21] (*) 08:00, the end of quiet hours
+  [22] ( ) I turn it off
 ## What the project shows
 Chats can write drafts
 A chat keeps a document beside it, in docs/design/draft/, that a goal can start from.
 On
-[26] [x] Chats can write drafts
+[23] [x] Chats can write drafts
 Goals
 Bigger work from a draft: a plan, tasks, landing.
 Hidden
-[27] [ ] Goals
+[24] [ ] Goals
 Changes
 The landing queue, as Work's filter.
 Hidden
-[28] [ ] Changes
+[25] [ ] Changes
