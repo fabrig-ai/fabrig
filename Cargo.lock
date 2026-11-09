@@ -1065,6 +1065,7 @@ dependencies = [
  "jig-engine-clients-kit",
  "jig-protocol-engine-clients",
  "jig-protocol-engine-clients-http",
+ "jig-protocol-transcript",
  "jig-tasks-kit",
  "jig-test-connector",
  "jig-test-domain",
@@ -1078,6 +1079,7 @@ dependencies = [
  "skein-sim",
  "skein-ui",
  "skein-world",
+ "smith-transcript",
 ]
 
 [[package]]
