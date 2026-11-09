@@ -6580,9 +6580,9 @@ Ask temper is reached from the rail and tab bar (5.3), and from this page's
     page's own rule shows (`../draft/surfaces.md`, section 12).
 
   A row is a label, small words and a control at its right, a phone
-  stacking them. On a phone the path's table keeps its columns and scrolls
-  sideways in its box. Nothing disabled is drawn: a mechanism not built
-  has no row until it is.
+  stacking them. On a phone the path runs down the page, as on Ask
+  temper's page (5.16, *Its layout*). Nothing disabled is drawn: a
+  mechanism not built has no row until it is.
 - **Its parts** are one pure function, `pages::how::parts`, of the facts
   `pages::how::facts` gathers (Ask temper's template in `me`, the `ways`
   read's state and current way, kind 7's Goals and its goal template's
@@ -6741,7 +6741,7 @@ Ask temper is reached from the rail and tab bar (5.3), and from this page's
   decision; and where a card stands, its proposal's lines draw none. A card and a row
   never both say it. A proposal with no card standing keeps its row.
 
-**Later: the fuller page.** Roles, ways to start work, rules, running work and
+**Later: the fuller page.** Roles as settings, ways to start work, rules, running work and
 history join the page, the review page opens, and the card gains "Review". The
 pages then read jig's `settings` document and each setting they show whole
 (`setting`, jig's `client/domain/contract.md`, 5.1 and 6), again as the document
@@ -9911,7 +9911,12 @@ own tests:
   (`browser.md`, 2.5), the path at 1000 px 658 by 127.94, the open card
   14 px under it at every width, the gallery's print at 420 down the page
   (`browser.md`, 7.1), the reviewer's "Asked to" whole and CI's checks;
-  and a walk from each card's "Open NAME ›" to its role's or rule's page
+  then `look-round-25`'s: the open card at 1000 px and on a phone, four
+  tabs two by two at 760 px and under, a stop made only when needed
+  outlined with its small words over it, the agent's star and its rises
+  in ink, each rise's fade, CI's card naming the workflows, and How work
+  runs drawing the same path, with Roles under it (5.13); and a walk
+  from each card's "Open NAME ›" to its role's or rule's page
   (*A role's or a rule's page*), which no request draws and no gallery
   state prints. Owner: temper/ui. Default: each difference a finding
   filed back under the request's trailer.
@@ -10376,7 +10381,7 @@ own tests:
   read. Each joins *A page's parts* with the read that gives it. Default:
   none is drawn until it is built, the brief is one a project, joined, and
   the first 16 projects in `me`'s order are read.
-- **How work runs' fuller page** (5.13, *Later: the fuller page*): roles, ways to
+- **How work runs' fuller page** (5.13, *Later: the fuller page*): roles as settings, ways to
   start work, rules, running work and history on the page; `Proposal { proposal
   }`; and the card's "Review", with the grouping of what temper enforces and what
   agents follow that the mock's `.proposal-split` draws. Default: the page's parts
