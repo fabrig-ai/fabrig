@@ -28,6 +28,7 @@ mod inbox;
 mod inbox_observation;
 mod kept_message;
 mod names;
+mod only_you;
 mod open_chat;
 mod playground;
 mod project_fund;

@@ -29,7 +29,7 @@
     5.7, has the status agent write a project's brief from what the
     engine keeps, not from owners' Nows.
   - 4: `../client/README.md`, 3.5, *Needs you*, has no "What reaches
-    you" lede, no Only you, and no terminal command to talk a need
+    you" lede, and no terminal command to talk a need
     through; its from line names no goal, role or asker; an approval's
     card is `forge-identity.md`, section 8's, not yet a sign-off by path.
     A need's why ends with "Stop asking" alone, which opens the offers
@@ -115,8 +115,8 @@
     section 1, not at all; and no design marks who acts on the chips,
     as the path's marks are (`../client/README.md`, 5.16).
   - 14: `../client/browser.md`, section 7, holds Home's and Needs you's
-    states, but for a red "owned", a project's Home at the standing
-    roles' step and Only you, which nothing draws yet (3 and 4), a need's
+    states, but for a red "owned" and a project's Home at the standing
+    roles' step, which nothing draws yet (3 and 4), a need's
     why and its offers being `needs-why`'s, `needs-stop-asking`'s and
     `needs-stop-asking-set`'s; 7.2 holds How work runs under each stock
     way and its own, a stop's card and night (`how` to `night-how`), with no rule by path

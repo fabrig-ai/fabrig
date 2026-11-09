@@ -25,12 +25,17 @@ pub struct NeedsFacts {
     pub known: bool,
     pub open: u32,
     pub showing: u32,
+    /// Only you's items, separate from open cards.
+    pub only: u32,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[expect(clippy::struct_excessive_bools, reason = "each page part follows its independent rule")]
 pub struct NeedsParts {
     pub list: bool,
     pub done: bool,
     pub decided: bool,
+    /// The inbox has answered and Only you has an item.
+    pub only: bool,
 }
 #[expect(clippy::derivable_impls, reason = "the programming model uses explicit Default implementations")]
 impl Default for HomeFacts {
@@ -47,13 +52,13 @@ impl Default for HomeParts {
 #[expect(clippy::derivable_impls, reason = "the programming model uses explicit Default implementations")]
 impl Default for NeedsFacts {
     fn default() -> Self {
-        Self { known: false, open: 0, showing: 0 }
+        Self { known: false, open: 0, showing: 0, only: 0 }
     }
 }
 #[expect(clippy::derivable_impls, reason = "the programming model uses explicit Default implementations")]
 impl Default for NeedsParts {
     fn default() -> Self {
-        Self { list: false, done: false, decided: false }
+        Self { list: false, done: false, decided: false, only: false }
     }
 }
 #[must_use]
@@ -68,7 +73,12 @@ pub const fn home(facts: &HomeFacts) -> HomeParts {
 }
 #[must_use]
 pub const fn needs(facts: &NeedsFacts) -> NeedsParts {
-    NeedsParts { list: facts.known && facts.open > 0, done: facts.known && facts.open == 0, decided: facts.showing > 0 }
+    NeedsParts {
+        list: facts.known && facts.open > 0,
+        done: facts.known && facts.open == 0,
+        decided: facts.showing > 0,
+        only: facts.known && facts.only > 0,
+    }
 }
 #[must_use]
 pub fn needs_facts(root: &Domain, wall: Wall) -> NeedsFacts {
@@ -79,5 +89,10 @@ pub fn needs_facts(root: &Domain, wall: Wall) -> NeedsFacts {
         ),
         None => (false, 0),
     };
-    NeedsFacts { known, open, showing: super::all_home::showing(root, wall) }
+    NeedsFacts {
+        known,
+        open,
+        showing: super::all_home::showing(root, wall),
+        only: super::only_you::read(root).items.len(),
+    }
 }

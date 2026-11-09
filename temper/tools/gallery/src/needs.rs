@@ -32,6 +32,12 @@ fn list(name: &str) -> bool {
     matches!(name, "needs-list" | "needs-list-second" | "needs-tell" | "needs-approval-first")
 }
 fn entries(name: &str) -> List<c::InboxEntry> {
+    if name == "needs-only-you-done" {
+        return List::with_capacity(0);
+    }
+    if name == "needs-only-you" {
+        return List::from_boxed(Box::new([documents::entry(object(1), 1, 1, Wall::EPOCH, None)]));
+    }
     if list(name) {
         return List::from_boxed(Box::new([
             documents::entry(object(1), 1, 1, Wall::EPOCH, None),
@@ -71,7 +77,11 @@ pub fn domain(name: &str) -> Domain {
         second.name = text("vsr-rs");
         me.projects = List::from_boxed(Box::new([me.projects.get(0).expect("first project").clone(), second]));
     }
-    me.needs_total = if list(name) {
+    me.needs_total = if name == "needs-only-you" {
+        1
+    } else if name == "needs-only-you-done" {
+        0
+    } else if list(name) {
         2
     } else if name.starts_with("needs-approval") {
         0
@@ -79,7 +89,9 @@ pub fn domain(name: &str) -> Domain {
         3
     };
     me.needs = c::Needs {
-        questions: if list(name) {
+        questions: if name.starts_with("needs-only-you") {
+            me.needs_total
+        } else if list(name) {
             1
         } else if name.starts_with("needs-approval") {
             0
@@ -106,7 +118,7 @@ pub fn domain(name: &str) -> Domain {
         &mut root,
         Event::Start {
             address: Address::Inbox {
-                filter: if list(name) || name.starts_with("needs-approval") {
+                filter: if list(name) || name.starts_with("needs-approval") || name.starts_with("needs-only-you") {
                     Filter::ALL
                 } else {
                     Filter { project: Some(1), ..Filter::ALL }
@@ -127,6 +139,17 @@ pub fn domain(name: &str) -> Domain {
     while let Some(request) = out.pop() {
         let Some(down) = driver::down(request) else { continue };
         match down {
+            jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Accounts) }
+                if name.starts_with("needs-only-you") =>
+            {
+                driver::deliver(
+                    &mut root,
+                    watch,
+                    c::Delivery::Accounts(Box::new(worlds::accounts(World::Reference, Then::Shown))),
+                    &mut out,
+                );
+                crate::samples::account_states(&mut root, name, Some(watch), &mut out);
+            }
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) } => {
                 driver::deliver(&mut root, watch, c::Delivery::Me(Box::new(me.clone())), &mut out);
             }
@@ -256,7 +279,9 @@ pub fn domain(name: &str) -> Domain {
                     watch,
                     c::Delivery::Inbox(Box::new(documents::inbox(
                         entries(name),
-                        if list(name) {
+                        if name.starts_with("needs-only-you") {
+                            me.needs_total
+                        } else if list(name) {
                             2
                         } else if name.starts_with("needs-approval") {
                             0

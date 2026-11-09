@@ -2535,6 +2535,8 @@ keeps (`../protocol/configuration.md`, section 2).
     "S of L used"; an approval's question.
   - *Answered,* under it when any: the section title "Answered", then
     the `.answered` lines.
+  - *Only you,* after them, and in the done state after "Home", while an
+    item shows (**Only you,** below), before *Decided for you*.
   - *Decided for you,* after them, while a row shows (**Decided for you,**
     below): the page's filter's project's rows, or, unfiltered, every
     watched project's.
@@ -2758,6 +2760,7 @@ keeps (`../protocol/configuration.md`, section 2).
   | Home's Projects | on All projects, the person is in two projects or more |
   | The Ask temper line | always, on a wide page, To begin gone |
   | Needs you's list | an open card waits; else its Done |
+  | Needs you's Only you | the inbox has answered, and an item shows (**Only you**) |
 
   A part whose rule holds is drawn with what it holds, and none is drawn
   empty. Every open card is drawn exactly once on Needs you, and on Home
@@ -2766,10 +2769,10 @@ keeps (`../protocol/configuration.md`, section 2).
   while the project's way had the person review stays open until it is
   done, whatever the way becomes. Home's owners' lines and What follows
   what join this table with the reads that give them
-  (`../draft/standing-roles.md`; `../draft/follows.md`), as do Only you
-  and Tell temper (`../draft/what-reaches-you.md`, section 8;
-  `../draft/surfaces.md`, section 9). A need's why is its card's own line
-  (*Needs you,* *Why it reached you*), no part of the page's.
+  (`../draft/standing-roles.md`; `../draft/follows.md`), as does Tell
+  temper (`../draft/surfaces.md`, section 9). An Only you item is no
+  card: it is counted nowhere a card is. A need's why is its card's own
+  line (*Needs you,* *Why it reached you*), no part of the page's.
 - **Changes** (the user's greenfield mock's `changes.html`; `forge.md`,
   section 3): `Changes { project }`, at `/projects/<project>/changes`, Work
   under its Changes filter (*Work,* below), a
@@ -3211,6 +3214,49 @@ keeps (`../protocol/configuration.md`, section 2).
     Home, opens How work runs with that section's heading
     focused, so a browser brings it into view: `Address` holds no anchor, and
     the page takes the request from `Pages` once.
+- **Only you** (`../draft/what-reaches-you.md`, section 8;
+  `../draft/surfaces.md`, section 4; the whole story's `needs.html`): what
+  only the person can do and no choice answers, listed apart on *Needs
+  you*: a sign-in of their own that is signed out, or a login their account
+  reads as expiring. Work goes on around it: the runs that need the account
+  wait for it (5.5, *A run's wait*), and nothing else does.
+  - *Its read,* `pages::only_you`, one domain function every shell may
+    call, from the `accounts` document every page holds (jig's
+    `client/domain/contract.md`, 5.1 and 7.1), read and never kept. An item
+    is the deciding source, the first supplied, of an account the person
+    holds (`AccountHolder::Party`, the party `me` names), but the
+    playground provider's (4.8), as the rail's mark reads it (5.3), whose
+    kind is a sign-in or a program's login, and which is signed out
+    (`SignInAgain`) or reads `expiring`, signed out where both hold: the
+    source whose state holds the account's work (5.5, *The composer's
+    line*). Items keep the document's order of accounts. A key, a source
+    needing no credential and the deployment's accounts make none. With no
+    document delivered there are none; a document `cut` gives the items it
+    holds, its head counting them "N+".
+  - *It shows* once the inbox has answered and an item is read (*A page's
+    parts*), on the unfiltered and a filtered page alike, since an account
+    is no project's. It joins neither the cards' count, Needs you's head,
+    the rail's count, Home's needs sentence nor Done's rule: Done holds with
+    no card open, and Only you follows its "Home".
+  - *The region,* named by its heading, after the cards' *Answered*, or
+    Done's "Home", and before *Decided for you*, wherever the page draws
+    that, on a phone too: a `section-head`, the level-2 heading "Only you ·
+    1", at its right "work goes on around it", muted. Then
+    `temper-only-item` an item, the mock's `.card`, gap 12:
+    - its from line, `.mono`: the chip `temper-chip` "Deployment", where
+      Accounts is (*Settings and Deployment*), then "an LLM account";
+    - its question line, `.q`, 19 px, by its source as Accounts words it
+      (5.5, *An account*: "ChatGPT sign-in", "Claude Code login NAME"):
+      signed out, "Your ChatGPT sign-in is signed out. Sign in again?";
+      expiring, "Your Claude Code login claude-alice is expiring. Sign in
+      again?";
+    - its act alone, "Sign in again", a link in the look of the
+      recommended `.choice`, primary, with no "recommended": to `Accounts`,
+      whose row holds the sign-in (5.5, *Each state*). On a phone it is full
+      width and at least 44 px tall.
+  - *Its acts' end:* signing in again renews the account of the same
+    subject (jig's `domain/accounts.md`, 3.3), and the item goes once the
+    document says so. Nothing else is sent from it.
 - **Decided for you** (`../draft/what-reaches-you.md`, section 6;
   `../domain/forge.md`, 5.9): what agents decided for the person, any task's,
   a goal's, a chat's or a delegate's, whether or not the person was away.
@@ -5769,8 +5815,19 @@ The words for each offered source are:
   | refused: not eligible | "This ChatGPT account can't be used for plan usage in temper. Plan usage needs an eligible ChatGPT plan." | "Use an API key", "Sign in to another account" |
   | needs sign-in | "Signed out of ChatGPT." | "Continue with ChatGPT" |
   | needs sign-in, a program's, on a host | "Claude Code isn't signed in for 'claude-alice' on HOST." and the command to run there | "Check again" |
+  | expiring, a sign-in's | "Expiring: sign in again before it ends." | "Continue with ChatGPT" |
+  | expiring, a program's | "Expiring: sign in again before it ends." and the command to run on its host | "Check again" |
   | misconfigured | "OpenAI refused temper's sign-in. Check the configuration's registration." | — |
   | unloaded | "Can't be used on HOST: WHY." | — |
+
+  An expiring source is one the document reads `expiring` and not signed
+  out. An account whose deciding source is expiring keeps the source's
+  tag "Expiring" and offers its renewal under the account's line, as a
+  signed-out one does: the sign-in that renews the account of the same
+  subject, or the program's command and its check, so that Only you's
+  link (3.5, **Only you**) lands where the act is. When it
+  ends, read from its provider, is jig's `ends` fact, which no source
+  reports yet (jig's `domain/accounts.md`, 3.7).
 
   Never a reset the provider did not give, and never "your plan is
   empty" (jig's `domain/providers.md`, 2.5). A limit may be the
@@ -10983,7 +11040,14 @@ own tests:
   12 and 15): a project's Now on its row, rolled from its owners', its
   tiers, a follow's parity and "owned" (R1 to R3, F1); What follows what
   (F1); who decided, on a Decided for you row, and the intro's What
-  reaches you; Only you (N3a); a need's goal, role and asker on its from
+  reaches you; on an Only you item, what waits for it ("Two agents on vsr
+  wait for this login.", `../draft/what-reaches-you.md`, section 8), once
+  jig's `accounts` document names the tasks waiting on each of a person's
+  own accounts, as the `deployment` document does the deployment's (jig's
+  `client/domain/contract.md`, 5.1); Only you's other kinds, a forge's
+  token to replace, and a person task asking an act rather than a choice,
+  which stays among the cards meanwhile; Only you in the terminal's inbox
+  (6.14); a need's goal, role and asker on its from
   line; Tell temper at Needs you's foot, as *Tell temper* has it, once the engine files a
   person's word as a finding and a setting names the project's triager
   (`../domain/findings.md`, sections 4 and 6); one brief across projects written per person,

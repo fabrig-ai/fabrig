@@ -21,6 +21,40 @@ pub fn fixture(seed: u64) -> (Joint, Root) {
 pub fn plan_fixture(seed: u64) -> (Joint, Root) {
     fixture_root(seed, Tools::Off, 2, None, true, WelcomeForge::None, false)
 }
+/// A signed-in `ChatGPT` plan, through the client and engine with the issuer faked.
+#[must_use]
+pub fn signed_in_plan(seed: u64) -> (Joint, Root, u32) {
+    use temper_client_domain::Address;
+    let (mut front, mut root) = plan_fixture(seed);
+    event(&mut front, &mut root, Temper::went(Address::ConnectModel { way: None }));
+    let (_, mut view) = Temper::new(seed);
+    Temper::build(&mut view, &root, &mut Queue::uncapped());
+    let node = Temper::tree(&view)
+        .nodes()
+        .iter()
+        .find(|node| node.role == skein_ui::Role::Button && node.name.as_deref() == Some(b"Continue with ChatGPT"))
+        .expect("plan sign-in control")
+        .id;
+    let press = Temper::act(&mut view, node, skein_ui::Act::Press).expect("plan sign-in act");
+    event(&mut front, &mut root, press);
+    let source = signing(&front);
+    front.engine.send(temper_engine_domain::Event::Account(a::Event::Visited {
+        source,
+        address: b"https://issuer/visit".as_slice().into(),
+    }));
+    settle(&mut front, &mut root);
+    front.engine.send(temper_engine_domain::Event::Account(a::Event::SignedIn {
+        source,
+        subject: b"subject".as_slice().into(),
+        display: b"alice@example.com".as_slice().into(),
+        declined: false,
+        said: a::Said::default(),
+    }));
+    settle(&mut front, &mut root);
+    answer_trial(&mut front, &mut root);
+    event(&mut front, &mut root, Temper::went(Address::Accounts));
+    (front, root, source)
+}
 #[must_use]
 pub fn tools_fixture(seed: u64) -> (Joint, Root) {
     fixture_root(seed, Tools::On, 2, None, false, WelcomeForge::None, false)
