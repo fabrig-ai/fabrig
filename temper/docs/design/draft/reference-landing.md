@@ -17,7 +17,8 @@ jig's.
   is the goal's own branch g, which the goal holds (N3); beside it, small
   changes: a repair after landing, a chat's small fix. What the goal
   leaves for the next one (status files, Later sections, the draft's
-  fate) is already in g, written by the close-out (N16). Nothing is
+  fate) is written once L has landed, by the close-out, a change into
+  main (N16, as `goal-as-designer.md`, section 2, moves it). Nothing is
   batched.
 - **By queue, as temper has it** (`forge.md`, 8.2, 9 and 10): checked at
   its head, queued by its goal's priority, the first brought up to date
@@ -47,7 +48,8 @@ jig's.
 
 | Change | Made by | Its branch | Lands into |
 |---|---|---|---|
-| the goal's landing, L | the coordinator, once the close-out has landed | g, `temper/<root>/g<root>`, its requester's held branch (N3) | main |
+| the goal's landing, L | the coordinator, once the plan is done | g, `temper/<root>/g<root>`, its requester's held branch (N3) | main |
+| the close-out, X | the coordinator, once L has landed | its own, `temper/<root>/c<task>` | main |
 | a repair after landing | the coordinator, on a red | its own, `temper/<root>/c<task>` | main |
 | a chat's small fix | a chat, handing over the branch it pushed (`forge.md`, 8.1) | the branch it is handed | main |
 
@@ -193,7 +195,7 @@ into main goes (`forge.md`, 8.2): CI at their head, queued, updated if
 they lack main's tip, merged at their head, verified. A repair after
 landing is first among equals only by its goal's priority; a repair of
 main's own CI is first in the queue (`forge.md`, section 9). A repair
-after landing that should change what g's close-out wrote (a status
+after landing that should change what the close-out wrote (a status
 entry, a Later section) carries that edit itself.
 
 ## 9. What has not yet run unattended
