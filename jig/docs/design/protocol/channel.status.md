@@ -61,9 +61,6 @@ deployment on record has run since.
   refusal, which end through the same close (the engine's
   `component.rs`, `loss`) and are named once each
   (`each_connections_end_says_why_once`).
-- **Not yet:** 11: `jig-protocol-worker-wire` neither fits a resumed
-  start's committed calls to a room nor measures the smallest resumed
-  start (`jig/crates/jig-protocol-worker-wire/src/sizes.rs`).
 - **Not yet:** 9, 11, 12, *A resumed start fits its room first*: the
   engine's component fits no start, so an assignment past the room by
   the calls committed since its run's last turn goes the way of any
