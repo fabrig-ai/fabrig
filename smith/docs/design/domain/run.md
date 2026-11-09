@@ -32,7 +32,9 @@ is listed in section 15.
 - **A change is checked, then delivered,** when a run has a writable
   workspace: the run runs its checks; its host makes the checked state
   durable and says how that went. smith knows directories, git working
-  trees and checks; what delivering means is the host's.
+  trees and checks; what delivering means is the host's. A run granted
+  `save` may also hand its tree over unchecked, marked so, to keep its
+  work before it asks a question (8.5).
 - **One budget,** in the host's unit, across every session the run opens,
   each completion priced as it is made. Time and spend plan the work;
   turns only guard the loop. A reserve keeps main's last word: when the
@@ -88,7 +90,8 @@ What the host gives a run to set it up:
   that keeps typed context renders it; smith reads only titles and text.
 - **Tools:** the families the LLM may call (section 5): inspect, modify
   and shell, on the workspace, if it has one; sub-agents; `deliver`;
-  `wait`; and each host tool, declared (5.2). Data, never derived from a
+  `save`, only with `deliver` (8.5); `wait`; and each host tool, declared
+  (5.2). Data, never derived from a
   role's name. A run may have no tools but `finish`.
 - **Result contract:** what counts as done (section 7).
 - **Conventions:** where a workspace directory keeps its guide and its
@@ -322,7 +325,7 @@ that is not empty, or a message.
 | Source | Tools | Who answers | Effect |
 |---|---|---|---|
 | the workspace | `read`, `list`, `search`; `write`, `edit`, `remove`; `shell`, `job` | the session, through its tools (tools.md) | reads; writes; `job` reads, and writes with `stop` |
-| the run | `finish`, `deliver`, `wait`, sub-agents | the run | `finish` and `deliver` write; a sub-agent's follows its tools |
+| the run | `finish`, `deliver`, `save`, `wait`, sub-agents | the run | `finish`, `deliver` and `save` write; a sub-agent's follows its tools |
 | the host | declared in the charter | the host, relayed | as declared |
 | MCP servers, later | as each server lists them | the protocol layer, as opaque calls | as the charter declares |
 
@@ -652,16 +655,18 @@ its next run to hear of. smith does not make the host's judgement.
   charter says otherwise (temper says `.temper/pre-pr`), looked up in each
   writable directory when the run starts. A directory without one has no
   checks, and nothing above the agent needs to know either way.
-- **Checked is delivered.** The checks run as contained processes with
+- **Checked is delivered,** but for a save, which runs no check (8.5).
+  The checks run as contained processes with
   deadlines, and the delivery that follows is made, under the lease over
   the whole workspace (5.3): nothing else holds write authority from the
   checks' start to the delivery's answer, so the host makes exactly the
   tree that was checked durable. That holds by construction: a write runs
   alone in its session, a sub-agent lives only as long as the call
   that asked for it, and no job runs through a check or a delivery.
-- **Jobs are cancelled first.** A `finish` that delivers and a `deliver`
-  cancel every running job, and wait for each to settle, before the
-  checks start, or before the delivery when no directory has checks
+- **Jobs are cancelled first.** A `finish` that delivers, a `deliver` and
+  a `save` cancel every running job, and wait for each to settle, before
+  the checks start, or before the delivery when no directory has checks
+  or the call is a save
   (5.3; tools.md, section 5). Only their own session's can be running:
   they run alone, and a child lives only as long as its call. A job so
   cancelled ends `cancelled`, which the next `job` call naming it
@@ -741,6 +746,38 @@ delivered, the same way, and the run goes on. A finish with a change
 delivers what is there at finish. A mid-run delivery is not the run's
 result: a run ended while one is in flight waits for its answer, then
 answers as it was ending; the host has the delivery's own answer.
+
+### 8.5 Saving unchecked
+
+A run whose charter grants `save` may hand its tree to its host at any
+time with no check run, so that work in progress is kept before the run
+asks a question and waits (the owner, 2026-11-09). A host that keeps
+work on a branch has the run's tree there to read while the question is
+open.
+
+- **Granted only with `deliver`,** so only in a Finite run: a charter
+  that grants `save` without `deliver` is refused at the entrance
+  (charter.md, section 2). smith's local host grants none
+  (protocol/hosts.md, 5.5).
+- **No input.** `save` takes an empty object: it carries none of the
+  result's fields, since it is no result.
+- **A delivery without its checks.** A save takes the lease over the
+  whole workspace and cancels every running job, as a delivery does
+  (8.1), and asks its host to make the tree durable at once, as a save:
+  the host knows it from a delivery by its ask (protocol/channel.md,
+  section 4), and marks what it makes as unchecked, in its own terms (a
+  commit's message, a receipt's words). Its answer is a delivery's
+  (8.2), told the LLM the same way; stale ends the run, as a delivery's
+  does.
+- **Never a result.** A save does not finish the run and is not its
+  change. A `finish` with a change, and a `deliver`, run the full checks
+  whatever was saved before them, so only a tree that passed them is
+  delivered as checked. A host that merges a run's work merges what a
+  checked delivery made, never a save alone.
+- **Main's alone, and not in wind-down.** Like `deliver`, a save is an
+  exclusive write of main's; a child is never offered it, and a run
+  winding down offers it no more: a save asked while main is closing or
+  the run is winding down is answered cancelled.
 
 ## 9. Budget and spend
 

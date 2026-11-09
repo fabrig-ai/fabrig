@@ -324,6 +324,9 @@ to an older reader or writer. Each has one version at a time.
   turns and transcripts, the event stream, and what a host keeps in files
   each carry a version of their own. Any change a reader would notice is
   a new version. Nothing is translated, and no older version is read.
+  Before v0.1.0, the charter and the channel change in place, their
+  versions unmoved, since a writer and its agents are built together
+  (the owner, 2026-11-09: the `save` grant and ask, domain/run.md, 8.5).
 - **A reader refuses any other version,** each in its own terms:
   - **the channel** is versioned whole: its frames, its kinds and its
     records. Each side's opening says the version it speaks; with none

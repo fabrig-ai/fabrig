@@ -164,7 +164,7 @@ also writes an `operator` notice saying that usage could not be read.
 | `messages` | integer | the start's messages (domain/run.md, 3.2) |
 | `main` | model | main's LLM (3.10) |
 | `budget` | object | `turns`, `spend`, `time_ms`, and `reserve`: `turns`, `time_ms` and its derived `spend` (domain/run.md, 9.1) |
-| `tools` | object | `families` granted, as a list of `inspect`, `modify`, `shell` and `sub_agents`; `withheld`, the granted families the run does not offer, none on either backend (programs.md, section 2); `wait` and `deliver`, bools; `host`, the host tools declared |
+| `tools` | object | `families` granted, as a list of `inspect`, `modify`, `shell` and `sub_agents`; `withheld`, the granted families the run does not offer, none on either backend (programs.md, section 2); `wait`, `deliver` and `save`, bools; `host`, the host tools declared |
 | `contract` | list | the result forms the contract allows: `report`, `verdict`, `change`, `failure` |
 
 **`run.completed`**, authoritative, once per run, also for a start
@@ -315,7 +315,7 @@ tools that stands in for the workspace's, with `source` `workspace`
 | `clamped` | bool | the call's requested budget or deadline was lowered to its ceiling, as the tool's outcome records it |
 | `duration_ms` | integer | from `tool.started` |
 | `child` | object, optional | for `sub_agent`, under every policy: `conversation`; `stop`, how the child ended: `end`, an answer it chose to give, `budget`, an answer its share ended (domain/run.md, 5.3), or, unanswered, `failed` or `closed`; `turns`, `time_ms`, `spent` and `usage` |
-| `delivery` | string, optional | for `deliver`, or a `finish` that delivered: `delivered`, `nothing`, `refused`, `failed` or `stale` (domain/run.md, 8.2) |
+| `delivery` | string, optional | for `deliver`, `save`, or a `finish` that delivered: `delivered`, `nothing`, `refused`, `failed` or `stale` (domain/run.md, 8.2 and 8.5) |
 
 A tool's terminal tells what the tool observed when it ended. Rendering
 happens later, when the result goes into the next request, and may never
@@ -594,7 +594,8 @@ projection.
 The vocabulary is pre-release, like every format (README.md, section 8).
 
 - **One version.** This is version 4. The vocabulary may change in place
-  before v0.1.0; an older store starts afresh. Effective limits include
+  before v0.1.0, as the `save` bool and delivery did (domain/run.md, 8.5);
+  an older store starts afresh. Effective limits include
   `domain.content_edge_records`, the optional capture edge's record capacity
   (3.2; limits.md, section 9). Nothing is translated, and no older version
   is read.
