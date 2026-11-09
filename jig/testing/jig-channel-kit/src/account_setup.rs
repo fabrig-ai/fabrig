@@ -137,7 +137,7 @@ impl Setup {
         story: Story,
     ) {
         use jig_fake_parties::{Ask, Reply, Task, Up};
-        if !self.ready() {
+        if !self.ready() || matches!(story, Story::Cuts { .. }) {
             return;
         }
         let client =

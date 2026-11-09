@@ -26,6 +26,16 @@ fn requests(d: &mut Domain, environment: &Env<Limits>, event: Option<Event>) -> 
     kept.into_boxed()
 }
 
+fn fired(d: &mut Domain, environment: &Env<Limits>) -> Box<[Request]> {
+    let mut out = Queue::uncapped();
+    fire(d, environment, &mut out);
+    let mut kept = skein_lib::List::with_capacity(out.len());
+    while let Some(request) = out.pop() {
+        kept.push(request).expect("counted output");
+    }
+    kept.into_boxed()
+}
+
 fn call(d: &mut Domain, environment: &Env<Limits>) -> (Token, Op) {
     for request in requests(d, environment, None) {
         if let Request::Call { call, op, .. } = request {
@@ -143,6 +153,65 @@ fn restart_inflight(d: &mut Domain, environment: &mut Env<Limits>, number: u64) 
     requests(d, environment, Some(Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }));
     requests(d, environment, Some(Event::ReadAfresh));
     requests(d, environment, Some(Event::SettleOutbox));
+}
+
+#[test]
+fn a_projection_meeting_a_full_outbox_waits_for_room() {
+    const FIRST: u64 = 1;
+    for (name, count, number, room, free) in [
+        ("full", LIMITS.entries, NEXT, false, false),
+        ("taken", LIMITS.entries - 1, FIRST, true, false),
+        ("freed", LIMITS.entries, NEXT, false, true),
+    ] {
+        let mut environment = env();
+        let view = issues::GoalView { finished: None, ..goal_view() };
+        let mut d = started(view, issues::Projected::default(), None);
+        assert!(!d.full_outbox_met(), "{name}: restore has no full-outbox mark");
+        for n in FIRST..=u64::from(count) {
+            requests(&mut d, &environment, Some(Event::Enqueue { entry: status(n, 8) }));
+            requests(&mut d, &environment, Some(Event::Committed { entry: n }));
+        }
+        assert_eq!(d.effect_room(&LIMITS, 0), room, "{name}");
+        let issue = d.issue(GOAL).expect("saved desired projection").clone();
+        let prior_deadline = d.next_wall_deadline();
+        let when = Wall::from_nanos(environment.wall.as_nanos() + LIMITS.issue_policy.interval.as_nanos());
+        let expected = if room { None } else { Some(when) };
+        let out = requests(&mut d, &environment, Some(Event::ProjectDesired { entry: number, goal: GOAL }));
+        assert_eq!(out.as_ref(), &[Request::ProjectAfter { goal: GOAL, when: expected }], "{name}");
+        assert_eq!(d.issue(GOAL), Some(&issue), "{name}: desired stays saved without failure or pending");
+        assert!(!issue.failed && issue.pending.is_none(), "{name}");
+        assert_eq!(d.next_wall_deadline(), if room { prior_deadline } else { Some(when) }, "{name}");
+        assert_eq!(d.entries.len(), count, "{name}: outbox unchanged");
+        for (n, boxed) in &d.entries {
+            assert_eq!(boxed.entry, status(*n, 8), "{name}: outbox unchanged");
+        }
+        assert_eq!(d.full_outbox_met(), !room, "{name}: meeting the full outbox marks the step");
+        d.begin_step();
+        assert!(!d.full_outbox_met(), "{name}: a new step clears the mark");
+        if free {
+            requests(&mut d, &environment, Some(Event::Withdraw { entry: FIRST }));
+            assert!(d.effect_room(&LIMITS, 0), "{name}: withdrawal frees room");
+            environment.wall = Wall::from_nanos(when.as_nanos() - 1);
+            environment.now = Time::from_nanos(environment.wall.as_nanos());
+            let early = fired(&mut d, &environment);
+            for request in early {
+                if let Request::ProjectAfter { goal, .. } = request {
+                    assert_ne!(goal, GOAL, "{name}: timer waits");
+                }
+            }
+            environment.wall = when;
+            environment.now = Time::from_nanos(when.as_nanos());
+            let due = fired(&mut d, &environment);
+            assert!(due.contains(&Request::ProjectAfter { goal: GOAL, when: None }), "{name}: timer fires");
+            let out = requests(&mut d, &environment, Some(Event::ProjectDesired { entry: NEXT + 1, goal: GOAL }));
+            let [Request::ProjectionEffect { row, entry, .. }] = out.as_ref() else {
+                panic!("{name}: next projection effect: {out:?}")
+            };
+            assert_eq!(row.goal, GOAL);
+            assert_eq!(entry.number, NEXT + 1);
+            assert_eq!(row.pending, Some(entry.number));
+        }
+    }
 }
 
 #[test]
