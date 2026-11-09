@@ -212,7 +212,3 @@ there (`temper/docs/design/domain/root.status.md`, 8).
   whether a capacity check is missing or the expectation is wrong, and
   whether this departs, is the designer's decision: it is a bug if the
   design requires `Full` in this case; no reason is recorded.
-
-- **Not yet:** 5.1: *Nothing links ahead of what it names* has no world row
-  per route that names a person from outside the core, so it is unproven
-  that each refuses a person the people child does not hold.

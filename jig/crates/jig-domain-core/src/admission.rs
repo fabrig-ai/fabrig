@@ -3,6 +3,7 @@
 pub(crate) mod amendments;
 pub(crate) mod as_allowed;
 pub(crate) mod authority_facts;
+pub(crate) mod batches;
 pub(crate) mod compound;
 pub(crate) mod deadlines;
 pub(crate) mod escalation;
