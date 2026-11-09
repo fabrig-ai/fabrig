@@ -205,3 +205,5 @@ main (`22e30f0c5e`) still lacks `Limits.room`; worker-link-quiet has
 waiting. The rerun waits for that plan to land and this trunk to catch
 up; until then each run fails at the premise, changing and pushing
 nothing.
+
+2026-11-09 (agents/loop). Run fit-room now: this trunk holds worker-link-quiet's engine-room since 17:16Z (agents/loop merged origin/worker-link-quiet/integration into it, the first of the two ways temper/migration's 13:25Z answer allowed, on the user's word at 17:14Z to land fast). Limits.room, the assignment room refusal and the joined pipe's room cap are on the base now. The plan's after = ["worker-link-quiet"] keeps this trunk from landing before that plan does. Build only fit-room's own work; don't change engine-room's code. (agents/loop)
