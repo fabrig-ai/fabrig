@@ -586,14 +586,22 @@ fn transcript_texts(texts: Option<engine::TranscriptTexts>, rows: &[Record]) -> 
     let texts = texts?;
     let tail = usize::try_from(engine::TRANSCRIPT_TAIL_BYTES).expect("tail fits usize");
     Some(
-        rows.iter()
-            .zip(texts)
-            .map(|(row, text)| {
-                let Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))) = row else {
+        texts
+            .into_iter()
+            .enumerate()
+            .map(|(index, text)| {
+                let Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn)))) =
+                    rows.get(index)
+                else {
                     return text;
                 };
-                let start = turn.transcript.len().saturating_sub(tail);
-                Some(Box::from(&turn.transcript[start..]))
+                match text {
+                    engine::TurnText::Cut(bytes) => engine::TurnText::Cut(bytes),
+                    engine::TurnText::Rendered(_) | engine::TurnText::Unrendered => {
+                        let start = turn.transcript.len().saturating_sub(tail);
+                        engine::TurnText::Rendered(Box::from(&turn.transcript[start..]))
+                    }
+                }
             })
             .collect(),
     )

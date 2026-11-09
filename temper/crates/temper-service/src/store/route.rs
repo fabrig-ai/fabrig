@@ -1,4 +1,5 @@
 //! Root store requests and terminals, with temper's decoded families.
+//! Window pages carry whole or cut turns (temper/docs/design/domain/root.md, 8).
 use super::ranges;
 use ::core::mem::size_of;
 use alloc::boxed::Box;
@@ -164,7 +165,7 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
                     }
                 }
             }
-            page(routes, owner, rows.into_boxed(), next, None, into);
+            page(routes, owner, rows.into_boxed(), next, None, None, into);
         }
         store::Event::PageRefused { owner, failure } => {
             if let Some(flight) = routes.pending.remove(&owner) {
@@ -178,7 +179,7 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
             into.push(Up::FrameTooLarge { number, task, bytes, limit });
         }
         store::Event::Loaded { owner, rows, next } => {
-            page(routes, owner, rows, next, None, into);
+            page(routes, owner, rows, next, None, None, into);
         }
         store::Event::Got { owner, mut row } => {
             if let Some(Flight {
@@ -211,18 +212,16 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
                 Some(row) => Box::new([row]),
                 None => Box::new([]),
             };
-            page(routes, owner, rows, None, None, into);
+            page(routes, owner, rows, None, None, None, into);
         }
-        store::Event::Turns { owner, turns, next, cut: None } => {
+        store::Event::Turns { owner, turns, next, cut } => {
             let mut rows = List::with_capacity(u32::try_from(turns.len()).expect("bounded turns"));
             for turn in turns {
                 rows.push(store::Row::Jig(core::Record::Core(core::CoreRecord::Turn(turn)))).expect("same count");
             }
-            page(routes, owner, rows.into_boxed(), None, next, into);
+            page(routes, owner, rows.into_boxed(), None, next, cut, into);
         }
-        store::Event::Unread { owner }
-        | store::Event::Corrupt { owner }
-        | store::Event::Turns { owner, cut: Some(_), .. } => {
+        store::Event::Unread { owner } | store::Event::Corrupt { owner } => {
             if let Some(flight) = routes.pending.remove(&owner) {
                 root(into, engine::StoreInput::Unloaded { owner: flight.root });
             }
@@ -254,25 +253,28 @@ fn stop(routes: &Routes, into: &mut Queue<Up>) {
     root(into, engine::StoreInput::Uncommitted { number: routes.commit });
 }
 
+#[expect(clippy::too_many_lines, reason = "the page bounds its prefix before handing off its terminal")]
 fn page(
     routes: &mut Routes,
     owner: Token,
     rows: Box<[store::Row]>,
     cursor: Option<store::Cursor>,
     offset: Option<u64>,
+    mut cut: Option<u32>,
     into: &mut Queue<Up>,
 ) {
     let more = cursor.is_some() || offset.is_some();
     let Some(mut flight) = routes.pending.remove(&owner) else {
         return;
     };
+    let page_bound = if ranges::window(&flight.range) { flight.bytes.min(routes.limits.bytes) } else { flight.bytes };
     let mut decoded = List::with_capacity(flight.most);
     let mut bytes = 0_u64;
     let mut cutting = false;
     let mut last = flight.after.clone();
     let mut scanned = flight.after.clone();
     for row in rows {
-        let Some(record) = decode(row, &routes.families) else {
+        let Some(mut record) = decode(row, &routes.families) else {
             root(into, engine::StoreInput::Unloaded { owner: flight.root });
             return;
         };
@@ -298,9 +300,23 @@ fn page(
             page_failed(routes, &flight, into);
             return;
         };
+        if decoded.is_empty()
+            && cut.is_none()
+            && !cutting
+            && flight.most != 0
+            && (payload_bytes > u64::from(routes.limits.transcript_bytes) || total > u64::from(routes.limits.bytes))
+            && ranges::window(&flight.range)
+            && let Some(length) = cut_turn(&mut record)
+        {
+            cut = Some(length);
+            last = Some(key);
+            decoded.push(record).expect("first row fits the count");
+            cutting = true;
+            continue;
+        }
         if cutting
             || decoded.len() >= flight.most
-            || total > u64::from(flight.bytes)
+            || total > u64::from(page_bound)
             || payload_bytes > u64::from(routes.limits.transcript_bytes)
         {
             cutting = true;
@@ -351,7 +367,7 @@ fn page(
     } else {
         None
     };
-    let texts = ranges::texts(&flight.range, decoded.as_slice());
+    let texts = ranges::texts(&flight.range, decoded.as_slice(), cut);
     // For a cut transcript page restart from its beginning and filter by key;
     // the component's offset names the end of the whole incoming page.
     if offset.is_some() && !cutting {
@@ -363,6 +379,33 @@ fn page(
         root(into, engine::StoreInput::Loaded { texts, owner: root_owner, rows: decoded.into_boxed(), next });
     } else {
         root(into, engine::StoreInput::Loaded { texts, owner: flight.root, rows: decoded.into_boxed(), next });
+    }
+}
+
+fn cut_turn(record: &mut engine::Record) -> Option<u32> {
+    match record {
+        engine::Record::Core(core::Record::Core(core::CoreRecord::Turn(turn))) => {
+            let length = u32::try_from(turn.transcript.len()).expect("bounded stored turn");
+            turn.transcript = Box::new([]);
+            Some(length)
+        }
+        engine::Record::Core(
+            core::Record::Core(
+                core::CoreRecord::ProposalDecision(_)
+                | core::CoreRecord::Settings(_)
+                | core::CoreRecord::Call(_)
+                | core::CoreRecord::EscalationDecision(_)
+                | core::CoreRecord::Deployment(_)
+                | core::CoreRecord::RunProof(_)
+                | core::CoreRecord::Terminal(_)
+                | core::CoreRecord::Projection(_),
+            )
+            | core::Record::Tasks(_)
+            | core::Record::People(_)
+            | core::Record::Accounts(_)
+            | core::Record::Notes(_),
+        )
+        | engine::Record::Forge { .. } => None,
     }
 }
 

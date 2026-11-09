@@ -365,8 +365,7 @@ impl Store {
                         continue;
                     }
                     engine::StoreInput::Committed { .. } => continue,
-                    reply @ (engine::StoreInput::Switched
-                    | engine::StoreInput::ReadLoaded { .. }) => {
+                    reply @ (engine::StoreInput::Switched | engine::StoreInput::ReadLoaded { .. }) => {
                         panic!("load {range:?} after {after:?} did not return its page: {reply:?}");
                     }
                 }

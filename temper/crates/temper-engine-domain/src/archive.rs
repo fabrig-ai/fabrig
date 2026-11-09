@@ -1,6 +1,7 @@
 //! Loads of durable rows outside the working set: what a run's preparation
 //! reads (its transcript and inputs), notes, and
 //! the core's historical queries (jig's `domain/engine.md`, 7.2).
+//! Window pages carry whole or cut turns (temper/docs/design/domain/root.md, 8).
 
 use crate::boundary::{EndedRead, Read, Request, Work};
 use crate::domain::Domain;
@@ -326,17 +327,40 @@ pub(crate) fn transcript_loaded(
         retire_read(domain, waiter);
         return;
     }
-    if let Some(texts) = &texts {
-        if texts.len() != rows.len() {
-            transcript_failed(domain, waiter);
-            return;
-        }
-        for text in texts.iter().flatten() {
-            if text.len() > usize::try_from(crate::TRANSCRIPT_TAIL_BYTES).expect("tail bound fits usize") {
-                transcript_failed(domain, waiter);
-                return;
+    let Some(load) = transcript_page(rows, texts, next.is_none()) else {
+        transcript_failed(domain, waiter);
+        return;
+    };
+    domain.work.push(Work::Core(jig_domain_core::Event::TranscriptLoaded { task, load }));
+    if let Some(after) = next {
+        let mut issued = Queue::with_capacity(1);
+        loads::next(&mut domain.loads, waiter, after, domain.limits.loads.rows, &mut issued)
+            .expect("uncut transcript continuation keeps its load slot");
+        match issued.pop().expect("continuation issued") {
+            loads::Request::Load { owner, range, after, most, bytes } => {
+                out.push(Request::Store(crate::StoreRequest::Load { owner, range, after, most, bytes }));
+            }
+            loads::Request::Loaded { .. } | loads::Request::Unloaded { .. } => {
+                unreachable!("continuation only issues IO")
             }
         }
+        return;
+    }
+    let Some(Read::Transcript { .. }) = take_read(domain, waiter) else { unreachable!("finished transcript read") };
+    domain.archive_reads.retire(Id::from_token(waiter));
+}
+
+/// Validate row/text pairing before handing a page to the core (temper/docs/design/domain/root.md, 8).
+fn transcript_page(
+    rows: Box<[Record]>,
+    texts: Option<crate::TranscriptTexts>,
+    done: bool,
+) -> Option<jig_domain_core::TranscriptLoad> {
+    let count = rows.len();
+    if let Some(texts) = &texts
+        && texts.len() != count
+    {
+        return None;
     }
     let mut texts = match texts {
         Some(texts) => texts,
@@ -364,32 +388,27 @@ pub(crate) fn transcript_loaded(
                 | jig_domain_core::Record::Notes(_),
             )
             | Record::Forge { .. } => {
-                transcript_failed(domain, waiter);
-                return;
+                return None;
             }
         };
-        loaded.push((turn, texts.next().flatten())).expect("one transcript item per row");
-    }
-    domain.work.push(Work::Core(jig_domain_core::Event::TranscriptLoaded {
-        task,
-        load: jig_domain_core::TranscriptLoad::Page { rows: loaded.into_boxed(), done: next.is_none() },
-    }));
-    if let Some(after) = next {
-        let mut issued = Queue::with_capacity(1);
-        loads::next(&mut domain.loads, waiter, after, domain.limits.loads.rows, &mut issued)
-            .expect("uncut transcript continuation keeps its load slot");
-        match issued.pop().expect("continuation issued") {
-            loads::Request::Load { owner, range, after, most, bytes } => {
-                out.push(Request::Store(crate::StoreRequest::Load { owner, range, after, most, bytes }));
+        let text = match texts.next() {
+            Some(crate::TurnText::Cut(bytes)) => {
+                if count != 1 || !turn.transcript.is_empty() {
+                    return None;
+                }
+                return Some(jig_domain_core::TranscriptLoad::Cut { turn, bytes: u64::from(bytes), done });
             }
-            loads::Request::Loaded { .. } | loads::Request::Unloaded { .. } => {
-                unreachable!("continuation only issues IO")
+            Some(crate::TurnText::Rendered(text)) => {
+                if text.len() > usize::try_from(crate::TRANSCRIPT_TAIL_BYTES).expect("tail bound fits usize") {
+                    return None;
+                }
+                Some(text)
             }
-        }
-        return;
+            Some(crate::TurnText::Unrendered) | None => None,
+        };
+        loaded.push((turn, text)).expect("one transcript item per row");
     }
-    let Some(Read::Transcript { .. }) = take_read(domain, waiter) else { unreachable!("finished transcript read") };
-    domain.archive_reads.retire(Id::from_token(waiter));
+    Some(jig_domain_core::TranscriptLoad::Page { rows: loaded.into_boxed(), done })
 }
 
 pub(crate) fn take_read(domain: &mut Domain, waiter: Token) -> Option<Read> {
@@ -494,6 +513,63 @@ mod tests {
         };
         assert_eq!(task, TASK);
         assert!(domain.work.is_empty());
+    }
+
+    #[test]
+    fn malformed_transcript_rows_and_texts_still_answer_failed() {
+        let row = Record::Core(core::Record::Core(core::CoreRecord::Turn(crate::TurnRecord {
+            task: TASK,
+            attempt: PREVIOUS_ATTEMPT,
+            turn: 1,
+            spent: 1,
+            read: None,
+            at: skein_lib::Wall::EPOCH,
+            opens_window: true,
+            transcript: Box::new([]),
+        })));
+        let mut body = row.clone();
+        let Record::Core(core::Record::Core(core::CoreRecord::Turn(turn))) = &mut body else { panic!("turn") };
+        turn.transcript = Box::new([b'x']);
+        let other: Box<[Record]> = Box::new([Record::Forge {
+            row: Box::new(temper_engine_domain_forge::Stored::Landed { commit: [1; 32], task: TASK }),
+        }]);
+        let too_long = usize::try_from(crate::TRANSCRIPT_TAIL_BYTES)
+            .expect("tail fits usize")
+            .checked_add(1)
+            .expect("one extra byte");
+        let no_texts: crate::TranscriptTexts = Box::new([]);
+        for (name, rows, texts, cut) in [
+            ("row kind", other, None, None),
+            ("text count", Box::new([row.clone()]), Some(no_texts), None),
+            (
+                "text bound",
+                Box::new([row.clone()]),
+                Some(Box::new([crate::TurnText::Rendered(skein_lib::bytes::zeroed(too_long))])),
+                None,
+            ),
+            ("cut body", Box::new([body]), Some(Box::new([crate::TurnText::Cut(1)])), None),
+            (
+                "cut alone",
+                Box::new([row.clone(), row.clone()]),
+                Some(Box::new([crate::TurnText::Cut(1), crate::TurnText::Unrendered])),
+                None,
+            ),
+            ("load seam cut", Box::new([row]), None, Some(loads::Cut { rows: 1, bytes: 1 })),
+        ] {
+            let (mut domain, _) = root();
+            domain.core.begin_transcript(TASK, PREVIOUS_ATTEMPT, Some((PREVIOUS_ATTEMPT, 1)));
+            let waiter = transcript_read(&mut domain);
+            let mut out = Queue::with_capacity(1);
+            transcript_loaded(&mut domain, waiter, rows, texts, None, cut, &mut out);
+            let Some(Work::Core(core::Event::TranscriptLoaded { task: TASK, load: core::TranscriptLoad::Failed })) =
+                domain.work.pop()
+            else {
+                panic!("{name}: malformed page answers Failed");
+            };
+            assert!(out.is_empty() && domain.work.is_empty(), "{name}: one terminal");
+            domain.archive_reads.reclaim();
+            assert!(domain.archive_reads.is_empty(), "{name}: read retired");
+        }
     }
 
     #[test]

@@ -550,6 +550,111 @@ fn stored_history(row: Option<core::Record>) -> Option<store::Row> {
     Some(store::Row::Jig(row?))
 }
 
+/// temper/docs/design/domain/root.md, 8: size cuts retain the turn's fields and length.
+#[test]
+fn window_turns_past_store_row_or_page_room_are_carried_cut() {
+    let (limits, _, _) = fixtures::store_limits();
+    for (name, store_cut, bytes, page_bound, prefix, more) in [
+        ("store terminal", true, 17, limits.loads.bytes, false, false),
+        ("store continuation", true, 17, limits.loads.bytes, false, true),
+        ("root row", false, limits.loads.transcript_bytes + 1, limits.loads.bytes, false, false),
+        ("root page", false, 3, u32::try_from(size_of::<engine::Record>()).unwrap() + 2, false, false),
+        ("later row", false, limits.loads.transcript_bytes + 1, limits.loads.bytes, true, false),
+        ("later page", false, 3, u32::try_from(size_of::<engine::Record>()).unwrap() + 2, true, false),
+    ] {
+        let mut limits = limits;
+        limits.loads.bytes = page_bound;
+        let bounds = temper_protocol_store::bounds(&limits.forge, limits.tasks.spec_bytes).unwrap();
+        let mut routes = route::Routes::new(2, &limits, bounds);
+        let range = engine::Range::Core(engine::CoreRange::TaskTranscript { task: 7, from: (1, 1) });
+        let mut after = None;
+        let large = window_turn(if prefix { 2 } else { 1 }, if store_cut { 0 } else { bytes });
+        let turns: Box<[core::TurnRecord]> =
+            if prefix { Box::new([window_turn(1, 1), large.clone()]) } else { Box::new([large.clone()]) };
+        let mut out = Queue::uncapped();
+        for page_index in 0..=usize::from(prefix) {
+            let Some(store::Request::Transcript { owner, read, .. }) =
+                route::down(&mut routes, load(range.clone(), after.clone(), 4, limits.loads.reply_bytes))
+            else {
+                panic!("{name}: window read")
+            };
+            assert_eq!(read, store::TranscriptRead::Window { task: 7, attempt: 1, turn: 1, after: None });
+            route::up(
+                &mut routes,
+                store::Event::Turns {
+                    owner,
+                    turns: turns.clone(),
+                    next: if more { Some(900) } else { None },
+                    cut: if store_cut { Some(bytes) } else { None },
+                },
+                &mut out,
+            );
+            let Some(Up::Root(event)) = out.pop() else { panic!("{name}: one loaded terminal") };
+            let engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next, texts: Some(texts) }) = *event
+            else {
+                panic!("{name}: cut is loaded, never unloaded or uncommitted: {event:?}")
+            };
+            assert_eq!(owner, fixtures::OWNER);
+            assert!(out.is_empty() && routes.idle(), "{name}: terminal retires its flight");
+            let [engine::Record::Core(core::Record::Core(core::CoreRecord::Turn(turn)))] = rows.as_ref() else {
+                panic!("{name}: one turn alone")
+            };
+            if prefix && page_index == 0 {
+                assert_eq!(*turn, window_turn(1, 1), "a fitting prefix ends before the large row");
+                let [engine::TurnText::Unrendered] = texts.as_ref() else { panic!("whole prefix text") };
+                assert_eq!(next, Some(rows[0].key()));
+                after = next;
+                continue;
+            }
+            let mut expected = large.clone();
+            expected.transcript = Box::new([]);
+            assert_eq!(*turn, expected, "{name}: fields preserved, body empty");
+            let [engine::TurnText::Cut(length)] = texts.as_ref() else { panic!("{name}: cut text") };
+            assert_eq!(*length, bytes, "{name}: length kept");
+            assert_eq!(next, if more || !store_cut { Some(rows[0].key()) } else { None });
+            if more {
+                let Some(store::Request::Transcript { read, .. }) =
+                    route::down(&mut routes, load(range.clone(), next, 4, limits.loads.reply_bytes))
+                else {
+                    panic!("store cut's continuation")
+                };
+                assert_eq!(read, store::TranscriptRead::Window { task: 7, attempt: 1, turn: 1, after: Some(900) });
+            }
+        }
+    }
+}
+fn window_turn(turn: u32, bytes: u32) -> core::TurnRecord {
+    let mut transcript = skein_lib::bytes::zeroed(usize::try_from(bytes).unwrap());
+    transcript.fill(b'x');
+    core::TurnRecord {
+        task: 7,
+        attempt: 1,
+        turn,
+        spent: 3,
+        read: Some(2),
+        opens_window: turn == 1,
+        at: skein_lib::Wall::EPOCH,
+        transcript,
+    }
+}
+
+#[test]
+fn unread_and_corrupt_window_pages_still_fail_the_load_once() {
+    for corrupt in [false, true] {
+        let mut routes = fixtures::routes();
+        let Some(store::Request::Transcript { owner, .. }) = route::down(
+            &mut routes,
+            load(engine::Range::Core(engine::CoreRange::TaskTranscript { task: 7, from: (1, 1) }), None, 4, 8192),
+        ) else {
+            panic!("window read")
+        };
+        let mut out = Queue::uncapped();
+        let event = if corrupt { store::Event::Corrupt { owner } } else { store::Event::Unread { owner } };
+        route::up(&mut routes, event, &mut out);
+        failed_load(&mut routes, owner, &mut out);
+    }
+}
+
 fn assistant_turn(words: &[u8]) -> Box<[u8]> {
     use smith_transcript::v7 as wire;
     let limits = &wire::CEILINGS;
@@ -629,6 +734,11 @@ fn loaded_tail(transcript: Box<[u8]>) -> Box<[u8]> {
     core.transcripts.get_mut(&7).unwrap().window = Some((1, 1));
     for (row, text) in rows.into_iter().zip(texts) {
         let engine::Record::Core(core::Record::Core(core::CoreRecord::Turn(turn))) = row else { panic!("turn row") };
+        let text = match text {
+            engine::TurnText::Rendered(text) => Some(text),
+            engine::TurnText::Unrendered => None,
+            engine::TurnText::Cut(_) => panic!("whole turn rendering"),
+        };
         assert!(core.append_transcript(7, turn, text));
     }
     core::read_brief_part(
