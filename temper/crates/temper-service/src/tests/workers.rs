@@ -835,6 +835,10 @@ fn refused_answer_reason_reaches_operator_once() {
             cause: host::StartCause::Other,
             why: b"charter".as_slice().into(),
         }),
+        host::Refusal::Invalid(host::Invalid::Start {
+            cause: host::StartCause::Other,
+            why: b"assignment of 1300000 bytes past the link's room of 1048576 bytes".as_slice().into(),
+        }),
     ] {
         for full in [false, true] {
             check_answer_diagnostic(host::Ending::Refused(reason.clone()), 0, full);
@@ -1387,6 +1391,24 @@ fn worker_opening_ends_are_suppressed_by_name_and_reason_until_hello() {
         }
         assert!(workers.notes.is_empty());
     }
+}
+
+/// temper/docs/design/protocol/README.md, 15.3: every unsent record has one operator note.
+#[test]
+fn each_unsent_record_reaches_the_operator_once() {
+    use jig_protocol_engine_workers::{Bound, Unsent, host::Output};
+    let mut service = fixtures::started();
+    let workers = &mut service.engine.as_mut().unwrap().workers;
+    let mut events = skein_lib::Queue::uncapped();
+    let worker: Box<[u8]> = b"worker-a".as_slice().into();
+    let channel = Token::new(7);
+    let unsent =
+        Unsent { kind: jig_protocol_worker_wire::Kind::Assignment, bytes: 1_300_000, bound: Bound::Room(1_048_576) };
+    workers.route(Output::Unsent { worker: worker.clone(), channel, unsent }, &mut events);
+    assert_eq!(workers.notes.len(), 1, "one unsent record produces one operator note");
+    assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerUnsent { worker, channel, unsent }));
+    assert!(workers.notes.is_empty());
+    assert!(events.is_empty(), "an operator note is outside the domain");
 }
 
 fn hello_for_loss_notes(worker: u32) -> jig_protocol_engine_workers::host::Output {

@@ -322,6 +322,16 @@ tags stay fixed (`README.md`, 7).
   refusal through its usual answer route, releasing the reservation;
   the worker has no start to cancel. Other records that cannot encode
   are counted and discarded.
+- **A start the link cannot carry ends there too** (section 9, *A start
+  past the room fails its run, never the link*): an assignment or a job
+  whose frame is past the room the engine's stream grants at once, or
+  that skein's channel refuses at its entrance for anything but a full
+  queue, is answered the same way, with no record sent. Its diagnostic
+  names the record, its frame's bytes and the bound: `assignment of
+  BYTES bytes past the link's room of ROOM bytes`, or `assignment of
+  BYTES bytes refused by the channel: REASON`, `job` for a job. A job
+  that cannot encode is answered too, as its job's invalid start, `job
+  cannot encode`, rather than discarded.
 - **Busy, sent again.** A turn answered busy is held by the worker's
   link component, which sends it again after a jittered backoff, as it
   keeps the grace's clock (10.1); the hub arms no timers
@@ -716,6 +726,36 @@ holds, and neither of its components reads them.
     and its calls in flight; a limited, a refused and an unauthorized
     notice per LLM account's source a run may hold; a logins notice, and
     a signed out per program source; and a reserve for facts.
+- **Every frame fits the stream below.** skein's channel asks its stream
+  for room for a whole frame (skein's `channel.md`, section 7), and a
+  stream grants no room past its own output cap: io leaves a larger ask
+  unanswered (skein's `lib.md`, 7.1). Such a frame would wait below
+  forever, and with it every frame behind it and the pings, which a side
+  sends only while nothing is queued, until the peer's silence deadline
+  lost the link with nothing said. So each side's component is given its
+  stream's room, the most bytes it grants at once (io's output cap,
+  `largest_room`), and no frame past it reaches the channel. Every kind
+  a side sends has its largest frame within the room, checked when the
+  component is made, with the channel's own `Open` and `Refuse`; the
+  engine's assignment and job alone are exempt, since the domains'
+  limits admit a start larger than any room (a whole charter, a resumed
+  window, the calls committed since its last turn, its inbox and its
+  grants, section 11).
+- **A start past the room fails its run, never the link.** The engine's
+  component measures each assignment and job before the channel takes
+  it. One whose frame is past the room, or that the channel refuses at
+  its entrance for anything but a full queue, is never sent: the
+  component answers it itself, as it answers one that cannot encode
+  (5.2), refused as an invalid start whose words name the record, its
+  frame's bytes and the bound it passed (`assignment of 1300000 bytes
+  past the link's room of 1048576 bytes`). It also tells its protocol
+  layer once, as `Unsent`, with the worker, the channel, the record's
+  kind, its bytes and the bound, which the application writes as a line
+  of its log. The link, its pings and the worker's other runs go on. A
+  record of another kind that the channel refuses is told the same way
+  and dropped; with every other kind within the room and the peer's
+  terms checked at the opening (4.1), only a broken contract reaches
+  that.
 - **Inventories coalesce while output waits.** The worker's component
   keeps one latest whole snapshot outside the channel queue and sends it
   when that queue is empty. A replacement snapshot overwrites an unsent
@@ -853,11 +893,19 @@ and resends what it must after the next hello.
   accounts' bounds (`configuration.md`, section 6). The crate turns
   them into each kind's largest body and each side's output cap. It
   depends on no domain.
-- **The component's own limits:** the chunk read at once, the name's and
+- **The component's own limits:** the chunk read at once, the room its
+  stream grants at once (section 9), the name's and
   the secret's bytes, the handshake's, hello's, ping's, silence's and
   stall's deadlines, the backoff's first span and ceiling, the span that
   proves a channel, and, on the engine's side, the connections opening at
   once.
+- **The room is the stream's, not the domains'.** The application's
+  protocol layer gives each component its io's `largest_room`, the same
+  cap io grants the stream's room by, in one process as between hosts.
+  Each side's largest frames but the engine's starts must fit it, or the
+  component is not made; a start larger than it is a run that fails with
+  its numbers (section 9). How large a start the domains admit beside the
+  room is the application's figure.
 - **The worst case per channel** is skein's channel's (skein's
   `channel.md`, section 10) with these terms and caps; per side, the
   engine's is that times the fleet's workers and the connections opening,
@@ -900,6 +948,18 @@ ones in the fuzzy suite.
   forwarded body. Its trace fixture admits a malformed `TurnBusy` to
   the real decoder, which never decodes it as a valid busy before the
   component sees it.
+- **A frame past the room, in the machine worlds,** their scripted
+  streams granting room up to a cap and leaving a larger ask unanswered,
+  as io does. The engine's world, one table: an assignment and a job at
+  the room are sent; one byte past it, each is answered refused with its
+  bytes and the room, told once as `Unsent`, and a ping still goes out
+  at each interval for two minutes, with the next record sent after it;
+  limits whose largest message, relayed answer or grant frame passes the
+  room are not made. The worker's world: limits whose largest turn,
+  call, answer or hello frame passes the room are not made. Joined to
+  the real engine's component, an assignment past the engine's room
+  leaves the link up for two minutes, pings crossing both ways, its run
+  answered refused, and a run assigned after it is hosted.
 - **The channel's protocol world,** `tests/channel`: the engine's side
   with the core under jig's test root, and the worker's side with the hub
   under the test worker's root, both as the reference service composes

@@ -63,7 +63,28 @@ pub enum Loss {
     /// The engine closed it, stopping.
     Stopping,
 }
+/// A record the engine's side did not send (protocol/channel.md, 9).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Unsent {
+    pub kind: jig_protocol_worker_wire::Kind,
+    /// Its frame's bytes, the header included.
+    pub bytes: u32,
+    pub bound: Bound,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Bound {
+    /// Past the stream's room, in bytes.
+    Room(u32),
+    /// Refused at the channel's entrance; never `skein_channel::Unsent::Full`.
+    Channel(skein_channel::Unsent),
+}
 pub enum Request {
+    /// Once for each record the component did not send.
+    Unsent {
+        worker: u32,
+        channel: Token,
+        unsent: Unsent,
+    },
     Take {
         connection: Token,
     },
@@ -142,6 +163,12 @@ impl core::fmt::Debug for Request {
             Self::Ended { connection, worker, channel, why } => {
                 f.debug_tuple("Ended").field(connection).field(worker).field(channel).field(why).finish()
             }
+            Self::Unsent { worker, channel, unsent } => f
+                .debug_struct("Unsent")
+                .field("worker", worker)
+                .field("channel", channel)
+                .field("unsent", unsent)
+                .finish(),
             Self::Closed => f.write_str("Closed"),
         }
     }

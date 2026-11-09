@@ -1,6 +1,7 @@
 mod debug;
 mod fixtures;
 mod opening;
+mod room;
 mod translate;
 
 #[test]

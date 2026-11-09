@@ -154,6 +154,7 @@ pub fn link_limits(worker: &config::Worker, payload: &v1::Limits, forges: u32) -
     Some(link::Limits {
         sizes,
         chunk: profile.chunk,
+        room: worker.limits.io.largest_room(),
         handshake: profile.handshake,
         ping: profile.ping,
         silence: profile.silence,
