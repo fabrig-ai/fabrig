@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use jig_domain_core::settings::application::{Restored, RestoredEdit};
 use skein_lib::{Env, List, Map, Queue};
 
-use crate::settings::{self, Edit, SettingKey, SettingRow, SettingSlot, Value};
+use crate::settings::{self, Edit, SettingKey, SettingRow, SettingSlot, TemplateGoal, Value};
 use crate::{Domain, ForgeCharters, Key, Limits, Request, Stored};
 
 impl Domain {
@@ -316,9 +316,25 @@ impl Domain {
         use temper_engine_domain_forge_change::Route;
         match self.setting(6, project, 1) {
             Some(settings::SizedValue { value: Value::Questions(route), .. }) => *route,
-            Some(settings::SizedValue { value: Value::Rule(_) | Value::Charter(_) | Value::Ways(_), .. }) | None => {
-                Route::None
-            }
+            Some(settings::SizedValue {
+                value: Value::Rule(_) | Value::Charter(_) | Value::Ways(_) | Value::Goal(_),
+                ..
+            })
+            | None => Route::None,
+        }
+    }
+
+    /// A goal template's work as held: its change, else the stock's; none where removed
+    /// or never given (temper/docs/design/protocol/configuration.md, 13.2).
+    #[must_use]
+    pub fn template_goal(&self, template: u32) -> Option<TemplateGoal> {
+        match self.setting(11, 0, template) {
+            Some(settings::SizedValue { value: Value::Goal(goal), .. }) => Some(*goal),
+            Some(settings::SizedValue {
+                value: Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Ways(_),
+                ..
+            })
+            | None => None,
         }
     }
 
@@ -487,7 +503,11 @@ impl Domain {
     fn setting_charter(&self, number: u32) -> u32 {
         match self.setting(3, 0, number) {
             Some(settings::SizedValue { value: Value::Charter(charter), .. }) => *charter,
-            Some(settings::SizedValue { value: Value::Rule(_) | Value::Questions(_) | Value::Ways(_), .. }) | None => 0,
+            Some(settings::SizedValue {
+                value: Value::Rule(_) | Value::Questions(_) | Value::Ways(_) | Value::Goal(_),
+                ..
+            })
+            | None => 0,
         }
     }
 }
@@ -522,9 +542,10 @@ fn held_for_project(held: &settings::HeldRules, project: u32) -> Box<[settings::
 fn value_state(value: Option<&settings::SizedValue>) -> (u32, Option<u32>) {
     match value {
         Some(settings::SizedValue { value: Value::Charter(charter), size }) => (*size, Some(*charter)),
-        Some(settings::SizedValue { value: Value::Rule(_) | Value::Questions(_) | Value::Ways(_), size }) => {
-            (*size, None)
-        }
+        Some(settings::SizedValue {
+            value: Value::Rule(_) | Value::Questions(_) | Value::Ways(_) | Value::Goal(_),
+            size,
+        }) => (*size, None),
         None => (0, None),
     }
 }

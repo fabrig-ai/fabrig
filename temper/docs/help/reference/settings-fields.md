@@ -17,14 +17,14 @@ A settings file, as `settings apply` and `settings propose` read it.
 One setting, and what becomes of it: `setting`, then exactly one of `set` and `edit`.
 
 - `setting`: `setting`. The setting the item changes.
-- `set`: the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `project-policy`, `project-ways` or `project-questions`. Its new value, whole, which replaces the one before.
+- `set`: the setting's kind's value: `charter`, `template`, `policy`, `rules`, `model`, `landing-rule`, `forge-charter`, `template-goal`, `project-policy`, `project-ways` or `project-questions`. Its new value, whole, which replaces the one before.
 - `edit`: `"removed"` or `"reset"`. What becomes of the setting, in place of a value. `"removed"`: No longer offered, its default included; the rules cannot be removed. `"reset"`: Its change erased, so that it follows its default again.
 
 ## setting
 
 Which setting: its kind and number, or project for project settings.
 
-- `kind`: `"model"`, `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"`, `"forge-charter"`, `"project-ways"` or `"project-questions"`. The setting's kind. `"project-policy"`: A project's own policy: only `set`, at most once per file; may share a file with other settings. Its value is a policy.
+- `kind`: `"model"`, `"charter"`, `"template"`, `"policy"`, `"project-policy"`, `"rules"`, `"landing-rule"`, `"forge-charter"`, `"template-goal"`, `"project-ways"` or `"project-questions"`. The setting's kind. `"project-policy"`: A project's own policy: only `set`, at most once per file; may share a file with other settings. Its value is a policy.
 - `number`: integer, 0 to 4,294,967,295. The setting's number, from 1; left out for rules, project-policy, project-ways and project-questions.
 - `project`: integer, 0 to 4,294,967,295. Required for project-ways and project-questions. For a landing rule, a project's number, from 1, the deployment's when left out; for a project's policy, its project, required.
 
@@ -495,6 +495,13 @@ The final resource segment, in the same hex form as a pattern's last segment.
 ## forge-charter
 
 An integer from 0 to 4,294,967,295: the charter's number. Setting 1 selects the change's charter; setting 2 selects its reviews'.
+
+## template-goal
+
+A goal template's work: whether its coordinator designs first and makes a close-out. With none kept, it plans and makes no close-out.
+
+- `design`: true or false. Whether the coordinator delivers a design before planning its changes; required.
+- `close_out`: true or false. Whether the coordinator makes a close-out after the goal lands; required.
 
 ## project-ways
 

@@ -88,6 +88,14 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
             per_scope: 1,
             charters: 0,
         },
+        Kind {
+            number: 11,
+            scope: KindScope::Deployment,
+            connector,
+            value_bytes: size(&settings::Value::Goal(settings::TemplateGoal { design: true, close_out: true })),
+            per_scope: limits.templates,
+            charters: 0,
+        },
     ])
 }
 

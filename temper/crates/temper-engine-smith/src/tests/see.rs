@@ -164,7 +164,7 @@ fn errors_and_pages_use_the_address_form() {
                 held: skein_lib::List::with_capacity(0),
                 pending: skein_lib::List::with_capacity(0),
             }),
-            "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · revisions · help settings",
+            "settings charter N · settings template N · settings policy N · settings model N · settings forge-charter N · settings template-goal N · settings rules · settings landing-rule N [project] · settings landing · settings gates OWNER/NAME · settings project-ways · settings project-questions · revisions · help settings",
         ),
         (
             jig_domain_core::SettingsAnswer::Revisions(jig_domain_core::reads::RevisionsPage {
@@ -194,6 +194,7 @@ fn errors_and_pages_use_the_address_form() {
         (Setting::Application { kind: 3, scope: 0, number: 1 }, "settings · revisions · help settings-fields"),
         (Setting::Application { kind: 6, scope: 7, number: 1 }, "settings · revisions · help settings-fields"),
         (Setting::Application { kind: 7, scope: 7, number: 1 }, "settings · revisions · help settings-fields"),
+        (Setting::Application { kind: 11, scope: 0, number: 4 }, "settings template N · ways · help settings-fields"),
     ] {
         let answer = jig_domain_core::SettingsAnswer::Setting(jig_domain_core::reads::SettingDocument {
             setting,

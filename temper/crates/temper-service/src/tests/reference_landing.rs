@@ -23,6 +23,9 @@ fn the_reference_landing_settings_decode() {
     let mut rules = 0;
     for item in &items {
         if let Setting::Application { kind, scope, number } = item.setting {
+            if (kind, scope, number) == (11, 0, 4) {
+                continue;
+            }
             assert_eq!((kind, scope), (1, 0));
             let SettingEdit::Set(set) = &item.edit else { panic!("set rule") };
             let SettingValue::Application(bytes) = &set.value else { panic!("application setting") };

@@ -32,7 +32,7 @@ fn deployment() -> settings::LandingRule {
     }
 }
 
-fn values() -> [(u32, settings::Value); 7] {
+fn values() -> [(u32, settings::Value); 11] {
     let mut project = deployment();
     project.pattern.last = GateLast::Open(Box::from(b"topic/".as_slice()));
     project.enforce = false;
@@ -55,6 +55,10 @@ fn values() -> [(u32, settings::Value); 7] {
                 way: u32::MAX,
             }),
         ),
+        (11, settings::Value::Goal(settings::TemplateGoal { design: false, close_out: false })),
+        (11, settings::Value::Goal(settings::TemplateGoal { design: true, close_out: true })),
+        (11, settings::Value::Goal(settings::TemplateGoal { design: true, close_out: false })),
+        (11, settings::Value::Goal(settings::TemplateGoal { design: false, close_out: true })),
     ]
 }
 
@@ -79,6 +83,7 @@ fn each_kind_round_trips_its_value() {
             settings::Value::Charter(_) => 3,
             settings::Value::Questions(_) => 6,
             settings::Value::Ways(_) => 7,
+            settings::Value::Goal(_) => 11,
         };
         let bytes = encode(&value);
         assert_eq!(decode(kind, &bytes, &BOUNDS).expect("shaped value").value, value);
