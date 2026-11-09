@@ -14,6 +14,10 @@ impl WorkerHalf for Half {
     ) -> Result<service::Service, String> {
         crate::worker_alone::prepare(directories, bytes, owned)
     }
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "cli C2: the process environment configures worker startup; temper-box's table will pass it"
+    )]
     fn start(
         &self,
         named: &service::startup::Named,

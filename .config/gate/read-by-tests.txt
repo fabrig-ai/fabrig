@@ -1,4 +1,5 @@
 # Inputs under docs/ (any format) or elsewhere that tests compile in or read; every non-Markdown input under docs/ must be listed, since the queue takes the rest as docs.
+*/docs/design/cli/*-env.md
 temper/docs/help/**
 temper/docs/design/draft/reference-code-production.md
 temper/docs/examples/reference/README.md

@@ -2,7 +2,7 @@
     clippy::disallowed_types,
     clippy::disallowed_macros,
     clippy::disallowed_methods,
-    reason = "ordinary Rust fixtures and golden comparisons; testing-strategy.md, step tests"
+    reason = "cli C4: SKEIN_CODEGEN_WRITE selects settings goldens; the test table will pass it; ordinary Rust fixtures and golden comparisons"
 )]
 use crate::{
     jig::{

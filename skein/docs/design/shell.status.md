@@ -21,7 +21,8 @@ below remain; the Linux tests do not prove the Darwin arms.
 
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).
   6.4: the helper's dispatch, and the service's own cgroup opened at
-  startup. 6.6: that macOS answers `ENOPROTOOPT` to `SO_ACCEPTCONN` is
+  startup.
+  6.6: that macOS answers `ENOPROTOOPT` to `SO_ACCEPTCONN` is
   read from published XNU, whose `main` may lag `macos-26`'s kernel, and
   no recorded run shows it: a Linux test holds `listening`
   (`skein-shell/src/listener_calls.rs`) on both answers, and only the

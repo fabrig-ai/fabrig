@@ -876,7 +876,10 @@ for; and that nothing is live once it settles.
   first channel (jig's `domain/hosts.md`, section 12).
 - **A hold naming its run's last failure.** A task held `out of tries:
   run failures` names no failure: the reason is 4.3's operator line
-  alone. The ending reaches the hub as its class
+  alone. A job held out of tries is the same, its reasons 4.4's lines,
+  and the change would name a job's last failure too; temper/migration
+  answered on 2026-11-09 that words in a job's hold wait until a
+  deployment's job lines have been read. The ending reaches the hub as its class
   (`jig-domain-hub-link/src/payload.rs`) and every durable record holds
   the class (jig's `tasks_v9` and `core_v6`), so naming it stores the
   last failure's bounded text with the hold. No LLM is shown this detail,

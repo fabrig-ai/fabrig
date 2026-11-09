@@ -46,6 +46,7 @@ fn rung_b0_a_person_agrees_a_plan_before_the_change_lands() {
 /// domain/testing.md, 2.7 and protocol/credentials.md, 3: a held login used in place.
 #[test]
 #[ignore = "live: a held Claude Code login, TEMPER_LIVE_CLAUDE; the after-landing tier, or scripts/proof-live.sh forge-land-claude"]
+#[expect(clippy::disallowed_methods, reason = "cli C4: TEMPER_LIVE_CLAUDE, through temper's test table once it exists")]
 fn a_person_asks_claude_code_to_land_a_change_on_the_owned_forge() {
     let login = std::path::PathBuf::from(std::env::var_os("TEMPER_LIVE_CLAUDE").expect("held Claude Code login"));
     owned_forge_landing(support::forge_land::LiveModel::ClaudeCode { login: &login });

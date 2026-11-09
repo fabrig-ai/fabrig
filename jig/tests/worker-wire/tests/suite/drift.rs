@@ -2,6 +2,10 @@ use skein_codegen::{generate, parse};
 use std::fs;
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "jig's round: reads SKEIN_CODEGEN_WRITE to refresh generated worker codecs and goldens"
+)]
 fn worker_wire_schema_matches_generated_code_and_goldens() {
     let root = skein_scratch::paths::tree().join("crates/jig-protocol-worker-wire");
     let source = fs::read_to_string(root.join("schema/worker-wire-v9.schema")).expect("schema");

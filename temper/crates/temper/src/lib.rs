@@ -16,10 +16,18 @@ use temper_service as service;
 pub mod directories;
 use directories::{Directories, private_root};
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: TEMPER_WORKSPACE_REUSE selects worker reuse; temper-box's table will pass it"
+)]
 pub(crate) fn workspace_reuse() -> bool {
     std::env::var_os("TEMPER_WORKSPACE_REUSE").is_some()
 }
 /// Where a worker's agents keep each model request (temper/docs/design/draft/dogfood-hacks.md, 2.13).
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: TEMPER_DUMP_LLM selects the agent request dump directory; temper-box's table will pass it"
+)]
 pub(crate) fn dump_llm() -> Option<PathBuf> {
     dump_directory(std::env::var_os("TEMPER_DUMP_LLM"))
 }
@@ -92,6 +100,10 @@ fn prefixed(command: &str, why: &str) -> String {
     }
     lines
 }
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: the process environment resolves standalone commands; temper-box's table will pass it"
+)]
 pub fn configure(args: impl Iterator<Item = OsString>) -> Result<Command, String> {
     let arguments: Vec<Box<[u8]>> = args.map(|arg| Box::from(arg.as_bytes())).collect();
     let working = std::env::current_dir().map_err(|why| why.to_string())?;

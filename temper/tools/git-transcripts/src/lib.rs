@@ -69,6 +69,7 @@ impl Capture {
 }
 /// # Errors
 /// Refuses an old or relative git, a provisioning failure or an output containing credentials.
+#[expect(clippy::disallowed_methods, reason = "cli C8: TEMPER_FORGEJO for the transcript tool's pinned forge")]
 pub fn run(git: &Path, scratch: &Path, out: &Path) -> Result<()> {
     if !git.is_absolute() {
         return Err("--git must be an absolute path".into());

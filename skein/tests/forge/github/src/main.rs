@@ -6,6 +6,7 @@ fn main() {
         std::process::exit(1);
     }
 }
+#[expect(clippy::disallowed_methods, reason = "skein's round: reads the GitHub conformance command line")]
 fn main_result() -> github_conformance::Result<()> {
     let mut args = std::env::args_os().skip(1);
     let mut live = None;

@@ -10,6 +10,7 @@ use std::{fs, path::PathBuf};
 
 const ROOTS: [&str; 4] = ["PublicProjects", "PublicBoard", "PublicCard", "PublicApplication"];
 
+#[expect(clippy::disallowed_methods, reason = "jig's round: reads CARGO_MANIFEST_DIR to locate the public schema")]
 fn package() -> PathBuf {
     PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").expect("cargo supplies the running package"))
 }

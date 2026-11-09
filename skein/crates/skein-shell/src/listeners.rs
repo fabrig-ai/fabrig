@@ -62,6 +62,10 @@ pub enum ListenersRefusal {
 /// intact. Successful descriptors are made close-on-exec, without changing
 /// their status flags or taking ownership. On refusal all descriptors remain
 /// the caller's; preceding descriptors may already be close-on-exec.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "skein's round: reads LISTEN_FDS to discover inherited activation descriptors"
+)]
 pub fn inherited_listeners() -> Result<Box<[(Fd, SocketAddr)]>, ListenersRefusal> {
     let count = match std::env::var_os("LISTEN_FDS") {
         None => 0,

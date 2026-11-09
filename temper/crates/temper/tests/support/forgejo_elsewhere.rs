@@ -34,6 +34,10 @@ const EDIT: &[u8] = b"Changed by the elsewhere chat.\n";
     clippy::too_many_lines,
     reason = "one process story keeps adoption, deleted hooks and restart observations together"
 )]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: TEMPER_E4_LIFE, TEMPER_E4_RESTART and TEMPER_E4_CAPTURE, through temper's test table once it exists"
+)]
 pub fn restart() {
     if let Some(root) = std::env::var_os(CHILD) {
         life(Path::new(&root), std::env::var_os("TEMPER_E4_RESTART").is_some());

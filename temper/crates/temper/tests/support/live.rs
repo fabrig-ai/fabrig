@@ -15,6 +15,7 @@ use std::{
 use temper::directories::jig_directories;
 
 #[must_use]
+#[expect(clippy::disallowed_methods, reason = "cli C4: PATH, through temper's test table once it exists")]
 pub fn configure(directory: &Path, forge: &Throwaway) -> String {
     let path = directory.join("temper.json");
     let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
@@ -529,6 +530,7 @@ pub fn redact(text: &str) -> String {
     output
 }
 
+#[expect(clippy::disallowed_methods, reason = "cli C4: TEMPER_LIVE_NOTICE, through temper's test table once it exists")]
 fn append_notice(text: &str) {
     use std::{io::Write, os::unix::fs::OpenOptionsExt};
     let Some(path) = std::env::var_os("TEMPER_LIVE_NOTICE") else { return };

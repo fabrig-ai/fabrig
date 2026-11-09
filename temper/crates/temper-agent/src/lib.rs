@@ -109,6 +109,10 @@ fn run_arguments(arguments: &[Box<[u8]>]) -> Result<Command, String> {
     }
 }
 
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C6: TEMPER_DUMP_LLM selects the agent request dump directory; temper-agent's table will pass it"
+)]
 pub fn run(command: Command) -> Result<u8, String> {
     let exit = match command {
         Command::Overview => {

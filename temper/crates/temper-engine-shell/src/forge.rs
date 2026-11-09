@@ -162,6 +162,10 @@ fn run_failure(
         host::Failed::Exec(why) => format!("{}: {why}", text(&launch.program)),
     }
 }
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: LISTEN_FDS selects the inherited forge listener; temper-engine's table will pass it"
+)]
 fn inherited_listener(which: Which) -> Result<Option<std::net::SocketAddr>, String> {
     let Some(count) = std::env::var_os("LISTEN_FDS") else { return Ok(None) };
     if which == Which::Runner {

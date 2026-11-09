@@ -28,6 +28,10 @@ pub fn run(name: &str, program: &OsStr, arguments: &[Box<[u8]>]) -> u8 {
     eprintln!("{name}: claude: {why}");
     1
 }
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C2: SSL_CERT_FILE selects launcher download trust; temper-box's table will pass it"
+)]
 fn launch(program: &OsStr, arguments: &[Box<[u8]>]) -> Result<(), String> {
     let directory = Path::new(program).parent().ok_or("launcher has no parent")?;
     let cache = fs::read_link(directory.join("cache")).map_err(|why| format!("cache: {why}"))?;

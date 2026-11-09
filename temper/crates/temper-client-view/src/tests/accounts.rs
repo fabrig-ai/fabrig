@@ -1810,6 +1810,10 @@ fn only_deployment_rows_show_usage_facts_and_their_use_summary() {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "cli C4: SKEIN_CODEGEN_WRITE selects regeneration of the test's checked document or golden; the test table will pass it"
+)]
 fn english_phrase_declarations_match_the_vocabulary() {
     let path = skein_scratch::paths::package().join("src/words.rs");
     let source = std::fs::read_to_string(&path).unwrap();

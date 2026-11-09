@@ -163,6 +163,7 @@ version = "0.0.0"
 dependencies = [
  "serde_json",
  "skein-scratch",
+ "skein-shell",
  "syn 2.0.119",
 ]
 
