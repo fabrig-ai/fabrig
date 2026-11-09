@@ -23,6 +23,17 @@
   one description (`skein/docs/design/ui.md`, *A disclosure*); the
   right-hand model waits for a structured summary in skein.
 
+Sections 2.3's `Team` row, 2.5's *Team's look* and 7.2's `team`,
+`team-alone` and `night-team` have no known implementation gap, by plan
+`ui-p4a-team`: `/projects/<project>/team` reads as Team's page;
+`temper.css`'s `ui: team` rules, before Settings', on `temper-team*`
+tokens, draw the intro in the wide column and People's boxes in a grid,
+one column on a phone; and `each_state_holds_what_its_name_says` holds
+the three states' headings, rails and words. They add to 7.3's overrun,
+above, with no CPU figure on record. Their render check against
+`team/team.html` follows landing (`README.md`, section 11, *Team after
+landing*).
+
 Sections 2.5, 7.1 and 7.2 have the day and night tokens, glow, moon/sun
 switch and `night-home`, `night-ask` and `night-chat-split` gallery states;
 their prints derive `data-night` from the kept look. The scoped day

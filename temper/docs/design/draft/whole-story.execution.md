@@ -73,7 +73,7 @@ or the nearest thing, and says so in that draft's status.
 | P3d | How work runs: What follows a landing, and a role's budget | `surfaces.md`, 7 | P3a, F1, R1 | temper/ui | nice | not started |
 | P3e | Words saved with a setting: a charter's line on Roles, How work runs' headline, a tier's description | `surfaces.md`, 7; its entry below | P3a | temper/ui | should | not started |
 | P3f | The path's "design" and "close-out", from what a goal's template says its coordinator does | `stock-ways.md`, 4; its entry below | P3a | temper/ui | should | not started |
-| P4a | Team: its people, what waits on each, and the project's triager | `surfaces.md`, 6 | M0 | temper/ui | must | not started |
+| P4a | Team: its people, what waits on each, and the project's triager | `surfaces.md`, 6 | M0 | temper/ui | must | landed; its repair starts (section 5) |
 | P4b | Team: a role's card, but for "Talk to it" | `surfaces.md`, 6 | P4a, R1 | temper/ui | must | not started |
 | P4c | Team: areas and their owners, "Hand an area to a role" and "Talk to it" | `surfaces.md`, 6 | P4b, R2; R3 for "Talk to it" | temper/ui | nice | not started |
 | P5a | The phone, Ask, and Tell temper filing for the project's triager | `surfaces.md`, 9, 10 | P2 | temper/ui | should | not started |
@@ -289,18 +289,18 @@ P3's rows at 19:45Z, as P3a retired, P6's at 22:21Z, as it retired, and
 P1's and P8's at 22:55Z, as P1 retired, and P2's, P5a's and P7's at
 23:32Z, as P2 retired, and P3a's and P3e's on 2026-11-09 at 00:10Z,
 as P3a's repair, `look-round-25`, retired, and P1's at 00:42Z, as
-`ui-away-all` retired. Plans
+`ui-away-all` retired, and P1's and P4a's at 01:02Z, as P4a retired. Plans
 land meanwhile, so read what a row waits on afresh before starting it.
 
 | | State | Waits on, and why |
 |---|---|---|
 | M0 | done | |
-| P1 | landed; its repair waits | `ui-p1-rail` drew the rail as this draft stood at its cut; a repair draws To begin's rail with its hairline and "How work runs", turns the words that still send a person to Settings, and takes the phone's "Needs" (`surfaces.status.md`, 2 and 10); Away across projects landed by `ui-away-all`; Team in the rail waits for a read of a project's members or roles (P4a); Needs you's count across projects, and "Home" and "Needs you" kept across projects under All projects, are its repair's too, P2 having landed (`surfaces.status.md`, 2) |
+| P1 | landed; its repair waits | `ui-p1-rail` drew the rail as this draft stood at its cut; a repair draws To begin's rail with its hairline and "How work runs", turns the words that still send a person to Settings, and takes the phone's "Needs" (`surfaces.status.md`, 2 and 10); Away across projects landed by `ui-away-all`; Team in the rail landed with P4a, for a second person, and waits on R1 for a standing role; Needs you's count across projects, and "Home" and "Needs you" kept across projects under All projects, are its repair's too, P2 having landed (`surfaces.status.md`, 2) |
 | P2 | landed; its repair starts | `ui-p2-home` drew the byline across projects as this draft stood at its cut; a repair, or a look request, words it as section 3 now does and gives the phone's headline `phone-home.html`'s words (`surfaces.status.md`, 3); the launchpad's brief across projects is T1's repair, temper/tui's (`surfaces.status.md`, 11) |
 | P3a | landed; its repair starts | `ui-p3a-how` drew the path in lanes, and its repair, `look-round-25`, draws it as Ask temper's ways do, their agent's star and its rise in ink, and Roles; a second repair gives the drafter, in the stock since P6, its place among Roles (`surfaces.status.md`, 7) |
 | P3b, P3c, P3d | wait | N1, N2 or F1 and R1, by their needs |
 | P3e, P3f | start | |
-| P4a | starts | |
+| P4a | landed; its repair starts | `ui-p4a-team` drew Team's people as this draft and `team/team.html` stood before its cut; a repair, or a look request, gives a box the role "Owner", People's head "owners of shop" and a line's count in words; the triager as Who routes, under the areas, is P4c's; a line's sign-offs wait on N2, N5 and N6 (`surfaces.status.md`, 6); its walk follows (`../client/README.md`, 11) |
 | P4b, P4c | wait | R1, then R2 and R3, by their needs |
 | P5a | starts | |
 | P5b | waits | P5a and R2, by its needs |
@@ -324,6 +324,6 @@ land meanwhile, so read what a row waits on afresh before starting it.
 | V1 | waits | GitHub's rungs; a worker with vsr's C toolchain |
 | V2 to V5 | wait | V1, and each its needs in section 3 |
 
-- **Next to start:** P4a now, as temper/ui's places allow; P3a's
+- **Next to start:** P4a's repair, as temper/ui's places allow; P3a's
   repair, P3e and P3f; P2's repair and P5a, then P7; T2, whose needs have landed: T1 by
   `tui-whole-t1`, P6 by `ui-drafter`, and finding-465's repair.

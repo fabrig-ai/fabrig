@@ -10522,6 +10522,27 @@ own tests:
   `phone-home.html` draw them, and walks a press on a box across two
   projects. Owner: temper/ui. Default: each difference a
   finding filed back as a repair.
+- **Team after landing** (3.5, *Team*; 5.3): temper/ui compares main with
+  the intro and People of the whole story's `web/whole-story/team/team.html`,
+  and the rail's Team in each page's `nav.rail`, through `browser.md`, 7.2's
+  `team`, `team-alone` and `night-team`, at 1440, 1000 and 390 px, by day
+  and by night, with the switcher's menu open on a phone; and walks Team on
+  a box with two people, each reading what waits on the other. Owner:
+  temper/ui. Default: each difference a finding filed back as a repair.
+- **Team's later parts** (3.5, *Team*; `../draft/surfaces.md`, sections 6
+  and 12; `../draft/whole-story.execution.md`, P4b and P4c): a role's card
+  (R1); a project's areas and their owners, a person's areas on their box,
+  "Hand an area to a role", "Talk to it" and the lede on how the project's
+  triager hands what comes in to an area's owner (R2, R3); the triager as
+  the draft's Who routes, a chip under the areas that reads what comes in
+  against their words, changed by proposal, in place of *Team*'s line at
+  People's foot, once the areas are drawn (R2); what a person can still
+  sign, signed and asked for, on their line, as
+  `web/whole-story/team/team.html` draws it (N2, N5, N6); and what waits
+  on another person on another's task or on a role they hold, once a read
+  gives another party's inbox. Each joins *Its parts* with the read that
+  gives it. Default: none is drawn until it is built, and a person's line
+  is what *Team* counts.
 - **Home's and Needs you's later parts** (3.5, *Home on All projects*,
   *Needs you* and *A page's parts*; `../draft/surfaces.md`, sections 3, 4,
   12 and 15): a project's Now on its row, rolled from its owners', its

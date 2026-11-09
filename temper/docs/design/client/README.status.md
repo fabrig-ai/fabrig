@@ -157,7 +157,7 @@ section 11's after-landing work.
 
 Sections 3.5, *Work*, *Goals*, *Changes* and *Settings and Deployment*,
 and 5.3, *The rail*, *The rail's parts*, *Projects in the rail* and *All
-projects*, have no known gap but Team's, below, by plan `ui-p1-rail`:
+projects*, have no known gap but a standing role's, below, by plan `ui-p1-rail`:
 `Address::Work`, `Members` and `Limits` and their paths, Work's five
 addresses holding the goals', changes' and chats' reads open together;
 `pages::rail::parts` of what `rail::facts` gathers, which both shells
@@ -180,6 +180,30 @@ it (`browser.status.md`, 7.2), and the client world's, the browser tier's, the r
 process's stories walk the new rail. The render check and the walk
 remain section 11's after-landing work (*The rail, Work and Deployment
 after landing*).
+
+Sections 3.5, *Team*, and 5.3's Team in the rail have no known gap but
+the project's triager, below, by plan `ui-p4a-team`: `Address::Team {
+project }` at `/projects/<project>/team`, a page of the project's frame;
+`pages::team`'s `gather`, `parts`, `shown` and `people`, the project's
+members of kind person once each, the reader first, a service left out;
+the project's document read by `Read::Project` on every project page and
+again on each `me` delivery; the reader's line from Needs you's open
+entries and approvals in the project, and another's from a `tasks{query}`
+watch of the tasks they requested, at most eight; the intro's count of
+people, a box for each with their name, role and line, and "This
+project's people can't be read now."; "Team" in the rail and "Team for
+PROJECT" in the switcher's menu once the project has two people. The
+domain's `gather_lists_each_person_once_the_reader_first`,
+`parts_show_what_the_facts_hold` and
+`team_reads_the_project_and_what_waits_on_each`, the view's
+`team_draws_what_it_shows` and the Team rows of `tests/rail.rs` and
+`tests/frame.rs`, the fuzzy suite's `team_parts_follow_their_rules`, the
+joint world's `two_people_read_each_other_on_team`, the terminal's
+`team.txt` golden and the gallery's `team`, `team-alone` and `night-team`
+hold it (`browser.status.md`, 7.2). The render check and the walk remain
+section 11's after-landing work (*Team after landing*); what the draft and
+`team/team.html`, redrawn after the plan's cut, say otherwise is
+`../draft/surfaces.status.md`'s, 6.
 
 Section 3.5's settings-proposal call names distinguish failed attempts from
 created proposals, including mixed outcomes. The view's
@@ -1084,7 +1108,9 @@ section 11's after-landing work (*Away on All projects after landing*).
   (`skein-ui-web/src/page/web.rs`, `refresh` and `content`) is seen by reading too.
 - **Not yet:** 3.5, *Team*, *The project's triager*: no setting names a
   triager (`../domain/landing.status.md`, 13.1; `../domain/findings.status.md`),
-  so no read gives `team::Facts`' `triager`, and its line is never drawn.
+  so no read gives `team::Facts`' `triager`, `team::parts` never shows its
+  line, and the view has no words for it (`temper-client-view`'s
+  `pages/team.rs`).
 - **Design departs:** 3.5, *Needs you*, `.rec`, from the request `ui-copy-once` of
   2026-11-06, decided by its plan's cut. The request has no button, tab or option with
   both a name and a text child in a browser, and a recommended choice's button has its

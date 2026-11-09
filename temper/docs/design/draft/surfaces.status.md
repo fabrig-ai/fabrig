@@ -38,7 +38,18 @@
     what waits on each, and the project's triager once a setting names
     one; no design holds a project's areas, an area's owner, a person's
     areas on their box, a role's card or "Hand an area to a role"
-    (`standing-roles.md` has no design yet either).
+    (`standing-roles.md` has no design yet either), and its lede counts
+    the people alone. Redrawn after the plan `ui-p4a-team` was cut, this
+    section has the triager as Who routes, a chip under the areas, where
+    *Team* has a line at People's foot, "Findings with no area go to
+    NAME.", which nothing draws yet; and `team/team.html` gives a box the
+    role "Owner", with "owners of shop" at People's head's right, where
+    *Team* has "Owner of PROJECT" and nothing at the head's right, and
+    gives a person's line what they can still sign, signed and asked for,
+    which waits for sign-offs by path and kept sign-offs
+    (`whole-story.execution.md`, N2, N5 and N6). *Team* counts a line in
+    digits, "2 questions wait on you.", where this section writes "Two
+    questions wait on you.".
   - 7: `../client/README.md`, 5.13, *The page*, draws the way, the path
     as Ask temper's ways draw it, Roles by when each runs, and a goal's
     budget; its heading names the way without its chief departure,
