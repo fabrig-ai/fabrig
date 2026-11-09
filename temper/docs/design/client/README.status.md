@@ -600,6 +600,19 @@ mockups is `../draft/surfaces.status.md`.
   the first section stands on the row under the header's frame (the
   launchpad's goldens and `launchpad-drawn`), as the look request
   `tui-launchpad`'s build left it (`../draft/tui.status.md`).
+- **Not yet:** 6.14, *A design session*, and the lines of 6.14 and 6.15
+  that name it, milestone T2 of
+  [whole-story.execution.md](../draft/whole-story.execution.md), the
+  plan `tui-design-session`: `/draft` on the launchpad and its Start
+  row, `/draft WORDS` starting a session, and ", a design session" in
+  *Where you left off*; the root's `/draft` and `/goal` on a chat, which
+  *Offered* still leaves out; a reply's choices as a prompt; `/goal`'s
+  prompt of ways, a goal made from it reopening the chat, and a linked
+  goal in the quiet line and `/open`; the pane in the side region
+  `tui-pane`, its three states, `HALVES`, Ctrl-P, the body's scroll as
+  the state changes, the draft's head and sections, "new" and a flow's
+  fenced text; and the quiet line's session and pane parts. Skein's
+  side region comes first (skein's `ui-screen.status.md`).
 
 Sections 3.5, 4.6, 5.8 and 5.13 have the approvals watch and wire document,
 the merge into Needs you, project and goal filters, Home and goal bands,

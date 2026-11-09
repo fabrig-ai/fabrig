@@ -89,7 +89,9 @@ host chose (its own design says how).
 - **The base,** the paint of every cell before anything is laid on it.
 - **A region's look,** `RegionLook`, at most one per region (ui.md,
   section 8):
-  - *its place,* `Place`: `Top`, `Body` or `Bottom` (5.2);
+  - *its place,* `Place`: `Top`, `Body` or `Bottom` (5.2), or `Side {
+    percent }`, beside the body at its end, `percent` of the frame's
+    width (5.2, *A side region*);
   - *its arrangement,* `Arrange`: `Lines`, each child on lines of its
     own, or `Spread`, its children along one row (5.3);
   - *its border,* `Border` or none: four corners, a glyph across and one
@@ -142,8 +144,10 @@ host chose (its own design says how).
 - **Its glyphs,** `Glyphs`: the focus mark drawn before the focused
   node, and the mask drawn for each character of a secret's value.
 - **Checked:** `Theme::valid` refuses two looks for one region or one
-  token, and a glyph that is not one cell wide (section 5) or is a
-  control character. The renderer takes only a valid theme.
+  token, a glyph that is not one cell wide (section 5) or is a
+  control character, and a side region whose `percent` is not 1 to 99,
+  whose arrangement is `Spread`, or whose border has sides or draws its
+  title. The renderer takes only a valid theme.
 
 ## 4. The frame
 
@@ -235,6 +239,29 @@ the tree's nodes and the frame's cells.
   than its room, sets it too, so that paging down to the end follows it
   again; paging up clears it (6.2). With no log, `follow` set by the
   application does the same.
+- **A side region,** a region placed `Side { percent }`, is laid beside
+  the body, at its end, on the body's rows: its width is `percent` of
+  the frame's columns, rounded down, and the body is laid at the columns
+  left before it, where it wraps, follows and scrolls as above. Its
+  border, which has no sides and draws no title (3), is its glyph down in
+  its first column on each of the body's rows, in the border's paint;
+  then its padding; then its content, laid as lines at the inner width
+  that leaves, from the body's first row, and cut at the body's rows: it
+  shows its first rows, and nothing scrolls it. Its nodes are no part of
+  the body's scroll, its following or the focus kept in view; a focused
+  node in it takes the focus's paint where it lies. With no side region
+  in the tree the body takes the frame's width; with two, the first in
+  preorder is laid and the others are not. The top and bottom regions
+  keep the frame's width. Illustrative, `Side { percent: 50 }` with a
+  border's `│` and a padding of 1, at 60 columns:
+
+  ```
+  ❯ What should it hold?        │ away-mode.md
+                                │
+  ✦ Two parts: the switch and   │ ## Who it reaches  new
+    what it tells you.          │ A person's needs wait
+                                │ while they are away.
+  ```
 
 ### 5.3 The roles
 
@@ -530,6 +557,10 @@ completions to it, as the text shell's terminal (ui-text.md, section 3).
   - an options menu after a focused field, its names' column and its
     active item's band, an item disabled; the body following a log's end
     as it grows, and staying where the person scrolled up;
+  - a side region beside a body that follows its log's end, its border's
+    glyph down on each of the body's rows, its content cut at them, and
+    the top and bottom regions across the frame's width; the same body
+    with no side region in the tree;
   - `Theme::valid`'s refusals.
 - **The keys:** the decoder's table, each sequence whole and split at
   every byte; the key reader's table, each key on each kind of focus,
@@ -576,6 +607,8 @@ completions to it, as the text shell's terminal (ui-text.md, section 3).
 - **A text area's rows:** `Up` and `Down` moving the caret by rows in a
   text area, in place of the focus.
 - **The pointer:** a mouse's press on a node and its wheel on the body.
+- **A side region's scroll:** a side region shows its first rows (5.2);
+  a scroll of its own, paged by keys of its own, is later.
 - **Right-to-left text,** with the text shell's (ui-text.md, section 9).
 
 ## 11. Open questions
