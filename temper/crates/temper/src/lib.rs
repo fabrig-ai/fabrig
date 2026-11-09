@@ -69,7 +69,7 @@ mod worker_alone;
 mod worker_half;
 use json::CONFIG_BYTES;
 #[cfg(test)]
-pub(crate) use serve::host;
+pub(crate) use temper_service_shell::host;
 use temper_shell::directories::{errno, unread};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -290,10 +290,10 @@ pub fn run(command: Command) -> Result<u8, String> {
 fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))
 }
-pub use serve::host::{Host, ending as service_ending};
-pub(crate) use serve::{close, file_path, held_refusal, listeners_refusal, read_files};
 use temper_engine_shell::serve;
 pub use temper_engine_shell::serve::{bundle, github_logs, printed};
+pub use temper_service_shell::host::{Host, ending as service_ending};
+pub(crate) use temper_service_shell::{close, file_path, held_refusal, listeners_refusal, read_files};
 #[cfg(test)]
 fn prepare(directories: &Directories, bytes: &[u8], owned: &mut Vec<Fd>) -> Result<service::Service, String> {
     serve::prepare("temper", Some(&worker_half::Half), directories, bytes, owned)
