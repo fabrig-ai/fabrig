@@ -881,6 +881,24 @@ and the state as it is now (jig's `domain/tasks.md`, 5.6).
 Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
 `domain/run.md`, 3.1 and 8.1).
 
+- **What a delivery checks** is its project's: the host runs the
+  repository's `.temper/pre-pr` on the run's warm checkout before anything
+  is pushed, at each `deliver` and at a `finish` that delivers, and a
+  failing check refuses the delivery, its output's tail the run's feedback.
+  The worker pins the landing branch's tip in each change producer's
+  checkout as `refs/temper/landing` (worker.md, section 5), so a check can
+  take what the delivery changed against it; fabrig's checks the changed
+  packages' lints and the focused tests of those packages and their direct
+  dependents, a failure the base has too reported as inherited
+  (`../protocol/configuration.md`, 13.9; `tools/pre-pr/design.md`).
+- **No CI before a goal's branch.** A pull request into a goal's branch
+  runs no CI: a change's delivery checks are all it meets before it lands
+  there. The landing's CI into main, the project's full gate, is the
+  guard (`../protocol/configuration.md`, 13.9).
+- **No security boundary:** an agent can change what a check runs
+  (smith's `domain/run.md`, 8.1); the landing's CI and its authority's
+  requirements guard what lands on main.
+
 ### 4.6 Budget, models, waiting
 
 - **Budget:** the run's turns, spend and time, with its reserve of turns

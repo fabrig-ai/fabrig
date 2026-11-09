@@ -260,23 +260,30 @@ git clone --no-checkout --no-tags --origin origin -- <url> <dir>
 
 ### 4.3 Fetch
 
-`Fetch { at, remote, want, identity }`:
+`Fetch { at, remote, want, into, identity }`:
 
 ```
-git fetch --porcelain --verbose --no-tags --no-write-fetch-head --no-recurse-submodules -- <url> +<source>:refs/temper/fetched
+git fetch --porcelain --verbose --no-tags --no-write-fetch-head --no-recurse-submodules -- <url> +<source>:<into>
 ```
 
 where `<source>` is `refs/heads/<branch>` for `Want::Branch`, the commit's
 full id for `Want::Commit`, and `HEAD`, the forge's default branch, for
-`Want::Default`.
+`Want::Default`; and `<into>` is `refs/temper/fetched` for `Into::Fetched`
+and `refs/temper/landing` for `Into::Landing`.
 
-- **Exit 0 and one porcelain line** `<flag> <old-id> <new-id>
-  refs/temper/fetched`, its flag one of space, `+`, `*` or `=`:
-  `Fetched { commit: <new-id> }`. `--verbose` makes git print the line
-  when the reference was already there.
-- **`refs/temper/fetched`** is the one reference the component writes in
-  a repository: it keeps what was fetched reachable, and is moved freely
-  (`+`) by the next fetch.
+- **Exit 0 and one porcelain line** `<flag> <old-id> <new-id> <into>`,
+  its flag one of space, `+`, `*` or `=`: `Fetched { commit: <new-id> }`.
+  `--verbose` makes git print the line when the reference was already
+  there. A line naming another reference is `Broken`.
+- **`refs/temper/fetched`** keeps what was fetched reachable, and is moved
+  freely (`+`) by the next fetch.
+- **`refs/temper/landing`** is the landing pin: the landing branch's tip as
+  prepare fetched it, which the project's checks take their base from
+  (`tools/pre-pr/design.md`, section 2). Only prepare's one landing fetch
+  writes it (`../domain/worker.md`, section 5), forced (`+`), since a
+  cached checkout's pin from an earlier hold may be anywhere; no other
+  operation names it, so it stays where prepare put it for the hold.
+- **These two are the references the component writes** in a repository.
 - **Missing:** `Branch` for a branch, or a default branch, the forge does
   not have; `Commit` for a commit it does not have (section 6). A full id
   is required: git looks an abbreviation up as a reference name.

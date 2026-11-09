@@ -201,8 +201,7 @@ The settings-position wording left by `replay-repairs` remains section
 it unchanged, while temper's own translation refusal counts from 1.
 The silent-check diagnosis is by reading, not a timed deployment run:
 `.temper/pre-pr` emits no progress before its format and baseline work,
-and its 60-second `check_timeout` remains unchanged. Progress output is
-also deferred in section 11. Section 13.9's delivery hook batches format
+and its 60-second `check_timeout` remains unchanged. Section 13.9's delivery hook batches format
 roots by edition and configuration and runs every baseline with the private
 snapshot index. Its focused boundary world models the 69,758 ms formatter
 workload and 17,000 ms baseline workload, checks two uncached design additions
@@ -251,6 +250,10 @@ Section 13.8 has no gap in note-backed settings transport within the call payloa
 
 ## Gaps and departures
 
+- **Not yet:** 13.9, 11: `.temper/pre-pr` runs the format check and the
+  counted baselines alone, names no check before it starts, reads no base,
+  runs no lint or focused test and keys its cache by the tree alone
+  (`tools/pre-pr/design.status.md`).
 - **Not yet:** 13.9: stage one's golden (`../domain/testing.md`, the
   reference's roles) names the deployment's two landing rules and not
   the case's project's rule 1, so a box Ask temper configures from the
