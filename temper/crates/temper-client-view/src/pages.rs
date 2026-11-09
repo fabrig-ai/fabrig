@@ -27,6 +27,7 @@ pub(crate) mod model_check;
 pub(crate) mod models;
 pub(crate) mod needs;
 pub(crate) mod new_chat;
+mod only_you;
 pub(crate) mod remembered;
 pub(crate) mod roles;
 pub(crate) mod session;

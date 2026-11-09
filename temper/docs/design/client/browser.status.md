@@ -518,10 +518,10 @@ forms; and the gallery's `all-home`, `all-home-nothing-new`,
 `all-home-one-project`, `night-all-home`, the four `home-step-*`,
 `needs-list`, `needs-list-second`, `needs-tell`, `needs-approval-first`
 and `night-needs`, which its table checks. 7.2's states hold no red
-"owned", no Home at the standing roles' step, and no need's why, offer
-or Only you, which nothing yet draws (`../draft/surfaces.status.md`,
-14). The rendered comparison follows landing (`README.md`, section 11,
-*Home and Needs you across projects after landing*).
+"owned", no Home at the standing roles' step, and no need's why or
+offer, which nothing yet draws (`../draft/surfaces.status.md`, 14). The
+rendered comparison follows landing (`README.md`, section 11, *Home and
+Needs you across projects after landing*).
 
 Section 7.2 has no known implementation gap in Away on All projects, by
 plan `ui-away-all`: the gallery's `all-home-away`, the switch and the

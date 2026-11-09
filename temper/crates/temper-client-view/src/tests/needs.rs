@@ -888,7 +888,7 @@ fn empty_decided_inbox(root: &mut d::Domain, watch: skein_lib::Token, out: &mut 
         out,
     );
 }
-fn decided_fixture(filter: d::address::Filter, count: u32, open: bool) -> d::Domain {
+pub(super) fn decided_fixture(filter: d::address::Filter, count: u32, open: bool) -> d::Domain {
     let (mut root, _, initial) = f::root_at(Address::Inbox { filter }, &limits());
     let mut out = Queue::uncapped();
     event(&mut root, Event::Went { place: d::Place::Address(Address::Accounts) }, &mut out);

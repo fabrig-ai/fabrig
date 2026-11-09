@@ -73,6 +73,9 @@ pub(crate) fn main(
             b.close();
         }
     }
+    if parts.only {
+        super::only_you::main(b, root, w, bindings);
+    }
     if parts.decided {
         decided(b, root, w, bindings, times);
     }
