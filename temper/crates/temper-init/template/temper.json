@@ -199,7 +199,8 @@
           "hub.run_calls": 48,
           "hub.transcript_bytes": 67215250,
           "hub.turn_bytes": 16803810,
-          "hub.turn_queue_bytes": 134430480
+          "hub.turn_queue_bytes": 134430480,
+          "io.output": 16804602
         }
       }
     }
