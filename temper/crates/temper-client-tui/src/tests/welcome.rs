@@ -61,6 +61,25 @@ enum Expect {
     Elsewhere { words: &'static str },
 }
 #[test]
+fn welcome_commands_wait_until_the_sign_in_lands() {
+    let signed_out = f::signed_out();
+    let (starting, _) = f::starting();
+    let (live, _) = f::live(Some(f::me(&[])));
+    let mut tui = front(None);
+    tui.step(Told::Local { local: Local::Signing });
+    tui.step(Told::CommandWords { value: Box::from(*b"/") });
+    for (root, listed) in [(&signed_out, false), (&starting, false), (&live, true)] {
+        let view = build(root, &tui);
+        assert_eq!(
+            f::count(view.tree(), Role::Menu),
+            usize::from(listed),
+            "link {:?}, list expected {listed}",
+            root.client().link().state
+        );
+    }
+}
+
+#[test]
 #[expect(
     clippy::too_many_lines,
     reason = "one table checks welcome dispatch, link, step facts, words, tokens and bounds"
@@ -421,6 +440,11 @@ fn the_welcomes_are_their_goldens() {
     let following = front(None);
     let first = build(&before, &printed);
     let second = build(&after, &following);
+    let signing = f::signed_out();
+    let mut typed = front(Some(PRINTED));
+    typed.step(Told::Local { local: Local::Signing });
+    typed.step(Told::CommandWords { value: Box::from(*b"fa") });
+    let third = build(&signing, &typed);
     let rows = [
         goldens::Golden {
             name: "welcome-80x24-dark",
@@ -439,6 +463,15 @@ fn the_welcomes_are_their_goldens() {
             size: FULL,
             focus: skein_ui_screen::Focus::default(),
             want: include_bytes!("golden/welcome-steps-80x24-dark.txt"),
+        },
+        goldens::Golden {
+            name: "welcome-typed-80x24-dark",
+            tree: third.tree(),
+            scheme: Scheme::Dark,
+            background: Some(crate::theme::palette(Scheme::Dark)[0].1),
+            size: FULL,
+            focus: skein_ui_screen::Focus::default(),
+            want: include_bytes!("golden/welcome-typed-80x24-dark.txt"),
         },
     ];
     goldens::check(&rows);

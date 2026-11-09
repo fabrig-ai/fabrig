@@ -256,6 +256,18 @@ fn sign_in(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words, wall: Wall)
     }
     tick
 }
+/// The sign-in screen is drawn while signed out with no sign-in from a link under way.
+#[must_use]
+pub fn sign_in_drawn(root: &Domain, tui: &Tui) -> bool {
+    root.client().link().state == Link::SignedOut && tui.local() != Local::Signing
+}
+
+/// The sign-in has not landed: the link is signed out, or `me` is not yet read.
+#[must_use]
+pub fn landing(root: &Domain) -> bool {
+    root.client().link().state == Link::SignedOut || root.pages().me(root.client()).is_none()
+}
+
 /// Rebuild when the root's shown count or the TUI's revision changes, or the tick is reached.
 pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Queue<Patch>) {
     let root_shown = temper_client_domain::shown(root);
@@ -271,8 +283,7 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
     view.page = page_focus(root, tui.address());
     view.focus = view.page.clone();
     view.walkable = has_needs(root);
-    let signed_out = root.client().link().state == Link::SignedOut && tui.local() != Local::Signing;
-    if signed_out {
+    if sign_in_drawn(root, tui) {
         view.selected_event = None;
         view.walkable = false;
         view.left_off.clear();

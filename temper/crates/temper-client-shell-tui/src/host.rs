@@ -426,9 +426,11 @@ impl Host {
                 value = skein_lib::bytes::concat(&[b"n", &value]);
                 self.tell(Told::Cleared);
             }
-            self.tell(Told::Typed { value: value.clone() });
+            if !value.is_empty() {
+                self.tell(Told::EndWalk);
+            }
         }
-        if self.root.client().link().state == Link::SignedOut {
+        if tui::sign_in_drawn(&self.root, self.state()) {
             self.tell(Told::Typed { value });
         } else if self.root.pages().chat().is_some() {
             self.act(Act::MessageWords { words: value });
@@ -558,6 +560,10 @@ impl Host {
     }
 
     fn send(&mut self, duties: &mut Duties) {
+        if tui::landing(&self.root) {
+            self.notice(tui::Notice::SigningIn);
+            return;
+        }
         self.tell(Told::Unknown { words: None });
         self.tell(Told::NotOpened { address: None });
         let words = self.words();
@@ -679,7 +685,11 @@ impl Host {
             && let Some(me) = self.root.pages().me(self.root.client())
             && let Some(project) = me.projects.get(0)
         {
+            let words: Box<[u8]> = self.state().command_words().into();
             self.went(Address::Home { project: project.project });
+            if !words.is_empty() {
+                self.act(Act::ChatWords { words });
+            }
         }
     }
 
