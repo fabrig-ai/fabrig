@@ -40,7 +40,14 @@ repairs the product or says what the story needs.
 
 ## Found
 
-To be written by `reading-place`.
+Both failures were **not reproduced** in 30 named, single-story runs: ten
+without added load and ten with 16 CPU busy loops at `2a399129fe`, then ten
+with the same load at `23261749d4`.
+`unanchored` held `Position paragraph 02.` at its opening measurement in
+every run; its earlier-read pair stayed at y=151, height=24.
+`long` held `Reading paragraph 07.` and reply 8's end at its opening;
+its earlier pair stayed at (144,24), its later pair at (557,19) → (558,19).
+Product and fixture are unchanged; after-landing reproduction remains.
 
 ## Parts and tasks
 
