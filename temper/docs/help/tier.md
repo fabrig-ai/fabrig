@@ -119,7 +119,9 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
   same directories (temper help deployment); set `branch` to another
   branch's name to follow it instead, or to `goal` to follow the goals'
   own branches. Set `span_ms` to keep a tier's runs on one branch at
-  least that many milliseconds apart; none when absent.
+  least that many milliseconds apart; none when absent. Set optional
+  `description` to what it checks: 1 to 120 UTF-8 bytes without control
+  characters, shown as Checks on its card and by `see settings gates`.
 - **The report format:** set `format` to `junit` for JUnit reports or
   `lines` for one failing test id per line.
 - **The workflow** is dispatch-only and takes the inputs

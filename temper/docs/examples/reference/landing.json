@@ -9,8 +9,8 @@
           "repository": 1,
           "gates": [],
           "tiers": [
-            {"name": "slow", "workflow": "tier-slow.yml", "ignored": [], "artifact": "failing", "format": "lines"},
-            {"name": "goal", "workflow": "tier-goal.yml", "ignored": [], "artifact": "failing", "format": "lines", "branch": "goal", "span_ms": 1200000}
+            {"name": "slow", "workflow": "tier-slow.yml", "ignored": [], "artifact": "failing", "format": "lines", "description": "the slow suites"},
+            {"name": "goal", "workflow": "tier-goal.yml", "ignored": [], "artifact": "failing", "format": "lines", "branch": "goal", "span_ms": 1200000, "description": "the gate without its slowest suites"}
           ]
         }
       ]

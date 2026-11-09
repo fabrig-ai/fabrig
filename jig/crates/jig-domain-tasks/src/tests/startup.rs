@@ -206,12 +206,101 @@ fn loaded_delegate(source: &Harness) {
 }
 
 #[test]
-#[should_panic(expected = "restore Live(1): missing task 99")]
-fn a_broken_task_link_panics_at_link() {
-    let mut source = one_task();
+fn a_broken_task_link_refuses_at_link() {
+    type Plant = fn(&mut Harness);
+    let rows: [(Plant, Key, Key); 8] = [
+        (|source| live_row(source).root = UNNAMED, Key::Live(DUE), Key::Live(UNNAMED)),
+        (|source| live_row(source).placed = Some(UNNAMED), Key::Live(DUE), Key::PlacedHold(UNNAMED)),
+        (
+            |source| {
+                live_row(source).proposal = Some(Box::new(crate::Proposal {
+                    number: 1,
+                    proposer: DUE,
+                    project: 1,
+                    as_holder: false,
+                    action: crate::ProposalAction::ReleasePlaced { task: DUE, hold: UNNAMED, revision: 1 },
+                    reason: Box::new([]),
+                    state: crate::ProposalState::Withdrawn,
+                }));
+            },
+            Key::Live(DUE),
+            Key::PlacedHold(UNNAMED),
+        ),
+        (
+            |source| {
+                let hold = placed(crate::Scope::Subtree { task: UNNAMED }, crate::Owner::Party { person: PERSON });
+                source.stored.insert(Key::PlacedHold(1), Stored::PlacedHold(Box::new(hold)));
+            },
+            Key::PlacedHold(1),
+            Key::Live(UNNAMED),
+        ),
+        (
+            |source| {
+                let hold = placed(crate::Scope::Subtree { task: DUE }, crate::Owner::Task { task: UNNAMED });
+                source.stored.insert(Key::PlacedHold(1), Stored::PlacedHold(Box::new(hold)));
+            },
+            Key::PlacedHold(1),
+            Key::Live(UNNAMED),
+        ),
+        (
+            |source| {
+                source.stored.insert(
+                    Key::Writer(1),
+                    Stored::Writer(WriterSlot {
+                        number: 1,
+                        resource: writer_resource(),
+                        writer: Writer::Run { task: UNNAMED, attempt: 1 },
+                        lost: false,
+                    }),
+                );
+            },
+            Key::Writer(1),
+            Key::Live(UNNAMED),
+        ),
+        (|source| live_row(source).funder = crate::Funder::Task(UNNAMED), Key::Live(DUE), Key::Live(UNNAMED)),
+        (
+            |source| {
+                let Some(Stored::Ledger(ledger)) =
+                    source.stored.get_mut(&Key::Ledger(crate::Funder::Period { project: 1, period: 0 }))
+                else {
+                    panic!("ledger fixture")
+                };
+                ledger.parent = Some(crate::Funder::Period { project: 1, period: UNNAMED });
+            },
+            Key::Ledger(crate::Funder::Period { project: 1, period: 0 }),
+            Key::Ledger(crate::Funder::Period { project: 1, period: UNNAMED }),
+        ),
+    ];
+    for (plant, key, target) in rows {
+        let mut source = one_task();
+        plant(&mut source);
+        let mut cold = cold(&source);
+        link_refused(&mut cold, key, crate::RestoreCause::Link { target });
+    }
+}
+
+fn live_row(source: &mut Harness) -> &mut crate::TaskRecord {
     let Some(Stored::Live(row)) = source.stored.get_mut(&Key::Live(DUE)) else { panic!("live fixture") };
-    row.root = UNNAMED;
-    cold(&source).send(Event::Check);
+    row
+}
+
+fn placed(scope: crate::Scope, owner: crate::Owner) -> crate::PlacedHold {
+    crate::PlacedHold {
+        number: 1,
+        project: 1,
+        owner,
+        mode: crate::Mode::Stop,
+        scope,
+        reason: Box::new([]),
+        placed_at: 0,
+        revision: 1,
+        exempt: Box::new([]),
+        lifted: false,
+    }
+}
+
+fn writer_resource() -> Name {
+    Name { connector: 1, path: Box::new([b"writer".as_slice().into()]) }
 }
 
 #[test]
@@ -225,18 +314,24 @@ fn a_stub_is_retained_without_rejudging_reciprocal_references() {
 }
 
 #[test]
-#[should_panic(expected = "restore Writer(1): missing hold owner")]
-fn a_writer_without_a_holder_panics_at_link() {
+fn a_writer_without_a_holder_refuses_at_link() {
     let mut cold = cold(&one_task());
     cold.send(Event::Restore {
         record: Stored::Writer(WriterSlot {
             number: 1,
-            resource: Name { connector: 1, path: Box::new([b"writer".as_slice().into()]) },
+            resource: writer_resource(),
             writer: Writer::Effect { entry: 1 },
             lost: false,
         }),
     });
-    cold.send(Event::Check);
+    link_refused(&mut cold, Key::Writer(1), crate::RestoreCause::Holder { resource: writer_resource() });
+}
+
+fn link_refused(cold: &mut Harness, key: Key, cause: crate::RestoreCause) {
+    refusal(&cold.send(Event::Check), Refusal::Restore);
+    assert_eq!(cold.domain.restore_failure(), Some(crate::RestoreFailure { key, cause }));
+    assert!(!cold.domain.checked());
+    assert!(!cold.domain.ready());
 }
 
 mod detail;

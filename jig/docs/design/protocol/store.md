@@ -2290,6 +2290,20 @@ Each within jig's suites' budgets.
   that and one whole uncertain one, never part of one; no turn readable
   past its commit and none missing before it; numbers that match the
   header; pages equal to a model's.
+- **The core's world on the simulated disk,** for a decision's
+  durability across families (`../domain/engine.md`, 5.1 and 6): the
+  core world's directory-backed store (`jig-test-store-files`), killed
+  at a chosen file operation of a chosen commit, and the engine started
+  again through its link pass. Its rows: a kill at each operation of a
+  decision's commit (after each record's bytes, mid-frame, between
+  families), for a decision that makes a task and the person task
+  linking a person, and one that makes a person and a task linking
+  it; a second kill at each operation of the restart that follows the
+  first, and of the commits after it; a kill at each step of a
+  snapshot with commits racing it; a kill with several commits in
+  flight. Its referee: the start opens, never refused and never a
+  panic, with the last acknowledged decision, or that and one whole
+  uncertain one, never part of one.
 - **Generations and patching,** in the store's world: a fixture owner's
   patch sets over a store at an older level, patched, checked, opened
   `pending`, switched only when its root asks, never before, and a

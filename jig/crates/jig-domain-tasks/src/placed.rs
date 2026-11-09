@@ -556,15 +556,15 @@ pub(crate) fn resumed(was: &crate::Was) -> Phase {
     }
 }
 
-pub(crate) fn link(domain: &Domain) {
+pub(crate) fn link(domain: &Domain) -> Result<(), crate::RestoreFailure> {
     for (number, hold) in &domain.placed {
         let key = Key::PlacedHold(*number);
         if let Some(target) = subtree(hold.scope) {
-            assert!(record(domain, target).is_some(), "restore {key:?}: missing scope task {target}");
+            required(record(domain, target).is_some(), key, Key::Live(target))?;
         }
         match hold.owner {
             Owner::Task { task } => {
-                assert!(record(domain, task).is_some(), "restore {key:?}: missing hold owner task {task}");
+                required(record(domain, task).is_some(), key, Key::Live(task))?;
             }
             Owner::Party { .. } => {}
         }
@@ -572,14 +572,19 @@ pub(crate) fn link(domain: &Domain) {
     for (number, _) in &domain.names {
         let row = record(domain, *number).expect("live task");
         if let Some(hold) = row.placed {
-            assert!(domain.placed_hold(hold).is_some(), "restore Live({number}): missing placed hold {hold}");
+            required(domain.placed_hold(hold).is_some(), Key::Live(*number), Key::PlacedHold(hold))?;
         }
         if let Some(proposal) = &row.proposal
             && let Some((hold, _)) = proposal_hold(&proposal.action)
         {
-            assert!(domain.placed_hold(hold).is_some(), "restore Live({number}): missing proposed hold {hold}");
+            required(domain.placed_hold(hold).is_some(), Key::Live(*number), Key::PlacedHold(hold))?;
         }
     }
+    Ok(())
+}
+
+fn required(found: bool, key: Key, target: Key) -> Result<(), crate::RestoreFailure> {
+    if found { Ok(()) } else { Err(crate::RestoreFailure { key, cause: crate::RestoreCause::Link { target } }) }
 }
 
 pub(crate) fn fits(domain: &Domain, limits: &Limits) -> Result<(), crate::RestoreFailure> {

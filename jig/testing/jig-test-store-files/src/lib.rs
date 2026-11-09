@@ -5,6 +5,6 @@ mod files;
 pub use files::Files;
 mod durable;
 mod store;
-pub use store::{Fault, Pending, Store, component_limits};
+pub use store::{Fault, KillFrom, Pending, Store, component_limits};
 #[cfg(test)]
 mod tests;

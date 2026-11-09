@@ -7,7 +7,7 @@ use temper_engine_domain::{self as engine, Event, PartyInput};
 use temper_engine_domain_world::{direct::Driver, host_tool::host_tool, store::Store, walking};
 
 const SEED: u64 = 9761;
-const NOT_READ: &[u8] = b"not read: no such setting at that revision. This says nothing about the settings: read the inventory and name what it lists; template-goal takes a template number and no project; project-ways and project-questions take project and no number.\nend\n";
+const NOT_READ: &[u8] = b"not read: no such setting at that revision. This says nothing about the settings: read the inventory; project-ways, project-questions, project-words: project, no number; charter-words, template-goal: number, no project.\nend\n";
 
 fn landing_value() -> temper_engine_domain_forge::settings::Value {
     use temper_engine_domain_forge::{GateLast, GatePattern, settings};

@@ -79,6 +79,8 @@ fn valid(kind: u32, bytes: &[u8]) -> bool {
         11 => w::TemplateGoal::decode(&w::CEILINGS, &mut reader).is_ok(),
         6 => w::ProjectQuestions::decode(&w::CEILINGS, &mut reader).is_ok(),
         7 => w::ProjectWays::decode(&w::CEILINGS, &mut reader).is_ok(),
+        9 => w::CharterWords::decode(&w::CEILINGS, &mut reader).is_ok(),
+        10 => w::ProjectWords::decode(&w::CEILINGS, &mut reader).is_ok(),
         _ => false,
     };
     decoded && reader.is_empty()
@@ -165,10 +167,19 @@ pub(crate) fn selector(call: &Call) -> Option<c::Setting> {
     if call.form == 4 {
         let Some(Value::Project(Project::Number(project))) = value(call, 1) else { unreachable!("resolved project") };
         let Some(Value::Word(kind)) = value(call, 0) else { unreachable!("setting kind") };
-        return Some(c::Setting::Application { kind: if *kind == 0 { 7 } else { 6 }, scope: *project, number: 1 });
+        return Some(c::Setting::Application {
+            kind: match *kind {
+                0 => 7,
+                1 => 6,
+                2 => 10,
+                _ => unreachable!("project setting kind"),
+            },
+            scope: *project,
+            number: 1,
+        });
     }
-    if call.form == 2 || call.form == 3 || call.form == 5 {
-        let scope = if call.form == 3 || call.form == 5 {
+    if call.form == 2 || call.form == 3 || call.form == 5 || call.form == 6 {
+        let scope = if call.form == 3 || call.form == 5 || call.form == 6 {
             0
         } else {
             match value(call, 2) {
@@ -178,8 +189,10 @@ pub(crate) fn selector(call: &Call) -> Option<c::Setting> {
             }
         };
         return Some(c::Setting::Application {
-            kind: if call.form == 5 {
+            kind: if call.form == 6 {
                 11
+            } else if call.form == 5 {
+                9
             } else if call.form == 3 {
                 3
             } else if scope == 0 {
@@ -244,10 +257,10 @@ pub const SETTING: Tool = Tool {
         &[
             positional(
                 b"kind",
-                b"project-ways|project-questions",
-                Kind::Word { set: &[b"project-ways", b"project-questions"] },
+                b"project-ways|project-questions|project-words",
+                Kind::Word { set: &[b"project-ways", b"project-questions", b"project-words"] },
                 Required,
-                b"A project's ways or questions",
+                b"A project's ways, questions or words",
             ),
             positional(
                 b"project",
@@ -255,6 +268,23 @@ pub const SETTING: Tool = Tool {
                 Kind::Project { empty: false },
                 Required,
                 b"The project by number or name",
+            ),
+            revision_flag(),
+        ],
+        &[
+            positional(
+                b"kind",
+                b"charter-words",
+                Kind::Word { set: &[b"charter-words"] },
+                Required,
+                b"A charter's words",
+            ),
+            positional(
+                b"number",
+                b"NUMBER",
+                Kind::NumberRange { min: 1, max: 4_294_967_295 },
+                Required,
+                b"The charter's number",
             ),
             revision_flag(),
         ],
@@ -289,9 +319,11 @@ pub(crate) fn name(setting: c::Setting, out: &mut Text) -> bool {
         11 => b"template-goal ",
         6 => b"project-questions ",
         7 => b"project-ways ",
+        9 => b"charter-words ",
+        10 => b"project-words ",
         _ => b"landing-rule ",
     });
-    out.number(u64::from(if kind == 6 || kind == 7 { scope } else { number }));
+    out.number(u64::from(if kind == 6 || kind == 7 || kind == 10 { scope } else { number }));
     if kind == 2 {
         out.put(b" --project ");
         out.number(u64::from(scope));
@@ -300,7 +332,32 @@ pub(crate) fn name(setting: c::Setting, out: &mut Text) -> bool {
 }
 
 mod value;
-pub(crate) use value::render;
+pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut skein_json::writer::Encoder) -> bool {
+    let mut reader = Reader::new(bytes);
+    match kind {
+        9 => {
+            let Ok(value) = w::CharterWords::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            out.string(value.line());
+        }
+        10 => {
+            let Ok(value) = w::ProjectWords::decode(&w::CEILINGS, &mut reader) else { return false };
+            if !reader.is_empty() {
+                return false;
+            }
+            out.object_start();
+            out.key(b"headline");
+            out.string(value.headline());
+            out.key(b"lede");
+            out.string(value.lede());
+            out.object_end();
+        }
+        _ => return value::render(kind, bytes, out),
+    }
+    true
+}
 
 const fn revision_flag() -> crate::jig::table::Argument {
     flag(

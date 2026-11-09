@@ -311,6 +311,18 @@ fn start_failure(failure: &jig_domain_core::start::Failure) -> String {
         }
         Failure::Accounting { key } => format!("accounting refused, key {key:?}"),
         Failure::LlmChoice { key } => format!("LLM choice refused, key {key:?}"),
+        Failure::Link { record, linked } => {
+            use jig_domain_core::start::Linked;
+            let target = match linked {
+                Linked::Record(key) => format!("{key:?}"),
+                Linked::Charter { charter, revision } => format!("charter {charter} at revision {revision}"),
+                Linked::Project(project) => format!("project {project}"),
+                Linked::Connector(connector) => format!("connector {connector}"),
+                Linked::SettingsProposal { proposer, proposal } => format!("settings proposal {proposer:?}/{proposal}"),
+                Linked::Holder(resource) => format!("hold owner for {resource:?}"),
+            };
+            format!("{record:?} links missing {target}")
+        }
     }
 }
 fn page_failure(failure: Option<&jig_protocol_store::restore::Failure>) -> String {
@@ -1385,6 +1397,42 @@ fn start_failures_name_the_set_key_setting_and_measured_limit() {
             "default setting Rules: Reference",
         ),
         (Failure::Accounting { key: key.clone() }, "accounting refused, key Tasks(Live(17))"),
+        (
+            Failure::Link {
+                record: Key::Tasks(jig_domain_tasks::Key::Live(199)),
+                linked: jig_domain_core::Linked::Record(Key::People(jig_domain_people::Key::Person(102))),
+            },
+            "Tasks(Live(199)) links missing People(Person(102))",
+        ),
+        (
+            Failure::Link { record: key.clone(), linked: jig_domain_core::Linked::Charter { charter: 3, revision: 2 } },
+            "Tasks(Live(17)) links missing charter 3 at revision 2",
+        ),
+        (
+            Failure::Link { record: key.clone(), linked: jig_domain_core::Linked::Project(9) },
+            "Tasks(Live(17)) links missing project 9",
+        ),
+        (
+            Failure::Link { record: key.clone(), linked: jig_domain_core::Linked::Connector(9) },
+            "Tasks(Live(17)) links missing connector 9",
+        ),
+        (
+            Failure::Link {
+                record: key.clone(),
+                linked: jig_domain_core::Linked::SettingsProposal {
+                    proposer: jig_domain_people::Proposer::Party(1),
+                    proposal: 4_294_967_296,
+                },
+            },
+            "Tasks(Live(17)) links missing settings proposal Party(1)/4294967296",
+        ),
+        (
+            Failure::Link {
+                record: Key::Tasks(jig_domain_tasks::Key::Writer(1)),
+                linked: jig_domain_core::Linked::Holder(jig_domain_tasks::Name { connector: 1, path: Box::new([]) }),
+            },
+            "Tasks(Writer(1)) links missing hold owner for Name { connector: 1, path: [] }",
+        ),
         (Failure::LlmChoice { key }, "LLM choice refused, key Tasks(Live(17))"),
     ] {
         assert_eq!(start_failure(&failure), words);
