@@ -313,9 +313,10 @@ a TUI in from the file and a browser by the printed link in either
 order, and a second TUI by the next local link (section 10). The base
 uses the terminal's default colours,
 focus uses the accent, active command names are plain while inactive names
-and question choices stay bold, and the run chooses its scheme from COLORFGBG,
-else OSC 11 with a 200 ms wait, else dark, before Start, asking the
-background at every start and carrying the answer in Start. Section 10's
+and question choices stay bold, and the run takes the terminal's scheme from COLORFGBG,
+else OSC 11 with a 200 ms wait, else none, before Start, asking the
+background at every start and carrying the answer in Start; Auto draws
+dark where it is none. Section 10's
 frame goldens, host rows, simulated loop and joined-client stories are
 present. The simulated run checks a runtime link outside fresh TUI state
 roots, the launchpad without input, no approval request and
@@ -324,8 +325,6 @@ across fresh state directories and explicit configuration/cache paths.
 Section 11 keeps the flags, design-location cleanup, terminal
 and macOS checks, later surfaces and the expiry/revocation ambiguity;
 no real-terminal or macOS runtime result is supplied here.
-
-
 
 Sections 2, 6.11 and 6.12 have the clients' start, one for two binaries:
 `temper [ADDRESS]` and `temper-client [ADDRESS]` run
@@ -346,9 +345,7 @@ Sections 6.13 and 6.14's no-project command composer has no known
 implementation gap. The host's focused key-and-frame regression covers
 completion, command execution, Escape, ordinary words, quit keys,
 revision stability, navigation and separation from the sign-in field.
-The help pages name the closing command and Ctrl+C as closing keys and `q` as typing.
-
-
+`temper help tui` names `/quit`, `/exit` working too, and Ctrl+C as closing keys and `q` as typing.
 
 Sections 6.12 to 6.15's parts from the user's requests of 2026-11-08 and
 the look request `tui-chat-title-below` have no known implementation gap:
@@ -368,7 +365,67 @@ with its address as the place, under the person's opening question
 of each, "box" among them, is section 11's after-landing check, owned by
 temper/tui.
 
+Sections 6.13 to 6.17's parts from the user's requests of 2026-11-09
+have no known implementation gap but the two entries below. Typed
+before the sign-in lands: a key goes to the link's field only while
+`sign_in_drawn` holds, else to the box, the welcome and "Connecting"
+among them; the link's changes keep the box's words; the host's going to
+the launchpad from the start's address carries the no-project box's
+words into Home's composer; and while `landing` holds the box opens no
+list and Enter keeps its words, sends nothing and gives the notice
+"Still signing in". The notice: `Notice`'s `Unknown`, `SigningIn` and
+`Theme` stand alone in the quiet line's right half (`tui-signal`) over
+the box's state, "playground", "paused", the count and "n to walk", and
+first, at the row's start, where the row is too narrow; the sign-in
+screen draws none; the host keeps its end, `limits::NOTICE` from the
+report that gave it, among `Host::deadline`'s times, and a due at or
+past it lowers it; an unknown command and `/chats N` with no Nth chat
+give it and write no note. `/quit`: `QUIT` and `command_name` name
+`Command::Exit` in the list, completion and `/help`'s note, in front
+too; `/exit` sent whole is the same command, and its beginnings begin
+none. `/theme`: `Own::Theme` wherever the commands are offered, its
+list headed "Theme. Auto follows your terminal.", Auto with what it
+reads (light or dark as the terminal says, or "dark: your terminal
+doesn't say"), the chosen theme active, Esc and typing lowering it;
+taking one gives the root `LookKept` in its scheme, saves the one
+record `theme` after the root's requests and gives its notice; the
+host takes `theme` out of `Start.kept`, reads an unreadable one as
+Auto, and gives the root only the answers to the root's writes.
+`Start.scheme` is none where the terminal says none, and the
+recording's `screen` reads and writes `none`. The box's ink:
+`tui-field` names a focused value's paint of `Paint::NONE`, so the
+accent lies on "❯" alone, the sign-in's link field keeping the focus's
+paint, and the goldens and the journeys' frames draw the box's words
+in the terminal's ink. The state rows (`link_changes_keep_the_command_composers_words`,
+`the_theme_list_steps`), the foot's `notice_states`,
+`the_theme_list_reads_the_terminal_and_selected_choice` and
+`a_theme_notice_says_the_choice_and_terminals_word`, the commands'
+prefix rows and `theme_is_own_on_every_screen`, the goldens
+`foot-notice-80x24-dark`, `foot-notice-40x12-dark`,
+`foot-theme-80x24-dark`, `foot-theme-answered-80x24-dark` and
+`welcome-typed-80x24-dark`, and the host's
+`keys_typed_during_the_file_sign_in_stay_in_the_box`,
+`a_notice_stands_six_seconds_and_a_newer_replaces_it`,
+`the_theme_list_takes_keeps_and_notices_a_choice`,
+`a_kept_theme_starts_the_next_host_in_it` and
+`a_theme_write_answer_never_reaches_the_root` hold them. The theme kept
+for the next run is held at the host, started with a kept `theme`
+record; no run's test reads one back through the native shell's files,
+which jig's `jig-client-shell-native` writes record by record. No real
+terminal has shown any of it: the check, emacs vterm among them, is
+section 11's after-landing work, owned by temper/tui.
 
+- **Not yet:** 6.17, *`/log`*: in front, Enter on the welcome's box
+  with words that name no command, or with none, sends nothing and
+  leaves `/log`'s note standing, where 6.17 has it stand until the next
+  send or screen; a send that clears the box (`Told::Cleared`) and
+  another screen lower it (`temper-client-shell-tui`'s `host.rs`,
+  `send`).
+- **Not yet:** 6.14, *`/quit`*: the commands reference's notes for bare
+  `temper` (`temper-shell`'s `rows.rs`, printed into
+  `../../help/reference/commands.md` and held by `temper`'s
+  `tests/help.rs`) say "`/exit` or Ctrl+C closes it", where
+  `temper help tui` and the TUI's list name `/quit`.
 
 Sections 4.6 and 6.17 have no known implementation gap in the TUI in
 front of a box, by the look request `tui-box-front` (its account
@@ -391,8 +448,6 @@ restarting"), where the request's frame 05 has "forge restarting", and
 `again` (`tui/journeys.status.md`, 8.3), and the real terminal's check,
 Linux and macOS, is section 11's after-landing work, owned by temper/tui.
 
-
-
 Section 6.14's shared words and lists, Home's template-5 composer,
 launchpad and chat, question choices and command handling have no known
 implementation gap, including section 5.15's initial history for short
@@ -412,8 +467,6 @@ The shared reader still reparses closed blocks; the gap from the user's
 read-once requirement remains section 11's parsed-block work and
 `../draft/chat-reading.status.md`, 3. Request differences remain explicit
 in `../draft/tui.status.md`; no rendered-equality result is supplied.
-
-
 
 Sections 6.13 to 6.15 and 10 have no known implementation gap in the
 launchpad as drawn and views printed (`../draft/surfaces.md`, 11.1,
@@ -450,8 +503,6 @@ mockups is `../draft/surfaces.status.md`.
   the first section stands on the row under the header's frame (the
   launchpad's goldens and `launchpad-drawn`), as the look request
   `tui-launchpad`'s build left it (`../draft/tui.status.md`).
-
-
 
 Sections 3.5, 4.6, 5.8 and 5.13 have the approvals watch and wire document,
 the merge into Needs you, project and goal filters, Home and goal bands,
