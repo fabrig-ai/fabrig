@@ -36,6 +36,7 @@ fn a_worker_s_hello_reaches_the_fleet_with_its_bounds() {
             message_bytes: 128,
             inbox: 4,
             unacknowledged: 2,
+            reply_bytes: None,
         }
     );
 }

@@ -484,7 +484,7 @@ fn render_host(
         tool,
         bytes,
         key.task,
-        engine.env.limits.host_reply_bytes.unwrap_or(u32::MAX),
+        engine.domain.reply_bound(key).unwrap_or(u32::MAX),
     ));
     if let Some(reason) = temper_engine_smith::unasked_kind(answer) {
         engine.notes.push(crate::Note::ReadRefused {

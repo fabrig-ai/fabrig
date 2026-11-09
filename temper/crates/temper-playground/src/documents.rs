@@ -335,6 +335,7 @@ pub fn agent() -> temper_service::settings::Agent {
         message_bytes: 1024,
         inbox: 8,
         unacknowledged: 8,
+        reply_bytes: None,
     };
     temper_service::settings::Agent {
         run_limits: limits.domain.run,

@@ -141,13 +141,24 @@ fn coordinator() -> (Driver, engine::Assignment) {
 
 #[expect(clippy::large_types_passed_by_value, reason = "the fixture takes Copy limits for one configured coordinator")]
 fn coordinator_within(bounds: engine::Limits) -> (Driver, engine::Assignment) {
+    coordinator_on(bounds, None)
+}
+
+#[expect(clippy::large_types_passed_by_value, reason = "the fixture takes Copy limits for one configured coordinator")]
+fn coordinator_on(bounds: engine::Limits, worker: Option<u32>) -> (Driver, engine::Assignment) {
     use temper_engine_domain_world::{protocol, store::Store};
     let mut driver = Driver::configured(
         Store::with_limits(&bounds),
         [super::added_deps::configuration(), super::added_deps::configuration()],
         &bounds,
     );
-    driver.send(protocol::hello_slots(Token::new(7), bounds.fleet.slots, Box::new([])));
+    driver.send(protocol::hello_with(
+        Token::new(7),
+        0,
+        bounds.fleet.slots,
+        jig_domain_link::Bounds { reply_bytes: worker, ..protocol::bounds() },
+        Box::new([]),
+    ));
     driver.settle();
     driver.sign_in();
     driver.settle();
@@ -1766,6 +1777,7 @@ fn person_fallback_refusals(world: &mut PersonWorld, goal: &engine::Assignment) 
 // temper/docs/design/domain/root.md, 5.2.
 const WINDOW: u32 = 512;
 const REPLY: u32 = 2048;
+const SMALL: u32 = 1024;
 
 fn read_room_bounds(reply: Option<u32>) -> engine::Limits {
     let mut bounds = super::added_deps::limits();
@@ -1779,8 +1791,8 @@ fn read_room_bounds(reply: Option<u32>) -> engine::Limits {
     bounds
 }
 
-fn read_whole(driver: &mut Driver, run: &engine::Assignment, child: u64) -> (Vec<u8>, u32) {
-    read_task_whole(driver, run, child, "specification", REPLY)
+fn read_whole(driver: &mut Driver, run: &engine::Assignment, child: u64, render: u32) -> (Vec<u8>, u32, usize) {
+    read_task_whole(driver, run, child, "specification", render)
 }
 
 fn read_task_bytes(piece: &str) -> Vec<u8> {
@@ -1806,21 +1818,26 @@ fn read_task_whole(
     child: u64,
     field: &str,
     reply: u32,
-) -> (Vec<u8>, u32) {
+) -> (Vec<u8>, u32, usize) {
     let tool_bytes = u32::try_from(b"read_task".len()).expect("tool name fits u32");
     let maximum = reply.min(driver.env.limits.call_answer_bytes.saturating_sub(tool_bytes));
     let mut words = Vec::new();
     let mut calls = 0;
+    let mut first = 0;
     loop {
         let from = words.len();
         let input = format!(r#"{{"task":{child},"field":"{field}","from":{from}}}"#);
         let answer = decoded_task_call(driver, run, 100 + u64::from(calls), b"read_task", input.as_bytes());
         let engine::CallAnswer::TaskRead(result) = &answer else { panic!("task read") };
         let read = result.as_ref().as_ref().expect("successful read through the journal door");
+        if calls == 0 {
+            first = read.words.bytes.len();
+        }
         let counted = u64::try_from(size_of_val(result.as_ref())).expect("task-read carrier fits u64")
             + jig_domain_core::reads::run_task::owned_bytes(read);
         assert!(counted <= u64::from(driver.env.limits.journal.transcript_bytes));
-        let word_room = driver.env.limits.host_reply_bytes.unwrap_or(driver.env.limits.documents.text_bytes);
+        let key = jig_domain_core::CallKey { task: run.task, attempt: run.attempt, completion: 1, position: 0 };
+        let word_room = driver.root.reply_bound(key).unwrap_or(driver.env.limits.documents.text_bytes);
         assert!(read.words.bytes.len() <= usize::try_from(word_room).expect("word room fits usize"));
         assert!(read.words.bytes.len() <= usize::try_from(driver.env.limits.call_answer_bytes).expect("call room"));
         let rendered = temper_engine_smith::answer_for_tool(&answer, b"read_task", maximum);
@@ -1836,62 +1853,100 @@ fn read_task_whole(
             assert_eq!(next.parse::<usize>().expect("next byte offset"), words.len(), "follow the printed next");
         } else {
             words.extend_from_slice(&read_task_bytes(body));
-            return (words, calls);
+            return (words, calls, first);
         }
         assert!(calls < 20, "read makes progress");
     }
 }
 
-#[test]
-fn a_run_reads_a_spec_past_the_clients_window_in_one_call() {
-    let (mut driver, run) = coordinator_within(read_room_bounds(Some(REPLY)));
-    let spec = vec![b's'; 1500];
-    let child = coordinator_delegates(&mut driver, &run, 10, &[&spec], None)[0];
-    let (words, calls) = read_whole(&mut driver, &run, child);
-    assert_eq!(words, spec);
-    assert_eq!(calls, 1, "a spec within the reply comes back whole");
+/// A read-room row (temper/docs/design/domain/root.md, 5.2): the local
+/// agent's bound, the one the run's worker names, the spec, and what the
+/// root answers: its reply bound, the first page's word bytes where
+/// pinned, and the calls to read it whole where pinned.
+struct ReadRoom {
+    case: &'static str,
+    local: Option<u32>,
+    worker: Option<u32>,
+    spec: usize,
+    bound: Option<u32>,
+    first: Option<usize>,
+    calls: Option<u32>,
 }
 
 #[test]
-fn a_spec_past_the_room_continues_by_offset_and_comes_back_whole() {
-    let (mut driver, run) = coordinator_within(read_room_bounds(Some(REPLY)));
-    let spec = b"the specification ".repeat(278);
-    let spec = &spec[..5000];
-    let child = coordinator_delegates(&mut driver, &run, 10, &[spec], None)[0];
-    let (words, calls) = read_whole(&mut driver, &run, child);
-    assert_eq!(words, spec);
-    assert_eq!(calls, 3);
-    let (mut driver, run) = coordinator_within(read_room_bounds(None));
-    let child = coordinator_delegates(&mut driver, &run, 10, &[spec], None)[0];
-    let (words, calls) = read_whole(&mut driver, &run, child);
-    assert_eq!(words, spec);
-    assert_eq!(calls, 10);
-}
-
-#[test]
-fn without_a_local_agents_reply_a_read_stays_in_the_documents_window() {
-    let (mut driver, run) = coordinator_within(read_room_bounds(None));
-    let spec = vec![b's'; 1500];
-    let child = coordinator_delegates(&mut driver, &run, 10, &[&spec], None)[0];
-    let input = format!("{{\"task\":{child}}}");
-    let answer = decoded_task_call(&mut driver, &run, 100, b"read_task", input.as_bytes());
-    let engine::CallAnswer::TaskRead(result) = answer else { panic!("task read") };
-    let read = result.expect("task read succeeds");
-    assert_eq!(read.words.bytes.len(), usize::try_from(WINDOW).unwrap());
-    assert_eq!(read.words.next, Some(u64::from(WINDOW)));
-}
-
-#[test]
-fn a_read_stays_within_the_journal_bound() {
-    let mut bounds = read_room_bounds(Some(REPLY));
-    // The local reply exceeds the journal; each typed answer must fit the door.
-    bounds.host_reply_bytes = Some(65_536);
-    assert!(bounds.journal.transcript_bytes < bounds.host_reply_bytes.unwrap());
-    let (mut driver, run) = coordinator_within(bounds);
-    let spec = vec![b's'; 5000];
-    let child = coordinator_delegates(&mut driver, &run, 10, &[&spec], None)[0];
-    let (words, _) = read_whole(&mut driver, &run, child);
-    assert_eq!(words, spec);
+fn task_reads_take_their_workers_reply_bound() {
+    for row in [
+        ReadRoom {
+            case: "no bound named: the documents' window",
+            local: None,
+            worker: None,
+            spec: 5000,
+            bound: None,
+            first: Some(512),
+            calls: Some(10),
+        },
+        ReadRoom {
+            case: "the local agent's bound where the worker names none",
+            local: Some(REPLY),
+            worker: None,
+            spec: 1500,
+            bound: Some(REPLY),
+            first: Some(1500),
+            calls: Some(1),
+        },
+        ReadRoom {
+            case: "a spec past the local agent's room continues by offset",
+            local: Some(REPLY),
+            worker: None,
+            spec: 5000,
+            bound: Some(REPLY),
+            first: None,
+            calls: Some(3),
+        },
+        ReadRoom {
+            case: "the worker's bound past the documents' window",
+            local: None,
+            worker: Some(REPLY),
+            spec: 1500,
+            bound: Some(REPLY),
+            first: Some(1500),
+            calls: Some(1),
+        },
+        ReadRoom {
+            case: "the worker's smaller bound over the local agent's",
+            local: Some(REPLY),
+            worker: Some(SMALL),
+            spec: 1500,
+            bound: Some(SMALL),
+            first: Some(1024),
+            calls: Some(2),
+        },
+        ReadRoom {
+            case: "the journal bound holds a worker's large bound",
+            local: None,
+            worker: Some(65_536),
+            spec: 5000,
+            bound: Some(65_536),
+            first: None,
+            calls: None,
+        },
+    ] {
+        let limits = read_room_bounds(row.local);
+        assert!(limits.journal.transcript_bytes < 65_536);
+        let (mut driver, run) = coordinator_on(limits, row.worker);
+        let key = jig_domain_core::CallKey { task: run.task, attempt: run.attempt, completion: 1, position: 0 };
+        assert_eq!(driver.root.reply_bound(key), row.bound, "{}", row.case);
+        let spec = b"the specification ".repeat(278)[..row.spec].to_vec();
+        let child = coordinator_delegates(&mut driver, &run, 10, &[&spec], None)[0];
+        let (words, calls, first) = read_whole(&mut driver, &run, child, row.bound.unwrap_or(REPLY));
+        assert_eq!(words, spec, "{}", row.case);
+        if let Some(pages) = row.calls {
+            assert_eq!(calls, pages, "{}", row.case);
+        }
+        if let Some(page) = row.first {
+            assert_eq!(first, page, "{}", row.case);
+        }
+    }
 }
 
 // temper/docs/design/domain/root.md, 5.2 and domain/agent.md, 4.3.
@@ -1921,7 +1976,7 @@ fn a_goal_reads_a_whole_design_result_in_practical_pages() {
         );
         let child = retain_report(&mut driver, &run, report.as_bytes());
         let applied = driver.store.applied;
-        let (words, calls) = read_task_whole(&mut driver, &run, child, "result", PRACTICAL_REPLY);
+        let (words, calls, _) = read_task_whole(&mut driver, &run, child, "result", PRACTICAL_REPLY);
         assert_eq!(words, report.as_bytes(), "the handoff includes the complete coding spec and tail");
         assert_eq!(calls, pages, "result pages use the admitted reply room rather than the client window");
         let input = format!(r#"{{"task":{child},"field":"result","from":{}}}"#, report.len() + 1);

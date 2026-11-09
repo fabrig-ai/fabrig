@@ -48,6 +48,7 @@ fn opened() -> Event {
             message_bytes: 1,
             inbox: 1,
             unacknowledged: 1,
+            reply_bytes: None,
         },
         jobs: Box::new([BOUND]),
     }

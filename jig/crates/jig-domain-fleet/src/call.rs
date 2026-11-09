@@ -80,6 +80,16 @@ fn named(domain: &Domain, run: Token, attempt: Token) -> Option<Id<Attempt>> {
     }
 }
 
+/// The reply bound of the host in contact holding this live claim
+/// (jig/docs/design/domain/engine.md, section 8).
+pub(crate) fn reply_bound(domain: &Domain, run: Token, attempt: Token) -> Option<u32> {
+    let id = named(domain, run, attempt)?;
+    match live(domain, id) {
+        Live::On(channel) => domain.channels.get(*domain.tokens.get(&channel)?)?.evidence.reply_bytes,
+        Live::Adrift | Live::Not => None,
+    }
+}
+
 /// Only the worker currently hosting the live claim may originate inputs.
 pub(crate) fn owned(domain: &Domain, channel: Token, run: Token, attempt: Token) -> Option<Id<Attempt>> {
     let id = named(domain, run, attempt)?;

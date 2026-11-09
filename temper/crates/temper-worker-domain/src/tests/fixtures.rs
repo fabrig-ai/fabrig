@@ -104,6 +104,7 @@ pub fn limits() -> Limits {
             message_bytes: 96,
             inbox: 2,
             unacknowledged: 2,
+            reply_bytes: None,
         },
         stop_bound: Duration::from_secs(20),
     }
