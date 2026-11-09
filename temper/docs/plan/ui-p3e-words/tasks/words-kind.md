@@ -1,0 +1,170 @@
++++
+id = "words-kind"
+part = "words"
+kind = "feature"
+needs = ["words-value"]
+files = [
+  "temper/crates/temper-client-protocol-wire/src/lib.rs",
+  "temper/crates/temper-engine-smith/src/kinds.rs",
+  "temper/crates/temper-engine-smith/src/settings.rs",
+  "temper/crates/temper-engine-smith/src/see.rs",
+  "temper/crates/temper-engine-smith/src/calls.rs",
+  "temper/crates/temper-engine-smith/src/tests/kinds.rs",
+  "temper/crates/temper-engine-smith/src/tests/settings.rs",
+  "temper/crates/temper-engine-smith/src/tests/see.rs",
+  "temper/crates/temper-service/src/stock/kinds.rs",
+  "temper/crates/temper-service/src/tests/stock.rs",
+  "temper/crates/temper-service/src/clients/translation.rs",
+  "temper/crates/temper-engine-domain/src/route/kinds.rs",
+  "temper/crates/temper-engine-domain/src/route/see.rs",
+  "temper/crates/temper-engine-domain/src/route/host_route.rs",
+  "temper/crates/temper-engine-domain/src/tests/kinds.rs",
+  "temper/tests/engine/domain/tests/suite/configuring.rs",
+  "temper/crates/temper-settings-form/src/**",
+  "temper/docs/help/reference/settings-fields.md",
+  "temper/docs/design/protocol/configuration.status.md",
+  "temper/docs/design/domain/agent.status.md",
+  "temper/docs/design/client/tools.status.md",
+]
+effort = "high"
+minutes = 150
++++
+
+# Kinds 9 and 10 declared, read and proposed: `charter-words` and `project-words`
+
+## Goal
+
+A charter's words and a project's words become settings owners change and people
+read, as kinds 6 and 7 are: the stock declares them to jig, the client wire's
+entrances take their records, a project's party reads kind 10 in its scope, a
+settings file names them `charter-words` and `project-words`, and a run's
+`settings`, `see` and `propose_settings` read and propose them. After this task an
+owner's change of kind 9 or 10 is kept and read back.
+
+Acceptance, by `temper/docs/design/protocol/configuration.md`, 13.2 (the table, *A
+setting's words*, *Read from the forge*), `temper/docs/design/domain/agent.md`,
+8.1 and 8.4.1 (the kinds' names and `see`'s addresses), and
+`temper/docs/design/client/tools.md`, 5.3 (*Settings FILE is JSON*):
+
+1. **Declared** (`temper/crates/temper-service/src/stock/kinds.rs`), as
+   `temper/docs/plan/ui-p3e-words/notes/contracts.md`, section 4, has it: kind 9
+   `KindScope::Deployment`, its `value_bytes` the size of a `CharterWords` at 120
+   bytes, `per_scope` `limits.tasks.charters`, `charters` 0; kind 10
+   `KindScope::Project`, its `value_bytes` the size of a `ProjectWords` at 120
+   and 480 bytes, `per_scope` 1, `charters` 0.
+2. **The wire's entrances:** `settings_kind`
+   (`temper-client-protocol-wire/src/lib.rs`) takes 9 and 10.
+3. **Smith's codec:** `kinds.rs`' `decode` of kind 9 reads a `v1::CharterWords`
+   whole and of kind 10 a `v1::ProjectWords` whole (trailing bytes refused) into
+   `words-value`'s values; `encode` and `size` as `words-value` left them.
+4. **Its names:** smith's `settings.rs` takes `charter-words`, a `number`
+   required and no `project`, as `forge-charter` is, and `project-words`, a
+   `project` required and no number (number 1 implied), as `project-ways` is; its
+   unknown-setting guidance names them; the setting-kind enums and the
+   `number`/`project` descriptions of the three schemas in `calls.rs`
+   (`propose_settings`, the `settings` read, the asking `propose_settings`) gain
+   them; `see.rs`' `ADDRESSES`, `INVENTORY` and the ways' follow-ups name
+   `settings charter-words N` and `settings project-words`, as
+   `temper/docs/design/domain/agent.md`, 8.4.1 has them.
+5. **The root's reads:** `route/kinds.rs`' `read_refusal` takes kind 10 in a
+   project's scope, current and by revision, as 2, 6 and 7; `route/see.rs` parses
+   `settings charter-words N` and `settings project-words`; `route/host_route.rs`'
+   newest-settings fallback answers kind 9 from `domain.forge.setting(9, 0, N)`
+   where jig knows none, as it answers kind 2. Where neither jig nor the forge
+   holds kind 9 or 10, the answer says in words that none is kept (`charter-words
+   N: none kept; Roles says the charter by its instructions' first sentence.`,
+   `project-words: none kept; How work runs says the way's own words.`), not the
+   unknown-setting error, wherever the settings answer's text is made for it.
+6. **The settings form** (`temper-settings-form`): the SETTINGs
+   `{"kind": "charter-words", "number": N}` and `{"kind": "project-words",
+   "project": P}`, and their VALUEs, a charter's words a JSON string, a
+   project's words `{"headline": STRING, "lede": STRING}`, both members required,
+   parsed, refused and rendered as kinds 3 and 7 are, their shapes, choices,
+   fields and lines in the form's tables; a value past its record's bound refused
+   as the form refuses one past `wire value bound`. Smith's selectors and
+   proposals reach them through the form, as kinds 6 and 7 do: no second parser
+   in smith. `temper/docs/help/reference/settings-fields.md` regenerated by its
+   test (`notes/common.md`).
+7. **Rows,** no new test function:
+   - smith: the round-trip values table and its size test (`tests/kinds.rs`), a
+     row each for 9 and 10; `tests/settings.rs`' typed proposal and
+     project-required cases, a `charter-words` row and a `project-words` row, and
+     `charter-words` with a `project` and `project-words` with a `number` refused;
+     `tests/see.rs`' address table, the two addresses;
+   - the service: the declarations table (`tests/stock.rs`, where kinds 6 and 7
+     are listed with their bounds), rows for 9 and 10; the typed boundary test in
+     `clients/translation.rs`, a row each;
+   - the root: `tests/kinds.rs`' membership and read table, `[2, 6, 7]` becoming
+     `[2, 6, 7, 10]`, and a party of another project refused kind 10;
+   - the form: `fields/tests.rs`' shapes and rendered kinds;
+     `settings_file_tests.rs`' whole-record round trip, selector rules and
+     malformed values: a line of 120 bytes; a project's words at 120 and 480; a
+     121-byte line and a project's words without `lede` refused;
+   - the engine world's `configuring.rs`: the asking reads of each kind and the
+     address inventory, the two kinds' rows; and one row where an owner's
+     `ChangeSettings` sets charter 4's words and the project's words, and a
+     member reads both back through `see settings charter-words 4` and `see
+     settings project-words`, and before it `see settings project-words` says
+     none is kept. Not `settings/kinds.rs`, which another plan changes.
+8. **Bites:** drop kind 10 from `read_refusal`, see the read row fail; let the
+   form take a `project-words` without `lede`, see its row fail; restore each.
+9. **Status:** delete the bullets naming `words-kind` in
+   `temper/docs/design/protocol/configuration.status.md` (13.2),
+   `temper/docs/design/domain/agent.status.md` (8.1, 8.4.1) and
+   `temper/docs/design/client/tools.status.md` (5.3, the settings file's forms)
+   (`notes/common.md`, *Status files*).
+
+## Inputs
+
+- `temper/docs/design/protocol/configuration.md`, 13.2 and 13.4 (*A project's
+  kinds 6, 7 and 10 have no row in the stock*).
+- `temper/docs/design/domain/agent.md`, 8.1 (*The kinds it reads and proposes*,
+  a read with none stored) and 8.4.1 (the `settings` rows).
+- `temper/docs/design/client/tools.md`, 5.3, *Settings FILE is JSON*.
+- `temper/docs/plan/ui-p3e-words/notes/contracts.md`, sections 1, 3 and 4.
+- `temper/docs/plan/ui-p3e-words/notes/common.md`.
+- The code, kinds 6 and 7 end to end as the model: `rg -n 'project-ways' temper/crates`
+  finds every place a name is taken; `rg -n '6 \| 7|kind == 7' temper/crates/temper-engine-domain/src/route`
+  the root's.
+
+## Owns and may change
+
+- Owns: the two kinds' declarations, entrances, decode, names, reads and `see`
+  addresses, the settings form's two kinds, the rows and the status bullets.
+- Not yours: `temper/crates/temper-service/src/stock/ask.txt` (`ask-words` names
+  the kinds there; `see.rs`' `ADDRESSES` may run ahead of it until then), the
+  stock's kind 9 defaults (`charter-lines`), `temper ctl settings show` and the
+  help pages (`words-tools`), the ways (`way-headlines`, `project-words-read`) and
+  the client (`how-words`).
+- The stock first-request room (`tests/stock_brief.rs`, 16,384 bytes) reads the
+  declared tools' schemas: if the schemas' new words push a request past it, stop
+  with `Question:`, naming the figure; never shorten another tool's words.
+- ui-reaches' kind 8 (`project-classes`) walks the same lists: if a catch-up meets
+  it, keep both, 8 theirs and 9 and 10 yours.
+- **The engine world's owner change** needs a fixture the file lacks: build it
+  beside its siblings' (kind 7's) and name it.
+
+## Steps
+
+1. Read the inputs; the declarations, `settings_kind`, smith's decode and names,
+   the form's kind 7; their rows.
+2. The declaration, entrances, decode and form; their rows (`heavy cargo nextest
+   run -p temper-settings-form`, `-p temper-engine-smith --lib`).
+3. The root's reads and `see`; their rows and the bite.
+4. The engine world's rows (`heavy cargo nextest run -p temper-engine-domain-world
+   --test suite -E 'test(/configuring/)'`).
+5. Runs, counts in the report: the focused tests of `-p temper-engine-smith`, `-p
+   temper-service`, `-p temper-engine-domain`, `-p temper-engine-domain-world`,
+   `-p temper-client-protocol-wire` and `-p temper-settings-form`, and `temper`'s
+   settings-fields reference test by name; `heavy cargo check --tests -p
+   temper-client-tools -p temper-client-domain -p temper-client-view -p temper`.
+6. `cargo fmt`; `python3 -I -B temper/scripts/old_forms.py`; `heavy cargo clippy`
+   for every package changed, `--all-targets -- -D warnings`.
+7. Commit (why, in the message); `python3 -I -B tools/citations/citations.py --base
+   origin/main`; push.
+
+## Report
+
+As the implementer's text says, and: the two kinds' bounds in bytes, the names and
+addresses added, the "none kept" words and where they are made, the rows and the
+bites, the runs' counts.

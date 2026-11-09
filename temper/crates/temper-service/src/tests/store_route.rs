@@ -601,6 +601,7 @@ fn loaded_tail(transcript: Box<[u8]>) -> Box<[u8]> {
     route::up(
         &mut routes,
         store::Event::Turns {
+            cut: None,
             owner,
             turns: Box::new([core::TurnRecord {
                 task: 7,

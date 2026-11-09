@@ -123,6 +123,8 @@ fn a_chat_past_the_resume_limit_starts_fresh() {
 
 // The reference root asks resume_bytes (256), below the store page bound.
 const WINDOW_ROOM: usize = 256;
+// Fixed turn metadata with read=None, plus the 12-byte frame wrapper (store.md, 8.6).
+const WINDOW_FRAME_FIELDS: usize = 56;
 // A protocol rendering need not retain opaque replay bytes; ten text bytes per turn
 // leaves both neighbours and the cut marker within the fixture's 128-byte tail.
 fn window_text(body: &[u8]) -> Option<Box<[u8]>> {
@@ -152,16 +154,17 @@ fn window_page_case(seed: u64, bodies: &[&[u8]], resume: bool, tail: Option<&[u8
     assert_eq!(fresh_windows::tail(&world), tail);
 }
 
-fn a_window_turn_just_inside_the_room_resumes_whole() {
-    window_page_case(171, &[&[b'a'; WINDOW_ROOM - 4]], true, None);
-}
-
-fn a_window_turn_at_the_room_starts_fresh_with_text() {
-    window_page_case(172, &[&[b'a'; WINDOW_ROOM]], false, Some(b"aaaaaaaaaa"));
+fn a_window_turn_charging_exactly_the_room_resumes_whole() {
+    window_page_case(171, &[&[b'a'; WINDOW_ROOM - WINDOW_FRAME_FIELDS]], true, None);
 }
 
 fn a_window_turn_just_past_the_room_starts_fresh_with_a_marker() {
-    window_page_case(173, &[&[b'a'; WINDOW_ROOM + 1]], false, Some(b"[a turn too large to load]\n"));
+    window_page_case(
+        173,
+        &[&[b'a'; WINDOW_ROOM - WINDOW_FRAME_FIELDS + 1]],
+        false,
+        Some(b"[a turn too large to load]\n"),
+    );
 }
 
 fn a_large_tool_turn_keeps_its_place_between_other_texts() {
@@ -578,8 +581,7 @@ fn runs_scenarios() {
     crate::bundle::case!(bundle, 105, loaded_transcript_pages_reject_repeated_and_reversed_turns);
     crate::bundle::case!(bundle, 106, an_unusable_transcript_fails_transient_and_the_next_conversation_starts_fresh);
     crate::bundle::case!(bundle, 107, settled_answers_resume_in_commit_order_and_a_replay_preserves_exact_bytes);
-    crate::bundle::case!(bundle, 171, a_window_turn_just_inside_the_room_resumes_whole);
-    crate::bundle::case!(bundle, 172, a_window_turn_at_the_room_starts_fresh_with_text);
+    crate::bundle::case!(bundle, 171, a_window_turn_charging_exactly_the_room_resumes_whole);
     crate::bundle::case!(bundle, 173, a_window_turn_just_past_the_room_starts_fresh_with_a_marker);
     crate::bundle::case!(bundle, 174, a_large_tool_turn_keeps_its_place_between_other_texts);
     bundle.finish().unwrap_or_else(|failures| panic!("{failures}"));

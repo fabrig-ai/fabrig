@@ -65,30 +65,36 @@ impl Domain {
         }
     }
 
-    /// Seal loading and assert required retained references. Does not open admission or erase.
+    /// Seal loading and link required retained references. Does not open admission or erase.
     pub fn start_link(&mut self) -> bool {
         assert!(self.start == Start::Loading || self.start == Start::Failed, "people link follows loading once");
         if self.start == Start::Failed {
             return false;
         }
+        let mut missing = None;
         self.start = Start::Linked;
         for (number, row) in &self.sign_ins {
-            link(self, Key::SignIn(*number), row.person);
+            link(self, &mut missing, Key::SignIn(*number), row.person);
         }
         for (project, holdings) in &self.roles {
             for holding in &**holdings {
-                link(self, Key::Roles(*project), holding.person);
+                link(self, &mut missing, Key::Roles(*project), holding.person);
             }
         }
         for (key, answer) in &self.answers {
             let source = Key::Answer(*key);
-            link(self, source, key.person);
+            link(self, &mut missing, source, key.person);
             match answer.outcome.family() {
-                OutcomeFamily::ServiceMade(person) => link(self, source, person),
+                OutcomeFamily::ServiceMade(person) => link(self, &mut missing, source, person),
                 OutcomeFamily::RolesSet(project) => {
-                    assert!(self.roles.contains_key(&project), "{source:?} links missing roster {project}");
+                    if !self.roles.contains_key(&project) && missing.is_none() {
+                        missing = Some(RestoreFailure {
+                            key: source,
+                            cause: crate::RestoreCause::Link { target: Key::Roles(project) },
+                        });
+                    }
                     // Only successful roster asks retain their members as required references.
-                    link_roster(self, source, &answer.ask);
+                    link_roster(self, &mut missing, source, &answer.ask);
                 }
                 OutcomeFamily::Again(_)
                 | OutcomeFamily::SignedOut
@@ -100,10 +106,15 @@ impl Domain {
             }
         }
         for (party, _) in &self.results_seen {
-            link(self, Key::ReadResults { party: *party }, *party);
+            link(self, &mut missing, Key::ReadResults { party: *party }, *party);
         }
         for ((party, task), _) in &self.conversations_seen {
-            link(self, Key::ReadConversation { party: *party, task: *task }, *party);
+            link(self, &mut missing, Key::ReadConversation { party: *party, task: *task }, *party);
+        }
+        if let Some(failure) = missing {
+            self.restore_failure = Some(failure);
+            self.start = Start::Failed;
+            return false;
         }
         for key in &self.ended_witnesses {
             let _old = self.conversations_seen.remove(key);
@@ -161,8 +172,11 @@ impl Domain {
     }
 }
 
-fn link(domain: &Domain, source: Key, person: u64) {
-    assert!(domain.people.contains_key(&person), "{source:?} links missing person {person}");
+fn link(domain: &Domain, missing: &mut Option<RestoreFailure>, source: Key, person: u64) {
+    if !domain.people.contains_key(&person) && missing.is_none() {
+        *missing =
+            Some(RestoreFailure { key: source, cause: crate::RestoreCause::Link { target: Key::Person(person) } });
+    }
 }
 
 fn discarded(domain: &Domain, limits: &Limits, record: &Stored) -> bool {
@@ -237,10 +251,10 @@ pub(super) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
     }
 }
 
-fn link_roster(domain: &Domain, source: Key, ask: &crate::Ask) {
+fn link_roster(domain: &Domain, missing: &mut Option<RestoreFailure>, source: Key, ask: &crate::Ask) {
     if let Some((_, holdings)) = ask.roster() {
         for holding in holdings {
-            link(domain, source, holding.person);
+            link(domain, missing, source, holding.person);
         }
     }
 }
@@ -255,7 +269,9 @@ fn fits(domain: &Domain, env: &Env<Limits>, record: &Stored) -> Result<(), crate
         }
         Stored::Person { number, identity } => {
             assert!(!domain.people.contains_key(number), "duplicate {key:?}");
-            assert!(!domain.identities.contains_key(&identity.key), "identity index collision at {key:?}");
+            if let Some(person) = domain.identities.get(&identity.key) {
+                return Err(crate::RestoreCause::Link { target: Key::Person(*person) });
+            }
             fit::identity(&key, &env.limits, identity)?;
             fit::occupancy(&key, RestoreBound::People, domain.people.len(), 0, env.limits.people)
         }

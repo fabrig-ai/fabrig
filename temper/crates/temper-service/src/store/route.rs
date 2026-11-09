@@ -213,14 +213,16 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
             };
             page(routes, owner, rows, None, None, into);
         }
-        store::Event::Turns { owner, turns, next } => {
+        store::Event::Turns { owner, turns, next, cut: None } => {
             let mut rows = List::with_capacity(u32::try_from(turns.len()).expect("bounded turns"));
             for turn in turns {
                 rows.push(store::Row::Jig(core::Record::Core(core::CoreRecord::Turn(turn)))).expect("same count");
             }
             page(routes, owner, rows.into_boxed(), None, next, into);
         }
-        store::Event::Unread { owner } | store::Event::Corrupt { owner } => {
+        store::Event::Unread { owner }
+        | store::Event::Corrupt { owner }
+        | store::Event::Turns { owner, cut: Some(_), .. } => {
             if let Some(flight) = routes.pending.remove(&owner) {
                 root(into, engine::StoreInput::Unloaded { owner: flight.root });
             }

@@ -274,10 +274,15 @@ pub(crate) fn end(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut
     }
 }
 
-pub(crate) fn link(domain: &Domain) {
+pub(crate) fn link(domain: &Domain) -> Result<(), crate::RestoreFailure> {
     for (funder, ledger) in &domain.funding {
-        if let Some(parent) = ledger.parent {
-            assert!(domain.funding.contains_key(&parent), "restore Ledger({funder:?}): missing funder {parent:?}");
+        if let Some(parent) = ledger.parent
+            && !domain.funding.contains_key(&parent)
+        {
+            return Err(crate::RestoreFailure {
+                key: crate::Key::Ledger(*funder),
+                cause: crate::RestoreCause::Link { target: crate::Key::Ledger(parent) },
+            });
         }
     }
     for (number, _) in &domain.names {
@@ -288,8 +293,18 @@ pub(crate) fn link(domain: &Domain) {
                 domain.funding.contains_key(&funder)
             }
         };
-        assert!(found, "restore Live({number}): missing funder {funder:?}");
+        if !found {
+            let target = match funder {
+                Funder::Task(target) => crate::Key::Live(target),
+                Funder::Pool { .. } | Funder::Period { .. } | Funder::Recurring { .. } => crate::Key::Ledger(funder),
+            };
+            return Err(crate::RestoreFailure {
+                key: crate::Key::Live(*number),
+                cause: crate::RestoreCause::Link { target },
+            });
+        }
     }
+    Ok(())
 }
 
 /// Each eventual period posting must fit its integer representation, independently of conservation.

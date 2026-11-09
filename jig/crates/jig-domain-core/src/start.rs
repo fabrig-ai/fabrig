@@ -37,14 +37,63 @@ pub enum Phase {
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Failure {
-    Settings { failure: core_settings::Failure, changed: bool },
-    Application { kind: u32, scope: u32, number: u32, why: ApplicationWhy },
-    ProjectPolicy { project: u32 },
-    HeldPastLimit { which: HeldLimit, held: u32, limit: u32 },
-    AccountsPastLimit { failure: accounts::RestoreLimit },
-    LiveSet { set: LiveSet, key: Key, held: u64, limit: u64 },
-    Accounting { key: Key },
-    LlmChoice { key: Key },
+    Settings {
+        failure: core_settings::Failure,
+        changed: bool,
+    },
+    Application {
+        kind: u32,
+        scope: u32,
+        number: u32,
+        why: ApplicationWhy,
+    },
+    ProjectPolicy {
+        project: u32,
+    },
+    HeldPastLimit {
+        which: HeldLimit,
+        held: u32,
+        limit: u32,
+    },
+    AccountsPastLimit {
+        failure: accounts::RestoreLimit,
+    },
+    LiveSet {
+        set: LiveSet,
+        key: Key,
+        held: u64,
+        limit: u64,
+    },
+    Accounting {
+        key: Key,
+    },
+    LlmChoice {
+        key: Key,
+    },
+    /// A record names a link the start cannot make (engine.md, 6).
+    Link {
+        record: Key,
+        linked: Linked,
+    },
+}
+
+/// What a record links to that the start could not find (engine.md, 6).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Linked {
+    Record(Key),
+    Charter {
+        charter: u32,
+        revision: u32,
+    },
+    Project(u32),
+    Connector(u16),
+    /// A proposal number no settings key can hold.
+    SettingsProposal {
+        proposer: people::Proposer,
+        proposal: u64,
+    },
+    /// The hold that owns a writer's resource.
+    Holder(tasks::Name),
 }
 
 /// A setting cannot be held under its application's declared kind (engine.md, 17.5).
@@ -197,7 +246,7 @@ impl Core {
         self.start.failure.clone()
     }
 
-    /// Freeze the script with its first fit failure.
+    /// Freeze the script with its first failure.
     pub fn start_refuse(&mut self, failure: Failure) -> Action {
         self.start_input();
         assert!(self.start.phase.is_some(), "start refusal requires the start");
@@ -205,7 +254,7 @@ impl Core {
             self.start.failure = Some(failure);
         }
         self.start.waiting = None;
-        Action::Refused(self.start_failure().expect("first fit failure"))
+        Action::Refused(self.start_failure().expect("first start failure"))
     }
 
     /// Retain the first externally discovered missing obligation for the Link pass.

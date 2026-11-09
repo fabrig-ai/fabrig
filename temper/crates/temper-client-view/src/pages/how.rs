@@ -20,15 +20,24 @@ pub(crate) fn head(root: &Domain, w: &Words, project: u32) -> (Box<[u8]>, Box<[u
     let change = w.say(Word::HowChange, &[]);
     match how::parts(&how::facts(root, project)).head {
         Head::Reading => (w.say(Word::SettingsHowHeading, &[Hole::Name(project_name(root, w, project))]), change),
-        Head::Own => (
-            w.say(Word::HowOwn, &[]),
-            concat(&[&w.say(Word::HowOwnLine, &[Hole::Name(project_name(root, w, project))]), b" ", &change]),
-        ),
+        Head::Own => {
+            let ways = root.pages().stock_ways().expect("parts names a shown read");
+            let (headline, lede) = match ways.words() {
+                Some(words) => (copy_of(words.headline()), copy_of(words.lede())),
+                None => {
+                    (w.say(Word::HowOwn, &[]), w.say(Word::HowOwnLine, &[Hole::Name(project_name(root, w, project))]))
+                }
+            };
+            (headline, concat(&[&lede, b" ", &change]))
+        }
         Head::Way(index) => {
             let ways = root.pages().stock_ways().expect("parts names a read way");
             let tabs = ways.tabs();
             let way = tabs.get(index).expect("the current way is in the read");
-            (copy_of(&way.name), concat(&[&way.line, b" ", &change]))
+            let headline = if way.headline.is_empty() { &way.name } else { &way.headline };
+            let lede = w
+                .say(Word::HowStockLine, &[Hole::Name(project_name(root, w, project)), Hole::Name(copy_of(&way.name))]);
+            (copy_of(headline), concat(&[&lede, b" ", &way.line, b" ", &change]))
         }
     }
 }

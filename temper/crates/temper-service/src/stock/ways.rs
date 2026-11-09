@@ -15,6 +15,7 @@ pub fn ways() -> Box<[StockWay]> {
     Box::new([
         StockWay {
             name: bytes::copy_of(b"You approve"),
+            headline: bytes::copy_of(b"You approve every change"),
             line: bytes::copy_of(b"An agent makes each change; nothing reaches main until you approve it."),
             rules: Box::new([(1, approve)]),
             ways: None,
@@ -22,6 +23,7 @@ pub fn ways() -> Box<[StockWay]> {
         },
         StockWay {
             name: bytes::copy_of(b"Agents review"),
+            headline: bytes::copy_of(b"Agents review every change, and code lands it"),
             line: bytes::copy_of(b"An agent makes each change, another reviews it, and code lands it."),
             rules: Box::new([(1, super::review_rule())]),
             ways: None,
@@ -29,6 +31,7 @@ pub fn ways() -> Box<[StockWay]> {
         },
         StockWay {
             name: bytes::copy_of(b"Draft first"),
+            headline: bytes::copy_of(b"Draft first, then agents build it on its own branch"),
             line: bytes::copy_of(
                 b"You and an agent write a design draft; agents build it on its own branch, and it lands whole.",
             ),

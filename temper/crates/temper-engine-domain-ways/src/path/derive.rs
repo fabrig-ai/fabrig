@@ -372,7 +372,12 @@ impl Drawing {
                     (Step::Verify, b"verify".as_slice(), "code · checks what landed", b" after each landing".as_slice())
                 };
                 let runs = bytes::concat(&[b"the tier ", &text(&tier.name, super::VALUE), when]);
-                let card = card(who.as_bytes(), &tier.name, Box::new([fact(b"Runs", &runs)]));
+                let mut facts = List::uncapped();
+                facts.push(fact(b"Runs", &runs)).expect("tier runs");
+                if !tier.description.is_empty() {
+                    facts.push(fact(b"Checks", &tier.description)).expect("tier description");
+                }
+                let card = card(who.as_bytes(), &tier.name, facts.into_boxed());
                 self.push(stop(Actor::Code, step, words, Opens::Tier(tier.name.clone()), card));
                 if goal && !self.repaired {
                     match inputs.start {

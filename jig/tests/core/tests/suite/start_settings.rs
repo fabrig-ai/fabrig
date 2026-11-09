@@ -196,9 +196,15 @@ fn stored_proposals_require_their_links_at_link() {
         ),
         core::Restore::Kept
     );
-    let _panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| link(&mut h.core, &h.env, &mut h.out)))
-        .expect_err("a proposal requires its retained links");
+    let expected = core::start::Failure::Link {
+        record: core::Key::Core(core::CoreKey::Settings(settings::Key::Proposal {
+            proposer: people::Proposer::Party(1),
+            proposal: 1,
+        })),
+        linked: core::Linked::Record(core::Key::Tasks(jig_domain_tasks::Key::PersonProposal(1))),
+    };
+    assert!(matches!(link(&mut h.core, &h.env, &mut h.out), Action::Refused(failure) if failure == expected));
     assert_eq!(h.core.start_phase(), Some(Phase::Link));
-    assert_eq!(h.core.start_failure(), None);
+    assert_eq!(h.core.start_failure(), Some(expected));
     assert!(h.out.is_empty());
 }

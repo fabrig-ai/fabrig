@@ -3,7 +3,7 @@
 use crate::{
     CoreKey, CoreRecord, Limits, MilestoneId, ProjectionGoal, ProjectionMilestone, ProjectionRecord, ProjectionTask,
     Restored,
-    start::LiveSet,
+    start::{Linked, LiveSet},
     tests::start::{Core, Failure, Key, Wall, config, limits, tasks},
 };
 
@@ -214,8 +214,7 @@ fn pieces_in_any_order_finalize_to_the_default_projection() {
 }
 
 #[test]
-#[should_panic(expected = "Core(Projection(Task { goal: 1, task: 2 })) links missing Core(Projection(Goal(1)))")]
-fn orphan_task_panics_at_link_with_its_key() {
+fn orphan_task_refuses_at_link_with_its_key() {
     let (mut core, limits) = loaded();
     assert_eq!(restore(&mut core, &limits, task(2)), Restored::Live);
     let assembly = core.start.projections.as_ref().expect("assembly").get(&1).expect("orphan");
@@ -228,14 +227,27 @@ fn orphan_task_panics_at_link_with_its_key() {
         }
     );
     core.start_projections_link();
+    assert_eq!(
+        core.start_failure(),
+        Some(Failure::Link {
+            record: Key::Core(CoreKey::Projection(task(2).key())),
+            linked: Linked::Record(Key::Core(CoreKey::Projection(crate::ProjectionKey::Goal(1))))
+        })
+    );
 }
 
 #[test]
-#[should_panic(expected = "Projection(Lifecycle { goal: 1, task: 2, position: 1 })")]
-fn orphan_milestone_panics_at_link_with_its_key() {
+fn orphan_milestone_refuses_at_link_with_its_key() {
     let (mut core, limits) = loaded();
     assert_eq!(restore(&mut core, &limits, milestone(2)), Restored::Live);
     core.start_projections_link();
+    assert_eq!(
+        core.start_failure(),
+        Some(Failure::Link {
+            record: Key::Core(CoreKey::Projection(milestone(2).key())),
+            linked: Linked::Record(Key::Core(CoreKey::Projection(crate::ProjectionKey::Goal(1))))
+        })
+    );
 }
 
 fn refused(core: &mut Core, limits: &Limits, row: ProjectionRecord, held: u64, limit: u64) {
@@ -372,29 +384,40 @@ fn duplicate_rows_assert_without_replacing_the_assembled_value() {
 }
 
 #[test]
-#[should_panic(expected = "Core(Projection(Goal(1))) links missing project 2")]
-fn a_missing_project_panics_at_link() {
+fn a_missing_project_refuses_at_link() {
     let (mut core, limits) = loaded();
     let mut row = goal(1);
     let ProjectionRecord::Goal { goal, .. } = &mut row else { unreachable!() };
     goal.project = 2;
     assert_eq!(restore(&mut core, &limits, row), Restored::Live);
     core.start_projections_link();
+    assert_eq!(
+        core.start_failure(),
+        Some(Failure::Link {
+            record: Key::Core(CoreKey::Projection(crate::ProjectionKey::Goal(1))),
+            linked: Linked::Project(2)
+        })
+    );
 }
 
 #[test]
-#[should_panic(expected = "Core(Projection(Goal(1))) links missing connector 99")]
-fn a_missing_pending_connector_panics_at_link() {
+fn a_missing_pending_connector_refuses_at_link() {
     let (mut core, limits) = loaded();
     let mut row = goal(1);
     let ProjectionRecord::Goal { pending, .. } = &mut row else { unreachable!() };
     *pending = Box::new([99]);
     assert_eq!(restore(&mut core, &limits, row), Restored::Live);
     core.start_projections_link();
+    assert_eq!(
+        core.start_failure(),
+        Some(Failure::Link {
+            record: Key::Core(CoreKey::Projection(crate::ProjectionKey::Goal(1))),
+            linked: Linked::Connector(99)
+        })
+    );
 }
 
 #[test]
-#[should_panic(expected = "Core(Projection(Goal(1))) links missing Tasks(Live(1))")]
 fn an_open_goal_requires_its_live_task_at_link() {
     let (mut core, limits) = loaded();
     let mut row = goal(1);
@@ -402,6 +425,13 @@ fn an_open_goal_requires_its_live_task_at_link() {
     goal.phase = tasks::Phase::Waiting;
     assert_eq!(restore(&mut core, &limits, row), Restored::Live);
     core.start_projections_link();
+    assert_eq!(
+        core.start_failure(),
+        Some(Failure::Link {
+            record: Key::Core(CoreKey::Projection(crate::ProjectionKey::Goal(1))),
+            linked: Linked::Record(Key::Tasks(tasks::Key::Live(1)))
+        })
+    );
 }
 
 #[test]

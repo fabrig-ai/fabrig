@@ -9,6 +9,7 @@ use temper_engine_smith::kinds::size;
 
 /// Declare the forge's kinds at the same bounds as its settings judge.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "each setting kind is declared with its admission bounds")]
 pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
     let segment_bytes = limits.authority.segment_bytes.min(limits.forge.name_bytes);
     let mut segments = List::with_capacity(limits.authority.segments);
@@ -84,6 +85,25 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
                 changes: false,
                 away: false,
                 way: 0,
+            })),
+            per_scope: 1,
+            charters: 0,
+        },
+        Kind {
+            number: 9,
+            scope: KindScope::Deployment,
+            connector,
+            value_bytes: size(&settings::Value::CharterWords(word(settings::LINE_BYTES))),
+            per_scope: limits.tasks.charters,
+            charters: 0,
+        },
+        Kind {
+            number: 10,
+            scope: KindScope::Project,
+            connector,
+            value_bytes: size(&settings::Value::ProjectWords(settings::ProjectWords {
+                headline: word(settings::HEADLINE_BYTES),
+                lede: word(settings::LEDE_BYTES),
             })),
             per_scope: 1,
             charters: 0,

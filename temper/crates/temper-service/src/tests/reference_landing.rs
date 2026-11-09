@@ -91,6 +91,7 @@ fn the_reference_landing_member_parses() {
                     format: Format::Lines,
                     follows: Follows::Landing,
                     span_ms: 0,
+                    description: b"the slow suites".as_slice().into(),
                 },
                 TierCheck {
                     name: b"goal".as_slice().into(),
@@ -100,6 +101,7 @@ fn the_reference_landing_member_parses() {
                     format: Format::Lines,
                     follows: Follows::Goals,
                     span_ms: 1_200_000,
+                    description: b"the gate without its slowest suites".as_slice().into(),
                 },
             ]),
         }]

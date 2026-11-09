@@ -490,6 +490,7 @@ fn changes_marks_a_verifications_save_and_erasure() {
                 artifact: Box::from(b"tests".as_slice()),
                 format: temper_engine_domain_forge_tiers::Format::Lines,
                 span: None,
+                description: Box::default(),
             }]),
         }]),
         AfterLanding {

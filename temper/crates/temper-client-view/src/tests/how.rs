@@ -17,6 +17,7 @@ const CHANGE: &str =
     "Ask temper to change any of it, in words; an owner accepts its proposal, and new work follows it.";
 const NAMES: [&[u8]; 3] = [b"You approve", b"Agents review", b"Draft first"];
 const LINES: [&[u8]; 3] = [b"You approve its changes.", b"Agents review its changes.", b"Start from a draft."];
+const HEADLINES: [&[u8]; 3] = [b"You approve every change", b"Agents review every change, and code lands it", b""];
 const REVIEW: u32 = 3;
 
 fn event(root: &mut d::Domain, event: d::Event) -> Queue<d::Request> {
@@ -36,6 +37,9 @@ fn up(root: &mut d::Domain, up: Up) {
 struct Case {
     name: &'static str,
     read: u8,
+    words: Option<(&'static [u8], &'static [u8])>,
+    heading: &'static str,
+    lede: &'static str,
     current: Option<u32>,
     shown: u32,
     goals: bool,
@@ -188,6 +192,7 @@ fn fixture(case: &Case) -> (d::Domain, Token) {
                 w::StockWay::new(
                     &w::CEILINGS,
                     w::StockWayParts {
+                        headline: HEADLINES[index].into(),
                         name: name.into(),
                         line: line.into(),
                         path: path(index == 2),
@@ -210,6 +215,13 @@ fn fixture(case: &Case) -> (d::Domain, Token) {
         let panel = w::WaysPanel::new(
             &w::CEILINGS,
             w::WaysPanelParts {
+                words: case.words.map(|(headline, lede)| {
+                    w::ProjectWords::new(
+                        &w::CEILINGS,
+                        w::ProjectWordsParts { headline: headline.into(), lede: lede.into() },
+                    )
+                    .unwrap()
+                }),
                 project: f::PROJECT,
                 ways: List::from_boxed(ways),
                 current: case.current,
@@ -338,6 +350,9 @@ fn parts_draw_the_current_way_and_the_shown_path() {
     let base = || Case {
         name: "agents",
         read: 2,
+        words: None,
+        heading: "Agents review every change, and code lands it",
+        lede: "Shop runs the stock way Agents review. Agents review its changes.",
         current: Some(1),
         shown: 1,
         goals: true,
@@ -349,13 +364,15 @@ fn parts_draw_the_current_way_and_the_shown_path() {
         roles: None,
     };
     for case in [
-        Case { name: "reading", read: 0, ..base() },
-        Case { name: "ended", read: 1, ..base() },
+        Case { name: "reading", read: 0, heading: "How work runs in Shop.", lede: "", ..base() },
+        Case { name: "ended", read: 1, heading: "How work runs in Shop.", lede: "", ..base() },
         base(),
         Case { name: "roles", roles: Some(true), ..base() },
         Case { name: "empty roles", roles: Some(false), ..base() },
         Case {
-            name: "draft amount",
+            name: "draft amount, empty headline",
+            heading: "Draft first",
+            lede: "Shop runs the stock way Draft first. Start from a draft.",
             current: Some(2),
             shown: 2,
             budget: c::TemplateBudget::Amount(80),
@@ -370,7 +387,24 @@ fn parts_draw_the_current_way_and_the_shown_path() {
         },
         Case { name: "uncapped", budget: c::TemplateBudget::AsAllowed { cap: None }, ..base() },
         Case { name: "goals hidden", goals: false, budget: c::TemplateBudget::Amount(80), ..base() },
-        Case { name: "Yours", current: None, shown: 3, ..base() },
+        Case {
+            name: "Yours without words",
+            current: None,
+            shown: 3,
+            heading: "A way of its own",
+            lede: "Shop runs settings of its own, drawn below.",
+            ..base()
+        },
+        Case {
+            name: "Yours with words",
+            current: None,
+            shown: 3,
+            words: Some((b"Our own headline", b"Our own lede.")),
+            heading: "Our own headline",
+            lede: "Our own lede.",
+            ..base()
+        },
+        Case { name: "stock ignores project words", words: Some((b"Our own headline", b"Our own lede.")), ..base() },
         Case { name: "open reviewer", open: true, ..base() },
         Case { name: "member", may_change: false, ..base() },
         Case { name: "Ask absent", asking: false, ..base() },
@@ -381,20 +415,8 @@ fn parts_draw_the_current_way_and_the_shown_path() {
             let tree = view.tree();
             assert_eq!(skein_ui::outline::check(tree), None, "{}", case.name);
             let main = subtree(tree, tree.nodes().iter().find(|n| n.role == Role::Main).unwrap());
-            let heading = if case.read < 2 {
-                "How work runs in Shop.".as_bytes()
-            } else {
-                case.current.map_or(b"A way of its own".as_slice(), |i| NAMES[usize::try_from(i).unwrap()])
-            };
-            named(main, Role::Heading { level: 1 }, heading);
-            let lede = if case.read < 2 {
-                CHANGE.to_owned()
-            } else {
-                let line = case.current.map_or("Shop runs settings of its own, drawn below.", |i| {
-                    core::str::from_utf8(LINES[usize::try_from(i).unwrap()]).unwrap()
-                });
-                format!("{line} {CHANGE}")
-            };
+            named(main, Role::Heading { level: 1 }, case.heading.as_bytes());
+            let lede = if case.lede.is_empty() { CHANGE.to_owned() } else { format!("{} {CHANGE}", case.lede) };
             named(styled(tree, look::SETTINGS_INTRO), Role::Paragraph, lede.as_bytes());
             assert!(styled(tree, look::SETTINGS_COL)[0].styles.as_slice().contains(&look::HOW_WIDE));
             assert_eq!(main.iter().any(|n| n.name.as_deref() == Some(b"Ask temper to change this")), case.asking);

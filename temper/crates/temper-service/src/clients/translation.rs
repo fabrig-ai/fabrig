@@ -286,6 +286,16 @@ mod tests {
         use temper_engine_domain_forge::settings::{ProjectWays, TemplateGoal, Value};
         for (kind, scope, number, value) in [
             (7, 1, 1, Value::Ways(ProjectWays { drafts: true, goals: false, changes: true, away: false, way: 4 })),
+            (9, 0, 1, Value::CharterWords(b"Reviews changes".as_slice().into())),
+            (
+                10,
+                1,
+                1,
+                Value::ProjectWords(temper_engine_domain_forge::settings::ProjectWords {
+                    headline: b"Our way".as_slice().into(),
+                    lede: b"We review changes.".as_slice().into(),
+                }),
+            ),
             (11, 0, 4, Value::Goal(TemplateGoal { design: true, close_out: true })),
         ] {
             let bytes = temper_engine_smith::kinds::encode(&value);

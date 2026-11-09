@@ -24,6 +24,7 @@ pub enum WayAct {
 pub struct Tab {
     pub index: Option<u32>,
     pub name: Box<[u8]>,
+    pub headline: Box<[u8]>,
     pub line: Box<[u8]>,
     pub path: w::BranchPath,
     pub current: bool,
@@ -214,6 +215,7 @@ impl StockWays {
                 tabs.push(Tab {
                     index: Some(index),
                     name: way.name().into(),
+                    headline: way.headline().into(),
                     line: way.line().into(),
                     path: way.path().clone(),
                     current: *panel.current() == Some(index),
@@ -224,6 +226,7 @@ impl StockWays {
                 tabs.push(Tab {
                     index: None,
                     name: b"Yours".as_slice().into(),
+                    headline: Box::default(),
                     line: Box::default(),
                     path: panel.own().clone(),
                     current: true,
@@ -232,6 +235,11 @@ impl StockWays {
             }
         }
         tabs
+    }
+    /// The project's words the read carries, kind 10 (client/README.md, 4.6).
+    #[must_use]
+    pub fn words(&self) -> Option<&w::ProjectWords> {
+        self.panel()?.words().as_ref()
     }
     #[must_use]
     pub fn act(&self, index: u32) -> Option<WayAct> {

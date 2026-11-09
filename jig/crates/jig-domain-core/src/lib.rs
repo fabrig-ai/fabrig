@@ -95,13 +95,13 @@ pub use crate::{
             PersonProposalRoute, PersonTaskRoute, RestoringProof, RoutedCall, RunAdmission, RunCharter, RunPolicy,
             Transcript, most_costly, reserve_floor,
         },
-        transcript_text::{TranscriptRow, TranscriptText},
+        transcript_text::{CUT_TURN_TEXT, TranscriptRow, TranscriptText},
     },
     settings::{
         charters::{Charter, CharterPart, Document},
         templates::Template,
     },
-    start::{Census, HeldLimit, ReadResults, Restore, RestoreRange, restore_cursor},
+    start::{Census, HeldLimit, Linked, ReadResults, Restore, RestoreRange, restore_cursor},
     stored::{
         CallKey, CallPart, CallRecord, CallReplay, CoreKey, CoreRecord, CurrentWindow, EscalationDecisionRecord, Key,
         Made, ProposalDecisionRecord, Record, Restored, RunProof, TerminalRecord, TurnProof, TurnRecord,

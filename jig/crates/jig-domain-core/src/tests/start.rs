@@ -46,6 +46,7 @@ fn proof() -> crate::RunProof {
 
 fn transcript() -> crate::Transcript {
     crate::Transcript {
+        cut: false,
         window: None,
         closed: false,
         loaded: false,
@@ -626,8 +627,6 @@ fn frozen_expiry_and_stale_cleanup_continuation() {
 }
 
 #[test]
-#[should_panic]
-#[expect(clippy::should_panic_without_expect, reason = "the start invariant is checked without matching panic text")]
 fn first_external_missing_link_stops_before_sweep() {
     let limits = limits();
     let mut core = Core::new(config(41), &limits).expect("valid core configuration");
@@ -638,8 +637,17 @@ fn first_external_missing_link_stops_before_sweep() {
     let target = Key::People(people::Key::Person(99));
     core.start_missing(record.clone(), target.clone());
     core.start_missing(Key::Tasks(tasks::Key::Live(2)), Key::People(people::Key::Person(98)));
-    assert_eq!(core.start.missing, Some((record, target)));
-    through_link(&mut core, &env, &mut out);
+    assert_eq!(core.start.missing, Some((record.clone(), target.clone())));
+    finish_core_load(&mut core, &env, &mut out);
+    let mut previous = Phase::LoadInbox;
+    for connector in core.connectors.clone() {
+        let next = Phase::RestoreConnector { connector };
+        step_phase(core.start_done(&env, previous, &mut out), next);
+        previous = next;
+    }
+    step_phase(core.start_done(&env, previous, &mut out), Phase::Link);
+    let Action::Refused(failure) = core.start_done(&env, Phase::Link, &mut out) else { panic!("missing link refuses") };
+    assert_eq!(failure, Failure::Link { record, linked: crate::start::Linked::Record(target) });
 }
 
 #[test]
