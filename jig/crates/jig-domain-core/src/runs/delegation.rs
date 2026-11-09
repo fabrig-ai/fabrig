@@ -126,6 +126,11 @@ impl Core {
         }
         let mut asked = List::with_capacity(limits.batch);
         for member in batch {
+            if let tasks::Executor::Person(tasks::PersonAddress::Person(person)) = member.executor
+                && self.people.identity(person).is_none()
+            {
+                return Err(crate::routing::effect::procedure::problem(task, tasks::Refusal::Unknown));
+            }
             if !member.spec.inputs.is_empty() {
                 return Err(crate::routing::effect::procedure::problem(task, tasks::Refusal::Batch));
             }

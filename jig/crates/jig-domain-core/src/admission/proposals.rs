@@ -219,6 +219,9 @@ impl Core {
         action: &tasks::ProposalAction,
         decision: Wall,
     ) -> Result<authority::Authority, tasks::Refusal> {
+        if let tasks::ProposalAction::Amend { amendment, .. } = action {
+            self.amendment_person(amendment)?;
+        }
         self.proposed_action_accounts(action)?;
         let Some(checked) = action_for_check(self, action, decision) else { return Err(tasks::Refusal::Executor) };
         let Some(needed) = authority::needs(&checked) else { return Err(tasks::Refusal::AuthorityShape) };
