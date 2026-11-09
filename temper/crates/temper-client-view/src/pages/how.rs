@@ -1,4 +1,4 @@
-//! How work runs' heading, path, roles and budget (temper/docs/design/client/README.md, 5.13).
+//! How work runs' heading, path, reaches, roles and budget (temper/docs/design/client/README.md, 5.13).
 use crate::{
     frame::Bindings,
     look,
@@ -163,4 +163,128 @@ fn text(b: &mut Builder, role: Role, words: &[u8], style: skein_ui::Style) {
     b.name(words);
     b.text(Run::Plain, words);
     b.close();
+}
+
+/// The project's classes and live rows (README.md, 5.13, *What reaches you* and *Its rows*).
+pub(crate) fn reaches(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    forge: &mut crate::forge::bindings::Bindings,
+    project: u32,
+    wall: skein_lib::Wall,
+) {
+    let parts = how::parts(&how::facts(root, project));
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_SECTION);
+    b.open(Role::Slot);
+    b.style(look::SETTINGS_SECTION_HEAD);
+    b.open(Role::Heading { level: 2 });
+    b.style(look::SETTINGS_SECTION_TITLE);
+    let title = w.say(Word::HowReaches, &[]);
+    b.name(&title);
+    b.text(Run::Plain, &title);
+    let count = root.pages().away_focus();
+    if count > 0 && root.pages().switcher().renaming().is_none() {
+        b.focus(count);
+    }
+    b.close();
+    let on = if parts.several { Word::HowReachesEach } else { Word::HowReachesOn };
+    text(b, Role::Text, &w.say(on, &[Hole::Name(project_name(root, w, project))]), look::HOW_WAY);
+    b.close();
+    if parts.reaches {
+        let classes = root.forge().classes(project).expect("parts names read classes");
+        let columns = how::reaches(classes);
+        b.open(Role::Slot);
+        b.style(look::HOW_REACHES);
+        column(b, w, classes, &columns.decide, Word::HowReachDecide, &w.say(Word::HowReachDecideNote, &[]));
+        column(b, w, classes, &columns.ask, Word::HowReachAsk, &ask_note(w, classes, &columns.ask));
+        column(b, w, classes, &columns.wait, Word::HowReachWait, &w.say(Word::HowReachWaitNote, &[]));
+        b.close();
+    }
+    super::settings::questions(b, root, w, forge, project);
+    super::settings::away_until(b, root, w, bindings, project, wall);
+    b.close();
+}
+
+fn column(
+    b: &mut Builder,
+    w: &Words,
+    classes: &temper_protocol_reaches::Classes,
+    lines: &[how::Line],
+    title: Word,
+    note: &[u8],
+) {
+    if lines.is_empty() {
+        return;
+    }
+    let name = w.say(title, &[]);
+    b.open(Role::Group);
+    b.style(look::HOW_REACH);
+    b.name(&name);
+    let style = if title == Word::HowReachDecide { look::HOW_WHO_AGENT } else { look::HOW_WHO_PERSON };
+    text(b, Role::Text, &name, style);
+    b.open(Role::List);
+    for line in lines {
+        crate::cards::text(b, Role::Item, &line_words(w, classes, *line));
+    }
+    b.close();
+    text(b, Role::Paragraph, note, look::HOW_REACH_NOTE);
+    b.close();
+}
+
+fn line_words(w: &Words, classes: &temper_protocol_reaches::Classes, line: how::Line) -> Box<[u8]> {
+    use temper_protocol_reaches::{Kind, Subject};
+    let word = match line.subject {
+        Subject::Kind(kind) => match kind {
+            Kind::Wording => Word::HowLineWording,
+            Kind::Retry => Word::HowLineRetry,
+            Kind::Implementation => Word::HowLineImplementation,
+            Kind::Tests => Word::HowLineTests,
+            Kind::Dependency => Word::HowLineDependency,
+            Kind::Departure => Word::HowLineDeparture,
+            Kind::Money => Word::HowLineMoney,
+            Kind::Irreversible => Word::HowLineIrreversible,
+            Kind::Rules => Word::HowLineRules,
+            Kind::Other => Word::HowLineOther,
+        },
+        Subject::Set(number) => {
+            let set = classes.set(number).expect("model names a present set");
+            return line_under(w, classes, line.item, w.say(Word::HowLineSet, &[Hole::Name(set.name.clone())]));
+        }
+    };
+    line_under(w, classes, line.item, w.say(word, &[]))
+}
+
+fn line_under(w: &Words, classes: &temper_protocol_reaches::Classes, item: u8, words: Box<[u8]>) -> Box<[u8]> {
+    if let Some(index) = item.checked_sub(1)
+        && let Some(item) = classes.items.get(usize::from(index))
+        && !item.words.is_empty()
+    {
+        return w.say(Word::ReachUnder, &[Hole::Name(words), Hole::Name(item.words.clone())]);
+    }
+    words
+}
+
+fn ask_note(w: &Words, classes: &temper_protocol_reaches::Classes, lines: &[how::Line]) -> Box<[u8]> {
+    use temper_protocol_reaches::Class;
+    let mut objects = skein_lib::List::uncapped();
+    let mut away = false;
+    for line in lines {
+        match line.class {
+            Class::AskAway => {
+                objects.push(crate::shared::object(w, line.subject, line.item, Some(classes))).expect("subjects grow");
+            }
+            Class::Ask => away = true,
+            Class::Decide | Class::Wait => {}
+        }
+    }
+    if objects.is_empty() {
+        w.say(Word::HowReachAwayAll, &[])
+    } else if !away {
+        w.say(Word::HowReachAwayNone, &[])
+    } else {
+        w.say(Word::HowReachAwayBut, &[Hole::Name(crate::cards::proposal::comma_join(objects.as_slice()))])
+    }
 }

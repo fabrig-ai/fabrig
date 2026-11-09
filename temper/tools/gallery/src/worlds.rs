@@ -814,7 +814,7 @@ fn world_in_layout(
                                 continue;
                             }
                             let bytes = settings.and_then(|name| {
-                                if setting.kind() == 8 && name != "settings-away-you-approve" {
+                                if setting.kind() == 8 {
                                     return None;
                                 }
                                 if how && setting.kind() == 7 {
@@ -965,39 +965,13 @@ fn world_in_layout(
                             );
                             continue;
                         }
-                        w::Watch::Away => {
-                            if matches!(settings, Some("settings-away" | "settings-away-you-approve")) {
-                                step(
-                                    &mut root,
-                                    Event::Client {
-                                        event: jig_client::Event::Up {
-                                            up: jig_client::Up::FamilyDelivered {
-                                                watch,
-                                                record: jig_client::Family {
-                                                    family: FORGE,
-                                                    version: wire::CLIENT_VERSION,
-                                                    bytes: wire::aways(
-                                                        &w::Aways::new(
-                                                            &w::CEILINGS,
-                                                            w::AwaysParts { rows: List::with_capacity(0) },
-                                                        )
-                                                        .expect("empty Away rows"),
-                                                    ),
-                                                },
-                                            },
-                                        },
-                                    },
-                                    &mut out,
-                                );
-                            }
-                            continue;
-                        }
                         w::Watch::Ways(subject) if (asking || how) && !asking_chat => {
                             ways::deliver(&mut root, watch, subject.project(), settings, &mut out);
                             continue;
                         }
                         w::Watch::Change(subject) => subject,
-                        w::Watch::Landing(_)
+                        w::Watch::Away
+                        | w::Watch::Landing(_)
                         | w::Watch::Landings(_)
                         | w::Watch::Decided(_)
                         | w::Watch::Status(_)
