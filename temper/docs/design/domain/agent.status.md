@@ -208,9 +208,6 @@ record has run a real model on the sentence.
   run and How work runs' heading say a way by different words
   (`../protocol/configuration.md`, 13.10).
 
-- **Not yet:** 8.4.4: no call keeps, changes or drops a line of the
-  person's preferences; the root has no `route/remember.rs`.
-
 - **Departs:** 8.4.1, *Unknown*: an unknown address answers with
   `ask.txt`'s line of addresses and, in its settings bracket,
   `charter-words N | project-words`, which `ask.txt`'s *Finding out* doesn't

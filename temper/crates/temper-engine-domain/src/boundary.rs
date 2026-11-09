@@ -1083,6 +1083,7 @@ pub(crate) enum Read {
     Notes { owner: Token },
     SettingsNote { to: Token, call: Box<Call> },
     Document(Box<crate::route::document::DocumentRead>),
+    Remember(Box<crate::route::remember::RememberRead>),
 }
 
 #[derive(Hash, Debug)]
