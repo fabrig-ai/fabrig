@@ -47,7 +47,9 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
     if root.approval().is_some()
         || crate::frame::unavailable(root).is_some()
         || match root.pages().address() {
-            Address::Members
+            // page-view: draw Remembered.
+            Address::Remembered
+            | Address::Members
             | Address::Limits
             | Address::Accounts
             | Address::ConnectModel { .. }

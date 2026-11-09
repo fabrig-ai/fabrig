@@ -480,6 +480,8 @@ pub(super) fn root_at_with_classes(
         | temper_client_domain::Address::ConnectForge { .. }
         | temper_client_domain::Address::Chats { .. }
         | temper_client_domain::Address::NewChat { .. }
+        // page-view: draw Remembered.
+        | temper_client_domain::Address::Remembered
         | temper_client_domain::Address::Members
         | temper_client_domain::Address::Limits
         | temper_client_domain::Address::Accounts

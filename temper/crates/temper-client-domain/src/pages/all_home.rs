@@ -170,6 +170,7 @@ fn reads(root: &Domain) -> Option<&AllHome> {
         | crate::Address::NewChat { .. }
         | crate::Address::Chats { .. }
         | crate::Address::Work { .. }
+        | crate::Address::Remembered
         | crate::Address::Members
         | crate::Address::Limits
         | crate::Address::Accounts

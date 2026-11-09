@@ -135,6 +135,8 @@ pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Work { .. }
+        // page-view: draw Remembered.
+        | Address::Remembered
         | Address::Members
         | Address::Limits
         | Address::Accounts

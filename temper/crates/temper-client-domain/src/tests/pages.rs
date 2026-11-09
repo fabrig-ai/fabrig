@@ -27,6 +27,7 @@ mod paste;
 mod project_pages;
 mod rail;
 mod ready_adoption;
+mod remembered;
 mod report;
 mod start_goal;
 mod switcher;
