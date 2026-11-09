@@ -3,7 +3,7 @@ id = "writer-rows"
 part = "writer-rows"
 kind = "feature"
 needs = ["link-refusal"]
-files = ["jig/tests/core/tests/suite/named_people.rs", "jig/tests/core/tests/suite/main.rs", "jig/crates/jig-domain-core/src/admission/**", "jig/crates/jig-domain-core/src/acts/**", "jig/crates/jig-domain-core/src/tests/admission/**", "jig/docs/design/domain/engine.status.md"]
+files = ["jig/tests/core/tests/suite/named_people.rs", "jig/tests/core/tests/suite/main.rs", "jig/crates/jig-domain-core/src/admission/**", "jig/crates/jig-domain-core/src/acts/**", "jig/crates/jig-domain-core/src/tests/admission/**", "jig/crates/jig-domain-core/src/runs/delegation.rs", "jig/docs/design/domain/engine.status.md"]
 effort = "high"
 minutes = 180
 +++
@@ -124,3 +124,19 @@ Acceptance:
 out and by which row, with the failure quoted for one ruled in; the
 fix and the refusal it answers; the hand-broken rule; the runs and their
 counts; your implementation and check minutes apart.
+
+## Answers
+
+2026-11-09. *May writer-rows edit the admission methods in
+`jig/crates/jig-domain-core/src/runs/delegation.rs`, or should acceptance
+permit the existing `Executor` refusal for an unknown person?* Edit it:
+the file is now in `files`, and no other task of this plan owns it. The
+acceptance stands: a number the people child does not hold
+(`self.people.identity(n)` is `None`) is refused `tasks::Refusal::Unknown`,
+checked in `Core::delegate_preflight` per member before
+`delegation_executor`, so nothing changes. `Executor` stays the refusal for
+a held person with no role in the task's project, and for the other
+executor kinds it already answers. `procedure_batch_admit` (same file)
+takes the same check only if its route's row, committed first, shows it
+writing or refusing other than Unknown. The other routes of Steps, 1 still
+each need their row pair before the status entry goes.
