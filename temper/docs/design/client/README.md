@@ -3040,9 +3040,12 @@ keeps (`../protocol/configuration.md`, section 2).
     - *Its act,* `away::Act::ToggleAll`: with N M, every project off;
       otherwise every project on. Each project not already so is sent its
       own `SetAway`, the request *Its act* above sends for that project's
-      switch, one decision each and all at once; one already so is sent
-      nothing. While any is out, every Away control is disabled and a
-      project's act waits, as while a project's request is out.
+      switch, one decision each, sent one after another, each once the one
+      before is answered: the client's exchanges in flight are bounded
+      (jig's `protocol/client.md`, section 13), and may be fewer than the
+      person's projects. One already so is sent nothing. While any is out
+      or waits to go, every Away control is disabled and a project's act
+      waits, as while a project's request is out.
     - *Its toast,* once every answer is in, says how many changed: "Away
       turned on for 3 projects: agents decide within their limits.";
       "Away turned off for 3 projects: questions wait for you again.";
@@ -10443,6 +10446,14 @@ own tests:
   them on a box across two projects; and records the journey of Home to a
   need, answered (`../draft/surfaces.md`, 14). Owner: temper/ui. Default:
   each difference a finding filed back to the plan's repair.
+- **Away on All projects after landing** (3.5, *Away*, *On All
+  projects*): no mockup draws "Away on 2 of 4", so temper/ui renders
+  `browser.md`, 7.2's `all-home-away` and `all-home-away-on` at 1440, 1000
+  and 390 px, by day and by night, the words in the switch and the chip
+  where the whole story's `web/whole-story/home.html` and
+  `phone-home.html` draw them, and walks a press on a box across two
+  projects. Owner: temper/ui. Default: each difference a
+  finding filed back as a repair.
 - **Home's and Needs you's later parts** (3.5, *Home on All projects*,
   *Needs you* and *A page's parts*; `../draft/surfaces.md`, sections 3, 4,
   12 and 15): a project's Now on its row, rolled from its owners', its
