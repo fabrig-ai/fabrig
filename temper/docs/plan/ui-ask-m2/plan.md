@@ -115,7 +115,9 @@ For the owner of coding runs:
   (`domain.forge.document`, as a watch's is made), any other still unknown;
   `route/now.rs` gains `Now::PersonAnswer`'s arm; `route/see.rs` and
   `route/see/` gain the person's flights; `decision.rs`'s `host_within`
-  admits the new answers. `forge_route.rs` and
+  admits the new answers; `SeeRead::Me` and `SeeRead::Inbox` carry each
+  inbox question's words, read after the needs page (`see-stories`'
+  answer, 2026-11-09). `forge_route.rs` and
   `temper-engine-domain-forge` are not changed.
 - **No stored format or wire changes:** the run's read decides nothing and
   keeps no record; the client's wire is untouched.
