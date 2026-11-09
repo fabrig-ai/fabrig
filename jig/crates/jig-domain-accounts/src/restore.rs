@@ -52,6 +52,13 @@ pub struct RestoreLimit {
     pub limit: u32,
 }
 
+/// The first stored reference that cannot be linked (engine.md, 6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct RestoreLink {
+    pub key: Key,
+    pub target: Key,
+}
+
 fn refuse(domain: &mut Domain, key: Key, set: RestoreSet, limit: u32) {
     if domain.restore_failure.is_none() {
         domain.restore_failure = Some(RestoreLimit { key, set, limit });
@@ -72,7 +79,7 @@ pub(crate) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored) {
             domain.past(*number);
         }
     }
-    if domain.restore_failure.is_some() {
+    if domain.restore_failure.is_some() || domain.restore_link.is_some() {
         return;
     }
     match record {
@@ -141,9 +148,9 @@ pub(crate) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored) {
 }
 
 /// Attach every retained source and directory before activation (engine.md, 6).
-/// Missing owners and conflicting positions or reservations are writer bugs.
+/// Missing owners and conflicting positions or reservations refuse the start.
 pub(crate) fn link(domain: &mut Domain, env: &Env<Limits>) {
-    if domain.restore_failure.is_some() {
+    if domain.restore_failure.is_some() || domain.restore_link.is_some() {
         return;
     }
     let mut orphans = List::with_capacity(domain.said.capacity());
@@ -157,26 +164,24 @@ pub(crate) fn link(domain: &mut Domain, env: &Env<Limits>) {
     }
     for (number, issued) in &domain.issued {
         for (other, reservation) in &domain.issued {
-            assert!(
-                number == other || issued.name != reservation.name,
-                "reservation {:?} conflicts with {:?} for {:?}",
-                Key::Issued { number: *number },
-                Key::Issued { number: *other },
-                issued.name
-            );
+            if number != other && issued.name == reservation.name {
+                domain.restore_link =
+                    Some(RestoreLink { key: Key::Issued { number: *number }, target: Key::Issued { number: *other } });
+                return;
+            }
         }
     }
     for (number, source) in &domain.sources {
         let key = Key::Source { account: source.account, number: *number };
-        let account = domain.accounts.get_mut(&source.account);
-        assert!(account.is_some(), "{key:?} requires account {:?}", Key::Account { number: source.account });
-        let account = account.expect("source owner linked above");
-        assert!(
-            !account.sources.contains_key(&source.restore_place),
-            "{key:?} conflicts at place {} with source {:?}",
-            source.restore_place,
-            account.sources.get(&source.restore_place)
-        );
+        let Some(account) = domain.accounts.get_mut(&source.account) else {
+            domain.restore_link = Some(RestoreLink { key, target: Key::Account { number: source.account } });
+            return;
+        };
+        if let Some(other) = account.sources.get(&source.restore_place) {
+            domain.restore_link =
+                Some(RestoreLink { key, target: Key::Source { account: source.account, number: *other } });
+            return;
+        }
         if account.sources.len() == account.sources.capacity() {
             let limit = account.sources.capacity();
             let set = RestoreSet::Sources { account: source.account };
@@ -186,23 +191,22 @@ pub(crate) fn link(domain: &mut Domain, env: &Env<Limits>) {
         assert!(account.sources.insert(source.restore_place, *number) == Ok(None), "linked source fits {key:?}");
         match source.kind {
             Kind::Program => {
-                let issued = domain.issued.get(number);
-                assert!(issued.is_some(), "{key:?} requires reservation {:?}", Key::Issued { number: *number });
-                let issued = issued.expect("program reservation linked above");
-                assert!(
-                    issued.holder == account.holder && issued.name.as_bytes() == source.name.as_ref(),
-                    "{key:?} disagrees with reservation {:?} owner/name {:?}",
-                    Key::Issued { number: *number },
-                    issued
-                );
+                let target = Key::Issued { number: *number };
+                let Some(issued) = domain.issued.get(number) else {
+                    domain.restore_link = Some(RestoreLink { key, target });
+                    return;
+                };
+                if issued.holder != account.holder || issued.name.as_bytes() != source.name.as_ref() {
+                    domain.restore_link = Some(RestoreLink { key, target });
+                    return;
+                }
                 account.plan = true;
             }
             Kind::SignIn | Kind::Key | Kind::None => {
-                assert!(
-                    !domain.issued.contains_key(number),
-                    "{key:?} conflicts with program reservation {:?}",
-                    Key::Issued { number: *number }
-                );
+                if domain.issued.contains_key(number) {
+                    domain.restore_link = Some(RestoreLink { key, target: Key::Issued { number: *number } });
+                    return;
+                }
             }
         }
         if let Some(provider) = domain.providers.get(account.provider) {

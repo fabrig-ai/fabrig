@@ -2,13 +2,12 @@
 #![expect(clippy::disallowed_macros, reason = "stored fixtures exercise byte limits")]
 use crate::{
     CoreRecord, Event, Restored,
+    start::Linked,
     tests::start::{
         Action, Core, Env, Failure, Key, Phase, Queue, Request, Time, Wall, config, people, step_phase, tasks,
     },
 };
-use core::panic::AssertUnwindSafe;
 use skein_lib::Token;
-use std::panic::catch_unwind;
 
 fn loaded() -> (Core, Env<crate::Limits>) {
     let (_, limits) = crate::tests::tree_core();
@@ -155,14 +154,18 @@ fn applied_tokens_are_not_judged_and_missing_connectors_are_links() {
         let row = answer(people::Outcome::Applied { connector, token: Token::new(token) });
 
         restore_person(&mut core, &env, row);
-        let result = catch_unwind(AssertUnwindSafe(|| link(&mut core, &env)));
+        let result = link(&mut core, &env);
         if connector == 1 {
-            linked(result.expect("configured connector links"));
+            linked(result);
+            assert_eq!(core.start_failure(), None);
         } else {
-            let _panic = result.expect_err("missing link asserts");
+            refusal(
+                result,
+                Key::People(people::Key::Answer(people::RequestKey { person: 1, key: [1; 16] })),
+                Linked::Connector(connector),
+            );
             assert_eq!(core.start_phase(), Some(Phase::Link));
         }
-        assert_eq!(core.start_failure(), None);
     }
 }
 
@@ -277,8 +280,11 @@ fn missing_ended_read_owner_is_a_link_before_sweep() {
         previous = next;
     }
     step_phase(core.start_done(&env, previous, &mut out), Phase::Link);
-    let _panic = catch_unwind(AssertUnwindSafe(|| core.start_done(&env, Phase::Link, &mut out)))
-        .expect_err("missing ended owner asserts");
+    refusal(
+        core.start_done(&env, Phase::Link, &mut out),
+        Key::People(people::Key::EndedRead { task: 7, party: 1 }),
+        Linked::Record(Key::Tasks(tasks::Key::Ended(7))),
+    );
     assert_eq!(core.start_phase(), Some(Phase::Link));
     assert!(out.is_empty());
 }
@@ -364,11 +370,17 @@ fn amendment() -> Box<tasks::Amendment> {
     })
 }
 
-fn unmade(core: &mut Core, env: &Env<crate::Limits>) {
+fn refusal(action: Action, record: Key, linked: Linked) {
+    let Action::Refused(failure) = action else { panic!("missing link refuses: {action:?}") };
+    assert_eq!(failure, Failure::Link { record, linked });
+}
+
+fn unmade(core: &mut Core, env: &Env<crate::Limits>, record: Key, linked: Linked) {
     assert_eq!(core.start_failure(), None);
-    let _panic = catch_unwind(AssertUnwindSafe(|| link(core, env))).expect_err("missing link asserts");
+    let expected = Failure::Link { record: record.clone(), linked: linked.clone() };
+    refusal(link(core, env), record, linked);
     assert_eq!(core.start_phase(), Some(Phase::Link));
-    assert_eq!(core.start_failure(), None);
+    assert_eq!(core.start_failure(), Some(expected));
 }
 
 #[test]
@@ -391,7 +403,12 @@ fn every_placed_hold_links_its_project_and_person_owner() {
         if present {
             linked(link(&mut core, &env));
         } else {
-            unmade(&mut core, &env);
+            unmade(
+                &mut core,
+                &env,
+                Key::Tasks(tasks::Key::PlacedHold(7)),
+                if project == 99 { Linked::Project(99) } else { Linked::Record(Key::People(people::Key::Person(99))) },
+            );
         }
     }
 }
@@ -403,7 +420,7 @@ fn a_tasks_placed_number_links_the_retained_hold() {
     let mut row = task();
     row.placed = Some(7);
     restore_task(&mut core, &env, tasks::Stored::Live(Box::new(row)));
-    unmade(&mut core, &env);
+    unmade(&mut core, &env, Key::Tasks(tasks::Key::Live(1)), Linked::Record(Key::Tasks(tasks::Key::PlacedHold(7))));
 }
 
 #[test]
@@ -430,7 +447,7 @@ fn task_proposal_actions_and_recurring_templates_link_their_people() {
             state: tasks::ProposalState::Withdrawn,
         }));
         restore_task(&mut core, &env, tasks::Stored::Live(Box::new(row)));
-        unmade(&mut core, &env);
+        unmade(&mut core, &env, Key::Tasks(tasks::Key::Live(1)), Linked::Record(Key::People(people::Key::Person(99))));
     }
     for member in [executor, funder] {
         let (mut core, env) = loaded();
@@ -448,7 +465,7 @@ fn task_proposal_actions_and_recurring_templates_link_their_people() {
             pending_period: None,
         }));
         restore_task(&mut core, &env, tasks::Stored::Live(Box::new(row)));
-        unmade(&mut core, &env);
+        unmade(&mut core, &env, Key::Tasks(tasks::Key::Live(1)), Linked::Record(Key::People(people::Key::Person(99))));
     }
 }
 
@@ -465,7 +482,12 @@ fn person_proposals_link_their_parties_and_actions() {
             state: tasks::PersonProposalState::Pending { since: Wall::EPOCH },
         };
         restore_task(&mut core, &env, tasks::Stored::PersonProposal(Box::new(row)));
-        unmade(&mut core, &env);
+        unmade(
+            &mut core,
+            &env,
+            Key::Tasks(tasks::Key::PersonProposal(7)),
+            if proposer == 99 { Linked::Record(Key::People(people::Key::Person(99))) } else { Linked::Project(99) },
+        );
     }
     let mut missing_executor = member();
     missing_executor.executor = tasks::Executor::Person(tasks::PersonAddress::Person(99));
@@ -488,7 +510,12 @@ fn person_proposals_link_their_parties_and_actions() {
                 state: tasks::PersonProposalState::Pending { since: Wall::EPOCH },
             })),
         );
-        unmade(&mut core, &env);
+        unmade(
+            &mut core,
+            &env,
+            Key::Tasks(tasks::Key::PersonProposal(7)),
+            Linked::Record(Key::People(people::Key::Person(99))),
+        );
     }
 }
 
@@ -533,7 +560,28 @@ fn settings_proposals_link_both_records_and_the_retained_revision() {
         if present {
             linked(link(&mut core, &env));
         } else {
-            unmade(&mut core, &env);
+            unmade(
+                &mut core,
+                &env,
+                if settings {
+                    Key::Core(crate::CoreKey::Settings(crate::settings::Key::Proposal {
+                        proposer: people::Proposer::Party(1),
+                        proposal: 7,
+                    }))
+                } else {
+                    Key::Tasks(tasks::Key::PersonProposal(7))
+                },
+                if against == 99 {
+                    Linked::Record(Key::Core(crate::CoreKey::Settings(crate::settings::Key::Held(99))))
+                } else if settings {
+                    Linked::Record(Key::Tasks(tasks::Key::PersonProposal(7)))
+                } else {
+                    Linked::Record(Key::Core(crate::CoreKey::Settings(crate::settings::Key::Proposal {
+                        proposer: people::Proposer::Party(1),
+                        proposal: 7,
+                    })))
+                },
+            );
         }
     }
 }
@@ -569,7 +617,12 @@ fn projections_link_live_plan_tasks_and_keep_ended_tasks_as_history() {
             assert_eq!(core.restore_core(CoreRecord::Projection(row), &env.limits), Restored::Live);
         }
         if live {
-            unmade(&mut core, &env);
+            unmade(
+                &mut core,
+                &env,
+                Key::Core(crate::CoreKey::Projection(crate::ProjectionKey::Task { goal: 1, task: 2 })),
+                Linked::Record(Key::Tasks(tasks::Key::Live(2))),
+            );
         } else {
             linked(link(&mut core, &env));
         }
@@ -602,14 +655,14 @@ fn connector_resource_roles_link_their_projects() {
             previous = next;
         }
         step_phase(core.start_done(&env, previous, &mut out), Phase::Link);
-        let result = catch_unwind(AssertUnwindSafe(|| core.start_done(&env, Phase::Link, &mut out)));
+        let result = core.start_done(&env, Phase::Link, &mut out);
         if present {
-            linked(result.expect("project links"));
+            linked(result);
             if deletion.is_some() {
                 assert!(!core.open_project(project), "kept deletion remains closed");
             }
         } else {
-            let _panic = result.expect_err("missing link asserts");
+            refusal(result, Key::People(people::Key::Policy(project)), Linked::Project(project));
             assert_eq!(core.start_phase(), Some(Phase::Link));
         }
     }
@@ -624,12 +677,22 @@ fn answer_tasks_link_allocated_identities_after_their_live_rows_end() {
         if present {
             linked(link(&mut core, &env));
         } else {
-            unmade(&mut core, &env);
+            unmade(
+                &mut core,
+                &env,
+                Key::People(people::Key::Answer(people::RequestKey { person: 1, key: [1; 16] })),
+                Linked::Record(Key::Tasks(tasks::Key::Ended(task))),
+            );
         }
     }
     let (mut core, env) = loaded();
     restore_person(&mut core, &env, answer(people::Outcome::Created { first: 99, last: 101, given: None }));
-    unmade(&mut core, &env);
+    unmade(
+        &mut core,
+        &env,
+        Key::People(people::Key::Answer(people::RequestKey { person: 1, key: [1; 16] })),
+        Linked::Record(Key::Tasks(tasks::Key::Ended(101))),
+    );
 }
 
 fn linked(action: Action) {

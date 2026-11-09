@@ -12,6 +12,8 @@ pub struct RestoreFailure {
 /// A measured capacity, unrepresentable accounting, or unavailable executor choice.
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub enum RestoreCause {
+    Link { target: Key },
+    Charter { charter: u32, revision: u32 },
     Bound { which: RestoreBound, held: u64, limit: u64 },
     Accounting,
     LlmChoice { chosen: ModelEffort, why: RestoreLlmWhy },
