@@ -10,7 +10,7 @@ use jig_protocol_config::{self as config, Problems, What};
 use jig_protocol_engine_workers as kit;
 use jig_protocol_worker_wire::Part;
 use skein_io::{self as io};
-use skein_lib::{List, Queue, Reader, Time, Token};
+use skein_lib::{List, Map, Queue, Reader, Time, Token};
 use temper_engine_domain as root;
 use temper_protocol_worker_wire::v1 as wire;
 #[derive(Debug)]
@@ -19,6 +19,9 @@ pub struct Workers {
     pub(crate) encoding: Encoding,
     pub(crate) forges: crate::forges::Forges,
     pub(crate) bad_parts: u64,
+    pub(crate) notes: Queue<crate::Note>,
+    worker_names: List<Box<[u8]>>,
+    opening_ends: Map<Option<Box<[u8]>>, kit::Loss>,
 }
 impl Workers {
     pub fn new(
@@ -39,7 +42,20 @@ impl Workers {
         for forge in forges {
             assert!(table.insert(forge), "unique fixture forges");
         }
-        Ok(Self { host, encoding, forges: table, bad_parts: 0 })
+        let mut worker_names = List::with_capacity(limits.names);
+        for worker in &config.hosts.workers {
+            worker_names.push(worker.name.clone()).expect("configured worker names fit the host");
+        }
+        let opening_names = worker_names.len().checked_add(1).ok_or(kit::host::invalid(What::Bound))?;
+        Ok(Self {
+            host,
+            encoding,
+            forges: table,
+            bad_parts: 0,
+            notes: Queue::uncapped(),
+            worker_names,
+            opening_ends: Map::with_capacity(opening_names),
+        })
     }
     pub fn down(&mut self, now: Time, event: kit::Event, events: &mut Queue<root::Event>) {
         self.host.down(now, event);
@@ -126,9 +142,11 @@ impl Workers {
             }
         }
     }
-    fn route(&mut self, output: kit::host::Output, events: &mut Queue<root::Event>) {
+    pub(crate) fn route(&mut self, output: kit::host::Output, events: &mut Queue<root::Event>) {
         match output {
             kit::host::Output::Hello { channel, worker, hello } => {
+                let name = self.worker_names.get(worker).expect("hello's configured worker position");
+                let _last = self.opening_ends.remove(&Some(name.clone()));
                 events.push(root::Event::Worker(root::WorkerInput::Link {
                     channel,
                     link: root::Link::Hello { worker, hello },
@@ -137,6 +155,17 @@ impl Workers {
             kit::host::Output::Up { channel, up, parts } => self.received(channel, up, &parts, events),
             kit::host::Output::Lost { channel } => {
                 events.push(root::Event::Worker(root::WorkerInput::Link { channel, link: root::Link::Lost }));
+            }
+            kit::host::Output::Ended { worker, channel: Some(channel), why } => {
+                self.notes.push(crate::Note::WorkerLost { worker, channel, why });
+            }
+            kit::host::Output::Ended { worker, channel: None, why } => {
+                if self.opening_ends.get(&worker) != Some(&why) {
+                    self.opening_ends
+                        .insert(worker.clone(), why)
+                        .expect("configured worker names and unnamed openings");
+                    self.notes.push(crate::Note::WorkerOpeningEnded { worker, why });
+                }
             }
         }
     }

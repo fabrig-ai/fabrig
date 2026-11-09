@@ -61,6 +61,24 @@ work.
   (`../domain/findings.status.md`; `../domain/landing.md`, 13.1),
   so it waits for both, with nothing in its place.
 
+Sections 3.5, *Needs you*'s *Its head* and *On a phone* and *Ask temper's
+page*'s composer, and 5.3, *On a phone*, have no known implementation
+gap, by plan `ui-p5a-phone`. The domain's `rail::tabs` decides the tab
+bar from the rail's parts, and the browser draws it alone: "Home",
+"Needs" with its count, "N+" where cut, "Work", "Ask" and To begin's
+"Deployment", each current as the rail's entry is, the rail keeping
+"Needs you". Ask temper's page and an Ask temper chat keep it under the
+composer, "Ask" current, and no other chat draws it. Needs you's open
+card stands under its own bar, "‹ Needs you" to Home and its place, "1
+of 2", with no dots and no "Next:" line, its question 19 px and its
+choices stacked full width. `parts_follow_each_rails_rule_and_to_begin_cut`
+and the client world's `parts_and_live_work_survive_random_settings_moves`
+hold the rule, `rail_and_tabbar_keep_the_order_addresses_current_states_and_count`
+and `phone_bar_links_home_and_counts_answered_including_cut` the view.
+Each target's 44 px is `browser.md`, 2.5's, with its gap there
+(`browser.status.md`). The render check and walk follow landing (section
+11, *The phone after landing*).
+
 Sections 4.6, 5.13 and 5.16 have no known gap. The wire carries
 `BranchPath`, the subject `ways` with its `WaysPanel` and the read `View`;
 Ask temper's page watches its project's `ways` while open, and its domain

@@ -5201,7 +5201,13 @@ pub(crate) fn outputs(
                 }));
             }
             forge::Request::ProjectAfter { goal, when } => {
+                // A step that met the full outbox ends with a timer (temper/docs/design/domain/forge.md, 12).
                 if let Some(when) = when {
+                    domain.forge.projection_after(goal, when);
+                } else if domain.forge.full_outbox_met() && !domain.forge.effect_room(&env.limits.forge, 0) {
+                    let when = skein_lib::Wall::from_nanos(
+                        env.wall.as_nanos().saturating_add(env.limits.forge.issue_policy.interval.as_nanos()),
+                    );
                     domain.forge.projection_after(goal, when);
                 } else if match domain.forge.issue(goal) {
                     Some(row) => row.pending.is_none(),

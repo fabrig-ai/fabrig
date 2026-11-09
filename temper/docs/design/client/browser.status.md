@@ -15,8 +15,31 @@
   fifteen of the rail, Work and Deployment, `rail-new-change` to
   `night-limits`, and the thirteen of Home and Needs you across projects,
   `all-home` to `night-needs`, and the two of Away on All projects,
-  `all-home-away` and `all-home-away-on`, add to it, with no CPU figure
-  on record either.
+  `all-home-away` and `all-home-away-on`, add to it, and so do the rows
+  `ui-p5a-phone` added to `print_writes_every_page_and_the_bundle`, which
+  read the `needs-list`, `ask-chat` and `rail-new-change` prints, with no
+  CPU figure on record either.
+
+- **Not yet:** 2.5, *What a phone presses*: at 760 px and under an Ask
+  temper chat's thread keeps the mock's sizes, its "Latest" and a
+  proposal's acts among them, and the path's stops on Ask temper's page
+  take no target past their marks: `temper.css`'s 44 px targets reach a
+  chat's bar and composer and the opening's tabs, acts and zoom link
+  alone (`each_phone_target_stands_44_pixels`).
+
+Sections 2.5's phone paragraph and *What a phone presses* have no other
+known implementation gap, by plan `ui-p5a-phone`: the tab bar's
+"Needs", the Ask tab's tabs kept under Ask temper's page and an Ask
+temper chat by `temper-tabbar-ask`, Needs you's open card under its own
+bar, `temper-needs-bar`, the rail's switcher and Away chip not drawn
+there, and at 44 px to a press the top bar's switcher, Away chip and
+night switch, each tab, and the controls of Home, Needs you, Work and
+every chat's bar and composer, the mockups' smaller drawings kept inside
+a transparent target. `each_phone_target_stands_44_pixels` reads them
+from the stylesheet, and the gallery's `needs-list`, `ask-chat` and
+`rail-new-change` prints hold the bar, the Ask tab and "Needs". Their
+render check follows landing (`README.md`, section 11, *The phone after
+landing*).
 
 - **Departs:** 2.5: A role's model is drawn among its opened terms, not
   at its summary's right: skein's disclosure summary holds its name and
@@ -345,9 +368,10 @@ establish no rendered equality.
   tests 2 (with 11 and the call line), 4 (with 5 and the model picker),
   8 and 9 (welcome then ConnectModel, with Accounts history and key
   re-entry), 14 (short, Latest, unanchored and long), and 16 (sheet scroll
-  and phone geometry) retain story labels for failed steps. Test 2 alone
-  has passing runs on record in Chromium, run alone (4.6, above); none
-  proves the other current merged stories. The picker's 420 px, one-press
+  and phone geometry) retain story labels for failed steps. Tests 2 and 14
+  have passing runs on record in Chromium, each run alone (2's in 4.6, above;
+  14's with its failures, below); none proves the other current merged
+  stories. The picker's 420 px, one-press
   model and effort, outside and Escape checks, a step changing and restoring anchoring on a
   live page (4.3), and both sign-ins in one browser (4.2) await after-landing
   proof (section 5). The picker's separate render and fake-box proof at
@@ -382,6 +406,20 @@ establish no rendered equality.
   1,048,576-byte bound. The passing long browser story spans three small
   windows, while the unanchored position history stays within one; neither
   substitutes for that whole-bound check (section 5).
+- **Not yet:** 4.3, 4.6: story 14 has failed after landing in two ways
+  since `red-82-chat-opening` stopped a chat's opening reads at a screen
+  and a half (`README.md`, 5.15, *Opening history*), and their cause is
+  unknown. Once at `0599201e87`, `long`'s words moved across a read, from
+  y=519 to y=558 (`held`); in a run and its rerun at `23261749d4`,
+  `unanchored`'s kept box "Position paragraph 02." was missing at step 76.
+  The repair `red-87-reading` ran the story by name, alone, 30 times, and
+  every run passed: ten unloaded and ten under 16 CPU busy loops at
+  `2a399129fe`, ten under that load at `23261749d4`. `unanchored` held its
+  anchor at its opening measurement, y=151 across its earlier read, and
+  `long` held "Reading paragraph 07." and reply 8's end, its earlier pair
+  at y=144 and its later from 557 to 558. Neither the product nor the
+  story changed; whether they recur is for the tier's runs after landing
+  to show, and a red comes back as a repair.
 - **Not yet:** 4.6: the request `browser-trim` has a person's page slower to settle as
   the answer most wanted. Settled chat and task pages stood still and no product cause
   was found, but a chat closed on the box took 8.539 s to reach the Closed filter, a

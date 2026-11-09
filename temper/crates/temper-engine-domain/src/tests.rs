@@ -17,6 +17,7 @@ mod dismiss;
 mod documents;
 mod forge_route;
 mod looked;
+mod projection_room;
 mod projection_settled;
 mod public;
 pub(crate) use projection_settled::live_task;

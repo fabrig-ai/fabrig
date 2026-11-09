@@ -24,6 +24,7 @@ pub enum Story {
     Quiet,
     Replaced,
     Reconnect,
+    Cuts { times: u32 },
     BeyondGrace,
     Shutdown,
     Drain,

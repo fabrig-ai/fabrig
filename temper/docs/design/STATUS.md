@@ -227,7 +227,19 @@ need's why, owners' lines and What follows what wait for their
 milestones, and the launchpad still reads one project's brief
 (`client/README.md`, 3.5 and 11;
 `client/README.status.md`, 3.5; `client/browser.status.md`, 2.3 and
-7.2; `draft/surfaces.status.md`, 3, 4, 11 and 14). Ask temper's
+7.2; `draft/surfaces.status.md`, 3, 4, 11 and 14). The phone is the
+whole story's milestone P5a, by plan `ui-p5a-phone`: the tab bar from
+one pure rule over the rail's parts, "Needs" with its count, the Ask
+tab's tabs kept under Ask temper's page and its chats, Needs you's own
+bar on a phone, "‹ Needs you" and "1 of 2", and a 44 px target on the
+top bar, the tabs, Home, Needs you, Work and a chat's bar and composer,
+with a fuzz test of the tabs' rule and rows of the gallery's prints; an
+Ask temper chat's thread and the path's stops keep the mock's sizes, and
+the render check and walk follow landing. Tell temper is designed and
+not built, waiting for the engine to file a person's word as a finding
+and for a setting naming the project's triager (`client/README.md`, 3.5,
+5.3 and 11; `client/README.status.md`, 3.5; `client/browser.status.md`,
+2.5; `draft/surfaces.status.md`, 9, 10 and 14). Ask temper's
 first milestone stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
 the instructions' first step of Showing. Charter 3, template 3, `Configure`
@@ -594,7 +606,8 @@ throughout the walk
 (`client/browser.md`, `client/forge.md`).
 The browser tier holds its twelve tests, with the call line, model picker,
 welcome sign-in and four reading stories in four merged tests, compiled
-with story labels for failed steps but with no run in Chromium yet. Reading's
+with story labels for failed steps; of those, only the call line's and
+reading's have passing runs in Chromium, each run alone. Reading's
 four stories, apart, passed with ctl history
 and a 131,072-byte window, their CPU medians summing to
 44.849900 s against three unmet targets. The tier's window, `long_text` and
@@ -603,7 +616,10 @@ skein's decoder indexes each CDP message once, with no CPU figure on record
 since; no whole-tier run proves the
 repair within its 127.5 CPU s, 85 raised by half by the user's word of 11-08,
 for now, to be revisited. The listener-full ctl failure is repaired; the public
-visibility-command failure remains unverified. A whole-bound manual reading
+visibility-command failure remains unverified. Reading's story failed twice
+after red-82's opening, `long`'s words moving and `unanchored`'s anchor
+missing; it passed thirty runs alone, loaded and not, and the cause is
+unknown. A whole-bound manual reading
 check, the closed-chat wait's split and a head's stall-deadline story remain
 (`client/browser.md`). A stale view still rereads held Markdown and rebuilds
 and compares the semantic tree, preserving DOM nodes through the diff; retaining
