@@ -204,6 +204,136 @@ fn parked_windows(lengths: &[usize]) -> (Driver, Vec<(engine::Assignment, u8)>) 
     (driver, parked)
 }
 
+/// temper/docs/design/domain/root.md, 8: a large window turn starts fresh,
+/// with its place kept in the tail, without spending a preparation try.
+#[test]
+fn a_window_with_a_large_turn_starts_fresh_from_the_tail_that_fits() {
+    let shipped = temper_service::limits::profile(temper_service::limits::Profile::Standard);
+    let mut limits = walking::limits();
+    limits.loads = shipped.root.loads;
+    limits.journal = shipped.root.journal;
+    let room = Store::with_limits(&limits).transcript_page_bytes().min(limits.loads.reply_bytes);
+    let row = limits.loads.transcript_bytes;
+    let large = room.checked_mul(2).expect("two pages fit u32");
+    eprintln!(
+        "bounds: row={row}, page={}, store room={room}, journal={}",
+        limits.loads.bytes, limits.journal.transcript_bytes
+    );
+    let mut failures = Vec::new();
+    for (name, bytes, around, cut) in [
+        ("inside row", row - 1, false, false),
+        ("past row", row + 1, false, true),
+        ("past store room", large, false, true),
+        ("pages around cut", large, true, true),
+    ] {
+        let result = std::panic::catch_unwind(|| large_window_row(&limits, name, bytes, around, cut));
+        if let Err(error) = result {
+            let reason = error
+                .downcast_ref::<String>()
+                .map(String::as_str)
+                .or_else(|| error.downcast_ref::<&str>().copied())
+                .unwrap_or("non-text panic");
+            eprintln!("{name}: {reason}");
+            failures.push(name);
+        } else {
+            eprintln!("{name}: passed");
+        }
+    }
+    assert!(failures.is_empty(), "large-window rows failed: {failures:?}");
+}
+
+fn large_window_row(limits: &engine::Limits, name: &str, bytes: u32, around: bool, cut: bool) {
+    let mut driver = Driver::configured(Store::with_limits(limits), [walking::config(91), walking::config(91)], limits);
+    driver.hello(CHANNEL);
+    driver.settle();
+    driver.sign_in();
+    driver.settle();
+    let people::Ask::Create { project, mut batch } = driver.chat_ask(PROJECT, b"standing chat") else {
+        panic!("chat template creates a task")
+    };
+    batch[0].flags.ended_by = people::EndedBy::Requester;
+    driver.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(1001)),
+        sign_in: driver.session(),
+        key: [31; 16],
+        ask: people::Ask::Create { project, batch },
+    }));
+    driver.settle();
+    let first = driver.last_assignment();
+    let large = vec![b'x'; usize::try_from(bytes).expect("turn fits usize")];
+    let turns: Vec<&[u8]> = if around {
+        vec![b"before one\n", b"before two\n", b"before three\n", &large, b"after\n"]
+    } else {
+        vec![&large]
+    };
+    for (index, text) in turns.iter().enumerate() {
+        let number = u32::try_from(index + 1).expect("five turns");
+        driver.send(protocol::turn(CHANNEL, first.task, first.attempt, number, u64::from(number), None, text));
+        driver.pump();
+    }
+    driver.answer(
+        CHANNEL,
+        first.task,
+        first.attempt,
+        u64::try_from(turns.len()).expect("five turns"),
+        tasks::End::Parked,
+        engine::Parts::none(),
+    );
+    driver.pump();
+    assert_eq!(driver.task(first.task).expect("parked chat").phase, tasks::Phase::Active(tasks::Active::Idle));
+    driver.send(say_ask(driver.session(), first.task, 60));
+    driver.pump();
+    while let Some(fact) = driver.root.pop_fact() {
+        if let engine::Fact::BriefFailed { counts, reason, .. } = fact {
+            panic!("{name}: BriefFailed counts={counts}: {}", String::from_utf8_lossy(&reason));
+        }
+    }
+    assert!(!driver.stopped && driver.root.ready(), "{name}: root remains ready");
+    assert_eq!(driver.task(first.task).expect("woken chat").tries, tasks::Tries::NONE, "{name}: no try spent");
+    let next = driver.last_assignment();
+    assert_eq!((next.task, next.attempt), (first.task, first.attempt + 1), "{name}: assigned at once");
+    if cut {
+        assert!(!next.run.policy.resume, "{name}: starts fresh");
+        assert!(next.transcript.is_empty(), "{name}: no resumed body");
+        let tail = next
+            .sections
+            .iter()
+            .find_map(|section| {
+                if section.kind == engine::BriefKind::Core(jig_domain_brief::Core::TranscriptTail) {
+                    let engine::BriefBody::Text(text) = &section.body else { panic!("tail is text") };
+                    Some(text.as_ref())
+                } else {
+                    None
+                }
+            })
+            .expect("fresh brief carries a transcript tail");
+        let expected = if around {
+            b"before one\nbefore two\nbefore three\n[a turn too large to load]\nafter\n".as_slice()
+        } else {
+            b"[a turn too large to load]\n".as_slice()
+        };
+        assert_eq!(tail, expected, "{name}: cut keeps its place among short turns");
+    } else if next.run.policy.resume {
+        assert_eq!(next.transcript.as_ref(), [large.into_boxed_slice()], "{name}: the whole turn resumes");
+    } else {
+        assert!(next.transcript.is_empty(), "{name}: a fresh run resumes no body");
+        let tail = next
+            .sections
+            .iter()
+            .find_map(|section| {
+                if section.kind == engine::BriefKind::Core(jig_domain_brief::Core::TranscriptTail) {
+                    let engine::BriefBody::Text(text) = &section.body else { panic!("tail is text") };
+                    Some(text.as_ref())
+                } else {
+                    None
+                }
+            })
+            .expect("whole oversized window has a tail");
+        assert!(tail.windows(64).any(|text| text == &large[..64]), "{name}: the loaded whole turn supplies its tail");
+    }
+}
+
 /// temper/docs/design/domain/root.md, 8 and 9.1: due windows wait for load room.
 #[test]
 fn tasks_due_together_past_the_load_slots_each_load_their_window() {

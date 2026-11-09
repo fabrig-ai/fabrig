@@ -380,6 +380,11 @@ impl Store {
     pub const fn read_joins(&self) -> u32 {
         self.component_limits.joins
     }
+    /// The real transcript driver's page room, derived from the world's limits.
+    #[must_use]
+    pub const fn transcript_page_bytes(&self) -> u32 {
+        self.component_limits.store.page.bytes
+    }
     /// Read a historical page through the real store and the service's routing.
     #[must_use]
     pub fn read(&mut self, range: Box<jig_domain_core::reads::Range>) -> jig_domain_core::reads::Loaded {
