@@ -12,8 +12,8 @@ const FOREMAN: u32 = 6;
 const TRIAGE: u32 = 8;
 const STATUS: u32 = 9;
 const GOAL: u32 = 4;
-// The reference supplies five charters, one template and two landing rules.
-const ITEMS: u32 = 8;
+// The reference supplies five charters, one template, its work and two landing rules.
+const ITEMS: u32 = 9;
 
 fn value(items: &List<SettingItem>, setting: Setting) -> &SettingValue {
     for item in items {
@@ -167,6 +167,20 @@ fn the_reference_settings_file_decodes() {
     assert_eq!(later.main.model.bytes(), b"claude-opus-5-5");
     assert_eq!(later.main.effort.as_ref().expect("later coordinator effort").bytes(), b"high");
     assert_eq!(later.subagents, llm.subagents);
+    let SettingValue::Application(bytes) = value(&items, Setting::Application { kind: 11, scope: 0, number: GOAL })
+    else {
+        panic!("goal template's work")
+    };
+    let decoded = temper_engine_smith::kinds::decode(
+        11,
+        bytes,
+        &temper_engine_smith::kinds::Bounds { segments: 16, segment_bytes: 4096, gates: 64, approvals: 64 },
+    )
+    .expect("reference goal template's work");
+    let temper_engine_domain_forge::settings::Value::Goal(work) = decoded.value else {
+        panic!("goal template's work record")
+    };
+    assert_eq!((work.design, work.close_out), (true, true));
 }
 
 // Rules pin the shared instructions or the wake parts selected by their on names.

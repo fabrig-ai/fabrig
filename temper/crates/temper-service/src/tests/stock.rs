@@ -1466,8 +1466,8 @@ fn kinds_are_declared_with_their_bounds() {
 
 #[test]
 fn the_binary_gives_the_forges_stock_at_every_start() {
-    // configuration.md, 13.4: every project's rule 1 and both forge charters.
-    const ITEMS: usize = 3;
+    // configuration.md, 13.4: every project's rule 1, both forge charters and template 4's work.
+    const ITEMS: usize = 4;
     use temper_engine_domain_forge::{self as forge, settings};
     let engine = fixtures::engine();
     let limits = crate::limits::engine(&engine.jig.limits, &engine.limits).unwrap();
@@ -1492,9 +1492,13 @@ fn the_binary_gives_the_forges_stock_at_every_start() {
             approvals: Box::default(),
         })
     );
-    for (item, number, charter) in [(&stock[1], 1, 2), (&stock[2], 2, 4)] {
-        assert_eq!((item.kind, item.scope, item.number), (3, 0, number));
-        assert_eq!(item.value.value, settings::Value::Charter(charter));
+    for (item, kind, number, value) in [
+        (&stock[1], 3, 1, settings::Value::Charter(2)),
+        (&stock[2], 3, 2, settings::Value::Charter(4)),
+        (&stock[3], 11, 4, settings::Value::Goal(settings::TemplateGoal { design: false, close_out: false })),
+    ] {
+        assert_eq!((item.kind, item.scope, item.number), (kind, 0, number));
+        assert_eq!(item.value.value, value);
     }
     for item in &stock {
         assert_eq!(item.value.size, temper_engine_smith::kinds::size(&item.value.value));
