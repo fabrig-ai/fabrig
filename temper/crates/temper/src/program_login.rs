@@ -1,64 +1,10 @@
-//! Terminal program login without deployment resources (protocol/credentials.md, 3).
-//! A pre-exec failure adds one `temper program-login:` line. Smith's checked
-//! configuration reader may first emit its own secret-free `smith:` diagnostics.
-use crate::directories::jig_directories;
-use std::{
-    ffi::OsStr,
-    os::unix::{ffi::OsStrExt, process::CommandExt},
-};
-
-fn source_name(name: &OsStr) -> Result<&str, String> {
-    smith_host_domain::SourceName::new(name.as_bytes())
-        .ok_or_else(|| smith_agent_shell::program::Refusal::Name.to_string())?;
-    Ok(name.to_str().expect("validated ASCII source name"))
-}
-
-fn command(
-    directories: &super::Directories,
-    name: &OsStr,
-    environment: impl IntoIterator<Item = (std::ffi::OsString, std::ffi::OsString)>,
-) -> Result<std::process::Command, String> {
-    let name = source_name(name)?;
-    let bytes = directories.read()?;
-    let worker = match temper_service::startup::shape(&bytes, &jig_directories(directories))
-        .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?
-    {
-        temper_service::startup::Shape::WorkerAlone => {
-            let part = temper_service::startup::worker_part(&bytes, &jig_directories(directories))
-                .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?;
-            part.named
-        }
-        temper_service::startup::Shape::Standalone | temper_service::startup::Shape::EngineAlone => {
-            let super::setup::Deployment { named, .. } = super::setup::check(&bytes, &jig_directories(directories))?;
-            named.worker.ok_or("workers: standalone takes one worker")?
-        }
-    };
-    let agent = super::agent::preflight_worker(&worker)?;
-    let program = agent
-        .programs
-        .iter()
-        .find(|program| program.adapter == temper_service::settings::Adapter::ClaudeCode)
-        .ok_or("workers[0].agent.configuration: programs.claude_code: not configured")?;
-    if super::agent::launcher(super::path(&program.directory)).as_deref() == Some(super::path(&program.path)) {
-        super::claude_code::place(
-            super::path(&program.path).parent().expect("launcher parent"),
-            super::path(&directories.cache),
-            super::path(&worker.program),
-        )
-        .map_err(|why| format!("programs.claude_code: {why}"))?;
-    }
-    let source = smith_agent_shell::program::prepare(super::path(&program.directory), name)
-        .map_err(|why| super::agent::program_directory_refusal(&why))?;
-    Ok(smith_agent_shell::program::sign_in(super::path(&program.path), &source, environment))
-}
-
-#[expect(
-    clippy::disallowed_methods,
-    reason = "cli C2: the process environment configures program sign-in; temper-box's table will pass it"
-)]
-pub(crate) fn run(directories: &super::Directories, name: &OsStr) -> Result<u8, String> {
-    let error = command(directories, name, std::env::vars_os())?.exec();
-    Err(format!("exec: {error}"))
+//! The box's deployment reader and printed program-login command (protocol/README.md, 4.5).
+pub(crate) fn deployment(
+    bytes: &[u8],
+    directories: &jig_protocol_config::Directories,
+) -> Result<temper_service::startup::NamedWorker, String> {
+    let super::setup::Deployment { named, .. } = super::setup::check(bytes, directories)?;
+    named.worker.ok_or_else(|| "workers: standalone takes one worker".into())
 }
 
 /// The box's POSIX command, without NAME (client/README.md, 4.6, *The printed command*).

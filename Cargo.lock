@@ -4942,10 +4942,8 @@ dependencies = [
  "smith-domain-run",
  "smith-fake-claude",
  "smith-host-domain",
- "smith-host-protocol",
  "smith-local-domain",
  "smith-local-process-world",
- "smith-local-service",
  "smith-protocol-program",
  "temper-box",
  "temper-client-bundle",
@@ -4982,6 +4980,7 @@ dependencies = [
  "temper-worker-domain",
  "temper-worker-domain-checkout",
  "temper-worker-protocol-git",
+ "temper-worker-shell",
 ]
 
 [[package]]
@@ -6488,6 +6487,29 @@ dependencies = [
  "skein-world",
  "temper-worker-domain-checkout",
  "temper-worker-protocol-git",
+]
+
+[[package]]
+name = "temper-worker-shell"
+version = "0.0.0"
+dependencies = [
+ "jig-channel-kit",
+ "jig-domain-link",
+ "jig-protocol-config",
+ "serde_json",
+ "skein-io",
+ "skein-scratch",
+ "skein-shell",
+ "skein-tls-kit",
+ "smith-agent-document",
+ "smith-host-domain",
+ "smith-host-protocol",
+ "temper-launcher",
+ "temper-playground",
+ "temper-service",
+ "temper-service-shell",
+ "temper-shell",
+ "temper-worker-domain",
 ]
 
 [[package]]
