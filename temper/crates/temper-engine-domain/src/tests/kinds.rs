@@ -711,37 +711,59 @@ fn read_forge(
 fn forge_setting_reads_follow_kept_removed_and_reset_values() {
     use jig_domain_people::{ApplicationScope, Role};
     let (mut domain, env) = reader(Some(Role::Observer));
-    let query = crate::ForgeRead::Setting { kind: 1, scope: 0, number: RULE };
-    for edit in [settings::Edit::Set(rule(false)), settings::Edit::Remove, settings::Edit::Reset] {
-        let mut out = Queue::uncapped();
-        domain.forge.keep_settings(
-            &crate::translate::environment_forge(&env),
-            2,
-            None,
-            &[settings::Asked { kind: 1, scope: 0, number: RULE, edit: edit.clone() }],
-            &mut out,
-        );
-        let expected = match edit {
-            settings::Edit::Set(value) => Some(value),
-            settings::Edit::Remove => None,
-            settings::Edit::Reset => Some(rule(true)),
-        };
+    for (kind, default, changed) in [
+        (1, rule(true), rule(false)),
+        (
+            11,
+            settings::SizedValue {
+                value: settings::Value::Goal(settings::TemplateGoal { design: false, close_out: false }),
+                size: 2,
+            },
+            settings::SizedValue {
+                value: settings::Value::Goal(settings::TemplateGoal { design: true, close_out: true }),
+                size: 2,
+            },
+        ),
+    ] {
+        domain.forge.give_settings_defaults(Box::new([settings::Stock {
+            kind,
+            scope: 0,
+            number: RULE,
+            value: default.clone(),
+        }]));
+        let query = crate::ForgeRead::Setting { kind, scope: 0, number: RULE };
+        for edit in [settings::Edit::Set(changed), settings::Edit::Remove, settings::Edit::Reset] {
+            let mut out = Queue::uncapped();
+            domain.forge.keep_settings(
+                &crate::translate::environment_forge(&env),
+                2,
+                None,
+                &[settings::Asked { kind, scope: 0, number: RULE, edit: edit.clone() }],
+                &mut out,
+            );
+            let expected = match edit {
+                settings::Edit::Set(value) => Some(value),
+                settings::Edit::Remove => None,
+                settings::Edit::Reset => Some(default.clone()),
+            };
+            assert_eq!(
+                read_forge(&mut domain, &env, READ_SIGN_IN, ApplicationScope::Deployment, query.clone()),
+                Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::Setting(expected) }
+            );
+        }
         assert_eq!(
-            read_forge(&mut domain, &env, READ_SIGN_IN, ApplicationScope::Deployment, query.clone()),
-            Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::Setting(expected) }
+            read_forge(
+                &mut domain,
+                &env,
+                READ_SIGN_IN,
+                ApplicationScope::Deployment,
+                crate::ForgeRead::Setting { kind, scope: 0, number: RULE + 1 }
+            ),
+            Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::Setting(None) }
         );
     }
-    assert_eq!(
-        read_forge(
-            &mut domain,
-            &env,
-            READ_SIGN_IN,
-            ApplicationScope::Deployment,
-            crate::ForgeRead::Setting { kind: 1, scope: 0, number: RULE + 1 }
-        ),
-        Delivery::ForgeRead { reply: READ_REPLY, answer: crate::ForgeReadAnswer::Setting(None) }
-    );
 }
+
 #[test]
 fn forge_proposal_reads_use_the_deployment_unique_key_and_preserve_edits() {
     use jig_domain_people::{ApplicationScope, Role};
@@ -1074,6 +1096,7 @@ fn a_project_reads_its_own_kinds_with_a_role_there() {
     for query in [
         crate::ForgeRead::Setting { kind: 1, scope: PROJECT, number: 1 },
         crate::ForgeRead::Setting { kind: 3, scope: PROJECT, number: 1 },
+        crate::ForgeRead::Setting { kind: 11, scope: PROJECT, number: 1 },
         crate::ForgeRead::RevisionSetting { kind: 1, scope: PROJECT, number: 1, revision: 1 },
         crate::ForgeRead::RevisionSetting { kind: 3, scope: PROJECT, number: 1, revision: 1 },
         crate::ForgeRead::RevisionSetting { kind: 6, scope: PROJECT + 1, number: 1, revision: 1 },

@@ -283,10 +283,16 @@ mod tests {
 
     #[test]
     fn a_clients_project_ways_reaches_the_root_typed() {
-        use temper_engine_domain_forge::settings::{ProjectWays, Value};
-        for (kind, value) in [
-            (7, Value::Ways(ProjectWays { drafts: true, goals: false, changes: true, way: 4 })),
-            (8, Value::Classes(temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview))),
+        use temper_engine_domain_forge::settings::{ProjectWays, TemplateGoal, Value};
+        for (kind, scope, number, value) in [
+            (7, 1, 1, Value::Ways(ProjectWays { drafts: true, goals: false, changes: true, way: 4 })),
+            (
+                8,
+                1,
+                1,
+                Value::Classes(temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview)),
+            ),
+            (11, 0, 4, Value::Goal(TemplateGoal { design: true, close_out: true })),
         ] {
             let bytes = temper_engine_smith::kinds::encode(&value);
             let size = u32::try_from(bytes.len()).expect("ways encoding");
@@ -299,7 +305,7 @@ mod tests {
                     against: 5,
                     running: core::settings::Running::Stays,
                     items: Box::new([core::settings::Item {
-                        setting: core::settings::Setting::Application { kind, scope: 1, number: 1 },
+                        setting: core::settings::Setting::Application { kind, scope, number },
                         edit: core::settings::Edit::Set(core::settings::Value::Application(bytes)),
                     }]),
                 }),
@@ -311,8 +317,8 @@ mod tests {
                 kinds.as_ref(),
                 &[root::KindValue {
                     kind,
-                    scope: 1,
-                    number: 1,
+                    scope,
+                    number,
                     value: temper_engine_domain_forge::settings::SizedValue { value, size }
                 }]
             );

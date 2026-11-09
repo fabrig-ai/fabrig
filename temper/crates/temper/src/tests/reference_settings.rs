@@ -12,8 +12,8 @@ const FOREMAN: u32 = 6;
 const TRIAGE: u32 = 8;
 const STATUS: u32 = 9;
 const GOAL: u32 = 4;
-// The reference supplies five charters, one template and two landing rules.
-const ITEMS: u32 = 8;
+// The reference supplies five charters, one template, its work and two landing rules.
+const ITEMS: u32 = 9;
 
 fn value(items: &List<SettingItem>, setting: Setting) -> &SettingValue {
     for item in items {
@@ -167,6 +167,20 @@ fn the_reference_settings_file_decodes() {
     assert_eq!(later.main.model.bytes(), b"claude-opus-5-5");
     assert_eq!(later.main.effort.as_ref().expect("later coordinator effort").bytes(), b"high");
     assert_eq!(later.subagents, llm.subagents);
+    let SettingValue::Application(bytes) = value(&items, Setting::Application { kind: 11, scope: 0, number: GOAL })
+    else {
+        panic!("goal template's work")
+    };
+    let decoded = temper_engine_smith::kinds::decode(
+        11,
+        bytes,
+        &temper_engine_smith::kinds::Bounds { segments: 16, segment_bytes: 4096, gates: 64, approvals: 64 },
+    )
+    .expect("reference goal template's work");
+    let temper_engine_domain_forge::settings::Value::Goal(work) = decoded.value else {
+        panic!("goal template's work record")
+    };
+    assert_eq!((work.design, work.close_out), (true, true));
 }
 
 // Rules pin the shared instructions or the wake parts selected by their on names.
@@ -678,8 +692,15 @@ fn the_reference_project_file_shows_its_goals_and_lands_main_alone() {
         &temper_engine_smith::kinds::Bounds { segments: 8, segment_bytes: 64, gates: 4, approvals: 4 },
     )
     .expect("reference project rule codec");
-    let bounds =
-        settings::Bounds { landing_rules: 2, gates: 4, roles: 4, charters: 12, segments: 8, segment_bytes: 64 };
+    let bounds = settings::Bounds {
+        landing_rules: 2,
+        gates: 4,
+        roles: 4,
+        charters: 12,
+        segments: 8,
+        segment_bytes: 64,
+        templates: 4,
+    };
     for (kind, scope, expected) in [(2, 1, Ok(())), (1, 0, Err(settings::Refusal::Pattern))] {
         let item = settings::Item { kind, scope, number: 1, value: Some(decoded.value.clone()) };
         assert_eq!(settings::judge(&item, &bounds), expected, "reference rule as kind {kind}");

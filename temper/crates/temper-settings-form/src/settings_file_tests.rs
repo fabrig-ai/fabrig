@@ -128,6 +128,8 @@ fn encode_file(value: &c::Charter, out: &mut Encoder) {
 const LANDING: &[u8] = br#"{"pattern":{"segments":["666f726765"],"last":{"exact":"6d61696e"}},"enforce":true,"ci":false,"up_to_date":true,"gates":[{"number":2,"blocking":true,"freshness":"clean"}],"approvals":[{"role":3,"people":1,"freshness":"exact"}]}"#;
 const DEPLOYMENT_RULE: &[u8] = br#"{"kind":"landing-rule","number":1}"#;
 const PROJECT_RULE: &[u8] = br#"{"kind":"landing-rule","project":7,"number":2}"#;
+const TEMPLATE_GOAL: &[u8] = br#"{"kind":"template-goal","number":4}"#;
+const GOAL: &[u8] = br#"{"design":true,"close_out":false}"#;
 const FORGE_CHARTER: &[u8] = br#"{"kind":"forge-charter","number":1}"#;
 fn joined(parts: &[&[u8]]) -> Box<[u8]> {
     let mut length = 0_usize;
@@ -162,6 +164,7 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
             c::Setting::Application { kind: 2, scope: 7, number: 2 },
         ),
         (FORGE_CHARTER, b"23".as_slice(), c::Setting::Application { kind: 3, scope: 0, number: 1 }),
+        (TEMPLATE_GOAL, GOAL, c::Setting::Application { kind: 11, scope: 0, number: 4 }),
     ] {
         let items = file::decode(&kind_file(setting, json), &Limits::standard()).expect("temper kind file");
         let item = items.get(0).expect("one item");
@@ -179,7 +182,7 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
 }
 #[test]
 fn temper_kind_edits_keep_removed_and_reset() {
-    for setting in [DEPLOYMENT_RULE, PROJECT_RULE, FORGE_CHARTER] {
+    for setting in [DEPLOYMENT_RULE, PROJECT_RULE, FORGE_CHARTER, TEMPLATE_GOAL] {
         for (word, expected) in [(b"removed".as_slice(), c::SettingEdit::Removed), (b"reset", c::SettingEdit::Reset)] {
             let bytes = joined(&[br#"{"items":[{"setting":"#, setting, br#", "edit":""#, word, br#""}]}"#]);
             let items = file::decode(&bytes, &Limits::standard()).expect("kind edit");
@@ -200,6 +203,19 @@ fn temper_kind_member_refusals_name_the_file_path() {
         (DEPLOYMENT_RULE, br#"{"connector":1}"#, b"settings file item 1: landing-rule.connector: unknown member"),
         (DEPLOYMENT_RULE, br#"{"kind":4}"#, b"settings file item 1: landing-rule.kind: unknown member"),
         (FORGE_CHARTER, b"null", b"settings file item 1: forge-charter: expected unsigned integer"),
+        (TEMPLATE_GOAL, br#"{"design":true}"#, b"settings file item 1: template-goal.close_out: missing member"),
+        (TEMPLATE_GOAL, br#"{"close_out":false}"#, b"settings file item 1: template-goal.design: missing member"),
+        (
+            TEMPLATE_GOAL,
+            br#"{"design":true,"close_out":false,"other":true}"#,
+            b"settings file item 1: template-goal.other: unknown member",
+        ),
+        (
+            br#"{"kind":"template-goal","number":4,"project":7}"#,
+            GOAL,
+            b"settings file item 1: template-goal.project: unknown member",
+        ),
+        (br#"{"kind":"template-goal"}"#, GOAL, b"settings file item 1: template-goal.number: missing member"),
         (
             DEPLOYMENT_RULE,
             br#"{"pattern":{"segments":[null]}}"#,

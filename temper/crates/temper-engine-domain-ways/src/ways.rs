@@ -67,7 +67,7 @@ pub enum View {
 }
 
 use skein_lib::{List, Map};
-use temper_engine_domain_forge::settings::{Held, ProjectWays, Value, project_stock};
+use temper_engine_domain_forge::settings::{Held, ProjectWays, TemplateGoal, Value, project_stock};
 
 /// The way's rules in number order, then kind 7 and kind 8 where the way lays them.
 #[must_use]
@@ -122,7 +122,7 @@ pub fn laid(rules: &[Held], stock: &[Held], project: u32, items: &[Item]) -> Box
                 Value::Rule(rule) => {
                     own.insert(item.number, rule.clone()).expect("edited project rule");
                 }
-                Value::Charter(_) | Value::Questions(_) | Value::Classes(_) | Value::Ways(_) => {}
+                Value::Charter(_) | Value::Questions(_) | Value::Classes(_) | Value::Goal(_) | Value::Ways(_) => {}
             },
             Edit::Remove => {
                 own.remove(&item.number);
@@ -152,9 +152,30 @@ pub fn laid_ways(ways: Option<&ProjectWays>, project: u32, items: &[Item]) -> Pr
         match &item.edit {
             Edit::Set(value) => match value {
                 Value::Ways(ways) => result = *ways,
-                Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Classes(_) => {}
+                Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Classes(_) | Value::Goal(_) => {}
             },
             Edit::Remove => result = own_ways(None),
+        }
+    }
+    result
+}
+
+/// A goal template's work with a decision's items laid over it, kind 11
+/// (temper/docs/design/protocol/configuration.md, 13.2): an item of kind 11 at scope 0
+/// and the template's number sets it, its removal leaves neither.
+#[must_use]
+pub fn laid_goal(goal: Option<TemplateGoal>, template: u32, items: &[Item]) -> TemplateGoal {
+    let mut result = goal.unwrap_or_default();
+    for item in items {
+        if item.kind != 11 || item.scope != 0 || item.number != template {
+            continue;
+        }
+        match &item.edit {
+            Edit::Set(value) => match value {
+                Value::Goal(goal) => result = *goal,
+                Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Ways(_) | Value::Classes(_) => {}
+            },
+            Edit::Remove => result = TemplateGoal::default(),
         }
     }
     result
@@ -165,7 +186,7 @@ fn own_ways(ways: Option<&ProjectWays>) -> ProjectWays {
         Some(ways) => *ways,
         None => match project_stock(7).expect("kind 7 has stock").value {
             Value::Ways(ways) => ways,
-            Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Classes(_) => {
+            Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Classes(_) | Value::Goal(_) => {
                 unreachable!("kind 7 is ways")
             }
         },

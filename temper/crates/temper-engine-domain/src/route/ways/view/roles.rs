@@ -10,7 +10,7 @@ pub(super) fn draw(domain: &Domain, project: u32, party: u64) -> ways::View {
     let path = ways::derive(&inputs);
     let coordinator = match inputs.start {
         ways::Start::Chat => None,
-        ways::Start::Goal { charter } => Some(charter),
+        ways::Start::Goal { charter, .. } => Some(charter),
     };
     let mut review = false;
     for stop in &path.stops {

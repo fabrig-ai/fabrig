@@ -374,7 +374,8 @@ fn drop_approvals(world: &mut World) {
                         settings::Value::Charter(_)
                         | settings::Value::Questions(_)
                         | settings::Value::Ways(_)
-                        | settings::Value::Classes(_) => None,
+                        | settings::Value::Classes(_)
+                        | settings::Value::Goal(_) => None,
                     }
                 }
                 _ => None,

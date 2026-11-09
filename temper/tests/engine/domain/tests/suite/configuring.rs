@@ -791,20 +791,44 @@ fn a_project_with_no_ways_reads_at_their_stock() {
     }
 }
 
+fn without_template_goal(mut configuration: engine::Config) -> engine::Config {
+    configuration.kinds_stock = configuration.kinds_stock.into_iter().filter(|stock| stock.kind != 11).collect();
+    configuration
+}
+
+fn owner_template_goal() -> s::Item {
+    temper_engine_domain_world::kinds::item(
+        11,
+        0,
+        4,
+        &temper_engine_domain_forge::settings::Value::Goal(temper_engine_domain_forge::settings::TemplateGoal {
+            design: true,
+            close_out: true,
+        }),
+    )
+}
+
 #[test]
 fn a_projects_stored_ways_read_as_stored() {
     use serde_json::json;
     for (kind, value) in [
+        ("template-goal", json!({"design":true,"close_out":true})),
         ("project-ways", json!({"drafts":true,"goals":true,"changes":true,"way":1})),
         ("project-classes", json!({"items":[{"kind":"implementation","words":"","class":"decide"}],"sets":[]})),
     ] {
-        let mut world = World::new(member_config());
+        let mut world = World::new(without_template_goal(member_config()));
         let member = world.member();
         let run = world.chat(ASK_TEMPLATE, member, 20);
-        if kind == "project-ways" {
+        let goal = kind == "template-goal";
+        let address = if goal { "settings template-goal 4".to_owned() } else { format!("settings {kind}") };
+        let (before, _) = see_whole(&mut world.driver, &run, 1, &address);
+        if goal {
+            assert_eq!(before, "template-goal 4: none kept; its coordinator plans and makes no close-out.\n");
+            world.change(1, 21, Box::new([owner_template_goal()]));
+        } else if kind == "project-ways" {
             let setting = json!({"kind":kind,"project":PROJECT});
             let items = json!([{"setting":setting,"set":value}]);
-            let proposal = propose(&mut world.driver, &run, 1, 1, &items);
+            let proposal = propose(&mut world.driver, &run, 2, 1, &items);
             world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
         } else {
             use temper_protocol_reaches::{Class, Classes, Item, Kind, Subject};
@@ -828,8 +852,8 @@ fn a_projects_stored_ways_read_as_stored() {
             );
         }
         assert_eq!(world.head().number, 2);
-        let (text, _) = see_whole(&mut world.driver, &run, 2, &format!("settings {kind}"));
-        let heading = format!("{kind} {PROJECT}, revision 2\n");
+        let (text, _) = see_whole(&mut world.driver, &run, 3, &address);
+        let heading = format!("{kind} {}, revision 2\n", if goal { 4 } else { PROJECT });
         let body = text.strip_prefix(&heading).expect("newest setting heading");
         let (body, state) = body.split_once('\n').expect("value and application state");
         assert_eq!(serde_json::from_str::<serde_json::Value>(body).expect("project JSON"), value);
@@ -845,7 +869,7 @@ fn a_read_that_finds_nothing_says_it_was_not_read() {
     let run = world.chat(SETTINGS_TEMPLATE, world.owner, 20);
     let asking = world.chat(ASK_TEMPLATE, world.owner, 22);
     world.change(1, 21, Box::new([owner_charter(b"Keep commits small.")]));
-    let settings_refusal = "not read: no such setting at that revision. This says nothing about the settings: read the inventory and name what it lists; project-ways, project-questions and project-classes take project and no number.\nend\n";
+    let settings_refusal = "not read: no such setting at that revision. This says nothing about the settings: read the inventory; template-goal takes a template number, no project; project-ways, project-questions and project-classes take project, no number.\nend\n";
     let see_refusal = "see settings charter 999: not read: no such setting. This says nothing about the settings: see settings lists them.";
     for (run, completion, tool, input, expected) in [
         (&run, 1, b"settings".as_slice(), json!({"setting":{"kind":"project-ways","project":999}}), settings_refusal),
@@ -1120,7 +1144,7 @@ fn the_stock_gives_each_project_rule_one_and_reset_restores_it() {
 
 #[test]
 fn the_asking_chat_reads_each_kind() {
-    let mut world = World::stock();
+    let mut world = World::new(without_template_goal(config()));
     let run = world.chat(ASK_TEMPLATE, world.owner, 20);
     world.change(1, 21, Box::new([owner_charter(b"The newest chat instructions.")]));
     let before = world.driver.store.rows.clone();
@@ -1136,12 +1160,20 @@ fn the_asking_chat_reads_each_kind() {
         ("settings project-ways", "project-ways 1, revision 2\n", "the stock"),
         ("settings project-questions", "project-questions 1, revision 2\n", "the stock"),
         ("settings project-classes", "project-classes 1, revision 2\n", "\"class\":\"ask\""),
+        ("settings template-goal 4", "template-goal 4: none kept;", "its coordinator plans and makes no close-out."),
         ("revision 2", "revision 2, against revision 1,", "The newest chat instructions."),
         ("revisions", "revision 2, against revision 1,", "revision 1, against revision 0,"),
     ] {
         let (text, pages) = see_whole(&mut world.driver, &run, completion, input);
         assert!(text.starts_with(heading), "{text}");
         assert!(text.contains(content), "{text}");
+        if input == "settings" {
+            let (body, error) =
+                host_tool(&mut world.driver, &run, completion + pages, b"see", br#"{"address":"settings"}"#);
+            assert!(!error);
+            assert!(String::from_utf8_lossy(&body).contains("settings template-goal N"));
+            completion += 1;
+        }
         completion += pages;
     }
     let (text, pages) = see_whole(&mut world.driver, &run, completion + 10, "settings charter 11");
@@ -1159,7 +1191,7 @@ fn the_asking_chat_reads_each_kind() {
 )]
 fn an_asking_chat_reads_each_address() {
     use serde_json::json;
-    let mut world = World::new(settings_config());
+    let mut world = World::new(without_template_goal(settings_config()));
     world.change(1, 21, Box::new([owner_charter(b"The newest chat instructions.")]));
     let run = world.chat(ASK_TEMPLATE, world.owner, 20);
     assert_eq!(run.charter, ASK_CHARTER);
@@ -1174,6 +1206,12 @@ fn an_asking_chat_reads_each_address() {
         ("settings rules", "rules, revision 2", "\"ceiling\":", false),
         ("settings landing-rule 1 project", "landing-rule 1 --project 1, revision 2", "\"enforce\":true", false),
         ("settings forge-charter 1", "forge-charter 1, revision 2", "default, ", false),
+        (
+            "settings template-goal 4",
+            "template-goal 4: none kept;",
+            "its coordinator plans and makes no close-out.",
+            false,
+        ),
         ("settings project-ways", "project-ways 1, revision 2", "the stock", false),
         ("settings project-questions", "project-questions 1, revision 2", "the stock", false),
         ("settings project-classes", "project-classes 1, revision 2", "the stock", false),

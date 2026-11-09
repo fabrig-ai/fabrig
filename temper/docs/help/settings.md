@@ -7,10 +7,10 @@ How work runs in a deployment: its charters, templates, policies and rules, whic
 ## What it is
 
 Settings cover charters, templates, policies, rules, landing rules, forge
-charters and project ways, questions and classes. Name one by kind and
+charters, goal templates' work, and project ways, questions and classes. Name one by kind and
 number, or project for ways, questions and classes; rules have no number:
 `charter 2`, `template 1`, `policy 1`, `rules`,
-`landing-rule 1`, `landing-rule 1 --project 2`, `forge-charter 1`,
+`landing-rule 1`, `landing-rule 1 --project 2`, `forge-charter 1`, `template-goal 4`,
 `project-ways 2`, `project-questions 2`, `project-classes 2`.
 
 - A project's ways say whether chats can write drafts, whether Work's Goals
@@ -26,6 +26,10 @@ number, or project for ways, questions and classes; rules have no number:
   deployment or one project: `temper help landing-rule`.
 - The forge's charter 1 selects the change's charter, and 2 its reviews'.
   Its value is a charter's number.
+- A goal template's work, `template-goal N`, says whether its coordinator
+  designs first (`design`) and makes a close-out (`close_out`), both bools.
+  With none kept, it plans and makes no close-out. The stock sets both false
+  for template 4.
 - A charter is how an agent's run works: `temper help charter`.
 - A template is how a new task is filled: `temper help template`.
 - A policy is what a project made from it starts with, and the rules are
@@ -120,6 +124,8 @@ its default. A stored change still wins over a changed default.
   `settings show landing-rule NUMBER` reads a deployment landing rule;
   add `--project PROJECT` for a project's.
   `settings show forge-charter NUMBER` reads one of the forge's charters.
+  `settings show template-goal NUMBER` reads a goal template's work and takes
+  `--revision` and `--json` for a settings file's `set` form.
   `settings show project-ways PROJECT`, `settings show project-questions
   PROJECT` and `settings show project-classes PROJECT` read by project
   number or name, marking the stock when none is stored. All take
@@ -132,7 +138,7 @@ its default. A stored change still wins over a changed default.
   and propose with `propose_settings`: Ask temper, charter 11, uses `see`
   and the asking form of `propose_settings`
   (`temper help charter`). It reads and proposes `charter`, `template`,
-  `policy`, `rules`, `landing-rule`, `forge-charter` and
+  `policy`, `rules`, `landing-rule`, `forge-charter`, `template-goal` and
   `project-policy`, `project-ways`, `project-questions` and `project-classes`,
   in the settings file's form. Ways, questions and classes require `project`
   and take no `number`. A landing rule names

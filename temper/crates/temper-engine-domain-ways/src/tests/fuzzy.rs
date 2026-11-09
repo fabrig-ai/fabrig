@@ -38,7 +38,11 @@ fn paths_end_at_a_bar_and_only_code_lands() {
             roles: Box::new([Role { number: 0, name: b"owner".as_slice().into(), yours: rng.chance(500) }]),
             agents: Box::default(),
         };
-        input.start = if rng.chance(500) { Start::Chat } else { Start::Goal { charter: 5 } };
+        input.start = if rng.chance(500) {
+            Start::Chat
+        } else {
+            Start::Goal { charter: 5, design: rng.chance(500), close_out: rng.chance(500) }
+        };
         input.branch = if rng.chance(500) { b"main".as_slice().into() } else { b"release/v1".as_slice().into() };
         if rng.chance(100) {
             input.repository = None;
@@ -115,10 +119,33 @@ fn paths_end_at_a_bar_and_only_code_lands() {
         bounds(&path);
         assert!(path.stops.iter().filter(|stop| stop.step == Step::Repair).count() <= 1, "seed {seed}: one repair");
         assert_eq!(path.stops.last().unwrap().step, Step::Branch, "seed {seed}: landing bar");
-        let goal = match input.start {
-            Start::Chat => false,
-            Start::Goal { .. } => true,
+        let (goal, design, close_out) = match input.start {
+            Start::Chat => (false, false, false),
+            Start::Goal { design, close_out, .. } => (true, design, close_out),
         };
+        assert_eq!(
+            path.stops.iter().filter(|stop| stop.step == Step::Design).count(),
+            usize::from(goal && design),
+            "seed {seed}: design iff the goal designs first"
+        );
+        assert_eq!(
+            path.stops.iter().filter(|stop| stop.step == Step::Plan).count(),
+            usize::from(goal && !design),
+            "seed {seed}: plan iff the goal does not design first"
+        );
+        assert_eq!(
+            path.stops.iter().filter(|stop| stop.step == Step::CloseOut).count(),
+            usize::from(goal && close_out),
+            "seed {seed}: close-out once iff the goal makes one"
+        );
+        if close_out {
+            let close = path.stops.iter().position(|stop| stop.step == Step::CloseOut).unwrap();
+            let landing =
+                path.stops.iter().rposition(|stop| stop.step == Step::Merge || stop.step == Step::Turn).unwrap();
+            let bar = path.stops.iter().rposition(|stop| stop.step == Step::Branch).unwrap();
+            assert!(landing < close && close < bar, "seed {seed}: close-out after landing and before its bar");
+            assert_eq!(path.stops.get(close).unwrap().actor, Actor::Agent, "seed {seed}: close-out is an agent's");
+        }
         let mut goal_segment = goal;
         for stop in &path.stops {
             if stop.step == Step::Branch {
@@ -157,7 +184,9 @@ fn paths_end_at_a_bar_and_only_code_lands() {
                 | Step::Approve
                 | Step::Resolve
                 | Step::Verify
-                | Step::Branch => {}
+                | Step::Branch
+                | Step::Design
+                | Step::CloseOut => {}
             }
         }
     }

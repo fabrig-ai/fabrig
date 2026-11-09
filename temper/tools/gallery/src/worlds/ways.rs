@@ -319,7 +319,7 @@ fn stop(step: w::PathStep) -> w::Stop {
             w::Opens::Nothing,
             card("a person · writes the draft with an agent", "you", &[("Starts", "a goal for a draft")]),
         ),
-        Plan => (
+        Plan | w::PathStep::Design | w::PathStep::CloseOut => (
             Agent,
             "plan",
             w::Opens::Charter(

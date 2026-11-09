@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use jig_domain_core::settings::application::{Restored, RestoredEdit};
 use skein_lib::{Env, List, Map, Queue};
 
-use crate::settings::{self, Edit, SettingKey, SettingRow, SettingSlot, Value};
+use crate::settings::{self, Edit, SettingKey, SettingRow, SettingSlot, TemplateGoal, Value};
 use crate::{Domain, ForgeCharters, Key, Limits, Request, Stored};
 
 impl Domain {
@@ -317,7 +317,7 @@ impl Domain {
         match self.setting(6, project, 1) {
             Some(settings::SizedValue { value: Value::Questions(route), .. }) => *route,
             Some(settings::SizedValue {
-                value: Value::Rule(_) | Value::Charter(_) | Value::Ways(_) | Value::Classes(_),
+                value: Value::Rule(_) | Value::Charter(_) | Value::Ways(_) | Value::Classes(_) | Value::Goal(_),
                 ..
             })
             | None => Route::None,
@@ -331,10 +331,24 @@ impl Domain {
         match self.setting(8, project, 1) {
             Some(settings::SizedValue { value: Value::Classes(classes), .. }) => classes.clone(),
             Some(settings::SizedValue {
-                value: Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Ways(_),
+                value: Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Ways(_) | Value::Goal(_),
                 ..
             })
             | None => temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview),
+        }
+    }
+
+    /// A goal template's work as held: its change, else the stock's; none where removed
+    /// or never given (temper/docs/design/protocol/configuration.md, 13.2).
+    #[must_use]
+    pub fn template_goal(&self, template: u32) -> Option<TemplateGoal> {
+        match self.setting(11, 0, template) {
+            Some(settings::SizedValue { value: Value::Goal(goal), .. }) => Some(*goal),
+            Some(settings::SizedValue {
+                value: Value::Rule(_) | Value::Charter(_) | Value::Questions(_) | Value::Ways(_) | Value::Classes(_),
+                ..
+            })
+            | None => None,
         }
     }
 
@@ -504,7 +518,7 @@ impl Domain {
         match self.setting(3, 0, number) {
             Some(settings::SizedValue { value: Value::Charter(charter), .. }) => *charter,
             Some(settings::SizedValue {
-                value: Value::Rule(_) | Value::Questions(_) | Value::Ways(_) | Value::Classes(_),
+                value: Value::Rule(_) | Value::Questions(_) | Value::Ways(_) | Value::Classes(_) | Value::Goal(_),
                 ..
             })
             | None => 0,
@@ -543,7 +557,7 @@ fn value_state(value: Option<&settings::SizedValue>) -> (u32, Option<u32>) {
     match value {
         Some(settings::SizedValue { value: Value::Charter(charter), size }) => (*size, Some(*charter)),
         Some(settings::SizedValue {
-            value: Value::Rule(_) | Value::Questions(_) | Value::Ways(_) | Value::Classes(_),
+            value: Value::Rule(_) | Value::Questions(_) | Value::Ways(_) | Value::Classes(_) | Value::Goal(_),
             size,
         }) => (*size, None),
         None => (0, None),
