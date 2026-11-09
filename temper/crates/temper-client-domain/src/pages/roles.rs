@@ -1,4 +1,4 @@
-//! Role and rule pages read the forge's view (temper/docs/design/client/README.md, 3.5 and 5.16).
+//! How work runs, role and rule pages read the forge's view (temper/docs/design/client/README.md, 3.5 and 5.16).
 use super::Request;
 use crate::{Address, forge, owner::Owner};
 use alloc::boxed::Box;
@@ -41,7 +41,7 @@ impl Roles {
         out: &mut Queue<Request>,
     ) {
         let project = match address {
-            Address::Role { project, .. } | Address::Rule { project, .. } => *project,
+            Address::Settings { project } | Address::Role { project, .. } | Address::Rule { project, .. } => *project,
             Address::AllHome
             | Address::Inbox { .. }
             | Address::Chats { .. }
@@ -60,7 +60,6 @@ impl Roles {
             | Address::Goals { .. }
             | Address::Changes { .. }
             | Address::Team { .. }
-            | Address::Settings { .. }
             | Address::Repositories { .. }
             | Address::Models { .. }
             | Address::Builders { .. }
@@ -163,6 +162,7 @@ impl Roles {
 
 fn view_address(address: &Address) -> Box<[u8]> {
     match address {
+        Address::Settings { .. } => Box::from(b"roles".as_slice()),
         Address::Role { charter, .. } => {
             skein_lib::bytes::concat(&[b"charter ", Decimal::of(u64::from(*charter)).as_bytes()])
         }
@@ -190,7 +190,6 @@ fn view_address(address: &Address) -> Box<[u8]> {
         | Address::Goals { .. }
         | Address::Changes { .. }
         | Address::Team { .. }
-        | Address::Settings { .. }
         | Address::Repositories { .. }
         | Address::Models { .. }
         | Address::Builders { .. }

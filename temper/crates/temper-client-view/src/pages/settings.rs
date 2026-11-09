@@ -313,6 +313,7 @@ pub(crate) fn how_work_runs(
             Some(Asked::Questions(_)) | None => stored.unwrap_or(Ways::STOCK),
         };
         super::how::path(b, root, w, bindings, project);
+        super::how::roles(b, root, w, bindings, project);
         super::how::budgets(b, root, w, project);
         needs(b, root, w, forge, project);
         away_settings(b, root, w, bindings, project, wall);

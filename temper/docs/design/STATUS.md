@@ -72,7 +72,7 @@ both themes and at 110 by 32, joint-world stories of a need walked and answered 
 `/change` starting a chat, and the journey `launchpad-drawn`
 (`client/README.md`, 6.13 to 6.15; `client/tui/journeys.md`, 9). The
 team lines, `/draft`, `/talk` and `/tell` are T2's and T3's, the brief
-and rows across projects wait for Home across them, and the design
+and rows are one project's, not those of Home across projects, and the design
 departs from the mockups in "/chats N" and two of Pair's words
 (`draft/surfaces.status.md`, 11); the blank row under the header is not
 yet drawn (`client/README.status.md`, 6.14), and the walk follows
@@ -156,17 +156,17 @@ page in How work runs' frame, and the terminal prints "Ways of working:" and "Th
 way a change goes:" once each. No gallery state draws those two pages,
 and the repairs' render check follows landing (`client/README.status.md`,
 3.5 and 5.16; `client/browser.status.md`, 2.5 and 7.1;
-`domain/forge.status.md`, 8.13; `domain/forge.md`, 20). How work
+`domain/forge.status.md`, 4.7 and 8.13; `domain/forge.md`, 20). How work
 runs, Settings' first tab, is the whole story's milestone P3a, by plan
 `ui-p3a-how`: the way the project runs, "Ask temper to change this",
 the ways as tabs over the path in lanes, You, Agents and Code, a goal's
 budget and the switches at its foot, its parts and lanes one pure
 function each, with a fuzz test of their rules, the joint world's
 lanes over CI and tiers and over neither, and six gallery states; its
-render check and walk follow landing. The draft draws the path as Ask
-temper's ways do, the agent's star in ink, which the design doesn't yet
-say, and Roles, which it defers (`client/README.md`, 5.13 and 11; `client/browser.md`,
-2.5 and 7.2; `draft/surfaces.status.md`, 7 and 13). The rail, Work and
+render check and walk follow landing. The path is drawn as Ask temper's
+ways are, the agent's star in ink, with the project's Roles below it;
+a role's model is among its opened terms (`client/README.status.md`,
+5.13; `client/browser.md`, 2.5 and 7.2). The rail, Work and
 Deployment are the whole story's milestone P1, by plan `ui-p1-rail`: the
 rail and the tab bar from one pure function of their parts, Work, the
 hairline, How work runs, the new box and Deployment at the foot, the
@@ -180,7 +180,23 @@ adds a hairline and How work runs to To begin's rail, drops the words
 that still name Settings and takes Away across projects, which the
 design doesn't yet say (`client/README.status.md`, 3.5 and 5.3;
 `client/browser.status.md`, 2.3, 2.5 and 7.2;
-`draft/surfaces.status.md`, 2, 5, 8 and 10). Ask temper's
+`draft/surfaces.status.md`, 2, 5, 8 and 10). Home and Needs you across
+projects, and the brief, are the whole story's milestone P2, by plan
+`ui-p2-home`: Home on All projects at `/home`, reading every project's
+status and decisions, the briefs' first sentences joined, Projects, the
+Ask temper line and the switcher's All projects leading there; a
+project's Home's needs as at most three cards; Needs you as a list on a
+wide page, told something else in words, with Decided for you; their
+parts one pure function a page, with a fuzz test of the draft's density
+rules, the joint world's stories across two projects and thirteen
+gallery states; their render check, walk and journey follow landing. The
+draft, redrawn after the plan's cut, words the byline across projects
+otherwise, and its phone's headline is shorter, which a repair takes; a
+need's why, owners' lines and What follows what wait for their
+milestones, and the launchpad still reads one project's brief
+(`client/README.md`, 3.5 and 11;
+`client/README.status.md`, 3.5; `client/browser.status.md`, 2.3 and
+7.2; `draft/surfaces.status.md`, 3, 4, 11 and 14). Ask temper's
 first milestone stands in the code, with its own project page, rail entry and phone tab
 (`draft/ask-temper.execution.md`, M1), and its ways milestone, M3a, with
 the instructions' first step of Showing. Charter 3, template 3, `Configure`

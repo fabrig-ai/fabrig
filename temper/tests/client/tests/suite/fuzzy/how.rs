@@ -1,13 +1,15 @@
-//! Parts follow their facts and paths their actors
+//! Parts follow their facts and drawings keep every stop
 //! (temper/docs/design/client/README.md, 5.13; temper/docs/design/draft/surfaces.md, 12).
 use jig_client::contract::TemplateBudget;
 use skein_lib::{List, Rng};
+use skein_ui::{Builder, Role};
 use std::{collections::BTreeSet, panic::catch_unwind};
 use temper_client_domain::{
     forge,
-    pages::how::{self, Budget, Column, Facts, Head, Lane, Path, Read},
+    pages::how::{self, Budget, Facts, Head, Path, Read},
 };
 use temper_client_protocol_wire::v1 as w;
+use temper_client_view::paths;
 use temper_client_world::fixtures;
 
 // Match public_address's independently replayable 2,000 draws.
@@ -43,6 +45,7 @@ fn current(rng: &mut Rng) -> Read {
 
 fn facts(rng: &mut Rng) -> Facts {
     Facts {
+        roles: false,
         asking: rng.chance(500),
         read: match rng.below(4) {
             0 => Read::Reading,
@@ -81,7 +84,7 @@ fn path(rng: &mut Rng, limits: &w::Limits) -> w::BranchPath {
     // The fixture uses the wire's bound of 24 stops (forge.md, 8.13).
     let count = u32::try_from(rng.between(0, u64::from(limits.branch_path_stops))).expect("wire count");
     let mut stops = List::with_capacity(count);
-    for _ in 0..count {
+    for index in 0..count {
         let (actor, step) = match rng.below(4) {
             0 => (w::Actor::Person, w::PathStep::Ask),
             1 => (w::Actor::Agent, w::PathStep::Produce),
@@ -96,8 +99,23 @@ fn path(rng: &mut Rng, limits: &w::Limits) -> w::BranchPath {
         .expect("short card within fixture limits");
         stops
             .push(
-                w::Stop::new(limits, w::StopParts { actor, step, words, opens: w::Opens::Nothing, card })
-                    .expect("stop within fixture limits"),
+                w::Stop::new(
+                    limits,
+                    w::StopParts {
+                        needed: actor != w::Actor::Bar && index % 2 == 0,
+                        over: if actor == w::Actor::Agent {
+                            b"tests, review".as_slice().into()
+                        } else {
+                            Box::default()
+                        },
+                        actor,
+                        step,
+                        words,
+                        opens: w::Opens::Nothing,
+                        card,
+                    },
+                )
+                .expect("stop within fixture limits"),
             )
             .expect("one stop per draw");
     }
@@ -105,26 +123,61 @@ fn path(rng: &mut Rng, limits: &w::Limits) -> w::BranchPath {
         .expect("path within fixture limits")
 }
 
-fn check_lanes(path: &w::BranchPath, seed: u64, step: u32) {
-    let columns = how::lanes(path);
-    assert_eq!(columns.len(), path.stops().len(), "seed {seed}, step {step}: every stop exactly once");
-    for (index, (column, stop)) in columns.iter().zip(path.stops().iter()).enumerate() {
-        let (at, lane) = match column {
-            Column::Stop { stop, lane } => (*stop, Some(*lane)),
-            Column::Bar { stop } => (*stop, None),
+fn check_drawing(path: &w::BranchPath, bounds: &skein_ui::Limits, seed: u64, step: u32) {
+    let stops: Vec<_> = path
+        .stops()
+        .iter()
+        .map(|stop| paths::Stop {
+            mark: match stop.actor() {
+                w::Actor::Person => paths::Mark::Person,
+                w::Actor::Agent => paths::Mark::Agent,
+                w::Actor::Code => paths::Mark::Code,
+                w::Actor::Bar => paths::Mark::Bar,
+            },
+            words: stop.words(),
+            needed: stop.needed(),
+            over: stop.over(),
+        })
+        .collect();
+    let mut builder = Builder::new(bounds);
+    let result = paths::path(&mut builder, b"The way a change goes", &stops, None);
+    let tree = builder.finish();
+    if path.stops().is_empty() {
+        assert_eq!(result, Err(paths::Problem::Stops));
+        assert!(tree.nodes().is_empty(), "seed {seed}, step {step}: empty path has no fallback lines");
+        return;
+    }
+    result.expect("wire path fits drawing");
+    let lines: Vec<_> = tree
+        .nodes()
+        .iter()
+        .filter(|node| node.role == Role::Item)
+        .map(|node| node.name.as_deref().expect("fallback line"))
+        .collect();
+    assert_eq!(
+        lines.len(),
+        usize::try_from(path.stops().len()).expect("wire stop count"),
+        "seed {seed}, step {step}: every stop exactly once"
+    );
+    for (index, (line, stop)) in lines.iter().zip(path.stops()).enumerate() {
+        let actor = match stop.actor() {
+            w::Actor::Person => "a person",
+            w::Actor::Agent => "an agent",
+            w::Actor::Code => "code",
+            w::Actor::Bar => "a branch",
         };
+        let needed = if stop.needed() { ", when needed" } else { "" };
+        let over = if stop.over().is_empty() {
+            String::new()
+        } else {
+            format!(" ({})", std::str::from_utf8(stop.over()).expect("small words"))
+        };
+        let expected = format!("{}, {actor}{needed}{over}", std::str::from_utf8(stop.words()).expect("stop words"));
         assert_eq!(
-            usize::try_from(at).expect("stop index"),
-            index,
-            "seed {seed}, step {step}: columns keep path order"
+            *line,
+            expected.as_bytes(),
+            "seed {seed}, step {step}, stop {index}: fallback keeps path order and actor"
         );
-        let actor = match lane {
-            Some(Lane::You) => w::Actor::Person,
-            Some(Lane::Agents) => w::Actor::Agent,
-            Some(Lane::Code) => w::Actor::Code,
-            None => w::Actor::Bar,
-        };
-        assert_eq!(&actor, stop.actor(), "seed {seed}, step {step}, stop {index}: actor's lane, bar in none");
     }
 }
 
@@ -148,6 +201,7 @@ fn combination(facts: &Facts) -> (u8, bool, bool, u8) {
 fn sweep(
     seed: u64,
     limits: &w::Limits,
+    bounds: &skein_ui::Limits,
     combinations: &mut BTreeSet<(u8, bool, bool, u8)>,
     lengths: &mut BTreeSet<u32>,
 ) {
@@ -156,7 +210,7 @@ fn sweep(
     let mut settings = initial;
     let mut route = path(&mut rng, limits);
     check_parts(&settings, seed, 0);
-    check_lanes(&route, seed, 0);
+    check_drawing(&route, bounds, seed, 0);
     combinations.insert(combination(&settings));
     lengths.insert(route.stops().len());
     for step in 1..=MOVES {
@@ -174,7 +228,7 @@ fn sweep(
             _ => settings.asking = !settings.asking,
         }
         check_parts(&settings, seed, step);
-        check_lanes(&route, seed, step);
+        check_drawing(&route, bounds, seed, step);
         // An unrelated project's read cannot change this project's parts.
         check_parts(&initial, seed, step);
         combinations.insert(combination(&settings));
@@ -183,14 +237,22 @@ fn sweep(
 }
 
 #[test]
-fn parts_and_lanes_follow_only_the_current_facts() {
+fn parts_and_drawing_follow_only_the_current_facts() {
     let limits = forge::wire_limits(&fixtures::domain_limits().forge).expect("world wire limits");
+    let domain = fixtures::domain_limits();
+    let bounds = fixtures::view_bounds(&domain, &fixtures::phrasebooks(&domain)).tree;
     let mut combinations = BTreeSet::new();
     let mut lengths = BTreeSet::new();
     for seed in 1..=SEEDS {
         assert!(
-            catch_unwind(std::panic::AssertUnwindSafe(|| sweep(seed, &limits, &mut combinations, &mut lengths)))
-                .is_ok(),
+            catch_unwind(std::panic::AssertUnwindSafe(|| sweep(
+                seed,
+                &limits,
+                &bounds,
+                &mut combinations,
+                &mut lengths
+            )))
+            .is_ok(),
             "seed {seed}: replay with sweep({seed})"
         );
     }

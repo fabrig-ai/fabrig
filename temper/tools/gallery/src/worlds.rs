@@ -762,7 +762,9 @@ fn world_in_layout(
                             }
                         }
                         v1::Read::View(view) => {
-                            if goals.is_some_and(|name| name.starts_with("chat-view-")) {
+                            if settings == Some("how-draft") && view.address() == b"roles" {
+                                ways::roles(&mut root, read, &mut out);
+                            } else if goals.is_some_and(|name| name.starts_with("chat-view-")) {
                                 views::answer(&mut root, read, view.address(), &mut out);
                             }
                         }

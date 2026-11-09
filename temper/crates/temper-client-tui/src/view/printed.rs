@@ -70,6 +70,11 @@ pub(crate) fn draw(b: &mut Builder, printed: &Printed, words: &Words) {
             }
             w::View::Charter(charter) => card(b, charter.card()),
             w::View::Rule(rule) => card(b, rule.card()),
+            w::View::Roles(roles) => {
+                for role in roles.roles() {
+                    card(b, role.card());
+                }
+            }
             w::View::NotDrawn(value) => text(b, Role::Paragraph, value.words(), None),
         },
     }

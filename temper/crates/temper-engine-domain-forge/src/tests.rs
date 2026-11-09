@@ -42,6 +42,7 @@ mod standing;
 mod stopping;
 mod tiers;
 mod views;
+mod workflows;
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 
@@ -301,6 +302,7 @@ fn ready(d: &mut Domain) -> Box<[Request]> {
 }
 fn adopted() -> Repository {
     Repository {
+        workflows: Box::default(),
         project: 5,
         home: true,
         provider: REPO,

@@ -499,16 +499,16 @@ fn a_flow_or_path_draws_on_temper_page_and_keeps_its_fallback() {
     const SVG: &str = include_str!("../../../../skein/docs/design/draft/diagrams/how-hello-works.640.svg");
     const FALLBACK: &str = "Design draft, you write it; then Goal, you start it; then Checked changes, CI and a review; then main, the merge queue.";
     let stops = [
-        Stop { mark: Mark::Person, words: b"you ask" },
-        Stop { mark: Mark::Agent, words: b"produce" },
-        Stop { mark: Mark::Code, words: b"check" },
-        Stop { mark: Mark::Agent, words: b"repair" },
-        Stop { mark: Mark::Code, words: b"check" },
-        Stop { mark: Mark::Person, words: b"you approve" },
-        Stop { mark: Mark::Code, words: b"update" },
-        Stop { mark: Mark::Agent, words: b"resolve" },
-        Stop { mark: Mark::Code, words: b"merge" },
-        Stop { mark: Mark::Bar, words: b"main" },
+        Stop { mark: Mark::Person, words: b"you ask", needed: false, over: b"" },
+        Stop { mark: Mark::Agent, words: b"produce", needed: false, over: b"" },
+        Stop { mark: Mark::Code, words: b"check", needed: false, over: b"" },
+        Stop { mark: Mark::Agent, words: b"repair", needed: false, over: b"" },
+        Stop { mark: Mark::Code, words: b"check", needed: false, over: b"" },
+        Stop { mark: Mark::Person, words: b"you approve", needed: false, over: b"" },
+        Stop { mark: Mark::Code, words: b"update", needed: false, over: b"" },
+        Stop { mark: Mark::Agent, words: b"resolve", needed: false, over: b"" },
+        Stop { mark: Mark::Code, words: b"merge", needed: false, over: b"" },
+        Stop { mark: Mark::Bar, words: b"main", needed: false, over: b"" },
     ];
     let bounds = fixture().bounds.tree;
     for flow in [true, false] {
@@ -552,7 +552,7 @@ fn a_flow_or_path_draws_on_temper_page_and_keeps_its_fallback() {
                     assert!(html.contains(words), "path fallback at width {width}: {html}");
                 }
                 if width == 640 {
-                    for name in ["main", "rise"] {
+                    for name in ["main", "rise-person", "rise-agent"] {
                         assert!(html.contains(&format!("class=\"temper-ways-{name}\"")), "{html}");
                     }
                 }
