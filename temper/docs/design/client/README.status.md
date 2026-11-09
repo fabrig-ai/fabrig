@@ -1,6 +1,6 @@
 # README: status
 
-2026-11-08. Where temper's code lags or departs from [README.md](README.md).
+2026-11-09. Where temper's code lags or departs from [README.md](README.md).
 
 Sections 3.5 and 5.3 have the two-step To begin, repository first,
 the two-count facts and notes, and restricted navigation on Home and
@@ -278,10 +278,6 @@ remains intentional: `>_` and the status words leave the path less than
 its 320 px, as the user accepted in `look-round-17`.
 
 ## Gaps and departures
-
-- **Not yet:** 5.10, from the request `n4-request-changes` of 2026-11-08: no
-  panel line says "Repairing: a person asked for changes on the forge."
-  (`temper-client-domain/src/forge/words.rs` has no such word).
 
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs
