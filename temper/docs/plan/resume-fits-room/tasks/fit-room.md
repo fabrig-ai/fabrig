@@ -181,3 +181,11 @@ lacks `Limits.room` (worker-link-quiet: `engine-room` on its trunk,
 `worker-room` parked, `temper-room` waiting), so this trunk cannot hold
 it. The rerun waits for that plan to land and this trunk to catch up;
 until then each run fails at the premise, changing and pushing nothing.
+
+2026-11-09, a third time. *Run 4 found the base still lacks
+worker-link-quiet's engine-room; what now?* Nothing changes. At
+13:04Z main (`22e30f0c5e`) still lacks `Limits.room`; worker-link-quiet
+has `engine-room` on its trunk, `worker-room` parked and `temper-room`
+waiting. The rerun waits for that plan to land and this trunk to catch
+up; until then each run fails at the premise, changing and pushing
+nothing.
