@@ -18,7 +18,17 @@
   `all-home-away` and `all-home-away-on`, add to it, and so do the rows
   `ui-p5a-phone` added to `print_writes_every_page_and_the_bundle`, which
   read the `needs-list`, `ask-chat` and `rail-new-change` prints, with no
-  CPU figure on record either.
+  CPU figure on record either; so do the six states `ui-reaches` added,
+  `home-decided`, `needs-decided`, `needs-why`, `needs-stop-asking`,
+  `needs-stop-asking-set` and `settings-away-you-approve`, in place of
+  `settings-away-off`, with none on record.
+
+Section 7.2 holds what reaches a person, by plan `ui-reaches`: those six
+states, `settings-away` as a view of Agents review's classes and
+`start-goal-draft`'s "When it needs you", each with its row of
+`each_state_holds_what_its_name_says`; that row checks
+`start-goal-draft`'s "As the project says" is offered, not that it is
+chosen.
 
 - **Not yet:** 2.5, *What a phone presses*: at 760 px and under an Ask
   temper chat's thread keeps the mock's sizes, its "Latest" and a

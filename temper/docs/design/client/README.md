@@ -2765,9 +2765,10 @@ keeps (`../protocol/configuration.md`, section 2).
   while the project's way had the person review stays open until it is
   done, whatever the way becomes. Home's owners' lines and What follows
   what join this table with the reads that give them
-  (`../draft/standing-roles.md`; `../draft/follows.md`), as do Needs you's
-  why, Only you and Tell temper (`../draft/what-reaches-you.md`, sections
-  5 and 8; `../draft/surfaces.md`, section 9).
+  (`../draft/standing-roles.md`; `../draft/follows.md`), as do Only you
+  and Tell temper (`../draft/what-reaches-you.md`, section 8;
+  `../draft/surfaces.md`, section 9). A need's why is its card's own line
+  (*Needs you,* *Why it reached you*), no part of the page's.
 - **Changes** (the user's greenfield mock's `changes.html`; `forge.md`,
   section 3): `Changes { project }`, at `/projects/<project>/changes`, Work
   under its Changes filter (*Work,* below), a
@@ -10758,10 +10759,9 @@ own tests:
   *Needs you* and *A page's parts*; `../draft/surfaces.md`, sections 3, 4,
   12 and 15): a project's Now on its row, rolled from its owners', its
   tiers, a follow's parity and "owned" (R1 to R3, F1); What follows what
-  (F1); who decided, on a Decided for you row, and a need's why with "Stop
-  asking" and "Keep asking", the intro's What reaches you and Only you
-  (N1, N3a); a need's goal, role and asker on its from line; Tell temper
-  at Needs you's foot, as *Tell temper* has it, once the engine files a
+  (F1); who decided, on a Decided for you row, and the intro's What
+  reaches you; Only you (N3a); a need's goal, role and asker on its from
+  line; Tell temper at Needs you's foot, as *Tell temper* has it, once the engine files a
   person's word as a finding and a setting names the project's triager
   (`../domain/findings.md`, sections 4 and 6); one brief across projects written per person,
   `../draft/surfaces.md`, 15's open question; and more than 16 projects

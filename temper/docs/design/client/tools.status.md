@@ -2,6 +2,13 @@
 
 2026-11-09. Remaining gaps between temper's code and [tools.md](tools.md).
 
+Sections 5.2 and 5.3 have no known gap in a project's classes, by plan
+`ui-reaches`: `temper ctl settings show project-classes` and a settings
+file's `project-classes`, `decide`, `ask` and `ask-away`, refused as
+`Classes::check` refuses; a settings file's project ways take no `away`,
+refused as an unknown member (`temper-settings-form`'s
+`settings_file_tests.rs`), and the help pages name kind 8.
+
 Section 5.3's Ask temper start uses `chat start --template 5`, under
 charter 11, in the help and chat-template fixtures. The joined world
 starts it through ctl, reads with `see` and accepts its settings
