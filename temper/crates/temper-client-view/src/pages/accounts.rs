@@ -97,7 +97,7 @@ fn kind(b: &mut Builder, w: &Words, value: c::AccountKind) {
         },
     );
 }
-fn named(w: &Words, word: W, name: &[u8]) -> Box<[u8]> {
+pub(crate) fn named(w: &Words, word: W, name: &[u8]) -> Box<[u8]> {
     words::say(w, word, &[Hole::Name(crate::choice::shown(name, w))])
 }
 fn provider_name(name: Option<&c::DocumentText>) -> Option<&[u8]> {

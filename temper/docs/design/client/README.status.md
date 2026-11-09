@@ -98,10 +98,6 @@ work.
   no person's word as a finding and no project's settings name a triager
   (`../domain/findings.status.md`; `../domain/landing.md`, 13.1),
   so it waits for both, with nothing in its place.
-- **Not yet:** 3.5, **Only you**, whole, and *A page's parts*' row for it:
-  no `pages::only_you`, and *Needs you* draws no Only you region
-  (`temper-client-domain`'s `pages/parts.rs`; `temper-client-view`'s
-  `pages/needs.rs`).
 
 Sections 3.5, *Needs you*'s *Its head* and *On a phone* and *Ask temper's
 page*'s composer, and 5.3, *On a phone*, have no known implementation
