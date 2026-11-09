@@ -15,7 +15,7 @@ fn rendered(line: &str, from: u32, answer: SeeAnswer, maximum: u32) -> (String, 
     (String::from_utf8(body.into_vec()).unwrap(), error)
 }
 
-fn person_pending(read: temper_engine_domain::SeeRead) -> SeeAnswer {
+fn person(read: temper_engine_domain::SeeRead) -> SeeAnswer {
     SeeAnswer::Person(Box::new(temper_engine_domain::SeePerson {
         read,
         names: temper_engine_domain::SeeNames {
@@ -130,39 +130,43 @@ fn settings(answer: jig_domain_core::SettingsAnswer) -> SeeAnswer {
     reason = "one contract table covers the text and following addresses of each answer kind"
 )]
 fn errors_and_pages_use_the_address_form() {
-    for (line, answer, expected) in [
-        ("me", SeeAnswer::NotYet, "see me: not there yet.".to_string()),
+    for (line, answer, expected, error) in [
+        ("me", SeeAnswer::NotYet, "see me: not there yet.".to_string(), true),
         (
             "task 41 activity",
-            person_pending(temper_engine_domain::SeeRead::Activity {
+            person(temper_engine_domain::SeeRead::Activity {
                 number: 41,
                 activity: jig_domain_core::reads::Answer::None(jig_domain_core::reads::Why::Busy),
             }),
-            "see task 41 activity: not there yet.".to_string(),
+            "activity: not read\nsee: task N turn A.T · task N · task N tree\n".to_string(),
+            false,
         ),
         (
             "task 41 turn 1.2",
-            person_pending(temper_engine_domain::SeeRead::Turn {
+            person(temper_engine_domain::SeeRead::Turn {
                 number: 41,
                 attempt: 1,
                 turn: 2,
                 read: jig_domain_core::reads::Answer::None(jig_domain_core::reads::Why::Busy),
             }),
-            "see task 41 turn 1.2: not there yet.".to_string(),
+            "turn 1.2 of task 41: not read\nsee: task N activity · task N\n".to_string(),
+            false,
         ),
         (
             "changes",
-            person_pending(temper_engine_domain::SeeRead::Changes { changes: None, landings: None }),
-            "see changes: not there yet.".to_string(),
+            person(temper_engine_domain::SeeRead::Changes { changes: None, landings: None }),
+            "changes of project 7, Shop: not read\nsee: change N · settings landing · ways\n".to_string(),
+            false,
         ),
-        ("bogus", SeeAnswer::Unknown, format!("see: no address bogus; addresses: {ADDRESSES}")),
+        ("bogus", SeeAnswer::Unknown, format!("see: no address bogus; addresses: {ADDRESSES}"), true),
         (
             "help search x",
             SeeAnswer::Search { words: b"".as_slice().into() },
             "see help search x: nothing to search for".to_string(),
+            true,
         ),
     ] {
-        assert_eq!(rendered(line, 0, answer, 20_000), (expected, true));
+        assert_eq!(rendered(line, 0, answer, 20_000), (expected, error));
     }
 
     assert_eq!(rendered("settings charter 99",0,settings(jig_domain_core::SettingsAnswer::Unknown),20_000),

@@ -150,9 +150,6 @@ record has run a real model on the sentence.
   run and How work runs' heading say a way by different words
   (`../protocol/configuration.md`, 13.10).
 
-- **Not yet:** 8.4.1, *How an answer reads*: no text renders what a read
-  as the person answered (plan `ui-ask-m2`, `see-render` and
-  `see-render-runs`).
 - **Departs:** 8.4.1, *Unknown*: an unknown address answers with
   `ask.txt`'s line of addresses and, in its settings bracket,
   `charter-words N | project-words`, which `ask.txt`'s *Finding out* doesn't

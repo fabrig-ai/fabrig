@@ -53,10 +53,7 @@ pub fn see_answer(
 ) -> HostAnswer {
     let text = match answer {
         SeeAnswer::Ways(document) => Ok(ways_text(document)),
-        SeeAnswer::Person(value) => match person::text(value, catalogue) {
-            Some(text) => Ok(text),
-            None => return refused(line, b"not there yet.", max_bytes),
-        },
+        SeeAnswer::Person(value) => Ok(person::text(value, catalogue)),
         SeeAnswer::NotYet => return refused(line, b"not there yet.", max_bytes),
         SeeAnswer::NotRead(why) => {
             let message = match why {
@@ -156,7 +153,10 @@ fn following(line: &[u8], answer: &SeeAnswer) -> &'static [u8] {
             engine::SeeRead::Task { .. } => "task N tree · task N activity · change N · tasks".as_bytes(),
             engine::SeeRead::Tree { .. } => "task N · task N activity · task N tree".as_bytes(),
             engine::SeeRead::Inbox { .. } => "task N · me".as_bytes(),
-            engine::SeeRead::Activity { .. } | engine::SeeRead::Turn { .. } | engine::SeeRead::Change { .. } | engine::SeeRead::Changes { .. } => unreachable!("only rendered addresses have following forms"),
+            engine::SeeRead::Activity { .. } => "task N turn A.T · task N · task N tree".as_bytes(),
+            engine::SeeRead::Turn { .. } => "task N activity · task N".as_bytes(),
+            engine::SeeRead::Change { .. } => "task N · task N activity · changes · settings gates OWNER/NAME".as_bytes(),
+            engine::SeeRead::Changes { .. } => "change N · settings landing · ways".as_bytes(),
         },
         SeeAnswer::NotRead(_) | SeeAnswer::NotYet | SeeAnswer::Unknown => {
             unreachable!("errors have no following addresses")
