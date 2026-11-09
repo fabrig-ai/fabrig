@@ -229,7 +229,7 @@ fn the_themes_are_valid_and_name_every_look() {
                     mark,
                     described,
                     active_name,
-                    focused_value: None,
+                    focused_value: if style == look::FIELD { Some(Paint::NONE) } else { None },
                     spaced,
                 };
                 let mut found = None;
