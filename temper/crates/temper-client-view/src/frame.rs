@@ -377,6 +377,8 @@ fn all_projects(
         | Address::Forges
         | Address::Models { .. }
         | Address::Builders { .. }
+        // page-view: draw Remembered.
+        | Address::Remembered
         | Address::Members
         | Address::Limits
         | Address::ConnectForge { .. }
@@ -829,6 +831,8 @@ fn shown(root: &Domain) -> Shown {
         | Address::Forges
         | Address::Models { .. }
         | Address::Builders { .. }
+        // page-view: draw Remembered.
+        | Address::Remembered
         | Address::Members
         | Address::Limits
         | Address::ConnectForge { .. }
@@ -1017,6 +1021,8 @@ fn deployment_link(b: &mut Builder, root: &Domain, w: &crate::words::Words, bind
         | Address::Forges
         | Address::Models { .. }
         | Address::Builders { .. }
+        // page-view: draw Remembered.
+        | Address::Remembered
         | Address::Members
         | Address::Limits
         | Address::ConnectForge { .. }

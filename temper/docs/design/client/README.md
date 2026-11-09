@@ -10517,7 +10517,7 @@ own tests:
   section 10); a card at the call that made it, and its acts, Accept
   among them; a close that asks its delegates' fates; a new line in the
   box, which a terminal's Shift+Enter cannot ask; a paste into the box
-  past the link's 512 bytes; a theme kept across runs. Owner: temper/tui.
+  past the link's 512 bytes. Owner: temper/tui.
   Default: each when the user asks for it on a recorded frame; until then the web does what the TUI leaves out.
 - **The TUI's command-line flags** (6.11 and 6.12): choosing another
   deployment and overriding local sign-in or the scheme wait for the
@@ -10572,7 +10572,14 @@ own tests:
   on the quiet line, `/log`, and the welcome's link copied whole from
   its wrapped rows; the look request `tui-box-front` is checked against
   its frames, the light theme among them (`../draft/look-requests.md`,
-  sections 4 and 5). Left open: the question counts the TUI's project's
+  sections 4 and 5). The user's requests of 2026-11-09 are checked
+  there too, in emacs vterm at 150 by 39 on a brand-new box: keys typed
+  on the welcome before the sign-in lands drawn at once and kept, Enter
+  then saying "Still signing in", the box's words in the terminal's ink
+  after an accent "❯", `/theme`'s list with "dark: your terminal doesn't
+  say" and the choice starting the next run, `/quit` and `/exit`, and a
+  notice standing 6 seconds on the quiet line, in a narrow window too
+  (6.14 and 6.15). Left open: the question counts the TUI's project's
   chats alone, not work in other projects; two steps restarting at once
   show the one last said; a box over SSH is the person's tunnel, with
   no front of its own. Default: so, until the user asks otherwise on a

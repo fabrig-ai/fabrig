@@ -87,6 +87,8 @@ fn message(b: &mut Builder, address: &Address, words: &Words, reading: bool) {
         | Address::Chats { .. }
         | Address::NewChat { .. }
         | Address::Work { .. }
+        // page-view: draw Remembered.
+        | Address::Remembered
         | Address::Members
         | Address::Limits
         | Address::Accounts
