@@ -218,3 +218,21 @@ and check minutes apart.
     Some(` its transcript's length `)`), not `Unread`, as 8.3 now says a
     window's read is never unread for a turn's size. Its other kinds keep
     `Unread`.
+
+2026-11-09, to run `turn-cut-2`.
+
+- **May turn-cut change the three oversized-window guards in
+  `jig/tests/store/tests/suite/upgrades/upgrade_edges.rs`?** Yes, as
+  recommended: they assert the trunk's `Unread` for a window turn's size,
+  which `jig/docs/design/protocol/store.md`, 8.3, *A window's turn past
+  its page's room*, and this task's acceptance now forbid, so this task's
+  own acceptance cannot hold without them. In
+  `native_pages_without_room_end_as_unread`,
+  `machine_pages_charge_framing_before_accepting_any_turn` and
+  `accepted_prefix_continues_without_skipping_after_an_unread`, the
+  `Window` reads with row room ("zero bytes" and "one byte short"
+  included) expect one cut turn: its fields, an empty transcript,
+  `cut: Some(` its transcript's length `)`, and `next` as the read's
+  cursor past its frame. Keep each test's charges and cursor checks; the
+  "zero rows" room and every `Page` read keep `Unread`. Change nothing
+  else in the file beyond the new field; test names may stay.
