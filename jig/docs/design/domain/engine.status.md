@@ -220,12 +220,6 @@ and catalogue-number reuse remain section 16's open questions.
   whether this departs, is the designer's decision: it is a bug if the
   design requires `Full` in this case; no reason is recorded.
 
-- **Not yet:** 6: a link the start cannot make panics, where this section
-  refuses the start as `Failure::Link`, naming the record and what it
-  links to: `jig-domain-core/src/start/links.rs`, `projections.rs` and
-  `script.rs`'s `start_link`, `jig-domain-people/src/domain/start.rs`'s
-  `link` and its identity collision, and `jig-domain-tasks/src/stored.rs`'s
-  `links` assert.
 - **Not yet:** 5.1: *Nothing links ahead of what it names* has no world row
   per route that names a person from outside the core, so it is unproven
   that each refuses a person the people child does not hold.
