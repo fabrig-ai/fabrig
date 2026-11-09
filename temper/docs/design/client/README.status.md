@@ -341,12 +341,6 @@ revision stability, navigation and separation from the sign-in field.
 The help pages name the closing command and Ctrl+C as closing keys and `q` as typing.
 
 
-- **Not yet:** 6.13's `Typed` and `Send`, and 6.14, *The box* and *Typed
-  before the sign-in lands*: while the link is signed out, a key goes to
-  the link's field though the welcome or "Connecting" draws the box; the
-  link's sign-in and sign-out clear the box's words; going to the
-  launchpad from the start's address drops them; and Enter before `me`
-  is read sends nothing and says nothing (plan `tui-box-polish`).
 
 Sections 6.12 to 6.15's parts from the user's requests of 2026-11-08 and
 the look request `tui-chat-title-below` have no known implementation gap:

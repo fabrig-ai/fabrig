@@ -258,6 +258,23 @@ fn the_states_steps_are_its_table() {
     }
 }
 
+#[test]
+fn link_changes_keep_the_command_composers_words() {
+    for link in [Link::Starting, Link::Live, Link::Offline, Link::OutOfDate] {
+        let mut tui = Tui::new(f::ADDRESS);
+        tui.step(Told::Cleared);
+        tui.step(Told::CommandWords { value: Box::from(*b"fa") });
+        let written = tui.box_written();
+        for next in [link, Link::SignedOut] {
+            tui.step(Told::Typed { value: Box::from(*b"link") });
+            tui.step(Told::Link { link: next });
+            assert_eq!(tui.command_words(), b"fa", "{link:?} then {next:?} keeps box words");
+            assert_eq!(tui.box_written(), written, "{next:?} keeps the editor's write count");
+            assert!(tui.field().is_empty(), "{next:?} still empties the link's field");
+        }
+    }
+}
+
 type Facts<'a> =
     (u16, Option<jig_client::contract::ObjectKey>, Option<&'a crate::Notice>, u64, u64, u64, Option<u64>, bool);
 

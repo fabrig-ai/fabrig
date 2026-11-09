@@ -122,7 +122,7 @@ fn theme(tui: &Tui, words: &Words) -> Options {
 
 #[expect(clippy::disallowed_methods, reason = "commands reject Unicode whitespace in validated UTF-8 composer words")]
 fn commands(root: &Domain, tui: &Tui, words: &Words, value: &[u8]) -> Option<Options> {
-    if !value.starts_with(b"/") {
+    if crate::landing(root) || !value.starts_with(b"/") {
         return None;
     }
     for character in core::str::from_utf8(value).expect("composer words are UTF-8").chars() {

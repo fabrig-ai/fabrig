@@ -809,20 +809,25 @@ fn the_engines_link_signs_in_and_falls_back() {
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-fn local_row(row: LocalRow, failures: &mut Vec<String>) {
-    let mut host = host();
-    let duties = host.report(Report::Start(Start {
-        front: row.front,
+fn start_local(host: &mut Host, front: bool, local: bool, credential: Option<Secret>, note: Option<Note>) -> Duties {
+    host.report(Report::Start(Start {
+        front,
         size: Size { columns: 80, rows: 24 },
         scheme: Some(Scheme::Dark),
         background: None,
         boxed: false,
         address: b"127.0.0.1:8367".as_slice().into(),
-        local: row.local,
+        local,
         kept: Vec::new(),
-        credential: row.held.then(|| Secret::new(Box::new([7; 40]))),
-        note: row.note,
-    }));
+        credential,
+        note,
+    }))
+}
+
+fn local_row(row: LocalRow, failures: &mut Vec<String>) {
+    let mut host = host();
+    let duties =
+        start_local(&mut host, row.front, row.local, row.held.then(|| Secret::new(Box::new([7; 40]))), row.note);
     if host.state().front() != row.front {
         failures.push(format!("{}: front state", row.name));
     }
@@ -1780,14 +1785,66 @@ fn no_project_lifecycle() {
             host.frame();
             empty(&host.report(Report::Key(Key::Char('q'))));
             assert_eq!(host.state().field(), b"q", "sign-in typing uses its own field");
+            assert_eq!(host.state().command_words(), b"/he", "sign-out keeps command words");
+            assert_eq!(host.state().box_written(), written);
         } else {
             delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(true)));
             assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
-            assert!(host.words().is_empty(), "navigation opens an empty project composer");
-            assert!(!text(&mut host).contains("❯ /he"));
+            assert_eq!(host.words(), b"/he", "navigation carries words into the project composer");
+            assert!(text(&mut host).contains("❯ /he"));
+            assert!(host.state().command_words().is_empty(), "navigation clears the no-project composer");
+            assert!(host.state().box_written() > written);
         }
-        assert!(host.state().command_words().is_empty(), "screen transitions clear command words");
-        assert!(host.state().box_written() > written);
+    }
+}
+
+#[test]
+fn keys_typed_during_the_file_sign_in_stay_in_the_box() {
+    for (front, first) in [(true, "Welcome. Set temper up"), (false, "Connecting to 127.0.0.1:8367")] {
+        let mut host = host();
+        let start = start_local(&mut host, front, true, None, None);
+        assert!(start.local);
+        assert!(text(&mut host).contains(first));
+        empty(&host.report(Report::Key(Key::Char('a'))));
+        assert!(text(&mut host).contains("❯ a"), "first frame, front {front}");
+        assert!(host.state().field().is_empty());
+        let signing = host.report(Report::Local { link: Some(local_link("127.0.0.1:8367", LOCAL_SECRET)) });
+        let exchange = local_exchange(&signing);
+        assert_eq!(signing.asked.len(), 1, "only the sign-in request");
+        empty(&host.report(Report::Key(Key::Enter)));
+        assert!(text(&mut host).contains("Still signing in"));
+        assert_eq!(host.words(), b"a");
+        let duties = reply(&mut host, exchange, sign_in_bytes(&signed_in_answer()));
+        admit(&mut host, duties);
+        assert_eq!(host.words(), b"a", "the sign-in's link change keeps words");
+        let hello = hello_for(&host);
+        let duties =
+            host.report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
+        let duties = admit(&mut host, duties);
+        let me = watch(&duties, &w::Subject::Me);
+        empty(&host.report(Report::Key(Key::Enter)));
+        assert_eq!(host.words(), b"a", "Enter before me keeps words");
+        assert!(text(&mut host).contains("Still signing in"));
+        let duties = delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(false)));
+        admit(&mut host, duties);
+        assert_eq!(host.words(), b"a", "no project keeps words");
+        assert!(text(&mut host).contains("❯ a"));
+        let duties = delivery(&mut host, me, &w::DeliveryValue::Me(launchpad_me(true)));
+        admit(&mut host, duties);
+        assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
+        assert_eq!(host.root.pages().chats().expect("Home composer").words.as_ref(), b"a");
+        assert!(text(&mut host).contains("❯ a"));
+        let duties = host.report(Report::Key(Key::Enter));
+        let duties = admit(&mut host, duties);
+        let asks = sent_ask(&duties);
+        let [(_, w::Ask::Create(create))] = asks.as_slice() else {
+            panic!("Enter after landing starts a chat: {asks:?}");
+        };
+        let mut reader = Reader::new(create.tasks());
+        let bytes = skein_codec::piece::split(&mut reader).expect("task piece").expect("created task");
+        let task = w::NewTask::decode(&w::CEILINGS, &mut Reader::new(&bytes)).expect("new task");
+        assert_eq!(create.project(), 3);
+        assert_eq!(task.spec().words(), b"a");
     }
 }
 
@@ -2309,9 +2366,10 @@ fn each_event_becomes_its_acts() {
         if taken {
             host.tell(Told::Walked { object: shared_question(&host) });
         }
-        typed(&mut host, b"o");
+        host.typed(b"o".as_slice().into());
         assert_eq!(host.words(), expected, "by_key={by_key}, taken={taken}");
         assert!(host.state().walk().is_none(), "typing ends the prompt");
+        assert!(host.state().field().is_empty(), "walking keys belong only to the box");
     }
     for (step, label, open) in [
         (

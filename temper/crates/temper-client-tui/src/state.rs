@@ -389,17 +389,10 @@ impl Tui {
         self.local = local;
         changed
     }
-    fn clear_command_words(&mut self) {
-        if !self.command_words.is_empty() {
-            self.command_words = Box::default();
-            self.box_written = self.box_written.saturating_add(1);
-        }
-    }
     fn set_link(&mut self, link: jig_client::Link) -> bool {
         match link {
             jig_client::Link::SignedOut => {
                 if self.linked {
-                    self.clear_command_words();
                     self.signing = Signing::Idle;
                     self.browser = None;
                     self.pasted = false;
@@ -418,7 +411,6 @@ impl Tui {
             | jig_client::Link::Offline
             | jig_client::Link::OutOfDate => {
                 if !self.linked {
-                    self.clear_command_words();
                     self.focus = self.focus.saturating_add(1);
                 }
                 let changed = self.signing != Signing::Idle
