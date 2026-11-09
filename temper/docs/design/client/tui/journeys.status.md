@@ -2,6 +2,12 @@
 
 2026-11-09. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+- **Departs:** 3.2: the committed recordings' `screen` says `dark`, the
+  run's fallback when they were recorded, where `again`, in a
+  pseudo-terminal with no `COLORFGBG` and no answer to OSC 11, writes
+  `none` (`../README.md`, 6.15, *The scheme*): Auto draws dark for both
+  and no journey opens `/theme`'s list, so their frames are the same.
+  They say `none` once a journey's change records them again.
 
 - **Not yet:** 8.3 and 9's `box-welcome`: `again` drives `temper` in its
   pseudo-terminal and starts the box apart on pipes, reading the printed
@@ -15,7 +21,8 @@ Beside those, no known implementation gap. Sections 2 to 8.2 have recording,
 shipped-host replay, proof, shared redaction and scan, themed prints and
 generation; 3.2's start facts include `background` and `box`, which the
 recorder writes where the start has them and the replay reads, a
-recording without them reading as neither. Section 8.2's browser-format
+recording without them reading as neither, and `screen`'s `none`, a
+start whose terminal says no scheme, which the codec writes and reads. Section 8.2's browser-format
 setup follows its browser journey before the TUI starts and refuses a
 mark. Section 9's `sign-in-approved`, `launchpad-chat` and
 `launchpad-drawn` have their walk, README, redacted recording and text

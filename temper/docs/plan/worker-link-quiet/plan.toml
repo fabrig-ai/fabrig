@@ -1,0 +1,50 @@
+draft = "worker-link-quiet"
+repo = "fabrig"
+sources = ["temper/docs/plan/worker-link-quiet/inputs/request.md", "AGENTS.md", "DESIGN.md"]
+# Plan options, written by fab call cut --set; keep them
+owner = "temper/migration"
+priority = true
+
+# plan.md says what was decided and why.
+
+[buffer]
+low = 1.0
+high = 2.0
+
+[[part]]
+id = "engine-room"
+title = "The engine's link never asks its stream for more room than it grants: a start past the room fails its run with its numbers, the link and its pings go on"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/channel.md, 9"
+
+[[part]]
+id = "worker-room"
+title = "The worker's link is made only when every frame it sends fits its stream's room"
+mode = "direct"
+needs = []
+design = "jig/docs/design/protocol/channel.md, 11"
+
+[[part]]
+id = "temper-room"
+title = "On temper's stock settings a start crosses the link or fails with its numbers, and serve writes a worker unsent line"
+mode = "direct"
+needs = ["engine-room", "worker-room"]
+design = "temper/docs/design/domain/worker.md, 4.3"
+
+[[slice]]
+id = 1
+story = "An assignment past the engine's stream's room is answered refused with its bytes and the room, and the joined link stays up two minutes with pings both ways, a later run hosted"
+parts = ["engine-room", "worker-room"]
+walk = false
+
+[[slice]]
+id = 2
+story = "On both stock profiles, a start with the largest charter, window, tree and inbox crosses to temper's worker, one with every committed call fails with its numbers, one past each bound fails with its reason, and the link never goes quiet"
+parts = ["temper-room"]
+walk = false
+
+[[question]]
+id = "start-past-room"
+text = "Both stock profiles admit a resumed start larger than the link's room, io.output (1 MiB): 32 committed calls of 69,632 bytes (small) or 135,168 (standard) alone pass it, beside a 256 KiB charter and window and a full inbox. With this plan such a start fails as an invalid start naming its bytes and the room, and the link lives; it no longer silences the link. Making it start needs a figure, which the request keeps out of this plan: a larger io.output, a smaller call_records or call_answer_bytes, a start that carries fewer committed calls, or frames that move below in pieces (a skein channel change). Which, in a later plan? Recommendation: read the deployment's next lines first: if the producer's refusal names a size near the room, raise io.output; if far past it, bound what a resumed start carries."
+parts = []

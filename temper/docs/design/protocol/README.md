@@ -1576,6 +1576,7 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   | `lost <worker> <address> <why>` | a worker alone | once each linked link is lost, with its `Loss` (below) |
   | `temper serve: worker lost worker=<worker> channel=<n>: <why>` | each shape with an engine | once each worker's channel that said hello ends |
   | `temper serve: worker opening ended worker=<worker>: <why>` | each shape with an engine | once a worker's connection ends before its hello: refused, turned away, out of time or cut; `worker=-` before its name is taken |
+  | `temper serve: worker unsent worker=<worker> channel=<n>: <record> of <bytes> bytes <bound>` | each shape with an engine | once each record the engine's link did not send (jig's `protocol/channel.md`, 9): `<record>` the record's kind in words (`assignment`, `job`, `message`, `relayed`, `turn-kept`, `turn-busy`, `acknowledge`, `cancel`, `grant`, `sources`, `check`, `sign-out`, `read-list`), `<bytes>` its frame's, and `<bound>` `past the room of <room> bytes` or `refused: <reason>` (`wrong-direction`, `not-taken`, `too-large`, `closed`) |
 
   **A link that drops is never silent** (jig's `protocol/channel.md`, 9,
   *A lost link says why*). `<why>` is the link's `Loss` in one word or
