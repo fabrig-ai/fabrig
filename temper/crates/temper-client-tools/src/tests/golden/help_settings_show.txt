@@ -25,6 +25,10 @@ settings show project-ways|project-questions PROJECT [--revision REVISION]
   project-ways|project-questions (kind): one of project-ways or project-questions; required. A project's ways or questions
   PROJECT (project): a project's name or number; required. The project by number or name
   --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
+settings show template-goal NUMBER [--revision REVISION]
+  template-goal (kind): one of template-goal; required. A goal template's work
+  NUMBER (number): a number from 1 to 4294967295; required. The template's number
+  --revision REVISION: a number from 1 to 4294967295; optional. The value set by this retained revision; the current value when absent
 Read one setting's value whole
 Prints: `KIND N, revision R`, or `rules, revision R`, then the value as JSON; temper's settings also show their state
 --json: the record setting.

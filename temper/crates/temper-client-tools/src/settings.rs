@@ -76,6 +76,7 @@ fn valid(kind: u32, bytes: &[u8]) -> bool {
     let decoded = match kind {
         1 | 2 => w::LandingRule::decode(&w::CEILINGS, &mut reader).is_ok(),
         3 => w::ForgeCharter::decode(&w::CEILINGS, &mut reader).is_ok(),
+        11 => w::TemplateGoal::decode(&w::CEILINGS, &mut reader).is_ok(),
         6 => w::ProjectQuestions::decode(&w::CEILINGS, &mut reader).is_ok(),
         7 => w::ProjectWays::decode(&w::CEILINGS, &mut reader).is_ok(),
         _ => false,
@@ -166,8 +167,8 @@ pub(crate) fn selector(call: &Call) -> Option<c::Setting> {
         let Some(Value::Word(kind)) = value(call, 0) else { unreachable!("setting kind") };
         return Some(c::Setting::Application { kind: if *kind == 0 { 7 } else { 6 }, scope: *project, number: 1 });
     }
-    if call.form == 2 || call.form == 3 {
-        let scope = if call.form == 3 {
+    if call.form == 2 || call.form == 3 || call.form == 5 {
+        let scope = if call.form == 3 || call.form == 5 {
             0
         } else {
             match value(call, 2) {
@@ -177,7 +178,9 @@ pub(crate) fn selector(call: &Call) -> Option<c::Setting> {
             }
         };
         return Some(c::Setting::Application {
-            kind: if call.form == 3 {
+            kind: if call.form == 5 {
+                11
+            } else if call.form == 3 {
                 3
             } else if scope == 0 {
                 1
@@ -255,6 +258,23 @@ pub const SETTING: Tool = Tool {
             ),
             revision_flag(),
         ],
+        &[
+            positional(
+                b"kind",
+                b"template-goal",
+                Kind::Word { set: &[b"template-goal"] },
+                Required,
+                b"A goal template's work",
+            ),
+            positional(
+                b"number",
+                b"NUMBER",
+                Kind::NumberRange { min: 1, max: 4_294_967_295 },
+                Required,
+                b"The template's number",
+            ),
+            revision_flag(),
+        ],
     ],
     ..rows::SETTING
 };
@@ -266,6 +286,7 @@ pub(crate) fn name(setting: c::Setting, out: &mut Text) -> bool {
     }
     out.put(match kind {
         3 => b"forge-charter ",
+        11 => b"template-goal ",
         6 => b"project-questions ",
         7 => b"project-ways ",
         _ => b"landing-rule ",

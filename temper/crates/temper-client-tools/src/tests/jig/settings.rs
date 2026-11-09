@@ -2129,6 +2129,9 @@ fn unknown_settings_decisions_explain_that_the_proposal_is_not_waiting() {
 fn forge_value(kind: u32) -> Box<[u8]> {
     let json = if kind == 3 {
         br#"{"items":[{"setting":{"kind":"forge-charter","number":1},"set":6}]}"#.as_slice()
+    } else if kind == 11 {
+        br#"{"items":[{"setting":{"kind":"template-goal","number":1},"set":{"design":true,"close_out":true}}]}"#
+            .as_slice()
     } else {
         br#"{"items":[{"setting":{"kind":"landing-rule","number":1},"set":{"pattern":{"segments":["ff"],"last":{"open":"61"}},"enforce":true,"ci":false,"up_to_date":true,"gates":[{"number":2,"blocking":false,"freshness":"clean"}],"approvals":[{"role":0,"people":1,"freshness":"exact"}]}}]}"#.as_slice()
     };
@@ -2192,6 +2195,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             "landing-rule 1 --project",
         ),
         (vec!["settings", "show", "forge-charter", "1"], 3, 0, "forge-charter 1"),
+        (vec!["settings", "show", "template-goal", "1"], 11, 0, "template-goal 1"),
     ] {
         for json in [false, true] {
             let setting = c::Setting::Application { kind, scope, number: 1 };
@@ -2207,9 +2211,27 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             assert_eq!(answer.status, 0);
             let text = core::str::from_utf8(&answer.stdout).unwrap();
             if json {
-                assert!(text.contains(if kind == 3 { "\"value\":6" } else { "\"ci\":false" }), "{text}");
+                assert!(
+                    text.contains(if kind == 3 {
+                        "\"value\":6"
+                    } else if kind == 11 {
+                        "\"design\":true,\"close_out\":true"
+                    } else {
+                        "\"ci\":false"
+                    }),
+                    "{text}"
+                );
                 assert!(text.contains("\"application\":{\"follows\":\"change\",\"revision\":5"), "{text}");
-                assert!(text.contains(if kind == 3 { "forge-charter" } else { "landing-rule" }), "{text}");
+                assert!(
+                    text.contains(if kind == 3 {
+                        "forge-charter"
+                    } else if kind == 11 {
+                        "template-goal"
+                    } else {
+                        "landing-rule"
+                    }),
+                    "{text}"
+                );
             } else {
                 let canonical = setting_json(setting, c::SettingValue::Application(forge_value(kind)));
                 let canonical = core::str::from_utf8(&canonical).unwrap();
@@ -2218,24 +2240,65 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
                 assert!(text.contains(value), "inline value differs from the shared settings form: {text}");
                 assert!(text.starts_with(label), "{text}");
                 assert!(text.contains("changed at revision 5"), "{text}");
-                assert!(text.contains(if kind == 3 { "\n6\n" } else { "\"ci\":false" }), "{text}");
+                assert!(
+                    text.contains(if kind == 3 {
+                        "\n6\n"
+                    } else if kind == 11 {
+                        "\"design\":true,\"close_out\":true"
+                    } else {
+                        "\"ci\":false"
+                    }),
+                    "{text}"
+                );
             }
             assert_eq!(root.watches.len(), 1);
+            let mut root = fixtures::signed_in(fixtures::PARTY);
+            let mut historical = argv.clone();
+            historical.extend_from_slice(&["--revision", "5"]);
+            let call = root.submit_prepared(fixtures::call(&historical), json, None);
+            let w::Read::RevisionSetting(query) = forge_query(&root, call) else { panic!("historical setting query") };
+            assert_eq!((query.kind(), query.scope(), query.number(), query.revision()), (kind, scope, 1, 5));
+            root.serve_readout(call, forge_setting_page(Some(forge_value(kind))));
+            let answer = root.answer(call).expect("historical setting");
+            assert_eq!(answer.status, 0);
+            let text = core::str::from_utf8(&answer.stdout).unwrap();
+            assert!(text.contains(if json { "\"revision\":5" } else { ", revision 5" }), "{text}");
+            assert!(
+                text.contains(if kind == 3 {
+                    "6"
+                } else if kind == 11 {
+                    "\"design\":true,\"close_out\":true"
+                } else {
+                    "\"ci\":false"
+                }),
+                "{text}"
+            );
         }
     }
 }
 #[test]
 fn forge_setting_commands_print_removed_and_unset_values_and_preserve_refusals() {
     for json in [false, true] {
-        for follows in [c::ApplicationFollows::Default, c::ApplicationFollows::Removed { revision: 5 }] {
-            let mut root = fixtures::signed_in(fixtures::PARTY);
-            let call = root.submit_prepared(fixtures::call(&["settings", "show", "forge-charter", "2"]), json, None);
-            root.serve(call, forge_inventory(c::Setting::Application { kind: 3, scope: 0, number: 2 }, follows));
-            root.serve_readout(call, forge_setting_page(None));
-            let answer = root.answer(call).unwrap();
-            assert_eq!(answer.status, 0);
-            let text = core::str::from_utf8(&answer.stdout).unwrap();
-            assert!(text.contains(if json { "\"value\":null" } else { "\nnone\n" }), "{text}");
+        for (kind, name) in [(3, "forge-charter"), (11, "template-goal")] {
+            for follows in [c::ApplicationFollows::Default, c::ApplicationFollows::Removed { revision: 5 }] {
+                let mut root = fixtures::signed_in(fixtures::PARTY);
+                let call = root.submit_prepared(fixtures::call(&["settings", "show", name, "2"]), json, None);
+                root.serve(call, forge_inventory(c::Setting::Application { kind, scope: 0, number: 2 }, follows));
+                root.serve_readout(call, forge_setting_page(None));
+                let answer = root.answer(call).unwrap();
+                assert_eq!(answer.status, 0);
+                let text = core::str::from_utf8(&answer.stdout).unwrap();
+                assert!(
+                    text.contains(if json {
+                        "\"value\":null"
+                    } else if kind == 11 {
+                        "template-goal 2: none kept; its coordinator plans and makes no close-out.\n"
+                    } else {
+                        "\nnone\n"
+                    }),
+                    "{text}"
+                );
+            }
         }
         for page in [
             jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown)),
@@ -2262,8 +2325,9 @@ fn forge_settings_inventory_names_the_kinds_with_defaults_changes_and_removals()
         (1, 0, 1, c::ApplicationFollows::Default),
         (2, 7, 2, c::ApplicationFollows::Changed { revision: 5 }),
         (3, 0, 1, c::ApplicationFollows::Removed { revision: 5 }),
+        (11, 0, 4, c::ApplicationFollows::Default),
     ];
-    let mut lines = List::with_capacity(3);
+    let mut lines = List::with_capacity(4);
     for (kind, scope, number, follows) in settings {
         let c::ReadResult::Value(c::ReadValue::Settings(inventory)) =
             forge_inventory(c::Setting::Application { kind, scope, number }, follows)
@@ -2285,6 +2349,7 @@ fn forge_settings_inventory_names_the_kinds_with_defaults_changes_and_removals()
         "landing-rule 1: default",
         "landing-rule 2 --project 7: changed in revision 5",
         "forge-charter 1: changed in revision 5, removed",
+        "template-goal 4: default",
     ] {
         assert!(text.contains(line), "{text}");
     }
@@ -2483,6 +2548,8 @@ fn forge_setting_commands_refuse_selectors_outside_their_forms() {
         vec!["settings", "show", "forge-charter", "0"],
         vec!["settings", "show", "forge-charter", "3"],
         vec!["settings", "show", "forge-charter", "1", "--project", "1"],
+        vec!["settings", "show", "template-goal", "0"],
+        vec!["settings", "show", "template-goal", "4", "--project", "1"],
     ] {
         assert!(fixtures::parse(&argv).is_err(), "{argv:?}");
     }
