@@ -65,7 +65,7 @@ Prints: A line per event, oldest first, then `read on with: task activity TASK -
 --json: the record activity.
 Key: none.
 A turn's conversation prints whole; read its supplied system text with task turn TASK TURN.
-Each part is cut at 16 KB with `read on with:`;
+Each part is cut at 64 KB with `read on with:`;
 a turn past a page's bytes prints as its size and
 `read with: task turn TASK TURN`.
 With `--limit`, the page keeps its last COUNT lines, and `read on
@@ -81,7 +81,7 @@ task turn TASK TURN [--part PART] [--from OFFSET]
   --part PART: a number; optional. Only this part
   --from OFFSET: a number; optional. From this byte of the part
 Read one turn of a task's run, part by part
-Prints: A turn's header, then its words including the brief supplied to the run, calls and results in order; a cut part ends with `N bytes left; read on with: task turn TASK TURN --part PART --from OFFSET`
+Prints: With --part, a cut part first prints `part P page N of M holds B bytes;` and the bytes left with the call that reads on, or `no more`; then a turn's header, then its words including the brief supplied to the run, calls and results in order; a cut part ends with `N bytes left; read on with: task turn TASK TURN --part PART --from OFFSET`
 --json: the record turn.
 Key: none.
 Read task activity TASK to find the attempt and turn as A.T, then
@@ -90,7 +90,7 @@ with the selected charter-part instructions, charter document sections and
 their recorded commits. These are the retained supplied words. Older turns
 that did not retain system text have that context unavailable; task text
 and current settings cannot recover it.
-A part prints at most 16384 bytes at a time. A turn past ctl's
+A part prints at most 65536 bytes at a time. A turn past ctl's
 bound prints its size and `past the limit; report it`, and one it
 cannot decode `unreadable; report it`, both with exit 0: report
 either as a finding.
@@ -276,7 +276,7 @@ task text TASK [--field specification|instructions|result] [--from OFFSET]
   --field specification|instructions|result: one of specification, instructions or result; optional. Which source to read; specification when absent
   --from OFFSET: a number; optional. Byte offset printed by the previous chunk; zero when absent
 Read a chunk of a task's specification, effective instructions or kept report
-Prints: The source words, byte offsets and total size; then a continuation call or `no more`
+Prints: A cut page first prints `FIELD page N of M holds B bytes;` and the bytes left with the call that reads on, or `no more`; then the source words, byte offsets and total size; then a continuation call or `no more`
 --json: the record task-text.
 Key: none.
 Each chunk keeps UTF-8 characters whole. Follow the printed call

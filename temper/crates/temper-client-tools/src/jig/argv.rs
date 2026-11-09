@@ -644,7 +644,7 @@ fn check_choice(call: &Call, model: usize, effort: usize, limits: &Limits) -> Re
         let argument = u8::try_from(index).or(Err(Usage::Tool))?;
         if let Some(value) = crate::jig::call::value(call, index) {
             let Value::Text(text) = value else { return Err(Usage::Kind { tool: 0, form: 0, argument }) };
-            if text.len() > usize::try_from(limits.text).expect("text bound fits") {
+            if text.len() > usize::try_from(limits.words).expect("words bound fits") {
                 return Err(Usage::Long { tool: 0, form: 0, argument });
             }
             if core::str::from_utf8(text).is_err() {

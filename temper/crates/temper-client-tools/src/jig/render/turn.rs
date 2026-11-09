@@ -43,6 +43,40 @@ pub(super) fn text(
             out.put(b" \xc2\xb7 unreadable; report it\n");
         }
         c::TurnRead::Decoded(turn) => {
+            if call.tool == 6
+                && let Some(part) = number(call, 2)
+                && let Some(bytes) = part_bytes(turn, part)
+            {
+                let room = out.room();
+                let (start, end, left) = cut(bytes, number(call, 3).unwrap_or(0), room, limits.part);
+                if start > 0 || left > 0 {
+                    out.put(b"part ");
+                    out.number(part);
+                    out.put(b" ");
+                    let bound = room.min(usize::try_from(limits.part).expect("part bound fits"));
+                    super::task_source::page(
+                        u64::try_from(start).expect("part offset fits"),
+                        u64::try_from(end).expect("part length fits"),
+                        u64::try_from(left).expect("part length fits"),
+                        u64::try_from(bound).expect("part bound fits"),
+                        out,
+                    );
+                    if left > 0 {
+                        out.number(u64::try_from(left).expect("part length fits"));
+                        out.put(b" bytes left; read on with: ");
+                        continuation(
+                            task,
+                            turn_name,
+                            part,
+                            u64::try_from(start.checked_add(end).expect("bounded offset")).expect("part offset fits"),
+                            out,
+                        );
+                        out.put(b"\n");
+                    } else {
+                        out.put(b"no more\n");
+                    }
+                }
+            }
             out.put(b"turn ");
             name(turn_name, out);
             out.put(b"\n");
@@ -55,6 +89,27 @@ pub(super) fn text(
         }
     }
 }
+fn part_bytes(turn: &c::Turn, selected: u64) -> Option<&[u8]> {
+    let mut part = 0u64;
+    for message in &turn.messages {
+        for block in &message.blocks {
+            let (first, second) = match block {
+                c::Block::Text(text) => (Some(text), None),
+                c::Block::Call(called) => (Some(&called.input), called.outcome.as_ref()),
+                c::Block::Result { summary, .. } => (Some(summary), None),
+                c::Block::Opaque { .. } => (None, None),
+            };
+            for text in [first, second].into_iter().flatten() {
+                part = part.checked_add(1).expect("bounded parts");
+                if part == selected {
+                    return Some(text.bytes());
+                }
+            }
+        }
+    }
+    None
+}
+
 fn block_text(
     task: u64,
     turn: c::TurnName,
@@ -116,13 +171,11 @@ fn words(task: u64, turn: c::TurnName, part: &mut u64, bytes: &[u8], call: &Call
         return;
     }
     let from = if call.tool == 6 { number(call, 3).unwrap_or(0) } else { 0 };
-    let from = text_end(bytes, usize::try_from(from).unwrap_or(usize::MAX));
+    let (from, end, left) = cut(bytes, from, out.room(), limits.part);
     let bytes = bytes.get(from..).expect("offset within part");
-    let end = text_end(bytes, out.room().min(usize::try_from(limits.part).expect("part bound fits")));
     out.put(bytes.get(..end).expect("part cut"));
     out.reserve(end);
     out.put(b"\n");
-    let left = bytes.len().checked_sub(end).expect("part cut");
     if left > 0 {
         out.number(u64::try_from(left).expect("bounded part"));
         out.put(b" bytes left; read on with: ");
@@ -135,6 +188,14 @@ fn words(task: u64, turn: c::TurnName, part: &mut u64, bytes: &[u8], call: &Call
         );
         out.put(b"\n");
     }
+}
+
+fn cut(bytes: &[u8], from: u64, room: usize, part: u32) -> (usize, usize, usize) {
+    let start = text_end(bytes, usize::try_from(from).unwrap_or(usize::MAX));
+    let bytes = bytes.get(start..).expect("offset within part");
+    let end = text_end(bytes, room.min(usize::try_from(part).expect("part bound fits")));
+    let left = bytes.len().checked_sub(end).expect("part cut");
+    (start, end, left)
 }
 
 fn continuation(task: u64, turn: c::TurnName, part: u64, from: u64, out: &mut Text) {
