@@ -49,6 +49,7 @@ def file_lines(text):
 def entries(text):
     lines = file_lines(text)
     found = []
+    labels = []
     index = 0
     while index < len(lines):
         if not lines[index].startswith(b'- **Not yet:**'):
@@ -58,15 +59,24 @@ def entries(text):
         index += 1
         while index < len(lines) and lines[index].startswith(b'  ') and lines[index].strip():
             index += 1
-        tag = TAG.search(lines[index - 1])
-        found.append((start, index, tag[1] if tag is not None else None))
-    return found
+        if lines[start].strip() == b'- **Not yet:**':
+            children = [at for at in range(start + 1, index) if lines[at].startswith(b'  - ')]
+            if children:
+                labels.append((start, index))
+            bounds = list(zip(children, children[1:] + [index]))
+        else:
+            bounds = [(start, index)]
+        for first, end in bounds:
+            tag = TAG.search(lines[end - 1])
+            found.append((first, end, tag[1] if tag is not None else None))
+    return found, labels
 
 
 def settle(text, ends):
     lines = file_lines(text)
     unknown = []
-    for start, end, tag in reversed(entries(text)):
+    found, labels = entries(text)
+    for start, end, tag in found:
         if tag is None:
             continue
         change = CHANGE.fullmatch(tag)
@@ -74,12 +84,16 @@ def settle(text, ends):
         if task not in ends:
             unknown.append((end, tag.decode('utf-8', errors='backslashreplace')))
         elif ends[task]:
-            del lines[start:end]
+            # Keep offsets stable until empty labels have been checked.
+            lines[start:end] = [b''] * (end - start)
         else:
             last = lines[end - 1]
             match = TAG.search(last)
             # Keep the last line's ending and the bytes after the tag.
             lines[end - 1] = last[:match.start()] + last[match.end(1) + 1:]
+    for start, end in labels:
+        if not any(lines[start + 1:end]):
+            lines[start] = b''
     return b''.join(lines), sorted(unknown)
 
 
