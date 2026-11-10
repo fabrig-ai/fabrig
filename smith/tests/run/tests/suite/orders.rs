@@ -1,4 +1,4 @@
-//! Input and deferred-work orders under output load (`smith/docs/design/domain/run.md`, 9.1 and 13).
+//! Input and deferred-work orders under output load (`smith/docs/design/domain/budget.md`, 1, and `smith/docs/design/domain/run.md`, 12).
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 

@@ -280,7 +280,7 @@ last one with `opens_window` (domain/host.md, section 6).
 The code and the reason are each text within its bound, which
 limits.md, 2.4, gives.
 
-**How a run ended** (domain/run.md, section 10):
+**How a run ended** (domain/run.md, section 9):
 
 - **accepted,** with its result, as bytes (charter.md);
 - **parked;**
@@ -443,12 +443,12 @@ edge is independent of the channel's own flow control (section 7).
   So a domain that keeps its own bounds is never refused by its channel.
 - **Progress.** Every record the host's half reads counts as progress for
   its watchdog. A connected agent's channel adds skein's keepalive, with
-  silence and stall deadlines (hosts.md). Over pipes, the process's end is
+  silence and stall deadlines (host.md). Over pipes, the process's end is
   the channel's end.
 
 ## 8. Facts
 
-A fact is content-free (domain/run.md, section 11): what happened, and
+A fact is content-free (domain/run.md, section 10): what happened, and
 when, as a duration since the run's start. The time is taken when the
 fact is emitted, never when it is projected, so a fact that waited in a
 queue still says when it happened. The kinds the channel projects, for
@@ -460,7 +460,7 @@ liveness:
 - text arriving from the LLM, counted, never carried. The count is the
   fact's: the text itself crosses only as live content (section 4).
 
-The run's other facts (domain/run.md, section 11) reach the event stream
+The run's other facts (domain/run.md, section 10) reach the event stream
 only.
 
 The local service measures received turns within the host's
@@ -475,7 +475,7 @@ separate sink of the same facts with content as its capture policy
 allows, under its own delivery policy and its own count of loss
 (events.md), and never crosses the channel. Content crosses the channel
 only as live content, at the host's ask, in pieces that are never
-facts: the run's domain never holds it (domain/run.md, section 11). Where
+facts: the run's domain never holds it (domain/run.md, section 10). Where
 a trace is kept is the agent's configuration (agent.md).
 
 ## 9. What the domains are owed, and what skein owes

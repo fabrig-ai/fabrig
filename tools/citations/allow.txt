@@ -2,7 +2,7 @@
 # FILE and TARGET are as citations.py prints them; FILE may be a glob, and TARGET * is every target.
 # Data, examples and names quoted as such.
 temper/docs/development/acceptance.md CONTRIBUTING.md # a story repository's file, as data
-smith/docs/design/benchmarks.md CODEX_HOME/AGENTS.md # codex-cli's file under CODEX_HOME, not a document here
+smith/docs/design/benchmarks/README.md CODEX_HOME/AGENTS.md # codex-cli's file under CODEX_HOME, not a document here
 temper/crates/temper-engine-domain-forge-landing/src/tests/key.rs crates.md # a test's path, as data
 temper/docs/design/client/README.md process.md # a charter's document in an example, quoted
 temper/docs/design/domain/landing.md crates/x/README.md # an ignored path, as an example

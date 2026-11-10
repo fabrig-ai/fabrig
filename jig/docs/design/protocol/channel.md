@@ -95,7 +95,7 @@ io: a listener's sockets                            io: one socket, dialled
   flight across channels, and the same translation.
 - **Below the hub,** a worker's agents run as agent processes, over
   smith's own channel, which smith's host half carries (smith's
-  `protocol/hosts.md`, sections 2 and 3), or, on a worker whose root
+  `protocol/host.md`, sections 2 and 3), or, on a worker whose root
   composes `smith-inline-agent`, in its own process (smith's
   `domain/host.md`, 9.1). jig's channel ends at the hub: what a run's
   agent sends reaches the engine only as the hub relays it.
@@ -245,7 +245,7 @@ answer, and a **notice** is not answered.
 | limited | task, attempt; an LLM account and its source; how long until it may be used again, only where its provider said | notice |
 | refused | task, attempt; an LLM account and its source; its provider's code and reason, as text within the detail's bound | notice |
 | unauthorized | task, attempt; an LLM account and its source; the generation its provider refused, or whose program login was lost | notice |
-| logins | for each program source the engine named (5.2), its name and its login's state on this host: usable, not signed in, signed in otherwise and how, or failed, with bounded detail (smith's `protocol/hosts.md`, section 2); and, for a usable one, the email its status names, of at most 255 bytes, where it names one, which the engine keeps as a fact of the account (`../domain/accounts.md`, 3.7) | notice: once checked after each `sources`, then on each change |
+| logins | for each program source the engine named (5.2), its name and its login's state on this host: usable, not signed in, signed in otherwise and how, or failed, with bounded detail (smith's `protocol/host.md`, section 2); and, for a usable one, the email its status names, of at most 255 bytes, where it names one, which the engine keeps as a fact of the account (`../domain/accounts.md`, 3.7) | notice: once checked after each `sources`, then on each change |
 | signed out | a program source's name; whether the program's sign-out ran, or failed, with bounded detail | answer to a sign out |
 | list read | a read's number; at most 256 rows, each a name of at most 128 bytes, a shown name of at most 64, a window, an output and at most 8 efforts of at most 16 bytes, or a typed failure: refused with a status, unreachable, unreadable, deadline or the agent's fault (`../domain/hosts.md`, 5.1) | answer to a read list, best effort: a read's number the engine no longer holds is dropped |
 | draining | none: the worker has started to shut down, and the fleet places nothing more on this channel (`../domain/engine.md`, section 8) | notice: once as its shutdown begins, before anything its cancelled runs send, and again after each hello while it shuts down (`../domain/hosts.md`, 6.7) |
@@ -314,7 +314,7 @@ tags stay fixed (`README.md`, 7).
 | grant | task, attempt; its form, which selects the table its value comes from, jig's accounts' or the application's; its number there, generation, how long it is valid, if it lapses; its value: a credential with its scheme, a program source's name, or the application's secret (section 8) | notice |
 | sources | the program sources this worker may be given, each by its name, the whole list: a source not in it is none of the worker's | notice, after each hello and on each change |
 | check | a program source's name: check its login now, at its holder's asking | notice; `logins` follows |
-| sign out | a program source's name: run the program's own sign-out in the source's configuration directory (smith's `protocol/hosts.md`, section 2) | call, answered by `signed out` |
+| sign out | a program source's name: run the program's own sign-out in the source's configuration directory (smith's `protocol/host.md`, section 2) | call, answered by `signed out` |
 | read list | a read's number; an endpoint; a grant, as `grant`'s form and value, a credential alone (section 8): read this account's list once (`../domain/hosts.md`, 5.1) | call, answered by `list read` |
 
 - **The fleet's refusals travel as the records above:** a turn answered
@@ -659,7 +659,7 @@ holds, and neither of its components reads them.
   name stays in its form, with no table entry. The worker's
   protocol layer hands LLM accounts' values to smith's host half, which
   fills them into its agent's start and grants, a credential with its
-  scheme or a program source's name (smith's `protocol/hosts.md`,
+  scheme or a program source's name (smith's `protocol/host.md`,
   section 2), or to smith's LLM component on a worker that composes
   `smith-inline-agent`, which takes no program source (`llm.md`,
   section 6). No root sees a value.
@@ -1139,7 +1139,7 @@ ones in the fuzzy suite.
   and unauthorized (smith's `protocol/channel.md`, sections 4 and 6);
   and its host half's check of a program source's login and the
   program's own sign-out in the source's configuration directory
-  (smith's `protocol/hosts.md`, section 2; the check's answers are smith's
+  (smith's `protocol/host.md`, section 2; the check's answers are smith's
   `protocol/programs.md`, section 3). No crate of this channel's links
   smith.
 - **What jig asks of smith** (`README.md`, section 11): the ask in its

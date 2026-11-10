@@ -1,4 +1,4 @@
-//! A change's criteria use its parent commit as the reference (benchmarks.md 16.6).
+//! A change's criteria use its parent commit as the reference (benchmarks/codex-parity.md 6).
 
 mod inputs;
 pub use inputs::{Input, Inputs, attach, command, verify};

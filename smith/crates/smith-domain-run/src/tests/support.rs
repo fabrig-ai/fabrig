@@ -5,7 +5,7 @@ pub(crate) const PEER: Token = Token::new(100);
 pub(crate) const BUDGET: Budget = Budget { turns: 10, spend: 10_000, time: Duration::from_secs(600) };
 
 /// Fixed admission and ownership limits shared by focused run and result tests.
-/// Contract: smith/docs/design/domain/run.md, sections 3.1, 7.1 and 13.
+/// Contract: smith/docs/design/domain/run.md, sections 3.1, 7.1 and 12.
 pub(crate) const LIMITS: Limits = crate::fixture::SMALL;
 
 /// The domain, its environment, and its pending output.

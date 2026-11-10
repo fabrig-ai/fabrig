@@ -1,6 +1,6 @@
 //! Pinned model tiers retain only choices in agents/models.toml.
 //! `lookup` refuses an unresolved working tier rather than guessing the user's
-//! model (benchmarks.md, section 7).
+//! model (../../docs/design/benchmarks/README.md, section 7).
 
 use std::collections::BTreeMap;
 use std::path::Path;

@@ -1,5 +1,5 @@
 //! Independent cumulative budget-fact oracle, using host ceilings and real callbacks.
-//! Contract: smith/docs/design/domain/run.md, sections 9.1, 11 and 13.
+//! Contract: smith/docs/design/domain/budget.md, section 1, and smith/docs/design/domain/run.md, sections 10 and 12.
 
 use skein_lib::{Duration, Time};
 use skein_world::domain::{Expectations, Judge, Referee, Verdict};

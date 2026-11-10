@@ -1,4 +1,4 @@
-//! Bounded plain-directory snapshots (protocol/hosts.md, section 5.5;
+//! Bounded plain-directory snapshots (protocol/host.md, section 5.5;
 //! domain/host.md, section 8). A scan keeps ordered paths and content digests,
 //! never file handles or delivery policy. `new`, `start` and `from_file` walk
 //! one directory or file at a time. Errors, omitted entries, unsupported

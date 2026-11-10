@@ -1,4 +1,4 @@
-//! The installation UUID, drawn only by login (shell.md, 7.2).
+//! The installation UUID, drawn only by login (shell/credentials.md, 2).
 //! Absent-file stores choose one winner; every other process reads that winner.
 use super::{Directory, private_file};
 use skein_io::file::Expect;

@@ -1,4 +1,4 @@
-//! Explicit public-client registration (shell.md, section 7).
+//! Explicit public-client registration (shell/credentials.md).
 //! Keys come from the account's settings; no provider registration is implied.
 mod scopes;
 
@@ -175,7 +175,7 @@ impl RecordFailure {
     }
 }
 
-/// A saved sign-in record's refresh facts, without its tokens (shell.md, 7.3).
+/// A saved sign-in record's refresh facts, without its tokens (shell/credentials.md, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RefreshFacts {
     pub generation: u64,

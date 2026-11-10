@@ -1,4 +1,4 @@
-//! Program configuration bounds without backends or grants (smith/docs/design/shell.md, section 2.6).
+//! Program configuration bounds without backends or grants (smith/docs/design/shell/README.md, section 2.6).
 //! Contract: smith/docs/design/protocol/programs.md, sections 2, 3 and 5.
 
 use crate::{Config, Limits};

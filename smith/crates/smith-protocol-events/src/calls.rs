@@ -4,7 +4,7 @@
 //! result content or a rendered result. Selected provider arguments wait in a
 //! bounded input book until their start. Workspace caps arrive from
 //! the tool's terminal; delegated content remains outside this projection.
-//! Contracts: smith/docs/design/protocol/events.md, sections 3.1, 3.6 and 5; smith/docs/design/domain/run.md, section 11.
+//! Contracts: smith/docs/design/protocol/events.md, sections 3.1, 3.6 and 5; smith/docs/design/domain/run.md, section 10.
 
 mod builtin;
 mod jobs;

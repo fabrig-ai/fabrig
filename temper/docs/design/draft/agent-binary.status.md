@@ -8,7 +8,7 @@ which makes the engine's and the agent's closure rows pass by moving
 code. No design lag or open decision remains within this plan; the four
 accepted departures below remain.
 
-**Draft fate:** its vision is folded into `smith/docs/design/shell.md`,
+**Draft fate:** its vision is folded into `smith/docs/design/shell/README.md`,
 2.6, `temper/docs/design/protocol/README.md`, 4.3 and 4.4, and
 `temper/docs/design/protocol/setup.md`, 6.6 and section 11. Removal of the
 completed draft is proposed under `DESIGN.md`, section 4; its user's text
@@ -23,7 +23,7 @@ M6 publishes the set, and figures remain undone. The parent's section
   - Item 1, smith's crate: it is two, `smith-agent-profile`, the
     configuration's values, the profile, its checks and the host's
     limits, beneath the service, and `smith-agent-document`, the reader
-    and the program helpers, on it (`smith/docs/design/shell.md`, 2.6). The reader
+    and the program helpers, on it (`smith/docs/design/shell/README.md`, 2.6). The reader
     resolves a document into the service's own values and checks, so a
     reader without the service needs them beneath it. The plan's lead,
     2026-11-08, kept by its second cut, 2026-11-09.

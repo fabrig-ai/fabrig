@@ -1,6 +1,6 @@
 //! Compaction conversations retain the tool choice of every request.
 //! No conversation means the predicate was not exercised; the first request
-//! that permits tools supplies failure evidence (benchmarks.md, section 11.1).
+//! that permits tools supplies failure evidence (benchmarks/catalogue.md, section 1).
 
 use std::collections::BTreeSet;
 

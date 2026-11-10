@@ -1,6 +1,6 @@
 //! Compaction is owed only once a request's prompt passes its conversation's
-//! line. Missing usage or compaction material stays unknown (benchmarks.md,
-//! sections 3.2 and 11.1).
+//! line. Missing usage or compaction material stays unknown (../../../../../docs/design/benchmarks/README.md, section 3.2, and benchmarks/catalogue.md, section 1
+//! ).
 
 use std::collections::BTreeMap;
 

@@ -1,6 +1,6 @@
 //! Spend checks compare native integer charges with the prepared currency,
 //! without rounding the ceiling or charging aggregate usage a second time
-//! (benchmarks.md, sections6.2/11.1; protocol/events.md, sections3.3/3.5).
+//! (../../../../../docs/design/benchmarks/README.md, sections6.2/11.1; protocol/events.md, sections3.3/3.5).
 
 use std::collections::BTreeMap;
 

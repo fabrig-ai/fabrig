@@ -1,4 +1,4 @@
-//! Program source operations (protocol/hosts.md, section 2; protocol/programs.md,
+//! Program source operations (protocol/host.md, section 2; protocol/programs.md,
 //! sections 3 and 4.1). Keeps one child command and a single answer right; never
 //! reads a login file. `new`, `from_io` and `fire` drive the command; `answer`
 //! translates its settled record into the host domain's vocabulary.

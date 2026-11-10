@@ -1,4 +1,4 @@
-//! Check's account projection (shell.md, 4.4; protocol/hosts.md, 5.2).
+//! Check's account projection (shell/commands.md, 4; protocol/host.md, 5.2).
 //! Retains redacted states only. `report` checks every declared program source
 //! before inspecting the catalog; it starts no run or sign-in.
 use crate::{credentials, settings::resolve::Resolved};

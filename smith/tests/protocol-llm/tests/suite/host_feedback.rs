@@ -2,7 +2,7 @@
 //! Observations stay outside the domains: native continued arguments have explicit
 //! handwritten expectations; incoming host input remains byte exact.
 //! Contract: domain/run.md,
-//! sections 5.2, 10 and 13; testing-strategy.md, sections 2.3 and 6.
+//! sections 5.2, 9 and 12; testing-strategy.md, sections 2.3 and 6.
 
 use skein_fake_llm_domain::api::{Line, Part, Query, Script};
 use skein_lib::{Time, Wall};

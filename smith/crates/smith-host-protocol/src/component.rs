@@ -1,4 +1,4 @@
-//! Host-side channel (protocol/hosts.md, section 2; domain/host.md, section 6).
+//! Host-side channel (protocol/host.md, section 2; domain/host.md, section 6).
 //! Keeps the opening, one application demand and at most one held closure reason,
 //! never host policy or read-ahead records. `open` runs the handshake; `read`
 //! demands one record, live piece or end; `send_*`, `from_below` and `fire`

@@ -1,6 +1,6 @@
 //! Settled attempt lines, logical calibration counts and judgments.
 //! No agent state is read; benchmark requests and settled public evidence are inputs.
-//! Contract: smith/docs/design/benchmarks.md, sections 5.1 and 11.5.
+//! Contract: smith/docs/design/benchmarks/README.md, section 5.1, and smith/docs/design/benchmarks/catalogue.md, section 5.
 
 use super::Planned;
 use crate::{AttemptResult, End, Judgment, Measure};

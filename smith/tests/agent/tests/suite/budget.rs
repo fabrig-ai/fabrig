@@ -2,7 +2,7 @@
 //! The outside oracle prices the typed fake-provider callbacks with its own literal
 //! model table, and sums each callback once. Child-inclusive Turn bills and
 //! historical bills never supply that global expected total.
-//! Contract: smith/docs/design/domain/run.md, sections 9, 10, 13;
+//! Contract: smith/docs/design/domain/budget.md, smith/docs/design/domain/run.md, sections 9, 12;
 //! smith/docs/design/domain/session.md, section 6; skein/docs/foundation/testing-strategy.md, sections 2.3, 6 and 7.
 
 use skein_fake_checkout::Checkout;
@@ -473,7 +473,7 @@ fn a_real_child_session_answers_its_last_turn_without_running_written_calls() {
 
 #[test]
 fn main_reserve_turn_keeps_a_named_host_tool() {
-    // One ordinary completion and one reserve completion (run.md, 9.1).
+    // One ordinary completion and one reserve completion (domain/budget.md, 1).
     const TURNS: u32 = 2;
     let mut settings = settings(712, false, false);
     settings.budget.turns = TURNS;

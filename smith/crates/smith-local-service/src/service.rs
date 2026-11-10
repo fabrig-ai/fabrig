@@ -1,7 +1,7 @@
 //! Local-to-host routing keeps uncapped internal handoffs and capped edges.
 //! Local policy owns durability and delivery; the host kit owns child lifecycle and channel rights. The saved
 //! conversation position continues across activation-local channel turn numbers
-//! (protocol/channel.md, section 5; protocol/hosts.md, section 5.3).
+//! (protocol/channel.md, section 5; protocol/host.md, section 5.3).
 //! `valid` and `Service::new` keep edge and child composition checks
 //! (domain/host.md, sections 6 and 8), without knowing a process heap total.
 

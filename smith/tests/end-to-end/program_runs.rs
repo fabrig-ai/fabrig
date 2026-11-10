@@ -1,4 +1,4 @@
-//! Program-account paths through the shipped product (smith/docs/design/shell.md, sections 4 and 9).
+//! Program-account paths through the shipped product (smith/docs/design/shell/commands.md and smith/docs/design/shell/README.md, section 5).
 mod records;
 
 use super::support;

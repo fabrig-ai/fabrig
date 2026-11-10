@@ -1,4 +1,4 @@
-//! Comparisons pair only the cross-agent basis in benchmarks.md, section 9.
+//! Comparisons pair only the cross-agent basis in ../../../docs/design/benchmarks/README.md, section 9.
 
 use std::collections::BTreeMap;
 

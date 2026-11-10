@@ -1,7 +1,7 @@
 //! One prepared attempt, retaining scoped evidence and private archives only.
 //! Setup and grading run outside the measured invocation. The shared supervisor
 //! owns every process tree; no process discovery or resource formula lives here.
-//! Entry point `attempt` follows benchmarks.md, sections 6, 8 and 10.
+//! Entry point `attempt` follows ../../docs/design/benchmarks/README.md, sections 6, 8 and 10.
 
 use std::collections::BTreeMap;
 use std::fs;
@@ -29,7 +29,7 @@ mod cache;
 
 mod passive;
 
-/// The directory the scope gate lists for every real run (benchmarks.md, section 10).
+/// The directory the scope gate lists for every real run (../../docs/design/benchmarks/README.md, section 10).
 pub const MACHINE_TEMPORARY: &str = "/tmp";
 
 fn machine_temporary() -> PathBuf {
@@ -319,7 +319,7 @@ fn archive(guard: &Guard, directory: &Path, result: &mut AttemptResult, name: &s
     Ok(())
 }
 
-/// The attempt's archive directory (benchmarks.md, 10).
+/// The attempt's archive directory (../../docs/design/benchmarks/README.md, 10).
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Archive<'a> {
     pub(crate) guard: &'a Guard,

@@ -22,7 +22,7 @@
 //! A charge that cannot fit ends the session before the completion's calls or
 //! turn. An unsent root `BudgetDenied` releases the current
 //! Completing reservation without inventing a provider lease or cancellation
-//! (smith/docs/design/domain/session.md, section 6; smith/docs/design/domain/run.md, section 9).
+//! (smith/docs/design/domain/session.md, section 6; smith/docs/design/domain/budget.md).
 //!
 //! A session ends once, and only once nothing it asked for is in flight and
 //! its kit has closed: closing cancels its call to the LLM, withdraws its

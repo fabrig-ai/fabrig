@@ -1,6 +1,6 @@
 //! Independent policy over terminal bytes, decoded peer requests and service
 //! facts. Repository access is only head/message/files; the referee never
-//! reads Sim or Machine (protocol/hosts.md, section 7).
+//! reads Sim or Machine (protocol/host.md, section 7).
 
 use crate::fixture::contains;
 use skein_fake_checkout::git::Tree;

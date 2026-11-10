@@ -1,5 +1,5 @@
 //! Four inspect-only children settle their real delegated turns before main finishes.
-//! Contract: smith/docs/design/domain/run.md, sections 4, 5.3 and 13; smith/docs/design/protocol/limits.md, section 6.
+//! Contract: smith/docs/design/domain/run.md, sections 4, 5.3 and 12; smith/docs/design/protocol/limits.md, section 6.
 
 use skein_fake_checkout::Checkout;
 use skein_fake_llm_domain::api::{Line, Part, Script, Turn};

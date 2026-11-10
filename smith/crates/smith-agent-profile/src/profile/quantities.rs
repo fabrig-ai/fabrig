@@ -149,7 +149,7 @@ pub struct Configuration {
     pub endpoints: Box<[Endpoint]>,
 }
 
-/// The standard deployment and policy values of smith/docs/design/shell.md, sections 6.3 and 6.5.
+/// The standard deployment and policy values of smith/docs/design/shell/settings.md, sections 2.3 and 2.5.
 #[must_use]
 pub const fn standard() -> Profile {
     Profile {

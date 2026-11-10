@@ -1,4 +1,4 @@
-//! What the agent tells whoever watches it (smith/docs/design/domain/run.md, section 11): the
+//! What the agent tells whoever watches it (smith/docs/design/domain/run.md, section 10): the
 //! child domains' facts, content-free, gathered after every entry point into one
 //! uncapped queue; every observation is preserved until the owner drains it.
 //!

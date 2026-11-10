@@ -1,4 +1,4 @@
-//! Store requests, terminals and bounded record names (protocol/hosts.md, 5.3).
+//! Store requests, terminals and bounded record names (protocol/host.md, 5.3).
 use alloc::boxed::Box;
 use skein_io::{file, kernel};
 use skein_lib::{Time, Token};

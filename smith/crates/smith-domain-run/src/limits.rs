@@ -2,7 +2,7 @@
 //! `valid` checks limit compatibility and representable capacities, without knowing live ownership.
 //!
 //! Contract: smith/docs/design/protocol/limits.md, section 3.10;
-//! smith/docs/design/domain/run.md, section 13; skein/docs/foundation/programming-model.md, sections 4.4, 4.5 and 6.3.
+//! smith/docs/design/domain/run.md, section 12; skein/docs/foundation/programming-model.md, sections 4.4, 4.5 and 6.3.
 
 use skein_lib::Duration;
 

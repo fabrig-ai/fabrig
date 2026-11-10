@@ -1,4 +1,4 @@
-//! Program source startup and check through the shipped binary (smith/docs/design/shell.md, 4.4, 5.3).
+//! Program source startup and check through the shipped binary (smith/docs/design/shell/commands.md, 4, smith/docs/design/shell/settings.md, 1.3).
 use super::support;
 use smith_fake_claude::{OBSERVATIONS_FILE, Observation, STORY_FILE, Status, Story};
 use smith_real_world::Scratch;

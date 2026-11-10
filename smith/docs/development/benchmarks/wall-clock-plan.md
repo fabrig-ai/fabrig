@@ -1,6 +1,6 @@
 # The wall-clock plan's measurements
 
-October 2026. The evidence behind three rules of `docs/design/benchmarks.md`, moved here from the design text, which keeps the rules. The plan ran smith's wall-clock work against Codex: a `parity` baseline, change runs on the way, and a closing `parity` run.
+October 2026. The evidence behind three rules of `../../design/benchmarks/README.md`, moved here from the design text, which keeps the rules. The plan ran smith's wall-clock work against Codex: a `parity` baseline, change runs on the way, and a closing `parity` run.
 
 ## Change runs resolve little (16.6, "Measured alone, or with the others")
 

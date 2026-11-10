@@ -1,4 +1,4 @@
-//! Smith's registration (shell.md, 6.2, 7.1). Addresses are constants from
+//! Smith's registration (shell/settings.md, 2.2, shell/credentials.md, 1). Addresses are constants from
 //! <https://auth.openai.com/.well-known/openid-configuration> (2026-10-20),
 //! never discovery fetched at runtime. Only the addresses may move in tests.
 use super::{Account, Registered, sign_in};

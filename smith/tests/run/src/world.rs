@@ -1,4 +1,4 @@
-//! Contracts: smith/docs/design/domain/run.md, 13;
+//! Contracts: smith/docs/design/domain/run.md, 12;
 //! skein/docs/foundation/testing-strategy.md, 2.2.
 
 use std::collections::{BTreeMap, BTreeSet};

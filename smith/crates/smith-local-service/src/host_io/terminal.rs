@@ -1,5 +1,5 @@
 //! Terminal input demand and the independent terminal-size read
-//! (smith/docs/design/protocol/hosts.md, 5.1).
+//! (smith/docs/design/protocol/host.md, 5.1).
 //! Input retains its adopted stream until `Closed`; window answers may outlive it.
 //! Neither machine knows terminal parsing or local policy. Adoption, reading,
 //! bytes and close drive input; asks, answers and `follow` drive window reads.

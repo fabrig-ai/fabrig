@@ -1,4 +1,4 @@
-//! Source-specific credential commands (shell.md, sections 4.5–4.6).
+//! Source-specific credential commands (shell/commands.md, sections 5–6).
 //! The edge supplies the environment; dispatch keeps names and redacted outcomes.
 use super::{Directory, Source};
 use crate::{command::Command, settings};

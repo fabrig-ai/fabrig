@@ -1,4 +1,4 @@
-//! Durable store IO routing owned by the local host (protocol/hosts.md, section 5.3).
+//! Durable store IO routing owned by the local host (protocol/host.md, section 5.3).
 //! File operations are submitted serially and each domain terminal precedes later file work.
 use super::{HostIo, store_limits};
 use alloc::boxed::Box;

@@ -1,4 +1,4 @@
-//! Bounded startup reads and strict key-by-key precedence (shell.md, 5.1–5.3).
+//! Bounded startup reads and strict key-by-key precedence (shell/settings.md, 1.1–1.3).
 use super::{Layer, Origin, Problem, Refusal, Settings, Source, Sourced, schema};
 use crate::command::Shared;
 use serde::Deserialize;

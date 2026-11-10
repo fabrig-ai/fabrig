@@ -1,4 +1,4 @@
-//! Source-specific removal (shell.md, 4.6). Holds no credential values.
+//! Source-specific removal (shell/commands.md, 6). Holds no credential values.
 use super::{Account, Environment, LoginOutcome, Source};
 use crate::settings::Settings;
 use skein_shell::Clock;

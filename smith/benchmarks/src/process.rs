@@ -2,7 +2,7 @@
 //! The pipe observer retains bounded bytes and parsed agent records, never
 //! agent state. Binary owns process-tree discovery, signals and settlement.
 //! Ended terminal masters stay held until Binary settles the tree.
-//! Contract: benchmarks.md, sections 6, 8 and 10.
+//! Contract: ../../docs/design/benchmarks/README.md, sections 6, 8 and 10.
 
 use crate::{Fault, bound, format, io};
 use std::os::fd::IntoRawFd;

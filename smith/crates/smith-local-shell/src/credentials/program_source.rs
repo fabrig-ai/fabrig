@@ -1,4 +1,4 @@
-//! Shell driver of the host half's source operations (protocol/hosts.md, 2).
+//! Shell driver of the host half's source operations (protocol/host.md, 2).
 //! Owns the programs root through each terminal, reading no login file.
 use runner::Runner;
 use skein_lib::{Duration, Queue, Token};

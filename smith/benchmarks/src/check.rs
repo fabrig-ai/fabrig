@@ -1,6 +1,6 @@
 //! Offline checks keep no process state and never execute setup or graders.
 //! `check_tree` finds task manifests; `check_task` verifies prompts, frozen
-//! seeds and design guards, following benchmarks.md, sections 5.2, 6.1 and 14.
+//! seeds and design guards, following ../../docs/design/benchmarks/README.md, sections 5.2, 6.1 and 13.
 
 mod events;
 
@@ -13,7 +13,7 @@ use sha2::{Digest, Sha256};
 
 use crate::task::{Kind, OutcomeCheck, Refusal, Task, read_task};
 
-// The shipped run budget in shell.md, section 6.4.
+// The shipped run budget in shell/settings.md, section 2.4.
 const RUN_DEFAULT_SECONDS: u64 = 3_600;
 
 /// Verify all task documents below a directory without running an agent.

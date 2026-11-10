@@ -1,6 +1,6 @@
 //! Cache probes keep a fixed read schedule and sequential child returns.
 //! Checks require captured calls and parent-return identities
-//! (benchmarks.md, section 11.1).
+//! (benchmarks/catalogue.md, section 1).
 
 use std::collections::{BTreeMap, BTreeSet};
 

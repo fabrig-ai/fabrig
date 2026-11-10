@@ -1,4 +1,4 @@
-//! Git operations for a local delivery (protocol/hosts.md, section 5.5;
+//! Git operations for a local delivery (protocol/host.md, section 5.5;
 //! domain/host.md, section 8). This adapter retains one typed operation and
 //! bounded stdout, never a child handle. The service runs each command as a
 //! child of the host in the named workspace directory, without a shell. Its

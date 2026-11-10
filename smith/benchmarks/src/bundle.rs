@@ -1,6 +1,6 @@
 //! Repository seeds name frozen, vendored directories kept outside the tree.
 //! The manifest binds their source pins and digest; an absent bundle is said and
-//! skipped offline, and refuses an attempt (benchmarks.md, sections 5.2 and 10).
+//! skipped offline, and refuses an attempt (../../docs/design/benchmarks/README.md, sections 5.2 and 10).
 
 use std::path::{Path, PathBuf};
 

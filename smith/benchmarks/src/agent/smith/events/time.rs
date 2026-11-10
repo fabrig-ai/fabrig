@@ -1,5 +1,5 @@
 //! Main spans use matching event identities, never child model time.
-//! Completed streams account for overlap (benchmarks.md, section 8.1).
+//! Completed streams account for overlap (../../../../../docs/design/benchmarks/README.md, section 8.1).
 
 use super::{Observer, Session};
 use crate::time_record::{Breakdown, observed};

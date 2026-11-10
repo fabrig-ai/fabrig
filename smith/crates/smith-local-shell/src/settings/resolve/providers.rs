@@ -1,4 +1,4 @@
-//! Provider registrations and endpoint account defaults (shell.md, 5.2, 7.1).
+//! Provider registrations and endpoint account defaults (shell/settings.md, 1.2, shell/credentials.md, 1).
 //! Checks declarations only; neither host identifiers nor records are read.
 use super::{super::Settings, input};
 use std::collections::BTreeSet;

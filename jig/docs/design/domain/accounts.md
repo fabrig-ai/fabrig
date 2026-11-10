@@ -83,7 +83,7 @@ in section 7.
   run.
 - **smith's own product does likewise:** it signs in under its own name,
   keeps its records in its own state, and borrows nothing (smith's
-  `shell.md`, section 7).
+  `shell/credentials.md`).
 
 ## 3. Accounts
 
@@ -261,7 +261,7 @@ in a record of its own (3.7).
   bound to their account can use their source.
 - **Signing out or removing a program's source** has each worker run the
   program's own sign-out in the source's configuration directory (smith's
-  `protocol/hosts.md`, section 2); the answer names any host that did
+  `protocol/host.md`, section 2); the answer names any host that did
   not. The answer covers the configured workers, named by their configured
   names: one already offline is not signed out (not in contact), and a channel
   lost during the operation is lost. A worker removed from configuration is

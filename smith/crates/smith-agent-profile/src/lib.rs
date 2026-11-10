@@ -1,7 +1,7 @@
 //! Agent configuration values, profile derivation and admission checks.
 //! Keeps deployment quantities and policy bounds, never run state, grants or credentials.
 //! `profile::derive` derives agent limits; `host_limits` derives the host's share.
-//! Contracts: smith/docs/design/shell.md, sections 2.1 and 2.6;
+//! Contracts: smith/docs/design/shell/README.md, sections 2.1 and 2.6;
 //! smith/docs/design/protocol/limits.md, sections 2–4.
 
 #![cfg_attr(not(test), no_std)]

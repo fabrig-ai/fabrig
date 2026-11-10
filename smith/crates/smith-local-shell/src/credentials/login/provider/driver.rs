@@ -1,4 +1,4 @@
-//! Drive the account owner's terminals through close (protocol/hosts.md, 5.4).
+//! Drive the account owner's terminals through close (protocol/host.md, 5.4).
 //! Subject comparisons emit account names only; no subject enters diagnostics.
 use super::super::super::{registration, sign_in};
 use super::super::LoginOutcome;

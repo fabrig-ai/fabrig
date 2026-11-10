@@ -1,4 +1,4 @@
-//! Local policy values and workspace roots (shell.md, 5.2–5.4 and 6.4).
+//! Local policy values and workspace roots (shell/settings.md, 1.2–1.4 and 2.4).
 //! Native policy and limits retain these choices; no credential or directory is opened.
 use super::super::{Origin, Problem, Refusal, Settings, Sourced};
 use super::{Account, input, models::Model};
@@ -233,7 +233,7 @@ fn directories(
     Ok(directories)
 }
 
-/// `-C`'s directory named by its last component, then each `--dir` in order (shell.md, section 4).
+/// `-C`'s directory named by its last component, then each `--dir` in order (shell/commands.md).
 /// The checks that need the filesystem refuse here, as for the default row.
 fn flagged(
     settings: &Settings,

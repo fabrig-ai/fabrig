@@ -1,5 +1,5 @@
 //! Adapter collection and archives retain the attempt's evidence in runner order.
-//! Source selection checks the planned identity (benchmarks.md, sections 6 and 10).
+//! Source selection checks the planned identity (../../../../docs/design/benchmarks/README.md, sections 6 and 10).
 
 use crate::run::{Archive, Work};
 use crate::{

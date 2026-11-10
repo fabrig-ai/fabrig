@@ -1,5 +1,5 @@
 //! The hub's permanent close, adopted roots and retained shutdown signal
-//! (skein/docs/foundation/programming-model.md, 5.2; smith/docs/design/shell.md, 9).
+//! (skein/docs/foundation/programming-model.md, 5.2; smith/docs/design/shell/README.md, 5).
 //! It knows neither terminal demand nor child state. `begin`, root answers and
 //! shutdown update the machine; `follow_close` submits roots in the down pass.
 

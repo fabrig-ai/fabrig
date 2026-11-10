@@ -2,7 +2,7 @@
 //! allowances. Startup-key names, ordinal joins and unavailable bounds are never
 //! guessed. Integer comparisons decide violations and half warnings; only the
 //! displayed fraction is approximate (protocol/events.md, sections3.3/3.5/3.8/3.10;
-//! benchmarks.md, section11.2).
+//! ../../../../../docs/design/benchmarks/README.md, section11.2).
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};

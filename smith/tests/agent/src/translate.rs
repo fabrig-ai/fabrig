@@ -1,5 +1,5 @@
 //! Typed fixture wiring between the scripted fixtures and the agent conversation
-//! (smith/docs/design/domain/session.md, section 5; smith/docs/design/domain/run.md, section 13). This test-only
+//! (smith/docs/design/domain/session.md, section 5; smith/docs/design/domain/run.md, section 12). This test-only
 //! adapter recognizes the scripts' finite arguments. It owns no production
 //! provider schema adapter. Opaque host inputs
 //! are supplied as bounded, attested typed values by the scripted fake. Tool results keep

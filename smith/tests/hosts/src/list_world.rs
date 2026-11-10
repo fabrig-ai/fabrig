@@ -1,5 +1,5 @@
 //! A host list read beside the shipped list child and an independent fake provider
-//! (smith/docs/design/protocol/hosts.md, 2; smith/docs/design/protocol/agent.md, 6.1).
+//! (smith/docs/design/protocol/host.md, 2; smith/docs/design/protocol/agent.md, 6.1).
 //! Skein's shared world owns scheduling, child lifetime, replay and teardown.
 
 use skein_fake_peers::llm::{Observation, Peer};

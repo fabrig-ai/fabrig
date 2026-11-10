@@ -1,6 +1,6 @@
 //! Authoritative run answers and the reported process exit are reconciled.
 //! Native failure metadata supplies budget and credential classes; codes alone
-//! never manufacture them (shell.md, section4.3; benchmarks.md, section8.3).
+//! never manufacture them (shell/README.md, section4.3; ../../../../../docs/design/benchmarks/README.md, section8.3).
 
 use smith_events::{AnswerClass, AnswerFailure, Event, FailureClass, Mode, Status};
 
@@ -124,7 +124,7 @@ pub(super) fn classify(observer: &Observer, exit: Exit, forced: Forced) -> Class
     if session.started.mode == Mode::Agent {
         expected = i32::from(!ended.answered);
     }
-    // Interactive chat reports run failures as records; shell.md section4.3
+    // Interactive chat reports run failures as records; shell/README.md section4.3
     // assigns class-specific process codes to the headless Exec face only.
     if session.started.mode == Mode::Chat {
         expected = match i32::try_from(ended.exit) {

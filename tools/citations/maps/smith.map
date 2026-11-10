@@ -1,0 +1,33 @@
+title smith/docs/design/README.md: smith's design
+smith/docs/design/domain/README.md 1 -> smith/docs/design/README.md 1
+smith/docs/design/domain/README.md 2 -> smith/docs/design/README.md 2
+smith/docs/design/domain/README.md -> smith/docs/design/domain/README.md
+smith/docs/design/protocol/hosts.md -> smith/docs/design/protocol/host.md
+title smith/docs/design/shell/commands.md: smith's commands
+smith/docs/design/shell.md 4 -> smith/docs/design/shell/commands.md
+title smith/docs/design/shell/settings.md: Settings and presets
+smith/docs/design/shell.md 5 -> smith/docs/design/shell/settings.md 1
+smith/docs/design/shell.md 6 -> smith/docs/design/shell/settings.md 2
+title smith/docs/design/shell/credentials.md: Credentials
+smith/docs/design/shell.md 7 -> smith/docs/design/shell/credentials.md
+smith/docs/design/shell.md -> smith/docs/design/shell/README.md
+title smith/docs/design/benchmarks/catalogue.md: The initial catalogue
+smith/docs/design/benchmarks.md 11 -> smith/docs/design/benchmarks/catalogue.md
+title smith/docs/design/benchmarks/codex-parity.md: Parity with Codex
+smith/docs/design/benchmarks.md 16 -> smith/docs/design/benchmarks/codex-parity.md
+smith/docs/design/benchmarks.md -> smith/docs/design/benchmarks/README.md
+renumber smith/docs/design/domain/README.md
+renumber smith/docs/design/shell.md
+renumber smith/docs/design/benchmarks.md
+renumber smith/docs/design/README.md
+renumber smith/docs/design/shell/commands.md
+renumber smith/docs/design/shell/settings.md
+renumber smith/docs/design/shell/credentials.md
+renumber smith/docs/design/benchmarks/catalogue.md
+renumber smith/docs/design/benchmarks/codex-parity.md
+
+# Keep the run below 64 KiB by separating its budget.
+title smith/docs/design/domain/budget.md: A run's budget and spend
+smith/docs/design/domain/run.md 9 -> smith/docs/design/domain/budget.md
+renumber smith/docs/design/domain/run.md
+renumber smith/docs/design/domain/budget.md

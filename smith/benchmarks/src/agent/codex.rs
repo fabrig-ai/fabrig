@@ -1,6 +1,6 @@
 //! Codex JSON lines retain typed root-thread observations, never child usage.
 //! `parse_line` skips unknown record kinds and refuses a known persisted shape
-//! that changed (benchmarks.md, sections 6, 8.2 and 14). Login and rollouts are
+//! that changed (../../../docs/design/benchmarks/README.md, sections 6, 8.2 and 13). Login and rollouts are
 //! outside this observer; its version is pinned by the adapter configuration.
 
 use std::collections::BTreeMap;

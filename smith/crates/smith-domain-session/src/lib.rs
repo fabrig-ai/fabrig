@@ -38,7 +38,7 @@
 //! `BudgetDenied` and `UnsentClosed` entrances release only
 //! the current provider reservation; this domain never knows global prices or
 //! whether another session may start (smith/docs/design/domain/session.md, section 6;
-//! smith/docs/design/domain/run.md, section 9).
+//! smith/docs/design/domain/budget.md).
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]

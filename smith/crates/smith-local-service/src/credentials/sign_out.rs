@@ -1,4 +1,4 @@
-//! Explicit account operations and last terminals (protocol/hosts.md, 5.4).
+//! Explicit account operations and last terminals (protocol/host.md, 5.4).
 //! Values remain private; hosts take the subject only to enforce account identity.
 use super::{Accounts, Origin, oauth};
 use alloc::boxed::Box;

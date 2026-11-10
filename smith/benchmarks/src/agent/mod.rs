@@ -1,6 +1,6 @@
 //! Agent identities and pinned configuration records; no login is read here.
 //! `read_configuration` checks the pin and hashes its metadata and exact
-//! configuration bytes (benchmarks.md, sections 5.4, 6 and 10).
+//! configuration bytes (../../../docs/design/benchmarks/README.md, sections 5.4, 6 and 10).
 
 use std::path::{Path, PathBuf};
 
@@ -98,7 +98,7 @@ pub(crate) struct Traces<'a> {
     pub(crate) maximum: usize,
 }
 
-/// The settled tree and authored checks an adapter reads (benchmarks.md, 6).
+/// The settled tree and authored checks an adapter reads (../../../docs/design/benchmarks/README.md, 6).
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Ended<'a> {
     pub(crate) exit: Exit,
@@ -249,7 +249,7 @@ impl Observing {
         }
     }
 
-    /// Archive the main trace after the standard streams (benchmarks.md, 10).
+    /// Archive the main trace after the standard streams (../../../docs/design/benchmarks/README.md, 10).
     pub(crate) fn archive_trace(
         &self,
         archive: Archive<'_>,
@@ -278,7 +278,7 @@ impl Observing {
         }
     }
 
-    /// What the agent persisted (benchmarks.md, 6, collect).
+    /// What the agent persisted (../../../docs/design/benchmarks/README.md, 6, collect).
     pub(crate) fn collect(&mut self, archive: Archive<'_>, result: &mut AttemptResult) -> Result<(), Fault> {
         match self {
             Self::Codex(observing) => observing.collect_result(archive, result),

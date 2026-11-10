@@ -1,4 +1,4 @@
-//! Resolve an entered model against startup's endpoint names (shell.md, 4.1).
+//! Resolve an entered model against startup's endpoint names (shell/commands.md, 1).
 //! Only the inventory index travels to idle local policy; no connection is composed.
 use super::Service;
 use alloc::boxed::Box;

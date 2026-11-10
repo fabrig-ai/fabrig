@@ -1,5 +1,5 @@
 //! Product placement from the main account; no credentials or child state are kept.
-//! `program_account` inspects the selection; the binary lookup opens no program (shell.md, section 9).
+//! `program_account` inspects the selection; the binary lookup opens no program (shell/README.md, section 5).
 use super::{AgentKind, Refused};
 use crate::{settings, startup};
 use std::path::Path;
@@ -10,7 +10,7 @@ pub(crate) fn program_account(accounts: &[settings::resolve::Account]) -> bool {
 
 /// Price the child's validated teardown before selecting the host's grace.
 /// Profile admission includes a final event write even without a destination
-/// (protocol/limits.md, sections 3.6 and 3.8; shell.md, section 9).
+/// (protocol/limits.md, sections 3.6 and 3.8; shell/README.md, section 5).
 pub(crate) fn host_limits(
     agent: &smith_agent_shell::config::Configuration,
     spawned: bool,
@@ -40,7 +40,7 @@ pub(crate) fn host_limits(
 /// Bound the local host's IO separately from the spawned agent's native effects.
 /// One agent uses four entities, one git child three, input and signals two,
 /// and trace and JSON two. A further slot covers the shell writer.
-/// Contract: shell.md, section 9; domain/host.md, section 8.
+/// Contract: shell/README.md, section 5; domain/host.md, section 8.
 pub(crate) fn service_limits(
     local: smith_local_domain::Limits,
     host: smith_host_domain::Limits,

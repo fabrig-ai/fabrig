@@ -1,6 +1,6 @@
 //! Independent own-turn-share terminal rule over run facts.
 //! It keeps only effective child grants, never session state or production triggers.
-//! Contract: smith/docs/design/domain/run.md, sections 5.3 and 13; skein/docs/foundation/testing-strategy.md, section 7.
+//! Contract: smith/docs/design/domain/run.md, sections 5.3 and 12; skein/docs/foundation/testing-strategy.md, section 7.
 
 use std::collections::BTreeMap;
 

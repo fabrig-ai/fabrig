@@ -1,4 +1,4 @@
-//! The local host's IO hub (protocol/hosts.md, sections 3 and 5.6).
+//! The local host's IO hub (protocol/host.md, sections 3 and 5.6).
 //! It owns common terminal, file, signal and trace resources in both child modes.
 //! Delivery IO retains bounded git and plain-tree operations; store IO routes
 //! durable chat requests. Policy and credential meaning stay with their domains.

@@ -1,4 +1,4 @@
-//! Provider faces driven by the agent world's single loop (smith/docs/design/domain/run.md, section 13).
+//! Provider faces driven by the agent world's single loop (smith/docs/design/domain/run.md, section 12).
 use crate::{Settings, translate};
 use skein_fake_llm_domain as provider;
 use skein_lib::{ReplyTo, Time, Token, Wall};

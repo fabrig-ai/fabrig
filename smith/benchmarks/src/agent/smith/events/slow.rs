@@ -1,7 +1,7 @@
 //! native provider terminals qualify the slow-completion exercise.
 //! Content-free opaque observations are durable-envelope sizes, not raw item sizes.
 //! Missing capture and ambiguous dropped items remain unavailable; preset half
-//! warnings never fail the task. Contracts: benchmarks.md 11.1; protocol/events.md
+//! warnings never fail the task. Contracts: benchmarks/catalogue.md 1; protocol/events.md
 //! 3.5/5.3; protocol/limits.md 2.1. No clock or provider is invoked here.
 
 use super::Observer;

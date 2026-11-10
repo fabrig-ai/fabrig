@@ -1,6 +1,6 @@
 //! A capped child's returned text is joined to its last native request.
 //! Tool choice and captured answer are observations, never inferred from turns
-//! (benchmarks.md, section 11.1; protocol/events.md, sections 3.5 and 3.6).
+//! (benchmarks/catalogue.md, section 1; protocol/events.md, sections 3.5 and 3.6).
 
 use std::collections::BTreeMap;
 

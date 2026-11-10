@@ -1,6 +1,6 @@
 //! Independent final-request allowance at the run/provider boundaries.
 //! It retains admitted quotas and reservations, never run state or facts.
-//! Contract: smith/docs/design/domain/run.md, sections 9.1 and 13.
+//! Contract: smith/docs/design/domain/budget.md, section 1, and smith/docs/design/domain/run.md, section 12.
 
 use skein_lib::{Time, Token};
 use skein_world::domain::{Expectations, Judge, Verdict};

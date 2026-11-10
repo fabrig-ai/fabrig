@@ -1,6 +1,6 @@
 //! Passive judgments use reported boundaries, pairs and per-response sums.
 //! No skipped record, absent limit or unavailable field is proof of compliance.
-//! Contract: benchmarks.md, section11.2; protocol/events.md, sections3/5.2.
+//! Contract: ../../../../../docs/design/benchmarks/README.md, section11.2; protocol/events.md, sections3/5.2.
 
 use std::collections::BTreeMap;
 
