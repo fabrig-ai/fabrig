@@ -123,6 +123,7 @@ pub fn render(
         maximum.saturating_sub(u32::try_from(tool.len()).expect("tool length")),
         task,
         receiving,
+        temper_engine_smith::ForgeReadBounds::STOCK,
     );
     let engine::Event::Worker(engine::WorkerInput::RenderedHostCall { answer, .. }) = event else {
         panic!("rendered host call")

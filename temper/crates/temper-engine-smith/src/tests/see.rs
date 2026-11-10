@@ -10,7 +10,8 @@ use jig_domain_core::settings::Setting;
 use temper_engine_domain::{SeeAnswer, Tool};
 
 fn rendered(line: &str, from: u32, answer: SeeAnswer, maximum: u32) -> (String, bool) {
-    let (body, error) = see_answer(line.as_bytes(), from, &answer, &[], maximum).into_parts();
+    let (body, error) =
+        see_answer(line.as_bytes(), from, &answer, &[], maximum, crate::ForgeReadBounds::STOCK).into_parts();
     assert!(body.len() <= usize::try_from(maximum).unwrap());
     (String::from_utf8(body.into_vec()).unwrap(), error)
 }

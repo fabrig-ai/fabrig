@@ -378,8 +378,9 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
   `forge-client.md`, 2.3, and `forge.md`, 5.2 and 5.3), so an ordinary
   change passes them: nine files, nine commits, or a line changed in a
   long file. A `read_compare` size refusal names both
-  limits without claiming which was exceeded. It says first that the
-  commit ids were read and that no other id helps, since a run that isn't
+  limits with their configured figures, without claiming which was exceeded.
+  It says first that the commit ids were read and that no other id helps,
+  since a run that isn't
   told retries with one it made up. It directs a run with
   an existing pull to `read_pull` for its head, then `read_pull_files`
   at that head, from page 1 while more follows. Pull-file sides must
@@ -412,9 +413,10 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
   at the head for after and the comparison's base commit for before;
   the base commit must be resolved separately. Advancing pages alone cannot
   recover the oversized page. A file or pull-file forge size refusal, whose
-  measured size is unknown, names that uncertainty, the forge bounds and
-  the numeric host bound with the same tool-specific recovery. A compare's
-  forge size refusal follows the compare guidance above. At a host bound too small
+  measured size is unknown, names that uncertainty, the forge bounds with
+  their configured figures and the numeric host bound with the same
+  tool-specific recovery. A compare's forge size refusal follows the compare
+  guidance above. At a host bound too small
   for the guidance, the refusal itself is cut to fit.
 - **A refused branch read says what to read instead.** Both refusals
   are right: `read_branches` takes a nonempty prefix, an empty one
@@ -435,7 +437,9 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
     own branch is there only where its goal holds one, and a run branch
     from its first push."
 
-  Every other tool's `Missing` and `Empty` keep their one line. The
+  Every other tool's `Missing` and `Empty` keep their one line. A forge read
+  refused as too large names `forge.client.rows` and `forge.client.answer_bytes`
+  with their configured figures, without claiming which was passed. The
   refusal stays marked an error and is cut to fit the host answer's
   bound, as the compare's is.
 - **Reads and writes:** the forge's reads, `recall`, `settings` and `read_docs` are reads; every

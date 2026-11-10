@@ -1124,10 +1124,13 @@ fn root_call_answers_become_bounded_smith_text_or_error() {
         assert_eq!(crate::unasked_kind(&read), Some(phrase));
         for (rendered, tool) in [
             (answer(&read), "the read"),
-            (crate::answer_for_tool(&read, b"read_file", 4096), "read_file"),
-            (crate::answer_for_tool(&read, b"read_compare", 4096), "read_compare"),
+            (crate::answer_for_tool(&read, b"read_file", 4096, crate::ForgeReadBounds::STOCK), "read_file"),
+            (crate::answer_for_tool(&read, b"read_compare", 4096, crate::ForgeReadBounds::STOCK), "read_compare"),
             (crate::answer_bounded(&read, 4096), "the read"),
-            (crate::answer_for_task(&read, b"read_commit", 4096, CALL_TASK), "read_commit"),
+            (
+                crate::answer_for_task(&read, b"read_commit", 4096, CALL_TASK, crate::ForgeReadBounds::STOCK),
+                "read_commit",
+            ),
         ] {
             let expected = format!(
                 "Forge read refused: {tool} got an {phrase}, which it never asks for. Nothing was read; read again."
@@ -1136,7 +1139,7 @@ fn root_call_answers_become_bounded_smith_text_or_error() {
             assert_eq!(rendered.text(), expected.as_bytes());
         }
         for cap in [0, 32] {
-            let rendered = crate::answer_for_tool(&read, b"read_compare", cap);
+            let rendered = crate::answer_for_tool(&read, b"read_compare", cap, crate::ForgeReadBounds::STOCK);
             let expected = format!(
                 "Forge read refused: read_compare got an {phrase}, which it never asks for. Nothing was read; read again."
             );
@@ -2889,7 +2892,7 @@ fn a_refused_message_says_where_its_requester_is() {
         (vec![Finding::Reference], b"read_task".as_slice(), "Authority refused: task reference"),
     ] {
         let denied = engine::CallAnswer::ToolDenied { answer: Answer::Refuse, findings: findings.into() };
-        let rendered = crate::answer_for_tool(&denied, tool, 1024);
+        let rendered = crate::answer_for_tool(&denied, tool, 1024, crate::ForgeReadBounds::STOCK);
         assert!(rendered.error());
         assert_eq!(rendered.text(), expected.as_bytes());
     }
@@ -2906,7 +2909,7 @@ fn an_authority_refusal_ends_with_no_separator() {
         ),
     ] {
         let denied = engine::CallAnswer::ToolDenied { answer: Answer::Refuse, findings: findings.into() };
-        let rendered = crate::answer_for_tool(&denied, b"release", 1024);
+        let rendered = crate::answer_for_tool(&denied, b"release", 1024, crate::ForgeReadBounds::STOCK);
         assert!(rendered.error());
         assert_eq!(rendered.text(), expected.as_bytes());
     }
@@ -2914,7 +2917,7 @@ fn an_authority_refusal_ends_with_no_separator() {
         answer: Answer::Refuse,
         findings: Box::new([Finding::Executor { source: Source::Task }]),
     };
-    let rendered = crate::answer_for_tool(&denied, b"change", 1024);
+    let rendered = crate::answer_for_tool(&denied, b"change", 1024, crate::ForgeReadBounds::STOCK);
     assert_eq!(rendered.text(), b"Authority refused: missing executor permission (task authority.delegation.kinds). For a change to a repository, call change with what to change.");
 }
 
@@ -2925,7 +2928,7 @@ fn a_denied_release_names_the_control_family_once() {
         answer: Answer::Refuse,
         findings: Box::new([Finding::Tool, Finding::Tool, Finding::Tool]),
     };
-    let rendered = crate::answer_for_tool(&denied, b"release", 1024);
+    let rendered = crate::answer_for_tool(&denied, b"release", 1024, crate::ForgeReadBounds::STOCK);
     assert!(rendered.error());
     assert_eq!(rendered.text(), b"Authority refused: tool family control");
 }
@@ -2991,7 +2994,7 @@ fn compare_answer(
 fn read_compare_too_large_names_bounds_and_paged_fallback() {
     use skein_forge::api::Error;
     let refused = engine::CallAnswer::ForgeRead(Box::new(Err(Error::TooLarge)));
-    let rendered = crate::answer_for_tool(&refused, b"read_compare", 2048);
+    let rendered = crate::answer_for_tool(&refused, b"read_compare", 2048, crate::ForgeReadBounds::STOCK);
     assert!(rendered.error());
     let text = core::str::from_utf8(rendered.text()).expect("compare guidance is UTF-8");
     for guidance in [
@@ -3000,10 +3003,10 @@ fn read_compare_too_large_names_bounds_and_paged_fallback() {
         "another id won't help",
         "Never retry with a changed or guessed id",
         "no pages",
-        "forge.client.rows",
+        "forge.client.rows (8)",
         "files",
         "commits",
-        "forge.client.answer_bytes",
+        "forge.client.answer_bytes (65536)",
         "both whole sides of every changed file",
         "Which bound was exceeded is unknown",
         "read_pull",
@@ -3026,8 +3029,8 @@ fn read_compare_too_large_names_bounds_and_paged_fallback() {
         "another id won't help",
         "Never retry",
         "no pages",
-        "forge.client.rows",
-        "forge.client.answer_bytes",
+        "forge.client.rows (8)",
+        "forge.client.answer_bytes (65536)",
         "Which bound was exceeded is unknown",
         "read_pull to",
         "read_pull_files",
@@ -3041,19 +3044,48 @@ fn read_compare_too_large_names_bounds_and_paged_fallback() {
         assert!(!text.contains(absent), "unexpected {absent}");
     }
     for cap in [0, 32, 512, 2048] {
-        let bounded = crate::answer_for_tool(&refused, b"read_compare", cap);
+        let bounded = crate::answer_for_tool(&refused, b"read_compare", cap, crate::ForgeReadBounds::STOCK);
         assert!(bounded.error());
         assert!(bounded.text().len() <= usize::try_from(cap).unwrap());
         assert_eq!(bounded.text(), &text.as_bytes()[..bounded.text().len()]);
     }
-    let unrelated = crate::answer_for_tool(&refused, b"read_pull", 2048);
-    assert_eq!(unrelated.text(), b"Forge read failed: too large");
+    let unrelated = crate::answer_for_tool(&refused, b"read_pull", 2048, crate::ForgeReadBounds::STOCK);
+    assert_eq!(unrelated.text(), b"Forge read failed: too large. The answer passed forge.client.rows (8) or forge.client.answer_bytes (65536); which one is unknown.");
     let missing = engine::CallAnswer::ForgeRead(Box::new(Err(Error::Missing)));
-    assert_eq!(crate::answer_for_tool(&missing, b"read_compare", 2048).text(), b"Forge read failed: missing");
+    assert_eq!(
+        crate::answer_for_tool(&missing, b"read_compare", 2048, crate::ForgeReadBounds::STOCK).text(),
+        b"Forge read failed: missing"
+    );
+}
+
+/// agent.md, 4.3: a forge size refusal names both configured bounds, not a guessed cause.
+#[test]
+fn forge_read_too_large_names_configured_bounds_and_clips() {
+    use crate::ForgeReadBounds;
+    use skein_forge::api::Error;
+    const SMALL_CAP: u32 = 64; // Too short for the bounds and uncertainty together.
+    const STOCK_TEXT: &[u8] = b"Forge read failed: too large. The answer passed forge.client.rows (8) or forge.client.answer_bytes (65536); which one is unknown.";
+    let refused = engine::CallAnswer::ForgeRead(Box::new(Err(Error::TooLarge)));
+    for (forge, expected) in [
+        (ForgeReadBounds::STOCK, STOCK_TEXT),
+        (ForgeReadBounds { rows: 3, answer_bytes: 4096 }, b"Forge read failed: too large. The answer passed forge.client.rows (3) or forge.client.answer_bytes (4096); which one is unknown.".as_slice()),
+    ] {
+        for tool in [b"read_branches".as_slice(), b"read_pull"] {
+            let cap = u32::try_from(expected.len()).expect("refusal length fits");
+            let whole = crate::answer_for_tool(&refused, tool, cap, forge);
+            assert!(whole.error());
+            assert_eq!(whole.text(), expected);
+            for cap in [0, SMALL_CAP, cap - 1] {
+                let clipped = crate::answer_for_tool(&refused, tool, cap, forge);
+                assert!(clipped.error());
+                assert_eq!(clipped.text(), &expected[..usize::try_from(cap).unwrap()]);
+            }
+        }
+    }
 }
 
 /// agent.md, 4.3: a refused branch read says what to read instead; every
-/// other refusal keeps its one line.
+/// other Missing and Empty refusal keeps its one line.
 #[test]
 fn a_refused_branch_read_says_what_to_read_instead() {
     use skein_forge::api::Error;
@@ -3068,11 +3100,11 @@ fn a_refused_branch_read_says_what_to_read_instead() {
         (b"read_pull", Error::Empty, "Forge read failed: empty"),
     ] {
         let refused = engine::CallAnswer::ForgeRead(Box::new(Err(error)));
-        let rendered = crate::answer_for_tool(&refused, tool, 2048);
+        let rendered = crate::answer_for_tool(&refused, tool, 2048, crate::ForgeReadBounds::STOCK);
         assert!(rendered.error());
         assert_eq!(rendered.text(), expected.as_bytes());
         for cap in [0, 32, 64] {
-            let bounded = crate::answer_for_tool(&refused, tool, cap);
+            let bounded = crate::answer_for_tool(&refused, tool, cap, crate::ForgeReadBounds::STOCK);
             assert!(bounded.error());
             assert!(bounded.text().len() <= usize::try_from(cap).unwrap());
             assert_eq!(bounded.text(), &expected.as_bytes()[..bounded.text().len()]);
@@ -3117,8 +3149,8 @@ fn successful_compare_over_host_bound_keeps_measured_feedback() {
     let recorded = engine::CallAnswer::ForgeRead(Box::new(Ok(compare)));
     let whole = answer(&recorded);
     let size = u32::try_from(whole.text().len()).expect("fixture size");
-    assert_eq!(crate::answer_for_tool(&recorded, b"read_compare", size), whole);
-    let rendered = crate::answer_for_tool(&recorded, b"read_compare", CAP);
+    assert_eq!(crate::answer_for_tool(&recorded, b"read_compare", size, crate::ForgeReadBounds::STOCK), whole);
+    let rendered = crate::answer_for_tool(&recorded, b"read_compare", CAP, crate::ForgeReadBounds::STOCK);
     assert!(rendered.error());
     assert!(rendered.text().len() <= usize::try_from(CAP).unwrap());
     let size = skein_lib::Decimal::of(u64::from(size));
@@ -3126,6 +3158,8 @@ fn successful_compare_over_host_bound_keeps_measured_feedback() {
     for phrase in [
         "rendered size",
         "host answer limit 2048 bytes",
+        "forge.client.rows (8)",
+        "forge.client.answer_bytes (65536)",
         "read_pull",
         "read_pull_files",
         "read_file",
@@ -3201,7 +3235,7 @@ fn oversized_file_feedback(tool: &[u8], value: skein_forge::api::Answer, size: u
     let recorded = engine::CallAnswer::ForgeRead(Box::new(Ok(value)));
     let whole = answer(&recorded);
     assert_eq!(whole.text().len(), size);
-    let feedback = crate::answer_for_tool(&recorded, tool, 10_240);
+    let feedback = crate::answer_for_tool(&recorded, tool, 10_240, crate::ForgeReadBounds::STOCK);
     assert!(feedback.text().len() <= 10_240, "rendered answer bypassed the host bound");
     if tool == b"read_file" {
         assert!(!feedback.error());
@@ -3307,10 +3341,17 @@ fn file_and_pull_rendering_boundaries() {
     }
     for tool in [b"read_file".as_slice(), b"read_pull_files"] {
         let recorded = engine::CallAnswer::ForgeRead(Box::new(Err(api::Error::TooLarge)));
-        let feedback = crate::answer_for_tool(&recorded, tool, 1024);
+        let feedback = crate::answer_for_tool(&recorded, tool, 1024, crate::ForgeReadBounds::STOCK);
         let words = feedback.text();
         assert!(feedback.error());
-        for required in ["1024", "size unknown", "read_file", "max_bytes"] {
+        for required in [
+            "1024",
+            "size unknown",
+            "read_file",
+            "max_bytes",
+            "forge.client.rows (8)",
+            "forge.client.answer_bytes (65536)",
+        ] {
             assert!(skein_lib::bytes::find(words, required.as_bytes()).is_some(), "missing {required}: {words:?}");
         }
     }

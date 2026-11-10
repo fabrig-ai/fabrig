@@ -299,7 +299,12 @@ fn a_person_started_goal_asks_its_person_and_no_stranger() {
         driver.settle();
         let answer = driver.answered(u64::from(COMPLETION)).expect("delegation answered");
         if let Some(refusal) = refusal {
-            let rendered = temper_engine_smith::answer_for_tool(answer, b"delegate", REPORT_WORDS);
+            let rendered = temper_engine_smith::answer_for_tool(
+                answer,
+                b"delegate",
+                REPORT_WORDS,
+                temper_engine_smith::ForgeReadBounds::STOCK,
+            );
             assert!(rendered.error());
             assert!(String::from_utf8_lossy(rendered.text()).contains(refusal), "{address:?}: {rendered:?}");
             assert!(driver.task(goal).expect("goal").delegates.is_empty(), "refusal makes no task");

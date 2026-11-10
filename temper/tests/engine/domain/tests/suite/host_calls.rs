@@ -1571,7 +1571,9 @@ fn settled_host_refusal(
     }
     if let Some((to, _)) = world.protocol.pending_renders.pop() {
         let answer = &world.protocol.answers.last().expect("refusal").1;
-        let (body, error) = temper_engine_smith::answer_for_tool(answer, tool, 4096).into_parts();
+        let (body, error) =
+            temper_engine_smith::answer_for_tool(answer, tool, 4096, temper_engine_smith::ForgeReadBounds::STOCK)
+                .into_parts();
         assert!(error, "call is refused: {answer:?}");
         world.send(engine::Event::Worker(engine::WorkerInput::RenderedHostCall {
             to,
@@ -1840,7 +1842,12 @@ fn read_task_whole(
         let word_room = driver.root.reply_bound(key).unwrap_or(driver.env.limits.documents.text_bytes);
         assert!(read.words.bytes.len() <= usize::try_from(word_room).expect("word room fits usize"));
         assert!(read.words.bytes.len() <= usize::try_from(driver.env.limits.call_answer_bytes).expect("call room"));
-        let rendered = temper_engine_smith::answer_for_tool(&answer, b"read_task", maximum);
+        let rendered = temper_engine_smith::answer_for_tool(
+            &answer,
+            b"read_task",
+            maximum,
+            temper_engine_smith::ForgeReadBounds::STOCK,
+        );
         assert!(!rendered.error(), "{}", String::from_utf8_lossy(rendered.text()));
         assert!(rendered.text().len() <= usize::try_from(maximum).expect("reply fits usize"));
         let rendered = std::str::from_utf8(rendered.text()).expect("rendered UTF-8");

@@ -6,7 +6,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::{ReplyTo, Token, Writer};
 use smith_domain_run as run;
 use temper_engine_domain as engine;
-use temper_engine_smith::{Decoded, Problem};
+use temper_engine_smith::{Decoded, ForgeReadBounds, Problem};
 
 #[cfg(test)]
 pub(crate) fn decode(to: ReplyTo, task: u64, attempt: u64, call: &fleet::Call) -> engine::Event {
@@ -116,8 +116,14 @@ fn invalid(to: ReplyTo, problem: Problem) -> engine::Event {
         answer: core::SettledAnswer::Host { error: true, body },
     })
 }
-pub(crate) fn render(to: ReplyTo, answer: &engine::CallAnswer, tool: &[u8], max_bytes: u32) -> engine::Event {
-    rendered(to, temper_engine_smith::answer_for_tool(answer, tool, max_bytes))
+pub(crate) fn render(
+    to: ReplyTo,
+    answer: &engine::CallAnswer,
+    tool: &[u8],
+    max_bytes: u32,
+    forge: ForgeReadBounds,
+) -> engine::Event {
+    rendered(to, temper_engine_smith::answer_for_tool(answer, tool, max_bytes, forge))
 }
 /// Render within the core body and receiving agent allowances, preserving the
 /// proposing task's identity. `max_bytes` excludes the settled call's tool name.
@@ -129,12 +135,13 @@ pub fn render_for_task(
     max_bytes: u32,
     task: u64,
     receiving_bytes: u32,
+    forge: ForgeReadBounds,
 ) -> engine::Event {
     let max_bytes = max_bytes.min(receiving_bytes);
     if let engine::CallAnswer::Proposed { .. } = answer {
-        rendered(to, temper_engine_smith::answer_for_task(answer, tool, max_bytes, task))
+        rendered(to, temper_engine_smith::answer_for_task(answer, tool, max_bytes, task, forge))
     } else {
-        render(to, answer, tool, max_bytes)
+        render(to, answer, tool, max_bytes, forge)
     }
 }
 fn rendered(to: ReplyTo, answer: smith_domain_run::HostAnswer) -> engine::Event {

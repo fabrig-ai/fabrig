@@ -209,7 +209,12 @@ impl Story {
         ) else {
             panic!("tool answer")
         };
-        let rendered = temper_engine_smith::answer_for_tool(&answer, b"decided", 1024);
+        let rendered = temper_engine_smith::answer_for_tool(
+            &answer,
+            b"decided",
+            1024,
+            temper_engine_smith::ForgeReadBounds::STOCK,
+        );
         let text = String::from_utf8(rendered.text().to_vec()).expect("tool words");
         self.pump();
         text

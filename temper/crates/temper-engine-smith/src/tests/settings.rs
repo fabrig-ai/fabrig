@@ -19,7 +19,7 @@ fn a_settings_proposal_answer_prints_its_ctl_name() {
         let (body, error) = if task == 0 {
             crate::answer(&answer)
         } else {
-            crate::answer_for_task(&answer, b"propose_settings", crate::DOC_ANSWER, task)
+            crate::answer_for_task(&answer, b"propose_settings", crate::DOC_ANSWER, task, crate::ForgeReadBounds::STOCK)
         }
         .into_parts();
         assert!(!error);

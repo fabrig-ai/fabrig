@@ -226,7 +226,8 @@ fn assert_answer(answer: &engine::CallAnswer, expected: Option<Reach>, reason: &
         )
     };
     assert_eq!(*answer, engine::CallAnswer::Decided { took, reach: expected });
-    let rendered = temper_engine_smith::answer_for_tool(answer, b"decided", 1024);
+    let rendered =
+        temper_engine_smith::answer_for_tool(answer, b"decided", 1024, temper_engine_smith::ForgeReadBounds::STOCK);
     assert_eq!(rendered.text(), words.as_bytes());
     assert!(!rendered.error());
 }
@@ -524,7 +525,8 @@ fn an_advisor_is_beyond_authority() {
     away(&mut world, true, None);
     let answer = world.scripted_call(&run, CALL, tool(temper_protocol_reaches::Kind::Implementation));
     assert!(matches!(answer, engine::CallAnswer::ToolDenied { .. }), "{answer:?}");
-    let rendered = temper_engine_smith::answer_for_tool(&answer, b"decided", 1024);
+    let rendered =
+        temper_engine_smith::answer_for_tool(&answer, b"decided", 1024, temper_engine_smith::ForgeReadBounds::STOCK);
     assert!(String::from_utf8_lossy(rendered.text()).contains("control"));
     assert!(rows(&world).is_empty());
     world.close();

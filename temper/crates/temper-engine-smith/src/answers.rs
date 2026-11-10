@@ -10,6 +10,18 @@ use temper_engine_domain::{CallAnswer, Changed};
 
 use crate::Problem;
 
+/// Configured forge-client answer bounds named in read refusals (domain/agent.md, 4.3).
+#[derive(Clone, Copy, Debug)]
+pub struct ForgeReadBounds {
+    pub rows: u32,
+    pub answer_bytes: u32,
+}
+
+impl ForgeReadBounds {
+    /// The stock figures for renderers without an engine's limits.
+    pub const STOCK: Self = Self { rows: 8, answer_bytes: 65_536 };
+}
+
 pub(crate) struct Text {
     parts: List<Box<[u8]>>,
     len: usize,
@@ -97,21 +109,27 @@ impl Text {
 /// metadata and escaping. Files keep a marked prefix; cut logs keep the end.
 #[must_use]
 pub fn answer_bounded(answer: &CallAnswer, max_bytes: u32) -> HostAnswer {
-    bounded(answer, &[], max_bytes, None)
+    bounded(answer, &[], max_bytes, None, ForgeReadBounds::STOCK)
 }
 
 /// Render a decided answer with its host tool's name, naming a refused family.
 /// File, pull-file, compare and job reads fit the host body bound.
 #[must_use]
-pub fn answer_for_tool(answer: &CallAnswer, tool: &[u8], max_bytes: u32) -> HostAnswer {
-    bounded(answer, tool, max_bytes, None)
+pub fn answer_for_tool(answer: &CallAnswer, tool: &[u8], max_bytes: u32, forge: ForgeReadBounds) -> HostAnswer {
+    bounded(answer, tool, max_bytes, None, forge)
 }
 
 /// Render host feedback with the proposing task's ctl name, retaining its holder.
 /// Task, file, pull-file and job reads use the configured host body bound.
 #[must_use]
-pub fn answer_for_task(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: u64) -> HostAnswer {
-    bounded(answer, tool, max_bytes, Some(task))
+pub fn answer_for_task(
+    answer: &CallAnswer,
+    tool: &[u8],
+    max_bytes: u32,
+    task: u64,
+    forge: ForgeReadBounds,
+) -> HostAnswer {
+    bounded(answer, tool, max_bytes, Some(task), forge)
 }
 
 /// The kind of a forge read's answer no agent read asks for, as the log's
@@ -168,7 +186,7 @@ fn unasked_refusal(tool: &[u8], reason: &'static str, cap: usize) -> HostAnswer 
     clipped_refusal(text, cap)
 }
 
-fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: Option<u64>) -> HostAnswer {
+fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: Option<u64>, forge: ForgeReadBounds) -> HostAnswer {
     let cap = skein_lib::usize_of(max_bytes).min(HostAnswer::CAPACITY);
     if let Some(reason) = unasked_kind(answer) {
         return unasked_refusal(tool, reason, cap);
@@ -177,17 +195,17 @@ fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: Option<u64>) 
         if let Ok(value @ (api::Answer::File { .. } | api::Answer::Directory { .. } | api::Answer::PullFiles { .. })) =
             read.as_ref()
         {
-            return file_read_bounded(value, cap);
+            return file_read_bounded(value, cap, forge);
         }
         if read.as_ref() == &Err(api::Error::TooLarge) && (tool == b"read_file" || tool == b"read_pull_files") {
-            return file_read_refusal(tool, None, cap);
+            return file_read_refusal(tool, None, cap, forge);
         }
         if tool == b"read_compare" {
-            return compare_bounded(read, cap);
+            return compare_bounded(read, cap, forge);
         }
         if read.is_err() {
             let mut text = Text::new();
-            forge_read(&mut text, read, tool).expect("fixed forge refusal");
+            forge_read(&mut text, read, tool, forge).expect("fixed forge refusal");
             return clipped_refusal(text, cap);
         }
         if let Ok(api::Answer::Job { attempt, step, log, truncated }) = read.as_ref() {
@@ -204,24 +222,24 @@ fn bounded(answer: &CallAnswer, tool: &[u8], max_bytes: u32, task: Option<u64>) 
             }
         };
     }
-    answer_text(answer, tool, task)
+    answer_text(answer, tool, task, forge)
 }
 
-fn compare_bounded(read: &Result<api::Answer, api::Error>, cap: usize) -> HostAnswer {
+fn compare_bounded(read: &Result<api::Answer, api::Error>, cap: usize, forge: ForgeReadBounds) -> HostAnswer {
     if read == &Err(api::Error::TooLarge) {
         let mut text = Text::new();
         text.add(b"This comparison is too large to return whole. Its commit ids were read; another id won't help. Never retry with a changed or guessed id.\n")
             .expect("compare refusal");
-        compare_contents(&mut text).expect("compare contents");
+        compare_contents(&mut text, forge).expect("compare contents");
         text.add(b"Which bound was exceeded is unknown.\n").expect("compare bounds unknown");
         compare_paged_recovery(&mut text).expect("compare recovery");
         return clipped_refusal(text, cap);
     }
     let mut count = Text::counter();
-    let error = forge_read(&mut count, read, b"read_compare").expect("counting compare");
+    let error = forge_read(&mut count, read, b"read_compare", forge).expect("counting compare");
     if count.len <= cap {
         let mut text = Text::new();
-        if forge_read(&mut text, read, b"read_compare").is_ok()
+        if forge_read(&mut text, read, b"read_compare", forge).is_ok()
             && let Ok(answer) = text.finish(error)
         {
             return answer;
@@ -232,8 +250,8 @@ fn compare_bounded(read: &Result<api::Answer, api::Error>, cap: usize) -> HostAn
         Err(_) => None,
     };
     let mut text = Text::new();
-    read_size(&mut text, b"read_compare", measured, cap).expect("compare size");
-    compare_recovery(&mut text).expect("compare recovery");
+    read_size(&mut text, b"read_compare", measured, cap, forge).expect("compare size");
+    compare_recovery(&mut text, forge).expect("compare recovery");
     answer_configuration(&mut text).expect("configuration recovery");
     clipped_refusal(text, cap)
 }
@@ -262,7 +280,7 @@ fn job_bounded(
     }
 }
 
-fn file_read_bounded(value: &api::Answer, cap: usize) -> HostAnswer {
+fn file_read_bounded(value: &api::Answer, cap: usize, forge: ForgeReadBounds) -> HostAnswer {
     let mut count = Text::counter();
     forge_answer(&mut count, value).expect("counting allocates no answer text");
     let mut text = Text::new();
@@ -276,19 +294,19 @@ fn file_read_bounded(value: &api::Answer, cap: usize) -> HostAnswer {
     }
     if let api::Answer::File { head, path, bytes, .. } = value {
         let mut text = Text::new();
-        if file_prefix(&mut text, head, path, bytes, count.len, cap).is_ok() {
+        if file_prefix(&mut text, head, path, bytes, count.len, cap, forge).is_ok() {
             return text.finish(false).expect("file prefix fits");
         }
         let mut text = Text::new();
-        read_size(&mut text, b"read_file", Some(count.len), cap).expect("file size");
+        read_size(&mut text, b"read_file", Some(count.len), cap, forge).expect("file size");
         text.add(b"File metadata leaves no room for content at the host answer limit. Use a shorter path; lowering max_bytes cannot fit metadata.\n").expect("fixed feedback");
         answer_configuration(&mut text).expect("configuration recovery");
         return clipped_refusal(text, cap);
     }
     if let api::Answer::PullFiles { head, files, more } = value {
-        return pull_inventory(head, files, *more, count.len, cap);
+        return pull_inventory(head, files, *more, count.len, cap, forge);
     }
-    file_read_refusal(b"read_file", Some(count.len), cap)
+    file_read_refusal(b"read_file", Some(count.len), cap, forge)
 }
 
 fn file_heading(text: &mut Text, head: &api::Commit, path: &[u8]) -> Result<(), Problem> {
@@ -305,10 +323,11 @@ fn file_prefix(
     bytes: &[u8],
     measured: usize,
     cap: usize,
+    forge: ForgeReadBounds,
 ) -> Result<(), Problem> {
     let mut footer = Text::new();
     footer.add(b"\n")?;
-    read_size(&mut footer, b"read_file", Some(measured), cap)?;
+    read_size(&mut footer, b"read_file", Some(measured), cap, forge)?;
     file_recovery(&mut footer)?;
     answer_configuration(&mut footer)?;
     footer.add(b"\n[file truncated]")?;
@@ -340,16 +359,24 @@ fn fitting_prefix(bytes: &[u8], room: usize) -> &[u8] {
     bytes::utf8_prefix(bytes, count)
 }
 
-fn read_size(text: &mut Text, tool: &[u8], measured: Option<usize>, cap: usize) -> Result<(), Problem> {
+fn read_size(
+    text: &mut Text,
+    tool: &[u8],
+    measured: Option<usize>,
+    cap: usize,
+    forge: ForgeReadBounds,
+) -> Result<(), Problem> {
     text.add(tool)?;
     if let Some(size) = measured {
         text.add(b" rendered size ")?;
         text.number(u64::try_from(size).expect("answer size fits u64"))?;
         text.add(b" bytes; host answer limit ")?;
     } else {
-        text.add(
-            b" too large at forge.client.rows or forge.client.answer_bytes (measured size unknown); host answer limit ",
-        )?;
+        text.add(b" too large at ")?;
+        forge_rows(text, forge)?;
+        text.add(b" or ")?;
+        forge_answer_bytes(text, forge)?;
+        text.add(b" (measured size unknown); host answer limit ")?;
     }
     text.number(u64::try_from(cap).expect("host bound fits u64"))?;
     text.add(b" bytes.\n")
@@ -370,9 +397,9 @@ fn clipped_refusal(text: Text, cap: usize) -> HostAnswer {
         .expect("refusal fits host capacity")
 }
 
-fn file_read_refusal(tool: &[u8], measured: Option<usize>, cap: usize) -> HostAnswer {
+fn file_read_refusal(tool: &[u8], measured: Option<usize>, cap: usize, forge: ForgeReadBounds) -> HostAnswer {
     let mut text = Text::new();
-    read_size(&mut text, tool, measured, cap).expect("fixed size guidance");
+    read_size(&mut text, tool, measured, cap, forge).expect("fixed size guidance");
     if tool == b"read_pull_files" {
         pull_recovery(&mut text).expect("fixed pull recovery");
         text.add(b"No changed-path inventory available; use read_file directories at both endpoints.\n")
@@ -393,12 +420,19 @@ fn inventory_row(text: &mut Text, file: &api::File) -> Result<(), Problem> {
     text.add(b"\n")
 }
 
-fn pull_inventory(head: &api::Commit, files: &[api::File], more: bool, size: usize, cap: usize) -> HostAnswer {
+fn pull_inventory(
+    head: &api::Commit,
+    files: &[api::File],
+    more: bool,
+    size: usize,
+    cap: usize,
+    forge: ForgeReadBounds,
+) -> HostAnswer {
     const CUT_ROOM: usize = 48;
     // Six row parts and three for the omitted-path count.
     const ROW_AND_CUT_PARTS: u32 = 9;
     let mut text = Text::new();
-    read_size(&mut text, b"read_pull_files", Some(size), cap).expect("fixed size guidance");
+    read_size(&mut text, b"read_pull_files", Some(size), cap, forge).expect("fixed size guidance");
     pull_recovery(&mut text).expect("fixed pull recovery");
     answer_configuration(&mut text).expect("configuration recovery");
     text.add(b"Head commit ").expect("fixed head label");
@@ -481,11 +515,11 @@ fn escaped_len(text: &[u8]) -> usize {
 /// becomes a bounded host error, so no decided call is left unanswered.
 #[must_use]
 pub fn answer(answer: &CallAnswer) -> HostAnswer {
-    answer_text(answer, &[], None)
+    answer_text(answer, &[], None, ForgeReadBounds::STOCK)
 }
 
-fn answer_text(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> HostAnswer {
-    match rendered(answer, tool, task) {
+fn answer_text(answer: &CallAnswer, tool: &[u8], task: Option<u64>, forge: ForgeReadBounds) -> HostAnswer {
+    match rendered(answer, tool, task, forge) {
         Ok(answer) => answer,
         Err(Problem::Unasked(reason)) => unasked_refusal(tool, reason, HostAnswer::CAPACITY),
         Err(Problem::TooLarge) => HostAnswer::new(
@@ -576,7 +610,12 @@ fn ask_reason(text: &mut Text, reach: Option<temper_protocol_reaches::Reach>) ->
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive durable answer vocabulary")]
-fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostAnswer, Problem> {
+fn rendered(
+    answer: &CallAnswer,
+    tool: &[u8],
+    task: Option<u64>,
+    forge: ForgeReadBounds,
+) -> Result<HostAnswer, Problem> {
     let mut text = Text::new();
     let error = match answer {
         CallAnswer::Decided { took: choice, reach } => {
@@ -653,7 +692,7 @@ fn rendered(answer: &CallAnswer, tool: &[u8], task: Option<u64>) -> Result<HostA
             authority_findings(&mut text, *answer, findings, tool, true)?;
             true
         }
-        CallAnswer::ForgeRead(read) => forge_read(&mut text, read, tool)?,
+        CallAnswer::ForgeRead(read) => forge_read(&mut text, read, tool, forge)?,
         CallAnswer::HoldOwner { task, hold, revision, owner } => {
             hold_owner(&mut text, *task, *hold, *revision, *owner)?;
             true
@@ -1333,7 +1372,12 @@ fn task_capacity(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result
     }
 }
 
-fn forge_read(text: &mut Text, read: &Result<api::Answer, api::Error>, tool: &[u8]) -> Result<bool, Problem> {
+fn forge_read(
+    text: &mut Text,
+    read: &Result<api::Answer, api::Error>,
+    tool: &[u8],
+    forge: ForgeReadBounds,
+) -> Result<bool, Problem> {
     match read {
         Ok(read) => {
             forge_answer(text, read)?;
@@ -1342,9 +1386,12 @@ fn forge_read(text: &mut Text, read: &Result<api::Answer, api::Error>, tool: &[u
         Err(refusal) => {
             text.add(b"Forge read failed: ")?;
             forge_error(text, *refusal)?;
-            if tool == b"read_compare" && *refusal == api::Error::TooLarge {
-                text.add(b". ")?;
-                compare_recovery(text)?;
+            if *refusal == api::Error::TooLarge {
+                text.add(b". The answer passed ")?;
+                forge_rows(text, forge)?;
+                text.add(b" or ")?;
+                forge_answer_bytes(text, forge)?;
+                text.add(b"; which one is unknown.")?;
             } else if tool == b"read_branches" && *refusal == api::Error::Empty {
                 text.add(b". ")?;
                 branches_empty_recovery(text)?;
@@ -1367,13 +1414,29 @@ fn branch_missing_recovery(text: &mut Text) -> Result<(), Problem> {
     text.add(WORDS)
 }
 
-fn compare_recovery(text: &mut Text) -> Result<(), Problem> {
-    compare_contents(text)?;
+fn compare_recovery(text: &mut Text, forge: ForgeReadBounds) -> Result<(), Problem> {
+    compare_contents(text, forge)?;
     compare_paged_recovery(text)
 }
 
-fn compare_contents(text: &mut Text) -> Result<(), Problem> {
-    text.add(b"read_compare returns a whole comparison, with no pages. Its files and commits each must fit forge.client.rows; both whole sides of every changed file must fit forge.client.answer_bytes.\n")
+fn compare_contents(text: &mut Text, forge: ForgeReadBounds) -> Result<(), Problem> {
+    text.add(b"read_compare returns a whole comparison, with no pages. Its files and commits each must fit ")?;
+    forge_rows(text, forge)?;
+    text.add(b"; both whole sides of every changed file must fit ")?;
+    forge_answer_bytes(text, forge)?;
+    text.add(b".\n")
+}
+
+fn forge_rows(text: &mut Text, forge: ForgeReadBounds) -> Result<(), Problem> {
+    text.add(b"forge.client.rows (")?;
+    text.number(u64::from(forge.rows))?;
+    text.add(b")")
+}
+
+fn forge_answer_bytes(text: &mut Text, forge: ForgeReadBounds) -> Result<(), Problem> {
+    text.add(b"forge.client.answer_bytes (")?;
+    text.number(u64::from(forge.answer_bytes))?;
+    text.add(b")")
 }
 
 fn compare_paged_recovery(text: &mut Text) -> Result<(), Problem> {

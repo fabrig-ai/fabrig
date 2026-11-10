@@ -91,6 +91,7 @@ fn render(driver: &mut Driver, to: ReplyTo, body: engine::Call, name: &[u8], too
                 tool,
                 driver.env.limits.call_answer_bytes.saturating_sub(u32::try_from(tool.len()).expect("tool name")),
                 task,
+                temper_engine_smith::ForgeReadBounds::STOCK,
             ),
         }
     }
@@ -179,6 +180,7 @@ fn settings_delivery(driver: &mut Driver) -> Option<(ReplyTo, smith_domain_run::
                     &answer,
                     &driver.root.catalogue(),
                     driver.env.limits.call_answer_bytes.saturating_sub(3),
+                    temper_engine_smith::ForgeReadBounds::STOCK,
                 ),
             ));
         }

@@ -879,6 +879,7 @@ impl World {
                         &answer,
                         &self.root.catalogue(),
                         self.env.limits.call_answer_bytes.saturating_sub(3),
+                        temper_engine_smith::ForgeReadBounds::STOCK,
                     )
                     .into_parts();
                     engine::WorkerInput::RenderedHostCall {
