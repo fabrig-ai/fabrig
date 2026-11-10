@@ -892,7 +892,11 @@ fn item_polls_name_since_only_after_a_completed_comment_scan() {
                 h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(101) });
             }
             Next::Listing | Next::Slow => {
-                let now = if matches!(next, Next::Slow) { 160 } else { 105 };
+                let now = match next {
+                    Next::Slow => 160,
+                    Next::Listing => 105,
+                    Next::Ready | Next::Repair => unreachable!("listing or slow trigger"),
+                };
                 h.fire(now);
                 let listing = h.one();
                 let mut item = summary();

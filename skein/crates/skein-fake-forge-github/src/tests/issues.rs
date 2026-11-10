@@ -211,6 +211,7 @@ fn github_fake_issues_since_observed_cutoff_and_inclusive_timestamp() {
 }
 
 #[test]
+#[expect(clippy::manual_map, reason = "step-style tests spell Option transformations with exhaustive matches")]
 fn github_fake_comments_since_filters_updates_before_pages_and_links() {
     // Whole seconds after GitHub's observed issues-since cutoff.
     const T1: u64 = 1_700_000_000_000_000_000;
@@ -246,7 +247,10 @@ fn github_fake_comments_since_filters_updates_before_pages_and_links() {
             owner: f::boxed(b"acme"),
             name: f::boxed(b"widgets"),
             number,
-            since: since.map(skein_lib::Wall::from_nanos),
+            since: match since {
+                Some(time) => Some(skein_lib::Wall::from_nanos(time)),
+                None => None,
+            },
             page,
             per_page: 2,
         };
@@ -262,7 +266,10 @@ fn github_fake_comments_since_filters_updates_before_pages_and_links() {
         }
         assert_eq!(response.link.is_some(), more, "{label}: next Link");
         if page == 1 {
-            let since = since.map_or(Time::ZERO, Time::from_nanos);
+            let since = match since {
+                Some(time) => Time::from_nanos(time),
+                None => Time::ZERO,
+            };
             let api::Answer::Item { comments, more, .. } =
                 r::read(&mut h, &token, api::Read::Item { number, after: 0, since }).expect("filtered comment plan")
             else {

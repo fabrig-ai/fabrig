@@ -713,6 +713,7 @@ fn listings_filter_by_state_kind_labels_and_time() {
 }
 
 #[test]
+#[expect(clippy::manual_map, reason = "step-style tests spell Option transformations with exhaustive matches")]
 fn an_items_comments_come_a_page_at_a_time_after_an_id() {
     for (name, filtered, edited, after_second, expected, more) in [
         ("all first page", None, false, false, &[1_u8, 2][..], true),
@@ -738,7 +739,10 @@ fn an_items_comments_come_a_page_at_a_time_after_an_id() {
             h.ok(PERSON, edit(first, b"edited"));
         }
         // Like issues, a fractional bound is inclusive at the configured resolution.
-        let since = filtered.map(|millis| t2.saturating_add(Duration::from_millis(millis)));
+        let since = match filtered {
+            Some(millis) => Some(t2.saturating_add(Duration::from_millis(millis))),
+            None => None,
+        };
         let after = if after_second { second } else { 0 };
         let Answer::Item { comments, more: actual, .. } = h.ok(ENGINE, read(Read::Item { number, after, since }))
         else {

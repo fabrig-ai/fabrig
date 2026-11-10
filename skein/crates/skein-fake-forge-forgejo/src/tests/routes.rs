@@ -11,6 +11,7 @@ use skein_forge::forgejo::{
 };
 use skein_lib::{Duration, Time, Wall};
 
+#[expect(clippy::too_many_lines, reason = "the route table retains its existing rows with required request fields")]
 fn read_rows() -> [(Request, Route, Op); 26] {
     let p = r::Page { page: Some(2), limit: Some(3) };
     let oid = routes::object(9);
