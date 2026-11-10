@@ -823,10 +823,17 @@ fn pending_permit(
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "the completion seam keeps offering, admission and publication in order")]
 fn complete(domain: &mut Domain, env: &Env<Limits>, pending: PendingCompletion, out: &mut Queue<Request>) {
     let owner = pending.owner;
     let id = *domain.sessions.get(&owner).expect("a session asks for completions once it has opened");
     let conversation = domain.peers.get(id).expect("a peer lives as its session").conversation;
+    if let Some(text) = run::offer_messages(&mut domain.run, conversation, &env.limits.run) {
+        drop(pending);
+        session::append_messages(&mut domain.session, &session_env(env), owner, text, &mut domain.session_out);
+        crate::domain::child_facts_gathered_before_handoff(domain);
+        return;
+    }
     // Admission precedes grant lookup, prompt cloning, lease retention
     // and every Client effect. This completion is still unsent.
     match pending_permit(domain, conversation, env, &pending) {

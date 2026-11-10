@@ -462,6 +462,29 @@ pub(crate) fn message(
     follow(&mut domain.runs, &mut domain.alarms, &mut domain.facts, &mut domain.ready, id);
 }
 
+/// Offer one queued prefix to an unsent working main request, retaining its told fence.
+pub fn offer_messages(domain: &mut Domain, conversation: Token, limits: &Limits) -> Option<Box<[u8]>> {
+    let conversation = domain.conversations.get(Id::from_token(conversation))?;
+    if conversation.asker.is_some() {
+        return None;
+    }
+    let run = domain.runs.get_mut(conversation.run).expect("conversation retains its run");
+    match run.state {
+        State::Working { .. } => {}
+        State::Awaiting { .. }
+        | State::Preparing { .. }
+        | State::Stopping { .. }
+        | State::Listening { .. }
+        | State::Waiting { .. }
+        | State::Winding { .. }
+        | State::Closed => return None,
+    }
+    if run.inbox.has_offered() {
+        return None;
+    }
+    run.inbox.offer(limits)
+}
+
 fn continue_messages(
     run: &mut Run,
     reply_to: ReplyTo,
