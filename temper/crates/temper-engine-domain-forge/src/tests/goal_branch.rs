@@ -415,6 +415,7 @@ fn restored_making(entry: skein_forge_client::Entry, held: bool) -> Domain {
                 name: name(GOAL_BRANCH),
                 task: GOAL,
                 writer: Some(Writer::Entry(TAKING)),
+                design_writers: Box::new([]),
                 drift: None,
             }),
         },
