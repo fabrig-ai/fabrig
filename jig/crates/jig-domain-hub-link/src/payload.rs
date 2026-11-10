@@ -251,7 +251,7 @@ fn live_piece(domain: &mut Link, run: Token, attempt: Token, piece: host::Piece)
 
 /// A job carries its bytes directly, with no result read (jig/docs/design/domain/engine.md, 7.5).
 pub(crate) fn job_end(ending: &host::JobEnding) -> tasks::End {
-    match ending {
+    let end = match ending {
         host::JobEnding::Finished { result, .. } => {
             tasks::End::Finished { result: tasks::TaskResult::Job { bytes: result.clone() }, cancel_delegates: false }
         }
@@ -277,5 +277,35 @@ pub(crate) fn job_end(ending: &host::JobEnding) -> tasks::End {
                 tasks::End::Failed(tasks::Class::Invalid)
             }
         },
+    };
+    if let tasks::End::Failed(class) = &end
+        && let host::JobEnding::Refused(host::JobRefusal::Invalid(host::JobInvalid::Start { why })) = ending
+        && !why.is_empty()
+    {
+        return tasks::End::FailedWithReason { class: *class, reason: job_reason(why) };
     }
+    if let tasks::End::Failed(class) = &end
+        && let host::JobEnding::Failed { detail, .. } = ending
+        && !detail.is_empty()
+    {
+        return tasks::End::FailedWithReason { class: *class, reason: job_reason(detail) };
+    }
+    end
+}
+
+// Raw worker diagnostics may begin inside a UTF-8 character after tail truncation.
+// Keep a bounded text cause even for binary stderr.
+fn job_reason(detail: &[u8]) -> Box<[u8]> {
+    let bound = skein_lib::usize_of(tasks::REASON_BYTES);
+    let start = detail.len().saturating_sub(bound);
+    let tail = detail.get(start..).expect("bounded failure tail");
+    if skein_lib::bytes::is_utf8(tail) {
+        return Box::from(tail);
+    }
+    let mut text = skein_lib::Writer::new(tail.len());
+    for byte in tail {
+        let byte = if byte.is_ascii() { *byte } else { b'?' };
+        text.put(&[byte]).expect("one text byte per diagnostic byte");
+    }
+    text.finish()
 }

@@ -67,14 +67,17 @@ pub(crate) fn route_answer_payload(
         };
     let proof = core.proofs.get_mut(&run.raw()).expect("terminal proof pre-reserved");
     let end = match end {
-        tasks::End::Failed(tasks::Class::Transient | tasks::Class::Permanent | tasks::Class::Run) if account_wait => {
-            tasks::End::Recheck
-        }
+        tasks::End::Failed(tasks::Class::Transient | tasks::Class::Permanent | tasks::Class::Run)
+        | tasks::End::FailedWithReason {
+            class: tasks::Class::Transient | tasks::Class::Permanent | tasks::Class::Run,
+            ..
+        } if account_wait => tasks::End::Recheck,
         tasks::End::Finished { .. }
         | tasks::End::FinishedWithFollowups { .. }
         | tasks::End::Exceeded(_)
         | tasks::End::Parked
         | tasks::End::Failed(_)
+        | tasks::End::FailedWithReason { .. }
         | tasks::End::Refused
         | tasks::End::Recheck => end,
     };
@@ -92,6 +95,11 @@ pub(crate) fn route_answer_payload(
 }
 
 fn past_batch_bytes(limits: &tasks::Limits, end: &tasks::End) -> bool {
+    if let tasks::End::FailedWithReason { reason, .. } = end
+        && (reason.len() > skein_lib::usize_of(tasks::REASON_BYTES) || !skein_lib::bytes::is_utf8(reason))
+    {
+        return true;
+    }
     let batch = match end {
         tasks::End::FinishedWithFollowups { followups, .. } => match followups {
             tasks::ResultFollowups::Delegates(batch) => Some(batch),
@@ -110,6 +118,7 @@ fn past_batch_bytes(limits: &tasks::Limits, end: &tasks::End) -> bool {
         | tasks::End::Exceeded(_)
         | tasks::End::Parked
         | tasks::End::Failed(_)
+        | tasks::End::FailedWithReason { .. }
         | tasks::End::Refused
         | tasks::End::Recheck => None,
     };

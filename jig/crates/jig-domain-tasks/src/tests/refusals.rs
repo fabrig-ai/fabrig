@@ -397,3 +397,41 @@ fn a_job_refuses_an_llm_choice_and_recurrence() {
     }));
     assert_eq!(admission(&mut h, Party::Task(1), member), Some(crate::Refusal::Spec));
 }
+
+/// jig/docs/design/domain/tasks.md, 5.5: a job's cause survives retry exhaustion and storage.
+#[test]
+fn a_jobs_failure_reason_reaches_its_retry_notice_and_hold() {
+    let mut h = running_job();
+    let reason: Box<[u8]> = b"push: Unreachable: early EOF".as_slice().into();
+    for attempt in 1..=3 {
+        let row = &mut crate::domain::task_mut(&mut h.domain, 2).unwrap().record;
+        row.attempt = attempt;
+        row.phase = crate::Phase::Active(crate::Active::Claimed { attempt });
+        h.send(Event::Activation {
+            reply_to: super::revisions::to(),
+            task: 2,
+            attempt,
+            cause: crate::Cause::Unpriced,
+            saved: None,
+            end: crate::End::FailedWithReason { class: crate::Class::Transient, reason: reason.clone() },
+        });
+        let row = h.domain.task(2).unwrap();
+        assert_eq!(
+            row.retry_notice,
+            Some(crate::RetryNotice::Failed {
+                class: crate::Class::Transient,
+                count: u32::try_from(attempt).unwrap(),
+                allowance: 2,
+                reason: Some(reason.clone()),
+            })
+        );
+    }
+    let crate::Phase::Held { why, source: Some(source), .. } = &h.domain.task(2).unwrap().phase else {
+        panic!("exhausted job has a hold source");
+    };
+    assert_eq!(*why, crate::Hold::Failures(crate::Class::Transient));
+    assert_eq!(**source, crate::HoldSource::Preparation { words: reason.clone() });
+    let held = h.domain.task(2).unwrap().phase.clone();
+    h.restart();
+    assert_eq!(h.domain.task(2).unwrap().phase, held);
+}

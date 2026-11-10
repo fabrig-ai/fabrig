@@ -1,6 +1,12 @@
 # git: status
 
-2026-11-09. Where temper's code lags or departs from [git.md](git.md).
+2026-11-10. Where temper's code lags or departs from [git.md](git.md).
+
+Section 4.6's merge progress stdout is drained within the existing bound,
+without treating a truncated progress message as a broken merge. The
+component test `a_merges_progress_stdout_does_not_refuse_its_conflict_listing`
+checks exit 0 and exit 1 past the cap; the latter still reads the unmerged
+index. A merge's listing keeps its separate bounded prefix rule.
 
 Section 7 has no known gap in the orderly worker-close ordering: serve
 waits for its agent processes before aborting the worker's remaining
@@ -9,7 +15,7 @@ resources (README.md, section 8). Its second signal still aborts at once.
 Sections 4.6 and 6 have no known gap in a merge's listing of its unmerged
 paths: past the checkout's `conflicts` it keeps the first `conflicts`, and
 past `stdout_bytes` it is read as far as it was kept, a last cut path
-dropped, while every other invocation's stdout past its bound, a merge's
+dropped, while every other parsed invocation's stdout past its bound, a merge's
 commit's listing among them, stays `Broken`
 (`temper-worker-protocol-git/src/output.rs`, `conflict_paths`;
 `operation.rs`). The standard rows of

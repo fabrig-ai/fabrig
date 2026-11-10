@@ -25,6 +25,7 @@ struct Process {
     killed: bool,
     aborted: bool,
     tail: ByteRing,
+    setup: Box<[u8]>,
 }
 impl Jobs {
     pub(super) fn new(slots: u32) -> Self {
@@ -88,7 +89,15 @@ impl Worker {
             Request::Spawn { program, args, env, dir, deadline, .. } => {
                 let bound = self.env.limits.tooling.path_bytes;
                 if !relative(&program, bound) || !relative(&dir, bound) || args.first() != Some(&program) {
-                    above(&mut self.events, owner, Event::Exited { owner, exit: Exit::Signal, tail: Box::new([]) });
+                    above(
+                        &mut self.events,
+                        owner,
+                        Event::Exited {
+                            owner,
+                            exit: Exit::Signal,
+                            tail: b"spawn: invalid command, directory or argv".as_slice().into(),
+                        },
+                    );
                     above(&mut self.events, owner, Event::Gone { owner });
                     return;
                 }
@@ -116,18 +125,7 @@ impl Worker {
                     .processes
                     .insert(
                         token,
-                        Process {
-                            owner,
-                            deadline: Some(deadline),
-                            child: None,
-                            pipes: [None; 2],
-                            ended: [false; 2],
-                            exit: None,
-                            told: false,
-                            killed: false,
-                            aborted: false,
-                            tail: ByteRing::new(self.env.limits.tooling.tail_bytes),
-                        },
+                        Process::new(owner, deadline, self.env.limits.tooling.tail_bytes, &self.path, &program, &dir),
                     )
                     .expect("root bounds jobs");
                 self.io.push(io::Request::Spawn {
@@ -249,6 +247,21 @@ fn joined(parts: &[&[u8]]) -> Box<[u8]> {
     writer.finish()
 }
 impl Process {
+    fn new(owner: Token, deadline: Time, tail_bytes: u32, root: &[u8], program: &[u8], dir: &[u8]) -> Self {
+        Self {
+            owner,
+            deadline: Some(deadline),
+            child: None,
+            pipes: [None; 2],
+            ended: [false; 2],
+            exit: None,
+            told: false,
+            killed: false,
+            aborted: false,
+            tail: ByteRing::new(tail_bytes),
+            setup: joined(&[b"spawn command ", root, b"/", program, b" in ", root, b"/", dir]),
+        }
+    }
     fn abort(&mut self, io: &mut Queue<io::Request>) {
         if self.aborted {
             return;
@@ -343,7 +356,17 @@ impl Process {
                 above(events, self.owner, Event::Gone { owner: self.owner });
                 return true;
             }
-            io::Event::Failed { .. } => {
+            io::Event::Failed { error, .. } => {
+                self.tail.write(&self.setup);
+                self.tail.write(b" failed: ");
+                self.tail.write(match error {
+                    io::Error::Refused => b"Refused",
+                    io::Error::Unreachable => b"Unreachable",
+                    io::Error::TimedOut => b"TimedOut",
+                    io::Error::Reset => b"Reset",
+                    io::Error::Busy => b"Busy",
+                    io::Error::Other => b"Other",
+                });
                 if self.exit.is_none() {
                     self.exit = Some(Exit::Signal);
                 }

@@ -169,6 +169,8 @@ fn any_other_exit_fails_with_the_end_of_its_error_output() {
         (Exit::Code(1), b"exit 1: the tail".as_slice()),
         (Exit::Code(2), b"exit 2: the tail".as_slice()),
         (Exit::Code(4), b"exit 4: the tail".as_slice()),
+        (Exit::Code(126), b"exit 126: the tail".as_slice()),
+        (Exit::Code(127), b"exit 127: the tail".as_slice()),
         (Exit::Code(255), b"exit 255: the tail".as_slice()),
         (Exit::Signal, b"signal: the tail".as_slice()),
     ] {
@@ -194,7 +196,7 @@ fn a_missing_or_oversized_result_file_fails_the_job() {
             h.one(Event::Read { owner: OWNER, bytes }),
             Request::Ended {
                 owner: OWNER,
-                end: End::Failed { detail: copy_of(b"result missing or past its bound: stderr") }
+                end: End::Failed { detail: copy_of(b"read result.json failed or past bound after exit 0: stderr") }
             }
         );
         h.gone(OWNER, b"stderr");
@@ -302,8 +304,8 @@ fn a_failed_request_write_fails_and_says_gone() {
     assert_eq!(
         h.step(Event::Written { owner: OWNER, written: false }).as_slice(),
         &[
-            Request::Ended { owner: OWNER, end: End::Failed { detail: copy_of(b"") } },
-            Request::Gone { owner: OWNER, detail: copy_of(b"") },
+            Request::Ended { owner: OWNER, end: End::Failed { detail: copy_of(b"write request.json failed") } },
+            Request::Gone { owner: OWNER, detail: copy_of(b"write request.json failed") },
         ]
     );
     h.none(Event::Written { owner: OWNER, written: true });
@@ -479,4 +481,44 @@ fn limits_refuse_zeros() {
         assert!(!valid(&invalid));
         assert_eq!(Domain::new(&invalid, Box::new([])).unwrap_err(), Invalid::Limits);
     }
+}
+
+/// temper/docs/design/domain/worker.md, 4.4: a failed setup names its step.
+#[test]
+fn failed_setup_names_the_request_write_or_process_release() {
+    let mut h = Harness::new();
+    h.one(run(OWNER, 1));
+    let rows = h.step(Event::Written { owner: OWNER, written: false });
+    assert_eq!(
+        rows.as_slice(),
+        &[
+            Request::Ended { owner: OWNER, end: End::Failed { detail: copy_of(b"write request.json failed") } },
+            Request::Gone { owner: OWNER, detail: copy_of(b"write request.json failed") },
+        ]
+    );
+    let mut h = Harness::new();
+    h.running(OWNER, 1);
+    let rows = h.step(Event::Gone { owner: OWNER });
+    assert_eq!(
+        rows.as_slice().first(),
+        Some(&Request::Ended {
+            owner: OWNER,
+            end: End::Failed { detail: copy_of(b"process gone without exit status: ") }
+        })
+    );
+}
+
+/// temper/docs/design/domain/worker.md, 4.4: exit 3 still requires its result file.
+#[test]
+fn exit_three_with_no_result_keeps_its_status_and_stderr() {
+    let mut h = Harness::new();
+    h.running(OWNER, 1);
+    h.exited(Exit::Code(3));
+    assert_eq!(
+        h.one(Event::Read { owner: OWNER, bytes: None }),
+        Request::Ended {
+            owner: OWNER,
+            end: End::Failed { detail: copy_of(b"read result.json failed or past bound after exit 3: stderr") }
+        }
+    );
 }

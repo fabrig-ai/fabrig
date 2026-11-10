@@ -498,9 +498,13 @@ too (2026-11-09):
   says which. A delivery not made names the push's outcome and its
   diagnostic. A refusal names its cause. Where jig's answer carries a
   detail (a preparation's, a command's, a start's), the why is that
-  detail, within the host's `detail_bytes`; a delivery's and a deadline's
-  answers carry none (jig's `domain/hosts.md`, 6.9), so their why is the
-  worker's line alone.
+  detail, within the host's `detail_bytes`. Before sending the answer,
+  the root also puts a delivery's cause or a deadline's step in that
+  detail. A failed request write names `request.json`; a process setup
+  failure names the command and directory; a process gone without an
+  exit names that step. A missing or oversized result names exit 0 or
+  3 and the stderr tail. The worker's line may keep more of a delivery's
+  diagnostic than the bounded answer.
 - **On the engine,** when the hub accepts that answer, section 4.3's
   operator line, in its form: `<binary> serve: task TASK run RUN attempt
   ATTEMPT failed CLASS: job KIND: DETAIL`, or `refused REASON: job KIND:
@@ -510,7 +514,11 @@ too (2026-11-09):
   itself as refused, is the engine's line alone.
 - **Each line** is written once per answer, escaped to one line, its why
   cut to its last 4,096 bytes, as 4.3's is. The lines are operator output:
-  no fact, turn, result or hold holds them, and no LLM is shown them.
+  no fact or turn holds them. A failed job's answer carries its cause;
+  jig keeps the last `REASON_BYTES` (128 bytes) as UTF-8 on the retry notice
+  and, past its allowance, the hold (jig's `domain/tasks.md`, 5.5).
+  The change's held merge delegate therefore says why it failed, alongside
+  its failure class and the way out.
 
 ## 5. Checkouts
 

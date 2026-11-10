@@ -10,6 +10,20 @@ Ask temper chat derives the reference from its description
 Before the first start, merge `limits.json` over the generated deployment document,
 retaining its other members and overrides.
 
+## The merge job's programs
+
+`landing.json` names `.temper/merge` in the repository being merged, so
+that merged tree must contain the executable wrapper and
+`tools/merge/merge.py`, plus each tree's recount script. The wrapper runs
+`python3`; the Python command and its recounts run `git`. Install both on
+each worker under `/usr/local/bin`, `/usr/bin` or `/bin`: a job's fixed
+`PATH` is `/usr/local/bin:/usr/bin:/bin`, independent of the box unit's
+PATH and the runner's path. An interactive shell's Python or git under a
+user's tool directory alone is insufficient. The job runs from its
+workspace root, its repository under its own name; `request.json` and
+`TEMPER_JOB` are absolute paths when the process runs
+(`../../design/protocol/tooling.md`, 2 and 4.1).
+
 ## A call's room
 
 The reference takes a payload of 63,740 bytes and output of 48,000 tokens,

@@ -326,29 +326,29 @@ fn failed_jobs_name_the_workers_why_once() {
         (FailureCase::BaseFetch, JobFailure::Unprepared(Preparation::Transient), fetch, fetch),
         (FailureCase::Command(Exit::Code(1)), JobFailure::Failed, b"exit 1: stderr", b"exit 1: stderr"),
         (FailureCase::Command(Exit::Signal), JobFailure::Failed, b"signal: stderr", b"signal: stderr"),
-        (FailureCase::Command(Exit::Deadline), JobFailure::Deadline, b"", b"deadline passed"),
+        (FailureCase::Command(Exit::Deadline), JobFailure::Deadline, b"deadline passed", b"deadline passed"),
         (
             FailureCase::Result,
             JobFailure::Failed,
-            b"result missing or past its bound: stderr",
-            b"result missing or past its bound: stderr",
+            b"read result.json failed or past bound after exit 0: stderr",
+            b"read result.json failed or past bound after exit 0: stderr",
         ),
         (
             FailureCase::Delivery(GitFault::PushStale),
             JobFailure::Undelivered(DeliveryOutcome::Stale),
-            b"",
+            b"delivery Stale: branch moved",
             b"delivery Stale: branch moved",
         ),
         (
             FailureCase::Delivery(GitFault::PushRefused),
             JobFailure::Undelivered(DeliveryOutcome::Failed),
-            b"",
+            b"delivery Failed: push: Refused: fatal: Authentication failed for repo",
             b"delivery Failed: push: Refused: fatal: Authentication failed for repo",
         ),
         (
             FailureCase::Delivery(GitFault::PushFailed),
             JobFailure::Undelivered(DeliveryOutcome::Failed),
-            b"",
+            b"delivery Failed: push: Unreachable: fatal: early EOF",
             b"delivery Failed: push: Unreachable: fatal: early EOF",
         ),
     ] {
@@ -360,7 +360,8 @@ fn failed_jobs_name_the_workers_why_once() {
             panic!("failed job answers");
         };
         assert_eq!(failure, expected_failure);
-        assert_eq!(detail.as_ref(), expected_detail);
+        let bound = usize::try_from(worker.env.limits.host.detail_bytes).unwrap();
+        assert_eq!(detail.as_ref(), &expected_detail[expected_detail.len().saturating_sub(bound)..]);
         let mut found = 0_u32;
         while let Some(note) = worker.notes().pop() {
             if let crate::Note::WorkerJob { run, attempt, kind, verb, ending, why } = note {

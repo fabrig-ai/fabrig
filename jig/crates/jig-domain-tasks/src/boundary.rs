@@ -686,6 +686,8 @@ pub enum End {
     Parked,
     /// Count one classified failure, then back off or hold beyond the configured retry allowance.
     Failed(/** Reported failure category whose counter/backoff policy applies. */ Class),
+    /// A classified failure whose bounded cause reaches the retry notice and hold (domain/tasks.md, 5.5).
+    FailedWithReason { class: Class, reason: Box<[u8]> },
     /// Pre-execution refusal pause using the transient delay policy, without spending a failure
     /// try.
     Refused,
@@ -887,11 +889,11 @@ pub enum Phase {
     Ended(/** Final ending; this phase is excluded from the live restore arena. */ Ending),
 }
 
-/// What explains a hold beyond its reason: a connector account, a preparation failure, or a
+/// What explains a hold beyond its reason: a connector account, a failure cause, or a
 /// circle of waits (client/domain/objects.md, 5; domain/tasks.md, 5.5 and 6.7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum HoldSource {
-    /// Why preparing failed past its allowance, only on `Hold::Failures`.
+    /// Why preparation or activation failed past its allowance, only on `Hold::Failures`.
     Preparation {
         words: Box<[u8]>,
     },

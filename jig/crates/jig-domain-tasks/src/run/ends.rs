@@ -141,7 +141,12 @@ impl Kept {
         self.open
             && match end {
                 End::Finished { .. } | End::FinishedWithFollowups { .. } => true,
-                End::Exceeded(_) | End::Parked | End::Failed(_) | End::Refused | End::Recheck => false,
+                End::Exceeded(_)
+                | End::Parked
+                | End::Failed(_)
+                | End::FailedWithReason { .. }
+                | End::Refused
+                | End::Recheck => false,
             }
     }
 
@@ -150,7 +155,12 @@ impl Kept {
         self.refuses_done()
             && match end {
                 End::Finished { result, .. } | End::FinishedWithFollowups { result, .. } => done(result),
-                End::Exceeded(_) | End::Parked | End::Failed(_) | End::Refused | End::Recheck => false,
+                End::Exceeded(_)
+                | End::Parked
+                | End::Failed(_)
+                | End::FailedWithReason { .. }
+                | End::Refused
+                | End::Recheck => false,
             }
     }
 
@@ -163,6 +173,7 @@ impl Kept {
                 | End::Exceeded(_)
                 | End::Parked
                 | End::Failed(_)
+                | End::FailedWithReason { .. }
                 | End::Refused
                 | End::Recheck => false,
             };
@@ -173,7 +184,12 @@ impl Kept {
 fn finished(end: &End) -> bool {
     match end {
         End::Finished { .. } | End::FinishedWithFollowups { .. } => true,
-        End::Exceeded(_) | End::Parked | End::Failed(_) | End::Refused | End::Recheck => false,
+        End::Exceeded(_)
+        | End::Parked
+        | End::Failed(_)
+        | End::FailedWithReason { .. }
+        | End::Refused
+        | End::Recheck => false,
     }
 }
 

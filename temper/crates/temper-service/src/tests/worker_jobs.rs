@@ -394,7 +394,16 @@ fn a_failed_spawn_ends_once_and_releases_its_owner() {
     worker.up(Time::ZERO, io::Event::Failed { owner, error: io::Error::Other });
     assert!(worker.events.is_empty());
     worker.up(Time::ZERO, io::Event::Closed { owner });
-    assert_eq!(event(worker), Event::Exited { owner: JOB, exit: Exit::Signal, tail: Box::new([]) });
+    assert_eq!(
+        event(worker),
+        Event::Exited {
+            owner: JOB,
+            exit: Exit::Signal,
+            tail: b"spawn command /worker/workspaces/7/home/tool in /worker/workspaces/7 failed: Other"
+                .as_slice()
+                .into()
+        }
+    );
     assert_eq!(event(worker), Event::Gone { owner: JOB });
     assert!(worker.jobs.empty());
 }
@@ -405,7 +414,7 @@ fn the_jobs_profile_uses_the_workers_slots_and_tooling_bounds() {
     let worker = fixtures::worker();
     let limits = &worker.env.limits.tooling;
     assert_eq!((limits.file_bytes, limits.tail_bytes, limits.path_bytes, limits.jobs), (1_048_576, 65_536, 4096, 1));
-    assert_eq!(limits.path.as_ref(), b"/usr/bin:/bin");
+    assert_eq!(limits.path.as_ref(), b"/usr/local/bin:/usr/bin:/bin");
     assert_eq!(worker.payload.job_spec_request, limits.file_bytes);
     assert_eq!(worker.payload.job_spec_command, limits.path_bytes);
 }

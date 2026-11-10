@@ -1,6 +1,6 @@
 # worker: status
 
-2026-11-09. Where temper's code lags or departs from [worker.md](worker.md).
+2026-11-10. Where temper's code lags or departs from [worker.md](worker.md).
 Section 4.3's failed and refused answer diagnostics reach serve's stderr and the box's
 `serve.log`; that operator-output path has no gap. A failed-run hold's
 `way out:` points to that log, and `temper help hold` names its location
@@ -42,7 +42,7 @@ crosses cut. Both stand on reading alone: that evidence is outside the
 repository, and no deployment on record has resumed such a producer
 since.
 
-Section 4.4's failure lines have no known gap but the result's why below.
+Section 4.4's failure causes reach the answer, the engine log and the held job.
 When its hub answers a job failed or refused, the worker writes its line
 (`temper-service/src/worker.rs`, `job_answer`, the why kept by
 `temper-worker-domain/src/jobs.rs`), an in-process worker's among serve's
@@ -53,11 +53,14 @@ cannot encode included. A preparation's failure carries its step and git's
 fault as its detail (`temper-worker-domain-checkout/src/hold.rs`,
 `preparation_detail`), a command's its exit or signal and its error
 output's end (`temper-worker-domain-tooling/src/domain.rs`), and a delivery
-not made names its push's outcome and diagnostic on the worker's line
-alone. `job_stderr_forms_escape_and_bound_their_why`,
+not made names its push's outcome and diagnostic in the answer as well as
+the worker's line. Request writes, process setup and result reads name their
+step, a result read retaining exit 0 or 3 and the command's stderr tail. `job_stderr_forms_escape_and_bound_their_why`,
 `job_answer_evidence_reaches_operator_once`,
 `failed_jobs_name_the_workers_why_once` and the checkout's prepare tables
-hold them.
+hold them. Jig carries the bounded cause through retry exhaustion into
+its hold source, including after restart; the engine world's
+`a_failed_merge_job_is_held_after_its_retries` checks that source.
 
 Sections 4.4 and 5 have no known gap in a merge past the checkout's
 `conflicts`: its preparation leaves the merge in progress, every file

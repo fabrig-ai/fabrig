@@ -342,6 +342,10 @@ fn a_failed_merge_job_is_held_after_its_retries() {
         live_task(&world, job.run.raw()).phase,
         tasks::Phase::Held { why: tasks::Hold::Failures(tasks::Class::Permanent), .. }
     ));
+    let tasks::Phase::Held { source: Some(source), .. } = &live_task(&world, job.run.raw()).phase else {
+        panic!("the job's hold carries its cause");
+    };
+    assert_eq!(**source, tasks::HoldSource::Preparation { words: b"merge delivery refused".as_slice().into() });
     assert_eq!(change_row(&world, task).change.resolutions, 1, "no additional conflict delegate is made");
     assert_eq!(world.merges, 0);
     assert_eq!(world.assigned.len(), 2);

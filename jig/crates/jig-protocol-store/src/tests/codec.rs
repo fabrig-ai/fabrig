@@ -901,6 +901,14 @@ fn a_settled_call_reads_back() {
         core_round_trip(core::CoreRecord::Call(row));
     }
 }
+#[test]
+fn a_failed_terminal_reads_back_with_its_cause() {
+    end_round_trip(jig_domain_tasks::End::FailedWithReason {
+        class: jig_domain_tasks::Class::Transient,
+        reason: b"push: Broken: early EOF".as_slice().into(),
+    });
+}
+
 fn a_finished_terminal_reads_back_with_its_followup_batch() {
     use jig_domain_tasks as tasks;
     let end = tasks::End::FinishedWithFollowups {

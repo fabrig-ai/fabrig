@@ -17,6 +17,7 @@ use skein_lib::{Reader, Writer};
 
 /// Fixed item sizes without any collection or byte payload (protocol/store.md, 5.1).
 pub(crate) const EMPTY: wire::Limits = wire::Limits {
+    end_failed_with_reason_reason: 0,
     failed_retry_reason_some: 0,
     refused_retry_reason_some: 0,
     hold_preparation_words: 0,
@@ -132,6 +133,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         true,
     )?;
     let limits = wire::Limits {
+        end_failed_with_reason_reason: domain::REASON_BYTES,
         failed_retry_reason_some: domain::REASON_BYTES,
         refused_retry_reason_some: domain::REASON_BYTES,
         hold_preparation_words: domain::REASON_BYTES,

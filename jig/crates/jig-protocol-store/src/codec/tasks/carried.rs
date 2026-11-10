@@ -531,6 +531,10 @@ pub(super) fn encode_end(value: &tasks::End, limits: &Limits) -> Result<wire::En
             limits,
             wire::EndFailedParts { value: super::value::class(*value) },
         )?),
+        tasks::End::FailedWithReason { class, reason } => wire::End::FailedWithReason(wire::EndFailedWithReason::new(
+            limits,
+            wire::EndFailedWithReasonParts { class: super::value::class(*class), reason: reason.clone() },
+        )?),
         tasks::End::Refused => wire::End::Refused,
         tasks::End::Recheck => wire::End::Recheck,
     })
@@ -566,6 +570,10 @@ pub(super) fn decode_end(value: wire::End, limits: &Limits) -> Result<tasks::End
         wire::End::Failed(value) => {
             let wire::EndFailedParts { value } = value.into_parts();
             tasks::End::Failed(super::value::read_class(value))
+        }
+        wire::End::FailedWithReason(value) => {
+            let wire::EndFailedWithReasonParts { class, reason } = value.into_parts();
+            tasks::End::FailedWithReason { class: super::value::read_class(class), reason }
         }
         wire::End::Refused => tasks::End::Refused,
         wire::End::Recheck => tasks::End::Recheck,

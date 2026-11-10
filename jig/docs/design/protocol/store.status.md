@@ -1,6 +1,11 @@
 # store: status
 
-2026-11-09. Where jig's code lags or departs from [store.md](store.md).
+2026-11-10. Where jig's code lags or departs from [store.md](store.md).
+
+Section 5.1's tasks-v9 terminal includes a bounded failed-activation reason.
+Its schema, generated codec, goldens and layout fingerprint change together
+under section 5's pre-release rule. The carried-terminal round trip retains
+the cause alongside its class.
 
 Section 5.1's tasks-v9 failed ends retain every optional invalid-result
 kind through the store codec. The generated layout fingerprint and golden
