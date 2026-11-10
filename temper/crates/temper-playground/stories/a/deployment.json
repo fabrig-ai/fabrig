@@ -97,7 +97,7 @@
     },
     "limits": {
       "overrides": {
-        "authority.executors": 15,
+        "authority.executors": 17,
         "authority.grants": 16,
         "authority.projects": 2,
         "authority.segments": 8,
@@ -124,7 +124,7 @@
         "notes.party_entries": 2,
         "notes.recalled": 2,
         "notes.scopes": 32,
-        "people.amendment_bytes": 1101,
+        "people.amendment_bytes": 1117,
         "people.holdings": 2,
         "people.inbox_tasks": 8,
         "people.operations": 2,
@@ -141,7 +141,7 @@
         "tasks.charters": 9,
         "tasks.delegates": 1,
         "tasks.dependencies": 2,
-        "tasks.executor_kinds": 15,
+        "tasks.executor_kinds": 17,
         "tasks.exemptions": 2,
         "tasks.funders": 4,
         "tasks.hold_bytes": 256,

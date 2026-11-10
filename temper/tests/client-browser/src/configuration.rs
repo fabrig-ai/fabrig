@@ -51,9 +51,11 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
         // Holds charter 5's resolved models, shared instructions and four parts.
         ("core.run_bytes", 16_384),
         ("authority.grants", 16),
-        ("authority.executors", 15),
+        // The closer procedure and close job add two executor places.
+        ("authority.executors", 17),
         ("tasks.authority_grants", 16),
-        ("tasks.executor_kinds", 15),
+        // The closer procedure and close job add two executor places.
+        ("tasks.executor_kinds", 17),
         ("tasks.authority_bytes", 128),
         ("notes.scopes", 32),
         // Nine slots hold the stock charters.

@@ -591,7 +591,8 @@ impl World {
                 if turn || tier.is_some() {
                     limits.authority.grants = 14;
                     limits.tasks.authority_grants = 14;
-                    limits.authority.executors = 7;
+                    // The closer procedure and close job add two executor places.
+                    limits.authority.executors = 9;
                     // The closer procedure and close job add two executor places.
                     limits.tasks.executor_kinds = 9;
                     // Verification evidence has 256 bytes beside the live result label.

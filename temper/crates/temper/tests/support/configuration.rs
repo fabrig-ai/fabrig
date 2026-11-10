@@ -38,7 +38,7 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
         project["policy"] = 1.into();
         project.as_object_mut().expect("seed").remove("roles");
     }
-    // A Create member owns stock's fourteen grants and fifteen executors, plus its words.
+    // A Create member owns stock's fourteen grants and seventeen executors, plus its words.
     value["engine"]["limits"]["overrides"]["people.amendment_bytes"] = 2048.into();
     let worker: serde_json::Value =
         serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
@@ -53,11 +53,13 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     value["engine"]["connectors"] = serde_json::json!([1]);
     value["engine"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     value["engine"]["llm"]["endpoints"][0]["address"] = serde_json::json!({"socket":"127.0.0.1:0"});
-    // The stock carries nine charters, fourteen grants and fifteen executor kinds.
+    // The stock carries nine charters, fourteen grants and seventeen executor kinds.
     value["engine"]["limits"]["overrides"]["tasks.charters"] = 9.into();
     value["engine"]["limits"]["overrides"]["core.templates"] = 5.into();
-    value["engine"]["limits"]["overrides"]["authority.executors"] = 15.into();
-    value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 15.into();
+    // The closer procedure and close job add two executor places.
+    value["engine"]["limits"]["overrides"]["authority.executors"] = 17.into();
+    // The closer procedure and close job add two executor places.
+    value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 17.into();
     value["engine"]["limits"]["overrides"]["authority.grants"] = 16.into();
     // A chat copies stock policy 1's fourteen grants into its task authority.
     value["engine"]["limits"]["overrides"]["tasks.authority_grants"] = 16.into();
@@ -67,7 +69,7 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     value["engine"]["limits"]["overrides"]["core.policy_bytes"] = 8192.into();
     value["engine"]["limits"]["overrides"]["core.load_slots"] = 8.into();
     value["engine"]["limits"]["overrides"]["documents.rows"] = 2.into();
-    // The creation offer carries eight stock charters and three procedures.
+    // The creation offer carries eight stock charters and four procedures.
     value["engine"]["limits"]["overrides"]["documents.lines"] = 8.into();
     value["engine"]["limits"]["overrides"]["documents.text_bytes"] = 128.into();
     value["engine"]["limits"]["overrides"]["people.sign_ins"] = 2.into();
@@ -99,8 +101,10 @@ pub fn use_stock(value: &mut serde_json::Value) {
     value["engine"]["limits"]["overrides"]["core.run_bytes"] = 16_384.into();
     value["engine"]["limits"]["overrides"]["tasks.charters"] = 9.into();
     value["engine"]["limits"]["overrides"]["core.templates"] = 5.into();
-    value["engine"]["limits"]["overrides"]["authority.executors"] = 15.into();
-    value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 15.into();
+    // The closer procedure and close job add two executor places.
+    value["engine"]["limits"]["overrides"]["authority.executors"] = 17.into();
+    // The closer procedure and close job add two executor places.
+    value["engine"]["limits"]["overrides"]["tasks.executor_kinds"] = 17.into();
     value["engine"]["limits"]["overrides"]["documents.lines"] = 8.into();
 }
 

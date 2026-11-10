@@ -341,7 +341,8 @@ fn settings_neutral_form_preserves_ctls_bounds() {
         neutral.settings.authority_note_resources, ctl.settings.authority_note_resources,
         "authority_note_resources"
     );
-    assert_eq!(neutral.settings.delegation_kinds, 16);
+    // Eighteen executor places fit the whole reference delegation.
+    assert_eq!(neutral.settings.delegation_kinds, 18);
     assert_eq!(neutral.settings.delegation_kinds, ctl.settings.delegation_kinds, "delegation_kinds");
     assert_eq!(neutral.settings.part_key_path_value, ctl.settings.part_key_path_value, "part_key_path_value");
     assert_eq!(

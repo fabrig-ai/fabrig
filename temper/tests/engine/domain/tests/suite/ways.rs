@@ -724,6 +724,9 @@ fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
     config.core.defaults.charters = charters.into_boxed_slice();
     let mut template = stock.templates.iter().find(|template| template.number == 4).expect("stock draft goal").clone();
     template.resources[0].connector = config.core.connectors[0];
+    if let jig_domain_tasks::EndedBy::Closer(closer) = &mut template.flags.ended_by {
+        closer.connector = config.core.connectors[0];
+    }
     let mut templates = config.core.defaults.templates.into_vec();
     templates.push(template);
     config.core.defaults.templates = templates.into_boxed_slice();

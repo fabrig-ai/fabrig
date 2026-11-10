@@ -356,8 +356,10 @@ fn stock_document(value: &mut serde_json::Value) {
         ("core.policy_bytes", 8192),
         ("core.run_bytes", 16_384),
         ("authority.grants", 16),
-        ("authority.executors", 15),
-        ("tasks.executor_kinds", 15),
+        // The closer procedure and close job add two executor places.
+        ("authority.executors", 17),
+        // The closer procedure and close job add two executor places.
+        ("tasks.executor_kinds", 17),
         ("notes.scopes", 32),
         // Nine slots hold the stock charters.
         ("tasks.charters", 9),
