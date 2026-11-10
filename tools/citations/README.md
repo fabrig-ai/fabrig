@@ -96,7 +96,9 @@ renumber skein/docs/design/forge.md
   `6.6 to 6.9`, `12.2 and 12.8`, and `4.6's`. Literals, link targets, URLs, versions, dates
   and quantities are excluded. A number that crosses documents gains a path; one that
   stays local keeps its bare form. Single bare numbers still require `section`. The summary
-  counts rewritten bare numbers separately. These extra readings do not change the gate.
+  counts rewritten bare numbers separately. Status prose uses its companion document's
+  headings, and capitalized section references follow the map too. These extra readings
+  do not change the gate.
 - **Status entries** follow their labels into created documents. Each created document gets
   a dated UTC status header, and `No gap.` when it receives no entry. An emptied source
   status gets `No gap.` too. Split entries copy their full text, keeping only each

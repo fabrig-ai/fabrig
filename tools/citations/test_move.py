@@ -753,6 +753,33 @@ git = fail_add
         self.assertEqual(dry.stdout, applied.stdout)
         self.clean_check()
 
+    def test_status_body_own_numbers_and_capitalised_sections_follow_referents(self):
+        self.write(A, DOC + "\n## 9. Open\n")
+        self.write(f"{DESIGN}/a.status.md", "# status\n\n- **Departs:** 2.1: 2.1's rule; Section 9 keeps the question.\n")
+        self.commit("status body references")
+        result = self.apply(f"{A} 2 -> {DESIGN}/new.md\ntitle {DESIGN}/new.md: New\n")
+        self.assertIn("1 bare numbers", result.stdout)
+        self.assertTrue(self.read(f"{DESIGN}/new.status.md").endswith(
+            "- **Departs:** 1: 1's rule; `a.md`, section 9 keeps the question.\n"))
+        self.clean_check()
+
+    def test_capitalised_path_sections_keep_the_explicit_document(self):
+        self.write(A, DOC + "\nSee `b.md`, Section 3.\n")
+        self.commit("capital path section")
+        self.apply(f"{B} 3 -> {B} 4\n")
+        self.assertTrue(self.read(A).endswith("See `b.md`, Section 4.\n"))
+        self.clean_check()
+
+    def test_own_dotted_reader_keeps_attributed_sections_and_protocol_versions(self):
+        self.write(A, DOC + "\nRFC 6749, section 2.1; RFC 9500's `testRSA` (section 2.1).\n"
+                   "Its section 2.1; HTTP/2.1; TLS 2.1. Own (2.1).\n")
+        self.commit("attributed numbers")
+        self.apply(f"{A} 2 -> {DESIGN}/new.md\ntitle {DESIGN}/new.md: New\n")
+        self.assertTrue(self.read(f"{DESIGN}/new.md").endswith(
+            "RFC 6749, section 2.1; RFC 9500's `testRSA` (section 2.1).\n"
+            "Its section 2.1; HTTP/2.1; TLS 2.1. Own (1).\n"))
+        self.clean_check()
+
     def test_all_map_errors_leave_tree_and_index_unchanged(self):
         cases = [
             (f"{DESIGN}/gone.md -> {DESIGN}/new.md", "source does not exist"),

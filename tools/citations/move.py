@@ -22,6 +22,8 @@ from urllib.parse import quote, unquote
 _spec = importlib.util.spec_from_file_location("citations", Path(__file__).with_name("citations.py"))
 c = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(c)
+OWN_SECTION = re.compile(c.BARE_SECTION.pattern, re.IGNORECASE)
+OWN_AFTER = re.compile(c.SECTION_AFTER.pattern, re.IGNORECASE)
 
 Entry = collections.namedtuple("Entry", "src number dst new_number line directory")
 Row = collections.namedtuple("Row", "file line text")
@@ -485,9 +487,10 @@ class Plan:
 
     def bare_numbers(self, tree, path, lines, readings):
         """Own-document dotted references, outside literal markup and numeric quantities."""
-        if "/docs/design/" not in path or path.endswith((".status.md", ".execution.md")):
+        if "/docs/design/" not in path or path.endswith(".execution.md"):
             return
-        have = tree.heading_numbers(path)
+        self_doc = c.doc_of_status(path)
+        have = tree.heading_numbers(self_doc)
         prose, fence = [], None
         for line in lines:
             marker = re.match(r"^\s{0,3}(`{3,}|~{3,})", line)
@@ -509,19 +512,24 @@ class Plan:
             for pattern in patterns:
                 masked = re.sub(pattern, lambda m: " " * len(m.group()), masked)
             found, last_end = [], 0
+            labels = [m.span(1) for m in c.status_label_matches(path, text)] if path.endswith(".status.md") else []
+            attributed = [m.span(2) for m in OWN_SECTION.finditer(text)
+                          if c.external_section(text[:m.start()].rstrip())]
             for m in re.finditer(r"(?<![\w.])\d+(?:\.\d+)+(?![\w.]|[-+][\w])", masked):
                 start, end = c.position_at(path, marks, m.start()), c.position_at(path, marks, m.end())
                 if m.group() not in have or any(a <= start < b for a, b in covered):
                     continue
+                if any(a <= m.start() < b for a, b in labels + attributed):
+                    continue
                 tail = text[m.end():]
                 pre = text[:m.start()]
-                if re.search(r"(?i)\b(?:v|version|release|Linux|kernel|Python|Rust|Debian|Ubuntu|MiniJinja|OpenSSL)\s*$", pre):
+                if re.search(r"(?i)\b(?:v|version|release|Linux|kernel|Python|Rust|Debian|Ubuntu|MiniJinja|OpenSSL|HTTP|TLS)\s*$|\bHTTP/$", pre):
                     continue
                 if re.search(r"(?i)\bsince\s*$", pre) and re.search(r"(?i)\b(?:Linux|kernel|overlayfs)\b", pre):
                     continue
                 if re.match(r"\s*(?:%|°[CF]|(?:[kMGTmunµ]?s|ms|seconds?|minutes?|hours?|days?|bytes?|bits?|[kMGT]?i?B|[kMGT]?bit|[kMGT]?bps|fps|[kMG]?Hz|[cmk]?m|kg|V|W|px|em|rem|percent)\b)", tail):
                     continue
-                n = c.Number(m.group(), start, end, (path,))
+                n = c.Number(m.group(), start, end, (self_doc,))
                 if found and not re.fullmatch(c.SEP, text[last_end:m.start()]):
                     yield self.bare_citation(path, text, found)
                     found = []
@@ -532,9 +540,16 @@ class Plan:
 
     @staticmethod
     def bare_citation(path, text, nums):
+        doc = c.doc_of_status(path)
         return c.Citation("bare-number", path, nums[0].start.line, text.strip(), None,
-                          nums[0].start, nums[-1].end, path, "own-number", None,
-                          tuple(nums), (path,), None, (c.Reading(path, "self"),))
+                          nums[0].start, nums[-1].end, doc, "own-number", None,
+                          tuple(nums), (doc,), None, (c.Reading(doc, "self"),))
+
+    @staticmethod
+    def read_citations(tree, path, lines, is_code):
+        pattern = OWN_SECTION if not is_code and "/docs/design/" in path else None
+        after = OWN_AFTER if pattern else None
+        return c.citations(tree, path, lines, is_code, bare_pattern=pattern, section_pattern=after)
 
     def status_rows(self):
         """Move complete entries, retaining row origins for citations and reporting."""
@@ -783,7 +798,7 @@ class Plan:
             text = self.read(path)
             if is_code and ".md" not in text:
                 continue
-            readings = list(c.citations(before, path, text.split("\n"), is_code))
+            readings = list(self.read_citations(before, path, text.split("\n"), is_code))
             for index, (_, marks) in enumerate(c.logical_lines(text.split("\n"), path, is_code)):
                 for _, line, _ in marks:
                     self.paragraphs[path, line] = index
@@ -933,11 +948,11 @@ class Plan:
                         self.rewrite_link_label(cite, token, tail)
                 if edits_before != self.edit_snapshot(path, source):
                     if cite.kind == "bare-number":
-                        changed = {key: value for key, value in self.edits[path].items()
+                        changed = {key: value for key, value in self.edit_snapshot(path, source).items()
                                    if edits_before.get(key) != value}
                         self.bare_rewritten += sum(any(
                             ln == n.start.line and a <= n.start.column - 1 < b
-                            for ln, a, b in changed) for n in cite.numbers)
+                            for ln, a, b in (key[-3:] for key in changed)) for n in cite.numbers)
                     else:
                         self.rewritten += 1
                     self.rewritten_files.add(source)
@@ -1156,7 +1171,7 @@ class Plan:
             with (root / path).open(encoding="utf-8", errors="surrogateescape") as fh:
                 text = fh.read()
             texts[path] = text.split("\n")
-            cites = list(c.citations(tree, path, texts[path], is_code))
+            cites = list(self.read_citations(tree, path, texts[path], is_code))
             if not is_code:
                 # Use final headings for recognising the newly written own numbers.
                 cites += list(self.bare_numbers(tree, path, texts[path], cites))
@@ -1186,9 +1201,10 @@ class Plan:
                 # coordinates establish that it is a reference, even though the gate
                 # intentionally does not discover single bare numbers.
                 fragment = texts[a.file][a.line - 1][a.column - 1:b.column - 1]
+                own_doc = c.doc_of_status(a.file)
                 nums = [c.Number(m.group(), a._replace(column=a.column + m.start()),
                                  a._replace(column=a.column + m.end()),
-                                 (a.file,) if m.group() in tree.heading_numbers(a.file) else ())
+                                 (own_doc,) if m.group() in tree.heading_numbers(own_doc) else ())
                         for m in c.NUM_RE.finditer(fragment)]
                 own = cite._replace(file=a.file, start=a, end=b, numbers=tuple(nums))
                 actual = self.reading(own, tree)

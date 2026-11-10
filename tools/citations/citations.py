@@ -324,13 +324,21 @@ def position_at(rel, marks, offset):
     return Position(rel, ln, col + offset - at)
 
 
-def citations(tree, rel, lines, is_code):
+def external_section(pre):
+    """A bare section attributed to a possessive, RFC or immediately preceding path."""
+    return bool(re.search(r"(\bits|\btheir|['’]s|\bthat|\bthis|\bRFC \d+,?)$", pre, re.IGNORECASE)
+                or re.search(r"\bRFC \d+['’]s\s+(?:`[^`]+`\s*|(?:[\w-]+\s+){0,2})\($", pre, re.IGNORECASE)
+                or re.search(r"\.md`?\)?,?\s*$", pre))
+
+
+def citations(tree, rel, lines, is_code, bare_pattern=None, section_pattern=None):
     """Yield every reading used by check_file, with physical spans and resolutions.
 
     A path reading includes its following section numbers. Bare readings and status
     labels have no path token; their numbers carry the candidates that hold them.
     Readings distinguish self, sentence, list-item and same-name candidates.
     Link metadata covers its label and its query/anchor suffix separately.
+    Optional section patterns let consumers broaden readings; check_file uses the defaults.
     """
     is_status = rel.endswith(".status.md")
     self_doc = doc_of_status(rel)
@@ -400,7 +408,7 @@ def citations(tree, rel, lines, is_code):
                 resolved.append((start, res))
                 if re.match(r"^(?:[-*+]|\d+\.)\s+\*\*`?$", before) and re.match(r"^`?:\*\*", after):
                     item_target = res
-                sm = SECTION_AFTER.match(after) if not re.match(r":\d", after) else None
+                sm = (section_pattern or SECTION_AFTER).match(after) if not re.match(r":\d", after) else None
                 if sm and res.endswith(".md") and not DATE.match(sm.group(1)):
                     count = (NUM_RE.fullmatch(sm.group(1)) and re.match(r"\s+places\b", after[sm.end():])
                              and not re.search(r"(?:sections?|§)\s", sm.group(0)))
@@ -423,14 +431,11 @@ def citations(tree, rel, lines, is_code):
                            res, how, owner, nums, tuple(targets), link, readings)
         if is_code:
             continue
-        for m in BARE_SECTION.finditer(text):
+        for m in (bare_pattern or BARE_SECTION).finditer(text):
             if any(a <= m.start() < b for a, b in covered):
                 continue
             pre = text[: m.start()].rstrip()
-            if re.search(r"(\bits|\btheir|['’]s|\bthat|\bthis|\bRFC \d+,?)$", pre, re.IGNORECASE) \
-                    or re.search(r"\bRFC \d+['’]s\s+(?:`[^`]+`\s*|(?:[\w-]+\s+){0,2})\($",
-                                 pre, re.IGNORECASE) \
-                    or re.search(r"\.md`?\)?,?\s*$", pre):
+            if external_section(pre):
                 continue
             sentence = max(pre.rfind(". "), pre.rfind("; "), 0)
             antecedent = [r for (st, r) in resolved if sentence <= st < m.start()]
