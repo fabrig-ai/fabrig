@@ -337,8 +337,6 @@ pub enum ChangeQuestions {
 pub enum ChangeBranch {
     /// Its requester's held branch: the goal branch it holds in the change's repository.
     Mine,
-    /// Its requester's run branch, holding what its runs delivered.
-    Run,
 }
 
 /// A change's dependency within a call (domain/agent.md, 4.3.1).

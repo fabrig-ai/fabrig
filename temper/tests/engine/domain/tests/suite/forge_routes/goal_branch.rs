@@ -292,6 +292,10 @@ fn a_goal_without_push_authority_inspects_g_without_a_delivery_or_writer() {
     assert_eq!(repository.start, engine::ForgeStart::Branch(branch.as_bytes().into()));
     assert_eq!(repository.push, None);
     assert_eq!(repository.landing, None);
+    assert!(
+        !goal.sections.iter().any(|section| section.kind == engine::BriefKind::Forge(engine::ForgeBriefKind::Home)),
+        "a read-only run has no design delivery line"
+    );
     assert!(!repository.delivers);
     assert_eq!(writer(&world, branch.as_bytes()), None);
     assert_eq!(writer(&world, run_branch.as_bytes()), None);
@@ -505,7 +509,7 @@ fn hint_goal_branch(world: &mut World, branch: &[u8]) {
     })));
 }
 
-fn observe_goal_branch(world: &mut World, branch: &[u8]) {
+pub(super) fn observe_goal_branch(world: &mut World, branch: &[u8]) {
     hint_goal_branch(world, branch);
     for _ in 0..200 {
         world.tick();
@@ -643,6 +647,17 @@ fn goal_drift(movement: BranchMove) {
     if matches!(movement, BranchMove::Unowned) {
         world.release_write_answers();
         world.until(Until::Ready);
+        super::park_chat(&mut world, &goal);
+        for _ in 0..STEPS {
+            world.tick();
+            if forge_hold(&world, &branch).expect("goal hold").design_writers.is_empty() {
+                break;
+            }
+        }
+        assert!(
+            forge_hold(&world, &branch).expect("goal hold").design_writers.is_empty(),
+            "no design writer remains for this move"
+        );
     }
     observe_goal_branch(&mut world, &branch);
     let expected = branch_tip(&mut world, &branch);

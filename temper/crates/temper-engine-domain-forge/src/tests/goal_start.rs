@@ -1,4 +1,4 @@
-//! A goal writes through its run branch (temper/docs/design/domain/forge.md, 11.1).
+//! A goal's design writer (temper/docs/design/domain/forge.md, 11.3).
 use super::*;
 
 const GOAL: u64 = 7;
@@ -25,7 +25,15 @@ fn held_goal() -> Domain {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(
         &mut d,
-        Event::Restore { record: Stored::Hold(Hold { name: name(G), task: GOAL, writer: None, drift: None }) },
+        Event::Restore {
+            record: Stored::Hold(Hold {
+                design_writers: Box::new([]),
+                name: name(G),
+                task: GOAL,
+                writer: None,
+                drift: None,
+            }),
+        },
     );
     head(&mut d, G, TIP);
     d
@@ -62,28 +70,28 @@ fn assert_selection(
 }
 
 #[test]
-fn a_modifying_goal_starts_at_g_and_pushes_to_its_new_run_branch() {
-    assert_selection(&item(&held_goal(), true, false), items::Start::Base(G.into()), Some(R), None, true);
+fn a_modifying_goal_starts_at_g_and_pushes_design_to_g() {
+    assert_selection(&item(&held_goal(), true, false), items::Start::Base(G.into()), Some(G), Some(G), true);
 }
 
 #[test]
-fn a_modifying_goals_later_run_merges_r_into_g_and_pushes_r() {
+fn a_modifying_goals_later_run_merges_r_into_g_and_pushes_g() {
     let mut d = held_goal();
     head(&mut d, R, RUN_TIP);
     assert_selection(
         &item(&d, true, false),
         items::Start::Merge { branch: G.into(), base: RUN_TIP },
-        Some(R),
+        Some(G),
         Some(G),
         true,
     );
 }
 
 #[test]
-fn a_modifying_goal_resumes_saved_work_without_a_landing_comparison() {
+fn a_modifying_goal_resumes_saved_work_and_pushes_design_to_g() {
     let mut d = held_goal();
     head(&mut d, R, RUN_TIP);
-    assert_selection(&item(&d, true, true), items::Start::Saved(S.into()), Some(R), None, true);
+    assert_selection(&item(&d, true, true), items::Start::Saved(S.into()), Some(G), Some(G), true);
 }
 
 #[test]

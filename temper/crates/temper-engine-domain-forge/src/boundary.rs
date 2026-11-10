@@ -46,7 +46,7 @@ pub enum BriefSource {
     /// A pull request against its base at a pinned head.
     Pull { item: BriefItem, head: BriefCommit },
     /// Why a task reads its project's adopted home without pushing.
-    Home { repository: skein_forge::api::Repository },
+    Home { repository: skein_forge::api::Repository, design: bool },
 }
 
 /// The connector's bounded section, or a failed gather.
@@ -726,6 +726,8 @@ pub struct Hold {
     pub name: Name,
     pub task: u64,
     pub writer: Option<Writer>,
+    /// Runs writing design beside the slot (domain/forge.md, 11.3).
+    pub design_writers: Box<[DesignWriter]>,
     /// Last outside change requiring a person to release this hold.
     pub drift: Option<Drift>,
 }
@@ -774,6 +776,15 @@ pub struct Pushed {
     pub tag: u64,
     pub commit: skein_forge::api::Commit,
 }
+/// A goal's design-writing attempt, retained with its hold (domain/forge.md, 11.3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct DesignWriter {
+    pub task: u64,
+    pub attempt: u64,
+    /// The answer or loss has requested the branch's fresh read.
+    pub rereading: bool,
+}
+
 /// A run or connector effect occupying one writer slot.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Writer {
@@ -1687,6 +1698,7 @@ pub enum Event {
         task: u64,
         attempt: u64,
         writes: Box<[Name]>,
+        designs: Box<[Name]>,
         holders: Box<[u64]>,
     },
     /// Release slots and confirm any pushed heads.

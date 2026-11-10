@@ -259,25 +259,28 @@ fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, co
     let mut credentials = List::with_capacity(env.limits.forge.resources_per_task);
     let workspace = forge_route::run_workspace(domain, env, context, attempt);
     let writes = match workspace {
-        Some(workspace) => match forge_route::claim_names(domain, &env.limits, task, &workspace.names) {
-            Some(claim_names) => {
-                // Each repository's git identity is an application credential
-                // the run is granted (domain/root.md, 7.1; jig's domain/engine.md, 12.1).
-                for repository in &workspace.workspace.repositories {
-                    if !credentials.as_slice().contains(&repository.identity) {
-                        credentials.push(repository.identity).expect("one identity per repository");
+        Some(workspace) => {
+            match forge_route::claim_names(domain, &env.limits, task, &workspace.names, &workspace.designs) {
+                Some(claim_names) => {
+                    // Each repository's git identity is an application credential
+                    // the run is granted (domain/root.md, 7.1; jig's domain/engine.md, 12.1).
+                    for repository in &workspace.workspace.repositories {
+                        if !credentials.as_slice().contains(&repository.identity) {
+                            credentials.push(repository.identity).expect("one identity per repository");
+                        }
                     }
+                    let writes = workspace.writes.clone();
+                    let inserted =
+                        match domain.run_workspaces.insert(task, PreparedWorkspace { workspace, claim_names }) {
+                            Ok(None) => true,
+                            Ok(Some(_)) | Err(_) => false,
+                        };
+                    assert!(inserted, "one workspace flight per task");
+                    Some(writes)
                 }
-                let writes = workspace.writes.clone();
-                let inserted = match domain.run_workspaces.insert(task, PreparedWorkspace { workspace, claim_names }) {
-                    Ok(None) => true,
-                    Ok(Some(_)) | Err(_) => false,
-                };
-                assert!(inserted, "one workspace flight per task");
-                Some(writes)
+                None => None,
             }
-            None => None,
-        },
+        }
         None => None,
     };
     let credentials = match writes {
@@ -379,7 +382,7 @@ pub(super) fn claim_workspace(
     workspace: &forge_route::RunWorkspace,
     claim_names: Box<[super::forge::Name]>,
 ) -> Box<[tasks::Name]> {
-    if workspace.names.is_empty() {
+    if workspace.names.is_empty() && workspace.designs.is_empty() {
         return Box::new([]);
     }
     let hub_writes = workspace_holds(domain, env, workspace);

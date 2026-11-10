@@ -73,7 +73,9 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             row.provider.repository = number;
             Stored::Repository(row)
         }
-        RecordKind::Hold => Stored::Hold(Hold { name: name(number), task: n, writer: None, drift: None }),
+        RecordKind::Hold => {
+            Stored::Hold(Hold { design_writers: Box::new([]), name: name(number), task: n, writer: None, drift: None })
+        }
         RecordKind::Names => Stored::Names { task: n, resources: Box::new([]) },
         RecordKind::Subscription => Stored::Subscription(Subscriber {
             task: n,
