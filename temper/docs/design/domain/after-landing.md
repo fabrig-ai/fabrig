@@ -288,10 +288,12 @@ those IDs is known to be still failing; each is new (2026-11-04).
   repairs it when a later run passes the failures.
 - **A member's goal** is its change's requester's tracked ancestor, the
   goal its landings' news reaches (`forge.md`, 7.2): the news goes
-  through that goal's subscription to the landings on the branch the
-  landing went into, once per goal, as the verdict that reddens the
-  landing is kept, and wakes it, whatever its overlap (`forge.md`,
-  7.3). A goal with no such subscription left is told nothing.
+  through that goal's subscription to its own branch's landings when
+  that branch is what landed, without a subscription to main. Other
+  members use the goal's subscription to the branch the landing went
+  into. It goes once per goal, as the verdict that reddens the landing
+  is kept, and wakes it, whatever its overlap (`forge.md`, 7.3). A goal
+  with no such subscription left is told nothing.
 - **The news's words:** `Red after landing: tier NAME run N blames
   landing COMMIT on BRANCH: K failing.`, the landing's commit whole,
   then each failing test blamed on it, one per line ("many" past

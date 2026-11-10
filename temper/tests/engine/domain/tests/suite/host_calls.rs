@@ -1017,6 +1017,9 @@ fn reference_person_defaults() -> jig_domain_core::settings::Defaults {
     let policy = defaults.policies.get_mut(&1).expect("policy 1");
     reference_person_authority(&mut policy.policy.ceiling);
     reference_person_authority(&mut policy.policy.roles[0].authority);
+    for role in &mut policy.policy.roles {
+        reference_executor_authority(&mut role.authority);
+    }
     defaults
 }
 
@@ -1052,7 +1055,28 @@ fn reference_person_authority(authority: &mut jig_domain_authority::Authority) {
         }
     }
     authority.delegation.kinds = kinds.into();
+    reference_executor_authority(authority);
     assert!(authority.delegation.kinds.contains(&Executor::Role(0)), "recipe permits asking the person");
+}
+
+fn reference_executor_authority(authority: &mut jig_domain_authority::Authority) {
+    use jig_domain_authority::Executor;
+    // Keep the executors these stories and their change procedures start.
+    authority.delegation.kinds = authority
+        .delegation
+        .kinds
+        .iter()
+        .copied()
+        .filter(|kind| {
+            matches!(
+                kind,
+                Executor::Charter(2 | 4 | 5 | 6 | 7)
+                    | Executor::Procedure(2..=4)
+                    | Executor::Job(3)
+                    | Executor::Role(0)
+            )
+        })
+        .collect();
 }
 
 fn without_person(authority: &mut jig_domain_authority::Authority) {

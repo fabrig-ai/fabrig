@@ -1522,8 +1522,18 @@ fn change_topic(domain: &Domain, task: &tasks::TaskRecord) -> Option<forge::Topi
 }
 
 pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, topic: forge::Topic) {
-    if domain.core.tasks.task(goal).is_none() {
-        return;
+    let Some(task) = domain.core.tasks.task(goal) else { return };
+    match task.flags.ended_by {
+        tasks::EndedBy::Closer(_) => match &topic {
+            forge::Topic::Landings { repository, branch } => {
+                let Some(repository) = domain.forge.repository(*repository) else { return };
+                if *branch == repository.settings.default_branch {
+                    return;
+                }
+            }
+            forge::Topic::Ci { .. } | forge::Topic::Pull { .. } | forge::Topic::Participation { .. } => {}
+        },
+        tasks::EndedBy::Result | tasks::EndedBy::Requester => {}
     }
     let mut previous = domain.forge.topic_subscriber(goal, &topic).cloned();
     for work in &domain.work {

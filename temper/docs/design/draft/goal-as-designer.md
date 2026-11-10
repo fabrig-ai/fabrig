@@ -44,15 +44,14 @@ matching prompts and model/effort". Reasons: `notes.md`, section 7.
 | a foreman | settles a question from the spec and design, or passes it up | a delegate of the change, read-only | gpt-6.1-sol, medium |
 | a repair, a resolution | as `reference-code-production.md`, section 2 | the coding agent's charter | gpt-6.1-sol, high |
 | the merge job | as `reference-code-production.md`, section 2 | a job | none |
-| the closer | settles the goal's status, lands it, reports | temper's procedure, the goal's delegate (`goal-runs-itself.md`, section 2) | none |
+| the close-out | status files, Later sections, the draft's fate | a change into main, after the landing | gpt-6.1-sol, high |
 
 - **Extra designers stay changes** (N13), for a plan too wide for one writer to
   keep the work fed: a change under the designer's charter, its design landed
   into g. Most plans need none. In the pipeline's last 63 cuts no writing
   sub-agent ran.
-- **No close-out:** the goal's first run writes its status up front, each entry
-  tagged with the change that closes it, and its closer settles the tags before
-  the landing (`goal-runs-itself.md`, section 4). This revises N16.
+- **The close-out moves after the landing,** where the pipeline has it. This
+  revises N16.
 
 ## 3. The first run
 
@@ -159,16 +158,17 @@ The goal's charter takes `results: last_or_failure` (jig's
 | a question a change relays | settles it, amends, makes a change, or asks its person |
 | an escalation, a failure | releases, amends, cancels, or passes it up |
 | a designer's result, where there is one | subscribed with `subscribe`: makes the family's changes |
+| a landing overlapping open work, as news, at most once in 30 minutes | a catch-up (`reference-code-production.md`, section 11) |
 | a red, as news | a repair (`reference-code-production.md`, section 10) |
-| a person's words, a task's words | read by the run they wake |
-
-Once its changes have ended, nothing wakes it: its closer lands the goal and
-reports (`goal-runs-itself.md`, sections 2 to 5).
+| the last result | reads the reports' Left lists; makes the landing |
+| the landing's result | makes the close-out, into main |
+| the close-out's result | finishes |
 
 - **Questions wake at once,** as the pipeline answers an integration plan's.
-- **No catch-ups:** the landing takes main at the front of main's queue, and a
-  conflict goes to the merge job and a resolution (`goal-runs-itself.md`, section
-  1).
+- **Catch-ups wake on overlap alone** (`../domain/forge.md`, 7.3), not on every
+  move of main as the pipeline's do. The user: "it covers plain conflicts, and I'm
+  okay with semantic conflicts being caught at merge time or after landing, they
+  should be rare."
 
 ## 8. The goal's later effort
 
@@ -195,6 +195,9 @@ later choice, made at the goal's start, and ends the amendment.
 
 ## 10. Open questions
 
+- **The landing and the close-out made up front,** with `after`: then no wake makes
+  them, and the tree runs to the end by itself. A landing kept by dependencies hasn't
+  been walked, and each later batch must amend its `after`.
 - **A spec past one call:** split it, or have `change` name a note, as
   `propose_settings` does (`../domain/agent.md`, 8.1). One of the pipeline's 1,406
   specs passed 42 KB, and none 64 KB. Not built until one needs it.

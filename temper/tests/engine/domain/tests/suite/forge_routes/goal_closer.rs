@@ -110,6 +110,7 @@ fn goal_world_with_ci(
     let people::Ask::Create { project, mut batch } = goal_request(&world, true) else { panic!("goal request") };
     batch[0].words = b"TITLE\n\nBuild PATH.\nDraft: PATH".as_slice().into();
     batch[0].contract = people::Contract::Report { words: 4096 };
+    batch[0].flags.ended_by = people::EndedBy::Closer(people::Closer { connector: 0, code: 6 });
     if !branch {
         batch[0].symbols = Box::new([]);
     }
@@ -638,6 +639,13 @@ fn a_closer_waits_for_work_and_closes_again() {
     let job = close_job(&mut world);
     let tasks::Party::Task(second) = live_task(&world, job.run.raw()).requester else { panic!("second close") };
     assert_ne!(second, first);
+    // The branch observation and the next close job are independent.
+    for _ in 0..STEPS {
+        if row(&world, landing).change.last_head == Some(translate::commit(tip)) {
+            break;
+        }
+        world.tick();
+    }
     assert_eq!(row(&world, landing).change.last_head, Some(translate::commit(tip)));
     assert_eq!(closer_row(&world, closer).expect("reclosed").close_changes.as_ref(), &[first, second]);
     finish_close(&mut world, second, &branch, &job);
@@ -697,7 +705,23 @@ fn a_red_after_the_closers_landing_is_news_for_the_goal() {
         news.iter().map(|word| String::from_utf8_lossy(&word.words)).collect::<Vec<_>>()
     );
     assert!(!live_task(&world, closer).inbox.iter().any(|word| word.words.starts_with(b"Red after landing:")));
-    assert!(world.store.rows.values().any(|row| matches!(row, Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Subscription(sub) if sub.task == goal.task && sub.topic == forge_top::Topic::Landings { repository: forge_world::REPO, branch: b"main".as_slice().into() }))));
+    let landings = world
+        .store
+        .rows
+        .values()
+        .filter_map(|row| match row {
+            Record::Forge { row } => match row.as_ref() {
+                forge_top::Stored::Subscription(sub) if sub.task == goal.task => match &sub.topic {
+                    forge_top::Topic::Landings { branch, .. } => Some(branch.as_ref()),
+                    _ => None,
+                },
+                _ => None,
+            },
+            Record::Core(_) => None,
+        })
+        .collect::<Vec<_>>();
+    assert!(!landings.contains(&b"main".as_slice()), "no main landings while the closer verifies: {landings:?}");
+    assert!(landings.contains(&branch.as_ref()), "the goal keeps its branch's topic");
     world.close();
 }
 

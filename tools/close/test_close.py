@@ -92,6 +92,30 @@ class Close(unittest.TestCase):
         self.assertEqual(self.read(), before + b'  \r\n')
         self.assertEqual(self.staged(), [STATUS])
 
+    def test_a_bare_not_yet_label_settles_each_nested_item(self):
+        before = (b'# Status\r\n\r\n- **Not yet:**\r\n'
+                  b'  - 1: built\r\n    over two lines. [in flight: change 9]\r\n'
+                  b'  - 2: still needed [in flight: change 12]\r\n'
+                  b'  - 3: built too. [in flight: change 9]\r\n')
+        self.write(STATUS, before)
+        empty = 'docs/empty.status.md'
+        self.write(empty, b'# Empty\n\n- **Not yet:**\n  - 1: built. [in flight: change 9]\n')
+        self.commit()
+        self.assert_success(self.run_close({9: True, 12: False}))
+        self.assertEqual(self.read(), b'# Status\r\n\r\n- **Not yet:**\r\n'
+                         b'  - 2: still needed\r\n')
+        self.assertEqual(self.read(empty), b'# Empty\n\n')
+        self.assertEqual(self.staged(), [empty, STATUS])
+
+    def test_a_landed_nested_item_never_deletes_an_untagged_sibling(self):
+        kept = (b'# Status\n\n- **Not yet:**\n'
+                b'  - 1: an untagged gap.\n    Its continuation.\n')
+        self.write(STATUS, kept + b'  - 2: built. [in flight: change 9]\n')
+        self.commit()
+        self.assert_success(self.run_close({9: True}))
+        self.assertEqual(self.read(), kept)
+        self.assertEqual(self.staged(), [STATUS])
+
     def test_a_tag_naming_no_change_fails_and_stages_nothing(self):
         self.write('docs/first.status.md', b'- **Not yet:** 1: known [in flight: change 9]\n')
         self.write(STATUS, b'# Status\n- **Not yet:** 4.2: unknown [in flight: change 40]\n')

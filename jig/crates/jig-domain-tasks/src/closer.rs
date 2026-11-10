@@ -186,7 +186,10 @@ pub(crate) fn ended(
 }
 
 /// Project the closer's waits before the batch is admitted, and apply the same projection at making.
-#[expect(clippy::result_large_err, reason = "batch admission retains its exact bounded refusal")]
+#[cfg_attr(
+    not(target_arch = "wasm32"),
+    expect(clippy::result_large_err, reason = "batch admission retains its exact bounded refusal")
+)]
 pub(crate) fn with_work(
     domain: &Domain,
     limits: &Limits,

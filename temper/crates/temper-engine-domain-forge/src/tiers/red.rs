@@ -1,5 +1,5 @@
 //! A red reaches its goals with bounded log ends (temper/docs/design/domain/after-landing.md, 7 and 10).
-use crate::{Class, Domain, JobLog, Limits, News, RedNews, RedOn, Request, TierRow, Topic};
+use crate::{Class, Domain, JobLog, Limits, News, RedNews, RedOn, Request, Subscriber, TierRow, Topic, Verification};
 use alloc::boxed::Box;
 use skein_forge::api::{self, Commit, Repository};
 use skein_lib::{Env, List, Queue, Token};
@@ -153,20 +153,6 @@ pub(super) fn landed(
     let topic = Topic::Landings { repository: row.repository, branch: branch.clone() };
     for (commit, failing) in reds {
         let Some(verification) = d.verifications.get(&(row.repository, *commit)) else { continue };
-        let mut goals = List::with_capacity(d.subscriptions.capacity());
-        for (_, subscriber) in &d.subscriptions {
-            if subscriber.topic != topic {
-                continue;
-            }
-            if let Some(tasks) = &subscriber.goal_tasks {
-                for change in &verification.changes {
-                    if tasks.contains(change) {
-                        goals.push(subscriber.task).expect("bounded subscribers");
-                        break;
-                    }
-                }
-            }
-        }
         let result = row.result.as_ref().expect("kept final receipt");
         let news = News::Red(RedNews {
             tier: row.tier.clone(),
@@ -175,8 +161,43 @@ pub(super) fn landed(
             on: RedOn::Landing { commit: *commit, branch: branch.clone(), failing: failing.clone() },
             logs: Box::from(logs),
         });
-        tell(d, row.repository, &branch, goals.as_slice(), news, Class::Wakes, out);
+        let mut told = List::with_capacity(d.subscriptions.capacity());
+        for (_, subscriber) in &d.subscriptions {
+            if told.as_slice().contains(&subscriber.task) || !receives(d, subscriber, verification, &topic) {
+                continue;
+            }
+            told.push(subscriber.task).expect("bounded subscribers");
+            out.push(Request::News {
+                task: subscriber.task,
+                subscription: subscriber.number,
+                topic: subscriber.topic.clone(),
+                news: news.clone(),
+                class: Class::Wakes,
+            });
+        }
     }
+}
+
+fn receives(d: &Domain, subscriber: &Subscriber, verification: &Verification, topic: &Topic) -> bool {
+    let Some(tasks) = &subscriber.goal_tasks else { return false };
+    for number in &verification.changes {
+        if subscriber.topic == *topic && tasks.contains(number) {
+            return true;
+        }
+        let Some(change) = d.changes.get(number) else { continue };
+        if change.goal != Some(subscriber.task) {
+            continue;
+        }
+        match &subscriber.topic {
+            Topic::Landings { repository, branch } => {
+                if *repository == change.repository && *branch == change.branch {
+                    return true;
+                }
+            }
+            Topic::Ci { .. } | Topic::Pull { .. } | Topic::Participation { .. } => {}
+        }
+    }
+    false
 }
 
 /// Tell each task through its subscription, independent of the news's red variant.

@@ -1636,7 +1636,12 @@ goals.
 - **A goal hears of landings** through the forge's topic for goals
   (jig's `domain/connectors.md`, 5.4): the landings on the branches its
   subtree's changes target, which the core subscribes it to as the first
-  change into each is made, until the goal ends.
+  change into each is made, until the goal ends. A goal ended by its
+  closer (11.2) takes no subscription to the repository's default
+  branch's landings, including for a repair there. Landing such a goal's
+  held branch creates no main-landing subscription, either at the change's
+  start or when its plan is projected. Reds still reach the goal through
+  its branch's tiers (section 10).
 - **Those are a goal's only topics from the core.** CI on its changes'
   heads is each change's own, read by its procedure (7.1); the goal hears
   a change's end or hold as any requester hears its delegate's (jig's

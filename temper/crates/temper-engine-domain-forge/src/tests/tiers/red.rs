@@ -184,6 +184,28 @@ fn one_landings_red_wakes_its_goal_once_with_logs() {
         _ => false,
     }));
 }
+
+#[test]
+fn a_goals_landing_red_reaches_its_goal_branch_without_a_main_subscription() {
+    let mut d = one();
+    d.subscriptions.remove(&(GOAL, Topic::Landings { repository: REPO, branch: b"main".as_slice().into() }));
+    let branch = b"temper/91/g91";
+    let mut landing = fixtures::opening_row();
+    landing.repository = REPO;
+    landing.branch = branch.as_slice().into();
+    landing.goal = Some(GOAL);
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(landing)) });
+    // The branch topic knows the work landed into it, not the closer's landing out of it.
+    subscribe(&mut d, GOAL, SUBSCRIPTION, branch, &[THIRD_CHANGE]);
+    subscribe(&mut d, OTHER_GOAL, NEXT_SUBSCRIPTION, b"release", &[CHANGE]);
+    tier_step(&mut d, RELEASE, false);
+    logs(&mut d, Ok(log(SECOND_ATTEMPT, SECOND_LOG)));
+    let out = tier_step(&mut d, RELEASE + 1, false);
+    let mut wanted = expected(GOAL, SUBSCRIPTION, NEXT_TIP, failures(&[FIRST_TEST]), job_logs(Some(SECOND_LOG)));
+    let Request::News { topic, .. } = &mut wanted else { panic!("expected news") };
+    *topic = Topic::Landings { repository: REPO, branch: branch.as_slice().into() };
+    assert_eq!(news(&out), [wanted]);
+}
 #[test]
 fn two_red_landings_tell_each_goal_its_own_failures() {
     let mut d = pending(

@@ -5,7 +5,7 @@ use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::List;
 
 // T1 names every decoder shape, including the alternative-only objects.
-const SHAPES: [Shape; 63] = [
+const SHAPES: [Shape; 65] = [
     Shape::File,
     Shape::Item,
     Shape::Setting,
@@ -34,6 +34,8 @@ const SHAPES: [Shape; 63] = [
     Shape::AsAllowed,
     Shape::Deadline,
     Shape::Flags,
+    Shape::EndedBy,
+    Shape::Closer,
     Shape::Llm,
     Shape::LlmLater,
     Shape::ModelEffort,
@@ -126,6 +128,32 @@ fn routes(target: Shape) -> [bool; SHAPES.len()] {
         }
     }
     seen
+}
+
+#[test]
+fn ending_fields_describe_both_words_and_the_closers_procedure() {
+    let ending = resolve(b"flags.ended_by").expect("ending field");
+    let Value::Shape(ending) = ending.value else { panic!("ending has a word-or-object shape") };
+    let Choice::One { words } = form(ending).choice else { panic!("one ending choice") };
+    assert_eq!(words.len(), 2);
+    for (word, expected) in words.iter().zip([b"result".as_slice(), b"requester"]) {
+        assert_eq!(word.word, expected);
+    }
+    let variants = members(ending);
+    assert_eq!(variants.len(), 1);
+    let variant = variants.first().expect("closer variant");
+    assert_eq!(variant.name, b"closer");
+    let Value::Shape(closer) = variant.value else { panic!("closer has procedure fields") };
+    assert_eq!(members(closer).len(), 2);
+    for (field, (name, width)) in
+        members(closer).iter().zip([(b"connector".as_slice(), Width::U16), (b"code".as_slice(), Width::U32)])
+    {
+        assert_eq!(field.name, name);
+        let Value::Integer(found) = field.value else { panic!("procedure number") };
+        assert_eq!(found, width);
+        assert!(field.list.is_none());
+        assert!(!field.null);
+    }
 }
 
 #[test]

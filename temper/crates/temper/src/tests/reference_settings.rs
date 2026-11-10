@@ -276,7 +276,8 @@ fn coordinator_part_rules(texts: &[(String, &str)]) {
     for (phrase, place) in [
         ("Where a request settles its changes with no shape for the code to follow", cut),
         ("write no design, say so in your report note, and make its changes", cut),
-        ("The core subscribes you to the landings on each branch your changes target", cut),
+        ("The core subscribes you to your goal branch's landings", cut),
+        ("Never subscribe to main's landings", cut),
         ("On a designer's question, answer from the draft", questions),
         ("On a question a change relays", questions),
         ("Never answer what you have not settled.", questions),
