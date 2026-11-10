@@ -717,25 +717,44 @@ fn branch_prefix_uses_one_refs_request_for_two_matches() {
 }
 
 #[test]
-fn branch_prefix_past_eight_matches_is_too_large() {
-    let mut run = Run::with(
-        crate::forgejo::plans::plan::Bounds { rows: 8, ..BOUNDS },
-        Op::Read(Read::Branches { prefix: Box::from(&b"temper/"[..]) }),
-    );
-    run.begin();
-    let length = br#"{"ref":"refs/heads/temper/0"}"#.len().checked_mul(9).unwrap().checked_add(10).unwrap();
-    let mut body = skein_lib::Writer::new(length);
-    body.put(b"[").unwrap();
-    for index in 0_u64..9 {
-        if index != 0 {
-            body.put(b",").unwrap();
+fn branch_prefix_matches_are_bounded_by_bytes_alone() {
+    // Each temper/NN name measures 16 bytes of storage and 9 of name.
+    for count in [9, 40] {
+        let mut names = skein_lib::List::with_capacity(count);
+        let mut body = skein_lib::Writer::new(usize::try_from(count.checked_mul(64).unwrap()).unwrap());
+        body.put(b"[").unwrap();
+        for index in 0..count {
+            let mut name = skein_lib::Writer::new(9);
+            name.put(b"temper/").unwrap();
+            if index < 10 { name.put(b"0").unwrap(); }
+            name.put(skein_lib::Decimal::of(u64::from(index)).as_bytes()).unwrap();
+            let name = name.finish();
+            if index != 0 { body.put(b",").unwrap(); }
+            body.put(br#"{"ref":"refs/heads/"#).unwrap();
+            body.put(&name).unwrap();
+            body.put(br#""}"#).unwrap();
+            names.push(name).expect("fixture names");
         }
-        body.put(br#"{"ref":"refs/heads/temper/"#).unwrap();
-        body.put(skein_lib::Decimal::of(index).as_bytes()).unwrap();
-        body.put(br#""}"#).unwrap();
+        body.put(b"]").unwrap();
+        let names = names.into_boxed();
+        let body = body.finish();
+        let measured = count * 25;
+        for rows in [0, 8] {
+            for (answer_bytes, fits) in [(measured, true), (measured - 1, false)] {
+                let mut limits = fixtures::limits();
+                limits.json.length = u32::try_from(body.len()).unwrap();
+                let mut run = Run::with_limits(
+                    limits,
+                    crate::forgejo::plans::plan::Bounds { rows, answer_bytes, ..BOUNDS },
+                    Op::Read(Read::Branches { prefix: Box::from(&b"temper/"[..]) }),
+                );
+                run.begin();
+                let expected = if fits { Ok(Answer::Branches(names.clone())) } else { Err(Error::TooLarge) };
+                assert_eq!(run.answer(200, &body), Step::Done(expected), "{count} {rows} {answer_bytes}");
+                run.assert_sent(&["GET /api/v1/repos/fixture/specimen/git/refs/heads/temper%2F"]);
+            }
+        }
     }
-    body.put(b"]").unwrap();
-    assert_eq!(run.answer(200, &body.finish()), Step::Done(Err(Error::TooLarge)));
 }
 
 #[test]
