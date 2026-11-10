@@ -27,12 +27,12 @@ jig and temper are named only as examples.
   entities (host.md, section 9). A host (temper's worker, smith's local
   host, a test's world) starts runs, serves what they ask of it and
   hears how each ends.
-- **skein's layering** (`programming-model.md`): every part is a domain,
+- **skein's layering** (`skein/docs/foundation/programming-model.md`): every part is a domain,
   a protocol layer and io, so a project built on smith imports it at the
   layer it needs: the domains in its worlds, the protocol crates to talk
   to an agent or read its transcripts, the shells and binaries to run
   one, or everything in one process (section 4).
-- **The domain is complete** (programming-model.md, section 4). A world
+- **The domain is complete** (skein/docs/foundation/programming-model.md, section 4). A world
   of domains and fakes runs everything an agent does, with no protocol and
   no io.
 - **Policy is data.** A host shapes a run entirely by its charter and its

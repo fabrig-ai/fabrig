@@ -255,7 +255,7 @@ piece is built, before concrete transcript decoding.
 
 A missing marker permits creation only after a complete bounded scan finds
 an empty directory, or only regular `format.skein-<16 lowercase hex>`
-interrupted-create temporaries (skein io.md, 5.2). These are never removed.
+interrupted-create temporaries (skein's io.md, 5.2). These are never removed.
 Any other entry or incomplete scan refuses as unrecorded. Malformed,
 truncated or wrong-version markers refuse as a store-layout mismatch; IO,
 symlink, directory and size failures refuse without adopting the directory.
