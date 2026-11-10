@@ -226,7 +226,10 @@ fn pull_for_lists_open_pulls_when_the_lookup_names_a_closed_one() {
     let mut h = fixtures::known();
     h.call(1, fixtures::REPO, Op::Read(Read::PullFor { head: Box::from(&b"work"[..]), base: Box::from(&b"main"[..]) }));
     answer(&mut h, &pull(12, b"closed", b"work"));
-    last(&h, b"GET /api/v1/repos/fixture/specimen/pulls?state=open&sort=oldest&page=1&limit=2 HTTP/1.1");
+    last(
+        &h,
+        b"GET /api/v1/repos/fixture/specimen/pulls?state=open&head=work&base=main&sort=oldest&page=1&limit=2 HTTP/1.1",
+    );
     answer(&mut h, &concat(&[b"[", &pull(9, b"open", b"other"), b",", &pull(13, b"open", b"work"), b"]"]));
     last(&h, b"GET /api/v1/repos/fixture/specimen/commits/0000000000000000000000000000000000000000/status?page=1&limit=2 HTTP/1.1");
     answer(&mut h, EMPTY_STATUS);
