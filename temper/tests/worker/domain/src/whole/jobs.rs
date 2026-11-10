@@ -41,6 +41,8 @@ pub struct Report {
 pub(super) struct World {
     kind: tooling::Kind,
     pub(super) repository: Box<[u8]>,
+    pub(super) request: Box<[u8]>,
+    pub(super) title: Box<[u8]>,
     pub(super) domain: Domain,
     env: Env<temper_worker_domain::Limits>,
     out: Queue<Request>,
@@ -77,6 +79,8 @@ impl World {
         forge.create_branch(REMOTE, b"topic", first).expect("delivery branch");
         Self {
             domain: Domain::new(&limits, Box::new([kind.clone()])),
+            title: format!("job {}", kind.bound.kind.0).into_bytes().into(),
+            request: b"request".as_slice().into(),
             kind,
             repository: b"work".as_slice().into(),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
@@ -134,7 +138,7 @@ impl World {
                     git::Op::Make { workspace } => self.workspace = Some(*workspace),
                     git::Op::Commit { at, title, body, .. } => {
                         assert_eq!(at.repository, self.repository);
-                        assert_eq!(title.as_ref(), format!("job {}", self.kind.bound.kind.0).as_bytes());
+                        assert_eq!(title, &self.title);
                         assert!(body.is_empty());
                     }
                     git::Op::Push { at, .. } => {
@@ -219,7 +223,7 @@ impl World {
         let workspace = self.workspace.expect("checkout prepared");
         let directory = format!("workspaces/{}", workspace.raw()).into_bytes();
         assert_eq!(path.as_ref(), [directory.as_slice(), b"/request.json"].concat());
-        assert_eq!(bytes.as_ref(), b"request");
+        assert_eq!(bytes, self.request);
         self.disk.write(&[translate::dir(workspace).as_slice(), b"/request.json"].concat(), &bytes);
         self.event(Event::Job { owner, event: tooling::Event::Written { owner, written: true } });
         let (spawn_owner, op) = self.operations.pop_front().expect("spawn after write");

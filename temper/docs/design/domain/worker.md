@@ -471,12 +471,11 @@ smith's agent processes, and declares in its hello the kinds it runs:
   `close_job`, a path in that repository, so the spec's command is the
   repository's name, `/`, then that path, and its request the close
   request's bytes, which the engine writes whole. On exit 0 the delivery
-  commits what the command staged, one parent, the tip, its message
+  commits the tree as the command left it, one parent, the tip, its message
   `Settle goal G's status`, G the request's goal, and pushes it as a
   fast-forward onto the branch the item names as writable, a producer's
   push; with nothing staged it commits and pushes nothing, and the job
-  is done. A file left unstaged in the tree is not delivered and fails
-  nothing. The engine learns which from the branch, as for a merge: its
+  is done. The engine learns which from the branch, as for a merge: its
   head moved, or not. Its bounds, the engine's declaration and the
   worker's alike: a spec of 16,384 bytes, a result of 512 and a deadline
   of 10 minutes, the small profile's constants; the engine declares it

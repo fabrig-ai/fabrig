@@ -12,7 +12,7 @@ use crate::{Domain, Limits, Request, route, tooling, wire};
 /// The engine identity keeps the decoded spec through workspace preparation.
 #[derive(Debug)]
 pub(crate) struct Spec {
-    kind: JobKind,
+    title: Box<[u8]>,
     value: Option<Result<wire::JobSpec, wire::Undecodable>>,
 }
 
@@ -66,9 +66,14 @@ pub(crate) fn assign(
         refused(domain, run, attempt, host::JobRefusal::Busy, out);
         return;
     }
+    let request = match &spec {
+        Ok(spec) => spec.request.as_ref(),
+        Err(wire::Undecodable) => b"",
+    };
+    let title = commit_title(job.kind, request);
     let prior = domain
         .job_specs
-        .insert((run, attempt), Spec { kind: job.kind, value: Some(spec) })
+        .insert((run, attempt), Spec { title, value: Some(spec) })
         .expect("one staged spec per hosted slot and the entering assignment");
     assert!(prior.is_none(), "wire retries were dropped");
     route::host_step(domain, env, host::Event::Down(host::LinkDown::AssignJob { job }));
@@ -215,12 +220,32 @@ pub(crate) fn deliver(domain: &mut Domain, env: &Env<Limits>, owner: Token, work
         return;
     }
     let identity = workspace::job_run(domain, workspace);
-    let kind = domain.job_specs.get(&identity).expect("job metadata lives through delivery").kind;
+    let title = domain.job_specs.get(&identity).expect("job metadata lives through delivery").title.clone();
+    workspace::write(domain, env, owner, workspace, Write::Push { title, body: Box::new([]) });
+}
+
+/// Close titles name the goal in the canonical request (temper/docs/design/protocol/tooling.md, 4.2).
+pub(crate) fn commit_title(kind: JobKind, request: &[u8]) -> Box<[u8]> {
+    if kind == JobKind(4)
+        && let Some(goal) = close_goal(request)
+    {
+        return skein_lib::bytes::concat(&[b"Settle goal ", goal, b"'s status"]);
+    }
     let number = Decimal::of(u64::from(kind.0));
-    let mut title = Writer::new(b"job ".len().checked_add(number.as_bytes().len()).expect("bounded kind title"));
-    title.put(b"job ").expect("job title prefix");
-    title.put(number.as_bytes()).expect("job kind");
-    workspace::write(domain, env, owner, workspace, Write::Push { title: title.finish(), body: Box::new([]) });
+    skein_lib::bytes::concat(&[b"job ", number.as_bytes()])
+}
+
+fn close_goal(request: &[u8]) -> Option<&[u8]> {
+    let rest = request.strip_prefix(b"{\"version\":1,\"goal\":")?;
+    for (index, byte) in rest.iter().enumerate() {
+        if *byte == b',' && (1..=20).contains(&index) {
+            return rest.get(..index);
+        }
+        if index == 20 || !byte.is_ascii_digit() {
+            return None;
+        }
+    }
+    None
 }
 
 pub(crate) fn answered(
