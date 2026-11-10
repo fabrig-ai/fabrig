@@ -1688,6 +1688,96 @@ fn person_chat(host: &mut Host) {
     read_reply(host, activity, &w::ReadValue::Activity(records::activity_rows(&[row])));
 }
 
+const REPLY_TURN: jig_client::contract::TurnName = jig_client::contract::TurnName { attempt: 44, number: 1 };
+
+fn reply_host() -> Host {
+    use smith_transcript as s;
+    let (mut host, me_watch, _) = signed_host(true);
+    let mut me = launchpad_me(true).into_parts();
+    let mut reader = Reader::new(&me.projects);
+    let project = skein_codec::piece::split(&mut reader).unwrap().unwrap();
+    let mut project = w::MeProject::decode(&w::CEILINGS, &mut Reader::new(&project)).unwrap().into_parts();
+    let mut reader = Reader::new(&project.templates);
+    let template = skein_codec::piece::split(&mut reader).unwrap().unwrap();
+    let mut template = w::Template::decode(&w::CEILINGS, &mut Reader::new(&template)).unwrap().into_parts();
+    template.number = 6;
+    let template = w::Template::new(&w::CEILINGS, template).unwrap();
+    let mut writer = Writer::new(usize::try_from(template.measure()).unwrap());
+    template.encode(&mut writer).unwrap();
+    project.templates = [project.templates.as_ref(), pieces(&[writer.finish()]).as_ref()].concat().into();
+    me.projects = pieces(&[project_bytes(&w::MeProject::new(&w::CEILINGS, project).unwrap())]);
+    delivery(&mut host, me_watch, &w::DeliveryValue::Me(w::Me::new(&w::CEILINGS, me).unwrap()));
+    let duties = give(&mut host, Event::Act { act: Act::Go { address: Address::Chat { task: 7 } } });
+    let task_watch =
+        watch(&duties, &w::Subject::Task(w::SubjectTask::new(&w::CEILINGS, w::SubjectTaskParts { task: 7 }).unwrap()));
+    let activity = read_exchange(&duties, "activity");
+    let mut task = records::task_record().into_parts();
+    task.project = 3;
+    let chip = chat_chip(7, b"Choices");
+    let mut reader = Reader::new(chip.rows());
+    let mut rows = Vec::new();
+    while let Some(bytes) = skein_codec::piece::split(&mut reader).unwrap() {
+        let mut fact = w::Fact::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+        if let w::Fact::Chip(row) = fact {
+            let mut row = row.into_parts();
+            let mut fields = row.value.into_parts();
+            fields.executor = w::ChipExecutor::Agent(
+                w::ChipExecutorAgent::new(&w::CEILINGS, w::ChipExecutorAgentParts { charter: 5 }).unwrap(),
+            );
+            row.value = w::ChipFields::new(&w::CEILINGS, fields).unwrap();
+            fact = w::Fact::Chip(w::ChipRow::new(&w::CEILINGS, row).unwrap());
+        } else if let w::Fact::ChipDetails(row) = fact {
+            let mut row = row.into_parts();
+            let mut fields = row.value.into_parts();
+            fields.live_delegates = 0;
+            row.value = w::ChipDetailsFields::new(&w::CEILINGS, fields).unwrap();
+            fact = w::Fact::ChipDetails(Box::new(w::ChipDetailsRow::new(&w::CEILINGS, row).unwrap()));
+        }
+        rows.push(fact);
+    }
+    task.chip = records::chip_from_rows(&rows);
+    task.activity = 1;
+    task.result = None;
+    task.waits_on = w::WaitsOn::News;
+    let offer = w::Offered::new(
+        &w::CEILINGS,
+        w::OfferedParts { act: w::ActKind::Message, admission: w::Admission::Allowed, effect: None },
+    )
+    .unwrap();
+    let mut writer = Writer::new(usize::try_from(offer.measure()).unwrap());
+    offer.encode(&mut writer).unwrap();
+    task.acts = pieces(&[writer.finish()]);
+    delivery(&mut host, task_watch, &w::DeliveryValue::Task(Box::new(w::Task::new(&w::CEILINGS, task).unwrap())));
+    let mut turn = s::decode_archived(&s::CEILINGS, records::FULL_TURN).unwrap().into_parts();
+    let text = s::Block::Text(
+        s::Text::new(
+            &s::CEILINGS,
+            s::TextParts {
+                text: "Choose.\n\n1. Move it at once — no mixed state\n2. Side by side\n3. Tell me something else"
+                    .as_bytes()
+                    .into(),
+                replay: None,
+            },
+        )
+        .unwrap(),
+    );
+    turn.messages = List::from_boxed(Box::new([s::Message::new(
+        &s::CEILINGS,
+        s::MessageParts { role: s::Role::Assistant, blocks: List::from_boxed(Box::new([text])) },
+    )
+    .unwrap()]));
+    let turn = s::Turn::new(&s::CEILINGS, turn).unwrap();
+    let mut writer = Writer::new(usize::try_from(turn.measure()).unwrap());
+    turn.encode(&mut writer).unwrap();
+    let mut page = records::activity_rows(&[records::turn_line(1, 0, 1, &writer.finish())]).into_parts();
+    page.after = None;
+    page.cut = false;
+    read_reply(&mut host, activity, &w::ReadValue::Activity(w::ActivityPage::new(&w::CEILINGS, page).unwrap()));
+    host.frame();
+    assert_eq!(temper_client_tui::reply_number(&host.view, b"3"), Some(Event::ReplyAside { turn: REPLY_TURN }));
+    host
+}
+
 fn give(host: &mut Host, event: Event) -> Duties {
     let mut duties = Duties::default();
     host.event(event, &mut duties);
@@ -2151,13 +2241,24 @@ enum LaunchWant {
 fn the_launchpad_takes_its_own_words() {
     for (words, at, want) in [
         (
+            b"/draft Design an export".as_slice(),
+            LaunchAt::Home,
+            LaunchWant::Started {
+                label: 8,
+                words: b"Design an export\n\nWrite this up as a draft beside us.",
+                from: Address::NewChat { draft: true },
+            },
+        ),
+        (
             b"/change Add a CSV export".as_slice(),
             LaunchAt::Home,
             LaunchWant::Started { label: 8, words: b"Add a CSV export", from: Address::NewChat { draft: false } },
         ),
+        (b"/draft", LaunchAt::Home, LaunchWant::Words(b"/draft ")),
+        (b"/d", LaunchAt::Home, LaunchWant::Words(b"/draft ")),
         (b"/change", LaunchAt::Home, LaunchWant::Words(b"/change ")),
         (b"/c", LaunchAt::Home, LaunchWant::Words(b"/change ")),
-        (b"/", LaunchAt::Home, LaunchWant::Words(b"/change ")),
+        (b"/", LaunchAt::Home, LaunchWant::Words(b"/draft ")),
         (b"/ask", LaunchAt::Home, LaunchWant::Words(b"/ask ")),
         (b"/a", LaunchAt::Home, LaunchWant::Words(b"/ask ")),
         (b"/n", LaunchAt::Need, LaunchWant::New),
@@ -2305,6 +2406,7 @@ fn the_launchpad_takes_its_own_words() {
 fn each_event_becomes_its_acts() {
     let page = b"http://127.0.0.1:8367/projects/3".as_slice();
     for (event, words, brief, walking, open) in [
+        (Event::Own { command: Own::Draft }, b"/draft ".as_slice(), false, false, None),
         (Event::Own { command: Own::Change }, b"/change ".as_slice(), false, false, None),
         (Event::Own { command: Own::Ask }, b"/ask ".as_slice(), false, false, None),
         (Event::Own { command: Own::Brief }, b"".as_slice(), true, false, None),
@@ -2405,6 +2507,7 @@ fn each_event_becomes_its_acts() {
         assert_eq!(host.state().brief_shown(), brief, "{own:?}");
         assert_eq!(host.state().walk().is_some_and(|walk| !walk.by_key()), walk, "{own:?}");
     }
+    reply_events();
     let mut failures = Vec::new();
     for row in [
         "stop",
@@ -2486,7 +2589,7 @@ fn each_event_becomes_its_acts() {
                     host.report(Report::Key(Key::Down));
                     host.state().left_off() == Some(NEWEST)
                         && event.is_none()
-                        && text(&mut host).lines().any(|line| line.starts_with("❯ /ask"))
+                        && text(&mut host).lines().any(|line| line.starts_with("❯ /change"))
                 }
             }
             "stop" => give(&mut host, Event::Stop).close,
@@ -2711,6 +2814,58 @@ fn read_reply(host: &mut Host, exchange: skein_lib::Token, value: &w::ReadValue)
     reply(host, exchange, writer.finish())
 }
 
+fn reply_events() {
+    for (case, typed_words, keys, message, typed_aside, aside, kept) in [
+        ("menu", b"".as_slice(), &[Key::Enter][..], Some(b"Move it at once".as_slice()), false, false, b"".as_slice()),
+        ("menu two", b"", &[Key::Down, Key::Enter][..], Some(b"Side by side"), false, false, b""),
+        ("menu else", b"", &[Key::Down, Key::Down, Key::Enter][..], None, false, true, b""),
+        ("number one", b"1", &[Key::Enter][..], Some(b"Move it at once"), false, false, b""),
+        ("number two", b"2", &[Key::Enter][..], Some(b"Side by side"), false, false, b""),
+        ("number else", b"3", &[Key::Enter][..], None, false, true, b""),
+        ("words", b"my own words", &[Key::Enter][..], Some(b"my own words"), true, true, b""),
+        ("not a number", b"1 ", &[Key::Enter][..], Some(b"1 "), true, true, b""),
+        ("out of range", b"4", &[Key::Enter][..], Some(b"4"), true, true, b""),
+        ("leading zero", b"01", &[Key::Enter][..], Some(b"01"), true, true, b""),
+        ("escape", b"", &[Key::Escape][..], None, false, true, b""),
+        ("escape number", b"2", &[Key::Escape][..], None, false, true, b"2"),
+        ("escaped number sent", b"2", &[Key::Escape, Key::Enter][..], Some(b"2"), false, true, b""),
+        ("erased words", b"x", &[Key::Backspace][..], None, true, true, b""),
+        ("erased number", b"2", &[Key::Backspace, Key::Enter][..], Some(b"Move it at once"), false, false, b""),
+        ("edited number", b"2x", &[Key::Backspace, Key::Enter][..], Some(b"2"), true, true, b""),
+    ] {
+        let mut host = reply_host();
+        host.report(Report::Key(Key::Paste(typed_words.into())));
+        host.frame();
+        assert_eq!(host.words(), typed_words, "{case}: typed words before Enter");
+        let key_event = host.event_of(&Key::Enter);
+        let number_event = temper_client_tui::reply_number(&host.view, typed_words);
+        let before = host.state().box_written();
+        assert_eq!(host.state().reply_aside(), typed_aside.then_some(REPLY_TURN), "{case}: aside on typing");
+        let mut duties = Duties::default();
+        for key in keys {
+            duties = host.report(Report::Key(key.clone()));
+            host.frame();
+        }
+        let duties = stored(&mut host, duties);
+        let asks = sent_ask(&duties);
+        if let Some(words) = message {
+            let [(_, w::Ask::Message(sent))] = asks.as_slice() else {
+                panic!("{case}: {asks:?}; key={key_event:?}; number={number_event:?}; words={:?}", host.words())
+            };
+            assert_eq!((sent.task(), sent.words()), (7, words), "{case}: choice words, not the number");
+            assert!(host.state().box_written() > before, "{case}: box write advances");
+        } else {
+            assert!(asks.is_empty(), "{case}: no send");
+        }
+        assert_eq!(host.state().reply_aside(), aside.then_some(REPLY_TURN), "{case}");
+        assert_eq!(host.words(), kept, "{case}: composer");
+        if aside {
+            host.frame();
+            assert_eq!(temper_client_tui::reply_number(&host.view, b"1"), None, "{case}: set aside");
+        }
+    }
+}
+
 fn waiting_host() -> Host {
     waiting_at(true)
 }
@@ -2881,10 +3036,29 @@ pub(crate) fn background_reply(request: &Request) -> Option<Report> {
         return matches!(request, Request::Save { .. } | Request::Erase { .. })
             .then_some(Report::Heard(jig_client::Event::Stored));
     };
-    let read = w::ReadAnswer::None(
-        w::ReadAnswerNone::new(&w::CEILINGS, w::ReadAnswerNoneParts { value: w::ReadNone::Unknown })
-            .expect("background read"),
-    );
+    let read = if let Message::Read(bytes) = message
+        && let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("read envelope")
+        && owned.owner() != &w::Owner::Jig
+        && let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("family read")
+        && matches!(temper_client_protocol_wire::decode_reading(envelope.record(), &temper_client_protocol_wire::v1::CEILINGS).as_ref().map(temper_client_protocol_wire::v1::Reading::read), Some(temper_client_protocol_wire::v1::Read::Setting(setting)) if setting.kind() == 7)
+    {
+        use temper_client_protocol_wire::{self as wire, v1 as f};
+        let record = wire::setting_answer(
+            &f::SettingAnswer::new(&f::CEILINGS, f::SettingAnswerParts { value: None }).expect("stock ways"),
+        );
+        w::ReadAnswer::Value(
+            w::Owned::new(
+                &w::CEILINGS,
+                w::OwnedParts { owner: owned.owner().clone(), version: wire::CLIENT_VERSION, record },
+            )
+            .expect("ways answer"),
+        )
+    } else {
+        w::ReadAnswer::None(
+            w::ReadAnswerNone::new(&w::CEILINGS, w::ReadAnswerNoneParts { value: w::ReadNone::Unknown })
+                .expect("background read"),
+        )
+    };
     let size = match message {
         Message::Watch(_) => w::OpenAnswer::Admitted.measure(),
         Message::Unwatch(_) => w::CloseAnswer::Closed.measure(),

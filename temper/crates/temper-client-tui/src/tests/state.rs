@@ -93,6 +93,21 @@ fn the_states_steps_are_its_table() {
         );
         assert_eq!(tui.address(), f::ADDRESS);
     }
+    let turn = jig_client::contract::TurnName { attempt: 44, number: 1 };
+    let newer = jig_client::contract::TurnName { attempt: 44, number: 2 };
+    for (start, told, expected, revision) in [
+        (&[][..], Told::ReplyAside { turn }, Some(turn), 1),
+        (&[Told::ReplyAside { turn }][..], Told::ReplyAside { turn }, Some(turn), 1),
+        (&[Told::ReplyAside { turn }][..], Told::ReplyAside { turn: newer }, Some(newer), 2),
+    ] {
+        let mut tui = Tui::new(f::ADDRESS);
+        assert_eq!(tui.reply_aside(), None);
+        for step in start {
+            tui.step(step.clone());
+        }
+        tui.step(told);
+        assert_eq!((tui.reply_aside(), tui.revision()), (expected, revision));
+    }
     let rows: &[ApprovalRow<'_>] = &[
         (&[], Told::Browse, Some(Browser::Opening), false, 1),
         (&[Told::Browse], Told::Browse, Some(Browser::Opening), false, 1),

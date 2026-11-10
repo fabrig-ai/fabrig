@@ -131,8 +131,23 @@ base passes them by the gate.
   <base>` then `git clean -ffdxq`. Its builds use the head's target
   directory (`cargo metadata`'s `target_directory`, through
   `CARGO_TARGET_DIR`): what both sides depend on is built once, and cargo
-  keys a path package by its directory, so neither side's workspace
-  crates displace the other's.
+  can reuse the dependencies. Workspace members have artifact keys
+  relative to their workspace root, so the base can overwrite the head's
+  artifacts, and the base can likewise reuse the head's artifacts.
+  After the base's checkout and clean, before any base build, refresh its
+  surviving changed files within that checkout to a timestamp taken
+  after the head build. After every base judgment, including a failed
+  judgment, a `finally` block refreshes the head's copies to a timestamp
+  taken after the base build. The paths are the NUL-delimited diff from
+  the base to section 3's private snapshot, so committed, staged,
+  unstaged and new files are covered. Deleted files stay absent on each
+  side; cargo sees missing inputs as stale. Build
+  scripts see refreshed tracked inputs and regenerate their outputs.
+  The caller's index and file contents stay as they are. The next head
+  build must rebuild each package whose sources differ; the base judge
+  must likewise build the base's code. Cargo rebuilds their consumers,
+  while unchanged
+  dependencies stay warm. No target scan or clean is needed.
 - **A lint error** is keyed by its package's name, its lint code (empty
   for a compiler error without one), its primary span's file, relative to
   its worktree's root, and its message; never by line or column. The base
@@ -211,6 +226,16 @@ real build. Its tables: the base (no pin, a pin, a merge in progress, no
 merge base); the selection (a package, its dependents, a path reader, a
 path in no package, a deletion); inherited and new failures of each kind;
 the cache by tree and base; the summary's bound.
+
+`tools/pre-pr/test_pre_pr.py` builds a dependency and its consumer with
+real offline cargo in a scratch workspace. A kept base checkout predates
+the head's shared artifacts: the base judge must execute the base's code,
+then the next head build must execute the head's code. This holds for
+source changes and build-script inputs generating Rust in `OUT_DIR`,
+including an input deleted at head. The boundary world also models the
+shared artifact's mtime in both directions for lint, test and build
+judgments and a base tool error, with new paths containing
+whitespace and a deleted source.
 
 ## 10. Later
 

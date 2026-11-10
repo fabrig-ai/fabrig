@@ -8,7 +8,8 @@ shell's renderer, keys, drawing and simulated terminal are built, with
 panic restoration and simulated resizes. Rules, border-end titles, bands,
 options menus, marks, unlabelled fields, a token's focused value's
 paint and paging by the visible body are present, with end following and Escape released after the background
-wait. Log-edge reporting and the other rendering and input extensions
+wait. A side region beside the body is built
+(`ui-screen.md`, 5.2). Log-edge reporting and the other rendering and input extensions
 remain deferred (`ui-screen.md`, section 10; `ui-screen.status.md`). The kernel's records of a tree's metadata,
 the filesystem's status and btrfs's
 subvolumes, and cgroups with contained spawn, are not built, nor their
