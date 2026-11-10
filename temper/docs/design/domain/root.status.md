@@ -1,6 +1,6 @@
 # root: status
 
-2026-11-09. Where temper's code lags or departs from [root.md](root.md).
+2026-11-10. Where temper's code lags or departs from [root.md](root.md).
 
 Section 4's journal stops carry their reason through the service to an
 exit and a log line, including a refused store answer, a decision past
@@ -144,3 +144,11 @@ LINKED`, as for every link jig's start cannot make
   `decision.rs`, `host_within`, relies on that bound for settings output
   held before its commit. The application settings' contribution is omitted;
   no reason is recorded.
+
+- **Not yet:**
+  - 9.3: an engine restarted alone, as `worker.md`'s status for section 2
+    says. [in flight: change 69]
+  - 9.3: a forge away, as `forge.md`'s status for 5.11 says.
+    [in flight: change 70]
+  - 9.3: an owned Forgejo's sign-in, as `../protocol/setup.md`'s status for
+    7.2 says. [in flight: change 71]

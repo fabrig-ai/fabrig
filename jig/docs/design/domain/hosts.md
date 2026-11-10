@@ -530,7 +530,9 @@ Typed, so the engine can act on them without reading prose:
 - **the agent failed:** it could not be started, it exited or was dropped
   without answering, it broke the channel's rules, or the watchdog or its
   bound on wall time stopped it;
-- **cancelled:** by the engine, for lost contact, or for shutdown.
+- **cancelled:** by the engine, for lost contact, or for shutdown; for
+  lost contact or shutdown, an interruption, never a fault of the run's
+  (6.6).
 
 Each carries bounded detail for operators; none of it is shown to an LLM.
 
@@ -550,6 +552,8 @@ The fleet closes these as any refused start (6.2; `engine.md`, section 8),
 never acknowledging them; the task's terminal is the transient failure.
 The next preparation starts fresh with the transcript tail when
 readable and keeps unread inbox messages (`engine.md`, 7.2 and 9);
+only such history closes the window, and every other failure leaves
+the next attempt to resume it;
 an unread tail does not spend another transient try. It does not retry the same
 history as an invalid start or a model failure.
 
@@ -708,6 +712,13 @@ happens.
   waits, never dropped: turns, with the refusals they carry, and relays,
   unless their call has closed meanwhile. On reconnecting, the worker
   says what it hosts and the engine keeps or cancels each run.
+- **The grace is the engine-away bound.** It is the application's to
+  size so that it outlasts an engine's restart: the restarted engine
+  adopts each attempt its store holds as claimed and the worker lists
+  (engine.md, section 6, step 3), sends again what it had not
+  acknowledged, and the run goes on with no new attempt. The clock
+  stops only once the engine admits a hello, and the worker redials
+  within it (`../protocol/channel.md`, 10.1).
 - **A loss is told, with why,** on each side, once, in its log: silence,
   stall, the stream, a refusal and its reason (`../protocol/channel.md`,
   section 9). A healthy link is never lost for its load: each side reads
@@ -718,7 +729,11 @@ happens.
   worker's position as it hears the loss (engine.md, section 8), and each
   hello is taken as the first was.
 - **Past the grace,** the hub cancels them itself, saving their work
-  first, and keeps their turns and answers for the next channel.
+  first, and keeps their turns and answers for the next channel. The
+  answer, `Cancelled(Contact)`, is no fault of the run's, and neither is
+  `Cancelled(Shutdown)` (6.7): the core ends the attempt interrupted,
+  with no try spent and no backoff (tasks.md, 5.2), and the next attempt
+  resumes from its transcript and its saved work (engine.md, 7.2).
 - **The stop bound** the worker says at its hello is the longest it may
   take to stop a run it lost contact for, counted from the last moment
   the engine may have heard from it: the time its link takes to notice
