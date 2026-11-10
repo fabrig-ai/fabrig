@@ -328,7 +328,7 @@ A read.
 
 ## read_branches
 
-List the branches whose names start with a prefix.
+List the branches whose names start with a prefix. The names fit forge.client.answer_bytes; a longer prefix reads fewer.
 
 A read.
 

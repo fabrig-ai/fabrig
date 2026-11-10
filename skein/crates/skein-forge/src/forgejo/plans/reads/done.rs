@@ -100,6 +100,8 @@ impl Plan {
                 }
                 let step = self.send(Request::Pulls {
                     at: row.at(),
+                    head: Some(head.clone()),
+                    base: Some(base.clone()),
                     page: super::r::Page { page: Some(1), limit: Some(bounds.page_size) },
                 });
                 return Ok((State::Pulls { row, head, base, pull: Box::new(pull), found: false, page: 1 }, Some(step)));
@@ -110,6 +112,8 @@ impl Plan {
                     let page = page.checked_add(1).ok_or(api::Error::TooLarge)?;
                     let step = self.send(Request::Pulls {
                         at: row.at(),
+                        head: Some(head.clone()),
+                        base: Some(base.clone()),
                         page: super::r::Page { page: Some(page), limit: Some(bounds.page_size) },
                     });
                     return Ok((State::Pulls { row, head, base, pull, found, page }, Some(step)));

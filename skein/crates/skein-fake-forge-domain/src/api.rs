@@ -172,6 +172,8 @@ pub enum Read {
     },
     /// Open pulls, oldest first, paged from one.
     OpenPulls {
+        head: Option<Box<[u8]>>,
+        base: Option<Box<[u8]>>,
         page: u32,
         limit: u32,
     },

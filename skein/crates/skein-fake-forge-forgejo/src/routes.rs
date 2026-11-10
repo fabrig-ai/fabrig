@@ -269,9 +269,9 @@ pub fn op(config: &Config, request: &Request) -> Result<Op, a::Error> {
         Request::Permission { login, .. } => {
             Read::Permission { user: uid(config, login).ok_or(a::Error::Missing(a::What::Repository))? }
         }
-        Request::Pulls { page: p, .. } => {
+        Request::Pulls { head, base, page: p, .. } => {
             let (page, limit) = page(config, *p);
-            Read::OpenPulls { page, limit }
+            Read::OpenPulls { head: head.clone(), base: base.clone(), page, limit }
         }
         Request::PullFiles { number, page: p, .. } => {
             let (page, limit) = page(config, *p);

@@ -217,7 +217,7 @@ impl Plan {
                 (
                     State::Branches {
                         prefix: prefix.clone(),
-                        rows: List::with_capacity(bounds.rows.min(room)),
+                        rows: List::with_capacity(room),
                         size: 0,
                         missing: false,
                     },
@@ -503,7 +503,9 @@ impl Plan {
                 if !branch.starts_with(prefix) {
                     return Err(api::Error::InvalidAnswer);
                 }
-                let added = row_size(crate::measure::STRING_BYTES, skein_lib::len_u64(branch.len()), bounds)?;
+                let added = skein_lib::len_u64(branch.len())
+                    .checked_add(u64::try_from(crate::measure::STRING_BYTES).expect("string width"))
+                    .ok_or(api::Error::TooLarge)?;
                 if !charge(size, added, rows.len() < rows.capacity(), bounds) {
                     return Err(api::Error::TooLarge);
                 }

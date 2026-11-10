@@ -272,7 +272,7 @@ pub(super) fn decode(value: w::Answer, bounds: &Bounds) -> Result<d::Answer, Und
         w::Answer::Pull(value) => d::Answer::Pull(decode_pull(value)),
         w::Answer::Commit(value) => d::Answer::Commit(value.into_parts().commit),
         w::Answer::Branches(value) => {
-            d::Answer::Branches(names::decode_contexts(&value.into_parts().branches, bounds)?)
+            d::Answer::Branches(names::decode_branches(&value.into_parts().branches, bounds)?)
         }
         w::Answer::Job(value) => {
             let w::JobAnswerParts { attempt, step, log, truncated } = value.into_parts();

@@ -100,9 +100,30 @@ pub(super) fn encode_protection(value: &d::Protection) -> w::RepositoryProtectio
     }
 }
 pub(super) fn decode_contexts(bytes: &[u8], bounds: &Bounds) -> Result<Box<[Box<[u8]>]>, Undecodable> {
+    decode_names(bytes, bounds, bounds.forge().client.rows)
+}
+// Stored names keep their encoding; Branches is byte-bounded (skein's forge.md, 3.7).
+pub(super) fn decode_branches(bytes: &[u8], bounds: &Bounds) -> Result<Box<[Box<[u8]>]>, Undecodable> {
+    let width = u32::try_from(skein_forge::measure::STRING_BYTES).expect("string width fits");
+    let capacity = bounds.forge().client.answer_bytes.checked_div(width).expect("nonzero string width");
+    let names = decode_names(bytes, bounds, capacity)?;
+    let mut measured = 0_u64;
+    for name in &names {
+        measured = measured
+            .checked_add(u64::from(width))
+            .ok_or(Undecodable)?
+            .checked_add(skein_lib::len_u64(name.len()))
+            .ok_or(Undecodable)?;
+        if measured > u64::from(bounds.forge().client.answer_bytes) {
+            return Err(Undecodable);
+        }
+    }
+    Ok(names)
+}
+fn decode_names(bytes: &[u8], bounds: &Bounds, capacity: u32) -> Result<Box<[Box<[u8]>]>, Undecodable> {
     let mut reader = Reader::new(bytes);
-    let mut contexts = List::with_capacity(bounds.forge().client.rows);
-    for _ in 0..=bounds.forge().client.rows {
+    let mut contexts = List::with_capacity(capacity);
+    for _ in 0..=capacity {
         let item = skein_codec::piece::split(&mut reader).or(Err(Undecodable))?;
         let Some(item) = item else {
             return Ok(contexts.into_boxed());

@@ -253,6 +253,8 @@ pub enum Request {
     },
     Pulls {
         at: Repo,
+        head: Option<Box<[u8]>>,
+        base: Option<Box<[u8]>>,
         page: Page,
     },
     PullFiles {
