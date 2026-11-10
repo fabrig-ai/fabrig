@@ -1,4 +1,4 @@
-//! Width alone chooses the path's layout (temper/docs/design/client/README.md, 5.16).
+//! Width alone chooses the path's layout (temper/docs/design/client/pages/chat/conversation.md, 3).
 
 use super::{Decoded, KIND, Mark, decode};
 use crate::look::{WAYS_AUTH, WAYS_CARET};

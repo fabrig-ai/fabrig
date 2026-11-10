@@ -126,7 +126,7 @@ fn assert_csv_landing(world: &World, requester: &engine::Assignment, change: u64
 fn a_landed_change_carries_its_producers_report() {
     const REPORT: &[u8] = b"Done: edited README.\n## Left\n- none";
     // The three landing rows measured 156 ms CPU together, including durable restart checks.
-    const STOCK_RESULT: u32 = 10_660; // temper/docs/design/protocol/configuration.md, 13.4.
+    const STOCK_RESULT: u32 = 10_660; // temper/docs/design/protocol/configuration/stock.md.
     for (report_bytes, result_bytes, cut) in
         [(REPORT.len(), 512, false), (3_585, STOCK_RESULT, false), (10_660, STOCK_RESULT, true)]
     {

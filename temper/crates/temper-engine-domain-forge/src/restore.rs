@@ -1,4 +1,4 @@
-//! Configured restoration fit before linking (temper/docs/design/domain/forge.md, 16).
+//! Configured restoration fit before linking (temper/docs/design/domain/forge/README.md, 9).
 use super::Domain;
 use crate::{CallPayload, Limits, RecordKind, Stored, What};
 use alloc::boxed::Box;

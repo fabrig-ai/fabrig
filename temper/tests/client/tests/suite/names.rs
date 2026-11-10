@@ -13,12 +13,12 @@ fn client_crates_carry_the_client_prefix() {
             "temper",
             // Both binaries share their start helpers (temper/docs/design/client/README.md, 2).
             "temper-shell",
-            // The engine's host composes the service and bundle (temper/docs/design/protocol/README.md, 5).
+            // The engine's host composes the service and bundle (temper/docs/design/protocol/components.md).
             "temper-engine-shell",
-            // The setup host is shared by the engine's commands (temper/docs/design/protocol/setup.md, 11).
+            // The setup host is shared by the engine's commands (temper/docs/design/protocol/setup/README.md, 7).
             "temper-forge-setup-shell",
             // The engine world and shared fixtures keep their test-kit names
-            // (temper/docs/design/domain/testing.md, 7).
+            // (temper/docs/design/testing/README.md, 5).
             "temper-engine-domain-world",
             "temper-fixtures",
             "temper-one-process-world",

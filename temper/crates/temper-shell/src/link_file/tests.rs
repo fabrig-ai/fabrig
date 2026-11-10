@@ -1,4 +1,4 @@
-//! The shared engine/TUI path and private link (client/README.md, 6.12).
+//! The shared engine/TUI path and private link (client/tui/README.md, 2).
 use crate::link_file::{self, MOST};
 use std::{
     fs,

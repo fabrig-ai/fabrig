@@ -1,4 +1,4 @@
-//! The welcome’s command Copy (temper/docs/design/client/README.md, 3.5).
+//! The welcome’s command Copy (temper/docs/design/client/pages/README.md).
 use super::{fixtures as f, welcome};
 use crate::look;
 use skein_ui::{Act, Role};

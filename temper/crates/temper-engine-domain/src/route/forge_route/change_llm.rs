@@ -1,5 +1,5 @@
 //! A change's producer and role choices in parameter 11
-//! (`temper/docs/design/domain/forge.md`, 8.1).
+//! (`temper/docs/design/domain/forge/change/README.md`, 1).
 
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;

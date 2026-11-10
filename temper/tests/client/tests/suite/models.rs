@@ -1,4 +1,4 @@
-//! Catalogue switches through both roots (temper/docs/design/client/README.md, 3.5).
+//! Catalogue switches through both roots (temper/docs/design/client/pages/README.md).
 use jig_client_kit::harness::{Settings, World};
 use jig_domain_core::settings::{CatalogueModel, ModelSource};
 use jig_domain_people::InitialOwner;
@@ -119,7 +119,7 @@ fn a_switch_turned_off_and_back_holds_across_a_reload() {
         owner,
         vec![super::model::press(Role::Check, b"Sonnet 5.5 in the picker"), super::model::see(Role::Text, b"Off")],
     );
-    // This world's restart drops the address; restore the browser's saved page (client/README.md, 6.10).
+    // This world's restart drops the address; restore the browser's saved page (client/line.md, 10).
     world.reload(owner);
     super::model::follow(
         &mut world,

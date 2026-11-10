@@ -1,4 +1,4 @@
-//! The person's terminal client in the loop, and the typist at it (domain/testing.md, 2.4).
+//! The person's terminal client in the loop, and the typist at it (testing/real-loop.md).
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, Pipe, Spawn, Submit, Way};
 use skein_lib::{Duration, Queue, Token};
 use skein_shell::Host;

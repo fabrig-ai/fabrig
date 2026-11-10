@@ -1,5 +1,5 @@
 //! No core wait: the gate is open and the root ready; a two-membership client
-//! rejects the mandatory `me` after project three (temper/docs/design/client/tools.md, 12;
+//! rejects the mandatory `me` after project three (temper/docs/design/client/ctl/README.md, 9;
 //! jig/docs/design/client/domain/contract/documents.md, 1), and meets those memberships again at restart.
 fn answers(outcomes: [temper_one_process_world::fixtures::core_after_project::Outcome; 2]) {
     for outcome in outcomes {

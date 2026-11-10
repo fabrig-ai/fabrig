@@ -1,4 +1,4 @@
-//! The binary's three directories (protocol/configuration.md, 12).
+//! The binary's three directories (protocol/configuration/directories.md).
 pub use temper_engine_shell::serve::program_environment;
 pub use temper_service_shell::jig_directories;
 pub use temper_shell::directories::*;

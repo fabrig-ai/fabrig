@@ -1,4 +1,4 @@
-//! Durable setup needs and held manifest pages (protocol/forge.md, 2.6).
+//! Durable setup needs and held manifest pages (protocol/forge/engine.md, 6).
 pub(crate) mod diagnostics;
 pub(crate) mod lifecycle;
 pub(crate) mod making;
@@ -62,7 +62,7 @@ struct Page {
     bytes: Box<[u8]>,
     until: Time,
 }
-/// GitHub's setup visit for a forge busy with its one run, held until that run ends (client/forge.md, 9.1).
+/// GitHub's setup visit for a forge busy with its one run, held until that run ends (client/forge/served.md, 1).
 struct Waiting {
     forge: u16,
     call: Token,
@@ -72,7 +72,7 @@ struct Waiting {
     until: Time,
 }
 /// A person's Install that met only the engine's own run on its forge, held until that run ends
-/// (protocol/setup.md, 5.1): the forge's one person's request, so at most one per forge.
+/// (protocol/setup/reconcile.md, 1): the forge's one person's request, so at most one per forge.
 struct Held {
     run: Token,
     forge: u16,
@@ -106,13 +106,13 @@ impl Layer {
             }
         }
     }
-    /// Keep the shell-resolved endpoint before the forge joins setup (temper/docs/design/protocol/forge.md, 2.6).
+    /// Keep the shell-resolved endpoint before the forge joins setup (temper/docs/design/protocol/forge/engine.md, 6).
     pub(crate) fn resolved(&mut self, endpoint: crate::ForgeRuntime) {
         if let Some(runtime) = &mut self.runtime {
             runtime.resolved(endpoint);
         }
     }
-    /// Replace a held setup entry with the shell's resolved address (temper/docs/design/protocol/setup.md, 8.3).
+    /// Replace a held setup entry with the shell's resolved address (temper/docs/design/protocol/setup/init.md, 3).
     pub(crate) fn replace_endpoint(&mut self, forge: u16, address: core::net::SocketAddr) {
         let Some(entry) = self.served.get_mut(&forge) else { return };
         entry.address = skein_io::Addr::Ip(address);
@@ -283,7 +283,7 @@ impl Layer {
         }
         false
     }
-    /// The forge's one run: a live run of it, or its removal (protocol/setup.md, 6.5).
+    /// The forge's one run: a live run of it, or its removal (protocol/setup/owned.md, 5).
     pub(crate) fn busy(&self, forge: u16) -> bool {
         if self.lifecycle.deleting.contains_key(&forge) {
             return true;
@@ -356,7 +356,7 @@ impl Layer {
     }
 }
 /// Stop serving a removed forge, including events already queued by its host
-/// (temper/docs/design/protocol/forge.md, 2.3).
+/// (temper/docs/design/protocol/forge/engine.md, 3).
 pub(crate) fn forget(engine: &mut crate::engine::Engine, forge: u16) {
     let layer = &mut engine.setup;
     layer.served.remove(&forge);

@@ -1,4 +1,4 @@
-//! Composer picker states (client/browser.md, 7; client/README.md, 3.5).
+//! Composer picker states (client/web/gallery.md; client/pages/README.md).
 use super::{
     Address, CHAT_FLAGS, CHAT_LABEL, Domain, Event, List, PROJECT, Queue, Request, Then, World, c, chat_work,
     providers, step, text, world_in_layout,

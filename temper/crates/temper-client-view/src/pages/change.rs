@@ -1,4 +1,4 @@
-//! Layout of the forge's change facts (client/README.md, 5.10).
+//! Layout of the forge's change facts (client/pages/task.md, 3).
 use crate::{
     frame::Bindings,
     look,

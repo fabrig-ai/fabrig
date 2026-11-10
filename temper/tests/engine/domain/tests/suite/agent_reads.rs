@@ -1,5 +1,5 @@
 //! Run reads join the core's settings documents with the forge's values
-//! (temper/docs/design/domain/agent.md, 8.1).
+//! (temper/docs/design/domain/agent/agents.md, 1).
 use jig_domain_core as core;
 use jig_domain_people as people;
 use skein_lib::{ReplyTo, Token};

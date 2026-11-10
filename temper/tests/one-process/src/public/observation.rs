@@ -1,4 +1,4 @@
-//! A held disk completion makes concurrent admission observable (temper/docs/design/domain/testing.md, 2.5).
+//! A held disk completion makes concurrent admission observable (temper/docs/design/testing/README.md, 2.5).
 use crate::world;
 use skein_io::kernel::{Complete, Done, Fd, Op, Submit};
 use skein_lib::{Time, Wall};

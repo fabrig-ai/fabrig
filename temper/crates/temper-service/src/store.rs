@@ -10,7 +10,7 @@ use skein_lib::{Queue, Time, Token};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
 /// The wires this engine speaks to its workers (jig's protocol/store/records.md,
-/// 3; temper's protocol/README.md, 9).
+/// 3; temper's protocol/README.md, 7).
 pub const WIRES: [protocol::Wire; 4] = [
     protocol::Wire { name: "jig-channel", version: channel_version(jig_protocol_worker_wire::VERSION) },
     protocol::Wire { name: "smith-charter", version: record_version(smith_charter::Charter::FORMAT_VERSION) },
@@ -91,7 +91,7 @@ pub(crate) fn admit(
 }
 
 /// The room named by either read refusal: the drivers' encoded page or the
-/// agent's decoded turn with its read row (protocol/configuration.md, 7).
+/// agent's decoded turn with its read row (protocol/configuration/limits.md).
 /// Without agent metadata only the page requirement is known.
 pub(crate) fn read_room(limits: &protocol::Limits, turn: Option<u32>) -> Option<u64> {
     Some(u64::from(limits.store.page.bytes).max(decoded_read_room(turn)?))

@@ -1,4 +1,4 @@
-//! Decode and render memory calls (temper/docs/design/domain/agent.md, 8.4.4).
+//! Decode and render memory calls (temper/docs/design/domain/agent/ask-temper.md, 4).
 use crate::{Problem, answers::Text, json::Value};
 use temper_engine_domain::{RememberAction, RememberDid, RememberRefusal, Remembered, Tool};
 

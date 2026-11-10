@@ -1,4 +1,4 @@
-//! Record and replay the shipped host's seam (client/journeys.md, 2–4).
+//! Record and replay the shipped host's seam (client/web/journeys.md, 2–4).
 use crate::host::{self, Host};
 use skein_lib::{Time, Wall};
 use skein_ui::{Act, NodeId, Role, Tree};
@@ -27,7 +27,7 @@ pub use walk::{Step, Unwalkable, differs, still, walk};
 #[cfg(test)]
 mod tests;
 
-/// The start's facts, as the shell reads them (client/journeys.md, 3.2).
+/// The start's facts, as the shell reads them (client/web/journeys.md, 3.2).
 pub struct Facts {
     pub seed: u64,
     pub now: Time,
@@ -42,7 +42,7 @@ pub struct Facts {
     pub stored: Vec<skein_ui_web::store::Record>,
 }
 impl Facts {
-    /// Start exactly as the browser does (client/journeys.md, 4.1).
+    /// Start exactly as the browser does (client/web/journeys.md, 4.1).
     #[must_use]
     pub fn start(&self) -> (Host, Page<'static>) {
         let ways = self.ways.as_ref().map_or(temper_client_view::sign_in::Ways::NONE, |(content, origin)| {
@@ -61,7 +61,7 @@ impl Facts {
 }
 
 /// The event the view makes of `act` on `node`, as a recording keeps it: the
-/// domain `Event`'s Debug print (client/journeys.md, 3.3). None when it makes none.
+/// domain `Event`'s Debug print (client/web/journeys.md, 3.3). None when it makes none.
 #[must_use]
 pub fn event(host: &Host, node: NodeId, act: &Act) -> Option<Box<[u8]>> {
     host.event_of(node, line::clone_act(act)).map(|event| format!("{event:?}").into_bytes().into())
@@ -92,7 +92,7 @@ fn name(tree: &Tree, node: NodeId) -> Box<[u8]> {
         .collect()
 }
 
-/// How a mark's controls lead on (client/journeys.md, 5.3).
+/// How a mark's controls lead on (client/web/journeys.md, 5.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Lead {
     Press,
@@ -101,7 +101,7 @@ pub enum Lead {
 }
 
 /// A control's role, accessible name and order among exact matches, from zero
-/// (client/journeys.md, 8.1).
+/// (client/web/journeys.md, 8.1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Control {
     pub role: Role,
@@ -122,7 +122,7 @@ impl Control {
     }
 }
 /// Replay a save to its end, then find the first control giving the act's event
-/// outside a menu, which no journey opens (client/journeys.md, 8.1).
+/// outside a menu, which no journey opens (client/web/journeys.md, 8.1).
 /// # Errors
 /// Returns the save's unreadable or stale refusal.
 pub fn control(save: &[u8], act: &Act, event: &[u8]) -> Result<Option<Control>, Refusal> {

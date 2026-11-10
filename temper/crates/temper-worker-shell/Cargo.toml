@@ -1,6 +1,6 @@
 [package]
 name = "temper-worker-shell"
-description = "The worker's half of a start and program-login, for the box and temper-worker (temper/docs/design/protocol/README.md, 4.5)"
+description = "The worker's half of a start and program-login, for the box and temper-worker (temper/docs/design/protocol/binaries.md, 5)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

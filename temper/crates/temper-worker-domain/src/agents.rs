@@ -254,7 +254,7 @@ pub(crate) fn decoded(
     let event = match start {
         Ok(mut start) => {
             // Earlier answers cross the same agent channel as live replies
-            // (`domain/agent.md`, 4.3), after the protocol decodes the start.
+            // (`domain/agent/tools.md`), after the protocol decodes the start.
             for call in &mut start.answered {
                 if let smith::SavedReply::Host { body, .. } = &call.reply
                     && body.len() > skein_lib::usize_of(env.limits.reply_bytes)

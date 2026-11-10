@@ -1,4 +1,4 @@
-//! The promised names (client/browser.md, 7.2), sorted for the gallery index.
+//! The promised names (client/web/gallery.md, 2), sorted for the gallery index.
 use crate::driver::step;
 use jig_client::contract as c;
 use skein_lib::{Queue, Token};
@@ -96,7 +96,7 @@ pub struct Sample {
     pub then: Then,
 }
 impl Sample {
-    /// Opens a page-owned disclosure in the static print (client/browser.md, 7).
+    /// Opens a page-owned disclosure in the static print (client/web/gallery.md).
     #[must_use]
     pub fn open_disclosure(&self) -> Option<&[u8]> {
         match self.name {
@@ -117,7 +117,7 @@ impl Sample {
             _ => None,
         }
     }
-    /// Opens the rail menu through the page part in the static print (client/browser.md, 7).
+    /// Opens the rail menu through the page part in the static print (client/web/gallery.md).
     #[must_use]
     pub fn open_menu(&self) -> Option<&[u8]> {
         match self.name {
@@ -2542,7 +2542,7 @@ fn paste(root: &mut Domain, frame: PasteFrame, out: &mut Queue<Request>) {
 }
 
 // Hand-made Home deliveries: the first-run world has no accepted settings or
-// first chat, and keeps Ready's repository under its setup scenario (browser.md, 7.2).
+// first chat, and keeps Ready's repository under its setup scenario (client/web/gallery.md, 2).
 #[expect(
     clippy::too_many_lines,
     reason = "one hand-made Home fixture answers each open and read through the public event path"

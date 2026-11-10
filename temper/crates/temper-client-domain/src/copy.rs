@@ -1,4 +1,4 @@
-//! The command’s Copy (temper/docs/design/client/README.md, 3.5).
+//! The command’s Copy (temper/docs/design/client/pages/README.md).
 use alloc::boxed::Box;
 use skein_lib::{Duration, Queue, Time};
 

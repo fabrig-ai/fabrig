@@ -1,4 +1,4 @@
-//! The TUI's two themes (temper/docs/design/client/README.md, 6.15 and 6.17).
+//! The TUI's two themes (temper/docs/design/client/tui/theme.md and temper/docs/design/client/tui/box.md).
 use crate::look;
 use alloc::boxed::Box;
 use skein_ui_screen::{Align, Arrange, Border, Glyphs, Mark, Paint, Place, RegionLook, Rgb, StyleLook, Theme};
@@ -10,7 +10,7 @@ pub enum Scheme {
 }
 
 impl Scheme {
-    /// The terminal's background luma (temper/docs/design/client/README.md, 6.15).
+    /// The terminal's background luma (temper/docs/design/client/tui/theme.md).
     #[must_use]
     pub const fn of_background(background: Rgb) -> Self {
         let red = u32::from_be_bytes([0, 0, 0, background.red]);
@@ -25,7 +25,7 @@ impl Scheme {
     }
 }
 
-/// The theme kept in the TUI's small store (temper/docs/design/client/README.md, 6.15).
+/// The theme kept in the TUI's small store (temper/docs/design/client/tui/theme.md).
 pub const THEME_KEY: &[u8] = b"theme";
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -80,7 +80,7 @@ const fn fore(colour: Rgb) -> Paint {
 
 pub const BAND_STEP: u8 = 20;
 
-/// Move each channel toward the ink, saturating (temper/docs/design/client/README.md, 6.15).
+/// Move each channel toward the ink, saturating (temper/docs/design/client/tui/theme.md).
 #[must_use]
 pub const fn band(background: Rgb) -> Rgb {
     match Scheme::of_background(background) {

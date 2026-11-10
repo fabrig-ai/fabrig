@@ -1,4 +1,4 @@
-//! The box binary's TUI start (temper/docs/design/client/README.md, 6.11 and 6.12).
+//! The box binary's TUI start (temper/docs/design/client/tui/README.md, 1 and 2).
 use skein_shell::Clock;
 use temper_client_shell_tui::start;
 

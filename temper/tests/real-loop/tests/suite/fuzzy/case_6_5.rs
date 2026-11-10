@@ -1,4 +1,4 @@
-//! Retained first-edition story (domain/testing.md, 5.3): the person's budget answer, a raised investigation and one advisor.
+//! Retained first-edition story (testing/reference-case.md): the person's budget answer, a raised investigation and one advisor.
 use temper_real_loop_world::{
     Exit,
     case::{self, oracle::Observed},
@@ -12,7 +12,7 @@ fn a_budget_question_climbs_two_owners_to_the_persons_inbox_and_a_raised_investi
     // a task cannot ask its own person. The answer recommends no budget raise.
     // The default/owner models stand for Codex/Opus; the query carries no effort.
     // The 70 s, 60 s, findings and cause are words, checked and never judged.
-    // The durable-note holder in testing.md, 5.3, holds the standing rule.
+    // The durable-note holder in testing/reference-case.md, holds the standing rule.
     // Singleton batches keep the investigation and advisor sequential. A1's
     // amendment is held until a5 parks and its medium document is read, so
     // the high choice belongs to its next run. Input cue rules tolerate news.

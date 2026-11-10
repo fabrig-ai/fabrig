@@ -1,5 +1,5 @@
 //! A sign-in's tab: the press opens it, the answer points or closes it, never the state
-//! (temper/docs/design/client/README.md, 3.5, `ConnectModel`, The sign-in's tab).
+//! (temper/docs/design/client/pages/README.md, `ConnectModel`, The sign-in's tab).
 use crate::{Address, Domain, Request, Step, Tab};
 use jig_client::{Answered, Outcome, Told, contract as c};
 use skein_lib::Queue;

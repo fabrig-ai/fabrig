@@ -374,7 +374,7 @@ pub fn task_steps_for(root: &Path, task: Task) -> Vec<Step> {
 pub fn playground_task_steps(root: &Path) -> Vec<Step> {
     task_steps_in(root, FIRST, "playground/widget")
 }
-/// temper/docs/design/domain/testing.md, 2.6: cloned reads and a real pull, before landing.
+/// temper/docs/design/testing/process-tier.md: cloned reads and a real pull, before landing.
 #[must_use]
 pub fn playground_read_steps(root: &Path) -> Vec<Step> {
     let mut steps = task_steps_in(root, FIRST, "playground/widget");
@@ -403,7 +403,7 @@ fn task_steps_in(root: &Path, task: Task, repository: &str) -> Vec<Step> {
             "first-repository-llm",
         ])),
         Step::Run(Call::new(&["account", "list", "--until", "usable"])),
-        // forge-setup makes the repository a project of its own (tools.md 5.5).
+        // forge-setup makes the repository a project of its own (client/ctl/areas.md).
         Step::Run(Call::new(&[
             "chat",
             "start",
@@ -486,7 +486,7 @@ pub fn live(config: &Path, data: &Path, client: &Path) -> Evidence {
     live_for(config, data, client, FIRST)
 }
 
-/// temper/docs/design/domain/testing.md, 2.6: evidence owned by the playground-copy process story.
+/// temper/docs/design/testing/process-tier.md: evidence owned by the playground-copy process story.
 pub struct PlaygroundReads {
     pub address: std::net::SocketAddr,
     pub producer: String,
@@ -778,7 +778,7 @@ pub fn assert_task(run: &str, calls: &[super::Ended], stderr: &str, evidence: &E
 
 /// CI on temper's change page: passed at the landed change's head, at the
 /// landing and after a restart, which keeps it with the change's record
-/// (domain/forge.md, 8.8).
+/// (domain/forge/change/README.md, 5).
 pub fn assert_landed_ci(run: &str, page: &str) {
     assert!(page.contains("CI at its head\nPassed"), "{run}: CI at the landed change's head: {page}");
 }

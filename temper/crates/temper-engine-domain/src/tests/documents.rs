@@ -1,5 +1,5 @@
 //! Charter documents bind before gathering and retain their titles through completion
-//! (temper/docs/design/protocol/configuration.md, 13.7).
+//! (temper/docs/design/protocol/configuration/settings.md, 6).
 use super::resume_fixture;
 use crate::assemble::{DOCUMENT_KINDS, brief_outputs, finish_brief_plan};
 use crate::boundary::Work;
@@ -380,7 +380,7 @@ fn a_gathered_document_keeps_its_kind_and_frees_the_binding_at_completion() {
     assert!(domain.forge.briefs_idle());
 }
 
-// Own-scope application documents (temper/docs/design/domain/forge.md, 5.5).
+// Own-scope application documents (temper/docs/design/domain/forge/attention.md, 1).
 fn dismissal_root() -> (Domain, Env<Limits>) {
     use jig_domain_people as people;
     let mut config = resume_fixture::config_with_project_room(1, 2);

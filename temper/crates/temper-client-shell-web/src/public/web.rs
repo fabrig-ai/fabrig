@@ -1,4 +1,4 @@
-//! Public fetch, visibility and history; no small store (temper/docs/design/client/browser.md, 8.2).
+//! Public fetch, visibility and history; no small store (temper/docs/design/client/web/public.md, 2).
 use super::{PublicHost, Report};
 use jig_client_shell_web::adapter;
 use skein_ui::{Act, NodeId};

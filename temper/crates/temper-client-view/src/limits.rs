@@ -2,7 +2,7 @@
 use crate::words::Words;
 // A run's line is cut at 253 bytes and its rows at 160 (chat_line.rs).
 // Their names and displayed text fit 512 bytes per structure node, even
-// when the receiving text bound is smaller (client/README.md, 5.4 and 5.15).
+// when the receiving text bound is smaller (client/view.md, 4, and client/pages/chat/conversation.md, 2).
 const STRUCTURE_TEXT: u32 = 512;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Limits {
@@ -33,7 +33,7 @@ impl Limits {
         let text = text.max(temper_client_protocol_wire::CUE_BYTES.checked_add(24)?);
         // The sign-in return link percent-encodes a whole authorization address.
         let text = text.max(3400);
-        // Builders draws each admitted host name whole, as name and text (client/README.md, 3.5).
+        // Builders draws each admitted host name whole, as name and text (client/pages/README.md).
         let builder_name = jig_client::contract::PROGRAM_HOST_NAME.checked_mul(2)?;
         let markdown = skein_ui::markdown::max_nodes(receiving.text)?;
         let cards = card_nodes(receiving, markdown)?;
@@ -43,7 +43,7 @@ impl Limits {
         let delegated = markdown.checked_add(16)?.checked_mul(delegations)?.checked_add(1)?;
         // The window charges LINE_ROOM for each line, message, block, object
         // and part. Ten nodes per room cover block shells and per-document
-        // Markdown wrappers (client/README.md, 5.4 and 5.15).
+        // Markdown wrappers (client/view.md, 4, and client/pages/chat/conversation.md, 2).
         let bytes = u32::try_from(receiving.document_bytes).ok()?;
         let lines = bytes.checked_div(jig_client::contract::LINE_ROOM)?;
         let window_structure = lines.checked_mul(10)?;
@@ -121,13 +121,13 @@ impl Limits {
             .checked_add(jig_client::contract::AUTHORITY_MODELS.checked_mul(2)?)?;
         // Each plan row adds a spend paragraph, dependency list and cut item
         // with a paragraph: six nodes including their text children. Each
-        // dependency adds an item, link, status and added mark (client/README.md,
-        // 5.8) with text: seven nodes, bounded by jig's receiving rows count per row.
+        // dependency adds an item, link, status and added mark (client/pages/goal.md,
+        // 2) with text: seven nodes, bounded by jig's receiving rows count per row.
         let dependencies = receiving.rows.checked_mul(7)?.checked_add(6)?.checked_mul(receiving.rows)?;
         // An agent's lineage, taskbar, brief and run: 32 fixed nodes including
         // text leaves, plus the spec's markdown and a dependency list. Jig's
         // task translation bounds dependencies by the receiving rows count:
-        // one item, link, status and added mark (client/README.md, 5.8),
+        // one item, link, status and added mark (client/pages/goal.md, 2),
         // seven nodes with text per dependency.
         let agent = markdown.checked_add(33)?.checked_add(receiving.rows.checked_mul(7)?)?;
         // A full document's Markdown, two slots per heading (at most one
@@ -218,7 +218,7 @@ impl Limits {
             ),
             // Whole builder names are held once per document row.
             text_bytes: text_bytes.checked_add(receiving.rows.checked_mul(builder_name)?)?,
-            // Room for a flow and a 32-stop path (client/README.md, 5.16).
+            // Room for a flow and a 32-stop path (client/pages/chat/conversation.md, 3).
             drawing_bytes: 2048_u32.max(crate::paths::DATA),
             scene_marks: skein_ui::flow::marks(24)?.max(crate::paths::MARKS),
             scene_bytes: skein_ui::flow::scene_bytes(24, 2048)?.max(crate::paths::SCENE_BYTES),

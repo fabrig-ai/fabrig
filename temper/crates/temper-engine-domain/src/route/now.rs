@@ -262,7 +262,7 @@ fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, co
         Some(workspace) => match forge_route::claim_names(domain, &env.limits, task, &workspace.names) {
             Some(claim_names) => {
                 // Each repository's git identity is an application credential
-                // the run is granted (domain/root.md, 7.1; jig's domain/engine/README.md, 6.1).
+                // the run is granted (domain/root.md, 6.1; jig's domain/engine/README.md, 6.1).
                 for repository in &workspace.workspace.repositories {
                     if !credentials.as_slice().contains(&repository.identity) {
                         credentials.push(repository.identity).expect("one identity per repository");

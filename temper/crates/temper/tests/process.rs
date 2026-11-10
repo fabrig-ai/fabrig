@@ -408,7 +408,7 @@ fn boxed_example(scratch: &support::Scratch) -> support::owned::Owned {
     support::owned::lay(scratch.path(), &owned);
     std::fs::write(scratch.path().join("temper.json"), support::owned::example_document(scratch.path(), &owned))
         .expect("box example");
-    // A retained group starts only with its started record (temper/docs/design/protocol/setup.md, 7.1).
+    // A retained group starts only with its started record (temper/docs/design/protocol/setup/box.md, 1).
     for directory in ["box/groups", "box/started"] {
         std::fs::create_dir_all(scratch.path().join(directory)).expect("box group directory");
     }
@@ -521,7 +521,7 @@ fn a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_la
         let began = clock.now().now;
         steps.push(Step::Mark("first repository ready"));
         if run == "first" {
-            // protocol/setup.md, 13.4: main's push run is taken before the owner's
+            // protocol/setup/testing.md, 4: main's push run is taken before the owner's
             // first task; no pull exists yet to have caused this runner line.
             steps.push(Step::Stderr(b" repo is work/hello "));
             steps.extend(support::first_repository::short_waiting_steps(&client_root));
@@ -722,7 +722,7 @@ fn a_persons_plan_change_lands_on_the_owned_forge_and_is_found_after_a_restart()
     scratch.remove();
 }
 
-// protocol/README.md, 15.6: the description's first process stories.
+// protocol/cluster.md, 6: the description's first process stories.
 struct ClusterJudge {
     members: support::cluster::Members,
     deadline: skein_lib::Time,
@@ -1059,7 +1059,7 @@ fn a_task_runs_on_each_worker() {
     cluster_chats("cluster_each_worker", ClusterStory::Each);
 }
 
-/// A task on each worker, on the deployment's binaries (protocol/README.md, 15.6).
+/// A task on each worker, on the deployment's binaries (protocol/cluster.md, 6).
 #[test]
 fn a_task_runs_on_each_worker_of_the_deployments_binaries() {
     cluster_chats_with(
@@ -1079,7 +1079,7 @@ fn a_worker_killed_mid_run_is_lost_and_its_run_answered_once_on_another() {
     cluster_chats("cluster_killed", ClusterStory::Kill);
 }
 
-// protocol/README.md, 15.6: heal within fleet grace, then fence a surviving run.
+// protocol/cluster.md, 6: heal within fleet grace, then fence a surviving run.
 // Continue follows the connected:false read immediately. CLOCK_MONOTONIC keeps
 // advancing during STOP (skein-shell clock.rs:17), but w1 arms its contact
 // grace only on detecting its own loss after CONT (jig-protocol-worker-link
@@ -1453,7 +1453,7 @@ impl ClusterChatJudge {
             support::write_private(&path, &serde_json::to_vec(&evidence).expect("chat evidence"));
             eprintln!("cluster close evidence: {}", path.display());
         }
-        // The chat is ended by its requester (domain/agent.md, 4.6): its person's Close
+        // The chat is ended by its requester (domain/agent/charter.md, 5): its person's Close
         // asks its Open run to wind down; the final text parks with no task result.
         let cancelled = &read.owner()["details"]["ending"]["cancelled"];
         assert_eq!(cancelled["by"]["person"], 1, "chat closed by its person: {}", read.task);
@@ -2044,40 +2044,40 @@ exec "$@"
     assert_eq!(ended.left, Some(Vec::new()), "no process outlived the box: {diagnostic}");
 }
 
-// domain/testing.md, 2.6: the person's App, one push and both services restarted.
+// testing/process-tier.md: the person's App, one push and both services restarted.
 
 // Shows the opener and timer cancellation on three processes. Leaves out pools,
-// lending, host moves and the other omissions in domain/testing.md, 5.3's 4.1/4.3 rows;
+// lending, host moves and the other omissions in testing/reference-case.md's 4.1/4.3 rows;
 // A and the reviewer leave no placement evidence in an ended document or workspace.
 
 // Leaves out the director as asker, plan pacing, B's model, repeated questions,
-// and amending only A's model (domain/testing.md, 5.3's 4.4 row).
+// and amending only A's model (testing/reference-case.md's 4.4 row).
 // On ws alone, no s2: a worker's own sources and sign-in are undesigned.
 // Past 6.1's 2 s guide, as its real-loop twin is, by its seven activations.
 
 // Leaves out s2's sign-in, credentials never copied between machines, B's work,
-// five hours and a session that never ends (domain/testing.md, 5.3's 4.5 row).
+// five hours and a session that never ends (testing/reference-case.md's 4.5 row).
 // On ws alone, no s2: a worker's own sources and sign-in are undesigned.
 
 // Leaves out s2's sign-in, credentials never copied between machines, B's work,
-// five hours and a session that never ends (domain/testing.md, 5.3's 4.5 row).
+// five hours and a session that never ends (testing/reference-case.md's 4.5 row).
 // On ws alone, no s2: a worker's own sources and sign-in are undesigned.
 // Past 6.1's 2 s guide, as its real-loop twin is, by its reset: one second,
 // the shortest a provider's wire carries.
 
 // Shows the retained question and one answer across ws's two lives. Leaves out
-// the hang past grace, three questions and the other limits of testing.md, 5.3's 4.6 row.
+// the hang past grace, three questions and the other limits of testing/reference-case.md's 4.6 row.
 // The retry runs on s1 or s2 by that row's act order: ws stays ended and unlinked
 // until after the ended chat's watch joins; the oracle checks both attempts.
 
-// domain/testing.md, 2.6: the chat's connected GitHub change survives both services restarting.
+// testing/process-tier.md: the chat's connected GitHub change survives both services restarting.
 
 // Shows the retained question and one answer across ws's two lives. Leaves out
-// the hang past grace, three questions and the other limits of testing.md, 5.3's 4.6 row.
+// the hang past grace, three questions and the other limits of testing/reference-case.md's 4.6 row.
 // The retry runs on s1 or s2 by that row's act order: ws stays ended and unlinked
 // until after the ended chat's watch joins; the oracle checks both attempts.
 #[test]
-#[ignore = "4.6 process fixture expects engine.llm.models in startup configuration after models moved to settings (temper/docs/design/domain/testing.md, 5.3; temper/docs/design/protocol/configuration.md, section 2 and 13.4)"]
+#[ignore = "4.6 process fixture expects engine.llm.models in startup configuration after models moved to settings (temper/docs/design/testing/reference-case.md; temper/docs/design/protocol/configuration/README.md, section 2 and temper/docs/design/protocol/configuration/stock.md)"]
 fn a_restarted_workstation_keeps_the_directors_question_and_answers_it_once_as_processes_without_a_hang_past_the_grace()
 {
     use temper_real_loop_world::case::{self, acts, oracle};
@@ -2298,7 +2298,7 @@ fn a_restart_over_an_imported_then_exported_account_answers_ctl() {
     account_transfer_restart("restart-imported-exported-account");
 }
 
-/// temper/docs/design/domain/testing.md, 2.7: the landing story's panic between its sittings.
+/// temper/docs/design/testing/live-tier.md: the landing story's panic between its sittings.
 #[test]
 fn a_story_panicking_after_its_box_stopped_leaves_the_held_record_at_its_path() {
     use std::os::unix::fs::PermissionsExt;

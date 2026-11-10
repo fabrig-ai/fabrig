@@ -1,4 +1,4 @@
-//! Sitting-only policy and redaction (domain/testing.md, 2.7; protocol/setup.md, 17.2).
+//! Sitting-only policy and redaction (testing/live-tier.md; protocol/setup/github.md, 2).
 use super::relay::{
     Guard,
     managed_transport::{Answer, Request, Transport},
@@ -77,7 +77,7 @@ struct Shared {
     transport: Transport,
     guard: Guard,
     /// The login that makes the App: Connect makes it under the person's own account
-    /// (protocol/setup.md, 17.2), so a conversion's owner is a User, never the guard's owner.
+    /// (protocol/setup/github.md, 2), so a conversion's owner is a User, never the guard's owner.
     person: String,
     state: Mutex<State>,
     journal: Mutex<File>,

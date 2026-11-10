@@ -1,4 +1,4 @@
-//! Browser approval across the client roots and engine (temper/docs/design/domain/testing.md, 6.3).
+//! Browser approval across the client roots and engine (temper/docs/design/testing/checks.md, 3).
 use jig_client_kit::harness::{App, ClientId, Duty, Front};
 use skein_lib::{Duration, Env, Queue, Time, Wall};
 use temper_client_domain::{self as client, Action, Place, approve};

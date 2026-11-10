@@ -1,4 +1,4 @@
-//! Static browser pages from real client states (client/browser.md, 7).
+//! Static browser pages from real client states (client/web/gallery.md).
 use skein_lib::Queue;
 use skein_ui::{DrawingKind, Role, scene::Scene};
 use skein_ui_web::{Look, mapping::Primary, page::Page};
@@ -15,7 +15,7 @@ mod tests;
 mod worlds;
 pub use samples::Sample;
 
-// The box at 420 pixels, with a phone's 16 pixels each side (client/README.md, 3.5).
+// The box at 420 pixels, with a phone's 16 pixels each side (client/pages/README.md).
 const NARROW: u16 = 388;
 
 pub const STYLESHEETS: [&str; 2] = [
@@ -28,7 +28,7 @@ pub enum Refusal {
     Bundle(skein_ui_bundle::Refusal),
     Io { path: PathBuf },
 }
-/// Prints every state's page, the bundle and the index into out (client/browser.md, 7.1).
+/// Prints every state's page, the bundle and the index into out (client/web/gallery.md, 1).
 /// # Errors
 /// Refuses an existing directory without index.html, or a bundle or filesystem failure.
 pub fn print(out: &Path) -> Result<(), Refusal> {
@@ -65,7 +65,7 @@ pub fn print(out: &Path) -> Result<(), Refusal> {
     }
     write(&out.join("index.html"), &index(&samples))
 }
-// Replace only an owned print, whole (client/browser.md, 7.1).
+// Replace only an owned print, whole (client/web/gallery.md, 1).
 fn replace_gallery(out: &Path) -> Result<(), Refusal> {
     if out.exists() {
         if !out.join("index.html").is_file() {
@@ -96,7 +96,7 @@ pub fn view(sample: &Sample) -> temper_client_view::View {
     let (view, _, _) = built(sample);
     view
 }
-// Every state uses the same shipped words and bounds (client/browser.md, 7.2).
+// Every state uses the same shipped words and bounds (client/web/gallery.md, 2).
 #[derive(Clone)]
 struct ViewInputs {
     limits: temper_client_domain::Limits,

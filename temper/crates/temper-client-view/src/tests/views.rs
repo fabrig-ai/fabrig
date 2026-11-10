@@ -1,4 +1,4 @@
-//! Reply and document views share the engine's drawing in both shells (temper/docs/design/client/README.md, 5.16).
+//! Reply and document views share the engine's drawing in both shells (temper/docs/design/client/pages/chat/conversation.md, 3).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,

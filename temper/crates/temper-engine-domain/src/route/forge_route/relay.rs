@@ -1,4 +1,4 @@
-//! The root's half of a change's relay (temper/docs/design/domain/forge.md, 8.11).
+//! The root's half of a change's relay (temper/docs/design/domain/forge/change/questions.md, 1).
 use super::{
     Box, Domain, Env, Limits, List, ProcedureStep, append, foreman, forge_change as change, holds, takes_no_messages,
     tasks,
@@ -564,7 +564,7 @@ fn is_answer(kind: &tasks::MessageKind) -> bool {
 }
 
 /// What an agent hears of its words to its own change: its report goes in `finish`
-/// (temper/docs/design/domain/forge.md, 8.11).
+/// (temper/docs/design/domain/forge/change/questions.md, 1).
 const REPORT_IN_FINISH: &[u8] =
     b"Your report goes in finish; this change takes no words. To ask: message target=this change, form=question.";
 

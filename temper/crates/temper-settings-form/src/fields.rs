@@ -1,4 +1,4 @@
-//! The settings file's form, a row per shape and member (client/tools.md, 5.3).
+//! The settings file's form, a row per shape and member (client/ctl/tools.md, 3).
 mod jig;
 use temper_client_protocol_wire::v1 as kinds;
 pub mod render;

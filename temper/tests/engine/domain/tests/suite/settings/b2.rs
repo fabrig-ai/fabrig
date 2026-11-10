@@ -1,5 +1,5 @@
 //! The stock funds a chat's advisor and a coordinator's change at init's default model prices
-//! (protocol/configuration.md, 13.4).
+//! (protocol/configuration/stock.md).
 use super::*;
 use jig_domain_tasks as tasks;
 use temper_engine_domain_forge as forge;

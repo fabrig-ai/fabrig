@@ -1,4 +1,4 @@
-//! Visitor projections from retained forge facts (temper/docs/design/client/forge.md, 11).
+//! Visitor projections from retained forge facts (temper/docs/design/client/forge/README.md, 9).
 mod change;
 mod landing;
 mod landings;
@@ -9,13 +9,13 @@ use skein_lib::{List, Wall, Writer};
 use temper_client_protocol_wire::public_v1 as w;
 use temper_engine_domain_forge_landing as policy;
 
-/// A task handed by jig, with the public goal of its tree (client/forge.md, 11.2).
+/// A task handed by jig, with the public goal of its tree (client/forge/README.md, 9.2).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PublicTask {
     pub task: u64,
     pub goal: Option<u64>,
 }
-/// The core's public ask, with tasks ascending (client/forge.md, 11.1).
+/// The core's public ask, with tasks ascending (client/forge/README.md, 9.1).
 #[derive(Debug)]
 pub struct PublicAsk<'a> {
     pub kind: u16,
@@ -70,7 +70,7 @@ impl PublicAsk<'_> {
     }
 }
 impl Domain {
-    /// Make only the visitor's record, or the single unknown result (client/forge.md, 11.2).
+    /// Make only the visitor's record, or the single unknown result (client/forge/README.md, 9.2).
     #[must_use]
     pub fn public(&self, ask: &PublicAsk<'_>, limits: &Limits) -> Option<PublicMade> {
         if ask.version != w::PUBLIC_VERSION {
@@ -194,7 +194,7 @@ fn phase(phase: &policy::Phase) -> w::PublicLandingPhase {
     }
 }
 
-/// Select the panels' order over exactly the supplied candidates (domain/forge.md, 9).
+/// Select the panels' order over exactly the supplied candidates (domain/forge/queues.md).
 pub(crate) fn order_ready(
     mut candidates: List<temper_engine_domain_forge_change::Ready>,
     repair: Option<u64>,

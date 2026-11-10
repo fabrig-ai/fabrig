@@ -1,5 +1,5 @@
 //! Charter values are checked before reaching the core
-//! (temper/docs/design/domain/agent.md, 4.3).
+//! (temper/docs/design/domain/agent/tools.md).
 use super::resume_fixture;
 use crate::{Delivery, Domain, Event, Limits, PartyInput, PartyRequest, Request};
 use alloc::boxed::Box;

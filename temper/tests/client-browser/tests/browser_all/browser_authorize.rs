@@ -1,5 +1,5 @@
 //! Strict cookies survive a navigation from another site because the Authorize
-//! page sends a same-origin exchange (client/browser.md, 4.5).
+//! page sends a same-origin exchange (client/web/testing.md, 5).
 use skein_fake_person::{Find, Next, Step as PersonStep};
 use skein_fake_person_browser::harness::{Origin, Page, ServerAction};
 use skein_fake_person_browser::{BrowserFace, Harness, Outcome, Play, Script, Step};

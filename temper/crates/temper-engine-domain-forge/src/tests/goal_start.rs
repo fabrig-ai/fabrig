@@ -1,4 +1,4 @@
-//! A goal writes through its run branch (temper/docs/design/domain/forge.md, 11.1).
+//! A goal writes through its run branch (temper/docs/design/domain/forge/branches.md, 1).
 use super::*;
 
 const GOAL: u64 = 7;

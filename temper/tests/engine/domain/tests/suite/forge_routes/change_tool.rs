@@ -250,7 +250,7 @@ fn two_changes_in_one_call_are_one_batch_the_second_after_the_first() {
 
 #[test]
 fn a_change_batch_admits_thirty_two_members_and_refuses_one_more() {
-    const BATCH: u32 = 32; // temper/docs/design/protocol/configuration.md, 13.8, A batch.
+    const BATCH: u32 = 32; // temper/docs/design/protocol/configuration/settings.md, 7, A batch.
     const ONE_MORE: u32 = BATCH + 1;
     const TASK_ROOM: u32 = ONE_MORE * 2; // One change and one producer for each member.
     // Both admission rows, including their world setup, measured 102 ms CPU together.

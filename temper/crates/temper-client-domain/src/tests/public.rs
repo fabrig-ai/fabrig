@@ -1,4 +1,4 @@
-//! Public reader steps (temper/docs/design/client/browser.md, 8.4).
+//! Public reader steps (temper/docs/design/client/web/public.md, 4).
 use crate::{
     address::Public,
     public::{Doc, Heard, PublicEvent, PublicLimits, PublicRead, Reader, Shown},

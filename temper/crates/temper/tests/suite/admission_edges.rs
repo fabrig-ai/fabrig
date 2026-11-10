@@ -1,4 +1,4 @@
-//! Startup admission edges (temper/docs/design/protocol/configuration.md, 5, 7, 11).
+//! Startup admission edges (temper/docs/design/protocol/configuration/README.md, 4, temper/docs/design/protocol/configuration/limits.md, temper/docs/design/protocol/configuration/README.md, 9).
 use crate::support;
 
 use serde_json::{Value, json};

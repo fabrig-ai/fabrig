@@ -20,7 +20,7 @@ use jig_domain_people as people;
 use skein_lib::{Decision as SkeinDecision, Journal as SkeinJournal, List, Queue, ReplyTo, Token};
 
 /// Store edges and admission bounds supplied by the root, immutable across
-/// journal calls (domain/root.md, 4 and 10). Its journal is uncapped.
+/// journal calls (domain/root.md, 4 and 9). Its journal is uncapped.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     /// The store's commits in flight: sent and unanswered, an edge enforced
@@ -48,7 +48,7 @@ pub struct Limits {
 /// resumed by the root and never passed to the protocol as child events.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Delivery {
-    /// The project's ways (temper/docs/design/domain/forge.md, 8.13).
+    /// The project's ways (temper/docs/design/domain/forge/change/branch-path.md).
     Ways {
         watcher: Token,
         document: Box<temper_engine_domain_ways::WaysDocument>,
@@ -61,7 +61,7 @@ pub enum Delivery {
     },
 
     /// Adoption release reaches the core after its erasures commit
-    /// (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge.md, 4.1).
+    /// (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption.md, 1).
     ProjectReleased {
         connector: u16,
         project: u32,
@@ -82,7 +82,7 @@ pub enum Delivery {
         request: Token,
         answer: temper_engine_domain_forge::BindAnswer,
     },
-    /// A secret-free diagnostic, at most 256 bytes (protocol/setup.md, 8.4).
+    /// A secret-free diagnostic, at most 256 bytes (protocol/setup/playground.md).
     PlaygroundNote {
         line: Box<[u8]>,
     },
@@ -91,12 +91,12 @@ pub enum Delivery {
         watcher: Token,
         rows: Box<[temper_engine_domain_trials::Row]>,
     },
-    /// The watcher's changes waiting on a person's approval (domain/forge.md, 8.12).
+    /// The watcher's changes waiting on a person's approval (domain/forge/change/questions.md, 2).
     Approvals {
         watcher: Token,
         document: Box<crate::Approvals>,
     },
-    /// Whole forge panel, held with the decision that requested it (domain/root.md, 5.1).
+    /// Whole forge panel, held with the decision that requested it (domain/routing.md, 1).
     Panel {
         watcher: Token,
         panel: Box<temper_engine_domain_forge::Panel>,
@@ -106,7 +106,7 @@ pub enum Delivery {
         watcher: Token,
         document: Box<temper_engine_domain_forge::Document>,
     },
-    /// The deployment's connection document (domain/root.md, 5.1).
+    /// The deployment's connection document (domain/routing.md, 1).
     Forges {
         watcher: Token,
         forges: temper_engine_domain_forge::Forges,
@@ -190,7 +190,7 @@ pub enum Delivery {
         reply: ReplyTo,
         answer: jig_domain_core::reads::Answer,
     },
-    /// A forge settings answer, held behind every preceding commit (client/forge.md, 9).
+    /// A forge settings answer, held behind every preceding commit (client/forge/served.md).
     ForgeRead {
         reply: ReplyTo,
         answer: crate::ForgeReadAnswer,
@@ -704,7 +704,7 @@ pub fn uncommitted(journal: &mut Journal, number: u64, out: &mut Queue<Output>) 
 }
 
 /// Whether the journal's store and admission limits are usable
-/// (temper/docs/design/domain/root.md, sections 4 and 10).
+/// (temper/docs/design/domain/root.md, sections 4 and 9).
 /// Commits, writes, deliveries and run bytes must be nonzero; one write slot
 /// is reserved for the deployment header. Heap sums do not constrain admission.
 #[must_use]

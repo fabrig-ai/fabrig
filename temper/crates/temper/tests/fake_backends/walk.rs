@@ -1,5 +1,5 @@
 //! The welcome's paths to a first chat on `box --fake-backends`, sent as the acts its buttons send.
-//! First sign-in block: temper/docs/design/protocol/setup.md, 7.2.
+//! First sign-in block: temper/docs/design/protocol/setup/box.md, 2.
 use crate::box_link;
 use crate::support::{
     self, Ended, boxed,
@@ -134,7 +134,7 @@ fn usable(call: &Ended) -> bool {
 }
 
 // A first run keeps no forge until SetUp or Connect makes its record
-// (temper/docs/design/protocol/forge.md, 2.2).
+// (temper/docs/design/protocol/forge/engine.md, 2).
 fn forge_rows(call: &Ended) -> Vec<Value> {
     let document = ctl::json(call);
     let document = if document.get("met").is_some() { &document["forges"] } else { &document };

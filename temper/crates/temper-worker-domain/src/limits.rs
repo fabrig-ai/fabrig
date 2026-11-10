@@ -21,7 +21,7 @@ pub struct Limits {
     pub tooling: tooling::Limits,
     /// The longest host answer the agent takes: smith's `host_reply_bytes`,
     /// its channel's `bodies.host_reply_text`. A hub's answer past it
-    /// reaches the agent as smith's `TooLarge` (`domain/agent.md`, 4.3).
+    /// reaches the agent as smith's `TooLarge` (`domain/agent/tools.md`).
     pub reply_bytes: u32,
     /// The bounds of what a run on this worker may be given: its agent's
     /// models and its runs' turns, spend, time and inbox, for the engine to

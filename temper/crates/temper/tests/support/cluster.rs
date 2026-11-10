@@ -1,4 +1,4 @@
-//! The process tier's reader of crates/temper/tests/fixtures/cluster (protocol/README.md, 15.5).
+//! The process tier's reader of crates/temper/tests/fixtures/cluster (protocol/cluster.md, 5).
 use super::{StdoutReader, WITHIN, patience::Patience};
 use serde_json::Value;
 use skein_io::kernel::{Complete, Exit, Signal, Submit};
@@ -16,14 +16,14 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-// protocol/README.md, 15.5: the retained cluster's readiness and stop bounds.
+// protocol/cluster.md, 5: the retained cluster's readiness and stop bounds.
 const READY_SECONDS: u64 = 120;
 const STOP_SECONDS: u64 = 20;
 const STDERR_TAIL_LINES: usize = 20;
 // crates/temper/tests/fixtures/cluster/engine.json's fleet.grace_ms: above each worker's stop bound, 2300 (jig-protocol-config worker.rs:38), which a hello must be under (jig-domain-fleet channel.rs:174); reached only on a lost link.
 pub(crate) const FLEET_GRACE_MS: u64 = 3000;
 const _: () = assert!(FLEET_GRACE_MS < STOP_SECONDS * 1000);
-const CGROUPS: &str = "the cluster's tests need cgroups delegated by the user's service manager (temper docs/design/protocol/README.md, 15.5): run them where it delegates them";
+const CGROUPS: &str = "the cluster's tests need cgroups delegated by the user's service manager (temper docs/design/protocol/cluster.md, 5): run them where it delegates them";
 
 /// crates/temper/tests/fixtures/cluster/ read, rendered for one test's scratch, and its processes' state.
 pub struct Cluster {
@@ -128,7 +128,7 @@ impl Cluster {
         Self { experiment, specs, bindings, prepared: BTreeSet::new(), agent_program: None }
     }
     /// The deployment's binaries in place of the box's for the engine and the workers,
-    /// and temper-agent as each worker's agent (protocol/README.md, 15.5 and 15.6).
+    /// and temper-agent as each worker's agent (protocol/cluster.md, 5 and 6).
     pub fn deployment_binaries(&mut self) {
         let temper = skein_scratch::paths::binary("temper");
         for name in ["temper-engine", "temper-worker", "temper-agent"] {

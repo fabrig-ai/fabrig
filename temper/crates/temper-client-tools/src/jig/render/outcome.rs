@@ -1,4 +1,4 @@
-//! Durable answers use the same operation words before and after a restart (client/tools.md, 6.1).
+//! Durable answers use the same operation words before and after a restart (client/ctl/results.md, 1).
 use super::{Text, acts, document};
 use crate::jig::{Limits, runner::Printed};
 use alloc::boxed::Box;
@@ -28,7 +28,7 @@ pub(crate) struct Operation {
     /// Distinct submitted settings scopes, ordered with the deployment before projects.
     pub settings_scopes: Option<skein_lib::Set<u32>>,
 }
-/// What a person task's contract asks of an answer past it (client/tools.md, 5.5).
+/// What a person task's contract asks of an answer past it (client/ctl/areas.md).
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Asked {
     pub bound: u32,
@@ -940,7 +940,7 @@ fn refused_text(
     }
 }
 
-/// Account refusals with one actionable meaning (client/tools.md, 5.5).
+/// Account refusals with one actionable meaning (client/ctl/areas.md).
 fn account_refusal(operation: &Operation, refusal: &c::Refusal, out: &mut Text) -> bool {
     if let Some((provider, name)) = &operation.declaration {
         if *refusal == c::Refusal::NameTaken {

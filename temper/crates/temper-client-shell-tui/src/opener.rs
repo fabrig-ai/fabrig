@@ -1,4 +1,4 @@
-//! The browser opener's command (temper/docs/design/client/README.md, 7.1).
+//! The browser opener's command (temper/docs/design/client/README.md, 4.1).
 use skein_io::kernel::{Fd, Pipe, Spawn, Way};
 
 pub struct Opener {

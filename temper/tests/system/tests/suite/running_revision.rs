@@ -1,4 +1,4 @@
-//! A run keeps its revision, a chat moves, and the owner advances the rest (temper/docs/design/client/tools.md, 11.4).
+//! A run keeps its revision, a chat moves, and the owner advances the rest (temper/docs/design/client/ctl/testing.md, 4).
 use jig_domain_core::settings as s;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;

@@ -1,4 +1,4 @@
-//! A task's settings revision (client/tools.md, 6.1).
+//! A task's settings revision (client/ctl/results.md, 1).
 use super::Text;
 use jig_client::contract::TaskSettings;
 use skein_json::writer::Encoder;

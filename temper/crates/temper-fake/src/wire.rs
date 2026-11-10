@@ -1,4 +1,4 @@
-//! Typed wire limits for the configurations owned by temper-fake (protocol/setup.md, 8.4).
+//! Typed wire limits for the configurations owned by temper-fake (protocol/setup/playground.md).
 use crate::{limits as l, llm};
 use alloc::boxed::Box;
 use skein_fake_forge_forgejo as forgejo;

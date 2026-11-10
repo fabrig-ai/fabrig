@@ -1,4 +1,4 @@
-//! A person reads a bounded conversation through the engine and store (client/README.md, 5.15).
+//! A person reads a bounded conversation through the engine and store (client/pages/chat/conversation.md, 2).
 use jig_client_kit::harness::{ClientId, Until, World};
 use skein_fake_person::{Face, Find, Found, Step, Target, TreeFace};
 use skein_ui::{LogEdge, Role};

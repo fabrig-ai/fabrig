@@ -1,4 +1,4 @@
-//! The visitor's deployment on the world's machine (temper/docs/design/domain/testing.md, 2.5).
+//! The visitor's deployment on the world's machine (temper/docs/design/testing/README.md, 2.5).
 use super::{checks, proxy::Proxy, visitor::Visitor};
 use crate::{
     ctl::{Caller, Command},

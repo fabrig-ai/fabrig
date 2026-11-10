@@ -1,4 +1,4 @@
-//! Account lines (tools.md, 5.5 area 5 and 6.1).
+//! Account lines (client/ctl/areas.md area 5 and 6.1).
 //! The encoder walks the supplied contract and charges every structural take;
 //! presenting that bounded projection preserves JSON's omissions and digest.
 use super::Text;

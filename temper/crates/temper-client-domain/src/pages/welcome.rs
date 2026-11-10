@@ -1,4 +1,4 @@
-//! First-run facts (temper/docs/design/client/README.md, 3.5).
+//! First-run facts (temper/docs/design/client/pages/README.md).
 use super::{
     accounts::{self, PasteState, SignInState, Way},
     connect_model,
@@ -21,7 +21,7 @@ impl Welcome {
         Self { decided: false }
     }
 }
-/// What the welcome's Model step draws (client/README.md, 3.5, Model).
+/// What the welcome's Model step draws (client/pages/README.md, Model).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ModelStep {
     /// A model usable, at any way or none.
@@ -79,7 +79,7 @@ pub struct StepMark {
     pub current: bool,
     pub ticked: bool,
 }
-/// Welcome, Forge, Model, Ready, in order (client/README.md, 3.5, Its steps).
+/// Welcome, Forge, Model, Ready, in order (client/pages/README.md, Its steps).
 #[must_use]
 pub fn step_marks(at: crate::Step, forge_kept: bool, model_usable: bool) -> [StepMark; 4] {
     let current: u8 = match at {
@@ -114,7 +114,7 @@ pub fn forge_kept(root: &Domain) -> bool {
 pub fn go_on(root: &Domain) -> crate::Step {
     if model_counts(root) == Some(true) { crate::Step::Ready } else { crate::Step::Model { way: None } }
 }
-/// The store's first-run state (temper/docs/design/client/README.md, 3.5).
+/// The store's first-run state (temper/docs/design/client/pages/README.md).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FirstRun {
     Empty,
@@ -159,7 +159,7 @@ pub fn decision(root: &Domain) -> Option<FirstRun> {
 }
 /// The person signed in by the printed link: the forges document says so,
 /// or the welcome's decision is past its first step, or `me` names a
-/// project (temper/docs/design/client/README.md, 6.17).
+/// project (temper/docs/design/client/tui/box.md).
 #[must_use]
 pub fn signed_in(root: &Domain) -> bool {
     if root.forge().linked() == Some(true) {
@@ -188,14 +188,14 @@ pub fn forge_connected(row: &forges::Row) -> bool {
     };
     row.mode != forges::Mode::Fake && connected && (row.kind != forges::Kind::GitHub || forges::accepted(row))
 }
-/// What Ready adopts (temper/docs/design/client/README.md, 3.5): a first repository made and adopted nowhere.
+/// What Ready adopts (temper/docs/design/client/pages/README.md): a first repository made and adopted nowhere.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct First {
     pub forge: u16,
     pub org: Box<[u8]>,
     pub name: Box<[u8]>,
 }
-/// The offered name (temper/docs/design/client/README.md, 3.5).
+/// The offered name (temper/docs/design/client/pages/README.md).
 #[must_use]
 pub fn offered(first: Option<&First>, copies: Option<&forge::making::Copies>) -> Box<[u8]> {
     let name = match first {
@@ -247,7 +247,7 @@ impl DefaultProject {
         self.shown(offered).trim_ascii()
     }
 }
-/// Ready's adoption, or Home's again (temper/docs/design/client/README.md, 3.5).
+/// Ready's adoption, or Home's again (temper/docs/design/client/pages/README.md).
 #[derive(Debug, PartialEq, Eq)]
 pub struct Adopting {
     pub project: u32,
@@ -315,7 +315,7 @@ pub fn model_usable(root: &Domain) -> Option<bool> {
     ))
 }
 
-/// `model_usable`, or a declaration whose host’s check is out (client/README.md, 3.5, *The try*).
+/// `model_usable`, or a declaration whose host’s check is out (client/pages/README.md, *The try*).
 #[must_use]
 pub fn model_counts(root: &Domain) -> Option<bool> {
     if let Some(page) = root.pages().connect_model() {

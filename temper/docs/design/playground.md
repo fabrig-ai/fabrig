@@ -16,7 +16,7 @@ desktop browsers are well supported (the user, 10-26).
   in `temper box` runs in the visitor's browser: "Try the playground"
   makes its ordinary records, the Playground forge, the Scripted model
   and the project Demo with `playground/widget` adopted, and the
-  banner's "set up temper" resets them (`protocol/setup.md`, 8.4).
+  banner's "set up temper" resets them (`protocol/setup/playground.md`).
   Nothing to install, no account, no server, no real model.
 - **Product code on fakes, with no fake branch.** The engine, the
   worker, the store, the agents and the client are the shipped crates.
@@ -52,18 +52,18 @@ desktop browsers are well supported (the user, 10-26).
   `StartPlayground`: the playground's ordinary records are made, the
   fake forge's, the scripted account and the project Demo, and
   `playground/widget` is adopted into it once the fake forge connects
-  (`protocol/setup.md`, 8.4). From there, the box's playground: the
+  (`protocol/setup/playground.md`). From there, the box's playground: the
   banner, the three suggested requests, a change followed from a branch
   to `main`.
 - **Only what the deployment can do is offered.** While the playground
   runs, its pages offer nothing to add, no forge and no model, as on
-  any deployment (`client/README.md`, 4.8). The playground's world can
+  any deployment (`client/forge/family.md`, 7). The playground's world can
   set nothing up, so the client should offer neither the welcome's Set
   up temper nor the banner's "set up temper", which resets the
   playground (`EndPlayground`) and opens the welcome's Forge step. That
   is the client's rule for every deployment that can set nothing up,
-  never a branch for the playground (`client/README.md`). Until section
-  11's question is answered, the welcome offers Set up temper beside
+  never a branch for the playground (`client/README.md`). Until `playground.md`, section 11
+  's question is answered, the welcome offers Set up temper beside
   Try the playground, and the banner its link, as on any deployment,
   and the playground's stories press neither.
 - **The frame around the client** is the page's own, not the client's:
@@ -115,14 +115,14 @@ desktop browsers are well supported (the user, 10-26).
 ## 4. The world
 
 - **What runs** is the one-process world's composition
-  (`domain/testing.md`, 2.5) without its harness: no referee, no fake
+  (`testing/README.md`, 2.5) without its harness: no referee, no fake
   person, no terminal client, no captures and no fault schedule.
 - **No box.** The fakes are the world's processes, as for a deployment
-  without the box (`protocol/setup.md`, 7.4), at the fakes' places the
+  without the box (`protocol/setup/box.md`, 4), at the fakes' places the
   document names: the forge whose record `StartPlayground` makes, its
   setup entry the playground's, whose handover the composition lays on
   the disk, and the model the scripted provider, at the fake LLM's
-  endpoint (`protocol/setup.md`, 8.4). `StartPlayground` asks no group
+  endpoint (`protocol/setup/playground.md`). `StartPlayground` asks no group
   of a pipe: the fake forge connects as its process answers, and its
   reset removes no group.
 - **Calm at every layer:** no fault in the simulator, the fake LLM or the
@@ -145,9 +145,9 @@ desktop browsers are well supported (the user, 10-26).
 
 - **Data, no code:** the deployment's document, which names the
   scripted provider and the fakes' places, and no forge and no project,
-  which `StartPlayground` makes (`protocol/setup.md`, 8.4); the fake LLM's and
+  which `StartPlayground` makes (`protocol/setup/playground.md`); the fake LLM's and
   the fake forge's documents, in `temper-fake`'s form of a document of
-  its own (`protocol/setup.md`, 8.4), which hold the scripts and the
+  its own (`protocol/setup/playground.md`), which hold the scripts and the
   seeded repositories with their files, CI and cues; its pace; and a
   description of what the visitor is expected to do, which the frame
   shows.
@@ -166,7 +166,7 @@ desktop browsers are well supported (the user, 10-26).
 
 ### 5.2 The first: A
 
-- **The box's playground** (`protocol/setup.md`, 8.4): three
+- **The box's playground** (`protocol/setup/playground.md`): three
   suggested requests. "Add CSV export to widget" is delegated, edited,
   pushed, passed by CI and landed; the dark theme and the empty search
   are answered in text.
@@ -230,7 +230,7 @@ delegate's phases; the frame's speed changes how long the person waits
   4). Any path answers with the page, which always starts at the
   printed link.
 - **At the site's playground address,** which the site's design names.
-- **The page's policy** is temper's (`client/browser.md`, 2.2) with
+- **The page's policy** is temper's (`client/web/README.md`, 2.2) with
   `worker-src 'self'`, and no `connect-src` beyond `'self'`: after the
   load, nothing is fetched. One function of temper's gives it, for the
   service and the playground alike; the build writes it beside the
@@ -242,7 +242,7 @@ delegate's phases; the frame's speed changes how long the person waits
   (skein's `ui/web/bundle.md`, 2), so a site's host uploads no `.gz` files it
   does not need and the download's figure stays the directory's (`playground.md`, section 9
   ). It keeps its own page, its frame's line "Loading the playground…"
-  in place of the client's placeholder (`client/browser.md`, 2.5).
+  in place of the client's placeholder (`client/web/look.md`).
 - **Built by `scripts/bundle.sh --playground OUT`:** temper's web shell
   with `playground`, in the `web` profile, and `temper-playground` for
   wasm32 in a profile of its own, `playground`, which inherits `web` and
@@ -290,11 +290,11 @@ delegate's phases; the frame's speed changes how long the person waits
   (`temper-playground-world`): each story walked whole in the
   playground's world through the web client's host built natively,
   driven by skein's fake person on its tree as a journey's replay drives
-  it (`client/journeys.md`, section 2), the host's duties carried to the
+  it (`client/web/journeys.md`, section 2), the host's duties carried to the
   world by skein's bridge in memory (skein's `playground.md`, 5): story
   A from the welcome to the CSV change landed and the other two
-  requests answered. Within a world's budget (`domain/testing.md`,
-  6.1).
+  requests answered. Within a world's budget (`testing/checks.md`,
+  1).
 - **The documents' memory bounds** are checked at start as any
   document's are, so a story past them fails its walk.
 - **The native heap at start, in the gate:** `tests/playground`'s `memory`
@@ -321,8 +321,8 @@ delegate's phases; the frame's speed changes how long the person waits
   same on both builds, or one whose doubling startup refuses, is left
   out by name with its reason.
 - **In a browser, outside the gate:** the browser tier walks story A on
-  the built playground in headless Chromium (`client/browser.md`,
-  section 4), and measures the download from the bundle's files (raw,
+  the built playground in headless Chromium (`client/web/testing.md`
+  ), and measures the download from the bundle's files (raw,
   and each compressed alone by the machine's `gzip`, a tool beside the
   code under test), and the memory's high water and the longest slice
   from what the frame shows, reported against their bars.
@@ -384,7 +384,7 @@ running (decided 2026-11-03).
   browser playground,** with no box behind it.
 - **Phones,** once desktop browsers are well supported.
 - **The client's placeholder on its page,** in place of the frame's line
-  (section 7; `client/browser.md`, 2.5): story A's to take, once its wait
+  (section 7; `client/web/look.md`): story A's to take, once its wait
   asks for more than a line.
 - **What the start's heap grew by before its bound** (9):
   `../development/playground-memory.md` keeps two measured tables, and

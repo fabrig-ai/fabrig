@@ -1,4 +1,4 @@
-//! The reference case's cast, accounts and first kit tree (domain/testing.md, 5.3).
+//! The reference case's cast, accounts and first kit tree (testing/reference-case.md).
 use crate::{fixtures, forge, landing};
 use serde_json::{Value, json};
 use skein_fake_forge_domain::api;
@@ -117,7 +117,7 @@ pub enum Agent {
     X3Writer,
     PlannedWriter,
     StoryWriter,
-    // Act 3, step 6.5 (domain/testing.md, 5.3)
+    // Act 3, step 6.5 (testing/reference-case.md)
     BudgetDirector,
     BudgetOwner,
     BudgetSubowner,
@@ -133,7 +133,7 @@ pub enum Agent {
     RedOwner,
     RedCoder,
     RedRepairCoder,
-    // Act 3, step 6.7 (domain/testing.md, 5.3)
+    // Act 3, step 6.7 (testing/reference-case.md)
     CapDirector,
     CapOwner,
     CapSubowner,
@@ -149,7 +149,7 @@ impl Agent {
     #[must_use]
     pub fn cue(self) -> &'static [u8] {
         match self {
-            // Act 3, step 6.5 (domain/testing.md, 5.3)
+            // Act 3, step 6.5 (testing/reference-case.md)
             Self::BudgetDirector => b"@case_budget_director",
             Self::BudgetOwner => b"@case_budget_owner",
             Self::BudgetSubowner => b"@case_budget_subowner",
@@ -194,7 +194,7 @@ impl Agent {
             Self::Design => b"@case_design",
             Self::Survey => b"@case_survey",
             Self::Review => b"Review this change at the named head",
-            // Act 3, step 6.7 (domain/testing.md, 5.3)
+            // Act 3, step 6.7 (testing/reference-case.md)
             Self::CapDirector => b"@case_cap_director",
             Self::CapOwner => b"@case_cap_owner",
             Self::CapSubowner => b"@case_cap_subowner",
@@ -427,7 +427,7 @@ pub fn fixture_4_6() -> forge::Fixture {
     }
 }
 
-// Act 2, step 5.1 (domain/testing.md, 5.3)
+// Act 2, step 5.1 (testing/reference-case.md)
 pub const RULES: u64 = 1;
 pub const SCOPE: u64 = 2;
 pub const SCOPE_QUESTION_NUMBER: u64 = 2;
@@ -467,7 +467,7 @@ pub fn fixture_5_1() -> forge::Fixture {
     }
 }
 
-// Act 2, step 5.3 (domain/testing.md, 5.3)
+// Act 2, step 5.3 (testing/reference-case.md)
 pub const SHAPE: u64 = 1;
 pub const MOVER: u64 = 2;
 pub const MOVER_QUESTION_NUMBER: u64 = 1;
@@ -507,7 +507,7 @@ pub fn fixture_5_3() -> forge::Fixture {
     }
 }
 
-// Act 2, step 5.2 (domain/testing.md, 5.3)
+// Act 2, step 5.2 (testing/reference-case.md)
 // The chat delegates A, the helper, then B; only B creates descendants.
 // B delegates its implementer, then h1, which creates its coder and reviewer.
 pub const PAUSE_WORKERS: &[&str] = &["ws", "s1", "s2"];
@@ -583,7 +583,7 @@ pub fn fixture_5_2() -> forge::Fixture {
     }
 }
 
-// Act 2, step 5.5 (domain/testing.md, 5.3)
+// Act 2, step 5.5 (testing/reference-case.md)
 pub const PLAN_DIRECTOR: u64 = 1;
 pub const PLANNER: u64 = 2;
 pub const SUBOWNER: u64 = 3;
@@ -633,7 +633,7 @@ pub fn fixture_5_5() -> forge::Fixture {
     }
 }
 
-// Act 2, step 5.4 (domain/testing.md, 5.3)
+// Act 2, step 5.4 (testing/reference-case.md)
 pub const DIRECTION: u64 = 1;
 pub const STORY_OWNER: u64 = 2;
 pub const OVERLAP_OWNER: u64 = 3;
@@ -738,7 +738,7 @@ pub fn fixture_5_4() -> forge::Fixture {
 
 pub const BATCH_WRITING: &str = "The batch delegate is writing.";
 
-// Act 3, step 6.5 (domain/testing.md, 5.3)
+// Act 3, step 6.5 (testing/reference-case.md)
 pub const BUDGET_DIRECTOR: u64 = 1;
 pub const BUDGET_OWNER: u64 = 2;
 pub const BUDGET_SUBOWNER: u64 = 3;
@@ -808,7 +808,7 @@ pub fn fixture_6_5() -> forge::Fixture {
     }
 }
 
-// Act 3, step 6.4 (domain/testing.md, 5.3)
+// Act 3, step 6.4 (testing/reference-case.md)
 pub const RED_DIRECTOR: u64 = 1;
 pub const RED_OWNER: u64 = 2;
 pub const RED_CHANGE: u64 = 3;
@@ -910,7 +910,7 @@ pub fn fixture_6_4() -> forge::Fixture {
     }
 }
 
-// Act 3, step 6.7 (domain/testing.md, 5.3)
+// Act 3, step 6.7 (testing/reference-case.md)
 pub const CAP_DIRECTOR: u64 = 1;
 pub const CAP_OWNER: u64 = 2;
 pub const CAP_SUBOWNER: u64 = 3;
@@ -965,7 +965,7 @@ pub fn fixture_6_7() -> forge::Fixture {
     }
 }
 
-// Act 3, step 6.6 (domain/testing.md, 5.3). These identities belong only
+// Act 3, step 6.6 (testing/reference-case.md). These identities belong only
 // to this two-repository case; earlier steps retain KIT = acme/app.
 pub mod waiting {
     pub const DIRECTOR: u64 = 1;
@@ -1074,7 +1074,7 @@ pub fn fixture_6_6() -> forge::Fixture {
     }
 }
 
-// Act 3, step 6.8 (domain/testing.md, 5.3).
+// Act 3, step 6.8 (testing/reference-case.md).
 pub mod qa {
     pub const DIRECTOR: u64 = 1;
     pub const A: u64 = 2;

@@ -280,7 +280,7 @@ fn malformed_bundle_grammar_is_refused() {
 
 #[test]
 fn bundle_paths_check_both_sides_of_the_absolute_bound() {
-    // configuration.md, 12: the resolved absolute path is bounded at 4096 bytes.
+    // protocol/configuration/directories.md: the resolved absolute path is bounded at 4096 bytes.
     const PATH_BYTES: usize = 4096;
     const WORKING: &[u8] = b"/fixture/";
     let mut absolute = vec![b'a'; PATH_BYTES];

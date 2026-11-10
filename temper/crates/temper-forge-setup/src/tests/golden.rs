@@ -6,7 +6,7 @@ const RUNNER: &[u8] = b"runner:\n  capacity: 1\n  timeout: 3h\n  shutdown_timeou
 #[test]
 fn app_ini_for_an_owned_forge_with_a_runner_matches_the_golden_text() {
     let text = ini::text(&fixtures::owned(), &fixtures::place(), &fixtures::secrets(), None, None);
-    assert_eq!(text.expose(), APP_INI_WITH_RUNNER, "written by hand from protocol/setup.md, 6.2");
+    assert_eq!(text.expose(), APP_INI_WITH_RUNNER, "written by hand from protocol/setup/owned.md, 2");
 }
 #[test]
 fn app_ini_without_a_runner_turns_actions_off() {
@@ -42,7 +42,7 @@ fn app_ini_with_a_public_address_matches_the_golden_text() {
     let mut owned = fixtures::owned();
     owned.public = Some(Origin { host: b"git.example.com".as_slice().into(), port: 443 });
     let text = ini::text(&owned, &fixtures::place(), &fixtures::secrets(), None, None);
-    assert_eq!(text.expose(), APP_INI_WITH_A_PUBLIC_ADDRESS, "written by hand from protocol/setup.md, 6.2");
+    assert_eq!(text.expose(), APP_INI_WITH_A_PUBLIC_ADDRESS, "written by hand from protocol/setup/owned.md, 2");
     let runner = runner::configuration(owned.runner.as_ref().unwrap(), &owned, &fixtures::place(), b"runner-uuid");
     assert_eq!(&*runner, RUNNER);
 }

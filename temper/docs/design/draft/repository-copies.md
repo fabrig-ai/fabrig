@@ -82,8 +82,8 @@ what is missing:
 4. **The bot's access,** as 4.5's steps 3 and 4.
 5. **The starter workflow,** as `Create`'s files: the owner's files,
    put on the default branch where absent. temper gives the starter
-   workflow (`../protocol/setup.md`, 6.7), so that the copy's checks
-   run on the owned runner from its first change (section 8).
+   workflow (`../protocol/setup/owned.md`, 7), so that the copy's checks
+   run on the owned runner from its first change (`repository-copies.md`, section 8).
 6. **The outcome,** `Done(Copied { id, branch })`.
 
 - **`from`** is an address the owner checked (5.4): `https://`, a host,
@@ -116,10 +116,10 @@ and a push (the user, 2026-11-04):
 - **The same plan for owned and managed.** A managed Forgejo is not on
   temper's machine; its migration is still its own.
 - **Its settings are Forgejo's defaults:** the owned Forgejo's
-  `app.ini` (`../protocol/setup.md`, 6.2) writes nothing of migrations,
+  `app.ini` (`../protocol/setup/owned.md`, 2) writes nothing of migrations,
   so copies from public hosts are allowed and addresses on local
   networks refused. `OFFLINE_MODE` concerns the pages' assets, not
-  migrations: a fact the conformance records (section 6).
+  migrations: a fact the conformance records (`repository-copies.md`, section 6).
 - **What a copy cut short leaves** (a restart of the box or of
   Forgejo, a deadline) is Forgejo's, recorded by the conformance: the
   plan, run again, reads it first (section 3, step 3).
@@ -130,7 +130,7 @@ and a push (the user, 2026-11-04):
 
 ### 5.1 What it asks
 
-A FORGE request, keyed as any party's (`../client/README.md`, 4.6):
+A FORGE request, keyed as any party's (`../client/forge/records.md`):
 
 ```
 MakeRepository {
@@ -142,12 +142,12 @@ MakeRepository {
 ```
 
 - **`Empty`** runs `Create`, as a set up's first repository does
-  (`../protocol/setup.md`, 6.7), with the starter workflow; **`Copy`**
+  (`../protocol/setup/owned.md`, 7), with the starter workflow; **`Copy`**
   runs `Copy`.
 - **`into`** adopts it once made, as `temper ctl forge setup`'s
   `--project` does today, in the engine instead of the call: owned,
   landing on its default branch, with CI, the project's home when
-  `home` (`../domain/forge.md`, section 4). The adoption is the forge
+  `home` (`../domain/forge/adoption.md`). The adoption is the forge
   connector's own, judged as any; refused, the repository stays made,
   adopted nowhere, and its row says why.
 - **Admitted** from an owner of the project `into` names, or, with
@@ -171,7 +171,7 @@ MakeRepository {
   which reads first (section 3); one made or adopting goes on to its
   adoption.
 - **The client reads them** with each forge's row, on the `forges`
-  watch (`../client/README.md`, 4.4), so every client shows "Copying
+  watch (`../client/forge/family.md`, 4), so every client shows "Copying
   ORG/NAME from HOST…" while it lasts, from the step's start to its
   end, with no percentage: Forgejo's migration says none.
 
@@ -208,8 +208,8 @@ MakeRepository {
   domain's timing faults (skein's `testing/fakes/forge.md`, 2.3), so a copy can
   be slow or cut short.
 - **`temper box --fake-backends`** seeds two, and prints their
-  addresses with the files a walk pastes (`../protocol/setup.md`,
-  7.5): a journey copies them in the welcome.
+  addresses with the files a walk pastes (`../protocol/setup/box.md`,
+  5): a journey copies them in the welcome.
 - **The conformance** (skein's `testing/fakes/forge.md`, section 7) records each
   fact `Copy` relies on, on the throwaway Forgejo, from a source served
   by a second throwaway on loopback, its migration settings allowing
@@ -229,7 +229,7 @@ MakeRepository {
 - **The set up's intent keeps it:** `SetUp`'s first repository becomes
   one of `Empty { org, name }`, `Copies { addresses }` or `Nothing`,
   kept in the forge's record as today's org and name are
-  (`../protocol/setup.md`, 6.7). With copies, the set up makes no
+  (`../protocol/setup/owned.md`, 7). With copies, the set up makes no
   repository: it connects the forge, and the copies wait for a
   project to go into.
 - **Ready copies them in:** its last act makes the project, then asks
@@ -265,22 +265,22 @@ MakeRepository {
   wait for ever. With `.forgejo/workflows/ci.yml` present, Forgejo's
   Actions reads that directory alone (a fact the conformance records),
   and the copy lands its first change through temper's merge queue,
-  checked by the starter (`../domain/forge.md`, 8.2).
+  checked by the starter (`../domain/forge/change/README.md`, 2).
 - **Its own checks are the person's to bring:** a chat can turn
   `.github/workflows` into the owned runner's, as any change.
 - **Why a copy needs one:** the queue lands a change once the
   repository's CI passed at its head, and again after it is brought up
-  to date with main (`../domain/forge.md`, 8.2 and 8.7); CI pending
+  to date with main (`../domain/forge/change/README.md`, 2, and `../domain/forge/change/gates.md`, 2); CI pending
   is a wait. An implementer's own tests run before its change is
   pushed, and the queue trusts none of them. A repository adopted
-  without CI names checks that stand for it (`../domain/forge.md`,
-  8.3).
+  without CI names checks that stand for it (`../domain/forge/change/gates.md`,
+  1).
 
 ## 9. Adding a repository: one sheet
 
 - **Three ways a repository joins a project,** which a person sees as
   one question, "Where does it come from?": one the forge has already
-  (the picker, then the adoption form, `../client/README.md`, 4.4), a
+  (the picker, then the adoption form, `../client/forge/family.md`, 4), a
   new empty one, or a copy of a public one.
 - **One sheet, "Add repositories",** a dialog over the page (a sheet
   from the bottom on a phone), with the three as its sources. The forge
@@ -302,7 +302,7 @@ MakeRepository {
   address a line, as the welcome takes them; rows of the picker
   (the user, 2026-11-04).
 - **Light for now:** the sheet's look is tuned on the person's
-  `look-requests` branch (`../client/journeys.md`, 7) once the
+  `look-requests` branch (`../client/web/journeys.md`, 7) once the
   foundation is in.
 
 ## 10. Its order
@@ -319,7 +319,7 @@ MakeRepository {
 3. **The sheet** (section 9) and Home's words for a copy under way.
 
 `temper ctl`'s two commands, beside `repository adopt`
-(`../client/tools.md`, 5.3): `repository make --project PROJECT
+(`../client/ctl/tools.md`, 3): `repository make --project PROJECT
 [--forge FORGE] ORG/NAME [--no-home]`, and `repository copy --project
 PROJECT [--forge FORGE] ADDRESS [--as ORG/NAME] [--no-home]`, each
 answering once the request is kept, and `--until adopted` waiting on

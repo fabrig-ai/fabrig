@@ -1,2 +1,2 @@
-//! Pinned binary fetch host (temper/docs/design/protocol/setup.md, 6.6 and 11).
+//! Pinned binary fetch host (temper/docs/design/protocol/setup/owned.md, 6, and temper/docs/design/protocol/setup/README.md, 7).
 pub mod fetch;

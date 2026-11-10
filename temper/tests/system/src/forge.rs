@@ -475,7 +475,7 @@ impl World {
             let period = engine::PartyInput::Period { project: 1, period: 1, budget: 1000, next: None };
             self.send(engine::Event::Party(period));
             // The repository's git identity, an application credential from
-            // temper's own source (domain/root.md, 7.1).
+            // temper's own source (domain/root.md, 6.1).
             self.send(engine::Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) });
         }
         if self.fake.is_due(self.fake_env.now) {

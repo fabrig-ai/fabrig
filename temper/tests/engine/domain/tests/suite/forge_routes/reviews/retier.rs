@@ -1,4 +1,4 @@
-//! Held reviewers remain readable after restart (temper/docs/design/domain/testing.md, 2.1).
+//! Held reviewers remain readable after restart (temper/docs/design/testing/README.md, 2.1).
 use super::*;
 
 fn unclaimed_review() -> (World, u64) {

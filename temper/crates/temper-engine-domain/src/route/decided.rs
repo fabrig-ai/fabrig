@@ -1,4 +1,4 @@
-//! A task's live decision for its person (temper/docs/design/domain/forge.md, 5.9).
+//! A task's live decision for its person (temper/docs/design/domain/forge/attention.md, 5).
 use super::{CallAnswer, CallKey, Decision, Domain, Env, Limits, ReplyTo, Work, decide_call, forge};
 use jig_domain_tasks as tasks;
 

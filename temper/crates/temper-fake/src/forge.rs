@@ -1,4 +1,4 @@
-//! The QA forge's document, fixed seed and setup acts (protocol/setup.md, 8.4).
+//! The QA forge's document, fixed seed and setup acts (protocol/setup/playground.md).
 pub mod github;
 pub mod observations;
 use crate::{Refusal, read};
@@ -38,7 +38,7 @@ pub struct Repository {
     pub landing: Box<[u8]>,
     pub ci: Option<Ci>,
 }
-/// A source repository and its public catalogue address (protocol/setup.md, 7.5).
+/// A source repository and its public catalogue address (protocol/setup/box.md, 5).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Source {
     pub address: Box<[u8]>,
@@ -60,7 +60,7 @@ pub struct Document {
     ci_ms: u32,
 }
 impl Document {
-    /// The fake forge of a checked setup entry, its token at `admin_token` (protocol/setup.md, 8.4).
+    /// The fake forge of a checked setup entry, its token at `admin_token` (protocol/setup/playground.md).
     #[must_use]
     pub fn fake(fake: &temper_forge_setup::setup::Fake, admin_token: &[u8]) -> Self {
         let mut repositories =
@@ -520,7 +520,7 @@ pub fn setup(store: &mut forgejo::setup::Store, admin_token: &[u8; 40]) {
 pub fn checks(ci: Option<&Ci>) -> api::Checks {
     checks_paced(ci, 0)
 }
-/// The same CI cue with a fixed verdict latency (protocol/setup.md, 8.4).
+/// The same CI cue with a fixed verdict latency (protocol/setup/playground.md).
 #[must_use]
 pub fn checks_paced(ci: Option<&Ci>, ci_ms: u32) -> api::Checks {
     let latency = Duration::from_millis(u64::from(ci_ms));
@@ -599,7 +599,7 @@ pub fn git_limits() -> skein_fake_forge_forgejo::Limits {
     crate::wire::forge_limits()
 }
 
-/// Constructs the checked document's peer without io (protocol/setup.md, 8.4).
+/// Constructs the checked document's peer without io (protocol/setup/playground.md).
 /// The peer's shared Forge is lent back to the host for observation drains.
 /// This follows skein's testing/fakes/forge.md, 5, `Rc<RefCell<Forge>>` boundary;
 /// the departure from programming-model.md's ownership rule is confined here.

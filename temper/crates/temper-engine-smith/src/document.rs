@@ -1,4 +1,4 @@
-//! Decode the chat's document write (temper/docs/design/domain/agent.md, 8.4.3).
+//! Decode the chat's document write (temper/docs/design/domain/agent/ask-temper.md, 3).
 
 use crate::{Problem, json::Value};
 use temper_engine_domain::{DocumentAction, Tool};
@@ -19,7 +19,7 @@ pub(crate) fn decode(value: &Value) -> Result<Tool, Problem> {
     Ok(Tool::Document { action, body: value.required(b"body")?.text(b"body")? })
 }
 
-/// Render the root's joined answer in the document call's words (domain/agent.md, 8.4.3).
+/// Render the root's joined answer in the document call's words (domain/agent/ask-temper.md, 3).
 pub(crate) fn render(
     text: &mut crate::answers::Text,
     documented: &temper_engine_domain::Documented,

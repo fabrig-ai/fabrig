@@ -1,5 +1,5 @@
 //! The built playground, its frame's figures and a downloaded log replayed natively
-//! (temper/docs/design/client/browser.md, 4.6, item 12; temper/docs/design/playground.md, 9).
+//! (temper/docs/design/client/web/testing.md, 6, item 12; temper/docs/design/playground.md, 9).
 use skein_fake_person::{Face, Find, Found, Next, Step as PersonStep, Why};
 use skein_fake_person_browser::harness::{Names, Output, Printed, Sent};
 use skein_fake_person_browser::{BrowserFace, Harness, Outcome, Play, Script, Setup, Step};

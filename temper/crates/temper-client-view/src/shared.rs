@@ -1,4 +1,4 @@
-//! Words and data shared by the browser and TUI (temper/docs/design/client/README.md, 6.14, Its words).
+//! Words and data shared by the browser and TUI (temper/docs/design/client/tui/pages.md, Its words).
 mod cards;
 mod lists;
 mod needs;
@@ -18,7 +18,7 @@ pub use words::{
     need_line, note, offered, running, say,
 };
 
-/// Whether the open chat's run line is under way (temper/docs/design/client/README.md, 3.5).
+/// Whether the open chat's run line is under way (temper/docs/design/client/pages/README.md).
 #[must_use]
 pub fn working(root: &temper_client_domain::Domain, w: &crate::words::Words) -> bool {
     let Some(chat) = root.pages().chat() else { return false };

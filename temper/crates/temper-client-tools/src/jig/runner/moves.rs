@@ -1,4 +1,4 @@
-//! The move's file is the shell's; only a durable write permits written (client/tools.md, 5.5).
+//! The move's file is the shell's; only a durable write permits written (client/ctl/areas.md).
 use super::{Called, FileEnd, Out, Runner, acts, finish};
 use crate::jig::{Limits, render};
 use alloc::boxed::Box;

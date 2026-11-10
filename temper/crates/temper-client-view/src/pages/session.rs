@@ -1,4 +1,4 @@
-//! A session's path, bar and composer (temper/docs/design/client/README.md, 3.5).
+//! A session's path, bar and composer (temper/docs/design/client/pages/README.md).
 use crate::{
     frame::Bindings,
     look,
@@ -110,7 +110,7 @@ pub(crate) fn composer(b: &mut Builder) {
     b.open(Role::Slot);
     b.style(look::SESSION_COMPOSER);
 }
-/// Closes the entry and draws its row: hint and picker (client/README.md, 3.5).
+/// Closes the entry and draws its row: hint and picker (client/pages/README.md).
 pub(crate) fn foot_row(
     b: &mut Builder,
     root: &Domain,
@@ -153,7 +153,7 @@ fn link(b: &mut Builder, bindings: &mut Bindings, words: &[u8], address: Address
     b.close();
 }
 
-/// The line under a composer past what one message holds (client/README.md, 5.4).
+/// The line under a composer past what one message holds (client/view.md, 4).
 pub(crate) fn over(b: &mut Builder, w: &Words, characters: u64) {
     if characters == 0 {
         return;
@@ -166,7 +166,7 @@ pub(crate) fn over(b: &mut Builder, w: &Words, characters: u64) {
     text(b, Role::Status, &line, None);
 }
 
-/// The browser bar keeps the chat's number (client/README.md, 3.5).
+/// The browser bar keeps the chat's number (client/pages/README.md).
 pub(crate) fn number(b: &mut Builder, w: &Words, task: u64) {
     match w.shell {
         crate::words::Shell::Browser => {
@@ -176,7 +176,7 @@ pub(crate) fn number(b: &mut Builder, w: &Words, task: u64) {
     }
 }
 
-/// A closed chat's number and what it ran on, in both shells (client/README.md, 3.5).
+/// A closed chat's number and what it ran on, in both shells (client/pages/README.md).
 pub(crate) fn closed_number(b: &mut Builder, w: &Words, task: u64, line: Option<&[u8]>) {
     match line {
         Some(line) => text(
@@ -189,12 +189,12 @@ pub(crate) fn closed_number(b: &mut Builder, w: &Words, task: u64, line: Option<
     }
 }
 
-/// The browser's entrance to a chat's terminal (client/README.md, 3.5).
+/// The browser's entrance to a chat's terminal (client/pages/README.md).
 pub(crate) fn to_terminal(b: &mut Builder, w: &Words, bindings: &mut Bindings) {
     super::terminal::enter(b, w, bindings);
 }
 
-/// Send feedback beneath the composer (temper/docs/design/client/README.md, 3.5).
+/// Send feedback beneath the composer (temper/docs/design/client/pages/README.md).
 pub(crate) fn refusals(b: &mut Builder, root: &Domain, w: &Words) {
     for line in &crate::shared::composer_refusals(root, w) {
         crate::confirm::feedback(b, line);

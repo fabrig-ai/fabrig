@@ -1,5 +1,5 @@
 //! Review failure walks across Smith, the worker and the change procedure.
-//! Contract: temper/docs/design/domain/forge.md, 8.3.
+//! Contract: temper/docs/design/domain/forge/change/gates.md, 1.
 use super::{Script, VecDeque, World, agreement, call, engine, tasks};
 use std::fmt::Write;
 use temper_engine_domain_forge as forge;

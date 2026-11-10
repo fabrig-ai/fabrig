@@ -1,4 +1,4 @@
-//! Stage-one commands: `temper/docs/design/domain/testing.md`, 6.5.
+//! Stage-one commands: `temper/docs/design/testing/checks.md`, 5.
 use std::process::ExitCode;
 use temper_stage_one::{check, collect, golden, judge};
 

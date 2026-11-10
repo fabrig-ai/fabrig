@@ -1217,7 +1217,7 @@ fn the_banner_is_one_line_with_its_set_up_link() {
                 region = Some(index);
             }
         }
-        // While it runs the line ends the chats pane alone (client/README.md, 5.1).
+        // While it runs the line ends the chats pane alone (client/view.md, 1).
         if !chats {
             assert!(region.is_none());
             continue;
@@ -1257,7 +1257,7 @@ fn the_link_sends_end_playground_and_shows_leaving() {
     assert!(root.forge().leaving());
     assert!(skein_lib::bytes::find(&f::text(view.tree()), "Leaving the playground…".as_bytes()).is_some());
     assert!(f::find(view.tree(), Role::Link, b"set up temper").is_none());
-    // While it is leaving, the line shows on every page (client/README.md, 5.1).
+    // While it is leaving, the line shows on every page (client/view.md, 1).
     f::root_event(&mut root, Event::Went { place: temper_client_domain::Place::Address(Address::Forges) });
     let view = f::page_view(&root);
     assert!(skein_lib::bytes::find(&f::text(view.tree()), "Leaving the playground…".as_bytes()).is_some());

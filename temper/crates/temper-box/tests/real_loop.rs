@@ -1,4 +1,4 @@
-//! One shared terminal on one real ring (protocol/setup.md, 7.2 and 13.1).
+//! One shared terminal on one real ring (protocol/setup/box.md, 2, and protocol/setup/testing.md, 1).
 //! The synthetic children expose write completions; Service is used unchanged.
 #![cfg(test)]
 #![forbid(unsafe_code)]

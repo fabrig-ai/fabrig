@@ -1,5 +1,5 @@
 //! Chat documents revised whole after a follow-up or by lines from a fresh brief
-//! (temper/docs/design/domain/testing.md, 2.4, 2.6; temper/docs/design/domain/agent.md, 8.3).
+//! (temper/docs/design/testing/real-loop.md, temper/docs/design/testing/process-tier.md; temper/docs/design/domain/agent/agents.md, 3).
 use serde_json::{Value, json};
 use skein_fake_llm_domain::api;
 use std::{cell::RefCell, io::Write, net::SocketAddr, os::unix::fs::OpenOptionsExt};

@@ -807,7 +807,7 @@ section 5).
 - **A transcript's load with no slot** (`briefs.md`, 1.1, `executors.md`, 2): `TranscriptLoad` has
   no capacity answer, so a root never answers one for room: it keeps the
   activation due while its load table is full, and a window's later pages
-  in the slot its first took (temper's `domain/root.md`, 8). A root that
+  in the slot its first took (temper's `domain/root.md`, 7). A root that
   answered `TranscriptLoad::Failed` for room would count it as transient,
   and the try it spent would make the next run start fresh from the tail
   rather than resume. Default: no capacity answer, until the user says.

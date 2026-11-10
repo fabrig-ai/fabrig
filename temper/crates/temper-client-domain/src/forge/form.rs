@@ -1,4 +1,4 @@
-//! One bounded adoption draft, with typed values supplied by the view (client/README.md, 4.4).
+//! One bounded adoption draft, with typed values supplied by the view (client/forge/family.md, 4).
 use super::{Address, Adoption, Answer, Role, Served};
 use alloc::boxed::Box;
 use skein_lib::{RequestProgress, Token};
@@ -123,7 +123,7 @@ pub fn form(project: u32) -> Form {
         confirmed: false,
     }
 }
-/// Fill the first repository's defaults as domain writes (client/README.md, 4.4).
+/// Fill the first repository's defaults as domain writes (client/forge/family.md, 4).
 pub fn fill_first(form: &mut Form, forge: u16, org: &[u8], name: &[u8]) {
     let number = skein_lib::Decimal::of(u64::from(forge));
     for (text, value, typed) in [

@@ -1,4 +1,4 @@
-//! The deployment and document forms' files and peer loop (protocol/setup.md, 8.4).
+//! The deployment and document forms' files and peer loop (protocol/setup/playground.md).
 use crate::directories::jig_directories;
 pub(crate) mod check;
 mod control;
@@ -369,7 +369,7 @@ impl Created {
 fn read_document(path: &Path, bound: u32) -> Result<Box<[u8]>, String> {
     skein_shell::read_file(path, bound).map_err(|why| format!("{}: {}", path.display(), super::unread(why)))
 }
-/// The box's group selects its machine kind (temper/docs/design/protocol/setup.md, 7.1).
+/// The box's group selects its machine kind (temper/docs/design/protocol/setup/box.md, 1).
 fn forge_entry(
     bytes: &[u8],
     directories: &super::Directories,

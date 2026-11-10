@@ -1,8 +1,8 @@
-//! Reconcile's deadline and wait (temper/docs/design/protocol/configuration.md, 7;
+//! Reconcile's deadline and wait (temper/docs/design/protocol/configuration/limits.md;
 //! temper/docs/design/protocol/documentation.md, 8).
 use skein_forge_setup::limits::Limits;
 
-/// temper gives no org (protocol/setup.md, 5.3): the least bound the kit takes.
+/// temper gives no org (protocol/setup/reconcile.md, 3): the least bound the kit takes.
 pub const ORGS: u32 = 1;
 
 /// A fetched binary's cap; largest pin: Forgejo 17.0.1 amd64, 122,057,320 bytes.
@@ -13,14 +13,14 @@ pub fn fetch_bytes(value: u64) -> Result<u64, Refused> {
 }
 /// Small-profile host admission, beside the pure plan profile returned by `small()`.
 pub mod small {
-    /// A copy may wait thirty minutes for its source (protocol/setup.md, 6.9).
+    /// A copy may wait thirty minutes for its source (protocol/setup/owned.md, 9).
     pub const COPY_DEADLINE: skein_lib::Duration = skein_lib::Duration::from_secs(1800);
     // Four forges, each with one writing run and one Reachable beside it.
     pub const RUNS: u32 = 8;
     // A manifest return and an installation return for each of four forges.
     pub const STATES: u32 = 8;
 }
-/// The engine host's setup limits (protocol/configuration.md, 7).
+/// The engine host's setup limits (protocol/configuration/limits.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Host {
     pub runs: u32,

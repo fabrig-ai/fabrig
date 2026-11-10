@@ -1,4 +1,4 @@
-//! Session settings, project reads and immediate edits (client/README.md, 5.13).
+//! Session settings, project reads and immediate edits (client/pages/settings.md, 2).
 use super::fixtures as f;
 use crate::{
     Address, Domain, Event, Place, Request,

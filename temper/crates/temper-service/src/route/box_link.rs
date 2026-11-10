@@ -1,10 +1,10 @@
-//! Serve's box pipe (temper/docs/design/protocol/forge.md, 2.8).
+//! Serve's box pipe (temper/docs/design/protocol/forge/engine.md, 8).
 
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Queue, Token, Writer, bytes};
 use temper_engine_domain_forge::{BoxKind, SetUpBinary, SetUpFetched};
 
-/// The box's word for the step it runs (protocol/setup.md, 7.1).
+/// The box's word for the step it runs (protocol/setup/box.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Step {
     Fetch,
@@ -12,7 +12,7 @@ pub(crate) enum Step {
     Run,
     Source,
 }
-/// Why the link refuses an ask (protocol/forge.md, 2.8).
+/// Why the link refuses an ask (protocol/forge/engine.md, 8).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Refused {
     Busy,
@@ -76,7 +76,7 @@ pub(crate) struct Link {
     pub(crate) write: Option<Box<[u8]>>,
     ended: bool,
     asked: Option<Ask>,
-    // A start retains its kind until the active ask ends (temper/docs/design/protocol/forge.md, 2.8).
+    // A start retains its kind until the active ask ends (temper/docs/design/protocol/forge/engine.md, 8).
     held: Option<Start>,
     pending_end: Option<End>,
     line_bytes: u32,
@@ -435,7 +435,7 @@ fn joined(parts: &[&[u8]]) -> Box<[u8]> {
     writer.finish()
 }
 
-/// One drain for asks, pipe lines and pipe terminals (protocol/forge.md, 2.8).
+/// One drain for asks, pipe lines and pipe terminals (protocol/forge/engine.md, 8).
 pub(crate) fn drain(engine: &mut crate::engine::Engine, out: &mut Queue<Out>) {
     use crate::setup::lifecycle::{set_up_refused, state};
     use temper_engine_domain_forge::{Connection, SetUpRefusal, SetUpStep};

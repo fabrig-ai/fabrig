@@ -1,5 +1,5 @@
 //! First-repository promises exercised through the person and ctl on the real engine.
-//! The kept owned forge follows temper/docs/design/protocol/forge.md, 2.1.
+//! The kept owned forge follows temper/docs/design/protocol/forge/engine.md, 1.
 use jig_client_kit::harness::{ClientId, Until, World};
 use skein_fake_person::{Find, Step};
 use skein_lib::Token;
@@ -138,7 +138,7 @@ fn connected(world: &mut ClientWorld) {
 
 #[test]
 fn empty_organization_is_required_without_starting_the_box() {
-    // client/forge.md, 5.4: an empty organization is refused locally, fields kept.
+    // client/forge/deployment.md: an empty organization is refused locally, fields kept.
     let mut world = configured(true);
     let person = world.client(fixtures::PARTY, flow());
     script(
@@ -161,7 +161,7 @@ fn empty_organization_is_required_without_starting_the_box() {
 
 #[test]
 fn empty_repository_is_required_without_starting_the_box() {
-    // client/forge.md, 5.4: an empty repository is refused locally.
+    // client/forge/deployment.md: an empty repository is refused locally.
     let mut world = configured(true);
     let person = world.client(fixtures::PARTY, flow());
     script(
@@ -179,7 +179,7 @@ fn empty_repository_is_required_without_starting_the_box() {
 
 #[test]
 fn without_the_box_the_flow_says_to_start_temper_with_the_box_and_offers_no_setup() {
-    // client/forge.md, 5.4: without the box the page says to start temper with the box.
+    // client/forge/deployment.md: without the box the page says to start temper with the box.
     let mut world = configured(false);
     let person = world.client(fixtures::PARTY, flow());
     script(
@@ -202,7 +202,7 @@ fn without_the_box_the_flow_says_to_start_temper_with_the_box_and_offers_no_setu
 
 #[test]
 fn setup_leaves_the_first_repository_unadopted_even_after_connection() {
-    // client/tools.md, 5.5; client/forge.md, 5.4: wait for made AND connected.
+    // client/ctl/areas.md; client/forge/deployment.md: wait for made AND connected.
     let mut world = configured(true);
     let person = world.client(fixtures::PARTY, flow());
     setup(&mut world, person);
@@ -218,7 +218,7 @@ fn setup_leaves_the_first_repository_unadopted_even_after_connection() {
 
 #[test]
 fn a_second_tab_that_never_asked_does_not_adopt_the_made_repository() {
-    // client/forge.md, 5.4: the observer adopts nothing; ctl completes its own call.
+    // client/forge/deployment.md: the observer adopts nothing; ctl completes its own call.
     let mut world = configured(true);
     let agent = fixtures::agent(&mut world);
     let person = world.client(fixtures::PARTY, flow());
@@ -239,7 +239,7 @@ fn a_second_tab_that_never_asked_does_not_adopt_the_made_repository() {
 
 #[test]
 fn leaving_the_flow_keeps_the_made_repository_unadopted() {
-    // client/forge.md, 5.4: setup adopts nothing on any page.
+    // client/forge/deployment.md: setup adopts nothing on any page.
     let mut world = configured(true);
     let person = world.client(fixtures::PARTY, flow());
     setup(&mut world, person);
@@ -260,7 +260,7 @@ fn leaving_the_flow_keeps_the_made_repository_unadopted() {
 
 #[test]
 fn every_create_failure_offers_setup_again_with_the_same_names() {
-    // protocol/setup.md, 6.7; client/forge.md, 5.4: failed(step) retries the last fields.
+    // protocol/setup/owned.md, 7; client/forge/deployment.md: failed(step) retries the last fields.
     for (step, why) in [
         (forge::CreateStep::Admin, b"checking the admin's token".as_slice()),
         (forge::CreateStep::Org, b"making the organization".as_slice()),

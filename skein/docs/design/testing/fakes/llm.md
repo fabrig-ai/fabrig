@@ -193,7 +193,7 @@ answer ownership is checked before effects or payload copies.
   `Place`'s script counts the cued scripts, then the asked ones, then
   `otherwise` as the last.
 - **Who uses it:** an application's demo model, whose scripts its
-  document gives (temper's `protocol/setup.md`, 8.4), and a world that
+  document gives (temper's `protocol/setup/playground.md`), and a world that
   answers a person's words rather than a charter's.
 
 `Domain::played_by_input(&Config, seed, Scripts, Menu, Rules)` admits
@@ -277,7 +277,7 @@ trust a TLS peer: `skein_fake_peers::transport::ROOT`, the DER bytes of
 the root that signs the fixed chain the peers present, whose leaf names
 `skein.test` and `127.0.0.1`. The owner writes it to a file the client
 is given (temper's fake LLM document's `tls.root`, temper's
-`protocol/setup.md`, 8.4); the client trusts that root
+`protocol/setup/playground.md`); the client trusts that root
 alone, and reaches the peer as `https://127.0.0.1:<port>`. A test root
 vouches for nothing outside a test: its key is in the tree.
 

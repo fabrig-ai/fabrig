@@ -1,5 +1,5 @@
-//! The TUI's shipped host in the joint world (temper/docs/design/client/README.md, 6.13, 6.14 and 6.17;
-//! temper/docs/design/domain/testing.md, 6.3).
+//! The TUI's shipped host in the joint world (temper/docs/design/client/tui/README.md, 3 and temper/docs/design/client/tui/pages.md and temper/docs/design/client/tui/box.md;
+//! temper/docs/design/testing/checks.md, 3).
 use crate::{app::Temper, front::Joint};
 use jig_client_kit::harness::{ClientId, Until, World};
 use skein_lib::{Duration, Secret};
@@ -14,7 +14,7 @@ use temper_client_tui::{BoxLine, Note, Scheme};
 pub const ADDRESS: &[u8] = b"127.0.0.1:8367";
 
 /// The engine's link file holds the engine's local link
-/// (temper/docs/design/client/README.md, 6.12 and 6.14).
+/// (temper/docs/design/client/tui/README.md, 2 and temper/docs/design/client/tui/pages.md).
 pub enum File {
     Absent,
     Bytes(Secret),

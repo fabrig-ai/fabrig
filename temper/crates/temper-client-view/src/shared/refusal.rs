@@ -1,4 +1,4 @@
-//! Send refusals (temper/docs/design/client/README.md, 6.14, The chat's question; 3.5).
+//! Send refusals (temper/docs/design/client/tui/pages.md, The chat's question; 3.5).
 use crate::{cards::P, words::Words};
 use alloc::boxed::Box;
 use jig_client::{Answered, Outcome, contract as c};
@@ -6,7 +6,7 @@ use skein_lib::List;
 use skein_ui::phrases::Hole;
 use temper_client_domain::{Address, Domain, pages::chat::Sending};
 
-/// Words beneath the composer's last send (temper/docs/design/client/README.md, 6.14, The chat's question).
+/// Words beneath the composer's last send (temper/docs/design/client/tui/pages.md, The chat's question).
 /// Explanatory paragraphs follow the status with a space between them.
 #[must_use]
 pub fn refusal(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
@@ -30,7 +30,7 @@ pub fn refusal(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
     Some(joined)
 }
 
-/// A send's status and its explanatory paragraph (temper/docs/design/client/README.md, 3.5).
+/// A send's status and its explanatory paragraph (temper/docs/design/client/pages/README.md).
 #[derive(Debug)]
 pub(crate) struct Feedback {
     pub head: Box<[u8]>,
@@ -85,7 +85,7 @@ fn refused(value: &c::Refusal, words: &Words, answer: bool) -> Feedback {
     };
     Feedback { head, refused: true, after }
 }
-/// A failed send in jig's words (temper/docs/design/client/README.md, 3.5).
+/// A failed send in jig's words (temper/docs/design/client/pages/README.md).
 pub(crate) fn outcome_feedback(outcome: &Outcome, words: &Words, answer: bool) -> Option<Feedback> {
     let head = match outcome {
         Outcome::Answered(Answered::Jig(c::Answer::Refused { refusal, .. })) => {
@@ -103,7 +103,7 @@ pub(crate) fn outcome_feedback(outcome: &Outcome, words: &Words, answer: bool) -
     };
     Some(Feedback { head, refused: false, after: None })
 }
-/// Start and message feedback; question feedback stays beside its list (temper/docs/design/client/README.md, 3.5).
+/// Start and message feedback; question feedback stays beside its list (temper/docs/design/client/pages/README.md).
 pub(crate) fn composer_refusals(root: &Domain, w: &Words) -> List<Feedback> {
     let mut feedback = List::with_capacity(2);
     if let Some(chat) = root.pages().chat() {

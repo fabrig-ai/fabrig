@@ -1,4 +1,4 @@
-//! Collect evidence through ctl reads: `temper/docs/design/domain/testing.md`, 6.5.3.
+//! Collect evidence through ctl reads: `temper/docs/design/testing/checks.md`, 5.3.
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::fs::{self, OpenOptions};

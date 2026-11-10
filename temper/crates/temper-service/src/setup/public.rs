@@ -1,4 +1,4 @@
-//! Public Check, Paste and Install; carried bytes stay beside the host (protocol/forge.md, 2.6).
+//! Public Check, Paste and Install; carried bytes stay beside the host (protocol/forge/engine.md, 6).
 use crate::engine::Engine;
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
@@ -197,7 +197,7 @@ pub(crate) fn tokens_connect(engine: &mut Engine, forge: u16, request: Token, ca
         stage(engine, run, host::Plan::Check { forge });
     }
 }
-/// Replace checks the new values against the forge's kept identity (protocol/forge.md, 2.2).
+/// Replace checks the new values against the forge's kept identity (protocol/forge/engine.md, 2).
 pub(crate) fn replace(engine: &mut Engine, forge: u16, request: Token, carried: Carried) {
     if full(engine, forge) {
         event(
@@ -274,7 +274,7 @@ fn tokens(bytes: &[u8], replacing: bool) -> Result<Box<[(u16, Secret)]>, &'stati
     }
     if (api && git) || (replacing && (api || git)) { Ok(items) } else { Err(invalid) }
 }
-/// Check's token failures use the connected Forgejo's words (protocol/forge.md, 2.2).
+/// Check's token failures use the connected Forgejo's words (protocol/forge/engine.md, 2).
 pub(super) fn tokens_failure(
     engine: &Engine,
     run: Token,
@@ -351,7 +351,7 @@ fn pasted(bytes: &[u8], item: u16, invalid: &'static [u8]) -> Result<Secret, &'s
     }
 }
 pub(crate) fn install(engine: &mut Engine, forge: u16, request: Token, back: Option<Box<[u8]>>) {
-    // The engine's own run on the forge holds an Install rather than refusing it (setup.md, 5.1).
+    // The engine's own run on the forge holds an Install rather than refusing it (protocol/setup/reconcile.md, 1).
     let held = engine.setup.busy_internally(forge) && engine.setup.public.len() < engine.setup.public.capacity();
     if !held && full(engine, forge) {
         event(
@@ -644,7 +644,7 @@ pub(super) fn stopped(engine: &mut Engine, run: Token, failure: &skein_forge_set
     }
 }
 
-// client/README.md, 4.6: classify the structured stop, never its diagnostic text.
+// client/forge/records.md: classify the structured stop, never its diagnostic text.
 fn accept_failure(
     engine: &Engine,
     forge: u16,
@@ -681,7 +681,7 @@ fn accept_failure(
     }
 }
 
-/// A person's adoption asks on its path before the bot can locate it (protocol/setup.md, 5.4).
+/// A person's adoption asks on its path before the bot can locate it (protocol/setup/reconcile.md, 4).
 pub(crate) fn adopt_access(engine: &mut Engine, forge: u16, request: Token, owner: Box<[u8]>, name: Box<[u8]>) {
     if full(engine, forge) {
         event(engine, domain::Event::AccessAnswered { forge, request, answer: Err(domain::AdoptionRefusal::InFlight) });

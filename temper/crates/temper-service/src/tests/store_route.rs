@@ -550,7 +550,7 @@ fn stored_history(row: Option<core::Record>) -> Option<store::Row> {
     Some(store::Row::Jig(row?))
 }
 
-/// temper/docs/design/domain/root.md, 8: size cuts retain the turn's fields and length.
+/// temper/docs/design/domain/root.md, 7: size cuts retain the turn's fields and length.
 #[test]
 fn window_turns_past_store_row_or_page_room_are_carried_cut() {
     let (limits, _, _) = fixtures::store_limits();

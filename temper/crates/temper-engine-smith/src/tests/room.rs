@@ -1,5 +1,5 @@
 //! The domain's table and smith's independent run measure
-//! (temper/docs/design/domain/agent.md, 4.3).
+//! (temper/docs/design/domain/agent/tools.md).
 
 use super::{assignment, engine, run, tasks};
 use crate::{charter, room::host_part};

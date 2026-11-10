@@ -1,4 +1,4 @@
-//! Forge judgements over a change's own facts (domain/forge.md, 8.7).
+//! Forge judgements over a change's own facts (domain/forge/change/gates.md, 2).
 //!
 //! The connector judges the criteria of its held rules. The root supplies verified
 //! project roles for authenticated reviewers; it does not interpret the forge's

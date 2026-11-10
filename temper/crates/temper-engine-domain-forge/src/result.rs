@@ -1,4 +1,4 @@
-//! What a landed change actually saw (domain/forge.md, 8.2).
+//! What a landed change actually saw (domain/forge/change/README.md, 2).
 use alloc::boxed::Box;
 use skein_forge::api::{Check, Commit, Status};
 use skein_lib::{Decimal, Writer};
@@ -140,7 +140,7 @@ impl ChangeResult {
             }
         }
     }
-    /// A CI repair ended by a green head (domain/forge.md, 8.4). Nothing to say where none was asked.
+    /// A CI repair ended by a green head (domain/forge/change/repairs.md). Nothing to say where none was asked.
     pub(crate) fn ci_passed(&mut self, head: &Commit, bound: u32) {
         if self.repair_count == 0 {
             return;

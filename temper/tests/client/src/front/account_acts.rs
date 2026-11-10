@@ -283,7 +283,7 @@ pub fn program_signed_out(front: &mut Joint, root: &mut Root, name: &[u8]) {
 }
 
 /// Settle the welcome's trial before a story scripts its own worker attempt
-/// (temper/docs/design/domain/trial.md, 2; temper/docs/design/domain/testing.md, 6.3).
+/// (temper/docs/design/domain/trial.md, 2; temper/docs/design/testing/checks.md, 3).
 pub fn answer_trial(front: &mut Joint, root: &mut Root) {
     settle(front, root);
     let tasks: Vec<_> = root

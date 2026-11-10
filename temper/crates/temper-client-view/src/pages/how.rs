@@ -1,4 +1,4 @@
-//! How work runs' heading, path, reaches, roles and budget (temper/docs/design/client/README.md, 5.13).
+//! How work runs' heading, path, reaches, roles and budget (temper/docs/design/client/pages/settings.md, 2).
 use crate::{
     frame::Bindings,
     look,
@@ -165,7 +165,7 @@ fn text(b: &mut Builder, role: Role, words: &[u8], style: skein_ui::Style) {
     b.close();
 }
 
-/// The project's classes and live rows (README.md, 5.13, *What reaches you* and *Its rows*).
+/// The project's classes and live rows (client/pages/settings.md, 2, *What reaches you* and *Its rows*).
 pub(crate) fn reaches(
     b: &mut Builder,
     root: &Domain,

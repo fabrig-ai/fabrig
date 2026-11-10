@@ -1,5 +1,5 @@
-//! Team's page (temper/docs/design/client/README.md, 3.5, Team;
-//! temper/docs/design/client/browser.md, 2.5, Team's look).
+//! Team's page (temper/docs/design/client/pages/README.md, Team;
+//! temper/docs/design/client/web/look.md, Team's look).
 use crate::{
     cards::text,
     look,

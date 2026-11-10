@@ -1,4 +1,4 @@
-//! The check by code: `temper/docs/design/domain/testing.md`, 6.5.1 and 6.5.4.
+//! The check by code: `temper/docs/design/testing/checks.md`, 5.1 and 5.4.
 use std::fmt::Write as _;
 use std::path::Path;
 use std::process::ExitCode;

@@ -136,7 +136,7 @@ fn a_change_keeps_its_producing_and_review_charters_after_configuration_changes(
     assert_eq!(change_row(&world, change).review_charter, 4);
 }
 
-/// domain/forge.md, 8.3: the review names its subject before the pull section.
+/// domain/forge/change/gates.md, 1: the review names its subject before the pull section.
 #[test]
 fn a_gate_reviews_a_named_pull_with_its_whole_section_at_a_sha1_head() {
     let (world, reviewer, head) = review_world();
@@ -497,7 +497,7 @@ fn reviewer_reads_back_off_when_forge_admission_is_busy() {
 
 #[test]
 fn a_runs_busy_reads_and_a_change_steps_read_each_get_their_own_answer() {
-    // temper/docs/design/domain/forge.md, 5.3: each answer reaches the read that asked.
+    // temper/docs/design/domain/forge/keeping-up.md, 3: each answer reaches the read that asked.
     // The base crosses at attempt 10 (zero based); 64 sweeps past twice that attempt.
     const SWEEP: u32 = 64;
     let (mut world, reviewer, head) = review_read_budget(2, 0);
@@ -1004,7 +1004,7 @@ fn a_request_for_changes_is_still_a_repair() {
     assert_eq!(row.verdicts[0].status, temper_engine_domain_forge_change::Status::Failed);
 }
 
-// domain/forge.md, 8.5: the procedure retains the precise hold while its review waits.
+// domain/forge/change/README.md, 3: the procedure retains the precise hold while its review waits.
 #[test]
 fn an_external_close_holds_the_change_during_review() {
     use temper_engine_domain_forge_change::{Hold, State};

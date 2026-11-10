@@ -119,7 +119,7 @@ fn the_words_survive_a_shell() {
 #[test]
 fn the_widest_directories_fit_the_wire() {
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    // configuration.md, 12: each directory holds at most 4096 bytes.
+    // protocol/configuration/directories.md: each directory holds at most 4096 bytes.
     const PATH_BYTES: usize = 4096;
     // Three quoted apostrophe paths: 3 * (4 * 4096 + 2), 39 name bytes, three spaces, and temper.
     const WORD_BYTES: usize = 49206;
@@ -138,7 +138,7 @@ fn the_widest_directories_fit_the_wire() {
 
 #[test]
 fn a_binary_word_past_the_answer_bound_gives_way_to_temper() {
-    // client/README.md, 4.6: 49216 answer bytes; widest directory prefix is 49200.
+    // client/forge/records.md: 49216 answer bytes; widest directory prefix is 49200.
     const BOUND: usize = 49216;
     const WIDEST_PREFIX: usize = 49200;
     const PATH_BYTES: usize = 4096;

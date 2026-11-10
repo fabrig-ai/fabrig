@@ -1,5 +1,5 @@
-//! Paths, watched ways and read views (temper/docs/design/client/README.md, 4.6;
-//! temper/docs/design/client/forge.md, 9).
+//! Paths, watched ways and read views (temper/docs/design/client/forge/records.md;
+//! temper/docs/design/client/forge/served.md).
 use alloc::boxed::Box;
 use skein_lib::List;
 use temper_client_protocol_wire::{self as wire, v1 as w};

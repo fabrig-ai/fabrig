@@ -1,4 +1,4 @@
-//! Calls read through the client and engine (temper/docs/design/client/README.md, 3.5 and 5.9).
+//! Calls read through the client and engine (temper/docs/design/client/pages/README.md and temper/docs/design/client/pages/task.md, 2).
 use jig_client::contract as c;
 use jig_client_kit::harness::{ClientId, Front, Until, World};
 use skein_fake_person::{Find, Step};

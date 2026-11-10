@@ -1,6 +1,6 @@
 //! Stock template goals close without an agent's judgement after their work lands
-//! (temper/docs/design/protocol/configuration.md, 13.4;
-//! temper/docs/design/domain/forge.md, 11.2; jig/docs/design/domain/tasks/lifecycle.md, 11).
+//! (temper/docs/design/protocol/configuration/stock.md;
+//! temper/docs/design/domain/forge/branches.md, 2; jig/docs/design/domain/tasks/lifecycle.md, 11).
 use super::goal_branch::{branch_tip, stock_defaults};
 use super::goal_closer::{
     close_job, closer_row, finish_close as push_close, producer_for, result_words, wait_ended, wait_held, wait_landing,

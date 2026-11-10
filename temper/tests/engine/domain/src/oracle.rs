@@ -1,5 +1,5 @@
 //! Cold restart/readback (jig/docs/design/domain/engine/README.md, 9;
-//! temper/docs/design/domain/testing.md, 2).
+//! temper/docs/design/testing/README.md, 2).
 pub(crate) enum Fixture {
     Checked,
     Closed,
@@ -135,7 +135,7 @@ fn retained<'a>(key: &Key, row: &'a Record, wall: skein_lib::Wall) -> Option<Cow
 }
 
 impl Driver {
-    /// The restart oracle (jig jig/docs/design/domain/engine/README.md 9; temper testing.md 2): settle, snapshot,
+    /// The restart oracle (jig jig/docs/design/domain/engine/README.md 9; temper testing/README.md 2): settle, snapshot,
     /// restart cold over the same store, read back, compare through `durable`.
     /// Panics naming the first difference (document or row, field, key).
     pub fn close(&mut self) {

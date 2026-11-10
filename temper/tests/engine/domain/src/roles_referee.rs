@@ -79,7 +79,7 @@ impl Referee {
     )]
     pub fn commit(&mut self, writes: &[Write]) -> Result<(), &'static str> {
         if writes.contains(&Write::Wires) {
-            // domain/root.md 9.1: exactly the deployment header and Wires.
+            // domain/root.md 8.1: exactly the deployment header and Wires.
             if writes.len() != 2 {
                 return Err("startup mark contains other writes");
             }

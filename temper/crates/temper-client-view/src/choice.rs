@@ -1,4 +1,4 @@
-//! Supplied next-run choices and account waits (client/README.md, 3.5 and 5.5).
+//! Supplied next-run choices and account waits (client/pages/README.md and client/pages/accounts.md, 2).
 pub(crate) mod picker;
 use crate::{
     frame::Bindings,
@@ -110,7 +110,7 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
     }
     b.close();
 }
-/// Composers use the playground or the supplied real-account readiness (temper/docs/design/client/README.md, 4.8).
+/// Composers use the playground or the supplied real-account readiness (temper/docs/design/client/forge/family.md, 7).
 pub(crate) fn can_send(root: &Domain) -> bool {
     root.forge().playground().is_some() || temper_client_domain::pages::welcome::model_usable(root) != Some(false)
 }
@@ -138,7 +138,7 @@ pub(crate) fn composer(
     b.style(crate::look::CHOICE);
     if !can_send(root) {
         bindings.block_submissions();
-        // Paragraphs flatten their controls in the terminal (client/README.md, 6.5).
+        // Paragraphs flatten their controls in the terminal (client/line.md, 5).
         b.open(Role::Slot);
         b.style(crate::look::ACCOUNT_LINE);
         w.text(b, W::ComposerNoModel, &[]);
@@ -178,7 +178,7 @@ pub(crate) fn changeable(root: &Domain, task: Option<&c::Task>) -> bool {
             (Some(_), None) | (None, _) => false,
         }
 }
-/// Feedback and the no-model offer stay above the composer (client/README.md, 5.5).
+/// Feedback and the no-model offer stay above the composer (client/pages/accounts.md, 2).
 pub(crate) fn above_composer(
     b: &mut Builder,
     root: &Domain,
@@ -715,7 +715,7 @@ fn editable(task: &c::Task) -> bool {
         Some(c::Admission::Refused(_)) | None => false,
     }
 }
-/// A wait for a host, in a box's words on a box (temper/docs/design/client/README.md, 5.5).
+/// A wait for a host, in a box's words on a box (temper/docs/design/client/pages/accounts.md, 2).
 fn host_wait(root: &Domain) -> W {
     if crate::forge::connect::owned(root) { W::WaitCapacityBox } else { W::WaitCapacity }
 }
@@ -776,7 +776,7 @@ fn refused(w: &Words, times: &mut Times, why: c::TaskWaitRefused) -> Box<[u8]> {
     }
 }
 
-/// Bound figures keep their units and the fleet's largest offer (temper/docs/design/client/README.md, 5.5).
+/// Bound figures keep their units and the fleet's largest offer (temper/docs/design/client/pages/accounts.md, 2).
 fn bound_refusal(
     w: &Words,
     times: &mut Times,

@@ -1,4 +1,4 @@
-//! The engine's place (temper/docs/design/client/README.md, 6.12).
+//! The engine's place (temper/docs/design/client/tui/README.md, 2).
 #[test]
 fn a_box_names_only_its_non_default_port() {
     for (address, boxed, expected) in [

@@ -1,4 +1,4 @@
-//! Home's pure reading and owned watches (temper/docs/design/client/README.md, 3.5).
+//! Home's pure reading and owned watches (temper/docs/design/client/pages/README.md).
 use super::welcome::{default_answer, deliver, event, press_default, ready_default_with_forges};
 use crate::tests::fixtures as f;
 use crate::{
@@ -26,7 +26,7 @@ const INBOX_QUERIES: usize = 2;
 const HOME_HANDLES: u32 = 5;
 // The ordered repository fixture holds three adoptions on its lower forge.
 const REPOSITORIES: u32 = 3;
-// Home has two independently completed steps (client/README.md, 3.5).
+// Home has two independently completed steps (client/pages/README.md).
 const TWO_STEPS: u8 = 2;
 const ONE_STEP: u8 = 1;
 const NO_STEPS: u8 = 0;

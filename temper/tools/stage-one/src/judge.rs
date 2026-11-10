@@ -1,4 +1,4 @@
-//! The judge's brief and stage verdict: `temper/docs/design/domain/testing.md`, 6.5.4.
+//! The judge's brief and stage verdict: `temper/docs/design/testing/checks.md`, 5.4.
 use std::collections::BTreeSet;
 use std::fmt::{self, Write as _};
 use std::fs;

@@ -2703,7 +2703,7 @@ fn debug_of_settings_and_first_link_hides_credentials_and_the_url() {
     }
 }
 
-// protocol/setup.md, 7.2: fetch progress belongs to the pipe and private log.
+// protocol/setup/box.md, 2: fetch progress belongs to the pipe and private log.
 const FETCH_LINE: &[u8] = b"fetched forgejo 1 of 2 bytes\n";
 const FETCH_STDERR: &[u8] = b"download refused\n";
 fn fetch_harness(echo: crate::host::Echo, buffer: u32, items: &[skein_fake_machine::Item]) -> Harness {

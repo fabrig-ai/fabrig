@@ -135,7 +135,7 @@ fn text_model(value: &c::ModelEffort, out: &mut Text) {
         out.words(effort.bytes());
     }
 }
-/// Whether no account serves the next run (client/tools.md, 6.1).
+/// Whether no account serves the next run (client/ctl/results.md, 1).
 pub(super) fn no_account(task: &c::Task) -> bool {
     let Some(c::TaskRunWait::Account { account: None, source: None, why: c::TaskWaitWhy::Empty }) = task.run_wait
     else {
@@ -143,7 +143,7 @@ pub(super) fn no_account(task: &c::Task) -> bool {
     };
     true
 }
-/// Whether the task waits for an account and nothing else (client/tools.md, 6.1).
+/// Whether the task waits for an account and nothing else (client/ctl/results.md, 1).
 pub(super) fn waits_for_account(task: &c::Task) -> bool {
     task.waits_on == c::WaitsOn::Nothing && task.hold.is_none() && no_account(task)
 }
@@ -508,7 +508,7 @@ fn agent_shortfall_text(value: c::AgentShortfall, out: &mut Text) {
     }
 }
 
-/// The client's bound clauses in ctl's units (temper/docs/design/client/tools.md, 6.1).
+/// The client's bound clauses in ctl's units (temper/docs/design/client/ctl/results.md, 1).
 fn refused_explanation(value: c::TaskWaitRefused, out: &mut Text) {
     match value {
         c::TaskWaitRefused::Bounds { kind, why, figures } => bound_explanation(kind, why, figures, None, out),

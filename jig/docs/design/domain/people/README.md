@@ -493,8 +493,8 @@ entry naming the task or proposal it is and its project:
   client gives the chat template's, as its helper gives a close's
   (`shapes::remove_project`, `../../client/domain/client/helpers.md`),
   and an application deleting by the deployment's act gives its own
-  chat template's (temper's playground: temper's `protocol/setup.md`,
-  8.4): here too the engine reads no template.
+  chat template's (temper's playground: temper's `protocol/setup/playground.md`
+  ): here too the engine reads no template.
 
 ## 7. Person tasks
 

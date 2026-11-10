@@ -1,20 +1,20 @@
 # The TUI's journeys
 
 Provisional, 2026-11-08. A TUI journey is a walk through the TUI
-(`../README.md`, 6.11 to 6.16; `../../draft/tui.md`, section 5) recorded
+(`README.md`, 1 to 3 and `pages.md` and `theme.md` and `README.md`, 4; `../../draft/tui.md`, section 5) recorded
 at its host's seam on a fresh `temper box --fake-backends`, replayed
 natively through the shipped host, and printed as its frames: each as
 text, a line per row, and as a page drawn in the theme's colours,
 linked so that the same keys walk them. They are the browser's journeys
-(`../journeys.md`) for the TUI's host, and share their file's syntax,
-their redaction and their last scan, with the same code. Section 2 is
+(`../web/journeys.md`) for the TUI's host, and share their file's syntax,
+their redaction and their last scan, with the same code. `journeys.md`, section 2 is
 the build, 3 the recording, 4 the replay, 5 the redaction and the scan,
 6 the print, 7 the tests, 8 recording again, 9 the journeys, 10 editing
 the look, 11 what is open.
 
 ## 1. In one page
 
-- **One seam, the host's** (`../README.md`, 6.13): the run gives its
+- **One seam, the host's** (`README.md`, 3): the run gives its
   host each report and carries out the duties it asks back; the
   recorder keeps what crosses that seam, and the replay gives it back to
   the same host, natively.
@@ -30,7 +30,7 @@ the look, 11 what is open.
 - **Replayed, it must ask what it asked,** each key giving the event it
   gave; otherwise the journey is stale and recorded again (sections 4
   and 8). The first replay proves itself against the live frames.
-- **Redacted and scanned by the browser's code** (`../journeys.md`, 3.6
+- **Redacted and scanned by the browser's code** (`../web/journeys.md`, 3.6
   and 3.7), which gains the TUI's originals: the approval's secret, the
   credential the TUI takes and the bearer every exchange carries
   (section 5).
@@ -87,7 +87,7 @@ the look, 11 what is open.
   `temper`'s always is (section 2), gives Alt+m and Alt+s to the host as
   any other key.
 - **A save** writes the file whole, `recording` in the TUI's directory
-  (`../README.md`, 6.12), `0o600`, a synced temporary replacing it,
+  (`README.md`, 2), `0o600`, a synced temporary replacing it,
   through skein-io's file layer on the run's own io. The recorder goes
   on after a save, so each save is a whole recording and a later one
   holds more. Closing saves once more, as it is, before the terminal's
@@ -101,7 +101,7 @@ the look, 11 what is open.
 
 ### 3.2 The file
 
-`../journeys.md`, 3.2's text: one record per line, its kind first, then
+`../web/journeys.md`, 3.2's text: one record per line, its kind first, then
 its fields, each after one space; a number decimal, a word bare
 (`[a-z][a-z-]*`), bytes in double quotes with `\\`, `\"` and `\xHH`
 for a byte outside printable ASCII. No other lines. A TUI's recording
@@ -112,15 +112,15 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `journey` | `2` | the first line (shared) |
 | `seed` | the host's seed | the start's facts, in this order (shared) |
 | `clocks` | now and wall, in nanoseconds, at the host's making | (shared) |
-| `screen` | rows, columns, `dark`, `light` or `none` | the start's size and the scheme the terminal says, `none` where it says none (`../README.md`, 6.15) |
-| `background` | red, green and blue, each a number | the terminal's answer to OSC 11, when the start has one (`../README.md`, 6.13, `Start.background`) |
+| `screen` | rows, columns, `dark`, `light` or `none` | the start's size and the scheme the terminal says, `none` where it says none (`theme.md`) |
+| `background` | red, green and blue, each a number | the terminal's answer to OSC 11, when the start has one (`README.md`, 3, `Start.background`) |
 | `address` | `HOST:PORT` as bytes | the start's address |
-| `local` | none | when the start has an engine's link file to read (`../README.md`, 6.13, `Start.local`) |
-| `box` | none | when the start is on a box (`../README.md`, 6.12, *On a box*; `Start.boxed`) |
-| `front` | none | when the TUI is in front of a box (`../README.md`, 6.17, `Start.front`) |
+| `local` | none | when the start has an engine's link file to read (`README.md`, 3, `Start.local`) |
+| `box` | none | when the start is on a box (`README.md`, 2, *On a box*; `Start.boxed`) |
+| `front` | none | when the TUI is in front of a box (`box.md`, `Start.front`) |
 | `stored` | a small-store record's key and bytes | one per record loaded (shared) |
 | `credential` | the credential's bytes | when the start held one |
-| `noted` | `until` and nanoseconds, or `signed-out` | the start's note, when it held one (`../README.md`, 6.12) |
+| `noted` | `until` and nanoseconds, or `signed-out` | the start's note, when it held one (`README.md`, 2) |
 | `turn` | now and wall | each turn's clocks (shared) |
 | `start`, `due` | none | the `Start` and `Due` reports (shared) |
 | `key` | the key (below), then its event's print in quotes, or `none` | a `Key` report |
@@ -133,7 +133,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `kept` | `done` or `failed` | a `Kept` report |
 | `opened` | `done` or `failed` | an `Opened` report |
 | `found` | the file's bytes, or `none` | a `Local` report |
-| `box-line` | a line of the box's, as `BoxLine::print` prints it, in quotes | a `Front` report (`../README.md`, 6.17) |
+| `box-line` | a line of the box's, as `BoxLine::print` prints it, in quotes | a `Front` report (`box.md`) |
 | `send` | the exchange, the message's kind, its bytes, the credential's bytes or `none` | a duty's `Request::Exchange`, in order |
 | `stream` | the credential's bytes or `none` | `Request::OpenStream` |
 | `unstream` | none | `Request::CloseStream` |
@@ -189,7 +189,7 @@ is told from a browser's by its first fact after `clocks`, `screen`.
   frame; any other key with an event marks the frame as drawn before it
   (3.4). A key with no event marks nothing.
 - **The events' prints,** `temper_client_tui::Event`'s, with their fields'
-  own `Debug` forms (`../README.md`, 6.13, *The TUI's events*): `Typed {
+  own `Debug` forms (`README.md`, 3, *The TUI's events*): `Typed {
   value: [104, 105] }`, for the link's field and the box alike;
   `SignIn`; `Send`; `Command { command: Help }`; `Act { act: Choice(Model
   { index: 0, account: Some(3) }) }`, the root's act; `Aside { object: Task(9)
@@ -244,7 +244,7 @@ and the print is the replay's from then on.
 
 ## 5. Redaction and the last scan
 
-The browser's, with the same code (`../journeys.md`, 3.6 to 3.8), over
+The browser's, with the same code (`../web/journeys.md`, 3.6 to 3.8), over
 the TUI's lines.
 
 - **The shared code** gains three kinds of original, `Kind::Approval`,
@@ -269,7 +269,7 @@ the TUI's lines.
     and never sent is redacted too, the handed link of a TUI in front
     among them; and the secret of each `box-line` record's `link` line, the
     box's printed link, read alike, which the welcome draws
-    (`../README.md`, 6.17);
+    (`box.md`);
   - *given:* each `--redact TEXT`.
 
   The same bytes under two kinds, a credential kept and carried, are
@@ -281,7 +281,7 @@ the TUI's lines.
   a `send`'s and a `streamed record`'s bytes, a `stored`'s, `save`'s and
   `erase`'s key and bytes, and every credential's field are framed; a
   `key`'s bytes and event, `found`'s and `box-line`'s bytes, `address`, `signed`,
-  `browse`, `mark` and `end` are text (`../journeys.md`, 3.6, *A form's
+  `browse`, `mark` and `end` are text (`../web/journeys.md`, 3.6, *A form's
   size*). A TUI's
   stream records come whole from the native shell, so no pieces are
   joined.
@@ -294,8 +294,8 @@ the TUI's lines.
   elements in the `Typed` event's Debug print. Each becomes those
   encodings of the redacted secret, so the paste and its event, and the
   box's line, still replay. This is the TUI's addition; the browser's
-  code and encodings stay as `../journeys.md`, 3.6 describes.
-- **The last scan** (`../journeys.md`, 3.7): every field of each line,
+  code and encodings stay as `../web/journeys.md`, 3.6 describes.
+- **The last scan** (`../web/journeys.md`, 3.7): every field of each line,
   every frame the replay drew at each turn's end as its text, and each
   printed text and page, for the originals and the shapes. An approval's
   code as shown, read from each `browse` address's `code=` and checked by
@@ -304,7 +304,7 @@ the TUI's lines.
   shape would take it; an original is still sought in the whole.
 - **A refusal** names the line and its record's kind, and where (a
   field, a frame's turn, a printed file), never the bytes.
-- **What is left to the person** is `../journeys.md`, 3.8's, and: a
+- **What is left to the person** is `../web/journeys.md`, 3.8's, and: a
   link typed key by key is never found whole, so its proof fails and
   nothing is written; paste it.
 
@@ -312,7 +312,7 @@ the TUI's lines.
 
 ### 6.1 The program
 
-`temper-client-journeys` (`../journeys.md`, 5.1) takes, reprints and
+`temper-client-journeys` (`../web/journeys.md`, 5.1) takes, reprints and
 records again the TUI's journeys beside the browser's:
 
 - `add [--redact TEXT]... NAME FILE` reads FILE's first fact after
@@ -331,7 +331,7 @@ records again the TUI's journeys beside the browser's:
 
 Under `docs/design/client/tui/journeys/`:
 
-- **A journey's directory,** `NAME/`: its `recording`; its `README.md`,
+- **A journey's directory,** `NAME/`: its `recording`; its `../../README.md`,
   what it walks and what each mark shows; its `walk` (8.1); and for each
   mark, `01.txt` and `01.html` onwards, in the marks' order, replaced
   whole at each print.
@@ -356,7 +356,7 @@ no cursor.
   its body one `pre` of the classes `tui` and `tui-dark` or `tui-light`,
   the recording's scheme, a row per line.
 - **A row's cells** are runs of one paint: the base's, the terminal's
-  defaults (`../README.md`, 6.15), as plain text, any other in a `span`
+  defaults (`theme.md`), as plain text, any other in a `span`
   whose classes name its foreground and background by the theme's
   palette (`f-accent`, `f-dim`; `temper-client-tui`'s `theme::palette`),
   then its attributes (`bold`, `dim`, `italic`, `underline`, `reverse`).
@@ -382,12 +382,12 @@ no cursor.
 
 ### 6.5 Opening them
 
-As the browser's (`../journeys.md`, 5.4): a journey's `01.html` from the
+As the browser's (`../web/journeys.md`, 5.4): a journey's `01.html` from the
 checkout, as a file or through a server from the repository's root.
 
 ## 7. Its tests
 
-As the browser's journeys' (`../journeys.md`, section 6), within their
+As the browser's journeys' (`../web/journeys.md`, section 6), within their
 cost, in `temper-client-shell-tui`'s journey module (the host's world:
 reports given by the test) and `tools/journeys`' own tests:
 
@@ -411,7 +411,7 @@ reports given by the test) and `tools/journeys`' own tests:
   directory equals its directory and the files beside it, byte for byte;
   one that differs or is stale fails, naming the command that reprints;
   the tests fail while the TUI's `overlay.css` holds any byte, and for a
-  journey whose `README.md` is missing or empty; a page's runs, palette
+  journey whose `../../README.md` is missing or empty; a page's runs, palette
   classes, attributes and key links in the print's unit tests.
 - **The walk, natively:** a `walk` read back, each record among them,
   and another version, a record out of its place and a second `end`
@@ -454,13 +454,13 @@ recording's (3.2).
 ### 8.2 Again
 
 `cargo run -p temper-client-journeys -- again NAME`, in `tools/journeys`,
-for a TUI journey, as the browser's `again` is (`../journeys.md`, 8.1),
+for a TUI journey, as the browser's `again` is (`../web/journeys.md`, 8.1),
 ordinary Rust over skein's harness:
 
 - **Built from the checkout:** `temper` with its `record` feature and
   `fake-claude`, and the browser's bundle (`scripts/bundle.sh
   --loopback`), each copied into a fresh scratch directory under `/tmp`.
-- **A fresh fake box** (`../journeys.md`, 3.5), `temper box
+- **A fresh fake box** (`../web/journeys.md`, 3.5), `temper box
   --fake-backends` from that copy serving that bundle, every directory
   in the scratch directory, and headless Chromium from
   `SKEIN_TEST_CHROMIUM`, as the browser tier drives it, its printed
@@ -470,17 +470,17 @@ ordinary Rust over skein's harness:
   box's address, with `XDG_STATE_HOME` and `HOME` in the scratch
   directory, `XDG_RUNTIME_DIR` a directory of its own there,
   `tui-runtime`, apart from the box's, so that it finds no engine's link
-  file and the journey walks the approval (`../README.md`, 6.12), and,
+  file and the journey walks the approval (`README.md`, 2), and,
   reading none at start, is not on a box: the rule above a chat's box
-  names the engine's place by its `HOST:PORT` (`../README.md`, 6.14), no
+  names the engine's place by its `HOST:PORT` (`pages.md`), no
   `COLORFGBG`, so that it asks the terminal its background, which the
   pseudo-terminal leaves unanswered, and draws dark with no band
-  (`../README.md`, 6.15, *The band*), `TERM` `xterm-256color`, no `SSH_` variables, `DISPLAY` as
+  (`theme.md`, *The band*), `TERM` `xterm-256color`, no `SSH_` variables, `DISPLAY` as
   `again`'s or `:0`, and `PATH` led by a scratch directory whose
   `xdg-open` is a link to `true`, so that the TUI's opener runs, exits
   0, and leaves the tab to `again`. Its output is read and dropped.
 - **A setup,** where the journey's directory holds one: its `setup`
-  file, in the browser's format and with its rules (`../journeys.md`,
+  file, in the browser's format and with its rules (`../web/journeys.md`,
   8.2), its `after` naming a browser journey, read from the browser's
   journeys' directory, as `project-landing`'s steps to a project with a
   model. `again` walks it in the signed-in browser, its `reload` loaded
@@ -498,7 +498,7 @@ ordinary Rust over skein's harness:
 ### 8.3 A box with the TUI in front
 
 What `again` does to record a journey of `temper box` with the TUI in
-front of it (`../README.md`, 6.17; `../../protocol/setup.md`, 7.6),
+front of it (`box.md`; `../../protocol/setup/box.md`, 6),
 where 8.2 says otherwise:
 
 - **The box in the pseudo-terminal:** `temper box --fake-backends` from
@@ -538,15 +538,15 @@ where 8.2 says otherwise:
 
 | Name | The walk | Its pages |
 |---|---|---|
-| `sign-in-approved` | on a fresh `temper box --fake-backends`: the browser signed in by the box's printed link; `temper` started at the box's address; the approval's frame; the approval given in the browser; the launchpad, with no project yet | `01`, the approval's frame, "A tab opened in your browser", its code and its address, marked by the mark key; `02`, the launchpad of a box with no project (`../README.md`, 6.14), at the recording's end; its `README.md` says so |
-| `launchpad-chat` | on a fresh `temper box --fake-backends`: its `setup` (8.2), `after project-landing`, to Hello with the ChatGPT plan and "work/hello is in Hello"; then as `sign-in-approved` to the launchpad; `/` typed and the commands; Esc; a question typed and sent, which opens an Ask temper chat; the fake model's answer; the end | the launchpad in Hello, the commands under the box, the chat while it is written where a save catches it, and the chat answered at the recording's end (`../README.md`, 6.14); its `README.md` names each frame |
-| `launchpad-drawn` | on a fresh `temper box --fake-backends`: its `setup` as `launchpad-chat`'s, to Hello; then as `sign-in-approved` to the launchpad; `/change` and a change asked in words, which starts a chat; its fake model starts a goal and says that a question waits, and the goal asks the chat's person a question with two choices, the first recommended, as a goal a chat calls asks (`../../domain/agent.md`, 8.2); `/new` back to the launchpad, the chat under *Where you left off*, its question under Needs you and the quiet line's count; `n` and the walk's prompt; its first choice taken; the walk's end; the end | `03`, the launchpad as drawn, with the chat, its need and Start (`../README.md`, 6.14, *The launchpad*); `05`, the walk's prompt under the box (*Walking what needs you*); `07`, the launchpad after the walk, its note, at the recording's end; `01`, `02`, `04` and `06`, the frames before the keys that act (3.3); its `README.md` names each frame |
-| `design-session` | on a fresh `temper box --fake-backends`: its `setup` as `launchpad-chat`'s, to Hello with its home repository; then as `sign-in-approved` to the launchpad; `/draft` and the work asked in words, which starts a design session; the fake model's reply writing the draft and ending with numbered choices, the pane at half; Ctrl-P to all, to folded and to half again; "1" typed and sent, the next reply changing a section, marked new, and saying nothing blocks the work; `/goal`, its prompt of ways, the first taken; the chat again, the quiet line naming the goal; the end | the session at half with the drafter's choices under the box, the pane at all and folded, a section marked new, `/goal`'s prompt, and the chat with its linked goal at the recording's end (`../README.md`, 6.14, *A design session*); its `README.md` names each frame |
-| `box-welcome` | on a fresh `temper box --fake-backends` with the TUI in front (8.3): the welcome as the box starts; the printed link opened in the browser; the welcome following the browser's steps to the playground, walked mid-walk; the playground's launchpad; the end | `01`, the welcome before the link is opened; `02`, the steps followed, a step under way; `03`, the playground's launchpad at the recording's end (`../README.md`, 6.17); its `README.md` names each frame |
+| `sign-in-approved` | on a fresh `temper box --fake-backends`: the browser signed in by the box's printed link; `temper` started at the box's address; the approval's frame; the approval given in the browser; the launchpad, with no project yet | `01`, the approval's frame, "A tab opened in your browser", its code and its address, marked by the mark key; `02`, the launchpad of a box with no project (`pages.md`), at the recording's end; its `../../README.md` says so |
+| `launchpad-chat` | on a fresh `temper box --fake-backends`: its `setup` (8.2), `after project-landing`, to Hello with the ChatGPT plan and "work/hello is in Hello"; then as `sign-in-approved` to the launchpad; `/` typed and the commands; Esc; a question typed and sent, which opens an Ask temper chat; the fake model's answer; the end | the launchpad in Hello, the commands under the box, the chat while it is written where a save catches it, and the chat answered at the recording's end (`pages.md`); its `../../README.md` names each frame |
+| `launchpad-drawn` | on a fresh `temper box --fake-backends`: its `setup` as `launchpad-chat`'s, to Hello; then as `sign-in-approved` to the launchpad; `/change` and a change asked in words, which starts a chat; its fake model starts a goal and says that a question waits, and the goal asks the chat's person a question with two choices, the first recommended, as a goal a chat calls asks (`../../domain/agent/agents.md`, 2); `/new` back to the launchpad, the chat under *Where you left off*, its question under Needs you and the quiet line's count; `n` and the walk's prompt; its first choice taken; the walk's end; the end | `03`, the launchpad as drawn, with the chat, its need and Start (`pages.md`, *The launchpad*); `05`, the walk's prompt under the box (*Walking what needs you*); `07`, the launchpad after the walk, its note, at the recording's end; `01`, `02`, `04` and `06`, the frames before the keys that act (3.3); its `../../README.md` names each frame |
+| `design-session` | on a fresh `temper box --fake-backends`: its `setup` as `launchpad-chat`'s, to Hello with its home repository; then as `sign-in-approved` to the launchpad; `/draft` and the work asked in words, which starts a design session; the fake model's reply writing the draft and ending with numbered choices, the pane at half; Ctrl-P to all, to folded and to half again; "1" typed and sent, the next reply changing a section, marked new, and saying nothing blocks the work; `/goal`, its prompt of ways, the first taken; the chat again, the quiet line naming the goal; the end | the session at half with the drafter's choices under the box, the pane at all and folded, a section marked new, `/goal`'s prompt, and the chat with its linked goal at the recording's end (`pages.md`, *A design session*); its `../../README.md` names each frame |
+| `box-welcome` | on a fresh `temper box --fake-backends` with the TUI in front (8.3): the welcome as the box starts; the printed link opened in the browser; the welcome following the browser's steps to the playground, walked mid-walk; the playground's launchpad; the end | `01`, the welcome before the link is opened; `02`, the steps followed, a step under way; `03`, the playground's launchpad at the recording's end (`box.md`); its `../../README.md` names each frame |
 
 ## 10. Editing the look
 
-As the browser's (`../journeys.md`, section 7), on the TUI's print:
+As the browser's (`../web/journeys.md`, section 7), on the TUI's print:
 
 - **On the print:** the person serves the checkout, walks a TUI journey,
   and writes rules in `tui/journeys/overlay.css` (a palette's custom
@@ -557,7 +557,7 @@ As the browser's (`../journeys.md`, section 7), on the TUI's print:
   for in parallel: one commit each, with a `Look-request: NAME` trailer
   whose NAME starts `tui-`, kept on `main` by the same
   `scripts/look-refresh.sh`, run with `tui-requests` checked out, and
-  never landed (`../journeys.md`, section 7;
+  never landed (`../web/journeys.md`, section 7;
   `../../draft/look-requests.md`, 2).
 - **Never landed:** the journeys' test refuses a request's frames, which
   differ from the reprint, and its overlay, so `main`'s overlay stays
@@ -583,7 +583,7 @@ As the browser's (`../journeys.md`, section 7), on the TUI's print:
   terminal's look. A growing answer, calls and a question's choices
   remain for a journey that catches them; the joint world and goldens
   cover them without establishing the rendered look
-  (`../README.md`, sections 10 and 11).
+  (`../testing.md` and `../README.md`, section 5).
 - **Selectors by token:** a page's cells carry their paint, not the
   view's token, so an overlay retunes a palette colour or a paint
   wherever it falls, never one token alone. Default: palette classes; a
@@ -593,10 +593,10 @@ As the browser's (`../journeys.md`, section 7), on the TUI's print:
   request's.
 - **A real box's TUI journey:** none in the first pass; it would be
   recorded by hand and redacted as the browser's real journeys are
-  (`../journeys.md`, 3.5).
+  (`../web/journeys.md`, 3.5).
 - **The place "box" in a journey:** `again` keeps the TUI apart from the
   box's link file so that it walks the approval (8.2), so no journey
-  draws "box" in the rule above a chat's box (`../README.md`, 6.14, *The
+  draws "box" in the rule above a chat's box (`pages.md`, *The
   rule above the box*), and `launchpad-chat/04` has `127.0.0.1:PORT`
   where the look request `tui-chat-title-below` drew "box:40691"; the
   view's rows hold "box". Default: so, until a journey signs in by the
@@ -605,4 +605,4 @@ As the browser's (`../journeys.md`, section 7), on the TUI's print:
 - **A resize in a walk:** recorded and replayed as a report; `walk` has
   no step for it until a journey needs one.
 - **A new recording's noise:** a fake box's port and the clocks change
-  with each `again`, as the browser's (`../journeys.md`, section 10).
+  with each `again`, as the browser's (`../web/journeys.md`, section 10).

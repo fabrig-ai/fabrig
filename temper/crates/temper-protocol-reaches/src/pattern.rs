@@ -1,4 +1,4 @@
-//! Segment patterns (temper/docs/design/domain/forge.md, 5.10).
+//! Segment patterns (temper/docs/design/domain/forge/attention.md, 6).
 use crate::PathSet;
 use alloc::boxed::Box;
 use skein_lib::List;

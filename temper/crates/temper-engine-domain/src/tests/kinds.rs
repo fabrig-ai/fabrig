@@ -1,5 +1,5 @@
-//! The root's typed settings routes (temper/docs/design/domain/root.md, 5.6;
-//! temper/docs/design/protocol/configuration.md, 13.2).
+//! The root's typed settings routes (temper/docs/design/domain/routing.md, 6;
+//! temper/docs/design/protocol/configuration/settings.md, 2).
 use super::*;
 use crate::{Domain, KindValue, Limits as RootLimits, Work};
 use jig_domain_authority as authority;

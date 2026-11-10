@@ -1,5 +1,5 @@
 //! Delivery selection, inherited failures and bounded output (tools/pre-pr/design.md, 2–9).
-//! Formatting and baselines retain their budget (temper/docs/design/protocol/configuration.md, 13.9).
+//! Formatting and baselines retain their budget (temper/docs/design/protocol/configuration/reference.md).
 
 use std::fs;
 use std::os::unix::fs::PermissionsExt;

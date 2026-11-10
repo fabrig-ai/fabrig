@@ -1,4 +1,4 @@
-//! Tables for store evidence and exact check lines (protocol/setup.md, 8.4).
+//! Tables for store evidence and exact check lines (protocol/setup/playground.md).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_macros,

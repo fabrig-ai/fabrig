@@ -8,7 +8,7 @@ that." So an owned Forgejo and GitHub, both in this round. The user chose this
 over waiting until after v0.1.0, knowing that `v0.1.0.md` names no approvals.
 
 This draft decides who counts as an approver, so its reasons are kept here
-(section 6), as `../protocol/sign-in.md`, 9.9 keeps its own.
+(section 6), as `../protocol/openid-provider.md`, 9 keeps its own.
 
 ## 1. In one page
 
@@ -41,12 +41,12 @@ This draft decides who counts as an approver, so its reasons are kept here
 3. **Sees a change wait.** Once everything else is ready, Needs you shows the
    change, with "Review on Forgejo ↗" or "Review on GitHub ↗" (section 8). Changes
    behind it on that branch wait their turn, as any wait on a merge holds the
-   branch (`../domain/forge.md`, section 9), and the card says how many.
+   branch (`../domain/forge/queues.md`), and the card says how many.
 4. **Approves on the forge.** On Forgejo, the link signs them in as a
-   repository's link does (`../client/forge.md`, 5.4). On GitHub, they're in
+   repository's link does (`../client/forge/deployment.md`). On GitHub, they're in
    their own browser.
 5. **It lands.** A review already wakes its pull's change, by a hook on a box
-   and through the delivery log on GitHub (`../domain/forge.md`, 5.2;
+   and through the delivery log on GitHub (`../domain/forge/keeping-up.md`, 2;
    `github.md`, section 7), so this step needs nothing new.
 
 ## 3. Who a forge account is
@@ -84,7 +84,7 @@ reads it again.
 ### 4.1 An owned Forgejo
 
 `Reconcile { forge, adopted }` already runs before the first repository, with the
-set-up's admin token (`../protocol/setup.md`, 5.2). It's also given the owned forge's
+set-up's admin token (`../protocol/setup/reconcile.md`, 2). It's also given the owned forge's
 person's login, reads `GET /users/<login>`, and answers its `id`; a fake forge is given
 none. The connector keeps the link. The same id again changes nothing. A different id
 replaces it, as a person may remake their account; an account gone leaves it, and
@@ -102,7 +102,7 @@ The by-slug read `GET /apps/<slug>` answered the same for the probe App on
 use it.
 
 - **Made by the manifest flow alone,** whose `target` is always `Personal`
-  (`../protocol/setup.md`, 17.2). Manifest and pasted forges end in the same records,
+  (`../protocol/setup/github.md`, 2). Manifest and pasted forges end in the same records,
   so `Convert` first writes a new secret item, `AppMade`, whose bytes are the App's id,
   as `Copying` is written first (skein's `forge/setup/README.md`, 4.4). It's kept in jig's
   secrets' store with `AppId`, as no write spans that store and the forge's record.
@@ -118,7 +118,7 @@ An App that's pasted (`github.md`, 6.5) has no such link, even with a person as 
 owner: having its key doesn't show that the owner and the box's person are one, and a
 wrong link would count someone else as them. So nothing changes there: what adoption
 seeds counts, the refusal says so plainly (section 7), and the panel names a review
-from an account temper doesn't know (`../domain/forge.md`, 8.7).
+from an account temper doesn't know (`../domain/forge/change/gates.md`, 2).
 
 ### 4.4 One person, two records
 
@@ -167,8 +167,8 @@ wrongly, and what stops it:
 
 | Who | What stops it, or doesn't |
 |---|---|
-| temper's writer, on either forge | refused as a link; skipped before the lookup (4.4); on a box with sign-in, a person so named refuses the start (`../protocol/sign-in.md`, 9.9) |
-| **an agent's run or a CI job, on an owned Forgejo** | **nothing, if it tries.** Both run as the box's user, who can read `person_write.header` (`../protocol/setup.md`, section 15; `../protocol/credentials.md`, section 8), and a review posted with it is the person's. Deleting that file wouldn't close it: the forge's work path and temper's store are as readable. Closing it needs agents and CI contained |
+| temper's writer, on either forge | refused as a link; skipped before the lookup (4.4); on a box with sign-in, a person so named refuses the start (`../protocol/openid-provider.md`, 9) |
+| **an agent's run or a CI job, on an owned Forgejo** | **nothing, if it tries.** Both run as the box's user, who can read `person_write.header` (`../protocol/setup/README.md`, section 9; `../protocol/credentials.md`, section 8), and a review posted with it is the person's. Deleting that file wouldn't close it: the forge's work path and temper's store are as readable. Closing it needs agents and CI contained |
 | the same, on GitHub | temper holds no token of the person's, and the App can't approve its own pull or push a workflow (`github.md`, P3 and P8). What's left is whatever the person's own tools leave under that user, which isn't looked at here |
 | the person's own agent, handed that file by them | it approves as them: their delegation, and how a walk approves on an owned Forgejo |
 | a stranger on GitHub | no link and no seed, once section 3 closes the hole |
@@ -180,7 +180,7 @@ So on an owned Forgejo the rule stops an agent's mistake and makes a person look
 lands. It doesn't stop an agent trying to get past it. The proposal says so when it
 holds such a rule, and the help does: "On this machine temper's agents and CI jobs run
 as you, so this stops their mistakes, not one trying to get past it." The client writes
-that sentence, on the proposal's card as on its page (`../client/README.md`, 5.13). The
+that sentence, on the proposal's card as on its page (`../client/pages/settings.md`, 2). The
 user accepted that limit for now on 2026-11-07, "accept it for now"
 (`forge-identity.status.md`).
 
@@ -202,20 +202,20 @@ account, and the printed link alone signs anyone in, always the owner.
   pattern or a project that leaves it out.
 - **A rule that can no longer be met,** as a repository adopted later from a forge with no
   link or an App moved to an organization, waits as "later membership changes" do
-  (`../domain/forge.md`, 8.9), and the card says why (section 8).
+  (`../domain/forge/change/gates.md`, 3), and the card says why (`forge-identity.md`, section 8).
 
 ## 8. Under Needs you
 
 Today nothing shows there: an approval is waited for at the merge alone, and isn't a
-hold (`../domain/forge.md`, 8.7), and Needs you has no such kind (`../client/README.md`,
-3.5).
+hold (`../domain/forge/change/gates.md`, 2), and Needs you has no such kind (`../client/pages/README.md`
+).
 
 - **A read, not a task:** one subject the root makes, as `TRIALS_SUBJECT` is, with
   `ApplicationScope::Own`, since roles and eligibility live in the root and the forge
   child has no people. It answers each watcher's rows, filtered by their role, as that
   scope skips jig's project check; a test holds this, and the rows have a bound. A subject
-  per party would make the root read the sign-in on every watch (`../domain/forge.md`,
-  5.5). It stores nothing. It's marked wherever `changes` is.
+  per party would make the root read the sign-in on every watch (`../domain/forge/attention.md`,
+  1). It stores nothing. It's marked wherever `changes` is.
 - **A row** is a change in state `First` or `Landing`, in a turn project or not, whose
   review facts are at its last head, read whole, with an approval still short and none
   refused, in a project where the watcher holds the rule's role or is an owner. Facts are
@@ -231,11 +231,11 @@ hold (`../domain/forge.md`, 8.7), and Needs you has no such kind (`../client/REA
   GitHub"; as its context, the rule and "N more changes wait behind this one" where there
   are any, counted from the forge's order of changes; the primary "Review on Forgejo ↗", a
   new tab; "Open" to the change; "Later". A person who won't approve asks for changes on
-  the forge, which holds the change as a requirement refused does (`../client/forge.md`,
-  6.1).
+  the forge, which holds the change as a requirement refused does (`../client/forge/README.md`,
+  5.1).
 - **Its address:** the pull's files page, where the review box is: on Forgejo with sign-in
   offered, `ROOT/user/oauth2/temper?redirect_to=` `/OWNER/NAME/pulls/N/files`, encoded as
-  `../client/forge.md`, 5.4 says, and without it `ROOT/OWNER/NAME/pulls/N/files`; on GitHub,
+  `../client/forge/deployment.md` says, and without it `ROOT/OWNER/NAME/pulls/N/files`; on GitHub,
   `WEB/OWNER/NAME/pull/N/files`.
 - **When this viewer's review couldn't count:** no primary, and the context says why: no
   account of theirs known on this forge, or the rule asks for more people than can give
@@ -256,13 +256,13 @@ other does.
 ## 9. Scope
 
 - **A box's one person:** serve running under the box, the `--box` the host tells the
-  connector at construction (`../protocol/setup.md`, 7.1); one owner; and no
+  connector at construction (`../protocol/setup/box.md`, 1); one owner; and no
   `application.sign_in`, so no member can sign in and land on the person's account by name
-  (`../protocol/sign-in.md`, 9.9). The start refuses `machine.owned.sign_in` beside
+  (`../protocol/openid-provider.md`, 9). The start refuses `machine.owned.sign_in` beside
   `application.sign_in`, which nothing refuses today. So plain `temper serve` makes no link,
   though its document may look alike.
 - **When that stops being true:** at each start, when core and forge are both loaded
-  (`../domain/root.md`, 9.1), the root hands the connector the sole owner's party, or none;
+  (`../domain/root.md`, 8.1), the root hands the connector the sole owner's party, or none;
   "sole" means the deployment's roster holds one owner, and it's the link's person. If not,
   the connector clears the link in that decision and logs it. Lookups fall back to seeds,
   and a rule resting on the link waits, saying so. jig's people have no accessor for this
@@ -288,7 +288,7 @@ Stories are written and compiled, by the usual rule; plans run focused and fuzzy
 - **Written for the slow tiers:** the card and its link in the browser; on GitHub, a real
   review counted, in the live suite.
 - **A walk,** when QA likes: an owned Forgejo through `person_write.header`.
-- **Changes an existing story:** `../domain/testing.md`'s, which asserts today's refusal
+- **Changes an existing story:** `../testing/README.md`'s, which asserts today's refusal
   for a box's owner.
 
 ## 11. What changes in temper's documents
@@ -298,12 +298,12 @@ Stories are written and compiled, by the usual rule; plans run focused and fuzzy
 
 ## 12. Later
 
-- **`temper serve`'s members:** `../protocol/sign-in.md`, 10's "by construction", once 9.9's
+- **`temper serve`'s members:** `../protocol/sign-in.md`, 9's "by construction", once 9.9's
   reasoning is checked for several members, and a manifest's connecting owner. A family of
   links then.
 - **A pasted App or a second account:** the App's user authorization, with the
   `client_id` and `client_secret` temper doesn't keep today; or an owner's "that's me"
   on a review the panel names as unknown.
 - **Contained agents and CI,** which would make section 6's rule hold against one trying:
-  `../protocol/setup.md`, section 15.
+  `../protocol/setup/README.md`, section 9.
 - **Approving in the client,** posted as the person: `../README.md`, section 8.

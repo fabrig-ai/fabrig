@@ -1,4 +1,4 @@
-//! Playground journeys (temper/docs/design/client/README.md, 10).
+//! Playground journeys (temper/docs/design/client/testing.md).
 use jig_client_kit::harness::{App, ClientId, Duty, Front};
 use skein_lib::{Duration, Env, Queue, Time, Wall};
 use skein_ui::Role;
@@ -127,7 +127,7 @@ fn running_playground_pages_list_the_scripted_facts_without_offering_to_add_anyt
     for address in [Address::Forges, Address::Accounts, f::chats_page()] {
         let chats = address == f::chats_page();
         go(&mut front, &mut root, address);
-        // The line ends the chats pane; elsewhere the frame's "Set up temper" (client/README.md, 5.1).
+        // The line ends the chats pane; elsewhere the frame's "Set up temper" (client/view.md, 1).
         assert_eq!(has(&root, Role::Region, b"Playground"), chats);
         assert!(has(&root, Role::Link, b"Set up temper"));
         for name in

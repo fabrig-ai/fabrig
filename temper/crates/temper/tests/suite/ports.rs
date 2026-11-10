@@ -1,4 +1,4 @@
-//! The story owns every listener across restarts (temper/docs/design/domain/testing.md, 2.6).
+//! The story owns every listener across restarts (temper/docs/design/testing/process-tier.md).
 use crate::support;
 use std::{fs, net::SocketAddr, process::Command};
 

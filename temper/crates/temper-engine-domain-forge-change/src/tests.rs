@@ -489,7 +489,7 @@ fn a_release_keeps_other_producing_holds_and_restarts_a_failed_producer_with_a_l
     assert_eq!(reset.change.state, State::Producing { requested: false });
 }
 
-/// A conflict resolves under rules asking no update (temper/docs/design/domain/forge.md, 8.4).
+/// A conflict resolves under rules asking no update (temper/docs/design/domain/forge/change/repairs.md).
 #[test]
 fn a_conflict_under_rules_asking_no_update_is_resolved() {
     let c = change(State::First { head: HEAD, ready_since: at(0) });

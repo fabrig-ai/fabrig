@@ -1,7 +1,7 @@
 # Dashboards made by talking to temper
 
 Draft, 2026-10-27, from the user's idea of 10-26: "something similar to
-what we have for configuration.md … but for the UI, for example you ask
+what we have for ../protocol/configuration/README.md … but for the UI, for example you ask
 an agent that you want a dashboard like the one I pointed [at] and it
 configures temper to show that dashboard in the client. Sort of "UI as
 data" approach with some flexible palette of options/widgets can be
@@ -25,7 +25,7 @@ here is adopted, and nothing here is a part of v0.1.0 (`v0.1.0.md`).
   proposed and decided as every setting is (jig's `domain/engine/settings.md`,
   5), each change a revision with its history. No new process: the
   proposal card, the review page and "How work runs" are
-  `configuring.md`'s (`../client/README.md`, 5.13).
+  `configuring.md`'s (`../client/pages/settings.md`, 2).
 - **Three layers:** *facts*, what the engine and its connectors already
   keep (section 3); *metrics*, named calculations over one owner's
   facts, settings too (section 4); *panels*, a dashboard's parts from a
@@ -69,10 +69,10 @@ here is adopted, and nothing here is a part of v0.1.0 (`v0.1.0.md`).
   it the settings family proposes a set (17.6). A dashboard and the
   metrics it shows are items of one set, accepted or refused together.
 - **On temper's kinds.** temper's kinds are all the forge's
-  (`../protocol/configuration.md`, 13.2). This draft adds a
+  (`../protocol/configuration/settings.md`, 2). This draft adds a
   dashboard kind, scoped to the deployment or to each project, owned by
   a small child of temper's root, the dashboards child, and the forge's
-  metrics kind (section 4). jig adds a metric kind of its own.
+  metrics kind (`dashboards.md`, section 4). jig adds a metric kind of its own.
 - **On jig's watches.** A metric's values are its owner's subject (jig's
   `client/domain/contract/README.md`, 5.2): named by its owner, its scope and
   its window, judged by its owner, marked as its owner folds facts in,
@@ -98,7 +98,7 @@ by its owner first, and the agent says so (6.3).
 | jig's people | what waits on each party: questions, proposals, escalations and person tasks, counted exactly | jig's `client/domain/contract/documents.md`, 1 (`me`); `jig/docs/design/domain/people/README.md`, section 5 |
 | jig's accounts | each source's state; *limited*, with its reset where the provider says it | jig's `domain/accounts.md`, 3.5 |
 | jig's hosts | connected or lost, slots used and free, the runs each hosts | jig's `domain/hosts/README.md`, section 2; `client/domain/pages.md`, section 7 |
-| temper's forge | each change and its result; the merges temper made, `Landed`, without a time; gates as tasks; CI at a change's head, in memory | `../domain/forge.md`, 8.2, 8.3 and 8.8; `../protocol/store.md`, section 2 |
+| temper's forge | each change and its result; the merges temper made, `Landed`, without a time; gates as tasks; CI at a change's head, in memory | `../domain/forge/change/README.md`, 2, and `../domain/forge/change/gates.md`, 1, and `../domain/forge/change/README.md`, 5; `../protocol/store.md`, section 2 |
 
 - **Not kept:** token counts as numbers (smith's turn records them,
   smith's `protocol/transcript.md`, section 2, and jig's core reads only
@@ -169,7 +169,7 @@ by its owner first, and the agent says so (6.3).
 - **Admitted on the scope:** a project's metrics to a party with a role
   in that project, the deployment's to one with a role in the
   deployment, as the settings themselves are shown
-  (`../client/README.md`, 5.13). The owner judges what the party may see,
+  (`../client/pages/settings.md`, 2). The owner judges what the party may see,
   and the client hides nothing of its own.
 
 ### 4.4 The operations
@@ -247,14 +247,14 @@ drawn by `temper-client-view`:
 ### 5.3 In the client
 
 - **"Dashboards" in the navigation,** after "How work runs", whatever
-  the project (`../client/README.md`, 5.3): the deployment's dashboards
+  the project (`../client/view.md`, 3): the deployment's dashboards
   the person may read, then the chosen project's. Each opens on its own
   page, `Dashboard { scope, number }`.
 - **Live.** A dashboard watches its metrics, and the view builds the
   next tree when one moves; no polling, no "refreshes every 10
   minutes". The terminal prints a dashboard as it prints any page
-  (`../client/README.md`, 6.3).
-- **Times** are `../client/README.md`'s, 5.12; a metric younger than its
+  (`../client/line.md`, 3).
+- **Times** are `../client/view.md`'s, 6; a metric younger than its
   window says since when.
 - **A dashboard's acts** are its links alone. A held task is answered
   on its task's page, an account fixed on Accounts: the confirmations,
@@ -280,7 +280,7 @@ drawn by `temper-client-view`:
 
 ### 6.2 The review
 
-The review page of `../client/README.md`, 5.13, with the dashboard's
+The review page of `../client/pages/settings.md`, 2, with the dashboard's
 own blocks:
 
 ```

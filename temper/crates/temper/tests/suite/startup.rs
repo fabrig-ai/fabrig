@@ -196,7 +196,7 @@ printf '%s\n' "$@"
     scratch.remove();
 }
 
-/// temper/docs/design/domain/testing.md, 2.7: terminal cleanup permits recovery, keeping imports closed.
+/// temper/docs/design/testing/live-tier.md: terminal cleanup permits recovery, keeping imports closed.
 #[test]
 fn a_failed_terminal_return_allows_recovery_without_reopening_import() {
     let scratch = support::Scratch::startup("held-terminal-recovery");
@@ -224,7 +224,7 @@ fn a_failed_terminal_return_allows_recovery_without_reopening_import() {
     scratch.remove();
 }
 
-/// temper/docs/design/domain/testing.md, 2.7: stat disarms the held record's guard.
+/// temper/docs/design/testing/live-tier.md: stat disarms the held record's guard.
 #[test]
 fn a_held_record_at_its_path_owes_the_guard_nothing() {
     let scratch = support::Scratch::startup("held-record-at-rest");
@@ -254,7 +254,7 @@ fn a_held_record_at_its_path_owes_the_guard_nothing() {
     scratch.remove();
 }
 
-/// temper/docs/design/domain/testing.md, 2.7: the sitting's hook returns once.
+/// temper/docs/design/testing/live-tier.md: the sitting's hook returns once.
 #[test]
 fn a_lent_record_returns_through_the_box_still_up_and_once() {
     let scratch = support::Scratch::startup("lent-record-hook");
@@ -290,7 +290,7 @@ esac
     scratch.remove();
 }
 
-/// temper/docs/design/domain/testing.md, 2.7: a failed return preserves the story's panic.
+/// temper/docs/design/testing/live-tier.md: a failed return preserves the story's panic.
 #[test]
 fn a_lent_record_not_back_keeps_its_store_and_the_storys_panic() {
     let scratch = support::Scratch::startup("lent-record-not-back");

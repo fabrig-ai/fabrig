@@ -1,4 +1,4 @@
-//! Approval settings and waits require known forge people (temper/docs/design/domain/forge.md, 8.7, 8.9 and 8.12).
+//! Approval settings and waits require known forge people (temper/docs/design/domain/forge/change/gates.md, 2 and 3, and temper/docs/design/domain/forge/change/questions.md, 2).
 use super::*;
 use jig_domain_core::settings as s;
 use temper_engine_domain_forge::settings;

@@ -1,4 +1,4 @@
-//! Work's three read lists, five filters and both shells (client/README.md, 3.5).
+//! Work's three read lists, five filters and both shells (client/pages/README.md).
 use super::{chats, fixtures as f, goals};
 use crate::{
     frame::Bindings,

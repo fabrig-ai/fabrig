@@ -1,4 +1,4 @@
-//! Temper's inline values (temper/docs/design/client/tools.md, 5.2 and 5.3).
+//! Temper's inline values (temper/docs/design/client/ctl/tools.md, 2 and 3).
 use skein_json::writer::Encoder;
 use skein_lib::Reader;
 use temper_client_protocol_wire::v1 as w;

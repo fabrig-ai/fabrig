@@ -1,4 +1,4 @@
-//! temper-worker's table and dispatch (temper/docs/design/protocol/README.md, 4.5).
+//! temper-worker's table and dispatch (temper/docs/design/protocol/binaries.md, 5).
 use crate::program_login::PROGRAM_LOGIN;
 use skein_io::kernel::Exit;
 use std::{env, ffi::OsStr, os::unix::ffi::OsStrExt, process::ExitCode};

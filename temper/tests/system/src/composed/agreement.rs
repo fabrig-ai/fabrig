@@ -1,5 +1,5 @@
 //! The stock agreed-goal walk through real tool admission and durable answers.
-//! Contract: temper/docs/design/domain/agent.md, sections 4.6 and 8.2.
+//! Contract: temper/docs/design/domain/agent/charter.md, section 5, and temper/docs/design/domain/agent/agents.md, section 2.
 use super::{
     Duration, Finish, Key, Line, Process, ReplyTo, Script, Token, Turn, VecDeque, World, engine, fake, people, run,
     tasks, worker,

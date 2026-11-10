@@ -1,4 +1,4 @@
-//! A person's Away facts (temper/docs/design/client/README.md, 4.6).
+//! A person's Away facts (temper/docs/design/client/forge/records.md).
 use super::{Limits, Request, Side, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Ask, Family, Handle, Latest, Link, Told, Watchable, contract as c};
@@ -35,7 +35,7 @@ impl AwayRow {
     }
 }
 
-/// The first 08:00 after wall in the person's zone (temper/docs/design/client/README.md, 3.5, Away).
+/// The first 08:00 after wall in the person's zone (temper/docs/design/client/pages/README.md, Away).
 #[must_use]
 pub fn next_eight(wall: Wall, zone_minutes: i32) -> Wall {
     const MINUTE: i128 = 60_000_000_000;

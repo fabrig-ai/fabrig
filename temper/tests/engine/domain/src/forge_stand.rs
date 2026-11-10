@@ -226,7 +226,7 @@ impl ForgeStand {
         self.domain.reclaim();
     }
 
-    /// domain/forge.md, 8.7: a person reviews the pull's current head outside temper's writer.
+    /// domain/forge/change/gates.md, 2: a person reviews the pull's current head outside temper's writer.
     pub fn review(&mut self, repository: u32, number: u64, user: u64, verdict: api::Verdict, commit: api::Commit) {
         let repository = api::Repository { forge: self.forge, repository };
         let api::Answer::Pull(pull) = self.read(repository, api::Read::Pull { number }) else {

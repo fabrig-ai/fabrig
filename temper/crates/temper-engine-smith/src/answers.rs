@@ -1,6 +1,6 @@
 //! Root committed call answers as bounded, UTF-8 Smith host feedback. The
 //! root's typed record is authoritative; rendering has no effects or retry
-//! policy (domain/agent.md, 4.3; domain/root.md, 5.2).
+//! policy (domain/agent/tools.md; domain/routing.md, 2).
 
 use alloc::boxed::Box;
 use skein_forge::api;
@@ -10,7 +10,7 @@ use temper_engine_domain::{CallAnswer, Changed};
 
 use crate::Problem;
 
-/// Configured forge-client answer bounds named in read refusals (domain/agent.md, 4.3).
+/// Configured forge-client answer bounds named in read refusals (domain/agent/tools.md).
 #[derive(Clone, Copy, Debug)]
 pub struct ForgeReadBounds {
     pub rows: u32,
@@ -133,7 +133,7 @@ pub fn answer_for_task(
 }
 
 /// The kind of a forge read's answer no agent read asks for, as the log's
-/// reason (temper/docs/design/domain/agent.md, 8).
+/// reason (temper/docs/design/domain/agent/agents.md).
 #[must_use]
 pub fn unasked_kind(answer: &CallAnswer) -> Option<&'static str> {
     if let CallAnswer::ForgeRead(read) = answer {
@@ -572,7 +572,7 @@ fn proposed(
     Ok(())
 }
 
-// The judgement's reason is kept with the answer (temper/docs/design/domain/agent.md, 4.3).
+// The judgement's reason is kept with the answer (temper/docs/design/domain/agent/tools.md).
 fn ask_reason(text: &mut Text, reach: Option<temper_protocol_reaches::Reach>) -> Result<(), Problem> {
     use temper_protocol_reaches::{Class, Reason};
     let Some(reach) = reach else {
@@ -901,7 +901,7 @@ fn rendered(
     text.finish(error)
 }
 
-/// The client's note line reads this acknowledgement (temper/docs/design/domain/agent.md, 8.3).
+/// The client's note line reads this acknowledgement (temper/docs/design/domain/agent/agents.md, 3).
 pub(crate) fn note_written(
     text: &mut Text,
     name: u64,

@@ -1,4 +1,4 @@
-//! The TUI started in front of a box (temper/docs/design/client/README.md, 6.17).
+//! The TUI started in front of a box (temper/docs/design/client/tui/box.md).
 use crate::directories;
 use skein_io::kernel::{Error, Exit, Fd};
 use skein_lib::Secret;

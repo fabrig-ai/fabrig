@@ -1,4 +1,4 @@
-//! The loaded list joins jig's durable write answer (temper/docs/design/domain/agent.md, 8.4.4).
+//! The loaded list joins jig's durable write answer (temper/docs/design/domain/agent/ask-temper.md, 4).
 use crate::{CallAnswer, RememberAction, RememberDid, RememberRefusal, Remembered};
 use alloc::boxed::Box;
 use jig_domain_notes as notes;

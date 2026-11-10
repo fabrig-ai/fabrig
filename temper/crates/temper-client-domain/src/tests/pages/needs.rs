@@ -1,4 +1,4 @@
-//! What the client keeps (temper/docs/design/client/README.md, 3.5).
+//! What the client keeps (temper/docs/design/client/pages/README.md).
 use crate::{
     Address, ChatsFilter,
     pages::{

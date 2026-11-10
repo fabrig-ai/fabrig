@@ -1,5 +1,5 @@
 //! One task's borrowed documents, first activity page and live run handle.
-//! See temper/docs/design/client/README.md, 5.8 and 5.11.
+//! See temper/docs/design/client/pages/goal.md, 2, and temper/docs/design/client/pages/task.md, 4.
 use super::{
     Act, Request,
     activity::{Asking, READ_FIRST, READ_MOST, signed_out},
@@ -9,7 +9,7 @@ use crate::{Address, Limits, owner::Owner};
 use alloc::boxed::Box;
 use jig_client::{Client, Handle, Key, Latest, Readable, Readout, Told, Watchable, contract as c};
 use skein_lib::{Duration, Env, List, Queue, Time, Wall};
-/// A task's state as a goal's page says it (client/README.md, 5.8).
+/// A task's state as a goal's page says it (client/pages/goal.md, 2).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum State {
     /// jig's word for its phase.
@@ -126,7 +126,7 @@ pub fn header_state(task: &c::Task, me: Option<&c::Me>) -> State {
         c::WaitsOn::Nothing => row_state(&task.chip),
     }
 }
-/// A task's run heading (client/README.md, 5.9).
+/// A task's run heading (client/pages/task.md, 2).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Run {
     /// A run is out: claimed, running, or its run closing.
@@ -198,11 +198,11 @@ pub fn link_state(link: &c::TaskLink) -> Option<State> {
 pub enum Shape {
     Unknown,
     Tracked,
-    /// An agent's task with no priority, not the chat label (client/README.md, 5.9).
+    /// An agent's task with no priority, not the chat label (client/pages/task.md, 2).
     Agent,
     HeaderAndPlan,
 }
-/// A task page's request kinds, one in flight per kind (client/README.md, 5.11).
+/// A task page's request kinds, one in flight per kind (client/pages/task.md, 4).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Sending {
     Message,
@@ -211,7 +211,7 @@ pub enum Sending {
     Cancel,
     Amend,
 }
-/// The page's open amendment; its draft is 3.7's (client/README.md, 5.11).
+/// The page's open amendment; its draft is 3.7's (client/pages/task.md, 4).
 #[derive(Debug)]
 pub struct Amending {
     pub draft: crate::amend::Draft,
@@ -245,7 +245,7 @@ impl Amending {
         }
     }
 }
-/// A goal's or procedure's ended delegates, one read out at a time (client/README.md, 5.8, 5.10).
+/// A goal's or procedure's ended delegates, one read out at a time (client/pages/goal.md, 2, client/pages/task.md, 3).
 #[derive(Debug)]
 pub struct Ended {
     pub handle: Handle,
@@ -304,7 +304,7 @@ pub struct Task {
     read_wait: Duration,
     long_text: u32,
     asking: Asking,
-    /// The document that already permitted an ending-triggered panel reopen (client/forge.md, 9.2).
+    /// The document that already permitted an ending-triggered panel reopen (client/forge/served.md, 2).
     pub(crate) panel_reopened_at: Option<u64>,
     pub tree: Handle,
     pub activity: Handle,
@@ -327,7 +327,7 @@ pub struct Task {
     pub amending: Option<Amending>,
 }
 impl Task {
-    /// The supplied call under way (temper/docs/design/client/README.md, 5.9).
+    /// The supplied call under way (temper/docs/design/client/pages/task.md, 2).
     #[must_use]
     pub fn current_call(&self) -> Option<&c::CurrentCall> {
         self.current_call.as_deref()
@@ -504,7 +504,7 @@ impl Task {
             | Act::Go { .. } => unreachable!("only composer and older acts routed here"),
         }
     }
-    /// The task page's amendment acts (client/README.md, 5.11).
+    /// The task page's amendment acts (client/pages/task.md, 4).
     #[expect(
         clippy::too_many_lines,
         reason = "amendment dispatch lists every page act, including start goal and Home’s repository sheet"
@@ -757,7 +757,7 @@ impl Task {
         }));
         Some(key)
     }
-    /// Goal outcomes belong to the frame toast (client/README.md, 5.11).
+    /// Goal outcomes belong to the frame toast (client/pages/task.md, 4).
     pub(crate) fn toasted(&self, told: &Told) -> Option<super::needs::Toasted> {
         if self.shape != Shape::Tracked {
             return None;
@@ -821,7 +821,7 @@ impl Task {
         }
         let kind = self.pending_kind(key);
         // A message delivered is said by its words, "Sent", as a chat's
-        // (client/README.md, 5.11); a refused or unknown one by the outcome.
+        // (client/pages/task.md, 4); a refused or unknown one by the outcome.
         let mut said = false;
         if kind == Some(Sending::Message)
             && let jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(_))) = &outcome
@@ -1035,7 +1035,7 @@ impl Task {
             self.thread.failed();
         }
     }
-    /// Tracked pages read needs through their inbox, without task cards (client/README.md, 5.11).
+    /// Tracked pages read needs through their inbox, without task cards (client/pages/task.md, 4).
     pub(crate) fn held(&mut self, chip: &c::Chip, out: &mut Queue<Request>) {
         if self.shape == Shape::Tracked || chip.phase != c::Phase::Held {
             return;
@@ -1047,7 +1047,7 @@ impl Task {
                 continue;
             }
             // A card read for an earlier hold is read again for this one, so a
-            // task held anew offers Release anew (client/README.md, 5.11).
+            // task held anew offers Release anew (client/pages/task.md, 4).
             if card.key.is_none()
                 && let (Some(was), Some(now)) = (hold_revision(card.page.as_ref()), chip_hold(chip))
                 && was < now

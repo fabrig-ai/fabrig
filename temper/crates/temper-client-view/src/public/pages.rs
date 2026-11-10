@@ -1,4 +1,4 @@
-//! Each anonymous page draws its public records (temper/docs/design/client/browser.md, 8.3).
+//! Each anonymous page draws its public records (temper/docs/design/client/web/public.md, 3).
 use super::{Draw, heading};
 use crate::words::Word;
 use jig_client_protocol_wire::public_v1 as j;

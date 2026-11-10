@@ -1,4 +1,4 @@
-//! Hosted git fake tests (temper/docs/design/domain/testing.md, 4).
+//! Hosted git fake tests (temper/docs/design/testing/fakes.md).
 
 mod check;
 mod transcripts;

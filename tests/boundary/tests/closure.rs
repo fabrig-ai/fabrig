@@ -1,4 +1,4 @@
-//! Each binary's normal dependency closure (temper/docs/design/protocol/README.md, 4.4).
+//! Each binary's normal dependency closure (temper/docs/design/protocol/binaries.md, 4).
 use std::{
     path::Path,
     process::{Command, Stdio},

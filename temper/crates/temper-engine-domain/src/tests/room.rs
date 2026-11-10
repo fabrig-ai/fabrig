@@ -1,4 +1,4 @@
-//! Brief-room admission and its diagnostic (temper/docs/design/domain/agent.md, 4.3).
+//! Brief-room admission and its diagnostic (temper/docs/design/domain/agent/tools.md).
 
 use crate::room::{BRIEF_ROOM, HostPart, Short};
 

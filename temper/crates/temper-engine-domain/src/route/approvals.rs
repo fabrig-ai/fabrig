@@ -1,11 +1,11 @@
-//! Each watcher's changes waiting on a person's approval (domain/forge.md, 8.12).
+//! Each watcher's changes waiting on a person's approval (domain/forge/change/questions.md, 2).
 use crate::{Domain, Limits};
 use alloc::boxed::Box;
 use jig_domain_people::Role;
 use skein_lib::{Env, List, Wall};
 use temper_engine_domain_forge::{self as forge, settings};
 
-/// Whether the watcher's review would count for the approval a row waits on (domain/forge.md, 8.12).
+/// Whether the watcher's review would count for the approval a row waits on (domain/forge/change/questions.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum YourReview {
     Counts,
@@ -17,7 +17,7 @@ pub enum YourReview {
     OtherRole,
 }
 
-/// A change waiting on a person's approval, as one watcher sees it (domain/forge.md, 8.12).
+/// A change waiting on a person's approval, as one watcher sees it (domain/forge/change/questions.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ApprovalRow {
     pub task: u64,
@@ -41,7 +41,7 @@ pub struct ApprovalRow {
     pub yours: YourReview,
 }
 
-/// One watcher's approvals document (client/README.md, 4.6).
+/// One watcher's approvals document (client/forge/records.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Approvals {
     pub rows: Box<[ApprovalRow]>,
@@ -50,7 +50,7 @@ pub struct Approvals {
 }
 
 impl Approvals {
-    /// Deeply owned row bytes in one whole delivery (domain/forge.md, 8.12).
+    /// Deeply owned row bytes in one whole delivery (domain/forge/change/questions.md, 2).
     pub(crate) fn owned_bytes(&self) -> usize {
         let mut bytes = 0_usize;
         for row in &self.rows {
@@ -64,7 +64,7 @@ impl Approvals {
     }
 }
 
-/// The watcher's approvals (domain/forge.md, 8.12).
+/// The watcher's approvals (domain/forge/change/questions.md, 2).
 pub(super) fn document(domain: &Domain, env: &Env<Limits>, party: u64) -> Approvals {
     let mut rows = List::uncapped();
     for wait in domain.forge.approval_waits(env.wall, &env.limits.forge) {
@@ -88,7 +88,7 @@ fn cut(rows: Box<[ApprovalRow]>, bound: u32) -> Approvals {
     Approvals { rows: kept.into_boxed(), more }
 }
 
-/// One wait as `party` sees it, or none (domain/forge.md, 8.12).
+/// One wait as `party` sees it, or none (domain/forge/change/questions.md, 2).
 pub(super) fn row(domain: &Domain, wait: &forge::ApprovalWait, party: u64) -> Option<ApprovalRow> {
     let role = domain.core.people.role(party, wait.project)?;
     let mut chosen = None;
@@ -141,7 +141,7 @@ pub(super) fn row(domain: &Domain, wait: &forge::ApprovalWait, party: u64) -> Op
 }
 
 /// Whether a proposal sets an enforcing approval covering an owned forge's writable repository
-/// (domain/forge.md, 8.12), judged as approval eligibility is (8.9).
+/// (domain/forge/change/questions.md, 2), judged as approval eligibility is (8.9).
 pub(super) fn owned_approval(domain: &Domain, items: &[(settings::SettingKey, settings::Edit)]) -> bool {
     for (key, edit) in items {
         if key.kind != 1 && key.kind != 2 {

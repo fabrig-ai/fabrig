@@ -1,4 +1,4 @@
-//! Ask temper's watched ways and their settings decisions (client/README.md, 4.6 and 5.13).
+//! Ask temper's watched ways and their settings decisions (client/forge/records.md and client/pages/settings.md, 2).
 use super::fixtures as f;
 use crate::{
     Address, Domain, Event, Place, Request,
@@ -15,7 +15,7 @@ const NEXT: u32 = 9;
 // The fixture has two ways, each with two items, and at most one Yours tab.
 const WAYS: u32 = 2;
 const ITEMS: u32 = 2;
-// client/README.md, 4.6 bounds a path at 24 stops.
+// client/forge/records.md bounds a path at 24 stops.
 const STOPS: u32 = 24;
 const TABS: u32 = 3;
 // Each act is one ChangeSettings decision.

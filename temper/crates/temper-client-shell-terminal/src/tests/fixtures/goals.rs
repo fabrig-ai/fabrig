@@ -1,4 +1,4 @@
-//! The Goals page's terminal vocabulary (client/README.md, 3.5, Goals).
+//! The Goals page's terminal vocabulary (client/pages/README.md, Goals).
 use super::{binding, synthetic_frame, tree_limits};
 use skein_ui::{Builder, Role, Run, Tree};
 use temper_client_view::look;

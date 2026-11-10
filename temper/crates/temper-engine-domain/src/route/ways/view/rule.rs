@@ -1,5 +1,5 @@
 //! A landing rule's card reads the forge's current rules
-//! (temper/docs/design/domain/forge.md, 8.9 and 8.13).
+//! (temper/docs/design/domain/forge/change/gates.md, 3 and temper/docs/design/domain/forge/change/branch-path.md).
 use super::{fact, not_drawn};
 use crate::{Domain, ways};
 use alloc::boxed::Box;
@@ -110,7 +110,7 @@ fn covers(pattern: &GatePattern) -> Box<[u8]> {
     }
 }
 
-// The approve stop's words are private to the derivation (forge.md, 8.13).
+// The approve stop's words are private to the derivation (domain/forge/change/branch-path.md).
 fn approval_words(approval: &settings::RuleApproval, roles: &[ways::Role]) -> Box<[u8]> {
     let mut name = bytes::concat(&[b"role ", Decimal::of(u64::from(approval.role)).as_bytes()]);
     let mut yours = false;

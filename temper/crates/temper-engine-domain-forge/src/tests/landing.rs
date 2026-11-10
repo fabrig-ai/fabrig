@@ -57,7 +57,7 @@ fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
     assert!(d.landing.gates(5, REPO).is_empty());
 }
 
-/// Merge commands belong to configured projects (temper/docs/design/protocol/configuration.md, 3).
+/// Merge commands belong to configured projects (temper/docs/design/protocol/configuration/engine.md).
 #[test]
 fn a_projects_merge_job_is_kept_per_project() {
     use temper_engine_domain_forge_change::Way;
@@ -97,7 +97,7 @@ fn a_projects_merge_job_is_kept_per_project() {
     }
 }
 
-/// Close commands belong to configured projects (temper/docs/design/protocol/configuration.md, 3).
+/// Close commands belong to configured projects (temper/docs/design/protocol/configuration/engine.md).
 #[test]
 fn a_projects_close_job_is_kept_per_project() {
     use temper_engine_domain_forge_change::Way;

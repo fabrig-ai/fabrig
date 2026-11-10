@@ -185,7 +185,7 @@ fn a_chats_row_links_to_its_chat_by_number() {
 
 #[test]
 fn a_chats_row_offers_its_number_as_a_terminal_command() {
-    // client/README.md, 3.5: "TN", a link to its page; 6.5: numbered commands.
+    // client/pages/README.md: "TN", a link to its page; 6.5: numbered commands.
     for ended in [false, true] {
         let mut line = line();
         if ended {

@@ -789,7 +789,7 @@ pub fn bounded_template(directory: &Path) -> Bounded {
     bounded_template_profile(directory, &[], None)
 }
 
-/// The reference overlays init's document (temper/docs/design/protocol/configuration.md, 13.9).
+/// The reference overlays init's document (temper/docs/design/protocol/configuration/reference.md).
 #[must_use]
 pub fn bounded_reference(directory: &Path) -> Bounded {
     bounded_template_profile(
@@ -1128,7 +1128,7 @@ pub fn native_landing_settings(directory: &Path) {
 }
 
 /// Replace seeded project 1's review rule and select this fixture's producer charter.
-/// temper/docs/design/protocol/configuration.md, 13.4–13.6.
+/// temper/docs/design/protocol/configuration/stock.md and temper/docs/design/protocol/configuration/settings.md, 4–5.
 pub fn producer_landing_settings(directory: &Path, producer: u64) {
     let value = serde_json::json!({"items":[
         {"setting":{"kind":"landing-rule","project":1,"number":1},"set":{

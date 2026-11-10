@@ -1,4 +1,4 @@
-//! Home's status procedure and its agent (temper/docs/design/domain/forge.md, 5.7).
+//! Home's status procedure and its agent (temper/docs/design/domain/forge/attention.md, 3).
 use super::{Box, Domain, Env, Limits, ProcedureStep, RunWorkspace, STATUS_CODE, StepEnd, Work, forge, tasks};
 
 pub(super) fn start_status_run(domain: &mut Domain, env: &Env<Limits>, project: u32, words: Box<[u8]>) {

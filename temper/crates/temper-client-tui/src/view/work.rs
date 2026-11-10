@@ -1,4 +1,4 @@
-//! Work read for the quit question (temper/docs/design/client/README.md, 6.17).
+//! Work read for the quit question (temper/docs/design/client/tui/box.md).
 use crate::Tui;
 use alloc::boxed::Box;
 use jig_client::{

@@ -1,5 +1,5 @@
-//! The forge's held kinds (temper/docs/design/protocol/configuration.md, 13.2;
-//! temper/docs/design/domain/forge.md, 8.9 and section 16).
+//! The forge's held kinds (temper/docs/design/protocol/configuration/settings.md, 2;
+//! temper/docs/design/domain/forge/change/gates.md, 3, and temper/docs/design/domain/forge/README.md, 9).
 use super::fixtures::{CHANGE, opening_row};
 use super::*;
 use crate::settings::{

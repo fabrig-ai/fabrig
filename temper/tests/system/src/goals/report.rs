@@ -1,5 +1,5 @@
 //! A stock goal's report crosses Smith's note calls and the person's scoped read.
-//! Contract: temper/docs/design/domain/agent.md, 8.3.
+//! Contract: temper/docs/design/domain/agent/agents.md, 3.
 use super::*;
 use jig_domain_core::{documents, reads};
 

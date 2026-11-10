@@ -1,4 +1,4 @@
-//! Ask temper before its first words (temper/docs/design/client/README.md, 3.5).
+//! Ask temper before its first words (temper/docs/design/client/pages/README.md).
 use crate::{
     frame::Bindings,
     look,

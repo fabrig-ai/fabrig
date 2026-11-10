@@ -1,4 +1,4 @@
-//! A second provider's sign-in after the welcome's (temper/docs/design/client/browser.md, 4.2).
+//! A second provider's sign-in after the welcome's (temper/docs/design/client/web/testing.md, 2).
 use skein_ui::Role;
 use temper_client_domain::{self as d, Address, Place};
 use temper_client_world::{

@@ -1,4 +1,4 @@
-//! Repository addresses (temper/docs/design/client/forge.md, 5.4).
+//! Repository addresses (temper/docs/design/client/forge/deployment.md).
 #![expect(clippy::disallowed_methods, clippy::disallowed_macros, reason = "ordinary tests compare bounded addresses")]
 use super::fixtures as f;
 use crate::{forge::repository::address, forge_sign_in::Forges};

@@ -1,4 +1,4 @@
-//! Ready's adoption and Home's retry (temper/docs/design/client/README.md, 3.5).
+//! Ready's adoption and Home's retry (temper/docs/design/client/pages/README.md).
 use super::welcome::{default_answer, deliver, event, press_default, ready_default, ready_without_first};
 use crate::tests::fixtures as f;
 use crate::{

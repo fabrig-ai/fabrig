@@ -1,4 +1,4 @@
-//! The table and reach records (temper/docs/design/protocol/configuration.md, 13.2).
+//! The table and reach records (temper/docs/design/protocol/configuration/settings.md, 2).
 use crate::{
     Class, Classes, ITEMS, Item, Kind, NAME_BYTES, PATTERN_BYTES, PATTERNS, PathSet, Reach, Reason, SETS, Subject,
     WORDS_BYTES,

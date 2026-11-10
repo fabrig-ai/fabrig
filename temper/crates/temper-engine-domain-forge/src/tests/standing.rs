@@ -1,5 +1,5 @@
-//! Held landing rules (temper/docs/design/protocol/configuration.md, 13.3;
-//! temper/docs/design/domain/forge.md, 8.7).
+//! Held landing rules (temper/docs/design/protocol/configuration/settings.md, 3;
+//! temper/docs/design/domain/forge/change/gates.md, 2).
 use super::*;
 use crate::settings::{Asked, Edit, LandingRule, RuleApproval, RuleGate, SizedValue, Value};
 use fixtures::{CHANGE, HEAD, opening_row};

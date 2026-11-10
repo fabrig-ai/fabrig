@@ -28,7 +28,7 @@ fn a_real_model_answers_a_chat_and_pushes_a_small_change() {
     scratch.remove();
 }
 
-/// domain/testing.md, 2.7: init's shipped chat chooses change on real Responses.
+/// testing/live-tier.md: init's shipped chat chooses change on real Responses.
 #[test]
 #[ignore = "live: a held ChatGPT account, TEMPER_LIVE_ACCOUNT; the after-landing tier, or scripts/proof-live.sh forge-land"]
 fn a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge() {
@@ -36,14 +36,14 @@ fn a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge() {
     owned_forge_landing(support::forge_land::LiveModel::ChatGpt { account: account.as_deref() });
 }
 
-/// domain/testing.md, 2.7: B0's passing walk, with its original phase bounds.
+/// testing/live-tier.md: B0's passing walk, with its original phase bounds.
 #[test]
 #[ignore = "live: a held ChatGPT account, on the rung's sol; scripts/proof-live.sh rung-b0"]
 fn rung_b0_a_person_agrees_a_plan_before_the_change_lands() {
     support::forge_land::rung::green_light();
 }
 
-/// domain/testing.md, 2.7 and protocol/credentials.md, 3: a held login used in place.
+/// testing/live-tier.md and protocol/credentials.md, 3: a held login used in place.
 #[test]
 #[ignore = "live: a held Claude Code login, TEMPER_LIVE_CLAUDE; the after-landing tier, or scripts/proof-live.sh forge-land-claude"]
 #[expect(clippy::disallowed_methods, reason = "cli C4: TEMPER_LIVE_CLAUDE, through temper's test table once it exists")]

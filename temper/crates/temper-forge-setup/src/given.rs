@@ -1,4 +1,4 @@
-//! Owner's words for the kit's refusal locations (protocol/setup.md, 5).
+//! Owner's words for the kit's refusal locations (protocol/setup/reconcile.md).
 use crate::problem::{Problems, What};
 use alloc::boxed::Box;
 use jig_protocol_config::{Path, Segment};

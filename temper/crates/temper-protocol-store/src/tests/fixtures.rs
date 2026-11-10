@@ -875,7 +875,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         merge_result: None,
     }
 }
-/// A merge job with its catch-up commit and retained result (temper/docs/design/domain/forge.md, 8.4).
+/// A merge job with its catch-up commit and retained result (temper/docs/design/domain/forge/change/repairs.md).
 pub fn merge_change_row(from: Option<[u8; 32]>) -> top::ChangeRow {
     use temper_engine_domain_forge_change::{Delegate, State};
     let mut row = change_row(State::Resolving { requested: true, base: [28; 32] });

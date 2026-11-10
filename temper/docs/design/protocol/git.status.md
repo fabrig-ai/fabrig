@@ -26,7 +26,7 @@ index. A merge's listing keeps its separate bounded prefix rule.
 
 Section 7 has no known gap in the orderly worker-close ordering: serve
 waits for its agent processes before aborting the worker's remaining
-resources (README.md, section 8). Its second signal still aborts at once.
+resources (README.md, section 6). Its second signal still aborts at once.
 
 Sections 4.6 and 6 have no known gap in a merge's listing of its unmerged
 paths: past the checkout's `conflicts` it keeps the first `conflicts`, and

@@ -1,4 +1,4 @@
-//! Fixed scenario journal limits (temper/docs/design/domain/testing.md, 5.1).
+//! Fixed scenario journal limits (temper/docs/design/testing/README.md, 4.1).
 
 // One decision's writes for the walking, basic forge, two-slot and stock settings worlds.
 pub const WALKING_WRITES: u32 = 2_118;

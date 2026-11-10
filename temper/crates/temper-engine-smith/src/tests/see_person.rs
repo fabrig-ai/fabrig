@@ -1,4 +1,4 @@
-//! Hand-made person documents read as lines (domain/agent.md, 8.4.1).
+//! Hand-made person documents read as lines (domain/agent/ask-temper.md, 1).
 use jig_domain_core::{
     documents as d,
     reads::{Answer, EndedGroup, TaskPage},

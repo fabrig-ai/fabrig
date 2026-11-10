@@ -2,6 +2,7 @@
 */docs/design/cli/*-env.md
 temper/docs/help/**
 temper/docs/design/draft/reference-code-production.md
+temper/docs/design/protocol/setup/owned.md
 temper/docs/examples/reference/README.md
 jig/docs/design/protocol/store/README.md
 jig/docs/design/protocol/store/records.md

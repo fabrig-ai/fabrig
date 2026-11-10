@@ -1,4 +1,4 @@
-//! Collector fixtures and fake ctl: `temper/docs/design/domain/testing.md`, 6.5.3.
+//! Collector fixtures and fake ctl: `temper/docs/design/testing/checks.md`, 5.3.
 use std::fmt::Write as _;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;

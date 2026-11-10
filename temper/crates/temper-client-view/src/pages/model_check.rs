@@ -1,4 +1,4 @@
-//! Model’s line in Ready’s pane (temper/docs/design/client/README.md, 3.5, *The try*; temper/docs/design/domain/trial.md, 6.1–6.4).
+//! Model’s line in Ready’s pane (temper/docs/design/client/pages/README.md, *The try*; temper/docs/design/domain/trial.md, 6.1–6.4).
 use crate::{
     accounts::{Bindings, Meaning},
     flow::{self, Control, Mark},

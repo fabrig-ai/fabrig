@@ -1,4 +1,4 @@
-//! Kept forges join the setup host and lifecycle (temper/docs/design/protocol/forge.md, 2.6; temper/docs/design/protocol/setup.md, 6.7).
+//! Kept forges join the setup host and lifecycle (temper/docs/design/protocol/forge/engine.md, 6; temper/docs/design/protocol/setup/owned.md, 7).
 use super::{lifecycle, settings};
 use alloc::boxed::Box;
 use skein_forge_setup::host;
@@ -123,7 +123,7 @@ impl Runtime {
         Some(entry)
     }
     /// The listener a forge's plans are given: a managed forge's only with its API on loopback
-    /// (temper/docs/design/protocol/setup.md, 5.5).
+    /// (temper/docs/design/protocol/setup/reconcile.md, 5).
     fn listener(&self, mode: domain::Mode, address: skein_io::Addr) -> Option<core::net::SocketAddr> {
         match mode {
             domain::Mode::Managed => match address {

@@ -1,4 +1,4 @@
-//! Density over client deliveries and acts (temper/docs/design/client/README.md, 3.5,
+//! Density over client deliveries and acts (temper/docs/design/client/pages/README.md,
 //! A page's parts; temper/docs/design/draft/surfaces.md, 12 and 14).
 use jig_client::{Down, Readable, Readout, Up, Watchable, contract as c};
 use skein_lib::{Duration, Env, List, Queue, RequestEnvelope, Rng, Time, Token, Wall, Writer};

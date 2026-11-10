@@ -1251,7 +1251,7 @@ fn review_fitting_uses_the_configured_assignment_envelope() {
     }
 }
 
-/// temper/docs/design/domain/agent.md, 7: startup faults keep their cause and pending words.
+/// temper/docs/design/domain/agent/README.md, 6: startup faults keep their cause and pending words.
 #[test]
 fn an_asking_chat_answers_after_acceptance_and_failed_resume() {
     use fixtures::worker_peers::{ASKING_HISTORY_BYTES, AskingChat, ResumeAttempt, asking_attempt};
@@ -1393,7 +1393,7 @@ fn worker_opening_ends_are_suppressed_by_name_and_reason_until_hello() {
     }
 }
 
-/// temper/docs/design/protocol/README.md, 15.3: every unsent record has one operator note.
+/// temper/docs/design/protocol/cluster.md, 3: every unsent record has one operator note.
 #[test]
 fn each_unsent_record_reaches_the_operator_once() {
     use jig_protocol_engine_workers::{Bound, Unsent, host::Output};

@@ -1,4 +1,4 @@
-//! Fixture-owned restart configuration (temper/docs/design/domain/root.md, 12).
+//! Fixture-owned restart configuration (temper/docs/design/domain/root.md, 11).
 use jig_domain_core as core;
 use temper_engine_domain as engine;
 

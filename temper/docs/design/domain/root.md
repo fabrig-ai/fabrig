@@ -8,16 +8,16 @@ root composes and carries, its vocabulary toward the protocol layer, the
 one shape as temper holds it, how it routes, translates and puts outputs
 together, its store vocabulary, its part in restart and stopping, its
 limits, and what it never does. The core is jig's `domain/engine/README.md`;
-the forge is forge.md; the worker the root assigns runs to is worker.md,
-and the agent agent.md. What is still open is listed in section 13.
+the forge is forge/README.md; the worker the root assigns runs to is worker.md,
+and the agent agent/README.md. What is still open is listed in section 12.
 
 ## 1. In one page
 
 - **temper's root composes jig's core and the forge.** Its children are
   jig's core, `jig-domain-core`, the forge connector's crates, and the
   calendar, `temper-engine-domain-calendar`, which renews each project's
-  funding period (5.7). It alone faces the engine's protocol layer
-  (section 3; `../protocol/README.md`, section 6).
+  funding period (`routing.md`, 7). It alone faces the engine's protocol layer
+  (section 3; `../protocol/README.md`, section 4).
 - **It routes and translates; jig's core decides.** What commits
   together, what waits for a commit, the order of a restart and the check
   on every effect are the core's or the journal's (jig's
@@ -26,16 +26,16 @@ and the agent agent.md. What is still open is listed in section 13.
 - **It speaks for the forge to the core.** The forge's crates name no
   type of jig's core: the root makes, from what the forge says, what the
   core takes (an effect's description, a verdict, a procedure's step and
-  its delegates, a hold's reason, a result), and back (sections 5 and 6).
+  its delegates, a hold's reason, a result), and back (`routing.md` and `root.md`, section 5).
 - **Every run is on a worker.** temper runs no agent in the engine: the
   root has no hub child, and speaks jig's hub's link vocabulary to
   workers, which in standalone share the engine's process (section 2).
 - **The owner keeps the value.** The root puts each output together from
   its owners' parts: an assignment from the core's part and the forge's
   workspace and brief sections, a call's answer from the core's part and
-  the forge's (section 7).
+  the forge's (section 6).
 - **One store vocabulary.** Its keys, records and ranges wrap the core's
-  and the forge's; it has no records of its own (section 8).
+  and the forge's; it has no records of its own (section 7).
 - **Admitted by a watermark.** New external work waits while the root's
   backlog (its journal's, its work queue's, its queued store answers') is
   at its watermark; whatever finishes admitted work is always taken, and
@@ -44,14 +44,14 @@ and the agent agent.md. What is still open is listed in section 13.
   7.1 and 7.2).
 - **On jig's rails.** The engine's world runs the root with its real
   children over jig's store; the conformance world runs it on jig's
-  harness, under jig's referee (section 12).
+  harness, under jig's referee (section 11).
 
 ## 2. What the root is
 
 ```
 temper-engine-domain                       the root: the journal, routing, translation, putting outputs together
 ├── jig-domain-core                        jig's core and its children (jig's domain/engine/README.md, section 3)
-├── temper-engine-domain-forge             the forge connector's top (forge.md, section 3)
+├── temper-engine-domain-forge             the forge connector's top (forge/README.md, section 3)
 │   ├── skein-forge-client                 the working set, keeping up, fresh reads, the request budget, effects' keys, write lanes (skein's forge-client.md)
 │   ├── temper-engine-domain-forge-change  the change procedure and the landing queues
 │   ├── temper-engine-domain-forge-landing the landing by turn (landing.md)
@@ -62,7 +62,7 @@ temper-engine-domain                       the root: the journal, routing, trans
 
 - **One connector, the forge.** Configuration names the core one
   connector, the forge, and a start naming another is refused
-  (`../protocol/configuration.md`, section 2). The root knows the forge
+  (`../protocol/configuration/README.md`, section 2). The root knows the forge
   by that number and matches on its variants exhaustively.
 - **No hub, no agent in the engine.** The root links `jig-domain-host`
   for the hub's link vocabulary alone: a worker's hello and its records
@@ -72,7 +72,7 @@ temper-engine-domain                       the root: the journal, routing, trans
   `domain/hosts/README.md`, section 3).
 - **Workers in the engine's process, in standalone.** The worker joins
   the engine by an in-process address (`../protocol/README.md`, section
-  8), so the core is configured with its workers in process
+  6), so the core is configured with its workers in process
   (`workers_in_process`, which jig's configuration sets from an
   in-process hosts' listener), and a restart settles their claims at once
   (jig's `domain/engine/restart.md`). temper's domain worlds run their
@@ -80,15 +80,15 @@ temper-engine-domain                       the root: the journal, routing, trans
 - **Its state:** its children's; the journal; what it keeps of its
   configuration (the forge's number); its facts
   waiting to be drained; and the values in flight between a hand-off and
-  its answer, each bounded (section 10): a worker's record until the
+  its answer, each bounded (section 9): a worker's record until the
   fleet takes it, a run's brief sections and workspace while its claim is
   prepared, its assignment until the claim's decision, the loads it makes
   for the core, host calls being decoded and rendered, and the forge's
   reads, effects, subscriptions and adoptions in flight; the calendar's
-  record per project and its one deadline (5.7). None of it is stored.
+  record per project and its one deadline (`routing.md`, 7). None of it is stored.
 - **Siblings share no types.** The core never names the forge's types,
   nor the forge the core's; the forge's top names jig's people child's
-  outcomes alone, for its keyed adoptions (forge.md, section 4).
+  outcomes alone, for its keyed adoptions (forge/adoption.md).
 
 The crate, one module per part:
 
@@ -117,8 +117,8 @@ temper-engine-domain/src/
 What crosses the domain boundary, in `boundary.rs`: an exhaustive enum
 per direction, one variant per peer. The engine's service on the other
 side, its components and what its routing does with each, is
-`../protocol/README.md`, section 6; in standalone it shares its process
-with the worker's (`../protocol/README.md`, section 8).
+`../protocol/README.md`, section 4; in standalone it shares its process
+with the worker's (`../protocol/README.md`, section 6).
 
 - **In, `Event`:**
   - the store's answers (`StoreInput`): a commit durable, with the
@@ -132,7 +132,7 @@ with the worker's (`../protocol/README.md`, section 8).
     request, an application request, reads, watches and their
     deliveries, a project's period;
   - accounts' events, and a generation of a git identity
-    (`Event::Credential`, section 7.1);
+    (`Event::Credential`, section 6.1);
   - the forge's events: its API's answers and its webhooks' hints;
   - a released output addressed to a child (`Event::Released`), and the
     service's `Restart`, `Resume` and `Stop`.
@@ -149,21 +149,21 @@ with the worker's (`../protocol/README.md`, section 8).
   an answer, `Parts`: the heads the run pushed, the repositories it
   saved, a permanent failure to prepare one.
 - **Facts,** which decide nothing: the root's, among them a failed
-  preparation (`Fact::PreparationFailed`, section 7.4) and a brief's read
+  preparation (`Fact::PreparationFailed`, section 6.4) and a brief's read
   refused and a brief failed (`Fact::BriefReadRefused`, `Fact::BriefFailed`;
-  forge.md, 8.4), at most 32 waiting to be drained, the rest counted as
+  forge/change/repairs.md), at most 32 waiting to be drained, the rest counted as
   lost; and the children's own.
 - **Tools.** The root's `Tool` is a host call in typed form, as the
   protocol layer decodes it (`../protocol/llm.md`, section 4): jig's
   operations on tasks, notes, the forge's reads, effects and topics, and
   the refusal of a call whose shape is past its bounds. Which tools
-  temper's agents get, and what each answers, is agent.md, 4.3.
+  temper's agents get, and what each answers, is agent/tools.md.
 
 ## 4. The one shape, and the journal
 
 jig's shape (jig's `domain/root.md`, section 3), with temper's
 admission. The journal's `held` field and memory estimates do not
-admit work; the watermark paces new external work (section 10).
+admit work; the watermark paces new external work (section 9).
 
 ```
 try_step(root, event):
@@ -185,11 +185,11 @@ release(root):   (the service's iterate)
 - **The backlog,** in entries: the journal's (`Journal::backlog`: the
   commits made and not yet answered, the outputs held and those at the
   door), the work queue's and the queued store answers'. Its watermark is
-  section 10's. The journal and the work queue are uncapped: a decision
+  section 9's. The journal and the work queue are uncapped: a decision
   always completes, and nothing between the root's children reserves
   room.
 - **Its orders, stated** (programming-model.md, 7.2), each a world test
-  under load in the root's world (section 12):
+  under load in the root's world (section 11):
   - **hand-offs first:** a hand-off a step queued is finished before the
     next entrance is admitted (`work.is_empty()`);
   - **store answers in order:** a read's page and a load's switch are
@@ -296,7 +296,7 @@ release(root):   (the service's iterate)
   durable, the decision past the store's edge, or the counter at its
   end. A root whose journal has stopped never stays up undeciding: the
   engine ends with that reason in its log (`../protocol/README.md`,
-  8.2).
+  6.2).
 
 ### 4.1 The byte budget
 
@@ -338,7 +338,7 @@ counted at the root, which sees them all.
   the wire's turn size bound it.
 - **What does not wait:** a person's reads and calls that start no run,
   the fleet's progress, the store's answers, completions. The budget
-  limits pacing in bytes as the watermark does in entries (section 10),
+  limits pacing in bytes as the watermark does in entries (section 9),
   and the held bytes drain without a new preparation: assignments are
   delivered, preparations fail or finish, turns are committed. With no
   worker to take assignments, preparations stop, and nothing else does.
@@ -358,310 +358,21 @@ counted at the root, which sees them all.
   person's read meanwhile is answered at once; and nothing deadlocks
   with no worker connected.
 
-## 5. Routing
-
-### 5.1 From the protocol layer
-
-Each event goes to the child it is for, by its variant: the store's
-answers to the journal and to the load that asked (section 8); a
-worker's hello and records, a party's requests, reads and watches, a
-project's period (`../protocol/configuration.md`, section 8), accounts'
-events and a git identity's generation to the core; the forge's events
-to the forge; a timer to the child that armed it. What temper adds:
-
-- **A worker's bytes stay with the root.** A turn's transcript and an
-  answer's outcome and parts are kept under tokens the fleet names, until
-  the core takes or drops them; the fleet sees their metadata alone.
-- **An ended run's outcome** goes out to the protocol layer to read, with
-  the change it may name; its typed end comes back to the core, temper's
-  parts translated (7.4).
-- **An adoption,** an application request, goes to the core to admit by
-  key, then to the forge (5.4).
-- **A forge's set up,** `SetUp { forge }` (`../client/README.md`,
-  section 8), goes to the forge, which decides it by the forge's offer
-  (forge.md, 4.1), refusing it there or asking the protocol layer's box
-  link, which carries the ask to the box and its lines back
-  (`../protocol/forge.md`, 2.8). The root's configuration carries each
-  configured forge's number, kind, mode and setup start, and whether
-  serve runs under the box, which the root gives the forge at
-  construction; the root's event `BoxClosed`, from the link at the
-  pipe's close, goes to the forge. It is keyed: the core admits it by key,
-  of the deployment's scope, first, and its answer comes back from the
-  link to the forge, which keeps it as the request's outcome, in memory
-  alone. Nothing of it is committed: the states and offers it moves are
-  in memory, as every connection's is.
-- **A watch of the deployment's forges,** the subject `forges`
-  (`../client/forge.md`, 5.4), goes to the core to admit on the party's
-  deployment role, and its documents come from the forge as a change's
-  panel's do (below).
-- **A hint that comes before decisions open** is dropped, since the
-  restart reads afresh (9.1).
-- **A watch of the forge's subject,** a change's panel
-  (`../client/forge.md`, 9.2), goes to the core to admit on the
-  party's role in its project; the core's ask for its document goes to
-  the forge (5.3), which makes it or answers unknown; the forge's marks
-  of its subjects go to the core; and each document leaves held in the
-  decision that asked for it, out to the protocol layer to encode once
-  that decision's commit is durable.
-- **A run's read as its person,** `see`'s for an address of the person's
-  (`agent.md`, 8.4.1), goes to the core as the run's named action
-  `PersonRead` (jig's `domain/engine/executors.md`, 3), its answers back to the
-  call's flight; an application read of the forge's it makes, the core
-  admits as a party's and asks of the forge with the person and the
-  project's scope, and the forge's document for that person, made as its
-  watch's is, goes to the same flight. Nothing of it is committed.
-
-### 5.2 Host calls
-
-- **Fenced, then decoded by hand-out.** The fleet admits a call only from
-  its task's live attempt; the root hands it out (`HostRequest::Decode`),
-  and the protocol layer decodes its input into the root's `Tool`
-  (`../protocol/llm.md`, section 4). No domain parses a call's input
-  (jig's `domain/engine/README.md`, 4.4).
-- **Checked for shape** against the core's bounds before any child sees
-  it: a call past them becomes its refusal, answered and recorded as any
-  decided call is.
-- **An undecodable call decides nothing.** The protocol layer answers it
-  as an error naming what is wrong; the root relays that answer to the
-  run with no commit and no record, and the run may ask again with a
-  corrected input under a new name. A documentation read
-  (`read_docs`) is answered the same way, as a success, from the
-  binary's topics (`../protocol/documentation.md`, section 5): it
-  decides nothing either.
-- **Invalid or busy, answered at once:** a call naming no live attempt or
-  no completion is answered invalid; one that finds the call records, or
-  the loads it needs, full is answered busy, and its run asks again after
-  a backoff.
-- **Routed by tool** (agent.md, 4.3 lists them). A call the core has a
-  record of is answered from it (7.3). Otherwise the core checks it
-  against its task's authority; then jig's operations, notes and
-  subscriptions to tasks and timers go to the core as named actions, and
-  the forge's reads, effects and topics to the forge (5.5); a proposal of
-  a forge effect goes to the forge, which keeps it, then to the core.
-- **Task reads decide nothing.** `read_task` goes to jig before durable-call
-  replay. jig checks the read family and task relationships, including the
-  immediate requester retained on an ended delegate's owner row. The root
-  translates its bounded answer through the fresh-read door; it makes no
-  visibility decision. Escalations name the held task and hold revision and
-  tell the recipient to use `read_task` for its source facts and hold account.
-- **A task read's room.** The root names the room with the read: the
-  reply bound of the agent running the reading attempt, within
-  `core.call_answer_bytes` and within `root.journal.transcript_bytes` less
-  the most the answer's metadata can take, since the door takes no delivery
-  past that bound. That reply bound is the one the attempt's worker names in
-  its hello (jig's `protocol/channel/records.md`, 1), as jig's fleet keeps it by
-  the attempt (jig's `domain/engine/fleet.md`); where the worker names
-  none, the local agent's `host_reply_text`. Every temper worker names its
-  agent's `tool_payload` (`worker.md`, section 6), the local agent's
-  in-process worker among them. Where neither names one, as for a worker
-  that names none in a process with no local agent's metadata (`agent.md`,
-  4.3), the room is `documents.text_bytes`: the root does not know that
-  agent's reply bound, and an answer past it reaches its run as smith's
-  `TooLarge` at every offset. The root answers `Domain::reply_bound` by a
-  call's key for the protocol layer's render alike (`agent.md`, 4.3). A
-  read holds its words, at
-  most that room and no more than the source has left, and its metadata, from
-  jig's answer until it is rendered; `fleet.calls` bounds the reads held at once.
-  At `temper init`'s figures (`../protocol/setup.md`, 8.1) one read holds at most
-  10,662 bytes of words, 4,576 of metadata (16 dependencies at 8 bytes, 82 question
-  credits at 48, a hold's account of 512) and a carrier of about 200: about 15.4 KB,
-  and about 4 MB at `fleet.calls`' 256, which a box's runs share.
-  Where neither the run's worker nor a local agent names a reply bound,
-  the read is in pieces of the deployment's `documents.text_bytes`: 512
-  at `temper init`'s figures since 2026-11-05, and 128 in a document made
-  before, at which a goal on a worker that named none read a 30.5 KB report
-  128 bytes a call, about 240 calls (the request `goal-call-faults` of
-  2026-11-08, item 3). A temper worker names its agent's, so its runs read
-  in pages of that bound, 10,662 bytes at `temper init`'s figures.
-- **Rendered by hand-out.** A decided call's answer goes out to be
-  rendered (`HostDelivery::Render`) and comes back as smith takes it; the
-  core keeps the rendered answer with the call's record, so a call asked
-  again is answered without rendering again. A read's answer leaves
-  through the door. A rendered call past the configured core call-answer
-  byte bound is refused with the existing busy answer.
-
-### 5.3 The core's asks of the forge
-
-The closed list (jig's `domain/connectors.md`, section 2), each by the
-forge's number:
-
-| The core asks | The root |
-|---|---|
-| describe, keep or drop an effect; judge a requirement | gives it to the forge (5.5) |
-| judge items of temper's kinds of settings; keep their values; which of their defaults differ | gives them to the forge (5.6) |
-| the holdings of a task, of a delegate batch, of a procedure's batch | has the forge name the branches each task will hold, before the core admits the batch |
-| take or hand down a hold; end a topic | gives it to the forge |
-| a claim | claims the forge's writer slots for the attempt's branches in the claim's decision, and starts the run through the fleet, with its grants, once the claim commits (7.1) |
-| gather, cut or drop a brief section | gives it to the forge (7.2) |
-| adopt a repository; an application admitted, answered or dropped | gives it to the forge (5.4) |
-| an attempt ended | gives the forge what the attempt pushed, then has it read its branches afresh before their writer slot frees (7.4) |
-| close, release | has the forge settle the task's effects, then release its holds (forge.md, section 11) |
-| project a goal; forget a projection | gives it to the forge's issues (forge.md, section 12) |
-| a subscription made or dropped | makes or drops the forge's subscription under the core's number, and answers the call |
-| start a procedure | starts the forge's change procedure (5.4) |
-| a step made or refused; a delegate or a repair refused | records the change's delegate, or holds the change |
-| a document or a read of the forge's; a document dropped | gives it to the forge, which makes it from its records and working set, within the scope the party named (forge.md, section 2; `../client/forge.md`, section 9) |
-
-### 5.4 The forge's routes
-
-What temper adds to the core's usual routes (jig's `domain/engine/README.md`,
-4.4):
-
-| What arrives | Route | Then |
-|---|---|---|
-| a forge API answer, or a hint | the forge: its working set (forge.md, 5.2); each change it moves, stepped | commit; news to subscribers through the core; changes stepped |
-| a change due | the core starts its procedure → the forge's change procedure, on fresh facts → its decision in the core's terms (section 6): a delegate, an effect, a wait, a hold, its result | commit; delegates made; effects made after the commit |
-| a merge's outcome | the forge → the change's result; the landing as news on its branch's topic → each goal's subscription, waking it by overlap (forge.md, 7.3) | commit; the change closes, its branch released |
-| a landing branch's CI failing | the change procedure asks a queue repair → a change task into that branch, first in its queue (forge.md, section 9) | commit; the repair runs |
-| an adoption | the core's people child admits it by key → the forge locates the repository → jig's adoption request on the party's behalf (`adopt_repository_ask`), which the core judges as the party's own → the forge reads what temper may do there, and seeds collaborators' roles (section 6) | commit; the outcome kept under the request's key, answered once durable (forge.md, section 4) |
-| a goal changing | the core → the goal's issue → its effects | commit; effects made |
-| a task closing | the core → the forge settles the task's effects, then releases its branches | commit; releases made |
-| a run's answer | the fleet → the core, temper's parts translated (7.4) | commit; acknowledged |
-
-### 5.5 Effects and verdicts
-
-- **From an agent's call:** the forge describes the effect (its kind, the
-  resource's name, temper's access to it) and keeps it under a token; the
-  core checks it against authority and asks for its verdicts; the root
-  routes each to the forge's judges and back; the core's answer (allow,
-  propose, wait, refuse) goes to the forge, which enqueues the effect
-  under a key derived from the call, keeps it as a proposal, or drops it.
-  All within one step, one decision (jig's `domain/root.md`, section 9).
-- **From the change procedure:** its effect is described and checked the
-  same way before the step's decision is complete; one the core refuses
-  leaves the change's state as it was.
-- **The forge is every requirement's judge:** temper's landing rules are
-  the forge's criteria (section 6; forge.md, 8.7). The forge judges two
-  standing requirements over the landing rules it holds
-  (`../protocol/configuration.md`, 13.3), and the root gives it, with
-  each ask, the merge's resources by the forge's names, the path read
-  back as section 6 makes it.
-- **Made after the commit:** the core's held output to make an entry is
-  released once its commit is durable, fed back to the forge, which makes
-  its API call (`Request::Forge`) behind every commit before it.
-- **Priced at nothing.** Only LLMs are counted: the root gives no forge
-  effect a price, and a forge request is load, within the forge's
-  request budget (forge.md, 5.4), never spend.
-
-### 5.6 Settings
-
-The settings of temper's kinds are `../protocol/configuration.md`,
-section 13's.
-
-
-- **temper's kinds are the forge's.** A change of settings naming items
-  of temper's kinds reaches the root within the change's decision, as a
-  requirement's verdict is asked (jig's `domain/engine/settings.md`, 5); the
-  root gives each item to the forge, which accepts or refuses it with
-  its reason, and carries the answer back. In the decision that commits
-  the change the root gives the forge the core's word to keep the
-  items' values, which the forge writes to its family `Setting`; a
-  proposal's items are kept and ended likewise; then each live change
-  the rules cover is stepped. At a start the root hands the forge
-  temper's stock defaults of its kinds, and the core the forge's answer
-  of which differ (jig's `domain/root.md`, section 8).
-- **Typed at the entrance.** No domain decodes a value (section 11): an
-  item of temper's kinds crosses jig as bytes, the encoding of
-  `temper-client-protocol-wire`'s `LandingRule` or a charter's number,
-  and the protocol layer decodes it where it decodes the request that
-  carries it, a party's change or proposal of settings as the clients'
-  component hands it in (5.1), a run's `propose_settings` as
-  `temper-engine-smith` decodes the call (5.2). The root receives jig's
-  request, bytes and all, with the typed values beside it, keeps them in
-  flight for the request's decision (section 2), and gives the forge the
-  typed values where the core hands it the items; a reset's and an
-  accepted proposal's values are those the forge holds already. A value
-  that does not decode is refused at the entrance as out of shape,
-  naming the item, before the core sees the request. The forge's family
-  `Setting` keeps the typed values, encoded by `temper-protocol-store`
-  as every family of the forge's is (`../protocol/store.md`, section
-  2).
-- **The forge judges rule structure; the root joins approval eligibility.**
-  When a rule is set, including acceptance of a proposal, the root checks
-  its enforcing approvals against the core's known forge identities and
-  project roles (forge.md, 8.9). It refuses an unmet count before any
-  settings become effective, naming the project, role and count with the
-  remedy. Meaning and structural validity remain the forge's.
-- **The forge's charter is the forge's own value,** read from its kind
-  3 when a change is made, and kept on the change (section 6).
-
-Both settings entrances decode a value of temper's kinds at the client
-wire's schema ceilings for pattern segments, segment bytes, gates and
-approvals. A value that does not decode whole is refused as out of shape at
-its item. A value within those ceilings but beyond the deployment's bounds
-reaches the forge, which refuses it as judged with its own pattern, gates or
-approvals reason (decided 2026-11-03).
-
-### 5.7 Periods, from the calendar
-
-A project's spend is per period (jig's `domain/authority.md`, section 7),
-and jig keeps no calendar: a period begins when the root says so (jig's
-`protocol/configuration.md`, section 5). temper's root has a third
-child, the calendar, which renews each project's period.
-
-- **One span for the deployment,** the stock's 7 days
-  (`../protocol/configuration.md`, 13.4), from each project's first
-  period: a project's periods are weeks from the moment it was first
-  funded. The calendar decides; the protocol layer only fires its
-  deadline.
-- **At a deployment's first start** the smallest source's periods open
-  as they do now (`../protocol/configuration.md`, section 8), and the
-  calendar says each one's next start, a span after its start.
-- **A project made after it** has its first period opened by the core
-  in the decision that makes it, with no next start (jig's
-  `domain/people/acts.md`, 2); the root hears it was made, and the
-  calendar says that period's next start, a span after it began.
-- **At a next start** the calendar says the project's next period to
-  the core (jig's `Event::Period`: the project, the period's number one
-  more, its budget the project's spend per period as its policy holds
-  it then, its next start a span later). What the last period reserved
-  stays its own and returns to it (jig's `domain/authority.md`, section
-  7); the new one starts full.
-- **At each start,** before decisions open (section 9.1, step 6), the
-  root gives the calendar each restored project's current period (its
-  number, start and next start) and its policy's spend per period, from
-  the core, and the calendar:
-  - for a period with no next start (a first period whose decision
-    committed before the calendar said one, as after a crash), says one,
-    a span after the period's start;
-  - for a next start already past, opens one new period at once, from
-    the start's time, and not one per span missed: a deployment down
-    for three weeks opens one week, and that project's later periods
-    count from it, its alignment to its first period given up;
-  - arms its deadline for the earliest next start.
-- **Its deadline** is a timer of the root's, as the forge's are (5.1):
-  armed through the journal for the earliest next start, a wall time,
-  and armed again after each period it says, at each start, and when a
-  project is made. When it fires, the calendar says, in one decision,
-  every project whose next start has come, each its own `Event::Period`,
-  within jig's project limit; a clock that moved meets the next firing.
-  A stopping engine arms none (9.2).
-- **Bounded:** one deadline armed, the earliest; one record per project
-  in memory, within jig's project limit; nothing stored of its own, the
-  periods being the core's records. A renewal's decision takes two
-  journal writes per project it renews (its period's ledger and its next
-  start), within the commit's bytes in the store.
-- **Seen and raised:** a project's document carries its period's start
-  and next start (jig's `client/domain/contract/documents.md`, 1), and `temper
-  ctl project show` prints them with what the period has left; `temper
-  ctl project fund` raises the project's spend and a role's, the open
-  period's with them (`../client/tools.md`, 5.3).
-
-## 6. Translation
+## 5. Translation
 
 Small total functions, one per pair of vocabularies, matching
 exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
 
 - **Configuration,** `Config`, field by field as
-  `../protocol/configuration.md`, section 3 says: `core` to the core
+  `../protocol/configuration/engine.md` says: `core` to the core
   whole, with jig's kinds' stock defaults and temper's kinds'
   declarations; `forge` to the forge, its namespace the deployment's id,
-  with temper's kinds' stock defaults (`../protocol/configuration.md`,
-  13.4); `identities`, each forge's git identity, to the forge. The
+  with temper's kinds' stock defaults (`../protocol/configuration/stock.md`
+  ); `identities`, each forge's git identity, to the forge. The
   landing rules and the forge's charter are settings of temper's kinds
-  (5.6), not members of `Config`. The root holds its configuration to
+  (`routing.md`, 6), not members of `Config`. The root holds its configuration to
   its limits as it is made, and a start that breaks one is refused,
-  naming it (`../protocol/configuration.md`, section 2): one connector;
+  naming it (`../protocol/configuration/README.md`, section 2): one connector;
   the configured workers within the fleet's configured count and name
   bytes (jig's Membership); the deployment's provider other than 0, the
   forge's sign-in; each charter's run within an assignment's bytes; the
@@ -671,20 +382,20 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
   within the forge's judges' tables.
 - **The landing policy:** the deployment's rules and each project's,
   each a `LandingRule` on a pattern of landing branches, whose gates
-  every change into a covered branch asks for (forge.md, 8.3). Nothing
+  every change into a covered branch asks for (forge/change/gates.md, 1). Nothing
   is compiled: the rules are values of temper's kinds, which the forge
-  holds as it is told them (5.6) and judges (forge.md, 8.7); the stock
+  holds as it is told them (`routing.md`, 6) and judges (forge/change/gates.md, 2); the stock
   rules carry two standing requirements on the forge's merge, and no
   rule or policy of jig's changes with a landing rule
-  (`../protocol/configuration.md`, 13.3).
+  (`../protocol/configuration/settings.md`, 3).
 - **Names.** The root makes two names from the forge's own (the forge,
   the repository's id, what in it): a path for authority (`forge`, the
   forge's host, the owner, the name, then `branch` and its segments, or
-  `pull` or `issue` and a number; forge.md, section 2); and, for a hold,
+  `pull` or `issue` and a number; forge/README.md, section 2); and, for a hold,
   three segments, the forge's number, the repository's id and the
   branch, which it reads back for the forge's branches only. A saved
   repository's tag becomes the task's saved resource, its path the
-  forge's number and the repository's id (forge.md, section 4), and
+  forge's number and the repository's id (forge/adoption.md), and
   back.
 - **The change procedure's decisions** become the core's procedure
   steps:
@@ -694,7 +405,7 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
   | finished, merged | its result: the change and its pull request, the merge's id its words (below) |
   | a delegate: producing, a repair (CI, a semantic conflict, a gate's remarks, a person's request on the forge), a resolution, a gate | a batch of one delegate (below); the step waits |
   | ready; a wait | a wait; ready steps it again |
-  | a queue repair | the repair started (5.4) and a wait, or, when it cannot start, held for its effects |
+  | a queue repair | the repair started (`routing.md`, 4) and a wait, or, when it cannot start, held for its effects |
   | held: its branch moved or missing, its pull request retargeted or closed | held for drift |
   | held: stalled | held, stalled |
   | held: past its repairs, resolutions or updates | held by its procedure |
@@ -710,8 +421,8 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
   applicable, or `Not cleared: ...` (`after-landing.md`, 6). These words
   precede the optional pull request line so they take room first within
   a task document's text window. Next comes the pull request in the
-  forge's words (`../client/README.md`, 4.1) and its address on the
-  forge (`../client/forge.md`, 9.2), `pull request #7 of acme/app on
+  forge's words (`../client/forge/family.md`, 1) and its address on the
+  forge (`../client/forge/served.md`, 2), `pull request #7 of acme/app on
   github.com: https://github.com/acme/app/pull/7`, or the words alone
   where the forge gives no address or it is past its bound; the line
   cut whole, never in part, where the bound leaves no room for it.
@@ -721,18 +432,18 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
   commit's first twelve digits. The run that asked hears which pull
   request landed, since jig gives a parent the result's words and never
   its resource. The reported evidence of what the landing passed
-  (`forge.md`, 8.2) follows, fitted to what the bound leaves. A client
+  (`forge/change/README.md`, 2) follows, fitted to what the bound leaves. A client
   reads the id from the first line. A result's
   words are text that summarises it (jig's `domain/tasks/README.md`, section 3,
   and `jig/docs/design/client/domain/contract/documents.md`, 3), never the commit's bytes; the
-  whole id stays the change's and its pull request's (`forge.md`, 8.2).
+  whole id stays the change's and its pull request's (`forge/change/README.md`, 2).
   The short id keeps any bound the task's creator chose: a bound under
   the id's digits is not refused, and the result never passes it.
 - **A change's delegates,** in the core's terms: an agent task under the
   forge's charter for producing, repairs, resolutions, and agents' and
   checks' gates (the charter the change was made with, kept on it, which
-  its procedure's delegation grants; `../protocol/configuration.md`,
-  13.2); a person task for the project's maintainers for a person's
+  its procedure's delegation grants; `../protocol/configuration/settings.md`,
+  2); a person task for the project's maintainers for a person's
   gate. Its parameters name the repository, its base and the change's
   branch, and a resolution's base commit or a gate's number and head,
   each commit as text: its id in lowercase hexadecimal, 40 digits for a
@@ -743,7 +454,7 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
   change has left, with no delegation of its own.
 - **A collaborator's permission** on the forge (read, write, admin)
   becomes the role its project's configured mapping names, as a
-  repository is adopted (forge.md, section 4).
+  repository is adopted (forge/adoption.md).
 - **A repository as a notes scope** is jig's resource scope on the
   forge's connector, its pattern the repository's path; the root
   translates nothing of it (jig's `domain/engine/briefs.md`, section 2).
@@ -757,9 +468,9 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
   task stalled and an effect not made each lead with what it is and its
   source's number.
 
-## 7. Putting outputs together
+## 6. Putting outputs together
 
-### 7.1 An assignment
+### 6.1 An assignment
 
 The core's part (the run, its attempt and conversation, its ask for the
 run's live content, its charter, its brief's core sections, its start's
@@ -771,19 +482,19 @@ preparing, held until its claim commits:
 - **The repositories:** for a change's delegate, the change's
   repository; for a run whose charter is an asking one, naming the asking family
   and no family but settings beside it, none, as
-  for the status agent's (forge.md, 5.7; `agent.md`, 8.4); otherwise the
+  for the status agent's (forge/attention.md, 3; `agent/ask-temper.md`); otherwise the
   project's home repository, those its spec names and those it saved
   work in; and, for every run but those with none, the project's context
   repositories, read only. Each item is the forge's: where it
   starts, and the branch it pushes to, the change's branch for a
   change's delegate and the task's own `r` branch for any other run
-  (forge.md, section 11; worker.md, 4.1), pushed only when the task
+  (forge/branches.md; worker.md, 4.1), pushed only when the task
   holds that branch, or the change it works for does, and its authority
   grants the push; otherwise read only.
 - **The workstream:** the change's task for its delegates, so a change's
   producing, repairs and resolutions find its checkout cached; the task's
   own otherwise.
-- **Saving:** the task's saved-work branch (forge.md, section 11) for a
+- **Saving:** the task's saved-work branch (forge/branches.md) for a
   run that may write, so the unfinished work it leaves is saved and the
   next run starts from it (jig's `domain/engine/executors.md`, 4; worker.md,
   4.2).
@@ -797,13 +508,13 @@ preparing, held until its claim commits:
   key, and a Forgejo forge's webhook secret, stay in the protocol layer,
   and are never granted.
 - **The writes it claims:** the branches it pushes, the core's writer
-  slots in the claim's commit and the forge's after it (5.3).
+  slots in the claim's commit and the forge's after it (`routing.md`, 3).
 
-### 7.2 The forge's brief sections
+### 6.2 The forge's brief sections
 
 - **For a change's delegate,** once the change's pull request is open,
   a pull section at the change's last head, required, naming its pull
-  request before its contents (forge.md, 8.3 and 8.4): against its base
+  request before its contents (forge/change/gates.md, 1 and forge/change/repairs.md): against its base
   for a producer, gate or repair, with what landed in the base and the
   files in conflict for a resolution, and with what its clean update
   merged in for a semantic repair. A repair also has a required reason
@@ -811,12 +522,12 @@ preparing, held until its claim commits:
   a CI or semantic repair; reviews' remarks for a gate's repair; the
   forge's reason for a merge-queue ejection. A read of one of a repair's
   two that fails becomes words in its place, the other standing for it
-  (forge.md, 8.4). Each kind has its budget (`ci`, `reviews`, `pull`).
+  (forge/change/repairs.md). Each kind has its budget (`ci`, `reviews`, `pull`).
 - **For a task holding no run branch in its project's adopted home**
-  (forge.md, section 11), one section, required: why its runs read the
+  (forge/branches.md), one section, required: why its runs read the
   home without pushing, bounded by its words.
 - **For each document its charter names** (jig's `domain/engine/settings.md`,
-  9; `../protocol/configuration.md`, 13.7), one section, optional,
+  9; `../protocol/configuration/settings.md`, 6), one section, optional,
   titled by the repository, the path and the heading: the file, or its
   part, at the branch's head when the run is prepared, within the
   `document` budget, or why it could not be read.
@@ -840,7 +551,7 @@ A charter document that names another connector or no forge branch is
 answered missing at its gather without asking the forge. Its section is
 titled `Document PATH` and says its read failed (2026-11-04).
 
-### 7.3 A call's answer
+### 6.3 A call's answer
 
 The core's part (its status, an effect's entry, why it was refused) and
 the forge's (what an effect made, a read's answer, the forge's refusal),
@@ -849,7 +560,7 @@ the call's record in the same commit. Asked again, the answer is put
 together again from both. A run's read is answered through the door.
 
 Read refusals also emit volatile root facts naming task, attempt, tool,
-refusing layer and reason (`agent.md`, 8). Authority findings survive as
+refusing layer and reason (`agent/agents.md`). Authority findings survive as
 `ToolDenied`; local routing errors and forge errors retain their layer in
 the fact. Call admission distinguishes call-record room from archive-read
 room while keeping the host's busy response. The service drains the new
@@ -861,18 +572,18 @@ Final forge-read rendering checks the settled tool-name and body bytes against
 `core.call_answer_bytes`, then those bytes plus any retained typed answer
 against `root.journal.transcript_bytes`. An exceeded bound returns an error
 within both settled-answer limits, naming the bound, measured size and a
-narrower read route (`agent.md`, 8). The root retains the original tool
+narrower read route (`agent/agents.md`). The root retains the original tool
 identity for its `host-render` refusal fact even as it removes the flight.
 A rendering size refusal is terminal; forge-client admission busy retains
 its bounded retry path.
 
 
-### 7.4 What a run left
+### 6.4 What a run left
 
 - **Pushed heads,** from the answer's parts, kept until the core says the
   attempt has ended; then given to the forge against the branches the
   attempt was granted, which it reads afresh before their writer slot
-  frees (forge.md, 8.2).
+  frees (forge/change/README.md, 2).
 - **Saved work:** the repositories saved, as the task's saved resources,
   which its next run starts from.
 - **A failed preparation** names its repository and why: what the forge
@@ -881,19 +592,19 @@ its bounded retry path.
   in (`../protocol/channel.md`, section 5; worker.md, section 5). The
   root reports it as a fact of the attempt: its task, its attempt, the
   repository's tag, the reason; a conflict it gives the forge too, for
-  the change whose producer the run is (forge.md, 8.11). Whether the
+  the change whose producer the run is (forge/change/questions.md, 1). Whether the
   task tries again follows the answer's class, as for any failure
   (worker.md, 4.3).
 - **Past their bounds,** an answer's parts fail its run as invalid,
   whatever the answer says.
 
-## 8. Its store vocabulary
+## 7. Its store vocabulary
 
 - **`Key`, `Record`, `Write`** wrap the core's and the forge's, one
   variant each, the core's first; a write saves a record under its own
   key or erases a key (jig's `domain/engine/README.md`, 5.6).
 - **No records of its own.** The deployment's record is the core's; a
-  call's record is the core's part and the forge's (7.3).
+  call's record is the core's part and the forge's (6.3).
 - **`Range`:** the core's ranges the root loads; the census of ended
   owners (jig's `protocol/store/loads.md`, 2); and `Range::Forge`, every
   record of the forge's, all live (`../protocol/store.md`, section 2).
@@ -938,9 +649,9 @@ its bounded retry path.
   windows together, wait for their first pages and never fail on the
   later ones.
 
-## 9. Restart and stopping
+## 8. Restart and stopping
 
-### 9.1 Restart
+### 8.1 Restart
 
 The core's script (jig's `domain/engine/restart.md`); the root does
 each step the core asks for:
@@ -960,11 +671,11 @@ each step the core asks for:
    children's do (jig's `domain/engine/restart.md`).
    Before them, the forge loads its kinds' values from its family
    `Setting`, is given temper's stock defaults, and tells the core which
-   differ (5.6). Once both are loaded, the root hands the forge the
+   differ (`routing.md`, 6). Once both are loaded, the root hands the forge the
    deployment's sole owner, the party jig's people answer as such, or none
    (jig's `domain/people/README.md`, section 4), before the forge's restore
    decision: a forge's link to a box's person holds only while that person
-   is the sole owner (`forge.md`, 4.6). Then **the switch** (jig's `start::Phase::Switch`), at
+   is the sole owner (`forge/adoption.md`, 6). Then **the switch** (jig's `start::Phase::Switch`), at
    every start: over a generation the store holds pending (jig's
    `protocol/store/opening.md`, 2, step 7) the root asks the store to switch
    and goes on once it answers; then it commits the start's wires (jig's
@@ -974,13 +685,13 @@ each step the core asks for:
    commits before it land in the copy alone, and a refusal before the
    switch leaves the generation patched from active (jig's
    `domain/engine/restart.md`). A rehearsing root
-   (`../protocol/README.md`, section 4, `temper upgrade --check`) ends
+   (`../protocol/binaries.md`, `temper upgrade --check`) ends
    before this step, reporting the restores whole.
 4. **Runs adopted:** the claims to the fleet, those on in-process
    workers settled at once (section 2).
-5. **The forge reads afresh,** then **settles its outbox** (forge.md,
-   section 16).
-6. **The calendar is given the periods** (5.7): for each restored
+5. **The forge reads afresh,** then **settles its outbox** (forge/README.md,
+   section 9).
+6. **The calendar is given the periods** (`routing.md`, 7): for each restored
    project, its current period's number, start and next start, and its
    policy's spend per period, from the core; it says what each needs and
    arms its deadline.
@@ -989,13 +700,13 @@ each step the core asks for:
 Until decisions open, the forge's hints are dropped and its timers fire
 from its restore on.
 
-### 9.2 Stopping
+### 8.2 Stopping
 
 A stop settles first (`../draft/upgrades.md`, section 8), then the core
 drains as jig's `domain/engine/restart.md`, 1 says.
 
 - **Settling.** Told to stop, the root tells the forge to settle
-  (forge.md, section 6) and holds the core's stop until the forge says
+  (forge/README.md, section 4) and holds the core's stop until the forge says
   it has. Meanwhile:
   - the forge starts no write and retries none: what it was told to
     make stays in its outbox, durable, for the next start;
@@ -1016,9 +727,9 @@ drains as jig's `domain/engine/restart.md`, 1 says.
   their timeouts. Past it, the forge names each write still without its
   outcome, by its entry and its task, and the stop goes on unsettled
   (`Request::Unsettled`);
-  the service prints each as it ends (`../protocol/README.md`, section
-  4), and the next start settles it as its class says (forge.md,
-  section 16).
+  the service prints each as it ends (`../protocol/binaries.md`
+  ), and the next start settles it as its class says (forge/README.md,
+  section 9).
 - **A second signal** aborts the wait, as it aborts the drain.
 
 Then the drain. What the root adds to the core's:
@@ -1030,7 +741,7 @@ Then the drain. What the root adds to the core's:
   its outbox row stays durable, and the next start's settlement makes it;
 - **`Drained`** once nothing waits for a commit.
 
-## 10. Limits and validity
+## 9. Limits and validity
 
 The root carries configured `core.policy_bytes` and `core.call_answer_bytes`
 unchanged and derives one effective core envelope for runtime, store opening,
@@ -1059,7 +770,7 @@ Startup also checks the seed policy after enforced landing requirements are join
   templates and call records (jig's `protocol/limits.md`
   ).
 - **The root's own,** `root.` in temper's limits
-  (`../protocol/configuration.md`, section 7):
+  (`../protocol/configuration/limits.md`):
   - the journal (temper's `JournalLimits`, its decision `Limits`):
     commits in flight, which is the store's edge (jig's store queues
     that many commits, so the root sends
@@ -1109,13 +820,13 @@ Startup also checks the seed policy after enforced landing requirements are join
 - **The watches' rooms follow the streams:** the root's `streams` is
   `clients.streams`, and `core_limits` gives the views `streams` times
   `WATCHES_PER_STREAM`, 22, one shipped client's bound, in all and to a
-  party, above jig's profiles' 4 (`../protocol/configuration.md`, section
-  7). The rest of the views'
+  party, above jig's profiles' 4 (`../protocol/configuration/limits.md`
+  ). The rest of the views'
   limits are jig's small profile's: 4 runs watched, 65,536 bytes of a
   run's text, 32 subjects marked per change, 32 facts.
 - **The store's fill mark and a read's bytes** are jig's small profile's
   numbers, 268,435,456 and 65,536 bytes, held as the root's constants
-  (section 13).
+  (section 12).
 - **Validity:** `temper_engine_domain::valid` checks child validity,
   entrance constraints, payload capacities and count representability.
   The journal requires nonzero `commits`, `writes`, `deliveries` and
@@ -1127,7 +838,7 @@ Startup also checks the seed policy after enforced landing requirements are join
   accepts `forge.output = 0`: the forge's internal output envelope
   does not constrain the parent. No heap sum admits the root.
 
-## 11. What the root never does
+## 10. What the root never does
 
 - decide anything of the core's or the forge's: what to commit, what
   waits, whether an effect may be made, what a change does next, the
@@ -1138,17 +849,17 @@ Startup also checks the seed policy after enforced landing requirements are join
   values in flight of section 2;
 - read or rewrite a value it carries, beyond wrapping and translating
   it and joining a landing rule's approvals to the core's identities
-  and roles (5.6);
+  and roles (`routing.md`, 6);
 - give the core a type of the forge's, or the forge one of the core's;
 - route by content beyond the variant and the approval eligibility
-  check of section 5.6;
+  check of `routing.md`, section 6;
 - price a forge effect, or grant the forge's API token, App key or
   webhook secret.
 
-## 12. The world
+## 11. The world
 
 The root has no child domain of its own; its worlds are the engine's
-(`testing.md`, section 2):
+(`../testing/README.md`, section 2):
 
 - **The engine's world,** `tests/engine/domain`: the root with jig's real
   children and the forge's crates, over jig's store through the service's
@@ -1162,7 +873,7 @@ The root has no child domain of its own; its worlds are the engine's
   `domain/testing.md`, sections 5 and 8).
 - **The system worlds:** the root with the worker and smith's agent
   (`tests/system`), and with temper's client (`tests/client`)
-  (`testing.md`, 2.1).
+  (`../testing/README.md`, 2.1).
 
 Its stories, as the root meets them: a chat that answers, parks and
 resumes from its transcript's window; a chat past its resume limit
@@ -1181,10 +892,10 @@ answered its kept outcome, across a restart too; a forge effect
 committed before its write and made once, and one proposed and kept
 until its holder accepts; a stop with a committed forge effect, making
 no commit and no write; a start refused for live tasks past lowered
-limits, or for a malformed page. The forge's own stories are forge.md,
-section 18's.
+limits, or for a malformed page. The forge's own stories are forge/README.md,
+section 10's.
 
-Its Open chats' stories (`agent.md`, 4.6), in the engine's world on
+Its Open chats' stories (`agent/charter.md`, 5), in the engine's world on
 a chat ended by its requester, as temper's is configured (temper-init's
 golden shows the flag shipped): a chat whose run answers and
 finishes parks, its reply committed and no try spent, still at rest
@@ -1209,19 +920,19 @@ the fake forge saw, in its own terms, is the one the core decided. Each
 step's memory is measured against the world's ceiling (skein's
 testing-strategy.md, 6).
 
-## 13. Open questions
+## 12. Open questions
 
-- **A public read returning 503 after a project is made** (5.7, 9.1):
+- **A public read returning 503 after a project is made** (`routing.md`, 7, `root.md`, 8.1):
   the `core-after-project` request reports it alongside clients whose
   links never come up, across a restart. A client rejecting `me` for too
   many memberships explains those links, but not the service refusing
   that public read. Default: no further core repair without evidence of
-  a shut gate; the service's reason line (`../protocol/README.md`, 8.2)
+  a shut gate; the service's reason line (`../protocol/README.md`, 6.2)
   must identify what holds it before attributing another occurrence to
   the calendar, startup or the journal.
-- **A party's fair share of the watch rooms** (section 10): the
+- **A party's fair share of the watch rooms** (section 9): the
   deployment's room is also one party's. Whether it should have less is
-  `../protocol/configuration.md`, section 11's question. Default: the whole
+  `../protocol/configuration/README.md`, section 9's question. Default: the whole
   room, so one person's admitted tabs can each hold their watches.
 - **What the root keeps between steps** (section 2). jig's root keeps
   nothing between steps but its children and the journal (jig's
@@ -1229,14 +940,14 @@ testing-strategy.md, 6).
   owner. Default: kept, each bounded.
 - **The forge's work done in the root:** choosing a run's repositories,
   planning the forge's brief sections from a change's state, making a
-  change's delegates (sections 6 and 7). jig's connectors gather their
+  change's delegates (sections 5 and 6). jig's connectors gather their
   workspace items and plan their sections themselves (jig's
   `domain/connectors.md`, sections 9 and 10), but temper's forge names no
   type of jig's tasks. Default: translation in the root.
-- **The store's fill mark and a read's bytes** (section 10): taken from
+- **The store's fill mark and a read's bytes** (section 9): taken from
   `engine.limits` as the core's other limits are, or kept as the root's
   constants. Default: constants.
-- **A failed preparation's reason on the task's page** (7.4): jig's core
+- **A failed preparation's reason on the task's page** (6.4): jig's core
   keeps an attempt's end as a class only; temper would ask jig to keep
   its detail. Default: the fact alone.
 - **Procedures other than the forge's change:** the boundary carries a

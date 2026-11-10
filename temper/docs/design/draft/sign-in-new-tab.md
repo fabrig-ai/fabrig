@@ -47,7 +47,7 @@ stay as they are (section 6).
   sign-in from its answer, as a sign-in from another computer does today.
 - **What it draws:** the look request's note, "Open it again ›" (the
   address as an external link), and the disclosure holding the paste
-  (`../client/README.md`, 3.5).
+  (`../client/pages/README.md`).
 - **It moves on by itself,** on the `accounts` watch: to Ready, on the
   welcome as on `ConnectModel`, or to the ending's words and acts, as a
   page come back does today.
@@ -55,7 +55,7 @@ stay as they are (section 6).
   `skein/docs/design/ui/web/README.md`), so a slow sign-in moves on when the
   person returns, its stream opened again. The page says nothing of this.
 - **A reload while it waits** draws the same page: the page's address
-  names the sign-in's source once it is answered (`../client/browser.md`,
+  names the sign-in's source once it is answered (`../client/web/README.md`,
   2.3), replacing its history entry.
 
 ## 4. The new tab's end
@@ -80,9 +80,9 @@ stay as they are (section 6).
 - **`PasteHistory`:** "Go forward to that page ...". The page stays in its
   tab.
 - **A recording's end at a sign-in:** with no departure, a recording goes
-  on through the sign-in and its end (`../client/journeys.md`, 3.1). What
+  on through the sign-in and its end (`../client/web/journeys.md`, 3.1). What
   the shell did with the tab is among what the recording keeps and the
-  replay checks (`../client/journeys.md`, 4.2).
+  replay checks (`../client/web/journeys.md`, 4.2).
 
 ## 6. Open questions
 

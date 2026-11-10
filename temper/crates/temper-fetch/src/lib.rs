@@ -1,4 +1,4 @@
-//! Pinned binary fetches (temper/docs/design/protocol/setup.md, 6.6 and 11).
+//! Pinned binary fetches (temper/docs/design/protocol/setup/owned.md, 6, and temper/docs/design/protocol/setup/README.md, 7).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;

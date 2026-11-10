@@ -1,4 +1,4 @@
-//! Shared shell words for a full deployment (client/README.md, 6.7).
+//! Shared shell words for a full deployment (client/line.md, 7).
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Wall, Writer};
 const FULL: [&[u8]; 4] = [

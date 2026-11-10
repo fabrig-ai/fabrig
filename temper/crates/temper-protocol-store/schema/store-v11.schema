@@ -325,7 +325,7 @@ record CharterValue { number: u32 }
 record TemplateGoal { design: bool close_out: bool }
 record ProjectQuestions { route: Route }
 record ProjectWays { drafts: bool goals: bool changes: bool way: u32 }
-# What reaches a person (temper/docs/design/domain/forge.md, 5.10).
+# What reaches a person (temper/docs/design/domain/forge/attention.md, 6).
 record ReachKindOf { kind: ReachKind }
 enum ClassSubject { kind: ReachKindOf, set: ReachSet }
 record ClassItem { subject: ClassSubject words: bytes 120 class: ReachClass }

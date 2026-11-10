@@ -1,4 +1,4 @@
-//! A change relays its agents' questions (temper/docs/design/domain/forge.md, 8.11).
+//! A change relays its agents' questions (temper/docs/design/domain/forge/change/questions.md, 1).
 use super::*;
 use temper_engine_domain_forge_change::{Route, Stands, State};
 

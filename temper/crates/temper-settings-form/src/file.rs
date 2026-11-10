@@ -1,4 +1,4 @@
-//! Bounded whole settings input (client/tools.md, 6.4; jig's client/domain/contract/requests.md, 2).
+//! Bounded whole settings input (client/ctl/results.md, 4; jig's client/domain/contract/requests.md, 2).
 use crate::Limits;
 #[path = "settings_file_values.rs"]
 mod values;
@@ -9,7 +9,7 @@ use skein_lib::{List, Writer};
 pub(super) type Fields = List<(Box<[u8]>, u32)>;
 
 /// A readable repository a host call's charter document may name by OWNER/NAME
-/// (temper/docs/design/domain/agent.md, 8.4.2).
+/// (temper/docs/design/domain/agent/ask-temper.md, 2).
 #[derive(Debug)]
 pub struct Repository<'a> {
     pub host: &'a [u8],
@@ -366,7 +366,7 @@ pub fn proposal_items(bytes: &[u8], limits: &Limits) -> Result<List<c::SettingIt
     proposal_items_in(bytes, limits, None)
 }
 /// Resolve an omitted forge among the project's repositories; `None` requires it,
-/// as a settings file does (temper/docs/design/domain/agent.md, 8.4.2).
+/// as a settings file does (temper/docs/design/domain/agent/ask-temper.md, 2).
 pub fn proposal_items_in(
     bytes: &[u8],
     limits: &Limits,

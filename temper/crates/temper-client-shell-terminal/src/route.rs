@@ -1,4 +1,4 @@
-//! Root obligations pass unchanged to the native client shell (client/README.md, 6.2).
+//! Root obligations pass unchanged to the native client shell (client/line.md, 2).
 use jig_client::contract::VersionRange;
 use jig_client_protocol_link as link;
 use skein_lib::Secret;

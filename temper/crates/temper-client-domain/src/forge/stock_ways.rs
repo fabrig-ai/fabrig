@@ -1,4 +1,4 @@
-//! Ask temper's stock ways and immediate acts (temper/docs/design/client/README.md, 4.6 and 5.13).
+//! Ask temper's stock ways and immediate acts (temper/docs/design/client/forge/records.md and temper/docs/design/client/pages/settings.md, 2).
 use super::{Limits, wire_limits};
 use crate::{
     owner::Owner,
@@ -112,7 +112,7 @@ impl StockWays {
     pub const fn refused(&self) -> Option<&c::Refusal> {
         self.refused.as_ref()
     }
-    /// The index into tabs of the tab shown (client/README.md, 5.13).
+    /// The index into tabs of the tab shown (client/pages/settings.md, 2).
     #[must_use]
     pub fn shown(&self) -> Option<u32> {
         let panel = self.panel()?;
@@ -236,7 +236,7 @@ impl StockWays {
         }
         tabs
     }
-    /// The project's words the read carries, kind 10 (client/README.md, 4.6).
+    /// The project's words the read carries, kind 10 (client/forge/records.md).
     #[must_use]
     pub fn words(&self) -> Option<&w::ProjectWords> {
         self.panel()?.words().as_ref()

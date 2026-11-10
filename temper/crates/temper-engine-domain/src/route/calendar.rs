@@ -1,4 +1,4 @@
-//! The calendar says when; the core's policy supplies the budget (domain/root.md, 5.7).
+//! The calendar says when; the core's policy supplies the budget (domain/routing.md, 7).
 use crate::{Domain, Limits, boundary::Work};
 use skein_lib::{Env, Queue};
 use temper_engine_domain_calendar as calendar;

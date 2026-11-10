@@ -1,4 +1,4 @@
-//! The strictest subject wins (temper/docs/design/domain/forge.md, 5.10).
+//! The strictest subject wins (temper/docs/design/domain/forge/attention.md, 6).
 use crate::pattern::set_bit;
 use crate::{Ask, Class, Classes, Reach, Reason, Subject};
 

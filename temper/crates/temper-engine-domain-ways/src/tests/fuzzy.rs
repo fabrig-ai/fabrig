@@ -1,4 +1,4 @@
-//! Random paths keep the derivation's invariants (temper/docs/design/domain/forge.md, 8.13).
+//! Random paths keep the derivation's invariants (temper/docs/design/domain/forge/change/branch-path.md).
 #![expect(clippy::disallowed_methods, reason = "ordinary random tests build and inspect bounded fixture paths")]
 use crate::invariants::bounds;
 use skein_lib::Rng;

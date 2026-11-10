@@ -1,4 +1,4 @@
-//! The service passes on the approval setting (temper/docs/design/protocol/configuration.md, 3).
+//! The service passes on the approval setting (temper/docs/design/protocol/configuration/engine.md).
 use super::fixtures;
 use jig_client_protocol_wire::{ApprovalCode, CODE_ALPHABET, CODE_LETTERS, v19 as w};
 use skein_lib::{Reader, Time, Wall, Writer, bytes};

@@ -1,4 +1,4 @@
-//! One loopback GitHub for manifest history and the welcome's installation/adoption chain (client/browser.md, 4.4).
+//! One loopback GitHub for manifest history and the welcome's installation/adoption chain (client/web/testing.md, 4).
 use skein_fake_forge_domain as domain;
 use skein_fake_forge_github as layer;
 use skein_fake_peers::forge::{Forge, Peer};

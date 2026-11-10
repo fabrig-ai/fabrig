@@ -1,4 +1,4 @@
-//! Kept forge rows and confirmed removal (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 4.8).
+//! Kept forge rows and confirmed removal (temper/docs/design/client/forge/deployment.md; temper/docs/design/client/forge/family.md, 7).
 use super::{bindings::Bindings as ForgeBindings, connect};
 use crate::{
     flow,

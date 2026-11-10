@@ -1,4 +1,4 @@
-//! The TUI's checked bounds (temper/docs/design/client/README.md, 6.16).
+//! The TUI's checked bounds (temper/docs/design/client/tui/README.md, 4).
 use skein_lib::Duration;
 use skein_ui_screen::Size;
 use temper_client_shell_terminal::limits as native;

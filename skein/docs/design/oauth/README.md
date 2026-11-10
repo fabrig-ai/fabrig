@@ -551,7 +551,7 @@ configuration; provider-specific admission remains with those consumers.
   crate's machine has one handler per cell (../../foundation/programming-model.md, section
   5.4). Default: as they stand, until a debt item names them.
 - **A return no application gives** (`accounts.md`, 5): temper's sign-in runs in a tab of its
-  own and holds its page (`temper/docs/design/client/README.md`, 3.5,
+  own and holds its page (`temper/docs/design/client/pages/README.md`,
   `ConnectModel`, The sign-in's tab), so neither `Request::Return` nor
   `jig-protocol-accounts`'s `return_to`, over it, has a shipping caller: their own
   tests alone reach them. Whether they go, or wait for an application that sends

@@ -1,4 +1,4 @@
-//! The whole story's Work and Deployment deliveries (temper/docs/design/client/browser.md, 7.2).
+//! The whole story's Work and Deployment deliveries (temper/docs/design/client/web/gallery.md, 2).
 use super::{Reference, Then, answer, base_frame, base_task, c, deliver, doc, step};
 use jig_client::{Down, Readable, Up, Watchable};
 use skein_lib::{List, Queue, Token, Wall};

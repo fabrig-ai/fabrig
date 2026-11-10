@@ -1,9 +1,9 @@
-//! The fleet's reason in a start's words (protocol/README.md, 15.3).
+//! The fleet's reason in a start's words (protocol/cluster.md, 3).
 use alloc::boxed::Box;
 use jig_domain_fleet::{AgentShortfall, HelloRefusal, HelloRefused};
 use skein_lib::{Decimal, Writer};
 
-/// The refusal's text and the engine's line (protocol/README.md, 15.3): at most 256 bytes.
+/// The refusal's text and the engine's line (protocol/cluster.md, 3): at most 256 bytes.
 pub(super) fn text(hello: Option<HelloRefused>) -> Box<[u8]> {
     let Some(hello) = hello else { return b"not admitted".as_slice().into() };
     match hello.why {

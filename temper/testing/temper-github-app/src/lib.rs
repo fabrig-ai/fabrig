@@ -1,4 +1,4 @@
-//! A shared fixture for GitHub stories (domain/testing.md, 2.4 and 2.6).
+//! A shared fixture for GitHub stories (testing/real-loop.md and testing/process-tier.md).
 mod store;
 use std::{net::SocketAddr, path::Path};
 use temper_protocol_records::{self as codec, Item};

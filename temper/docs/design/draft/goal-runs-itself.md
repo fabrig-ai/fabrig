@@ -19,7 +19,7 @@ a model for judgement, code for mechanisms. This draft wins over
   the goal's branch, a landing takes it into main whole, and the goal ends
   with a report temper writes (sections 2 to 5).
 - **No catch-ups.** The landing takes main at the front of main's queue, as
-  any change does (`../domain/forge.md`, 8.2), and a conflict goes to the
+  any change does (`../domain/forge/change/README.md`, 2), and a conflict goes to the
   merge job and a resolution. A goal no longer chases main while it runs.
 - **No close-out run.** The goal's design writes the status files up front,
   each entry it will close tagged with the change that closes it, and the
@@ -52,16 +52,16 @@ a model for judgement, code for mechanisms. This draft wins over
 ## 3. temper's goal closer
 
 - **Named by the goal's template:** a goal template's work, kind 11
-  (`../protocol/configuration.md`, 13.2), gains `closes`, which makes the
+  (`../protocol/configuration/settings.md`, 2), gains `closes`, which makes the
   goal with temper's closer. Template 4, the reference's and the stock's,
   sets it. A goal without it keeps today's wakes.
 - **In order,** each a step of one procedure:
   1. **Close:** where the project names a `close` command (section 4), a
      change into the goal's branch whose producer is that command's job,
-     as a catch-up's is the merge job (`../domain/forge.md`, 8.4). No
+     as a catch-up's is the merge job (`../domain/forge/change/repairs.md`). No
      model. Where it names none, this step is skipped.
   2. **Land:** the goal's landing, the change `"branch": "mine"` the goal's
-     agent makes today (`../domain/forge.md`, 8.1 and 11.1), made by the
+     agent makes today (`../domain/forge/change/README.md`, 1, and `../domain/forge/branches.md`, 1), made by the
      closer on the goal's behalf, with the goal's title and draft path as
      its words. CI, the queue, taking main, a conflict's resolution and a
      CI repair are what they are for any change.
@@ -127,11 +127,11 @@ store and the forge already hold:
   lets through is offered to the run it wakes: the coordinator's parts
   cover `words` (jig's `domain/tasks/messages.md`, 3 and 6).
 - **No subscription to main's landings** for catch-ups. Reds still reach the
-  goal through its branch's tiers (`../domain/forge.md`, section 10).
+  goal through its branch's tiers (`../domain/forge/README.md`, section 6).
 
 ## 7. The coordinator's charter
 
-Charter 5, in the stock (`../protocol/configuration.md`, 13.4) and the
+Charter 5, in the stock (`../protocol/configuration/stock.md`) and the
 reference (13.9 there):
 
 - **Deleted:** the last result's landing, the landing result's close-out,

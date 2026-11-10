@@ -1,4 +1,4 @@
-//! First-run gaps at the public fake boundary (client/README.md, 3.5, 4.8, 5.6).
+//! First-run gaps at the public fake boundary (client/pages/README.md, client/forge/family.md, 7, client/pages/welcome.md, 2).
 use jig_client_kit::harness::App;
 use skein_lib::Queue;
 use skein_ui::{Role, Tree};

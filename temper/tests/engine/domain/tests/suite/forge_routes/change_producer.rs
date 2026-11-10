@@ -1,5 +1,5 @@
 //! A change keeps its named producer and role LLM choices through delegation and assignment
-//! (temper/docs/design/domain/agent.md, 4.3.1; temper/docs/design/domain/forge.md, 8.1 and 8.9).
+//! (temper/docs/design/domain/agent/tools.md, 1; temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/change/gates.md, 3).
 use super::goal_branch::goal_request;
 use super::*;
 use jig_domain_link::EndpointBound;

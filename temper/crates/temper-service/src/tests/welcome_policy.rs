@@ -1,5 +1,5 @@
 //! Real init bytes through startup parsing and the root's project/adoption decisions
-//! (`temper/docs/design/protocol/configuration.md`, 13.4).
+//! (`temper/docs/design/protocol/configuration/stock.md`).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,

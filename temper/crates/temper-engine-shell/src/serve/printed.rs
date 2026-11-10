@@ -1,4 +1,4 @@
-//! The words of a command for this machine (temper/docs/design/client/README.md, 4.6).
+//! The words of a command for this machine (temper/docs/design/client/forge/records.md).
 
 /// What a word is read from, given so that a test fakes the machine.
 pub(crate) struct Machine<'a> {

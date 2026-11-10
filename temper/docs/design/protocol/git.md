@@ -17,17 +17,17 @@ credentials.md's (`credentials.md`, section 4). What is open is listed in `git.m
   `git::Op` with a deadline (`Request::Io`) and may cancel it
   (`Request::CancelIo`); the git component runs it and answers with
   exactly one `Event::Done`. It is step code, a child of the worker's
-  protocol layer, with its own entrance limits (README.md,
-  section 5).
+  protocol layer, with its own entrance limits (components.md
+  ).
 - **A fixed sequence per operation:** at most four git invocations, each
   its own process in a process group of its own, all under the
   operation's one deadline. Which invocation comes next depends only on
   what the last one said, never on a retry: the component never retries
-  (README.md, section 5).
+  (components.md).
 - **git as it ships, told exactly what to do.** git is run by an absolute
   path: the one a repository's item names, a fake forge's program
-  (channel.md, section 4), or else `workers[].git` (configuration.md,
-  section 4); with neither, the invocation fails, naming the forge's host.
+  (channel.md, section 4), or else `workers[].git` (configuration/README.md,
+  section 3); with neither, the invocation fails, naming the forge's host.
   It runs in an environment given whole, with settings on the command line
   that turn off what could run another program or outlive the invocation:
   hooks, credential helpers, the file system monitor, background
@@ -115,7 +115,7 @@ the worker's root directory     workers[].root
 Every invocation has this shape:
 
 ```
-program    the repository's item's git, else workers[].git: an absolute path (configuration.md, section 4)
+program    the repository's item's git, else workers[].git: an absolute path (configuration/README.md, section 3)
 argv       git -c <setting> … <command> <options> [--] <operands>
 directory  beneath the worker's root: the repository's directory, or the workspace's for Clone
 environment  given whole (section 5)
@@ -131,7 +131,7 @@ pipes      stdin (written, then closed), stdout, stderr
 | `protocol.version=2` | fetch by any object id (gitprotocol-v2: wants are not limited to advertised refs) |
 | `protocol.allow=never` | no transport by default: not `file`, `ssh` or `ext` |
 | `protocol.https.allow=always` | the forge's transport |
-| `protocol.http.allow=always` | the forge's transport where its record's remotes' base is plaintext, on loopback only (forge.md, 2.1; configuration.md, section 3) |
+| `protocol.http.allow=always` | the forge's transport where its record's remotes' base is plaintext, on loopback only (forge/engine.md, 1; configuration/engine.md) |
 | `credential.helper=` | the empty value clears the list: no credential helper runs |
 | `http.sslVerify=true` | the forge's certificate is always checked |
 | `gc.auto=0` | no automatic garbage collection, which detaches and outlives the invocation |
@@ -179,7 +179,7 @@ pipes      stdin (written, then closed), stdout, stderr
   the remote's host with its port, and an operation without a remote
   (`CheckOut`, `Merge`, `Commit`) names no host, `fatal: no git on this
   machine`; so the operation ends `FailedWithOutput { Broken, diagnostic }`
-  (section 6), and the forge's row warns (`../client/forge.md`, 5.4).
+  (section 6), and the forge's row warns (`../client/forge/deployment.md`).
 - **The version.** At the worker's start the component runs `git
   version` once with `workers[].git`, unless `null`, in the environment
   of section 5, and refuses the start, naming the program, when it fails
@@ -673,13 +673,13 @@ variable of the worker's own process reaches git.
 - **At the worker's end** the service closes every child, killing their
   groups: in temper's one process, the service closes the worker once
   the engine has drained and no agent process is left (README.md,
-  section 8; jig's `protocol/service.md`, section 10). Operations in
+  section 6; jig's `protocol/service.md`, section 10). Operations in
   flight end as io closes them.
 
 ## 8. Entrance limits and kernel submissions
 
 The git component's `Limits`, set by temper's profile `small` and
-overridable under `git_component.` (configuration.md, section 7):
+overridable under `git_component.` (configuration/limits.md):
 
 | Limit | What it bounds | Rule |
 |---|---|---|
@@ -707,7 +707,7 @@ and io's close timeout bounds the end of a killed invocation.
 
 ## 9. Testing
 
-The tiers, their budgets and the fakes are `../domain/testing.md`'s. What
+The tiers, their budgets and the fakes are `../testing/README.md`'s. What
 checks this document's contract:
 
 - **Step tests** in `temper-worker-protocol-git`:
@@ -733,10 +733,10 @@ checks this document's contract:
   failure of section 6 (a missing repository, branch and commit, a wrong
   token, no permission, a protected branch, a refused connection),
   against skein's throwaway Forgejo (`skein/docs/design/testing/fakes/forge.md`, section 6;
-  `../domain/testing.md`, 2.6). Each keeps the argument vector,
+  `../testing/process-tier.md`). Each keeps the argument vector,
   exit status, stdout and stderr, masked: object ids, ports, paths and
   times. No credential is ever written. The facts this document relies
-  on, named in sections 3 and 4.8, are in `tools/git-transcripts/facts.txt`
+  on, named in `git.md`, sections 3 and 4.8, are in `tools/git-transcripts/facts.txt`
   with git's and Forgejo's versions. They are captured again when an
   invocation changes, or to move to another git.
 - **The git component's machine world,** `tests/worker/protocol-git`:
@@ -752,15 +752,15 @@ checks this document's contract:
   credential in an argument; scenario memory peaks under their ceilings.
   Its scripted outputs are the transcripts.
 - **The fake git program,** its core `crates/temper-fake-git` and its
-  hosted half `crates/temper-fake-git-hosted` (`../domain/testing.md`,
-  4.3), answers this document's invocations as real
+  hosted half `crates/temper-fake-git-hosted` (`../testing/fakes.md`,
+  3), answers this document's invocations as real
   git does, and is checked against the same transcripts: each
   transcript's arguments and environment, run on the fake over the
   equivalent fixture, give the same exit status, the same stdout once
   masked, and stderr lines that classify alike.
 - **The process tier** runs the machine's git, 2.41 or later, against
   its owned Forgejo: clone, fetch, create, check out, commit, push, in
-  its story (`../domain/testing.md`, 2.6).
+  its story (`../testing/process-tier.md`).
 
 ## 10. Open questions
 
@@ -773,7 +773,7 @@ checks this document's contract:
   (skein's `runtime/io/processes.md`, 3), with the git directory unwritable by an
   agent's tree, close both. An agent's program surviving a forced stop
   also needs containment on one person's machine; git's configured
-  helpers stay in its group (`git.md`, section 7; setup.md, section 15).
+  helpers stay in its group (`git.md`, section 7; setup/README.md, section 9).
 - **A stray file of another name** (4.7): `git add` still takes it, a new
   file being indistinguishable from a run's new work, unless the repository
   ignores it. Default: the repository's `.gitignore` is where such a name goes.
@@ -795,7 +795,7 @@ checks this document's contract:
   and checked delivery read and advance HEAD.
 - **A forge whose certificate needs its own trust for git.** Default: the
   machine's roots, for git as for the forge's API, whose record names
-  its TLS name alone (forge.md, 2.1). Between hosts, the trust would
+  its TLS name alone (forge/engine.md, 1). Between hosts, the trust would
   come with the workspace's items.
 - **Git LFS.** Default: not supported; no filter is configured, so a
   repository's large files stay pointer files in its working tree.

@@ -94,8 +94,8 @@ arithmetic and not measured. A release build's sizes are for the plan to read.
   script scales its total by the compressed sizes the bundler also wrote. The
   fraction is the same either way.
 - **The bounds** grow to hold both forms: `clients.bundle_files` and
-  `clients.bundle_bytes` (`../protocol/configuration.md`, section 7) and what the
-  binary embeds (`../client/browser.md`, 2.6).
+  `clients.bundle_bytes` (`../protocol/configuration/limits.md`) and what the
+  binary embeds (`../client/web/README.md`, 2.6).
 
 ## 5. Why not Rust
 
@@ -119,4 +119,4 @@ the bundler, in Rust, writes what the browser runs.
   inflated for the rare client that refuses gzip.
 - **The playground:** it would take the same page. Compressing it is its host's.
 - **A box still starting:** a link opened before serve is ready gets no bytes
-  until it is, and that wait stays the browser's own (`../protocol/setup.md`, 7.1).
+  until it is, and that wait stays the browser's own (`../protocol/setup/box.md`, 1).

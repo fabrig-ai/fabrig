@@ -1,5 +1,5 @@
 //! Temper's clients component and link joined in memory
-//! (temper/docs/design/domain/testing.md, 6.3; jig/docs/design/protocol/client/sign-in.md).
+//! (temper/docs/design/testing/checks.md, 3; jig/docs/design/protocol/client/sign-in.md).
 use jig_client::contract as c;
 use jig_client_kit::harness::ClientId;
 use jig_client_kit::joint::transport::{KeyedOwner, Reply, Transport, Watched};

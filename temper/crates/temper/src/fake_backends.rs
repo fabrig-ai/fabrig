@@ -1,4 +1,4 @@
-//! Retained isolated startup for `box --fake-backends` (configuration.md, 12.1).
+//! Retained isolated startup for `box --fake-backends` (protocol/configuration/directories.md, 1).
 use crate::directories::jig_directories;
 mod import;
 pub(crate) mod json;
@@ -24,7 +24,7 @@ use temper_forge_setup_shell::process as locks;
 
 const REQUIRED: &[&str] = &["temper.json", "agent.json", "github.json", "oauth.json", "llm.json", "forgejo.json"];
 
-/// A new sandbox's nine ports, the process tier's (temper/docs/design/protocol/setup.md, 7.5).
+/// A new sandbox's nine ports, the process tier's (temper/docs/design/protocol/setup/box.md, 5).
 const CHOSEN_PORTS: &str = "TEMPER_FAKE_BOX_PORTS";
 struct Chosen {
     listeners: [u16; 5],
@@ -320,7 +320,7 @@ fn peer_document(dirs: &Directories, name: &str, bound: u32) -> Result<Box<[u8]>
         .map_err(|why| format!("{}: {}", path.display(), crate::unread(why)))
 }
 /// The ports no peer may take: the callback's and the ordinary box's listeners and readiness
-/// (temper/docs/design/protocol/setup.md, 7.5).
+/// (temper/docs/design/protocol/setup/box.md, 5).
 fn ordinary_ports(dirs: &Directories, bytes: &[u8]) -> Result<Vec<u16>, String> {
     let (ordinary, _) = crate::box_command::configuration_steps(dirs, bytes, Box::new([]))?;
     let mut ports = vec![1455];

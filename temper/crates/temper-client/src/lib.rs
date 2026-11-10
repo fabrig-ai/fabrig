@@ -1,4 +1,4 @@
-//! The deployment's client (temper/docs/design/protocol/README.md, section 4).
+//! The deployment's client (temper/docs/design/protocol/binaries.md).
 #![forbid(unsafe_code)]
 
 use skein_shell::Clock;

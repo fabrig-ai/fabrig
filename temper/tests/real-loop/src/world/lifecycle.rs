@@ -1,4 +1,4 @@
-//! Judge decisions over host snapshots (temper/docs/design/domain/testing.md, 2.4).
+//! Judge decisions over host snapshots (temper/docs/design/testing/real-loop.md).
 use crate::calls::Caller;
 
 #[derive(Default)]

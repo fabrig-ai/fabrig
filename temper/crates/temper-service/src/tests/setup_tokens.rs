@@ -5,7 +5,7 @@
     clippy::match_like_matches_macro,
     reason = "test scans captured diagnostics and inspects closed event variants"
 )]
-//! Connected Forgejo token admission and durable Check sequencing (temper/docs/design/protocol/forge.md, 2.6).
+//! Connected Forgejo token admission and durable Check sequencing (temper/docs/design/protocol/forge/engine.md, 6).
 use super::*;
 
 #[test]

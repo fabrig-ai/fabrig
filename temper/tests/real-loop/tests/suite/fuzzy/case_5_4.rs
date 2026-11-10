@@ -1,4 +1,4 @@
-//! Retained first-edition story (domain/testing.md, 5.3): new direction and overlap news wakes B once released.
+//! Retained first-edition story (testing/reference-case.md): new direction and overlap news wakes B once released.
 use temper_real_loop_world::{
     Exit,
     case::{
@@ -15,7 +15,7 @@ fn a_new_direction_cancels_x3_under_its_closed_pull_and_bs_landing_news_waits_fo
     // hold still defers the next run until Release, with the news told once.
     // A follows the amendment and its delegates' results; its changes' CI
     // is read by their procedures alone.
-    // Leaves out the kept branch: domain/forge.md 8.6 deletes it; its closed
+    // Leaves out the kept branch: domain/forge/change/README.md 4 deletes it; its closed
     // pull keeps the commits, with A's reason posted once before it closes.
     // Leaves out x3 past its cap: a running
     // task's deadline never fires (jig's crates/jig-domain-tasks/src/domain.rs:698

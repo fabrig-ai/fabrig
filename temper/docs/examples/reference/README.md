@@ -1,7 +1,7 @@
 # The reference's settings
 
 `settings.json`, `limits.json`, `room.json`, `landing.json` and `project.json` are the
-reference's profile (`../../design/protocol/configuration.md`, 13.9), applied
+reference's profile (`../../design/protocol/configuration/reference.md`), applied
 over the stock as `temper help configure` says. They stay out of the binary:
 what a deployment runs until an owner applies them is the stock, and the
 Ask temper chat derives the reference from its description
@@ -27,7 +27,7 @@ workspace root, its repository under its own name; `request.json` and
 ## A call's room
 
 The reference takes a payload of 63,740 bytes and output of 48,000 tokens,
-the fallback in `../../design/protocol/configuration.md`, 13.8. Its agent's
+the fallback in `../../design/protocol/configuration/settings.md`, 7. Its agent's
 measured largest turn is 18,431,842 bytes; `limits.json` and `room.json`
 carry the bounds derived from that turn and payload.
 

@@ -1,4 +1,4 @@
-//! The forge's kinds (temper/docs/design/protocol/store.md, 2; temper/docs/design/domain/forge.md, 8.9).
+//! The forge's kinds (temper/docs/design/protocol/store.md, 2; temper/docs/design/domain/forge/change/gates.md, 3).
 use super::{Bounds, FITS, Undecodable, w};
 use skein_lib::{List, Reader, Writer};
 use temper_engine_domain_forge::{GateLast, GatePattern, JudgeFreshness, settings as d};

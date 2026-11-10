@@ -1,4 +1,4 @@
-//! The TUI's offered commands (temper/docs/design/client/README.md, 6.14, The commands).
+//! The TUI's offered commands (temper/docs/design/client/tui/pages.md, The commands).
 use super::fixtures as f;
 use jig_client::contract as c;
 use skein_lib::List;

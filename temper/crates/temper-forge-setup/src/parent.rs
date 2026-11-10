@@ -1,4 +1,4 @@
-//! forge run as Forgejo's parent (protocol/setup.md, 6.4).
+//! forge run as Forgejo's parent (protocol/setup/owned.md, 4).
 /// A request to stop the supervised process.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Stop {

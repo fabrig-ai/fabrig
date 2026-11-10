@@ -1,4 +1,4 @@
-//! One placement, shared by host and policy (protocol/setup.md, 7.3).
+//! One placement, shared by host and policy (protocol/setup/box.md, 3).
 use alloc::boxed::Box;
 use skein_lib::List;
 use skein_lib::{Decimal, bytes};
@@ -94,7 +94,7 @@ pub fn label(steps: &[Placed], forge: u16) -> Option<&[u8]> {
     None
 }
 
-/// A kind's slot names its bound forge in its arguments and output (temper/docs/design/protocol/setup.md, 7.1).
+/// A kind's slot names its bound forge in its arguments and output (temper/docs/design/protocol/setup/box.md, 1).
 #[must_use]
 pub fn bound(template: &Step, forge: u16) -> Step {
     let digits = Decimal::of(u64::from(forge));
@@ -123,7 +123,7 @@ pub fn bound(template: &Step, forge: u16) -> Step {
     step
 }
 
-/// A group's opaque label substitutes only its forge placeholder (temper/docs/design/protocol/setup.md, 7.3).
+/// A group's opaque label substitutes only its forge placeholder (temper/docs/design/protocol/setup/box.md, 3).
 #[must_use]
 pub fn bound_label(template: &[u8], forge: u16) -> Box<[u8]> {
     let digits = Decimal::of(u64::from(forge));

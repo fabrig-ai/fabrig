@@ -191,7 +191,7 @@ fn cued(system: &[u8]) -> Option<Agent> {
         Agent::X3Writer,
         Agent::PlannedWriter,
         Agent::StoryWriter,
-        // Act 3, step 6.5 (domain/testing.md, 5.3)
+        // Act 3, step 6.5 (testing/reference-case.md)
         Agent::BudgetDirector,
         Agent::BudgetOwner,
         Agent::BudgetSubowner,
@@ -207,7 +207,7 @@ fn cued(system: &[u8]) -> Option<Agent> {
         Agent::RedOwner,
         Agent::RedCoder,
         Agent::RedRepairCoder,
-        // Act 3, step 6.7 (domain/testing.md, 5.3)
+        // Act 3, step 6.7 (testing/reference-case.md)
         Agent::CapDirector,
         Agent::CapOwner,
         Agent::CapSubowner,
@@ -268,7 +268,7 @@ fn check(misses: &mut Vec<Miss>, met: bool, promise: Promise, what: String) {
 fn text<'a>(value: &'a Value, path: &str) -> &'a str {
     pointer(value, path).and_then(Value::as_str).unwrap_or_default()
 }
-// Result words may carry a pull description after the merge id (domain/root.md, 6).
+// Result words may carry a pull description after the merge id (domain/root.md, 5).
 fn landing_commit(value: &Value) -> &str {
     text(value, "/result/value/change/words/bytes").lines().next().unwrap_or_default()
 }
@@ -393,7 +393,7 @@ fn question_answer(misses: &mut Vec<Miss>, observed: &Observed, a: &Value, direc
 
 fn markdown(misses: &mut Vec<Miss>, observed: &Observed) {
     // The fast path itself belongs to the forge's CI and is left out here
-    // (domain/testing.md, 5.3's 4.1 row). We check the merge and its Markdown.
+    // (testing/reference-case.md's 4.1 row). We check the merge and its Markdown.
     check(misses, observed.kit.merged_green, MARKDOWN, "kit.main must have merged with green CI at its head".into());
     check(
         misses,
@@ -1360,7 +1360,7 @@ fn check_activity(observed: &Observed, read: Read) -> Vec<&Value> {
         .collect()
 }
 
-/// Retained first-edition story (domain/testing.md, 5.3): supported timer, cancel and empty-worker checkpoint.
+/// Retained first-edition story (testing/reference-case.md): supported timer, cancel and empty-worker checkpoint.
 #[must_use]
 pub fn step_4_3(observed: &Observed) -> Vec<Miss> {
     use super::{B, B_REPORT, BENCHMARK, CHECK, CHECK_REASON, CHECK_REPORT};
@@ -1431,7 +1431,7 @@ pub fn step_4_3(observed: &Observed) -> Vec<Miss> {
         EMPTY,
         "the benchmark's complete activity must end every begun run, with the task ended",
     );
-    // B's journal orders its lines, newest first (../client/tools.md, 11.3): the
+    // B's journal orders its lines, newest first (../../../../docs/design/client/ctl/testing.md, 3): the
     // cancel heard is older than the run that finished with B's report. The
     // journal's order, not two wall times, so a clock step can't reorder them.
     let b_activity = check_activity(observed, Read::BEnded);
@@ -1473,7 +1473,7 @@ const FENCED: Promise = Promise::Must("one run per task, the lost attempt fenced
 const QUESTIONS_WAIT: Promise = Promise::Step("A's questions wait, since the director lives there");
 const ONCE: Promise = Promise::Add("nothing resumes twice");
 
-/// Retained first-edition story (domain/testing.md, 5.3): supported retry, retained question and single answer checkpoint.
+/// Retained first-edition story (testing/reference-case.md): supported retry, retained question and single answer checkpoint.
 #[must_use]
 pub fn step_4_6(observed: &Observed) -> Vec<Miss> {
     use super::{HANG, HANG_REPORT, PHASE, PHASE_QUESTION_NUMBER, PHASE_REPORT};
@@ -1757,7 +1757,7 @@ mod restart_tests {
     }
 }
 
-// Act 2, step 5.1 (domain/testing.md, 5.3)
+// Act 2, step 5.1 (testing/reference-case.md)
 const RULES_CONTROL: Promise = Promise::Must("Stop and Release on the chat (exact)");
 const RULES_INBOX: Promise = Promise::Must("questions wait in its inbox (exact)");
 const RULES_CONVENTIONS: Promise = Promise::Must("the rules land as conventions that every later run reads (exact)");
@@ -2273,7 +2273,7 @@ mod rules_tests {
     }
 }
 
-// Act 2, step 5.3 (domain/testing.md, 5.3)
+// Act 2, step 5.3 (testing/reference-case.md)
 const SHAPE_INSTRUCTIONS: Promise = Promise::Must("instructions amended (exact)");
 const SHAPE_HISTORY: Promise = Promise::Add("the amendment is in A's history, with what it replaced");
 const SHAPE_ENDINGS: Promise = Promise::Step("the chat and A report under the new brief");
@@ -2520,7 +2520,7 @@ mod shape_tests {
     }
 }
 
-// Act 2, step 5.2 (domain/testing.md, 5.3)
+// Act 2, step 5.2 (testing/reference-case.md)
 const PERSON_STOP: Promise = Promise::Must("Stop, which is the person's (exact)");
 const DELEGATES_RESUME: Promise = Promise::Must("a stopped goal holds its delegates and one release resumes them");
 const OLD_HELPER: Promise = Promise::Must("retiring a charter that still has tasks (to check, 6.8)");
@@ -3103,7 +3103,7 @@ mod pause_tests {
     }
 }
 
-// Act 2, step 5.5 (domain/testing.md, 5.3)
+// Act 2, step 5.5 (testing/reference-case.md)
 const PLAN_MESSAGES: Promise = Promise::Must("a question and its answer (exact)");
 const PLAN_DEADLINES: Promise = Promise::Must("a mission and sub-owner carry their deadlines");
 const PLAN_DEPTH: Promise = Promise::Must("a sub-owner cannot start one of its own (exact)");
@@ -3709,7 +3709,7 @@ mod plan_tests {
     }
 }
 
-// Act 2, step 5.4 (domain/testing.md, 5.3)
+// Act 2, step 5.4 (testing/reference-case.md)
 /// The forge's pull lifecycle, beside its ordered comment observations.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Pull {
@@ -5306,7 +5306,7 @@ mod batch_tests {
 fn blocker_delivery(observed: &Observed, agent: Agent, words: &str) -> Option<usize> {
     observed.told.iter().position(|t| t.agent == agent && user_words(t).any(|w| contains(w, words)))
 }
-// Act 3, step 6.5 (domain/testing.md, 5.3)
+// Act 3, step 6.5 (testing/reference-case.md)
 const BUDGET_MESSAGES: Promise = Promise::Must("the budget question climbs two owners and its answers come down once");
 const BUDGET_INBOX: Promise = Promise::Must("the person's inbox keeps the question until its answer");
 const BUDGET_CHECKPOINT: Promise = Promise::Must("a5 is made after A1 hears the answer");
@@ -6447,7 +6447,7 @@ mod budget_tests {
     }
 }
 
-// Act 3, step 6.4 (domain/testing.md, 5.3)
+// Act 3, step 6.4 (testing/reference-case.md)
 const RED_ORDER: Promise = Promise::Add("nothing lands on a red main before its repair");
 const RED_DEPLOYMENT: Promise = Promise::Must("one deployment-requested landing-branch repair");
 const RED_LANDING: Promise = Promise::Must("a4 lands with green CI after the repair");
@@ -7366,7 +7366,7 @@ mod red_tests {
     }
 }
 
-// Act 3, step 6.7 (domain/testing.md, 5.3)
+// Act 3, step 6.7 (testing/reference-case.md)
 const CAP_OPENING: Promise =
     Promise::Must("A1 gets a span, a5 inherits its wall and begins before it, without a timer");
 const CAP_ADMISSION: Promise = Promise::Must("jig's rail holds A1 at admission without a committed turn");
@@ -8238,7 +8238,7 @@ mod cap_tests {
     }
 }
 
-// Act 3, step 6.6 (domain/testing.md, 5.3).
+// Act 3, step 6.6 (testing/reference-case.md).
 const WAITING_IDENTITIES: Promise = Promise::Must("one atomic batch names kit e1 and app repin with its dependency");
 const WAITING_CHECKPOINT: Promise = Promise::Must("repin produces early while e1's exact-head review writes");
 const WAITING_LANDING: Promise = Promise::Must("each repository lands its pushed, green, exactly reviewed head");
@@ -9403,7 +9403,7 @@ mod waiting_tests {
     }
 }
 
-// Act 3, step 6.8 (domain/testing.md, 5.3).
+// Act 3, step 6.8 (testing/reference-case.md).
 const QA_MESSAGE: Promise = Promise::Must("A1 messages its requester the exact ten-line M1 report once while live");
 const QA_NEXT: Promise =
     Promise::Must("A delegates M2's sub-owner on that message, beside live A1 and T, and passes it on");

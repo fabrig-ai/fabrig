@@ -49,7 +49,7 @@ first. `start/links.rs`'s `link_resource_projects` stays an assertion:
 it reads connectors' reports held in memory, which no stored row holds.
 A duplicate key, which the store's map cannot hold, also stays an
 assertion. temper's forge link still panics
-(`temper/docs/design/domain/root.status.md`, 9.1).
+(`temper/docs/design/domain/root.status.md`, 8.1).
 
 `executors.md`, section 2's immutable failed run end retains the invalid-result kind
 computed for its attempt. No known gap remains in this field.
@@ -210,7 +210,7 @@ erases, with a removal in the release's revision, only a default-following
 state its connector names in `SettingsDefaults`' `dropped`, and a reset
 to a default no connector reports or names keeps its state, size and
 slot (`jig-domain-core/src/tests/settings/application_start.rs`). temper's two restore
-stories that met it run (`temper/docs/design/protocol/configuration.status.md`).
+stories that met it run (`temper/docs/design/protocol/configuration/README.status.md`).
 
 `fleet.md` has no known gap in a draining worker leaving placement:
 `jig-domain-fleet/src/channel.rs`, `draining`, marks its channel for
@@ -221,7 +221,7 @@ again unrefused (the fleet's tests
 `a_chosen_attempt_on_a_draining_channel_is_placed_again_unrefused` and
 `a_draining_workers_next_channel_is_placed_on`). temper's process story
 of a restarted workstation, which would show it on processes, stays
-ignored for its fixture (`temper/docs/design/domain/testing.status.md`).
+ignored for its fixture (`temper/docs/design/testing/README.status.md`).
 
 `settings.md`, section 12's held worker reads, filtered catalogue changes decided by
 the provider's list, atomic account and settings commits, and retention
@@ -234,7 +234,7 @@ and catalogue-number reuse remain `README.md`, section 10's open questions.
 `briefs.md`, section 1.1's room as capacity holds at temper's activation: a task
 whose transcript window would find no load slot waits, due, spending no
 try. A window's later pages keep its first page's slot there
-(`temper/docs/design/domain/root.md`, 8).
+(`temper/docs/design/domain/root.md`, 7).
 
 ## Gaps and departures
 
@@ -258,7 +258,7 @@ try. A window's later pages keep its first page's slot there
   (`jig-protocol-transcript`'s `brief.rs`, which takes no private names),
   and the tail is a text of the fresh start's turn outside the private
   section, so the turn's projection keeps it and every other party reads
-  it (temper's `temper/docs/design/domain/agent.status.md`, 8.4.4).
+  it (temper's `temper/docs/design/domain/agent/ask-temper.status.md`, 4).
 - **Not yet:** `briefs.md`, 2.1, *Read and kept by its party alone*: a party naming
   their own scope and another party's entry by its name is refused as
   moved, with that entry's revision, not as unknown: the core admits the

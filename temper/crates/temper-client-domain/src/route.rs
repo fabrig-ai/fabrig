@@ -508,7 +508,7 @@ pub(crate) fn playground_progress(root: &mut Domain, env: &Env<Limits>, out: &mu
     playground_facts(root);
 }
 
-/// Advance Settings to its row and a named welcome forge to Model (temper/docs/design/client/README.md, 3.5).
+/// Advance Settings to its row and a named welcome forge to Model (temper/docs/design/client/pages/README.md).
 pub(crate) fn welcome_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     crate::pages::forge_progress(root, env, out);
     if let Address::Welcome { step: crate::Step::Forge { forge: Some(crate::Choice::Forge(number)) } } =
@@ -589,7 +589,7 @@ fn forge_ways(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out
     consumed
 }
 
-/// Settle the host check and advance a held sign-in or added key once usable (client/README.md, 3.5).
+/// Settle the host check and advance a held sign-in or added key once usable (client/pages/README.md).
 pub(crate) fn welcome_model_progress(root: &mut Domain, out: &mut Queue<Request>) {
     use crate::pages::{accounts::SignInState, connect_model::ProgramCheck};
     if let Address::ConnectModel { .. } = root.pages.address() {

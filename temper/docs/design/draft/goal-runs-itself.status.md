@@ -3,9 +3,9 @@
 2026-11-10. Where the design lags or departs from [goal-runs-itself.md](goal-runs-itself.md).
 
 Sections 1 to 8 are carried by jig's `domain/tasks/lifecycle.md`, 2 and 11, and
-jig's `protocol/configuration.md`, 3.2; `../domain/forge.md`, 8.1, 11.1 and
-11.2; `../protocol/tooling.md`, 4.2; `../domain/worker.md`, 4.4;
-`../protocol/configuration.md`, section 3, 13.2, 13.4 and 13.9; skein's
+jig's `protocol/configuration.md`, 3.2; `../domain/forge/change/README.md`, 1, and `../domain/forge/branches.md`, 1 and 2
+; `../protocol/tooling.md`, 4.2; `../domain/worker.md`, 4.4;
+`../protocol/configuration/engine.md` and `../protocol/configuration/settings.md`, section 2 and `../protocol/configuration/stock.md` and `../protocol/configuration/reference.md`; skein's
 `forge/README.md`, 3.2; and fabrig's `DESIGN.md`, section 2 and
 `tools/close/README.md`. `goal-runs-itself.md`, section 10's two defaults are the design's.
 
@@ -26,7 +26,7 @@ jig's `protocol/configuration.md`, 3.2; `../domain/forge.md`, 8.1, 11.1 and
   - 4: a goal writes its tags `[in flight: change N]` with its changes'
     task numbers, which `change` gives only once a change is made, so an
     entry written before its change is tagged in the goal's next
-    delivery (`../protocol/configuration.md`, 13.9, charter 5's cut).
+    delivery (`../protocol/configuration/reference.md`, charter 5's cut).
     Decided by the goal's designer, 2026-11-10.
   - 6: charter 5's wake policy takes results `last_or_failure`, and a
     goal its closer ends is woken by a failure alone, its last result

@@ -26,7 +26,7 @@ pub(super) struct Sent {
     alternate: Option<c::Ask>,
 }
 /// A durable visibility answer waits within its call for me to carry its page
-/// (client/tools.md, 5.3).
+/// (client/ctl/tools.md, 3).
 #[derive(Debug)]
 pub(super) struct Visibility {
     called: Called,
@@ -224,7 +224,7 @@ fn chat(call: &Call, me: &c::Me, limits: &Limits) -> Prepared {
         shapes::Fall::Refused(_) | shapes::Fall::NotOffered(_) => Err(Failed::Fixed(b"chat exceeds offered bounds")),
     }
 }
-// client/tools.md, 5.3: name the chat templates offered here.
+// client/ctl/tools.md, 3: name the chat templates offered here.
 fn chat_template_refusal(me: &c::Me, project: u32, template: u64) -> Failed {
     let number = Decimal::of(template);
     let prefix = b"template ";
@@ -481,7 +481,7 @@ fn build(
     let phase = subject::ended(document);
     Ok((Request::Act { ask, phase, asked: asked(call, document) }, to))
 }
-/// Past what the read contract asks, the refusal names the bound (client/tools.md, 5.5).
+/// Past what the read contract asks, the refusal names the bound (client/ctl/areas.md).
 fn asked(call: &Call, document: &c::ReadValue) -> Option<render::outcome::Asked> {
     if call.tool != rows::ANSWER_AT {
         return None;

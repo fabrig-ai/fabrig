@@ -1,4 +1,4 @@
-//! A repository's link to its page on its forge (temper/docs/design/client/forge.md, 5.4).
+//! A repository's link to its page on its forge (temper/docs/design/client/forge/deployment.md).
 use crate::{
     forge_sign_in::Forges,
     words::{Shell, Word, Words},

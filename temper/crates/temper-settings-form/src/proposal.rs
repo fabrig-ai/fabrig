@@ -1,4 +1,4 @@
-//! Compact proposal reads beside revisions (temper/docs/design/domain/agent.md, 8.4.1).
+//! Compact proposal reads beside revisions (temper/docs/design/domain/agent/ask-temper.md, 1).
 use crate::{Limits, Text, render, view, wire};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v19 as w;

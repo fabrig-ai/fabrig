@@ -1,4 +1,4 @@
-//! The box's welcome and the browser's steps followed (temper/docs/design/client/README.md, 6.17).
+//! The box's welcome and the browser's steps followed (temper/docs/design/client/tui/box.md).
 use super::{foot, text};
 use crate::{
     Tui, look,

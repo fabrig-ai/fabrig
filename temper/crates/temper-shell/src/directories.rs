@@ -1,4 +1,4 @@
-//! The binary's three directories (protocol/configuration.md, 12).
+//! The binary's three directories (protocol/configuration/directories.md).
 use skein_io::kernel::Error;
 use skein_shell::{self as settings, Base, Fallback, Origin, Setting, Settings};
 use std::{

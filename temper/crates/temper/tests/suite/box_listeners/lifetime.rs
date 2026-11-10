@@ -1,4 +1,4 @@
-//! Shipped boxes inherit ignored hangups (temper/docs/design/protocol/setup.md, 13.1).
+//! Shipped boxes inherit ignored hangups (temper/docs/design/protocol/setup/testing.md, 1).
 use super::box_link;
 use crate::support::{boxed, parent};
 

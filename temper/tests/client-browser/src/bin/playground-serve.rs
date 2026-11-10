@@ -1,4 +1,4 @@
-//! The browser tier's static host (temper/docs/design/client/browser.md, 4.3;
+//! The browser tier's static host (temper/docs/design/client/web/testing.md, 3;
 //! temper/docs/design/playground.md, 7).
 use std::{
     collections::BTreeMap,

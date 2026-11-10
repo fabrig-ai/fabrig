@@ -57,12 +57,12 @@ fn build(limits: &Limits, seed: u64, unlinked: bool) -> Domain {
     }
 }
 impl Domain {
-    /// The approval page (client/README.md, 3.5, The approval page).
+    /// The approval page (client/pages/README.md, The approval page).
     #[must_use]
     pub const fn approval(&self) -> Option<&crate::approve::Page> {
         self.approval.as_ref()
     }
-    /// A native client's ask (client/README.md, 7.1).
+    /// A native client's ask (client/README.md, 4.1).
     #[must_use]
     pub const fn asked(&self) -> Option<crate::asked::State> {
         self.asked
@@ -71,17 +71,17 @@ impl Domain {
     pub const fn copy_label(&self) -> crate::copy::Label {
         self.copy.label()
     }
-    /// Minutes east of universal time: the shell's input (temper/docs/design/client/README.md, 5.12).
+    /// Minutes east of universal time: the shell's input (temper/docs/design/client/view.md, 6).
     #[must_use]
     pub const fn zone_minutes(&self) -> i32 {
         self.zone_minutes
     }
-    /// Set the shell's zone before its first event (temper/docs/design/client/browser.md, 2.1).
+    /// Set the shell's zone before its first event (temper/docs/design/client/web/README.md, 2.1).
     pub fn set_zone_minutes(&mut self, zone_minutes: i32) {
         self.zone_minutes = zone_minutes;
     }
 
-    /// The row at the wall (temper/docs/design/client/README.md, 3.5, Away).
+    /// The row at the wall (temper/docs/design/client/pages/README.md, Away).
     #[must_use]
     pub fn away_on(&self, project: u32, wall: skein_lib::Wall) -> bool {
         match self.forge.away(project) {
@@ -89,7 +89,7 @@ impl Domain {
             None => false,
         }
     }
-    /// Classes with an item Away may decide, or an on row, show Away (temper/docs/design/client/README.md, 3.5).
+    /// Classes with an item Away may decide, or an on row, show Away (temper/docs/design/client/pages/README.md).
     #[must_use]
     pub fn away_shown(&self, project: u32, wall: skein_lib::Wall) -> bool {
         self.away_on(project, wall)
@@ -98,7 +98,7 @@ impl Domain {
                 None => false,
             }
     }
-    /// The open project's live or ended goals (temper/docs/design/client/README.md, 5.3).
+    /// The open project's live or ended goals (temper/docs/design/client/view.md, 3).
     #[must_use]
     pub fn has_goals(&self, project: u32) -> bool {
         self.pages.has_goals(&self.client, project)

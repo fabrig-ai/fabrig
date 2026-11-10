@@ -35,7 +35,7 @@ once all of it works, with no part of the page drawn by hand.
 |---|---|---|
 | You approve | "An agent makes each change; nothing reaches main until you approve it." | kind 2's rule 1: every branch (3.2), enforced, CI, up to date, no gate, one approval by role 0 at `clean`; rules 2 to 4 removed |
 | Agents review | "An agent makes each change, another reviews it, and code lands it." | kind 2's rule 1, the stock's (3.1); rules 2 to 4 removed |
-| Draft first | "You and an agent write a design draft; agents build it on its own branch, and it lands whole." | kind 2's rule 1: the branch `main` (3.2), enforced, CI, up to date, no gate, no approval; rule 2: branches open on `temper`, enforced, no CI, no update, no gate, as the reference's two rules (`../protocol/configuration.md`, 13.9); rules 3 and 4 removed; kind 7's `drafts` and `goals` on and its `way` template 4 (3.3); the project's policy's delegation to charter 5 where it lacks it |
+| Draft first | "You and an agent write a design draft; agents build it on its own branch, and it lands whole." | kind 2's rule 1: the branch `main` (3.2), enforced, CI, up to date, no gate, no approval; rule 2: branches open on `temper`, enforced, no CI, no update, no gate, as the reference's two rules (`../protocol/configuration/reference.md`); rules 3 and 4 removed; kind 7's `drafts` and `goals` on and its `way` template 4 (3.3); the project's policy's delegation to charter 5 where it lacks it |
 
 - **Ordered** from more of you to more of your agents, as the page's
   tabs are.
@@ -54,8 +54,8 @@ once all of it works, with no part of the page drawn by hand.
 
 ### 3.1 The stock's rule, per project
 
-- **Today** kind 1's rule 1 is the stock (`../protocol/configuration.md`,
-  13.4), and rules add (13.3 there): no project can land with less than
+- **Today** kind 1's rule 1 is the stock (`../protocol/configuration/stock.md`
+  ), and rules add (13.3 there): no project can land with less than
   an agent's review, and a goal's branch would wait for CI.
 - **Then** kind 1 has no stock rule, and kind 2's rule 1 has one for
   every project, a constant of the code as kinds 6 and 7 have: every
@@ -68,13 +68,13 @@ once all of it works, with no part of the page drawn by hand.
   a floor sets one.
 - **Every reader and writer** of kind 1's stock moves with it: the
   forge's held rules, the stock's table, Settings, the words of Needs
-  you's approvals (`../client/forge.md`, 4.1), and the worlds and tests
+  you's approvals (`../client/forge/README.md`, 4.1), and the worlds and tests
   that assume it.
 
 ### 3.2 A project's rule names a branch
 
 - **Today** a rule's pattern begins at `forge`, a host, an owner and a
-  name (`../protocol/configuration.md`, 13.2), so a project's rule names
+  name (`../protocol/configuration/settings.md`, 2), so a project's rule names
   one repository, and Draft first would take two rules a repository,
   against four a project.
 - **Then** a pattern of kind 2 may begin at `branch` instead, and covers
@@ -92,7 +92,7 @@ once all of it works, with no part of the page drawn by hand.
 
 - **Today** the coordinator, charter 5, and the goal template for
   drafts, template 4, are the reference's settings file
-  (`../protocol/configuration.md`, 13.9), with one project's commands,
+  (`../protocol/configuration/reference.md`), with one project's commands,
   models and designers, and the rules' and policy 1's delegation is
   changed by hand to reach them.
 - **Then** the stock holds charter 5's first edition and template 4,
@@ -128,12 +128,12 @@ once all of it works, with no part of the page drawn by hand.
   where the rules ask CI; each approval, "you approve", or the role's
   name for someone else's; "conflict" and "resolve" where the rules ask
   up to date, as a change takes main at the front of its queue
-  (`../domain/forge.md`, 8.2 and section 10), the engine's update being
+  (`../domain/forge/change/README.md`, 2, and `../domain/forge/README.md`, 6), the engine's update being
   in the card's words and not a stop of its own; "merge"; each tier
   following the branch, "check" on a goal's branch, the coordinator's
   repair after it while none is drawn, then "catch up" where the project
   names a merge job, taking main into the goal's branch
-  (`../domain/forge.md`, section 10); and "verify" on main. A
+  (`../domain/forge/README.md`, section 6); and "verify" on main. A
   goal's branch ends its changes' part with its
   bar, and the goal's landing into main follows by main's rules. Main's
   bar ends the path.
@@ -147,7 +147,7 @@ once all of it works, with no part of the page drawn by hand.
 - **What a goal's charter adds:** the words of its coordinator's stop,
   "plan" in the stock's and "design" where it designs first, and
   an agent's "close-out" after main's merge where it makes one, as the
-  reference's do (`../protocol/configuration.md`, 13.9).
+  reference's do (`../protocol/configuration/reference.md`).
 - **Under `turn`,** the turn's own steps take the queue's
   (`../domain/landing.md`, section 8).
 - **No agent's stop below the line:** an update or a merge is always
@@ -165,15 +165,15 @@ once all of it works, with no part of the page drawn by hand.
   the reader may change the project's settings.
 - **"Use this"** sends jig's `ChangeSettings` of the way's items as the
   read gives them, one decision, the person's own, as Settings' change
-  of one item is (`../client/README.md`, 5.13). Its refusals are the
+  of one item is (`../client/pages/settings.md`, 2). Its refusals are the
   forge's and jig's, in words: an approval with too few eligible people
   names the forge, the role, how many it asks and how many can
-  (`../protocol/configuration.md`, 13.2). A person who may not change
+  (`../protocol/configuration/settings.md`, 2). A person who may not change
   settings sees no act.
 - **"Keep it"** does the same for the way the project runs, so that its
   values become the project's own and a release's new stock leaves
   them. It shows while To begin's first step is left, which its change
-  marks done (`../client/README.md`, 3.5); once that step is done, the
+  marks done (`../client/pages/README.md`); once that step is done, the
   current way has no act.
 - **"Yours":** a project that runs no stock way shows a fourth tab,
   current, its own path, with no act.
@@ -182,8 +182,8 @@ once all of it works, with no part of the page drawn by hand.
   first sentence; a person's role and what they decide; code's checks,
   the queue or the turn.
 - **It replaces** the opening's "What it sets" and "Ways to begin" with
-  their cards (`../client/README.md`, 3.5), and `own-way.md`'s card
-  (section 2 there), whose reference document stays that draft's.
+  their cards (`../client/pages/README.md`), and `own-way.md`'s card
+  (`own-way.md`, section 2 there), whose reference document stays that draft's.
 
 ## 6. Ask temper
 

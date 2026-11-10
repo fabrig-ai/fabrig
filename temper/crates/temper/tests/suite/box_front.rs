@@ -1,4 +1,4 @@
-//! The binary hands its terminal to its signed-in front (temper/docs/design/protocol/setup.md, 7.6).
+//! The binary hands its terminal to its signed-in front (temper/docs/design/protocol/setup/box.md, 6).
 #[expect(dead_code, reason = "the shared box fixture also supports pipe and sign-in stories")]
 #[expect(clippy::duplicate_mod, reason = "the front and listener stories include the shared box fixture")]
 #[path = "../fake_backends/box_link.rs"]

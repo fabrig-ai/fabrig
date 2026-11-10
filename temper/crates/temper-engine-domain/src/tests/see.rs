@@ -1,4 +1,4 @@
-//! Address grammar in the chat's project (domain/agent.md, 8.4.1).
+//! Address grammar in the chat's project (domain/agent/ask-temper.md, 1).
 use crate::route::see::{Address, address};
 use jig_domain_core::settings::Setting;
 use jig_domain_people::Proposer;

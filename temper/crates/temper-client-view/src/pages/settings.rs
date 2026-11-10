@@ -1,4 +1,4 @@
-//! How work runs and Deployment's frames (temper/docs/design/client/README.md, 3.5, Settings and Deployment).
+//! How work runs and Deployment's frames (temper/docs/design/client/pages/README.md, Settings and Deployment).
 use crate::{
     forge::bindings::{Bindings as ForgeBindings, Meaning, WaysRow},
     frame::Bindings,
@@ -28,14 +28,14 @@ pub(crate) enum Tab {
     Limits,
 }
 
-/// A flow's return tab (temper/docs/design/client/README.md, 3.5, The flows' paths).
+/// A flow's return tab (temper/docs/design/client/pages/README.md, The flows' paths).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum FlowTab {
     Forges,
     Accounts,
 }
 
-/// A flow's path at its head (README.md, 3.5, The flows' paths): nothing with no project, or in the terminal.
+/// A flow's path at its head (client/pages/README.md, The flows' paths): nothing with no project, or in the terminal.
 pub(crate) fn path(
     b: &mut Builder,
     root: &Domain,
@@ -48,7 +48,7 @@ pub(crate) fn path(
     flow_path(b, root, w, bindings, project, tab, &w.say(here, &[]), None);
 }
 
-/// A way under a flow's choices (README.md, 3.5, The flows' paths): the back link
+/// A way under a flow's choices (client/pages/README.md, The flows' paths): the back link
 /// and the trail go through the choices, and the way's name is last.
 pub(crate) struct FlowWay<'a> {
     pub(crate) choices: Word,
@@ -119,7 +119,7 @@ fn flow_path(
     b.close();
 }
 
-/// Opens the tab's column; the caller draws its body and closes it (README.md, 3.5, Settings).
+/// Opens the tab's column; the caller draws its body and closes it (client/pages/README.md, Settings).
 #[expect(clippy::too_many_lines, reason = "one frame draws the closed set of project and deployment tabs")]
 pub(crate) fn open(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, project: u32, tab: Tab) {
     b.open(Role::Slot);
@@ -232,7 +232,7 @@ fn deployment(tab: Tab) -> bool {
         Tab::Accounts | Tab::Forges | Tab::Models | Tab::Builders | Tab::Members | Tab::Limits => true,
     }
 }
-/// Opens the column without a project's kicker or tabs (README.md, 3.5, Settings).
+/// Opens the column without a project's kicker or tabs (client/pages/README.md, Settings).
 pub(crate) fn open_alone(b: &mut Builder, heading: &[u8], lede: &[u8]) {
     b.open(Role::Slot);
     b.style(look::SETTINGS_COL);
@@ -328,7 +328,7 @@ pub(crate) fn how_work_runs(
 }
 
 /// A setting's label and small words; the caller draws its right-hand control,
-/// then closes the row with its refusal (client/README.md, 5.13).
+/// then closes the row with its refusal (client/pages/settings.md, 2).
 fn row(b: &mut Builder, w: &Words, label: &[u8], small: Option<Word>) {
     let small = match small {
         Some(word) => w.say(word, &[]),
@@ -495,7 +495,7 @@ pub(super) fn questions(b: &mut Builder, root: &Domain, w: &Words, bindings: &mu
     refused(b, root, w, Control::Questions);
     b.close();
 }
-/// The duration stays editable while Away is off (client/README.md, 5.13, *Its rows*).
+/// The duration stays editable while Away is off (client/pages/settings.md, 2, *Its rows*).
 pub(super) fn away_until(
     b: &mut Builder,
     root: &Domain,

@@ -4,10 +4,19 @@
 temper/docs/development/acceptance.md CONTRIBUTING.md # a story repository's file, as data
 smith/docs/design/benchmarks/README.md CODEX_HOME/AGENTS.md # codex-cli's file under CODEX_HOME, not a document here
 temper/crates/temper-engine-domain-forge-landing/src/tests/key.rs crates.md # a test's path, as data
-temper/docs/design/client/README.md process.md # a charter's document in an example, quoted
+temper/docs/design/client/pages/settings.md process.md # a charter's document in an example, quoted
+temper/docs/design/client/pages/chat/document.md away-mode.md # a chat's document's name, an example
+temper/docs/design/client/pages/chats.md away-mode.md # a chat's document's name, an example
+temper/docs/design/client/pages/chat/document.md docs/design/draft/NAME.md # a chat's document's path in the project's repository, not this one
+temper/docs/design/client/pages/chat/document.md docs/design/draft/SLUG.md # the words a goal is told, naming a path in the project's repository
+temper/docs/design/client/pages/chat/document.md untitled.md # the name an empty document shows
+temper/docs/design/client/tui/pages.md untitled.md # the name an empty document shows
+temper/docs/design/client/web/gallery.md away-mode.md # a chat's document's name, an example
+temper/docs/design/client/pages/goal.md docs/design/draft/away-mode.md # an adopted repository's draft path, as example data
+temper/docs/design/client/pages/goal.md docs/design/draft/name.md # the Start goal field's example placeholder, not a document here
 temper/docs/design/domain/landing.md crates/x/README.md # an ignored path, as an example
 temper/docs/help/landing.md crates/x/README.md # an ignored path, as an example
-temper/docs/design/domain/testing.md changes/1.md # the walk repository's file, as data
+temper/docs/design/testing/real-loop.md changes/1.md # the walk repository's file, as data
 temper/docs/design/draft/configuring.md process.md # a charter's document in an example, quoted
 temper/docs/design/draft/dashboards.md status-page.md # an adopted repository's document, the test's data
 # History kept on purpose.
@@ -21,10 +30,3 @@ tools/citations/README.md x.md # an example of a citation form, not a document
 tools/citations/README.md ../../a.md # an example of a relative citation path, not a document
 tools/citations/README.md tools/citations/README.md 10 # a section number in a parenthesised citation example
 tools/citations/README.md docs/a.md # an example of a refused citation
-temper/docs/design/client/README.md away-mode.md # a chat's document's name, an example
-temper/docs/design/client/README.md docs/design/draft/NAME.md # a chat's document's path in the project's repository, not this one
-temper/docs/design/client/README.md docs/design/draft/SLUG.md # the words a goal is told, naming a path in the project's repository
-temper/docs/design/client/README.md untitled.md # the name an empty document shows
-temper/docs/design/client/browser.md away-mode.md # a chat's document's name, an example
-temper/docs/design/client/README.md docs/design/draft/away-mode.md # an adopted repository's draft path, as example data
-temper/docs/design/client/README.md docs/design/draft/name.md # the Start goal field's example placeholder, not a document here

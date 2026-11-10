@@ -1,4 +1,4 @@
-//! Landing views (domain/landing.md, 14; client/tools.md, 5.1).
+//! Landing views (domain/landing.md, 14; client/ctl/tools.md, 1).
 use crate::{
     jig::{
         self,

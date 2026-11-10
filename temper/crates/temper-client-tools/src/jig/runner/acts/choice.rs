@@ -1,5 +1,5 @@
 //! Model names come from me; explicit sub-agents replace the template choices
-//! (client/tools.md, 5.5).
+//! (client/ctl/areas.md).
 use super::{Call, Failed, value};
 use crate::jig::{
     call::{Value, Values},
@@ -178,7 +178,7 @@ pub(super) fn named(prefix: &[u8], what: &[u8], name: &[u8], json: bool) -> Prin
 }
 
 /// The first named effort of `items` that its model, as `me` shows it, doesn't offer
-/// (client/tools.md, 5.3).
+/// (client/ctl/tools.md, 3).
 pub(crate) fn settings_effort(items: &[c::SettingItem], me: &c::Me) -> Option<Box<[u8]>> {
     for (index, item) in items.iter().enumerate() {
         let set = match &item.edit {

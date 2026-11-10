@@ -12,7 +12,7 @@ primary checkouts' `main` named below; its citations are
 
 I inspected the clean local `main` checkouts: temper `20d88b6bb`, jig `f758ea6f`, smith `a89126e1`, skein `9ab88f69`. No edits, branches, worktrees, or builds. Graph findings were checked with `rg` and source reads; several index entries lagged the source.
 
-One material distinction: **temper’s docs are ahead of its implementation here.** They describe forge credentials loaded from the secrets store; this checkout still reads configured token files and accepts only Forgejo. The assessment below follows the code. Compare `temper/docs/design/protocol/configuration.md:677` with `temper/crates/temper-service/src/startup/application.rs:264` and `temper/crates/temper-service/src/startup/application.rs:630`.
+One material distinction: **temper’s docs are ahead of its implementation here.** They describe forge credentials loaded from the secrets store; this checkout still reads configured token files and accepts only Forgejo. The assessment below follows the code. Compare `temper/docs/design/protocol/configuration/README.md:677` with `temper/crates/temper-service/src/startup/application.rs:264` and `temper/crates/temper-service/src/startup/application.rs:630`.
 
 **1. A start today**
 

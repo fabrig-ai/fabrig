@@ -1,4 +1,4 @@
-//! Forge choices and unfinished records (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5).
+//! Forge choices and unfinished records (temper/docs/design/client/forge/deployment.md; temper/docs/design/client/pages/README.md).
 use super::forges::{Connection, Kind, Mode, Offer, Row, State};
 use crate::Choice as AddressChoice;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -159,7 +159,7 @@ pub fn choices(rows: &[Row], playground: Option<u16>, owned: bool) -> Box<[Choic
 }
 
 /// Settings offers the first available card not already connected, Forgejo first
-/// (temper/docs/design/client/forge.md, 5.4, Connecting a forge).
+/// (temper/docs/design/client/forge/deployment.md, Connecting a forge).
 #[must_use]
 pub fn default_choice(rows: &[Row], playground: Option<u16>, owned: bool) -> Option<Choice> {
     if playground.is_some() {
@@ -289,7 +289,7 @@ pub fn underway(row: &Row) -> bool {
         | Connection::Stopped { .. } => false,
     }
 }
-/// The Forge step's status in the column (temper/docs/design/client/README.md, 3.5,
+/// The Forge step's status in the column (temper/docs/design/client/pages/README.md,
 /// The Forge step with a forge); recovery and installation keep their own steps.
 #[must_use]
 pub fn status_shown(row: &Row, playground: Option<u16>) -> bool {

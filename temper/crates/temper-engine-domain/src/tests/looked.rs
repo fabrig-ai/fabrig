@@ -1,4 +1,4 @@
-//! Look admission (temper/docs/design/domain/forge.md, 5.6).
+//! Look admission (temper/docs/design/domain/forge/attention.md, 2).
 use crate::{
     Application, Delivery, Domain, Event, Limits, PartyInput, PartyRequest, Request, StoreInput, StoreRequest,
 };

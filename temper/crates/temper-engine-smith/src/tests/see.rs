@@ -1,4 +1,4 @@
-//! Tokens, whole texts and bounded parts (domain/agent.md, 8.4.1).
+//! Tokens, whole texts and bounded parts (domain/agent/ask-temper.md, 1).
 #![expect(
     clippy::disallowed_methods,
     reason = "test fixtures reconstruct UTF-8 parts and decode their decimal offsets"

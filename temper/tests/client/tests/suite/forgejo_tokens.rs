@@ -1,4 +1,4 @@
-//! Bot tokens on the joined client/engine (temper/docs/design/client/forge.md, 5.4).
+//! Bot tokens on the joined client/engine (temper/docs/design/client/forge/deployment.md).
 use jig_client_kit::harness::{ClientId, Until, World};
 use skein_fake_person::{Find, Step as PersonStep};
 use skein_lib::Duration;

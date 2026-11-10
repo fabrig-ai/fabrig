@@ -1,4 +1,4 @@
-//! A green head ends only CI repair (temper/docs/design/domain/forge.md, 8.4).
+//! A green head ends only CI repair (temper/docs/design/domain/forge/change/repairs.md).
 use super::*;
 
 fn repairing(why: Repair, requested: bool) -> Change {

@@ -1,4 +1,4 @@
-//! Sign-in's private files and printable instructions (protocol/setup.md, 6.8).
+//! Sign-in's private files and printable instructions (protocol/setup/owned.md, 8).
 use crate::{
     check::joined,
     place::{File, Place},
@@ -11,14 +11,14 @@ use skein_lib::{
 };
 
 /// What a person's first sign-in through temper does on their forge
-/// (temper/docs/design/protocol/sign-in.md, 9.4; temper/docs/design/draft/dogfood-hacks.md, 2.8).
+/// (temper/docs/design/protocol/openid-provider.md, 4; temper/docs/design/draft/dogfood-hacks.md, 2.8).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FirstSignIn {
     /// Makes their account.
     MakesAccount,
     /// Makes none: an account already there links once, by its password.
     LinksOnly,
-    /// A box makes or links by name and address, without a password (sign-in.md, 9.9).
+    /// A box makes or links by name and address, without a password (protocol/openid-provider.md, 9).
     LinksByName,
 }
 impl FirstSignIn {
@@ -96,7 +96,7 @@ pub fn instructions(
     ])
 }
 
-/// A box's owned Forgejo alone links the accounts temper made (sign-in.md, 9.9).
+/// A box's owned Forgejo alone links the accounts temper made (protocol/openid-provider.md, 9).
 pub const LINKS_BY_NAME_SETTINGS: &[u8] = b"[oauth2_client]\nENABLE_AUTO_REGISTRATION = true\nUSERNAME = preferred_username\nACCOUNT_LINKING = auto\n[service]\nDISABLE_REGISTRATION = true\nALLOW_ONLY_EXTERNAL_REGISTRATION = true\n";
 
 /// Names and addresses a box's person may not take through automatic linking.
@@ -109,7 +109,7 @@ pub fn refused_person(login: &[u8], email: &[u8]) -> bool {
         || email.eq_ignore_ascii_case(crate::spec::ADMIN_EMAIL)
 }
 
-/// The box retains this outcome for the group's next start request (setup.md, 7.1).
+/// The box retains this outcome for the group's next start request (protocol/setup/box.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Source {
     Added,

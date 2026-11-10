@@ -1,4 +1,4 @@
-//! A cancelled delegate's account and release (temper/docs/design/domain/forge.md, 8.4).
+//! A cancelled delegate's account and release (temper/docs/design/domain/forge/change/repairs.md).
 use super::*;
 use temper_engine_domain_forge_change::{Hold, State};
 

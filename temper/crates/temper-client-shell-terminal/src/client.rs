@@ -1,4 +1,4 @@
-//! Root, view, link and native transport as one host (client/README.md, 6.2).
+//! Root, view, link and native transport as one host (client/line.md, 2).
 use crate::{
     limits,
     route::{self, Down, Duty},

@@ -1,4 +1,4 @@
-//! The brief shares smith's host bound with the rest of its charter (agent.md, 4.3).
+//! The brief shares smith's host bound with the rest of its charter (domain/agent/tools.md).
 #![expect(clippy::disallowed_methods, reason = "fixtures validate the retained UTF-8 prefix")]
 
 use super::{assignment, run};

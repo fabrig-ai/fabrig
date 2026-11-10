@@ -2,7 +2,7 @@ use super::fixtures;
 use crate::{runner_label, v1};
 use skein_lib::{Reader, Writer};
 
-// client/README.md, 8: runner labels have at most 64 bytes.
+// client/engine.md: runner labels have at most 64 bytes.
 const LABEL_BYTES: usize = 64;
 // fixtures::BOUNDS.field_bytes, shared by SetUp and FirstAsk.
 const FIELD_BYTES: usize = 16;

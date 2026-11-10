@@ -161,7 +161,7 @@ fn refresh_after_protected_write(world: &mut World, name: &str) {
 
 #[test]
 fn a_protected_merge_holds_without_retrying() {
-    // A typed protection refusal holds the procedure (temper/docs/design/domain/forge.md, 6).
+    // A typed protection refusal holds the procedure (temper/docs/design/domain/forge/README.md, 4).
     use temper_engine_domain_forge_change as change;
     use temper_engine_forge_world::{
         changes::{change_row, change_step},

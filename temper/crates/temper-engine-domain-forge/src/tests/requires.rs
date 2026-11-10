@@ -1,4 +1,4 @@
-//! Procedure waits from covering landing rules (temper/docs/design/domain/forge.md, 8.7).
+//! Procedure waits from covering landing rules (temper/docs/design/domain/forge/change/gates.md, 2).
 use super::*;
 use crate::settings;
 use skein_lib::List;

@@ -138,7 +138,7 @@ pub(crate) fn source(
     Ok(0)
 }
 
-/// The current issuer's origin and discovery path (sign-in.md, 9.2).
+/// The current issuer's origin and discovery path (protocol/openid-provider.md, 2).
 pub(crate) fn discovery(bytes: &[u8], named: &Named) -> Result<Vec<u8>, String> {
     let document = config::document(
         bytes,

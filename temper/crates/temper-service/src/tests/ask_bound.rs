@@ -1,4 +1,4 @@
-//! Ask temper's first request (temper/docs/design/domain/agent.md, 8.4).
+//! Ask temper's first request (temper/docs/design/domain/agent/ask-temper.md).
 #![expect(
     clippy::disallowed_methods,
     clippy::disallowed_macros,
@@ -15,7 +15,7 @@ use smith_protocol_program::mcp;
 use temper_engine_domain as engine;
 use temper_engine_domain_world::{direct::Driver, protocol, store::Store, walking};
 
-/// What temper gives the first request (temper/docs/design/domain/agent.md, 8.4).
+/// What temper gives the first request (temper/docs/design/domain/agent/ask-temper.md).
 const FIRST_REQUEST_BYTES: u64 = 16_384;
 const ASKING_CHARTER: u32 = 11;
 const ASKING_TEMPLATE: u32 = 5;

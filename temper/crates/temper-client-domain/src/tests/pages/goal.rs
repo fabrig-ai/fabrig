@@ -1,4 +1,4 @@
-//! The goal page's reads and decisions (temper/docs/design/client/README.md, 5.8).
+//! The goal page's reads and decisions (temper/docs/design/client/pages/goal.md, 2).
 use super::{chats::chat_line, fixtures};
 use crate::{
     Address,

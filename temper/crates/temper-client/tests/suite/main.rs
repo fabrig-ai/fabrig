@@ -1,4 +1,4 @@
-//! The client's binary wiring (temper/docs/design/protocol/README.md, section 4).
+//! The client's binary wiring (temper/docs/design/protocol/binaries.md).
 #![forbid(unsafe_code)]
 
 mod help;

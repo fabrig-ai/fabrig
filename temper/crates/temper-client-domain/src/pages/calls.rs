@@ -1,4 +1,4 @@
-//! Call arguments for the work line (temper/docs/design/client/README.md, 3.5).
+//! Call arguments for the work line (temper/docs/design/client/pages/README.md).
 use alloc::boxed::Box;
 use skein_json::{
     Document, Kind, Token,

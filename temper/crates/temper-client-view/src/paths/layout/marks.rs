@@ -1,4 +1,4 @@
-//! Stops, their acts and their words (temper/docs/design/client/README.md, 5.16).
+//! Stops, their acts and their words (temper/docs/design/client/pages/chat/conversation.md, 3).
 
 use super::{Decoded, Layout, Position, judgement};
 use crate::{

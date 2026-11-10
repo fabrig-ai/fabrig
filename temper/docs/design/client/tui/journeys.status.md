@@ -5,7 +5,7 @@
 - **Departs:** 3.2: the committed recordings' `screen` says `dark`, the
   run's fallback when they were recorded, where `again`, in a
   pseudo-terminal with no `COLORFGBG` and no answer to OSC 11, writes
-  `none` (`../README.md`, 6.15, *The scheme*): Auto draws dark for both
+  `none` (`theme.md`, *The scheme*): Auto draws dark for both
   and no journey opens `/theme`'s list, so their frames are the same.
   They say `none` once a journey's change records them again.
 
@@ -40,7 +40,7 @@ count, and the walk's prompt, to the launchpad after the answer. The
 latter two draw the chat's title, its number and `127.0.0.1:PORT` in
 the rule above the box, and their first marks come before Home's facts
 answer, so the launchpad's framed header is empty there
-(`../README.md`, 6.14). None has a band, since the pseudo-terminal
+(`pages.md`). None has a band, since the pseudo-terminal
 leaves the background unanswered. `launchpad-chat`
 catches no growing answer; it establishes no streamed-frame look. No
 journey draws a brief, a goal's row or a sign-off's or money's need,

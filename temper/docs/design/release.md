@@ -66,7 +66,7 @@ file the site serves beside it (5.1). The site that links them is
 - **`temper --version`** (and `temper version`) prints one line,
   `temper VERSION (COMMIT)`, before any configuration is read, exit 0.
   Each of a deployment's binaries prints its own name the same way,
-  `temper-engine VERSION (COMMIT)` (`protocol/README.md`, 4.1).
+  `temper-engine VERSION (COMMIT)` (`protocol/binaries.md`, 1).
 - **VERSION** is the workspace's version in `Cargo.toml`, `0.1.0` at
   v0.1.0's tag and `0.0.0` between releases; **COMMIT** the commit it
   was built from, twelve hex digits, with `-dirty` when the tree had
@@ -82,16 +82,16 @@ file the site serves beside it (5.1). The site that links them is
 
 ## 4. What the machine must have
 
-- **Programs:** git 2.41 or later (`protocol/configuration.md`, 4 and
-  8; `protocol/git.md`, 3); `/usr/bin/rg` and `/bin/sh`, at those paths,
+- **Programs:** git 2.41 or later (`protocol/configuration/README.md`, 3 and
+  6; `protocol/git.md`, 3); `/usr/bin/rg` and `/bin/sh`, at those paths,
   which the agents' machine tools run; `claude`, Claude Code, only for
   Claude (`protocol/credentials.md`, 3).
 - **CA certificates:** the system's, or the file `SSL_CERT_FILE` names,
   for every HTTPS client of temper's alike, the fetch's and the
   providers' and the forges', since no roots are embedded
-  (`protocol/setup.md`, 6.6).
+  (`protocol/setup/owned.md`, 6).
 - **Fetched by the box:** Forgejo and its runner, at the versions and
-  digests skein pins, as `protocol/setup.md` 6.6 fetches them (an
+  digests skein pins, as `protocol/setup/owned.md` 6 fetches them (an
   answer of 200 alone, no redirect followed, or a mirror's address
   given), or given by absolute path.
 - **Checked at the start, as the configuration needs them:** `temper
@@ -99,7 +99,7 @@ file the site serves beside it (5.1). The site that links them is
   starts anything: git, `/usr/bin/rg` and `/bin/sh` where a worker runs
   agents. A missing or too old one stops it with one line naming the
   program, the version found and the one needed; where
-  `protocol/configuration.md` 4 and 8 let a deployment run with a
+  `protocol/configuration/README.md` 3 and 6 let a deployment run with a
   warning, the warning stands. Forgejo's binaries are checked when a
   set up fetches them, and `claude` when a program's source is declared.
   Nothing is installed by temper.
@@ -140,7 +140,7 @@ The site's install line downloads
 `https://fabrig.ai/temper/$(uname -s)-$(uname -m)`, for x86-64 Linux and
 Apple Silicon. Apple Silicon's, `Darwin-arm64`, needs a Mac to build:
 GitHub's hosted `macos-26` runners, free on the public repository, the
-ones `domain/testing.md`, 2.8 runs on. It is the site's file, not a
+ones `testing/README.md`, 2.8 runs on. It is the site's file, not a
 release's: no tag names it, and the workflow writes no checksum.
 
 - **One workflow,** `.github/workflows/release-macos.yml`, beside
@@ -150,7 +150,7 @@ release's: no tag names it, and the workflow writes no checksum.
   uses no secret and writes nothing to the repository.
 - **Its toolchain:** Rust at the workspace's `rust-version`, installed
   as `macos.yml` installs it, with the `wasm32-unknown-unknown` target
-  the browser's bundle needs (`client/browser.md`, 2.6). Its actions
+  the browser's bundle needs (`client/web/README.md`, 2.6). Its actions
   are pinned by full commit, the version in a comment, as `macos.yml`'s
   are.
 - **Its cache:** the registry may be restored by `macos.yml`'s keys,

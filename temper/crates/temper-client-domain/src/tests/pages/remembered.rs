@@ -1,4 +1,4 @@
-//! Requests and the page after each answer (temper/docs/design/client/README.md, 5.17).
+//! Requests and the page after each answer (temper/docs/design/client/pages/remembered.md).
 use super::{accounts::deliver, fixtures};
 use crate::{
     Address,

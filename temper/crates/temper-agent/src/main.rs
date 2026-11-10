@@ -1,4 +1,4 @@
-//! The deployment's agent entry point (temper/docs/design/protocol/README.md, 4.3).
+//! The deployment's agent entry point (temper/docs/design/protocol/binaries.md, 3).
 #![forbid(unsafe_code)]
 
 mod entry;

@@ -1,4 +1,4 @@
-//! Review delivery and cancellation through bytes (temper/docs/design/domain/testing.md, 2.5).
+//! Review delivery and cancellation through bytes (temper/docs/design/testing/README.md, 2.5).
 use crate::{
     ctl::{Caller, Command},
     fixtures,

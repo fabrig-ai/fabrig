@@ -1,9 +1,9 @@
-// A third world: a person's first run, after `temper box` (setup.md, 8.2
-// to 8.4). The default document's deployment: one project, the chat and
+// A third world: a person's first run, after `temper box` (protocol/setup/init.md, 2 and protocol/setup/playground.md
+// ). The default document's deployment: one project, the chat and
 // coding charters, one worker in temper's process, three forges (the
 // demo's fake, GitHub, an owned Forgejo not set up). The welcome offers
 // the playground or real setup; neither has started yet. The scripted model plays
-// its scripts, so every word an agent writes here is setup.md 8.4's. Times are minutes from Thursday
+// its scripts, so every word an agent writes here is protocol/setup/playground.md's. Times are minutes from Thursday
 // 22 October, 21:00 UTC.
 (function () {
   const MOCKUPS = window.MOCKUPS = window.MOCKUPS || { worlds: {} };
@@ -16,7 +16,7 @@
       now: 0,
       person: 'Sam',
       // The project `temper init` seeds, unnamed, so "Project 1"
-      // (setup.md, 8.3); with none until the playground's start or the
+      // (protocol/setup/init.md, 3); with none until the playground's start or the
       // first repository makes one (draft archive/first-run.md, 2.4), its
       // place reads "No project yet", under View → Future.
       project: 'Project 1',
@@ -29,7 +29,7 @@
         allotment: 100,
         ops: false,
         // The default document's providers: OpenAI, by its ChatGPT sign-in
-        // and by keys (setup.md, 8.1), and the playground's. The ways are
+        // and by keys (protocol/setup/init.md, 1), and the playground's. The ways are
         // client README 5.5's, the playground's provider left out.
         ways: ['Continue with ChatGPT', 'Use an API key'],
         providers: ['OpenAI'],
@@ -37,7 +37,7 @@
       },
 
       // The playground, as the forge's side reads it (client README, 4.8), and
-      // its cues, copied in (setup.md, 8.4). Each cue the mockup plays is
+      // its cues, copied in (protocol/setup/playground.md). Each cue the mockup plays is
       // drawn at a step.
       demo: {
         state: 'not started', provider: 'Playground', forge: 1, repo: 'widget',
@@ -47,7 +47,7 @@
 
       repos: {},
 
-      // The default document's forges, by number (setup.md, 8.3).
+      // The default document's forges, by number (protocol/setup/init.md, 3).
       forges: [
         { n: 1, kind: 'Forgejo', name: 'Playground forge', web: 'http://127.0.0.1:8369', mode: 'fake', state: 'not started' },
         { n: 2, kind: 'GitHub', web: 'https://github.com', mode: 'connected', state: 'not connected' },
@@ -129,8 +129,8 @@
           title: "Export widget's table as CSV", by: 'T1', kind: 'change', parent: 'T1', repo: 'widget',
           stage: 'producing', made: 1, at: id,
         };
-        // Its brief is the change's title, the delegate's words (setup.md,
-        // 8.4), so its chip is that title too.
+        // Its brief is the change's title, the delegate's words (protocol/setup/playground.md
+        // ), so its chip is that title too.
         w.tasks.T3 = {
           title: "Export widget's table as CSV", by: 'T2', briefBy: 'T1', charter: 'coding', parent: 'T2',
           model: 'Scripted model', account: 'Playground', hostKind: 'workers', worker: 'worker',
@@ -183,7 +183,7 @@
     },
     {
       id: '4', label: '4', hour: 6 / 60, act: 1, title: 'A text-only request',
-      summary: 'Back on the playground’s start, Sam picks “Add a dark theme to widget”. Its script is one turn: an answer in words, then finish, as setup.md 8.4 has it. A chat is ended by its requester, so finish ends only the turn: T4 waits at rest for Sam’s next words, its composer with it, as T1 does.',
+      summary: 'Back on the playground’s start, Sam picks “Add a dark theme to widget”. Its script is one turn: an answer in words, then finish, as protocol/setup/playground.md has it. A chat is ended by its requester, so finish ends only the turn: T4 waits at rest for Sam’s next words, its composer with it, as T1 does.',
       look: [
         ['chat.html?task=T4', 'T4: answered, at rest, its composer open'],
         ['chats.html', 'Chats: T1 and T4 at rest'],
@@ -223,7 +223,7 @@
     },
     {
       id: '5', label: '5', hour: 15 / 60, act: 2, title: 'A model connected',
-      summary: 'Sam follows the banner’s “Connect a model”, chooses ChatGPT, and finishes the sign-in by pasting from the browser on another computer. Another provider’s account is usable, so the model’s half of the playground ends: the banner says a playground forge alone, the chats page is a chats page, and T1’s next run takes the first of its charter’s models with an account, gpt-6.1-sol on the ChatGPT plan (setup.md, 8.3). The scripted model steps aside: it is gone from Accounts.',
+      summary: 'Sam follows the banner’s “Connect a model”, chooses ChatGPT, and finishes the sign-in by pasting from the browser on another computer. Another provider’s account is usable, so the model’s half of the playground ends: the banner says a playground forge alone, the chats page is a chats page, and T1’s next run takes the first of its charter’s models with an account, gpt-6.1-sol on the ChatGPT plan (protocol/setup/init.md, 3). The scripted model steps aside: it is gone from Accounts.',
       look: [
         ['connect-model.html?way=chatgpt', 'Connect a model: signed in to ChatGPT'],
         ['accounts.html', 'Accounts: ChatGPT · sam@example.com, folded; the scripted model gone'],

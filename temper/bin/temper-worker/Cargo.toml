@@ -1,6 +1,6 @@
 [package]
 name = "temper-worker"
-description = "The deployment's worker (temper/docs/design/protocol/README.md, 4.5)"
+description = "The deployment's worker (temper/docs/design/protocol/binaries.md, 5)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

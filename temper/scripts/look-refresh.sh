@@ -2,7 +2,7 @@
 # Keep whichever of look-requests and tui-requests is checked out on
 # origin/main, dropping requests whose
 # Look-request names main carries, then push with the checkout's old lease.
-# Implements docs/design/client/journeys.md, section 7, and
+# Implements docs/design/client/web/journeys.md, section 7, and
 # docs/design/client/tui/journeys.md, section 10.
 #
 # Takes no arguments; runs in the current checkout, never fetches requests.

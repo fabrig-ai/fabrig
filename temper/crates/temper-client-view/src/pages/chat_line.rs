@@ -1,4 +1,4 @@
-//! A run of calls and its rows (temper/docs/design/client/README.md, 3.5).
+//! A run of calls and its rows (temper/docs/design/client/pages/README.md).
 use crate::{
     look,
     words::{Shell, Word, Words},
@@ -15,7 +15,7 @@ struct Call<'a> {
     touched: Touched,
     summary: Option<&'a c::Text>,
 }
-/// A run of calls (temper/docs/design/client/README.md, 3.5, its calls).
+/// A run of calls (temper/docs/design/client/pages/README.md, its calls).
 #[derive(Debug)]
 pub struct Run<'a> {
     calls: List<Call<'a>>,
@@ -24,7 +24,7 @@ pub struct Run<'a> {
     last: Option<Wall>,
 }
 impl<'a> Run<'a> {
-    /// Starts an empty run within the conversation window (temper/docs/design/client/README.md, 3.5, its calls).
+    /// Starts an empty run within the conversation window (temper/docs/design/client/pages/README.md, its calls).
     #[must_use]
     pub fn with_capacity(calls: u32) -> Self {
         Self { calls: List::with_capacity(calls), first: None, key: None, last: None }
@@ -32,7 +32,7 @@ impl<'a> Run<'a> {
     pub(crate) fn key(&mut self, key: Key) {
         self.key.get_or_insert(key);
     }
-    /// Adds an ended call at its activity time (temper/docs/design/client/README.md, 3.5, its calls).
+    /// Adds an ended call at its activity time (temper/docs/design/client/pages/README.md, its calls).
     pub fn call(&mut self, call: &'a c::Call, at: Wall, since: Option<Wall>) {
         self.first.get_or_insert(since.unwrap_or(at));
         self.last = Some(at);
@@ -40,7 +40,7 @@ impl<'a> Run<'a> {
             .push(Call { source: call, summary: None, touched: calls::touched(call.tool.bytes(), call.input.bytes()) })
             .expect("window bounds run calls");
     }
-    /// Whether this run holds the numbered call (temper/docs/design/client/README.md, 3.5, its calls).
+    /// Whether this run holds the numbered call (temper/docs/design/client/pages/README.md, its calls).
     #[must_use]
     pub fn has_call(&self, number: u64) -> bool {
         for call in &self.calls {
@@ -50,7 +50,7 @@ impl<'a> Run<'a> {
         }
         false
     }
-    /// Adds the summary of a call whose result followed it (temper/docs/design/client/README.md, 3.5, its calls).
+    /// Adds the summary of a call whose result followed it (temper/docs/design/client/pages/README.md, its calls).
     pub fn result(&mut self, call: u64, summary: &'a c::Text) {
         for row in self.calls.iter_mut().rev() {
             if row.source.number == call {
@@ -59,12 +59,12 @@ impl<'a> Run<'a> {
             }
         }
     }
-    /// Whether no ended call is held (temper/docs/design/client/README.md, 3.5, its calls).
+    /// Whether no ended call is held (temper/docs/design/client/pages/README.md, its calls).
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.calls.is_empty()
     }
-    /// The run's words, emptied after reading (temper/docs/design/client/README.md, 3.5, its calls).
+    /// The run's words, emptied after reading (temper/docs/design/client/pages/README.md, its calls).
     pub fn line(
         &mut self,
         current: Option<&c::CurrentCall>,
@@ -525,7 +525,7 @@ fn joined(parts: &[&[u8]]) -> Box<[u8]> {
 }
 
 // The phrase book's declarations live in words.rs. These literal phrases keep its
-// fixed capacities while sharing the run's words (README.md, 3.5, its calls).
+// fixed capacities while sharing the run's words (client/pages/README.md, its calls).
 #[derive(Clone, Copy)]
 enum SeeCount {
     Calls,

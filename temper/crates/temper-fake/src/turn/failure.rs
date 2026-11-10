@@ -1,4 +1,4 @@
-//! Standalone failing lines, one for each skein error (protocol/setup.md, 8.4).
+//! Standalone failing lines, one for each skein error (protocol/setup/playground.md).
 use crate::{Refusal, read};
 use jig_protocol_config::Path;
 use skein_fake_llm_domain::api::{Error, Line, Report};

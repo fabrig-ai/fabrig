@@ -1,4 +1,4 @@
-//! A managed forge, its one-shot admin token and first repository (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5).
+//! A managed forge, its one-shot admin token and first repository (temper/docs/design/client/forge/deployment.md; temper/docs/design/client/pages/README.md).
 use super::{Limits, Request, Served, Side, forges, github};
 use alloc::boxed::Box;
 use jig_client::{Ask, Event, Family, Key, Told, contract as c};

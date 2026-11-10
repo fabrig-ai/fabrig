@@ -1,4 +1,4 @@
-//! Project adoption release (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge.md, 4.1).
+//! Project adoption release (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption.md, 1).
 use super::*;
 
 fn release(d: &mut Domain, project: u32) -> Box<[Request]> {

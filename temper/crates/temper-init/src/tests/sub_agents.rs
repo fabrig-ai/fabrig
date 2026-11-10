@@ -1,4 +1,4 @@
-//! Stock concurrency through Smith's domain (temper/docs/design/protocol/setup.md, 8.1;
+//! Stock concurrency through Smith's domain (temper/docs/design/protocol/setup/init.md, 1;
 //! smith/docs/design/domain/session.md, 5; smith/docs/design/protocol/limits.md, 2.3).
 
 #![expect(clippy::disallowed_methods, reason = "ordinary Rust test code traverses fake provider observations")]

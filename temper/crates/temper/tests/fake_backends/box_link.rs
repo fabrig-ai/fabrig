@@ -1,4 +1,4 @@
-//! Real-box terminal stories (temper/docs/design/protocol/setup.md, 7.2 and 13.4).
+//! Real-box terminal stories (temper/docs/design/protocol/setup/box.md, 2, and temper/docs/design/protocol/setup/testing.md, 4).
 use crate::support::{self, parent::Guard};
 use skein_io::kernel::{Complete, Done, Fd, Op, Submit};
 use skein_lib::{Queue, Time, Token, Wall};

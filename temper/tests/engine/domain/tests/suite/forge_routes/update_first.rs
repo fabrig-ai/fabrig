@@ -1,4 +1,4 @@
-//! A head already behind takes its base before CI (temper/docs/design/domain/forge.md, 8.2, step 3).
+//! A head already behind takes its base before CI (temper/docs/design/domain/forge/change/README.md, 2, step 3).
 use super::early_start::{make, observe_push, push, stop};
 use super::goal_branch::{branch_tip, goal_request};
 use super::light_rules::change_row;

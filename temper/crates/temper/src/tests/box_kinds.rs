@@ -1,4 +1,4 @@
-//! The box's held listeners and slot boundaries (temper/docs/design/protocol/setup.md, 7.1).
+//! The box's held listeners and slot boundaries (temper/docs/design/protocol/setup/box.md, 1).
 use crate::directories::jig_directories;
 use crate::forge::remove_directory;
 use std::fs;

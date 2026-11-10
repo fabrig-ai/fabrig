@@ -1,4 +1,4 @@
-//! The forges this service serves, kept while it runs (temper/docs/design/protocol/forge.md, 2.2).
+//! The forges this service serves, kept while it runs (temper/docs/design/protocol/forge/engine.md, 2).
 use crate::settings::Forge;
 use alloc::boxed::Box;
 use skein_lib::{List, Map};
@@ -97,7 +97,7 @@ impl<'a> Iterator for Iter<'a> {
     }
 }
 
-/// Record-driven runtime membership (temper/docs/design/protocol/forge.md, 2.2).
+/// Record-driven runtime membership (temper/docs/design/protocol/forge/engine.md, 2).
 pub(crate) fn record(engine: &mut crate::engine::Engine, record: temper_engine_domain_forge::ForgeRecord) {
     if !engine.store.host.mark_durable() {
         engine.forge_records.pending.push(record);
@@ -205,7 +205,7 @@ fn record_address(host: Box<[u8]>, port: u16) -> jig_protocol_config::Address {
     }
 }
 
-/// A kept record admits its endpoint (temper/docs/design/protocol/forge.md, 2.2).
+/// A kept record admits its endpoint (temper/docs/design/protocol/forge/engine.md, 2).
 pub(crate) fn keep(engine: &mut crate::engine::Engine, forge: Forge) -> bool {
     let number = forge.number;
     let host = match &forge.api {

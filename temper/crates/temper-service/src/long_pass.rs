@@ -1,4 +1,4 @@
-//! A long pass of the service's loop (protocol/README.md, 8.1).
+//! A long pass of the service's loop (protocol/README.md, 6.1).
 use crate::Stage;
 use skein_lib::{Duration, Time};
 

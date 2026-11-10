@@ -1,5 +1,5 @@
 //! A project's stock ways, drawn on Ask temper's page and How work runs
-//! (temper/docs/design/client/README.md, 3.5, 5.13 and 5.16).
+//! (temper/docs/design/client/pages/README.md and temper/docs/design/client/pages/settings.md, 2 and temper/docs/design/client/pages/chat/conversation.md, 3).
 use crate::{
     frame::Bindings,
     look, paths,

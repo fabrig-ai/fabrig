@@ -1,4 +1,4 @@
-//! One root input per pass, with completions passing held new work (protocol/README.md, 6).
+//! One root input per pass, with completions passing held new work (protocol/README.md, 4).
 mod diagnostics;
 use crate::{CoreWait, End, route, stop, store::route::Up};
 use alloc::boxed::Box;
@@ -649,7 +649,7 @@ pub(crate) fn release(engine: &mut Engine) {
     stop::advance(engine);
 }
 
-/// A full diagnostic sink leaves the batch ahead of the next release (protocol/README.md, 15.3).
+/// A full diagnostic sink leaves the batch ahead of the next release (protocol/cluster.md, 3).
 fn dispatch(engine: &mut Engine) -> bool {
     for _ in 0..engine.requests.len() {
         if engine.notes.room() == 0 {

@@ -1,4 +1,4 @@
-//! Deployment's project members (temper/docs/design/client/README.md, 3.5, Members).
+//! Deployment's project members (temper/docs/design/client/pages/README.md, Members).
 use super::Request;
 use crate::owner::Owner;
 use alloc::boxed::Box;

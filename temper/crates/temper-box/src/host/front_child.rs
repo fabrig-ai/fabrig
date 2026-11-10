@@ -1,4 +1,4 @@
-//! The box's front is a child beside its steps (temper/docs/design/protocol/setup.md, 7.6).
+//! The box's front is a child beside its steps (temper/docs/design/protocol/setup/box.md, 6).
 use super::{
     Duration, Exit, Front, Input, LINE_BYTES, List, Outcome, Pipe, Queue, Read, Request, Secret, Service, Sink, Tail,
     Time, Token, Up, kernel, lines, pipe, spawn_arguments, spawn_environment,

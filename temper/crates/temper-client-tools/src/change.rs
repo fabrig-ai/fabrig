@@ -1,4 +1,4 @@
-//! A change's way to landing, using the browser's panel (client/tools.md, 5.4).
+//! A change's way to landing, using the browser's panel (client/ctl/tools.md, 4).
 use crate::{
     jig::{
         self,

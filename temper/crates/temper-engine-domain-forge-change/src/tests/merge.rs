@@ -1,4 +1,4 @@
-//! Merge jobs and catch-ups (temper/docs/design/domain/forge.md, 8.4).
+//! Merge jobs and catch-ups (temper/docs/design/domain/forge/change/repairs.md).
 use super::*;
 
 fn catch_up(requested: bool) -> (Change, Facts) {
@@ -13,7 +13,7 @@ fn catch_up(requested: bool) -> (Change, Facts) {
     (c, f)
 }
 
-/// A conflict uses the job where available under either rule (temper/docs/design/domain/forge.md, 8.4).
+/// A conflict uses the job where available under either rule (temper/docs/design/domain/forge/change/repairs.md).
 #[test]
 fn a_conflict_with_a_merge_job_goes_to_the_job_before_a_resolution() {
     for updates in [true, false] {
@@ -48,7 +48,7 @@ fn a_conflict_with_a_merge_job_goes_to_the_job_before_a_resolution() {
     }
 }
 
-/// A refused merge resolves against the last read base (temper/docs/design/domain/forge.md, 8.4).
+/// A refused merge resolves against the last read base (temper/docs/design/domain/forge/change/repairs.md).
 #[test]
 fn a_refused_merge_goes_to_the_merge_job_at_once() {
     for updates in [true, false] {
@@ -74,7 +74,7 @@ fn a_refused_merge_goes_to_the_merge_job_at_once() {
     }
 }
 
-/// A failed merge holds for a person (temper/docs/design/domain/forge.md, 6).
+/// A failed merge holds for a person (temper/docs/design/domain/forge/README.md, 4).
 #[test]
 fn a_failed_merge_effect_holds_until_released() {
     let mut c = change(State::Landing { head: HEAD });
@@ -90,7 +90,7 @@ fn a_failed_merge_effect_holds_until_released() {
     assert_eq!(decide(&next.change, &f, &heard()).decision, Decision::None);
 }
 
-/// A pushed merge starts checking with no clean history (temper/docs/design/domain/forge.md, 8.4).
+/// A pushed merge starts checking with no clean history (temper/docs/design/domain/forge/change/repairs.md).
 #[test]
 fn a_merge_job_that_pushed_moves_the_change_on_from_its_merge() {
     let mut c = change(State::Resolving { requested: true, base: BASE });
@@ -109,7 +109,7 @@ fn a_merge_job_that_pushed_moves_the_change_on_from_its_merge() {
     assert!(!next.change.owns_turn);
 }
 
-/// Job then resolution counts the conflict once (temper/docs/design/domain/forge.md, 8.4).
+/// Job then resolution counts the conflict once (temper/docs/design/domain/forge/change/repairs.md).
 #[test]
 fn a_merge_job_that_left_conflicts_makes_a_resolution_of_the_same_base() {
     let mut c = change(State::Updating { from: HEAD, base: BASE, ready_since: at(0) });
@@ -135,7 +135,7 @@ fn a_merge_job_that_left_conflicts_makes_a_resolution_of_the_same_base() {
     assert_eq!(pushed.change.resolutions, LIMITS.resolutions);
 }
 
-/// A job's terminal failure holds as a resolution's does (temper/docs/design/domain/forge.md, 8.4).
+/// A job's terminal failure holds as a resolution's does (temper/docs/design/domain/forge/change/repairs.md).
 #[test]
 fn a_failed_merge_job_holds_the_resolution() {
     let mut c = change(State::Resolving { requested: true, base: BASE });
@@ -148,7 +148,7 @@ fn a_failed_merge_job_holds_the_resolution() {
     assert_eq!(next.change.resolutions, 1);
 }
 
-/// Unknown results and missing branch reads wait (temper/docs/design/domain/forge.md, 8.4).
+/// Unknown results and missing branch reads wait (temper/docs/design/domain/forge/change/repairs.md).
 #[test]
 fn a_merge_job_waits_for_its_result_and_a_branch_read() {
     let c = change(State::Resolving { requested: true, base: BASE });
@@ -164,7 +164,7 @@ fn a_merge_job_waits_for_its_result_and_a_branch_read() {
     assert_eq!(decide(&c, &f, &h).decision, Decision::Wait { until: Some(at(30)) });
 }
 
-/// Jobs obey the same conflict bound at every entrance (temper/docs/design/domain/forge.md, 8.4).
+/// Jobs obey the same conflict bound at every entrance (temper/docs/design/domain/forge/change/repairs.md).
 #[test]
 fn a_merge_job_past_the_resolution_bound_holds() {
     for state in [
@@ -182,7 +182,7 @@ fn a_merge_job_past_the_resolution_bound_holds() {
     }
 }
 
-/// Asking a resolution again does not ask a job (temper/docs/design/domain/forge.md, 8.4).
+/// Asking a resolution again does not ask a job (temper/docs/design/domain/forge/change/repairs.md).
 #[test]
 fn a_resolution_asked_again_is_not_a_merge_job() {
     let c = change(State::Resolving { requested: false, base: BASE });
@@ -194,7 +194,7 @@ fn a_resolution_asked_again_is_not_a_merge_job() {
     assert_eq!(next.change.resolutions, 0);
 }
 
-/// A turn's prepare conflict is its queue's business (temper/docs/design/domain/forge.md, 8.4).
+/// A turn's prepare conflict is its queue's business (temper/docs/design/domain/forge/change/repairs.md).
 #[test]
 fn a_turn_prepare_conflict_still_goes_to_a_resolution() {
     let mut c = change(State::Preparing { from: HEAD, main: BASE, ready_since: at(0) });
@@ -206,7 +206,7 @@ fn a_turn_prepare_conflict_still_goes_to_a_resolution() {
     assert_eq!(next.change.resolutions, 1);
 }
 
-/// Containment ends a catch-up with its commit in words (temper/docs/design/domain/forge.md, 8.4).
+/// Containment ends a catch-up with its commit in words (temper/docs/design/domain/forge/change/repairs.md).
 #[test]
 fn a_catch_up_already_contained_ends_with_no_change() {
     let sha1 = [
@@ -228,7 +228,7 @@ fn a_catch_up_already_contained_ends_with_no_change() {
     }
 }
 
-/// A catch-up asks a merge job without counting a conflict (temper/docs/design/domain/forge.md, 8.4).
+/// A catch-up asks a merge job without counting a conflict (temper/docs/design/domain/forge/change/repairs.md).
 #[test]
 fn a_catch_ups_producer_is_the_merge_job() {
     let (mut c, f) = catch_up(false);
@@ -241,7 +241,7 @@ fn a_catch_ups_producer_is_the_merge_job() {
     assert_eq!(decide(&next.change, &f, &heard()).decision, Decision::Wait { until: Some(at(30)) });
 }
 
-/// A catch-up waits for its containment read (temper/docs/design/domain/forge.md, 8.4).
+/// A catch-up waits for its containment read (temper/docs/design/domain/forge/change/repairs.md).
 #[test]
 fn a_catch_up_waits_until_containment_is_known() {
     let (c, mut f) = catch_up(false);
@@ -253,7 +253,7 @@ fn a_catch_up_waits_until_containment_is_known() {
     }
 }
 
-/// A catch-up's pushed branch goes to opening (temper/docs/design/domain/forge.md, 8.4).
+/// A catch-up's pushed branch goes to opening (temper/docs/design/domain/forge/change/repairs.md).
 #[test]
 fn a_catch_up_opens_the_branch_its_job_or_resolution_pushed() {
     for delegate in [Delegate::Merge { base: BASE, from: None }, Delegate::Resolve { base: BASE }] {
@@ -269,7 +269,7 @@ fn a_catch_up_opens_the_branch_its_job_or_resolution_pushed() {
     }
 }
 
-/// A catch-up's unresolved job asks one counted resolution (temper/docs/design/domain/forge.md, 8.4).
+/// A catch-up's unresolved job asks one counted resolution (temper/docs/design/domain/forge/change/repairs.md).
 #[test]
 fn a_catch_up_job_that_left_conflicts_makes_one_resolution() {
     let (c, mut f) = catch_up(true);
@@ -290,7 +290,7 @@ fn a_catch_up_job_that_left_conflicts_makes_one_resolution() {
     assert_eq!(no_push.change.resolutions, 1);
 }
 
-/// The catch-up's resolution is bounded too (temper/docs/design/domain/forge.md, 8.4).
+/// The catch-up's resolution is bounded too (temper/docs/design/domain/forge/change/repairs.md).
 #[test]
 fn a_catch_up_resolution_obeys_the_resolution_bound() {
     let (mut c, mut f) = catch_up(true);
@@ -306,7 +306,7 @@ fn a_catch_up_resolution_obeys_the_resolution_bound() {
     assert_eq!(held.change.state, State::Held { was: Box::new(c.state), why: Hold::Resolutions });
 }
 
-/// A failed catch-up job holds as a failed producer does (temper/docs/design/domain/forge.md, 8.4).
+/// A failed catch-up job holds as a failed producer does (temper/docs/design/domain/forge/change/repairs.md).
 #[test]
 fn a_failed_catch_up_job_holds_the_producer() {
     let (c, mut f) = catch_up(true);

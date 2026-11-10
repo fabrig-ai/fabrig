@@ -14,7 +14,7 @@ deferred in section 11; a connector's retained commits do not widen the
 tasks handed from the public index (`public-reading.md`, 3, 9).
 `public-reading.md`, section 3's title decision is carried by temper's publication help and
 completed ctl answer. No acknowledgement precedes `SetVisibility`; that
-client step remains deferred in temper's `client/tools.md`, section 14.
+client step remains deferred in temper's `client/ctl/README.md`, section 11.
 
 - **Departs:** 5, 7: the person's own answer is off by default, behind
   `Core::person_answers()` (`jig-domain-core/src/inbox.rs`), because

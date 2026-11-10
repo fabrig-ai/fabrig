@@ -1,4 +1,4 @@
-//! A change waiting on a forge review (temper/docs/design/client/forge.md, 4.1).
+//! A change waiting on a forge review (temper/docs/design/client/forge/README.md, 4.1).
 use super::ask;
 use crate::{
     forge_sign_in::Forges,

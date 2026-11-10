@@ -1,4 +1,4 @@
-//! Stable forge effect identities (domain/forge.md, section 6).
+//! Stable forge effect identities (domain/forge/README.md, section 4).
 use alloc::boxed::Box;
 use skein_lib::List;
 

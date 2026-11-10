@@ -1,4 +1,4 @@
-//! Pull addresses shared by landing words and change panels (client/forge.md, 9.2).
+//! Pull addresses shared by landing words and change panels (client/forge/served.md, 2).
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Writer};
 
@@ -42,7 +42,7 @@ pub fn pull_address(
 }
 
 /// Keep the git authority used by repository resource names, including its port
-/// (temper/docs/design/protocol/configuration.md, 13.7).
+/// (temper/docs/design/protocol/configuration/settings.md, 6).
 #[must_use]
 pub fn host(git: &[u8]) -> Box<[u8]> {
     let Some(start) = skein_lib::bytes::find(git, b"://") else { return Box::default() };

@@ -460,7 +460,7 @@ fn title(b: &mut Builder, value: &[u8]) {
     b.text(Run::Plain, value);
     b.close();
 }
-/// The card's prose without its controls or decision facts (client/README.md, 3.5).
+/// The card's prose without its controls or decision facts (client/pages/README.md).
 pub(crate) fn card_words(page: &ReadValue) -> Box<[u8]> {
     let (title, spec) = match page {
         ReadValue::Question(question) => return question.words.bytes().into(),

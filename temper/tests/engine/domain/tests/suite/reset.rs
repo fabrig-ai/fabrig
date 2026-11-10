@@ -1,4 +1,4 @@
-//! Reset crash cuts (temper/docs/design/protocol/setup.md, 8.4; temper/docs/design/domain/forge.md, 18).
+//! Reset crash cuts (temper/docs/design/protocol/setup/playground.md; temper/docs/design/domain/forge/README.md, 10).
 use jig_domain_accounts as accounts;
 use jig_domain_core as core;
 use jig_domain_people as people;

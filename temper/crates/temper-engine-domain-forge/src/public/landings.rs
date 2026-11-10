@@ -1,4 +1,4 @@
-//! Public landings and queues (temper/docs/design/client/forge.md, 11.2–11.3).
+//! Public landings and queues (temper/docs/design/client/forge/README.md, 9.2–9.3).
 use super::{Names, PublicAsk, phase, w};
 use crate::{Domain, Limits};
 use alloc::boxed::Box;

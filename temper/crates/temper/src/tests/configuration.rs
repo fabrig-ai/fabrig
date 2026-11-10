@@ -12,7 +12,7 @@ use temper_service::startup::{self, members};
 type Renderer = fn(&[u8], &mut Writer) -> Result<(), skein_lib::Overflow>;
 
 pub(super) fn init_document() -> Box<[u8]> {
-    // setup.md, 8.2: fixed starting ports and deterministic facts for the reference rendering.
+    // protocol/setup/init.md, 2: fixed starting ports and deterministic facts for the reference rendering.
     let ports = [8367, 8368, 8369, 8370, 8371].map(|port| NonZeroU16::new(port).expect("fixed nonzero port"));
     let facts = temper_init::Facts {
         sign_in: true,

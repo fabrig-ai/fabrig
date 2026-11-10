@@ -94,7 +94,7 @@ pub(super) fn run(runner: Option<&Path>, f: &Fixture, h: &mut Hosted, facts: &mu
     actions(runner, f, h, facts)?;
     facts.push(h.observe("component-read-file", repo, Read::File { head, path: bytes("file-0.txt"), max_bytes: 4 }.operation(), |a| matches!(a, Answer::File { head: got, path, bytes, truncated: true } if *got == head && path.as_ref() == b"file-0.txt" && bytes.as_ref() == b"file")));
     let protection = h.call(repo, Read::Protection { branch: bytes("main") }.operation());
-    // protocol/forge.md 3.2 explicitly maps a writer's protection refusal to Forbidden.
+    // temper/docs/design/protocol/forge/README.md 2.2 explicitly maps a writer's protection refusal to Forbidden.
     facts.push(super::fact("component-read-protection", protection == Err(api::Error::Forbidden), &protection));
     facts.push(h.observe(
         "component-read-settings",

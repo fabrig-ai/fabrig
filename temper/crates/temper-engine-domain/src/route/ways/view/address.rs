@@ -1,4 +1,4 @@
-//! View addresses use ASCII spaces (temper/docs/design/client/README.md, 5.16).
+//! View addresses use ASCII spaces (temper/docs/design/client/pages/chat/conversation.md, 3).
 use alloc::boxed::Box;
 use jig_domain_people::Proposer;
 use skein_lib::{List, bytes};

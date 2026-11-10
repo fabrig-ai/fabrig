@@ -1,5 +1,5 @@
 //! Temper's settings file values and codec records
-//! (temper/docs/design/client/tools.md, 5.3; temper/docs/design/protocol/configuration.md, 13.2).
+//! (temper/docs/design/client/ctl/tools.md, 3; temper/docs/design/protocol/configuration/settings.md, 2).
 use crate::file::{Decoder, Error, Fields, error, field, optional};
 use crate::view as c;
 use alloc::boxed::Box;

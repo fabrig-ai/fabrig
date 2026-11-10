@@ -1,5 +1,5 @@
 //! Branch-relative patterns share full resource paths' exact and open matching
-//! (temper/docs/design/protocol/configuration.md, 13.2 and 13.3).
+//! (temper/docs/design/protocol/configuration/settings.md, 2 and 3).
 use skein_lib::Rng;
 use temper_engine_domain_forge::{GateLast, GatePattern, Repository, covers_branch};
 use temper_engine_forge_world::{REPO, World};

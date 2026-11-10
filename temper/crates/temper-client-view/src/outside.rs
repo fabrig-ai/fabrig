@@ -1,5 +1,5 @@
 //! The frame and the column outside a project
-//! (temper/docs/design/client/README.md, 5.1; temper/docs/design/client/browser.md, 2.5).
+//! (temper/docs/design/client/view.md, 1; temper/docs/design/client/web/look.md).
 use crate::{
     look,
     words::{Word, Words},
@@ -30,7 +30,7 @@ pub(crate) fn words(b: &mut Builder, words: &Words, word: Word, holes: &[Hole]) 
 
 /// The welcome's line between the brand and the steps: what temper box is
 /// for, and where running temper on a server is told
-/// (`temper/docs/design/client/README.md`, 3.5).
+/// (`temper/docs/design/client/pages/README.md`).
 fn box_line(builder: &mut Builder, words: &Words) {
     use crate::words::Word;
     let name = words.say(Word::WelcomeBoxName, &[]);
@@ -49,7 +49,7 @@ fn box_line(builder: &mut Builder, words: &Words) {
     builder.close();
 }
 
-/// The top bar outside a project (temper/docs/design/client/README.md, 5.1).
+/// The top bar outside a project (temper/docs/design/client/view.md, 1).
 #[expect(clippy::collapsible_if, reason = "the welcome keeps its deployment content separate from the shared end")]
 pub(crate) fn top(
     b: &mut Builder,
@@ -130,7 +130,7 @@ fn status(b: &mut Builder, said: &[u8], style: Option<Style>) {
 }
 
 /// `me` is being read where the page needs it: the page draws the top bar alone
-/// (temper/docs/design/client/README.md, 5.1).
+/// (temper/docs/design/client/view.md, 1).
 pub(crate) fn reading_me(root: &temper_client_domain::Domain, words: &Words, ways: &crate::sign_in::Ways) -> bool {
     crate::frame::unavailable(root).is_none()
         && root.authorization().is_none()
@@ -139,7 +139,7 @@ pub(crate) fn reading_me(root: &temper_client_domain::Domain, words: &Words, way
         && root.pages().me(root.client()).is_none()
 }
 
-/// The deployment has answered and the person has no project (client/README.md, 3.5).
+/// The deployment has answered and the person has no project (client/pages/README.md).
 pub(crate) fn no_project(root: &temper_client_domain::Domain) -> bool {
     if let temper_client_domain::Address::Welcome { .. } = root.pages().address() {
         return false;
@@ -147,7 +147,7 @@ pub(crate) fn no_project(root: &temper_client_domain::Domain) -> bool {
     root.pages().me(root.client()).is_some() && root.pages().project().is_none() && root.forge().deployment().is_some()
 }
 
-/// The first project's form or the welcome's acts (temper/docs/design/client/README.md, 3.5).
+/// The first project's form or the welcome's acts (temper/docs/design/client/pages/README.md).
 pub(crate) fn no_project_main(
     b: &mut Builder,
     root: &temper_client_domain::Domain,

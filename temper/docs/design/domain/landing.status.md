@@ -4,7 +4,7 @@
 
 Section 13.1 has no known gap in what a branch's path reads: the
 project's `by`, and each repository's gates and tiers with the branch
-each follows, as the forge holds them (`forge.md`, 8.13).
+each follows, as the forge holds them (`forge/change/branch-path.md`).
 
 - **Not yet:** 5.2, 16: the real-process story
   `a_turn_landing_is_found_after_a_runner_cancellation_and_restarts`

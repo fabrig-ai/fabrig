@@ -1,4 +1,4 @@
-//! Open needs in order, with one card shown in the browser (temper/docs/design/client/README.md, 3.5).
+//! Open needs in order, with one card shown in the browser (temper/docs/design/client/pages/README.md).
 use super::ask;
 use crate::{
     frame::Bindings,

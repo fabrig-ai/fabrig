@@ -2,7 +2,7 @@
 
 2026-11-09. Where the design lags or departs from [tui-design-session.md](tui-design-session.md).
 
-- **Design lags:** none: `../client/README.md`, 6.14, *A design
+- **Design lags:** none: `../client/tui/pages.md`, *A design
   session*, and skein's `ui/screen.md`, 5.2, *A side region*, hold it,
   the code lagging as `../client/README.status.md` and skein's
   `ui/screen.status.md` say; the journey `design-session` is

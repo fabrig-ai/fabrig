@@ -1,4 +1,4 @@
-//! A chat's entry to the shared goal sheet and its start fact (client/README.md, 3.5).
+//! A chat's entry to the shared goal sheet and its start fact (client/pages/README.md).
 use crate::{
     frame::Bindings,
     look,

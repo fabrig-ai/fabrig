@@ -6,7 +6,7 @@ the reference's: `reference-code-production.md`, `reference-landing.md`
 and `reference-case.md` cite its choices, N1 to N24, by number. Where the
 design still lags a draft is that draft's status, not these notes.
 
-Unqualified, `forge.md`, `landing.md`, `after-landing.md`, `agent.md`,
+Unqualified, `../domain/forge/README.md`, `landing.md`, `after-landing.md`, `../domain/agent/README.md`,
 `worker.md` and `findings.md` are temper's `../domain/` documents; jig's
 and smith's are named as theirs.
 
@@ -109,20 +109,20 @@ rules; their statuses say where the design still lags.
   (`reference-code-production.md`, sections 3 and 4;
   `reference-landing.md`, section 3).
 - **Why not a change's:** a goal's own branch made "a change of its own"
-  (`forge.md`, 11.1) is at once the landing branch of its goal's changes
+  (`../domain/forge/branches.md`, 1) is at once the landing branch of its goal's changes
   and the branch of its own change, and three rules stand against that:
-  a branch under temper's prefix takes an exclusive hold (`forge.md`,
+  a branch under temper's prefix takes an exclusive hold (`../domain/forge/README.md`,
   section 2), only the holder's delegates write under a hold (jig's
   `domain/tasks/holds.md`, 1), and a forward move by anyone but the change's
-  own writers is drift (`forge.md`, 8.5). A landing branch must also
-  exist when named (`forge.md`, 11), so the goal's changes could not be
+  own writers is drift (`../domain/forge/change/README.md`, 3). A landing branch must also
+  exist when named (`../domain/forge/branches.md`), so the goal's changes could not be
   made in the batch that makes it. A "collecting change" that held
   nothing, made repairs and catch-ups into its own branch, and was
   closed and reopened by amendment was weighed: it carries a goal's
   lifetime in a change.
 - **Why by template:** a goal's own branch is part of the shape of work.
   A small goal names none, and its changes land into main each, as
-  `forge.md`, 11.1 advises for most work. A goal cannot take a hold once
+  `../domain/forge/branches.md`, 1 advises for most work. A goal cannot take a hold once
   active (jig's `domain/tasks/holds.md`, 2), so the choice is made with the
   goal. The change to jig is not temper's alone: an incident template
   could name its own environment the same way.
@@ -234,7 +234,7 @@ rules; their statuses say where the design still lags.
   and pass on (`reference-code-production.md`, section 5).
 - **Three homes were weighed:**
   - **files on a trunk:** the coordinator writes and pushes them, which
-    a goal's runs may not (`agent.md`, 4.3), and coordination state kept
+    a goal's runs may not (`../domain/agent/tools.md`), and coordination state kept
     in files costs answers and repair sections committed into specs,
     wakes through a shared file that can be missed, and edits to a
     released spec that no one sees;
@@ -278,7 +278,7 @@ rules; their statuses say where the design still lags.
 - **Why:** the coordinator needs the report, for a Left list or a
   designer's list of changes: a producer that finishes often leaves
   something outside its task. A change's contract requires its checks to
-  pass at delivery (jig's `domain/hosts/charters.md`; `agent.md`, 4.4),
+  pass at delivery (jig's `domain/hosts/charters.md`; `../domain/agent/charter.md`, 3),
   and a change that builds a test world can meet failures in code it does
   not own: marking such a test ignored, the fault its reason, keeps the
   checks green without fixing what the change does not own.
@@ -362,7 +362,7 @@ rules; their statuses say where the design still lags.
   choices, a producer's charter or the merge job, or naming the red they
   repair (`repairs`, `after-landing.md`, section 7). A run may delegate
   to the change procedure under the stock rules, but cannot know what
-  the procedure's delegate needs (`agent.md`, 4.3.1); `change` builds it.
+  the procedure's delegate needs (`../domain/agent/tools.md`, 1); `change` builds it.
 
 ### N23. A charter's default wake policy
 
@@ -394,7 +394,7 @@ reference:
 | L1 batches, L2 trains, L3 candidates by a merge chain, L5 keys per package, L6 gate classes, L7 provers and runners, L9 the serializer's durability, L18 the reservation | not needed: one change at a time owns main's queue; landing by turn is `landing.md`'s |
 | L4 the project's tooling as a job, no model | needed, as the merge job (N7) |
 | L8 a measured failure rerun once before red | Later, for the gate (N17); tiers have it (`after-landing.md`, 5.2) |
-| L10 a repair pinned ahead of every landing | temper's branch repair, first in its queue (`forge.md`, section 9) |
+| L10 a repair pinned ahead of every landing | temper's branch repair, first in its queue (`../domain/forge/queues.md`) |
 | L11 a change's own checks before ready | the producer's checks at delivery (`.temper/pre-pr`) |
 | L12 leases on paths across goals | not needed: one branch per goal, held by it (N3); overlaps between goals Later (`reference-landing.md`, section 11) |
 | L13 tiers following main, L14 cleared as a setting | needed, as `after-landing.md` has them, each tier naming the branches it follows (N5) |

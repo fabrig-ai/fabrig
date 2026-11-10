@@ -1,4 +1,4 @@
-//! Frozen forge history retains each changed state (temper/docs/design/domain/testing.md, 2.4).
+//! Frozen forge history retains each changed state (temper/docs/design/testing/real-loop.md).
 use super::*;
 use skein_lib::{Queue, ReplyTo, Token};
 

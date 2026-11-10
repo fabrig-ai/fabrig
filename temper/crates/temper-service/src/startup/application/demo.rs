@@ -1,4 +1,4 @@
-//! The scripted provider (temper/docs/design/protocol/setup.md, 8.4).
+//! The scripted provider (temper/docs/design/protocol/setup/playground.md).
 use super::{Problems, What, read, settings};
 use alloc::boxed::Box;
 use jig_protocol_config::{self as config, Path};

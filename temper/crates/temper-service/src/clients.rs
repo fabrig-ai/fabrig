@@ -1,6 +1,6 @@
-//! The clients child and secret-free root handoffs (client/README.md, 2 and 8; jig's
+//! The clients child and secret-free root handoffs (client/README.md, 2 and client/engine.md; jig's
 //! protocol/service.md, 3).
-//! Local links stay apart from printed links (client/README.md, 6.12).
+//! Local links stay apart from printed links (client/tui/README.md, 2).
 use crate::settings::Seeds;
 use alloc::boxed::Box;
 use jig_domain_core as core;
@@ -13,7 +13,7 @@ use skein_io as io;
 use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
 use temper_engine_domain as root;
 
-/// The URL a printed link's secret opens, as serve prints it, with no line feed (protocol/setup.md, 7.2).
+/// The URL a printed link's secret opens, as serve prints it, with no line feed (protocol/setup/box.md, 2).
 #[must_use]
 pub fn first_link_url(
     address: ::core::net::SocketAddr,
@@ -90,7 +90,7 @@ pub struct Clients {
     bridge: kit::host::Bridge,
     #[cfg(test)]
     pub(crate) secret_terminals: Option<Queue<kit::SecretOwner>>,
-    // The read view for this clients pass (temper/docs/design/protocol/setup.md, 8.4).
+    // The read view for this clients pass (temper/docs/design/protocol/setup/playground.md).
     pub(crate) deployment: crate::family::Deployment,
     pub(crate) program_environment: Box<[u8]>,
     pub(crate) playground: Option<temper_engine_domain_forge::Playground>,
@@ -101,7 +101,7 @@ pub struct Clients {
     playground_carries: Queue<kit::SecretsRequest>,
 }
 impl Clients {
-    /// The printed link signed a person in since start (client/README.md, 4.6).
+    /// The printed link signed a person in since start (client/forge/records.md).
     pub(crate) const fn linked(&self) -> bool {
         self.linked
     }
@@ -118,7 +118,7 @@ impl Clients {
     }
 
     /// The service reads the file at each start and carries its bytes as a
-    /// pasted LLM key's (protocol/setup.md, 8.4). The shell's private read removes
+    /// pasted LLM key's (protocol/setup/playground.md). The shell's private read removes
     /// one final LF, as it does for a handover.
     pub(crate) fn playground_read_answer(
         &mut self,
@@ -888,7 +888,7 @@ pub(crate) fn moved_bytes(limits: &config::Limits) -> u64 {
 }
 
 /// The public kinds use the same ceilings as `family::panel`'s generated codec
-/// (temper/docs/design/client/forge.md, 11.4).
+/// (temper/docs/design/client/forge/README.md, 9.4).
 fn forge_public_kinds() -> [kit::public::PublicKind; 3] {
     use temper_client_protocol_wire::{self as wire, v1};
     let bounds = wire::Bounds {

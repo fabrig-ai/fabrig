@@ -1,5 +1,5 @@
-//! A goal delivers on r and lands through a change into g (domain/agent.md,
-//! 4.3, 4.3.1 and 6; domain/forge.md, 8.1 and 11.1).
+//! A goal delivers on r and lands through a change into g (domain/agent/tools.md and domain/agent/README.md, 5
+//! ; domain/forge/change/README.md, 1, and domain/forge/branches.md, 1).
 use serde_json::{Value, json};
 use skein_fake_forge_domain::api;
 use skein_fake_llm_domain::api::{Finish, Line, Part, Script, Turn};
@@ -147,7 +147,7 @@ fn a_goals_run_delivers_and_lands_through_a_change() {
         );
     }
     let transport = FORGE.with(|slot| slot.borrow_mut().take().expect("captured public git transport"));
-    // The run branch is released when its goal closes (domain/forge.md, 11).
+    // The run branch is released when its goal closes (domain/forge/branches.md).
     let run_head = ran
         .forge()
         .snapshots()
