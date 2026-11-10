@@ -114,6 +114,7 @@ impl<T: Transport> Git<T> {
                 | Command::Merge { .. }
                 | Command::Unmerged
                 | Command::Add
+                | Command::DiffPaths { .. }
                 | Command::DiffIndex { .. }
                 | Command::WriteTree
                 | Command::CommitTree { .. }

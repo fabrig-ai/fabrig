@@ -337,8 +337,6 @@ pub enum ChangeQuestions {
 pub enum ChangeBranch {
     /// Its requester's held branch: the goal branch it holds in the change's repository.
     Mine,
-    /// Its requester's run branch, holding what its runs delivered.
-    Run,
 }
 
 /// A change's dependency within a call (domain/agent.md, 4.3.1).
@@ -1041,6 +1039,38 @@ pub(crate) struct BriefConnector {
     pub(crate) gatherable: bool,
     pub(crate) active: bool,
     pub(crate) cutting: bool,
+}
+
+/// Preparation waits for the goal branch before its brief and workspace
+/// (temper/docs/design/domain/forge.md, 11.3).
+#[derive(Hash, Debug)]
+pub(crate) enum WorkspacePreparation {
+    Ready(PreparedWorkspace),
+    Brief {
+        parent: Option<u64>,
+        sections: List<jig_domain_brief::Planned>,
+        documents: Box<[jig_domain_core::PlannedDocument]>,
+    },
+    Workspace {
+        attempt: u64,
+        context: Box<jig_domain_tasks::RunContext>,
+    },
+}
+
+impl WorkspacePreparation {
+    pub(crate) fn prepared(&self) -> &PreparedWorkspace {
+        match self {
+            Self::Ready(prepared) => prepared,
+            Self::Brief { .. } | Self::Workspace { .. } => unreachable!("the workspace was answered before claiming"),
+        }
+    }
+
+    pub(crate) fn into_prepared(self) -> PreparedWorkspace {
+        match self {
+            Self::Ready(prepared) => prepared,
+            Self::Brief { .. } | Self::Workspace { .. } => unreachable!("the workspace was answered before claiming"),
+        }
+    }
 }
 
 #[derive(Hash, Debug)]

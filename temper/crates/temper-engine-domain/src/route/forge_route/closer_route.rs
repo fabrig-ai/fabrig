@@ -41,25 +41,24 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
     row.done = false;
     let Some((_, _, procedure_step)) = domain.core.tasks.procedure_due(task) else { return };
     let base_holds = match domain.forge.closer_checked(task, procedure_step) {
-        Some(Ok(contains)) => contains,
+        Some(Ok(contains)) => Some(contains),
         Some(Err(_)) => {
             submit(domain, task, ProcedureStep::new(StepEnd::Wait));
             return;
         }
-        None => false,
+        None => None,
     };
     let facts = facts(domain, &row, branch.as_deref(), base_holds);
     let stepped = c::step(&row.closer, &facts);
     let decision = match stepped.decision {
-        c::Decision::Make(c::Step::Land) | c::Decision::Report
-            if branch.is_some() && domain.forge.closer_checked(task, procedure_step).is_none() =>
-        {
+        c::Decision::Check => {
+            row.closer = stepped.closer;
             domain.work.push(Work::Forge(forge::Event::Closer { row }));
             domain.work.push(Work::Forge(forge::Event::CheckCloser {
                 task,
                 step: procedure_step,
                 repository: repository.provider,
-                branch: branch.expect("goal branch checked"),
+                branch: branch.expect("only a held goal branch asks containment"),
                 base: repository.settings.default_branch.clone(),
             }));
             return;
@@ -114,7 +113,7 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
     submit(domain, task, decision);
 }
 
-fn facts(domain: &Domain, row: &forge::CloserRow, branch: Option<&[u8]>, base_holds: bool) -> c::Facts {
+fn facts(domain: &Domain, row: &forge::CloserRow, branch: Option<&[u8]>, base_holds: Option<bool>) -> c::Facts {
     let mut landed = List::uncapped();
     for number in domain.forge.change_tasks() {
         let change = domain.forge.change(number).expect("enumerated change");

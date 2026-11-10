@@ -481,6 +481,17 @@ pub(crate) fn wrote(domain: &mut Domain, env: &Env<Limits>, client: Token, outco
     let record = domain.workspaces.get_mut(id).expect("a workspace lives until it is released");
     let repositories = record.repositories;
     let items = record.items;
+    let next = domain.items.get(&items).expect("workspace items live until the answer");
+    let feedback = match &outcome {
+        checkout::Outcome::Pushed { landings } => {
+            crate::smith_delivery::landings(landings, &next.branches, record_unchecked(&record.state))
+        }
+        checkout::Outcome::Refused { .. } => agent::Delivery::Failed(agent::DeliveryFailure {
+            directory: 0,
+            reason: agent::DeliveryReason::Unknown,
+            diagnostic: agent::Diagnostic::empty(),
+        }),
+    };
     let landings = translate::landings(outcome, repositories);
     let next = domain.items.get_mut(&items).expect("workspace items live until the answer");
 
@@ -488,7 +499,7 @@ pub(crate) fn wrote(domain: &mut Domain, env: &Env<Limits>, client: Token, outco
     let state = mem::replace(&mut record.state, State::Closed);
     record.state = match state {
         State::Ready { hold, directory, asked: Some(writing) } => {
-            let done = record_written(next, items, landings, push, writing.unchecked);
+            let done = record_written(next, items, landings, push, feedback);
             written(hold, directory, writing.owner, done, &mut then)
         }
         State::Ready { asked: None, .. } | State::Preparing { .. } | State::Releasing | State::Closed => {
@@ -498,13 +509,20 @@ pub(crate) fn wrote(domain: &mut Domain, env: &Env<Limits>, client: Token, outco
     follow(domain, env, id, then);
 }
 
+fn record_unchecked(state: &State) -> bool {
+    match state {
+        State::Ready { asked: Some(writing), .. } => writing.unchecked,
+        State::Ready { asked: None, .. } | State::Preparing { .. } | State::Releasing | State::Closed => false,
+    }
+}
+
 /// Keep feedback by deployment tag before the host is told the write ended.
 fn record_written(
     next: &mut Items,
     items: Token,
     landings: Box<[wire::Landing]>,
     push: bool,
-    unchecked: bool,
+    feedback: agent::Delivery,
 ) -> Written {
     if push {
         let mut changed = false;
@@ -523,8 +541,8 @@ fn record_written(
                 | wire::Landing::Unchanged => {}
             }
         }
-        next.delivery = Some(crate::smith_delivery::landings(&landings, &next.branches, unchecked));
-        let outcome = translate::delivery_outcome(&translate::summarize(landings));
+        let outcome = translate::delivery_outcome(&feedback);
+        next.delivery = Some(feedback);
         Written::Delivered(host::Delivery { outcome, left: items, changed })
     } else {
         let mut saved = List::with_capacity(u32::try_from(next.tags.len()).expect("checked item count"));
@@ -756,7 +774,14 @@ mod tests {
                 workspace.items,
                 Box::new([wire::Landing::Landed { commit: commits[0] }, wire::Landing::Landed { commit: commits[1] }]),
                 push,
-                false,
+                crate::smith_delivery::landings(
+                    &[
+                        checkout::Landing::Landed { commit: checkout::git::Commit::new(commits[0]) },
+                        checkout::Landing::Landed { commit: checkout::git::Commit::new(commits[1]) },
+                    ],
+                    &next.branches,
+                    false,
+                ),
             );
             match written {
                 Written::Delivered(delivery) => {

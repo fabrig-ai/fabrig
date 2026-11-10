@@ -764,7 +764,12 @@ fn cancellation_hold(d: &mut Domain, task: u64) -> Name {
         &LIMITS,
     )
     .expect("branch name");
-    d.holds.insert(name.clone(), Hold { name: name.clone(), task, writer: None, drift: None }).expect("hold");
+    d.holds
+        .insert(
+            name.clone(),
+            Hold { design_writers: Box::new([]), name: name.clone(), task, writer: None, drift: None },
+        )
+        .expect("hold");
     name
 }
 

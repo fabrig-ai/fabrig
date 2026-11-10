@@ -92,6 +92,7 @@ impl Operation {
                     git::Op::Fetch { at, .. }
                     | git::Op::Create { at, .. }
                     | git::Op::CheckOut { at, .. }
+                    | git::Op::DiffPaths { at, .. }
                     | git::Op::IsAncestor { at, .. }
                     | git::Op::Merge { at, .. }
                     | git::Op::Commit { at, .. }
@@ -148,6 +149,7 @@ impl Operation {
             | Command::Merge { .. }
             | Command::Unmerged
             | Command::Add
+            | Command::DiffPaths { .. }
             | Command::DiffIndex { .. }
             | Command::WriteTree
             | Command::CommitTree { .. }
@@ -173,6 +175,7 @@ impl Operation {
             | Command::Merge { .. }
             | Command::Unmerged
             | Command::Add
+            | Command::DiffPaths { .. }
             | Command::DiffIndex { .. }
             | Command::WriteTree
             | Command::IsAncestor { .. }
@@ -234,6 +237,7 @@ impl Operation {
                     | git::Op::Fetch { .. }
                     | git::Op::Create { .. }
                     | git::Op::CheckOut { .. }
+                    | git::Op::DiffPaths { .. }
                     | git::Op::IsAncestor { .. }
                     | git::Op::Commit { .. }
                     | git::Op::Push { .. },
@@ -256,6 +260,7 @@ impl Operation {
             | Command::Clean
             | Command::Unmerged
             | Command::Add
+            | Command::DiffPaths { .. }
             | Command::DiffIndex { .. }
             | Command::WriteTree
             | Command::CommitTree { .. }
@@ -282,7 +287,7 @@ impl Operation {
     }
     fn delimiter(&self) -> u8 {
         match self.command {
-            Command::Unmerged => 0,
+            Command::Unmerged | Command::DiffPaths { .. } => 0,
             Command::SnapshotHead
             | Command::SnapshotMerge { .. }
             | Command::SnapshotFetch { .. }
@@ -340,6 +345,7 @@ impl Operation {
                         | git::Op::Create { .. }
                         | git::Op::CheckOut { .. }
                         | git::Op::Look { .. }
+                        | git::Op::DiffPaths { .. }
                         | git::Op::IsAncestor { .. }
                         | git::Op::Merge { .. }
                         | git::Op::Commit { .. }

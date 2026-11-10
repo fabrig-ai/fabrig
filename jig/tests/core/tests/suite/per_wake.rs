@@ -100,7 +100,7 @@ fn a_final_landing_result_supplies_the_result_part() {
 }
 
 #[test]
-fn an_unoffered_landing_result_keeps_its_place_until_the_next_run() {
+fn a_landing_result_is_relayed_and_taken_without_selecting_its_part() {
     let (mut world, goal) = landing_goal(869);
     let child = story::child(&mut world, goal);
     story::turn(&mut world, goal, None);
@@ -116,13 +116,14 @@ fn an_unoffered_landing_result_keeps_its_place_until_the_next_run() {
     assert_eq!(live_row(&world, goal.0).reasons, tasks::Reasons::WORDS);
     assert_eq!(live_row(&world, goal.0).offered, tasks::Reasons::EMPTY);
     let assignments = world.assignments.len();
-    let relayed = world.inbound.clone();
+    let mut relayed = world.inbound.clone();
     landed(&mut world, child, b"landed; Left: retire the draft");
     let report = live_row(&world, goal.0).inbox[1].clone();
     assert_eq!(report.kind, tasks::MessageKind::Result(tasks::ResultKind::Report));
     assert_eq!(report.from, tasks::Party::Task(child.0));
     assert!(report.number > words.number);
-    assert_eq!(world.inbound, relayed, "the live run is not offered RESULT");
+    relayed.push(report.clone());
+    assert_eq!(world.inbound, relayed, "the live run hears its wake-worthy result without a result part");
     assert_eq!(world.assignments.len(), assignments);
     fixtures::ask(
         &mut world,
@@ -132,11 +133,10 @@ fn an_unoffered_landing_result_keeps_its_place_until_the_next_run() {
     let fence = live_row(&world, goal.0).inbox[2].number;
     assert!(fence > report.number);
     story::turn(&mut world, review, Some(fence));
-    assert_eq!(live_row(&world, goal.0).inbox.as_ref(), std::slice::from_ref(&report), "no fence takes a kept result");
-    story::park(&mut world, review, Some(fence));
-    assert_eq!(world.assignments.len(), assignments + 1);
-    assert_landing_result(&world, goal.0, std::slice::from_ref(&report));
-    assert!(fixtures::run(&world).1 > review.1);
+    assert!(live_row(&world, goal.0).inbox.is_empty(), "the reading turn takes the relayed result");
+    assert_eq!(live_row(&world, goal.0).reasons, tasks::Reasons::WORDS);
+    assert_eq!(live_row(&world, goal.0).offered, tasks::Reasons::EMPTY);
+    assert_eq!(world.assignments.len(), assignments, "no result part is selected during the run");
     world.close();
 }
 

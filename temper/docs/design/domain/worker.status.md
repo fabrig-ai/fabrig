@@ -125,6 +125,11 @@ AGENT.json`, with the same program used for a model list
 them (`temper-worker-shell/src/agent.rs`). The service gives the worker's
 `Limits::reply_bytes` the same figure (`temper-service/src/worker_settings.rs`).
 
+- **Not yet:** section 5, *A design delivery*: a repository whose push
+  branch is its landing branch delivers as any: no fetch and merge of the
+  branch's moved tip, no Markdown check, Stale when it moved, and a `save`
+  pushes; *A goal's later run* starts on its run branch's head and pushes
+  to it [in flight: change 94].
 - **Not yet:** 4.3: a held task names no run's failure, which the user's
   request of 2026-11-05 asked for if cheap: it needs a stored-format
   change, so it is section 12's question. The `ctl-words` request requires

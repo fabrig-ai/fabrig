@@ -440,7 +440,13 @@ fn hold_goal(world: &mut World) {
 }
 fn goal_push(world: &mut World, path: &[u8], content: &[u8]) -> api::Commit {
     let name = goal_name();
-    world.event(top::Event::Claim { task: GOAL, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([]) });
+    world.event(top::Event::Claim {
+        designs: Box::new([]),
+        task: GOAL,
+        attempt: 1,
+        writes: Box::new([name.clone()]),
+        holders: Box::new([]),
+    });
     world.push_file(b"temper/1/g201", path, content);
     let commit = translate::commit(world.branch(b"temper/1/g201"));
     world.event(top::Event::Answered { task: GOAL, attempt: 1, pushed: Box::new([(name, commit)]) });

@@ -483,7 +483,9 @@ box wait uses the deployment's `owned` read, and failed settings reads
 name the kind and missing member (`client/README.md`, `domain/agent.md`).
 A goal with a confirmed goal branch and a modifying charter delivers to
 its own run branch and lands through a change into g; later runs merge r into g's tip before delivering
-again. The domain, checkout and real-loop stories use scripted models and
+again. The design has its runs push Markdown straight to g as its design
+writers, recorded as g's own, and drops the `"run"` change
+(`domain/forge.md`, 11.3) [in flight: changes 94, 98]. The domain, checkout and real-loop stories use scripted models and
 fake forge/git. Calls, briefs, batches and reports have their configured
 room: the reference takes payload 63,740 and output 48,000 after smith
 refuses the 128 KB pair at the transcript ceiling. Stock and reference

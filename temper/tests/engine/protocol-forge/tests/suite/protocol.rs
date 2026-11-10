@@ -676,7 +676,13 @@ fn held_branch(world: &mut Protocol) -> (top::Name, skein_forge::api::Commit) {
     world.event(top::Event::Names { task: 51, resources: Box::new([name.clone()]) });
     world.event(top::Event::Hold { entry: 0, task: 51, resource: name.clone(), from: None });
     world.run_for(1);
-    world.event(top::Event::Claim { task: 51, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([]) });
+    world.event(top::Event::Claim {
+        designs: Box::new([]),
+        task: 51,
+        attempt: 1,
+        writes: Box::new([name.clone()]),
+        holders: Box::new([]),
+    });
     world.produce(b"temper/51");
     let pushed = temper_engine_forge_world::translate::commit(world.branch(b"temper/51"));
     world.event(top::Event::Answered { task: 51, attempt: 1, pushed: Box::new([(name.clone(), pushed)]) });

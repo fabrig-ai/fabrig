@@ -165,6 +165,7 @@ pub(super) fn workspace(task: u64) -> RunWorkspace {
         workstream: task,
         writes: Box::new([]),
         names: Box::new([]),
+        designs: Box::new([]),
         own_holds: Box::new([]),
     }
 }

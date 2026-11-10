@@ -616,7 +616,12 @@ pub(crate) fn gather(
             crate::brief_document::gather(domain, owner, parts, max_job_bytes, out);
             None
         }
-        BriefSource::Home { repository } => Some(match domain.repository(repository) {
+        BriefSource::Home { repository, design } => Some(match domain.repository(repository) {
+            Some(_) if parts > 0 && design => {
+                let mut words = BriefWords::with_capacity(bytes.min(HOME_SECTION_BYTES), false);
+                append(&mut words, b"deliver pushes the checkout's Markdown straight to the goal branch, merging its moved tip first; code goes through change.");
+                brief_part(&words, 1, bytes)
+            }
             Some(home) if parts > 0 => home_access_reason(&home.owner, &home.name, bytes),
             Some(_) => BriefRead::Failed(bounds()),
             None => BriefRead::Failed(unnamed()),

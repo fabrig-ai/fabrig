@@ -44,6 +44,7 @@ impl Outcome {
                     match done {
                         git::Done::Failed { fault } | git::Done::FailedWithOutput { fault, .. } => Some(*fault),
                         git::Done::Looked { .. }
+                        | git::Done::Paths { .. }
                         | git::Done::IsAncestor { .. }
                         | git::Done::Merged
                         | git::Done::Conflicted { .. }

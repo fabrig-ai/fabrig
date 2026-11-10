@@ -374,14 +374,29 @@ fn a_hold_and_writer_slot_are_exclusive_until_answered() {
         Request::Save {
             read_afresh: Some(name.clone()),
             release: None,
-            record: Stored::Hold(Hold { name: name.clone(), task: 7, writer: None, drift: None })
+            record: Stored::Hold(Hold {
+                design_writers: Box::new([]),
+                name: name.clone(),
+                task: 7,
+                writer: None,
+                drift: None
+            })
         }
     );
     assert_eq!(
         outputs(&mut d, Event::Hold { entry: 0, task: 8, resource: name.clone(), from: None }).as_ref(),
         &[Request::Taken { task: 8, resource: name.clone(), by: 7 }]
     );
-    outputs(&mut d, Event::Claim { task: 9, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([7]) });
+    outputs(
+        &mut d,
+        Event::Claim {
+            designs: Box::new([]),
+            task: 9,
+            attempt: 1,
+            writes: Box::new([name.clone()]),
+            holders: Box::new([7]),
+        },
+    );
     let reported = [Pushed { tag: tag(name.forge, name.repository), commit: [2; 32] }];
     assert_eq!(d.reported_heads(&LIMITS, 9, 1, &reported).as_ref(), &[(name.clone(), [2; 32])]);
     assert!(d.reported_heads(&LIMITS, 9, 2, &reported).is_empty(), "another attempt cannot report this writer");
@@ -390,7 +405,13 @@ fn a_hold_and_writer_slot_are_exclusive_until_answered() {
     assert_eq!(
         outputs(
             &mut d,
-            Event::Claim { task: 10, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([7]) }
+            Event::Claim {
+                designs: Box::new([]),
+                task: 10,
+                attempt: 1,
+                writes: Box::new([name.clone()]),
+                holders: Box::new([7])
+            }
         )
         .as_ref(),
         &[Request::Taken { task: 10, resource: name.clone(), by: 9 }]
@@ -398,7 +419,13 @@ fn a_hold_and_writer_slot_are_exclusive_until_answered() {
     outputs(&mut d, Event::Answered { task: 9, attempt: 1, pushed: Box::new([(name.clone(), [2; 32])]) });
     let claimed = outputs(
         &mut d,
-        Event::Claim { task: 10, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([7]) },
+        Event::Claim {
+            designs: Box::new([]),
+            task: 10,
+            attempt: 1,
+            writes: Box::new([name.clone()]),
+            holders: Box::new([7]),
+        },
     );
     assert_eq!(
         claimed.as_ref(),
@@ -406,6 +433,7 @@ fn a_hold_and_writer_slot_are_exclusive_until_answered() {
             read_afresh: None,
             release: None,
             record: Stored::Hold(Hold {
+                design_writers: Box::new([]),
                 name,
                 task: 7,
                 writer: Some(Writer::Run { task: 10, attempt: 1 }),
@@ -1302,7 +1330,16 @@ fn four_writers() -> Domain {
         let head = BranchHead { name: name.clone(), commit: [2; 32], owned: true };
         outputs(&mut d, Event::Restore { record: Stored::BranchHead(head) });
         outputs(&mut d, Event::Hold { entry: 0, task: holder, resource: name.clone(), from: None });
-        outputs(&mut d, Event::Claim { task: 9, attempt: 1, writes: Box::new([name]), holders: Box::new([holder]) });
+        outputs(
+            &mut d,
+            Event::Claim {
+                designs: Box::new([]),
+                task: 9,
+                attempt: 1,
+                writes: Box::new([name]),
+                holders: Box::new([holder]),
+            },
+        );
     }
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
@@ -1374,7 +1411,16 @@ fn a_lost_writer_uses_reverse_ancestry_for_its_reread() {
             },
         );
         outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
-        outputs(&mut d, Event::Claim { task: 9, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([7]) });
+        outputs(
+            &mut d,
+            Event::Claim {
+                task: 9,
+                attempt: 1,
+                writes: Box::new([name.clone()]),
+                designs: Box::new([]),
+                holders: Box::new([7]),
+            },
+        );
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         outputs(&mut d, Event::ReadAfresh);
         outputs(&mut d, Event::SettleOutbox);
@@ -1422,7 +1468,13 @@ fn a_release_waits_for_its_lost_writers_reread_even_after_restart() {
             outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
             outputs(
                 &mut d,
-                Event::Claim { task: 9, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([7]) },
+                Event::Claim {
+                    designs: Box::new([]),
+                    task: 9,
+                    attempt: 1,
+                    writes: Box::new([name.clone()]),
+                    holders: Box::new([7]),
+                },
             );
             outputs(&mut d, Event::Lost { task: 9, attempt: 1 });
             let (mut call, _) = fixtures::next_call(&mut d);
@@ -1480,6 +1532,7 @@ fn restarted_lost_writer() -> Domain {
         &mut d,
         Event::Restore {
             record: Stored::Hold(Hold {
+                design_writers: Box::new([]),
                 name: run_branch(b"7"),
                 task: 7,
                 writer: Some(Writer::Lost { task: 9, attempt: 1 }),
@@ -1502,7 +1555,16 @@ fn a_failed_goals_lost_writer_reports_its_read_failure() {
     outputs(&mut d, Event::SettleOutbox);
     let name = run_branch(b"7");
     outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
-    outputs(&mut d, Event::Claim { task: 7, attempt: 4, writes: Box::new([name.clone()]), holders: Box::new([]) });
+    outputs(
+        &mut d,
+        Event::Claim {
+            designs: Box::new([]),
+            task: 7,
+            attempt: 4,
+            writes: Box::new([name.clone()]),
+            holders: Box::new([]),
+        },
+    );
     assert!(d.change(7).is_none(), "a goal has no change procedure");
     outputs(&mut d, Event::Lost { task: 7, attempt: 4 });
     let answered = fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Refused));
@@ -1526,21 +1588,51 @@ fn a_task_can_claim_its_own_stale_writer() {
         outputs(&mut d, Event::SettleOutbox);
         let name = run_branch(b"7");
         outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
-        outputs(&mut d, Event::Claim { task: 7, attempt: 4, writes: Box::new([name.clone()]), holders: Box::new([]) });
+        outputs(
+            &mut d,
+            Event::Claim {
+                designs: Box::new([]),
+                task: 7,
+                attempt: 4,
+                writes: Box::new([name.clone()]),
+                holders: Box::new([]),
+            },
+        );
         if lost {
             outputs(&mut d, Event::Lost { task: 7, attempt: 4 });
         }
         let claimed = outputs(
             &mut d,
-            Event::Claim { task: 7, attempt: 5, writes: Box::new([name.clone()]), holders: Box::new([]) },
+            Event::Claim {
+                designs: Box::new([]),
+                task: 7,
+                attempt: 5,
+                writes: Box::new([name.clone()]),
+                holders: Box::new([]),
+            },
         );
         assert!(!claimed.contains(&Request::Taken { task: 7, resource: name.clone(), by: 7 }));
         assert_eq!(d.hold(&name).unwrap().writer, Some(Writer::Run { task: 7, attempt: 5 }));
-        outputs(&mut d, Event::Claim { task: 7, attempt: 4, writes: Box::new([name.clone()]), holders: Box::new([]) });
+        outputs(
+            &mut d,
+            Event::Claim {
+                designs: Box::new([]),
+                task: 7,
+                attempt: 4,
+                writes: Box::new([name.clone()]),
+                holders: Box::new([]),
+            },
+        );
         assert_eq!(d.hold(&name).unwrap().writer, Some(Writer::Run { task: 7, attempt: 5 }));
         let other = outputs(
             &mut d,
-            Event::Claim { task: 8, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([7]) },
+            Event::Claim {
+                designs: Box::new([]),
+                task: 8,
+                attempt: 1,
+                writes: Box::new([name.clone()]),
+                holders: Box::new([7]),
+            },
         );
         assert!(other.contains(&Request::Taken { task: 8, resource: name.clone(), by: 7 }));
         if lost {
@@ -1731,7 +1823,13 @@ fn a_release_still_fails_for_a_running_writer_or_a_lost_writer_without_a_read() 
         outputs(
             &mut d,
             Event::Restore {
-                record: Stored::Hold(Hold { name: run_branch(b"7"), task: 7, writer: Some(writer), drift: None }),
+                record: Stored::Hold(Hold {
+                    design_writers: Box::new([]),
+                    name: run_branch(b"7"),
+                    task: 7,
+                    writer: Some(writer),
+                    drift: None,
+                }),
             },
         );
         let closing =
@@ -2635,7 +2733,16 @@ fn pushed_heads_match_their_own_forge_only() {
         let mut name = branch();
         name.forge = forge;
         outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
-        outputs(&mut d, Event::Claim { task: 9, attempt: 1, writes: Box::new([name]), holders: Box::new([7]) });
+        outputs(
+            &mut d,
+            Event::Claim {
+                designs: Box::new([]),
+                task: 9,
+                attempt: 1,
+                writes: Box::new([name]),
+                holders: Box::new([7]),
+            },
+        );
     }
     for forge in [1, 3] {
         let mut expected = branch();

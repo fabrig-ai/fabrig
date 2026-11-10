@@ -1667,6 +1667,16 @@ those parts are for.
   none, or for a task with instructions of its own (section 7), every
   message, as a charter with no parts gave every run before. The parts are
   those its preparation chose (engine.md, 7.1, step 2).
+- **A live run hears its results.** Beside what its parts offer, a
+  claimed or running run is relayed each delegate's result its task's wake
+  policy lets wake it (8.3), judged as it arrives and again as the run
+  takes what waits: under `each`, every result; under `last_or_failure`, a
+  failure or a cancel, and the result that leaves the task no live
+  delegate, for a task its closer ends too, since a live run is no idle
+  task and makes no closer (5.10). Such a result chooses no part of the
+  live run, which keeps the instructions it started with; one the run
+  leaves unread is judged again when the run ends (8.3), where, for a task
+  its closer ends, a last success wakes nothing (5.10).
 - **Every reason waiting at its claim.** A message or an entry that
   arrives between a run's preparation and its claim, and whose kind would
   join its reasons (one its wake policy lets wake it, of a kind that

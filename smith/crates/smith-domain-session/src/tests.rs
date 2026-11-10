@@ -1699,6 +1699,66 @@ fn a_selected_descriptor_can_have_a_distinct_live_call_ticket() {
 }
 
 #[test]
+fn a_mid_work_offer_appends_after_results_without_editing_the_settled_turn() {
+    let mut h = Harness::new(&LIMITS);
+    let (owner, _) = h.open(1);
+    let (run, _) = running(h.step(Event::Completed { owner, completion: reading() }));
+    let (_, before) = calling(h.step(ran(run, b"main.rs")));
+    assert_eq!(h.turn_records.len(), 1);
+    crate::append_messages(&mut h.domain, &h.env, owner, bytes(b"delegate: done"), &mut h.out);
+    let (_, after) = calling(h.one());
+    assert_eq!(&after.messages[..before.messages.len()], before.messages.as_ref());
+    assert_eq!(after.messages.last().expect("appended offer").content.as_ref(), &[text(b"delegate: done")]);
+    assert_eq!(h.turn_records.len(), 1, "an unsent replacement invents no turn");
+    for message in &h.turn_records.get(0).expect("settled turn").messages {
+        assert!(!message.content.contains(&text(b"delegate: done")));
+    }
+    drop(yielded(h.step(Event::Completed { owner, completion: done() })));
+    assert_eq!(
+        h.turn_records
+            .get(1)
+            .expect("next told turn")
+            .messages
+            .first()
+            .expect("offer before assistant")
+            .content
+            .as_ref(),
+        &[text(b"delegate: done")]
+    );
+}
+
+#[test]
+fn a_mid_work_offer_waits_outside_a_compaction_until_its_window_turn() {
+    let mut h = Harness::new(&LIMITS);
+    let (owner, _) = h.open(1);
+    let (run, _) = running(h.step(Event::Completed { owner, completion: reading() }));
+    drop(calling(h.step(ran(run, b"main.rs"))));
+    drop(calling(h.step(Event::Failed {
+        owner,
+        retry_ok: true,
+        failure: Failure::ContextTooLong,
+        evidence: crate::llm::Evidence::Unsent,
+        detail: Box::default(),
+    })));
+    crate::append_messages(&mut h.domain, &h.env, owner, bytes(b"delegate: done"), &mut h.out);
+    let (_, summary) = calling(h.one());
+    match summary.purpose {
+        crate::llm::Purpose::Compaction { .. } => {}
+        crate::llm::Purpose::Ordinary { .. } => panic!("the offer waits outside the summary request"),
+    }
+    for message in &summary.messages {
+        assert!(!message.content.contains(&text(b"delegate: done")));
+    }
+    let (_, next) = calling(
+        h.step(Event::Completed { owner, completion: completion(Box::new([text(b"summary")]), Stop::EndTurn) }),
+    );
+    assert!(next.messages[0].content.contains(&text(b"delegate: done")));
+    let window = h.turn_records.get(1).expect("summary's window turn");
+    assert!(window.kind.opens_window());
+    assert!(window.messages[0].content.contains(&text(b"delegate: done")));
+}
+
+#[test]
 fn a_narrowing_note_follows_the_latest_settled_results() {
     let mut h = Harness::new(&LIMITS);
     let (owner, _) = h.open(1);

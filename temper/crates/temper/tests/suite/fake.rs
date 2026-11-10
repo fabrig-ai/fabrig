@@ -1219,6 +1219,7 @@ fn git_run() {
                 | GitCommand::Merge { .. }
                 | GitCommand::Unmerged
                 | GitCommand::Add
+                | GitCommand::DiffPaths { .. }
                 | GitCommand::DiffIndex { .. }
                 | GitCommand::WriteTree
                 | GitCommand::CommitTree { .. }

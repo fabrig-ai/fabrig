@@ -222,6 +222,16 @@ pub enum Outcome {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "diagnostics stay inline with a fixed byte capacity")]
 pub enum Landing {
+    /// The design delivery merged this fetched goal tip before pushing.
+    DesignMerged { commit: Commit, tip: Commit },
+    /// The goal tip left a merge in progress for the run to settle.
+    DesignConflict { files: Box<[Box<[u8]>]> },
+    /// The first changed path that does not end in `.md`.
+    DesignCode { path: Box<[u8]> },
+    /// Three leased attempts found the goal branch moving.
+    DesignMoving,
+    /// Unchecked pushes to the goal branch are not deliveries.
+    DesignUnchecked,
     /// Originally conflicted paths still contain a merge marker. No commit
     /// or push was made for this repository.
     Conflicted { files: Box<[Box<[u8]>]> },

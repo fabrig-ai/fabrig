@@ -607,6 +607,97 @@ fn runs_hear_and_take_only_what_their_parts_offer() {
     assert_eq!(results, expected);
 }
 
+// Results arrive after the ending delegate has left the live-delegate set.
+fn result_arrival(h: &mut Harness, number: u64, source: u64, kind: crate::ResultKind, live: &[u64]) -> Vec<Request> {
+    crate::domain::task_mut(&mut h.domain, TASK).expect("parent").record.delegates = live.into();
+    arrive(h, word(number, M::Result(kind), Party::Task(source)))
+}
+
+#[test]
+fn live_results_follow_wake_policy_not_parts() {
+    use crate::ResultKind::{Cancelled, Failed, Report};
+    for (name, policy, first, closer, claimed, expected) in [
+        ("first success waits", ResultsWake::LastOrFailure, Report, false, false, vec![MESSAGE + 1]),
+        ("first failure", ResultsWake::LastOrFailure, Failed, false, false, vec![MESSAGE, MESSAGE + 1]),
+        ("first cancel", ResultsWake::LastOrFailure, Cancelled, false, false, vec![MESSAGE, MESSAGE + 1]),
+        ("closer live", ResultsWake::LastOrFailure, Report, true, false, vec![MESSAGE + 1]),
+        ("closer claimed", ResultsWake::LastOrFailure, Report, true, true, vec![MESSAGE + 1]),
+        ("each", ResultsWake::Each, Report, false, false, vec![MESSAGE, MESSAGE + 1]),
+        ("never", ResultsWake::Never, Failed, false, false, vec![]),
+    ] {
+        let mut h = fixture();
+        let offered = if policy == ResultsWake::Never { R::ALL } else { R::FIRST };
+        start(&mut h, offered);
+        let row = &mut crate::domain::task_mut(&mut h.domain, TASK).expect("parent").record;
+        row.wake.results = policy;
+        if closer {
+            row.flags.ended_by = crate::EndedBy::Closer(crate::Closer { connector: 1, code: 6 });
+        }
+        if claimed {
+            row.phase = Phase::Active(Active::Claimed { attempt: 1 });
+        }
+        row.delegates = Box::new([7, 8]);
+        let mut out = result_arrival(&mut h, MESSAGE, 7, first, &[8]);
+        out.extend(result_arrival(&mut h, MESSAGE + 1, 8, Report, &[]));
+        let relayed: Vec<_> = out
+            .iter()
+            .filter_map(|request| match request {
+                Request::Relay { task, attempt, word, .. } => {
+                    assert_eq!((*task, *attempt), (TASK, 1));
+                    Some(word.number)
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(relayed, expected, "{name}");
+        let row = h.domain.task(TASK).expect("parent");
+        assert_eq!(row.offered, offered, "results choose no new part: {name}");
+        assert_eq!(row.reasons, R::FIRST, "results keep the run's reasons: {name}");
+    }
+}
+
+#[test]
+fn waiting_results_use_the_live_wake_rule_when_relay_room_frees() {
+    for (policy, expected) in [
+        (ResultsWake::LastOrFailure, vec![MESSAGE + 1, MESSAGE + 2]),
+        (ResultsWake::Each, vec![MESSAGE, MESSAGE + 1, MESSAGE + 2]),
+        (ResultsWake::Never, vec![]),
+    ] {
+        let mut h = fixture();
+        start(&mut h, R::FIRST);
+        let row = &mut crate::domain::task_mut(&mut h.domain, TASK).expect("parent").record;
+        row.wake.results = policy;
+        row.flags.ended_by = crate::EndedBy::Closer(crate::Closer { connector: 1, code: 6 });
+        result_arrival(&mut h, MESSAGE, 7, crate::ResultKind::Report, &[8, 9]);
+        result_arrival(&mut h, MESSAGE + 1, 8, crate::ResultKind::Failed, &[9]);
+        // The relay sink held these results back; refill asks for them in order.
+        let mut taken = Vec::new();
+        let mut after = None;
+        while let Some(word) = h.domain.next_waiting(TASK, after) {
+            after = Some(word.number);
+            taken.push(word.number);
+        }
+        let before_last = match policy {
+            ResultsWake::LastOrFailure => vec![MESSAGE + 1],
+            ResultsWake::Each => vec![MESSAGE, MESSAGE + 1],
+            ResultsWake::Never => vec![],
+        };
+        assert_eq!(taken, before_last, "non-last success still waits: {policy:?}");
+        result_arrival(&mut h, MESSAGE + 2, 9, crate::ResultKind::Report, &[]);
+        if policy == ResultsWake::LastOrFailure {
+            assert_eq!(h.domain.next_waiting(TASK, None).expect("success judged again").number, MESSAGE);
+        }
+        while let Some(word) = h.domain.next_waiting(TASK, after) {
+            after = Some(word.number);
+            taken.push(word.number);
+        }
+        assert_eq!(taken, expected, "{policy:?}");
+        commit_read(&mut h, taken.last().copied(), &[], &taken);
+        let row = h.domain.task(TASK).expect("parent");
+        assert!(taken.iter().all(|number| !row.inbox.iter().any(|word| word.number == *number)));
+    }
+}
+
 // The lead holds the landing's repair decision and asks its person in words.
 const LANDING: u64 = 2;
 const REPAIR: u64 = 9;

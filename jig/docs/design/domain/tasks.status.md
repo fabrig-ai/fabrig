@@ -56,4 +56,10 @@ parks without spending a try.
   outlive their asker. 8.3: markers.
   8.5: a conversation's questions.
   12: the stories of these.
+- **Not yet:** 8.6, *A live run hears its results*: a live run is relayed
+  only what its parts offer, so a coordinator's first run, whose part
+  offers no `result`, hears none of its changes end, and a closer-ended
+  task's last success is never relayed, even while its run lives
+  (`jig-domain-tasks/src/wake.rs`, `after_message` and `rule`;
+  `waiting.rs`, `next`) [in flight: change 100].
 

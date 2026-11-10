@@ -507,6 +507,13 @@ fn activate(
     context: Box<tasks::RunContext>,
     ready: bool,
 ) {
+    let due = match domain.core.tasks.task(context.task) {
+        Some(task) => task.phase == tasks::Phase::Active(tasks::Active::Due),
+        None => false,
+    };
+    if ready && due && domain.forge.design_workspace_waiting(context.task) {
+        forge_event(domain, env, decision, forge::Event::GoalReleased { task: context.task });
+    }
     let busy = domain.archive_reads.is_full() || !domain.loads.has_room();
     let routed = core::step(&mut domain.core, &environment_core(env), core::Event::Activate { context, ready, busy });
     route_core_requests(domain, env, decision, routed);

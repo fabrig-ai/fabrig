@@ -67,8 +67,7 @@ fn stock_request(world: &World, template: &jig_domain_core::Template) -> people:
     people::Ask::Create { project, batch }
 }
 
-/// Start the stock draft-goal template with its held branch.
-pub(super) fn running_stock_goal() -> (World, engine::Assignment, Box<[u8]>) {
+fn stock_goal_world() -> (World, people::Ask) {
     let defaults = stock_defaults();
     let mut limits = temper_engine_domain_world::forge_routes::box_limits();
     limits.documents.lines = 8;
@@ -90,6 +89,12 @@ pub(super) fn running_stock_goal() -> (World, engine::Assignment, Box<[u8]>) {
     world.send(event);
     let template = defaults.templates.iter().find(|template| template.number == 4).expect("template 4");
     let request = stock_request(&world, template);
+    (world, request)
+}
+
+/// Start the stock draft-goal template with its held branch.
+pub(super) fn running_stock_goal() -> (World, engine::Assignment, Box<[u8]>) {
+    let (mut world, request) = stock_goal_world();
     let outcome = ask(&mut world, GOAL_REQUEST, request);
     let people::Outcome::Created { first: goal, last, .. } = outcome else {
         panic!("stock goal must be admitted: {outcome:?}")
@@ -270,6 +275,64 @@ fn a_tracked_goal_naming_its_own_goal_branch_holds_it_made_at_mains_tip() {
 }
 
 #[test]
+fn a_modifying_goals_first_run_waits_for_making_and_writes_design() {
+    let (mut world, request) = stock_goal_world();
+    world.hold_write_answers = Some(HoldWrite::All);
+    let people::Outcome::Created { first: task, last, .. } = ask(&mut world, GOAL_REQUEST, request) else {
+        panic!("goal admitted")
+    };
+    assert_eq!(task, last);
+    let branch = format!("temper/{task}/g{task}").into_bytes().into_boxed_slice();
+    for _ in 0..STEPS {
+        world.tick();
+        if world.writes.iter().any(|write| {
+            matches!(write,
+            skein_forge::api::Write::CreateBranch { branch: made, .. } if *made == branch)
+        }) {
+            break;
+        }
+    }
+    assert!(world.writes.iter().any(|write| matches!(write,
+        skein_forge::api::Write::CreateBranch { branch: made, .. } if *made == branch)));
+    for _ in 0..20 {
+        world.tick();
+    }
+    assert!(world.assigned.is_empty(), "the first run must not start on the base while g is making");
+    let hold = forge_hold(&world, &branch).expect("making goal hold");
+    assert!(matches!(hold.writer, Some(forge_top::Writer::Entry(_))));
+    assert!(hold.design_writers.is_empty());
+    world.release_write_answers();
+    let goal = reviews::next_assignment(&mut world, 0);
+    assert_eq!(goal.task, task);
+    let item = &goal.workspace.repositories[0];
+    assert_eq!(item.start, engine::ForgeStart::Base(branch.clone()));
+    assert_eq!(item.push.as_deref(), Some(branch.as_ref()));
+    assert_eq!(item.landing.as_deref(), Some(branch.as_ref()));
+    assert!(item.delivers);
+    let mut goal_resource = resource(&branch);
+    goal_resource.connector = 1;
+    assert!(
+        !world.store.rows.values().any(|row| matches!(row,
+        Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Writer(slot))) if slot.resource == goal_resource)),
+        "design takes no jig slot"
+    );
+    assert_eq!(forge_hold(&world, &branch).expect("confirmed goal hold").writer, None);
+    assert_eq!(
+        forge_hold(&world, &branch).expect("confirmed goal hold").design_writers.as_ref(),
+        &[forge_top::DesignWriter { task, attempt: goal.attempt, rereading: false }]
+    );
+    let charter = temper_engine_smith::charter(&goal);
+    assert!(charter.grants.deliver.is_some(), "the first run can deliver its first-wave design");
+    let home = goal
+        .sections
+        .iter()
+        .find(|section| section.kind == engine::BriefKind::Forge(engine::ForgeBriefKind::Home))
+        .expect("design delivery line");
+    assert_eq!(home.body, engine::BriefBody::Text(b"deliver pushes the checkout's Markdown straight to the goal branch, merging its moved tip first; code goes through change.".as_slice().into()));
+    early_start::stop(&mut world, &goal);
+}
+
+#[test]
 fn releasing_a_goals_failed_making_reads_and_makes_its_branch_again() {
     for (failed_write, present) in [(false, false), (false, true), (true, false), (true, true)] {
         let mut world = adopted_world();
@@ -328,20 +391,16 @@ fn a_goal_without_push_authority_inspects_g_without_a_delivery_or_writer() {
     world.until(Until::Ready);
     let branch = format!("temper/{}/g{}", goal.task, goal.task);
     let run_branch = format!("temper/{}/r{}", goal.task, goal.task);
-    super::park_chat(&mut world, &goal);
-    let goal = world
-        .assigned
-        .iter()
-        .rev()
-        .find(|run| run.task == goal.task && run.attempt > goal.attempt)
-        .expect("confirmation wakes the next goal run")
-        .clone();
     assert!(goal.run.policy.modify);
     assert!(!goal.run.authority.grants.iter().any(|grant| grant.kind == 2));
     let repository = &goal.workspace.repositories[0];
     assert_eq!(repository.start, engine::ForgeStart::Branch(branch.as_bytes().into()));
     assert_eq!(repository.push, None);
     assert_eq!(repository.landing, None);
+    assert!(
+        !goal.sections.iter().any(|section| section.kind == engine::BriefKind::Forge(engine::ForgeBriefKind::Home)),
+        "a read-only run has no design delivery line"
+    );
     assert!(!repository.delivers);
     assert_eq!(writer(&world, branch.as_bytes()), None);
     assert_eq!(writer(&world, run_branch.as_bytes()), None);
@@ -555,7 +614,7 @@ fn hint_goal_branch(world: &mut World, branch: &[u8]) {
     })));
 }
 
-fn observe_goal_branch(world: &mut World, branch: &[u8]) {
+pub(super) fn observe_goal_branch(world: &mut World, branch: &[u8]) {
     hint_goal_branch(world, branch);
     for _ in 0..200 {
         world.tick();
@@ -693,6 +752,17 @@ fn goal_drift(movement: BranchMove) {
     if matches!(movement, BranchMove::Unowned) {
         world.release_write_answers();
         world.until(Until::Ready);
+        super::park_chat(&mut world, &goal);
+        for _ in 0..STEPS {
+            world.tick();
+            if forge_hold(&world, &branch).expect("goal hold").design_writers.is_empty() {
+                break;
+            }
+        }
+        assert!(
+            forge_hold(&world, &branch).expect("goal hold").design_writers.is_empty(),
+            "no design writer remains for this move"
+        );
     }
     observe_goal_branch(&mut world, &branch);
     let expected = branch_tip(&mut world, &branch);

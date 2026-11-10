@@ -327,7 +327,13 @@ fn a_later_adoption_rechecks_the_prefix_and_accepts_only_recorded_writer_branche
     };
     world.event(top::Event::Names { task: 9, resources: Box::new([name.clone()]) });
     world.event(top::Event::Hold { entry: 0, task: 9, resource: name.clone(), from: None });
-    world.event(top::Event::Claim { task: 9, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([9]) });
+    world.event(top::Event::Claim {
+        designs: Box::new([]),
+        task: 9,
+        attempt: 1,
+        writes: Box::new([name.clone()]),
+        holders: Box::new([9]),
+    });
     world.event(top::Event::Answered {
         task: 9,
         attempt: 1,
@@ -1595,7 +1601,13 @@ fn a_reported_worker_push_is_not_taken_for_outside_drift() {
     };
     world.event(top::Event::Names { task: 51, resources: Box::new([name.clone()]) });
     world.event(top::Event::Hold { entry: 0, task: 51, resource: name.clone(), from: None });
-    world.event(top::Event::Claim { task: 51, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([]) });
+    world.event(top::Event::Claim {
+        designs: Box::new([]),
+        task: 51,
+        attempt: 1,
+        writes: Box::new([name.clone()]),
+        holders: Box::new([]),
+    });
     world.produce(b"temper/51");
     let pushed = temper_engine_forge_world::translate::commit(world.branch(b"temper/51"));
     world.event(top::Event::Answered { task: 51, attempt: 1, pushed: Box::new([(name, pushed)]) });
@@ -2356,7 +2368,13 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
     world.event(top::Event::Names { task: 51, resources: Box::new([name.clone()]) });
     world.event(top::Event::Hold { entry: 0, task: 51, resource: name.clone(), from: None });
     world.run_for(1);
-    world.event(top::Event::Claim { task: 51, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([]) });
+    world.event(top::Event::Claim {
+        designs: Box::new([]),
+        task: 51,
+        attempt: 1,
+        writes: Box::new([name.clone()]),
+        holders: Box::new([]),
+    });
     world.produce(b"temper/51");
     let pushed = temper_engine_forge_world::translate::commit(world.branch(b"temper/51"));
     world.event(top::Event::Answered { task: 51, attempt: 1, pushed: Box::new([(name.clone(), pushed)]) });
@@ -2434,6 +2452,79 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
         event,
         top::Request::ChangeDecision { task: 51, decision: change::Decision::Hold(change::Hold::BranchMoved), .. }
     )));
+}
+
+#[test]
+fn a_released_opening_move_on_a_requesters_branch_opens_before_ci() {
+    const BRANCH: &[u8] = b"temper/1/g1";
+    let mut world = World::new(293);
+    world.adopt();
+    world.landing_ci(b"main", true);
+    world.produce_on(BRANCH, b"main");
+    let prior = translate::commit(world.branch(BRANCH));
+    let name = top::Name {
+        forge: REPO.forge,
+        repository: REPO.repository,
+        what: top::What::Branch(Box::new([
+            Box::from(b"temper".as_slice()),
+            Box::from(b"1".as_slice()),
+            Box::from(b"g1".as_slice()),
+        ])),
+    };
+    world.event(top::Event::Hold { entry: 0, task: 1, resource: name, from: None });
+    world.run_for(1);
+    let mut row = change_row();
+    row.branch = BRANCH.into();
+    row.change.state = change::State::Opening { requested: false };
+    row.change.last_head = Some(prior);
+    row.change.since = world.wall();
+    world.event(top::Event::Change { row });
+    world.push(BRANCH, b"moved before opening");
+    let head = translate::commit(world.branch(BRANCH));
+    assert_ne!(head, prior);
+    assert_eq!(
+        change_step(&mut world, 1, change::Status::Passed, Box::new([])),
+        change::Decision::Hold(change::Hold::BranchMoved)
+    );
+    assert_eq!(
+        world.change(51).change.state,
+        change::State::Held {
+            was: Box::new(change::State::Opening { requested: false }),
+            why: change::Hold::BranchMoved,
+        }
+    );
+    assert_eq!(world.change(51).pull, None);
+    world.status(BRANCH, skein_fake_forge_domain::api::Check::Pending);
+    world.event(top::Event::ReleaseChange { task: 51 });
+    world.take_calls();
+    assert_eq!(
+        change_step_with_release(&mut world, 2, change::Status::Passed, Box::new([]), true),
+        change::Decision::Effect(change::Effect::Open)
+    );
+    assert_eq!(world.change(51).change.last_head, Some(head));
+    assert_eq!(world.change(51).change.state, change::State::Opening { requested: true });
+    assert!(
+        world.take_calls().iter().any(|op| matches!(op,
+            skein_forge::api::Op::Write(skein_forge::api::Write::OpenPull { head, base, .. })
+                if head.as_ref() == BRANCH && base.as_ref() == b"main"
+        )),
+        "the create-pull request reaches the forge before checking"
+    );
+    let checking = change_step(&mut world, 3, change::Status::Passed, Box::new([]));
+    assert!(matches!(checking, change::Decision::Wait { .. }), "CI pending: {checking:?}");
+    assert!(world.change(51).pull.is_some());
+    assert_eq!(world.change(51).change.state, change::State::Checking { head });
+    world.status(BRANCH, skein_fake_forge_domain::api::Check::Passed);
+    let mut landed = None;
+    for entry in 4..16 {
+        if let change::Decision::Finish { merge } = change_step(&mut world, entry, change::Status::Passed, Box::new([]))
+        {
+            landed = Some(merge);
+            break;
+        }
+    }
+    assert_eq!(landed, Some(translate::commit(world.branch(b"main"))));
+    assert_eq!(world.writes(), 2, "one pull opened, one merge");
 }
 
 #[test]
@@ -2733,7 +2824,13 @@ fn an_outside_push_during_a_worker_slot_holds_the_task_with_evidence() {
     world.event(top::Event::Hold { entry: 0, task: 51, resource: name.clone(), from: None });
     world.run_for(1);
     let before = temper_engine_forge_world::translate::commit(world.branch(b"temper/51"));
-    world.event(top::Event::Claim { task: 51, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([]) });
+    world.event(top::Event::Claim {
+        designs: Box::new([]),
+        task: 51,
+        attempt: 1,
+        writes: Box::new([name.clone()]),
+        holders: Box::new([]),
+    });
     world.push_as(b"temper/51", b"file", b"outside", 2);
     let after = temper_engine_forge_world::translate::commit(world.branch(b"temper/51"));
     world.event(top::Event::Hint {
@@ -2835,14 +2932,26 @@ fn a_lost_run_confirms_its_unreported_forward_head_by_fresh_reads() {
     };
     world.event(top::Event::Names { task: 51, resources: Box::new([name.clone()]) });
     world.event(top::Event::Hold { entry: 0, task: 51, resource: name.clone(), from: None });
-    world.event(top::Event::Claim { task: 51, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([]) });
+    world.event(top::Event::Claim {
+        designs: Box::new([]),
+        task: 51,
+        attempt: 1,
+        writes: Box::new([name.clone()]),
+        holders: Box::new([]),
+    });
     world.event(top::Event::Answered {
         task: 51,
         attempt: 1,
         pushed: Box::new([(name.clone(), translate::commit(world.branch(b"temper/51")))]),
     });
     world.run_for(1);
-    world.event(top::Event::Claim { task: 51, attempt: 2, writes: Box::new([name.clone()]), holders: Box::new([]) });
+    world.event(top::Event::Claim {
+        designs: Box::new([]),
+        task: 51,
+        attempt: 2,
+        writes: Box::new([name.clone()]),
+        holders: Box::new([]),
+    });
     world.push(b"temper/51", b"unreported work");
     let head = translate::commit(world.branch(b"temper/51"));
     let calls = world.calls();
@@ -2872,7 +2981,13 @@ fn a_lost_claim_before_its_first_push_releases_the_absent_branch_writer() {
     };
     world.event(top::Event::Names { task: 51, resources: Box::new([name.clone()]) });
     world.event(top::Event::Hold { entry: 0, task: 51, resource: name.clone(), from: None });
-    world.event(top::Event::Claim { task: 51, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([]) });
+    world.event(top::Event::Claim {
+        designs: Box::new([]),
+        task: 51,
+        attempt: 1,
+        writes: Box::new([name.clone()]),
+        holders: Box::new([]),
+    });
     world.take_seen();
     world.event(top::Event::Lost { task: 51, attempt: 1 });
     world.run_for(5);
@@ -2896,7 +3011,13 @@ fn a_lost_writer_restarts_its_unfinished_fresh_read_before_releasing() {
     };
     world.event(top::Event::Names { task: 53, resources: Box::new([name.clone()]) });
     world.event(top::Event::Hold { entry: 0, task: 53, resource: name.clone(), from: None });
-    world.event(top::Event::Claim { task: 53, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([]) });
+    world.event(top::Event::Claim {
+        designs: Box::new([]),
+        task: 53,
+        attempt: 1,
+        writes: Box::new([name.clone()]),
+        holders: Box::new([]),
+    });
     world.produce(b"temper/53");
     world.slow_calls(skein_lib::Duration::from_secs(5));
     world.event(top::Event::Lost { task: 53, attempt: 1 });
@@ -2931,6 +3052,7 @@ fn a_repository_with_222_branches_and_two_recorded_prefix_branches_is_adopted() 
         world.event(top::Event::Names { task, resources: Box::new([name.clone()]) });
         world.event(top::Event::Hold { entry: 0, task, resource: name.clone(), from: None });
         world.event(top::Event::Claim {
+            designs: Box::new([]),
             task,
             attempt: 1,
             writes: Box::new([name.clone()]),

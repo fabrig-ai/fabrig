@@ -152,6 +152,7 @@ impl World {
                     | git::Op::Create { .. }
                     | git::Op::CheckOut { .. }
                     | git::Op::Look { .. }
+                    | git::Op::DiffPaths { .. }
                     | git::Op::IsAncestor { .. }
                     | git::Op::Merge { .. } => {}
                 }

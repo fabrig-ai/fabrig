@@ -180,7 +180,13 @@ impl Fill {
         assert_eq!(self.step(push)[..], [Asked::Io { op: Kind::Commit }]);
         for place in 0..limits.repositories {
             let head = commit(1000 * (n + 1) + place);
-            assert_eq!(self.done(hold, Done::Committed { commit: head })[..], [Asked::Io { op: Kind::Push }]);
+            assert_eq!(self.done(hold, Done::Committed { commit: head })[..], [Asked::Io { op: Kind::Fetch }]);
+            assert_eq!(
+                self.done(hold, Done::Fetched { commit: commit(place) })[..],
+                [Asked::Io { op: Kind::IsAncestor }]
+            );
+            assert_eq!(self.done(hold, Done::IsAncestor { contains: true })[..], [Asked::Io { op: Kind::DiffPaths }]);
+            assert_eq!(self.done(hold, Done::Paths { files: Box::new([]) })[..], [Asked::Io { op: Kind::Push }]);
             let timed_out = Done::Failed { fault: Fault::TimedOut };
             assert_eq!(self.done(hold, timed_out)[..], [Asked::Io { op: Kind::Fetch }], "verified");
             let next = self.done(hold, Done::Fetched { commit: head });

@@ -1,11 +1,10 @@
-//! A goal's delivery lands by a change while its run keeps writing
+//! A goal writes design straight to g while changes land beside it
 //! (temper/docs/design/domain/forge.md, 8.1, 8.5, 8.11 and 11.1;
 //! temper/docs/design/domain/agent.md, 4.3 and 4.3.1;
 //! temper/docs/design/protocol/configuration.md, 13.9).
 use super::goal_branch::{branch_tip, forge_hold, goal_request, writer};
 use super::goal_landing::{assert_goal_holds, ended, finish_run, land_into_goal, row, status};
 use super::*;
-use std::collections::BTreeMap;
 use temper_engine_domain_forge_change::State;
 
 const CHANNEL: Token = Token::new(7);
@@ -17,16 +16,9 @@ const SIBLING_CALL: u64 = 93;
 const DELIVERY_CALL: u64 = 94;
 const DEPENDENT_CALL: u64 = 95;
 const SIBLING_MERGES: u32 = 1;
-const DELIVERY_MERGES: u32 = 2; // The sibling and C1 each land into g.
-const DELIVERY_FILE: &[u8] = b"design";
-const DELIVERY_CONTENT: &[u8] = b"the design";
 const WAIT_TICKS: u32 = 20; // Two simulated seconds give the delegate time to claim the busy slot.
 
 fn running_goal() -> (World, engine::Assignment, Box<[u8]>) {
-    goal_world(false)
-}
-
-fn goal_world(merge: bool) -> (World, engine::Assignment, Box<[u8]>) {
     let mut world = World::configured_limits(
         true,
         true,
@@ -34,13 +26,7 @@ fn goal_world(merge: bool) -> (World, engine::Assignment, Box<[u8]>) {
         STEPS,
         Gate::default(),
         None,
-        StoryLimits {
-            slots: Some(WORKER_SLOTS),
-            result_bytes: Some(RESULT_BYTES),
-            merge_kind: merge,
-            merge_authority: merge,
-            ..StoryLimits::default()
-        },
+        StoryLimits { slots: Some(WORKER_SLOTS), result_bytes: Some(RESULT_BYTES), ..StoryLimits::default() },
     )
     .with_landing_deployment(Box::new([engine::LandingRule {
         connector: 0,
@@ -51,14 +37,11 @@ fn goal_world(merge: bool) -> (World, engine::Assignment, Box<[u8]>) {
             last: authority::Last::Open(b"temper".as_slice().into()),
         },
         ci: true,
-        // The sibling moves g; this story lands the delivery without asking for an update of r.
+        // Child changes merge beside the goal's design writer.
         up_to_date: false,
         gates: Box::new([]),
         approvals: Box::new([]),
     }]));
-    if merge {
-        world = world.with_merge_job(b".temper/merge");
-    }
     world.adopt();
     world.send(protocol::hello_slots(CHANNEL, WORKER_SLOTS, Box::new([])));
     let people::Ask::Create { project, mut batch } = goal_request(&world, true) else { panic!("goal template") };
@@ -66,16 +49,6 @@ fn goal_world(merge: bool) -> (World, engine::Assignment, Box<[u8]>) {
     let goal = assigned_chat(&mut world, GOAL_REQUEST, people::Ask::Create { project, batch });
     let branch = format!("temper/{}/g{}", goal.task, goal.task).into_bytes().into_boxed_slice();
     world.until(Until::Ready);
-    // The first assignment can precede g's confirmation. Consume that news so
-    // the story starts with the confirmed goal's delivery workspace.
-    super::park_chat(&mut world, &goal);
-    let goal = world
-        .assigned
-        .iter()
-        .rev()
-        .find(|run| run.task == goal.task && run.attempt > goal.attempt)
-        .expect("confirmation wakes the delivery run")
-        .clone();
     (world, goal, branch)
 }
 
@@ -129,8 +102,24 @@ fn assert_ended_design_refused(world: &mut World, goal: &engine::Assignment, des
 
 fn pending_design_delivery(world: &mut World, goal: &engine::Assignment, branch: &[u8]) -> (u64, u64, u64) {
     let base = branch_tip(world, branch);
-    let head = deliver(world, goal, base, b"docs/design/input.md");
-    let design = make_delivery(world, goal, DELIVERY_CALL);
+    let assigned = world.assigned.len();
+    let answer = mine(world, goal, DELIVERY_CALL, br#"{"words":"Write the design","landing":"goal"}"#);
+    let engine::CallAnswer::Delegated(made) = answer else { panic!("design change: {answer:?}") };
+    let design = made[0].task;
+    let producer = reviews::next_assignment(world, assigned);
+    let head = early_start::push(world, &producer, base, b"docs/design/input.md");
+    status(world, head, raw::Check::Pending);
+    finish_run(
+        world,
+        &producer,
+        tasks::TaskResult::Change {
+            title: tasks::ChangeTitle::new(b"Write design".as_slice().into()),
+            connector: 0,
+            kind: 2,
+            resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
+            words: b"pushed".as_slice().into(),
+        },
+    );
     (base, head, design)
 }
 
@@ -254,126 +243,59 @@ fn design_first_waits_for_confirmed_landing_before_coding() {
 }
 
 #[test]
-fn a_goals_delivery_lands_into_its_goal_branch_by_a_change() {
+fn a_goals_design_delivery_and_a_sibling_merge_reach_g_without_a_slot() {
     let (mut world, goal, branch) = running_goal();
-
-    // 1. Delivering leaves the goal's report contract intact.
-    let charter = temper_engine_smith::charter(&goal);
-    assert!(charter.grants.deliver.is_some(), "the goal's charter grants deliver");
-    assert!(charter.grants.tools.modify);
-    let deliver = charter.grants.deliver.as_ref().expect("delivery grant");
-    assert!(deliver.checks_must_pass);
-    assert_eq!(
-        deliver.fields.iter().map(|field| field.name.as_ref()).collect::<Vec<_>>(),
-        [b"title".as_slice(), b"body"]
-    );
-    assert!(charter.outcome.change.is_none());
-    assert!(charter.outcome.report.is_some());
-
-    // 2. The run writes r and leaves g's slot free for merges.
-    let run_branch = format!("temper/{}/r{}", goal.task, goal.task).into_bytes().into_boxed_slice();
-    assert_eq!(goal.workspace.repositories[0].start, engine::ForgeStart::Base(branch.clone()));
-    assert_eq!(goal.workspace.repositories[0].push, Some(run_branch.clone()));
-    let goal_writer = Some(tasks::Writer::Run { task: goal.task, attempt: goal.attempt });
-    assert_eq!(writer(&world, &run_branch), goal_writer);
+    let item = &goal.workspace.repositories[0];
+    assert_eq!(item.start, engine::ForgeStart::Base(branch.clone()));
+    assert_eq!(item.push.as_deref(), Some(branch.as_ref()));
+    assert_eq!(item.landing.as_deref(), Some(branch.as_ref()));
     assert_eq!(writer(&world, &branch), None);
-
-    // 3. The scripted worker pushes H1 and hints its run branch.
+    let designers = &forge_hold(&world, &branch).expect("goal hold").design_writers;
+    assert_eq!(
+        designers.as_ref(),
+        &[forge_top::DesignWriter { task: goal.task, attempt: goal.attempt, rereading: false }]
+    );
+    let home = goal
+        .sections
+        .iter()
+        .find(|section| section.kind == engine::BriefKind::Forge(engine::ForgeBriefKind::Home))
+        .expect("design delivery section");
+    assert_eq!(home.body, engine::BriefBody::Text(b"deliver pushes the checkout's Markdown straight to the goal branch, merging its moved tip first; code goes through change.".as_slice().into()));
     let base = branch_tip(&mut world, &branch);
-    assert_eq!(
-        world.external(1, raw::Op::Git(raw::Git::Create { branch: run_branch.clone(), commit: base })),
-        raw::Answer::Branch(raw::Created::Created)
-    );
-    let head =
-        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &run_branch, DELIVERY_FILE, DELIVERY_CONTENT, 1)
-            .expect("the goal pushes its delivery");
-    assert_ne!(head, base);
-    assert_eq!(branch_tip(&mut world, &run_branch), head);
-    status(&mut world, head, raw::Check::Pending);
-    early_start::observe_push(&mut world, &goal);
-
-    // 4. A sibling lands into g while the goal keeps its run slot.
-    let sibling_head = land_into_goal(&mut world, &goal, &branch, SIBLING_CALL, b"sibling");
-    assert_ne!(sibling_head, base);
+    deliver(&mut world, &goal, base, b"design.md");
+    let merged = land_into_goal(&mut world, &goal, &branch, SIBLING_CALL, b"sibling");
     assert_eq!(world.merges, SIBLING_MERGES);
-    assert_eq!(writer(&world, &run_branch), goal_writer);
+    assert_eq!(writer(&world, &branch), None);
     assert_goal_holds(&world, goal.task, &branch);
-
-    read_news(&mut world, &goal);
-
-    // 5. C1 lands the run branch without making a producer.
-    let assigned = world.assigned.len();
-    let answer =
-        mine(&mut world, &goal, DELIVERY_CALL, br#"{"words":"Land the design","branch":"run","landing":"goal"}"#);
-    let engine::CallAnswer::Delegated(made) = answer else { panic!("C1 delegated: {answer:?}") };
-    let c1 = made[0].task;
-    assert_eq!(row(&world, c1).branch, run_branch);
-    assert_eq!(row(&world, c1).base, branch);
-    assert_eq!(row(&world, c1).delegate, None);
-    assert_eq!(world.assigned.len(), assigned, "C1 has no producer");
-
-    // 6. C2 starts early from H1 while C1 waits for its checks.
-    let input = format!(r#"{{"words":"Build on the design","landing":"goal","after":[{c1}]}}"#);
-    let answer = mine(&mut world, &goal, DEPENDENT_CALL, input.as_bytes());
-    let engine::CallAnswer::Delegated(made) = answer else { panic!("C2 delegated: {answer:?}") };
-    let c2 = made[0].task;
-    let producer = reviews::next_assignment(&mut world, assigned);
-    assert_eq!(live_task(&world, producer.task).requester, tasks::Party::Task(c2));
+    let head = deliver(&mut world, &goal, merged, b"after-merge.md");
+    super::goal_branch::observe_goal_branch(&mut world, &branch);
     assert_eq!(
-        producer.workspace.repositories[0].start,
-        engine::ForgeStart::Merged { branch: branch.clone(), heads: Box::new([translate::commit(head)]) }
+        forge_hold(&world, &branch).expect("live goal hold").drift,
+        None,
+        "a design push after the merge is still owned"
     );
-    assert_eq!(live_task(&world, c2).started_from.as_ref(), &[c1]);
-    assert!(ended(&world, c1).is_none(), "C2 starts before C1 lands");
-
-    // 7. C1 lands H1 while the goal's run still writes r.
-    status(&mut world, head, raw::Check::Passed);
+    assert_file(&mut world, &branch, b"design.md");
+    assert_file(&mut world, &branch, b"sibling");
+    assert_file(&mut world, &branch, b"after-merge.md");
+    park(&mut world, &goal);
     for _ in 0..STEPS {
         world.tick();
-        assert_eq!(writer(&world, &run_branch), goal_writer);
-        if ended(&world, c1).is_some() {
+        if forge_hold(&world, &branch).expect("retained goal hold").design_writers.is_empty() {
             break;
         }
     }
-    assert!(ended(&world, c1).is_some(), "C1 closes while the goal runs");
-    assert!(matches!(row(&world, c1).change.state, State::Landed { .. }), "{:?}", row(&world, c1));
-    assert_eq!(row(&world, c1).change.last_head, Some(translate::commit(head)));
-    assert_eq!(world.merges, DELIVERY_MERGES);
-    let tip = branch_tip(&mut world, &branch);
-    let tree = &world.fake.object(tip).expect("goal tip").tree;
-    assert_eq!(tree.get(DELIVERY_FILE).map(AsRef::as_ref), Some(DELIVERY_CONTENT));
-    assert_eq!(tree.get(b"sibling".as_slice()).map(AsRef::as_ref), Some(b"added".as_slice()));
-
-    // 8. C1's close keeps the run branch and the goal's holds.
-    world.until(Until::Ready);
-    assert_eq!(branch_tip(&mut world, &run_branch), head);
-    assert!(!world.writes.iter().any(|write| matches!(write,
-        skein_forge::api::Write::DeleteBranch { branch: deleted } if *deleted == run_branch)));
-    assert_eq!(forge_hold(&world, &run_branch).expect("run branch hold").task, goal.task);
-    assert_goal_holds(&world, goal.task, &branch);
-
-    // 9. The early producer completes, then the goal finishes with a report.
-    let base = branch_tip(&mut world, &branch);
-    let implementation_head = early_start::push(&mut world, &producer, base, b"implementation");
-    world.tick();
-    status(&mut world, implementation_head, raw::Check::Passed);
-    finish_run(
-        &mut world,
-        &producer,
-        tasks::TaskResult::Change {
-            title: tasks::ChangeTitle::new(b"Build on the design".as_slice().into()),
-            connector: 0,
-            kind: 2,
-            resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
-            words: b"pushed".as_slice().into(),
-        },
-    );
-    await_end(&mut world, c2);
-    let report = tasks::TaskResult::Report { words: b"Done".as_slice().into() };
-    finish_run(&mut world, &goal, report.clone());
-    await_end(&mut world, goal.task);
-    assert_eq!(ended(&world, goal.task).expect("goal ended").phase, tasks::Phase::Ended(tasks::Ending::Done(report)));
-    world.close();
+    let hold = forge_hold(&world, &branch).expect("retained goal hold");
+    assert!(hold.design_writers.is_empty(), "{hold:?}");
+    assert!(hold.drift.is_none());
+    let name = hold.name.clone();
+    assert!(world.store.rows.values().any(|row| matches!(row,
+        Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::BranchHead(record) if record.name == name && record.commit == translate::commit(head) && record.owned))));
+    super::goal_branch::observe_goal_branch(&mut world, &branch);
+    assert!(forge_hold(&world, &branch).expect("goal hold after poll").drift.is_none());
+    let second = wake(&mut world, &goal);
+    assert_eq!(second.workspace.repositories[0].start, engine::ForgeStart::Base(branch.clone()));
+    assert_eq!(second.workspace.repositories[0].push.as_deref(), Some(branch.as_ref()));
+    early_start::stop(&mut world, &second);
 }
 
 fn read_news(world: &mut World, run: &engine::Assignment) {
@@ -393,7 +315,7 @@ fn mine(world: &mut World, run: &engine::Assignment, number: u64, input: &[u8]) 
     world.scripted_call(run, number, call.tool)
 }
 
-fn run_branch(run: &engine::Assignment) -> Box<[u8]> {
+fn push_branch(run: &engine::Assignment) -> Box<[u8]> {
     run.workspace.repositories[0].push.clone().expect("goal delivery destination")
 }
 
@@ -406,7 +328,7 @@ fn deliver(world: &mut World, run: &engine::Assignment, base: u64, file: &[u8]) 
 }
 
 fn make_delivery(world: &mut World, run: &engine::Assignment, number: u64) -> u64 {
-    let answer = mine(world, run, number, br#"{"words":"Land delivery","branch":"run","landing":"goal"}"#);
+    let answer = mine(world, run, number, br#"{"words":"Land goal","branch":"mine"}"#);
     let engine::CallAnswer::Delegated(made) = answer else { panic!("delivery admitted: {answer:?}") };
     made[0].task
 }
@@ -443,41 +365,13 @@ fn park(world: &mut World, run: &engine::Assignment) {
 }
 
 fn wake(world: &mut World, run: &engine::Assignment) -> engine::Assignment {
+    world.signed_in = None;
+    world.sign_in();
     assigned_chat(
         world,
         GOAL_REQUEST + 1,
         people::Ask::Say { project: 1, task: run.task, words: b"Continue".as_slice().into() },
     )
-}
-
-fn assert_next_start(run: &engine::Assignment, branch: &[u8], head: u64, destination: &[u8]) {
-    let item = &run.workspace.repositories[0];
-    assert_eq!(item.start, engine::ForgeStart::Merge { branch: branch.into(), base: translate::commit(head) });
-    assert_eq!(item.landing.as_deref(), Some(branch));
-    assert_eq!(item.push.as_deref(), Some(destination));
-    assert!(item.delivers);
-}
-
-fn merge_tree(world: &World, tip: u64, head: u64) -> BTreeMap<Box<[u8]>, Box<[u8]>> {
-    let mut tree = world
-        .fake
-        .object(tip)
-        .expect("goal tip")
-        .tree
-        .iter()
-        .map(|(path, content)| (path.clone(), content.clone()))
-        .collect::<BTreeMap<_, _>>();
-    tree.extend(
-        world.fake.object(head).expect("run tip").tree.iter().map(|(path, content)| (path.clone(), content.clone())),
-    );
-    tree
-}
-
-fn merge_start(world: &mut World, branch: &[u8], head: u64) -> u64 {
-    let tip = branch_tip(world, branch);
-    let files = merge_tree(world, tip, head).into_iter().map(|(path, content)| raw::File { path, content }).collect();
-    fake::merge_commit(&mut world.fake, &world.fake_env.limits, tip, head, files, b"Prepare next goal run")
-        .expect("scripted checkout merges both tips")
 }
 
 fn assert_file(world: &mut World, branch: &[u8], file: &[u8]) {
@@ -489,46 +383,20 @@ fn assert_file(world: &mut World, branch: &[u8], file: &[u8]) {
 }
 
 #[test]
-fn a_goals_second_run_delivers_from_g_with_its_run_branch_merged_in() {
+fn a_goals_second_run_starts_from_its_direct_design_delivery() {
     let (mut world, goal, branch) = running_goal();
-    let r = run_branch(&goal);
     let base = branch_tip(&mut world, &branch);
-    let h1 = deliver(&mut world, &goal, base, b"first");
-    let c1 = make_delivery(&mut world, &goal, DELIVERY_CALL);
-    land_delivery(&mut world, c1, h1);
+    let head = deliver(&mut world, &goal, base, b"first.md");
     park(&mut world, &goal);
     let second = wake(&mut world, &goal);
-    assert_next_start(&second, &branch, h1, &r);
-    let start = merge_start(&mut world, &branch, h1);
-    let h2 = deliver(&mut world, &second, start, b"second");
-    assert_eq!(branch_tip(&mut world, &r), h2);
-    let c2 = make_delivery(&mut world, &second, DELIVERY_CALL + 10);
-    assert_ne!(c2, c1, "an ended change no longer excludes its successor");
-    land_delivery(&mut world, c2, h2);
-    assert_eq!(world.merges, DELIVERY_MERGES);
-    assert_file(&mut world, &branch, b"first");
-    assert_file(&mut world, &branch, b"second");
-    early_start::stop(&mut world, &second);
-}
-
-#[test]
-fn a_run_branch_left_holding_what_g_lacks_reaches_the_next_run() {
-    let (mut world, goal, branch) = running_goal();
-    let r = run_branch(&goal);
-    let base = branch_tip(&mut world, &branch);
-    let h1 = deliver(&mut world, &goal, base, b"undelivered");
-    park(&mut world, &goal);
-    assert_eq!(world.merges, 0, "the first run made no change");
-    assert_eq!(branch_tip(&mut world, &branch), base);
-    let second = wake(&mut world, &goal);
-    assert_next_start(&second, &branch, h1, &r);
-    let start = merge_start(&mut world, &branch, h1);
-    let h2 = deliver(&mut world, &second, start, b"next");
-    let change = make_delivery(&mut world, &second, DELIVERY_CALL);
-    land_delivery(&mut world, change, h2);
-    assert_eq!(world.merges, SIBLING_MERGES);
-    assert_file(&mut world, &branch, b"undelivered");
-    assert_file(&mut world, &branch, b"next");
+    let item = &second.workspace.repositories[0];
+    assert_eq!(item.start, engine::ForgeStart::Base(branch.clone()));
+    assert_eq!(item.push.as_deref(), Some(branch.as_ref()));
+    let head = deliver(&mut world, &second, head, b"second.md");
+    assert_eq!(branch_tip(&mut world, &branch), head);
+    assert_eq!(world.merges, 0);
+    assert_file(&mut world, &branch, b"first.md");
+    assert_file(&mut world, &branch, b"second.md");
     early_start::stop(&mut world, &second);
 }
 
@@ -545,7 +413,7 @@ fn checking(world: &mut World, change: u64, head: u64) {
 #[test]
 fn a_delivery_under_its_open_change_is_that_changes_new_head() {
     let (mut world, goal, branch) = running_goal();
-    let r = run_branch(&goal);
+    let r = push_branch(&goal);
     let base = branch_tip(&mut world, &branch);
     let h1 = deliver(&mut world, &goal, base, b"first");
     let c1 = make_delivery(&mut world, &goal, DELIVERY_CALL);
@@ -564,7 +432,7 @@ fn a_delivery_under_its_open_change_is_that_changes_new_head() {
                 if *commit == translate::commit(h2))
         });
         assert_eq!(world.merges, 0, "the superseded head never lands");
-        assert_eq!(writer(&world, &r), Some(tasks::Writer::Run { task: goal.task, attempt: goal.attempt }));
+        assert_eq!(writer(&world, &r), None);
         if read_ci && row(&world, c1).change.state == (State::Checking { head: translate::commit(h2) }) {
             break;
         }
@@ -580,100 +448,6 @@ fn a_delivery_under_its_open_change_is_that_changes_new_head() {
     early_start::stop(&mut world, &goal);
 }
 
-#[test]
-fn a_conflict_on_a_run_branch_goes_to_the_merge_job_and_a_resolution() {
-    let (mut world, goal, branch) = goal_world(true);
-    let r = run_branch(&goal);
-    let base = branch_tip(&mut world, &branch);
-    deliver(&mut world, &goal, base, b"conflict");
-    let h1 = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &r, b"conflict", b"run work", 1)
-        .expect("run and goal will disagree on the file");
-    world.tick();
-    status(&mut world, h1, raw::Check::Pending);
-    early_start::observe_push(&mut world, &goal);
-    let moved = land_into_goal(&mut world, &goal, &branch, SIBLING_CALL, b"conflict");
-    read_news(&mut world, &goal);
-    let c1 = make_delivery(&mut world, &goal, DELIVERY_CALL);
-    status(&mut world, h1, raw::Check::Passed);
-    for _ in 0..STEPS {
-        world.tick();
-        if row(&world, c1).delegate.is_some() {
-            break;
-        }
-    }
-    let (delegate, kind) = row(&world, c1).delegate.expect("conflict delegates its merge");
-    assert!(matches!(kind, temper_engine_domain_forge_change::Delegate::Merge { .. }), "{kind:?}");
-    for _ in 0..WAIT_TICKS {
-        world.tick();
-    }
-    assert!(world.jobs.is_empty(), "the merge job waits while the goal writes r");
-    assert_eq!(writer(&world, &r), Some(tasks::Writer::Run { task: goal.task, attempt: goal.attempt }));
-    let job = freed_merge_job(&mut world, &goal, delegate);
-    assert_eq!(job.run.raw(), delegate);
-    assert_eq!(job.kind, jig_domain_link::JobKind(3));
-    let item = &world.job_workspaces[&job.run.raw()].repositories[0];
-    assert_eq!(item.start, engine::ForgeStart::Merge { branch: r.clone(), base: translate::commit(moved) });
-    assert_eq!(item.push.as_deref(), Some(r.as_ref()));
-    assert_eq!(forge_hold(&world, &r).expect("goal's run hold").task, goal.task);
-    assert_eq!(writer(&world, &r), Some(tasks::Writer::Run { task: delegate, attempt: job.attempt.raw() }));
-    assert!(live_task(&world, delegate).holdings.is_empty(), "the job borrows its ancestor's hold");
-    let assigned = world.assigned.len();
-    let answer = world.protocol.answer_job(
-        CHANNEL,
-        job.run.raw(),
-        job.attempt.raw(),
-        host::JobEnding::Finished {
-            result: br#"{"left":["conflict"]}"#.as_slice().into(),
-            work: host::Work { left: None, saved: None },
-        },
-    );
-    world.send(answer);
-    let resolution = reviews::next_assignment(&mut world, assigned);
-    assert_eq!(live_task(&world, resolution.task).requester, tasks::Party::Task(c1));
-    assert_eq!(
-        resolution.workspace.repositories[0].start,
-        engine::ForgeStart::Merge { branch: r.clone(), base: translate::commit(moved) }
-    );
-    assert_eq!(run_branch(&resolution), r);
-    assert_eq!(row(&world, c1).change.resolutions, 1);
-    let mut tree = merge_tree(&world, h1, moved);
-    tree.insert(b"conflict".as_slice().into(), b"resolved".as_slice().into());
-    let files = tree.into_iter().map(|(path, content)| raw::File { path, content }).collect();
-    let resolved = fake::merge_commit(&mut world.fake, &world.fake_env.limits, h1, moved, files, b"Resolve conflict")
-        .expect("resolution keeps both parents");
-    assert_eq!(
-        world.external(1, raw::Op::Git(raw::Git::Push { branch: r.clone(), commit: resolved, expected: Some(h1) })),
-        raw::Answer::Pushed(raw::Pushed::Pushed)
-    );
-    status(&mut world, resolved, raw::Check::Passed);
-    finish_run(
-        &mut world,
-        &resolution,
-        tasks::TaskResult::Change {
-            title: tasks::ChangeTitle::new(b"Resolve delivery".as_slice().into()),
-            connector: 0,
-            kind: 2,
-            resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
-            words: b"resolved".as_slice().into(),
-        },
-    );
-    land_delivery(&mut world, c1, resolved);
-    let next = world
-        .assigned
-        .iter()
-        .rev()
-        .find(|run| run.task == goal.task && run.attempt > goal.attempt)
-        .cloned()
-        .unwrap_or_else(|| wake(&mut world, &goal));
-    assert_next_start(&next, &branch, resolved, &r);
-    let tip = branch_tip(&mut world, &branch);
-    assert_eq!(
-        world.fake.object(tip).expect("landed resolution").tree.get(b"conflict".as_slice()).map(AsRef::as_ref),
-        Some(b"resolved".as_slice())
-    );
-    early_start::stop(&mut world, &next);
-}
-
 fn deleted(world: &World, branch: &[u8]) -> bool {
     world.writes.iter().any(|write| {
         matches!(write,
@@ -682,65 +456,19 @@ fn deleted(world: &World, branch: &[u8]) -> bool {
 }
 
 #[test]
-fn a_goals_close_takes_its_run_branch() {
+fn a_goals_close_deletes_no_unused_run_branch() {
     let (mut world, goal, branch) = running_goal();
-    let r = run_branch(&goal);
+    let r = format!("temper/{}/r{}", goal.task, goal.task).into_bytes();
     let base = branch_tip(&mut world, &branch);
-    let head = deliver(&mut world, &goal, base, b"delivered");
-    let c1 = make_delivery(&mut world, &goal, DELIVERY_CALL);
-    land_delivery(&mut world, c1, head);
-    assert!(!deleted(&world, &r), "the change closes without deleting its requester's branch");
-    assert_eq!(branch_tip(&mut world, &r), head);
-    assert_eq!(forge_hold(&world, &r).expect("goal retains r").task, goal.task);
+    deliver(&mut world, &goal, base, b"design.md");
     let report = tasks::TaskResult::Report { words: b"Done".as_slice().into() };
     finish_run(&mut world, &goal, report.clone());
     await_end(&mut world, goal.task);
     world.until(Until::Ready);
     assert_eq!(ended(&world, goal.task).expect("goal ended").phase, tasks::Phase::Ended(tasks::Ending::Done(report)));
-    assert!(deleted(&world, &r), "the goal's close deletes its run branch");
+    assert!(!deleted(&world, &r));
     assert!(forge_hold(&world, &r).is_none());
-    assert_eq!(world.fake.branch(b"org/repo", &r), None);
     world.close();
-}
-
-fn freed_merge_job(world: &mut World, goal: &engine::Assignment, delegate: u64) -> host::JobAssignment {
-    let wait_began = world.env.now;
-    park(world, goal);
-    if matches!(live_task(world, delegate).phase, tasks::Phase::Held { .. }) {
-        world.signed_in = None;
-        world.sign_in();
-        let revision = live_task(world, delegate).revisions.hold;
-        assert!(matches!(live_task(world, delegate).phase, tasks::Phase::Held { why: tasks::Hold::HoldsWaited, .. }));
-        eprintln!(
-            "slot wait held: refused={}; attempt={}; now={:?}",
-            live_task(world, delegate).refusals,
-            live_task(world, delegate).attempt,
-            world.env.now
-        );
-        world.send(engine::Event::Party(engine::PartyInput::Ask {
-            models: Box::new([]),
-            reply_to: ReplyTo::new(Token::new(96)),
-            sign_in: world.signed_in.expect("owner session"),
-            key: [96; 16],
-            ask: people::Ask::Release { project: 1, task: delegate, revision, again: None },
-        }));
-        world.until(Until::Ready);
-    }
-    for _ in 0..STEPS {
-        world.tick();
-        if !world.jobs.is_empty() {
-            break;
-        }
-    }
-    assert!(!world.jobs.is_empty(), "the parked run frees r for the merge job: {:?}", live_task(world, delegate).phase);
-    let job = world.jobs.remove(0);
-    eprintln!(
-        "merge job {delegate} writes r under goal {}; wait={:?}; stall={:?}",
-        goal.task,
-        world.env.now.saturating_since(wait_began),
-        world.env.limits.forge.change_policy.stall
-    );
-    job
 }
 
 // temper/docs/design/domain/forge.md, 9: a queued change follows its goal's priority-only amendment.
@@ -786,5 +514,9 @@ fn a_goals_priority_amendment_moves_its_queued_change() {
         i32::try_from(priority).unwrap(),
         "the goal feed must save its change's new priority"
     );
+    land_delivery(&mut world, change, head);
+    finish_run(&mut world, &goal, tasks::TaskResult::Report { words: b"Done".as_slice().into() });
+    await_end(&mut world, goal.task);
+    world.until(Until::Ready);
     world.close();
 }

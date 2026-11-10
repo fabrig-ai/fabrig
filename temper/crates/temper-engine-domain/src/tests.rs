@@ -771,7 +771,7 @@ fn a_program_sign_out_counts_its_retained_worker_failures() {
 
 #[test]
 fn a_conversations_prepared_text_ask_reaches_its_assignment() {
-    use crate::boundary::PreparedWorkspace;
+    use crate::boundary::{PreparedWorkspace, WorkspacePreparation};
     use crate::route::forge_route::RunWorkspace;
     use jig_domain_core as core;
 
@@ -782,16 +782,17 @@ fn a_conversations_prepared_text_ask_reaches_its_assignment() {
         .run_workspaces
         .insert(
             fixture.task,
-            PreparedWorkspace {
+            WorkspacePreparation::Ready(PreparedWorkspace {
                 workspace: RunWorkspace {
                     workspace: crate::ForgeWorkspace { repositories: Box::new([]) },
                     workstream: fixture.task,
                     writes: Box::new([]),
                     names: Box::new([]),
+                    designs: Box::new([]),
                     own_holds: Box::new([]),
                 },
                 claim_names: Box::new([]),
-            },
+            }),
         )
         .unwrap();
     let mut requests = Queue::with_capacity(1);

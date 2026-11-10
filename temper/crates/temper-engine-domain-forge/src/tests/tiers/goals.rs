@@ -22,7 +22,15 @@ fn name(branch: &[u8]) -> Name {
 fn hold(d: &mut Domain, goal: u64, branch: &[u8]) {
     outputs(
         d,
-        Event::Restore { record: Stored::Hold(Hold { name: name(branch), task: goal, writer: None, drift: None }) },
+        Event::Restore {
+            record: Stored::Hold(Hold {
+                design_writers: Box::new([]),
+                name: name(branch),
+                task: goal,
+                writer: None,
+                drift: None,
+            }),
+        },
     );
 }
 fn span(d: &mut Domain, span: Option<Duration>) {

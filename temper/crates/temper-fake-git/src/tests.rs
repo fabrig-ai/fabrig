@@ -79,6 +79,7 @@ fn spawn(command: &Command) -> k::Spawn {
         | Command::SnapshotReset { .. }
         | Command::Unmerged
         | Command::Add
+        | Command::DiffPaths { .. }
         | Command::DiffIndex { .. }
         | Command::WriteTree
         | Command::CommitTree { .. } => Some(temper_worker_domain_checkout::git::Kind::Commit),

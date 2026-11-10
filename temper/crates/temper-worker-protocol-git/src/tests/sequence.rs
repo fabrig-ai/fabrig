@@ -146,3 +146,32 @@ fn an_always_commit_writes_a_tree_without_comparing_the_parent() {
         assert_eq!(sequence::after(&op, &Command::Add, 0, b"", b"", 0, &fixtures::checkout()), Next::Run(expected));
     }
 }
+
+#[test]
+fn changed_paths_are_complete_bounded_nul_records() {
+    let op = git::Op::DiffPaths { at: fixtures::at(), before: fixtures::PARENT, after: fixtures::COMMIT };
+    let command = Command::DiffPaths { before: fixtures::PARENT, after: fixtures::COMMIT };
+    assert_eq!(sequence::first(&op), Next::Run(command.clone()));
+    let valid: &[(&[u8], &[&[u8]])] = &[(b"", &[]), (b"docs/a.md\0src/lib.rs\0", &[b"docs/a.md", b"src/lib.rs"])];
+    for (stdout, paths) in valid {
+        let mut files = skein_lib::List::with_capacity(u32::try_from(paths.len()).expect("tiny list"));
+        for path in *paths {
+            files.push(Box::from(*path)).expect("room for expected paths");
+        }
+        let files = files.into_boxed();
+        assert_eq!(
+            sequence::after(&op, &command, 0, stdout, b"", 0, &fixtures::checkout()),
+            Next::End(git::Done::Paths { files })
+        );
+    }
+    for stdout in [b"docs/a.md".as_slice(), b"one\0two\0three\0four\0five\0"] {
+        assert_eq!(
+            sequence::after(&op, &command, 0, stdout, b"", 0, &fixtures::checkout()),
+            Next::End(git::Done::FailedWithOutput {
+                fault: git::Fault::Broken,
+                diagnostic: git::PushDiagnostic::empty(),
+            }),
+            "a truncated or over-bound list cannot hide a code path"
+        );
+    }
+}
