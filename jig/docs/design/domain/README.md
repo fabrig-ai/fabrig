@@ -296,7 +296,7 @@ where each is answered:
   turn's read messages; a message the run refused or left unread stays
   in the inbox; every kind of message fits the deployment's bound, and
   the fleet admits no host whose agent takes less, so no run refuses one
-  for its size (hosts.md, 6.4 and sections 2 and 9; tasks.md, 8.2 and
+  for its size (hosts.md, 6.4, 2 and 9; tasks.md, 8.2 and
   8.3).
 - **An application's credentials are lent as LLM accounts' are:** named
   by number and generation, their values its protocol layer's, named by

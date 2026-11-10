@@ -69,7 +69,7 @@ fn provider_bounds(limits: &skein_oauth_issuer::Limits) -> Option<u32> {
     limits.request_bytes.checked_add(1)
 }
 
-/// Issuer bounds shared with configuration's startup helper (client.md, 18).
+/// Issuer bounds shared with configuration's startup helper (protocol/client.md, 18).
 #[must_use]
 pub fn provider_limits(limits: &Limits) -> skein_oauth_issuer::Limits {
     skein_oauth_issuer::Limits {

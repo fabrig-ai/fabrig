@@ -15,7 +15,7 @@ still open is listed in section 18.
 
 ## 1. In one page
 
-- **A step machine the application holds** (programming-model.md,
+- **A step machine the application holds** (skein/docs/foundation/programming-model.md,
   section 3): `jig_client::Client`, with its own vocabulary, limits
   and world. The application steps it with each event, and
   it gives back what to send and what to tell. It runs no loop of its
@@ -54,7 +54,7 @@ still open is listed in section 18.
   transport the application chooses: jig's default HTTP mapping, a local
   socket, or an in-process channel (section 16).
 - **Built for the host and for wasm32,** as step code under the strict
-  subset (programming-model.md, section 10).
+  subset (skein/docs/foundation/programming-model.md, section 10).
 - **Helpers beside it, optional:** shapes of work from templates, facts
   over documents, a conversation's thread, and jig's words, each built
   only from the public client (sections 10 and 19).
@@ -100,7 +100,7 @@ jig-client                        jig_client::Client: the domain and the link, c
   `#![no_std]`, depending on skein-lib alone. It holds:
   - *the API's types:* operations, subjects, reads, documents and
     answers, as contract.md gives them;
-  - *the link:* its state, the sign-in it is on, the stream (8.2 and
+  - *the link:* its state, the sign-in it is on, the stream (client.md, 8.2 and
     section 12). The credential's value is never domain state
     (`../../protocol/README.md`, section 8): `jig-client` holds it
     beside the domain, as an engine's protocol layer holds its secrets,
@@ -127,7 +127,7 @@ jig-client                        jig_client::Client: the domain and the link, c
 - **Internal hand-offs are uncapped.** The domain's and link's output
   queues and the deferred-read queue grow as they fill. Each event's
   fan-out is bounded by admitted state, so the settlement drain ends
-  (programming-model.md, 7.2).
+  (skein/docs/foundation/programming-model.md, 7.2).
 - **Link consequences settle before the next entrance.**
   `link_requests_dispatched` requires link outputs to be dispatched
   before the next domain request, including a credential boundary's
@@ -137,12 +137,12 @@ jig-client                        jig_client::Client: the domain and the link, c
   this under load in `jig-client-world`,
   `orders::link_consequences_settle_before_the_next_entrance_under_load`.
 - **Builds:** the three crates and the helpers are step code under the
-  strict subset, built for the host and for wasm32 (programming-model.md,
+  strict subset, built for the host and for wasm32 (skein/docs/foundation/programming-model.md,
   section 10). Only `jig-protocol-transcript` links smith, the client's
   only use of smith (`../../README.md`, section 10).
 - **Its handles inside are skein-lib's:** its watches, reads and
   exchanges are `Id`s in slabs sized at startup, and what crosses to the
-  transport is their tokens (programming-model.md, 4.2). A terminal is
+  transport is their tokens (skein/docs/foundation/programming-model.md, 4.2). A terminal is
   never stale: a slot is retired only once its terminal has come.
 - **Beside it, the application's to use or not:**
   `jig-client-protocol-http`, the default HTTP mapping's client end;
@@ -173,7 +173,7 @@ read by the application: client.document(handle), client.text(handle), client.pe
 ```
 
 - **`now` and `wall`** are the monotonic instant and the wall time, as
-  every step machine takes them (programming-model.md, section 9:
+  every step machine takes them (skein/docs/foundation/programming-model.md, section 9:
   `env.now` and `env.wall`).
 - **Handles and keys are the application's.** Each names its asker and a
   number of the asker's. The asker is the owner number of the child of
@@ -221,7 +221,7 @@ read by the application: client.document(handle), client.text(handle), client.pe
     written before the requests they keep are sent (section 11).
 - **Of the application,** told, never asked to act:
   - *`Link(state)`:* the link's state, whenever it changes, and when a
-    sign-out does not reach the engine (8.2 and section 12): what a
+    sign-out does not reach the engine (client.md, 8.2 and section 12): what a
     presentation shows of the link, which it reads with `client.link()`;
   - *`Changed { handle }`:* a newer document for the handle, or the
     handle behind or live again (8.1);
@@ -247,7 +247,7 @@ read by the application: client.document(handle), client.text(handle), client.pe
     one turn being written (8.3);
   - `client.pending(key)`: the request's progress, its party and its
     owner (section 6);
-  - `client.link()`: the link's state, and the credential held (8.2 and
+  - `client.link()`: the link's state, and the credential held (client.md, 8.2 and
     section 12).
 - **It never reads an application's value.** A family's request, read,
   subject, page and document are bytes under their owner's number, which
@@ -907,7 +907,7 @@ for any presentation of a chat or of any agent task's activity.
   admitted attempts, never refused as not kept for a full hold. Once
   the write is durable, live attempts leave in FIFO order; stale
   attempts are skipped. Not kept reports a store failure, not internal
-  queue room (programming-model.md, 7.2).
+  queue room (skein/docs/foundation/programming-model.md, 7.2).
 - **`Seen` has no save of its own.** Closing, reload or crash silently
   loses an unanswered in-memory mark, with no `Kept`, `Dropped` or not
   kept notice from its own store. The next opening checks and sends the
@@ -1089,7 +1089,7 @@ for any presentation of a chat or of any agent task's activity.
 - **Deadlines are the client's:** the backoffs of requests and of
   opening the stream and its watches again, the stream's heartbeat
   tolerance, and the retention's cutoff, on the monotonic clock
-  (programming-model.md, section 9). `next_deadline()` gives the
+  (skein/docs/foundation/programming-model.md, section 9). `next_deadline()` gives the
   earliest, and `fire(now, wall, ..)` runs what is due.
 - **Wall times are for records and for showing.** The request table
   records the wall time of a request's first sending, so its cutoff holds
@@ -1169,7 +1169,7 @@ it sizes no internal queue and reserves no room.
   client root, browser host and application's scratch queues use
   uncapped internal hand-offs. The native shell's io, file and SSE
   hand-offs are uncapped too; only the kernel's queues and their staging
-  stay capped (programming-model.md, 7.1).
+  stay capped (skein/docs/foundation/programming-model.md, 7.1).
 
 Containers grow as they fill; fixed scenarios check their measured heap
 peak against a named ceiling (testing.md, section 6). Each held document
@@ -1239,7 +1239,7 @@ the client's protocol designs (`../../protocol/client.md`):
   a client asks again.
 - **Documents decoded whole,** into the client's types, and checked
   against the client's limits before they reach its domain
-  (programming-model.md, 4.4); a document past them is refused at
+  (skein/docs/foundation/programming-model.md, 4.4); a document past them is refused at
   decoding, as too large, never cut silently. A path is held whole,
   within the client's bound on its segments: only the view cuts what it
   shows of a long one (view.md, section 7). An authority is held whole,

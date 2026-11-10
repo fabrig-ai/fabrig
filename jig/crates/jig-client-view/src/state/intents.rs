@@ -262,7 +262,7 @@ pub(crate) fn answered(
     out: &mut Queue<Request>,
     lent: &jig_client::Client,
 ) {
-    // A moved record belongs to the caller's shell, never retained UI state (client.md, 6).
+    // A moved record belongs to the caller's shell, never retained UI state (client/domain/client.md, 6).
     if let Answer::Done(jig_client::contract::Outcome::Made {
         what: jig_client::contract::Made::MovingOut { record, .. },
     }) = &mut answer

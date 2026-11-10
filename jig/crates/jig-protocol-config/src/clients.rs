@@ -100,7 +100,7 @@ pub fn public_bounds(config: &crate::Engine) -> jig_client_protocol_wire::Public
         projects: config.limits.core.people.projects,
     }
 }
-/// The clients' settings, with no provider and no addresses (client.md, 18).
+/// The clients' settings, with no provider and no addresses (protocol/client.md, 18).
 #[must_use]
 pub fn settings(config: &crate::Engine, application: &Application, seed: Secret, stream: u64) -> kit::Settings {
     let mut providers = List::with_capacity(u32::try_from(config.providers.len()).expect("bounded providers"));

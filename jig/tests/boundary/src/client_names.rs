@@ -1,4 +1,4 @@
-//! The client crate prefix from README.md, section 15.
+//! The client crate prefix from jig/docs/design/README.md, section 15.
 
 use crate::manifest::{CrateManifest, manifests};
 use std::{collections::BTreeSet, path::Path};

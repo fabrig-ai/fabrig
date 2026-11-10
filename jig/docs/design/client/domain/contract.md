@@ -11,7 +11,7 @@ queries and watches that bring them; an application's traffic on the
 same terms; and versions. It is to clients what `../../domain/hosts.md`,
 section 2 is to hosts: the contract both sides keep, whatever carries
 it. Its messages and their bytes are `../../protocol/client.md`'s.
-Section 9 lists what the engine's domain owes the client, and where
+`contract.md`'s section 9 lists what the engine's domain owes the client, and where
 `../../domain/` designs it. What is still open is listed in section 11.
 
 ## 1. In one page
@@ -1558,7 +1558,7 @@ What `../../domain/` owes this contract, each designed where named:
    section 11).
 3. **Proposing explicit** (3.5): a party's create or amendment beyond
    their authority refused, saying what it lacked and whether a proposal
-   of it could be accepted (section 4); a party's proposal naming the
+   of it could be accepted (contract.md, section 4); a party's proposal naming the
    party as its proposer (`../../domain/people.md`, 5.1;
    `../../domain/tasks.md`, section 9).
 4. **A party's root has someone to escalate to** (3.2;
@@ -1691,7 +1691,7 @@ designs (`../../protocol/client.md`):
   position and the existing shape or count refusal; configuration keeps
   its own part paths (`../../protocol/configuration.md`, section 3).
 
-- **Decisions on replaced task proposals** (3.2, 4): automatically
+- **Decisions on replaced task proposals** (contract.md, 3.2 and 4): automatically
   replacing a task's pending settings proposal keeps no decision record.
   Default: `Unknown`, with no new decider or archive. Returning who decided
   first and how for that proposal needs retention and a rule for naming

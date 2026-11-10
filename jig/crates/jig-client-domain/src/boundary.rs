@@ -88,7 +88,7 @@ pub enum Why {
 pub enum Event {
     Start { kept: List<RequestRecord<Held>> },
     Send { key: Key, name: Option<RequestKey>, request: Ask },
-    // A value carried either way: sent once under its name, never kept (client.md, 6).
+    // A value carried either way: sent once under its name, never kept (client/domain/client.md, 6).
     Carry { key: Key, name: RequestKey, request: Ask, value: Option<Secret> },
     Watch { handle: Handle, subject: Watchable },
     Unwatch { handle: Handle },
@@ -118,7 +118,7 @@ pub enum Request {
 pub enum Down {
     Save { record: RequestRecord<Held> },
     Erase { key: RequestKey },
-    // `value` only for a request carrying one, sent once (client.md, 6).
+    // `value` only for a request carrying one, sent once (client/domain/client.md, 6).
     Send { attempt: Token, key: RequestKey, request: Ask, value: Option<Secret> },
     Open { watch: Token, subject: Watchable },
     Continue { watch: Token, subject: contract::Subject },

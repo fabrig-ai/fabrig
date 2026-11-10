@@ -1,4 +1,4 @@
-//! Read exchanges remain pending until the core's held answer is released (client.md, 6).
+//! Read exchanges remain pending until the core's held answer is released (protocol/client.md, 6).
 use super::{Box, Component, Env, Limits, Queue, ReplyTo, Request, Token, Waiting, core, routes, w};
 use skein_lib::{Reader, Writer};
 impl Component {
