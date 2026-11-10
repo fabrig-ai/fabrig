@@ -1,6 +1,6 @@
 //! A single oldest-first commit range page (forge-github.md, 4.5).
-use crate::api::Excess;
 use super::{Bounds, Plan, Read, Request, Response, Stage, Step, api, document, size};
+use crate::api::Excess;
 use crate::github::plans::plan::{Comparison, Exchange};
 use skein_lib::{List, len_u64, usize_of};
 
@@ -45,7 +45,11 @@ impl Plan {
             return Err(api::Error::InvalidAnswer);
         };
         if commit.parents.len() > usize_of(bounds.rows) {
-            return Err(api::Error::TooLarge(Excess::unnamed()));
+            return Err(api::Error::TooLarge(Excess::exact(
+                api::Bound::Rows,
+                u64::from(bounds.rows),
+                len_u64(commit.parents.len()),
+            )));
         }
         let parents = len_u64(commit.parents.len()).checked_mul(32).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         let width = u64::try_from(size_of::<api::CommitMessage>())
@@ -53,7 +57,12 @@ impl Plan {
             .checked_add(parents)
             .ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         self.keep_bytes(width, &[&commit.message], bounds)?;
-        self.commits.push(commit).or(Err(api::Error::TooLarge(Excess::unnamed())))
+        self.commits.push(commit).or(Err(api::Error::TooLarge(crate::measure::capacity_excess(
+            self.commits.capacity(),
+            bounds.rows,
+            bounds.answer_bytes,
+            crate::measure::COMMIT_BYTES,
+        ))))
     }
     pub(super) fn commits_done(
         &mut self,

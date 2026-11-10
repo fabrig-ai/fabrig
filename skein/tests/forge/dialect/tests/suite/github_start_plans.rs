@@ -339,7 +339,10 @@ fn github_start_listing_bound_by_rows() {
         Ok(Some(Step::send(Request::Installations { page: 2 })))
     );
     listing_head(&mut plan, false, bounds);
-    assert_eq!(listing_page(&mut plan, &[INSTALLATION + 1], bounds), Ok(Some(Step::Done(Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed()))))));
+    assert_eq!(
+        listing_page(&mut plan, &[INSTALLATION + 1], bounds),
+        Ok(Some(Step::Done(Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed())))))
+    );
     assert_eq!(plan.heard(Heard::Done(installation_page(&[]).1), bounds), Err(api::Error::InvalidAnswer));
     // The fixed installation page cap is independent of the total answer bound.
     let roomy = Bounds { rows: pin::PAGE_CAP + 1, answer_bytes: 4096, ..bounds };
@@ -350,7 +353,10 @@ fn github_start_listing_bound_by_rows() {
     for _ in 0..pin::PAGE_CAP {
         assert_eq!(plan.heard(Heard::Row(row.clone()), roomy), Ok(None));
     }
-    assert_eq!(plan.heard(Heard::Row(row), roomy), Ok(Some(Step::Done(Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed()))))));
+    assert_eq!(
+        plan.heard(Heard::Row(row), roomy),
+        Ok(Some(Step::Done(Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed())))))
+    );
 }
 
 #[test]
@@ -427,7 +433,10 @@ fn github_start_installations_bound_by_page_cap() {
     for _ in 0..pin::PAGE_CAP {
         assert_eq!(plan.heard(Heard::Row(row.clone()), roomy), Ok(None));
     }
-    assert_eq!(plan.heard(Heard::Row(row), roomy), Ok(Some(Step::Done(Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed()))))));
+    assert_eq!(
+        plan.heard(Heard::Row(row), roomy),
+        Ok(Some(Step::Done(Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed())))))
+    );
 }
 
 #[test]
@@ -585,7 +594,10 @@ fn github_start_reachable_page_past_its_size() {
     let mut plan = Reachable::new(1, 1);
     plan.begin(bounds()).unwrap();
     reachable_head(&mut plan, false, bounds());
-    assert_eq!(picker_page(&mut plan, &[2, 3], bounds()), Ok(Some(Step::Done(Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed()))))));
+    assert_eq!(
+        picker_page(&mut plan, &[2, 3], bounds()),
+        Ok(Some(Step::Done(Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed())))))
+    );
     let mut plan = Reachable::new(1, 1);
     plan.begin(bounds()).unwrap();
     reachable_head(&mut plan, false, bounds());
@@ -677,7 +689,10 @@ fn github_start_malformed_body() {
     let Body::Malformed(_) = &truncated else { panic!("a truncated real body is malformed") };
     for (body, error) in [
         (Body::Malformed(Malformed::Shape { field: b"id" }), api::Error::InvalidAnswer),
-        (Body::Malformed(Malformed::Bound { field: b"rows" }), api::Error::TooLarge(skein_forge::api::Excess::unnamed())),
+        (
+            Body::Malformed(Malformed::Bound { field: b"rows" }),
+            api::Error::TooLarge(skein_forge::api::Excess::unnamed()),
+        ),
         (Body::Raw { bytes: Box::from(*b"acme"), more: true }, api::Error::InvalidAnswer),
         (Body::Empty, api::Error::InvalidAnswer),
         (truncated, api::Error::InvalidAnswer),

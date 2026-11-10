@@ -564,7 +564,7 @@ fn a_requests_section_refuses_a_moved_change_head() {
         },
     );
     let [Request::BriefSized { section: SECTION, size: Err(why) }] = out.as_ref() else { panic!("moved: {out:?}") };
-    assert_eq!(*why, brief_words::MOVED);
+    assert_eq!(*why, brief_words::moved());
 }
 
 #[test]
@@ -757,7 +757,7 @@ fn checks_busy_until_the_gather_deadline_fail_the_section() {
             error: Some(skein_forge::api::Error::Busy)
         })
     );
-    assert_eq!(out.pop(), Some(Request::BriefSized { section: SECTION, size: Err(brief_words::BUSY) }));
+    assert_eq!(out.pop(), Some(Request::BriefSized { section: SECTION, size: Err(brief_words::busy()) }));
     assert!(out.is_empty());
     assert!(d.briefs_idle());
 }
@@ -817,7 +817,11 @@ fn each_unread_error_has_its_count_and_fixed_words() {
         (Error::NotInstalled, Permanent, b"the forge App is not installed"),
         (Error::Missing, Permanent, b"the forge has no such object"),
         (Error::MissingJob, Permanent, b"the forge has no such object"),
-        (Error::TooLarge(skein_forge::api::Excess::unnamed()), Permanent, b"the answer is past the client's limit"),
+        (
+            Error::TooLarge(skein_forge::api::Excess::exact(skein_forge::api::Bound::Rows, 8, 9)),
+            Permanent,
+            b"the answer is past forge.client.rows (8): 9 rows",
+        ),
         (Error::Full, Permanent, b"the forge refused this read"),
         (Error::Stale, Permanent, b"the forge refused this read"),
         (Error::Refused, Permanent, b"the forge refused this read"),
@@ -825,17 +829,17 @@ fn each_unread_error_has_its_count_and_fixed_words() {
     for (error, fate, words) in rows {
         let unread = brief_words::unread_of(&Err(*error));
         assert_eq!(unread.fate, *fate, "{error:?}");
-        assert_eq!(unread.words, *words, "{error:?}");
+        assert_eq!(unread.words.as_ref(), *words, "{error:?}");
     }
     let mut pull = fixtures::open_pull();
     pull.commit = [99; 32];
     assert_eq!(
         brief_words::unread_of(&Ok(Answer::Pull(pull))),
-        BriefUnread { fate: Transient, words: b"the change's head moved" }
+        BriefUnread { fate: Transient, words: Box::from(b"the change's head moved".as_slice()) }
     );
     assert_eq!(
         brief_words::unread_of(&Ok(Answer::Commit(HEAD))),
-        BriefUnread { fate: Permanent, words: b"the forge answered another read" }
+        BriefUnread { fate: Permanent, words: Box::from(b"the forge answered another read".as_slice()) }
     );
 }
 
@@ -845,10 +849,13 @@ fn local_section_failures_name_the_bound_or_room_that_failed() {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut out = Queue::uncapped();
-    let unnamed = BriefUnread { fate: BriefFate::Permanent, words: b"the change cannot be named in its section" };
+    let unnamed = BriefUnread {
+        fate: BriefFate::Permanent,
+        words: Box::from(b"the change cannot be named in its section".as_slice()),
+    };
     assert_eq!(
         brief::brief_pull(&mut d, SECTION, item, BriefCommit(HEAD), 1, 512, &mut out),
-        Some(BriefRead::Failed(unnamed))
+        Some(BriefRead::Failed(unnamed.clone()))
     );
     let mut row = fixtures::opening_row();
     row.pull = Some(1);
@@ -856,17 +863,20 @@ fn local_section_failures_name_the_bound_or_room_that_failed() {
     outputs(&mut d, Event::Change { row });
     assert_eq!(
         brief::brief_pull(&mut d, SECTION, item, BriefCommit([99; 32]), 1, 512, &mut out),
-        Some(BriefRead::Failed(BriefUnread { fate: BriefFate::Transient, words: b"the change's head moved" }))
+        Some(BriefRead::Failed(BriefUnread {
+            fate: BriefFate::Transient,
+            words: Box::from(b"the change's head moved".as_slice())
+        }))
     );
     assert_eq!(
         brief::brief_pull(&mut d, SECTION, item, BriefCommit(HEAD), 1, 1, &mut out),
-        Some(BriefRead::Failed(unnamed))
+        Some(BriefRead::Failed(unnamed.clone()))
     );
     assert_eq!(
         brief::brief_pull(&mut d, SECTION, item, BriefCommit(HEAD), 0, 512, &mut out),
         Some(BriefRead::Failed(BriefUnread {
             fate: BriefFate::Permanent,
-            words: b"the connector cannot hold this section"
+            words: Box::from(b"the connector cannot hold this section".as_slice())
         }))
     );
     d.brief_fetches = skein_lib::Map::with_capacity(0);
@@ -874,7 +884,7 @@ fn local_section_failures_name_the_bound_or_room_that_failed() {
         brief::brief_pull(&mut d, SECTION, item, BriefCommit(HEAD), 1, 512, &mut out),
         Some(BriefRead::Failed(BriefUnread {
             fate: BriefFate::Capacity,
-            words: b"the connector has no room for another read"
+            words: Box::from(b"the connector has no room for another read".as_slice())
         }))
     );
     assert!(out.is_empty(), "no local refusal makes a forge read");
@@ -885,7 +895,7 @@ fn local_section_failures_name_the_bound_or_room_that_failed() {
             owner: SECTION,
             read: BriefRead::Failed(BriefUnread {
                 fate: BriefFate::Permanent,
-                words: b"the failed checks do not fit their section"
+                words: Box::from(b"the failed checks do not fit their section".as_slice())
             })
         })
     );

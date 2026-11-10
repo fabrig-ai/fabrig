@@ -1,6 +1,6 @@
 //! Read refusals, transport failures and table invalidation (forge-github.md, 7).
-use crate::api::Excess;
 use super::tables::Tables;
+use crate::api::Excess;
 pub use crate::plan::transport;
 use crate::{
     api,

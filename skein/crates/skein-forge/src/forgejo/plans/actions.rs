@@ -193,7 +193,11 @@ impl Plan {
             d::Row::Status(status) => match state {
                 State::Listing { mut checks, page } => {
                     if self.count > self.limit {
-                        return Err(api::Error::TooLarge(api::Excess::unnamed()));
+                        return Err(api::Error::TooLarge(api::Excess::at_least(
+                            api::Bound::Forge,
+                            u64::from(self.limit),
+                            u64::from(self.count),
+                        )));
                     }
                     if let Some(user) = &status.creator {
                         tables.keep_user(forge, user.id, user.login.clone());
@@ -205,7 +209,12 @@ impl Plan {
                         .checked_add(crate::forgejo::plans::reads::size::answer(&answer, bounds.rows)?)
                         .ok_or(api::Error::TooLarge(api::Excess::unnamed()))?;
                     if checks.size > u64::from(bounds.answer_bytes) {
-                        return Err(api::Error::TooLarge(api::Excess { bound: api::Bound::AnswerBytes, limit: u64::from(bounds.answer_bytes), size: checks.size, exact: false }));
+                        return Err(api::Error::TooLarge(api::Excess {
+                            bound: api::Bound::AnswerBytes,
+                            limit: u64::from(bounds.answer_bytes),
+                            size: checks.size,
+                            exact: false,
+                        }));
                     }
                     match checks.statuses.push(value) {
                         Ok(()) => Ok(State::Listing { checks, page }),
@@ -222,7 +231,11 @@ impl Plan {
             d::Row::Run(value) => match state {
                 State::RunLookup { checks, run_number, job_index, mut run, missing } => {
                     if self.count > 1 {
-                        return Err(api::Error::TooLarge(api::Excess::unnamed()));
+                        return Err(api::Error::TooLarge(api::Excess::at_least(
+                            api::Bound::Forge,
+                            u64::from(1_u32),
+                            u64::from(self.count),
+                        )));
                     }
                     let commit =
                         reading::commit(value.commit_sha, self.row.object_format).ok_or(api::Error::InvalidAnswer)?;
@@ -348,7 +361,11 @@ impl Plan {
                 };
             }
             Body::Malformed(crate::forgejo::decode::Malformed::Bound { field }) => {
-                return Err(if field == b"log" { api::Error::InvalidAnswer } else { api::Error::TooLarge(api::Excess::unnamed()) });
+                return Err(if field == b"log" {
+                    api::Error::InvalidAnswer
+                } else {
+                    api::Error::TooLarge(api::Excess::unnamed())
+                });
             }
             Body::Empty | Body::Malformed(_) => return Err(api::Error::InvalidAnswer),
         };

@@ -1,10 +1,10 @@
 //! The reads whose GitHub requests and documents are complete (forge-github.md, 4.1).
-use crate::api::Excess;
 use super::{
     Body, Heard, failure,
     plan::{Bounds, Exchange, Step},
     tables::{self, Repository, Tables},
 };
+use crate::api::Excess;
 use crate::{
     api,
     github::{document, header::Head, request::Request},
@@ -529,7 +529,11 @@ impl Plan {
         };
         self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if self.count > self.limit {
-            return Err(api::Error::TooLarge(Excess::unnamed()));
+            return Err(api::Error::TooLarge(Excess::at_least(
+                if self.count > bounds.rows { api::Bound::Rows } else { api::Bound::Forge },
+                u64::from(if self.count > bounds.rows { bounds.rows } else { self.limit }),
+                u64::from(self.count),
+            )));
         }
         match row {
             document::Row::SkippedBranch => Ok(()),
@@ -538,7 +542,11 @@ impl Plan {
                     return Ok(());
                 }
                 if self.rows.len() >= bounds.rows {
-                    return Err(api::Error::TooLarge(Excess::unnamed()));
+                    return Err(api::Error::TooLarge(Excess::at_least(
+                        api::Bound::Rows,
+                        u64::from(bounds.rows),
+                        u64::from(self.rows.len()).saturating_add(1),
+                    )));
                 }
                 self.size = size::add(self.size, &name, bounds)?;
                 match self.rows.push(name) {

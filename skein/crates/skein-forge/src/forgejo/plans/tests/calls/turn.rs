@@ -1,6 +1,6 @@
 //! Turn calls through request spelling, server documents and streamed decoding.
-use crate::api::Excess;
 use super::*;
+use crate::api::Excess;
 use crate::api::{MergeHow, UpdateStyle, Write};
 use crate::forgejo::{client, document as d, request::Request, server};
 use alloc::boxed::Box;
@@ -426,7 +426,11 @@ fn a_range_past_the_answer_keeps_its_oldest_commits() {
             ),
             (
                 "page_two_past_two_rows_is_refused_before_sending",
-                (crate::forgejo::plans::plan::Bounds { rows: 2, ..BOUNDS }, 2, Step::Done(Err(Error::TooLarge(Excess::unnamed())))),
+                (
+                    crate::forgejo::plans::plan::Bounds { rows: 2, ..BOUNDS },
+                    2,
+                    Step::Done(Err(Error::TooLarge(Excess::unnamed()))),
+                ),
             ),
         ],
         |(bounds, page, expected)| {

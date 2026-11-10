@@ -149,9 +149,11 @@ fn github_plans_settings_refresh_the_row() {
         })))
     );
     assert_eq!(tables.repository(KEY), Some(&tables::repository(&document)));
-    for (id, error) in
-        [(8, api::Error::InvalidAnswer), (0, api::Error::InvalidAnswer), (u64::MAX, api::Error::TooLarge(skein_forge::api::Excess::unnamed()))]
-    {
+    for (id, error) in [
+        (8, api::Error::InvalidAnswer),
+        (0, api::Error::InvalidAnswer),
+        (u64::MAX, api::Error::TooLarge(skein_forge::api::Excess::unnamed())),
+    ] {
         let mut plan = started(api::Read::Settings, bounds(), &mut tables);
         assert_eq!(done(&mut plan, Document::Repository(repository(id)), bounds(), &mut tables), ended(Err(error)));
         assert_eq!(tables.repository(KEY), Some(&tables::repository(&document)));
@@ -235,7 +237,10 @@ fn github_plans_branches_past_the_bound() {
             Ok(Some(Step::send(branches_request(2, per_page))))
         );
         head(&mut plan, false, bounds, &mut tables);
-        assert_eq!(name(&mut plan, second, bounds, &mut tables), ended(Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed()))));
+        assert_eq!(
+            name(&mut plan, second, bounds, &mut tables),
+            ended(Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed())))
+        );
     }
 }
 
@@ -391,7 +396,10 @@ fn github_plans_transport_failures() {
 fn github_plans_malformed_body() {
     for (body, error) in [
         (Body::Malformed(Malformed::Shape { field: b"id" }), api::Error::InvalidAnswer),
-        (Body::Malformed(Malformed::Bound { field: b"log" }), api::Error::TooLarge(skein_forge::api::Excess::unnamed())),
+        (
+            Body::Malformed(Malformed::Bound { field: b"log" }),
+            api::Error::TooLarge(skein_forge::api::Excess::unnamed()),
+        ),
         (Body::Raw { bytes: Box::from(*b"bytes"), more: true }, api::Error::InvalidAnswer),
         (Body::Empty, api::Error::InvalidAnswer),
         (Body::Document(Document::Rows), api::Error::InvalidAnswer),
@@ -461,7 +469,10 @@ fn github_plans_page_row_bound() {
     for _ in 0..bounds().page_size {
         assert_eq!(name(&mut plan, b"a", bounds(), &mut tables), Ok(None));
     }
-    assert_eq!(name(&mut plan, b"a", bounds(), &mut tables), ended(Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed()))));
+    assert_eq!(
+        name(&mut plan, b"a", bounds(), &mut tables),
+        ended(Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed())))
+    );
 }
 
 #[test]

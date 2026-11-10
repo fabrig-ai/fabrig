@@ -1,6 +1,6 @@
 //! Pull lookup and bounded CI page folding (forge-github.md, 4.1 and 4.4).
-use crate::api::Excess;
 use super::{Bounds, Plan, Read, Response, Stage, Step, api, document, size};
+use crate::api::Excess;
 use crate::{
     github::{plans::reading, request::Request},
     measure,
@@ -110,7 +110,16 @@ impl Plan {
             document::Row::Context(context) if self.stage == Stage::Read && is_statuses(&self.read) => {
                 self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
                 if self.count > self.limit || self.pulls.statuses.len() >= bounds.rows {
-                    return Err(api::Error::TooLarge(Excess::unnamed()));
+                    let excess = if self.pulls.statuses.len() >= bounds.rows {
+                        Excess::at_least(
+                            api::Bound::Rows,
+                            u64::from(bounds.rows),
+                            u64::from(self.pulls.statuses.len()).saturating_add(1),
+                        )
+                    } else {
+                        Excess::at_least(api::Bound::Forge, u64::from(self.limit), u64::from(self.count))
+                    };
+                    return Err(api::Error::TooLarge(excess));
                 }
                 let status = reading::status(context);
                 let width = u64::try_from(measure::STATUS_BYTES).ok().ok_or(api::Error::TooLarge(Excess::unnamed()))?;
@@ -119,17 +128,31 @@ impl Plan {
                     total = total.checked_add(len_u64(bytes.len())).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
                 }
                 if total > u64::from(bounds.answer_bytes) {
-                    return Err(api::Error::TooLarge(api::Excess { bound: api::Bound::AnswerBytes, limit: u64::from(bounds.answer_bytes), size: total, exact: false }));
+                    return Err(api::Error::TooLarge(Excess {
+                        bound: api::Bound::AnswerBytes,
+                        limit: u64::from(bounds.answer_bytes),
+                        size: total,
+                        exact: false,
+                    }));
                 }
                 if self.pulls.statuses.push(status).is_err() {
-                    return Err(api::Error::TooLarge(Excess::unnamed()));
+                    return Err(api::Error::TooLarge(measure::capacity_excess(
+                        self.pulls.statuses.capacity(),
+                        bounds.rows,
+                        bounds.answer_bytes,
+                        measure::STATUS_BYTES,
+                    )));
                 }
                 self.size = total;
             }
             document::Row::Run(run) if self.stage == Stage::Runs => {
                 self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
                 if self.count > self.limit {
-                    return Err(api::Error::TooLarge(Excess::unnamed()));
+                    return Err(api::Error::TooLarge(Excess::at_least(
+                        api::Bound::Forge,
+                        u64::from(self.limit),
+                        u64::from(self.count),
+                    )));
                 }
                 self.pulls.fold(run.check);
             }
@@ -193,8 +216,13 @@ impl Plan {
             pull.closed = true;
         }
         let pull = reading::pull(pull, api::Ci::None)?;
-        if measure::pull(&pull).ok_or(api::Error::TooLarge(Excess::unnamed()))? > u64::from(bounds.answer_bytes) {
-            return Err(api::Error::TooLarge(Excess::unnamed()));
+        let size = measure::pull(&pull).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
+        if size > u64::from(bounds.answer_bytes) {
+            return Err(api::Error::TooLarge(Excess::at_least(
+                api::Bound::AnswerBytes,
+                u64::from(bounds.answer_bytes),
+                size,
+            )));
         }
         let commit = pull.commit;
         self.pulls.pull = Some(pull);

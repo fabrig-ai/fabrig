@@ -74,7 +74,12 @@ impl Plan {
     fn add(&mut self, size: u64, bounds: Bounds) -> Result<(), api::Error> {
         self.size = self.size.checked_add(size).ok_or(api::Error::TooLarge(api::Excess::unnamed()))?;
         if self.size > u64::from(bounds.answer_bytes) {
-            return Err(api::Error::TooLarge(api::Excess { bound: api::Bound::AnswerBytes, limit: u64::from(bounds.answer_bytes), size: self.size, exact: false }));
+            return Err(api::Error::TooLarge(api::Excess {
+                bound: api::Bound::AnswerBytes,
+                limit: u64::from(bounds.answer_bytes),
+                size: self.size,
+                exact: false,
+            }));
         }
         Ok(())
     }
@@ -113,6 +118,7 @@ impl Plan {
             },
         }
     }
+    #[expect(clippy::too_many_lines, reason = "row dispatch names every receiving state and its measured refusal")]
     fn row(&mut self, row: d::Row, bounds: Bounds) -> Result<(), api::Error> {
         let source = core::mem::replace(&mut self.state, State::Ended);
         self.state = match row {
@@ -126,7 +132,12 @@ impl Plan {
                             .checked_add(u64::try_from(crate::measure::RUN_BYTES).expect("run width"))
                             .ok_or(api::Error::TooLarge(api::Excess::unnamed()))?;
                         self.add(size, bounds)?;
-                        runs.push(value).or(Err(api::Error::TooLarge(api::Excess::unnamed())))?;
+                        runs.push(value).or(Err(api::Error::TooLarge(crate::measure::capacity_excess(
+                            runs.capacity(),
+                            bounds.rows,
+                            bounds.answer_bytes,
+                            crate::measure::RUN_BYTES,
+                        ))))?;
                     }
                     State::Runs {
                         workflow,
@@ -153,8 +164,18 @@ impl Plan {
                         skein_lib::len_u64(crate::measure::TREE_ENTRY_BYTES.saturating_add(value.name.len())),
                         bounds,
                     )?;
-                    entries.push(value).or(Err(api::Error::TooLarge(api::Excess::unnamed())))?;
-                    State::Tree { object, page, entries, count: count.checked_add(1).ok_or(api::Error::TooLarge(api::Excess::unnamed()))? }
+                    entries.push(value).or(Err(api::Error::TooLarge(crate::measure::capacity_excess(
+                        entries.capacity(),
+                        bounds.rows,
+                        bounds.answer_bytes,
+                        crate::measure::TREE_ENTRY_BYTES,
+                    ))))?;
+                    State::Tree {
+                        object,
+                        page,
+                        entries,
+                        count: count.checked_add(1).ok_or(api::Error::TooLarge(api::Excess::unnamed()))?,
+                    }
                 }
                 State::Runs { .. } | State::Run { .. } | State::Jobs { .. } | State::Steps { .. } => {
                     return Err(api::Error::InvalidAnswer);
@@ -227,7 +248,12 @@ impl Plan {
             conclusion,
             step: None,
         })
-        .or(Err(api::Error::TooLarge(api::Excess::unnamed())))?;
+        .or(Err(api::Error::TooLarge(crate::measure::capacity_excess(
+            jobs.capacity(),
+            bounds.rows,
+            bounds.answer_bytes,
+            crate::measure::RUN_JOB_BYTES,
+        ))))?;
         Ok(State::Jobs { run, jobs })
     }
     #[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]

@@ -1,8 +1,8 @@
 //! Terminal documents and the next exchange of a JSON read (skein/docs/design/forge.md, 5.2).
-use crate::api::Excess;
 use super::{
     Bounds, Plan, Request, Roster, State, Step, Tables, Whose, api, bytes, d, keep_document, reading, size, terminal,
 };
+use crate::api::Excess;
 use alloc::boxed::Box;
 use skein_lib::List;
 impl Plan {
@@ -41,7 +41,11 @@ impl Plan {
                 let document = match body {
                     super::Body::Document(document) => document,
                     super::Body::Malformed(crate::forgejo::decode::Malformed::Bound { field }) => {
-                        return Err(if field == b"log" { api::Error::InvalidAnswer } else { api::Error::TooLarge(Excess::unnamed()) });
+                        return Err(if field == b"log" {
+                            api::Error::InvalidAnswer
+                        } else {
+                            api::Error::TooLarge(Excess::unnamed())
+                        });
                     }
                     super::Body::Malformed(_) | super::Body::Empty | super::Body::Raw { .. } => {
                         return Err(api::Error::InvalidAnswer);
@@ -83,7 +87,12 @@ impl Plan {
                 };
                 let size = size::summary(&item, bounds.rows)?;
                 if size > u64::from(bounds.answer_bytes) {
-                    return Err(api::Error::TooLarge(api::Excess { bound: api::Bound::AnswerBytes, limit: u64::from(bounds.answer_bytes), size: size, exact: false }));
+                    return Err(api::Error::TooLarge(Excess {
+                        bound: api::Bound::AnswerBytes,
+                        limit: u64::from(bounds.answer_bytes),
+                        size,
+                        exact: false,
+                    }));
                 }
                 let room = u64::from(bounds.answer_bytes)
                     .saturating_sub(size)

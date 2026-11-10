@@ -1,6 +1,6 @@
 //! The App's setup exchanges, without repository tables (forge-github.md, 8.1–8.4).
-use crate::api::Excess;
 use super::{Body, Heard, failure, plan};
+use crate::api::Excess;
 use crate::{
     api,
     github::{
@@ -260,7 +260,11 @@ fn add(bytes: u32, login: &[u8], name: &[u8], bounds: plan::Bounds) -> Result<u3
         .checked_add(width)
         .ok_or(api::Error::TooLarge(Excess::unnamed()))?;
     if bytes > bounds.answer_bytes {
-        return Err(api::Error::TooLarge(Excess::unnamed()));
+        return Err(api::Error::TooLarge(Excess::at_least(
+            api::Bound::AnswerBytes,
+            u64::from(bounds.answer_bytes),
+            u64::from(bytes),
+        )));
     }
     Ok(bytes)
 }

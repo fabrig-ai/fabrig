@@ -197,7 +197,7 @@ impl Reading {
     ) -> Result<(), api::Error> {
         for row in rows {
             if row.login.len() > usize_of(name_bytes) {
-                return Err(api::Error::TooLarge(skein_forge::api::Excess::unnamed()));
+                return Err(api::Error::TooLarge(api::Excess::unnamed()));
             }
             if old.contains_key(&row.id) {
                 let _inserted = self.seen.insert(row.id).expect("seen ids belong to the old table");

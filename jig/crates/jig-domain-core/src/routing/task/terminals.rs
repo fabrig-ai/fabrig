@@ -133,7 +133,7 @@ pub(crate) fn writer_waiting(
             jig_domain_brief::GatherFailure {
                 fate: jig_domain_brief::GatherFate::Capacity,
                 section: b"claim",
-                words: b"refused",
+                words: Box::from(b"refused".as_slice()),
             },
             out,
         );

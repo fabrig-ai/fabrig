@@ -803,8 +803,8 @@ fn describe_agent(
             return Err(why);
         }
     };
-    let name =
-        resource_name(adopted, &resource, env.limits.authority.segments).ok_or(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()))?;
+    let name = resource_name(adopted, &resource, env.limits.authority.segments)
+        .ok_or(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()))?;
     let form = match described.form {
         forge::EffectForm::Creation => EffectForm::Creation,
         forge::EffectForm::Transition => EffectForm::Transition,
@@ -4958,7 +4958,7 @@ pub(crate) fn outputs(
                 holds::hold_as(domain, task, tasks::Hold::EffectFailed, &words);
             }
             forge::Request::LostReadFailed { task, attempt, resource, reason } => {
-                let words = holds::lost_words(domain, task, attempt, &resource, reason);
+                let words = holds::lost_words(domain, task, attempt, &resource, &reason);
                 holds::hold_as(domain, task, tasks::Hold::ResourceUnavailable, &words);
             }
             forge::Request::NotMade { entry, task } => {

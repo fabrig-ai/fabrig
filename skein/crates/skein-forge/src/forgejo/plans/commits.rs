@@ -1,12 +1,12 @@
 //! Keeps the oldest commits within its capacity: Forgejo sends them newest
 //! first (skein/docs/design/forge.md, 5.2).
-use crate::api::Excess;
 use super::{
     Body, Heard,
     plan::{Bounds, Step},
     reading,
     tables::{Repository, Tables},
 };
+use crate::api::Excess;
 use crate::{
     api,
     forgejo::{document as d, request::Request},
@@ -31,8 +31,11 @@ impl Plan {
         row: Repository,
         bounds: Bounds,
     ) -> Result<Self, api::Error> {
-        let skip =
-            page.checked_sub(1).ok_or(api::Error::Empty)?.checked_mul(bounds.page_size).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
+        let skip = page
+            .checked_sub(1)
+            .ok_or(api::Error::Empty)?
+            .checked_mul(bounds.page_size)
+            .ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if skip >= bounds.rows {
             return Err(api::Error::TooLarge(Excess::unnamed()));
         }
@@ -94,9 +97,14 @@ impl Plan {
         let format = self.row.object_format;
         let id = reading::commit(value.id, format).ok_or(api::Error::InvalidAnswer)?;
         if value.parents.len() > usize_of(bounds.rows) {
-            return Err(api::Error::TooLarge(Excess::unnamed()));
+            return Err(api::Error::TooLarge(Excess::exact(
+                api::Bound::Rows,
+                u64::from(bounds.rows),
+                len_u64(value.parents.len()),
+            )));
         }
-        let mut parents = List::with_capacity(u32::try_from(value.parents.len()).or(Err(api::Error::TooLarge(Excess::unnamed())))?);
+        let mut parents =
+            List::with_capacity(u32::try_from(value.parents.len()).or(Err(api::Error::TooLarge(Excess::unnamed())))?);
         for parent in value.parents {
             parents.push(reading::commit(parent, format).ok_or(api::Error::InvalidAnswer)?).expect("one parent per id");
         }
@@ -111,7 +119,8 @@ impl Plan {
         // Each removal gives up a newer commit; the kept length bounds the drain.
         for _ in 0..self.commits.len() {
             if self.commits.room() > 0
-                && self.held.checked_add(size).ok_or(api::Error::TooLarge(Excess::unnamed()))? <= u64::from(bounds.answer_bytes)
+                && self.held.checked_add(size).ok_or(api::Error::TooLarge(Excess::unnamed()))?
+                    <= u64::from(bounds.answer_bytes)
             {
                 break;
             }

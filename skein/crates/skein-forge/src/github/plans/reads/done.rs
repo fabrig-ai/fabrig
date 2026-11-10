@@ -1,6 +1,6 @@
 //! Repository resolution and terminal documents for GitHub's first reads.
-use crate::api::Excess;
 use super::{Bounds, Plan, Read, Response, Stage, Step, Tables, api, document, tables};
+use crate::api::Excess;
 use crate::{github::id, measure};
 use skein_lib::List;
 
@@ -219,7 +219,12 @@ impl Plan {
     pub(super) fn terminal(&mut self, answer: api::Answer, bounds: Bounds) -> Result<Option<Step>, api::Error> {
         let size = measure::answer(&answer).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if size > u64::from(bounds.answer_bytes) {
-            return Err(api::Error::TooLarge(api::Excess { bound: api::Bound::AnswerBytes, limit: u64::from(bounds.answer_bytes), size: size, exact: false }));
+            return Err(api::Error::TooLarge(Excess {
+                bound: api::Bound::AnswerBytes,
+                limit: u64::from(bounds.answer_bytes),
+                size,
+                exact: false,
+            }));
         }
         self.stage = Stage::Done;
         self.response = Response::None;

@@ -619,11 +619,20 @@ fn file_sides_past_remaining_room_are_too_large() {
     let answer_bytes =
         u32::try_from(crate::measure::FILE_BYTES.saturating_add(FILE_PATH.len()).saturating_add(SHORT_RAW.len()))
             .unwrap();
-    for (read, answers, sends) in side_cases() {
-        let mut run = Run::with(super::super::plan::Bounds { answer_bytes, ..BOUNDS }, Op::Read(read));
-        replies(&mut run, answers);
-        assert_eq!(run.answer(200, FULL_RAW), Step::Done(Err(Error::TooLarge(api::Excess::unnamed()))));
-        run.assert_sent(sends);
+    for (bytes, more) in [(FULL_RAW, false), (SHORT_RAW, true)] {
+        for (read, answers, sends) in side_cases() {
+            let mut run = Run::with(super::super::plan::Bounds { answer_bytes, ..BOUNDS }, Op::Read(read));
+            replies(&mut run, answers);
+            assert_eq!(
+                raw_body(&mut run, bytes, more),
+                Some(Step::Done(Err(Error::TooLarge(api::Excess::at_least(
+                    api::Bound::AnswerBytes,
+                    u64::from(answer_bytes),
+                    u64::from(answer_bytes).saturating_add(1)
+                )))))
+            );
+            run.assert_sent(sends);
+        }
     }
 }
 

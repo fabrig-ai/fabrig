@@ -1219,7 +1219,7 @@ fn a_failed_goals_lost_writer_reports_its_read_failure() {
         task: 7,
         attempt: 4,
         resource: name.clone(),
-        reason: b"forge policy refused the operation",
+        reason: Box::from(b"forge policy refused the operation".as_slice()),
     }));
     assert_eq!(d.hold(&name).unwrap().writer, Some(Writer::Lost { task: 7, attempt: 4 }));
 }
@@ -1258,7 +1258,7 @@ fn a_task_can_claim_its_own_stale_writer() {
                 task: 7,
                 attempt: 4,
                 resource: name.clone(),
-                reason: b"forge policy refused the operation",
+                reason: Box::from(b"forge policy refused the operation".as_slice()),
             }));
             assert_eq!(d.hold(&name).unwrap().writer, Some(Writer::Run { task: 7, attempt: 5 }));
         }
@@ -1297,7 +1297,7 @@ fn a_lost_writers_read_answered_not_connected_is_asked_again_when_its_forge_conn
                 task: 9,
                 attempt: 1,
                 resource: run_branch(b"7"),
-                reason: b"forge policy refused the operation",
+                reason: Box::from(b"forge policy refused the operation".as_slice()),
             }),
             refused
         );

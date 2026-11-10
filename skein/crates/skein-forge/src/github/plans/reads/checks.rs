@@ -1,6 +1,6 @@
 //! Status pages, run pages, then sequential failed Actions jobs (forge-github.md, 4.1).
-use crate::api::Excess;
 use super::{Bounds, Plan, Read, Response, Stage, Step, api, document, pulls::RUN_PAGES, size};
+use crate::api::Excess;
 use crate::{
     github::{plans::reading, request::Request},
     measure,
@@ -103,7 +103,16 @@ impl Plan {
         };
         self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if self.count > self.limit || self.checks.statuses.len() >= bounds.rows {
-            return Err(api::Error::TooLarge(Excess::unnamed()));
+            let excess = if self.checks.statuses.len() >= bounds.rows {
+                Excess::at_least(
+                    api::Bound::Rows,
+                    u64::from(bounds.rows),
+                    u64::from(self.checks.statuses.len()).saturating_add(1),
+                )
+            } else {
+                Excess::at_least(api::Bound::Forge, u64::from(self.limit), u64::from(self.count))
+            };
+            return Err(api::Error::TooLarge(excess));
         }
         let mut total = self
             .size
@@ -113,10 +122,19 @@ impl Plan {
             total = total.checked_add(len_u64(bytes.len())).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         }
         if total > u64::from(bounds.answer_bytes) {
-            return Err(api::Error::TooLarge(api::Excess { bound: api::Bound::AnswerBytes, limit: u64::from(bounds.answer_bytes), size: total, exact: false }));
+            return Err(api::Error::TooLarge(Excess {
+                bound: api::Bound::AnswerBytes,
+                limit: u64::from(bounds.answer_bytes),
+                size: total,
+                exact: false,
+            }));
         }
         if let Some(id) = job {
-            self.checks.jobs.push((self.checks.statuses.len(), id)).ok().ok_or(api::Error::TooLarge(Excess::unnamed()))?;
+            self.checks
+                .jobs
+                .push((self.checks.statuses.len(), id))
+                .ok()
+                .ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         }
         self.checks.statuses.push(status).ok().ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         self.size = total;

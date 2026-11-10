@@ -1,5 +1,5 @@
-use crate::api::Excess;
 use super::*;
+use crate::api::Excess;
 use skein_lib::Duration;
 
 fn reviewers(ids: &[u64]) -> api::Write {
@@ -301,7 +301,10 @@ fn github_reviewers_plan_bounds_before_mutation() {
     let mut plan = write_plan(reviewers(&[]));
     begin(&mut plan, &mut tables);
     head(&mut plan, 200, &mut tables);
-    assert_eq!(finish(&mut plan, pull(&[1, 2, 3, 4, 5]), &mut tables), ended(Err(api::Error::TooLarge(Excess::unnamed()))));
+    assert_eq!(
+        finish(&mut plan, pull(&[1, 2, 3, 4, 5]), &mut tables),
+        ended(Err(api::Error::TooLarge(Excess::unnamed())))
+    );
 }
 
 #[test]

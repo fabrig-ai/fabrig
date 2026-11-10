@@ -3,7 +3,11 @@ use crate::api;
 
 fn rows(count: usize, limit: u32) -> Result<(), api::Error> {
     if skein_lib::len_u64(count) > u64::from(limit) {
-        return Err(api::Error::TooLarge(api::Excess::exact(api::Bound::Rows, u64::from(limit), skein_lib::len_u64(count))));
+        return Err(api::Error::TooLarge(api::Excess::exact(
+            api::Bound::Rows,
+            u64::from(limit),
+            skein_lib::len_u64(count),
+        )));
     }
     Ok(())
 }

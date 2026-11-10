@@ -103,7 +103,10 @@ fn installation_page_limits_are_not_table_overflow() {
 
 #[test]
 fn installation_page_over_cap_is_a_failed_read() {
-    assert_eq!(page_outcome(PAGE_CAP + 1, None).expect_err("too many rows"), api::Error::TooLarge(skein_forge::api::Excess::unnamed()));
+    assert_eq!(
+        page_outcome(PAGE_CAP + 1, None).expect_err("too many rows"),
+        api::Error::TooLarge(api::Excess::unnamed())
+    );
 }
 
 #[test]

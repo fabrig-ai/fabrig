@@ -2194,7 +2194,7 @@ pub enum Request {
         task: u64,
         attempt: u64,
         resource: Name,
-        reason: &'static [u8],
+        reason: Box<[u8]>,
     },
     /// An entry settled or remains uncertain; root routes the task's news.
     Outcome {

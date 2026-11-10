@@ -174,7 +174,12 @@ pub(crate) fn make(d: &mut Domain, env: &Env<Limits>, entry: Entry, again: bool,
     } else if !crate::identity::connected(d, entry.repository) {
         Some(Error::Forbidden)
     } else if !valid(&entry, &env.limits) {
-        Some(Error::TooLarge(skein_forge::api::Excess::unnamed()))
+        Some(Error::TooLarge(match crate::measure::effect(&entry.effect) {
+            Some(size) if size > u64::from(env.limits.op_bytes) => {
+                api::Excess::exact(api::Bound::OpBytes, u64::from(env.limits.op_bytes), size)
+            }
+            Some(_) | None => api::Excess::unnamed(),
+        }))
     } else if d.outbox.entries.len() >= env.limits.entries {
         Some(Error::Busy)
     } else {

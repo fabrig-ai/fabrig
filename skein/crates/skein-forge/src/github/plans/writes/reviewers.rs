@@ -1,6 +1,6 @@
 //! Both differences and every login are retained before the first mutation (forge-github.md, 4.2).
-use crate::api::Excess;
 use super::{Bounds, Plan, Request, Stage, Step, Tables, api};
+use crate::api::Excess;
 use crate::github::{document, request};
 use alloc::boxed::Box;
 use skein_lib::{List, len_u64};
@@ -135,7 +135,11 @@ impl Plan {
             .checked_add(length)
             .ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if reviewers.bytes > u64::from(bounds.answer_bytes) {
-            return Err(api::Error::TooLarge(Excess::unnamed()));
+            return Err(api::Error::TooLarge(Excess::at_least(
+                api::Bound::AnswerBytes,
+                u64::from(bounds.answer_bytes),
+                reviewers.bytes,
+            )));
         }
         let logins = if reviewers.additions.len() < reviewers.add.len() {
             &mut reviewers.additions

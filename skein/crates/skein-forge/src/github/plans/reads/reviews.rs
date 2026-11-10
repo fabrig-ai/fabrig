@@ -1,6 +1,6 @@
 //! One bounded page of review comments.
-use crate::api::Excess;
 use super::{Bounds, Plan, Read, Request, Response, Stage, Step, api, document};
+use crate::api::Excess;
 use alloc::boxed::Box;
 use skein_lib::{List, len_u64};
 impl Plan {
@@ -42,7 +42,11 @@ impl Plan {
     pub(super) fn page_row(&mut self, bounds: Bounds) -> Result<(), api::Error> {
         self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if self.count > self.limit || self.count > bounds.rows {
-            return Err(api::Error::TooLarge(Excess::unnamed()));
+            return Err(api::Error::TooLarge(Excess::at_least(
+                if self.count > bounds.rows { api::Bound::Rows } else { api::Bound::Forge },
+                u64::from(if self.count > bounds.rows { bounds.rows } else { self.limit }),
+                u64::from(self.count),
+            )));
         }
         Ok(())
     }
@@ -52,7 +56,12 @@ impl Plan {
             size = size.checked_add(len_u64(field.len())).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         }
         if size > u64::from(bounds.answer_bytes) {
-            return Err(api::Error::TooLarge(api::Excess { bound: api::Bound::AnswerBytes, limit: u64::from(bounds.answer_bytes), size: size, exact: false }));
+            return Err(api::Error::TooLarge(Excess {
+                bound: api::Bound::AnswerBytes,
+                limit: u64::from(bounds.answer_bytes),
+                size,
+                exact: false,
+            }));
         }
         self.size = size;
         Ok(())

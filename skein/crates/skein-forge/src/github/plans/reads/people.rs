@@ -1,6 +1,6 @@
 //! User resolution precedes a permission request only on a users-table miss.
-use crate::api::Excess;
 use super::{Bounds, Plan, Read, Request, Stage, Step, Tables, api, document};
+use crate::api::Excess;
 
 impl Plan {
     pub(super) fn permission_initial(&mut self) -> Result<Step, api::Error> {
@@ -72,11 +72,25 @@ impl Plan {
         };
         self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if self.count > self.limit || self.collaborators.len() >= bounds.rows {
-            return Err(api::Error::TooLarge(Excess::unnamed()));
+            let excess = if self.collaborators.len() >= bounds.rows {
+                Excess::at_least(
+                    api::Bound::Rows,
+                    u64::from(bounds.rows),
+                    u64::from(self.collaborators.len()).saturating_add(1),
+                )
+            } else {
+                Excess::at_least(api::Bound::Forge, u64::from(self.limit), u64::from(self.count))
+            };
+            return Err(api::Error::TooLarge(excess));
         }
         self.size = self.size.checked_add(16).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if self.size > u64::from(bounds.answer_bytes) {
-            return Err(api::Error::TooLarge(api::Excess { bound: api::Bound::AnswerBytes, limit: u64::from(bounds.answer_bytes), size: self.size, exact: false }));
+            return Err(api::Error::TooLarge(Excess {
+                bound: api::Bound::AnswerBytes,
+                limit: u64::from(bounds.answer_bytes),
+                size: self.size,
+                exact: false,
+            }));
         }
         if let Some(login) = row.login {
             tables.keep_user(self.repository.forge, row.id, login);

@@ -1,6 +1,6 @@
 //! Both GitHub protection sources are joined; neither absence hides the other.
-use crate::api::Excess;
 use super::{Bounds, Plan, Read, Request, Response, Stage, Step, api, document, size};
+use crate::api::Excess;
 use alloc::boxed::Box;
 use skein_lib::{List, len_u64};
 #[derive(Debug)]
@@ -42,7 +42,12 @@ impl Plan {
         self.protection.contexts = List::with_capacity(size::capacity(bounds, crate::measure::STRING_BYTES)?);
         self.size = len_u64(branch.len());
         if self.size > u64::from(bounds.answer_bytes) {
-            return Err(api::Error::TooLarge(api::Excess { bound: api::Bound::AnswerBytes, limit: u64::from(bounds.answer_bytes), size: self.size, exact: false }));
+            return Err(api::Error::TooLarge(Excess {
+                bound: api::Bound::AnswerBytes,
+                limit: u64::from(bounds.answer_bytes),
+                size: self.size,
+                exact: false,
+            }));
         }
         Ok(())
     }
@@ -94,7 +99,11 @@ impl Plan {
         };
         self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if self.count > crate::github::pin::PAGE_CAP {
-            return Err(api::Error::TooLarge(Excess::unnamed()));
+            return Err(api::Error::TooLarge(Excess::at_least(
+                api::Bound::Forge,
+                u64::from(crate::github::pin::PAGE_CAP),
+                u64::from(self.count),
+            )));
         }
         if row.kind == document::RuleKind::Skipped {
             return Ok(());

@@ -116,7 +116,10 @@ fn github_commit_ids() {
     let mut non_sha1 = commit;
     non_sha1[31] = 1;
     assert_eq!(id::write_commit(&non_sha1), None);
-    assert_eq!(id::repository(1u64 << 32), Err(api::Error::TooLarge(api::Excess::unnamed())));
+    assert_eq!(
+        id::repository(1u64 << 32),
+        Err(api::Error::TooLarge(api::Excess::exact(api::Bound::Forge, u64::from(u32::MAX), 1_u64 << 32)))
+    );
     assert_eq!(id::repository(u64::from(u32::MAX)), Ok(u32::MAX));
 }
 

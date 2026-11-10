@@ -1,6 +1,6 @@
 //! One conditional or cursor page of the App's log (forge-github.md, 9.3).
-use crate::api::Excess;
 use super::{Event, State, Step, api, document, plan};
+use crate::api::Excess;
 use crate::github::{header, log, pin, plans::Heard, request::Request};
 use skein_lib::{List, len_u64};
 
@@ -70,10 +70,15 @@ impl LogPage {
                     Some(validator) => validator.as_bytes().len(),
                     None => 0,
                 };
-                self.bytes = u64::try_from(cursor.checked_add(validator).ok_or(api::Error::TooLarge(Excess::unnamed()))?)
-                    .or(Err(api::Error::TooLarge(Excess::unnamed())))?;
+                self.bytes =
+                    u64::try_from(cursor.checked_add(validator).ok_or(api::Error::TooLarge(Excess::unnamed()))?)
+                        .or(Err(api::Error::TooLarge(Excess::unnamed())))?;
                 if self.bytes > u64::from(bounds.answer_bytes) {
-                    return Err(api::Error::TooLarge(Excess::unnamed()));
+                    return Err(api::Error::TooLarge(Excess::at_least(
+                        api::Bound::AnswerBytes,
+                        u64::from(bounds.answer_bytes),
+                        self.bytes,
+                    )));
                 }
             }
             Heard::Head { .. } | Heard::Row(_) | Heard::Done(_) | Heard::Failed(_) => {}

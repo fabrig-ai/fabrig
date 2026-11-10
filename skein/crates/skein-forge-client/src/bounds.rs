@@ -5,7 +5,10 @@ use skein_lib::{len_u64, usize_of};
 pub(crate) fn op(value: &Op, l: &Limits) -> Result<(), Excess> {
     match value {
         Op::Read(Read::Job { max_bytes, .. } | Read::File { max_bytes, .. } | Read::Artifact { max_bytes, .. }) => {
-            if *max_bytes == 0 || *max_bytes > l.answer_bytes {
+            if *max_bytes == 0 {
+                return Err(Excess::unnamed());
+            }
+            if *max_bytes > l.answer_bytes {
                 return Err(Excess::exact(Bound::AnswerBytes, u64::from(l.answer_bytes), u64::from(*max_bytes)));
             }
         }
@@ -19,11 +22,7 @@ pub(crate) fn op(value: &Op, l: &Limits) -> Result<(), Excess> {
         return Err(Excess::unnamed());
     }
     let held = skein_forge::measure::op(value).ok_or(Excess::unnamed())?;
-    if held > u64::from(l.op_bytes) {
-        Err(Excess::exact(Bound::OpBytes, u64::from(l.op_bytes), held))
-    } else {
-        Ok(())
-    }
+    if held > u64::from(l.op_bytes) { Err(Excess::exact(Bound::OpBytes, u64::from(l.op_bytes), held)) } else { Ok(()) }
 }
 pub(crate) fn read(value: &Read) -> Option<u64> {
     let valid = match value {

@@ -1,5 +1,5 @@
-use crate::api::Excess;
 use super::fixtures::{self, bytes, decode, limits};
+use crate::api::Excess;
 use crate::{
     api,
     github::{
@@ -530,7 +530,10 @@ fn github_statuses_bounds() {
     small.page_size = 100;
     let mut call = Call::new(statuses(1), small, true);
     assert_eq!(call.begin(), Ok(Step::send(combined_request(1, 1))));
-    assert_eq!(call.combined(api::Check::Passed, 2, &[context.clone(), context], false), failed(api::Error::TooLarge(Excess::unnamed())));
+    assert_eq!(
+        call.combined(api::Check::Passed, 2, &[context.clone(), context], false),
+        failed(api::Error::TooLarge(Excess::unnamed()))
+    );
     let mut call = started(statuses(1));
     assert_eq!(status_answer(call.combined(api::Check::Pending, 0, &[], false)), (api::Ci::None, Box::from([]), false));
     let mut small = bounds();

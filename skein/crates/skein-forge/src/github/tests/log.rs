@@ -1,8 +1,8 @@
-use crate::api::Excess;
 use super::{
     fixtures::{decode, limits, wall},
     header::{self, Head},
 };
+use crate::api::Excess;
 use crate::{
     api,
     github::{
@@ -139,7 +139,10 @@ fn log_cursor_accepts_128_printable_bytes_and_refuses_long_or_unprintable_values
 fn log_listing_past_inner_is_too_large() {
     let (_, result) = decode(Kind::LogRows, &list(PING, limits().inner + 1), 7, &limits());
     assert_eq!(result, Err(Malformed::Bound { field: b"deliveries" }));
-    assert_eq!(page(Ask::First { validator: None }, head(None), &list(PING, 5)), Err(api::Error::TooLarge(Excess::unnamed())));
+    assert_eq!(
+        page(Ask::First { validator: None }, head(None), &list(PING, 5)),
+        Err(api::Error::TooLarge(Excess::unnamed()))
+    );
 }
 #[test]
 fn log_requests_use_the_jwt_and_only_next_pages_have_a_cursor() {

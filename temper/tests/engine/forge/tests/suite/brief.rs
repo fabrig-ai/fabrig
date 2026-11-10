@@ -66,16 +66,15 @@ fn gather(world: &mut World, pull: u64, head: api::Commit) {
 }
 
 fn completed(world: &mut World, pull: u64, head: api::Commit, omitted: bool) {
-    let sizes: Vec<_> =
-        world
-            .seen()
-            .iter()
-            .filter_map(|request| {
-                if let top::Request::BriefSized { section: SECTION, size } = request { Some(*size) } else { None }
-            })
-            .collect();
+    let sizes: Vec<_> = world
+        .seen()
+        .iter()
+        .filter_map(|request| {
+            if let top::Request::BriefSized { section: SECTION, size } = request { Some(size.clone()) } else { None }
+        })
+        .collect();
     assert_eq!(sizes.len(), 1, "one terminal sizing response");
-    let size = sizes[0].expect("required Pull section survives comparison admission");
+    let size = sizes[0].clone().expect("required Pull section survives comparison admission");
     assert!(size <= BYTES);
     world.take_seen();
     world.event(top::Event::TakeBrief { section: SECTION });
@@ -140,7 +139,10 @@ fn resolver_comparison_read_errors_still_fail_the_section() {
     gather(&mut world, pull, head);
     assert!(world.seen().contains(&top::Request::BriefSized {
         section: SECTION,
-        size: Err(top::BriefUnread { fate: top::BriefFate::Permanent, words: b"the forge has no such object" })
+        size: Err(top::BriefUnread {
+            fate: top::BriefFate::Permanent,
+            words: Box::from(b"the forge has no such object".as_slice())
+        })
     }));
     assert!(world.take_calls().contains(&api::Op::Read(api::Read::Compare { before: head, after: absent })));
     world.take_seen();
@@ -149,6 +151,10 @@ fn resolver_comparison_read_errors_still_fail_the_section() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the review table checks failure and kept-section terminals with their shared setup"
+)]
 fn a_reviews_lone_pull_read_failure_fails_or_keeps_its_section() {
     type MakePull = fn(&mut World) -> (u64, api::Commit);
     let rows: [(MakePull, &str, api::Error, Option<top::BriefUnread>); 2] = [
@@ -157,7 +163,10 @@ fn a_reviews_lone_pull_read_failure_fails_or_keeps_its_section() {
             |_| (17, translate::commit(1)),
             "item",
             api::Error::Missing,
-            Some(top::BriefUnread { fate: top::BriefFate::Permanent, words: b"the forge has no such object" }),
+            Some(top::BriefUnread {
+                fate: top::BriefFate::Permanent,
+                words: Box::from(b"the forge has no such object".as_slice()),
+            }),
         ),
         (
             |world| {
@@ -166,6 +175,7 @@ fn a_reviews_lone_pull_read_failure_fails_or_keeps_its_section() {
                 let mut after = before.clone();
                 after.extend_from_slice(b"one new clause\n");
                 assert!(before.len() < 4096 && after.len() < 4096 && before.len() + after.len() > 4096);
+                world.reject_file_sides(api::Excess::at_least(api::Bound::AnswerBytes, 65_536, 65_537));
                 world.push_file(b"main", path, &before);
                 world.external(
                     raw::Op::Git(raw::Git::Create {
@@ -179,12 +189,12 @@ fn a_reviews_lone_pull_read_failure_fails_or_keeps_its_section() {
                 (pull, translate::commit(world.branch(b"temper/51")))
             },
             "files",
-            api::Error::TooLarge(skein_forge::api::Excess::unnamed()),
+            api::Error::TooLarge(api::Excess::at_least(api::Bound::AnswerBytes, 65_536, 65_537)),
             None,
         ),
     ];
     for (make_pull, stage, error, failure) in rows {
-        let mut world = World::with_goal_room(246, 8, 4096);
+        let mut world = World::with_goal_room(246, 8, 65_536);
         world.adopt();
         let (pull, head) = make_pull(&mut world);
         let mut row = changes::change_row();
@@ -199,18 +209,18 @@ fn a_reviews_lone_pull_read_failure_fails_or_keeps_its_section() {
             .position(|request| {
                 *request == top::Request::BriefReadRefused { section: SECTION, stage, error: Some(error) }
             })
-            .expect("the refused read is logged");
+            .unwrap_or_else(|| panic!("the refused read is logged: {:?}", world.seen()));
         let sizes: Vec<_> = world
             .seen()
             .iter()
             .enumerate()
             .filter_map(|(index, request)| match request {
-                top::Request::BriefSized { section: SECTION, size } => Some((index, *size)),
+                top::Request::BriefSized { section: SECTION, size } => Some((index, size.clone())),
                 _ => None,
             })
             .collect();
         assert_eq!(sizes.len(), 1, "one terminal sizing response for {stage}");
-        let (terminal_at, size) = sizes[0];
+        let (terminal_at, size) = sizes[0].clone();
         assert!(refused < terminal_at, "the refusal precedes sizing");
         if let Some(failure) = failure {
             assert_eq!(size, Err(failure));
@@ -245,7 +255,7 @@ fn a_reviews_lone_pull_read_failure_fails_or_keeps_its_section() {
                 format!("Head: {pinned}"),
                 "Title: Change".into(),
                 "Description".into(),
-                "[files omitted from page 1: past forge.client.answer_bytes (4096): at least 4097 bytes; read_pull_files from page 2 lists the rest, and read_file reads a path at the head or the base]".into(),
+                "[files omitted from page 1: past forge.client.answer_bytes (65536): at least 65537 bytes; read_pull_files from page 2 lists the rest, and read_file reads a path at the head or the base]".into(),
             ] {
                 assert!(text.contains(&context), "missing context {context}: {text}");
             }

@@ -1,5 +1,5 @@
-use crate::api::Excess;
 use super::{Body, Failure, Heard, plan::Exchange, start};
+use crate::api::Excess;
 use crate::forgejo::{
     credential,
     decode::Malformed,

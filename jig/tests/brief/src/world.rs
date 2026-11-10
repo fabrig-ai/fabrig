@@ -101,7 +101,7 @@ impl World {
                             why: GatherFailure {
                                 fate: GatherFate::Transient,
                                 section: b"section",
-                                words: b"unavailable",
+                                words: Box::from(b"unavailable".as_slice()),
                             },
                         },
                     }

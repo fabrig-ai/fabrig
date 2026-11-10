@@ -302,19 +302,25 @@ pub fn answer_list_rows(value: &Answer) -> usize {
     match value {
         Answer::Commits { commits, .. } => {
             let mut rows = commits.len();
-            for commit in commits { rows = rows.max(commit.parents.len()); }
+            for commit in commits {
+                rows = rows.max(commit.parents.len());
+            }
             rows
         }
         Answer::Run(run) => run.jobs.len(),
         Answer::Runs { runs, .. } => {
             let mut rows = runs.len();
-            for run in runs { rows = rows.max(run.jobs.len()); }
+            for run in runs {
+                rows = rows.max(run.jobs.len());
+            }
             rows
         }
         Answer::Tree { entries, .. } => entries.len(),
         Answer::Items { items, .. } => {
             let mut rows = items.len();
-            for item in items { rows = rows.max(item.labels.len()); }
+            for item in items {
+                rows = rows.max(item.labels.len());
+            }
             rows
         }
         Answer::Item { item, comments, .. } => item.labels.len().max(comments.len()),
@@ -344,5 +350,18 @@ pub fn answer_list_rows(value: &Answer) -> usize {
         | Answer::Queued
         | Answer::Branch(_)
         | Answer::Done => 0,
+    }
+}
+
+/// A list's next row did not fit its configured row or byte capacity.
+#[must_use]
+pub(crate) fn capacity_excess(count: u32, rows: u32, answer_bytes: u32, width: usize) -> api::Excess {
+    let size = u64::from(count).saturating_add(1);
+    if count >= rows {
+        api::Excess::at_least(api::Bound::Rows, u64::from(rows), size)
+    } else if size.saturating_mul(len_u64(width)) > u64::from(answer_bytes) {
+        api::Excess::at_least(api::Bound::AnswerBytes, u64::from(answer_bytes), size.saturating_mul(len_u64(width)))
+    } else {
+        api::Excess::at_least(api::Bound::Forge, u64::from(count), size)
     }
 }

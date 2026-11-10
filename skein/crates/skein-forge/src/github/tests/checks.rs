@@ -1,5 +1,5 @@
-use crate::api::Excess;
 use super::fixtures::{self, bytes, decode, limits};
+use crate::api::Excess;
 use crate::{
     api,
     github::{

@@ -1,6 +1,6 @@
 //! One bounded ZIP entry, stored or deflated, checked against its central directory.
-use crate::api::Excess;
 use crate::api::Error;
+use crate::api::Excess;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of, usize_of};
 
@@ -50,8 +50,10 @@ fn entry(bytes: &[u8]) -> Result<Entry, Error> {
     if short(tail, 8) != Some(1) || short(tail, 10) != Some(1) {
         return Err(Error::Refused);
     }
-    let size = usize::try_from(word(tail, 12).ok_or(Error::InvalidAnswer)?).or(Err(Error::TooLarge(Excess::unnamed())))?;
-    let central = usize::try_from(word(tail, 16).ok_or(Error::InvalidAnswer)?).or(Err(Error::TooLarge(Excess::unnamed())))?;
+    let size =
+        usize::try_from(word(tail, 12).ok_or(Error::InvalidAnswer)?).or(Err(Error::TooLarge(Excess::unnamed())))?;
+    let central =
+        usize::try_from(word(tail, 16).ok_or(Error::InvalidAnswer)?).or(Err(Error::TooLarge(Excess::unnamed())))?;
     if central.checked_add(size) != Some(end) {
         return Err(Error::InvalidAnswer);
     }
@@ -63,7 +65,11 @@ fn entry(bytes: &[u8]) -> Result<Entry, Error> {
     let extra = usize::from(short(directory, 30).ok_or(Error::InvalidAnswer)?);
     let comment = usize::from(short(directory, 32).ok_or(Error::InvalidAnswer)?);
     let name_end = 46usize.checked_add(name).ok_or(Error::TooLarge(Excess::unnamed()))?;
-    let length = name_end.checked_add(extra).ok_or(Error::TooLarge(Excess::unnamed()))?.checked_add(comment).ok_or(Error::TooLarge(Excess::unnamed()))?;
+    let length = name_end
+        .checked_add(extra)
+        .ok_or(Error::TooLarge(Excess::unnamed()))?
+        .checked_add(comment)
+        .ok_or(Error::TooLarge(Excess::unnamed()))?;
     if length != size {
         return Err(Error::InvalidAnswer);
     }
@@ -77,7 +83,8 @@ fn entry(bytes: &[u8]) -> Result<Entry, Error> {
         crc: word(directory, 16).ok_or(Error::InvalidAnswer)?,
         compressed: word(directory, 20).ok_or(Error::InvalidAnswer)?,
         inflated: word(directory, 24).ok_or(Error::InvalidAnswer)?,
-        local: usize::try_from(word(directory, 42).ok_or(Error::InvalidAnswer)?).or(Err(Error::TooLarge(Excess::unnamed())))?,
+        local: usize::try_from(word(directory, 42).ok_or(Error::InvalidAnswer)?)
+            .or(Err(Error::TooLarge(Excess::unnamed())))?,
         name: copy_of(name),
         central,
     };
@@ -101,7 +108,9 @@ fn data(bytes: &[u8], entry: &Entry) -> Result<core::ops::Range<usize>, Error> {
         return Err(Error::InvalidAnswer);
     }
     let start = name_end.checked_add(extra).ok_or(Error::TooLarge(Excess::unnamed()))?;
-    let end = start.checked_add(usize::try_from(entry.compressed).or(Err(Error::TooLarge(Excess::unnamed())))?).ok_or(Error::TooLarge(Excess::unnamed()))?;
+    let end = start
+        .checked_add(usize::try_from(entry.compressed).or(Err(Error::TooLarge(Excess::unnamed())))?)
+        .ok_or(Error::TooLarge(Excess::unnamed()))?;
     local.get(start..end).ok_or(Error::InvalidAnswer)?;
     if entry.flags & 8 == 0 {
         if word(local, 14) != Some(entry.crc)
@@ -126,7 +135,8 @@ fn data(bytes: &[u8], entry: &Entry) -> Result<core::ops::Range<usize>, Error> {
             return Err(Error::InvalidAnswer);
         }
     }
-    Ok(entry.local.checked_add(start).ok_or(Error::TooLarge(Excess::unnamed()))?..entry.local.checked_add(end).ok_or(Error::TooLarge(Excess::unnamed()))?)
+    Ok(entry.local.checked_add(start).ok_or(Error::TooLarge(Excess::unnamed()))?
+        ..entry.local.checked_add(end).ok_or(Error::TooLarge(Excess::unnamed()))?)
 }
 /// Reads a whole archive and checks its single entry before cutting the file.
 /// Both the archive and its inflated entry must fit `bound`, the owner's existing answer bound.

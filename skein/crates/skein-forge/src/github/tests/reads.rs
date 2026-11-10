@@ -1,6 +1,6 @@
 //! Task 18's documents and plans are driven entirely in process.
-use crate::api::Excess;
 use super::fixtures::{self, bytes, decode, limits};
+use crate::api::Excess;
 use crate::{
     api,
     github::{
@@ -312,11 +312,17 @@ fn github_collaborators_link_and_bounds() {
     }
     let mut call = started(api::Read::Collaborators { page: 1 }, Bounds { rows: 1, ..bounds() });
     collaborator_row(&mut call, collaborator(USER, api::Permission::Read)).unwrap();
-    assert_eq!(collaborator_row(&mut call, collaborator(2, api::Permission::Read)), ended(Err(api::Error::TooLarge(Excess::unnamed()))));
+    assert_eq!(
+        collaborator_row(&mut call, collaborator(2, api::Permission::Read)),
+        ended(Err(api::Error::TooLarge(Excess::unnamed())))
+    );
     for bounds in
         [Bounds { answer_bytes: 15, ..bounds() }, Bounds { rows: 0, ..bounds() }, Bounds { page_size: 0, ..bounds() }]
     {
-        assert_eq!(Call::new(api::Read::Collaborators { page: 1 }, bounds, true).begin(), Err(api::Error::TooLarge(Excess::unnamed())));
+        assert_eq!(
+            Call::new(api::Read::Collaborators { page: 1 }, bounds, true).begin(),
+            Err(api::Error::TooLarge(Excess::unnamed()))
+        );
     }
 }
 #[test]
@@ -767,7 +773,10 @@ fn github_compare_caps_and_short_commits() {
     assert_eq!(call.done(Document::Compare(comparison(2, 0))), ended(Err(api::Error::TooLarge(Excess::unnamed()))));
     let mut call = started(compare_read(), Bounds { page_size: 1, ..bounds() });
     call.heard(Heard::Row(Row::Commit(review(1).commit))).unwrap();
-    assert_eq!(call.heard(Heard::Row(Row::Commit(review(1).commit))), ended(Err(api::Error::TooLarge(Excess::unnamed()))));
+    assert_eq!(
+        call.heard(Heard::Row(Row::Commit(review(1).commit))),
+        ended(Err(api::Error::TooLarge(Excess::unnamed())))
+    );
     for count in [299u32, 300] {
         let mut wire = Writer::new(12000);
         let mut files = skein_lib::List::with_capacity(300);
@@ -826,7 +835,10 @@ fn github_compare_absent_side_and_budget() {
         assert_eq!(raw_body(&mut call, body, more), ended(Err(api::Error::TooLarge(Excess::unnamed()))));
     }
     let mut call = started(compare_read(), Bounds { answer_bytes: 70, ..bounds() });
-    assert_eq!(call.heard(Heard::Row(Row::File(file(b"dir/x y")))), ended(Err(api::Error::TooLarge(Excess::unnamed()))));
+    assert_eq!(
+        call.heard(Heard::Row(Row::File(file(b"dir/x y")))),
+        ended(Err(api::Error::TooLarge(Excess::unnamed())))
+    );
     for status in [200, 410, 500] {
         let mut call = started(compare_read(), bounds());
         compare_rows(&mut call, false);
@@ -1203,7 +1215,10 @@ fn skipped_branches_count_toward_per_page_and_paging_continues() {
     );
 
     let mut call = started(api::Read::Branches { prefix: Box::from(&b"b"[..]) }, Bounds { page_size: 2, ..bounds() });
-    assert_eq!(branch_page(&mut call, &[b"before", &long, b"behind"], 1), ended(Err(api::Error::TooLarge(Excess::unnamed()))));
+    assert_eq!(
+        branch_page(&mut call, &[b"before", &long, b"behind"], 1),
+        ended(Err(api::Error::TooLarge(Excess::unnamed())))
+    );
 }
 
 #[test]

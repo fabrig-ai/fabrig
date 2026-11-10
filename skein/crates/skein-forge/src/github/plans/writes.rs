@@ -1,10 +1,10 @@
 //! Single-attempt writes and read prerequisites (forge-github.md, 4.2 and 7).
-use crate::api::Excess;
 use super::{
     Body, Failure, Heard, failure as read_failure,
     plan::{Bounds, Exchange, Step},
     tables::{self, Repository, Tables},
 };
+use crate::api::Excess;
 use crate::{
     api,
     github::{
@@ -394,7 +394,8 @@ impl Plan {
         let Ok(pull) = super::reading::pull(pull, api::Ci::None) else {
             return Err(self.invalid());
         };
-        if crate::measure::pull(&pull).ok_or(api::Error::TooLarge(Excess::unnamed()))? > u64::from(bounds.answer_bytes) {
+        if crate::measure::pull(&pull).ok_or(api::Error::TooLarge(Excess::unnamed()))? > u64::from(bounds.answer_bytes)
+        {
             return Err(api::Error::TooLarge(Excess::unnamed()));
         }
         if self.stage == Stage::VerifyUpdate {

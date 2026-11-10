@@ -1,6 +1,6 @@
 //! One page for the repository picker (forge-github.md, 8.3).
-use crate::api::Excess;
 use super::{Event, Page, State, Step, add, api, capacity, document, plan};
+use crate::api::Excess;
 use crate::github::{pin, plans::Heard, request::Request};
 use skein_lib::List;
 

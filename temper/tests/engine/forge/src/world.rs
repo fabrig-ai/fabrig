@@ -106,6 +106,7 @@ struct Pending {
 struct ReadScript {
     ancestry: Option<Result<skein_forge::api::Answer, skein_forge::api::Error>>,
     comparisons_too_large: bool,
+    files_excess: Option<skein_forge::api::Excess>,
 }
 
 /// Scripted root and forge protocol surrounding the connector top.
@@ -312,6 +313,11 @@ impl World {
         self.read_script.ancestry = result;
     }
 
+    /// Script a dialect's measured refusal of pull-file sides.
+    pub fn reject_file_sides(&mut self, excess: skein_forge::api::Excess) {
+        self.read_script.files_excess = Some(excess);
+    }
+
     /// Refuse full comparisons at the protocol body bound; ancestry reads still reach the fake.
     pub fn reject_comparisons(&mut self) {
         self.read_script.comparisons_too_large = true;
@@ -459,7 +465,7 @@ impl World {
             hints: Vec::new(),
             signatures,
             pull_snapshot: None,
-            read_script: ReadScript { ancestry: None, comparisons_too_large: false },
+            read_script: ReadScript { ancestry: None, comparisons_too_large: false, files_excess: None },
             landing_config: None,
         };
         world.top.restore_begin(world.env.wall);
@@ -1264,6 +1270,11 @@ impl World {
         op: &skein_forge::api::Op,
     ) -> Option<Result<skein_forge::api::Answer, skein_forge::api::Error>> {
         match op {
+            skein_forge::api::Op::Read(skein_forge::api::Read::PullFiles { .. })
+                if self.read_script.files_excess.is_some() =>
+            {
+                Some(Err(skein_forge::api::Error::TooLarge(self.read_script.files_excess.expect("scripted refusal"))))
+            }
             skein_forge::api::Op::Read(skein_forge::api::Read::Compare { .. })
                 if self.read_script.comparisons_too_large =>
             {
@@ -1308,6 +1319,21 @@ impl World {
                                 *pull = snapshot;
                             }
                             Ok(answer)
+                        }
+                        Err(raw::Error::TooLarge)
+                            if matches!(
+                                &pending.op,
+                                skein_forge::api::Op::Read(
+                                    skein_forge::api::Read::PullFiles { .. } | skein_forge::api::Read::Compare { .. }
+                                )
+                            ) =>
+                        {
+                            let limit = u64::from(self.env.limits.client.answer_bytes);
+                            Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::at_least(
+                                skein_forge::api::Bound::AnswerBytes,
+                                limit,
+                                limit.saturating_add(1),
+                            )))
                         }
                         Err(error) => {
                             Err(translate::error(error, forge::time(&self.forge_env.limits, self.forge_env.now)))

@@ -1,5 +1,5 @@
-use crate::api::Excess;
 use super::fixtures::{decode, limits};
+use crate::api::Excess;
 use crate::{
     api,
     github::{
@@ -774,7 +774,10 @@ fn github_post_bounds_and_failures() {
     }
     let mut tables = cached_tables();
     let mut plan = write_plan(post(b"text"));
-    assert_eq!(plan.begin(Bounds { body_bytes: 1, ..bounds() }, WORD, &mut tables), Err(api::Error::TooLarge(Excess::unnamed())));
+    assert_eq!(
+        plan.begin(Bounds { body_bytes: 1, ..bounds() }, WORD, &mut tables),
+        Err(api::Error::TooLarge(Excess::unnamed()))
+    );
 }
 #[test]
 fn github_post_original_key_find() {
@@ -869,7 +872,10 @@ fn github_review_self_approval_and_bounds() {
     }
     let mut tables = cached_tables();
     let mut plan = write_plan(review(api::Verdict::Comment, b"text"));
-    assert_eq!(plan.begin(Bounds { body_bytes: 1, ..bounds() }, WORD, &mut tables), Err(api::Error::TooLarge(Excess::unnamed())));
+    assert_eq!(
+        plan.begin(Bounds { body_bytes: 1, ..bounds() }, WORD, &mut tables),
+        Err(api::Error::TooLarge(Excess::unnamed()))
+    );
     for body in
         [Body::Empty, Body::Document(Document::Done), Body::Malformed(decoding::Malformed::Missing { field: b"id" })]
     {
@@ -1100,7 +1106,10 @@ fn github_update_422_and_first_failure() {
     }
     for (body, error) in [
         (Body::Malformed(decoding::Malformed::Missing { field: b"head" }), api::Error::Unavailable),
-        (Body::Malformed(decoding::Malformed::Bound { field: b"requested_reviewers" }), api::Error::TooLarge(Excess::unnamed())),
+        (
+            Body::Malformed(decoding::Malformed::Bound { field: b"requested_reviewers" }),
+            api::Error::TooLarge(Excess::unnamed()),
+        ),
         (Body::Empty, api::Error::Unavailable),
     ] {
         let mut tables = cached_tables();

@@ -452,7 +452,7 @@ fn a_brief_section_refuses_a_head_that_moved_before_its_gather() {
         owner,
         read: top::BriefRead::Failed(top::BriefUnread {
             fate: top::BriefFate::Transient,
-            words: b"the change's head moved"
+            words: Box::from(b"the change's head moved".as_slice())
         })
     }));
     assert_eq!(world.calls(), before, "a stale pinned section does not read the provider");
@@ -469,7 +469,10 @@ fn a_brief_section_refuses_a_head_that_moved_before_its_gather() {
     });
     assert!(world.seen().contains(&top::Request::BriefSized {
         section,
-        size: Err(top::BriefUnread { fate: top::BriefFate::Transient, words: b"the change's head moved" })
+        size: Err(top::BriefUnread {
+            fate: top::BriefFate::Transient,
+            words: Box::from(b"the change's head moved".as_slice())
+        })
     }));
     assert_eq!(world.calls(), before, "a stale held section does not read the provider");
 }
@@ -505,7 +508,7 @@ fn a_forge_brief_section_stays_with_its_connector_until_taken() {
         .iter()
         .find_map(|request| {
             if let top::Request::BriefSized { section: found, size } = request {
-                if *found == section { size.ok() } else { None }
+                if *found == section { size.clone().ok() } else { None }
             } else {
                 None
             }
@@ -519,7 +522,7 @@ fn a_forge_brief_section_stays_with_its_connector_until_taken() {
         .iter()
         .find_map(|request| {
             if let top::Request::BriefSized { section: found, size } = request {
-                if *found == section { size.ok() } else { None }
+                if *found == section { size.clone().ok() } else { None }
             } else {
                 None
             }

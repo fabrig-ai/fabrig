@@ -293,7 +293,7 @@ fn a_busy_document_fails_at_its_gather_deadline() {
         out.pop(),
         Some(Request::BriefReadRefused { section: SECTION, stage: "file", error: Some(Error::Busy) })
     );
-    assert_eq!(out.pop(), Some(Request::BriefSized { section: SECTION, size: Err(brief_words::BUSY) }));
+    assert_eq!(out.pop(), Some(Request::BriefSized { section: SECTION, size: Err(brief_words::busy()) }));
     d.reclaim();
     brief::retry(&mut d, &mut out);
     assert!(out.is_empty());

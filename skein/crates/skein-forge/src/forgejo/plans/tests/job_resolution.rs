@@ -130,7 +130,10 @@ fn resolving_statuses_keeps_the_answer_byte_bound() {
             run.answer(200, RUNS);
             step = run.answer(200, JOBS);
         }
-        assert_eq!(step, Step::Done(if fits { Ok(expected.clone()) } else { Err(Error::TooLarge(api::Excess::unnamed())) }));
+        assert_eq!(
+            step,
+            Step::Done(if fits { Ok(expected.clone()) } else { Err(Error::TooLarge(api::Excess::unnamed())) })
+        );
     }
 }
 #[test]

@@ -286,6 +286,11 @@ impl Excess {
     pub const fn unnamed() -> Self {
         Self { bound: Bound::Unnamed, limit: 0, size: 0, exact: false }
     }
+    /// What had been read when a bound stopped the read.
+    #[must_use]
+    pub const fn at_least(bound: Bound, limit: u64, size: u64) -> Self {
+        Self { bound, limit, size, exact: false }
+    }
     /// A whole measured against its bound.
     #[must_use]
     pub const fn exact(bound: Bound, limit: u64, size: u64) -> Self {
