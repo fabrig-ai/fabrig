@@ -882,9 +882,23 @@ pub struct EffectAccount {
     pub entry: u64,
     pub words: Box<[u8]>,
 }
-/// A change task's forge parameters and top-owned procedure state.
+/// A change's terminal account (temper/docs/design/domain/forge.md, 11.2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Ending {
+    Landed,
+    NoChange,
+    Cancelled,
+    Failed { line: Box<[u8]> },
+}
+/// A change task's parameters and progress (temper/docs/design/domain/forge.md, 8.1 and 11.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeRow {
+    /// The tracked goal served at admission.
+    pub goal: Option<u64>,
+    pub ending: Option<Ending>,
+    /// Whole-life delegate account; a release resets retry counts alone.
+    pub repair_tasks: Box<[u64]>,
+    pub resolution_tasks: Box<[u64]>,
     /// Bounded, durable observations for the landed result.
     pub result: crate::ChangeResult,
     pub task: u64,
@@ -1156,8 +1170,10 @@ pub enum Stored {
     },
     /// A client working-set row.
     Client(skein_forge_client::Stored),
+    /// A goal closer's committed state.
+    Closer(crate::CloserRow),
     /// A change procedure's committed state.
-    Change(ChangeRow),
+    Change(Box<ChangeRow>),
     /// A goal issue's committed projection.
     Issue(IssueRow),
     Release(ReleaseRow),
@@ -1254,6 +1270,7 @@ pub enum Key {
     Looked { party: u64, project: u32 },
     Away { party: u64, project: u32 },
     Decided { project: u32, number: u32 },
+    Closer(u64),
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -1342,6 +1359,7 @@ pub struct ChangeDependencies {
 
 /// A parent or child input to the connector top.
 #[derive(PartialEq, Eq, Hash, Debug)]
+#[expect(clippy::large_enum_variant, reason = "change admission carries a full row across the root procedure boundary")]
 pub enum Event {
     SetAway {
         request: Token,
@@ -1800,6 +1818,23 @@ pub enum Event {
         kept: bool,
         pending: Box<[change::Pending]>,
     },
+    /// A goal closer's progress joins its procedure step.
+    Closer {
+        row: crate::CloserRow,
+    },
+    /// Read fresh containment for the named closer step.
+    CheckCloser {
+        task: u64,
+        step: u64,
+        repository: skein_forge::api::Repository,
+        branch: Box<[u8]>,
+        base: Box<[u8]>,
+    },
+    /// A change's task ending before its resources finish releasing.
+    ChangeEnding {
+        task: u64,
+        ending: Ending,
+    },
     /// A requester or person released a held change.
     ReleaseChange {
         task: u64,
@@ -1916,10 +1951,6 @@ pub fn is_root_read(owner: Token) -> bool {
 
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Hash, Debug)]
-#[expect(
-    clippy::large_enum_variant,
-    reason = "Save carries the change row and its producer report; changing the request boundary is separate"
-)]
 pub enum Request {
     Decided {
         to: skein_lib::ReplyTo,
@@ -2066,6 +2097,10 @@ pub enum Request {
     },
     /// A pushed or first-read change head can enable its dependents (domain/forge.md, 8.11).
     StepDependents {
+        task: u64,
+    },
+    /// A closer's fresh containment read can resume its due step.
+    CloserChecked {
         task: u64,
     },
     /// The connector has fresh news or a retry deadline for its procedure.

@@ -17,10 +17,13 @@ pub(super) const FOREMAN_CHARTER: u32 = 6;
 pub(crate) const LANDING_CODE: u32 = 3;
 pub(crate) const AFTER_LANDING_CODE: u32 = 4;
 pub(crate) const STATUS_CODE: u32 = 5;
+pub(crate) const GOAL_CLOSER_CODE: u32 = 6;
 pub(super) const STATUS_CHARTER: u32 = 9;
 use jig_domain_core::effects::connector::{EffectDescription, EffectForm, Recovery};
 
 mod change_llm;
+mod closer_route;
+pub(crate) use closer_route::{made as closer_made, refused as closer_refused, start_closer_step};
 mod status_route;
 pub(crate) use status_route::{refused as status_refused, start_status_step};
 mod tier_route;
@@ -2513,6 +2516,10 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 delegate: None,
                 delegate_status: forge_change::Status::Unknown,
                 verdicts: Box::new([]),
+                goal: tracked_ancestor(domain, context.requester),
+                ending: None,
+                repair_tasks: Box::new([]),
+                resolution_tasks: Box::new([]),
                 result: forge::ChangeResult::empty(),
                 gate_remarks: Box::new([]),
                 drift: None,
@@ -4716,6 +4723,11 @@ pub(crate) fn outputs(
                 super::applications::finished(domain, request, Err(why));
             }
             forge::Request::StepDependents { task } => step_dependents(domain, env, task),
+            forge::Request::CloserChecked { task } => {
+                if let Some(context) = domain.core.tasks.run_context(task) {
+                    start_closer_step(domain, env, &context);
+                }
+            }
             forge::Request::WakeProcedure { task } => {
                 step_dependents(domain, env, task);
                 // A restored change also repairs names saved before its pull was known.

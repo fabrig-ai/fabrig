@@ -41,6 +41,10 @@ fn change_row() -> top::ChangeRow {
         delegate: None,
         delegate_status: change::Status::Unknown,
         verdicts: Box::new([]),
+        goal: None,
+        ending: None,
+        repair_tasks: Box::new([]),
+        resolution_tasks: Box::new([]),
         result: top::ChangeResult::empty(),
         gate_remarks: Box::new([]),
         drift: None,
@@ -566,6 +570,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::ReleaseFailed { .. }
                 | top::Request::ProjectionEffect { .. }
                 | top::Request::StepDependents { .. }
+                | top::Request::CloserChecked { .. }
                 | top::Request::WakeProcedure { .. }
                 | top::Request::ProjectAfter { .. }
                 | top::Request::ProjectionSettled { .. }

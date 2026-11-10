@@ -162,7 +162,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
 #[expect(clippy::disallowed_macros, reason = "property inputs number canonical member addresses")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(34) {
+    match random.below(35) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -209,6 +209,7 @@ pub fn key(random: &mut Rng) -> top::Key {
         }),
         30 => top::Key::ProjectFacts { project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
         32 => top::Key::Away { party: number, project: u32::try_from(random.below(4_294_967_296)).expect("u32") },
+        34 => top::Key::Closer(number),
         33 => top::Key::Decided {
             project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
             number: u32::try_from(random.below(4_294_967_296)).expect("u32"),
@@ -849,6 +850,10 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         delegate: Some((18, Delegate::Gate { number: 19, head: [20; 32] })),
         delegate_status: Status::Passed,
         verdicts: Box::new([GateReport { number: 21, head: [22; 32], status: Status::Failed }]),
+        goal: None,
+        ending: None,
+        repair_tasks: Box::new([]),
+        resolution_tasks: Box::new([]),
         result: top::ChangeResult::empty(),
         gate_remarks: Box::new([top::GateRemark { number: 23, head: [24; 32], words: Box::new([25]) }]),
         drift: Some(Hold::BranchMoved),

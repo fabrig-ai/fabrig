@@ -19,6 +19,7 @@ pub enum RecordKind {
     Landed,
     Entry,
     Client,
+    Closer,
     Change,
     Issue,
     Release,
@@ -75,6 +76,7 @@ pub(crate) fn capacity(l: &Limits) -> Option<u32> {
         .checked_add(l.subscriptions)? // Ci: repository.
         .checked_add(l.entries.checked_mul(3)?)? // Entry: repository/task; Flight: entry/task.
         .checked_add(l.client.repositories)? // Client::Repository.
+        .checked_add(l.tasks.checked_mul(2)?)? // Closer: live task and goal.
         .checked_add(l.changes)? // Change: repository; task is historical.
         .checked_add(l.issues.checked_mul(2)?)? // Issue: repository and live goal.
         .checked_add(l.tasks.checked_mul(3)?)? // Release: task, root, pending name.
@@ -210,7 +212,14 @@ impl Reconciliation {
                 skein_forge_client::Stored::Repository(row) => self.repository(RecordKind::Client, row.repository),
                 skein_forge_client::Stored::Writer(row) => self.need(RecordKind::Client, Need::Forge(row.forge)),
             },
-            // Change panels outlive tasks (domain/forge.md, 8.8).
+            Stored::Closer(row) => {
+                if !row.done {
+                    self.task(RecordKind::Closer, row.task, None)?;
+                    self.task(RecordKind::Closer, row.goal, None)?;
+                }
+                Ok(())
+            }
+            // Change panels outlive tasks (temper/docs/design/domain/forge.md, 8.8).
             Stored::Change(row) => self.repository(RecordKind::Change, row.repository),
             Stored::Issue(row) => {
                 self.repository(RecordKind::Issue, row.repository)?;
@@ -346,7 +355,8 @@ impl Domain {
             | RecordKind::Tier
             | RecordKind::Verification
             | RecordKind::LandingLog => true,
-            RecordKind::Forge
+            RecordKind::Closer
+            | RecordKind::Forge
             | RecordKind::Call
             | RecordKind::ProposedEffect
             | RecordKind::Repository

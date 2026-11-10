@@ -40,7 +40,7 @@ fn finish(world: &mut World, producer: &engine::Assignment) {
 }
 
 fn change(world: &World) -> forge_top::ChangeRow {
-    world
+    *world
         .store
         .rows
         .values()

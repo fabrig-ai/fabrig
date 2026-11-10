@@ -203,7 +203,7 @@ fn subscribed_ci_and_unknown_change_facts_keep_their_wakes() {
     row.pull = None;
     row.change.last_head = None;
     row.change.state = temper_engine_domain_forge_change::State::Producing { requested: false };
-    world.event(forge::Event::Change { row });
+    world.event(forge::Event::Change { row: *row });
     assert_eq!(hint(&mut world, Change::Item(2)), [52, 53], "unknown pull cannot exclude its review hint");
     assert_eq!(hint(&mut world, Change::Commit(head)), [51, 52, 53], "unknown head cannot exclude its CI hint");
     assert_eq!(hint(&mut world, Change::Item(0)), [51, 52, 53], "unnamed item is repository-wide");

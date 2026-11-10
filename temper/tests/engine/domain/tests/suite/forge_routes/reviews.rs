@@ -1295,7 +1295,9 @@ fn held_for(why: temper_engine_domain_forge_change::Hold) -> (World, u64, [u8; 3
         Hold::BranchMoved => row.drift = Some(Hold::BranchMoved),
         _ => panic!("not a held fixture for {why:?}"),
     }
-    world.send(engine::Event::Forge(Box::new(forge_top::Event::Restore { record: forge_top::Stored::Change(row) })));
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Restore {
+        record: forge_top::Stored::Change(Box::new(row)),
+    })));
     (world, task, head)
 }
 

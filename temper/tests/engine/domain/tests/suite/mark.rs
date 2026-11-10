@@ -48,7 +48,7 @@ fn the_forge_reaches_no_forge_before_the_mark() {
     store.seed(
         Box::new([
             Record::Forge { row: Box::new(forge::Stored::Entry { entry, held: false }) },
-            Record::Forge { row: Box::new(forge::Stored::Change(change)) },
+            Record::Forge { row: Box::new(forge::Stored::Change(Box::new(change))) },
         ]),
         Box::new([]),
     );

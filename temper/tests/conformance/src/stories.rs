@@ -45,7 +45,7 @@ fn change_row(store: &Store) -> Option<&forge::ChangeRow> {
     store.rows.values().find_map(|record| {
         let root::Record::Forge { row } = record else { return None };
         let forge::Stored::Change(change) = row.as_ref() else { return None };
-        Some(change)
+        Some(change.as_ref())
     })
 }
 fn wait(world: &mut World, done: impl Fn(&World) -> bool) -> Result<(), Violation> {

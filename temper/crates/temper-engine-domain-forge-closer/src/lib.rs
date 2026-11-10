@@ -4,7 +4,9 @@
 
 extern crate alloc;
 
+mod policy;
 mod report;
+pub use policy::{Child, Closer, Decision, Facts, Hold, Running, Step, Stepped, step};
 #[cfg(test)]
 mod tests;
 

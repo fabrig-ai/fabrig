@@ -56,7 +56,7 @@ fn fixture() -> (Domain, ChangeEvidence) {
         reviews: Box::new([]),
         reviews_complete: true,
     };
-    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     (d, evidence)
 }
 

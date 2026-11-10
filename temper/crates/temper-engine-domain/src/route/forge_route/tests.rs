@@ -718,7 +718,7 @@ fn a_change_merge_into_a_held_branch_reserves_its_writer_before_authority_and_re
     forge::step(
         &mut domain.forge,
         &super::super::environment_forge(&env),
-        forge::Event::Restore { record: forge::Stored::Change(row) },
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
         &mut out,
     );
     while domain.work.pop().is_some() {}
@@ -1223,6 +1223,10 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         delegate: None,
         delegate_status: change::Status::Unknown,
         verdicts: Box::new([]),
+        goal: None,
+        ending: None,
+        repair_tasks: Box::new([]),
+        resolution_tasks: Box::new([]),
         result: forge::ChangeResult::empty(),
         gate_remarks: Box::new([]),
         drift: None,
@@ -1279,7 +1283,7 @@ fn repair_section_order_puts_only_a_semantic_repairs_ci_before_its_pull() {
         super::forge::step(
             &mut domain.forge,
             &super::super::environment_forge(&env),
-            super::forge::Event::Restore { record: super::forge::Stored::Change(row) },
+            super::forge::Event::Restore { record: super::forge::Stored::Change(Box::new(row)) },
             &mut Queue::uncapped(),
         );
         crate::assemble::finish_brief_plan(&mut domain, &env, 8, Some(7), List::with_capacity(8), Box::new([]));
@@ -1348,7 +1352,7 @@ fn a_ci_repair_keeps_its_failed_step_and_log_end_before_pull_contents_and_option
     super::forge::step(
         &mut domain.forge,
         &super::super::environment_forge(&env),
-        super::forge::Event::Restore { record: super::forge::Stored::Change(row) },
+        super::forge::Event::Restore { record: super::forge::Stored::Change(Box::new(row)) },
         &mut Queue::uncapped(),
     );
     let mut wanted = List::with_capacity(8);
@@ -1433,7 +1437,7 @@ fn a_github_repair_prepares_when_the_ci_ceiling_fills_the_brief() {
     super::forge::step(
         &mut domain.forge,
         &super::super::environment_forge(&env),
-        super::forge::Event::Restore { record: super::forge::Stored::Change(row) },
+        super::forge::Event::Restore { record: super::forge::Stored::Change(Box::new(row)) },
         &mut Queue::uncapped(),
     );
     let mut wanted = List::with_capacity(3);
@@ -1506,7 +1510,7 @@ fn a_changes_saved_pull_replaces_its_base_watch_within_two_names() {
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     for pull in [None, Some(23)] {
         out.push(forge::Request::Save {
-            record: forge::Stored::Change(change_row(pull)),
+            record: forge::Stored::Change(Box::new(change_row(pull))),
             release: None,
             read_afresh: None,
         });
@@ -1534,9 +1538,10 @@ fn a_restored_changes_wake_names_its_known_pull_again() {
     let forge_env = env.with(env.limits.forge);
     let mut out = skein_lib::Queue::uncapped();
     // An old store, or a restart between saving the pull and saving its names.
-    for record in
-        [forge::Stored::Change(change_row(Some(23))), forge::Stored::Names { task: 7, resources: change_names(None) }]
-    {
+    for record in [
+        forge::Stored::Change(Box::new(change_row(Some(23)))),
+        forge::Stored::Names { task: 7, resources: change_names(None) },
+    ] {
         forge::step(&mut domain.forge, &forge_env, forge::Event::Restore { record }, &mut out);
     }
     forge::step(
@@ -1602,7 +1607,7 @@ fn restored_change(
 fn an_ended_changes_pull_wake_names_nothing() {
     use super::{Decision, Work, forge};
     // Its release unnamed it: the change row stays, its names row does not.
-    let (mut domain, env, mut out) = restored_change([forge::Stored::Change(change_row(Some(23)))]);
+    let (mut domain, env, mut out) = restored_change([forge::Stored::Change(Box::new(change_row(Some(23))))]);
     out.push(forge::Request::WakeProcedure { task: 7 });
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
     super::outputs(&mut domain, &env, &mut decision, &mut out);
@@ -1617,7 +1622,7 @@ fn an_ended_changes_pull_wake_names_nothing() {
 fn a_change_unnamed_after_its_pull_swap_was_queued_stays_unnamed() {
     use super::{Decision, Work, forge};
     let (mut domain, env, mut out) = restored_change([
-        forge::Stored::Change(change_row(Some(23))),
+        forge::Stored::Change(Box::new(change_row(Some(23)))),
         forge::Stored::Names { task: 7, resources: change_names(None) },
     ]);
     let forge_env = env.with(env.limits.forge);
@@ -1761,7 +1766,7 @@ fn a_landed_result_names_the_landing_whole_after_its_pull_identity() {
         super::forge::step(
             &mut domain.forge,
             &super::super::environment_forge(&env),
-            super::forge::Event::Restore { record: super::forge::Stored::Change(row) },
+            super::forge::Event::Restore { record: super::forge::Stored::Change(Box::new(row)) },
             &mut out,
         );
         let mut expected = skein_lib::Writer::new(identity.len() + 1 + landed.len());
@@ -1817,7 +1822,7 @@ fn a_small_landed_result_cuts_only_evidence_and_keeps_both_identity_lines() {
     super::forge::step(
         &mut domain.forge,
         &super::super::environment_forge(&env),
-        super::forge::Event::Restore { record: super::forge::Stored::Change(row) },
+        super::forge::Event::Restore { record: super::forge::Stored::Change(Box::new(row)) },
         &mut out,
     );
     let whole = super::change_landing_words(&domain, 7, &SHA1, 7, 512);
@@ -1897,7 +1902,7 @@ fn cancelled_resolutions_and_merge_jobs_keep_bounded_procedure_accounts() {
                 why: forge_change::Hold::Failed,
             };
             row.delegate = Some((9, kind));
-            let (mut domain, env, mut out) = restored_change([forge::Stored::Change(row)]);
+            let (mut domain, env, mut out) = restored_change([forge::Stored::Change(Box::new(row))]);
             forge::step(
                 &mut domain.forge,
                 &env.with(env.limits.forge),
@@ -2220,7 +2225,7 @@ fn a_landing_by_turn_starts_while_the_period_is_reserved_whole() {
     forge::step(
         &mut domain.forge,
         &super::super::environment_forge(&env),
-        forge::Event::Restore { record: forge::Stored::Change(row) },
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
         &mut out,
     );
     assert!(domain.forge.project_landing(
@@ -2336,7 +2341,7 @@ fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
         forge::step(
             &mut domain.forge,
             &super::super::environment_forge(&env),
-            forge::Event::Restore { record: forge::Stored::Change(row) },
+            forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
             &mut out,
         );
         let words = super::change_landing_words(&domain, 7, &SHA1, 7, 512);
@@ -2372,7 +2377,7 @@ fn cleared_repair_result(by: Option<skein_forge::api::Commit>) -> (super::Domain
         }]),
     };
     let mut out = skein_lib::Queue::uncapped();
-    for record in [forge::Stored::Change(row), forge::Stored::Verification(verification)] {
+    for record in [forge::Stored::Change(Box::new(row)), forge::Stored::Verification(verification)] {
         forge::step(
             &mut domain.forge,
             &super::super::environment_forge(&env),
@@ -2463,7 +2468,7 @@ fn an_uncleared_cancelled_change_names_cancellation() {
     forge::step(
         &mut domain.forge,
         &super::super::environment_forge(&env),
-        forge::Event::Restore { record: forge::Stored::Change(row) },
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
         &mut out,
     );
     drop(jig_domain_core::step(
@@ -2665,7 +2670,7 @@ fn a_hold_past_questions_names_its_bound() {
         let mut row = change_row(None);
         row.questions.taken = 4;
         row.questions.open = open.into();
-        let (domain, env, _) = restored_change([super::forge::Stored::Change(row)]);
+        let (domain, env, _) = restored_change([super::forge::Stored::Change(Box::new(row))]);
         let decision = super::hold_change_decision(&domain, &env, 7, forge_change::Hold::Questions);
         assert_eq!(
             decision.end,
@@ -2903,7 +2908,7 @@ fn change_delegates_take_their_roles_saved_llm_choice() {
     forge::step(
         &mut domain.forge,
         &super::super::environment_forge(&env),
-        forge::Event::Restore { record: forge::Stored::Change(row) },
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
         &mut out,
     );
     for (kind, expected) in [
@@ -3657,7 +3662,7 @@ fn a_changes_refused_model_holds_the_role_that_needed_its_delegate() {
         forge::step(
             &mut domain.forge,
             &super::super::environment_forge(&env),
-            forge::Event::Restore { record: forge::Stored::Change(row) },
+            forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
             &mut skein_lib::Queue::uncapped(),
         );
         let (connector, _, step) = domain.core.tasks.procedure_due(task).expect("due change");
@@ -3849,7 +3854,7 @@ fn pending_dependencies_distinguish_changes_elsewhere_and_other_tasks() {
             forge::step(
                 &mut domain.forge,
                 &forge_env,
-                forge::Event::Restore { record: forge::Stored::Change(upstream.clone()) },
+                forge::Event::Restore { record: forge::Stored::Change(Box::new(upstream.clone())) },
                 &mut Queue::uncapped(),
             );
         }

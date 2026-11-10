@@ -624,7 +624,10 @@ fn a_persons_request_for_changes_repairs_with_its_remarks() {
         if bound {
             let mut row = light_rules::change_row(&world, change).clone();
             row.change.repairs = world.env.limits.forge.change_policy.repairs;
-            world.store.seed(Box::new([Record::Forge { row: Box::new(forge_top::Stored::Change(row)) }]), Box::new([]));
+            world.store.seed(
+                Box::new([Record::Forge { row: Box::new(forge_top::Stored::Change(Box::new(row))) }]),
+                Box::new([]),
+            );
             world.restart_same();
             settle(&mut world);
         }

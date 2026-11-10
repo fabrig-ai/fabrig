@@ -14,6 +14,15 @@ fn name(number: u32) -> Name {
 fn row(kind: RecordKind, number: u32) -> Stored {
     let n = u64::from(number);
     match kind {
+        RecordKind::Closer => Stored::Closer(CloserRow {
+            task: n,
+            goal: n,
+            closer: temper_engine_domain_forge_closer::Closer::new(),
+            making: None,
+            close_changes: Box::new([]),
+            landing_changes: Box::new([]),
+            done: false,
+        }),
         RecordKind::Making => Stored::Making(making::row(number)),
         RecordKind::LandingLog => Stored::LandingLog(LandingLog {
             repository: skein_forge::api::Repository { forge: 1, repository: number },
@@ -106,7 +115,7 @@ fn row(kind: RecordKind, number: u32) -> Stored {
         RecordKind::Change => {
             let mut row = fixtures::opening_row();
             row.task = n;
-            Stored::Change(row)
+            Stored::Change(Box::new(row))
         }
         RecordKind::Issue => Stored::Issue(IssueRow {
             goal: n,
@@ -504,7 +513,7 @@ fn a_fitting_zero_call_still_asserts_its_missing_task_link() {
 fn independent_timer_room_is_checked_before_insertion() {
     for projection in [false, true] {
         let mut d = domain();
-        let limit = if projection { LIMITS.issues } else { LIMITS.changes };
+        let limit = if projection { LIMITS.issues } else { LIMITS.changes + LIMITS.tasks };
         for number in 100..100 + limit {
             if projection {
                 d.projection_after(u64::from(number), Wall::EPOCH);
