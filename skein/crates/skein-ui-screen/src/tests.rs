@@ -20,6 +20,11 @@ const REGION: RegionLook = RegionLook {
     pad: 1,
     paint: PAPER,
 };
+const SIDE: RegionLook = RegionLook {
+    place: Place::Side { percent: 50 },
+    border: Some(Border { title: false, sides: false, ..BORDER }),
+    ..REGION
+};
 const STYLE: StyleLook = StyleLook {
     style: Style { owner: Owner { number: 1 }, token: 1 },
     paint: INK,
@@ -80,12 +85,53 @@ fn paint_over_keeps_colours_and_adds_every_attribute() {
 
 #[test]
 #[expect(clippy::disallowed_types, reason = "all invalid glyph rows report their failures together")]
+#[expect(clippy::too_many_lines, reason = "theme refusal rows share one validity check and report every failure")]
 fn theme_valid_refuses_duplicate_looks_and_unsuitable_glyphs() {
     use core::fmt::Write;
     let mut failures = String::new();
     for (name, regions, styles, glyphs, valid) in [
         ("valid", &[REGION][..], &[STYLE][..], GLYPHS, true),
         ("empty looks", &[][..], &[][..], GLYPHS, true),
+        ("valid side", &[SIDE][..], &[][..], GLYPHS, true),
+        ("side without border", &[RegionLook { border: None, ..SIDE }][..], &[][..], GLYPHS, true),
+        (
+            "side percent lower bound",
+            &[RegionLook { place: Place::Side { percent: 1 }, ..SIDE }][..],
+            &[][..],
+            GLYPHS,
+            true,
+        ),
+        (
+            "side percent upper bound",
+            &[RegionLook { place: Place::Side { percent: 99 }, ..SIDE }][..],
+            &[][..],
+            GLYPHS,
+            true,
+        ),
+        ("side percent zero", &[RegionLook { place: Place::Side { percent: 0 }, ..SIDE }][..], &[][..], GLYPHS, false),
+        ("side percent 100", &[RegionLook { place: Place::Side { percent: 100 }, ..SIDE }][..], &[][..], GLYPHS, false),
+        (
+            "side percent past 100",
+            &[RegionLook { place: Place::Side { percent: 255 }, ..SIDE }][..],
+            &[][..],
+            GLYPHS,
+            false,
+        ),
+        ("side spread", &[RegionLook { arrange: Arrange::Spread, ..SIDE }][..], &[][..], GLYPHS, false),
+        (
+            "side border sides",
+            &[RegionLook { border: Some(Border { title: false, ..BORDER }), ..SIDE }][..],
+            &[][..],
+            GLYPHS,
+            false,
+        ),
+        (
+            "side border title",
+            &[RegionLook { border: Some(Border { sides: false, ..BORDER }), ..SIDE }][..],
+            &[][..],
+            GLYPHS,
+            false,
+        ),
         ("duplicate region", &[REGION, REGION][..], &[STYLE][..], GLYPHS, false),
         ("duplicate style", &[REGION][..], &[STYLE, STYLE][..], GLYPHS, false),
         (

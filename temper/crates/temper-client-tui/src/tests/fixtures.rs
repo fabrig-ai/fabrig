@@ -251,3 +251,24 @@ pub fn build(view: &mut crate::View, tui: &crate::Tui, root: &Domain) -> Queue<s
     crate::build(view, tui, root, NOW, &mut out);
     out
 }
+
+// Kind 7's project value, delivered through the forge's public read envelope.
+pub fn draft_setting(drafts: bool) -> Box<[u8]> {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let value = w::ProjectWays::new(&w::CEILINGS, w::ProjectWaysParts { drafts, goals: false, changes: false, way: 0 })
+        .unwrap();
+    let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
+    value.encode(&mut writer).unwrap();
+    wire::setting_answer(
+        &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { value: Some(writer.finish()) }).unwrap(),
+    )
+}
+
+pub fn ways_read(record: &[u8]) -> bool {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    if let w::Read::Setting(setting) = wire::decode_reading(record, &w::CEILINGS).unwrap().read() {
+        setting.kind() == 7
+    } else {
+        false
+    }
+}

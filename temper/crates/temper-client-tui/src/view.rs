@@ -466,11 +466,15 @@ pub fn offered(root: &Domain, _words: &Words) -> Box<[temper_client_domain::page
     for command in Command::ALL {
         let screen = match command {
             Command::Model | Command::Effort => project && picker,
+            Command::Draft => match root.pages().chat() {
+                Some(chat) => chat.draft.is_some() || chat.writing,
+                None => false,
+            },
             Command::Pause => chat,
             Command::Close | Command::StartOver => chat && no_delegate,
             Command::New | Command::Chats => project,
             Command::Help | Command::Exit => true,
-            Command::Draft | Command::Goal | Command::Font | Command::Theme => false,
+            Command::Goal | Command::Font | Command::Theme => false,
         };
         if screen && temper_client_view::shared::offered(root, task, command) {
             commands.push(command).expect("at most Command::ALL commands");
@@ -536,7 +540,7 @@ pub fn walk_key(view: &View) -> Option<Event> {
 pub fn chat_number(view: &View, number: u32) -> Option<u64> {
     for (task, kind) in &view.left_off {
         match kind {
-            launchpad::LeftKind::Chat { number: held } if *held == number => return Some(*task),
+            launchpad::LeftKind::Chat { number: held, .. } if *held == number => return Some(*task),
             launchpad::LeftKind::Chat { .. } | launchpad::LeftKind::Goal => {}
         }
     }
@@ -550,7 +554,7 @@ pub fn focus(view: &View) -> Option<&[u8]> {
 /// The TUI's own commands in their offered order (client/README.md, 6.14).
 #[must_use]
 pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
-    let mut commands = List::with_capacity(6);
+    let mut commands = List::with_capacity(7);
     if root.client().link().state == Link::SignedOut || welcome::shown(root, tui) {
         commands.push(Own::Theme).expect("one theme command");
         return commands.into_boxed();
@@ -565,6 +569,7 @@ pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
             && !tui.quitting();
         for command in Own::ALL {
             let offered = match command {
+                Own::Draft => temper_client_domain::pages::drafts_offered(root, project),
                 Own::Change | Own::Ask | Own::Open => true,
                 Own::Theme => false,
                 Own::Brief => brief,
