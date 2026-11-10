@@ -11,6 +11,7 @@ pub(crate) fn answered_repository(
     result: Result<Answer, Error>,
     out: &mut Queue<Request>,
 ) {
+    let polled = super::poll_at(&d.keep, &env.limits, env.now, key, env.limits.poll);
     let row = d.keep.repos.get(&key).expect("call owns repository");
     if !row.active {
         d.keep.repos.remove(&key).expect("inactive repository exists");
@@ -68,9 +69,9 @@ pub(crate) fn answered_repository(
                 });
                 row.state = Scan::Idle;
                 row.fresh = Fresh::Complete;
-                let interval = if row.hinted { env.limits.hinted } else { env.limits.poll };
+                let next = if row.hinted { env.now.saturating_add(env.limits.hinted) } else { polled };
                 row.hinted = false;
-                d.alarms.arm(Alarm::Repository(key), env.now.saturating_add(interval)).expect("one repository alarm");
+                d.alarms.arm(Alarm::Repository(key), next).expect("one repository alarm");
             }
             out.push(Request::Save { record: Stored::Repository(row.record) });
         }
@@ -535,6 +536,7 @@ fn rest_resource(d: &mut Domain, env: &Env<Limits>, key: &Resource) {
             What::Branch(_) | What::Issue(_) | What::Repository => env.limits.slow,
         }
     };
+    let hinted = row.hinted;
     row.hinted = false;
     row.state = State::Idle;
     let next = env.now.saturating_add(interval);
@@ -543,5 +545,7 @@ fn rest_resource(d: &mut Domain, env: &Env<Limits>, key: &Resource) {
     } else {
         next
     };
-    d.alarms.arm(Alarm::Resource(row.alarm), next).expect("one resource alarm");
+    let alarm = row.alarm;
+    let next = if hinted { next } else { super::fallen_back(&d.keep, &env.limits, env.now, key.repository, next) };
+    d.alarms.arm(Alarm::Resource(alarm), next).expect("one resource alarm");
 }

@@ -86,6 +86,7 @@ struct Repo {
     fresh: Fresh,
     state: Scan,
     hinted: bool,
+    heard: Option<Time>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Fresh {
@@ -190,7 +191,23 @@ fn live(record: LiveRecord, l: &Limits, alarm: u64) -> Live {
 }
 fn repository(record: RepositoryRecord) -> Repo {
     let progress = Progress::first(record.mark);
-    Repo { record, active: true, fresh: Fresh::Complete, state: Scan::Due(progress), hinted: false }
+    Repo { record, active: true, fresh: Fresh::Complete, state: Scan::Due(progress), hinted: false, heard: None }
+}
+/// Stretch a timed read while its active repository hears (forge-client.md, 4.1).
+pub(crate) fn fallen_back(k: &Keep, l: &Limits, now: Time, repository: Repository, at: Time) -> Time {
+    if let Some(row) = k.repos.get(&repository)
+        && row.active
+        && let Some(heard) = row.heard
+    {
+        let until = heard.saturating_add(l.fallback);
+        if now < until {
+            return at.max(until);
+        }
+    }
+    at
+}
+pub(crate) fn poll_at(k: &Keep, l: &Limits, now: Time, repository: Repository, interval: Duration) -> Time {
+    fallen_back(k, l, now, repository, now.saturating_add(interval))
 }
 fn has(watches: &[Watch], resource: &Resource) -> bool {
     for watch in watches {
