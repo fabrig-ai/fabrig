@@ -1,12 +1,14 @@
 # forge-client: status
 
-2026-11-09. Where skein's code lags or departs from [forge-client.md](forge-client.md).
+2026-11-10. Where skein's code lags or departs from [forge-client.md](forge-client.md).
 
 - **Not yet:** 2.3: `Branches`' names are checked against `rows`
-  (`skein-forge/src/measure.rs`, `answer_rows`). 4: drift's `Fresh`
-  read is a `Compare`, and an item's read sends no `since`
-  (`keep/poll.rs`). 7.4: an update is proved by a `Compare`'s empty
-  commits (`outbox.rs`, `outbox/answer.rs`), not a `Range`.
+  (`skein-forge/src/measure.rs`, `answer_rows`). [in flight: change 32]
+- **Not yet:** 4: an item's read sends no `since` (`keep/poll.rs`).
+  [in flight: change 25]
+- **Not yet:** 4: drift's `Fresh` read is a `Compare`. 7.4: an update is
+  proved by a `Compare`'s empty commits (`outbox.rs`, `outbox/answer.rs`),
+  not a `Range`.
 
 - **Not yet:** 7.3, 10: no real-Forgejo conformance record shows a merge
   update of a head already holding its base, or a rebase's push overtaking
