@@ -124,6 +124,10 @@ LINKED`, as for every link jig's start cannot make
   The engine world holds the worker-bound reads on a script alone; no
   real host or LLM is exercised
   (`temper/tests/engine/domain/tests/suite/host_calls.rs`).
+- **Not yet:** 7.2: a goal's design writer's brief line: no brief says
+  that `deliver` pushes Markdown straight to the goal branch
+  (`temper-engine-domain/src/assemble.rs`, `plan_home_access`)
+  [in flight: change 98].
 - **Not yet:** 7.2: a section for each
   document a charter names (the forge's brief sources are CI, reviews, the
   pull request and the home: `temper-engine-domain-forge/src/boundary.rs`,

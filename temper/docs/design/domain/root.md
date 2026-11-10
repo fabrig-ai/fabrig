@@ -814,7 +814,12 @@ preparing, held until its claim commits:
   (forge.md, 8.4). Each kind has its budget (`ci`, `reviews`, `pull`).
 - **For a task holding no run branch in its project's adopted home**
   (forge.md, section 11), one section, required: why its runs read the
-  home without pushing, bounded by its words.
+  home without pushing, bounded by its words. A goal's design writer
+  (forge.md, 11.3) needs no run branch to push, and its brief has none.
+- **For a goal's design writer** (forge.md, 11.3), one line beside that
+  section's place: that `deliver` pushes the checkout's Markdown
+  straight to the goal branch, merging its moved tip first, and that
+  code goes through `change`. No other run's brief has it.
 - **For each document its charter names** (jig's `domain/engine.md`,
   17.9; `../protocol/configuration.md`, 13.7), one section, optional,
   titled by the repository, the path and the heading: the file, or its
