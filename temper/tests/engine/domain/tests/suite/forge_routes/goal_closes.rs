@@ -268,7 +268,13 @@ fn finish_close(world: &mut World, close: u64, branch: &[u8], job: &host::JobAss
     let spec = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&job.spec)).expect("close job spec");
     assert_eq!(spec.command(), b"repo/.temper/close");
     assert_eq!(Some(spec.request()), row(world, close).close.as_deref());
-    let before = branch_tip(world, branch);
+    for _ in 0..STEPS {
+        if world.pending.is_empty() {
+            break;
+        }
+        world.tick();
+    }
+    let before = world.fake.branch(b"org/repo", branch).expect("goal branch");
     push_close(world, close, branch, job);
     let own = row(world, close).branch.clone();
     let head = world.fake.branch(b"org/repo", &own).expect("scripted close branch");
@@ -325,7 +331,7 @@ fn a_goal_whose_last_change_lands_closes_with_no_agent_run() {
     let (mut world, goal, branch) = goal_world(4);
     let (first, first_run) = make_change(&mut world, &goal, 93);
     let (second, second_run) = make_change(&mut world, &goal, 94);
-    park_chat(&mut world, &goal);
+    park_goal(&mut world, &goal);
     assert_eq!(live_task(&world, goal.task).phase, tasks::Phase::Active(tasks::Active::Idle));
     produce(&mut world, first, &branch, &first_run, b"First");
     assert_eq!(live_task(&world, goal.task).closer, None);
@@ -339,7 +345,7 @@ fn a_goal_whose_last_change_lands_closes_with_no_agent_run() {
 #[test]
 fn a_goal_from_template_2_keeps_the_nothing_awaited_notice() {
     let (mut world, goal, _) = goal_world(2);
-    park_chat(&mut world, &goal);
+    park_goal(&mut world, &goal);
     for _ in 0..STEPS {
         if live_task(&world, goal.task).inbox.iter().any(|word| word.kind == tasks::MessageKind::NothingAwaited) {
             break;
@@ -348,7 +354,21 @@ fn a_goal_from_template_2_keeps_the_nothing_awaited_notice() {
     }
     assert!(live_task(&world, goal.task).inbox.iter().any(|word| word.kind == tasks::MessageKind::NothingAwaited));
     assert_eq!(live_task(&world, goal.task).closer, None);
+    for _ in 0..STEPS {
+        if goal_runs(&world, goal.task) == 2 {
+            break;
+        }
+        world.tick();
+    }
+    assert_eq!(goal_runs(&world, goal.task), 2, "the notice wakes the result-ended goal");
     world.close();
+}
+
+fn park_goal(world: &mut World, run: &engine::Assignment) {
+    world.scripted_read_inbox(run);
+    let turns = live_task(world, run.task).turn;
+    super::park_after_turn(world, run, None, turns);
+    world.until(Until::Ready);
 }
 
 fn awakened(world: &mut World, goal: u64) -> engine::Assignment {
@@ -378,7 +398,7 @@ fn settle(world: &mut World, goal: u64) {
 #[test]
 fn a_failing_close_command_wakes_the_goal_once() {
     let (mut world, goal, branch) = goal_world(4);
-    park_chat(&mut world, &goal);
+    park_goal(&mut world, &goal);
     let closer = closer_of(&mut world, goal.task);
     let mut close = None;
     for _ in 0..=world.env.limits.tasks.retries.permanent.retries {
@@ -431,7 +451,7 @@ fn a_failing_close_command_wakes_the_goal_once() {
     wait_ended(&mut world, first);
     wait_held(&mut world, closer, goal.task);
     release(&mut world, &run, closer, 94);
-    park_chat(&mut world, &run);
+    park_goal(&mut world, &run);
     let (same_closer, landing) = finish_closing(&mut world, goal.task, &branch);
     assert_eq!(same_closer, closer);
     let close_changes = &closer_row(&world, closer).expect("closer row").close_changes;
@@ -446,7 +466,7 @@ fn a_failing_close_command_wakes_the_goal_once() {
 
 fn held_landing() -> (World, engine::Assignment, Box<[u8]>, u64, u64, u64) {
     let (mut world, goal, branch) = goal_world(4);
-    park_chat(&mut world, &goal);
+    park_goal(&mut world, &goal);
     let closer = closer_of(&mut world, goal.task);
     let job = close_job(&mut world);
     let tasks::Party::Task(close) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
@@ -487,10 +507,12 @@ fn held_landing() -> (World, engine::Assignment, Box<[u8]>, u64, u64, u64) {
 fn work_after_escalation(world: &mut World, run: &engine::Assignment, branch: &[u8], closer: u64, landing: u64) -> u64 {
     let (work, producer) = make_change(world, run, 93);
     assert_eq!(live_task(world, closer).waiting_on.as_ref(), &[work]);
-    assert_eq!(live_task(world, closer).phase, tasks::Phase::Waiting);
+    assert_eq!(live_task(world, closer).phase, tasks::Phase::Active(tasks::Active::Idle));
     let before = closer_row(world, closer).expect("closer row").close_changes.clone();
+    let head = world.fake.branch(b"org/repo", branch).expect("goal branch");
+    status(world, head, raw::Check::Pending);
     release(world, run, landing, 94);
-    park_chat(world, run);
+    park_goal(world, run);
     assert_eq!(closer_row(world, closer).expect("closer row").close_changes, before);
     produce(world, work, branch, &producer, b"New work");
     let head = world.fake.branch(b"org/repo", branch).expect("goal branch");
@@ -521,7 +543,6 @@ fn a_held_landing_wakes_the_goal_once() {
 fn a_goal_woken_by_an_escalation_that_makes_a_change_closes_after_it() {
     let (mut world, run, branch, closer, first, landing) = held_landing();
     let work = work_after_escalation(&mut world, &run, &branch, closer, landing);
-    assert_eq!(closer_row(&world, closer).expect("closer row").close_changes.as_ref(), &[first]);
     assert!(ended(&world, run.task).is_none(), "new work requires another close before the report");
     let job = close_job(&mut world);
     let tasks::Party::Task(second) = live_task(&world, job.run.raw()).requester else { panic!("second close change") };

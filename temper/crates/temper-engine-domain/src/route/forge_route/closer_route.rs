@@ -90,7 +90,10 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
         }
         c::Decision::Hold(hold) => {
             row.closer = stepped.closer;
-            super::holds::decision(domain, env, task, hold_words(domain, hold))
+            ProcedureStep::new(StepEnd::HoldFrom {
+                why: tasks::Hold::Procedure,
+                source: Box::new(super::holds::source(domain, None, hold_words(domain, hold))),
+            })
         }
         c::Decision::Wait => {
             row.closer = stepped.closer;
