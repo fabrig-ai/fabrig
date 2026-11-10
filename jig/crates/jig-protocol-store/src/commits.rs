@@ -1,4 +1,4 @@
-//! Root commits, numbered with skein-kv's (protocol/store.md, 6 and 11.2).
+//! Root commits, numbered with skein-kv's (protocol/store/README.md, 5 and 6.2).
 use crate::{Event, Store, Write, codec, format, keys};
 use alloc::boxed::Box;
 use jig_domain_core::{CoreRecord, Record};

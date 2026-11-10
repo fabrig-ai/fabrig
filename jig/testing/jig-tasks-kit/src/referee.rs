@@ -1,5 +1,5 @@
 //! Independent judgements from committed records and world inputs
-//! (domain/tasks.md, 5.7, 6.7, sections 7 and 12).
+//! (domain/tasks/lifecycle.md, 8, domain/tasks/holds.md, 7, sections 7 and 12).
 use jig_domain_tasks::{
     Contract, Ending, HoldKind, Holding, Kind, Last, Limits, Name as ResourceName, Parameter, Party, Phase, PoolSlots,
     SettingsRevision, Status, TaskRecord, TaskResult, Was, WriterSlot,
@@ -659,7 +659,7 @@ fn holding_name(holding: &Holding) -> &ResourceName {
     }
 }
 
-// Only the rules sent by the world resolve a resource (domain/tasks.md, section 6).
+// Only the rules sent by the world resolve a resource (domain/tasks/holds.md).
 struct Rules {
     kinds: Vec<Kind>,
     reports: Vec<(ResourceName, HoldKind)>,

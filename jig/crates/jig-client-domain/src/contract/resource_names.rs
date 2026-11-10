@@ -1,4 +1,4 @@
-//! Literal segmented names (domain/authority.md, 4; client/domain/contract.md, 5.3).
+//! Literal segmented names (domain/authority.md, 4; client/domain/contract/documents.md, 3).
 use alloc::boxed::Box;
 use skein_lib::List;
 

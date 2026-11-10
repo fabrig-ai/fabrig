@@ -1,4 +1,4 @@
-//! Page-carried immutable activity and opaque turns (protocol/client.md, 3).
+//! Page-carried immutable activity and opaque turns (protocol/client/wire.md, 1).
 use super::{chips, objects::question_answer, w};
 use jig_domain_core::reads;
 use jig_domain_tasks as t;

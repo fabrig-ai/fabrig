@@ -121,7 +121,7 @@ impl World {
                 }
                 Request::Client { .. } => order.push("transport"),
                 Request::Unlinked { .. } => {
-                    unreachable!("a linked root asks no unlinked request (jig's client.md, 4.4)")
+                    unreachable!("a linked root asks no unlinked request (jig's client/domain/client/README.md, 4.4)")
                 }
                 Request::Show { .. } => order.push("show"),
                 Request::SignIn { .. }

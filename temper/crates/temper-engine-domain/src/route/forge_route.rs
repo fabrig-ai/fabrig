@@ -755,7 +755,7 @@ pub(crate) fn effect_call(
     let owner = effect_owner(domain);
     assert!(domain.forge_effects.insert(owner, flight).is_ok(), "admitted forge effect handoff");
     let deadline = skein_lib::Wall::from_nanos(
-        // A call's timeout is its task's charter's (jig's `domain/engine.md`, 7.1).
+        // A call's timeout is its task's charter's (jig's `domain/engine/executors.md`, 1).
         env.wall.as_nanos().saturating_add(domain.core.charter_of(key.task).policy.call_timeout.as_nanos()),
     );
     let origin = match proposal {
@@ -2768,7 +2768,7 @@ fn change_step(
     }
 }
 
-// Only a procedure's own hold can be released by the deployment (jig's domain/tasks.md, 7).
+// Only a procedure's own hold can be released by the deployment (jig's domain/tasks/changes.md).
 fn own_hold(task: &tasks::TaskRecord) -> bool {
     if task.placed.is_some() {
         return false;

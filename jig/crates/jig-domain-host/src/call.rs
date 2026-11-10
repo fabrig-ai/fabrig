@@ -1,4 +1,4 @@
-//! Host calls in flight (hosts.md, section 6): a delivery served by the
+//! Host calls in flight (domain/hosts/hub.md): a delivery served by the
 //! workspace, or a call relayed to the engine. A delivery stays in flight
 //! after withdrawal or stop until the workspace reports its terminal. A
 //! relay settles after its local cancellation terminal arrives.

@@ -1,4 +1,4 @@
-//! Method and route dispatch (protocol/client.md, section 4).
+//! Method and route dispatch (protocol/client/wire.md, section 2).
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v19 as w;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -1,4 +1,4 @@
-//! Secrets and people's orphan cleanup wait for this start's durable mark (store.md 5.3).
+//! Secrets and people's orphan cleanup wait for this start's durable mark (protocol/store/records.md 3).
 use jig_domain_core as core;
 use jig_protocol_store::{Event, Request, Restore, SecretOwner, SecretValue, Secrets, Write};
 use jig_store_world::{

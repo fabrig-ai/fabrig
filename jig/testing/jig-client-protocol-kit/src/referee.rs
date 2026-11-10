@@ -1,4 +1,4 @@
-//! Independent observations of records, authentication and stream isolation (client.md, 14).
+//! Independent observations of records, authentication and stream isolation (client/domain/client/README.md, 11).
 use jig_client_protocol_wire::v19 as wire;
 use skein_lib::{Reader, Writer};
 

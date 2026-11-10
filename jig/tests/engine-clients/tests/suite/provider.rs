@@ -2,7 +2,7 @@
     clippy::disallowed_types,
     reason = "the task requires real elapsed measurements; protocol deadlines use only the injected world clock"
 )]
-//! The application's page and endpoint routes around the real clients' component (protocol/client.md, 18).
+//! The application's page and endpoint routes around the real clients' component (protocol/client/openid.md).
 use jig_client_protocol_wire::v19 as w;
 use jig_domain_core as core;
 use jig_domain_people as people;

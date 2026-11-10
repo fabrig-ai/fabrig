@@ -496,7 +496,7 @@ fn a_seed_policy_whose_whole_value_exceeds_its_byte_limit_refuses_start() {
     refuses(br#""profile": "small""#, br#""profile": "small", "overrides": {"core.policy_bytes": 256}"#, What::Bound);
 }
 
-// Current people-v13 envelope, configuration.md, section 6.
+// Current people-v13 envelope, protocol/limits.md.
 const POLICY_MAX: u64 = 43_695;
 const AMENDMENT_MAX: u32 = 135_168;
 const LARGE_POLICY: u64 = 65_536;

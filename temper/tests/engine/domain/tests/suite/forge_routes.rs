@@ -3387,7 +3387,7 @@ fn issue_count(world: &mut World) -> usize {
 }
 
 // From the stop on, the engine takes nothing that would make a commit, and a
-// committed forge effect stays with the connector (jig's `domain/engine.md`, 6.1).
+// committed forge effect stays with the connector (jig's `domain/engine/restart.md`, 1).
 #[test]
 fn a_stop_with_a_committed_forge_effect_makes_no_commit_and_no_write() {
     let (mut world, assignment) = pending_issue_effect();

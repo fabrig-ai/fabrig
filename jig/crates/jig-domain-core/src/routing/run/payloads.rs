@@ -1,4 +1,4 @@
-//! Turn and answer admission fences (domain/engine.md, 7.2 and 7.4).
+//! Turn and answer admission fences (domain/engine/executors.md, 2 and 4).
 use crate::{Core, Event, Request, routing::Work};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
@@ -54,7 +54,7 @@ pub(crate) fn route_answer_payload(
                     })));
                 }
                 if unusable_history {
-                    // Only this window's history closes it (jig/docs/design/domain/engine.md, 7.2).
+                    // Only this window's history closes it (jig/docs/design/domain/engine/executors.md, 2).
                     core.close_window(run.raw());
                 }
                 (cumulative, end, saved)

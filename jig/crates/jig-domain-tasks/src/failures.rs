@@ -1,10 +1,10 @@
 //! Per-class task failure history and configured equal-jitter backoff
-//! (domain/tasks.md, section 5.5). Root classifies external failures;
+//! (domain/tasks/lifecycle.md, section 6). Root classifies external failures;
 //! this module uses injected randomness and owns no clock or peer state.
 use skein_lib::{Duration, Rng};
 
 /// Root-reported activation failure category; each category has its own bounded retry policy and
-/// counter. (domain/tasks.md, section 5.5).
+/// counter. (domain/tasks/lifecycle.md, section 6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Class {
     /// Transient peer/read/transcript failure reported by the root.
@@ -23,7 +23,7 @@ pub enum Class {
 }
 
 /// Task's per-class failure counters, updated with saturation; counts describe history rather
-/// than a retry permission. (domain/tasks.md, section 5.5).
+/// than a retry permission. (domain/tasks/lifecycle.md, section 6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Tries {
     pub transient: u32,
@@ -67,7 +67,7 @@ impl Tries {
 }
 
 /// Root-configured retry count and equal-jitter exponential delay bounds; startup validates
-/// representable usable settings. (domain/tasks.md, section 5.5).
+/// representable usable settings. (domain/tasks/lifecycle.md, section 6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Retry {
     /// Failures allowed before the task is held; startup rejects `u32::MAX`.
@@ -79,7 +79,7 @@ pub struct Retry {
     pub max: Duration,
 }
 
-/// One configured retry policy per exhaustive failure class. (domain/tasks.md, section 5.5).
+/// One configured retry policy per exhaustive failure class. (domain/tasks/lifecycle.md, section 6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Retries {
     /// `Transient`-failure and pre-execution refusal pause policy.

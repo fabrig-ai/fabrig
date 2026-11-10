@@ -1481,7 +1481,7 @@ impl ClusterChatJudge {
             let ends: Vec<_> = lines.iter().filter(|line| line["run_ended"].is_object()).collect();
             assert_eq!(ends.len(), REPLY_ONCE, "same healed attempt ended once");
             assert_eq!(ends[0]["run_ended"]["attempt"], attempt);
-            // The admitted finish request makes the Open run's next text park (jig's domain/hosts.md, 9).
+            // The admitted finish request makes the Open run's next text park (jig's domain/hosts/README.md, 7).
             assert_eq!(ends[0]["run_ended"]["end"], "parked");
             self.checking.pop_front();
             self.queue(

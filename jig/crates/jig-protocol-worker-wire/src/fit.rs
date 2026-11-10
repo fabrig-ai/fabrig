@@ -1,4 +1,4 @@
-//! A resumed start's committed calls fitted to a room (jig/docs/design/protocol/channel.md, 9 and 11).
+//! A resumed start's committed calls fitted to a room (jig/docs/design/protocol/channel/README.md, 8 and 10).
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Writer};
 

@@ -1,4 +1,4 @@
-//! Whole subtree facts and supplied folds (client/domain/contract.md, 4 and 7;
+//! Whole subtree facts and supplied folds (client/domain/contract/README.md, 3 and 5;
 //! pages.md, 5.2). Parentage, counts and continuation belong to the source.
 use super::{Chip, Cursor, PhaseCounts, ProposalKey, TaskLink};
 use skein_lib::List;

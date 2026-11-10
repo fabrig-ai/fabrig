@@ -1,4 +1,4 @@
-//! Approval's disabled surface and stopping answers (protocol/client.md, 8).
+//! Approval's disabled surface and stopping answers (protocol/client/sign-in.md).
 use super::fixtures::{self as f, Exchange};
 use crate::{Event, Message, Settings};
 use jig_client_protocol_wire::v19 as w;

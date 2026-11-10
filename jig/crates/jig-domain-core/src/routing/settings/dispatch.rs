@@ -1,4 +1,4 @@
-//! Owner settings decisions, atomic with their keyed answer (engine.md, 17.2).
+//! Owner settings decisions, atomic with their keyed answer (domain/engine/settings.md, 2).
 mod project_policy;
 
 use crate::{
@@ -65,7 +65,7 @@ fn start_at(
     drop(core.settings_input.take());
     result
 }
-/// Build the one item from current state before keyed owner admission (engine.md, 17.11).
+/// Build the one item from current state before keyed owner admission (domain/engine/settings.md, 11).
 pub(crate) fn model_start(
     core: &mut Core,
     env: &Env<Limits>,
@@ -179,7 +179,7 @@ pub(crate) fn admitted(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, 
     };
     routed.work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
 }
-/// An out-of-shape refusal (engine.md, 17.2): `at` is the position in
+/// An out-of-shape refusal (domain/engine/settings.md, 2): `at` is the position in
 /// `items` of the last item naming `failure.setting`, or 0 when none does.
 pub(crate) fn malformed_refusal(items: &[s::Item], failure: s::Failure) -> people::Refusal {
     let mut at = 0;
@@ -724,12 +724,12 @@ fn keep_set(core: &mut Core, proposer: people::Proposer, number: u64, pending: b
     core.touch_settings();
 }
 
-/// Counts decided by an owner's move (engine.md, 17.4).
+/// Counts decided by an owner's move (domain/engine/settings.md, 4).
 pub(crate) struct Moved {
     pub moved: u32,
     pub stayed: u32,
 }
-/// An owner's move of a held revision (engine.md, 17.4).
+/// An owner's move of a held revision (domain/engine/settings.md, 4).
 pub(crate) fn move_to_newest(
     core: &mut Core,
     env: &Env<Limits>,
@@ -875,7 +875,7 @@ pub(crate) fn propose_run(
     Queue::uncapped()
 }
 
-/// The same change commits a party's or a task's owner-approved set (engine.md, 17.6).
+/// The same change commits a party's or a task's owner-approved set (domain/engine/settings.md, 6).
 pub(crate) fn accept(
     core: &mut Core,
     env: &Env<Limits>,

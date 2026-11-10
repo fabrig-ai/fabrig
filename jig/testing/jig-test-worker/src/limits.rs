@@ -1,4 +1,4 @@
-//! Child limits remain in their owners' vocabulary (hosts.md, section 11).
+//! Child limits remain in their owners' vocabulary (domain/hosts/README.md, section 9).
 use alloc::boxed::Box;
 use jig_domain_host as host;
 use jig_domain_link::{Bounds, valid_program_endpoints};

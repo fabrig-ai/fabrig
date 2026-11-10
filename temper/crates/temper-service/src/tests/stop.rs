@@ -251,7 +251,7 @@ fn a_second_signal_while_settling_aborts() {
     assert_eq!(service.end(), Some(&End::Aborted));
 }
 
-// Three named writes, and jig's protocol/store.md, 10.3's 64-key cap.
+// Three named writes, and jig's protocol/store/opening.md, 3's 64-key cap.
 const FLIGHT_KEYS: usize = 64;
 const FIRST_WRITE: (u64, u64) = (7, 11);
 const SECOND_WRITE: (u64, u64) = (9, 13);

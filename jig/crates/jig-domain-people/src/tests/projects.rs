@@ -1,4 +1,4 @@
-//! Project asks reach the core with the correct scope (people.md, 5.1–5.2).
+//! Project asks reach the core with the correct scope (domain/people/acts.md, 1–2).
 use super::*;
 const PARTY: u64 = 1;
 const OTHER: u64 = 2;

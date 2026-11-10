@@ -1,6 +1,6 @@
 //! What the fleet relays between the parent and the runs
-//! (jig/docs/design/domain/engine.md, section 8;
-//! jig/docs/design/domain/hosts.md, section 2): inbound events down, a run's
+//! (jig/docs/design/domain/engine/fleet.md;
+//! jig/docs/design/domain/hosts/README.md, section 2): inbound events down, a run's
 //! host calls up and their answers back, its facts up. Each goes through
 //! only while its attempt is the parent's live claim; what comes for an
 //! attempt cancelled, replaced, lost or answered is dropped (attempts are
@@ -81,7 +81,7 @@ fn named(domain: &Domain, run: Token, attempt: Token) -> Option<Id<Attempt>> {
 }
 
 /// The reply bound of the host in contact holding this live claim
-/// (jig/docs/design/domain/engine.md, section 8).
+/// (jig/docs/design/domain/engine/fleet.md).
 pub(crate) fn reply_bound(domain: &Domain, run: Token, attempt: Token) -> Option<u32> {
     let id = named(domain, run, attempt)?;
     match live(domain, id) {

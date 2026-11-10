@@ -1,4 +1,4 @@
-//! Committed people request results (client/domain/contract.md, 4).
+//! Committed people request results (client/domain/contract/README.md, 3).
 //! Keeps only the owner's supplied numbers, choices and clocks. Retry,
 //! signed-out, refusal and connector answers are separate boundary routes.
 use super::{ProposalKey, Revision, SeenThrough};
@@ -142,7 +142,7 @@ pub enum DocumentOutcome {
     Renamed {
         project: u32,
     },
-    /// The project was removed (jig/docs/design/domain/people.md, 5.2).
+    /// The project was removed (jig/docs/design/domain/people/acts.md, 2).
     ProjectRemoved {
         project: u32,
     },
@@ -190,7 +190,7 @@ pub enum DocumentOutcome {
         confirmed: bool,
         failed_hosts: Box<[AccountHostFailure]>,
     },
-    /// The project is public or private from this decision (jig/docs/design/domain/people.md, 13.2).
+    /// The project is public or private from this decision (jig/docs/design/domain/people/public-reading.md, 2).
     VisibilitySet {
         project: u32,
         public: bool,

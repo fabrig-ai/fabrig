@@ -252,8 +252,8 @@ default; the document is `temper.json` in the configuration directory
   store (15.1).
   - Its stdout carries only sign-in links, one per line: each the
     secret jig's clients' component gives, in jig's default mapping's
-    link route under temper's prefix (jig's `protocol/client.md`,
-    section 8; `../client/README.md`, section 7); its stderr carries startup
+    link route under temper's prefix (jig's `protocol/client/sign-in.md`
+    ; `../client/README.md`, section 7); its stderr carries startup
     notes, the lines of 15.3 (each TCP listener once bound, and a worker
     alone's link at each opening) and the reason of a failure. A worker
     alone prints no sign-in link.
@@ -272,13 +272,13 @@ default; the document is `temper.json` in the configuration directory
     line each, and the exit is still 0:
     `temper serve: stopped before task {task}'s forge write {entry} settled; the next start settles it`.
   - A start refused because its patches would reshape a write in flight
-    (jig's `protocol/store.md`, 10.3, `InFlight`) prints jig's words,
+    (jig's `protocol/store/opening.md`, 3, `InFlight`) prints jig's words,
     then a line for each write its keys name, from temper's `Flight`
     key, at most 64, then how many more, and exits 1:
     `temper serve: task {task}'s forge write {entry} is still in flight; start the build before this one and stop it to settle it`;
     `temper serve: and {n} more forge writes in flight`.
-  - A start refused at a step of its restart (jig's `domain/engine.md`,
-    section 6; `../domain/root.md`, 9.1), which only a store that does
+  - A start refused at a step of its restart (jig's `domain/engine/restart.md`
+    ; `../domain/root.md`, 9.1), which only a store that does
     not decode, a live set past the limits or a link that cannot be
     made can be, prints the refusal
     in the restart's own words, `temper serve: ` then the step and what
@@ -296,7 +296,7 @@ default; the document is `temper.json` in the configuration directory
     twice; a cause repaired during the backoff (a setting, the disk)
     lets the next attempt start.
   - A link a start cannot make (a writer's bug, jig's
-    `domain/engine.md`, section 6) is such a refusal, naming the record
+    `domain/engine/restart.md`) is such a refusal, naming the record
     and what it links to: `temper serve: restart refused during PHASE:
     RECORD links missing LINKED`.
 - **`temper init`:** writes a deployment that starts, the default
@@ -336,10 +336,10 @@ default; the document is `temper.json` in the configuration directory
 - **`temper versions`:** what this binary speaks and keeps, one line
   each: every owner's patch level (none before the first release), its
   families' and the store's versions, and its wires, as jig's store
-  keeps them (jig's `protocol/store.md`, 5.3). It reads no
+  keeps them (jig's `protocol/store/records.md`, 3). It reads no
   configuration and no store.
 - **`temper upgrade --check DIRECTORY`:** a rehearsal (jig's
-  `protocol/store.md`, 10.5) over DIRECTORY, a stopped deployment's
+  `protocol/store/opening.md`, 5) over DIRECTORY, a stopped deployment's
   data directory or a copy of one such as last night's backup, which it
   never writes: it works in a scratch copy under the cache directory,
   with the configuration `temper serve` would read; the open patches
@@ -353,7 +353,7 @@ default; the document is `temper.json` in the configuration directory
   none (`../draft/upgrades.md`, sections 3.1 and 9). Exit 0 when the
   patches and restores pass, 1 when a start would be refused there.
 - **`temper upgrade --back`:** makes the previous generation active
-  again (jig's `protocol/store.md`, 10.5), for a binary that patched and
+  again (jig's `protocol/store/opening.md`, 5), for a binary that patched and
   failed before its first commit of its own: the deployment stopped,
   and the old binary started after it. Refused, changing nothing, once
   the patched generation has committed, with no previous generation, or
@@ -521,7 +521,7 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
 - **`versions`** prints, one line each, in this order, and exits 0,
   reading no configuration and no store:
   - `level OWNER LEVEL` for `skein`, `smith`, `jig` and `temper`, the
-    binary's patch level of each (jig's `protocol/store.md`, 10.5,
+    binary's patch level of each (jig's `protocol/store/opening.md`, 5,
     `levels`), `none` before the owner's first patch;
   - `store VERSION`, jig's store's component version, then `family
     NAME VERSION` for jig's families, `core`, `tasks`, `people`,
@@ -771,7 +771,7 @@ deployment     temper-worker serve [DIRECTORIES]
 | `jig-protocol-engine-clients` | engine | the clients' component: jig's messages with their credentials, the printed link's secret, sign-ins, credentials (`../client/README.md`, section 8) |
 | `jig-protocol-engine-clients-http` | engine | jig's default HTTP mapping, its engine end, with its example guards, mounted on temper's clients' listener under `/jig`, and the server part that listener stands on (jig's `protocol/service.md`, 11.4) |
 | `jig-client` | client | the client temper's client root holds: the link, watches by handle, the request table, kept work, families; jig's helpers (`../client/README.md`, section 3) |
-| `jig-client-protocol-link` | client | `jig-client`'s half toward its transport: jig's messages and the small store's records as bytes (jig's `protocol/client.md`, 4.3) |
+| `jig-client-protocol-link` | client | `jig-client`'s half toward its transport: jig's messages and the small store's records as bytes (jig's `protocol/client/wire.md`, 2.3) |
 | `jig-client-protocol-http` | client | jig's default HTTP mapping, its client end, under `jig-client-shell-native` and `jig-client-shell-web` |
 | `jig-client-shell-web` | client | the browser shell's adapter over skein's fetch, and the printed link's sign-in part (`../client/browser.md`, 2.1) |
 | `jig-protocol-transcript` | client | turns' bytes, decoded below `jig-client` |
@@ -1043,7 +1043,7 @@ No store; starting, ending and smith's payloads are jig's (jig's
 - **Local channel refusals** use jig's public `u16` constants
   `REFUSED_LIMITS = 2` and `REFUSED_FRAMING = 3` from
   `jig-protocol-worker-link`, including diagnostic matches (jig's
-  `protocol/channel.md`, 10.1; skein's `channel.md`, 5.1). These are
+  `protocol/channel/README.md`, 9.1; skein's `channel.md`, 5.1). These are
   channel reasons, separate from jig's application reasons at 256 and
   above. Existing worker diagnostic tests check those matches; the
   wire and `Closed` facts keep their values.
@@ -1091,13 +1091,13 @@ Standalone is jig's one process (jig's `protocol/service.md`, section 10):
   killed, and a program they started outlives them until agents run in
   contained trees (section 14). No worker outlives the engine, so the
   engine, on hearing the signal, settles the worker's agent claims
-  as interrupted (jig's `domain/engine.md`, 6.1): a stop spends no try
+  as interrupted (jig's `domain/engine/restart.md`, 1): a stop spends no try
   of a run's task, a coding run's among them, and moves none of its
   change's counts; the task is due again at the next start, its next
   attempt resuming from the turns it committed and starting from the
   work it saved last (`../domain/worker.md`, 4.2 and 5). After a crash,
   the next start settles them at once, lost or not started (jig's
-  `domain/engine.md`, section 6; `../domain/root.md`, 9.1). Job claims
+  `domain/engine/restart.md`; `../domain/root.md`, 9.1). Job claims
   remain for restart recovery even after a drain, since their effects
   may have happened.
 - **Its world** is `tests/one-process` (`../domain/testing.md`, 2.5).
@@ -1228,7 +1228,7 @@ section 8 give them. temper's sit beside them:
 - **Both channel components are given `PAYLOAD_VERSION`** when they are
   made; neither knows what it covers.
 - **The store keeps the wires** the last start spoke (jig's
-  `protocol/store.md`, 5.3, `Wires`): temper's shell hands jig's store
+  `protocol/store/records.md`, 3, `Wires`): temper's shell hands jig's store
   `PAYLOAD_VERSION` as `temper-payload` beside jig's and smith's, so the
   next binary's rehearsal can say whether the workers may stay
   (`../draft/upgrades.md`, section 9).
@@ -1246,7 +1246,7 @@ section 8 give them. temper's sit beside them:
     installations a list; the origin its kind and address). The
     hand-written envelope and its little-endian numbers go. temper's set
     names the family at the baseline, `map: Secrets`, its keys temper's
-    numbers below 2^63 (jig's `protocol/store.md`, section 9). A pasted
+    numbers below 2^63 (jig's `protocol/store/secrets.md`). A pasted
     bundle is a carried value, jig's from 2^63 up, kept only until the
     request that carries it is used (credentials.md, 2.2): its form is
     `temper-secrets`' `Pasted`, versioned, and one of another version is
@@ -1275,7 +1275,7 @@ section 8 give them. temper's sit beside them:
     handover are fixed forms, never versioned: a change is a new file
     name, read beside the old one for as long as a release may find it.
     The engine writes no small file before its start's wires are durable
-    (jig's `protocol/store.md`, 5.3), so going back finds the engine's
+    (jig's `protocol/store/records.md`, 3), so going back finds the engine's
     as they were; the preparation's `state` and an owned Forgejo's data
     are the forge's, and going back past a preparation that migrated it
     needs its dump (`../draft/upgrades.md`, 3.2 and 11).
@@ -1302,10 +1302,10 @@ section 8 give them. temper's sit beside them:
     generated module, its families with their maps, key ranges, roots,
     the frames' families, smith's fresh word and temper's `Flight`
     range, handed by `temper-service`'s store shell in place of
-    `PatchSets::NONE` (jig's `protocol/store.md`, 10.3). A store v0.1.0
+    `PatchSets::NONE` (jig's `protocol/store/opening.md`, 3). A store v0.1.0
     makes records every owner at level 0; one from a build before it,
     level none, is refused as older, made again (jig's
-    `protocol/store.md`, 5.3);
+    `protocol/store/records.md`, 3);
   - **the gate's check from then on:** each repository's gate runs the
     patch command's check over each owner crate (skein's `codec.md`,
     12.7), so a stored change with no patch, an edited kept text or a
@@ -1320,8 +1320,8 @@ section 8 give them. temper's sit beside them:
     13 asks: identities and counters, policies, kept outcomes, old turns
     read in the current version (`../draft/upgrades.md`, section 13).
 - **Before the tag:** every stored record with its kept form, a
-  delivery's evidence among them (jig's `protocol/store.md`, section
-  16, still open); the golden store's story and its later builds'
+  delivery's evidence among them (jig's `protocol/store/README.md`, section
+  11, still open); the golden store's story and its later builds'
   assertion, as a test; the rehearsal below. The patch command's
   modules and the sets built from them exist only once `--baseline` has
   run (skein's `codec.md`, 12.1 and 12.3), and its check reports every
@@ -1385,7 +1385,7 @@ revisions temper's `Cargo.lock` pins.
   accounts; the UI kit and its text shell; the simulator, the fake
   machine, the fake LLM peer, the fake issuer and the fake person.
 - **What is temper's own:** its presentation, since presentation is the
-  application's (jig's `client/domain/client.md`), on skein's UI kit and
+  application's (jig's `client/domain/client/README.md`), on skein's UI kit and
   text shell (`../client/README.md`, sections 5 and 6); and, where something
   would be better upstream, as jig's design allows, the fake git
   program, on skein's fake checkout and fake forge; and `temper program-login`, the
@@ -1481,8 +1481,8 @@ Each document keeps its own; these cross them:
 - **A whole stop's bound** (section 8; 15.4): an engine's stop ends
   within what its parts' own deadlines give, the forge's settling
   (`../domain/root.md`, 9.2), the drain, and its workers' channels
-  within the stall deadline of the close (jig's `protocol/channel.md`,
-  10.2), with no deadline of its own, while a service manager kills it
+  within the stall deadline of the close (jig's `protocol/channel/README.md`,
+  9.2), with no deadline of its own, while a service manager kills it
   at its own stop timeout. Default: so; a stop deadline over the whole
   is a figure, the user's to set, and a test of a stop within it
   follows.
@@ -1567,8 +1567,8 @@ shape, below (4.1): `temper-engine serve` an engine alone (4.2), and
   and a socket listener, a listener list with an in-process name and a
   socket, a worker alone with any other member. An in-process listener
   tells jig's core that no worker outlives the engine, so it settles the
-  claims of every worker at once on a restart (jig's `domain/engine.md`,
-  section 6): a socket's workers among them would lose their runs.
+  claims of every worker at once on a restart (jig's `domain/engine/restart.md`
+  ): a socket's workers among them would lose their runs.
   The nearest is read from two members: a document without `engine` is
   nearest a worker alone; one whose `engine.hosts.listener`'s first
   entry is a socket address, an engine alone; any other, standalone.
@@ -1619,7 +1619,7 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   its `listening workers` line gave it.
 - **Workers are the engine's configured positions,**
   `engine.hosts.workers`, each with its own name and secret (jig's
-  `domain/engine.md`, section 8). A worker started later is a position
+  `domain/engine/fleet.md`). A worker started later is a position
   the engine knows from its start, empty until that worker links; a
   position added is a new engine document, so the cluster's restart
   (15.4).
@@ -1632,7 +1632,7 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
 ### 15.3 Joining, and its lines
 
 - **jig's link, in plaintext over loopback** (jig's
-  `protocol/channel.md`, section 10): the worker dials the engine's
+  `protocol/channel/README.md`, section 9): the worker dials the engine's
   workers' listener; the engine takes its name and its secret against
   that worker's digest, then its hello: its capability, its configured
   position, its capacity and a stop bound strictly below the engine's
@@ -1655,9 +1655,9 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   | `lost <worker> <address> <why>` | a worker alone | once each linked link is lost, with its `Loss` (below) |
   | `temper serve: worker lost worker=<worker> channel=<n>: <why>` | each shape with an engine | once each worker's channel that said hello ends |
   | `temper serve: worker opening ended worker=<worker>: <why>` | each shape with an engine | once a worker's connection ends before its hello: refused, turned away, out of time or cut; `worker=-` before its name is taken |
-  | `temper serve: worker unsent worker=<worker> channel=<n>: <record> of <bytes> bytes <bound>` | each shape with an engine | once each record the engine's link did not send (jig's `protocol/channel.md`, 9): `<record>` the record's kind in words (`assignment`, `job`, `message`, `relayed`, `turn-kept`, `turn-busy`, `acknowledge`, `cancel`, `grant`, `sources`, `check`, `sign-out`, `read-list`), `<bytes>` its frame's, and `<bound>` `past the room of <room> bytes` or `refused: <reason>` (`wrong-direction`, `not-taken`, `too-large`, `closed`) |
+  | `temper serve: worker unsent worker=<worker> channel=<n>: <record> of <bytes> bytes <bound>` | each shape with an engine | once each record the engine's link did not send (jig's `protocol/channel/README.md`, 8): `<record>` the record's kind in words (`assignment`, `job`, `message`, `relayed`, `turn-kept`, `turn-busy`, `acknowledge`, `cancel`, `grant`, `sources`, `check`, `sign-out`, `read-list`), `<bytes>` its frame's, and `<bound>` `past the room of <room> bytes` or `refused: <reason>` (`wrong-direction`, `not-taken`, `too-large`, `closed`) |
 
-  **A link that drops is never silent** (jig's `protocol/channel.md`, 9,
+  **A link that drops is never silent** (jig's `protocol/channel/README.md`, 8,
   *A lost link says why*). `<why>` is the link's `Loss` in one word or
   two: `silence`, `stall`, `full`, `deadline` (the engine's opening or
   hello), `handshake` (the worker's opening), `stream`, `truncated`,
@@ -1686,8 +1686,8 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   the same refusal prints nothing. The sign-in link stays on stdout
   (section 4).
 
-  The engine says why a hello is refused (jig's `domain/engine.md`,
-  section 8): the refusal's text, at most 256 bytes, is the fleet's reason
+  The engine says why a hello is refused (jig's `domain/engine/fleet.md`
+  ): the refusal's text, at most 256 bytes, is the fleet's reason
   in words, and the engine writes the same words on its own stderr,
   `temper serve: hello refused channel=<n>: <words>`. An agent's shortfall
   reads as a start's problem for it does, after its charter and model
@@ -1723,7 +1723,7 @@ w1, w2       temper serve DIRS     after the engine: each a worker alone
   worker first, so it cannot report its agent's end as an agent's
   failure): the engine's fleet keeps
   its runs for its grace, then they are lost and their tasks retry, on a
-  worker with a free slot (jig's `domain/engine.md`, section 8). The
+  worker with a free slot (jig's `domain/engine/fleet.md`). The
   lost attempt is fenced, so nothing it may still have sent counts, and
   nothing lands twice.
 - **A worker hung,** its tree stopped by `SIGSTOP` past the engine's

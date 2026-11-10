@@ -1,4 +1,4 @@
-//! Secret-free party account facts (client/domain/contract.md, 5.1; domain/accounts.md, 3–5).
+//! Secret-free party account facts (client/domain/contract/documents.md, 1; domain/accounts.md, 3–5).
 use super::{AccountPlace, AccountState, AccountUnread, DocumentText};
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Wall};
@@ -6,7 +6,7 @@ use skein_lib::{Duration, List, Wall};
 pub const ACCOUNT_USES: u32 = 16;
 /// Whole public manage-usage addresses, matching configuration.md, section 3.
 pub const ACCOUNT_MANAGE_USAGE: u32 = 2_048;
-/// A whole ASCII HTTPS manage target safe for client rendering (contract.md, 5.1).
+/// A whole ASCII HTTPS manage target safe for client rendering (client/domain/contract/documents.md, 1).
 /// Configuration additionally checks host labels and ports; it accepts a subset.
 #[must_use]
 pub fn valid_manage_usage(value: &[u8]) -> bool {
@@ -211,7 +211,7 @@ fn email(facts: &List<AccountFact>) -> Option<&[u8]> {
     None
 }
 
-/// Public list history (jig/docs/design/client/domain/contract.md, 5.1).
+/// Public list history (jig/docs/design/client/domain/contract/documents.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct AccountList {
     pub read: Option<Wall>,

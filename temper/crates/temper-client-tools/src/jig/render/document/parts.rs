@@ -1,4 +1,4 @@
-//! Concrete integer JSON for the client contract (contract.md, 5).
+//! Concrete integer JSON for the client contract (jig/docs/design/client/domain/contract/documents.md).
 use alloc::boxed::Box;
 use skein_json::writer::Encoder;
 pub(super) fn encode_owner_wake_policy(

@@ -42,7 +42,7 @@ fn the_browsers_client_bounds_are_the_terminals() {
 fn the_process_http_mount_fits_the_native_clients_burst() {
     let engine = process_engine("native-http-calls");
     let native = temper_client_shell_terminal::limits::native();
-    // jig/docs/design/protocol/client.md, 17.5: streams occupy mounted calls too.
+    // jig/docs/design/protocol/client/default-http.md, 5: streams occupy mounted calls too.
     let calls = native.connections.exchanges + engine.limits.clients_http.streams;
     assert!(
         engine.limits.clients_http.calls >= calls,

@@ -35,7 +35,7 @@ fn a_person_signs_in_to_chatgpt_and_a_real_model_answers() {
     eprintln!("live ChatGPT wall={wall_ms}ms");
     if let Err(failed) = result {
         eprintln!("{}", support::trace::failures(directory.path()));
-        // The secrets' store holds the sign-in's record (store.md, section 2), and a
+        // The secrets' store holds the sign-in's record (protocol/store/README.md, section 2), and a
         // trace that failed its check may hold a credential.
         for secret in ["state/secrets", "secrets", "agent-trace.jsonl"] {
             let path = directory.path().join(secret);

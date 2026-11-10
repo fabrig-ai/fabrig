@@ -1,5 +1,5 @@
 //! First-start project funding after deployment settings change
-//! (jig/docs/design/domain/engine.md, 17.2; jig/docs/design/domain/people.md, 5.2).
+//! (jig/docs/design/domain/engine/settings.md, 2; jig/docs/design/domain/people/acts.md, 2).
 use crate::{settings as s, tests::*};
 
 fn first_start() -> (Core, Limits) {

@@ -287,7 +287,7 @@ fn change_one_member(setting: c::Setting, value: &mut c::SettingValue) {
         c::SettingValue::Charter(value) => {
             value.instructions = c::Text::new(INSTRUCTIONS.into(), WHOLE_SETTING_BYTES).expect("instructions");
         }
-        // jig/docs/design/domain/engine.md, 17.2: the template stays within the task grace bound.
+        // jig/docs/design/domain/engine/settings.md, 2: the template stays within the task grace bound.
         c::SettingValue::Template(value) => value.grace = Some(Duration::from_secs(4)),
         c::SettingValue::Policy(value) => value.period_spend = CHANGED_SPEND,
         c::SettingValue::Rules(value) => value.maximum_run_spend += 1,
@@ -422,7 +422,7 @@ fn each_kind_through_ctl_proposed_shown_accepted_and_restored() {
     let review = call(&mut world, agent, &[b"proposal", b"show", proposal.as_bytes()]);
     for (kind, (setting, original)) in KINDS.iter().zip(&originals) {
         assert!(review.contains(kind.name), "{review}");
-        // temper/docs/design/client/tools.md, 5.2 and jig/docs/design/domain/engine.md, 17.10:
+        // temper/docs/design/client/tools.md, 5.2 and jig/docs/design/domain/engine/settings.md, 10:
         // restored application defaults are reviewed as resets; their values are read after acceptance.
         let proposed = if matches!(setting, c::Setting::Application { .. }) {
             "would be default".to_owned()

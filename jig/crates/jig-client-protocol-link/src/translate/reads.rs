@@ -1,4 +1,4 @@
-//! One read per exchange with opaque cursor bytes (protocol/client.md, 6).
+//! One read per exchange with opaque cursor bytes (protocol/client/README.md, 4).
 use super::asks::{wire_note_scope, wire_proposal_key};
 use super::{Undecodable, documents, objects, pages};
 use crate::Limits;

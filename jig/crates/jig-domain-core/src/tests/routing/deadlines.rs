@@ -1,4 +1,4 @@
-//! Clock projection and ordered timer selection (jig/docs/design/domain/engine.md, 4.1).
+//! Clock projection and ordered timer selection (jig/docs/design/domain/engine/README.md, 4.1).
 use crate::tests::*;
 use jig_domain_link::{Form, Scheme};
 

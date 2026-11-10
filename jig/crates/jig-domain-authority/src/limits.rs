@@ -84,7 +84,7 @@ pub(crate) fn pattern_within(pattern: &Pattern, limits: &Limits) -> bool {
 }
 
 /// Whether a charter document's resource name fits the authority's pattern bounds
-/// (domain/engine.md, 17.9).
+/// (domain/engine/settings.md, 9).
 #[must_use]
 pub fn name_within(name: &Name, limits: &Limits) -> bool {
     name_within_segments(&name.segments, limits)
@@ -138,7 +138,7 @@ pub(crate) fn requirements_within(requirements: &[Requirement], limits: &Limits)
     true
 }
 
-/// The rules' owned heap, separately priced by the settings overlay (engine.md, 17.8).
+/// The rules' owned heap, separately priced by the settings overlay (domain/engine/settings.md, 8).
 #[must_use]
 pub fn rules_bound(limits: &Limits) -> Option<u64> {
     authority_heap(limits)?

@@ -1,4 +1,4 @@
-//! Routing (protocol/channel.md, sections 2, 3 and 8); Debug (jig/docs/design/protocol/service.md, 11.3).
+//! Routing (protocol/channel/README.md, sections 2, 3 and 7); Debug (jig/docs/design/protocol/service.md, 11.3).
 use alloc::boxed::Box;
 use jig_domain_host as host;
 use jig_domain_link::SourceName;
@@ -19,13 +19,13 @@ pub enum GrantValue {
     Application { secret: Secret },
     Program { name: SourceName },
 }
-/// How a credential is presented (protocol/channel.md, 8).
+/// How a credential is presented (protocol/channel/README.md, 7).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Scheme {
     Bearer,
     Key,
 }
-/// `TurnBusy` is the fleet's busy answer, handled below the hub (protocol/channel.md, 5.2; domain/hosts.md, 6.1).
+/// `TurnBusy` is the fleet's busy answer, handled below the hub (protocol/channel/records.md, 2; domain/hosts/hub.md, 1).
 pub enum Event {
     Accepted { connection: Token },
     Lower { connection: Token, event: LowerEvent },
@@ -37,7 +37,7 @@ pub enum Event {
     Close,
     Abort,
 }
-/// Why a worker's connection ended (protocol/channel.md, 9 and 10.2).
+/// Why a worker's connection ended (protocol/channel/README.md, 8 and 9.2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Loss {
     /// Nothing heard for the silence deadline.
@@ -56,7 +56,7 @@ pub enum Loss {
     /// Refused here, with the reason sent: jig's (`jig_protocol_worker_wire::Reason`),
     /// or skein's channel's (2, limits; 3, framing).
     Refused { reason: u16 },
-    /// The authenticated worker's io.output differs from the engine's (protocol/channel.md, 4.1).
+    /// The authenticated worker's io.output differs from the engine's (protocol/channel/README.md, 4.1).
     OutputRoom { engine: u32, worker: u32 },
     /// The worker refused, with its reason.
     RefusedPeer { reason: u16 },
@@ -65,7 +65,7 @@ pub enum Loss {
     /// The engine closed it, stopping.
     Stopping,
 }
-/// A record the engine's side did not send (protocol/channel.md, 9).
+/// A record the engine's side did not send (protocol/channel/README.md, 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Unsent {
     pub kind: jig_protocol_worker_wire::Kind,

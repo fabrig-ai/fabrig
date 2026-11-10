@@ -1,4 +1,4 @@
-//! Index keys read newest first forwards (store.md 7.4).
+//! Index keys read newest first forwards (protocol/store/loads.md 4).
 use crate::{Key, Newest, UpdateObject};
 use skein_lib::Wall;
 

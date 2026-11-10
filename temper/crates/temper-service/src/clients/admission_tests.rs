@@ -1,4 +1,4 @@
-//! Admission under the existing connection bound (jig/docs/design/protocol/client.md, 17.4).
+//! Admission under the existing connection bound (jig/docs/design/protocol/client/default-http.md, 4).
 use super::*;
 use skein_http::server;
 use skein_lib::stream::Down;

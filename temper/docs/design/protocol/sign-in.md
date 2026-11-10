@@ -3,11 +3,11 @@
 Provisional, 2026-10-23, revised 2026-11-02. How people sign in to a deployment that people
 reach at a name of its own, over HTTPS behind a TLS proxy: its public
 address, its members, and Google's sign-in on the clients' listener,
-which ends in jig's `Mint` (jig's `protocol/client.md`, section 8). The
+which ends in jig's `Mint` (jig's `protocol/client/sign-in.md`). The
 printed link stays for recovery. And temper as the OpenID provider of
 the deployment's Forgejo, through jig's provider (jig's
-`protocol/client.md`, section 18), so that a member signed in to temper
-opens Forgejo signed in (section 9). temper knows nothing of one
+`protocol/client/openid.md`), so that a member signed in to temper
+opens Forgejo signed in (`sign-in.md`, section 9). temper knows nothing of one
 deployment: every name here is an example, temper at
 `https://temper.example.com`, Forgejo at `https://git.example.com`.
 
@@ -71,7 +71,7 @@ port; a TLS proxy terminates TLS for temper's name and passes it on, the
 HTTPS. The proxy denies the printed link's route,
 `/jig/v1/sign-in/link`, from outside (2.3). jig's stream, `GET
 /jig/v1/stream`, is passed unbuffered, with a read timeout longer than
-its heartbeat (jig's `protocol/client.md`, 17.2).
+its heartbeat (jig's `protocol/client/default-http.md`, 2).
 
 ### 2.2 The public address
 
@@ -82,8 +82,8 @@ browsers use (`configuration.md`, section 3). With one:
   host, with its port where it is not 443, beside the listener's own
   address: jig's `Settings { prefix: "/jig", public: Some(host) }`. With
   none, `public: None`, the listener's address alone.
-- **`Secure` by the exchange's `Host`** (jig's `protocol/client.md`,
-  17.3): jig's cookie is `Secure` on an exchange that came by the public
+- **`Secure` by the exchange's `Host`** (jig's `protocol/client/default-http.md`,
+  3): jig's cookie is `Secure` on an exchange that came by the public
   name, never on one by the listener's address; temper's sign-in cookie
   (4.2) takes the same decision, by jig's `via`.
 - **Every address temper gives out** is the public origin's: Google's
@@ -111,14 +111,14 @@ browsers use (`configuration.md`, section 3). With one:
 ### 2.4 Public reading
 
 A deployment that opens its public projects to anyone
-(`../draft/first-release.md`, 5.3; jig's `domain/people.md`, section
-13; `../client/browser.md`, section 8):
+(`../draft/first-release.md`, 5.3; jig's `domain/people/public-reading.md`
+; `../client/browser.md`, section 8):
 
 - **Off until figured:** jig's public limits are zero in every profile,
   so a deployment opens by setting `clients.public.*`,
   `clients_http.public_calls`, the root's public figures and the core's
-  public index's in its `limits` (jig's `protocol/configuration.md`,
-  section 6), which the start checks against one another, and its
+  public index's in its `limits` (jig's `protocol/limits.md`
+  ), which the start checks against one another, and its
   owners make a project public (`project amend --visibility public`,
   `../client/tools.md`, 5.3). Each figure is the deployment's;
   dev.fabrig.ai's are the user's (`../draft/first-release.status.md`).
@@ -143,7 +143,7 @@ A deployment that opens its public projects to anyone
   refreshes nothing in the background; it keeps the age a copy has and
   sends it as `Age`, and never gives a copy freshness of its own. A
   copy is fresh for the rest the engine gave it from the decision that
-  made it (jig's `protocol/client.md`, 17.5), so a project made private
+  made it (jig's `protocol/client/default-http.md`, 5), so a project made private
   is served nowhere past the `max-age`; what a visitor already holds is
   theirs.
 - **Public reads before the engine's room:** per client address, public
@@ -153,7 +153,7 @@ A deployment that opens its public projects to anyone
   apart from the signed-in routes', so a crowd of visitors never holds
   a signed-in person's. Requests with no credential to the other routes
   are limited per address likewise. jig counts no address (jig's
-  `domain/people.md`, 13.5).
+  `domain/people/public-reading.md`, 5).
 - **No CORS:** the proxy adds no `Access-Control-` header to any
   answer, an error's and a preflight's among them, as the engine adds
   none.
@@ -170,8 +170,8 @@ A deployment that opens its public projects to anyone
 What a visitor can try against a deployment that has opened, played in
 the one-process world (`../domain/testing.md`, 2.5) through temper's real
 service and a caching proxy of the world that follows 2.4, each answer
-checked against what 2.4, jig's `protocol/client.md`, 17.5 and section
-19, and jig's `domain/people.md`, section 13 allow:
+checked against what 2.4, jig's `protocol/client/default-http.md`, 5 and `protocol/client/public-reads.md`
+, and jig's `domain/people/public-reading.md` allow:
 
 - **Every owner, version and kind:** jig's and the forge's, each
   version served and one not, a kind no owner declared; identifiers of
@@ -349,7 +349,7 @@ not found. Every answer of theirs carries the page's policy,
 7. **Google's tokens are dropped:** the client's record is never kept,
    and the sign-in under way ends with its answer. The page at `then`
    loads, and its own exchanges carry jig's cookie: the client signs in
-   by `Transport` (jig's `client/domain/client.md`, section 12).
+   by `Transport` (jig's `client/domain/client/README.md`, section 9).
 
 - **The return's call is held** while the exchange, the binding and
   `Mint` run, within `sign_in.deadline`; past it, the expired page.
@@ -516,7 +516,7 @@ its sockets tagged as the server's are.
 
 A Forgejo of the deployment's signs its people in through temper: its
 authentication source `temper` is an OpenID Connect client of jig's
-provider (jig's `protocol/client.md`, section 18), whose codes and
+provider (jig's `protocol/client/openid.md`), whose codes and
 access tokens jig holds and whose documents and tokens skein's issuer
 writes (skein's `oauth-issuer.md`). temper serves the routes, builds
 the issuer at start, and draws the authorization's page.
@@ -595,7 +595,7 @@ Google's (4.1). The issuer is the public origin (2.2), or
 ### 9.3 The authorization
 
 jig's cookie is `SameSite=Strict` and its `Path` is jig's prefix (jig's
-`protocol/client.md`, 17.3), so a request to `/oauth/authorize` never
+`protocol/client/default-http.md`, 3), so a request to `/oauth/authorize` never
 carries it, and a navigation that started on another site (Forgejo's
 redirect) would not carry it anywhere. So the authorization is decided
 by the client, not by a route:
@@ -610,8 +610,8 @@ by the client, not by a route:
 3. Once the link is live and local transport credit is available, it
    sends jig's `Authorize { query }` (`POST /jig/v1/authorize`), and
    draws the answer. Cancelled watch exchanges and cleanup calls retain
-   credit until their HTTP reply or failure (jig's `protocol/client.md`,
-   section 13); the first authorization waits for that credit:
+   credit until their HTTP reply or failure (jig's `protocol/client/README.md`,
+   section 10); the first authorization waits for that credit:
 
 | jig's answer | The page |
 |---|---|
@@ -893,7 +893,7 @@ one, until the same reasoning has been checked for several members.
 - **Nobody else signs in:** a box has no member and no Google; the printed link
   alone signs anyone in, always its owner, so the link provider's one owner is the
   one person who can reach `/oauth/authorize` signed in. An agent or a coding run
-  is refused *not a person* (jig's `protocol/client.md`, section 18).
+  is refused *not a person* (jig's `protocol/client/openid.md`).
 
 **The provider's key:** an RSA key of 3072 bits, as 9.7 says, made at the first run
 by `temper init --box`, before the document is written, in `provider.key` in the data
@@ -967,7 +967,7 @@ bot's and the person's tokens, and neither passes this provider.
 - **Startup readiness beyond local admission** (9.3): waiting for people
   during authorization, Google's return mint and approval sign-in is
   separate from waiting for transport credit. Its policy and bound are
-  jig's (`jig/docs/design/protocol/client.md`, section 15); no startup
+  jig's (`jig/docs/design/protocol/client/README.md`, section 12); no startup
   retry is chosen here.
 - **Generating the provider's key in process** (9.9): it needs a key
   generator in skein; its signing library does not generate RSA keys.

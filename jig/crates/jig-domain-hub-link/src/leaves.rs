@@ -1,5 +1,5 @@
 //! Shared root translations (jig/docs/design/domain/root.md, 5 and 14;
-//! jig/docs/design/domain/hosts.md, 6.1 and 6.9).
+//! jig/docs/design/domain/hosts/hub.md, 1 and 9).
 use crate::JobStart;
 use jig_domain_brief as brief;
 use jig_domain_core as core;

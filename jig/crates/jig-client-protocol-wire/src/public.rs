@@ -1,4 +1,4 @@
-//! Public answer reservations (jig/docs/design/client/domain/contract.md, section 12).
+//! Public answer reservations (jig/docs/design/client/domain/contract/README.md, section 10).
 
 use crate::public_v1;
 

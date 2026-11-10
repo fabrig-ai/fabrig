@@ -1,5 +1,5 @@
 //! Small live documents and the shared bounded chip construction.
-//! Closed at once (jig/docs/design/domain/people.md, 5.2).
+//! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 use crate::{
     Core, Limits,
     documents::{Chip, Count, ExecutorKind, Frame, FrameProjectRole, Missing, PhaseLine, Run, Text},

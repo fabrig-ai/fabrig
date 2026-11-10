@@ -1,4 +1,4 @@
-//! Project deletion records (jig/docs/design/domain/people.md, 5.2).
+//! Project deletion records (jig/docs/design/domain/people/acts.md, 2).
 use jig_client_protocol_wire::v19 as w;
 use skein_lib::{Reader, Writer};
 

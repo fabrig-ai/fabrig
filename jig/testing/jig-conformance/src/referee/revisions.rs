@@ -2,7 +2,7 @@
 use super::{Phase, Promise, Snapshot, Violation};
 use std::collections::{BTreeMap, BTreeSet};
 
-/// Which revision a decision names (domain/people.md, 5.1).
+/// Which revision a decision names (domain/people/acts.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Revision {
     /// The specification an amendment changes.

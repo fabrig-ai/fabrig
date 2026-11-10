@@ -1,5 +1,5 @@
 //! Assemble the core's run charter with jig's contract policy
-//! (jig/docs/design/domain/hosts.md, 8 and 8.1; domain/engine.md, 7.1).
+//! (jig/docs/design/domain/hosts/charters.md; domain/engine/executors.md, 1).
 
 use crate::{
     Budget, ChangeRule, Charter, Contract, FieldRule, Items, Llm, Mode, Model, Prices, Reserve, Section, TextRule,
@@ -11,11 +11,11 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Decimal, List};
 
 /// Maximum contract text and field bytes other than a change's `body`
-/// (jig/docs/design/domain/hosts.md, 8).
+/// (jig/docs/design/domain/hosts/charters.md).
 pub const CONTRACT_TEXT_MAX: u32 = 1024;
-/// Delivery requires passing checks (jig/docs/design/domain/hosts.md, 8).
+/// Delivery requires passing checks (jig/docs/design/domain/hosts/charters.md).
 pub const CONTRACT_CHECKS_MUST_PASS: bool = true;
-/// Every run can wait (jig/docs/design/domain/hosts.md, 8.1).
+/// Every run can wait (jig/docs/design/domain/hosts/charters.md, 1).
 pub const WAIT_GRANTED: bool = true;
 
 /// Build the charter translated by [`crate::charter`]. Sources are the

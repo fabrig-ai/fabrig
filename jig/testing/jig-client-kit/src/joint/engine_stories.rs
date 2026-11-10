@@ -1,12 +1,12 @@
 //! Genuine engine acts feed the root; the person's corrections use the view
-//! (domain/engine.md, 15; client/domain/testing.md, 5).
+//! (domain/engine/README.md, 9; client/domain/testing.md, 5).
 use super::*;
 
 // Standard's note body fits in one DocumentText, and its goal words fit one specification
-// (jig/docs/design/client/domain/client.md, 14; protocol/configuration.md, 6).
+// (jig/docs/design/client/domain/client/README.md, 11; protocol/limits.md).
 const DOCUMENT_BODY_BYTES: usize = 60_000;
 const LONG_TEXT: u32 = 131_072;
-// The short field beside whole document text (client/domain/client.md, 14).
+// The short field beside whole document text (client/domain/client/README.md, 11).
 const FIELD_TEXT: u32 = 512;
 const DOCUMENT_OWNER: crate::harness::ClientId = crate::harness::ClientId(0);
 const DOCUMENT_PROJECT: u32 = 1;

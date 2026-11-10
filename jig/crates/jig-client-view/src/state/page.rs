@@ -1,5 +1,5 @@
 //! One page at a time, with a generation and its watch freshness.
-//! Reads, object sources and parts belong to the current generation. See client/domain/client.md, 5 and 8.2.
+//! Reads, object sources and parts belong to the current generation. See client/domain/client/README.md, 5, and client/domain/client/watches.md, 2.
 use crate::state::address::{Address, ProjectSection, TaskSection};
 use jig_client::contract::Limit;
 use skein_lib::List;
@@ -15,7 +15,7 @@ pub(crate) mod shown;
 pub use shown::SectionStatus;
 pub(crate) mod task;
 
-/// One section naming its subject (client/domain/client.md, 5.1; pages.md, 12.2).
+/// One section naming its subject (client/domain/client/README.md, 5.1; pages.md, 12.2).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Section {
     /// One inbox group and its project filter.
@@ -32,7 +32,7 @@ pub enum Section {
 /// The most sections a page shows: 2 + 1 + 6 + 9 + 1.
 pub const MOST_SECTIONS: u32 = 19;
 
-/// Sections added beside each address's own (client/domain/client.md, 5.1).
+/// Sections added beside each address's own (client/domain/client/README.md, 5.1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Arrangement {
     /// Additional sections of every task page.

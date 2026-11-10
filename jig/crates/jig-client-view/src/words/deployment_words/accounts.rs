@@ -1,4 +1,4 @@
-//! Account failure details, translated from the component (engine.md, 12).
+//! Account failure details, translated from the component (domain/engine/README.md, 6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AccountPhrase {
     Later,

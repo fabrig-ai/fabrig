@@ -1,5 +1,5 @@
 //! Public reading through the native service and simulated TCP sockets
-//! (jig/docs/design/protocol/client.md, 17.5 and 19).
+//! (jig/docs/design/protocol/client/default-http.md, 5 and jig/docs/design/protocol/client/public-reads.md).
 use crate::{
     fixtures,
     native::{self, NativeClient, Received, Script},

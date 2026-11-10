@@ -1,5 +1,5 @@
 //! Run admission, briefs and workspace preparation across the task, brief,
-//! notes and account children (`domain/engine.md`, sections 4.4 and 7.2).
+//! notes and account children (`domain/engine/README.md`, section 4.4, and `domain/engine/executors.md`, section 2).
 
 use crate::{
     Ask, Core, Event, Limits, Now, Request, RunCharter, RunProof,
@@ -158,7 +158,7 @@ pub(crate) fn workspace_prepared(
             },
         );
     }
-    // A task's earlier tries do not close this window (jig/docs/design/domain/engine.md, 7.2).
+    // A task's earlier tries do not close this window (jig/docs/design/domain/engine/executors.md, 2).
     let resume = !transcript.closed
         && !transcript.cut
         && core.charter_of(task).policy.resume
@@ -554,7 +554,7 @@ pub(crate) fn plan_note_index(
     }
 }
 
-/// Load the saved window for resume, or its tail when closed (jig/docs/design/domain/engine.md, 7.2).
+/// Load the saved window for resume, or its tail when closed (jig/docs/design/domain/engine/executors.md, 2).
 fn transcript_from(core: &Core, context: &tasks::RunContext) -> Option<(u64, u32)> {
     let proof = core.proofs.get(&context.task)?;
     let window = proof.window?;
@@ -664,7 +664,7 @@ pub(crate) fn route_preparation_failed(
     out
 }
 
-/// One classification and log route for every brief failure (engine.md, 9.1).
+/// One classification and log route for every brief failure (domain/engine/briefs.md, 1.1).
 pub(crate) fn preparation_failure(task: u64, failure: brief::GatherFailure, out: &mut Queue<Request>) -> tasks::Event {
     let reason = failure.reason();
     let fate = failure.fate;
@@ -839,7 +839,7 @@ pub(crate) fn transcript_unread(core: &mut Core, work: &mut Queue<Work>, task: u
         core.begin_transcript(task, previous_attempt, None);
         work.push(Work::StartBrief { task });
     } else if core.transcripts.remove(&task).is_some() {
-        // An unread open window counts once and closes in that decision (engine.md, 7.2).
+        // An unread open window counts once and closes in that decision (domain/engine/executors.md, 2).
         core.close_window(task);
         let mut out = route_preparation_failed(
             core,

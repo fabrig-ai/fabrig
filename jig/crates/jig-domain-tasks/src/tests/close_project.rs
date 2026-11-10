@@ -1,4 +1,4 @@
-//! Project-close preconditions and output ordering (jig/docs/design/domain/tasks.md, 7).
+//! Project-close preconditions and output ordering (jig/docs/design/domain/tasks/changes.md).
 use super::revisions::{Harness, to};
 use crate::{Event, Funder, Key, Mode, Owner, PlacedHold, Request, Scope, Stored};
 

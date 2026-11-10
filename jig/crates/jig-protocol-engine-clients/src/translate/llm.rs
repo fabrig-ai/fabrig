@@ -1,5 +1,5 @@
 //! A task's LLM choice and `me`'s models: the core names a model and its effort by index in
-//! configuration's order, the client by name (contract.md, 3.2 and 5.1; domain/tasks.md, 3).
+//! configuration's order, the client by name (client/domain/contract/requests.md, 2, and client/domain/contract/documents.md, 1; domain/tasks/README.md, 3).
 use super::w;
 use crate::Model;
 use alloc::boxed::Box;
@@ -9,7 +9,7 @@ use jig_domain_tasks as t;
 use skein_lib::{List, Reader, bytes};
 
 /// The current catalogue in numbered positions, including empty rows for holes
-/// (jig/docs/design/domain/engine.md, 17.11).
+/// (jig/docs/design/domain/engine/settings.md, 11).
 #[must_use]
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub fn catalogue(models: &[jig_domain_core::settings::CatalogueModel]) -> Box<[Model]> {
@@ -331,7 +331,7 @@ fn model_effort(value: t::ModelEffort, models: &[Model], limits: &w::Limits) -> 
 
 /// A choice naming a model or an effort configuration lacks is refused before the core sees the
 /// ask, as a project mismatch is: by the model's name, and for a compound request the place of its
-/// operation (contract.md, 3.2 and 4).
+/// operation (client/domain/contract/requests.md, 2, and client/domain/contract/README.md, 3).
 pub(crate) fn refused(
     record: &w::Ask,
     models: &[Model],

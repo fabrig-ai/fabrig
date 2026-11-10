@@ -1,4 +1,4 @@
-//! A project's policy beside deployment settings (jig/docs/design/domain/engine.md, 17.2 and 17.6).
+//! A project's policy beside deployment settings (jig/docs/design/domain/engine/settings.md, 2 and 6).
 use crate::settings_support::*;
 use jig_core_world::fixtures::PROJECT;
 use jig_core_world::fixtures::accepted;

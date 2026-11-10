@@ -1,4 +1,4 @@
-//! Tasks rows translated to their generated family (protocol/store.md, 5.1).
+//! Tasks rows translated to their generated family (protocol/store/records.md, 1).
 pub mod activity;
 pub mod carried;
 pub mod index;
@@ -15,7 +15,7 @@ use alloc::boxed::Box;
 use jig_domain_tasks as domain;
 use skein_lib::{Reader, Writer};
 
-/// Fixed item sizes without any collection or byte payload (protocol/store.md, 5.1).
+/// Fixed item sizes without any collection or byte payload (protocol/store/records.md, 1).
 pub(crate) const EMPTY: wire::Limits = wire::Limits {
     end_failed_with_reason_reason: 0,
     failed_retry_reason_some: 0,

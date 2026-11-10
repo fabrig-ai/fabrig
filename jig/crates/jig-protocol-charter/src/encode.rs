@@ -1,5 +1,5 @@
 //! Write the Smith charter codec from the shared charter
-//! (domain/hosts.md, section 8; smith's `protocol/charter.md`, section 5).
+//! (domain/hosts/charters.md; smith's `protocol/charter.md`, section 5).
 //! The configured endpoint table supplies names; the charter keeps numbers.
 
 use alloc::boxed::Box;

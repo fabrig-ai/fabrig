@@ -1,4 +1,4 @@
-//! Public configured offers and volatile payer facts (contract.md, 5.1).
+//! Public configured offers and volatile payer facts (client/domain/contract/documents.md, 1).
 use super::{accounts, owner, pieces, w};
 use alloc::boxed::Box;
 use jig_domain_core::documents as d;

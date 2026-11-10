@@ -572,7 +572,7 @@ fn reviewer(models: &[CatalogueModel]) -> Charter {
     value.policy.agents = false;
     value
 }
-// temper/docs/design/protocol/configuration.md, 13.4; jig/docs/design/domain/tasks.md, 8.6.
+// temper/docs/design/protocol/configuration.md, 13.4; jig/docs/design/domain/tasks/messages.md, 6.
 const COORDINATOR_WAKE: WakePolicy = WakePolicy {
     words: WakeRule::Immediate,
     notices: WakeRule::Immediate,

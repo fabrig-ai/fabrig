@@ -1,4 +1,4 @@
-//! Direct core starts and connector recovery (jig/docs/design/domain/engine.md, 6).
+//! Direct core starts and connector recovery (jig/docs/design/domain/engine/restart.md).
 use jig_core_world::fixtures::phase;
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;

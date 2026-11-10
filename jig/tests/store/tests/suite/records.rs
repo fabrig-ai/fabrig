@@ -1,4 +1,4 @@
-//! A source's record in the secrets' store across crashes (store.md 9: a
+//! A source's record in the secrets' store across crashes (protocol/store/secrets.md: a
 //! record kept before lent, stating the digest of the one it replaces).
 use jig_protocol_store::{Event, SecretOwner, SecretValue, Secrets};
 use jig_store_world::{World, root};

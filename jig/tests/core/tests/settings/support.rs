@@ -1,4 +1,4 @@
-//! Settings travel through the real restart, store and commit barrier (engine.md, 17.7).
+//! Settings travel through the real restart, store and commit barrier (domain/engine/settings.md, 7).
 use jig_core_world::client_peer::ClientPeer;
 use jig_core_world::fixtures;
 pub(super) use jig_core_world::fixtures::PARTY as OWNER;

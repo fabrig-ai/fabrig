@@ -1,4 +1,4 @@
-//! Core rows carried by their generated family (protocol/store.md, 5.1).
+//! Core rows carried by their generated family (protocol/store/records.md, 1).
 use crate::core_v6 as wire;
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
@@ -511,7 +511,7 @@ pub fn decode_delivery_outcome(value: wire::DeliveryOutcome) -> domain::Delivery
     }
 }
 
-/// The versioned body stored in a transcript frame (protocol/store.md, 8.3).
+/// The versioned body stored in a transcript frame (protocol/store/transcripts.md, 3).
 pub fn turn(value: &domain::TurnRecord, limits: &View) -> Result<Box<[u8]>, wire::Problem> {
     let value = runs::encode_turn_record(value, limits)?;
     let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));

@@ -1,4 +1,4 @@
-//! The start: load, then link, and a borrowed second sweep (jig/docs/design/domain/engine.md, 6).
+//! The start: load, then link, and a borrowed second sweep (jig/docs/design/domain/engine/restart.md).
 mod fit;
 use super::{Answered, Domain, SignIn, Start, answer_expiry, deadline};
 use crate::{
@@ -14,7 +14,7 @@ impl Domain {
     }
 
     /// An event's projection lands on a whole census: from the link on
-    /// (jig/docs/design/domain/engine.md, 17.7), never while loading.
+    /// (jig/docs/design/domain/engine/settings.md, 7), never while loading.
     pub(super) fn assert_projection_event(&self) {
         assert!(
             self.ready() || self.start == Start::Linked,

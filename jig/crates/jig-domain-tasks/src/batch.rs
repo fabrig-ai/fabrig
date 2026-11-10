@@ -1,4 +1,4 @@
-//! Whole-batch structural and financial admission (domain/tasks.md, sections 4, 6.7 and 11).
+//! Whole-batch structural and financial admission (domain/tasks/README.md, section 4, and domain/tasks/holds.md, section 7, and domain/tasks/README.md, section 6).
 //! Dependencies, delegation and threshold queue waits are checked together
 //! before mutation; tasks does not judge root-authorized authority.
 #![cfg_attr(
@@ -348,7 +348,7 @@ fn check_members(
     Ok(())
 }
 
-/// A job delegates nothing and only a procedure creates one (jig/docs/design/domain/tasks.md, 5.3.1).
+/// A job delegates nothing and only a procedure creates one (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
 pub(crate) fn job_creator(parent: Option<&crate::TaskRecord>) -> bool {
     match parent {
         Some(parent) => match parent.executor {
@@ -375,7 +375,7 @@ pub(crate) fn job_contract(contract: &Contract) -> bool {
     }
 }
 
-/// Shared admission and restore shape (jig/docs/design/domain/tasks.md, 5.3.1).
+/// Shared admission and restore shape (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
 pub(crate) fn job_member(limits: &Limits, spec: &Spec, contract: &Contract) -> Result<(), Refusal> {
     let Some(job) = &spec.job else { return Err(Refusal::Spec) };
     if job.bytes.len() > skein_lib::length::usize_of(limits.spec_bytes)

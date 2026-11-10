@@ -99,7 +99,7 @@ the channel's reason (`workers.rs`, `route`, `Note::WorkerUnsent`;
 `each_unsent_record_reaches_the_operator_once` hold. The request `worker-relinks` of 2026-11-08 also asked that the
 engine stop on SIGTERM within its stop grace, where a service manager
 killed one after 90 seconds: the workers' part closes within the
-stall deadline of the close (jig's `protocol/channel.md`, 10.2), but no
+stall deadline of the close (jig's `protocol/channel/README.md`, 9.2), but no
 stop test of temper's shows the whole stop within a bound, and the
 engine has no stop deadline of its own (section 14).
 
@@ -107,7 +107,7 @@ engine has no stop deadline of its own (section 14).
   its fixture stops expecting models in the startup configuration
   (`../domain/testing.status.md`, 2.6); jig's fleet takes a draining
   worker out of placement before its runs end (jig's
-  `domain/engine.md`, section 8), and the real-loop story supplies no
+  `domain/engine/fleet.md`), and the real-loop story supplies no
   proof of that process boundary. No reference-case story runs in this tier; the task-per-worker,
   lost-worker, hung-worker and late-worker boundary stories remain.
 
@@ -140,7 +140,7 @@ workspace whole, so its run of the step test runs a binary built with
 own build alone, as 4.1 accepts.
 
 - **Not yet:** 4.2: `temper-engine upgrade --check` and `--back`: jig's
-  rehearsal and going back (jig's `protocol/store.md`, 10.5) are not
+  rehearsal and going back (jig's `protocol/store/opening.md`, 5) are not
   built, so neither binary's table has the row. 4.1: `binaries.rs` has
   no row for `temper-client`, which is M5's (below).
 

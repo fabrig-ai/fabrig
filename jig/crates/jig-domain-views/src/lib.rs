@@ -1,4 +1,4 @@
-//! Level-triggered volatile watches (`domain/engine.md`, 11).
+//! Level-triggered volatile watches (`domain/engine/views.md`).
 //! The child keeps opaque subjects, windows and pacing marks. Its parent owns
 //! documents and authorization; changes coalesce while a delivery is in flight.
 #![cfg_attr(not(test), no_std)]

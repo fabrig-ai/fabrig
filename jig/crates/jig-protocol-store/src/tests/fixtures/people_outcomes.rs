@@ -1,4 +1,4 @@
-//! Named people refusal and outcome fixtures (protocol/store.md, 5.1).
+//! Named people refusal and outcome fixtures (protocol/store/records.md, 1).
 use jig_domain_people as domain;
 use skein_lib::{Token, Wall};
 pub fn again_values() -> Box<[domain::Again]> {

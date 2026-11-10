@@ -307,7 +307,7 @@ fn a_merge_job_needs_its_declared_kind_authority_and_spec_room() {
     }
 }
 
-/// jig/docs/design/domain/engine.md, 7.5: transport failures exhaust retries and hold the job.
+/// jig/docs/design/domain/engine/executors.md, 5: transport failures exhaust retries and hold the job.
 #[test]
 fn a_failed_merge_job_is_held_after_its_retries() {
     let (mut world, task, head, base) = pushed_change_in(world(false, true, true).with_merge_job(COMMAND), true, GOAL);

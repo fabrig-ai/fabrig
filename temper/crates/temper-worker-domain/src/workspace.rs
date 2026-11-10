@@ -57,7 +57,7 @@ use crate::route;
 use crate::translate;
 
 /// A run's workspace items and what became of them (jig's
-/// `protocol/channel.md`, 6.2): the hub names them by the record's token, as
+/// `protocol/channel/README.md`, 5.2): the hub names them by the record's token, as
 /// its workspace's items, what the run left and saved, and the resource a
 /// prepare failed on. Kept from the assignment until the engine has the
 /// run's answer, as the hub keeps the answer, so the parts go up beside

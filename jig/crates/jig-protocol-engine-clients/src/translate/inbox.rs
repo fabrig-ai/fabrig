@@ -1,4 +1,4 @@
-//! Whole live document facts (protocol/client.md, 3 and 7).
+//! Whole live document facts (protocol/client/wire.md, 1, and protocol/client/README.md, 5).
 use super::{live, pieces, task, w};
 use alloc::boxed::Box;
 use jig_domain_core::documents as d;

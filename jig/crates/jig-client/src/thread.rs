@@ -4,7 +4,7 @@
 //! only while the window reaches it; `older` and `newer` read beside lines let go.
 //! `accept` consumes one requested page and may ask for another new-tail page.
 //! The owner routes reads and keeps returned object names live in its working set.
-//! See client/domain/client.md, 7 and 10, and objects.md, 10.
+//! See client/domain/client/README.md, 6 and client/domain/client/conversations.md, and objects.md, 10.
 //!
 //! | State | Event | Next | Emits |
 //! |---|---|---|---|
@@ -96,7 +96,7 @@ pub struct Thread {
     /// The newest position this conversation has read.
     pub loaded: u64,
     /// The `llm` of the newest decoded turn, taken when the window reaches the live end
-    /// (client/domain/client.md, 10).
+    /// (client/domain/client/conversations.md).
     pub latest_llm: Option<ModelEffort>,
     pub reading: Option<Reading>,
     /// Whole new-tail pages waiting to meet the held committed position.

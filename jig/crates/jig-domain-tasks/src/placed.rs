@@ -1,4 +1,4 @@
-//! Placed holds, their owners, subtree stops and lifting (domain/tasks.md, 5.9).
+//! Placed holds, their owners, subtree stops and lifting (domain/tasks/lifecycle.md, 10).
 use crate::compound::Staged;
 use crate::domain::{fact, publish, record, task_mut};
 use crate::{
@@ -8,7 +8,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, ReplyTo};
 
-/// Who placed a hold, and so who lifts it (domain/tasks.md, 5.9).
+/// Who placed a hold, and so who lifts it (domain/tasks/lifecycle.md, 10).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Owner {
     Party { person: u64 },

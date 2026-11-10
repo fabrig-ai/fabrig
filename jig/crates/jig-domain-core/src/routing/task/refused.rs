@@ -1,5 +1,5 @@
 //! Refused task continuations and their party or named-call answers
-//! (jig/docs/design/domain/engine.md, 4.4).
+//! (jig/docs/design/domain/engine/README.md, 4.4).
 
 use crate::{
     Ask, CallPart, Core, Limits, LinkNow, Now, PersonProposalRoute, PersonTaskRoute, Request, RoutedCall,

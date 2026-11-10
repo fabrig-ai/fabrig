@@ -1,4 +1,4 @@
-//! Hosted run lifecycle (hosts.md, section 6). An accepted run prepares a
+//! Hosted run lifecycle (domain/hosts/hub.md). An accepted run prepares a
 //! workspace, starts its agent, then serves calls and turns until it stops.
 //! The host waits for agent exit and each in-flight delivery before saving,
 //! releasing, and answering. The same tail follows cancellation or a fault.

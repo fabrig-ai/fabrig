@@ -1,5 +1,5 @@
 //! Direct Core over settings rows from the reference root's real seed
-//! (jig/docs/design/domain/engine.md, 6, 17.7).
+//! (jig/docs/design/domain/engine/restart.md, jig/docs/design/domain/engine/settings.md, 7).
 use crate::settings_support as support;
 use jig_core_world::fixtures::{link, phase};
 use jig_domain_core::{

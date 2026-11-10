@@ -4,7 +4,7 @@ use jig_protocol_worker_link::{Event, Request};
 use jig_protocol_worker_wire as wire;
 use jig_worker_link_world::{World, fixtures};
 use skein_lib::{List, Reader, Writer};
-// jig/docs/design/protocol/channel.md, 5.1 bounds a login email in bytes.
+// jig/docs/design/protocol/channel/records.md, 1 bounds a login email in bytes.
 const EMAIL_BYTES: usize = 255;
 
 fn world() -> World {

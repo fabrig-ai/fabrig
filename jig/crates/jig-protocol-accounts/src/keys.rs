@@ -1,5 +1,5 @@
 //! LLM keys move from carried values to Source rows before they are granted
-//! (domain/accounts.md, 3.5 and 5; protocol/store.md, 9).
+//! (domain/accounts.md, 3.5 and 5; protocol/store/secrets.md).
 use crate::table;
 use jig_domain_accounts as accounts;
 use jig_domain_link::Form;

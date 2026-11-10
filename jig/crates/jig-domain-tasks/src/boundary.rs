@@ -1,5 +1,5 @@
 //! Root-to-tasks semantic inputs and tasks-to-root persistence/lifecycle outputs
-//! (domain/tasks.md, sections 2–5).
+//! (domain/tasks/README.md, sections 2–4 and domain/tasks/lifecycle.md).
 //! Inputs have no protocol bytes or connector events. Root authorizes them,
 //! owns exact transport replay and commits related rows/effects atomically.
 use crate::{Authority, Class, Funder, Numbers, Tries};
@@ -14,7 +14,7 @@ pub struct KeptStart {
     pub code: u32,
 }
 
-/// A closed wake rule for task words and subscription hints (domain/tasks.md, section 8.3).
+/// A closed wake rule for task words and subscription hints (domain/tasks/messages.md, section 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum WakeRule {
     Never,
@@ -23,7 +23,7 @@ pub enum WakeRule {
         count: u32,
         age: Duration,
     },
-    /// At most once in `span` from the task's last run's start (domain/tasks.md, 8.3).
+    /// At most once in `span` from the task's last run's start (domain/tasks/messages.md, 3).
     Paced {
         span: Duration,
     },
@@ -93,7 +93,7 @@ pub struct Subscription {
     pub kind: SubscriptionKind,
 }
 
-/// Kind of a durable task-inbox message (domain/tasks.md, sections 5.6 and 8).
+/// Kind of a durable task-inbox message (domain/tasks/lifecycle.md, section 7 and domain/tasks/messages.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum MessageKind {
     /// Virtual, durable held decision entry projected from the held task.
@@ -129,22 +129,22 @@ pub enum MessageKind {
     Result(ResultKind),
     /// The core's notice that a kept task's last pending dependency is done,
     /// or was removed by an amendment: always waking, one per task, merged
-    /// (domain/tasks.md, 5.7 and 8.1). `dependency` is the one whose end or
+    /// (domain/tasks/lifecycle.md, 8, and domain/tasks/messages.md, 1). `dependency` is the one whose end or
     /// removal emptied the pending set; of several removed at once, the
     /// first in the old list.
     Met { dependency: u64, removed: bool },
     /// The question ended without an answer; its asker may go on.
     QuestionEnded { question: u64 },
     /// Its person answered the question in their inbox; `Word::from` names its asker
-    /// (domain/people.md, 6; domain/tasks.md, 5.7).
+    /// (domain/people/README.md, 5; domain/tasks/lifecycle.md, 8).
     QuestionAnswered { question: u64 },
-    /// Its requester is owed a question before a done finish (domain/tasks.md, 5.7).
+    /// Its requester is owed a question before a done finish (domain/tasks/lifecycle.md, 8).
     QuestionOwed,
-    /// Nothing remains to await after a result-ended task parks (domain/tasks.md, 5.2).
+    /// Nothing remains to await after a result-ended task parks (domain/tasks/lifecycle.md, 2).
     NothingAwaited,
 }
 
-/// The shared inbox classification (domain/tasks.md, sections 8.1–8.3).
+/// The shared inbox classification (domain/tasks/messages.md, sections 1–3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum MessageFamily {
     Spoken(Spoken),
@@ -171,7 +171,7 @@ pub enum Hint {
     News { subscription: u64, class: NewsClass },
 }
 
-/// Control messages entering through reserved inbox room (domain/tasks.md, 8.2).
+/// Control messages entering through reserved inbox room (domain/tasks/messages.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Slot {
     EffectNotMade,
@@ -183,7 +183,7 @@ pub enum Slot {
     PersonStalled,
 }
 
-/// Messages with separately priced inbox slots (jig/docs/design/domain/tasks.md, 5.7 and 8.2).
+/// Messages with separately priced inbox slots (jig/docs/design/domain/tasks/lifecycle.md, 8, and jig/docs/design/domain/tasks/messages.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Separate {
     Amendment,
@@ -218,7 +218,7 @@ pub enum ResultKind {
 }
 
 /// One durable whole message in a task's bounded inbox
-/// (domain/tasks.md, section 8.2).
+/// (domain/tasks/messages.md, section 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Word {
     /// Root-issued commit-order message identity.
@@ -238,7 +238,7 @@ pub struct Word {
 }
 
 impl Word {
-    /// Whether this message asks an agent to finish (domain/hosts.md, section 9).
+    /// Whether this message asks an agent to finish (domain/hosts/README.md, section 7).
     #[must_use]
     pub fn finish_requested(&self) -> bool {
         self.kind.family() == MessageFamily::Separate(Separate::FinishRequested)
@@ -297,7 +297,7 @@ pub struct QuestionNotice {
 }
 
 /// Root-verified requester/creator identity; requester topology and financial source are
-/// separate values. (domain/tasks.md, sections 2–3).
+/// separate values. (domain/tasks/README.md, sections 2–3).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Party {
     /// Task requester/creator whose delegation topology this child owns.
@@ -315,7 +315,7 @@ pub enum Party {
 }
 
 impl Party {
-    /// The numeric party label carried by a host message (domain/hosts.md, 9).
+    /// The numeric party label carried by a host message (domain/hosts/README.md, 7).
     #[must_use]
     pub fn sender(self) -> Box<[u8]> {
         match self {
@@ -326,7 +326,7 @@ impl Party {
 }
 
 /// Task executor selected by the root. The procedure's owner interprets its opaque code.
-/// (domain/tasks.md, section 2).
+/// (domain/tasks/README.md, section 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Executor {
     /// Configured agent charter.
@@ -338,7 +338,7 @@ pub enum Executor {
     Procedure { connector: u16, code: u32 },
     /// A person or any current holder of a project role answers in the people inbox.
     Person(PersonAddress),
-    /// Application job kind (jig/docs/design/domain/tasks.md, 5.3.1).
+    /// Application job kind (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
     Job { kind: u32 },
 }
 
@@ -381,7 +381,7 @@ pub struct RecurringState {
 }
 
 /// One procedure decision. Each step commits its task changes with the owner's state.
-/// (domain/tasks.md, section 5.3).
+/// (domain/tasks/lifecycle.md, section 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProcedureDecision {
     /// Replace this procedure task's specification words, within the specification byte bound.
@@ -396,7 +396,7 @@ pub struct ProcedureDecision {
     pub end: ProcedureEnd,
 }
 
-/// One addressed word admitted to a task inbox (jig/docs/design/domain/tasks.md, 8.2).
+/// One addressed word admitted to a task inbox (jig/docs/design/domain/tasks/messages.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Message {
     pub task: u64,
@@ -428,7 +428,7 @@ impl ProcedureDecision {
 }
 
 /// Bounded semantic parameter carrier; tasks does not interpret names or resources, and the
-/// current root chat constructor supplies no parameters. (domain/tasks.md, section 3).
+/// current root chat constructor supplies no parameters. (domain/tasks/README.md, section 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Parameter {
     /// Numeric specification carrier; current chat construction supplies no parameters.
@@ -456,10 +456,10 @@ pub enum Parameter {
     },
 }
 
-/// Owned task description supplied by root, bounded at admission (domain/tasks.md, section 3).
+/// Owned task description supplied by root, bounded at admission (domain/tasks/README.md, section 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Spec {
-    /// Application bytes, present exactly for a job executor (jig/docs/design/domain/tasks.md, 5.3.1).
+    /// Application bytes, present exactly for a job executor (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
     pub job: Option<Box<JobSpec>>,
     /// Owned UTF-8 specification words; combined with text-valued parameters, bounded by
     /// `Limits::spec_bytes`.
@@ -469,11 +469,11 @@ pub struct Spec {
     pub parameters: Box<[Parameter]>,
     /// Retained input identities, bounded by `Limits::inputs` on creation and restore.
     pub inputs: Box<[u64]>,
-    /// Immutable obligation to ask its requester a question (domain/tasks.md, 5.7).
+    /// Immutable obligation to ask its requester a question (domain/tasks/lifecycle.md, 8).
     pub asks: bool,
 }
 
-/// A job task's application bytes and per-attempt deadline (jig/docs/design/domain/tasks.md, 5.3.1).
+/// A job task's application bytes and per-attempt deadline (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct JobSpec {
     pub bytes: Box<[u8]>,
@@ -495,7 +495,7 @@ pub struct ResultField {
 }
 
 /// One admitted result choice with a unique code and a per-choice word-byte bound.
-/// (domain/tasks.md, sections 3 and 5.6).
+/// (domain/tasks/README.md, section 3, and domain/tasks/lifecycle.md, section 7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Verdict {
     /// Distinct permitted choice code within its contract.
@@ -509,12 +509,12 @@ pub struct Verdict {
 }
 
 /// Root-supplied bounded result shape; tasks validates returned results against it before terminal
-/// admission. (domain/tasks.md, sections 3 and 5.6).
+/// admission. (domain/tasks/README.md, section 3, and domain/tasks/lifecycle.md, section 7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Contract {
-    /// Maximum application result bytes (jig/docs/design/domain/tasks.md, 5.3.1).
+    /// Maximum application result bytes (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
     Job { bytes: u32 },
-    /// Approval of exact opaque connector state (domain/people.md, section 8).
+    /// Approval of exact opaque connector state (domain/people/README.md, section 7).
     Approval { state: Box<[u8]>, part: crate::Part },
     /// Bounded report result.
     Report {
@@ -538,7 +538,7 @@ pub enum Contract {
 }
 
 /// Explicit change-title bytes, boxed beside the result to keep inline carriers small.
-/// Admission bounds the words by the result contract (jig/docs/design/domain/tasks.md, 3 and 5.6).
+/// Admission bounds the words by the result contract (jig/docs/design/domain/tasks/README.md, 3, and jig/docs/design/domain/tasks/lifecycle.md, 7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeTitle {
     pub words: Box<[u8]>,
@@ -552,10 +552,10 @@ impl ChangeTitle {
 }
 
 /// Owned executor outcome checked against the admitted task contract before lifecycle admission;
-/// connector interpretation and outward delivery remain with root. (domain/tasks.md, section 5.6).
+/// connector interpretation and outward delivery remain with root. (domain/tasks/lifecycle.md, section 7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum TaskResult {
-    /// Opaque application result (jig/docs/design/domain/tasks.md, 5.3.1).
+    /// Opaque application result (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
     Job { bytes: Box<[u8]> },
     /// Exact state approved by the addressed person, with optional explanation.
     Approved { state: Box<[u8]>, words: Option<Box<[u8]>> },
@@ -614,7 +614,7 @@ pub enum InvalidResult {
 }
 
 /// Durable final outcome, or a pending closing outcome; requester notification follows
-/// settlement. (domain/tasks.md, sections 5.1 and 5.6).
+/// settlement. (domain/tasks/lifecycle.md, sections 1 and 7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Ending {
     /// Checked successful result proposed for final ending; retained while closing and made
@@ -641,7 +641,7 @@ pub enum Ending {
 }
 
 /// Content-free terminal classification used in observations and dependency readiness.
-/// (domain/tasks.md, section 5.1).
+/// (domain/tasks/lifecycle.md, section 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Status {
     /// Task completed successfully; dependents can become due after settlement.
@@ -662,10 +662,10 @@ pub struct Stub {
 }
 
 /// Root-to-tasks activation terminal, fenced by task/attempt; a terminal may park or retry without
-/// ending the task. (domain/tasks.md, sections 5.2, 5.5 and 5.6).
+/// ending the task. (domain/tasks/lifecycle.md, sections 2, 6 and 7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum End {
-    /// A configured bound refused the run's model call (domain/hosts.md, 6.3).
+    /// A configured bound refused the run's model call (domain/hosts/hub.md, 3).
     Exceeded(Exceeded),
     /// Proposed final result; valid finishing with live delegates requires cancelling them or is
     /// refused without admission.
@@ -686,7 +686,7 @@ pub enum End {
     Parked,
     /// Count one classified failure, then back off or hold beyond the configured retry allowance.
     Failed(/** Reported failure category whose counter/backoff policy applies. */ Class),
-    /// A classified failure whose bounded cause reaches the retry notice and hold (domain/tasks.md, 5.5).
+    /// A classified failure whose bounded cause reaches the retry notice and hold (domain/tasks/lifecycle.md, 6).
     FailedWithReason { class: Class, reason: Box<[u8]> },
     /// Pre-execution refusal pause using the transient delay policy, without spending a failure
     /// try.
@@ -705,10 +705,10 @@ pub enum ResultFollowups {
 }
 
 /// Root-reported or task-derived reason to preserve a task's prior lifecycle while stopping its
-/// live activation. (domain/tasks.md, section 5.5).
+/// live activation. (domain/tasks/lifecycle.md, section 6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Hold {
-    /// A configured bound refused the run's model call (domain/hosts.md, 6.3).
+    /// A configured bound refused the run's model call (domain/hosts/hub.md, 3).
     Exceeded(Exceeded),
     /// Configured retry allowance was exhausted.
     Failures(/** Failure class whose retry allowance was exhausted. */ Class),
@@ -743,7 +743,7 @@ pub enum Hold {
     /// A procedure asked its requester for a decision.
     Procedure,
     /// Joining a queue, or the waits a release gives back, would close a circle of waits; the
-    /// hold's source names the circle, and the hold lifts once it breaks (domain/tasks.md, 6.7).
+    /// hold's source names the circle, and the hold lifts once it breaks (domain/tasks/holds.md, 7).
     Circle,
 }
 
@@ -798,7 +798,7 @@ impl Hold {
 }
 
 /// Current agent-task activation phase; task and attempt identity fence every external transition.
-/// (domain/tasks.md, section 5.2).
+/// (domain/tasks/lifecycle.md, section 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Active {
     /// `Activation` parked; no current wake input is exposed by this contracted child.
@@ -825,7 +825,7 @@ pub enum Active {
 }
 
 /// Ordered closing obligation; the root confirms effect settlement before resource release.
-/// (domain/tasks.md, section 5.1).
+/// (domain/tasks/lifecycle.md, section 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Stage {
     /// Wait for the exact live attempt's terminal.
@@ -845,7 +845,7 @@ pub enum Stage {
 }
 
 /// Owned pending ending and closing stage retained until every obligation and financial allocation
-/// settles. (domain/tasks.md, section 5.1).
+/// settles. (domain/tasks/lifecycle.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Closing {
     /// Next unsettled closing obligation.
@@ -855,7 +855,7 @@ pub struct Closing {
 }
 
 /// Lifecycle preserved while held; terminal/settlement notifications can update it without lifting
-/// the hold. (domain/tasks.md, section 5.1).
+/// the hold. (domain/tasks/lifecycle.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Was {
     /// Prior dependency-waiting phase.
@@ -867,7 +867,7 @@ pub enum Was {
 }
 
 /// Task's complete lifecycle value; ended values occur in retained durable rows rather than the
-/// live arena. (domain/tasks.md, section 5.1).
+/// live arena. (domain/tasks/lifecycle.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Phase {
     /// `Some` live dependency remains; readiness becomes `Due` when `waiting_on` empties.
@@ -890,7 +890,7 @@ pub enum Phase {
 }
 
 /// What explains a hold beyond its reason: a connector account, a failure cause, or a
-/// circle of waits (client/domain/objects.md, 5; domain/tasks.md, 5.5 and 6.7).
+/// circle of waits (client/domain/objects.md, 5; domain/tasks/lifecycle.md, 6, and domain/tasks/holds.md, 7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum HoldSource {
     /// Why preparation or activation failed past its allowance, only on `Hold::Failures`.
@@ -912,7 +912,7 @@ pub enum HoldSource {
 }
 
 /// A circle of waits: tasks each waiting for the next, the last for the first, so that none of
-/// them could end (domain/tasks.md, 6.7).
+/// them could end (domain/tasks/holds.md, 7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Circle {
     /// The circle's tasks in order, from the one whose new wait would close it, at most
@@ -922,7 +922,7 @@ pub struct Circle {
     pub cut: bool,
 }
 
-/// A connector resource name opaque to the tasks hub (domain/tasks.md, 6.1).
+/// A connector resource name opaque to the tasks hub (domain/tasks/holds.md, 1).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Name {
     /// Connector number assigned by the application's root.
@@ -960,7 +960,7 @@ pub enum Holding {
     Slot { pool: Name, kind: u16 },
 }
 
-/// The one writer of an exclusively held resource (domain/tasks.md, 6.3).
+/// The one writer of an exclusively held resource (domain/tasks/holds.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Writer {
     /// A claimed agent run, fenced by its attempt.
@@ -1002,7 +1002,7 @@ pub enum Deadline {
 }
 
 /// Root-authorized member of an atomic creation batch; tasks preflights the whole graph, payloads,
-/// capacity and finite reservations before mutation. (domain/tasks.md, sections 3–4).
+/// capacity and finite reservations before mutation. (domain/tasks/README.md, sections 3–4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct New {
     /// Opaque application label, immutable after creation.
@@ -1017,7 +1017,7 @@ pub struct New {
     pub executor: Executor,
     /// An agent task's LLM choice, checked against the configured models, its charter and its
     /// authority; absent for a procedure's or a person's task, and where the root resolves the
-    /// default (domain/tasks.md, sections 3 and 4).
+    /// default (domain/tasks/README.md, sections 3 and 4).
     pub llm: Option<crate::LlmChoice>,
     /// Owned specification within configured counts/bytes, with empty retained inputs.
     pub spec: Spec,
@@ -1046,7 +1046,7 @@ pub struct New {
 }
 
 /// Revisions of the individual things a party decides, independent of history,
-/// spend and executor progress (client/domain/contract.md, section 5.2).
+/// spend and executor progress (client/domain/contract/documents.md, section 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Revisions {
     /// Moves when a hold begins or its reason changes, never when it passes up.
@@ -1082,7 +1082,7 @@ pub struct PersonStallNotice {
     pub activity: u64,
 }
 
-/// One committed turn's reply reference (domain/people.md, section 6).
+/// One committed turn's reply reference (domain/people/README.md, section 5).
 /// Retained hints form the newest (wall time, reply ordinal) prefix, independently of `last_reply`.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct ReplyHint {
@@ -1093,7 +1093,7 @@ pub struct ReplyHint {
     pub at: Wall,
 }
 
-/// Settings revisions retained live and ended (domain/engine.md, 17.3).
+/// Settings revisions retained live and ended (domain/engine/settings.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct SettingsRevision {
     /// The newest revision when the task was made, whatever its parent's.
@@ -1103,19 +1103,19 @@ pub struct SettingsRevision {
 }
 
 /// Owned durable task state emitted to root storage; root uses `RunContext` for preparation and
-/// does not maintain a mutable copy of this ledger. (domain/tasks.md, sections 3 and 5).
+/// does not maintain a mutable copy of this ledger. (domain/tasks/README.md, section 3 and domain/tasks/lifecycle.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent durable lifecycle facts are explicit")]
 pub struct TaskRecord {
-    /// The live closer's task number (jig/docs/design/domain/tasks.md, 3 and 5.10).
+    /// The live closer's task number (jig/docs/design/domain/tasks/README.md, 3, and jig/docs/design/domain/tasks/lifecycle.md, 11).
     pub closer: Option<u64>,
-    /// Why this activation runs (jig/docs/design/domain/tasks.md, 8.6).
+    /// Why this activation runs (jig/docs/design/domain/tasks/messages.md, 6).
     pub reasons: crate::Reasons,
-    /// The kinds the claimed attempt is offered (jig/docs/design/domain/tasks.md, 8.6).
+    /// The kinds the claimed attempt is offered (jig/docs/design/domain/tasks/messages.md, 6).
     pub offered: crate::Reasons,
-    /// The placed hold holding this task, whatever its phase says (domain/tasks.md, 5.9).
+    /// The placed hold holding this task, whatever its phase says (domain/tasks/lifecycle.md, 10).
     pub placed: Option<u64>,
-    /// Settings read by this task and its run (domain/engine.md, 17.3).
+    /// Settings read by this task and its run (domain/engine/settings.md, 3).
     pub settings: SettingsRevision,
     /// Opaque application label, immutable after creation.
     pub label: u32,
@@ -1135,7 +1135,7 @@ pub struct TaskRecord {
     /// Agent instruction replacement; absent uses the configured charter default.
     pub instructions: Option<Box<[u8]>>,
     /// An agent task's LLM choice, kept as given and changed only by an amendment
-    /// (domain/tasks.md, sections 3 and 7).
+    /// (domain/tasks/README.md, section 3 and domain/tasks/changes.md).
     pub llm: Option<crate::LlmChoice>,
     /// Main account from the last successful checked claim, independent of its preference.
     pub kept_account: Option<u32>,
@@ -1169,7 +1169,7 @@ pub struct TaskRecord {
     /// A narrowing or next-turn message stopped the current run; its terminal starts the task anew.
     pub narrowing: bool,
     /// The task's LLM choice changed while this Open run was live: the next message for it
-    /// stops the run rather than reach it (domain/tasks.md, section 7).
+    /// stops the run rather than reach it (domain/tasks/changes.md).
     pub llm_changed: bool,
     /// Root-issued commit order for an ended result; zero while live and until the root saves an ending.
     pub result_position: u64,
@@ -1219,7 +1219,7 @@ pub struct TaskRecord {
     /// Source of the current allotment, kept separate from requester ancestry.
     pub funder: Funder,
     /// Admitted dependency identities, bounded by `Limits::dependencies`: those named at creation,
-    /// then those amendments added, the oldest first (domain/tasks.md, section 7).
+    /// then those amendments added, the oldest first (domain/tasks/changes.md).
     pub dependencies: Box<[u64]>,
     /// Dependencies started from, in first-marked order, each once (domain/connectors.md, 6.1).
     pub started_from: Box<[u64]>,
@@ -1228,7 +1228,7 @@ pub struct TaskRecord {
     pub added: Box<[Added]>,
     /// `Exact` still-live subset of dependencies, bounded by `Limits::dependencies`; removed once
     /// per dependency end in the same decision. A waiting task waits for them; an active one is
-    /// kept by them (domain/tasks.md, 5.7). Restoration checks fit and required links.
+    /// kept by them (domain/tasks/lifecycle.md, 8). Restoration checks fit and required links.
     pub waiting_on: Box<[u64]>,
     /// Resources currently held or awaited; a connector may pass a failed delegate's hold to its tree root during release.
     pub holdings: Box<[Holding]>,
@@ -1239,7 +1239,7 @@ pub struct TaskRecord {
     pub hold_wait_since: Option<Wall>,
     /// When the wait bound counts from, if not from `hold_wait_since`: a task that left its
     /// queues for a dependency added or a circle comes back at its place, its bound counted
-    /// afresh (domain/tasks.md, 6.2 and 6.7).
+    /// afresh (domain/tasks/holds.md, 2 and 7).
     pub hold_bound_since: Option<Wall>,
     /// Current live direct delegates, bounded by `Limits::delegates`; requester ending waits until
     /// they are gone.
@@ -1365,7 +1365,7 @@ impl Stored {
 }
 
 /// Terminal bounded admission reason; refusal makes no requested lifecycle or financial mutation.
-/// (domain/tasks.md, sections 4–5).
+/// (domain/tasks/README.md, section 4 and domain/tasks/lifecycle.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {
     /// A standing placed hold forbids delegation into its scope or detachment from it.
@@ -1416,18 +1416,18 @@ pub enum Refusal {
     /// An unreachable dependency is named in `blocked_by`; count and duplicate refusals name none.
     Dependencies,
     /// The new waits would close a circle of waits; `blocked_by` names its tasks in order, each
-    /// waiting for the next, at most `Limits::circle` (domain/tasks.md, 6.7).
+    /// waiting for the next, at most `Limits::circle` (domain/tasks/holds.md, 7).
     Circle { cut: bool },
     /// A dependency an amendment adds has ended failed or cancelled; `blocked_by` names it
-    /// (domain/tasks.md, section 7).
+    /// (domain/tasks/changes.md).
     DependencyEnded { how: Status },
     /// The task is kept by pending dependencies, which `blocked_by` names, the oldest first: a
     /// person's answer, a procedure's step ending it done, or an effect that waits for them
-    /// (domain/tasks.md, 5.7).
+    /// (domain/tasks/lifecycle.md, 8).
     Kept,
-    /// Its own unanswered question keeps it (domain/tasks.md, 5.7).
+    /// Its own unanswered question keeps it (domain/tasks/lifecycle.md, 8).
     KeptQuestion { question: u64 },
-    /// Its person answers this question in their inbox (domain/people.md, 6).
+    /// Its person answers this question in their inbox (domain/people/README.md, 5).
     PersonAnswers { question: u64 },
     /// `Agent` charter is absent from the admitted configured table.
     Executor,
@@ -1462,12 +1462,12 @@ pub enum Refusal {
     HoldTaken,
     /// A task's hold list or a resource's waiting queue exceeds its bound.
     Holds,
-    /// An LLM choice names `model`, which it may not, and why (domain/tasks.md, sections 3 and 4).
+    /// An LLM choice names `model`, which it may not, and why (domain/tasks/README.md, sections 3 and 4).
     Llm { model: u8, why: crate::LlmFault },
 }
 
 /// `Refusal` location and reason returned to the root; batch-wide failures may have no single task
-/// identity. (domain/tasks.md, sections 4–5).
+/// identity. (domain/tasks/README.md, section 4 and domain/tasks/lifecycle.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Problem {
     /// Offending task identity when one exists; `None` denotes a batch/source/global failure.
@@ -1510,7 +1510,7 @@ impl Problem {
 }
 
 /// Lifecycle acknowledgement classification, not an exact payload replay proof; exact transport
-/// replay is the root's responsibility. (domain/tasks.md, section 5.6).
+/// replay is the root's responsibility. (domain/tasks/lifecycle.md, section 7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Accepted {
     /// This event newly admitted the task transition or turn.
@@ -1521,20 +1521,20 @@ pub enum Accepted {
 }
 
 /// Root-issued semantic task/finance inputs after authorization and transport fencing;
-/// notifications have no reply destination and may be ignored if stale. (domain/tasks.md, sections 4–5).
+/// notifications have no reply destination and may be ignored if stale. (domain/tasks/README.md, section 4 and domain/tasks/lifecycle.md).
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "proposed operations stay inline and are priced by size_of")]
 pub enum Event {
-    /// Close project rows (jig/docs/design/domain/tasks.md, 7).
+    /// Close project rows (jig/docs/design/domain/tasks/changes.md).
     CloseProject { project: u32 },
     /// Root-checked placement; the root numbers it and judges standing, the child judges room.
     Place { reply_to: ReplyTo, hold: crate::PlacedHold },
-    /// Root-checked lift naming the placed hold revision (domain/tasks.md, 5.9).
+    /// Root-checked lift naming the placed hold revision (domain/tasks/lifecycle.md, 10).
     Lift { reply_to: ReplyTo, by: Party, hold: u64, revision: u64, with_tasks: bool },
-    /// Move eligible live agent tasks on `from`, or every older revision, to the newest (engine.md, 17.4).
+    /// Move eligible live agent tasks on `from`, or every older revision, to the newest (domain/engine/settings.md, 4).
     MoveToNewest { from: Option<u32> },
     /// Replace held charter versions and name the newest settings after a commit or start
-    /// (engine.md, 17.2 and 17.3).
+    /// (domain/engine/settings.md, 2 and 3).
     Charters { newest: u32, charters: Box<[crate::CharterModels]>, efforts: Box<[u8]> },
     /// One project's party operations, admitted in order and made whole.
     Compound {
@@ -1578,7 +1578,7 @@ pub enum Event {
     RenewStanding { task: u64, period: u64 },
     /// Root supplies fresh identities for the template batch requested by the core procedure.
     RecurringBatch { task: u64, period: u64, numbers: Box<[u64]> },
-    /// Root supplies the fresh identity of the task's own closer (domain/tasks.md, 5.10).
+    /// Root supplies the fresh identity of the task's own closer (domain/tasks/lifecycle.md, 11).
     CloserBatch { task: u64, number: u64 },
     /// Fenced decision from the owner of one due procedure task.
     Procedure {
@@ -1647,7 +1647,7 @@ pub enum Event {
     Introduce { reply_to: ReplyTo, by: u64, left: u64, right: u64 },
     /// Admit authenticated person words to a live chat and wake or relay after their commit.
     Message { reply_to: ReplyTo, project: u32, operation: Message },
-    /// Admit a question offered to the addressed task's person (domain/people.md, 6).
+    /// Admit a question offered to the addressed task's person (domain/people/README.md, 5).
     PersonQuestion { reply_to: ReplyTo, project: u32, task: u64, person: u64, word: Word },
     /// Deliver an authenticated inbox answer and its notice in one decision.
     PersonQuestionAnswer {
@@ -1805,9 +1805,9 @@ pub enum Event {
     /// `Preparing`-to-`Claimed` admission with a strictly increasing root attempt, producing `Done`
     /// or `Refused`.
     Claim {
-        /// The prepared run's reasons (jig/docs/design/domain/tasks.md, 8.6).
+        /// The prepared run's reasons (jig/docs/design/domain/tasks/messages.md, 6).
         reasons: crate::Reasons,
-        /// The kinds its preparation offers (jig/docs/design/domain/tasks.md, 8.6).
+        /// The kinds its preparation offers (jig/docs/design/domain/tasks/messages.md, 6).
         offered: crate::Reasons,
         /// Destination owed one `Done` or `Refused` terminal.
         reply_to: ReplyTo,
@@ -1901,7 +1901,7 @@ pub enum Event {
     NothingAwaitedNotice { task: u64, message: u64 },
     /// A caller cancels its own unanswered question.
     CancelQuestion { reply_to: ReplyTo, task: u64, question: u64 },
-    /// Root numbers the notice that a kept task goes on (domain/tasks.md, 5.7 and 8.1).
+    /// Root numbers the notice that a kept task goes on (domain/tasks/lifecycle.md, 8, and domain/tasks/messages.md, 1).
     MetNotice { task: u64, dependency: u64, removed: bool, by: Party, message: u64 },
     /// Admit one `Live`/`Ledger` row during restoring; invalid input permanently fails restoration
     /// with `RestoreRefused`.
@@ -1912,10 +1912,10 @@ pub enum Event {
     },
     /// From the parent, once every record its checks read is restored,
     /// the connectors' among them, and before the store switches
-    /// (domain/engine.md, 6): the whole set's checks, its links, stubs,
+    /// (domain/engine/restart.md): the whole set's checks, its links, stubs,
     /// writers, waits and funders. A broken set fails the start; a
     /// waiter left on a circle of waits is held, its writes landing in
-    /// the copy (tasks.md, 6.7).
+    /// the copy (domain/tasks/holds.md, 7).
     Check,
     /// Replay bounded activations/adoptions/closing outputs after `Check` passed.
     /// Before `Check`, refuses as out of order. Repetition after ready/failed is ignored.
@@ -1923,7 +1923,7 @@ pub enum Event {
 }
 
 /// Tasks-to-root persistence, lifecycle and terminal reply outputs; root groups resulting
-/// saves/erases with effects and delays outward replies until durability. (domain/tasks.md, section 5).
+/// saves/erases with effects and delays outward replies until durability. (domain/tasks/lifecycle.md).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
     /// Placed hold lifted; count of tasks released from their held phase.
@@ -1958,9 +1958,9 @@ pub enum Request {
     QuestionOwedDue { task: u64 },
     /// Number the always-waking notice for an idle result-ended task.
     NothingAwaitedDue { task: u64 },
-    /// Make the idle task's closer instead of numbering a notice (domain/tasks.md, 5.10).
+    /// Make the idle task's closer instead of numbering a notice (domain/tasks/lifecycle.md, 11).
     CloserDue { task: u64 },
-    /// Root supplies one message number for the notice that a kept task goes on (domain/tasks.md, 5.7 and 8.1).
+    /// Root supplies one message number for the notice that a kept task goes on (domain/tasks/lifecycle.md, 8, and domain/tasks/messages.md, 1).
     MetDue { task: u64, dependency: u64, removed: bool, by: Party },
     /// One nonfinal held decision passed its configured wait.
     EscalationStalled { task: u64, revision: u64, holder: crate::EscalationHolder },
@@ -2136,7 +2136,7 @@ pub enum Cause {
     Unpriced,
 }
 
-/// A dependency an amendment added to a live task (domain/tasks.md, section 7).
+/// A dependency an amendment added to a live task (domain/tasks/changes.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Added {
     pub task: u64,
@@ -2147,11 +2147,11 @@ pub struct Added {
 }
 
 /// Owned semantic preparation snapshot emitted to root, bounded by task limits; not a
-/// second mutable `TaskRecord` or `funding` ledger. (domain/tasks.md, section 3).
-/// (domain/engine.md, sections 7.1 and 9).
+/// second mutable `TaskRecord` or `funding` ledger. (domain/tasks/README.md, section 3).
+/// (domain/engine/executors.md, section 1, and domain/engine/briefs.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RunContext {
-    /// Why this run runs (jig/docs/design/domain/tasks.md, 8.6).
+    /// Why this run runs (jig/docs/design/domain/tasks/messages.md, 6).
     pub reasons: crate::Reasons,
     pub ended_by: crate::EndedBy,
     pub llm: Option<crate::LlmChoice>,
@@ -2168,10 +2168,10 @@ pub struct RunContext {
     /// `pending`.
     pub dependencies: Box<[u64]>,
     /// The dependencies an amendment added, with when and by whom, for the brief's account of
-    /// what the task waited for (domain/engine.md, section 9).
+    /// what the task waited for (domain/engine/briefs.md, section 1).
     pub added: Box<[Added]>,
     /// Pending dependencies keeping the task, the oldest first; a procedure steps knowing them
-    /// (domain/tasks.md, 5.7; domain/connectors.md, 6.1).
+    /// (domain/tasks/lifecycle.md, 8; domain/connectors.md, 6.1).
     pub pending: Box<[u64]>,
     /// Resources whose next activation resumes saved state.
     pub saved: Box<[SavedResource]>,
@@ -2263,7 +2263,7 @@ pub enum Bound {
     Output,
 }
 
-/// The generic inbox inputs consumed by a connector procedure (domain/tasks.md, 8.1).
+/// The generic inbox inputs consumed by a connector procedure (domain/tasks/messages.md, 1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ProcedureInput {
     News,

@@ -269,7 +269,7 @@ the fake's own process story.
   no model since models became settings (`../protocol/configuration.md`,
   section 2), so the story has not run since ws says it drains, and jig's
   hub, translation and fleet tests alone hold the drain (jig's
-  `domain/engine.status.md`, its 8), where the request `ignored-misc` of
+  `domain/engine/README.status.md`, its 8), where the request `ignored-misc` of
   2026-11-08 asked that it run by name and pass, a test whose design has
   moved being rewritten to it.
   2.6: the

@@ -1,4 +1,4 @@
-//! Fresh wire names and one terminal per watch (protocol/client.md, 7).
+//! Fresh wire names and one terminal per watch (protocol/client/README.md, 5).
 use crate::{Limits, Request};
 use jig_client_domain::Family;
 use jig_client_domain::contract::{WatchEnd, WatchEvent};

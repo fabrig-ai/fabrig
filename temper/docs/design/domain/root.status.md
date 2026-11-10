@@ -29,7 +29,7 @@ tests read each address's reads as a step function
 (`temper-engine-domain/src/tests/see.rs`) and the engine world's
 `configuring/asking_person.rs` reads them through jig and the forge. The
 run's proposal read that `see proposal` makes is jig's
-`domain/engine.md`, 7.3, *A run's proposal read*, routed as 5.2 routes
+`domain/engine/executors.md`, 3, *A run's proposal read*, routed as 5.2 routes
 jig's named actions (`route/see/proposal.rs`, `NamedAction::ReadProposal`).
 
 Section 7.1 has no known gap in assigning an asking charter no home,
@@ -148,4 +148,3 @@ LINKED`, as for every link jig's start cannot make
   `decision.rs`, `host_within`, relies on that bound for settings output
   held before its commit. The application settings' contribution is omitted;
   no reason is recorded.
-

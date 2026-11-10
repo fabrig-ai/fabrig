@@ -1,11 +1,11 @@
-//! Load and link stored accounts (jig/docs/design/domain/engine.md, 6).
+//! Load and link stored accounts (jig/docs/design/domain/engine/restart.md).
 use crate::domain::{Account, Domain, Hold, Source, settle};
 use crate::records::within;
 use crate::{Deadline, Fact, Held, Key, Kind, Limits, Stored};
 use skein_lib::{Duration, Env, List, Map, Wall};
 
 /// A kept hold means the same after a restart: a reset passed while the child was down has
-/// lifted it, and a later one is projected onto this run's clock (engine.md, 5.4).
+/// lifted it, and a later one is projected onto this run's clock (domain/engine/README.md, 5.4).
 fn hold(entry: &mut Source, env: &Env<Limits>, kept: Option<Held>) {
     let (hold, attention) = match kept {
         None => return,
@@ -33,7 +33,7 @@ pub(crate) fn left(now: Wall, reset: Wall) -> Option<Duration> {
 }
 
 /// Representation and retained-set fit (jig/docs/design/domain/accounts.md, 3.6;
-/// jig/docs/design/domain/engine.md, 6).
+/// jig/docs/design/domain/engine/restart.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RestoreSet {
     Accounts,
@@ -44,7 +44,7 @@ pub enum RestoreSet {
 }
 
 /// The first fit failure of a start (jig/docs/design/domain/accounts.md, 3.6;
-/// jig/docs/design/domain/engine.md, 6), retained until the next cold start.
+/// jig/docs/design/domain/engine/restart.md), retained until the next cold start.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct RestoreLimit {
     pub key: Key,
@@ -52,7 +52,7 @@ pub struct RestoreLimit {
     pub limit: u32,
 }
 
-/// The first stored reference that cannot be linked (engine.md, 6).
+/// The first stored reference that cannot be linked (domain/engine/restart.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct RestoreLink {
     pub key: Key,
@@ -65,7 +65,7 @@ fn refuse(domain: &mut Domain, key: Key, set: RestoreSet, limit: u32) {
     }
 }
 
-/// Load decoded records without applying the writers' rules (engine.md, 6).
+/// Load decoded records without applying the writers' rules (domain/engine/restart.md).
 /// A source keeps its position until every account and reservation has arrived.
 pub(crate) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored) {
     let key = record.key();
@@ -147,7 +147,7 @@ pub(crate) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored) {
     }
 }
 
-/// Attach every retained source and directory before activation (engine.md, 6).
+/// Attach every retained source and directory before activation (domain/engine/restart.md).
 /// Missing owners and conflicting positions or reservations refuse the start.
 pub(crate) fn link(domain: &mut Domain, env: &Env<Limits>) {
     if domain.restore_failure.is_some() || domain.restore_link.is_some() {

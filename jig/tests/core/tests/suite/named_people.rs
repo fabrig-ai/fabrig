@@ -1,4 +1,4 @@
-//! Outside person names must link at the next start (jig/docs/design/domain/engine.md, 5.1 and 6).
+//! Outside person names must link at the next start (jig/docs/design/domain/engine/README.md, 5.1 and jig/docs/design/domain/engine/restart.md).
 use jig_core_world::fixtures::{ask, live_row};
 use jig_core_world::world::{Setup, World};
 use jig_domain_authority as authority;

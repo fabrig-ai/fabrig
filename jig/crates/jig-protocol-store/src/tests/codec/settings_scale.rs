@@ -1,4 +1,4 @@
-//! Settings keep byte-summed verdict rules at the deployment's scale (protocol/store.md, 5.1).
+//! Settings keep byte-summed verdict rules at the deployment's scale (protocol/store/records.md, 1).
 use super::fixtures;
 use crate::{codec::settings, settings_v1};
 use jig_domain_authority as authority;

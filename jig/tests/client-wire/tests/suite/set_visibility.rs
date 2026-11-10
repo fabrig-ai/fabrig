@@ -1,4 +1,4 @@
-//! Project visibility records (jig/docs/design/domain/people.md, 13.2 and 13.8).
+//! Project visibility records (jig/docs/design/domain/people/public-reading.md, 2 and 8).
 use jig_client_protocol_wire::v19 as w;
 use skein_lib::{List, Reader, Writer};
 

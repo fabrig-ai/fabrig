@@ -45,7 +45,7 @@ pub(crate) fn parse(
     object.finish(document, path, problems);
     Some(Clients { heartbeat: heartbeat?, link: link?, approval: approval?, provider })
 }
-/// The startup catalogue in the clients' numbered positions (domain/engine.md, 17.11).
+/// The startup catalogue in the clients' numbered positions (domain/engine/settings.md, 11).
 #[must_use]
 pub fn models(llm: &crate::Llm) -> Box<[jig_protocol_engine_clients::Model]> {
     jig_protocol_engine_clients::translate::llm::catalogue(&llm.models)
@@ -100,7 +100,7 @@ pub fn public_bounds(config: &crate::Engine) -> jig_client_protocol_wire::Public
         projects: config.limits.core.people.projects,
     }
 }
-/// The clients' settings, with no provider and no addresses (protocol/client.md, 18).
+/// The clients' settings, with no provider and no addresses (protocol/client/openid.md).
 #[must_use]
 pub fn settings(config: &crate::Engine, application: &Application, seed: Secret, stream: u64) -> kit::Settings {
     let mut providers = List::with_capacity(u32::try_from(config.providers.len()).expect("bounded providers"));
@@ -400,10 +400,10 @@ mod proposal_settings_tests {
 }
 
 // PublicLine's bound is 128 bytes until public-wire supplies its encoded bound
-// (jig/docs/design/domain/people.md, 13.9).
+// (jig/docs/design/domain/people/public-reading.md, 9).
 const PUBLIC_LINE_BYTES: u64 = 128;
 
-/// Public admission relations checked at start (configuration.md, 6).
+/// Public admission relations checked at start (protocol/limits.md).
 pub(crate) fn check_public(limits: &crate::Limits, problems: &mut Problems) {
     let public = &limits.clients.public;
     if public.max_age > 60 {

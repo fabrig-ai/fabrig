@@ -1,4 +1,4 @@
-//! Whole pages and single documents (protocol/client.md, 3 and 6).
+//! Whole pages and single documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
 use super::{
     Box, Limits, List, Reader, Wall, c, chip_fields, offered_piece, result_fields, specification_document_fields,
     task_contract_document_fields, task_link_fields, too_large, w,

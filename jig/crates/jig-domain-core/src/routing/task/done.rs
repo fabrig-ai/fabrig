@@ -1,5 +1,5 @@
 //! Successful task continuations and their named-call terminals
-//! (jig/docs/design/domain/engine.md, 4.4).
+//! (jig/docs/design/domain/engine/README.md, 4.4).
 
 use crate::{
     Ask, CallPart, Core, GoalRoute, Limits, PersonProposalRoute, PersonTaskRoute, Request, RoutedCall,

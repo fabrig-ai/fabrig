@@ -1,5 +1,5 @@
 //! Person adoption of a live task, with one reservation transfer and requester-tree rewrite
-//! (domain/tasks.md, section 7; domain/authority.md, section 7). Root authenticates the
+//! (domain/tasks/changes.md; domain/authority.md, section 7). Root authenticates the
 //! adopter and policy rights; this child checks every local row before changing any of them.
 #![cfg_attr(
     not(target_arch = "wasm32"),
@@ -88,7 +88,7 @@ pub(crate) fn refuse(
     }
 }
 
-/// Move a task to a person's tree (domain/tasks.md, section 7).
+/// Move a task to a person's tree (domain/tasks/changes.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Move {
     pub task: u64,

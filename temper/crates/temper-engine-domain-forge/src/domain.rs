@@ -2737,7 +2737,7 @@ fn lost_read(
         return;
     }
     // The writer slot is freed only once the branch is read afresh (jig's
-    // domain/tasks.md, 6.3). Busy waits for call room; NotConnected waits
+    // domain/tasks/holds.md, 3). Busy waits for call room; NotConnected waits
     // for this forge's connection (domain/forge.md, 16), without ready work.
     let waiting = match result {
         Err(skein_forge::api::Error::Busy) => Some(LostReadState::WaitingForRoom),

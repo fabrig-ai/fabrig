@@ -1,6 +1,6 @@
-//! One bounded exchange per request-table attempt (protocol/client.md, 5).
-//! A family's admission refusal uses jig's wire (contract.md, 3.3).
-//! Transport admission counts unfinished exchanges (jig/docs/design/protocol/client.md, 13).
+//! One bounded exchange per request-table attempt (protocol/client/README.md, 3).
+//! A family's admission refusal uses jig's wire (client/domain/contract/requests.md, 3).
+//! Transport admission counts unfinished exchanges (jig/docs/design/protocol/client/README.md, 10).
 use crate::{Event, Fact, Limits, Message, Request, Streamed, Unusable, translate};
 use alloc::boxed::Box;
 use jig_client_domain::{Answered, Ask, Family, Readable, Readout, Retry, Watchable};
@@ -37,7 +37,7 @@ pub(super) enum ExchangeKind {
     SignIn,
     SignOut { generation: u64 },
     // `carrying`: an exchange carrying a value either way, sent once and never held
-    // behind the store (protocol/client.md, 5 and 10).
+    // behind the store (protocol/client/README.md, 3 and 7).
     Attempt { carrying: bool },
     Read { turn: Option<(u64, u64, u32)> },
     WatchOpen { name: u64 },

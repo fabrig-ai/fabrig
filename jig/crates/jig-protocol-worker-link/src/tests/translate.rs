@@ -423,7 +423,7 @@ fn hello_with_program_endpoints(count: u32) -> Hello {
 
 #[test]
 fn the_hello_admits_the_endpoint_cap_and_refuses_past_it_or_a_duplicate() {
-    // hosts.md, 8.1: 64 distinct endpoint identities per hello.
+    // domain/hosts/charters.md, 1: 64 distinct endpoint identities per hello.
     const ENDPOINT_CAP: u32 = 64;
     let mut duplicate = hello_with_program_endpoints(ENDPOINT_CAP);
     *duplicate.bounds.program_endpoints.last_mut().expect("nonempty endpoint list") = 0;

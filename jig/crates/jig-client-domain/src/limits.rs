@@ -1,14 +1,14 @@
-//! Bounded client handles and engine watch documents (client/domain/client.md, 14).
+//! Bounded client handles and engine watch documents (client/domain/client/README.md, 11).
 use skein_lib::{Duration, RequestLimits};
 /// A carried value's most bytes: the client wire's bound on `Keyed.value`
-/// (protocol/client.md, 5).
+/// (protocol/client/README.md, 3).
 pub const VALUE_BYTES: usize = 131_072;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Backoff {
     pub first: Duration,
     pub most: Duration,
 }
-/// Whole account-list receiving counts (client/domain/client.md, 14).
+/// Whole account-list receiving counts (client/domain/client/README.md, 11).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct AccountCounts {
     pub accounts: u32,

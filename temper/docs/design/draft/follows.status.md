@@ -14,7 +14,7 @@
     procedure (`domain/connectors.md`, 6.6) is the nearest shape. The owner's
     merge, hold and skip have no tool or act of their own
     (`../domain/agent.md`, 4.3). jig holds a change whose dependency is
-    cancelled until an amendment removes it (jig's `domain/tasks.md`, 5.5):
+    cancelled until an amendment removes it (jig's `domain/tasks/lifecycle.md`, 6):
     no design amends the next follow change's dependency in the same
     decision as a merge or a skip.
   - 4: a gate's dispatch (`../domain/landing.md`, 7.1) has no input for

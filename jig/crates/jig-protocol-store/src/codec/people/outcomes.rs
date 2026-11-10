@@ -1,4 +1,4 @@
-//! Permanent people outcomes and their refusal facts (protocol/store.md, 5.1).
+//! Permanent people outcomes and their refusal facts (protocol/store/records.md, 1).
 use super::{domain, wire};
 use skein_lib::{Token, Wall};
 mod facts;

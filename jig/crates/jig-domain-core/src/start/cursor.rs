@@ -1,4 +1,4 @@
-//! Typed positions in the restart walk (protocol/store.md, 4.3 and 7.2).
+//! Typed positions in the restart walk (protocol/store/README.md, 4.3, and protocol/store/loads.md, 2).
 //! The protocol's encoded intervals are checked against these typed places.
 use crate::{Key, start::RestoreRange};
 

@@ -1,4 +1,4 @@
-//! Whole single-read owner documents (protocol/client.md, 3 and 6).
+//! Whole single-read owner documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
 use super::super::{chips, owner, task, w};
 use alloc::boxed::Box;
 use jig_domain_core::documents as d;

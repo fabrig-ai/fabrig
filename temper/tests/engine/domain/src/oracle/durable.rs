@@ -1,4 +1,4 @@
-//! Each restart-rebuilt document field is declared here (jig engine.md, 15).
+//! Each restart-rebuilt document field is declared here (jig jig/docs/design/domain/engine/README.md, 9).
 use jig_domain_core::{documents as docs, reads::Answer};
 
 pub(super) fn answer(mut answer: Answer) -> Answer {

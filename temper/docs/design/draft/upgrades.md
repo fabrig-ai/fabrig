@@ -75,7 +75,7 @@ spellings are placeholders.
 | the cache | the cache directory | — | never carried |
 
 The directories are `../protocol/configuration.md`'s (section 12); what
-the store holds is jig's `protocol/store.md` (4.4) and
+the store holds is jig's `protocol/store/README.md` (4.4) and
 `../protocol/store.md`'s (section 2).
 
 **What must keep its identity:** the deployment's id, which names its
@@ -92,9 +92,9 @@ acknowledged is in the engine or on the forge.
 ### 3.1 Every start
 
 - **It reads the levels first.** jig's store, as it opens (jig's
-  `protocol/store.md`, section 10), reads the patch levels in the format
+  `protocol/store/opening.md`), reads the patch levels in the format
   row and compares them with the binary's (4.2). Equal, it opens as
-  today. Behind, it patches a copy (section 6), printing a line per patch
+  today. Behind, it patches a copy (`upgrades.md`, section 6), printing a line per patch
   and what it counted, then opens the new generation as today.
 - **Every shape with a store:** `temper serve`, an engine alone and
   `temper box` (`../protocol/README.md`, section 15). A worker alone
@@ -125,8 +125,8 @@ acknowledged is in the engine or on the forge.
   effect is committed before it is made.
 - **Transcripts are shared** (section 6): a frame the new version wrote
   past the old generation's committed lengths, never committed, is cut
-  at the old one's open, as after a crash (jig's `protocol/store.md`,
-  8.4).
+  at the old one's open, as after a crash (jig's `protocol/store/transcripts.md`,
+  4).
 - **After that commit,** going back is restoring a backup. The new
   version may have acted on the forge, and the old one, restored, may act
   again; an owned Forgejo migrated since needs its dump restored with it
@@ -135,7 +135,7 @@ acknowledged is in the engine or on the forge.
 ### 3.3 Backups
 
 A backup is a copy of the data directory with the deployment stopped
-(jig's `protocol/store.md`, section 16; `../protocol/setup.md`, section
+(jig's `protocol/store/README.md`, section 11; `../protocol/setup.md`, section
 16). The previous generation is a copy of the maps alone, not of the
 transcripts, the forge or the programs' logins. Online backups stay open
 (section 15).
@@ -164,7 +164,7 @@ release, not at a landing; `first-release.md` proposes v0.1.0.
   more of its owner's families and prepares each one's next released
   version.
 - **The format row is the table of applied patches:** each owner's level
-  beside each family's version (jig's `protocol/store.md`, 5.3), written
+  beside each family's version (jig's `protocol/store/records.md`, 3), written
   by the patching's last commit.
 - **Versions move at a release,** so a released version names one
   layout. Before the baseline, schema changes keep the current number
@@ -196,7 +196,7 @@ in its owner's crate beside the schemas. By kind:
 - **Written:** a change of meaning, or a field whose value is computed
   from others, as a function over the generic values; and a change of
   keys, since jig's keys are written out by hand, not generated from
-  schemas (jig's `protocol/store.md`, 4.1).
+  schemas (jig's `protocol/store/README.md`, 4.1).
 
 What every patch keeps:
 
@@ -211,8 +211,8 @@ What every patch keeps:
   connectors' keyed outcomes and decisions are kept, so a request sent
   again after the upgrade is answered as before.
 - **Indexes follow their records:** a patch that changes what an index
-  derives from rebuilds it from its records (jig's `protocol/store.md`,
-  7.4).
+  derives from rebuilds it from its records (jig's `protocol/store/loads.md`,
+  4).
 
 ### 4.4 Values nested in another owner's
 
@@ -282,7 +282,7 @@ What every patch keeps:
   transcripts/             shared by every generation
 ```
 
-- **jig's deployment directory holds them** (jig's `protocol/store.md`,
+- **jig's deployment directory holds them** (jig's `protocol/store/README.md`,
   section 2): its open reads `active` and opens that generation's maps,
   and a first start makes generation 1. The layout is the baseline's
   from the start, so no upgrade ever moves today's.
@@ -322,7 +322,7 @@ What every patch keeps:
 - **The copy opens as any store does:** skein-kv recovers its snapshot
   and the log's longest valid prefix (skein's `kv.md`, section 3), and
   jig's store checks its format row and the deployment's header (jig's
-  `protocol/store.md`, section 10).
+  `protocol/store/opening.md`).
 - **Patches are ordinary commits** through jig's store, each within
   skein-kv's bounds and each writing the deployment's header, as every
   commit does. So the commit numbering carries on from the old
@@ -333,7 +333,7 @@ What every patch keeps:
 ### 6.3 Secrets
 
 - **Patched as the records are,** in their own map with its own commits
-  (jig's `protocol/store.md`, section 9): jig's credentials' digests and
+  (jig's `protocol/store/secrets.md`): jig's credentials' digests and
   LLM accounts' records, temper's forge records, and skein's OAuth
   records by skein-oauth's patches.
 - **Their numbers kept:** sources', accounts' and the carried values'
@@ -345,23 +345,23 @@ What every patch keeps:
 No check runs before the switch, as the user decided. The copy is
 opened as any start opens a store, decoding each record under its codec
 and fitting the deployment's limits, and the start links what it loaded
-(jig's `domain/engine.md`, section 6): nothing is judged, and a link
+(jig's `domain/engine/restart.md`): nothing is judged, and a link
 that cannot be made, a writer's bug, panics. The checks
 are tests, written when a schema changes: each patch proved over sample
 stores (13), and the cross-record rules as oracles over every writer, a
-cold restart closing every world story (jig's `domain/engine.md`,
-section 15). The counts per family, before and after, stay in the
+cold restart closing every world story (jig's `domain/engine/README.md`,
+section 9). The counts per family, before and after, stay in the
 manifest.
 
 ### 6.5 The formats on disk
 
 skein-kv's frames and snapshot, at version 1 since it was written (skein
 288c5423), and the transcripts' framing, a frame's length at both ends
-and its checksum (jig's `protocol/store.md`, 8.1), are left as they are.
-The gate fingerprints them as it does every kept format (section 12), so
+and its checksum (jig's `protocol/store/transcripts.md`, 1), are left as they are.
+The gate fingerprints them as it does every kept format (`upgrades.md`, section 12), so
 a change is seen. Changing one after the baseline waits for an upgrade of
-its own, a tool of its owner's, as `pg_upgrade` is PostgreSQL's (section
-15).
+its own, a tool of its owner's, as `pg_upgrade` is PostgreSQL's (`upgrades.md`, section 15
+).
 
 ## 7. What survives
 
@@ -378,7 +378,7 @@ outcomes; the deployment's and installation's ids.
 
 - **Patched as read.** A frame keeps the versions it was written in,
   jig's for its fields and smith's for its turn. jig's transcripts' reads
-  (jig's `protocol/store.md`, 8.3) apply the patches between to each
+  (jig's `protocol/store/transcripts.md`, 3) apply the patches between to each
   frame's fields and turn, so the engine hands out every turn in the
   current version, to a client or a run. Old frames are never rewritten,
   so the places the map keeps for them stay true.
@@ -387,7 +387,7 @@ outcomes; the deployment's and installation's ids.
   conversation means to an agent says that windows across it start
   fresh. Patching then closes each live window, and the next attempt
   starts from a brief carrying the transcript's tail, as jig starts one
-  past the resume limit (jig's `domain/engine.md`, 7.2): a transition,
+  past the resume limit (jig's `domain/engine/executors.md`, 2): a transition,
   not a failed attempt.
 - **Every live task keeps its definition,** its inbox, its holds and its
   place in its queue.
@@ -408,16 +408,16 @@ outcomes; the deployment's and installation's ids.
 - **Pages reload.** The bundle is the new binary's; a page of the old
   version learns from the stream's hello that its versions are not
   served, and holds its requests unsent until it reloads (jig's
-  `client/domain/client.md`, 8.2).
+  `client/domain/client/watches.md`, 2).
 - **A kept request of another version is dropped,** and the person told
-  (jig's `protocol/client.md`, section 10). Its outcome may have been
+  (jig's `protocol/client/README.md`, section 7). Its outcome may have been
   committed before the stop, so the notice says it may have been made.
   Patching them too is open (section 15).
 
 ### 7.5 What is lost
 
-- What retention erased before the upgrade (jig's `protocol/store.md`,
-  11.1; temper's bounded `Landed`, `../protocol/store.md`, section 7). A
+- What retention erased before the upgrade (jig's `protocol/store/README.md`,
+  6.1; temper's bounded `Landed`, `../protocol/store.md`, section 7). A
   deployment that keeps history long sets its retention first.
 - A run's unsaved state on its worker, in a full upgrade, as at any
   stop.
@@ -426,7 +426,7 @@ outcomes; the deployment's and installation's ids.
 ## 8. Effects in flight
 
 - **Every stop settles first.** Told to stop, before it stops taking
-  commits (jig's `domain/engine.md`, 6.1), the engine starts no effect,
+  commits (jig's `domain/engine/restart.md`, 1), the engine starts no effect,
   places no run and steps no procedure, answers busy a run's call that
   would start an effect, and commits the outcomes of the effects in
   flight within their deadlines. Then it stops as today. Past a bound, it
@@ -439,8 +439,8 @@ outcomes; the deployment's and installation's ids.
   a family that holds an effect in flight: then it refuses, naming each
   effect and its task, and saying to start the previous version and stop
   it again. An entry no patch touches is recovered by the new version as
-  after any stop (jig's `domain/engine.md`, section 6, step 5), by a key
-  whose version every later version reads (section 11). So no patch has
+  after any stop (jig's `domain/engine/restart.md`, step 5), by a key
+  whose version every later version reads (`upgrades.md`, section 11). So no patch has
   to keep a reshaped effect recoverable, and most starts never refuse.
 
 ## 9. The engine alone
@@ -449,7 +449,7 @@ outcomes; the deployment's and installation's ids.
   workers and end every live attempt before the switch, even when their
   wires match. Only a mark beyond the store's applied level counts.
 - **The workers may stay** when the new engine speaks their channel's
-  version (jig's `protocol/channel.md`, 4.1) and temper's payload version
+  version (jig's `protocol/channel/README.md`, 4.1) and temper's payload version
   (`../protocol/README.md`, section 9), and hands out smith's charters
   and turns in the versions their agents read, and there is no such
   pending fresh mark. Patching keeps live claims and attempts, since it
@@ -462,11 +462,11 @@ outcomes; the deployment's and installation's ids.
   levels and wires.
 - **The window must fit the workers' grace:** the settled stop, the
   patching and the start, within the grace the workers' configuration
-  sets (jig's `protocol/channel.md`, 10.1). The rehearsal (3.1) measures
+  sets (jig's `protocol/channel/README.md`, 9.1). The rehearsal (3.1) measures
   the patching.
 - **Meanwhile, the workers carry on:** they keep the turns and answers
   not acknowledged and redial, and the new engine's restart adopts each
-  run as its worker says hello (jig's `domain/engine.md`, section 6,
+  run as its worker says hello (jig's `domain/engine/restart.md`,
   step 3). A run's call that would start an effect waits, answered busy.
 - **The workers follow later,** one at a time if the wire allows, each
   stop ending its runs, which retry elsewhere.

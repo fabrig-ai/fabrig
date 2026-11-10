@@ -1,4 +1,4 @@
-//! Private turn and live call parts shown to their requester alone (`jig/docs/design/domain/engine.md`, 10.1).
+//! Private turn and live call parts shown to their requester alone (`jig/docs/design/domain/engine/briefs.md`, 2.1).
 use crate::settings_support as support;
 use jig_core_world::{
     client_peer::ClientPeer,

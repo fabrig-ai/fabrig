@@ -1,4 +1,4 @@
-//! Core-owned address fields (protocol/store.md, section 4.1).
+//! Core-owned address fields (protocol/store/README.md, section 4.1).
 use jig_domain_core::{CallKey, CoreKey, ProjectionKey};
 use jig_domain_people::Proposer;
 use skein_kv::{KeyReader, KeyWriter};

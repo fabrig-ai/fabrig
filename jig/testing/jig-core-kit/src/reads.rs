@@ -1,4 +1,4 @@
-//! Read receipts observed at the root/store boundary (`contract.md`, section 6).
+//! Read receipts observed at the root/store boundary (`client/domain/contract/README.md`, section 4).
 //! Parties know the last submitted commit and the real store's durable number.
 //! They never inspect the core or the journal. Their receipts survive a crash.
 use crate::{Store, world::World};

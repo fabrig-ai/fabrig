@@ -1,4 +1,4 @@
-//! Request shape and payload validation (domain/people.md, 5.1).
+//! Request shape and payload validation (domain/people/acts.md, 1).
 use crate::{Ask, LimitKind, Limits, Refusal, Seen};
 use alloc::boxed::Box;
 

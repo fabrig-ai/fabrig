@@ -1,5 +1,5 @@
-//! Retained delegate endings and funding records (client/domain/contract.md,
-//! 5–6; pages.md, 5.2 and 6.5). Rows retain their owner's source fields and
+//! Retained delegate endings and funding records (client/domain/contract/documents.md and client/domain/contract/README.md, 4
+//! ; pages.md, 5.2 and 6.5). Rows retain their owner's source fields and
 //! both opaque page edges; no result details or amount left is inferred.
 use super::{Chip, ChipEnding, Cursor, Funder, Numbers};
 use skein_lib::{List, Wall};

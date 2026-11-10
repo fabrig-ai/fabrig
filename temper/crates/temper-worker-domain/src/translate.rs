@@ -3,7 +3,7 @@
 //! specs and outcomes here, and its agents smith's parent face, through small
 //! total functions, each an exhaustive match, so that a variant added on
 //! either side breaks the build in one place. No payload codec: smith's
-//! payloads are the protocol layer's (jig's `domain/hosts.md`, 6.8).
+//! payloads are the protocol layer's (jig's `domain/hosts/hub.md`, 8).
 
 use alloc::boxed::Box;
 
@@ -222,7 +222,7 @@ pub(crate) const fn operation(operation: agent::Operation) -> jig_domain_link::O
 /// Why a run failed, as it reports it. A configured bound on the model call
 /// is `Exceeded`, which jig holds at once; a limited or refused account stays
 /// a failure of its own, for the engine to retry the run once the account has
-/// room (`domain/worker.md`, 4.3; jig's `domain/hosts.md`, 6.3).
+/// room (`domain/worker.md`, 4.3; jig's `domain/hosts/hub.md`, 3).
 pub(crate) const fn run_failure(failure: &agent::RunFailure) -> host::RunFailure {
     match failure {
         agent::RunFailure::Model(agent::ModelFault::Limited { account, reset }) => {

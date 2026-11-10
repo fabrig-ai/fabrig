@@ -1,5 +1,5 @@
 //! Brief, fleet and account outputs translated for the root, with sibling continuations
-//! (`domain/engine.md`, section 4.4).
+//! (`domain/engine/README.md`, section 4.4).
 
 use crate::{
     Ask, Core, CoreRecord, Event, Held, Key, Limits, LinkNow, Now, Record, Request, Write,
@@ -39,7 +39,7 @@ pub(crate) fn append_tasks(core: &mut Core, env: &Env<Limits>, event: tasks::Eve
 
 /// The release's withdrawals keep their records in its decision. A run's activation or
 /// relay is the start's to make from those records, after the durable Wires
-/// (jig/docs/design/domain/engine.md, 17.7).
+/// (jig/docs/design/domain/engine/settings.md, 7).
 fn release_outputs(mut child: Queue<tasks::Request>) -> Queue<tasks::Request> {
     let mut out = Queue::uncapped();
     for _ in 0..child.len() {
@@ -554,7 +554,7 @@ pub(crate) fn tag_account(
                 }
                 out.push(Request::Now(Box::new(Now::Account(request))));
             }
-            // The accounts family (protocol/store.md, 4.4 item 9) keeps each record in the
+            // The accounts family (protocol/store/README.md, 4.4 item 9) keeps each record in the
             // decision that changes it.
             accounts::Request::Save { record } => out.push(Request::Write(Write::Save(Record::Accounts(record)))),
             accounts::Request::Erase { key } => out.push(Request::Write(Write::Erase(Key::Accounts(key)))),

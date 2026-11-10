@@ -1,4 +1,4 @@
-//! Wire asks into the people vocabulary (client/domain/contract.md, 3).
+//! Wire asks into the people vocabulary (client/domain/contract/requests.md).
 use super::Untranslatable;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v19 as w;

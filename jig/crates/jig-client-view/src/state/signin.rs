@@ -1,5 +1,5 @@
 //! The application fills the sign-in slot; secrets stay below the view.
-//! Sign-out parks via the root and return reopens the frame; client/domain/client.md, 12.
+//! Sign-out parks via the root and return reopens the frame; client/domain/client/README.md, 9.
 use crate::{Request, Ui, state::page::Page};
 use skein_lib::{Queue, Token};
 /// The application owns the ways to sign in, under its root owner.

@@ -1,5 +1,5 @@
 //! Picker amendments cross both roots to the next Open activation.
-//! Contract: jig/docs/design/domain/tasks.md, 7; smith/docs/design/domain/session.md, 8.2.
+//! Contract: jig/docs/design/domain/tasks/changes.md; smith/docs/design/domain/session.md, 8.2.
 use super::{Duration, Key, ReplyTo, Script, Token, World, engine, parties, people, tasks};
 
 const PICK: Token = Token::new(950);

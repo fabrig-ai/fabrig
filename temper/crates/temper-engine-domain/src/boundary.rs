@@ -21,7 +21,7 @@ use temper_engine_domain_forge as forge;
 /// brief sections are bounded by brief limits (domain/root.md, 7.1 and 7.2).
 /// The protocol layer encodes it as the hub's assignment, with the forge
 /// workspace beside it as temper's application part (jig's
-/// `protocol/channel.md`, 6.2).
+/// `protocol/channel/README.md`, 5.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Assignment {
     /// Root-issued durable task number.
@@ -29,7 +29,7 @@ pub struct Assignment {
     pub attempt: u64,
     /// The conversation's first attempt, shared by its resumes.
     pub conversation: u64,
-    /// The core's ask for live content (jig's `domain/engine.md`, 7.1).
+    /// The core's ask for live content (jig's `domain/engine/executors.md`, 1).
     pub live: host::LiveAsk,
     /// Configured charter, never selected by the worker.
     pub charter: u32,
@@ -56,7 +56,7 @@ pub struct Assignment {
     pub grants: Box<[Grant]>,
 }
 
-/// One root-owned section in a worker assignment (jig's domain/engine.md, section 9).
+/// One root-owned section in a worker assignment (jig's domain/engine/briefs.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct BriefSection {
     pub kind: BriefKind,
@@ -124,7 +124,7 @@ pub struct ForgeRepository {
 }
 
 /// Concrete checkout roots for one assignment; the workstream that owns
-/// their cache is the hub's (jig's `domain/hosts.md`, 2).
+/// their cache is the hub's (jig's `domain/hosts/README.md`, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ForgeWorkspace {
     pub repositories: Box<[ForgeRepository]>,
@@ -434,7 +434,7 @@ pub enum Event {
     },
     /// Iterate offers progress requested by ready owners.
     Resume,
-    /// The service begins its drain (jig's `domain/engine.md`, 6.1).
+    /// The service begins its drain (jig's `domain/engine/restart.md`, 1).
     Stop,
 }
 /// A window turn's text or its omitted body's length (temper/docs/design/domain/root.md, 8).
@@ -460,7 +460,7 @@ pub enum StoreInput {
         /// Store-echoed positive commit number, at most the latest issued commit; older cumulative
         /// answers are inert.
         number: u64,
-        /// The store's map bytes after this commit (jig's `protocol/store.md`, 11.2).
+        /// The store's map bytes after this commit (jig's `protocol/store/README.md`, 6.2).
         fill: u64,
     },
     Uncommitted {
@@ -484,7 +484,7 @@ pub enum StoreInput {
         /// Echoed generational load token, fenced after its one terminal and reclaim.
         owner: Token,
     },
-    /// The one terminal of a core read load (jig's `client/domain/contract.md`, 6).
+    /// The one terminal of a core read load (jig's `client/domain/contract/README.md`, 4).
     ReadLoaded {
         load: Token,
         result: core::reads::Loaded,
@@ -492,7 +492,7 @@ pub enum StoreInput {
 }
 
 /// The three inputs of a worker channel, in the hub's vocabulary (jig's
-/// `domain/hosts.md`, 2 and 6.4).
+/// `domain/hosts/README.md`, 2, and `domain/hosts/hub.md`, 4).
 #[derive(Hash, Debug)]
 pub enum Link {
     Hello {
@@ -508,7 +508,7 @@ pub enum Link {
 }
 
 /// Temper's application parts beside a hub answer, named by its work tokens
-/// (jig's `protocol/channel.md`, 6.2).
+/// (jig's `protocol/channel/README.md`, 5.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Parts {
     /// Full set of repository tags with saved work after this terminal, when the worker made
@@ -564,7 +564,7 @@ pub enum Fact {
     },
     /// A brief section's forge read failed (temper/docs/design/domain/forge.md, 8.4).
     BriefReadRefused { task: u64, section: &'static [u8], stage: &'static str, error: Option<skein_forge::api::Error> },
-    /// A whole brief failed with its count and fixed reason (jig/docs/design/domain/engine.md, 9.1).
+    /// A whole brief failed with its count and fixed reason (jig/docs/design/domain/engine/briefs.md, 1.1).
     BriefFailed { task: u64, counts: &'static str, reason: Box<[u8]> },
     /// A decoded call refused at admission, before any tool runs.
     CallAdmissionRefused { task: u64, attempt: u64, tool: Box<[u8]>, layer: &'static str, reason: &'static str },
@@ -673,7 +673,7 @@ pub enum ForgeReadAnswer {
 }
 #[derive(Hash, Debug)]
 pub enum PartyInput {
-    /// A visitor read (jig/docs/design/domain/people.md, 13.5).
+    /// A visitor read (jig/docs/design/domain/people/public-reading.md, 5).
     PublicRead {
         reply: ReplyTo,
         read: core::PublicRead,
@@ -722,7 +722,7 @@ pub enum PartyInput {
         digest: [u8; 32],
         request: Application,
         /// The number and digest of a value the request carried, already kept
-        /// in the secrets' store (jig's `protocol/client.md`, 5).
+        /// in the secrets' store (jig's `protocol/client/README.md`, 3).
         carried: Option<core::Carried>,
     },
     StartRecurring {
@@ -923,15 +923,15 @@ pub enum Request {
     ),
     ToChild(Released),
     /// A forge input the drain does not decide, returned to its owner (jig's
-    /// `domain/engine.md`, 6.1).
+    /// `domain/engine/restart.md`, 1).
     Busy(Box<forge::Event>),
-    /// Every commit before the drain is durable (jig's `domain/engine.md`, 6.1).
+    /// Every commit before the drain is durable (jig's `domain/engine/restart.md`, 1).
     Drained,
     Stop,
 }
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum StoreRequest {
-    /// Replace the names before the catalogue decision commits (jig domain/engine.md, 17.11).
+    /// Replace the names before the catalogue decision commits (jig jig/docs/design/domain/engine/settings.md, 11).
     Catalogue {
         names: Box<[core::settings::ModelName]>,
     },
@@ -975,7 +975,7 @@ pub enum WorkerRequest {
 }
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum PartyRequest {
-    /// Replace the clients' catalogue before its decision commits (jig domain/engine.md, 17.11).
+    /// Replace the clients' catalogue before its decision commits (jig jig/docs/design/domain/engine/settings.md, 11).
     Catalogue {
         models: Box<[core::settings::CatalogueModel]>,
     },

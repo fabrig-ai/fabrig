@@ -1,4 +1,4 @@
-//! The hosts with slots (domain/engine.md, section 8): workers are known by
+//! The hosts with slots (domain/engine/fleet.md): workers are known by
 //! their channel for delivery and by the configured worker position each channel
 //! authenticated as for program logins and their answers. A returning worker
 //! gets a fresh channel; stale channel results never update its replacement.
@@ -136,7 +136,7 @@ pub(crate) struct HeldHello {
     hello: Hello,
 }
 
-/// Judge held hellos in arrival order only against restored needs (engine.md, 8).
+/// Judge held hellos in arrival order only against restored needs (domain/engine/fleet.md).
 pub(crate) fn needs_restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     domain.needs_restored = true;
     for _ in 0..domain.held_hellos.len() {
@@ -344,7 +344,7 @@ pub(crate) fn lost(domain: &mut Domain, env: &Env<Limits>, channel: Token, out: 
     domain.facts.push(Fact::Lost { adrift: hosts.len() });
 }
 
-/// A shutdown keeps this channel out of placement (jig/docs/design/domain/engine.md, section 8).
+/// A shutdown keeps this channel out of placement (jig/docs/design/domain/engine/fleet.md).
 pub(crate) fn draining(domain: &mut Domain, channel: Token) {
     let Some(&id) = domain.tokens.get(&channel) else {
         return;
@@ -447,7 +447,7 @@ pub(crate) fn constrained(domain: &Domain, placement: crate::PlacementConstraint
     Some(id)
 }
 
-/// Jobs use declared bounds and room alone (jig/docs/design/domain/engine.md, 7.5).
+/// Jobs use declared bounds and room alone (jig/docs/design/domain/engine/executors.md, 5).
 pub(crate) fn choose_job(domain: &Domain, workstream: u64, job: jig_domain_link::JobBound) -> Option<Id<Channel>> {
     let mut best = None;
     for (_, &id) in &domain.tokens {

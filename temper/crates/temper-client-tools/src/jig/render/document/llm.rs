@@ -1,4 +1,4 @@
-//! Supplied preferences and next-run waits (jig's client/domain/contract.md, 5.1).
+//! Supplied preferences and next-run waits (jig's client/domain/contract/documents.md, 1).
 use super::{Cut, Text, accounts};
 use jig_client::contract as c;
 use skein_json::writer::Encoder;

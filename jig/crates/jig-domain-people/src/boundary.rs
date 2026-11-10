@@ -1,4 +1,4 @@
-//! Root/people messages and durable child records (domain/people.md, sections 3–5). The root supplies authenticated identities, roles and keyed
+//! Root/people messages and durable child records (domain/people/README.md, sections 3–4 and domain/people/acts.md). The root supplies authenticated identities, roles and keyed
 //! requests; people returns bounded routes and persistence intentions. Every
 //! routed flight ends with `Decided`; the root commits before releasing replies.
 //! These values contain no credential secrets, task internals or protocol bytes.
@@ -48,7 +48,7 @@ pub struct Entry {
 }
 
 /// A provider and its stable subject identify one party. Display fields are not keys.
-/// The application numbers providers; no credential is retained (domain/people.md, section 3).
+/// The application numbers providers; no credential is retained (domain/people/README.md, section 3).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct IdentityKey {
     /// The application's configured sign-in provider number.
@@ -82,12 +82,12 @@ pub enum Kind {
 pub enum AccountHolder {
     /// The asking person's own; a service holds no account.
     Own,
-    /// The deployment's, decided by its first owners (domain/people.md, section 3).
+    /// The deployment's, decided by its first owners (domain/people/README.md, section 3).
     Deployment,
 }
 
 /// Root-configured first-owner grant used only when this identity's party record is first made;
-/// bootstrap matches are bounded. (domain/people.md, section 3).
+/// bootstrap matches are bounded. (domain/people/README.md, section 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct InitialOwner {
     /// Project whose roles must already be initialized before first sign-in.
@@ -97,7 +97,7 @@ pub struct InitialOwner {
 }
 
 /// People's project membership label; the root translates it to authority policy and performs the
-/// action checks. (domain/people.md, section 4).
+/// action checks. (domain/people/README.md, section 4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Role {
     /// `Owner` membership; may start chats here, while broader owner actions remain root policy.
@@ -139,7 +139,7 @@ impl Role {
 }
 
 /// One person's authoritative project role; a roles record permits at most one holding per person.
-/// (domain/people.md, section 4).
+/// (domain/people/README.md, section 4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Holding {
     /// Deployment person number, checked for restored references when restoration finishes.
@@ -207,7 +207,7 @@ pub enum NoteScope {
     Goal { goal: u64 },
     /// Guidance for one connector resource pattern in the request's project.
     Resources { connector: u16, pattern: crate::Pattern },
-    /// A person's own preferences, in no project (domain/engine.md, 10.1).
+    /// A person's own preferences, in no project (domain/engine/briefs.md, 2.1).
     Party { party: u64 },
 }
 
@@ -221,7 +221,7 @@ pub enum NoteChange {
 }
 
 /// Authenticated keyed requests admitted by the people child and routed by
-/// the root after role checks (domain/people.md, section 5.1).
+/// the root after role checks (domain/people/acts.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[cfg_attr(
     not(target_arch = "wasm32"),
@@ -231,17 +231,17 @@ pub enum NoteChange {
     )
 )]
 pub enum Ask {
-    /// Propose the settings as a revision left them (jig/docs/design/domain/engine.md, 17.10; jig/docs/design/domain/people.md, 5.1).
+    /// Propose the settings as a revision left them (jig/docs/design/domain/engine/settings.md, 10; jig/docs/design/domain/people/acts.md, 1).
     Restore { revision: u32, reason: Box<[u8]> },
-    /// Delete an owned project (jig/docs/design/domain/people.md, 5.2).
+    /// Delete an owned project (jig/docs/design/domain/people/acts.md, 2).
     RemoveProject { project: u32, grace: Option<Duration> },
     /// Deployment owner changes settings, whose value the core holds during admission.
     ChangeSettings { against: u32, digest: [u8; 32], projects: Box<[u32]> },
-    /// Deployment owner moves live agent tasks to the newest (engine.md, 17.4; people.md, 5.1).
+    /// Deployment owner moves live agent tasks to the newest (domain/engine/settings.md, 4; domain/people/acts.md, 1).
     MoveToNewest { revision: u32 },
     /// Several task operations committed together under one key.
     Compound { project: u32, operations: List<crate::Operation> },
-    /// Make these roots together (domain/people.md, 5.1).
+    /// Make these roots together (domain/people/acts.md, 1).
     Create { project: u32, batch: Box<[crate::Member]> },
     /// Mark results or one conversation's replies seen under this party's key.
     MarkSeen { seen: Seen },
@@ -263,7 +263,7 @@ pub enum Ask {
     Cancel { project: u32, task: u64, reason: Box<[u8]>, grace: Option<Duration> },
     /// Lift a held task's cause and rejudge it.
     Release { project: u32, task: u64, revision: u64, again: Option<bool> },
-    /// End a placed hold, optionally releasing its tasks (domain/tasks.md, 5.9).
+    /// End a placed hold, optionally releasing its tasks (domain/tasks/lifecycle.md, 10).
     Lift { hold: u64, revision: u64, with_tasks: bool },
     /// Claim one role-addressed person task for this authenticated person.
     TakePerson { project: u32, task: u64 },
@@ -299,9 +299,9 @@ pub enum Ask {
     },
     /// Owner changes one mutable part of the project policy for future decisions.
     ChangePolicy { project: u32, change: crate::PolicyChange },
-    /// Owner replaces this project's name (people.md, 5.1).
+    /// Owner replaces this project's name (domain/people/acts.md, 1).
     Rename { project: u32, name: Box<str> },
-    /// Deployment owner makes a project from a configured policy (people.md, 5.2).
+    /// Deployment owner makes a project from a configured policy (domain/people/acts.md, 2).
     MakeProject { name: Box<str>, policy: u32 },
     /// Owner changes one person's current-period pool, preserving already spent and reserved funds.
     SetPool { project: u32, person: u64, budget: u64 },
@@ -324,11 +324,11 @@ pub enum Ask {
     AccountSignOut { holder: AccountHolder, source: u32 },
     /// Change this holder's LLM accounts; carried keys and moved records retain only their digest.
     AccountChange { holder: AccountHolder, change: AccountChange },
-    /// Set an owned project's visibility (jig/docs/design/domain/people.md, 13.2).
+    /// Set an owned project's visibility (jig/docs/design/domain/people/public-reading.md, 2).
     SetVisibility { project: u32, public: bool },
 }
 
-/// The scope and admission family of a keyed request (domain/people.md, 5.1).
+/// The scope and admission family of a keyed request (domain/people/acts.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum AskFamily {
     Project(u32),
@@ -450,7 +450,7 @@ pub enum PersonResult {
     Failure { reason: Box<[u8]> },
 }
 
-/// Immutable proposal maker identity (client/domain/contract.md, section 3.2).
+/// Immutable proposal maker identity (client/domain/contract/requests.md, section 2).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Proposer {
     Task(u64),
@@ -484,7 +484,7 @@ pub enum ProposalChoice {
 }
 
 /// Authenticated person's held-chat choice. Rejection words are bounded by
-/// people words; root also checks child/journal bounds (domain/people.md, section 5.1).
+/// people words; root also checks child/journal bounds (domain/people/acts.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum EscalationDecision {
     /// Lift the held chat's cause and rejudge it under current conditions.
@@ -499,7 +499,7 @@ pub enum EscalationDecision {
 }
 
 /// Semantic kind of a committed decision, returned to a caller or earlier
-/// loser of a race; carries no second task state (domain/people.md, section 5.1).
+/// loser of a race; carries no second task state (domain/people/acts.md, section 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum EscalationChoice {
     /// Hold released.
@@ -510,7 +510,7 @@ pub enum EscalationChoice {
     Passed,
 }
 
-/// The retry, refusal or retained fact carried by an answer (domain/people.md, 5.1–5.3).
+/// The retry, refusal or retained fact carried by an answer (domain/people/acts.md, 1–3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum OutcomeFamily {
     Again(crate::Again),
@@ -525,20 +525,20 @@ pub enum OutcomeFamily {
 }
 
 /// Root's answer for one routed flight; people replies to each bounded waiter and saves
-/// final outcomes with the parent's task decision. (domain/people.md, section 5.1).
+/// final outcomes with the parent's task decision. (domain/people/acts.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Outcome {
     AccountReading {
         count: u32,
     },
-    /// A restore's proposal and omitted settings (jig/docs/design/domain/engine.md, 17.10).
+    /// A restore's proposal and omitted settings (jig/docs/design/domain/engine/settings.md, 10).
     Restored {
         proposal: u64,
         to: u32,
         left_out: Box<[crate::Setting]>,
     },
     /// The project is closed and its deletion kept; the rest completes on its own
-    /// (jig/docs/design/domain/people.md, 5.2).
+    /// (jig/docs/design/domain/people/acts.md, 2).
     ProjectRemoved {
         project: u32,
     },
@@ -550,7 +550,7 @@ pub enum Outcome {
     SettingsChanged {
         revision: u32,
     },
-    /// Live agent tasks moved to the newest, and those that finish on their revision (engine.md, 17.4).
+    /// Live agent tasks moved to the newest, and those that finish on their revision (domain/engine/settings.md, 4).
     MovedToNewest {
         newest: u32,
         moved: u32,
@@ -737,7 +737,7 @@ pub enum Outcome {
     },
     /// Final refusal, retained under the request key.
     Refused(/** Final refusal facts, retained under the request key. */ Refusal),
-    /// The project is public or private from this decision (jig/docs/design/domain/people.md, 13.2).
+    /// The project is public or private from this decision (jig/docs/design/domain/people/public-reading.md, 2).
     VisibilitySet {
         project: u32,
         public: bool,
@@ -745,7 +745,7 @@ pub enum Outcome {
 }
 
 /// Child-to-client answer routed by the parent; state-changing answers are withheld externally
-/// until their decision is durable. (domain/people.md, sections 3 and 5.1).
+/// until their decision is durable. (domain/people/README.md, section 3, and domain/people/acts.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Reply {
     /// The sign-in's party, or none when unknown, ended or past either clock.
@@ -777,7 +777,7 @@ pub enum Reply {
 }
 
 /// Person-scoped idempotency key shared across that person's sign-ins; a different ask under the
-/// same key is a conflict. (domain/people.md, section 5.1).
+/// same key is a conflict. (domain/people/acts.md, section 1).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct RequestKey {
     pub person: u64,
@@ -785,14 +785,14 @@ pub struct RequestKey {
     pub key: [u8; 16],
 }
 
-/// A connector's key space for the deployment's acts (people.md, 5.3).
+/// A connector's key space for the deployment's acts (domain/people/acts.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct ActKey {
     pub connector: u16,
     pub key: [u8; 16],
 }
 
-/// One act a connector makes in the deployment's name (people.md, 5.3).
+/// One act a connector makes in the deployment's name (domain/people/acts.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Act {
     MakeProject {
@@ -820,14 +820,14 @@ pub enum Act {
         adoption: Adoption,
     },
     /// Delete a project: closed at once, its tasks ended and erased, then its rows
-    /// (jig/docs/design/domain/people.md, 5.2). Answered once the project is closed.
+    /// (jig/docs/design/domain/people/acts.md, 2). Answered once the project is closed.
     RemoveProject {
         project: u32,
         grace: Option<Duration>,
     },
 }
 
-/// Which acts the configuration grants a connector (people.md, 5.3).
+/// Which acts the configuration grants a connector (domain/people/acts.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ActKind {
     Close,
@@ -835,7 +835,7 @@ pub enum ActKind {
     RemoveAccount,
     Adopt,
     MakeProject,
-    /// Delete a project (jig/docs/design/domain/people.md, 5.2).
+    /// Delete a project (jig/docs/design/domain/people/acts.md, 2).
     RemoveProject,
 }
 
@@ -845,7 +845,7 @@ impl ActKind {
         &[Self::Close, Self::AddKey, Self::RemoveAccount, Self::Adopt, Self::MakeProject, Self::RemoveProject];
 }
 
-/// A connector's configured deployment authority (people.md, 5.3).
+/// A connector's configured deployment authority (domain/people/acts.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ActGrant {
     pub connector: u16,
@@ -853,7 +853,7 @@ pub struct ActGrant {
 }
 
 /// Logical store key for a people record; the protocol handles bytes and secrets outside this
-/// domain. (domain/people.md, sections 3–5).
+/// domain. (domain/people/README.md, sections 3–4 and domain/people/acts.md).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Key {
     /// Logical person-record key.
@@ -874,14 +874,14 @@ pub enum Key {
     EndedRead { task: u64, party: u64 },
     /// One durable deployment act.
     Acted(ActKey),
-    /// Live deletion, resumed at start (jig/docs/design/domain/people.md, 5.2).
+    /// Live deletion, resumed at start (jig/docs/design/domain/people/acts.md, 2).
     Deletion(u32),
-    /// Present while the project is public (jig/docs/design/domain/people.md, 13.2).
+    /// Present while the project is public (jig/docs/design/domain/people/public-reading.md, 2).
     Public(u32),
 }
 
 impl Key {
-    /// Ended positions are read on demand (protocol/store.md, 7.2).
+    /// Ended positions are read on demand (protocol/store/loads.md, 2).
     #[must_use]
     pub const fn live(&self) -> bool {
         match self {
@@ -901,12 +901,12 @@ impl Key {
 }
 
 /// Owned durable record submitted to the parent or restored from it; capacities and payload
-/// bytes are checked when admitted. (domain/people.md, sections 3–5).
+/// bytes are checked when admitted. (domain/people/README.md, sections 3–4 and domain/people/acts.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Stored {
-    /// Kept deletion (jig/docs/design/domain/people.md, 5.2).
+    /// Kept deletion (jig/docs/design/domain/people/acts.md, 2).
     Deletion { project: u32, step: DeletionStep, grace: Option<Duration> },
-    /// Connector-scoped act and its permanent answer (people.md, 5.3).
+    /// Connector-scoped act and its permanent answer (domain/people/acts.md, 3).
     Acted { key: ActKey, act: Act, outcome: Outcome, at: Wall },
     /// Persistent party identity; provider/subject and party numbers must be unique on restore.
     Person {
@@ -946,14 +946,14 @@ pub enum Stored {
         key: RequestKey,
         /** Original request with words bounded by `Limits::words`, compared on every retry. */
         ask: Box<Ask>,
-        /// Canonical original names referenced by the ask's tagged selectors (store.md, 5.1).
+        /// Canonical original names referenced by the ask's tagged selectors (protocol/store/records.md, 1).
         models: Box<[Box<[u8]>]>,
         /** Retained permanent outcome returned without remaking the decision. */
         outcome: Outcome,
         /** Wall time the answer was made; completed keys are retained for `Limits::request_retention`. */
         at: Wall,
     },
-    /// Present while the project is public (jig/docs/design/domain/people.md, 13.2).
+    /// Present while the project is public (jig/docs/design/domain/people/public-reading.md, 2).
     Public { project: u32 },
 }
 
@@ -978,7 +978,7 @@ impl Stored {
     }
 }
 
-/// Where a kept deletion stands, resumed at start (jig/docs/design/domain/people.md, 5.2).
+/// Where a kept deletion stands, resumed at start (jig/docs/design/domain/people/acts.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum DeletionStep {
     /// Its live tasks cancelled and ended, then each ended task erased whole.
@@ -990,7 +990,7 @@ pub enum DeletionStep {
 }
 
 /// A kept deletion's step and the grace its conversations are cancelled with
-/// (jig/docs/design/domain/people.md, 5.2).
+/// (jig/docs/design/domain/people/acts.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct KeptDeletion {
     pub step: DeletionStep,
@@ -998,7 +998,7 @@ pub struct KeptDeletion {
 }
 
 /// Root-to-child inputs; authenticated identity, authoritative roles and restored records
-/// cross this boundary without protocol secrets. (domain/people.md, sections 3–5).
+/// cross this boundary without protocol secrets. (domain/people/README.md, sections 3–4 and domain/people/acts.md).
 #[derive(PartialEq, Eq, Hash, Debug)]
 #[cfg_attr(
     target_pointer_width = "64",
@@ -1008,11 +1008,11 @@ pub struct KeptDeletion {
     )
 )]
 pub enum Event {
-    /// Keep or erase a deletion row (jig/docs/design/domain/people.md, 5.2).
+    /// Keep or erase a deletion row (jig/docs/design/domain/people/acts.md, 2).
     Deleting { project: u32, step: Option<DeletionStep>, grace: Option<Duration> },
-    /// Remove project roles from memory and storage (jig/docs/design/domain/people.md, 5.2).
+    /// Remove project roles from memory and storage (jig/docs/design/domain/people/acts.md, 2).
     CloseProject { project: u32 },
-    /// Erase retained project answers and acts (jig/docs/design/domain/people.md, 5.2).
+    /// Erase retained project answers and acts (jig/docs/design/domain/people/acts.md, 2).
     ForgetProject { project: u32 },
     /// Admit a connector's deployment act without a sign-in.
     Act { reply_to: ReplyTo, connector: u16, key: [u8; 16], act: Box<Act> },
@@ -1096,7 +1096,7 @@ pub enum Event {
         key: [u8; 16],
         /// Request with payload bounds checked before lookup, route or mutation.
         ask: Ask,
-        /// Canonical original names referenced by the ask's tagged selectors (store.md, 5.1).
+        /// Canonical original names referenced by the ask's tagged selectors (protocol/store/records.md, 1).
         models: Box<[Box<[u8]>]>,
     },
     /// Complete a live `Route` exactly once, retire its flight and answer each waiter; permanent
@@ -1118,7 +1118,7 @@ pub enum Event {
 }
 
 /// Child-to-root outputs; persistence joins the root's decision, and the root withholds external
-/// replies until required writes are durable. (domain/people.md, section 5.1).
+/// replies until required writes are durable. (domain/people/acts.md, section 1).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
     /// A deployment flight; the root owes one Decided.
@@ -1151,7 +1151,7 @@ pub enum Request {
         role: Option<Role>,
         /** Original bounded request, owned by the root for routing and atomic decision. */
         ask: Box<Ask>,
-        /// Canonical original names referenced by the ask's tagged selectors (store.md, 5.1).
+        /// Canonical original names referenced by the ask's tagged selectors (protocol/store/records.md, 1).
         models: Box<[Box<[u8]>]>,
     },
     /// Terminal client output; the parent enforces durability before exposure.
@@ -1280,14 +1280,14 @@ pub enum AccountHostWhy {
     Failed,
 }
 
-/// The live sign-in's party (domain/people.md, 3).
+/// The live sign-in's party (domain/people/README.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Signer {
     pub identity: Identity,
     pub kind: Kind,
 }
 
-/// Semantic outcome of a deployment act (domain/people.md, 5.3).
+/// Semantic outcome of a deployment act (domain/people/acts.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ActStatus {
     Closed,

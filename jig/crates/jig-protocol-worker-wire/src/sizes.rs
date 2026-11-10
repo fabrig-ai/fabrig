@@ -1,4 +1,4 @@
-//! Channel bounds from the owners' numbers (protocol/channel.md, 9 and 11).
+//! Channel bounds from the owners' numbers (protocol/channel/README.md, 8 and 10).
 use crate::{Kind, v9};
 
 /// Bounds supplied by the domains and the application's protocol layer.
@@ -6,7 +6,7 @@ use crate::{Kind, v9};
 pub struct Sizes {
     /// Whole program sources per worker, independent of run slots.
     pub program_sources: u32,
-    /// Bytes in one live piece (protocol/channel.md, 6.4 and 11).
+    /// Bytes in one live piece (protocol/channel/README.md, 5.4 and 10).
     pub piece: u32,
     pub charter: u32,
     /// The whole resumed window, including each turn's four-byte length.
@@ -131,7 +131,7 @@ pub fn largest_body(sizes: &Sizes, kind: Kind) -> Option<u32> {
     body(&limits(sizes)?, kind)
 }
 
-/// The smallest resumed start's frame, its header included (jig/docs/design/protocol/channel.md, 11).
+/// The smallest resumed start's frame, its header included (jig/docs/design/protocol/channel/README.md, 10).
 #[must_use]
 pub fn smallest_resumed(calls: u32, name: u32, tool: u32, answer: u32) -> Option<u32> {
     let call = 14_u64

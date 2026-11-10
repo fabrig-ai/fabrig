@@ -1,4 +1,4 @@
-//! Whole-batch byte admission and restoration (domain/tasks.md, sections 4, 5.6 and 11).
+//! Whole-batch byte admission and restoration (domain/tasks/README.md, section 4, and domain/tasks/lifecycle.md, section 7, and domain/tasks/README.md, section 6).
 use super::revisions::{Harness, LIMITS, task};
 use crate::{
     Contract, Domain, Event, InvalidResult, Limits, New, PersonAction, PersonProposal, PersonProposalState, Proposal,

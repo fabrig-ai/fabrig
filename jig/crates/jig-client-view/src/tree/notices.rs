@@ -1,4 +1,4 @@
-//! Notice outcomes without a visible card (client/domain/client.md, 13).
+//! Notice outcomes without a visible card (client/domain/client/README.md, 10).
 use crate::JigBindings;
 use crate::tree::cards::common;
 use crate::words::Words;

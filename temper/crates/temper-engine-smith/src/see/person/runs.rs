@@ -13,7 +13,7 @@ fn name(attempt: u64, turn: u32) -> Box<[u8]> {
 
 // Use the client's whole-turn contract and its lossless receiving shape. The
 // wire's carried-turn ceiling bounds input; the decoded text can include both
-// a call's outcome and its result block (client/domain/client.md, 10).
+// a call's outcome and its result block (jig/docs/design/client/domain/client/conversations.md).
 fn decode(
     record: &jig_domain_core::TurnRecord,
     inspect: bool,

@@ -1,4 +1,4 @@
-//! A private store survives opening public reading (jig/docs/design/domain/people.md, 13.2).
+//! A private store survives opening public reading (jig/docs/design/domain/people/public-reading.md, 2).
 use super::{checks::PROXY, proxy::Proxy, requests, service, service_checks, visitor::Visitor};
 use crate::{
     ctl::{Caller, Command},

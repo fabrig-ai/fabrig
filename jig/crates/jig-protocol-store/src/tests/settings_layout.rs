@@ -1,4 +1,4 @@
-//! E changes people 13 in place; pre-E layouts refuse before any header decode (store.md, 5.3).
+//! E changes people 13 in place; pre-E layouts refuse before any header decode (protocol/store/records.md, 3).
 use super::fixtures;
 use crate::{Event, Family, Older, OpenRefusal, Request, keys};
 use skein_lib::Token;

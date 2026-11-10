@@ -1,4 +1,4 @@
-//! Repeated losses release the connection's room (protocol/channel.md, 10.2 and 12).
+//! Repeated losses release the connection's room (protocol/channel/README.md, 9.2 and 11).
 use jig_engine_workers_world::{
     World,
     fixtures::{self, SECRET_A, WORKER_A},
@@ -17,7 +17,7 @@ enum Cut {
     Replaced,
     Framing,
 }
-// protocol/channel.md, 12: fifty losses, each way a link is lost.
+// protocol/channel/README.md, 11: fifty losses, each way a link is lost.
 const LOSSES: usize = 50;
 const CUTS: [Cut; 8] =
     [Cut::Silence, Cut::Stall, Cut::Held, Cut::Failed, Cut::Ended, Cut::NotAdmitted, Cut::Replaced, Cut::Framing];

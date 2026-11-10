@@ -1,4 +1,4 @@
-//! Independent answer facts at the party face (client/domain/contract.md, section 4).
+//! Independent answer facts at the party face (client/domain/contract/README.md, section 3).
 use skein_lib::Wall;
 
 /// A setting named independently of the engine's vocabulary.

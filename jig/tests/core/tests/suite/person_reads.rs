@@ -1,4 +1,4 @@
-//! A run reads as its person under the asking family (`jig/docs/design/domain/engine.md`, 7.3).
+//! A run reads as its person under the asking family (`jig/docs/design/domain/engine/executors.md`, 3).
 use crate::settings_support::{self as support, ask, run_configuration, settings_run_with_limits};
 use jig_core_world::fixtures;
 use jig_domain_authority as authority;

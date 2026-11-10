@@ -1,4 +1,4 @@
-//! The worker routes each child output before returning (hosts.md, section 4).
+//! The worker routes each child output before returning (domain/hosts/README.md, section 4).
 use crate::{
     Encodable, Encoded, Event, Limits, Request,
     hand_out::{Finish, Pending},
@@ -120,7 +120,7 @@ impl Domain {
         host::sources_due(&self.hub, now)
     }
 
-    /// Whether the event must stay behind this held entrance (hosts.md, 4).
+    /// Whether the event must stay behind this held entrance (domain/hosts/README.md, 4).
     #[must_use]
     pub fn must_follow(&self, held: &Event, event: &Event) -> bool {
         crate::admission::must_follow(self, held, event)

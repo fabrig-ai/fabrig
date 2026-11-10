@@ -1,4 +1,4 @@
-//! The story's starting documents and atomic changes; contract.md, 5.
+//! The story's starting documents and atomic changes; client/domain/contract/documents.md.
 //! Documents carry offers, revisions, terminal facts and parts in the client's vocabulary.
 use crate::{Bounds, Invalid, Source};
 use jig_client_domain::contract::{Answer, Ask, Me, Note, ObjectKey, ReadValue, Tree};

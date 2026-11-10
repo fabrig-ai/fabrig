@@ -1,7 +1,7 @@
 //! The complete worker: jig's hub, smith's process host and temper's
 //! checkout, against scripted engine and agent peers, the protocol layer's
 //! routing played with smith's codecs, and the fake forge and disk (jig's
-//! `domain/hosts.md`, sections 4, 6.6, 6.8 and 11).
+//! `domain/hosts/README.md`, section 4, and `domain/hosts/hub.md`, sections 6 and 8, and `domain/hosts/README.md`, section 9).
 //! `whole` checks remote trees, delivery settlement, contact loss and the
 //! hello's stop bound. `runtime` measures retained state and replays small
 //! turn windows.

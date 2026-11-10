@@ -1,5 +1,5 @@
-//! Public offers and payer readiness (client/domain/contract.md, 5.1 and 7.1).
-//! Closed at once (jig/docs/design/domain/people.md, 5.2).
+//! Public offers and payer readiness (client/domain/contract/documents.md, 1, and client/domain/contract/README.md, 5.1).
+//! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 use crate::{
     Core, Limits,
     documents::{DocumentLimits, Missing, Text},
@@ -35,7 +35,7 @@ pub struct ProviderOffer {
     /// Whole optional public HTTPS manage target, at most 2,048 bytes.
     pub manage_usage: Option<Box<[u8]>>,
 }
-/// One model of the party's offer (jig/docs/design/domain/engine.md, 11.1).
+/// One model of the party's offer (jig/docs/design/domain/engine/views.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Offered {
     pub model: u8,
@@ -185,7 +185,7 @@ impl Core {
     }
 
     /// The offer for `payer` in `project`, in catalogue number order
-    /// (jig/docs/design/domain/engine.md, 11.1).
+    /// (jig/docs/design/domain/engine/views.md, 1).
     #[must_use]
     pub fn offer(&self, payer: tasks::Payer, project: u32, models: tasks::Models) -> List<Offered> {
         let coverage = self.account_coverage(payer, Some(project));

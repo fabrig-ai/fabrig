@@ -1,4 +1,4 @@
-//! Secret-free program facts (accounts.md, 3.4; client/domain/contract.md, 5.1).
+//! Secret-free program facts (accounts.md, 3.4; client/domain/contract/documents.md, 1).
 use super::{pieces, w};
 use alloc::boxed::Box;
 use jig_domain_core::documents as d;

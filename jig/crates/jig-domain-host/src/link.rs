@@ -1,4 +1,4 @@
-//! The engine link's vocabulary (domain/hosts.md, sections 2 and 6.1).
+//! The engine link's vocabulary (domain/hosts/README.md, section 2, and domain/hosts/hub.md, section 1).
 use crate::{Assignment, Grant, Login, RunAnswer, SignOutResult, SourceName, Turn};
 use alloc::boxed::Box;
 use skein_lib::{Duration, Token};
@@ -21,7 +21,7 @@ pub enum LinkDown {
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum LinkUp {
-    /// The host has started to shut down (hosts.md, 6.7).
+    /// The host has started to shut down (domain/hosts/hub.md, 7).
     Draining,
     ListRead {
         read: u64,
@@ -32,7 +32,7 @@ pub enum LinkUp {
         attempt: Token,
         answer: crate::JobEnding,
     },
-    /// A piece of live content (hosts.md, 6.5).
+    /// A piece of live content (domain/hosts/hub.md, 5).
     Piece {
         run: Token,
         attempt: Token,
@@ -91,7 +91,7 @@ pub enum LinkUp {
 }
 
 impl LinkUp {
-    /// Calls start new work; other reports give notices or settle hosted work (domain/hosts.md, 6).
+    /// Calls start new work; other reports give notices or settle hosted work (domain/hosts/hub.md).
     #[must_use]
     pub const fn new_work(&self) -> bool {
         match self {

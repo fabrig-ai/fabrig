@@ -44,19 +44,19 @@ of it follows landing with the walk.
   - 6.2: `../client/README.md`, 5.16 designs the `view` block and the views `path`, `way`, `proposal` and `charter`; `queue`, `task N tree` and `task N timeline`, and a part of a view opening its own view, are M3b's. The TUI prints the four views as 6.2 has it (`../client/README.md`, 6.14).
   - 8: `../domain/agent.md`, 8.4: the instructions carry the Showing part's first step alone; its other views and the paragraph on sketches join with M3b.
   - 6.3: skein's `ui.md`, 3.5: a flow's node takes no mark but `:::strong`; M3 adds the actors' marks.
-  - 7: jig's `domain/engine.md`, 10.1 gives a brief the person's preferences where its task's requester is the person and its authority holds the asking family, and `../domain/agent.md`, 8.4 has policy 1's roles hold that family; the stock's roles hold it for every task their person starts (`temper-service`'s `stock.rs`, `project_role`), so a person's chats of charter 1, goals and design sessions read the list in their briefs too, where this section has charter 11's runs alone read it, "for now". Found by reading the code; no test reads another charter's brief for the section. The repair keys the section on the run's charter naming the asking family, as `remember`'s declaration is (`../domain/agent.md`, 4.3).
+  - 7: jig's `domain/engine/briefs.md`, 2.1 gives a brief the person's preferences where its task's requester is the person and its authority holds the asking family, and `../domain/agent.md`, 8.4 has policy 1's roles hold that family; the stock's roles hold it for every task their person starts (`temper-service`'s `stock.rs`, `project_role`), so a person's chats of charter 1, goals and design sessions read the list in their briefs too, where this section has charter 11's runs alone read it, "for now". Found by reading the code; no test reads another charter's brief for the section. The repair keys the section on the run's charter naming the asking family, as `remember`'s declaration is (`../domain/agent.md`, 4.3).
 - **Design departs:** 5.2: `../domain/agent.md`, 8.4.2 judges a landing rule's approvals at the call for the chat's own project alone, and leaves another project's to acceptance, which says it to the owner who decides, so that nothing of another project reaches this chat's transcript (5.1); decided by the `ui-ask-m1` cut, 2026-11-07. Proposal parts are held in engine memory and lost at restart, with the next proposing call refused once; section 10 keeps durable parts for later if needed.
 - **Design departs:** 5.1: `../domain/agent.md`, 8.4.1 makes `me` of the
   project read and the inbox's needs filtered by the project, where 5.1
   reads ctl's `me` for the project, because jig's frame spans the person's
   projects and a run's read as its person refuses it (jig's
-  `domain/engine.md`, section 16); and `project`'s "what is held" is the
+  `domain/engine/README.md`, section 10); and `project`'s "what is held" is the
   project's held tasks, a task query of the held phase, where 5.1 reads
   `hold list`, because jig has no read of a project's placed holds (jig's
-  `client/domain/contract.status.md`, 5.6), so a placed hold is said only
+  `client/domain/contract/documents.status.md`, 6), so a placed hold is said only
   through the tasks it holds. Decided by the `ui-ask-m2` cut,
   2026-11-09.
-- **Design departs:** 6.2: `../client/README.md`, 5.16 draws a path or a charter at `@revision N` only where N is the newest revision, and says an older one is not drawn yet, because the settings as an older revision left them are jig's restore's reading (jig's `domain/engine.md`, 17.10), which no read gives a client; and draws `proposal tN/K` for a waiting proposal alone, its "before" the newest settings, since a decided one's paths are a revision's. Decided by the `ui-ask-m3a` cut, 2026-11-08.
+- **Design departs:** 6.2: `../client/README.md`, 5.16 draws a path or a charter at `@revision N` only where N is the newest revision, and says an older one is not drawn yet, because the settings as an older revision left them are jig's restore's reading (jig's `domain/engine/settings.md`, 10), which no read gives a client; and draws `proposal tN/K` for a waiting proposal alone, its "before" the newest settings, since a decided one's paths are a revision's. Decided by the `ui-ask-m3a` cut, 2026-11-08.
 - **Design departs:** 5.2 and 8: `../domain/agent.md`, 8.4.2, has a
   proposal carry the words the pages say its settings by, a charter's and
   the project's (`../protocol/configuration.md`, 13.2, kinds 9 and 10), and

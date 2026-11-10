@@ -1,6 +1,6 @@
 #![expect(clippy::unnecessary_wraps, reason = "fixture translations preserve their fallible production signatures")]
 #![expect(clippy::trivially_copy_pass_by_ref, reason = "fixture translations borrow source facts uniformly")]
-//! Wire fixtures for link translation tests (protocol/client.md, 3).
+//! Wire fixtures for link translation tests (protocol/client/wire.md, 1).
 use crate::Limits;
 use crate::translate::settings::*;
 use crate::translate::too_large;

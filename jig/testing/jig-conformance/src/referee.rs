@@ -2,7 +2,7 @@
 //! A root adapter supplies snapshots of the store, and fakes supply arrivals,
 //! reads and expenses. Scenario policy is captured before constructing the
 //! root; it is never inferred from its live
-//! state (`domain/core.md`, 11; `domain/testing.md`, 6).
+//! state (`domain/model.md`, 11; `domain/testing.md`, 6).
 mod application;
 mod compound;
 mod conversations;
@@ -315,7 +315,7 @@ pub struct Snapshot {
     pub person_spend: BTreeMap<u64, u64>,
     /// Budget, direct spend, settled funded spend and open reservations.
     pub balances: Vec<(u64, u64, u64, u64)>,
-    /// Projects whose deletion row is kept (jig/docs/design/domain/people.md, 5.2).
+    /// Projects whose deletion row is kept (jig/docs/design/domain/people/acts.md, 2).
     pub deleting: BTreeSet<u32>,
     /// Every durable row that names a project or a task, from the store adapter.
     pub naming: Vec<Naming>,
@@ -340,7 +340,7 @@ impl std::fmt::Display for Row {
     }
 }
 
-/// One durable row's names (jig/docs/design/domain/people.md, 5.2).
+/// One durable row's names (jig/docs/design/domain/people/acts.md, 2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Naming {
     /// The row, for the violation's words.
@@ -351,7 +351,7 @@ pub struct Naming {
     pub outlives: Option<Outlives>,
 }
 
-/// What outlives a deleted project (jig/docs/design/domain/people.md, 5.2).
+/// What outlives a deleted project (jig/docs/design/domain/people/acts.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Outlives {
     /// A closed period's ledger: the project's spend in the period's totals.

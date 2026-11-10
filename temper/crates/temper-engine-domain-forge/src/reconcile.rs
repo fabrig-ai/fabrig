@@ -274,7 +274,7 @@ impl Reconciliation {
 }
 impl Domain {
     /// Link restored rows to retained targets; a missing target is a writer bug.
-    #[expect(clippy::panic, reason = "an unmade restored link is a writer bug (jig/docs/design/domain/engine.md, 6)")]
+    #[expect(clippy::panic, reason = "an unmade restored link is a writer bug (jig/docs/design/domain/engine/restart.md)")]
     pub fn reconcile(&mut self, tasks: &jig_domain_tasks::Domain) {
         if self.restore_fit_failure().is_some() {
             return;
@@ -283,7 +283,7 @@ impl Domain {
             panic!("forge link {:?} -> {:?} for {:?}", missing.kind, missing.need, missing.key);
         }
     }
-    /// The first required restored link whose target is absent (jig/docs/design/domain/engine.md, 6).
+    /// The first required restored link whose target is absent (jig/docs/design/domain/engine/restart.md).
     #[must_use]
     pub fn missing_link(&self, tasks: &jig_domain_tasks::Domain) -> Option<MissingLink> {
         if self.restore_fit_failure().is_some() {

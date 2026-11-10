@@ -1,4 +1,4 @@
-//! Requests carrying a value (client/domain/client.md, 6): sent once beside
+//! Requests carrying a value (client/domain/client/requests.md): sent once beside
 //! the table, never saved nor sent again; one answer each.
 use super::fixtures::{Client, FULL_HELD, FULL_ROOM, KEY, NAME, OTHER_KEY, me, stop};
 use crate::contract::Scope;

@@ -33,10 +33,10 @@ files'.
     forge's token to replace and a person task asking an act are that
     document's later parts (section 11): jig's `accounts` document names
     no task waiting on a person's own account (jig's
-    `client/domain/contract.md`, 5.1), no read says a forge's token
+    `client/domain/contract/documents.md`, 1), no read says a forge's token
     must be replaced, and a person task asking an act stays among the
     cards. The terminal's inbox lists no Only you (`../client/README.md`,
-    6.14), a later part of section 11's too, temper/tui's.
+    6.14), a later part of `what-reaches-you.md`, section 11's too, temper/tui's.
   - 9: `../client/README.md`, 5.13's *Telling you* is disabled; no design
     holds a service worker, a push or a digest (`../client/browser.md`),
     nor mail settings (`../protocol/configuration.md`); no design serves

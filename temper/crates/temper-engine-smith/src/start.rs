@@ -51,7 +51,7 @@ fn section_text(body: &engine::BriefBody) -> Box<[u8]> {
 /// Produce Smith's complete typed start after the root's claim is durable.
 /// The caller owns the live reply right, prepared workspace and concrete
 /// history; the engine deliberately retains its stored transcript as bytes.
-/// Jig owns the charter policy (jig/docs/design/domain/hosts.md, 8).
+/// Jig owns the charter policy (jig/docs/design/domain/hosts/charters.md).
 #[must_use]
 pub fn start(
     assignment: &engine::Assignment,

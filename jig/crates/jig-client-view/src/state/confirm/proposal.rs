@@ -1,4 +1,4 @@
-//! A refused amendment's explicit proposal has its own confirmation (view.md, 18.4).
+//! A refused amendment's explicit proposal has its own confirmation (client/domain/view-state.md, 4).
 use crate::{
     Ui,
     state::{confirm::ReasonInput, objects::Object},

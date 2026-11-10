@@ -1,4 +1,4 @@
-//! The words a run reads of a relayed message (domain/hosts.md, 9).
+//! The words a run reads of a relayed message (domain/hosts/README.md, 7).
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{Decimal, Writer};

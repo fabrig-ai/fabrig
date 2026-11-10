@@ -2,7 +2,7 @@
 /// step read-only.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
-    /// The most bytes of one piece of live content (hosts.md, 6.5).
+    /// The most bytes of one piece of live content (domain/hosts/hub.md, 5).
     pub piece_bytes: u32,
     /// Local program sources; their command lifecycle does not consume run slots.
     pub program_sources: u32,
@@ -53,7 +53,7 @@ pub struct Limits {
 }
 
 /// Calls in flight across slots, reserving one delivery per job even when
-/// runs admit no calls (jig/docs/design/domain/hosts.md, 6.9).
+/// runs admit no calls (jig/docs/design/domain/hosts/hub.md, 9).
 /// Returns `None` if the capacity does not fit a `u32`.
 pub(crate) fn calls(limits: &Limits) -> Option<u32> {
     limits.slots.checked_mul(limits.run_calls.max(1))

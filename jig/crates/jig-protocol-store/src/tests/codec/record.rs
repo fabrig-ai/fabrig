@@ -1,4 +1,4 @@
-//! Complete durable tasks and all remaining row kinds (protocol/store.md, 5.1).
+//! Complete durable tasks and all remaining row kinds (protocol/store/records.md, 1).
 use super::{bound_problem, fixtures, saved_tasks, tasks_limits};
 use crate::{codec::tasks, tasks_v9 as wire};
 use jig_domain_tasks as domain;

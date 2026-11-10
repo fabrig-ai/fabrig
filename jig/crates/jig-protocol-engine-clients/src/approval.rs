@@ -1,4 +1,4 @@
-//! Volatile browser approvals and reserved takes (jig/docs/design/protocol/client.md, 8).
+//! Volatile browser approvals and reserved takes (jig/docs/design/protocol/client/sign-in.md).
 use super::{Component, Env, Limits, Queue, ReplyTo, Request, Token, Waiting, core, people, routes, sign_in, w};
 use crate::{Reply, exchange::Exchange, routes::Route};
 use alloc::boxed::Box;

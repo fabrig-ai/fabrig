@@ -118,7 +118,7 @@ impl Referee {
         if !service.held_mark.is_empty() {
             assert!(!state.durable);
             assert!(!state.driver_made, "driver is made only after the mark");
-            // jig/docs/design/domain/engine.md, 6: the core holds account requests until durable Wires.
+            // jig/docs/design/domain/engine/restart.md: the core holds account requests until durable Wires.
             assert_eq!(state.restores_waiting, 0, "source restore is held by the core");
             assert_eq!(state.wants_waiting, 0, "the restored source's want is held by the core");
             assert!(!state.granted);

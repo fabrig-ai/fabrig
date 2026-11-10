@@ -1,4 +1,4 @@
-//! Single scopes use exact keys and retained positions (store.md, 7.3).
+//! Single scopes use exact keys and retained positions (protocol/store/loads.md, 3).
 use super::{Failure, Spent, empty, joins};
 use crate::{Below, Event, Get, Row, Store, TranscriptRead, gets, transcripts::read};
 use alloc::boxed::Box;

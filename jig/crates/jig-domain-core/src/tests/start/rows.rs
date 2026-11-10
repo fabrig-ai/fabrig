@@ -1,4 +1,4 @@
-//! Stored core rows load independently of admission (domain/engine.md, 6).
+//! Stored core rows load independently of admission (domain/engine/restart.md).
 #![expect(clippy::disallowed_macros, reason = "dynamic unit fixtures exercise stored collection boundaries")]
 use crate::{
     CallPart, CallRecord, CoreKey, CoreRecord, Limits, Restored, SettledAnswer, SettledCall,

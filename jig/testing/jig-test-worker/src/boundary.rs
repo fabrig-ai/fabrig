@@ -1,4 +1,4 @@
-//! The protocol layer's hand-outs and the hub's link (hosts.md, 6.8).
+//! The protocol layer's hand-outs and the hub's link (domain/hosts/hub.md, 8).
 use alloc::boxed::Box;
 use jig_domain_host as host;
 use jig_domain_link::SourceName;

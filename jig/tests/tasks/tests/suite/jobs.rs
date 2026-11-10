@@ -69,7 +69,7 @@ fn ended(world: &World, number: u64) -> &tasks::TaskRecord {
     row
 }
 
-/// Dependencies gate a job and its bytes wake its procedure (jig/docs/design/domain/tasks.md, 5.3.1).
+/// Dependencies gate a job and its bytes wake its procedure (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
 #[test]
 fn a_procedures_job_is_due_once_its_dependency_is_done_and_ends_with_its_result() {
     let mut world = procedure();
@@ -129,7 +129,7 @@ fn a_procedures_job_is_due_once_its_dependency_is_done_and_ends_with_its_result(
     assert_eq!(world.records, before);
 }
 
-/// A result beyond its contract spends an invalid try (jig/docs/design/domain/tasks.md, 5.3.1 and 5.5).
+/// A result beyond its contract spends an invalid try (jig/docs/design/domain/tasks/lifecycle.md, 3.1 and 6).
 #[test]
 fn a_job_result_past_its_contract_is_an_invalid_attempt() {
     let mut world = with_job();
@@ -149,7 +149,7 @@ fn a_job_result_past_its_contract_is_an_invalid_attempt() {
     assert_eq!(world.record(JOB).phase, Phase::Active(Active::Due));
 }
 
-/// Past its run tries a job is held for its procedure (jig/docs/design/domain/tasks.md, 5.3.1 and 5.5).
+/// Past its run tries a job is held for its procedure (jig/docs/design/domain/tasks/lifecycle.md, 3.1 and 6).
 #[test]
 fn a_failing_job_is_retried_within_its_tries_then_held_and_its_procedure_hears_it() {
     let mut world = with_job();
@@ -210,7 +210,7 @@ fn amendment() -> tasks::Amendment {
     }
 }
 
-/// Messages and amendments never change a job (jig/docs/design/domain/tasks.md, 5.3.1).
+/// Messages and amendments never change a job (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
 #[test]
 fn words_questions_and_amendments_to_a_job_are_refused_as_its_executor() {
     let mut world = with_job();
@@ -279,7 +279,7 @@ fn words_questions_and_amendments_to_a_job_are_refused_as_its_executor() {
     assert_eq!(world.record(JOB), &before);
 }
 
-/// Cancellation skips a job's grace and drains its live run (jig/docs/design/domain/tasks.md, 5.3.1).
+/// Cancellation skips a job's grace and drains its live run (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
 #[test]
 fn a_cancel_ends_a_running_job_at_once_even_with_a_grace() {
     let mut world = with_job();
@@ -337,7 +337,7 @@ fn a_cancel_ends_a_running_job_at_once_even_with_a_grace() {
     assert!(matches!(world.results[&JOB], Ending::Cancelled { .. }));
 }
 
-/// Claims require zero budget and reserve nothing (jig/docs/design/domain/tasks.md, 5.3.1).
+/// Claims require zero budget and reserve nothing (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
 #[test]
 fn a_job_claim_reserves_nothing() {
     let mut world = with_job();

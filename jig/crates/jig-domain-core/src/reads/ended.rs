@@ -1,4 +1,4 @@
-//! The single index serving a task query's ended group (store.md, 7.3).
+//! The single index serving a task query's ended group (protocol/store/loads.md, 3).
 use crate::{
     Core, Key, Limits,
     documents::{self, Missing, PhaseClass, TaskQuery},

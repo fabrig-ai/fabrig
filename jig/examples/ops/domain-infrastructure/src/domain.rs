@@ -13,7 +13,7 @@ pub struct Domain {
     pub(crate) client_subjects: Map<Token, crate::ClientSubject>,
     pub(crate) application: crate::application::State,
     restart: Option<crate::RestartStage>,
-    /// Restores are passive until the scripted read-afresh step (engine.md, 6).
+    /// Restores are passive until the scripted read-afresh step (domain/engine/restart.md).
     restoring: bool,
     closing: Map<u64, bool>,
     closes: Map<[u8; 16], (u32, u64)>,

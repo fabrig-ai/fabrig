@@ -1,4 +1,4 @@
-//! Brief planning and gathering (domain/engine.md, section 9).
+//! Brief planning and gathering (domain/engine/briefs.md, section 1).
 //!
 //! The core gives the brief text and connector section tokens with
 //! reported sizes. The brief keeps core text, tokens and sizes; connector

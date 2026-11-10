@@ -428,7 +428,7 @@ fn assert_assignment(
 
 // The frame's fixed fields and list counts take 65 bytes with its header;
 // workspace, turn, message and host-call overheads follow the wire schema
-// (jig/docs/design/protocol/channel.md, 5.2 and 11).
+// (jig/docs/design/protocol/channel/records.md, 2, and jig/docs/design/protocol/channel/README.md, 10).
 fn fitted_frame(assignment: &hub::Assignment, parts: &[wire::Part], settings: &settings::Engine) -> (usize, usize) {
     assert!(assignment.assignment.grants.is_empty(), "these stock starts carry no grants");
     let mut bytes = 65_usize.checked_add(assignment.assignment.charter.len()).unwrap();
@@ -467,7 +467,7 @@ fn fitted_frame(assignment: &hub::Assignment, parts: &[wire::Part], settings: &s
     }
     // All these answers have the same size: the remaining room admits this
     // many whole answers, kept as a suffix in commit order
-    // (jig/docs/design/protocol/channel.md, 9).
+    // (jig/docs/design/protocol/channel/README.md, 8).
     let saving = usize::try_from(answer).unwrap().checked_sub(words.len()).unwrap();
     let room = usize::try_from(settings.jig.limits.io.output).unwrap();
     let whole = room.saturating_sub(bytes).checked_div(saving).unwrap().min(assignment.answered.len());

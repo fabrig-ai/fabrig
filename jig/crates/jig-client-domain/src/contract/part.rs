@@ -1,4 +1,4 @@
-//! Exact connector references and executor identities (domain/tasks.md, 2–3;
+//! Exact connector references and executor identities (domain/tasks/README.md, 2–3;
 //! client/domain/root.md, 6). Literal segments stay separate and are never parsed.
 use alloc::boxed::Box;
 use skein_lib::List;
@@ -11,7 +11,7 @@ pub enum PersonAddress {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-/// Job tasks: jig/docs/design/client/domain/contract.md, 5.7.
+/// Job tasks: jig/docs/design/client/domain/contract/documents.md, 7.
 pub enum Executor {
     Agent { charter: u32 },
     Procedure { connector: u16, code: u32 },

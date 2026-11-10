@@ -1,4 +1,4 @@
-//! Refusals pinned to their design text (store.md 2 and 10.1).
+//! Refusals pinned to their design text (protocol/store/README.md, 2, and protocol/store/opening.md, 1).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,
@@ -7,11 +7,17 @@
 use crate::{Check, Generations, Older, OpenRefusal};
 
 #[expect(clippy::disallowed_macros, reason = "the task pins refusal words to the design itself")]
-const DESIGN: &str = include_str!("../../../../docs/design/protocol/store.md");
+const DESIGN: &str = concat!(
+    include_str!("../../../../docs/design/protocol/store/README.md"),
+    "\n",
+    include_str!("../../../../docs/design/protocol/store/records.md"),
+    "\n",
+    include_str!("../../../../docs/design/protocol/store/opening.md"),
+);
 pub(super) const FORMAT: &str = "putting the family's lower-case name in place of <family>:\n\n  > ";
-pub(super) const DEPLOYMENT: &str = "deployment than its header (5.3):\n\n  > ";
-pub(super) const NUMBERS: &str = "the one the header records (section 6):\n\n  > ";
-pub(super) const FAILED: &str = "cannot recover (section 10):\n\n  > ";
+pub(super) const DEPLOYMENT: &str = "deployment than its header (`records.md`, 3):\n\n  > ";
+pub(super) const NUMBERS: &str = "the one the header records (section 5):\n\n  > ";
+pub(super) const FAILED: &str = "cannot recover (`opening.md`):\n\n  > ";
 
 fn unwrapped(start: &str, end: &str) -> String {
     let text = DESIGN.split_once(start).expect("design's refusal start").1;
@@ -94,9 +100,9 @@ fn a_layout_refusal_names_its_family_and_says_to_move_the_generations() {
     says(
         OpenRefusal::OlderBuild { why: Older::Layout(Family::Settings) },
         "(the others name theirs):\n\n  > ",
-        "\n\n### 5.4",
+        "\n\n## 4",
     );
-    let settings = unwrapped("(the others name theirs):\n\n  > ", "\n\n### 5.4");
+    let settings = unwrapped("(the others name theirs):\n\n  > ", "\n\n## 4");
     for (family, clause) in [
         (Family::Component, "whose component family's"),
         (Family::Core, "whose core family's"),

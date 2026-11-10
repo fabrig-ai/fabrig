@@ -254,7 +254,7 @@ change is given when a person asks for it, or a project's rule
 - **In the client:** a person task addressed to the project's
   maintainers, one of whom takes it, whose contract is an approval of
   the change at a head (jig's `client/domain/objects.md`, section 7;
-  jig's `domain/people.md`, section 8). Its card, in the inbox and on
+  jig's `domain/people/README.md`, section 7). Its card, in the inbox and on
   the change's page, says:
   - *what is asked:* approve this change at this head, and who asked
     for the approval: the change, its plan or a landing rule;
@@ -1177,7 +1177,7 @@ Each part is the forge's family's (`README.md`, section 4): read
 or watched by the forge's client side through the family's own reads
 and subjects, under the forge's owner number, each naming its scope, a
 project, the deployment or the party's own (jig's
-`client/domain/contract.md`, 7.5; jig's
+`client/domain/contract/README.md`, 5.5; jig's
 `client/domain/root.md`, section 7), their records in
 `temper-client-protocol-wire` beside `Adopt` (`README.md`, 4.6).
 The first read served is the playground's (`README.md`, 4.6 and
@@ -1195,7 +1195,7 @@ and its hold (2.5) follow.
 | its holds | a hold, on the held card | `../domain/forge.md`, 8.4 and 8.5; jig's `domain/connectors.md`, 4.3 and section 11 |
 | what a proposed write would do; the outbox | an effect, on a proposal card; an outbox entry | `../domain/forge.md`, section 6 |
 | a project's queues, its branches' red and its last landings | temper's `Changes` page, from the subject `changes` (`README.md`, 4.6) | `../domain/forge.md`, section 9; `../domain/after-landing.md`, section 10 |
-| approvals | a person task's card; a panel; a change waiting on a review, a card under Needs you from the subject `approvals`, of the party's own scope (4.1; `README.md`, 4.6) | `../domain/forge.md`, 8.3, 8.7 and 8.12; jig's `domain/people.md`, section 8 |
+| approvals | a person task's card; a panel; a change waiting on a review, a card under Needs you from the subject `approvals`, of the party's own scope (4.1; `README.md`, 4.6) | `../domain/forge.md`, 8.3, 8.7 and 8.12; jig's `domain/people/README.md`, section 7 |
 | adoption, repositories, health, landing rules | temper's `Adopt` page; a project's part | `../domain/forge.md`, sections 4 and 5, and 8.7; jig's `domain/connectors.md`, section 12; jig's `domain/authority.md`, section 10 |
 | goals' issues, landings as news, findings | a project's part; a goal's page | `../domain/forge.md`, sections 7 and 12 |
 | the forge itself | the deployment's part | `../domain/forge.md`, 5.4 |
@@ -1207,7 +1207,7 @@ and its hold (2.5) follow.
 | a forge removed | the deployment's request `RemoveForge` (`README.md`, 4.6), from the Forges page | `../domain/forge.md`, 4.1 |
 | a person's facts: what they dismissed, the goals they started from a chat | the project's request `Dismiss` and the subject `dismissed`, of the party's own scope (`README.md`, 4.6): the forge side's facts, which no page reads (`README.md`, section 11) | `../domain/forge.md`, 5.5 |
 | a project's stock ways and their paths, and a view of a path, a way, a proposal or a charter | the project's subject `ways`, on Ask temper's page, and the project's read `View`, for a `view` block in a chat (`README.md`, 4.6, 5.13 and 5.16), each made by the root from the core and the forge | `../domain/forge.md`, 8.13; `../protocol/configuration.md`, 13.10 |
-| temper's settings: a landing rule's value, the forge's charter, a charter's words, a project's questions, ways and words, and a pending proposal's items of temper's kinds | the deployment's reads, and a project's reads of its own kinds (`../protocol/configuration.md`, 13.2, *Read from the forge*), `Setting { kind, scope, number }`, `RevisionSetting { kind, scope, number, revision }` and `ProposalItems { key }`, the key jig's settings review gives a pending proposal of settings naming temper's kinds (jig's `domain/engine.md`, 17.6), beside jig's `settings` document, which gives their states and sizes | `../protocol/configuration.md`, 13.2; jig's `domain/engine.md`, 17.5 |
+| temper's settings: a landing rule's value, the forge's charter, a charter's words, a project's questions, ways and words, and a pending proposal's items of temper's kinds | the deployment's reads, and a project's reads of its own kinds (`../protocol/configuration.md`, 13.2, *Read from the forge*), `Setting { kind, scope, number }`, `RevisionSetting { kind, scope, number, revision }` and `ProposalItems { key }`, the key jig's settings review gives a pending proposal of settings naming temper's kinds (jig's `domain/engine/settings.md`, 6), beside jig's `settings` document, which gives their states and sizes | `../protocol/configuration.md`, 13.2; jig's `domain/engine/settings.md`, 5 |
 
 The revision-qualified setting read serves an explicit set item from a
 retained revision. It uses jig's authenticated revision read to confirm
@@ -1365,7 +1365,7 @@ made by the forge connector from what it keeps of the change
 
 - **Its subject** names the change task by its number, in the scope of
   the task's project. jig admits the watch on the party's role in that
-  project (jig's `client/domain/contract.md`, 7.2). The connector
+  project (jig's `client/domain/contract/README.md`, 5.2). The connector
   answers unknown for a task that is not a change into a repository the
   project holds, and the page's slot says the panel is unknown (jig's
   `client/domain/root.md`, section 6). The watch's window is unused:
@@ -1544,7 +1544,7 @@ made by the forge connector from what it keeps of the change
 ## 11. Public documents
 
 What a visitor reads of a public project's forge, without signing in
-(jig's `domain/people.md`, section 13; `../draft/first-release.md`,
+(jig's `domain/people/public-reading.md`; `../draft/first-release.md`,
 5.3): the forge's public projections, beside jig's board and cards. Each
 is a record of its own, made by a projection from the forge's state,
 never a cut of a panel: a field is in it only once added there. None
@@ -1554,11 +1554,11 @@ no string at all (11.3).
 ### 11.1 Their kinds
 
 Declared by the forge family to jig's clients' component at start, read
-by jig's `PublicRead` (jig's `protocol/client.md`, section 19; over HTTP,
+by jig's `PublicRead` (jig's `protocol/client/public-reads.md`; over HTTP,
 17.5), each naming a public project first, made by the forge child from
 its state and encoded there in `public-v1`, and carried in jig's
 `PublicApplication`, whose list names every task a record refers to by
-its place (jig's `client/domain/contract.md`, section 12):
+its place (jig's `client/domain/contract/README.md`, section 10):
 
 | Kind | Names | Answered with |
 |---|---|---|
@@ -1568,7 +1568,7 @@ its place (jig's `client/domain/contract.md`, section 12):
 
 ### 11.2 Which are public
 
-jig's rule (jig's `domain/people.md`, 13.7), applied by the forge to
+jig's rule (jig's `domain/people/public-reading.md`, 7), applied by the forge to
 the public tasks jig's core hands it with the ask:
 
 - **A public change** is a change whose task is public. A change
@@ -1597,7 +1597,7 @@ the public tasks jig's core hands it with the ask:
 - **Named through the list:** every task a record names, and the goal
   a queue's change serves, is one of the tasks jig handed, listed in
   the answer's tasks for jig's core to check again before it answers
-  (jig's `domain/people.md`, 13.10). A task jig did not hand is never
+  (jig's `domain/people/public-reading.md`, 10). A task jig did not hand is never
   named.
 
 ### 11.3 What crosses, and what never

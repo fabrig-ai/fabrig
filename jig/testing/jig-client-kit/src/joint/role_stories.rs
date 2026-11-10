@@ -1,5 +1,5 @@
 //! The authenticated roles are setup; every business act is a person on the view
-//! (domain/people.md, 11; client/domain/testing.md, 5–6).
+//! (domain/people/README.md, 10; client/domain/testing.md, 5–6).
 use super::*;
 
 fn receiving_limits() -> jig_client_test_domain::Limits {

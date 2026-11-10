@@ -1,4 +1,4 @@
-//! Startup for the reference binary (protocol/service.md, 7; configuration.md, 7–8).
+//! Startup for the reference binary (protocol/service.md, 7; protocol/configuration.md, 6–7).
 use jig_domain_link::{Bounds, EndpointBound};
 use jig_protocol_config::{self as config, read};
 use jig_test_service::{self as service, Files, Seeds};
@@ -85,7 +85,7 @@ struct SourceSettings {
     executable: Box<[u8]>,
     environment: Box<[Box<[u8]>]>,
 }
-// Command entries may contain credentials; Debug shows their count (jig/docs/design/domain/hosts.md, 5.1).
+// Command entries may contain credentials; Debug shows their count (jig/docs/design/domain/hosts/README.md, 5.1).
 impl core::fmt::Debug for SourceSettings {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("SourceSettings")
@@ -341,7 +341,7 @@ fn prepare(bytes: &[u8], owned: &mut Vec<Fd>) -> Result<service::Service, String
     let drawn = skein_shell::crypto_seed().map_err(|errno| format!("deployment id: errno {errno}"))?;
     deployment.copy_from_slice(drawn.expose().get(..16).expect("32-byte seed"));
     // Drawn at every start; the service keeps it at the first and restores
-    // the kept one at every later start (configuration.md 8).
+    // the kept one at every later start (configuration.md 7).
     let mut installation = [0_u8; 16];
     let drawn = skein_shell::crypto_seed().map_err(|errno| format!("installation id: errno {errno}"))?;
     installation.copy_from_slice(drawn.expose().get(..16).expect("32-byte seed"));

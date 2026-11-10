@@ -1,5 +1,5 @@
 //! Bounded subject marks gathered while a decision routes.
-//! `client/domain/contract.md`, 7.2. Task saves gather the affected watched
+//! `client/domain/contract/README.md`, 5.2. Task saves gather the affected watched
 //! subjects; party-entry updates gather frame and inbox subjects. Marks hold
 //! no state snapshots and coalesce in a set. Once projection handoffs finish,
 //! the views child asks for documents from the decision's final live state.

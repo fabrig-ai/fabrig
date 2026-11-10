@@ -1,4 +1,4 @@
-//! Owned representation bounds, independent of admission judgments (jig/docs/design/domain/engine.md, 6).
+//! Owned representation bounds, independent of admission judgments (jig/docs/design/domain/engine/restart.md).
 use crate::{Act, Ask, Identity, Key, Limits, Outcome, Refusal, RestoreBound, RestoreCause};
 use alloc::boxed::Box;
 

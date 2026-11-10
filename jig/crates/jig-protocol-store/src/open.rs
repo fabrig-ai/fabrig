@@ -1,4 +1,4 @@
-//! The format row and header checked before restart (protocol/store.md, 5.3 and 10).
+//! The format row and header checked before restart (protocol/store/records.md, 3 and protocol/store/opening.md).
 use crate::patching::{machines, phase::Pending, plan};
 use crate::{Event, Family, Older, OpenRefusal, Phase, Store, codec, format, keys, restore};
 use alloc::boxed::Box;

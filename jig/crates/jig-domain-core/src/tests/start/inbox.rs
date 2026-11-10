@@ -1,4 +1,4 @@
-//! Census loading before people's durable opening (domain/engine.md, 6, 11.4).
+//! Census loading before people's durable opening (domain/engine/restart.md, domain/engine/views.md, 4).
 use crate::{
     CoreRecord, Limits, Record, Restored,
     start::LiveSet,

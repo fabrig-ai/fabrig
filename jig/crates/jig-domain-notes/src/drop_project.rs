@@ -1,5 +1,5 @@
 //! Project index lines and their entries are erased a bounded page at a time
-//! (jig/docs/design/domain/engine.md, 10). The parent commits
+//! (jig/docs/design/domain/engine/briefs.md, 2). The parent commits
 //! each page before its next load, and completion follows an empty page.
 
 use skein_lib::{Queue, Token};

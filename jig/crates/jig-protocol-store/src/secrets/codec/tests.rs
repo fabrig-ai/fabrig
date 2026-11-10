@@ -1,4 +1,4 @@
-//! The in-place payload hash against the generated envelope decoder (store.md 9).
+//! The in-place payload hash against the generated envelope decoder (protocol/store/secrets.md).
 use crate::{CARRIED, CarriedKind, HELD, SecretOwner, SecretValue, secrets::codec, secrets_v1 as w};
 use alloc::boxed::Box;
 use skein_lib::{Secret, Writer};

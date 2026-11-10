@@ -8,7 +8,7 @@ use jig_domain_core::{
 use skein_json::Document;
 use skein_lib::{Duration, List};
 /// The most models configuration names: authority keeps a party's models one bit each
-/// (configuration.md, section 6).
+/// (protocol/limits.md).
 pub(crate) const MODELS: u32 = 64;
 // smith/docs/design/protocol/agent.md, section 4: the dialect numbers are fixed for good.
 const ANTHROPIC: u32 = 2;
@@ -24,7 +24,7 @@ pub struct Llm {
 }
 impl Llm {
     /// The catalogue's run models, with a row at each number's position
-    /// (jig/docs/design/domain/engine.md, 17.11).
+    /// (jig/docs/design/domain/engine/settings.md, 11).
     #[must_use]
     pub fn models(&self) -> Box<[Model]> {
         let mut highest = 0;

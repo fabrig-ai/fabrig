@@ -337,7 +337,7 @@ fn encoded_mode(mode: smith_domain_run::Mode) -> wire::Charter {
 }
 
 // Run inputs from the roots' report fixtures, with workspace tools configured
-// off where their starts do not prepare a workspace (domain/hosts.md, 8).
+// off where their starts do not prepare a workspace (domain/hosts/charters.md).
 fn assignment_fixture(instructions: &[u8], words: u32, spend: u64, turns: u32) -> jig_domain_core::RunCharter {
     use jig_domain_core as core;
     use jig_domain_tasks as tasks;
@@ -535,7 +535,7 @@ fn delivery_follows_contract_policy_and_workspace() {
     use jig_domain_tasks::{Contract, EndedBy};
     use smith_domain_run::outcome::{ChangeSpec, FieldRule};
     const WORDS: u32 = 16;
-    // A whole-spec report bound (jig/docs/design/domain/hosts.md, 8).
+    // A whole-spec report bound (jig/docs/design/domain/hosts/charters.md).
     const LARGE_WORDS: u32 = 131_070;
     let report = Contract::Report { words: WORDS };
     let change = Contract::Change { connector: 1, kind: 1, words: WORDS };
@@ -618,7 +618,7 @@ fn delivering_report_keeps_its_outcome_and_independent_delivery_bounds() {
 #[test]
 fn contract_text_is_bounded_and_change_checks_are_required() {
     use jig_domain_tasks as tasks;
-    // The contract text boundary and a whole-spec body bound (hosts.md, 8).
+    // The contract text boundary and a whole-spec body bound (domain/hosts/charters.md).
     for words in [1023, 1024, 1025, 131_070] {
         let mut value = assignment_fixture(b"Contract", words, 20, 4);
         let report = crate::assignment(value.clone(), Box::new([]), Box::new([]), false).expect("report");

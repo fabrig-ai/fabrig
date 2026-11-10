@@ -1,4 +1,4 @@
-//! Settings inventory without values (client/domain/contract.md, 5.1 and 7.1).
+//! Settings inventory without values (client/domain/contract/documents.md, 1, and client/domain/contract/README.md, 5.1).
 use crate::{
     Core, Limits,
     documents::{Missing, Text},
@@ -45,7 +45,7 @@ pub(super) fn make(core: &Core, party: u64) -> Result<Settings, Missing> {
     Ok(inventory(core))
 }
 
-/// The root's settings context at the newest revision (domain/engine.md, 17.7).
+/// The root's settings context at the newest revision (domain/engine/settings.md, 7).
 #[must_use]
 pub fn inventory(core: &Core) -> Settings {
     let mut result = build(core);

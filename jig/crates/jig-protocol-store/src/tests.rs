@@ -1,4 +1,4 @@
-//! Store key, interval and codec properties (protocol/store.md, section 14).
+//! Store key, interval and codec properties (protocol/store/README.md, section 9).
 mod codec;
 mod commits;
 mod directory;

@@ -1,8 +1,8 @@
-//! One rule for delegates, dependencies and ending authority (domain/tasks.md, 5.6–5.8 and section 7).
+//! One rule for delegates, dependencies and ending authority (domain/tasks/lifecycle.md, 7–9 and domain/tasks/changes.md).
 use crate::domain::{Domain, record};
 use crate::{Active, End, Executor, Phase, TaskResult, Was};
 
-/// Whether an active task may go on, and why not (domain/tasks.md, 5.7).
+/// Whether an active task may go on, and why not (domain/tasks/lifecycle.md, 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent facts keep their separate claim and finish rules")]
 pub(crate) struct Kept {
@@ -19,7 +19,7 @@ pub(crate) struct Kept {
 }
 
 impl Domain {
-    /// A waiting effect reads the task's current kept state (domain/tasks.md, 5.7).
+    /// A waiting effect reads the task's current kept state (domain/tasks/lifecycle.md, 8).
     #[must_use]
     pub fn waiting_effect_problem(&self, task: u64) -> Option<crate::Problem> {
         let row = record(self, task)?;
@@ -136,7 +136,7 @@ impl Kept {
         }
     }
 
-    /// Open discards a run's raw finish before judgment; its run parks (tasks.md, 5.8).
+    /// Open discards a run's raw finish before judgment; its run parks (domain/tasks/lifecycle.md, 9).
     pub(crate) fn discards(self, end: &End) -> bool {
         self.open
             && match end {

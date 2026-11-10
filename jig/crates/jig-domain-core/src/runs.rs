@@ -1,4 +1,4 @@
-//! Live runs, their preparation, calls and text (`jig/docs/design/domain/engine.md`, sections 7 and 9).
+//! Live runs, their preparation, calls and text (`jig/docs/design/domain/engine/executors.md` and `jig/docs/design/domain/engine/briefs.md`, section 1).
 
 mod account_llm;
 pub(crate) mod account_preference;

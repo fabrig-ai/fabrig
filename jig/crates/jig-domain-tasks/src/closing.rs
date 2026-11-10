@@ -1,4 +1,4 @@
-//! Bounded dependency and closing cascades (domain/tasks.md, sections 5.1 and 5.6). Tasks owns live topology and financial settlement;
+//! Bounded dependency and closing cascades (domain/tasks/lifecycle.md, sections 1 and 7). Tasks owns live topology and financial settlement;
 //! root completes Close obligations. No retained result credit or inbox
 //! remains here, and ending a task does not replay its result after restart.
 use crate::domain::{Domain, activate, fact, publish, record, snapshot, task_mut};
@@ -109,7 +109,7 @@ fn previous_result(phase: &Phase) -> Option<TaskResult> {
     }
 }
 
-/// The same closing phase for a committed cancel and its compound projection (domain/tasks.md, 7).
+/// The same closing phase for a committed cancel and its compound projection (domain/tasks/changes.md).
 pub(crate) fn cancelled(phase: &Phase, by: Party, at: skein_lib::Wall, reason: &[u8]) -> Closing {
     let partial = previous_result(phase);
     let stage = match phase {

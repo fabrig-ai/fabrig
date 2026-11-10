@@ -1,4 +1,4 @@
-//! The default HTTP mapping's engine end (protocol/client.md, 17.2 and 17.4; protocol/service.md, 11.6).
+//! The default HTTP mapping's engine end (protocol/client/default-http.md, 2 and 4; protocol/service.md, 11.6).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -20,10 +20,10 @@ pub use public::public_path;
 pub struct Settings {
     pub prefix: Box<[u8]>,
     pub max_age: u32,
-    /// The public name a TLS proxy serves the application at, as `Host` names it (protocol/client.md, 17.3).
+    /// The public name a TLS proxy serves the application at, as `Host` names it (protocol/client/default-http.md, 3).
     pub public: Option<Box<[u8]>>,
 }
-/// How an exchange came, decided by its `Host` alone (protocol/client.md, 17.3).
+/// How an exchange came, decided by its `Host` alone (protocol/client/default-http.md, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Via {
     Public,
@@ -95,7 +95,7 @@ impl Mount {
         }
         count
     }
-    /// Remaining calls in the head's room (jig/docs/design/protocol/client.md, 17.5).
+    /// Remaining calls in the head's room (jig/docs/design/protocol/client/default-http.md, 5).
     #[must_use]
     pub fn room_for(&self, head: &http::Call) -> u32 {
         if public::under(&self.settings.prefix, head) {
@@ -104,7 +104,7 @@ impl Mount {
             self.room()
         }
     }
-    /// A service's refusal without reserving a mounted call (jig/docs/design/protocol/client.md, 17.5).
+    /// A service's refusal without reserving a mounted call (jig/docs/design/protocol/client/default-http.md, 5).
     #[must_use]
     pub fn refusal(&self, head: &http::Call) -> http::Response {
         let mut response = if public::under(&self.settings.prefix, head) {

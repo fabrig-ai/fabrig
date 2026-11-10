@@ -1,5 +1,5 @@
 //! A supplied current call is provisional, not a committed transcript call.
-//! See client/domain/contract.md, 7.3, client/domain/client.md, 10.
+//! See client/domain/contract/README.md, 5.3, client/domain/client/conversations.md.
 use super::{Call, Text};
 use skein_lib::{Token, Wall};
 /// The provider's id within its owner and issued completion.

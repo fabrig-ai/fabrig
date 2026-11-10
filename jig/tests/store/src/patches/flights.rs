@@ -1,11 +1,11 @@
-//! Application-owned flight rows in the existing label/token fixture (store.md 10.3).
+//! Application-owned flight rows in the existing label/token fixture (protocol/store/opening.md 3).
 use super::limits;
 use crate::{World, root};
 use jig_protocol_store::{KeptFamily, Keys, PatchSet, PatchSets, Write};
 use jig_test_patches::patches as app;
 
 pub const SEED: u64 = 930;
-/// store.md 10.3 names at most 64 keys, while counting every record.
+/// protocol/store/opening.md 3 names at most 64 keys, while counting every record.
 pub const NAMED: u32 = 64;
 pub const LABEL_NAME: &str = "fixture-label";
 pub const ROW: &[u8] = b"\x00\x01\x00\x00\x00\x04sent";

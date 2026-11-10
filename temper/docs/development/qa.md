@@ -92,7 +92,7 @@ section 8.
   where a pass needs more than the profile gives: `engine.limits`'
   override `"people.requests"`, since each deciding request's answer is
   kept a day, which a busy pass fills, after which every keyed request
-  answers busy (jig's `domain/people.md`, 5.1); and
+  answers busy (jig's `domain/people/acts.md`, 1); and
   `application.limits`' override `"root.loads.loads"`, since a restart
   with held work loaded needs a slot for it. Its retention stays a day,
   and the memory the start then names is raised as
@@ -260,7 +260,7 @@ curl -fsS -H @READ "$API/repos/OWNER/NAME/pulls/7"
     is missing.
   - **temper's words wrong:** a state said that is not so.
   - **A start refused on a link, or one that panics on it** (jig's
-    `domain/engine.md`, section 6): a writer's bug; the finding names
+    `domain/engine/restart.md`): a writer's bug; the finding names
     the record and the link from serve's log, with the case that wrote
     the record.
 - **Not a finding:** that the pass read the forge, or how.

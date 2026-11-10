@@ -1,4 +1,4 @@
-//! Public reading's independent boundary rules (jig/docs/design/domain/people.md, 13.6).
+//! Public reading's independent boundary rules (jig/docs/design/domain/people/public-reading.md, 6).
 //!
 //! The model consumes submitted writes and boundary messages, never the public index.
 //! Its requester paths and bounded prefixes determine which tasks an answer may name.

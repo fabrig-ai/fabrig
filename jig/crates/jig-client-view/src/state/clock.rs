@@ -1,5 +1,5 @@
 //! Wall time is for the view; deadlines are monotonic. A minute's tick is
-//! armed only while a work page shows wall times; client/domain/client.md, 13.
+//! armed only while a work page shows wall times; client/domain/client/README.md, 10.
 use crate::{
     Ui,
     state::{objects::Body, page::Page, ui::Timer},

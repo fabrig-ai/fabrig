@@ -169,7 +169,7 @@ Hello
   The hello is a fresh read the engine's connector can decide on (
   `jig/docs/design/domain/connectors.md`, 5.1).
 - **No time crosses the wire; only durations do** (as on jig's
-  channel: `jig/docs/design/protocol/channel.md`, section 8). Ages are durations,
+  channel: `jig/docs/design/protocol/channel/README.md`, section 7). Ages are durations,
   and each side turns them into its own clock's times.
 - **The answers it carries are resent on every channel** until the
   engine acknowledges them (4.5). The hello after a reboot is where the
@@ -207,7 +207,7 @@ store, is open (hearth/docs/design/README.md, section 8). What is fixed:
   (an opaque credential, judged by the engine's owner) or by TLS. The
   engine knows machines by it, and keeps one channel per machine: an
   `Open` under a credential that already has one closes the older with
-  `replaced` (`jig/docs/design/protocol/channel.md`, 4.2).
+  `replaced` (`jig/docs/design/protocol/channel/README.md`, 4.2).
 - **Planes stay apart by wiring.** A machine's configuration names one
   engine and one trust. A lab machine holds no credential the run side's
   engine accepts, and the run side's engine refuses an unknown one as

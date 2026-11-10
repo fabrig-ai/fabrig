@@ -267,7 +267,7 @@ pub fn restart_after_rule_commit(world: &mut crate::forge_routes::World, key: u8
 }
 
 /// Restore through the same party entrance as a settings proposal
-/// (jig/docs/design/domain/engine.md, 17.10).
+/// (jig/docs/design/domain/engine/settings.md, 10).
 #[must_use]
 pub fn restore(sign_in: u64, revision: u32, key: u8) -> engine::Event {
     engine::Event::Party(engine::PartyInput::Ask {

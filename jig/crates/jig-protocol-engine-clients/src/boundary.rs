@@ -1,4 +1,4 @@
-//! The protocol routing's vocabulary (protocol/client.md, sections 2 and 8).
+//! The protocol routing's vocabulary (protocol/client/README.md, section 2 and protocol/client/sign-in.md).
 use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -6,7 +6,7 @@ use jig_domain_views as views;
 use skein_lib::{Duration, List, ReplyTo, Secret, Time, Token, Wall};
 #[derive(Debug)]
 pub enum Event {
-    /// Replace the catalogue before its commit (domain/engine.md, 17.11).
+    /// Replace the catalogue before its commit (domain/engine/settings.md, 11).
     Catalogue {
         models: Box<[Model]>,
     },
@@ -97,11 +97,11 @@ pub enum Request {
         secret: Secret,
     },
     /// The local link's one-time secret, each time one is drawn: kept for the
-    /// person's own clients on the machine, never printed (protocol/client.md, 8).
+    /// person's own clients on the machine, never printed (protocol/client/sign-in.md).
     LocalLink {
         secret: Secret,
     },
-    /// The printed link signed a person in, made or kept, each time (protocol/client.md, 8).
+    /// The printed link signed a person in, made or kept, each time (protocol/client/sign-in.md).
     LinkSignedIn,
     TakeMoved {
         exchange: Token,
@@ -129,7 +129,7 @@ pub enum ToApplication {
         record: Box<[u8]>,
         digest: [u8; 32],
         /// The value the request carried, by its number and digest: kept in
-        /// the secrets' store before this request (protocol/client.md, 5).
+        /// the secrets' store before this request (protocol/client/README.md, 3).
         carried: Option<core::Carried>,
     },
     Read {
@@ -158,7 +158,7 @@ pub enum FromApplication {
     Delivery { watcher: Token, family: u16, record: Box<[u8]> },
     Undecodable { to: ReplyTo },
     // The core left a carried value unused (`core::Held::CarriedUnused`):
-    // erased when this component's own decode kept it (store.md 9).
+    // erased when this component's own decode kept it (protocol/store/secrets.md).
     Unused { number: u64 },
 }
 #[derive(Debug)]
@@ -167,13 +167,13 @@ pub enum SecretsRequest {
     Erase { owner: SecretOwner },
     Get { owner: SecretOwner },
     // Keep the value `exchange`'s request carried, under a number the store
-    // draws itself (store.md 9): answered `Carried`.
+    // draws itself (protocol/store/secrets.md): answered `Carried`.
     Carry { exchange: Token, value: Secret, kind: CarriedKind },
-    // Hold `exchange`'s value in memory, never written (store.md 9):
+    // Hold `exchange`'s value in memory, never written (protocol/store/secrets.md):
     // answered `Carried` as a carry is.
     Hold { exchange: Token, value: Secret },
 }
-/// The kind of a persistent request value (store.md 9).
+/// The kind of a persistent request value (protocol/store/secrets.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum CarriedKind {
     Key,
@@ -203,7 +203,7 @@ pub struct Kept {
     pub digest: Secret,
     pub expires: Wall,
 }
-/// Why an application's mint made no credential (protocol/client.md, 8).
+/// Why an application's mint made no credential (protocol/client/sign-in.md).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MintRefusal {
     NotApplication,
@@ -213,15 +213,15 @@ pub enum MintRefusal {
 }
 #[derive(Debug)]
 pub struct Settings {
-    /// Turn parts shown to their requester alone (domain/engine.md, 10.1).
+    /// Turn parts shown to their requester alone (domain/engine/briefs.md, 2.1).
     pub private: jig_protocol_transcript::Private,
     pub provider: Option<skein_oauth_issuer::Issuer>,
     pub addresses: Box<[u16]>,
     pub link: Option<people::Identity>,
     pub link_secret: Option<Secret>,
-    /// The local link's first secret, drawn by startup (protocol/client.md, 8, *A secret given*).
+    /// The local link's first secret, drawn by startup (protocol/client/sign-in.md, *A secret given*).
     pub local_secret: Option<Secret>,
-    /// Whether the component holds sign-ins approved by a browser (protocol/client.md, 8).
+    /// Whether the component holds sign-ins approved by a browser (protocol/client/sign-in.md).
     pub approval: bool,
     pub deployment_provider: u16,
     pub heartbeat: Duration,
@@ -233,7 +233,7 @@ pub struct Settings {
     pub seed: Secret,
     pub stream: u64,
     /// The configured models in configuration's order: the client names a model and its effort
-    /// by their names, which the component maps to the core's indices (contract.md, 3.2 and 5.1).
+    /// by their names, which the component maps to the core's indices (client/domain/contract/requests.md, 2, and client/domain/contract/documents.md, 1).
     pub models: Box<[Model]>,
     /// The key bound advertised by me, independent of the moved file bound.
     pub key_bytes: u32,
@@ -283,13 +283,13 @@ pub struct Served {
     pub last: u32,
 }
 
-/// Messages from an opaque transport (protocol/client.md, 4.2).
+/// Messages from an opaque transport (protocol/client/wire.md, 2.2).
 #[derive(Debug, PartialEq)]
 pub enum FromTransport {
     Exchange {
         exchange: Token,
         credential: Option<Secret>,
-        /// Whether the transport carried the credential itself, as a browser's cookie (protocol/client.md, 17.3).
+        /// Whether the transport carried the credential itself, as a browser's cookie (protocol/client/default-http.md, 3).
         browser: bool,
         message: Message,
     },
@@ -303,7 +303,7 @@ pub enum FromTransport {
     StreamGone {
         stream: Token,
     },
-    /// An exchange's connection ended before its reply (protocol/client.md, 4.2).
+    /// An exchange's connection ended before its reply (protocol/client/wire.md, 2.2).
     ExchangeGone {
         exchange: Token,
     },
@@ -335,7 +335,7 @@ pub enum ToTransport {
     StreamEnded { stream: Token, why: Ended },
     Public { exchange: Token, reply: PublicReply },
 }
-/// Encoded replies may carry a secret (jig/docs/design/protocol/client.md, 8).
+/// Encoded replies may carry a secret (jig/docs/design/protocol/client/sign-in.md).
 pub enum Reply {
     Record(Box<[u8]>),
     NotARecord,
@@ -354,7 +354,7 @@ pub enum Ended {
     Busy,
 }
 
-/// A provider endpoint answer (protocol/client.md, 18); a body may contain bearer tokens.
+/// A provider endpoint answer (protocol/client/openid.md); a body may contain bearer tokens.
 #[derive(Debug)]
 pub struct ProviderAnswer {
     pub status: u16,
@@ -362,7 +362,7 @@ pub struct ProviderAnswer {
     pub body: Secret,
 }
 
-/// A credential-free public read (jig/docs/design/protocol/client.md, 19).
+/// A credential-free public read (jig/docs/design/protocol/client/public-reads.md).
 #[derive(Debug, PartialEq)]
 pub struct PublicRead {
     pub owner: u16,
@@ -370,7 +370,7 @@ pub struct PublicRead {
     pub kind: u16,
     pub ids: Box<[u64]>,
 }
-/// One terminal public answer (jig/docs/design/protocol/client.md, 19).
+/// One terminal public answer (jig/docs/design/protocol/client/public-reads.md).
 #[derive(Debug, PartialEq, Eq)]
 pub enum PublicReply {
     Document { bytes: Box<[u8]>, decided: Time },

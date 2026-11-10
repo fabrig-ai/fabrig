@@ -1,4 +1,4 @@
-//! The model setting's value and shape (jig/docs/design/domain/engine.md, 17.1, 17.11–17.12).
+//! The model setting's value and shape (jig/docs/design/domain/engine/settings.md, 1 and 11–12).
 use super::{Current, Edit, Fault, Item, Setting, Value};
 use crate::{Model, Settings};
 use alloc::boxed::Box;
@@ -6,10 +6,10 @@ use jig_domain_accounts as accounts;
 use jig_domain_link as link;
 use skein_lib::{Duration, List, Wall};
 
-/// How long a list model is new (jig/docs/design/domain/engine.md, 17.12).
+/// How long a list model is new (jig/docs/design/domain/engine/settings.md, 12).
 pub const NEW_FOR: Duration = Duration::from_secs(7 * 86_400);
 
-/// One good read's setting edits and account facts (engine.md, 17.12).
+/// One good read's setting edits and account facts (domain/engine/settings.md, 12).
 #[derive(Debug)]
 pub struct ListChange {
     pub items: Box<[Item]>,
@@ -134,7 +134,7 @@ pub enum ModelSource {
     Person,
 }
 
-/// One whole model setting (jig/docs/design/domain/engine.md, 17.1).
+/// One whole model setting (jig/docs/design/domain/engine/settings.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct CatalogueModel {
     pub number: u32,
@@ -366,7 +366,7 @@ pub(crate) fn defaults(settings: &Settings) -> Box<[CatalogueModel]> {
     models.into_boxed()
 }
 
-/// An owner's act, independent of any client revision (engine.md, 17.11).
+/// An owner's act, independent of any client revision (domain/engine/settings.md, 11).
 #[derive(Clone, Hash, Debug)]
 pub enum ModelAct {
     Picker { number: u32, on: bool },
@@ -388,7 +388,7 @@ pub(crate) fn free_number(models: &[CatalogueModel]) -> Option<u32> {
     None
 }
 
-/// A new estimated model takes stock figures and its provider's endpoint (engine.md, 17.11).
+/// A new estimated model takes stock figures and its provider's endpoint (domain/engine/settings.md, 11).
 #[must_use]
 pub fn new_model(
     provider: u32,

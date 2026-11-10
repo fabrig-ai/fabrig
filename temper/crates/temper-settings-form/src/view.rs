@@ -90,11 +90,11 @@ pub enum EndedBy {
     Result,
     /// Only its requester ends it; a run's raw finish parks it (5.8).
     Requester,
-    /// A named procedure closes an agent task (jig/docs/design/domain/tasks.md, 5.10).
+    /// A named procedure closes an agent task (jig/docs/design/domain/tasks/lifecycle.md, 11).
     Closer(Closer),
 }
 
-/// The procedure named to close a task (jig/docs/design/domain/tasks.md, 5.10).
+/// The procedure named to close a task (jig/docs/design/domain/tasks/lifecycle.md, 11).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Closer {
     pub connector: u16,
@@ -300,7 +300,7 @@ pub struct RevisionItem {
     pub edit: RevisionEdit,
     pub replaced: RevisionReplaced,
 }
-/// The state before an item changed it (jig/docs/design/domain/engine.md, 17.10).
+/// The state before an item changed it (jig/docs/design/domain/engine/settings.md, 10).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum RevisionReplaced {
     Value(SettingSet),
@@ -363,7 +363,7 @@ pub enum Setting {
     Template(SettingNumber),
     Policy(SettingNumber),
     Rules,
-    /// A project's own policy (jig/docs/design/domain/engine.md, 17.2).
+    /// A project's own policy (jig/docs/design/domain/engine/settings.md, 2).
     ProjectPolicy {
         project: u32,
     },
@@ -619,7 +619,7 @@ impl Charter {
     }
 }
 
-/// A charter's default activation policy (jig/docs/design/domain/tasks.md, 8.3).
+/// A charter's default activation policy (jig/docs/design/domain/tasks/messages.md, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct WakePolicy {
     pub words: WakeRule,
@@ -674,7 +674,7 @@ pub enum SizedEdit {
     Reset,
 }
 
-/// The charter member rejected by the settings check (jig/docs/design/domain/engine.md, 17.9).
+/// The charter member rejected by the settings check (jig/docs/design/domain/engine/settings.md, 9).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SettingMember {
     /// The charter's document count.

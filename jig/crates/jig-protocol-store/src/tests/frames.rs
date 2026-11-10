@@ -1,4 +1,4 @@
-//! Turn frame integrity (protocol/store.md, section 8.1).
+//! Turn frame integrity (protocol/store/transcripts.md, section 1).
 use super::fixtures;
 use crate::transcripts::frame::{self, Unread};
 use alloc::boxed::Box;

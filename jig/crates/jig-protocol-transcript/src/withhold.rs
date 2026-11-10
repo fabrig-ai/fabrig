@@ -1,12 +1,12 @@
 //! A turn's private parts belong to its task's requester
-//! (`jig/docs/design/domain/engine.md`, 10.1).
+//! (`jig/docs/design/domain/engine/briefs.md`, 2.1).
 
 use alloc::boxed::Box;
 use skein_lib::{Intake, List, Set, Writer, length::usize_of, stream::Read};
 
 use crate::{Limits, Undecodable, classify, decode_source, smith, summary};
 
-/// What a turn shows its task's requester alone (domain/engine.md, 10.1).
+/// What a turn shows its task's requester alone (domain/engine/briefs.md, 2.1).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Private {
     /// The brief section's title as runs' briefs render it; empty withholds no section.

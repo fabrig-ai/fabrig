@@ -80,7 +80,7 @@ pub(crate) fn delegates(value: &Value) -> Result<Box<[engine::Delegate]>, Proble
     Ok(out.into_boxed())
 }
 
-/// Whether a host spec amendment omits its parameter replacement (jig/docs/design/domain/tasks.md, 7).
+/// Whether a host spec amendment omits its parameter replacement (jig/docs/design/domain/tasks/changes.md).
 pub(crate) fn keeps_parameters(value: &Value) -> Result<bool, Problem> {
     let value = value.object(b"amendment")?;
     match value.field(b"spec")? {

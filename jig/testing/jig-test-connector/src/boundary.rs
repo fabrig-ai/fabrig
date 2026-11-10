@@ -25,7 +25,7 @@ pub enum Recovery {
     Unrecoverable,
 }
 
-/// A dependency added by an amendment (domain/tasks.md, 5.7).
+/// A dependency added by an amendment (domain/tasks/lifecycle.md, 8).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Added {
     pub task: u64,
@@ -343,7 +343,7 @@ pub enum ProcedureAction {
     Effect { kind: u16, purpose: u64, target: u64 },
     /// Make a bounded batch of child tasks.
     Delegate { kinds: Box<[u16]> },
-    /// Make one job delegate (jig/docs/design/domain/engine.md, 7.5).
+    /// Make one job delegate (jig/docs/design/domain/engine/executors.md, 5).
     Job { kind: u32, spec: Box<[u8]>, deadline: Duration },
     /// Amend the delegate using the last revision told back.
     Amend { words: u64, priority: Option<u32> },
@@ -428,7 +428,7 @@ pub enum StepDecision {
     Delegate {
         kinds: Box<[u16]>,
     },
-    /// Make one job delegate (jig/docs/design/domain/engine.md, 7.5).
+    /// Make one job delegate (jig/docs/design/domain/engine/executors.md, 5).
     Job {
         kind: u32,
         spec: Box<[u8]>,
@@ -606,7 +606,7 @@ pub enum Event {
         scope: u32,
         number: u32,
     },
-    /// Release project adoptions (jig/docs/design/domain/people.md, 5.2).
+    /// Release project adoptions (jig/docs/design/domain/people/acts.md, 2).
     ReleaseProject {
         project: u32,
     },

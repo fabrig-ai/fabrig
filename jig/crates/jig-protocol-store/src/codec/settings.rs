@@ -1,4 +1,4 @@
-//! Typed settings records (protocol/store.md, sections 4.4 and 5).
+//! Typed settings records (protocol/store/README.md, section 4.4 and protocol/store/records.md).
 #![expect(
     clippy::trivially_copy_pass_by_ref,
     reason = "typed encoders uniformly borrow the domain values they translate"

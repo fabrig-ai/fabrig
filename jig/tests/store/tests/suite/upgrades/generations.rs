@@ -63,7 +63,7 @@ fn clean_first_start(world: &mut World) {
 
 #[test]
 fn first_start_is_empty_and_durable() {
-    // store.md 2: The first start makes generation 1's manifest; the maps are empty until the root's first commit.
+    // protocol/store/README.md 2: The first start makes generation 1's manifest; the maps are empty until the root's first commit.
     let mut world = World::unopened(802);
     assert_eq!(world.open_switched(), Some(0));
     clean_first_start(&mut world);
@@ -78,7 +78,7 @@ fn first_start_is_empty_and_durable() {
 
 #[test]
 fn largest_generation_fits_the_active_limit() {
-    // store.md 10.1.2: active loads up to 21 bytes of decimal digits and a newline.
+    // protocol/store/opening.md 1.2: active loads up to 21 bytes of decimal digits and a newline.
     let mut world = active_generation(u64::MAX);
     assert_eq!(world.open_switched(), Some(0));
     assert_eq!(world.active(), b"18446744073709551615\n");
@@ -115,7 +115,7 @@ fn strays_gone(world: &mut World) {
 
 #[test]
 fn recursive_cleanup_restarts_directory_pages() {
-    // store.md 10.1.5: List each directory from its first page until empty, then remove it deepest first.
+    // protocol/store/opening.md 1.5: List each directory from its first page until empty, then remove it deepest first.
     let mut world = stray_fixture();
     for number in 0..160 {
         world.lay(&[file(&format!("generations/4/deep/file-{number:03}"), b"partial")]);
@@ -126,7 +126,7 @@ fn recursive_cleanup_restarts_directory_pages() {
 
 #[test]
 fn generation_refusal_words_match_operator_instructions() {
-    // store.md 10.1: Each Generations refusal's text, whole, is what OpenRefusal::words gives.
+    // protocol/store/opening.md 1: Each Generations refusal's text, whole, is what OpenRefusal::words gives.
     for (why, expected) in [
         (
             Generations::Busy,
@@ -151,7 +151,7 @@ fn generation_refusal_words_match_operator_instructions() {
 
 #[test]
 fn an_older_builds_refusal_names_the_whole_layout_to_move() {
-    // store.md 2: Older::Directory carries the whole instruction to move store/, secrets/ and transcripts/ together.
+    // protocol/store/README.md 2: Older::Directory carries the whole instruction to move store/, secrets/ and transcripts/ together.
     let words = OpenRefusal::OlderBuild { why: Older::Directory }.words().join("<deployment>");
     assert_eq!(
         words,

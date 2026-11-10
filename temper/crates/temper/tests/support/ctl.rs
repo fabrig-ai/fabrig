@@ -1300,7 +1300,7 @@ pub fn charter_change_file(file: &Path, setting: &Ended, instructions: &str) {
     setting_change_file(file, setting, |value| value["instructions"] = instructions.into());
 }
 
-/// Pair the returned proposal number with its requesting party (jig/docs/design/protocol/client.md, 5).
+/// Pair the returned proposal number with its requesting party (jig/docs/design/protocol/client/README.md, 3).
 #[must_use]
 pub fn proposal_key(ended: &Ended, me: &Ended) -> String {
     let answer = json(ended);

@@ -1,4 +1,4 @@
-//! Core deletion decisions and kept-step recovery (jig/docs/design/domain/people.md, 5.2).
+//! Core deletion decisions and kept-step recovery (jig/docs/design/domain/people/acts.md, 2).
 use crate::tests::*;
 
 fn core() -> (Core, Limits) {

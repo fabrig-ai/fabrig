@@ -1,5 +1,5 @@
 //! Authenticated person-task standing and task handoff
-//! (domain/engine.md, section 4.4; domain/people.md, section 5).
+//! (domain/engine/README.md, section 4.4; domain/people/acts.md).
 
 use alloc::boxed::Box;
 use jig_domain_people as people;

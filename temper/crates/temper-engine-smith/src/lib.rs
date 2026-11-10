@@ -1,6 +1,6 @@
 //! Pure, typed translation from the engine's owned run and call vocabulary
-//! into Smith's generic agent boundary (jig's domain/hosts.md, sections 5 and 8;
-//! jig's domain/engine.md, section 7; smith's domain/run.md, sections 3, 5 and 9).
+//! into Smith's generic agent boundary (jig's domain/hosts/README.md, section 5 and domain/hosts/charters.md;
+//! jig's domain/engine/executors.md; smith's domain/run.md, sections 3, 5 and 9).
 //!
 //! Jig's core keeps task policy and numbered calls; the root wraps records and
 //! orders their commits. This crate keeps no state and performs no IO. Its `start` takes

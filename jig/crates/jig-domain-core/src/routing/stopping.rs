@@ -1,4 +1,4 @@
-//! Admission while the engine drains (domain/engine.md, 6.1).
+//! Admission while the engine drains (domain/engine/restart.md, 1).
 use crate::{Core, Event, Held, Limits, Now, Request, Timer, effects::projections, routing};
 use alloc::boxed::Box;
 use jig_domain_fleet as fleet;
@@ -16,7 +16,7 @@ impl Core {
 }
 
 /// Settle each agent claim on a host in this process as interrupted, then
-/// refuse what would commit (jig/docs/design/domain/engine.md, 6.1).
+/// refuse what would commit (jig/docs/design/domain/engine/restart.md, 1).
 pub(crate) fn start(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     let mut claims = List::with_capacity(core.proofs.len());
     for (&task, proof) in &core.proofs {

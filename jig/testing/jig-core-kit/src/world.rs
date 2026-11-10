@@ -24,7 +24,7 @@ mod deliveries;
 mod store;
 pub use constructors::fixture;
 
-/// Startup of the core world (`jig/docs/design/domain/engine.md`, section 15).
+/// Startup of the core world (`jig/docs/design/domain/engine/README.md`, section 9).
 #[derive(Debug)]
 pub struct Setup {
     pub seed: u64,
@@ -236,7 +236,7 @@ impl World {
         }
     }
 
-    /// A scripted worker declares the job kinds it can host (engine.md, 7.5).
+    /// A scripted worker declares the job kinds it can host (domain/engine/executors.md, 5).
     pub fn job_hello(&mut self, channel: Token, worker: u32, kinds: Box<[JobBound]>) {
         let mut bounds = jig_test_profile::fixtures::bounds();
         bounds.endpoints = Box::new([]);
@@ -254,7 +254,7 @@ impl World {
         })));
     }
 
-    /// Answer through the job's host link (jig/docs/design/domain/engine.md, 7.5).
+    /// Answer through the job's host link (jig/docs/design/domain/engine/executors.md, 5).
     pub fn answer_job(&mut self, channel: Token, task: Token, attempt: Token, ending: jig_domain_host::JobEnding) {
         self.send(root::Event::Link {
             channel,

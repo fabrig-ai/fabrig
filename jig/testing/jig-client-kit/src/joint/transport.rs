@@ -81,7 +81,7 @@ pub struct Transport {
     documents: BTreeSet<Token>,
     streams: BTreeSet<Token>,
     // The secrets' store's stand-in: each carried value under the number this
-    // transport drew for it, from 2^63 up, never reused (store.md, 9).
+    // transport drew for it, from 2^63 up, never reused (protocol/store/secrets.md).
     carried: BTreeMap<u64, Secret>,
     next_carried: u64,
 }

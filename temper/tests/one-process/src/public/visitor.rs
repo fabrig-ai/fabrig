@@ -1,4 +1,4 @@
-//! Exact request bytes and ordered answers (jig/docs/design/protocol/client.md, 17.5).
+//! Exact request bytes and ordered answers (jig/docs/design/protocol/client/default-http.md, 5).
 use super::{
     http::Answer,
     wire::{Event, Wire},

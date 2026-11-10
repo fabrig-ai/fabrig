@@ -1,5 +1,5 @@
 //! One project decision includes its roster, policy, first period and answer
-//! (people.md, 5.1–5.3; core.md, 6.1; contract.md, 3.2).
+//! (domain/people/acts.md, 1–3; domain/model.md, 6.1; client/domain/contract/requests.md, 2).
 use crate::{
     Core, Event, Limits, Record, Request, Write,
     routing::{

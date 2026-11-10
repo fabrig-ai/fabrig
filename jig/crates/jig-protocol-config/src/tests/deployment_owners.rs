@@ -1,4 +1,4 @@
-//! First owners hold the deployment's roles (domain/people.md, 3).
+//! First owners hold the deployment's roles (domain/people/README.md, 3).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_macros,

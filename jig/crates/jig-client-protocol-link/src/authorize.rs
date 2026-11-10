@@ -1,4 +1,4 @@
-//! One authorization in flight; no retained request (protocol/client.md, 18).
+//! One authorization in flight; no retained request (protocol/client/openid.md).
 use crate::{
     AuthorizeWhy, Authorized, Link, Message, Request,
     component::{Attempt, ExchangeKind},

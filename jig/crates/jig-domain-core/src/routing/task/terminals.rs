@@ -1,5 +1,5 @@
 //! Task acknowledgements, holdings, and keyed terminals
-//! (jig/docs/design/domain/engine.md, 4.4).
+//! (jig/docs/design/domain/engine/README.md, 4.4).
 
 use crate::{
     Ask, CallPart, Core, CoreRecord, Held, Key, Limits, LinkNow, Now, PersonTaskRoute, Record, Request, SentRoute,

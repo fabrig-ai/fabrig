@@ -1,5 +1,5 @@
 //! Translations between the core's child vocabularies
-//! (jig/docs/design/domain/engine.md, 3; jig/docs/design/domain/authority.md, 2–4).
+//! (jig/docs/design/domain/engine/README.md, 3; jig/docs/design/domain/authority.md, 2–4).
 
 use jig_domain_authority as authority;
 use jig_domain_people as people;

@@ -51,7 +51,7 @@ fn a_channel_cascade_settles_before_the_next_entrance() {
     ));
 }
 
-/// Buffered jobs and runs preserve order through seeded channel cascades (jig/docs/design/protocol/channel.md, 5.4).
+/// Buffered jobs and runs preserve order through seeded channel cascades (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn jobs_mixed_with_runs_keep_their_order() {
     use jig_domain_host as host;

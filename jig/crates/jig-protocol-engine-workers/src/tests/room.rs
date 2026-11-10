@@ -1,4 +1,4 @@
-//! The stream's room and starts refused locally (jig/docs/design/protocol/channel.md, 9, 11 and 12).
+//! The stream's room and starts refused locally (jig/docs/design/protocol/channel/README.md, 8, 10 and 11).
 use super::fixtures;
 use crate::{Bound, Component, Event, Limits, Request, Unsent, host};
 use jig_domain_host as hub;

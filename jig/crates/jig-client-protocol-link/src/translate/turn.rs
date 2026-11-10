@@ -1,4 +1,4 @@
-//! Complete single-turn admission before allocating its owned envelope (client/domain/client.md, 7).
+//! Complete single-turn admission before allocating its owned envelope (client/domain/client/README.md, 6).
 use super::Undecodable;
 use crate::Limits;
 use jig_client_domain::contract as c;

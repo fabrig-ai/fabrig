@@ -1,4 +1,4 @@
-//! Fixed pacing capacities (`domain/engine.md`, 11 and 13).
+//! Fixed pacing capacities (`domain/engine/views.md` and `domain/engine/README.md`, 7).
 //! There is no additional per-subject limit.
 /// Capacities fixed when the child is constructed.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

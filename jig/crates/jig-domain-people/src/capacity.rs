@@ -1,5 +1,5 @@
 //! Content-free room-refusal facts for deployment capacity
-//! (client/domain/pages.md, section 7; domain/people.md, section 5.1).
+//! (client/domain/pages.md, section 7; domain/people/acts.md, section 1).
 //! Permanent facts come from retained keyed answers; entrance pressure is
 //! bounded live history, independent of diagnostics and replay decisions.
 

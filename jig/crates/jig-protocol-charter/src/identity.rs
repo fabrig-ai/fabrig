@@ -1,4 +1,4 @@
-//! Run identities derived at assignment (protocol/channel.md, section 7).
+//! Run identities derived at assignment (protocol/channel/README.md, section 6).
 use skein_lib::sha256::Sha256;
 
 /// The first sixteen bytes of the deployment, task and conversation's SHA-256.

@@ -1,4 +1,4 @@
-//! The core's scripted domain world (`domain/engine.md`, section 15).
+//! The core's scripted domain world (`domain/engine/README.md`, section 9).
 
 #![forbid(unsafe_code)]
 

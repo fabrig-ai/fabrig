@@ -1,4 +1,4 @@
-//! Lists and counts are derived only after public membership (jig/docs/design/domain/people.md, 13.7).
+//! Lists and counts are derived only after public membership (jig/docs/design/domain/people/public-reading.md, 7).
 use super::{Location, Project, Relations};
 use crate::{PublicCounts, PublicIndexLimits, PublicLine, PublicPhase};
 use skein_lib::{List, Map};

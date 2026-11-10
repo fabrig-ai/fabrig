@@ -558,7 +558,7 @@ fn task_report_selectors_render_complete_retained_continuations() {
 }
 
 // temper/docs/design/draft/reference-code-production.md, 8;
-// temper/docs/design/protocol/configuration.md, 13.9; jig/docs/design/domain/people.md, 8.
+// temper/docs/design/protocol/configuration.md, 13.9; jig/docs/design/domain/people/README.md, 7.
 type PersonWorld = temper_engine_domain_world::forge_routes::World;
 
 // temper/docs/design/protocol/configuration.md, 13.9: the closer reads CI selection;

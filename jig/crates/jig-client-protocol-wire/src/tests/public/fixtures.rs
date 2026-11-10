@@ -1,4 +1,4 @@
-//! Largest public answers under index limits (client/domain/contract.md, section 12).
+//! Largest public answers under index limits (client/domain/contract/README.md, section 10).
 use crate::public_v1 as w;
 use alloc::boxed::Box;
 use skein_lib::{List, Overflow, Writer};

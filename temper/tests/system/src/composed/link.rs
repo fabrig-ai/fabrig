@@ -5,7 +5,7 @@
 //! engine gives typed and the hub takes with smith's charter encoded and
 //! temper's workspace items beside it; an answer's parts, which the worker
 //! gives in its own detail and the engine takes typed (jig's
-//! `protocol/channel.md`, 6.2); and the engine's hand-outs of host calls and
+//! `protocol/channel/README.md`, 5.2); and the engine's hand-outs of host calls and
 //! results, decoded and rendered with smith's codecs and temper's charter
 //! translation.
 

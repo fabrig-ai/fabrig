@@ -1,5 +1,5 @@
 //! Smith's call name, read at the engine's protocol boundary
-//! (protocol/channel.md, section 7).
+//! (protocol/channel/README.md, section 6).
 use alloc::boxed::Box;
 use skein_lib::{Reader, Writer};
 
@@ -21,7 +21,7 @@ pub fn call_key(name: &[u8], attempt: u64) -> Option<CallKey> {
     Some(CallKey { activation: value.activation(), completion: value.completion(), position: value.position() })
 }
 
-/// Smith's call name for a settled call, from its key (store.md, 5.1):
+/// Smith's call name for a settled call, from its key (protocol/store/records.md, 1):
 /// sent again in a replay or through the in-process hub.
 #[must_use]
 pub fn call_name(key: &CallKey) -> Box<[u8]> {

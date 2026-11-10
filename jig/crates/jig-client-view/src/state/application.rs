@@ -355,7 +355,7 @@ fn chip_parts(parts: &mut Parts, chip: &contract::Chip) {
     }
 }
 // The account is an explicit owner reference, independent of the hold's origin
-// (client/domain/contract.md, 5.1; objects.md, 3).
+// (client/domain/contract/documents.md, 1; objects.md, 3).
 pub(crate) fn owner_hold(chip: &contract::Chip) -> Option<ApplicationPart> {
     let details = {
         let contract::ChipPhaseFacts { details, .. } = chip.details.as_ref();

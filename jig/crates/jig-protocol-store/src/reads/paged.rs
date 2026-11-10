@@ -1,4 +1,4 @@
-//! Bounded family pages and dense activity in either direction (protocol/store.md, 7.3 and 7.4).
+//! Bounded family pages and dense activity in either direction (protocol/store/loads.md, 3 and 4).
 use super::{Failure, Spent, empty, joins};
 use crate::{Cursor, Row, Store, intervals, keys, pages, restore};
 use jig_domain_core::{self as core, reads};

@@ -1,6 +1,6 @@
 //! An assignment's workspace items, checked at the entrance
 //! (`domain/worker.md`, 4.1): what the checkout cannot take is refused as an
-//! invalid start, in words that name the item (jig's `domain/hosts.md`, 6.3).
+//! invalid start, in words that name the item (jig's `domain/hosts/hub.md`, 3).
 //! The hub checks the rest of the assignment: its charter, conversation,
 //! inbox and grants. The repositories' names are each the directory a
 //! repository sits in, so one path component unique within its workspace;

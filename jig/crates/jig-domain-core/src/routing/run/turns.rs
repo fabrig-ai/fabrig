@@ -1,4 +1,4 @@
-//! Turns and their current windows commit together (domain/engine.md, 7.2).
+//! Turns and their current windows commit together (domain/engine/executors.md, 2).
 use crate::{Core, CoreKey, CoreRecord, Held, Key, Limits, Record, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;

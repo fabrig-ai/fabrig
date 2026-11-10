@@ -1,4 +1,4 @@
-//! The current catalogue and revision-held resolutions (domain/engine.md, 17.11).
+//! The current catalogue and revision-held resolutions (domain/engine/settings.md, 11).
 use crate::settings_support::*;
 use jig_core_world::{
     client_peer::ClientPeer,

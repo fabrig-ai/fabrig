@@ -1,4 +1,4 @@
-//! Notes rows and their bounded resource patterns (protocol/store.md, 5.1).
+//! Notes rows and their bounded resource patterns (protocol/store/records.md, 1).
 use crate::notes_v1 as wire;
 use alloc::boxed::Box;
 use jig_domain_notes as domain;

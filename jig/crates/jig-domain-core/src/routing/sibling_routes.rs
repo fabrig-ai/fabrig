@@ -1,4 +1,4 @@
-//! Routes between the core's children (domain/engine.md, 4.4). These
+//! Routes between the core's children (domain/engine/README.md, 4.4). These
 //! translations use only the children's vocabularies; the application root
 //! carries their events and handles the resulting store and host requests.
 

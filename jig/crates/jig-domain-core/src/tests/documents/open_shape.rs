@@ -1,4 +1,4 @@
-//! The restore copies agree with core's ending-authority check (domain/tasks.md, 5.8).
+//! The restore copies agree with core's ending-authority check (domain/tasks/lifecycle.md, 9).
 use crate::tests::{fixtures, people, tasks};
 use people::{EndedBy, Malformed, TaskExecutor};
 

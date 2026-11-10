@@ -1,4 +1,4 @@
-//! Settings revisions held by live agent tasks and their runs (domain/engine.md, 17.3).
+//! Settings revisions held by live agent tasks and their runs (domain/engine/settings.md, 3).
 use crate::domain::{Domain, task_mut};
 use crate::{Active, Executor, Phase, Request, SettingsRevision, TaskRecord};
 use alloc::boxed::Box;

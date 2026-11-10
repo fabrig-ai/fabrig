@@ -1,4 +1,4 @@
-//! Rebuild live projections once, then name the indexed ended owners (store.md 7.2).
+//! Rebuild live projections once, then name the indexed ended owners (protocol/store/loads.md 2).
 use crate::{
     Census, Core, Limits, ReadResults,
     start::{LiveSet, Phase},

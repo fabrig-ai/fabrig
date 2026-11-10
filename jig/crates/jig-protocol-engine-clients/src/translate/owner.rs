@@ -1,4 +1,4 @@
-//! Whole owner facts encoded without clipping (protocol/client.md, 3).
+//! Whole owner facts encoded without clipping (protocol/client/wire.md, 1).
 use super::{pieces, problem, w};
 use alloc::boxed::Box;
 use jig_domain_core::documents as d;
@@ -179,7 +179,7 @@ fn project(
 pub fn frame(value: &d::Frame, models: &[crate::Model], limits: &w::Limits) -> Result<w::Me, w::Problem> {
     frame_named(value, models, None, limits)
 }
-/// The component supplies its held public key (jig/docs/design/domain/people.md, 13.8).
+/// The component supplies its held public key (jig/docs/design/domain/people/public-reading.md, 8).
 pub(crate) fn frame_named(
     value: &d::Frame,
     models: &[crate::Model],

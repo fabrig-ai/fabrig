@@ -77,7 +77,7 @@ hovering one shows its citation.
 
 | Source | What it is | Its citation |
 |---|---|---|
-| Engine fact | what jig or temper keeps or computes, and the client can read | the design section that defines it, and its record and field: jig's `client/domain/contract.md`, 7.1, `Account.display` |
+| Engine fact | what jig or temper keeps or computes, and the client can read | the design section that defines it, and its record and field: jig's `client/domain/contract/README.md`, 5.1, `Account.display` |
 | Configuration | what the deployment's configuration gives | its key, and `../../protocol/configuration.md`'s section |
 | As written | words a person or an agent wrote, with the writer | the writer, and when |
 

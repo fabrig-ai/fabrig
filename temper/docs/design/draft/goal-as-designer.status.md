@@ -10,13 +10,13 @@ story's restart gap is in `../protocol/configuration.status.md`, 13.9.
 
 Section 4's delivery path and section 3's delivery and `after` ordering are carried by
 `../domain/agent.md`, 4.3 and 4.3.1, `../domain/forge.md`, 8.1, 8.5, 11,
-11.1 and 11.3, `../domain/worker.md`, section 5, and jig's `domain/hosts.md`,
-section 8. The saved-start exception and remaining reference-workflow
+11.1 and 11.3, `../domain/worker.md`, section 5, and jig's `domain/hosts/charters.md`
+. The saved-start exception and remaining reference-workflow
 gaps are below.
 
 Section 6's room is carried by `../protocol/configuration.md`, 13.8
 and 13.9, `../domain/agent.md`, 4.4, smith's `protocol/limits.md`, 3.10,
-and jig's `domain/hosts.md`, section 8 and `protocol/configuration.md`,
+and jig's `domain/hosts/charters.md` and `protocol/configuration.md`,
 section 6. The reference takes the permitted 63,740-byte fallback after
 `turn-in-transcript` refuses the larger pair. Its charter allowance is
 127,480, below the hub's 262,144: a whole fallback-sized spec fits,

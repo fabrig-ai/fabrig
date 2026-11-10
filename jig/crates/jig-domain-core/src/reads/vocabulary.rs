@@ -1,4 +1,4 @@
-//! Read pages and the owner-keyed store transport (`contract.md`, section 6).
+//! Read pages and the owner-keyed store transport (`client/domain/contract/README.md`, section 4).
 //! Cursors name a query and an owner key. The client only echoes them.
 use crate::{
     Core, CoreRecord, Key, Record,
@@ -64,12 +64,12 @@ pub struct Filter {
 /// Identity of a store query, independent of its continuation.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Scope {
-    /// Ended task records in key order for whole-task erasure (jig/docs/design/protocol/store.md, 11.1;
-    /// jig/docs/design/domain/people.md, 5.2).
+    /// Ended task records in key order for whole-task erasure (jig/docs/design/protocol/store/README.md, 6.1;
+    /// jig/docs/design/domain/people/acts.md, 2).
     EndedTasks,
     /// History, milestones, activity, terminals, decisions, ended reads and the
     /// party proposal and update rows whose task link names this owner
-    /// (jig/docs/design/protocol/store.md, 11.1; jig/docs/design/domain/people.md, 5.2).
+    /// (jig/docs/design/protocol/store/README.md, 6.1; jig/docs/design/domain/people/acts.md, 2).
     TaskRows { task: u64 },
     /// Dense inclusive revision interval; held newest and tag-9 predecessors.
     SettingsHistory { first: u32, last: u32, newest: u32, whole: bool },
@@ -128,7 +128,7 @@ pub enum Cursor {
     Store { scope: Scope, after: Option<Position> },
 }
 
-/// Which side of an activity line to read (client/domain/contract.md, section 6).
+/// Which side of an activity line to read (client/domain/contract/README.md, section 4).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Side {
     Earlier,
@@ -228,7 +228,7 @@ pub enum Read {
         task: u64,
         before: Option<Cursor>,
     },
-    /// The page next to a line of a task's activity, that line left out (contract.md, section 6).
+    /// The page next to a line of a task's activity, that line left out (client/domain/contract/README.md, section 4).
     ActivityBeside {
         task: u64,
         position: u64,
@@ -286,7 +286,7 @@ pub struct Row {
     pub ancestors: Box<[u64]>,
     /// Related immutable evidence, such as a decision or answered question.
     pub related: Option<Record>,
-    /// A page turn whose bytes could not be carried (store.md, 7.3).
+    /// A page turn whose bytes could not be carried (protocol/store/loads.md, 3).
     pub unjoined: Option<UnjoinedTurn>,
     /// The ended read position joined for this ended conversation's requester party.
     pub ended_read: Option<u64>,
@@ -315,7 +315,7 @@ pub enum Loaded {
     Busy,
     /// This range is no longer available.
     Gone,
-    /// The first row needs more joins than the whole read bound (protocol/store.md 7.3).
+    /// The first row needs more joins than the whole read bound (protocol/store/loads.md 3).
     TooLinked { joins: u32 },
 }
 
@@ -323,7 +323,7 @@ pub enum Loaded {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum TurnFailure {
     /// Size charged past the read budget: opaque bytes without frame machines,
-    /// or a complete frame when frame machines are configured (protocol/store.md 8.6).
+    /// or a complete frame when frame machines are configured (protocol/store/transcripts.md 6).
     TooLarge { bytes: u64 },
     /// The frame could not be read whole.
     Malformed,
@@ -373,22 +373,22 @@ pub enum EndedValue {
     /// Immutable opaque transcript bytes, not decoded by the core.
     Turn(crate::TurnRecord),
     /// A turn carried to a party other than its task's requester, projected before it leaves
-    /// (domain/engine.md, 10.1).
+    /// (domain/engine/briefs.md, 2.1).
     WithheldTurn(crate::TurnRecord),
 }
 
-/// A transcript frame not carried beside its activity line (store.md, 7.3).
+/// A transcript frame not carried beside its activity line (protocol/store/loads.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum UnjoinedTurn {
     TooLarge { task: u64, attempt: u64, turn: u32, spent: u64, read: Option<u64>, at: Wall, bytes: u64 },
     Unread { task: u64, attempt: u64, turn: u32 },
 }
-/// The turn supplied within an activity page's bounds (store.md, 7.3).
+/// The turn supplied within an activity page's bounds (protocol/store/loads.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum PageTurn {
     Carried(crate::TurnRecord),
     /// A turn carried to a party other than its task's requester, projected before it leaves
-    /// (domain/engine.md, 10.1).
+    /// (domain/engine/briefs.md, 2.1).
     Withheld(crate::TurnRecord),
     TooLarge {
         spent: u64,
@@ -432,7 +432,7 @@ pub struct Page {
     pub inbox_selection: Option<List<documents::InboxSelection>>,
 }
 
-/// One task query's two independently continued groups (engine.md, 11.2).
+/// One task query's two independently continued groups (domain/engine/views.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TaskPage {
     pub live: List<documents::TaskLine>,
@@ -530,7 +530,7 @@ pub(super) fn read_row_visible(core: &Core, party: u64, row: &Row, run_project: 
     row_visible(core, party, row)
 }
 
-// A run reads settings proposals in its project without a party's visibility (engine.md, 7.3).
+// A run reads settings proposals in its project without a party's visibility (domain/engine/executors.md, 3).
 pub(super) fn proposal_row_visible(project: u32, row: &Row) -> bool {
     match &row.value {
         Record::Tasks(tasks::Stored::History(history)) => {
@@ -671,7 +671,7 @@ pub(crate) fn row_bytes(row: &Row) -> Option<u64> {
     Some(total)
 }
 
-/// One setting's value, or an application setting's state and size (jig/docs/design/client/domain/contract.md, 6).
+/// One setting's value, or an application setting's state and size (jig/docs/design/client/domain/contract/README.md, 4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SettingDocument {
     pub setting: crate::settings::Setting,

@@ -100,7 +100,7 @@ enum ReadPurpose {
 
 /// A held chat the scripted person waits to see; the root's reads are the
 /// core's, so the world sees it in its durable row (jig's
-/// `client/domain/contract.md`, 6).
+/// `client/domain/contract/README.md`, 4).
 #[derive(Clone, Hash, Debug)]
 struct PendingRead {
     to: Token,

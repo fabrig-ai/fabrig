@@ -1,4 +1,4 @@
-//! A worker's startup values and its bounded end (configuration.md, 4; channel.md, 10.1).
+//! A worker's startup values and its bounded end (configuration.md, 4; protocol/channel/README.md, 9.1).
 use crate::{Address, Directories, Directory, Limits, Path, Problems, Profile, What, check, overrides, profile, read};
 use alloc::boxed::Box;
 use skein_json::Document;

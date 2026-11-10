@@ -1,5 +1,5 @@
 //! Provider requests follow a started chat's picker choice on its next turn.
-//! Contract: jig/docs/design/domain/tasks.md, 7; smith/docs/design/domain/session.md, 8.2.
+//! Contract: jig/docs/design/domain/tasks/changes.md; smith/docs/design/domain/session.md, 8.2.
 use jig_domain_core::{CoreRecord, Record as CoreRow};
 use jig_domain_tasks as tasks;
 use skein_fake_llm_domain::api::{Part, Query, Script, ToolChoice};

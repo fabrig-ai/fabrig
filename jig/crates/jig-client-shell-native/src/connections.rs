@@ -1,4 +1,4 @@
-//! io-free HTTP machines, with transport-owned exchange deadlines (protocol/client.md, 4).
+//! io-free HTTP machines, with transport-owned exchange deadlines (protocol/client/wire.md, 2).
 use crate::diagnostics::Kind;
 use jig_client as client;
 use jig_client_protocol_http::{self as mapping, Call, Mapping, Unlinked};

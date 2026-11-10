@@ -86,7 +86,7 @@ pub enum Stop {
         number: u64,
     },
     Start(Problems),
-    /// jig's start refused a fit at `phase` (jig engine.md 6).
+    /// jig's start refused a fit at `phase` (jig jig/docs/design/domain/engine/restart.md).
     StartRefused {
         phase: Option<jig_domain_core::start::Phase>,
         failure: jig_domain_core::start::Failure,
@@ -106,7 +106,7 @@ pub enum Stop {
     },
     /// The deployment's namespace binding was refused.
     Binding,
-    /// The store refuses this start (jig's protocol/store.md, 5.3 and 10).
+    /// The store refuses this start (jig's protocol/store/records.md, 3 and protocol/store/opening.md).
     StoreOpen {
         why: jig_protocol_store::OpenRefusal,
     },
@@ -220,7 +220,7 @@ pub enum Note {
         stage: &'static str,
         error: Option<skein_forge::api::Error>,
     },
-    /// A whole brief failed with its count and fixed reason (jig/docs/design/domain/engine.md, 9.1).
+    /// A whole brief failed with its count and fixed reason (jig/docs/design/domain/engine/briefs.md, 1.1).
     BriefFailed {
         task: u64,
         counts: &'static str,
@@ -234,7 +234,7 @@ pub enum Note {
         layer: &'static str,
         reason: &'static str,
     },
-    /// One patch finished before the store opened (jig's protocol/store.md, 10.2).
+    /// One patch finished before the store opened (jig's protocol/store/opening.md, 2).
     Patched {
         of: jig_protocol_store::Owner,
         patch: u32,

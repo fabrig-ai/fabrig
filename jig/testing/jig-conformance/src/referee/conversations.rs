@@ -1,4 +1,4 @@
-//! A conversation's attempts share one first attempt (domain/engine.md, 7.1).
+//! A conversation's attempts share one first attempt (domain/engine/executors.md, 1).
 use super::{Promise, Violation, require};
 use std::collections::BTreeMap;
 

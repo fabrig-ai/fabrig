@@ -1,4 +1,4 @@
-//! A caller gone releases its connection without cancelling its work (protocol/client.md, 4.2).
+//! A caller gone releases its connection without cancelling its work (protocol/client/wire.md, 2.2).
 use jig_client_protocol_wire::v19 as w;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use jig_protocol_engine_clients::{Event, FromApplication, Served, ToApplication};

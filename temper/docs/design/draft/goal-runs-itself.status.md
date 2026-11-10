@@ -2,12 +2,12 @@
 
 2026-11-10. Where the design lags or departs from [goal-runs-itself.md](goal-runs-itself.md).
 
-Sections 1 to 8 are carried by jig's `domain/tasks.md`, 5.2 and 5.10, and
+Sections 1 to 8 are carried by jig's `domain/tasks/lifecycle.md`, 2 and 11, and
 jig's `protocol/configuration.md`, 3.2; `../domain/forge.md`, 8.1, 11.1 and
 11.2; `../protocol/tooling.md`, 4.2; `../domain/worker.md`, 4.4;
 `../protocol/configuration.md`, section 3, 13.2, 13.4 and 13.9; skein's
 `forge.md`, 3.2; and fabrig's `DESIGN.md`, section 2 and
-`tools/close/README.md`. Section 10's two defaults are the design's.
+`tools/close/README.md`. `goal-runs-itself.md`, section 10's two defaults are the design's.
 
 - **Design departs:**
   - 3: the closer is named by template 4's `ended_by`, `{"closer":
@@ -30,7 +30,7 @@ jig's `protocol/configuration.md`, 3.2; `../domain/forge.md`, 8.1, 11.1 and
     Decided by the goal's designer, 2026-11-10.
   - 6: charter 5's wake policy takes results `last_or_failure`, and a
     goal its closer ends is woken by a failure alone, its last result
-    making its closer instead (jig's `domain/tasks.md`, 5.10); a
+    making its closer instead (jig's `domain/tasks/lifecycle.md`, 11); a
     designer's result and a person task's result reach it by the watch
     it subscribes to each. Decided by the goal's designer, 2026-11-10.
   - 7: charter 7 stays the reference's designer's charter, which the

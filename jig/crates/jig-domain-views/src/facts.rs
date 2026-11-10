@@ -1,4 +1,4 @@
-//! Bounded content-free observations (`domain/engine.md`, 11).
+//! Bounded content-free observations (`domain/engine/views.md`).
 //! Dropping a fact changes no watch or delivery.
 use crate::{End, Refusal};
 

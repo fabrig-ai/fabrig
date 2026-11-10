@@ -41,7 +41,7 @@ The look requests `new-menu` and `configure-chat-in-settings`
   and New's "All ways to start work" leads there.
 - **It grants nothing.** An offer names no executor, budget or
   authority: a template is served, never used (jig's
-  `domain/engine.md`, section 11), and a start from an offer is the
+  `domain/engine/views.md`), and a start from an offer is the
   start its template fills, judged by the engine as any other.
 
 ## 3. Places
@@ -142,7 +142,7 @@ until its owners change them.
 - **Who owns kinds 7 and 8:** the forge's connector, which owns
   temper's other kinds, or a child of temper's root of its own for the
   client's settings: jig lets the root route a kind to any child (jig's
-  `domain/engine.md`, 17.5), and an offer is no concern of the forge's.
+  `domain/engine/settings.md`, 5), and an offer is no concern of the forge's.
 - **A context's places** need a template's input (section 3), a jig
   change.
 - **A person's own:** recent ways first, or a person's order, kept by

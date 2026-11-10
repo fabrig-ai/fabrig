@@ -72,7 +72,7 @@ carries it out (section 11). Reasons: `notes.md`, section 10.
   task, its executor, messages, authority and connectors (jig's
   `domain/README.md`); spend and holds; how chats, goals and changes are made
   of them, a change's landing rules and its stock path, by queue or by turn; settings, what a
-  revision pins and what it doesn't (jig's `domain/engine.md`, 17.3 and 17.4);
+  revision pins and what it doesn't (jig's `domain/engine/settings.md`, 3 and 4);
   structure and rules (`configuring.md`, section 2); and what no setting
   moves.
 - **Each with its reason,** so that it can reason about a case it was not told
@@ -188,7 +188,7 @@ tools.
   alone, so that nothing of their other projects reaches this project's
   transcript. jig has no such read for a run: a run reads related tasks
   (`../domain/agent.md`, 4.3), and a party's views are a client's (jig's
-  `domain/engine.md`, section 11). The settings inventory adds what charter
+  `domain/engine/views.md`). The settings inventory adds what charter
   3's `settings` read gives today: the offer, the project's repositories, its
   people and their forge identities (`../domain/agent.md`, 8.1).
 - **Over the reads a client makes** (`../client/tools.md`, 5.2 and 5.5), not
@@ -232,7 +232,7 @@ tools.
 
 ### 5.2 `propose_settings`
 
-As today (jig's `domain/engine.md`, 17.6), with what charter 3's instructions
+As today (jig's `domain/engine/settings.md`, 6), with what charter 3's instructions
 teach a model done by the tool instead:
 
 - **A repository** is named as the inventory names it, `OWNER/NAME`; the tool
@@ -255,8 +255,8 @@ The chat's one document (`../domain/agent.md`, 8.3; jig's
 - **Write** it whole the first time; then **append** a section, or **replace**
   one by its heading.
 - **The tool holds the rest:** the note, its scope, its revision and its lines.
-  A party may correct the note between writes (jig's `domain/engine.md`,
-  section 10), so a write refused as moved reads it again and is applied to
+  A party may correct the note between writes (jig's `domain/engine/briefs.md`,
+  section 2), so a write refused as moved reads it again and is applied to
   the newest, or refused naming the section that moved.
 - **Its answer** names the section changed and the document's size.
 
@@ -327,8 +327,8 @@ bound.
 - **Seen by the person alone:** a turn's brief holds the list in a part of its
   own, which a turn's read shows to the person alone, as it shows `remember`'s
   calls, so that the project's
-  other roles, who read its chats' transcripts (jig's `domain/people.md`,
-  section 12, by default), never read it, as the jig draft has it: "no other party reads
+  other roles, who read its chats' transcripts (jig's `domain/people/README.md`,
+  section 11, by default), never read it, as the jig draft has it: "no other party reads
   it, an owner included".
 - **Guarded in its instructions** (section 8): kept only when the person asks
   for it, and said so in the reply; never what a read answers, since the
@@ -427,7 +427,7 @@ Speak their terms: what happens to their work, who does it, what must pass befor
   reference's (`../protocol/configuration.md`, 13.4 and 13.9).
 - **Delegation:** charter 11 joins the rules' and policy 1's delegation, as
   13.9 adds charter 5; a project made before keeps its own policy, a copy
-  (jig's `domain/engine.md`, 17.2), and gains it by a proposal its owner
+  (jig's `domain/engine/settings.md`, 2), and gains it by a proposal its owner
   accepts, or is made again, as nothing before v0.1.0 is kept compatible.
 - **Its place:** "Ask temper" in the rail after "Chats", and "Ask" in the tab
   bar, on every page of a project, as the look request `ask-temper-place` draws

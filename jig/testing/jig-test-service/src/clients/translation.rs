@@ -1,4 +1,4 @@
-//! Exhaustive clients' boundary translations (client.md, 2 and 11).
+//! Exhaustive clients' boundary translations (client/domain/client/README.md, 2 and 8).
 use jig_client_test_protocol_wire::codec;
 use jig_domain_core as core;
 use jig_domain_people as people;

@@ -1,5 +1,5 @@
 //! The deployment store’s routes over jig’s file-driver host (protocol/store.md, 3–5;
-//! jig's protocol/store.md, 13).
+//! jig's protocol/store/README.md, 8).
 mod ranges;
 pub mod route;
 use jig_protocol_store as protocol;
@@ -9,8 +9,8 @@ use skein_io::kernel::{Complete, Fd, Op, Submit};
 use skein_lib::{Queue, Time, Token};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
-/// The wires this engine speaks to its workers (jig's protocol/store.md,
-/// 5.3; temper's protocol/README.md, 9).
+/// The wires this engine speaks to its workers (jig's protocol/store/records.md,
+/// 3; temper's protocol/README.md, 9).
 pub const WIRES: [protocol::Wire; 4] = [
     protocol::Wire { name: "jig-channel", version: channel_version(jig_protocol_worker_wire::VERSION) },
     protocol::Wire { name: "smith-charter", version: record_version(smith_charter::Charter::FORMAT_VERSION) },
@@ -48,7 +48,7 @@ pub struct Store {
     pub(crate) opened: bool,
     pub(crate) pending_generation: bool,
     /// The installation's identifier: the drawn one until the store opens,
-    /// then the one it keeps (jig's store.md 4.4).
+    /// then the one it keeps (jig's protocol/store/README.md 4.4).
     pub(crate) installation: [u8; 16],
 }
 

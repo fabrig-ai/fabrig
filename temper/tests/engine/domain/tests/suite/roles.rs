@@ -1,6 +1,6 @@
 //! Authenticated Owner/Policy role administration, atomic live reroute, keyed
 //! races and specific independent-evidence negatives
-//! (jig's domain/people.md, section 5.1).
+//! (jig's domain/people/acts.md, section 1).
 
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;

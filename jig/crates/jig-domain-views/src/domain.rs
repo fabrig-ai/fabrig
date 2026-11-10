@@ -1,4 +1,4 @@
-//! Volatile watch pacing state (`domain/engine.md`, 11).
+//! Volatile watch pacing state (`domain/engine/views.md`).
 //! No document, task, project or history is kept or interpreted here.
 use crate::watch::{self, Watcher};
 use crate::{Event, Fact, Limits, Request};

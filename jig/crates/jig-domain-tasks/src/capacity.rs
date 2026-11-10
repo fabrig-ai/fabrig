@@ -1,5 +1,5 @@
 //! Exact, content-free room refusals (client/domain/pages.md, section 7;
-//! domain/tasks.md, section 11). Only the owner check which found no room
+//! domain/tasks/README.md, section 6). Only the owner check which found no room
 //! attaches a cause. The bounded live history changes neither admission nor
 //! diagnostic draining, and retains no payload or reply right.
 use crate::{Domain, Funder, Limits, New, Party, Problem, Refusal, Request};

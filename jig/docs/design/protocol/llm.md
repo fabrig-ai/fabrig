@@ -5,7 +5,7 @@ in its own process makes their LLM calls, and how every engine that runs
 agents carries out its LLM accounts: the completions
 `smith-inline-agent`'s runs ask for, in the engine or on a worker whose
 root composes it, carried by smith's LLM component over skein's LLM
-connections (`../domain/hosts.md`, 5.2 and section 10); and the accounts'
+connections (`../domain/hosts/README.md`, 5.2 and section 8); and the accounts'
 sources, signed in, refreshed and signed out by skein's OAuth accounts
 driver with the secrets' store as its keeper, the credentials' table, and
 the grants that reach runs in the engine and on workers. The accounts'
@@ -23,8 +23,8 @@ without agents has none of this. What is still open is listed in section
   `protocol/llm.md`; skein's `llm-connection.md`): the engine, for its
   own slots, and a worker that composes `smith-inline-agent`. jig writes
   no prompt, and none of smith's own tools' schemas, decoding or
-  rendering; its engine tools' are `jig-protocol-tools`' (`channel.md`,
-  6.3). Agent processes make their own calls (section 6).
+  rendering; its engine tools' are `jig-protocol-tools`' (`channel/README.md`,
+  5.3). Agent processes make their own calls (section 6).
 - **The root routes completions,** as `smith-inline-agent` asks them,
   to the protocol layer, which gives smith's component each with its
   slot's result contract, and their terminals back to the agent (section
@@ -50,9 +50,9 @@ without agents has none of this. What is still open is listed in section
   only between components, through the protocol layer's routing: from
   the secrets' store into the driver and the table, from the table into
   smith's LLM component for the engine's own runs, and into the
-  channel's records for runs on workers (`channel.md`, section 8). A key
+  channel's records for runs on workers (`channel/README.md`, section 7). A key
   reaches the secrets' store from a request that is never kept
-  (`client.md`, section 5). No root sees a value, and
+  (`client/README.md`, section 3). No root sees a value, and
   `jig-protocol-accounts` links no smith crate.
 - **Failures by class.** skein classes what a provider's API answers
   (exhausted, refused, unsupported, unauthorized, with the provider's
@@ -82,7 +82,7 @@ engine's root
 engine's protocol layer
 ├── jig-protocol-accounts           the accounts component: the child, the driver and the credentials' table composed, and the translation between them
 │     └── skein-oauth-accounts      sign-in, refresh, sign-out, records kept in the secrets' store, tokens lent by generation
-├── jig-protocol-store              the secrets' store: records and keys, beside credentials' digests (store.md, section 9)
+├── jig-protocol-store              the secrets' store: records and keys, beside credentials' digests (store/secrets.md)
 ├── smith-protocol-llm              prompts, tools' schemas, decoding, rendering; its grants' table; text as it comes
 │     └── skein-llm-connection      connections, TLS, deadlines, the memory pool
 ├── the slots' contracts            each slot's result contract, from its start's charter, beside smith's component
@@ -135,11 +135,11 @@ engine's protocol layer
 - **Activity and text, from the agent:** each pass the host's root
   drains `smith-inline-agent`'s facts and content (smith's
   `domain/host.md`, 9.1) and hands the hub a run's activity, a tool begun
-  with its call's name and input among it (`../domain/hosts.md`, 6.5).
+  with its call's name and input among it (`../domain/hosts/hub.md`, 5).
   The protocol layer asks smith's component for each completion's text
   as it arrives (smith's `protocol/events.md`, 3.5) and hands it up with
   its completion's name and offset: the run's text by turn, retry and
-  offset (`../domain/hosts.md`, 6.5), best effort, never holding the
+  offset (`../domain/hosts/hub.md`, 5), best effort, never holding the
   run.
 - **Unauthorized, refused and exhausted** come back to the run as
   smith's failures. The run's notices go up through the agent and the
@@ -172,7 +172,7 @@ engine's protocol layer
   charters (`configuration.md`, section 4).
 - **Models and their prices** are configuration too, and the charter
   carries them (smith's `protocol/charter.md`, section 2;
-  `../domain/hosts.md`, section 8): each model's endpoint; its window, the
+  `../domain/hosts/charters.md`): each model's endpoint; its window, the
   most input tokens one prompt may hold, past which smith compacts the
   conversation into a new window; its output, the most output tokens one
   completion may have, thinking included, reserved before each
@@ -180,16 +180,16 @@ engine's protocol layer
   each per a number of tokens: input, cached input, output, and cache
   writes when priced apart, at the input's rate when not; and a
   description of what it is good at, which the brief's catalogue shows
-  (`../domain/engine.md`, section 9). Only configuration's models are
+  (`../domain/engine/briefs.md`, section 1). Only configuration's models are
   offered; none is taken from a provider's list.
 - **What a host declares.** A charter's window and output are at most
   what the agent that runs it declares, which its host's hello states and
   the fleet checks: a hello is refused for a model it declares smaller
   than a charter needs, never for one it does not declare, and a run is
   placed only on a host that declares its task's models
-  (`../domain/engine.md`, section 8).
+  (`../domain/engine/fleet.md`).
 - **The task chooses the model,** with its effort, within its charter's
-  models and its authority's (`../domain/tasks.md`, section 3;
+  models and its authority's (`../domain/tasks/README.md`, section 3;
   `../domain/authority.md`, section 3); a task that names none takes, at
   each run's check, the first of its charter's models it can use
   (`../domain/accounts.md`, 4.3).
@@ -200,8 +200,8 @@ engine's protocol layer
 
 - **One driver per engine,** `skein-oauth-accounts`, made at the
   restart's switch step, once the start's wires are durable
-  (`store.md`, 5.3 and section 10, step 4; `../domain/engine.md`,
-  section 6), never before, since a refresh rotates a token beyond the
+  (`store/records.md`, 3 and `store/opening.md`, step 4; `../domain/engine/restart.md`
+  ), never before, since a refresh rotates a token beyond the
   process; with each signed-in source as one of its accounts: the
   source's record, read from the secrets' store; its LLM provider's
   registration, with the
@@ -212,8 +212,8 @@ engine's protocol layer
 - **Sources come and go while it runs.** A sign-in adds an account to
   the driver, within its limit; a sign-out or a removal takes one out
   (skein's `oauth.md`, 6.2). Every signed-in source is wanted once the
-  restart has restored the core's records (`../domain/engine.md`,
-  section 6, item 1), the accounts child naming its sources then as
+  restart has restored the core's records (`../domain/engine/restart.md`
+  , item 1), the accounts child naming its sources then as
   now, and a want before the driver is made waits for it; and until the
   close, so the driver refreshes each
   before it lapses whether or not a run holds it, and an idle source
@@ -255,7 +255,7 @@ engine's protocol layer
 | The driver says | The accounts child hears |
 |---|---|
 | visit: the authorization address | visit: the address the party's sign-in request is answered with |
-| keep: a record | nothing: the routing keeps it in the secrets' store and answers `kept` (`store.md`, section 9) |
+| keep: a record | nothing: the routing keeps it in the secrets' store and answers `kept` (`store/secrets.md`) |
 | taken: a redirected the sign-in took | the finish taken: its answer, *finishing* |
 | refused, a redirected: another address, another sign-in's state, full, or not waiting | the finish refused, saying which (full: *too many*), the sign-in still waiting: never a sign-in failed, nor its source signed out; not waiting for any other refusal of a redirected |
 | signed in: the subject, the scopes granted, the profile claims it read | signed in, with the subject and display name and what the claims say: the child makes the account, renews the one of that subject, or refuses the subject another holder holds (`../domain/accounts.md`, 3.3), and keeps what they say for the first two (3.7). Every registration of the accounts' driver asks for `email` and `name` (skein's `oauth.md`, 2.2) |
@@ -289,7 +289,7 @@ engine's protocol layer
   or a key, with its scheme, `bearer` or `key`, which skein's LLM client
   takes and its dialect puts where its provider wants it (skein's
   `llm.md`, 2.6). It carries no account id. The table holds it secret,
-  and so does jig's channel (`channel.md`, section 8).
+  and so does jig's channel (`channel/README.md`, section 7).
 - **Put in its taker's form where it is handed over.** The protocol
   layer that hands a value to an agent capability puts it in the form
   that capability takes: smith's LLM component takes the credential as
@@ -303,7 +303,7 @@ engine's protocol layer
   with their expiry on the engine's clock; a key's newest, with none.
   Replacing a key is a new generation, pushed as a refresh's is.
 - **Sized at startup** from the accounts' bounds and a credential's
-  bytes (`configuration.md`, section 6); it never grows.
+  bytes (`limits.md`); it never grows.
 - **An entry goes** when its token expires, when a newer generation
   pushes it out, or when its source is signed out or removed.
 
@@ -316,7 +316,7 @@ engine's protocol layer
   a browser on the engine's machine; the provider redirects to the
   listener; the driver exchanges the code, checks the ID token and keeps
   the record before it says signed in. The party sees the sign-in end on
-  its `accounts` watch (`../client/domain/contract.md`, 7.1).
+  its `accounts` watch (`../client/domain/contract/README.md`, 5.1).
 - **Only a public registration signs in.** A confidential one, whose
   redirect reaches a web server (skein's `oauth.md`, 6.5), is refused
   at its start, naming the LLM provider.
@@ -325,8 +325,8 @@ engine's protocol layer
   copies that page's whole address and finishes the sign-in with it
   through a client (`../domain/accounts.md`, section 5): the request
   carries the address as its value, which the clients' component holds
-  in the secrets' store, in memory and never written (`store.md`,
-  section 9), and the core hands the accounts child its number. The
+  in the secrets' store, in memory and never written (`store/secrets.md`
+  ), and the core hands the accounts child its number. The
   child admits it only from the party who started that sign-in, while
   it waits, one at a time; the routing reads the address and hands it
   to the driver as a `redirected` (skein's `oauth.md`, 6.5). The
@@ -339,11 +339,11 @@ engine's protocol layer
   The sign-in ends on the `accounts` watch as any does.
 - **The registration's parts.** The client id the provider issues at
   the first sign-in is kept with the record and used after it; the
-  installation's identifier (`store.md`, 4.4) goes where the provider
+  installation's identifier (`store/README.md`, 4.4) goes where the provider
   takes it (`../domain/providers.md`, 2.2).
 - **A key comes from a request** carrying it, which the clients'
   component keeps in the secrets' store before the core sees the request
-  (`client.md`, section 5; `store.md`, section 9).
+  (`client/README.md`, section 3; `store/secrets.md`).
 - **A record that cannot be read** fails its source as unloaded, saying
   where and why; the source stays unusable until its holder signs in
   again, which replaces it.
@@ -369,7 +369,7 @@ engine's protocol layer
   names (`configuration.md`, section 4); jig never reads it
   (`../domain/accounts.md`, 3.4).
 - **Each worker is told its program sources,** by name, after its hello
-  and on each change (`channel.md`, 5.2). The worker has smith's host
+  and on each change (`channel/records.md`, 2). The worker has smith's host
   half check each login once told its sources, when told of a new
   source, on its holder's check, and at the configured interval
   (`configuration.md`, section 4), and reports what changed (smith's
@@ -384,7 +384,7 @@ engine's protocol layer
   half run the program's own sign-out in the source's configuration
   directory (smith's `protocol/host.md`, section 2; the command is
   smith's `protocol/programs.md`, 4.1); the answer names each host that
-  did not (`channel.md`, 5.1).
+  did not (`channel/records.md`, 1).
 - **The engine's own slots never take a program source:**
   `smith-inline-agent` has no program backend (smith's
   `protocol/programs.md`, section 2).
@@ -419,14 +419,14 @@ engine's protocol layer
   its commit, asks the root for the bytes of the source the answer
   names, and the root takes them from the moves (`Moves::take`); a
   second take gives none, and the answer goes with an empty record
-  (`client.md`, section 5). They are dropped when the move is
+  (`client/README.md`, section 3). They are dropped when the move is
   written (the record then erased from the secrets' store), cancelled,
   or the engine closes, and are never committed, logged or kept
   elsewhere. A source whose record cannot be read is withdrawn unread,
   and the child refuses the move "not signed in".
 - **Admitted whole.** A move out is admitted only with room for its
   own answer and for its written's in the asking party's retained
-  answers (`../domain/people.md`, 5.1), and holds that second place
+  answers (`../domain/people/acts.md`, 1), and holds that second place
   until its written's answer is kept or the move is cancelled, the
   place freed then; so an admitted move always finishes or is
   cancelled, and a full table refuses a new move at its entrance,
@@ -451,7 +451,7 @@ engine's protocol layer
   child then hears the LLM provider, the subject and the display name,
   or "not ours". Accepted, the record, renamed to its new source's
   number, is adopted into the source's row in one secrets' commit that
-  erases the carried value (`store.md`, section 9); the source is added
+  erases the carried value (`store/secrets.md`); the source is added
   to the driver with its access token disowned, refreshed once as
   above, and the child hears it adopted.
 - **The file left behind is dead** once the receiving deployment's
@@ -480,12 +480,12 @@ engine's protocol layer
   assignment or a grant record, and the worker's protocol layer hands it
   to smith's host half for its agent processes, or to its own LLM
   component's table when it composes `smith-inline-agent`, each in its
-  form (5.3; `channel.md`, section 8). A program source's grant crosses
+  form (5.3; `channel/README.md`, section 7). A program source's grant crosses
   as its name.
 - **Pushed to every live attempt** whose account's source it is, when a
   new generation is lent, and sent again to each attempt a worker keeps
-  after its hello, or that the fleet adopts (`../domain/engine.md`,
-  section 8; `../domain/accounts.md`, 3.5).
+  after its hello, or that the fleet adopts (`../domain/engine/fleet.md`
+  ; `../domain/accounts.md`, 3.5).
 - **Notices,** from either kind of run, reach the child with the account
   and source and, for a credential, its generation, fenced by attempt:
   - **limited:** skein's `exhausted`, or a program's usage limit (smith's
@@ -521,14 +521,14 @@ engine's protocol layer
   5), one more socket per sign-in; the sign-in
   deadline (skein's `oauth.md`, section 3); the refresh lead (skein's
   `oauth.md`, 6.7). The table's, from the accounts' bounds
-  and a credential's bytes (`configuration.md`, section 6). The moves'
+  and a credential's bytes (`limits.md`). The moves'
   (5.6): a file's bytes and its record for each source withdrawn, at
   most the accounts' sources, and one for each move in under way, at
   most the sign-ins at once, each at most the file's bound. The engine's
   only.
 - **A host's worst case,** the engine's or a worker's that composes
   `smith-inline-agent`, includes all of them, beside the agent's slots'
-  sum (`../domain/hosts.md`, 5.2).
+  sum (`../domain/hosts/README.md`, 5.2).
 
 ## 8. Testing
 
@@ -574,7 +574,7 @@ Each within jig's suites' budgets.
 
 - **The domain** wants every signed-in source, and pushes each new
   generation to every live attempt (`../domain/accounts.md`, 3.5;
-  `../domain/engine.md`, section 12).
+  `../domain/engine/README.md`, section 6).
 - **What smith gives** serves as it is, beside what it is owed (below;
   `README.md`, section 11).
 - **What jig asks of smith:** grants with a credential's scheme or a
@@ -589,8 +589,8 @@ Each within jig's suites' budgets.
   owner's store as keeper (skein's `oauth.md`, section 6); the
   credential's scheme and the failure classes (skein's `llm.md`,
   sections 2 and 2.5).
-- **The store owes** the secrets' records and keys (`store.md`, section
-  9), and the accounts' family (`store.md`, 4.4).
+- **The store owes** the secrets' records and keys (`store/secrets.md`
+  ), and the accounts' family (`store/README.md`, 4.4).
 
 ## 10. Open questions
 
@@ -601,13 +601,13 @@ Each within jig's suites' budgets.
   registration's redirect, reaching the application's server on its own
   routes, which hands it to the driver (`service.md`, section 2), is
   open with it.
-- **Fairness on a host's loop** (`../domain/hosts.md`, section 12):
+- **Fairness on a host's loop** (`../domain/hosts/README.md`, section 10):
   many `smith-inline-agent` runs' completions share one connection
   component and one loop; whether each run gets a share of each
   iteration.
 - **An account moved out of a stopped deployment,** one whose start
   is refused, without starting its engine: an application's tool,
-  holding the deployment's lock as `store.md`, 10.5's operations do,
+  holding the deployment's lock as `store/opening.md`, 5's operations do,
   opens the active generation with no patch or restore (so only a
   store this build keeps), finds the account's source in the accounts'
   family by its schema, makes the file's bytes from its record (5.6),
@@ -616,6 +616,6 @@ Each within jig's suites' budgets.
   record and the file would be dead (5.6, "The file left behind").
   The next start finds the source with no record, needing sign-in
   (5.4). It would write the secrets' store outside the engine's
-  routing, which `store.md`, section 9 rules out. Until then a refused
+  routing, which `store/secrets.md` rules out. Until then a refused
   start names its refusal and ends, and a build that repairs the cause
   starts the deployment, from which the account moves out as 5.6 says.

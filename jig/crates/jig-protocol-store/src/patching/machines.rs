@@ -1,4 +1,4 @@
-//! Kept schemas, plans and reached versions (protocol/store.md 10.3).
+//! Kept schemas, plans and reached versions (protocol/store/opening.md 3).
 use super::plan::{Levels, Plan, Planned, Unplanned};
 use super::sets::{KeptMap, Keys, Owner, PatchSet, PatchSets};
 use alloc::boxed::Box;

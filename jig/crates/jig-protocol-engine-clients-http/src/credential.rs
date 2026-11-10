@@ -1,4 +1,4 @@
-//! Opaque bearer and browser credentials (protocol/client.md, 17.3).
+//! Opaque bearer and browser credentials (protocol/client/default-http.md, 3).
 use crate::{Settings, Via};
 use alloc::boxed::Box;
 use skein_lib::{
@@ -41,7 +41,7 @@ fn decode(value: &[u8]) -> Option<Secret> {
     }
     Some(Secret::new(bytes))
 }
-/// Set the mapping's cookie after a sign-in or `Minted` (protocol/client.md, 17.3).
+/// Set the mapping's cookie after a sign-in or `Minted` (protocol/client/default-http.md, 3).
 #[must_use]
 pub fn cookie(settings: &Settings, via: Via, credential: &Secret, life: Duration) -> skein_http::Header {
     header(settings, via, credential.expose(), life.as_nanos().checked_div(1_000_000_000).expect("seconds"))

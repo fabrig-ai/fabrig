@@ -1,4 +1,4 @@
-//! Calls, exchanges, and durable sign-in sequencing (protocol/client.md, 8).
+//! Calls, exchanges, and durable sign-in sequencing (protocol/client/sign-in.md).
 use crate::{
     Event, Kept, Limits, Request, SecretOwner, SecretsAnswer, SecretsRequest, Settings,
     exchange::Exchange,
@@ -627,7 +627,7 @@ impl Component {
     }
     fn reply(&mut self, env: &Env<Limits>, exchange: Token, reply: people::Reply, out: &mut Queue<Request>) {
         // The core names a value it leaves unused before its answer; one
-        // still here is the request's to use (store.md 9).
+        // still here is the request's to use (protocol/store/secrets.md).
         self.pending.carried.remove(&exchange);
         let Some(waiting) = self.pending.exchanges.remove(&exchange) else {
             return;
@@ -677,7 +677,7 @@ impl Component {
         }
     }
     /// Erases the value `exchange`'s decode kept, which its request will
-    /// not use (store.md 9).
+    /// not use (protocol/store/secrets.md).
     fn unused(&mut self, exchange: Token, out: &mut Queue<Request>) {
         if let Some(Some(number)) = self.pending.carried.remove(&exchange)
             && !self.aborting()

@@ -1,4 +1,4 @@
-//! Project names and configured-policy creation (people.md, 5.1–5.3; core.md, 6.1).
+//! Project names and configured-policy creation (domain/people/acts.md, 1–3; domain/model.md, 6.1).
 use crate::{Core, Family, Limits, acts, admission::policy, fresh};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;

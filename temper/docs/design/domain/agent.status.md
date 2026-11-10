@@ -316,19 +316,19 @@ Stock and reference instructions remain separate work (section 10 and
   no merge of the moved tip and no refusal of a `save` [in flight: change 94].
 - **Not yet:** section 8, *A coordinator hears its changes while it
   designs*: a coordinator's first run hears none of its changes' results
-  while it lives (jig's `domain/tasks.status.md`, 8.6), and the stock
+  while it lives (jig's `domain/tasks/messages.status.md`, 6), and the stock
   coordinator's words say its first run never reacts to its changes
   (`temper-service/src/stock/coordinator.md`) [in flight: change 100].
   smith's offer between two completions is built.
-Section 4.3 has no known implementation gap in task and forge reads
+`agent.md`, section 4.3 has no known implementation gap in task and forge reads
 fitting to the live attempt's worker reply bound, else the local agent's.
 Task reads use `documents.text_bytes` where neither names a bound; forge
 rendering retains the core allowance there (`root.md`, 5.2).
 File, pull-file and compare size feedback, recovery and settled-call replay
 have no known gap. A `see` answer uses the local agent's bound alone,
 without a call key; worker-specific `see` rendering remains deferred in
-section 10, not an absent task-read implementation.
-Section 4.3 has no known implementation gap in a charter's bound: the
+`agent.md`, section 10, not an absent task-read implementation.
+`agent.md`, section 4.3 has no known implementation gap in a charter's bound: the
 engine fits a charter to `charter_bound`, the smaller of
 `hub.charter_bytes` and the local agent's `host_limits.charter_bytes`,
 or smith's floor, `WORKER_CHARTER_BYTES`, 65,536, where its process has
@@ -340,29 +340,29 @@ resolution whose pull section is 200,000 bytes of text under
 local agent's, and under a hub below that, and the worker's route
 decodes each start, its section cut with its line. That section names
 no file, which the connector's brief table holds (`forge.status.md`, 8.4).
-Sections 4.3, 4.4 and 6 have no known implementation gap in the compare's
+`agent.md`, sections 4.3, 4.4 and 6 have no known implementation gap in the compare's
 forge-size refusal, the stock report instructions,
 or the SHA-1 and SHA-256 widths in receipts and CI cancel reasons. Step tests
 hold the refusal and its bounds, the report's contract and result fitting,
 and the receipt's width and branch room. Real-model proof remains below.
-Section 7 has no known gap in fresh preparation from unusable history or in
+`agent.md`, section 7 has no known gap in fresh preparation from unusable history or in
 retaining an unidentified startup fault through cleanup. The joined service
 regression uses scripted peers and valid saved history at 470,054 bytes;
 the reported failure's trigger remains unobserved.
-Section 8.1 has no known implementation gap in revising a pending proposal
+`agent.md`, section 8.1 has no known implementation gap in revising a pending proposal
 through a fresh `propose_settings`, preserving it on refusal, or directing a
 person with no account for a requested model to browser Settings, Accounts.
 The engine and joined client stories use scripted tool calls; no supplied
 real-model outcome establishes either instruction in use. That observation
-is deferred to after landing in section 10.
-Section 4.3 has no gap in settings pagination using the host answer allowance.
-Section 4.3 has no gap in note-backed whole settings proposals and decided-call replay.
-Section 8.1 has no gap in discovery of project repository identities for
+is deferred to after landing in `agent.md`, section 10.
+`agent.md`, section 4.3 has no gap in settings pagination using the host answer allowance.
+`agent.md`, section 4.3 has no gap in note-backed whole settings proposals and decided-call replay.
+`agent.md`, section 8.1 has no gap in discovery of project repository identities for
 charter documents.
-Section 8.1: none of Ask temper's tools or proposal items offers
+`agent.md`, section 8.1: none of Ask temper's tools or proposal items offers
 visibility, and `ask.txt` says it is no setting, done by its owner outside
 the chat.
-Sections 8.1 and 8.4.1 have a goal template's work, `template-goal N`,
+`agent.md`, sections 8.1 and 8.4.1 have a goal template's work, `template-goal N`,
 in a run's `settings`, `see` and `propose_settings` and their
 declarations; `see settings template-goal N`, its following line
 `settings template N · ways · help settings-fields`, and the inventory's
@@ -420,8 +420,8 @@ not prove a real model's approval-role judgement or GitHub's composed flow.
   refusal retains it. No reason is recorded.
 - **Departs:** 4.3: a run that cannot deliver can still change files by a
   command if its charter grants the shell, where the section says it
-  cannot: jig's rail narrows `modify` alone (jig's `domain/hosts.md`,
-  section 8, and its status), and
+  cannot: jig's rail narrows `modify` alone (jig's `domain/hosts/charters.md`
+  , and its status), and
   `an_open_run_cannot_modify_even_when_policy_requests_it` in
   `temper-engine-smith/src/tests.rs` pins the shell staying. The stock
   charters grant no shell; the reference's charter 2 does

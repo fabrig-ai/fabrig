@@ -180,8 +180,8 @@ skein-io socket
   and why, and a GitHub installation's changes (2.2 to 2.4).
 - **Room, and the drain,** as the component keeps them (skein's
   `forge-connection.md`, section 2) and as jig's components keep them
-  (jig's `protocol/service.md`, section 2; jig's `domain/engine.md`,
-  6.1): an answer or a hint the root cannot take yet is held and offered
+  (jig's `protocol/service.md`, section 2; jig's `domain/engine/restart.md`,
+  1): an answer or a hint the root cannot take yet is held and offered
   again, at most one per call and one per webhook connection, and
   nothing more is read off its connection meanwhile. One the root
   returns during its drain (its `Request::Busy`) is never offered
@@ -258,7 +258,7 @@ skein-io socket
 - **One load, before the component starts.** The routing reads temper's
   rows of jig's secrets' store (`Request::Secrets`, `Load` under
   `SecretOwner::Application`, paged by number; jig's
-  `protocol/store.md`, section 9) and groups them by forge. A row's
+  `protocol/store/secrets.md`) and groups them by forge. A row's
   number is `family << 48 | forge << 16 | item`: family 1 is a forge's
   records, `forge` the forge's number, and `item` what the
   row holds: 1 `AdminToken`, 2 `ApiToken`, 3 `GitToken`, 4 `User`, 5
@@ -535,7 +535,7 @@ and on GitHub the App's (below), and its value the forge's.
   keeps the two newest values per number and whose value server answers
   either; then `Event::Credential { number, generation, valid }` to
   jig's core, which pushes it to the live attempts holding the identity
-  (jig's `domain/engine.md`, 12.1). A worker keeps the two newest, so a
+  (jig's `domain/engine/README.md`, 6.1). A worker keeps the two newest, so a
   push in flight across a change ends on the value it began with.
   `valid` is Forgejo's for as long as the engine runs, and GitHub's the
   earliest `expires` among the value's tokens, less now.
@@ -622,7 +622,7 @@ entrance limits and settings before it builds it, with room for
   clients' component strips it at decode and keeps it in the secrets'
   store under temper's tag before jig's core sees the request, at a
   number jig gives it from 2^63 up, at most 4 KiB; the core gets
-  `{ number, digest }` (jig's `protocol/client.md`). A carried value the
+  `{ number, digest }` (jig's `protocol/client/README.md`). A carried value the
   core leaves unused, its request refused, replayed, joined to another
   or cut by a stop, is named in one output of the core's, which temper's
   root forwards to jig's clients' component to erase. The root checks
@@ -1280,7 +1280,7 @@ and 5's. What an owner owes the component is skein's
 jig owes the routing its secrets' store under temper's tag (`Keep`,
 `Erase`, `Get` and `Load`, each `Keep` answered once durable), and the
 request carrying a value (credentials.md, pasted values; jig's
-`protocol/client.md`): the value, at most 4 KiB, kept at decode under a
+`protocol/client/README.md`): the value, at most 4 KiB, kept at decode under a
 number jig gives it from 2^63 up and keeps the next of in a counter
 row, only `{ number, digest }` reaching the core; and the core's one
 output naming each carried value it leaves unused, which temper's root

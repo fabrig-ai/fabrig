@@ -212,7 +212,7 @@ pub(crate) fn role_number(role: Option<jig_domain_people::Role>) -> Option<u32> 
     Some(role.number())
 }
 
-/// Refuse excess public work immediately (jig/docs/design/domain/people.md, 13.5).
+/// Refuse excess public work immediately (jig/docs/design/domain/people/public-reading.md, 5).
 pub(crate) fn public_busy(domain: &mut Domain, reply: ReplyTo) {
     // Refusals bypass the journal's held queue and never count as admitted reads.
     domain.now.push(crate::Request::Deliver(Delivery::Core(core::Held::PublicRead {

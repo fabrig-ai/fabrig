@@ -1,4 +1,4 @@
-//! Ordered memory pages and exclusive cursors (protocol/store.md, 4.3 and 7.1).
+//! Ordered memory pages and exclusive cursors (protocol/store/README.md, 4.3, and protocol/store/loads.md, 1).
 pub(crate) mod reader;
 use crate::{Cursor, KeptMap, Row, Store, codec, keys};
 use alloc::boxed::Box;
@@ -74,7 +74,7 @@ pub(crate) fn map_limits(store: &Store, map: KeptMap) -> skein_kv::Limits {
     }
 }
 
-/// Kept keys share the walk's map and application prefix (store.md 10.3).
+/// Kept keys share the walk's map and application prefix (protocol/store/opening.md 3).
 pub(crate) fn kept_interval(store: &Store, owner: crate::Owner, map: KeptMap, keys: &crate::Keys) -> Option<Range> {
     if owner != crate::Owner::Application {
         return Some(Range { start: Box::from(keys.from), end: Some(Box::from(keys.to)) });

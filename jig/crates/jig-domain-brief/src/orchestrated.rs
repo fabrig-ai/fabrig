@@ -1,4 +1,4 @@
-//! Brief gathering across owners (domain/engine.md, section 9). The brief
+//! Brief gathering across owners (domain/engine/briefs.md, section 1). The brief
 //! keeps the core's text, but a connector's section is only its number,
 //! kind, fixed name, token and size. Its owner keeps the bytes through assignment.
 //!
@@ -13,7 +13,7 @@ use skein_lib::{Deadlines, Decimal, Env, List, Map, Queue, Time, Token, Writer, 
 use crate::limits::Limits;
 use crate::planned::{self, ConnectorAction, Core, Planned};
 
-/// How a brief's failure counts (domain/engine.md, 9.1).
+/// How a brief's failure counts (domain/engine/briefs.md, 1.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Fate {
     /// Nothing is wrong but room: the task pauses, no try spent.
@@ -24,7 +24,7 @@ pub enum Fate {
     Permanent,
 }
 
-/// Why a section or a brief could not be prepared, in fixed words (domain/engine.md, 9.1).
+/// Why a section or a brief could not be prepared, in fixed words (domain/engine/briefs.md, 1.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Failure {
     pub fate: Fate,

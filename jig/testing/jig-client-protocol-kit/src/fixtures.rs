@@ -369,7 +369,7 @@ pub fn large_turn() -> Box<[u8]> {
 }
 
 /// Public reading's figures, used only by the public HTTP story
-/// (jig/docs/design/protocol/client.md, 19).
+/// (jig/docs/design/protocol/client/public-reads.md).
 #[must_use]
 pub fn public_service_limits() -> jig_test_service::limits::Limits {
     let mut limits = jig_test_service::limits::profile_limits(jig_protocol_config::Profile::Small);

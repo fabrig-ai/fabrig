@@ -1,4 +1,4 @@
-//! Indexed dependency, delegate and threshold queue waits (domain/tasks.md, 6.2, 6.6 and 6.7).
+//! Indexed dependency, delegate and threshold queue waits (domain/tasks/holds.md, 2, 6 and 7).
 #![cfg_attr(
     not(target_arch = "wasm32"),
     expect(clippy::result_large_err, reason = "bounded owner refusal carries exact capacity diagnostics inline")
@@ -12,7 +12,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Map, Queue, Set};
 
-/// Compare every wait lost at publication, including phase and delegate changes (domain/tasks.md, 6.7).
+/// Compare every wait lost at publication, including phase and delegate changes (domain/tasks/holds.md, 7).
 #[derive(Hash, Debug)]
 pub(crate) struct Indexed {
     holdings: Box<[Holding]>,
@@ -24,7 +24,7 @@ pub(crate) struct Indexed {
 }
 
 /// Ordered resource ranges and reversed dependency pairs, bounded by the live edge limits.
-/// The names belong to the index, independently of the durable records (domain/tasks.md, 6.7).
+/// The names belong to the index, independently of the durable records (domain/tasks/holds.md, 7).
 #[derive(Hash, Debug)]
 pub(crate) struct Index {
     pub holders: Map<(Name, u64), ()>,
@@ -164,7 +164,7 @@ fn threshold(domain: &Domain, holding: &Holding) -> Option<u32> {
     }
 }
 
-/// Changes may outnumber live rows during a cascade; saturation rejudges all holds (domain/tasks.md, 6.7).
+/// Changes may outnumber live rows during a cascade; saturation rejudges all holds (domain/tasks/holds.md, 7).
 #[derive(Hash, Debug)]
 pub(crate) struct CircleChanges {
     tasks: Set<u64>,
@@ -183,7 +183,7 @@ impl CircleChanges {
     }
 }
 
-/// Only the joining task differs from the staged rows (domain/tasks.md, 6.7).
+/// Only the joining task differs from the staged rows (domain/tasks/holds.md, 7).
 #[derive(Clone, Copy)]
 struct Entry {
     task: u64,
@@ -201,7 +201,7 @@ struct WaitState {
 
 /// The rows one judgement reads, borrowed for that call and never kept, as
 /// `compound::CompoundTask` is. Only the joining task's phase and lists differ
-/// from its row (domain/tasks.md, 6.7).
+/// from its row (domain/tasks/holds.md, 7).
 struct View<'a> {
     domain: &'a Domain,
     staged: &'a Staged,
@@ -245,7 +245,7 @@ fn rows<'a>(view: &'a View<'_>, number: u64) -> Row<'a> {
                 phase,
                 // A staged last dependency met joins the queue and gains its wait
                 // start in this commit; a circling amendment is refused, not held
-                // (domain/tasks.md, 6.2 and 6.7).
+                // (domain/tasks/holds.md, 2 and 7).
                 queued: waiting && pending.is_empty() && added.is_empty() && !row.holds_taken,
                 taken: row.holds_taken,
             },
@@ -302,7 +302,7 @@ fn gate(view: &View<'_>, waiter: u64, holding: &Holding) -> bool {
     }
 }
 
-/// Mark reachability first, then eliminate within it at the resource thresholds (domain/tasks.md, 6.7).
+/// Mark reachability first, then eliminate within it at the resource thresholds (domain/tasks/holds.md, 7).
 struct Judge {
     pending: Map<u64, u32>,
     counts: Map<Name, u32>,
@@ -708,7 +708,7 @@ fn witnesses_resource(view: &View<'_>, waiter: u64, number: u64, holding: &Holdi
     false
 }
 
-/// Breadth-first names stop at the configured bound; revisits never spend a name (domain/tasks.md, 6.7).
+/// Breadth-first names stop at the configured bound; revisits never spend a name (domain/tasks/holds.md, 7).
 struct Knot {
     seen: Set<u64>,
     tasks: List<u64>,
@@ -723,7 +723,7 @@ impl Knot {
     }
 }
 
-/// Missing staged reverse edges are built once, then shared by marking and elimination (domain/tasks.md, 6.7).
+/// Missing staged reverse edges are built once, then shared by marking and elimination (domain/tasks/holds.md, 7).
 struct Links {
     added: List<(u64, u64)>,
     queued: List<(Name, u64)>,
@@ -811,7 +811,7 @@ fn judge(view: &View<'_>, limits: &Limits) -> Result<(), Problem> {
     judge.walk(view, &links, limits);
     let mut gates = batch_gates(view, &judge, limits);
     // Phase B can end an already-ready source immediately. A batch also judges
-    // its members, which can circle without their creator (domain/tasks.md, 6.7).
+    // its members, which can circle without their creator (domain/tasks/holds.md, 7).
     if view.batch.is_empty() && judge.waits(view, view.entry.task, &gates) == 0 {
         return Ok(());
     }
@@ -828,7 +828,7 @@ fn judge(view: &View<'_>, limits: &Limits) -> Result<(), Problem> {
     Ok(())
 }
 
-/// Judge new dependencies with every wait they join (domain/tasks.md, 6.7).
+/// Judge new dependencies with every wait they join (domain/tasks/holds.md, 7).
 pub(crate) fn check_added(
     domain: &Domain,
     staged: &Staged,
@@ -858,7 +858,7 @@ pub(crate) fn check_added(
     )
 }
 
-/// Judge all queues a waiting or released task would join together (domain/tasks.md, 6.7).
+/// Judge all queues a waiting or released task would join together (domain/tasks/holds.md, 7).
 pub(crate) fn check_queue(domain: &Domain, staged: &Staged, limits: &Limits, task: u64) -> Result<(), Problem> {
     check_waits(domain, staged, limits, task, &Phase::Waiting, &[])
 }
@@ -942,7 +942,7 @@ pub(crate) fn pool_changed(domain: &mut Domain) {
     domain.circle_changes.all = true;
 }
 
-/// Judge the restored set whole; hold its earliest circling queue waiter (domain/tasks.md, 6.7).
+/// Judge the restored set whole; hold its earliest circling queue waiter (domain/tasks/holds.md, 7).
 pub(crate) fn restore(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     for _ in 0..=env.limits.tasks {
         let remaining = eliminate(domain, &env.limits);
@@ -997,7 +997,7 @@ fn eliminate(domain: &Domain, limits: &Limits) -> Map<u64, u32> {
     judge.pending
 }
 
-/// Judge members, their ordered reservations and their creator's new wait together (domain/tasks.md, 6.7).
+/// Judge members, their ordered reservations and their creator's new wait together (domain/tasks/holds.md, 7).
 pub(crate) fn check_batch(domain: &Domain, limits: &Limits, creator: Party, batch: &[New]) -> Result<(), Problem> {
     let mut staged = Staged::new(1);
     if let Some(row) = crate::closer::with_work(domain, limits, creator, batch, skein_lib::Wall::EPOCH)? {
@@ -1049,7 +1049,7 @@ fn dependencies_wait(phase: &Phase) -> bool {
     }
 }
 
-/// Tasks wait on dependencies and delegates, delegates alone, or no task (domain/tasks.md, 6.7).
+/// Tasks wait on dependencies and delegates, delegates alone, or no task (domain/tasks/holds.md, 7).
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 enum WaitPhase {
     Tasks,

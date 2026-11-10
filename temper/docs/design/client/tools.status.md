@@ -124,7 +124,7 @@ unknown-proposal explanation; the generated help states the same limit.
   QA walk remains the requested proof (section 14).
 - **Not yet:** 5.5: area 2 cannot distinguish a refused creating offer's
   capacity cause from its role cause: jig's `me` carries absence alone
-  (`jig/docs/design/client/domain/contract.md`, 5.3). Its diagnostic names
+  (`jig/docs/design/client/domain/contract/documents.md`, 3). Its diagnostic names
   the role and `documents.lines` as checks, without asserting either cause.
 - **Not yet:** 5.5: `temper help task`'s Limits still says temper does not
   let ctl take a task or hand it back, where area 3's `task take` and
@@ -174,7 +174,7 @@ unknown-proposal explanation; the generated help states the same limit.
   `LANDING`; `landing list` takes no `--newer-than` or `--after`, and
   its `--ended` adds the ended to the live. 5.3: `task stop` places a
   hold over the task's subtree (`jig/rows.rs` `STOP`), as jig's `Stop`
-  does (jig's `domain/people.md`, 5.1), where its row holds the task;
+  does (jig's `domain/people/acts.md`, 1), where its row holds the task;
   `hold lift` is keyed optionally (`Keyed::Optional`). 6.1: a party's wait
   prints `you: question of task 44 · 1 waiting`, with no question's number,
   where the section's sample and `temper help task` have `question 3`, and
@@ -190,7 +190,7 @@ unknown-proposal explanation; the generated help states the same limit.
   awaited`: the `wait-words` request of 2026-11-06 has `waiting on:` name an
   account when the next run has none to run on. Its plan held "no account" to
   the wait that printed the words the request drops, to keep this one's number,
-  so these lines can still say opposite things (section 14). A person task's
+  so these lines can still say opposite things (`tools.md`, section 14). A person task's
   `task amend` prints `task amend 41 --key KEY`, where that request has the act
   and its arguments, as an agent task's `--rev 8 CHANGE... REASON` does:
   `person_call` (`render/document.rs`) gives an answer alone its arguments. 12: an

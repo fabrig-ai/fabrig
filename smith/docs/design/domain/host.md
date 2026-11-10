@@ -566,7 +566,7 @@ A child a host embeds, beside or instead of `smith-host-domain`:
   `programming-model.md`, section 4).
 - **smith's own.** The typed face, the workspace routing and the stop
   ladder (9.2) are smith's design; jig's hosts compose
-  `smith-inline-agent` as it is (jig's `domain/hosts.md`, section 5.2).
+  `smith-inline-agent` as it is (jig's `domain/hosts/README.md`, section 5.2).
 - **A wall bound, and no progress watchdog** (9.1).
 
 ## 10. The world

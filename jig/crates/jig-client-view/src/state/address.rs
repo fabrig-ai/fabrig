@@ -1,5 +1,5 @@
 //! Jig addresses as typed places, never platform address text.
-//! Navigation is owned by the client; see client/domain/client.md, 5.
+//! Navigation is owned by the client; see client/domain/client/README.md, 5.
 /// The section of a project at an address.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum ProjectSection {

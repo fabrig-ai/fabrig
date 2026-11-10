@@ -77,7 +77,7 @@ each remark:
   and repairs stop circling on a remark the producer will not take.
 - **A remark only a person can settle:** a review that cannot decide (a
   product choice, a trade-off beyond its lens) asks a person through a
-  person task (jig's `domain/people.md`, section 8), rather than
+  person task (jig's `domain/people/README.md`, section 7), rather than
   requesting changes a repair cannot make.
 
 Open: where the answers live (the pull request's thread, the change's

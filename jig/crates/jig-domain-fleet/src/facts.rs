@@ -1,5 +1,5 @@
-//! What the fleet tells whoever watches the engine (domain/engine.md, section
-//! 11): a fact for each thing that happened, content-free (kinds and counts,
+//! What the fleet tells whoever watches the engine (domain/engine/views.md
+//! ): a fact for each thing that happened, content-free (kinds and counts,
 //! never a run's name or a payload), in a bounded queue the parent drains at
 //! its own pace.
 //!

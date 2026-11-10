@@ -1,4 +1,4 @@
-//! Refusals ride with the next turn or answer (hosts.md, 6.4).
+//! Refusals ride with the next turn or answer (domain/hosts/hub.md, 4).
 use crate::hosted::NamedEvent;
 use crate::{MessageRefusal, Refused};
 use alloc::boxed::Box;

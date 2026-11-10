@@ -1,5 +1,5 @@
 //! A party's LLM choice through the client: `me` names the models it may choose, a Create names
-//! one, and the task's document shows it (client/domain/contract.md, 3.2 and 5.1).
+//! one, and the task's document shows it (client/domain/contract/requests.md, 2, and client/domain/contract/documents.md, 1).
 
 use super::{CREATE, ME, PROJECT_NUMBER, PROOF_WAIT, Story, fixtures};
 use jig_client::{Answered, Ask, Asker, Handle, Latest, Outcome, Watchable, contract};

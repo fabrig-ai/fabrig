@@ -13,14 +13,14 @@ connector stored that the application no longer gives:
 (`temper-engine-domain-forge/src/kinds.rs`, `dropped_settings_defaults`)
 name them in `effects::connector::Event::SettingsDefaults`' `dropped`;
 the test connector no longer reports one as a default of size 0
-(`engine.status.md`, its 17.5).
+(`engine/README.status.md`, its 17.5).
 
 - **Not yet:** 3.4: `Unname` at retention's erasure at the deployment's
-  horizon, which is not built (`../protocol/store.md`, 11.1).
+  horizon, which is not built (`../protocol/store/README.md`, 6.1).
   4.2: a projection's or a release's failure for good, kept
   durably as news. 6.3: every effect of a step within its one decision.
   6.7: a procedure told to drain. 13: request budgets. 17: the core
   world's story of a restore leaving out a deleted project's items is
-  ignored, as every restore story is (`engine.status.md`, its 17.10),
+  ignored, as every restore story is (`engine/README.status.md`, its 17.10),
   its reason a project-scoped default of `jig-test-connector`'s that
   survives the project's deletion.

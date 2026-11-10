@@ -1,4 +1,4 @@
-//! Full values for the store's held declarations (protocol/store.md, 5.1).
+//! Full values for the store's held declarations (protocol/store/records.md, 1).
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 

@@ -1,4 +1,4 @@
-//! A document survives the note row, scoped read and recall (domain/engine.md, 10).
+//! A document survives the note row, scoped read and recall (domain/engine/briefs.md, 2).
 use super::{World, action, core, note_setup, notes};
 use jig_core_world::reads::{Parties, ask, latest};
 use jig_domain_core::reads;
@@ -6,7 +6,7 @@ use skein_lib::List;
 
 #[test]
 fn a_documents_whole_body_reads_back() {
-    // jig/docs/design/domain/engine.md, 10: standard's document body.
+    // jig/docs/design/domain/engine/briefs.md, 2: standard's document body.
     const BODY_BYTES: usize = 65_536;
     // A box's generic document text can be smaller than a note body.
     const BOX_TEXT_BYTES: u32 = 128;

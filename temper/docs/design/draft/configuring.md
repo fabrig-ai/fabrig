@@ -120,11 +120,11 @@ configures work:
 | the forge's charter | temper's `application.charter` | when a procedure makes agent work | the newest |
 
 - **A project's own policy** is in the store already, changed by its
-  owners (jig's `domain/people.md`, 5.2), and stays as it is.
+  owners (jig's `domain/people/acts.md`, 2), and stays as it is.
 - **Only charters are read after a task is made.** A template's values
   are copied into the task it fills (jig's `protocol/configuration.md`,
   3.1), a project keeps a copy of the policy it was made from (jig's
-  `domain/people.md`, 5.2), and the rules are guards that every decision
+  `domain/people/acts.md`, 2), and the rules are guards that every decision
   reads afresh. That is why only charters need revisions.
 - **What stays in the document:** the directories, the listeners, the
   workers and their secrets' files, the limits (they size memory at the
@@ -167,7 +167,7 @@ configures work:
 ### 3.3 A change
 
 - **One decision.** The engine is the store's only writer, and a
-  decision commits all it changes at once (jig's `domain/core.md`,
+  decision commits all it changes at once (jig's `domain/model.md`,
   section 4): the settings changed, the revision they make and whatever
   they touch. After a crash the old revision holds or the new one does,
   never a mix.
@@ -179,7 +179,7 @@ configures work:
   project for its policy and its landing rules, as now. A set that
   touches both needs one person holding both.
 - **A proposal of a new kind.** jig's proposals are batches and
-  amendments of tasks (jig's `domain/tasks.md`, section 9). A change of
+  amendments of tasks (jig's `domain/tasks/proposals.md`). A change of
   settings proposed by an agent or a member is a proposal in the
   deployment's scope, decided by the roles above, judged when it is
   accepted. jig designs it.
@@ -192,8 +192,8 @@ configures work:
 - **What follows:** clients re-read `me`, whose templates changed; the
   next `MakeProject` copies the changed policy; a narrowed rule reaches
   every later decision, the decisions of tasks already made included, as
-  a policy's narrowing does (jig's `domain/people.md`, 5.2); charters
-  as section 4 says.
+  a policy's narrowing does (jig's `domain/people/acts.md`, 2); charters
+  as `configuring.md`, section 4 says.
 - **History.** The store keeps the set as each change left it, within
   a bound, with who accepted it and the proposal it came from.
   "Restore this version" makes a new proposal of that set, never a
@@ -225,7 +225,7 @@ made follows the new one, and what is in flight keeps the old.
   (a chat; `../domain/agent.md`, 4.6) never ends on its own, so it would
   never see a fix to its own charter. It moves to the newest revision
   at its next run, when the newest still offers its charter and allows
-  its LLM choice (jig's `domain/engine.md`, 17.4); otherwise it stays.
+  its LLM choice (jig's `domain/engine/settings.md`, 4); otherwise it stays.
 - **A change may move running work:** each task at its next run,
   checked the same way. A task whose charter the change removed, or
   whose LLM choice it no longer allows, cannot move, and finishes where
@@ -238,7 +238,7 @@ made follows the new one, and what is in flight keeps the old.
 - **Removing is free.** A removed charter lives in the revisions that
   hold it while tasks use them. That answers jig's open question on
   parts removed at a restart (jig's `protocol/configuration.md`, section
-  9), and two questions of a process that changes: retiring a charter
+  8), and two questions of a process that changes: retiring a charter
   (no new work under it; what runs finishes) and whether a charter's
   change reaches tasks already running (not unless they move).
 - **Bounded.** At most a limit's number of revisions are in use, and

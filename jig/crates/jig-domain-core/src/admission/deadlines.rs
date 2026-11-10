@@ -1,5 +1,5 @@
 //! Resolve working copies at each decision, never the retained ask or proposal
-//! (domain/authority.md, 7 and 8.1; domain/tasks.md, 4 and 9).
+//! (domain/authority.md, 7 and 8.1; domain/tasks/README.md, 4 and domain/tasks/proposals.md).
 use jig_domain_authority as authority;
 use jig_domain_tasks as tasks;
 use skein_lib::Wall;

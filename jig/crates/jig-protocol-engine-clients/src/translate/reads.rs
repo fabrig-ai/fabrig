@@ -1,4 +1,4 @@
-//! Authenticated reads and their one durable answer (protocol/client.md, 6).
+//! Authenticated reads and their one durable answer (protocol/client/README.md, 4).
 use super::{cursor, objects, pages, w};
 use alloc::boxed::Box;
 use jig_domain_core::reads;

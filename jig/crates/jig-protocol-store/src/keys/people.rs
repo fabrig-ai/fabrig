@@ -1,4 +1,4 @@
-//! People-owned address fields (protocol/store.md, section 4.1).
+//! People-owned address fields (protocol/store/README.md, section 4.1).
 use jig_domain_people::{ActKey, Key, RequestKey};
 use skein_kv::{KeyReader, KeyWriter};
 pub(super) fn write(writer: &mut KeyWriter, key: &Key) {

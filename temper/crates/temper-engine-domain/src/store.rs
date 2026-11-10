@@ -132,7 +132,7 @@ pub enum CallAnswer {
     ChangeRefused { problem: Box<jig_domain_tasks::Problem>, named: Option<Box<[u8]>>, repositories: Box<[Box<[u8]>]> },
     /// A note write's durable name and revision.
     NoteWritten { name: u64, revision: u32, lines: u32, added: u32, removed: u32, first: u32 },
-    /// A scoped note deleted by the run (jig domain/engine.md, 10.1).
+    /// A scoped note deleted by the run (jig jig/docs/design/domain/engine/briefs.md, 2.1).
     NoteDeleted { name: u64 },
     /// One bounded notes recall page.
     NoteRecalled { entries: Box<[jig_domain_notes::Entry]>, more: bool },
@@ -432,7 +432,7 @@ pub struct CallRecord {
 
 /// Ordered address of a durable row. Root and child identities keep their own
 /// variants; a scoped note index includes its bounded resource pattern
-/// (jig's domain/engine.md, 5.3–5.6).
+/// (jig's domain/engine/README.md, 5.3–5.6).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Key {
     Wires,
@@ -506,7 +506,7 @@ pub enum Range {
     Core(CoreRange),
     /// Ended owners and unanswered question activity in jig's census walk
     /// order, with repeats. The cursor is the last index key walked, rather
-    /// than an owner row's key (jig's protocol/store.md, 7.2).
+    /// than an owner row's key (jig's protocol/store/loads.md, 2).
     Census(jig_domain_core::Census),
     Forge,
 }
@@ -543,7 +543,7 @@ impl Range {
 
 impl CoreRange {
     /// Translate a root restore request into jig's ranges. Interval placement
-    /// remains jig's (jig's protocol/store.md, 7.2); historical loads use their
+    /// remains jig's (jig's protocol/store/loads.md, 2); historical loads use their
     /// own protocol requests instead of the restart walk.
     #[must_use]
     pub const fn restore_ranges(&self) -> &'static [jig_domain_core::RestoreRange] {
@@ -709,7 +709,7 @@ impl Record {
 /// (domain/root.md, 8).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Write {
-    /// Whole-task transcript erasure (jig/docs/design/domain/people.md, 5.2; temper/docs/design/domain/forge.md, 4.1; jig/docs/design/protocol/store.md, 8.5, 11.1).
+    /// Whole-task transcript erasure (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge.md, 4.1; jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/README.md, 6.1).
     DropTranscript { task: u64 },
     /// Persist the shell-supplied wire versions in the start’s mark.
     Wires,

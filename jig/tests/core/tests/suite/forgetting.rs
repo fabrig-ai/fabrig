@@ -1,4 +1,4 @@
-//! A task's retention class decides what its reading erases (people.md, 6).
+//! A task's retention class decides what its reading erases (domain/people/README.md, 5).
 
 use crate::read_support::REQUEST_BASE;
 use jig_core_world::fixtures::PARTY;

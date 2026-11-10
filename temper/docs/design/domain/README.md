@@ -11,7 +11,7 @@ the documents is listed in section 6.
 ## 1. Reading order
 
 jig's domain comes first: its `domain/README.md`, then its documents in
-the order it gives, jig's `domain/core.md` and `domain/engine.md` above
+the order it gives, jig's `domain/model.md` and `jig/docs/design/domain/engine/README.md` above
 all. Then temper's:
 
 1. **root.md:** temper's root: what it composes, its vocabulary, the one
@@ -79,8 +79,8 @@ temper-worker-domain                       the worker's root (worker.md)
   `../README.md`.
 - **jig's documents** are named with jig's name and their path from
   jig's `docs/design/`, with jig's section numbers: jig's
-  `domain/connectors.md`, 12; jig's `protocol/channel.md`, 6.4. Never a
-  bare jig file name: jig has two `client.md` and two `testing.md`.
+  `domain/connectors.md`, 12; jig's `protocol/channel/README.md`, 5.4. Never a
+  bare jig file name: jig has two `jig/docs/design/client/domain/client/README.md` and two `testing.md`.
 - **smith's documents** likewise, by their path in smith's
   `docs/design/`: smith's `domain/run.md`. skein's foundation documents
   by their own names (`programming-model.md`, `testing-strategy.md`),
@@ -204,4 +204,4 @@ Each document lists its own; the ones that reach across:
   section 10);
 - jig's, which temper's root inherits: commits in flight, briefs'
   budgets, transcripts' limits, views' bounds and scaling out (jig's
-  `domain/engine.md`, section 16).
+  `domain/engine/README.md`, section 10).

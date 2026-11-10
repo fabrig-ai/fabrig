@@ -1,4 +1,4 @@
-//! Owner joins count decoded records (protocol/store.md, 7.3).
+//! Owner joins count decoded records (protocol/store/loads.md, 3).
 use jig_domain_core::{self as core, reads};
 use jig_domain_tasks as tasks;
 use jig_protocol_store::{Event, Request, Write};

@@ -1,4 +1,4 @@
-//! Total translations of the core's client vocabulary (protocol/client.md, 3).
+//! Total translations of the core's client vocabulary (protocol/client/wire.md, 1).
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v19 as w;
 use skein_lib::{List, Writer};

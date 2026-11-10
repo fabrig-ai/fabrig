@@ -3,7 +3,7 @@ use crate::{NameRule, name_rule, same_name};
 
 #[test]
 fn project_names_take_only_their_shape_in_rule_order() {
-    // core.md, 6.1: 64 UTF-8 bytes; é straddles the byte boundary.
+    // domain/model.md, 6.1: 64 UTF-8 bytes; é straddles the byte boundary.
     let at = format!("{}é", "a".repeat(62));
     let past = format!("{}é", "a".repeat(63));
     for (name, rule) in [

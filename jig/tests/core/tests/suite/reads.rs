@@ -336,7 +336,7 @@ fn a_question_read_after_its_task_ended_finds_both_lines_by_key() {
         people::Ask::AnswerQuestion { project: 1, task, question: message, words: b"the answer".as_slice().into() },
     );
     // The person answers the recipient today; its requester answer releases
-    // the asking task before both runs finish (domain/tasks.md, 5.7).
+    // the asking task before both runs finish (domain/tasks/lifecycle.md, 8).
     self::message(&mut world, task, sender, 2, tasks::MessageKind::Answer { question: message }, b"the answer");
     finish_chat(&mut world, sender);
     finish_chat(&mut world, task);

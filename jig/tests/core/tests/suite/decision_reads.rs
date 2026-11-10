@@ -1,4 +1,4 @@
-//! Exact offer fences survive decisions and cold restart (tasks.md, section 9).
+//! Exact offer fences survive decisions and cold restart (domain/tasks/proposals.md).
 
 use jig_core_world::fixtures::{ask_as, delegate, live_row, member};
 use jig_core_world::world::Setup;
@@ -12,7 +12,7 @@ use jig_test_domain as root;
 use skein_lib::{Duration, ReplyTo, Token};
 
 const DECISION_SEED: u64 = 461;
-// tasks.md 8.2: one unread offer occupies the entire test run's inbox.
+// domain/tasks/messages.md 2: one unread offer occupies the entire test run's inbox.
 const SINGLE_SLOT: u32 = 1;
 // The middle task has budget 20 and reserves at most 10 for its own run.
 const LEAF_BUDGET: u64 = 5;

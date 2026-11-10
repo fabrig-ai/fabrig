@@ -31,7 +31,7 @@ link takes its `io.largest_room` and the worker's its own
 `worker_settings.rs`, `link_limits`); jig's engine link fits a resumed
 start's committed calls to that room, the newest answers whole and the
 older cut to words naming their bytes (jig's
-`protocol/channel.status.md`); a start still past the room fails as an
+`protocol/channel/README.status.md`); a start still past the room fails as an
 invalid start naming its bytes and the room, serve writes its refused-run
 line and `worker unsent`, and the link, its pings and a later run go on.
 On each stock profile, `link_room.rs`'s
@@ -235,4 +235,3 @@ them (`temper-worker-shell/src/agent.rs`). The service gives the worker's
   (`../draft/dogfood-hacks.md`, 2.13). It carries no credential. No test
   runs the variable from a worker through a real agent process to a file, as
   the request of 2026-11-05 leaves that to the next comparison's run.
-

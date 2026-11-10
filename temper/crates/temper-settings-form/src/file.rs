@@ -1,4 +1,4 @@
-//! Bounded whole settings input (client/tools.md, 6.4; jig's client/domain/contract.md, 3.2).
+//! Bounded whole settings input (client/tools.md, 6.4; jig's client/domain/contract/requests.md, 2).
 use crate::Limits;
 #[path = "settings_file_values.rs"]
 mod values;

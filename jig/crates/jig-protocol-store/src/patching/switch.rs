@@ -1,4 +1,4 @@
-//! The checked copy serves restores before its explicit switch (store.md 10.2, 5–8).
+//! The checked copy serves restores before its explicit switch (protocol/store/opening.md, 2 and protocol/store/records.md and protocol/store/README.md, 5 and protocol/store/loads.md and protocol/store/transcripts.md).
 use super::plan::{self, Levels};
 use crate::codec::component::Count;
 use crate::directory::Opening;

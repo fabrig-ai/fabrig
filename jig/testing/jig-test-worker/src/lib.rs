@@ -1,4 +1,4 @@
-//! The reference worker root (domain/hosts.md, sections 4 and 6.8).
+//! The reference worker root (domain/hosts/README.md, section 4, and domain/hosts/hub.md, section 8).
 //! Payloads cross the agent boundary by hand-out to the protocol layer.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]

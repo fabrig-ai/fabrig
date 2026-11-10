@@ -1,5 +1,5 @@
-//! Fixed query keys and one bounded live scan per document (engine.md, 11.2).
-//! Closed at once (jig/docs/design/domain/people.md, 5.2).
+//! Fixed query keys and one bounded live scan per document (domain/engine/views.md, 2).
+//! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 use crate::{
     Core, Limits,
     documents::{Cursor, DocumentLimits, ExecutorKind, Missing, TaskLine, Window},

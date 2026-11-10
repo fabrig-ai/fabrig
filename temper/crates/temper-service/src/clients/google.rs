@@ -59,7 +59,7 @@ pub(super) struct Reply {
     body: Option<Box<[u8]>>,
     offset: usize,
     returned: bool,
-    /// How the call came, as jig decides its cookies' `Secure` (jig protocol/client.md, 17.3).
+    /// How the call came, as jig decides its cookies' `Secure` (jig jig/docs/design/protocol/client/default-http.md, 3).
     via: mapping::Via,
 }
 #[must_use]

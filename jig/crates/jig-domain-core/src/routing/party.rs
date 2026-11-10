@@ -1,6 +1,6 @@
 //! Party routes and run writes to their requester's preferences.
 //! Admission holds the requester and asking family before a note is decided
-//! and recorded (`jig/docs/design/domain/engine.md`, 10.1).
+//! and recorded (`jig/docs/design/domain/engine/briefs.md`, 2.1).
 
 pub(crate) mod account_requests;
 pub(crate) mod amendment_reads;

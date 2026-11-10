@@ -12,8 +12,8 @@ section 3, narrowed, for temper's Ask temper on 2026-11-07
 temper's standing roles on 2026-11-08, a standing role's Now
 (`temper/docs/design/draft/standing-roles.md`, section 2); the rest is not
 adopted, and no plan takes it up until the user does. It
-starts from jig's notes as they stand (`../domain/engine.md`, section
-10; `jig-domain-notes`), and its first consumer is temper's chats, whose
+starts from jig's notes as they stand (`../domain/engine/briefs.md`, section
+2; `jig-domain-notes`), and its first consumer is temper's chats, whose
 document is drawn beside their conversation (the look request
 `configure-chat-draft`, `temper/docs/design/client/journeys.md`, 7).
 
@@ -22,8 +22,8 @@ document is drawn beside their conversation (the look request
 - **One mechanism, four uses.** A note keeps what it keeps today: a
   description, a body, a scope, the tasks it names and who wrote it,
   written by a tool, read in two steps, corrected and deleted by
-  parties (`../domain/engine.md`, section 10). A kind on each says
-  what it is for (section 2).
+  parties (`../domain/engine/briefs.md`, section 2). A kind on each says
+  what it is for (`notes-memory.md`, section 2).
 - **Lessons,** today's notes: what agents learn and pass on, in the
   deployment, a project, a goal or a resource pattern.
 - **Preferences:** a person's small preferences, kept for them and
@@ -49,7 +49,7 @@ document is drawn beside their conversation (the look request
 - **The index groups by kind,** each line its description, as today;
   `recall` and a party's search take a kind as well as a name or words.
 - **A run works for a party** when the party requested its task, or a
-  task above it (`../domain/tasks.md`); a goal's coding agents work for
+  task above it (`../domain/tasks/README.md`); a goal's coding agents work for
   the goal's requester.
 
 ## 3. A person's preferences
@@ -72,11 +72,11 @@ document is drawn beside their conversation (the look request
 - **The task's own memory:** a run keeps there what it must not lose,
   decisions, open questions, the plan's thread, written as it goes.
 - **Whole in every brief:** a task's working notes are the first index
-  its brief carries (`../domain/engine.md`, section 9), never evicted
-  while the task lives, so that a fresh run (`../domain/engine.md`,
-  7.4) and a compacted window
+  its brief carries (`../domain/engine/briefs.md`, section 1), never evicted
+  while the task lives, so that a fresh run (`../domain/engine/executors.md`,
+  4) and a compacted window
   (`smith/docs/design/domain/session.md`, section 8) find them.
-- **Gone with the task,** by its retention (`../domain/tasks.md`,
+- **Gone with the task,** by its retention (`../domain/tasks/README.md`,
   section 3); a working note worth keeping is copied by the run into a
   lesson.
 
@@ -96,18 +96,18 @@ document is drawn beside their conversation (the look request
   just now", and the section changed last comes from the answer to that
   call, its first changed line.
 - **Written by the run's note tool,** a first version whole, then by line
-  ranges (`../domain/engine.md`, section 10), against the revision it read,
+  ranges (`../domain/engine/briefs.md`, section 2), against the revision it read,
   refused as moved otherwise, and stored whole, so that a reader sees no parts.
 - **Later, into a repository:** a document that matures may be proposed
   as an effect, a file in a repository, as a lesson may become a guide
-  (`../domain/engine.md`, section 10).
+  (`../domain/engine/briefs.md`, section 2).
 
 ## 6. Bounds and the store
 
 - **Per scope, as today:** entries and bytes per scope; a party's and a
   task's bounds of their own.
 - **Erased with their scope:** a task's notes with the task, a party's
-  with the party (`../domain/people.md`), as a project's go with it
+  with the party (`../domain/people/README.md`), as a project's go with it
   today.
 - **Indexes kept per scope in use,** evicted least recently used, but
   a live task's working index, which its runs need whole.

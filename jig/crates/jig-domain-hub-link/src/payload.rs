@@ -1,4 +1,4 @@
-//! Owned payloads and link metadata (jig/docs/design/domain/hosts.md, 6.4–6.8).
+//! Owned payloads and link metadata (jig/docs/design/domain/hosts/hub.md, 4–8).
 use crate::Link;
 use alloc::boxed::Box;
 use jig_domain_core as core;
@@ -202,7 +202,7 @@ pub(crate) fn ending(ending: &host::Ending) -> tasks::End {
     }
 }
 
-/// Unusable resume history keeps its own reason (jig/docs/design/domain/hosts.md, 6.3).
+/// Unusable resume history keeps its own reason (jig/docs/design/domain/hosts/hub.md, 3).
 pub(crate) fn unusable_history(ending: &host::Ending) -> bool {
     match ending {
         host::Ending::Refused(host::Refusal::Invalid(
@@ -290,7 +290,7 @@ fn live_piece(domain: &mut Link, run: Token, attempt: Token, piece: host::Piece)
     None
 }
 
-/// A job carries its bytes directly, with no result read (jig/docs/design/domain/engine.md, 7.5).
+/// A job carries its bytes directly, with no result read (jig/docs/design/domain/engine/executors.md, 5).
 pub(crate) fn job_end(ending: &host::JobEnding) -> tasks::End {
     let end = match ending {
         host::JobEnding::Finished { result, .. } => {

@@ -1,1 +1,1 @@
-//! The client codecs' drift and arbitrary-byte world (protocol/client.md, section 3).
+//! The client codecs' drift and arbitrary-byte world (protocol/client/wire.md, section 1).

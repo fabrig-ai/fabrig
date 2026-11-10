@@ -1,4 +1,4 @@
-//! A settled record owns tool and answer bytes; its live address is transient (store.md, 5.1).
+//! A settled record owns tool and answer bytes; its live address is transient (protocol/store/records.md, 1).
 use crate::tests::*;
 
 fn settled(answer: SettledAnswer) -> SettledCall {

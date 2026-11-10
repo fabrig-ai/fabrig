@@ -30,7 +30,7 @@ jig's.
 - **L is an ordinary change.** It has no producing step, its branch
   being pushed already; its repairs, its update and its resolution write
   g as any change's write its branch, under the goal's hold (jig's
-  `domain/tasks.md`, 6.3). Past its bounds it is held, escalated to its
+  `domain/tasks/holds.md`, 3). Past its bounds it is held, escalated to its
   coordinator, which may still make changes into g: the goal reopens
   without a new mechanism.
 - **Verified after landing** (`after-landing.md`): the slow tiers follow
@@ -111,7 +111,7 @@ anyone else is drift (`forge.md`, 8.5).
 **Bounds** (`forge.md`, 8.4): repairs (three in the reference),
 resolutions, updates, and each wait's stall. Past one, L is held, saying
 why, and the hold escalates to its coordinator (jig's
-`domain/tasks.md`, section 9). The coordinator:
+`domain/tasks/proposals.md`). The coordinator:
 
 - releases it with an amendment: more repairs, a budget, words naming
   the cause;

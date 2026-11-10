@@ -1,4 +1,4 @@
-//! The brief's section inventory and byte plan (domain/engine.md, section 9).
+//! The brief's section inventory and byte plan (domain/engine/briefs.md, section 1).
 //! Core sections arrive as text. A connector's section is only its
 //! number, kind, fixed name, token and reported size; its bytes stay with the connector.
 //! The plan gives required sections first claim on the budget, then visits
@@ -28,13 +28,13 @@ pub enum Core {
     Waiting,
     /// The index of notes in scope.
     NotesIndex,
-    /// The requester's whole preferences (domain/engine.md, 10.1).
+    /// The requester's whole preferences (domain/engine/briefs.md, 2.1).
     Preferences,
     /// The end of a transcript when it cannot be resumed whole.
     TranscriptTail,
 }
 
-/// The fixed name of a core section in a failure (domain/engine.md, 9.1).
+/// The fixed name of a core section in a failure (domain/engine/briefs.md, 1.1).
 #[must_use]
 pub fn core_name(kind: Core) -> &'static [u8] {
     match kind {

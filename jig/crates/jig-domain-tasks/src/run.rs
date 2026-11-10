@@ -1,5 +1,5 @@
 //! Fenced run preparation, claims, activation terminals and holds
-//! (domain/tasks.md, sections 5.2, 5.5–5.7). Root supplies run
+//! (domain/tasks/lifecycle.md, sections 2 and 6–8). Root supplies run
 //! events; tasks checks lifecycle/result shape and emits bounded state changes.
 //! Priced inputs use combined accounting admission; exact replay is root-owned.
 pub(crate) mod ends;
@@ -403,7 +403,7 @@ fn ending(result: TaskResult) -> Ending {
     }
 }
 
-/// Job terminals cannot park or ask the executor for another decision (jig/docs/design/domain/tasks.md, 5.3.1).
+/// Job terminals cannot park or ask the executor for another decision (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
 pub(crate) fn refuses_job_end(executor: crate::Executor, end: &End) -> bool {
     if !crate::batch::matches_job(executor) {
         return false;
@@ -890,7 +890,7 @@ fn exceeded(domain: &mut Domain, number: u64, exceeded: crate::Exceeded) -> Phas
     Phase::Held { was: Was::Active(Active::Due), why, source: None }
 }
 
-/// Fixed durable notice text (domain/tasks.md, 5.2).
+/// Fixed durable notice text (domain/tasks/lifecycle.md, 2).
 pub(crate) const NOTHING_AWAITED_WORDS: &[u8] =
     b"Nothing more will come: your delegates have ended and no question waits. Finish with your result.";
 

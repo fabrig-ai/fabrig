@@ -1,5 +1,5 @@
 //! The two newest lent generations per account (protocol/llm.md, 5.3).
-//! A value is a credential with its scheme (protocol/channel.md, 8).
+//! A value is a credential with its scheme (protocol/channel/README.md, 7).
 use skein_lib::{List, Map, Secret, Time};
 
 /// A grant's credential, put in its taker's form only when handed over.
@@ -71,7 +71,7 @@ impl Table {
         }
         None
     }
-    /// Forget one unheld key generation on a worker; bearers keep their expiry (channel.md, 8).
+    /// Forget one unheld key generation on a worker; bearers keep their expiry (protocol/channel/README.md, 7).
     pub fn release_key(&mut self, account: u32, generation: u64) {
         let Some(slots) = self.accounts.get_mut(&account) else { return };
         release_key(&mut slots.newest, generation);
@@ -83,7 +83,7 @@ impl Table {
             let _removed = self.accounts.remove(&account);
         }
     }
-    /// Names of key generations whose worker lifetime follows attempts and reads (channel.md, 8).
+    /// Names of key generations whose worker lifetime follows attempts and reads (protocol/channel/README.md, 7).
     #[must_use]
     pub fn keys(&self) -> List<(u32, u64)> {
         let mut keys = List::with_capacity(self.entries());

@@ -33,7 +33,7 @@ without changing it. Reading and showing them come after (section 6).
   user took section 3's audiences as they stand (2026-11-04).
 - **Changed in place:** until v0.1.0 there is no supported deployment,
   so the accounts' store version and the client protocol change in
-  place (the user, 2026-11-04; `../protocol/store.md`, 5).
+  place (the user, 2026-11-04; `../protocol/store/records.md`).
 - **The format now, the facts later:** nothing writes a fact until a
   provider's adapter learns it; the email is the first (section 6).
 
@@ -44,13 +44,13 @@ without changing it. Reading and showing them come after (section 6).
   each limit a call meets. Apart, a usage report rewrites a small
   record, and the account's format never moves for a provider's news.
 - **Keyed by the account,** in the accounts' family, the next key tag
-  after the issued sign-ins (`../protocol/store.md`, 4.4): at most one
+  after the issued sign-ins (`../protocol/store/README.md`, 4.4): at most one
   record per account.
 - **Gone with the account;** an account moved to another deployment
   (`../domain/accounts.md`, 6) moves without its facts, which its next
   sign-in or call reports again.
 - **Not a secret:** the ID token stays in the secrets store
-  (`../protocol/store.md`, 9); a fact keeps only what the client may
+  (`../protocol/store/secrets.md`); a fact keeps only what the client may
   show.
 
 ## 3. The first facts
@@ -113,12 +113,12 @@ Value, one of
   its reset stays as reported until the next report; its client says
   when it reset.
 - **Bounds:** 24 facts, a text of 255 bytes, a label of 32: a record of
-  under 8 KiB, far within the largest value (`../protocol/store.md`,
-  5.4).
+  under 8 KiB, far within the largest value (`../protocol/store/records.md`,
+  4).
 - **Unknown kinds:** a kind, origin or state a build does not register
   is kept as it is and sent to no client.
 - **To the client,** the accounts document's line for an account
-  (`../client/domain/contract.md`, 5.1) gains its facts, each kind's
+  (`../client/domain/contract/documents.md`, 1) gains its facts, each kind's
   audience applied to the reader: a holder's kinds to its holder alone.
 
 ## 5. The format's choice, for the user's review

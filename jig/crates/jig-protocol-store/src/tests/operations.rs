@@ -1,4 +1,4 @@
-//! Generation operations on the simulated disk (store.md 10.2 and 10.4).
+//! Generation operations on the simulated disk (protocol/store/opening.md 2 and 4).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,
@@ -145,7 +145,7 @@ fn a_copy_holds_the_same_files_and_bytes() {
             .any(|(p, kind, mode, _)| p.as_ref() == b"generations/2" && *kind == Kind::Directory && *mode == 0o700)
     );
     assert_eq!(after.iter().filter(|(p, ..)| !p.starts_with(b"generations/2")).cloned().collect::<Vec<_>>(), before);
-    // The copy takes the maps; the copy's own manifest is written later (store.md 10.2).
+    // The copy takes the maps; the copy's own manifest is written later (protocol/store/opening.md 2).
     assert!(before.iter().any(|(p, ..)| p.as_ref() == b"generations/1/manifest"));
     assert!(!after.iter().any(|(p, ..)| p.as_ref() == b"generations/2/manifest"));
     for (path, kind, _, bytes) in

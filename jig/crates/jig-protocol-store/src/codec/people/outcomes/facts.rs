@@ -1,4 +1,4 @@
-//! Durable people refusal facts (protocol/store.md, 5.1).
+//! Durable people refusal facts (protocol/store/records.md, 1).
 use super::{domain, wire};
 use skein_lib::Wall;
 pub(super) fn encode_again(value: domain::Again) -> wire::Again {

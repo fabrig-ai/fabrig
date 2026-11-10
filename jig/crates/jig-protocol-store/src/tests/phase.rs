@@ -1,4 +1,4 @@
-//! The patch phase on a simulated disk (store.md 10.2 and 10.4).
+//! The patch phase on a simulated disk (protocol/store/opening.md 2 and 4).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,
@@ -1771,7 +1771,7 @@ fn a_closing_proof_at_another_tasks_key_refuses_load() {
 #[test]
 fn a_malformed_closing_proof_key_refuses_load() {
     // A valid run-proof address followed by an extra tag stays in its range
-    // but cannot decode as a key (store.md 4.1).
+    // but cannot decode as a key (protocol/store/README.md 4.1).
     let mut key = fresh_proof_key().into_vec();
     key.push(0);
     let key = key.into_boxed_slice();

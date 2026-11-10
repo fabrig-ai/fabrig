@@ -82,7 +82,7 @@ pub enum DraftOutcome {
         number: u64,
         to: u32,
     },
-    /// A single `AsAllowed` task would receive nothing at admission (contract.md, 3.2).
+    /// A single `AsAllowed` task would receive nothing at admission (client/domain/contract/requests.md, 2).
     NoBudget,
     Refused,
 }

@@ -1,5 +1,5 @@
 //! An amendment waits without deciding, then repeats admission on current state
-//! (`domain/engine.md`, 5.3; `domain/tasks.md`, section 7).
+//! (`domain/engine/README.md`, 5.3; `domain/tasks/changes.md`).
 use crate::routing::{Work, party::dispatch::Party};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;

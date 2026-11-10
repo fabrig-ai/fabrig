@@ -298,8 +298,8 @@ impl Domain {
     }
 
     /// Settled, with no run left to answer and the engine out of reach past
-    /// the grace (`domain/worker.md`, section 2; jig's `domain/hosts.md`,
-    /// 6.7): what is kept is given up.
+    /// the grace (`domain/worker.md`, section 2; jig's `domain/hosts/hub.md`,
+    /// 7): what is kept is given up.
     fn out_of_reach(&self) -> bool {
         self.settled() && self.past && self.host.unanswered() == 0
     }

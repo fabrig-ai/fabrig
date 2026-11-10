@@ -321,7 +321,7 @@ pub fn step_4_4() -> Vec<calls::Step> {
         call(D1, argv!["inbox", "--until", "waiting"]),
         // A's question makes the director due. Wait for its acknowledgement
         // run to park before the person reads the question: it must outlive
-        // that acknowledgement (jig's domain/tasks.md, 8.2). Polling chat
+        // that acknowledgement (jig's domain/tasks/messages.md, 2). Polling chat
         // instead races its live run watch with that run's end and can retry.
         call(D1, argv!["task", "show", number(DIRECTOR), "--until", "phase:idle"]),
         call(D1, argv!["inbox", "--kind", "questions", "--json"]),

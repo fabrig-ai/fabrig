@@ -1,4 +1,4 @@
-//! Store rows enter through the start that owns their child routing (jig/docs/design/domain/engine.md, 6).
+//! Store rows enter through the start that owns their child routing (jig/docs/design/domain/engine/restart.md).
 use crate::{Core, Limits, Queue, Record, Restored, accounts, people, start::Phase, tasks};
 use skein_lib::Env;
 
@@ -48,7 +48,7 @@ impl Core {
                     self.restore_policy(&env.limits, project, name, value)
                 }
                 Record::People(people::Stored::Public { project }) => {
-                    // Public keys follow policy keys in the people restore walk (protocol/store.md, 4.4).
+                    // Public keys follow policy keys in the people restore walk (protocol/store/README.md, 4.4).
                     if project == 0
                         || self.authority.policy(project).is_none()
                         || self.visibility.public.insert(project, ()).is_err()

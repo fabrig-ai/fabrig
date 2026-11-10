@@ -1,4 +1,4 @@
-//! Identifier-only records (jig/docs/design/protocol/client.md, 19).
+//! Identifier-only records (jig/docs/design/protocol/client/public-reads.md).
 use super::{Names, PublicKind};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::{self as wire, public_v1 as w};

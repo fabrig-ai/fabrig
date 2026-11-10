@@ -1,5 +1,5 @@
-//! The notes child's store and caller vocabulary (jig's domain/engine.md,
-//! sections 5.6 and 10). The parent commits writes and returns bounded loads.
+//! The notes child's store and caller vocabulary (jig's domain/engine/README.md, section 5.6, and domain/engine/briefs.md, section 2
+//! ). The parent commits writes and returns bounded loads.
 
 use alloc::boxed::Box;
 
@@ -32,7 +32,7 @@ pub enum Scope {
     Goal { project: u32, goal: u64 },
     /// Resources matching a connector's pattern in a project.
     Resources { project: u32, connector: u16, pattern: Pattern },
-    /// A person's own preferences, in no project (domain/engine.md, 10.1).
+    /// A person's own preferences, in no project (domain/engine/briefs.md, 2.1).
     Party { party: u64 },
 }
 
@@ -98,7 +98,7 @@ pub enum Record {
 }
 
 impl Record {
-    /// The durable address of this entry or scope line (domain/engine.md, 5.6).
+    /// The durable address of this entry or scope line (domain/engine/README.md, 5.6).
     #[must_use]
     pub fn key(&self) -> Key {
         match self {
@@ -169,7 +169,7 @@ pub enum Refusal {
 /// Events from the parent and the store.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Event {
-    /// Drop project notes (jig/docs/design/domain/engine.md, 10).
+    /// Drop project notes (jig/docs/design/domain/engine/briefs.md, 2).
     DropProject { owner: Token, project: u32 },
     /// Lines in the requested scopes, capped to `most`, with a remainder count.
     Index { owner: Token, scopes: List<Scope>, most: u32 },
@@ -190,7 +190,7 @@ pub enum Event {
 /// Requests to the parent, including writes in the current decision.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
-    /// Project notes are dropped (jig/docs/design/domain/engine.md, 10).
+    /// Project notes are dropped (jig/docs/design/domain/engine/briefs.md, 2).
     ProjectDropped { owner: Token },
     /// The requested index and the number of lines beyond it.
     Indexed { owner: Token, lines: List<Line>, more: u32 },

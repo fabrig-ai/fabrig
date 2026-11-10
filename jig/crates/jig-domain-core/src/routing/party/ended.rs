@@ -1,5 +1,5 @@
 //! Ended decision-race answers routed back to authenticated parties
-//! (`domain/people.md`, section 5.1). These complete keyed decisions, not reads.
+//! (`domain/people/acts.md`, section 1). These complete keyed decisions, not reads.
 
 use crate::{
     Core, EscalationDecisionRecord, Event, Limits, Request,

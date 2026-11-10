@@ -1,4 +1,4 @@
-//! Acts decoded by the view, owned by this domain; client/domain/client.md, 4.1.
+//! Acts decoded by the view, owned by this domain; client/domain/client/README.md, 4.1.
 //! Object acts carry parameters and confirmations; page acts carry filters.
 use crate::state::{address::Address, fields::Purpose};
 use alloc::boxed::Box;

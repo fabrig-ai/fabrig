@@ -1,4 +1,4 @@
-//! Consequences supplied with each offered act (contract.md, 5.4).
+//! Consequences supplied with each offered act (client/domain/contract/documents.md, 4).
 use super::Impact;
 /// What lifting the task's hold does.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

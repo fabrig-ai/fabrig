@@ -309,7 +309,7 @@ failed syncs.
 
 ## 10. For temper
 
-- **The engine's store** (jig's `protocol/store.md`, which temper's
+- **The engine's store** (jig's `protocol/store/README.md`, which temper's
   `protocol/store.md` extends): the children's records and keys as
   values and keys, the root's commit as one `Commit`, loads by key range
   at restart; secrets in a second store, in a root of their own,
@@ -409,7 +409,7 @@ around it:
   stays the store's own unless that design needs to move it, and that
   design meets what still pays `Limits::chunk` beside the store: jig's
   patch, whose copy and switch work in reads of the row ceiling (jig's
-  `protocol/store.md`, section 16).
+  `protocol/store/README.md`, section 11).
 - When the dataset outgrows memory, retention comes first, then values
   on disk: keys in memory with where their values lie, values read by
   offset, compaction in place of snapshots, and the index rebuilt at

@@ -1,4 +1,4 @@
-//! Signed-in control requests beside public reads (jig/docs/design/protocol/client.md, 5–6).
+//! Signed-in control requests beside public reads (jig/docs/design/protocol/client/README.md, 3–4).
 use super::{service, visitor::Visitor};
 use crate::fixtures;
 use jig_client::contract as c;

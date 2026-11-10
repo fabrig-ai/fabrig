@@ -1,4 +1,4 @@
-//! Policy values retained by people (protocol/store.md, 5.1).
+//! Policy values retained by people (protocol/store/records.md, 1).
 use super::{
     Duration, Wall, decode_authority_note_resources, decode_delegation_kinds, decode_grant_piece, decode_grants,
     decode_numbers, decode_permissions, decode_policy_value_roles, decode_requirement_piece, decode_requirements,
