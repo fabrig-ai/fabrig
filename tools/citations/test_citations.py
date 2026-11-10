@@ -414,11 +414,11 @@ class Citations(unittest.TestCase):
         self.assertEqual(self.since_base().returncode, 0)
 
     def test_sized_txt_names_only_trees(self):
-        self.write("tools/citations/sized.txt", "skein\nfab\n")
+        self.write("tools/citations/sized.txt", "skein\nnotes\n")
         self.commit("head")
         result = self.since_base()
         self.assertEqual(result.returncode, 2)
-        self.assertIn("not a tree: fab", result.stderr)
+        self.assertIn("not a tree: notes", result.stderr)
 
     def test_usage(self):
         self.assertEqual(self.run_check().returncode, 2)
