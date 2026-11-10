@@ -1,6 +1,6 @@
 # run: status
 
-2026-11-09. Where smith's code lags or departs from [run.md](run.md).
+2026-11-10. Where smith's code lags or departs from [run.md](run.md).
 
 Section 3.3 has no known gap in omitting the workspace tool instructions
 and Checkout section when no workspace is given. The remaining Checkout
@@ -42,9 +42,6 @@ a silent check still has no output to report (section 15).
 
 ## Gaps and departures
 
-- **Not yet:** 3.1, 5.1, 8.1, 8.5: `save`. No charter grants it, and no
-  run offers it: `smith-domain-run`'s `Grants` has no `save`, `land.rs`
-  runs the checks for every landing, and no `Ask` or `Request` is a save.
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs
   design coverage reconciliation against `jig/docs/design/domain/engine.md`,

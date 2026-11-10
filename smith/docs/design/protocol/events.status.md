@@ -1,9 +1,7 @@
 # events: status
 
-2026-11-09. Where smith's code lags or departs from [events.md](events.md).
+2026-11-10. Where smith's code lags or departs from [events.md](events.md).
 
-- **Not yet:** 3, 4 (domain/run.md, 8.5): the `tools` record has no
-  `save`, and no call event names a save's delivery.
 - **Not yet:** 3.2: no producer writes `containment: "trees"`. The
   vocabulary has it (`smith-events`' `Containment::Trees`), and every
   process writes `groups`, since commands run in process groups

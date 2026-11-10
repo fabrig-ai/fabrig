@@ -623,7 +623,7 @@ impl World {
             Event::Agent(FromAgent::Started { owner, agent }) => Taken::Started { owner: *owner, agent: *agent },
             Event::Agent(FromAgent::Called { owner, call, ask }) => {
                 let delivery = match ask {
-                    host::Ask::Deliver { .. } => true,
+                    host::Ask::Save | host::Ask::Deliver { .. } => true,
                     host::Ask::Relay { .. } => false,
                 };
                 Taken::Called { owner: *owner, call: crate::fixtures::callback(call), delivery }
@@ -809,6 +809,7 @@ impl World {
             | Request::DeliverJob { .. }
             | Request::Hello { .. }
             | Request::Abort { .. }
+            | Request::DeliverUnchecked { .. }
             | Request::Deliver { .. }
             | Request::Save { .. }
             | Request::Release { .. } => panic!("an assignment is refused or prepared: {request:?}"),
@@ -940,6 +941,7 @@ impl World {
             }
             Request::Job(_)
             | Request::DeliverJob { .. }
+            | Request::DeliverUnchecked { .. }
             | Request::Deliver { .. }
             | Request::Save { .. }
             | Request::Release { .. }

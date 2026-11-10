@@ -149,12 +149,17 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
             checked_out.expect("a checkout is of a commit fetched into the repository");
             Done::Succeeded
         }
-        Op::Commit { at, parent, merging, title, body, identity: _ } => {
+        Op::Commit { at, parent, merging, always, title, body, identity: _ } => {
             assert_cloned(disk, &at);
             assert!(!title.is_empty(), "a commit has a title");
             let message =
                 if body.is_empty() { title.to_vec() } else { [title.as_ref(), b"\n\n", body.as_ref()].concat() };
             match merging {
+                None if always => Done::Committed {
+                    commit: commit(
+                        git::commit_always(forge, disk, &path(&at), fake(parent), &message).expect("parent fetched"),
+                    ),
+                },
                 None => match git::commit(forge, disk, &path(&at), fake(parent), &message)
                     .expect("parent is locally fetched")
                 {

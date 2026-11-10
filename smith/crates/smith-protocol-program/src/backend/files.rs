@@ -248,6 +248,7 @@ impl Backend {
                 ) => {}
                 protocol::ToolKind::Finish if self.result_contract() => {}
                 protocol::ToolKind::Wait
+                | protocol::ToolKind::Save
                 | protocol::ToolKind::Deliver
                 | protocol::ToolKind::Finish
                 | protocol::ToolKind::Owned(Tool::Remove) => {
@@ -261,6 +262,7 @@ impl Backend {
                                         .unwrap_or_default()
                                 }
                                 protocol::ToolKind::Wait
+                                | protocol::ToolKind::Save
                                 | protocol::ToolKind::Deliver
                                 | protocol::ToolKind::Owned(Tool::Remove) => schema.schema,
                                 protocol::ToolKind::SubAgent | protocol::ToolKind::Owned(_) => {
@@ -281,7 +283,11 @@ impl Backend {
                         input_schema: tool.schema.clone(),
                     })
                     .expect("host inventory capacity"),
-                llm::Served::Wait | llm::Served::SubAgent | llm::Served::Deliver | llm::Served::Finish => {}
+                llm::Served::Wait
+                | llm::Served::SubAgent
+                | llm::Served::Save
+                | llm::Served::Deliver
+                | llm::Served::Finish => {}
             }
         }
         tools.into_boxed()

@@ -54,6 +54,8 @@ pub(crate) fn child_final_note() -> Box<[u8]> {
 
 const REPLYING: &[u8] = b"## Replying\n\nEnd your turn with text to reply; a reply does not end the conversation. The run then waits as for `wait`, but with no call to answer: the next messages come as a user message, at once if any came while you worked. To wait without replying, call `wait` with no text.\n";
 
+const SAVE: &[u8] = b"\nYou may call `save` with an empty object to keep work in progress unchecked before a question. It runs no checks and is no result; `deliver` and a finishing change still run their full checks.\n";
+
 const WAIT: &[u8] = b"Call `wait` when you need another message; its result is withheld until messages arrive and returns with them in one request.\n\n";
 
 /// Measure the largest fixed system mechanics and the opening instruction.
@@ -85,6 +87,7 @@ fn render_fixed(text: &mut Text) {
     render_agents(text, &[]);
     text.put(b"\n");
     text.put(WAIT);
+    text.put(SAVE);
     render_finishing(text, &OutcomeSpec { change: None, verdicts: Box::new([]), failure: None, report: None }, false);
     render_answering(text);
     text.put(&begin(false, true, None));
@@ -544,6 +547,9 @@ fn render_system(
             Mode::Finite => render_finishing(text, &charter.outcome, !found.checks.is_empty()),
             Mode::Open => text.put(REPLYING),
         }
+        if charter.grants.save {
+            text.put(SAVE);
+        }
         if let Some(spec) = &charter.grants.deliver {
             text.host = true;
             text.put(b"\n## Delivery\n\nYou may call `deliver` during the run, then continue. Its opaque fields are: ");
@@ -969,6 +975,7 @@ mod tests {
             grants: Grants {
                 wait: true,
                 deliver: None,
+                save: false,
                 tools: Tools { inspect: false, modify: false, shell: false },
                 ..charter().grants
             },
@@ -1092,6 +1099,17 @@ At open, your share is 3 turns and less than a second. Your answer may hold at m
             true,
         );
         assert_eq!(u64::try_from(measured.len).ok(), super::budget_prompt_bytes());
+    }
+
+    #[test]
+    fn saving_mechanics_fit_the_fixed_prompt_measurement() {
+        let mut policy = charter();
+        policy.grants.save = true;
+        let rendered = system(&policy, None, &Found::with_capacity(0), policy.budget, false);
+        let note = b"You may call `save` with an empty object";
+        assert!(skein_lib::bytes::find(&rendered, note).is_some());
+        assert!(skein_lib::bytes::find(&super::fixed_prompt(), note).is_some());
+        assert_eq!(super::fixed_prompt_bytes(), Some(skein_lib::len_u64(super::fixed_prompt().len())));
     }
 
     #[test]

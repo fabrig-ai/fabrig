@@ -135,3 +135,14 @@ fn a_look_requires_the_exact_remote_and_handles_absent_repositories() {
         })
     );
 }
+
+#[test]
+fn an_always_commit_writes_a_tree_without_comparing_the_parent() {
+    for always in [false, true] {
+        let mut op = fixtures::commit_op(None);
+        let git::Op::Commit { always: flag, .. } = &mut op else { unreachable!("commit fixture") };
+        *flag = always;
+        let expected = if always { Command::WriteTree } else { Command::DiffIndex { parent: fixtures::PARENT } };
+        assert_eq!(sequence::after(&op, &Command::Add, 0, b"", b"", 0, &fixtures::checkout()), Next::Run(expected));
+    }
+}

@@ -1074,3 +1074,70 @@ fn a_store_failure_while_a_reconciled_answer_saves_exits_with_its_notice() {
     };
     assert!(out.is_empty());
 }
+
+#[test]
+fn an_alien_save_ask_is_refused_without_touching_the_local_tree() {
+    use crate::agent::{Output, command};
+    let (mut domain, env, mut out) = running(crate::tests::config());
+    let charter = domain.charter().0;
+    assert!(!charter.grants.save, "local charters grant no save");
+    let start = host::Start {
+        live: None,
+        messages: Box::new([]),
+        logical_run: Token::new(1),
+        identity: None,
+        activation: 1,
+        workspace: None,
+        charter: host::Charter::new(charter, u64::MAX).expect("local charter"),
+        transcript: None,
+        answered: Box::new([]),
+        directories: Box::new([]),
+        grants: Box::new([]),
+    };
+    command(&mut domain.agent, env.now, env.wall, parent::Event::Spawn { client: Token::new(1), start });
+    let Some(Output::Process(process::Request::Spawn { owner, .. })) = domain.agent.pop() else { panic!("spawn") };
+    domain.child = crate::child::Child::Starting;
+    domain.child.started(owner);
+    domain.agent.process(env.now, env.wall, process::Event::Spawned { owner, process: Token::new(2) });
+    while let Some(output) = domain.agent.pop() {
+        match output {
+            Output::Process(process::Request::Send { .. }) => {
+                domain.agent.process(env.now, env.wall, process::Event::Sent { owner });
+            }
+            Output::Parent(_) | Output::Lower { .. } | Output::Process(_) => {}
+        }
+    }
+    domain.agent.process(env.now, env.wall, process::Event::Received { owner, message: host::Up::Admitted });
+    while domain.agent.pop().is_some() {}
+    domain.agent.process(
+        env.now,
+        env.wall,
+        process::Event::Received {
+            owner,
+            message: host::Up::Call {
+                call: Token::new(55),
+                name: host::CallName { activation: 1, completion: 2, position: 0 },
+                deadline: Time::from_nanos(99),
+                ask: host::Ask::Save,
+            },
+        },
+    );
+    let mut refusal = None;
+    while let Some(output) = domain.agent.pop() {
+        match output {
+            Output::Parent(request @ parent::Request::Called { .. }) => {
+                parent_request(&mut domain, &env, request, &mut out);
+            }
+            Output::Process(process::Request::Send { message: host::Down::Answer { call, reply }, .. }) => {
+                assert_eq!(call, Token::new(55));
+                refusal = Some(reply);
+            }
+            Output::Parent(_) | Output::Lower { .. } | Output::Process(_) => {}
+        }
+    }
+    let Some(host::Reply::Delivery(host::Delivery::Refused(refused))) = refusal else {
+        panic!("save refused: {refusal:?}")
+    };
+    assert_eq!(refused.explanation(), b"this host does not save");
+    assert!(out.is_empty(), "no git or plain-tree operation starts");
+}

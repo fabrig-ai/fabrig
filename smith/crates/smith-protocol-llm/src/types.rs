@@ -41,6 +41,8 @@ impl Error {
 /// Tool identity used by the LLM and program backends, never inferred from JSON Schema.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ToolKind {
+    /// Main-only unchecked saving descriptor.
+    Save,
     /// A concrete workspace operation, offered only under its existing family grant.
     Owned(
         /// Exact workspace operation decoded from the client's arguments.

@@ -137,6 +137,8 @@ pub struct Grants {
     /// Final Change permission does not grant this tool; children never inherit it.
     /// Admission checks minimum container/name/value fit before session or IO.
     pub deliver: Option<outcome::ChangeSpec>,
+    /// Main-only unchecked saving, granted only with delivery.
+    pub save: bool,
     /// The tools that act on the workspace, which conversations run themselves.
     pub tools: Tools,
     /// Asking for sub-agents: conversations of the LLM's own, opened by the run.
@@ -213,6 +215,16 @@ pub struct Endpoint(
     pub u32,
 );
 
+fn valid_mode(mode: Mode, grants: &Grants) -> bool {
+    if grants.save && grants.deliver.is_none() {
+        return false;
+    }
+    match mode {
+        Mode::Finite => true,
+        Mode::Open => grants.wait && grants.deliver.is_none(),
+    }
+}
+
 /// Admit the charter and derive its guide bound from the host bytes left.
 /// Counts are checked before anything that compares names in pairs.
 pub(crate) fn check(charter: &Charter, workspace: Option<&crate::Workspace>, limits: &Limits) -> Result<u32, Invalid> {
@@ -230,13 +242,8 @@ pub(crate) fn check(charter: &Charter, workspace: Option<&crate::Workspace>, lim
         waiting,
         conventions,
     } = charter;
-    match mode {
-        Mode::Finite => {}
-        Mode::Open => {
-            if !grants.wait || grants.deliver.is_some() {
-                return Err(Invalid::MalformedCharter);
-            }
-        }
+    if !valid_mode(*mode, grants) {
+        return Err(Invalid::MalformedCharter);
     }
     // Exact conversion: an overflowing count must refuse even at a u32::MAX cap.
     match u32::try_from(brief.sections.len()) {
@@ -496,9 +503,10 @@ pub(crate) fn len(bytes: &[u8]) -> Option<u64> {
 }
 
 /// Smith-owned tool names that a host declaration cannot take (smith/docs/design/domain/run.md, section 5.1).
-pub(crate) const RESERVED_NAMES: [&[u8]; 12] = [
+pub(crate) const RESERVED_NAMES: [&[u8]; 13] = [
     b"finish",
     b"deliver",
+    b"save",
     b"wait",
     b"sub_agent",
     b"read",

@@ -151,7 +151,7 @@ impl Driver {
                 | Request::Refused { .. }
                 | Request::Limited { .. }
                 | Request::Lower(smith_domain::Lower::Yield { .. } | smith_domain::Lower::Close { .. }) => {}
-                Request::Deliver { owner, host_run, .. } => {
+                Request::Save { owner, host_run, .. } | Request::Deliver { owner, host_run, .. } => {
                     self.seen[4] += 1;
                     self.ask(Asked::Delivery { owner, host_run, stopped: false });
                 }
@@ -396,7 +396,7 @@ fn served(prompt: &Prompt) -> (bool, bool) {
     for tool in &prompt.served {
         match tool {
             Served::Host(_) => panic!("random scripted driver has no host declarations"),
-            Served::Wait | Served::Deliver => {}
+            Served::Save | Served::Wait | Served::Deliver => {}
             Served::Finish => offered.0 = true,
             Served::SubAgent => offered.1 = true,
         }

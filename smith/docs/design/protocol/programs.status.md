@@ -1,6 +1,6 @@
 # programs: status
 
-2026-11-09. Where smith's code lags or departs from [programs.md](programs.md).
+2026-11-10. Where smith's code lags or departs from [programs.md](programs.md).
 
 Sections 2 and 5.1 have no known gap in Linux's program-child launch:
 status checks and print runs use the agent's own `--program-child`
@@ -42,9 +42,6 @@ fake status supplies it; this does not establish a real-login render check.
 
 ## Gaps and departures
 
-- **Not yet:** 5.3: the agent's own MCP server lists no `save`
-  (`smith-protocol-program`'s `backend/files.rs`, `tools`), since no
-  charter grants it.
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs
   design coverage reconciliation against `jig/docs/design/domain/engine.md`,

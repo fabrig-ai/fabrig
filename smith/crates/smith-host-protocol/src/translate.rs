@@ -244,6 +244,12 @@ pub(crate) fn decode_ask(call: &wire::Call) -> Result<Option<channel::Ask>, Erro
             };
             channel::Ask::Host { tool: Box::from(host.tool()), effect, body: Box::from(host.input()) }
         }
+        wire::Ask::Save => {
+            if call.effect() != &wire::Effect::Write {
+                return Ok(None);
+            }
+            channel::Ask::Save
+        }
         wire::Ask::Deliver(deliver) => {
             if call.effect() != &wire::Effect::Write {
                 return Ok(None);

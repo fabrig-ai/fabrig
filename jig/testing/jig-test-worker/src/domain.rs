@@ -32,7 +32,7 @@ pub(crate) struct Call {
 impl Call {
     fn new(owner: Token, agent: Token, callback: Token, deadline: Time, ask: smith::Ask) -> Self {
         let delivery = match &ask {
-            smith::Ask::Deliver { .. } => true,
+            smith::Ask::Save | smith::Ask::Deliver { .. } => true,
             smith::Ask::Host { .. } => false,
         };
         Self {
@@ -329,29 +329,11 @@ fn down(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out: &mu
             env,
             HubEvent::Unprepared { owner, failure: host::Preparation::Transient, detail: Box::new([]) },
         ),
+        host::Request::DeliverUnchecked { owner, workspace } => {
+            delivered(domain, env, owner, workspace, Box::new([]), Box::new([]));
+        }
         host::Request::Deliver { owner, workspace, title, body } => {
-            let delivered = domain.workspace.deliver(workspace, title, body);
-            let mut key = None;
-            for (at, call) in &domain.calls {
-                if call.delivery && call.delivered.is_none() && call.owner == workspace {
-                    key = Some(*at);
-                    break;
-                }
-            }
-            domain.calls.get_mut(&key.expect("workspace owns one delivery")).expect("owned callback").delivered =
-                Some(delivered);
-            hub(
-                domain,
-                env,
-                HubEvent::Delivered {
-                    owner,
-                    delivery: host::Delivery {
-                        outcome: host::DeliveryOutcome::Delivered,
-                        left: workspace,
-                        changed: true,
-                    },
-                },
-            );
+            delivered(domain, env, owner, workspace, title, body);
         }
         host::Request::Save { owner, workspace: _ } => hub(domain, env, HubEvent::Saved { owner, at: None }),
         host::Request::Release { workspace } => domain.workspace.release(workspace),
@@ -528,6 +510,7 @@ fn encoded(domain: &mut Domain, env: &Env<Limits>, owner: Token, encoded: Encode
                 smith::Ask::Host { tool, effect, body } => {
                     host::Ask::Relay { tool, writes: effect == smith::Effect::Write, input: body, deadline }
                 }
+                smith::Ask::Save => host::Ask::Save,
                 smith::Ask::Deliver { fields } => {
                     let mut title: Box<[u8]> = Box::new([]);
                     let mut body: Box<[u8]> = Box::new([]);
@@ -613,4 +596,32 @@ fn ended(domain: &mut Domain, env: &Env<Limits>, owner: Token, end: smith::End, 
     } else {
         gone(domain, env, owner, detail);
     }
+}
+
+fn delivered(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    workspace: Token,
+    title: Box<[u8]>,
+    body: Box<[u8]>,
+) {
+    let delivered = domain.workspace.deliver(workspace, title, body);
+    let mut key = None;
+    for (at, call) in &domain.calls {
+        if call.delivery && call.delivered.is_none() && call.owner == workspace {
+            key = Some(*at);
+            break;
+        }
+    }
+    domain.calls.get_mut(&key.expect("workspace owns one delivery")).expect("owned callback").delivered =
+        Some(delivered);
+    hub(
+        domain,
+        env,
+        HubEvent::Delivered {
+            owner,
+            delivery: host::Delivery { outcome: host::DeliveryOutcome::Delivered, left: workspace, changed: true },
+        },
+    );
 }

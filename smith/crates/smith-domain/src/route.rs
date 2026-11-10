@@ -694,6 +694,9 @@ fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: 
             return out.push(Request::Long { host_run, operation: Operation::Checks, until: deadline });
         }
         run::Request::ChecksEnded { host_run } => return out.push(Request::LongDone { host_run }),
+        run::Request::Save { host_run, owner, name, deadline } => {
+            return out.push(Request::Save { host_run, owner, name, deadline });
+        }
         run::Request::Deliver { host_run, owner, change, name, deadline } => {
             return out.push(Request::Deliver { host_run, owner, change, name, deadline });
         }

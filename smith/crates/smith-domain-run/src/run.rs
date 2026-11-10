@@ -710,6 +710,7 @@ pub(crate) fn delegated(
     let run_id = conversation.run;
     facts.about(run_id.token());
     let asked = match &ask {
+        Ask::Save => Asked::Save,
         Ask::Wait => Asked::Wait,
         Ask::Host { .. } => Asked::Host,
         Ask::Deliver { .. } => Asked::Deliver,
@@ -789,6 +790,33 @@ fn serve(
         }
         Ask::Host { tool, effect, input } => {
             host_call(run, run_id, conversations, calls, alarms, conversation, made, tool, effect, input, env, out);
+        }
+        Ask::Save => {
+            assert!(main == conversation, "only main is offered saving");
+            if run.wind_down.is_some() {
+                out.push(Request::Return { spent: 0, call: made.call, result: Returned::Cancelled });
+            } else if !run.charter.grants.save {
+                out.push(Request::Return {
+                    spent: 0,
+                    call: made.call,
+                    result: Returned::Refused { refusal: AskRefusal::NotGranted },
+                });
+            } else {
+                assert!(conversations.get(main).expect("main lives").calls == 0, "saving is an exclusive write");
+                begin_landing(
+                    run,
+                    run_id,
+                    conversations,
+                    calls,
+                    alarms,
+                    main,
+                    made,
+                    Change { fields: Box::new([]) },
+                    land::Purpose::Save,
+                    env.now,
+                    out,
+                );
+            }
         }
         Ask::Deliver { change } => {
             assert!(main == conversation, "only main is offered delivery");
@@ -1529,7 +1557,19 @@ fn finish(
             wind_down(conversations, reply_to, main, Ending::Accepted(completed), out)
         }
         Declared::Change(change) => {
-            begin_landing(run, run_id, conversations, calls, alarms, main, made, change, true, env.now, out);
+            begin_landing(
+                run,
+                run_id,
+                conversations,
+                calls,
+                alarms,
+                main,
+                made,
+                change,
+                land::Purpose::Finish,
+                env.now,
+                out,
+            );
             State::Working { reply_to, main }
         }
     }
@@ -1563,7 +1603,7 @@ fn deliver(
         out.push(Request::Return { spent: 0, call, result: Returned::Rejected { problems } });
         return;
     }
-    begin_landing(run, run_id, conversations, calls, alarms, main, made, change, false, env.now, out);
+    begin_landing(run, run_id, conversations, calls, alarms, main, made, change, land::Purpose::Deliver, env.now, out);
 }
 
 #[expect(clippy::too_many_arguments, reason = "landing admission receives its owning tables and immutable call")]
@@ -1576,7 +1616,7 @@ fn begin_landing(
     main: Id<Conversation>,
     made: Asking,
     change: Change,
-    finish: bool,
+    purpose: land::Purpose,
     now: Time,
     out: &mut Queue<Request>,
 ) {
@@ -1593,7 +1633,7 @@ fn begin_landing(
         out.push(Request::Return { spent: 0, call, result: Returned::Busy });
         return;
     }
-    let work = Work::Landing(land::landing(change, name, deadline, finish));
+    let work = Work::Landing(land::landing(change, name, deadline, purpose));
     let id = begin_call(calls, alarms, Call { run: run_id, conversation: main, owner: call, work }, deadline);
     run.lease.workspace(id.token());
     match &mut calls.get_mut(id).expect("inserted above").work {

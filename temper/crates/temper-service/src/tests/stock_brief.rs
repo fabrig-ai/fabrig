@@ -104,22 +104,22 @@ fn workspace(writable: bool) -> run::Workspace {
 fn every_stock_charter_admits_its_whole_maximal_brief() {
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
-    assert_eq!(limits.host_part, 400_135);
+    assert_eq!(limits.host_part, 399_961);
     assert_eq!(limits.room, 822_476);
-    assert_eq!(limits.offer_bytes, 200_068);
+    assert_eq!(limits.offer_bytes, 199_981);
     assert_eq!(configuration.service.limits.channel.bodies.turn_body, 16_803_810);
 
     for (number, open, non_brief, remaining) in [
-        (1, false, 44_333, 355_802),
-        (1, true, 42_243, 357_892),
-        (2, false, 29_353, 370_782),
-        (4, false, 25_919, 374_216),
-        (5, false, 45_222, 354_913),
-        (6, false, 27_143, 372_992),
-        (9, false, 24_586, 375_549),
-        (10, false, 24_301, 375_834),
-        (11, true, 11_985, 388_150),
-        (12, true, 27_691, 372_444),
+        (1, false, 44_333, 355_628),
+        (1, true, 42_243, 357_718),
+        (2, false, 29_353, 370_608),
+        (4, false, 25_919, 374_042),
+        (5, false, 45_222, 354_739),
+        (6, false, 27_143, 372_818),
+        (9, false, 24_586, 375_375),
+        (10, false, 24_301, 375_660),
+        (11, true, 11_985, 387_976),
+        (12, true, 27_691, 372_270),
     ] {
         let assignment = assignment(number, open, 14_592);
         let charter = temper_engine_smith::charter(&assignment);
@@ -180,7 +180,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     // Task words and contract, then the task identity and requester.
     const TASK_PARTS: u32 = 2;
     // Charter 5's room leaves this margin beyond the framed brief.
-    const MARGIN: u32 = 369;
+    const MARGIN: u32 = 195;
     const OTHER: u32 = 768;
     let configuration = configured();
     let limits = configuration.service.limits.domain.run;
@@ -188,7 +188,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     assert!(brief.parts >= TASK_PARTS);
     let largest = temper_engine_smith::charter(&assignment(5, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 354_913);
+    assert_eq!(room, 354_739);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
     assert_eq!(brief.brief_bytes, full.min(room - FRAMING - MARGIN));

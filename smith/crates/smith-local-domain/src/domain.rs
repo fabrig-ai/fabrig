@@ -448,6 +448,22 @@ fn accept_turn(
     }
 }
 
+fn refuse_save(domain: &mut Domain, env: &Env<Limits>, call: Token) {
+    command(
+        &mut domain.agent,
+        env.now,
+        env.wall,
+        parent::Event::Answer {
+            agent: domain.child.run().expect("call belongs to started spawned run"),
+            call,
+            reply: host::Reply::Delivery(host::Delivery::Refused(
+                host::DeliveryRefusal::new(None, Box::from(b"this host does not save".as_slice()))
+                    .expect("fixed refusal fits"),
+            )),
+        },
+    );
+}
+
 fn parent_request(domain: &mut Domain, env: &Env<Limits>, event: parent::Request, out: &mut Queue<Request>) {
     match event {
         parent::Request::Started { agent, .. } => {
@@ -494,6 +510,7 @@ fn parent_request(domain: &mut Domain, env: &Env<Limits>, event: parent::Request
             });
         }
         parent::Request::Called { call, name, deadline, ask, .. } => match ask {
+            host::Ask::Save => refuse_save(domain, env, call),
             host::Ask::Deliver { fields } => begin_delivery(
                 domain,
                 env,

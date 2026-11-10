@@ -493,7 +493,7 @@ impl Host {
                 sections: Box::new([smith_domain_run::Section { title: b"Task".as_slice().into(), text: brief }]),
             },
 
-            grants: Grants { wait: true, deliver, tools, agents, host_tools: host_tools.into() },
+            grants: Grants { wait: true, deliver, save: false, tools, agents, host_tools: host_tools.into() },
             outcome: OutcomeSpec {
                 change: change.then_some(ChangeSpec {
                     checks_must_pass: true,

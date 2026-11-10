@@ -93,6 +93,7 @@ pub(super) fn outside(names: &[llm::Served]) -> Box<[u8]> {
     for tool in names {
         let name = match tool {
             llm::Served::Finish => b"finish".as_slice(),
+            llm::Served::Save => b"save",
             llm::Served::Deliver => b"deliver",
             llm::Served::Wait => b"wait",
             llm::Served::SubAgent => b"sub_agent",

@@ -136,6 +136,8 @@ pub struct Used {
 /// What a call asked for.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Asked {
+    /// Main requested unchecked saving.
+    Save,
     /// Main requested settled waiting.
     Wait,
     /// An opaque declared host-tool call.
@@ -380,7 +382,8 @@ pub(crate) fn tell(
             | Request::Abort { .. }
             | Request::Checking { .. }
             | Request::ChecksEnded { .. }
-            | Request::Deliver { .. } => continue,
+            | Request::Deliver { .. }
+            | Request::Save { .. } => continue,
         };
         facts.push(fact);
     }

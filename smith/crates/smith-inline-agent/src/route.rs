@@ -143,30 +143,14 @@ pub(crate) fn route(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &m
                 assert_eq!(slot.logical_run, host_run, "root workspace requests preserve logical scope");
                 out.push(Output::Parent(parent::Request::LongDone { client }));
             }
+            smith::Request::Save { host_run, owner, name, deadline } => {
+                delivery(slot, host_run, owner, name, deadline, host::Ask::Save, out);
+            }
             smith::Request::Deliver { host_run, owner, change, name, deadline } => {
-                assert_eq!(slot.logical_run, host_run, "root workspace requests preserve logical scope");
-                let call = crate::workspace::call(slot);
-                assert!(
-                    slot.relays
-                        .insert(call, Relay { name: crate::workspace::Call::Delivery(owner), withdrawn: false })
-                        .expect("bounded parent rights")
-                        .is_none(),
-                    "each delivery owns one unique parent call"
-                );
-                out.push(Output::Parent(parent::Request::Called {
-                    client,
-                    logical_run: host_run,
-                    call,
-                    name: host::CallName {
-                        activation: name.activation,
-                        completion: name.completion,
-                        position: name.position,
-                    },
-                    deadline,
-                    ask: host::Ask::Deliver {
-                        fields: host::Fields::new(change, u64::MAX).expect("root bounds checked fields"),
-                    },
-                }));
+                let ask = host::Ask::Deliver {
+                    fields: host::Fields::new(change, u64::MAX).expect("root bounds checked fields"),
+                };
+                delivery(slot, host_run, owner, name, deadline, ask, out);
             }
             smith::Request::Lower(Lower::Io { owner, op, deadline }) => {
                 crate::workspace::io(slot, id.token(), owner, op, deadline, out);
@@ -190,4 +174,33 @@ pub(crate) fn route(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &m
         }
     }
     assert!(agent.lower.is_empty(), "each root's requests are routed to its own slot before the next entrance");
+}
+
+fn delivery(
+    slot: &mut Slot,
+    host_run: skein_lib::Token,
+    owner: skein_lib::Token,
+    name: smith::run::CallName,
+    deadline: skein_lib::Time,
+    ask: host::Ask,
+    out: &mut Queue<Output>,
+) {
+    let client = slot.client;
+    assert_eq!(slot.logical_run, host_run, "root workspace requests preserve logical scope");
+    let call = crate::workspace::call(slot);
+    assert!(
+        slot.relays
+            .insert(call, Relay { name: crate::workspace::Call::Delivery(owner), withdrawn: false })
+            .expect("bounded parent rights")
+            .is_none(),
+        "each delivery owns one unique parent call"
+    );
+    out.push(Output::Parent(parent::Request::Called {
+        client,
+        logical_run: host_run,
+        call,
+        name: host::CallName { activation: name.activation, completion: name.completion, position: name.position },
+        deadline,
+        ask,
+    }));
 }

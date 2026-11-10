@@ -65,6 +65,7 @@ fn decoded_batch_reserves_refusal_cells_before_any_payload() {
         host_tools: Box::new([]),
         finish: false,
         deliver: false,
+        save: false,
         agents: false,
         wait: true,
     };
@@ -267,6 +268,7 @@ impl Harness {
                 request @ (Request::HostCall { .. }
                 | Request::WithdrawHost { .. }
                 | Request::Admitted { .. }
+                | Request::Save { .. }
                 | Request::Deliver { .. }
                 | Request::Unauthorized { .. }
                 | Request::Refused { .. }
@@ -389,7 +391,7 @@ fn charter() -> Charter {
             }]),
         },
 
-        grants: Grants { wait: true, deliver: None, tools: TOOLS, agents: true, host_tools: Box::new([]) },
+        grants: Grants { wait: true, deliver: None, save: false, tools: TOOLS, agents: true, host_tools: Box::new([]) },
         outcome: OutcomeSpec { change: None, verdicts: Box::new([rule(b"approve")]), report: None, failure: None },
         budget: BUDGET,
         llm: Llm {
@@ -1045,6 +1047,7 @@ fn assert_no_provider_completion(emitted: &[Request]) {
             | Request::Answer { .. }
             | Request::Long { .. }
             | Request::LongDone { .. }
+            | Request::Save { .. }
             | Request::Deliver { .. }
             | Request::Unauthorized { .. }
             | Request::Refused { .. }

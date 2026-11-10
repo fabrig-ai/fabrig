@@ -19,7 +19,7 @@ pub fn schemas_for_contract(
     deliver: Option<&run::outcome::ChangeSpec>,
     maximum: u32,
 ) -> Result<Box<[ToolSchema]>, Error> {
-    let mut descriptors = List::with_capacity(12);
+    let mut descriptors = List::with_capacity(13);
     for (granted, tool, name) in [
         (prompt.tools.inspect, tools::Tool::Read, b"read".as_slice()),
         (prompt.tools.inspect, tools::Tool::List, b"list"),
@@ -37,6 +37,7 @@ pub fn schemas_for_contract(
     for offered in &prompt.served {
         let descriptor = match offered {
             llm::Served::Host(_) => continue,
+            llm::Served::Save => saving(),
             llm::Served::Wait => waiting(),
             llm::Served::SubAgent => sub_agent(stated.host_part),
             llm::Served::Deliver => {
@@ -70,6 +71,7 @@ fn fixed_namespace_bytes(stated: &crate::Stated, namespace: &tools::Namespace) -
         owned(tools::Tool::Remove, b"remove", stated, namespace),
         owned(tools::Tool::Shell, b"shell", stated, namespace),
         owned(tools::Tool::Job, b"job", stated, namespace),
+        saving(),
         waiting(),
         sub_agent(stated.host_part),
     ] {
@@ -78,6 +80,15 @@ fn fixed_namespace_bytes(stated: &crate::Stated, namespace: &tools::Namespace) -
         }
     }
     Some(bytes)
+}
+
+fn saving() -> ToolSchema {
+    descriptor(
+        ToolKind::Save,
+        b"save",
+        b"Keep work in progress on its branch without checks; continue the run. This is no result.",
+        br#"{"type":"object","properties":{},"additionalProperties":false}"#,
+    )
 }
 
 fn waiting() -> ToolSchema {

@@ -164,6 +164,7 @@ fn tools(source: run::charter::Grants, limits: &wire::Limits) -> Option<wire::To
         wire::ToolsParts {
             families,
             wait: source.wait,
+            save: source.save,
             deliver: match source.deliver {
                 Some(rule) => Some(change(rule, limits)?),
                 None => None,

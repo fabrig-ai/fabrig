@@ -116,8 +116,8 @@ pub fn after(
             }
         }
         Command::Add if code == 0 => match op {
-            git::Op::Commit { parent, merging, .. } => {
-                return Next::Run(if merging.is_some() {
+            git::Op::Commit { parent, merging, always, .. } => {
+                return Next::Run(if merging.is_some() || *always {
                     Command::WriteTree
                 } else {
                     Command::DiffIndex { parent: *parent }

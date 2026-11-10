@@ -1067,14 +1067,14 @@ fn serve(
             Some(bytes) => bytes <= limits.event_bytes,
             None => false,
         },
-        Ask::Deliver { .. } => true,
+        Ask::Save | Ask::Deliver { .. } => true,
     };
     if !name_fits || !input_fits {
         answer_call(agent, call, CallAnswer::Unavailable, out);
         return;
     }
     let delivery = match &ask {
-        Ask::Deliver { .. } => true,
+        Ask::Save | Ask::Deliver { .. } => true,
         Ask::Relay { .. } => false,
     };
     if delivery && workspace.is_none() {
@@ -1103,6 +1103,13 @@ fn serve(
         return;
     };
     match ask {
+        Ask::Save => {
+            entry.delivery = Some(call_id);
+            out.push(Request::DeliverUnchecked {
+                owner: call_id.token(),
+                workspace: workspace.expect("a save has a workspace"),
+            });
+        }
         Ask::Deliver { title, body } => {
             entry.delivery = Some(call_id);
             out.push(Request::Deliver {

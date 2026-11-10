@@ -121,6 +121,7 @@ fn charter(held: u64) -> Charter {
         grants: Grants {
             wait: true,
             deliver: None,
+            save: false,
             tools: Tools { inspect: true, modify: true, shell: true },
 
             agents: true,
@@ -247,6 +248,7 @@ fn observed_request(request: Request, selected: Option<&smith_domain_run::Conven
         | Request::Abort { .. }
         | Request::Checking { .. }
         | Request::ChecksEnded { .. }
+        | Request::Save { .. }
         | Request::Deliver { .. }
         | Request::CompletionReady { .. }
         | Request::Yield { .. }
@@ -566,6 +568,7 @@ fn delivery_memory_step(
             Request::Read { owner, .. }
             | Request::Probe { owner, .. }
             | Request::Check { owner, .. }
+            | Request::Save { owner, .. }
             | Request::Deliver { owner, .. } => token = Some(owner),
             Request::Open { conversation, .. } => token = Some(conversation),
             Request::Return { result: smith_domain_run::Returned::Delivered(receipts), .. } => {
@@ -700,6 +703,7 @@ fn full_delivery_charter(limits: &Limits) -> Charter {
         grants: Grants {
             wait: true,
             deliver: Some(ChangeSpec { checks_must_pass: true, fields: Box::new([]) }),
+            save: false,
             tools: Tools { inspect: true, modify: true, shell: true },
 
             agents: false,
@@ -780,6 +784,7 @@ fn host_memory_take(
             | Request::Check { .. }
             | Request::Checking { .. }
             | Request::ChecksEnded { .. }
+            | Request::Save { .. }
             | Request::Deliver { .. }) => panic!("unexpected host memory output {unexpected:?}"),
         }
     }

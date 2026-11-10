@@ -146,6 +146,7 @@ fn decode(name: &[u8], input: &[u8], context: &Context, held: u64) -> Result<llm
                 return Ok(host(tool, input, context, remaining));
             }
             llm::Served::Host(_)
+            | llm::Served::Save
             | llm::Served::Deliver
             | llm::Served::Finish
             | llm::Served::SubAgent

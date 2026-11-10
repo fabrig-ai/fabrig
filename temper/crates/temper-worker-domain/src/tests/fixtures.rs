@@ -209,6 +209,7 @@ pub fn charter() -> agent::Charter {
         grants: Grants {
             wait: false,
             deliver: None,
+            save: false,
             tools: Tools { inspect: false, modify: false, shell: false },
             agents: false,
             host_tools: Box::new([]),

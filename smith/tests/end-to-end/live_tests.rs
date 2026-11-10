@@ -597,6 +597,7 @@ fn synthetic_run_start() -> smith_events::Record {
                 withheld: skein_lib::List::uncapped(),
                 wait: false,
                 deliver: false,
+                save: false,
                 host: skein_lib::List::uncapped(),
             },
             contract: skein_lib::List::uncapped(),

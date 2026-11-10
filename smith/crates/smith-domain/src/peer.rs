@@ -21,7 +21,7 @@ use smith_domain_run::{self as run, Ask};
 use smith_domain_session::{self as session, llm as sllm};
 
 use crate::llm::{self, Block, Decoded, Message, Prompt, Returned, Said, Served};
-use crate::translate::{self, DELIVER, FINISH, FIRST, Offered, SUB_AGENT, WAIT};
+use crate::translate::{self, DELIVER, FINISH, FIRST, Offered, SAVE, SUB_AGENT, WAIT};
 
 /// The run-owned call whose result can be withheld across activations.
 pub(super) const WAIT_NAME: &[u8] = b"wait";
@@ -196,6 +196,9 @@ impl Peer {
         if name == b"finish" && self.offered.finish {
             return Some(FINISH);
         }
+        if name == b"save" && self.offered.save {
+            return Some(SAVE);
+        }
         if name == b"deliver" && self.offered.deliver {
             return Some(DELIVER);
         }
@@ -223,6 +226,7 @@ impl Peer {
             Decoded::Served { ask } => ask,
         };
         let offered = match &ask {
+            Ask::Save => self.offered.save,
             Ask::Wait => self.offered.wait,
             Ask::Host { tool, effect, .. } => self.host_offered(tool, *effect),
             Ask::Finish { .. } => self.offered.finish,
@@ -247,9 +251,12 @@ impl Peer {
         };
         let source = match &ask {
             Ask::Host { .. } => session::ToolSource::Host,
-            Ask::Wait | Ask::Finish { .. } | Ask::Deliver { .. } | Ask::SubAgent { .. } => session::ToolSource::Run,
+            Ask::Save | Ask::Wait | Ask::Finish { .. } | Ask::Deliver { .. } | Ask::SubAgent { .. } => {
+                session::ToolSource::Run
+            }
         };
         let descriptor = match &ask {
+            Ask::Save => SAVE,
             Ask::Finish { .. } => FINISH,
             Ask::Deliver { .. } => DELIVER,
             Ask::SubAgent { .. } => SUB_AGENT,
@@ -329,6 +336,7 @@ impl Peer {
 
     fn descriptor(&self, ticket: Token) -> Served {
         match ticket {
+            SAVE => Served::Save,
             WAIT => Served::Wait,
             DELIVER => Served::Deliver,
             FINISH => Served::Finish,
@@ -404,6 +412,7 @@ impl Peer {
                 for ticket in tickets {
                     let name = match self.descriptor(ticket) {
                         Served::Wait => Box::from(WAIT_NAME),
+                        Served::Save => Box::from(b"save".as_slice()),
                         Served::Deliver => Box::from(b"deliver".as_slice()),
                         Served::Finish => Box::from(b"finish".as_slice()),
                         Served::SubAgent => Box::from(b"sub_agent".as_slice()),
@@ -438,7 +447,7 @@ fn per(bytes: u64, size: usize) -> u32 {
 /// fixed size plus its payload.
 pub(crate) fn ask_cost(ask: &Ask) -> Option<u64> {
     let payload = match ask {
-        Ask::Wait => 0,
+        Ask::Save | Ask::Wait => 0,
         Ask::Host { tool, input, .. } => size(tool.len())?.checked_add(size(input.bytes().len())?)?,
         Ask::Deliver { change } => change.owned_bytes()?,
         Ask::Finish { outcome } => run::outcome::owned_bytes(outcome)?,
@@ -459,4 +468,36 @@ fn len(bytes: &[u8]) -> Option<u64> {
 
 fn size(size: usize) -> Option<u64> {
     u64::try_from(size).ok()
+}
+
+#[cfg(test)]
+#[test]
+fn save_is_an_exclusive_run_tool_withheld_from_final_choices() {
+    for granted in [false, true] {
+        let offered = Offered {
+            host_tools: Box::new([]),
+            main: true,
+            finish: true,
+            deliver: true,
+            save: granted,
+            agents: false,
+            wait: true,
+        };
+        let mut peer = Peer::new(Token::new(17), 1, None, 0, offered, &crate::fixture::SMALL.session);
+        let decoded = peer.decoded(Decoded::Served { ask: Ask::Save }, b"save", u64::MAX);
+        if granted {
+            let sllm::Decoded::Delegated { source, descriptor, effect, ticket } = decoded else {
+                panic!("save offered: {decoded:?}")
+            };
+            assert_eq!(source, session::ToolSource::Run);
+            assert_eq!(descriptor, SAVE);
+            assert_eq!(effect, smith_domain_tools::Effect::Write);
+            assert_eq!(peer.take(ticket), Ask::Save);
+            assert_eq!(peer.descriptor(SAVE), Served::Save);
+        } else {
+            assert_eq!(decoded, sllm::Decoded::Invalid { descriptor: None, problem: sllm::Problem::UnknownTool });
+        }
+        let sllm::ToolChoice::Only(choices) = peer.final_choice() else { panic!("finite final tools") };
+        assert!(!choices.contains(&SAVE), "save is absent in wind-down");
+    }
 }

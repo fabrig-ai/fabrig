@@ -240,11 +240,13 @@ fn host_declarations_are_admitted_as_bounded_unique_contracts_before_io() {
 }
 
 #[test]
-fn the_prompt_tool_s_name_is_reserved() {
-    let mut declared = charter();
-    declared.grants.host_tools[0].name = b"permission_prompt".as_slice().into();
-    let mut harness = Harness::new(LIMITS);
-    assert_eq!(answered(harness.start(71, declared)), (71, Answer::Refused(Refusal::Invalid(Invalid::Grants))));
+fn the_prompt_and_save_tool_names_are_reserved() {
+    for name in [b"permission_prompt".as_slice(), b"save"] {
+        let mut declared = charter();
+        declared.grants.host_tools[0].name = name.into();
+        let mut harness = Harness::new(LIMITS);
+        assert_eq!(answered(harness.start(71, declared)), (71, Answer::Refused(Refusal::Invalid(Invalid::Grants))));
+    }
 }
 
 #[test]

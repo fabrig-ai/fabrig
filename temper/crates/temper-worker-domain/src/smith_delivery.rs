@@ -57,7 +57,7 @@ pub(crate) fn reply(domain: &Domain, reply_bytes: u32, reply: host::CallAnswer) 
     }
 }
 
-pub(crate) fn landings(landings: &[wire::Landing], branches: &[Option<Box<[u8]>>]) -> smith::Delivery {
+pub(crate) fn landings(landings: &[wire::Landing], branches: &[Option<Box<[u8]>>], unchecked: bool) -> smith::Delivery {
     let mut receipts = List::with_capacity(u32::try_from(landings.len()).expect("bounded directories"));
     let mut first = None;
     let mut moved = false;
@@ -70,7 +70,7 @@ pub(crate) fn landings(landings: &[wire::Landing], branches: &[Option<Box<[u8]>>
                     .expect("every item has a branch slot")
                     .as_deref()
                     .expect("a landed repository is writable");
-                let text = receipt_text(commit, branch);
+                let text = receipt_text(commit, branch, unchecked);
                 receipts
                     .push(smith::Receipt::new(directory, text).expect("bounded commit receipt"))
                     .expect("room for changed directories");
@@ -120,18 +120,22 @@ pub(crate) fn landings(landings: &[wire::Landing], branches: &[Option<Box<[u8]>>
     }
 }
 
-fn receipt_text(commit: &[u8; 32], branch: &[u8]) -> Box<[u8]> {
-    const PUSHED: &[u8] = b"pushed ";
+fn receipt_text(commit: &[u8; 32], branch: &[u8], unchecked: bool) -> Box<[u8]> {
     const TO_BRANCH: &[u8] = b" to branch ";
-    const DETACHED: &[u8] = b"; your checkout stays detached, as expected";
+    let prefix: &[u8] = if unchecked { b"saved " } else { b"pushed " };
+    let suffix: &[u8] = if unchecked {
+        b", unchecked: no check ran; your checkout stays detached, as expected"
+    } else {
+        b"; your checkout stays detached, as expected"
+    };
     let width = if commit.get(20..).expect("fixed id") == [0; 12] { 20_usize } else { 32 };
     let digits = commit.get(..width).expect("fixed id");
     let base = width
         .checked_mul(2)
         .expect("fixed commit digits")
-        .checked_add(PUSHED.len())
+        .checked_add(prefix.len())
         .expect("fixed receipt prefix")
-        .checked_add(DETACHED.len())
+        .checked_add(suffix.len())
         .expect("fixed receipt suffix");
     let room = smith::Receipt::CAPACITY
         .checked_sub(base)
@@ -148,7 +152,7 @@ fn receipt_text(commit: &[u8; 32], branch: &[u8]) -> Box<[u8]> {
         None => base,
     };
     let mut text = Writer::new(len);
-    text.put(PUSHED).expect("measured receipt prefix");
+    text.put(prefix).expect("measured receipt prefix");
     for byte in digits {
         let high = *b"0123456789abcdef".get(usize::from(byte >> 4_u8)).expect("hex nibble");
         let low = *b"0123456789abcdef".get(usize::from(byte & 15)).expect("hex nibble");
@@ -158,7 +162,7 @@ fn receipt_text(commit: &[u8; 32], branch: &[u8]) -> Box<[u8]> {
         text.put(TO_BRANCH).expect("measured branch prefix");
         text.put(branch).expect("measured branch");
     }
-    text.put(DETACHED).expect("measured receipt suffix");
+    text.put(suffix).expect("measured receipt suffix");
     text.finish()
 }
 

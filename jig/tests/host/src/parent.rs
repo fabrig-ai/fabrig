@@ -292,9 +292,9 @@ impl Parent {
             Request::Agent(ToAgent::Message { agent, .. }) => self.deliver(agent),
             Request::Agent(ToAgent::Answer { agent, call: _, answer: _ }) => self.reply(agent),
             Request::Agent(ToAgent::Cancel { agent }) => self.stop(agent),
-            Request::DeliverJob { owner, workspace, .. } | Request::Deliver { owner, workspace, .. } => {
-                self.delivery(owner, workspace)
-            }
+            Request::DeliverJob { owner, workspace, .. }
+            | Request::DeliverUnchecked { owner, workspace }
+            | Request::Deliver { owner, workspace, .. } => self.delivery(owner, workspace),
             Request::Save { owner, workspace } => self.save(owner, workspace),
             Request::Release { workspace } => self.release(workspace),
             Request::Agent(ToAgent::Grant { .. }) => Vec::new(),
@@ -482,7 +482,7 @@ impl Parent {
     fn call(&mut self, agent: Token, ask: Ask) -> Out {
         match ask {
             Ask::Relay { .. } => self.tally.relays += 1,
-            Ask::Deliver { .. } => self.tally.deliveries += 1,
+            Ask::Save | Ask::Deliver { .. } => self.tally.deliveries += 1,
         }
         let entry = self.agents.get_mut(&agent).expect("an agent is kept once made");
         entry.calls += 1;

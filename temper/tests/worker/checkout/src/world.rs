@@ -1373,6 +1373,7 @@ fn describe_event(event: &Event) -> String {
         Event::Save { hold, .. } => format!("save {}", hold.raw()),
         Event::Abort { hold } => format!("abort {}", hold.raw()),
         Event::Release { hold } => format!("release {}", hold.raw()),
+        Event::PushUnchecked { hold } => format!("save unchecked {}", hold.raw()),
         Event::Done { owner, done } => format!("done {} {done:?}", owner.raw()),
     }
 }

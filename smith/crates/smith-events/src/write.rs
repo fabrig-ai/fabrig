@@ -250,6 +250,8 @@ fn write_tools(json: &mut Encoder, value: &Tools) {
     json.boolean(value.wait);
     json.key(b"deliver");
     json.boolean(value.deliver);
+    json.key(b"save");
+    json.boolean(value.save);
     json.key(b"host");
     write_list_text(json, &value.host);
     json.object_end();

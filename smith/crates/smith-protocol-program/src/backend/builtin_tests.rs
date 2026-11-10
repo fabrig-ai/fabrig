@@ -457,10 +457,10 @@ fn every_charter_inventory_serves_only_object_input_schemas() {
             vec!["wait", "host_action", "permission_prompt"],
         ),
         (
-            vec![llm::Served::Wait, llm::Served::Deliver],
+            vec![llm::Served::Wait, llm::Served::Deliver, llm::Served::Save],
             empty.clone(),
             delivery.clone(),
-            vec!["wait", "deliver", "permission_prompt"],
+            vec!["wait", "deliver", "save", "permission_prompt"],
         ),
         (vec![llm::Served::Wait], contract.clone(), None, vec!["wait", "permission_prompt"]),
         (vec![llm::Served::Finish, llm::Served::Wait], empty, None, vec!["finish", "wait", "permission_prompt"]),

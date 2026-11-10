@@ -401,6 +401,7 @@ pub fn charter_value(bytes: u64) -> host::Charter {
         grants: run::charter::Grants {
             wait: false,
             deliver: None,
+            save: false,
             tools: run::charter::Tools { inspect: false, modify: false, shell: false },
             agents: false,
             host_tools: Box::new([]),

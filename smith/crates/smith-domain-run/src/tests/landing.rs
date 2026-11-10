@@ -743,3 +743,160 @@ fn caller_withdrawal_keeps_submitted_delivery_until_its_terminal_then_report() {
     delivery.accepted_delivery();
     delivery.reported();
 }
+
+#[test]
+fn a_save_settles_jobs_skips_checks_and_a_later_delivery_checks_again() {
+    let mut harness = Harness::new(LIMITS);
+    let mut policy = mid_report();
+    policy.grants.save = true;
+    let (run, conversation) = mid_running_policy(&mut harness, policy);
+    let mut ask = mid_ask(conversation, 3);
+    let Event::Delegated { ask: tool, .. } = &mut ask else { unreachable!("delegated") };
+    *tool = Ask::Save;
+    let requests = harness.step(ask);
+    let [Request::Save { owner, .. }] = requests.as_ref() else { panic!("unchecked save after jobs: {requests:?}") };
+    let owner = *owner;
+    assert_eq!(
+        harness.domain.runs.get(skein_lib::Id::from_token(run)).expect("the run lives").lease,
+        crate::lease::Lease::Workspace { owner }
+    );
+    assert_eq!(
+        harness.step(Event::Delivered { owner, delivery: delivered() }).as_ref(),
+        [returned(50, Returned::Delivered(receipts()))]
+    );
+    assert_eq!(
+        harness.domain.runs.get(skein_lib::Id::from_token(run)).expect("the run lives").lease,
+        crate::lease::Lease::Free
+    );
+    // A save is no result and does not exempt a later delivery from checking.
+    let requests = harness.step(mid_ask(conversation, 4));
+    let [Request::Check { owner, .. }, Request::Checking { .. }] = requests.as_ref() else {
+        panic!("delivery checks after saving: {requests:?}")
+    };
+    let owner = *owner;
+    let requests = harness.step(Event::Checked { owner, ran: ran(1, b"unfinished") });
+    let [Request::Return { result: Returned::ChecksFailed { .. }, .. }] = requests.as_ref() else {
+        panic!("the checked delivery is refused: {requests:?}")
+    };
+}
+
+#[test]
+fn saving_without_a_delivery_grant_is_refused_at_admission() {
+    let mut harness = Harness::new(LIMITS);
+    let mut policy = charter();
+    policy.grants.save = true;
+    let requests = harness.start_workspace(1, policy, Some(workspace()));
+    assert_eq!(answered(requests), (1, Answer::Refused(Refusal::Invalid(Invalid::MalformedCharter))));
+}
+
+#[test]
+fn a_save_waits_for_jobs_and_a_finishing_change_still_checks_every_repository() {
+    let mut harness = Harness::new(LIMITS);
+    let mut policy = coding();
+    policy.grants.deliver = policy.outcome.change.clone();
+    policy.grants.save = true;
+    let (_, conversation) = harness.coding_policy(1, 100, policy);
+    let mut ask = mid_ask(conversation, 3);
+    let Event::Delegated { ask: tool, .. } = &mut ask else { unreachable!("delegated") };
+    *tool = Ask::Save;
+    step(&mut harness.domain, &harness.env, ask, &mut harness.out);
+    assert_eq!(harness.out.pop(), Some(Request::CancelJobs { peer: PEER }));
+    assert!(harness.out.is_empty(), "saving waits until every job settles");
+    let requests = harness.step(Event::JobsCancelled { conversation });
+    let [Request::Save { owner, .. }] = requests.as_ref() else { panic!("save after settlement: {requests:?}") };
+    let owner = *owner;
+    drop(harness.step(Event::Delivered { owner, delivery: delivered() }));
+    let owner = harness.land(conversation, 8);
+    let requests = harness.step(pass_checks(owner));
+    let [Request::Check { .. }, Request::Checking { .. }] = requests.as_ref() else {
+        panic!("second repository checks: {requests:?}")
+    };
+    let requests = harness.step(pass_checks(owner));
+    let [Request::Deliver { .. }] = requests.as_ref() else { panic!("checked finish delivers: {requests:?}") };
+    let requests = harness.step(Event::Delivered { owner, delivery: delivered() });
+    let [Request::Return { result: Returned::Delivered(_), .. }, Request::Close { .. }] = requests.as_ref() else {
+        panic!("checked finish closes: {requests:?}")
+    };
+}
+
+#[test]
+fn a_save_does_not_become_a_change_result_and_late_saves_are_cancelled() {
+    let mut harness = Harness::new(LIMITS);
+    let mut policy = mid_report();
+    policy.grants.save = true;
+    let (run, conversation) = mid_running_policy(&mut harness, policy);
+    let mut ask = mid_ask(conversation, 3);
+    let Event::Delegated { ask: tool, .. } = &mut ask else { unreachable!("delegated") };
+    *tool = Ask::Save;
+    let requests = harness.step(ask);
+    let [Request::Save { owner, .. }] = requests.as_ref() else { panic!("save") };
+    let owner = *owner;
+    drop(harness.step(Event::Cancel { run }));
+    assert_eq!(
+        harness.step(Event::Delivered { owner, delivery: delivered() }).as_ref(),
+        [returned(50, Returned::Delivered(receipts()))]
+    );
+    let mut late = mid_ask(conversation, 4);
+    let Event::Delegated { ask: tool, .. } = &mut late else { unreachable!("delegated") };
+    *tool = Ask::Save;
+    assert_eq!(harness.step(late).as_ref(), [returned(50, Returned::Cancelled)]);
+    assert_eq!(
+        answered(harness.step(ended(conversation, End::Closed, Spend::ZERO))),
+        (1, Answer::Failed { failure: RunFailure::Cancelled, spent: Spend::ZERO, turns: 0 })
+    );
+}
+
+#[test]
+fn save_is_cancelled_in_the_finishing_reserve() {
+    let mut harness = Harness::new(LIMITS);
+    let mut policy = mid_report();
+    policy.grants.save = true;
+    policy.budget.turns = 4;
+    policy.reserve.turns = 2;
+    let (_, main) = mid_running_policy(&mut harness, policy);
+    drop(harness.step(Event::Used { conversation: main, spend: Spend { turns: 2, ..Spend::ZERO } }));
+    let permit = crate::completion_permit(&mut harness.domain, main, harness.env.now, crate::Most::Bounded(0));
+    let crate::CompletionPermit::Final { .. } = permit else { panic!("finishing reserve: {permit:?}") };
+    let mut ask = mid_ask(main, 3);
+    let Event::Delegated { ask: tool, .. } = &mut ask else { unreachable!("delegated") };
+    *tool = Ask::Save;
+    assert_eq!(harness.step(ask).as_ref(), [returned(50, Returned::Cancelled)]);
+}
+
+#[test]
+fn saving_preserves_host_feedback_and_a_stale_branch_ends_the_run() {
+    let refusal = crate::DeliveryRefusal::new(None, bytes(b"unfinished work refused")).expect("bounded refusal");
+    let failure = crate::DeliveryFailure::new(0, crate::DeliveryReason::TimedOut);
+    for (delivery, expected, stale) in [
+        (Delivery::Nothing, Returned::Nothing, false),
+        (Delivery::Refused(refusal.clone()), Returned::DeliveryRefused(refusal), false),
+        (Delivery::Failed(failure), Returned::DeliveryFailed { failure }, false),
+        (Delivery::Stale, Returned::Stale, true),
+    ] {
+        let mut harness = Harness::new(LIMITS);
+        let mut policy = mid_report();
+        policy.grants.save = true;
+        let (_, conversation) = mid_running_policy(&mut harness, policy);
+        let mut ask = mid_ask(conversation, 3);
+        let Event::Delegated { ask: tool, .. } = &mut ask else { unreachable!("delegated") };
+        *tool = Ask::Save;
+        let requests = harness.step(ask);
+        let [Request::Save { owner, .. }] = requests.as_ref() else { panic!("save submitted: {requests:?}") };
+        let owner = *owner;
+        let requests = harness.step(Event::Delivered { owner, delivery });
+        if stale {
+            assert_eq!(requests.as_ref(), [returned(50, expected), Request::Close { peer: PEER }]);
+            assert_eq!(
+                answered(harness.step(ended(conversation, End::Closed, Spend::ZERO))).1,
+                failed(RunFailure::Stale, Spend::ZERO)
+            );
+        } else {
+            assert_eq!(requests.as_ref(), [returned(50, expected)]);
+            drop(harness.step(finish(conversation, 51, report())));
+            assert_eq!(
+                answered(harness.step(ended(conversation, End::Closed, Spend::ZERO))).1,
+                Answer::Accepted { outcome: report(), spent: Spend::ZERO, turns: 0 }
+            );
+        }
+    }
+}

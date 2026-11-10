@@ -389,6 +389,9 @@ pub enum Request {
         change: Change,
     },
 
+    /// To the host: keep the exclusive workspace tree unchecked; ends in `Delivered`.
+    Save { name: CallName, deadline: Time, host_run: Token, owner: Token },
+
     /// The one terminal for the conversation's call `call`.
     Return {
         /// Root-issued live call token, echoed on the one finish, delivery or sub-agent terminal.
@@ -404,6 +407,8 @@ pub enum Request {
 /// What a conversation's LLM asks of the run.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Ask {
+    /// Main-only exclusive unchecked save, with no result fields.
+    Save,
     /// Main-only exclusive request to wait after this turn settles and yields.
     Wait,
 
@@ -625,6 +630,10 @@ pub enum Read {
 
 /// What a conversation is opened with.
 #[derive(PartialEq, Eq, Hash, Debug)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "independent immutable tool descriptors and finish policy, not lifecycle states"
+)]
 pub struct Opening {
     /// Session-owned final answer for a child; main follows its charter lifecycle in the run.
     pub final_turn: Option<FinalTurn>,
@@ -646,6 +655,8 @@ pub struct Opening {
     /// Whether the parent offers main the separately granted delivery tool.
     /// It is false for every child; this descriptor grants no final outcome form.
     pub deliver: bool,
+    /// Main-only unchecked saving; children never receive it.
+    pub save: bool,
     /// Contract-generated schema bytes, counted exactly from startup renderer costs.
     pub generated_schema_bytes: u64,
     /// The LLM it talks to.

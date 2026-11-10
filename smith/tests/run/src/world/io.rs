@@ -176,6 +176,7 @@ impl World {
             | run::Request::Checking { .. }
             | run::Request::ChecksEnded { .. }
             | run::Request::CompletionReady { .. }
+            | run::Request::Save { .. }
             | run::Request::Deliver { .. } => unreachable!("not one of io's requests"),
         }
     }

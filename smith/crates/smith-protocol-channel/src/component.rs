@@ -592,6 +592,35 @@ impl Component {
         to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
+        let frame = calls::delivery_call(name, change, deadline.saturating_since(now), &self.bodies)?;
+        self.relay_delivery(name, owner, token, frame, to_service, below)
+    }
+
+    /// Relay one unchecked save after its run and workspace effects settled.
+    #[expect(clippy::too_many_arguments, reason = "the typed channel boundary carries each domain value")]
+    pub fn send_save(
+        &mut self,
+        now: Time,
+        name: run::CallName,
+        owner: Token,
+        deadline: Time,
+        token: Token,
+        to_service: &mut Queue<Heard>,
+        below: &mut Queue<Lower>,
+    ) -> Result<(), Error> {
+        let frame = calls::save_call(name, deadline.saturating_since(now), &self.bodies)?;
+        self.relay_delivery(name, owner, token, frame, to_service, below)
+    }
+
+    fn relay_delivery(
+        &mut self,
+        name: run::CallName,
+        owner: Token,
+        token: Token,
+        frame: Frame,
+        to_service: &mut Queue<Heard>,
+        below: &mut Queue<Lower>,
+    ) -> Result<(), Error> {
         if !self.state.admitted() {
             return Err(Error::Order);
         }
@@ -599,7 +628,6 @@ impl Component {
         if self.calls.contains_key(&key) || self.calls.len() >= self.calls.capacity() {
             return Err(Error::Calls);
         }
-        let frame = calls::delivery_call(name, change, deadline.saturating_since(now), &self.bodies)?;
         if self.calls.insert(key, CallRoute::Delivery { owner, send: token }).is_err() {
             return Err(Error::Calls);
         }

@@ -108,6 +108,11 @@ pub enum Request {
     Hello {
         hello: crate::Hello,
     },
+    /// Deliver the unchecked tree with no result fields.
+    DeliverUnchecked {
+        owner: Token,
+        workspace: Token,
+    },
     Deliver {
         owner: Token,
         workspace: Token,
@@ -340,6 +345,8 @@ pub struct Workspace {
 /// A host call of a run.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Ask {
+    /// Keep the workspace unchecked, with a delivery terminal.
+    Save,
     /// A host tool call, carrying its charter name, write flag, input and time left.
     Relay {
         tool: Box<[u8]>,

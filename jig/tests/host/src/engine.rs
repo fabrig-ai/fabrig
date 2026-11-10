@@ -232,6 +232,7 @@ impl Engine {
                 | ToAgent::Cancel { .. }
                 | ToAgent::Grant { .. },
             )
+            | Request::DeliverUnchecked { .. }
             | Request::Deliver { .. }
             | Request::Save { .. }
             | Request::Release { .. } => {

@@ -38,6 +38,7 @@ pub fn decode(
         b"remove" if grants.modify => Kind::Remove,
         b"shell" if grants.shell => Kind::Shell,
         b"job" if grants.shell => Kind::Job,
+        b"save" if offered(served, Kind::Save) => Kind::Save,
         b"wait" if offered(served, Kind::Wait) => Kind::Wait,
         b"sub_agent" if offered(served, Kind::SubAgent) => Kind::SubAgent,
         _ => return llm::Decoded::Invalid { problem: llm::Problem::UnknownTool },
@@ -58,6 +59,7 @@ pub fn decode(
         | Kind::Edit
         | Kind::Shell
         | Kind::Job
+        | Kind::Save
         | Kind::Wait => {}
     }
     match call(kind, tokens) {
@@ -68,6 +70,7 @@ pub fn decode(
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Kind {
+    Save,
     Read,
     List,
     Search,
@@ -83,9 +86,11 @@ enum Kind {
 fn offered(served: &[llm::Served], kind: Kind) -> bool {
     for declaration in served {
         match declaration {
+            llm::Served::Save if kind == Kind::Save => return true,
             llm::Served::Wait if kind == Kind::Wait => return true,
             llm::Served::SubAgent if kind == Kind::SubAgent => return true,
-            llm::Served::Wait
+            llm::Served::Save
+            | llm::Served::Wait
             | llm::Served::SubAgent
             | llm::Served::Host(_)
             | llm::Served::Deliver
@@ -153,6 +158,12 @@ fn call(kind: Kind, tokens: &Document) -> Result<llm::Decoded, llm::Problem> {
         },
         Kind::Shell => llm::Decoded::Owned { call: shell(tokens)? },
         Kind::Job => llm::Decoded::Owned { call: job(tokens)? },
+        Kind::Save => {
+            if tokens.len() != 2 {
+                return Err(bad_value(b"save"));
+            }
+            llm::Decoded::Served { ask: run::Ask::Save }
+        }
         Kind::Wait => llm::Decoded::Served { ask: run::Ask::Wait },
         Kind::SubAgent => llm::Decoded::Served {
             ask: run::Ask::SubAgent {

@@ -910,7 +910,8 @@ impl World {
             }
             run::Request::Checking { host_run, deadline: _ } => self.send(Lane::Host, Delivery::Checking { host_run }),
             run::Request::ChecksEnded { host_run } => self.send(Lane::Host, Delivery::ChecksEnded { host_run }),
-            run::Request::Deliver { host_run, owner, change: _, name: _, deadline } => {
+            run::Request::Save { host_run, owner, name: _, deadline }
+            | run::Request::Deliver { host_run, owner, change: _, name: _, deadline } => {
                 self.submit_delivery(
                     current.expect("a delivery is made in a step about its run"),
                     host_run,

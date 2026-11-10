@@ -1162,6 +1162,7 @@ impl<B: Backend> World<B> {
             Request::Lower(smith_domain::Lower::Abort { owner }) => {
                 self.cancel(Family::Check, owner, Event::Below(smith_domain::Below::Aborted { owner }));
             }
+            Request::Save { .. } => panic!("this scripted charter does not offer saving"),
             Request::Deliver { host_run, owner, change, name, deadline } => {
                 // The fixture host takes title/body for change deliveries and
                 // an opaque ticket for its report-only delivery policy.
@@ -1446,7 +1447,7 @@ impl<B: Backend> World<B> {
                         match ask {
                             run::Ask::Finish { .. } => self.delivery_call = DeliveryCall::Finish,
                             run::Ask::Deliver { .. } => self.delivery_call = DeliveryCall::MidRun,
-                            run::Ask::Host { .. } | run::Ask::SubAgent { .. } | run::Ask::Wait => {}
+                            run::Ask::Save | run::Ask::Host { .. } | run::Ask::SubAgent { .. } | run::Ask::Wait => {}
                         }
                     }
                 }
@@ -1822,6 +1823,7 @@ pub fn charter(settings: &Settings) -> run::Charter {
         },
 
         grants: Grants {
+            save: false,
             wait: true,
             deliver: if matches!(settings.job, Job::MidReport | Job::MidChange | Job::MarkerReport) {
                 Some(ChangeSpec {

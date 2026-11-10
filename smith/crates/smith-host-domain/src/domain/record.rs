@@ -10,6 +10,7 @@ pub(super) fn too_large(message: &Up, limits: &Limits) -> bool {
             Ask::Host { tool, body, .. } => {
                 !within(tool, u64::from(limits.name_bytes)) || !within(body, limits.call_bytes)
             }
+            Ask::Save => false,
             Ask::Deliver { fields } => fields.owned_bytes() > limits.call_bytes,
         },
         Up::Turn { turn } => turn.body.owned_bytes() > limits.turn_bytes,
@@ -51,7 +52,7 @@ pub(super) fn valid_record(agent: &Agent, message: &Up, env: &Env<Limits>) -> bo
                     }
                     Kind::Host
                 }
-                Ask::Deliver { .. } => Kind::Delivery,
+                Ask::Save | Ask::Deliver { .. } => Kind::Delivery,
             };
             if agent.calls.contains_key(call) {
                 return false;

@@ -70,7 +70,11 @@ fn translate(
                     .push(skein_llm::Tool { name: tool.name.clone(), description: tool.description.clone(), schema })
                     .or(Err(Error::Limit))?;
             }
-            llm::Served::Deliver | llm::Served::Finish | llm::Served::SubAgent | llm::Served::Wait => {}
+            llm::Served::Save
+            | llm::Served::Deliver
+            | llm::Served::Finish
+            | llm::Served::SubAgent
+            | llm::Served::Wait => {}
         }
     }
     for descriptor in schemas {
@@ -161,6 +165,7 @@ fn served_name(descriptor: &llm::Served) -> &[u8] {
     match descriptor {
         llm::Served::Wait => b"wait",
         llm::Served::Finish => b"finish",
+        llm::Served::Save => b"save",
         llm::Served::Deliver => b"deliver",
         llm::Served::SubAgent => b"sub_agent",
         llm::Served::Host(tool) => &tool.name,
@@ -268,7 +273,11 @@ fn inventory(input: &llm::Prompt, schemas: &[ToolSchema], limits: &Limits) -> Re
                     }
                 }
             }
-            llm::Served::Deliver | llm::Served::Finish | llm::Served::SubAgent | llm::Served::Wait => {}
+            llm::Served::Save
+            | llm::Served::Deliver
+            | llm::Served::Finish
+            | llm::Served::SubAgent
+            | llm::Served::Wait => {}
         }
     }
     if count > maximum || input.served.len() > maximum {

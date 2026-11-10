@@ -136,13 +136,15 @@ struct Holding {
 /// its working tree is on (that one, or the last it committed), and the
 /// newest commit its push branch is known to have from this hold (the start,
 /// until a push lands); saved starts instead fetch the delivery baseline.
-/// `delivered` records whether this hold pushed its head.
+/// `delivered` records whether this hold pushed its head; `unchecked` requires
+/// a fresh commit while that head is its last save.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(crate) struct Tips {
     start: Commit,
     head: Commit,
     pushed: Option<Commit>,
     delivered: bool,
+    unchecked: bool,
     merging: Option<Commit>,
     expected: Option<Commit>,
     landing: Option<Commit>,
@@ -264,8 +266,16 @@ struct Push {
 /// saved-work branch.
 #[derive(Debug)]
 enum To {
+    Unchecked,
     Branches,
     Saved,
+}
+
+fn unchecked_head(to: &To) -> bool {
+    match to {
+        To::Unchecked => true,
+        To::Branches | To::Saved => false,
+    }
 }
 
 /// The operation a pushing hold waits for.
@@ -341,6 +351,12 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
 
 pub(crate) fn push(domain: &mut Domain, env: &Env<Limits>, hold: Token, message: Message, out: &mut Queue<Request>) {
     start(domain, env, hold, To::Branches, message, out);
+}
+
+pub(crate) fn unchecked(domain: &mut Domain, env: &Env<Limits>, hold: Token, out: &mut Queue<Request>) {
+    let message =
+        Message { title: copy_of(b"Unchecked: work in progress, saved before a question"), body: Box::new([]) };
+    start(domain, env, hold, To::Unchecked, message, out);
 }
 
 pub(crate) fn save(domain: &mut Domain, env: &Env<Limits>, hold: Token, message: Message, out: &mut Queue<Request>) {
@@ -741,6 +757,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
                     head: commit,
                     pushed,
                     delivered: false,
+                    unchecked: false,
                     merging: None,
                     landing,
                     expected: if nth(holding, repository).start.is_saved() {
@@ -1042,6 +1059,7 @@ fn begin_merge(holding: &mut Holding, repository: u32, ours: Commit, merging: Op
         head: ours,
         pushed: Some(ours),
         delivered: false,
+        unchecked: false,
         merging,
         landing: None,
         expected: nth(holding, repository).expected,
@@ -1330,6 +1348,7 @@ fn commit_merge(holding: &Holding, workspace: Token, repository: u32, theirs: Co
         at: place(workspace, spec),
         parent: tips(holding, repository).head,
         merging: Some(theirs),
+        always: false,
         title: merge_title(theirs),
         body: Box::new([]),
         identity: spec.identity,
@@ -1367,7 +1386,7 @@ fn push_from(
     for repository in from..count(holding.repositories.len()) {
         let spec = nth(holding, repository);
         let writable = match push.to {
-            To::Branches => spec.push.is_some(),
+            To::Branches | To::Unchecked => spec.push.is_some(),
             To::Saved => spec.push.is_some() && spec.save.is_some(),
         };
         if !writable {
@@ -1379,7 +1398,20 @@ fn push_from(
         let title = copy_of(&push.message.title);
         let body = copy_of(&push.message.body);
         let merging = tips(holding, repository).merging;
-        io(id, Op::Commit { at, parent, merging, title, body, identity: spec.identity }, env, out);
+        io(
+            id,
+            Op::Commit {
+                at,
+                parent,
+                merging,
+                always: tips(holding, repository).unchecked,
+                title,
+                body,
+                identity: spec.identity,
+            },
+            env,
+            out,
+        );
         return State::Pushing { push, step: PushStep::Commit { repository }, asked: Asked::Nothing };
     }
     answer(holding.client, &push.to, Outcome::Pushed { landings: push.landings.into_boxed() }, out);
@@ -1401,13 +1433,13 @@ fn pushed(
 ) -> State {
     let (repository, landing) = match step {
         PushStep::Commit { repository } => match asked {
-            Asked::Nothing => match committed(holding, repository, done) {
+            Asked::Nothing => match committed(holding, repository, done, &push.to) {
                 Ok(()) => match unpushed(holding, &push.to, repository) {
                     Some(commit) => return push_commit(holding, id, push, repository, commit, env, out),
                     None => {
                         let prior = landed_before(holding, &push.to, repository);
                         let comparison = match push.to {
-                            To::Branches => tips(holding, repository).landing,
+                            To::Branches | To::Unchecked => tips(holding, repository).landing,
                             To::Saved => None,
                         };
                         if prior == Landing::Unchanged
@@ -1436,7 +1468,7 @@ fn pushed(
                 Err(failure) => (repository, failed_landing(failure)),
             },
             // Committed or not, nothing is pushed.
-            Asked::Abort | Asked::Release => match committed(holding, repository, done) {
+            Asked::Abort | Asked::Release => match committed(holding, repository, done, &push.to) {
                 Ok(())
                 | Err(
                     Done::Failed { fault: Fault::Cancelled } | Done::FailedWithOutput { fault: Fault::Cancelled, .. },
@@ -1493,11 +1525,12 @@ fn pushed(
 /// Pushing, a commit done: the repository's new head, if it committed, or
 /// why it failed.
 #[expect(clippy::result_large_err, reason = "the fixed diagnostic terminal is returned without allocation")]
-fn committed(holding: &mut Holding, repository: u32, done: Done) -> Result<(), Done> {
+fn committed(holding: &mut Holding, repository: u32, done: Done, to: &To) -> Result<(), Done> {
     match done {
         Done::Committed { commit } => {
             let tips = tips_mut(holding, repository);
             tips.head = commit;
+            tips.unchecked = unchecked_head(to);
             tips.merging = None;
             Ok(())
         }
@@ -1524,7 +1557,7 @@ fn committed(holding: &mut Holding, repository: u32, done: Done) -> Result<(), D
 fn unpushed(holding: &Holding, to: &To, repository: u32) -> Option<Commit> {
     let tips = tips(holding, repository);
     let base = match to {
-        To::Branches => {
+        To::Branches | To::Unchecked => {
             // A saved tree is unfinished work even when a prior mid-run delivery
             // already put it on the target. Establish this hold's landing with a
             // guarded push before reporting it; subsequent finishes reuse it.
@@ -1543,7 +1576,7 @@ fn unpushed(holding: &Holding, to: &To, repository: u32) -> Option<Commit> {
 fn landed_before(holding: &Holding, to: &To, repository: u32) -> Landing {
     let tips = tips(holding, repository);
     match to {
-        To::Branches => match tips.pushed {
+        To::Branches | To::Unchecked => match tips.pushed {
             Some(commit) if commit == tips.head && tips.delivered => Landing::Landed { commit },
             Some(_) | None => Landing::Unchanged,
         },
@@ -1569,7 +1602,7 @@ fn push_commit(
     let identity = spec.identity;
     let account = spec.account;
     let expected = match push.to {
-        To::Branches => tips(holding, repository).expected,
+        To::Branches | To::Unchecked => tips(holding, repository).expected,
         To::Saved => None,
     };
     io(id, Op::Push { at, remote, commit, branch, expected, identity, account }, env, out);
@@ -1655,9 +1688,10 @@ fn verified(holding: &mut Holding, to: &To, repository: u32, done: Done, failure
 fn land(holding: &mut Holding, to: &To, repository: u32) -> Landing {
     let tips = tips_mut(holding, repository);
     match to {
-        To::Branches => {
+        To::Branches | To::Unchecked => {
             tips.pushed = Some(tips.head);
             tips.delivered = true;
+            tips.unchecked = unchecked_head(to);
             if tips.expected.is_some() {
                 tips.expected = Some(tips.head);
             }
@@ -1707,7 +1741,7 @@ fn released(client: Token, out: &mut Queue<Request>) -> State {
 
 fn answer(client: Token, to: &To, outcome: Outcome, out: &mut Queue<Request>) {
     match to {
-        To::Branches => out.push(Request::Pushed { client, outcome }),
+        To::Branches | To::Unchecked => out.push(Request::Pushed { client, outcome }),
         To::Saved => out.push(Request::Saved { client, outcome }),
     }
 }
@@ -1924,7 +1958,9 @@ fn place(workspace: Token, repository: &Repository) -> Place {
 /// The branch a push to `to` of `repository` goes to.
 fn branch_of(repository: &Repository, to: &To) -> Box<[u8]> {
     match to {
-        To::Branches => copy_of(repository.push.as_deref().expect("only a writable repository is pushed")),
+        To::Branches | To::Unchecked => {
+            copy_of(repository.push.as_deref().expect("only a writable repository is pushed"))
+        }
         To::Saved => copy_of(repository.save.as_deref().expect("only a repository with a save destination is saved")),
     }
 }

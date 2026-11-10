@@ -65,6 +65,7 @@ pub fn fetch(owner: skein_lib::Token, deadline: skein_lib::Time) -> crate::Reque
 }
 pub fn commit_op(merging: Option<git::Commit>) -> git::Op {
     git::Op::Commit {
+        always: false,
         at: at(),
         parent: PARENT,
         merging,

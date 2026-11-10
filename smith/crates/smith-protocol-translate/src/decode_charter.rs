@@ -81,6 +81,7 @@ fn translate_charter(charter: &wire::Charter, endpoints: &Endpoints) -> Result<r
         grants: run::charter::Grants {
             wait: tools.wait(),
             deliver,
+            save: tools.save(),
             tools: run::charter::Tools {
                 inspect: families.inspect(),
                 modify: families.modify(),

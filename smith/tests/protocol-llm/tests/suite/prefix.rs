@@ -60,6 +60,7 @@ fn charter(settings: &Settings, instructions: &str) -> run::Charter {
         grants: Grants {
             wait: true,
             deliver: None,
+            save: false,
             tools: Tools { inspect: true, modify: true, shell: false },
             agents: true,
             host_tools: Box::new([]),

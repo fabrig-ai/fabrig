@@ -1,6 +1,6 @@
 # hosts: status
 
-2026-11-09. Where jig's code lags or departs from [hosts.md](hosts.md).
+2026-11-10. Where jig's code lags or departs from [hosts.md](hosts.md).
 
 Section 6.4 has no known gap in turn fences taking only offered messages:
 messages withheld by parts or a pace stay in the task's inbox when a
@@ -53,9 +53,6 @@ those words and 1,024. The outcome still holds all fields and framing
 together; a field's bound alone does not promise that the whole fits.
 Section 12 defers the general message-rendering allowance.
 
-- **Not yet:** 7, 8, 9: `save`. `jig-protocol-charter`'s `charter` grants
-  none, `jig-domain-host`'s `Ask` has no save, and the workspace's
-  `Request::Deliver` carries no checked or unchecked delivery.
 - **Not yet:** 3, 5.2, 6.5, 11: `smith-inline-agent` as a hub's agent
   capability. 4: an admitted run's answers passing a held assignment.
   6.1: the engine hub's hello before placement. 8, 9: the test root puts

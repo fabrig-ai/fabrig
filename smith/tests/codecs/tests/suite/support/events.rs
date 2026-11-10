@@ -264,6 +264,7 @@ fn value_tools(fill: &Fill) -> Tools {
         families: list_family(fill),
         wait: !fill.maximum(),
         deliver: !fill.maximum(),
+        save: !fill.maximum(),
         host: list_text(fill),
     }
 }

@@ -156,6 +156,7 @@ fn child_opening(run: &Run, brief: &[u8], plan: agent::Plan, ordinal: u32, limit
         wait: false,
         host_tools: Box::new([]),
         deliver: false,
+        save: false,
         system: prompt::child(
             &run.charter,
             run.workspace.as_ref(),

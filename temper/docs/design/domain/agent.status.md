@@ -1,6 +1,6 @@
 # agent: status
 
-2026-11-09. Where temper's code lags or departs from [agent.md](agent.md).
+2026-11-10. Where temper's code lags or departs from [agent.md](agent.md).
 
 Sections 4.3's `decided`, 8.1 and 8.4.1 have no known implementation gap
 but the one below in what reaches a person, the whole story's milestone
@@ -14,11 +14,6 @@ too; a run's `settings`, `see settings project-classes` and
 `tests/decided.rs` and `tests/settings.rs`; the engine world's
 `each_callers_person_and_reach_are_kept`).
 
-- **Not yet:** 4.3, 4.5, 6: `save`. No producer is granted it, and no
-  push is marked unchecked: `temper-worker-domain`'s `agents.rs` has no
-  save ask, its `smith_delivery.rs` writes no `saved` receipt.
-- **Not yet:** 4.5: fabrig's `.temper/pre-pr` runs no lint or focused test
-  (`tools/pre-pr/design.status.md`).
 - **Not yet:** 4.3: the stock charters (`chat.txt`, `coordinator.md`)
   say sign-ins, machines and a plan's go-ahead always wait but name no
   kind for them, where this section has them `money` or `irreversible`;

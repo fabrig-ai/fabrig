@@ -151,6 +151,8 @@ pub struct Turn {
 /// Agent operation forwarded once to parent and answered once even after withdrawal.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Ask {
+    /// Keep the workspace unchecked; has the same terminal as delivery.
+    Save,
     /// Generic host tool; kit never decodes schema, body or policy.
     Host {
         /// Nonempty tool label bounded by `Limits::name_bytes`.

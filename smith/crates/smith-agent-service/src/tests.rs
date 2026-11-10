@@ -398,6 +398,7 @@ fn the_measured_large_contract_is_admitted_at_the_host_edge_and_refused_one_byte
             | run::Request::Abort { .. }
             | run::Request::Checking { .. }
             | run::Request::ChecksEnded { .. }
+            | run::Request::Save { .. }
             | run::Request::Deliver { .. }
             | run::Request::Return { .. }) => panic!("unexpected entrance: {other:?}"),
         }

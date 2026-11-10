@@ -528,10 +528,14 @@ fn a_failed_producer_holds_notifies_and_restarts_on_release() {
 const PUSHED_FAILURE: &[u8] = b"out of turns after pushing partial work";
 
 fn pushed_failure() -> (World, engine::Assignment, u64, u64) {
+    pushed_failure_with_message(b"keep this work")
+}
+
+fn pushed_failure_with_message(message: &[u8]) -> (World, engine::Assignment, u64, u64) {
     let (mut world, _, first, task) = producing_goal();
     let branch = change_row(&world, task).branch.clone();
     world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
-    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"partial", b"keep this work", 1)
+    let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"partial", message, 1)
         .expect("producer pushes partial work");
     // Read the pushed branch before the terminal result reaches the connector.
     refresh(&mut world, task);
@@ -619,5 +623,19 @@ fn a_released_failed_producer_with_a_head_makes_a_fresh_one() {
         .collect();
     assert_eq!(opened, [title.as_slice()]);
     assert_eq!(live_task(&world, task).made, 3);
+    world.close();
+}
+
+#[test]
+fn an_unchecked_producer_head_is_retained_without_a_merge_or_pull_request() {
+    let (mut world, _, task, head) =
+        pushed_failure_with_message(b"Unchecked: work in progress, saved before a question");
+    let row = change_row(&world, task);
+    assert!(row.pull.is_none());
+    assert!(row.title.is_empty());
+    let branch = row.branch.clone();
+    assert_eq!(world.external(1, raw::Op::Read(raw::Read::Branch { branch })), raw::Answer::Commit(head));
+    assert_eq!(world.merges, 0);
+    assert!(!world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::OpenPull { .. })));
     world.close();
 }

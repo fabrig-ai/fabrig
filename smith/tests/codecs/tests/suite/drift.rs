@@ -48,7 +48,12 @@ fn check_event_goldens(
     rows: &[(&str, smith_events::Record, smith_events::Capture)],
 ) {
     for (name, record, capture) in rows {
-        let frozen = fs::read(root.join(format!("{name}.jsonl"))).expect("frozen event golden");
+        let path = root.join(format!("{name}.jsonl"));
+        if std::env::var_os("SKEIN_CODEGEN_WRITE").as_deref() == Some(std::ffi::OsStr::new("1")) {
+            let encoded = smith_events::write(record, capture, limits).expect("bounded fixture").expect("event");
+            check_artifact(&path, &encoded);
+        }
+        let frozen = fs::read(&path).expect("frozen event golden");
         let ceiling = u32::try_from(frozen.len()).expect("golden length");
         let encoded = smith_events::write_with_ceiling(record, capture, limits, ceiling)
             .expect("bounded fixture")

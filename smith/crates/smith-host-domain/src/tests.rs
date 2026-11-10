@@ -339,6 +339,7 @@ fn empty_charter() -> crate::Charter {
         grants: run::charter::Grants {
             wait: false,
             deliver: None,
+            save: false,
             tools: run::charter::Tools { inspect: false, modify: false, shell: false },
             agents: false,
             host_tools: Box::new([]),

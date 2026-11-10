@@ -31,6 +31,7 @@ impl World {
             | Request::SourceFault
             | Request::Up(_)
             | Request::Hello { .. }
+            | Request::DeliverUnchecked { .. }
             | Request::Deliver { .. }
             | Request::CancelRelay { .. }
             | Request::Abort { .. }

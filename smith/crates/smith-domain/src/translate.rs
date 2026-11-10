@@ -28,8 +28,11 @@ pub(crate) const DELIVER: Token = Token::new(2);
 /// The ticket of `wait` among the tools a session is offered.
 pub(crate) const WAIT: Token = Token::new(3);
 
-/// First live descriptor/ask ticket, separate from all fixed tool descriptors.
-pub(crate) const FIRST: u64 = 4;
+/// The ticket of main's unchecked save tool.
+pub(crate) const SAVE: Token = Token::new(4);
+
+/// First live ticket after the fixed descriptors.
+pub(crate) const FIRST: u64 = 5;
 
 /// The tools the run serves a conversation.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -42,6 +45,7 @@ pub(crate) struct Offered {
     pub(crate) main: bool,
     pub(crate) finish: bool,
     pub(crate) deliver: bool,
+    pub(crate) save: bool,
     pub(crate) agents: bool,
     pub(crate) wait: bool,
 }
@@ -78,6 +82,7 @@ pub(crate) fn spec(
         budget,
         finish,
         deliver,
+        save,
         families,
         wait,
         identity,
@@ -86,9 +91,16 @@ pub(crate) fn spec(
         transcript: _,
     } = opening;
     let authority = authority(workspace, tools)?;
-    let offered =
-        Offered { main: ordinal == 0, host_tools: host_tools.clone(), finish, deliver, agents: families.agents, wait };
-    let capacity = u32::try_from(host_tools.len()).ok()?.checked_add(4)?;
+    let offered = Offered {
+        main: ordinal == 0,
+        host_tools: host_tools.clone(),
+        finish,
+        deliver,
+        save,
+        agents: families.agents,
+        wait,
+    };
+    let capacity = u32::try_from(host_tools.len()).ok()?.checked_add(5)?;
     let mut delegated = List::with_capacity(capacity);
     for (index, tool) in host_tools.iter().enumerate() {
         let ticket = FIRST.checked_add(u64::try_from(index).ok()?)?;
@@ -105,6 +117,9 @@ pub(crate) fn spec(
     }
     if deliver {
         delegated.push(llm::Descriptor { ticket: DELIVER, effect: Effect::Write }).expect("room for all three");
+    }
+    if save {
+        delegated.push(llm::Descriptor { ticket: SAVE, effect: Effect::Write }).expect("room for save");
     }
     if families.agents {
         delegated.push(llm::Descriptor { ticket: SUB_AGENT, effect: writes(families) }).expect("room for both");
@@ -178,7 +193,7 @@ fn writes(families: Families) -> Effect {
 pub(crate) fn effect(ask: &Ask) -> Effect {
     match ask {
         Ask::Host { effect, .. } => host_effect(*effect),
-        Ask::Wait | Ask::Finish { .. } | Ask::Deliver { .. } => Effect::Write,
+        Ask::Save | Ask::Wait | Ask::Finish { .. } | Ask::Deliver { .. } => Effect::Write,
         Ask::SubAgent { families, .. } => writes(*families),
     }
 }

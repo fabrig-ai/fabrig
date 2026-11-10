@@ -121,6 +121,7 @@ impl Harness {
                 | Request::Check { .. }
                 | Request::Abort { .. }
                 | Request::Checking { .. }
+                | Request::Save { .. }
                 | Request::Deliver { .. }
                 | Request::Return { .. }) => requests.push(request),
             }
@@ -330,6 +331,7 @@ pub(crate) fn charter() -> Charter {
         grants: Grants {
             wait: true,
             deliver: None,
+            save: false,
             tools: Tools { inspect: true, modify: false, shell: true },
 
             agents: false,

@@ -47,6 +47,7 @@ pub(crate) struct Call {
 /// What a call asks, once its delivery's fields have passed.
 #[derive(Debug)]
 enum Asked {
+    Save,
     Relay { tool: Box<[u8]>, writes: bool, input: Box<[u8]> },
     Deliver { title: Box<[u8]>, body: Box<[u8]> },
 }
@@ -212,6 +213,7 @@ fn called(
             };
             Asked::Relay { tool, writes, input: body }
         }
+        smith::Ask::Save => Asked::Save,
         smith::Ask::Deliver { fields } => match smith_delivery::fields(fields, env.limits.checkout.message_bytes) {
             Some(smith_delivery::Fields { title, body }) => Asked::Deliver { title, body },
             None => {
@@ -378,6 +380,7 @@ fn named(domain: &mut Domain, env: &Env<Limits>, owner: Token, call: Token, enco
     let withdrawn = entry.withdrawn;
     let ask = match entry.ask.take().expect("a call goes to the hub once") {
         Asked::Relay { tool, writes, input } => host::Ask::Relay { tool, writes, input, deadline },
+        Asked::Save => host::Ask::Save,
         Asked::Deliver { title, body } => host::Ask::Deliver { title, body },
     };
     if withdrawn {

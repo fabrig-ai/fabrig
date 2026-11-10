@@ -668,7 +668,7 @@ fn a_push_commits_the_tree_on_its_start_and_pushes_it_to_the_push_branch() {
     let mut h = Harness::new(LIMITS);
     let hold = h.ready(1, two(b"w"));
     let commit_op = io(h.one(Event::Push { hold, message: message() }), hold);
-    let Op::Commit { at, parent, title, body, identity, merging: None } = commit_op else {
+    let Op::Commit { at, parent, title, body, identity, merging: None, always: false } = commit_op else {
         panic!("a commit: {commit_op:?}")
     };
     assert_eq!((&*at.repository, parent), (&b"a"[..], commit(1)), "the writable one, on its start");
@@ -2099,4 +2099,37 @@ fn a_look_uses_the_local_deadline() {
     let Some(Request::Io { op, deadline, .. }) = requests.get(1) else { panic!("look requested") };
     assert_eq!(op.kind(), Kind::Look);
     assert_eq!(*deadline, h.env.now.saturating_add(LIMITS.local_timeout));
+}
+
+#[test]
+fn unchecked_work_pushes_to_its_own_branch_and_the_next_commit_is_fresh() {
+    for (saved_work, push_lands) in [(false, true), (true, true), (false, false), (true, false)] {
+        let mut h = Harness::new(LIMITS);
+        let hold = h.ready(1, one(b"w"));
+        let op = io(h.one(Event::PushUnchecked { hold }), hold);
+        let Op::Commit { title, body, always, .. } = op else { panic!("save commits: {op:?}") };
+        assert_eq!(title.as_ref(), b"Unchecked: work in progress, saved before a question");
+        assert!(body.is_empty());
+        assert!(!always);
+        let op = h.next(hold, Done::Committed { commit: commit(11) });
+        let Op::Push { branch, .. } = op else { panic!("save pushes: {op:?}") };
+        assert_eq!(branch.as_ref(), b"main");
+        let done = if push_lands { Done::Succeeded } else { failed(Fault::Refused) };
+        h.one(Event::Done { owner: hold, done });
+        let event = if saved_work {
+            Event::Save { hold, message: message() }
+        } else {
+            Event::Push { hold, message: message() }
+        };
+        let op = io(h.one(event), hold);
+        let Op::Commit { parent, always, title, body, .. } = op else { panic!("next commit: {op:?}") };
+        assert_eq!(parent, commit(11));
+        assert!(always, "an unchecked head requires a fresh commit even with an equal tree");
+        assert_eq!((title.as_ref(), body.as_ref()), (b"Fix it".as_slice(), b"Because.".as_slice()));
+        h.next(hold, Done::Committed { commit: commit(12) });
+        h.one(Event::Done { owner: hold, done: Done::Succeeded });
+        let op = io(h.one(Event::Push { hold, message: message() }), hold);
+        let Op::Commit { always, .. } = op else { panic!("later commit: {op:?}") };
+        assert!(!always, "the replacement head is no longer the unchecked commit");
+    }
 }

@@ -1,6 +1,6 @@
 # delivery-checks: status
 
-2026-11-09. Where the design lags or departs from [delivery-checks.md](delivery-checks.md).
+2026-11-10. Where the design lags or departs from [delivery-checks.md](delivery-checks.md).
 
 - **Design lags:**
   - The draft's opening paragraph: `../protocol/configuration.md`, 13.9's
@@ -8,7 +8,7 @@
     lints and focused tests itself, and the coding charter's words still
     say to deliver the work it has before a question, not to `save` it.
     The charters' words are generated elsewhere, not in this plan.
-  - 3: an early start may merge a dependency's save, unchecked
+  - The draft's third ranked item: an early start may merge a dependency's save, unchecked
     (`../domain/forge.status.md`, 8.11).
 - **Design departs:** none.
 - **Decided:** 3, by the owner, 2026-11-09: work in progress before a

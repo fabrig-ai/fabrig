@@ -282,6 +282,9 @@ pub enum Request {
         change: run::outcome::Change,
     },
 
+    /// To the host: keep the exclusive workspace tree unchecked; ends in `Delivered`.
+    Save { name: run::CallName, deadline: Time, host_run: Token, owner: Token },
+
     /// Provider authentication rejected this exact credential generation; a notice
     /// to the host, with no terminal owed. Repeated rejection of that generation is suppressed.
     Unauthorized { grant: GrantName },
