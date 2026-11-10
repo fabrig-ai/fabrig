@@ -1960,6 +1960,10 @@ Not in the tier, each in the lowest world that shows it:
   stops at the main (skein's `ui-web.md`, 7), and any application whose page reads
   before it draws its heading meets what this shell repairs. Default: this shell's
   alone, until a second application writes the same.
+- **Reading a conversation in every browser** (`README.md`, 5.15; `../draft/chat-reading.md`, 5):
+  the position staying put when lines load above is for the user to read on a
+  real chat. Default: the browser tier runs Chromium, including with
+  `overflow-anchor: none`; Firefox and Safari themselves are read, not run.
 
 ## 7. The gallery
 
