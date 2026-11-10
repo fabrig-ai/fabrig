@@ -1221,6 +1221,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::ProjectionOutcome { .. }
                 | top::Request::NotMade { .. }
                 | top::Request::ContinueRelease { .. }
+                | top::Request::ContinueGoalBranch { .. }
                 | top::Request::EffectsSettled { .. }
                 | top::Request::Released { .. }
                 | top::Request::ProjectReleased { .. }
@@ -1372,6 +1373,101 @@ fn a_created_issue_with_its_answer_lost_is_found_after_restart() {
         Some(top::Stored::Issue(row)) => assert!(row.number.is_some()),
         Some(_) | None => panic!("recovered issue"),
     }
+}
+
+fn wait_for_creation(world: &mut World) {
+    for _ in 0..30 {
+        world.run_for(1);
+        if world.writes() == 1 {
+            return;
+        }
+    }
+    panic!("creation was not sent");
+}
+
+#[test]
+fn a_goal_branch_with_its_creations_answer_lost_is_found_after_restart_once() {
+    let mut world = World::new(324);
+    world.adopt();
+    world.slow_calls(skein_lib::Duration::from_secs(5));
+    let name = top::Name {
+        forge: REPO.forge,
+        repository: REPO.repository,
+        what: top::What::Branch(Box::new([
+            b"temper".as_slice().into(),
+            b"77".as_slice().into(),
+            b"g77".as_slice().into(),
+        ])),
+    };
+    world.event(top::Event::Hold { entry: 1, task: 77, resource: name.clone(), from: None });
+    world.run_for(11);
+    world.event(top::Event::Committed { entry: 1 });
+    wait_for_creation(&mut world);
+    world.restart();
+    world.run_for(40);
+    assert_eq!(world.writes(), 1);
+    assert_eq!(world.branch(b"temper/77/g77"), world.branch(b"main"));
+    assert_eq!(world.stored().get(&top::Key::Entry(1)), None);
+    assert!(world.seen().iter().all(|request| !matches!(
+        request,
+        top::Request::MakeFailed { .. } | top::Request::Outcome { outcome: skein_forge_client::Outcome::Held, .. }
+    )));
+    assert!(matches!(
+        world.stored().get(&top::Key::Hold(name)),
+        Some(top::Stored::Hold(top::Hold { writer: None, .. }))
+    ));
+}
+
+#[test]
+fn a_pull_opened_with_its_answer_lost_is_found_by_its_branches_after_restart_once() {
+    let mut world = World::new(325);
+    world.adopt();
+    world.produce(b"temper/51");
+    world.slow_calls(skein_lib::Duration::from_secs(5));
+    let mut row = change_row();
+    row.change.state = change::State::Opening { requested: true };
+    row.pending = Some(1);
+    row.effect = change::EffectResult::Pending;
+    world.event(top::Event::Change { row });
+    world.event(top::Event::Enqueue {
+        entry: skein_forge_client::Entry {
+            number: 1,
+            task: 51,
+            repository: REPO,
+            effect: skein_forge_client::Effect {
+                write: skein_forge::api::Write::OpenPull {
+                    head: b"temper/51".as_slice().into(),
+                    base: b"main".as_slice().into(),
+                    title: b"Small fix".as_slice().into(),
+                    body: b"Fix".as_slice().into(),
+                },
+                condition: skein_forge_client::Condition::None,
+            },
+            start: None,
+            attempt: None,
+            failures: 0,
+            queued: false,
+        },
+    });
+    world.event(top::Event::Committed { entry: 1 });
+    wait_for_creation(&mut world);
+    world.restart();
+    world.run_for(40);
+    assert_eq!(world.writes(), 1);
+    assert_eq!(world.stored().get(&top::Key::Entry(1)), None);
+    assert!(world.seen().contains(&top::Request::Outcome {
+        entry: 1,
+        task: 51,
+        account: None,
+        outcome: skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Created(1), found: true },
+    }));
+    assert!(
+        matches!(world.stored().get(&top::Key::Change(51)), Some(top::Stored::Change(row)) if row.effect == change::EffectResult::Made && row.pending.is_none())
+    );
+    assert!(world.take_calls().contains(&skein_forge::api::Op::Read(skein_forge::api::Read::PullFor {
+        head: b"temper/51".as_slice().into(),
+        base: b"main".as_slice().into(),
+    })));
 }
 
 #[test]
