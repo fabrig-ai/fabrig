@@ -398,7 +398,7 @@ fn listings() -> [Listing; 7] {
         (
             Read::PullFor { head: Box::from(&b"work"[..]), base: Box::from(&b"main"[..]) },
             &[CLOSED_PULL],
-            "pulls?state=open&sort=oldest&page=1&limit=",
+            "pulls?state=open&head=work&base=main&sort=oldest&page=1&limit=",
         ),
         (Read::Checks { commit: HEAD }, &[], "commits/0100000000000000000000000000000000000000/status?page=1&limit="),
     ]
