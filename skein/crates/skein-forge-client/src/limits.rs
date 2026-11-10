@@ -37,6 +37,10 @@ pub struct Limits {
     pub slow: Duration,
     /// How long Forgejo may settle mergeability and a hinted job's CI.
     pub settle: Duration,
+    /// How long a repository hears after its last hint, its timed reads
+    /// falling back to this window meanwhile (forge-client.md, 4.1).
+    /// Zero stretches nothing.
+    pub fallback: Duration,
     pub facts: u32,
 }
 /// Whether these limits are representable: every edge bound they size

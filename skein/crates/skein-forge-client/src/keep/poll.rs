@@ -176,6 +176,11 @@ pub(crate) fn hint(d: &mut Domain, env: &Env<Limits>, hint: api::Hint) {
         // still cause a read so the returned row can establish provenance.
         Some(_) | None => {}
     }
+    if let Some(row) = d.keep.repos.get_mut(&hint.repository)
+        && row.active
+    {
+        row.heard = Some(env.now);
+    }
     for key in super::keys(&d.keep) {
         let row = d.keep.live.get_mut(&key).expect("bounded key remains");
         let key = &key;

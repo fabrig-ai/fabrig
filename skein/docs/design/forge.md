@@ -314,10 +314,13 @@ and no policy. Every type is a plain value.
     seconds since the epoch. The client's budget takes it in place of
     its configured window (forge-client.md, section 6). Forgejo's
     answers carry none.
-  - **`Validator`,** a read's validator (an `ETag`), at most 128
-    printable bytes (`VALIDATOR_BYTES`). A read sent with one that the
-    forge answers `304` is answered as not modified, at no cost
-    (`free`). Forgejo's dialect sends none.
+  - **`Validator`,** a read's validator (an `ETag`, or a
+    `Last-Modified`), at most 128 printable bytes (`VALIDATOR_BYTES`).
+    A read sent with one that the forge answers `304` is answered from
+    the answer the component kept, counted in `free`
+    (forge-connection.md, 4.6). Both dialects send them on every read;
+    Forgejo sends an `ETag` on a file's raw read and none on a branch's
+    JSON, and a read with none kept is sent as before.
 
 ### 3.4 The errors
 
