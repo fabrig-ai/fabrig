@@ -77,11 +77,13 @@ A completion's prompt is built from what the domain gives:
   the conversation (domain/session.md, section 2). This component passes
   it on and never makes one.
 - **Each dialect renders it** (skein's `llm.md`):
-  - OpenAI: the key as the body's `prompt_cache_key`, with no header;
+  - OpenAI: the key as the body's `prompt_cache_key` and as the
+    `session_id` header, which keeps the run's calls on their cached
+    prefix;
   - Anthropic: no effect on the wire.
 
-  The names `session-id` and `thread-id` are reserved: an endpoint's
-  configuration that sets either is refused.
+  The names `session_id`, `session-id` and `thread-id` are reserved: an
+  endpoint's configuration that sets any of them is refused.
 - **No static cache key.** An endpoint's configuration carries none.
   Affinity is the run's, not the endpoint's, and is never derived from a
   credential or a path.

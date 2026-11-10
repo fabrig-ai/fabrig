@@ -96,6 +96,7 @@ pub(super) fn build_endpoints(
         let mut headers = Vec::with_capacity(endpoint.headers.len());
         for header in endpoint.headers {
             if header.name.eq_ignore_ascii_case("session-id")
+                || header.name.eq_ignore_ascii_case("session_id")
                 || header.name.eq_ignore_ascii_case("thread-id")
                 || header.name.is_empty()
                 || header.name.contains(['\r', '\n', ':'])

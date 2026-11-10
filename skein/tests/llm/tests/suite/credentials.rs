@@ -62,7 +62,14 @@ fn a_credential_its_route_refuses_is_invalid() {
 #[test]
 fn an_endpoint_header_naming_a_credential_field_is_refused() {
     for provider in [Provider::OpenAi, Provider::Anthropic] {
-        for name in [b"Authorization".as_slice(), b"x-api-key", b"chatgpt-account-id", b"session-id", b"thread-id"] {
+        for name in [
+            b"Authorization".as_slice(),
+            b"x-api-key",
+            b"chatgpt-account-id",
+            b"session_id",
+            b"session-id",
+            b"thread-id",
+        ] {
             let mut input = input(provider, if provider == Provider::Anthropic { Scheme::Key } else { Scheme::Bearer });
             input.endpoint.headers = Box::new([header(name, b"override")]);
             assert_eq!(rejection(input, &limits()), Some(Error::Invalid), "{provider:?} {name:?}");

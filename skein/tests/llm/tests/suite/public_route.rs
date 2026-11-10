@@ -59,7 +59,7 @@ fn a_key_and_a_token_send_byte_identical_bodies() {
 }
 
 #[test]
-fn the_public_route_sends_affinity_in_the_body_alone() {
+fn the_public_route_sends_affinity_in_the_body_and_the_session_field() {
     for (affinity, expected) in
         [(public_call(1).prompt.affinity, Some(b"42424242-4242-4242-4242-424242424242".as_slice())), (None, None)]
     {
@@ -77,6 +77,11 @@ fn the_public_route_sends_affinity_in_the_body_alone() {
             }
         });
         assert_eq!(key, expected);
+        // The session field keeps the conversation's calls on its cached prefix (llm.md, 4.8).
+        match expected {
+            Some(uuid) => assert_eq!(fields_holding(&world.sent, uuid), ["session_id"]),
+            None => assert!(!names(&world).contains(&"session_id")),
+        }
         for name in ["session-id", "thread-id", "chatgpt-account-id"] {
             assert!(!names(&world).contains(&name), "{name}");
         }
