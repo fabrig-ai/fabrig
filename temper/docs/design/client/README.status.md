@@ -600,10 +600,6 @@ mockups is `../draft/surfaces.status.md`.
   the first section stands on the row under the header's frame (the
   launchpad's goldens and `launchpad-drawn`), as the look request
   `tui-launchpad`'s build left it (`../draft/tui.status.md`).
-- **Not yet:** 6.14, *A design session*, *A reply's choices*: a drafter's
-  reply that ends in numbered choices, read as a prompt under the box in
-  a design session or a chat whose pane can show; its numbers, Enter and
-  Esc, and the reply set aside. [in flight: change 15]
 - **Not yet:** 6.14, *A design session*, and the lines of 6.14 and 6.15
   that name it, milestone T2 of
   [whole-story.execution.md](../draft/whole-story.execution.md), the
