@@ -600,17 +600,25 @@ mockups is `../draft/surfaces.status.md`.
   the first section stands on the row under the header's frame (the
   launchpad's goldens and `launchpad-drawn`), as the look request
   `tui-launchpad`'s build left it (`../draft/tui.status.md`).
+- **Not yet:** 6.14, *A design session*, *A reply's choices*: a drafter's
+  reply that ends in numbered choices, read as a prompt under the box in
+  a design session or a chat whose pane can show; its numbers, Enter and
+  Esc, and the reply set aside. [in flight: change 15]
 - **Not yet:** 6.14, *A design session*, and the lines of 6.14 and 6.15
   that name it, milestone T2 of
   [whole-story.execution.md](../draft/whole-story.execution.md), the
   plan `tui-design-session`: the root's `/goal` on a chat, which
-  *Offered* still leaves out; a reply's choices as a prompt; `/goal`'s
-  prompt of ways, a goal made from it reopening the chat, and a linked
-  goal in the quiet line and `/open`; the pane in the side region
-  `tui-pane`, its three states, `HALVES`, Ctrl-P, the body's scroll as
-  the state changes, the draft's head and sections, "new" and a flow's
-  fenced text; and the quiet line's pane parts. Skein's
-  side region comes first (skein's `ui-screen.status.md`).
+  *Offered* still leaves out; `/goal`'s prompt of ways, a goal made from
+  it reopening the chat, and a linked goal in the quiet line and `/open`;
+  the pane in the side region `tui-pane`, its three states, `HALVES`,
+  Ctrl-P, the body's scroll as the state changes, the draft's head and
+  sections, "new" and a flow's fenced text; and the quiet line's right
+  half (*The quiet line*): the pane's state, the next Ctrl-P's words and
+  the goal's part, each built with the pane or `/goal` it names, since a
+  part shown before them would name a key or a command that does nothing
+  (the user, 2026-11-10); the left half, the project, "drafter" and the
+  closed line, stands. Skein's side region comes first (skein's
+  `ui-screen.status.md`).
 
 Sections 3.5, 4.6, 5.8 and 5.13 have the approvals watch and wire document,
 the merge into Needs you, project and goal filters, Home and goal bands,
