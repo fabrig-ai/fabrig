@@ -813,8 +813,8 @@ is due again once its dependencies are done.
      tokens a conversation's window may hold), its output (the most
      output tokens a completion may have) and its prices (authority.md,
      section 7).
-     The engine's protocol layer translates it into smith's (hosts.md,
-     section 8);
+     The engine's protocol layer translates it into smith's (`protocol/charter.md`,
+     section 2);
    - its transcript's current window, when it resumes, and the calls
      committed since its last turn;
    - its credential grants: for each account its check chose, its
