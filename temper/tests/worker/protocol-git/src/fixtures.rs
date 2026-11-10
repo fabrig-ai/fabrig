@@ -201,6 +201,7 @@ pub fn commit(merging: bool) -> Scenario {
     scenario(
         git::Op::Commit {
             always: false,
+            snapshot: None,
             at: at(),
             parent: ONE,
             merging: merging.then_some(TWO),

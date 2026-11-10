@@ -14,6 +14,7 @@ mod operation;
 pub mod output;
 pub mod ring;
 pub mod sequence;
+mod snapshot;
 #[cfg(test)]
 mod tests;
 

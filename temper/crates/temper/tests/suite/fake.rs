@@ -1202,10 +1202,16 @@ fn git_run() {
         let before = snapshot(&dir.join("work"));
         for mut step in row.steps {
             match &mut step.command {
-                GitCommand::Clone { remote: url, .. } | GitCommand::Push { remote: url, .. } => {
+                GitCommand::SnapshotFetch { remote: url, .. }
+                | GitCommand::Clone { remote: url, .. }
+                | GitCommand::Push { remote: url, .. } => {
                     *url = remote.as_bytes().into();
                 }
-                GitCommand::Version
+                GitCommand::SnapshotHead
+                | GitCommand::SnapshotMerge { .. }
+                | GitCommand::SnapshotReachable { .. }
+                | GitCommand::SnapshotReset { .. }
+                | GitCommand::Version
                 | GitCommand::Fetch { .. }
                 | GitCommand::Create { .. }
                 | GitCommand::CheckOut { .. }

@@ -2,6 +2,22 @@
 
 2026-11-10. Where temper's code lags or departs from [git.md](git.md).
 
+Section 4.7's delivery snapshot has no known implementation gap: it reads
+HEAD and MERGE_HEAD, checks a second parent against freshly fetched remote
+branches and tags, preserves a local commit whose tree is delivered, and
+moves HEAD after a new delivery commit. The protocol step tests in
+`src/tests/snapshot.rs` hold the staged merge, committed merge, local commit
+and unreachable second parent on scripted git output. The checkout world's
+`suite::delivery` also checks the resulting fake object graph and preserved
+commit ids, and refuses an unpushed second parent in staged and committed
+merges.
+
+Unchecked saves use the same snapshot. The checkout world's delivery rows
+cover both checked and unchecked pushes. A checked delivery after an
+unchecked save keeps the fresh-commit requirement even for an equal tree;
+the protocol's `a_checked_delivery_after_an_unchecked_save_makes_a_fresh_equal_tree_commit`
+checks that replacement and its HEAD update.
+
 Section 7 has no known gap in the orderly worker-close ordering: serve
 waits for its agent processes before aborting the worker's remaining
 resources (README.md, section 8). Its second signal still aborts at once.

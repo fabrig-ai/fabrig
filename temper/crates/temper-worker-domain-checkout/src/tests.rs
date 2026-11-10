@@ -668,9 +668,10 @@ fn a_push_commits_the_tree_on_its_start_and_pushes_it_to_the_push_branch() {
     let mut h = Harness::new(LIMITS);
     let hold = h.ready(1, two(b"w"));
     let commit_op = io(h.one(Event::Push { hold, message: message() }), hold);
-    let Op::Commit { at, parent, title, body, identity, merging: None, always: false } = commit_op else {
+    let Op::Commit { at, parent, title, body, identity, merging: None, always: false, snapshot } = commit_op else {
         panic!("a commit: {commit_op:?}")
     };
+    assert_eq!(snapshot, Some(crate::git::Snapshot { remote: remote(b"a"), account: None }));
     assert_eq!((&*at.repository, parent), (&b"a"[..], commit(1)), "the writable one, on its start");
     assert_eq!((&*title, &*body, identity), (&b"Fix it"[..], &b"Because."[..], 0));
     let push = h.next(hold, Done::Committed { commit: commit(11) });
@@ -2107,7 +2108,8 @@ fn unchecked_work_pushes_to_its_own_branch_and_the_next_commit_is_fresh() {
         let mut h = Harness::new(LIMITS);
         let hold = h.ready(1, one(b"w"));
         let op = io(h.one(Event::PushUnchecked { hold }), hold);
-        let Op::Commit { title, body, always, .. } = op else { panic!("save commits: {op:?}") };
+        let Op::Commit { title, body, always, snapshot, .. } = op else { panic!("save commits: {op:?}") };
+        assert_eq!(snapshot, Some(crate::git::Snapshot { remote: remote(b"a"), account: None }));
         assert_eq!(title.as_ref(), b"Unchecked: work in progress, saved before a question");
         assert!(body.is_empty());
         assert!(!always);

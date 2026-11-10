@@ -27,6 +27,11 @@ pub const SETTINGS: [&[u8]; 13] = [
 /// One invocation in an operation's fixed sequence.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Command {
+    SnapshotHead,
+    SnapshotMerge { head: git::Commit, second: Option<git::Commit> },
+    SnapshotFetch { remote: Box<[u8]>, head: git::Commit, merging: Option<git::Commit>, second: git::Commit },
+    SnapshotReachable { head: git::Commit, merging: Option<git::Commit>, second: git::Commit },
+    SnapshotReset { commit: git::Commit },
     Version,
     Origin { directory: Box<[u8]> },
     Clone { remote: Box<[u8]>, directory: Box<[u8]> },
@@ -63,7 +68,8 @@ pub(crate) fn item_program(op: &git::Op) -> Option<&[u8]> {
 /// The synthetic fatal output uses the URL this invocation would pass git.
 pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
     let remote = match command {
-        Command::Clone { remote, .. }
+        Command::SnapshotFetch { remote, .. }
+        | Command::Clone { remote, .. }
         | Command::Fetch { remote, .. }
         | Command::Create { remote, .. }
         | Command::Push { remote, .. } => Some(remote.as_ref()),
@@ -78,7 +84,11 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
             | git::Op::Merge { .. }
             | git::Op::Commit { .. } => unreachable!("ancestry is part of a push"),
         },
-        Command::Origin { .. }
+        Command::SnapshotHead
+        | Command::SnapshotMerge { .. }
+        | Command::SnapshotReachable { .. }
+        | Command::SnapshotReset { .. }
+        | Command::Origin { .. }
         | Command::Version
         | Command::CheckOut { .. }
         | Command::Clean
@@ -143,6 +153,35 @@ pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
         words(&mut out, &[b"-c", setting]);
     }
     match command {
+        Command::SnapshotHead => words(&mut out, &[b"log", b"-1", b"--format=%H %P", b"HEAD", b"--"]),
+        Command::SnapshotMerge { .. } => words(&mut out, &[b"rev-parse", b"--verify", b"--quiet", b"MERGE_HEAD"]),
+        Command::SnapshotFetch { remote, .. } => words(
+            &mut out,
+            &[
+                b"fetch",
+                b"--quiet",
+                b"--prune",
+                b"--no-tags",
+                b"--no-write-fetch-head",
+                b"--no-recurse-submodules",
+                b"--",
+                remote,
+                b"+refs/heads/*:refs/temper/delivery/heads/*",
+                b"+refs/tags/*:refs/temper/delivery/tags/*",
+            ],
+        ),
+        Command::SnapshotReachable { second, .. } => words(
+            &mut out,
+            &[
+                b"for-each-ref",
+                b"--count=1",
+                b"--format=%(objectname)",
+                b"--contains",
+                &hex(*second),
+                b"refs/temper/delivery/",
+            ],
+        ),
+        Command::SnapshotReset { commit } => words(&mut out, &[b"reset", b"--mixed", b"-q", &hex(*commit)]),
         Command::Version => push(&mut out, b"version"),
         Command::Origin { directory } => {
             let git_dir = joined(&[b"--git-dir=", directory, b"/.git"]);

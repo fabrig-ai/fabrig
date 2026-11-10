@@ -1349,6 +1349,7 @@ fn commit_merge(holding: &Holding, workspace: Token, repository: u32, theirs: Co
         parent: tips(holding, repository).head,
         merging: Some(theirs),
         always: false,
+        snapshot: None,
         title: merge_title(theirs),
         body: Box::new([]),
         identity: spec.identity,
@@ -1398,6 +1399,12 @@ fn push_from(
         let title = copy_of(&push.message.title);
         let body = copy_of(&push.message.body);
         let merging = tips(holding, repository).merging;
+        let snapshot = match push.to {
+            To::Branches | To::Unchecked => {
+                Some(crate::git::Snapshot { remote: spec.remote.clone(), account: spec.account })
+            }
+            To::Saved => None,
+        };
         io(
             id,
             Op::Commit {
@@ -1408,6 +1415,7 @@ fn push_from(
                 title,
                 body,
                 identity: spec.identity,
+                snapshot,
             },
             env,
             out,

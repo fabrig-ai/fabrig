@@ -634,7 +634,18 @@ runs as contained processes and whose output it parses.
   `finish` with a change or mid-run, it has run the repository's checks
   with nothing else writing to the checkout (smith's `domain/run.md`,
   8.1); the worker commits exactly that tree and pushes the commit, with
-  the run's title and body. A push is a fast-forward and never forced: if
+  the run's title and body. Delivery reads the checkout's current HEAD and
+  merge state: an in-progress merge records HEAD and MERGE_HEAD as its two
+  parents, even when its resolution is already staged. A committed merge
+  keeps its ancestry. When the delivered tree is HEAD's tree and no merge
+  is in progress and this hold's previous push was no unchecked save, the
+  worker delivers that commit unchanged, retaining the producer's message and identity. Edits beyond a local commit build on that
+  commit. A second parent, in progress or at HEAD, must be reachable from a
+  branch or tag on the delivery branch's remote; otherwise delivery refuses,
+  saying that its second parent is not reachable from that remote, before
+  staging or committing. A new delivery commit becomes the checkout's HEAD
+  and clears its completed merge state (../protocol/git.md, 4.7).
+  A push is a fast-forward and never forced: if
   the branch moved incompatibly with the run's commit, the push fails and
   the run is told. When the assignment names an expected head, the
   remote must also still be at that exact head, so no movement of the
@@ -642,14 +653,17 @@ runs as contained processes and whose output it parses.
   delivery head when none was supplied; for other starts without one,
   a rewind of the branch to an ancestor goes unseen (section 12).
 - **A save pushes unchecked.** A run's `save` (`agent.md`, 4.3 and
-  section 6) is a push to the same branch, with no check run before it, its
-  commit titled as unchecked; its landing is this hold's last push as a
+  section 6) is a push to the same branch, with no check run before it;
+  new commits are titled as unchecked; its landing is this hold's last push as a
   delivery's is. The hold records that its last push was a save while its
   head is that commit: the next commit of the hold, a checked delivery's or
   the save of saved work, is made even when the tree is unchanged
   (`../protocol/git.md`, 4.7, `always`), with that commit's own message,
   so a save's commit is never what the hold's next delivery or saved work
-  names. A checked delivery's landing clears the record.
+  names. An unchecked save uses the same checkout snapshot as a checked delivery:
+  staged merges keep both parents, a matching local commit is kept, and a
+  new commit advances HEAD. Only the checked delivery runs the checks. A
+  checked delivery's landing clears the record.
 - **Each repository lands on its own.** Pushing several is not atomic:
   the run is told done only if every repository with a change landed it,
   moved if a branch cannot take the commit as a fast-forward, and nothing

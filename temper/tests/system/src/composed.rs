@@ -1554,22 +1554,24 @@ fn signed_in_party() -> parties::Party {
 /// Map the service's git remote to the fake forge's repository name.
 fn forge_operation(mut op: worker::checkout::git::Op) -> worker::checkout::git::Op {
     use worker::checkout::git::Op;
-    match &mut op {
+    let remote = match &mut op {
         Op::Clone { remote, .. } | Op::Fetch { remote, .. } | Op::Create { remote, .. } | Op::Push { remote, .. } => {
-            *remote = remote
-                .strip_prefix(link::GIT_BASE)
-                .and_then(|path| path.strip_prefix(b"/"))
-                .and_then(|path| path.strip_suffix(b".git"))
-                .expect("the world's configured git remote")
-                .into();
+            remote
         }
+        Op::Commit { snapshot: Some(snapshot), .. } => &mut snapshot.remote,
         Op::Make { .. }
         | Op::CheckOut { .. }
         | Op::Look { .. }
         | Op::IsAncestor { .. }
         | Op::Merge { .. }
-        | Op::Commit { .. } => {}
-    }
+        | Op::Commit { snapshot: None, .. } => return op,
+    };
+    *remote = remote
+        .strip_prefix(link::GIT_BASE)
+        .and_then(|path| path.strip_prefix(b"/"))
+        .and_then(|path| path.strip_suffix(b".git"))
+        .expect("the world's configured git remote")
+        .into();
     op
 }
 

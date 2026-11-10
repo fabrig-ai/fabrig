@@ -1,6 +1,21 @@
 # worker: status
 
 2026-11-10. Where temper's code lags or departs from [worker.md](worker.md).
+Section 5's delivery retains the checkout's ancestry through the git
+snapshot operation (`../protocol/git.md`, 4.7): staged and committed merges
+keep their second parent, checked against the remote, and an unchanged
+local commit is delivered intact. The checkout step test holds the request's
+remote and account; the git protocol's snapshot tests hold its invocations
+and outcomes on scripted output. The checkout world's `suite::delivery`
+checks the resulting fake object graph, preserved ids and messages, and
+refusal of an unpushed second parent. No deployment replay is on record.
+
+Unchecked saves use the same snapshot. The checkout world's delivery rows
+cover both checked and unchecked pushes. A checked delivery after an
+unchecked save keeps the fresh-commit requirement even for an equal tree;
+the protocol's `a_checked_delivery_after_an_unchecked_save_makes_a_fresh_equal_tree_commit`
+checks that replacement and its HEAD update.
+
 Section 4.3's failed and refused answer diagnostics reach serve's stderr and the box's
 `serve.log`; that operator-output path has no gap. A failed-run hold's
 `way out:` points to that log, and `temper help hold` names its location

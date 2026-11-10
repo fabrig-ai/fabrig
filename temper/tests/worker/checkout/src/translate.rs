@@ -76,12 +76,8 @@ pub fn remote(op: &Op) -> Option<&[u8]> {
         Op::Clone { remote, .. } | Op::Fetch { remote, .. } | Op::Create { remote, .. } | Op::Push { remote, .. } => {
             Some(remote)
         }
-        Op::Make { .. }
-        | Op::CheckOut { .. }
-        | Op::Look { .. }
-        | Op::IsAncestor { .. }
-        | Op::Merge { .. }
-        | Op::Commit { .. } => None,
+        Op::Commit { snapshot, .. } => snapshot.as_ref().map(|snapshot| snapshot.remote.as_ref()),
+        Op::Make { .. } | Op::CheckOut { .. } | Op::Look { .. } | Op::IsAncestor { .. } | Op::Merge { .. } => None,
     }
 }
 
@@ -149,9 +145,29 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
             checked_out.expect("a checkout is of a commit fetched into the repository");
             Done::Succeeded
         }
-        Op::Commit { at, parent, merging, always, title, body, identity: _ } => {
+        Op::Commit { at, mut parent, mut merging, always, title, body, identity: _, snapshot } => {
             assert_cloned(disk, &at);
             assert!(!title.is_empty(), "a commit has a title");
+            if let Some(snapshot) = &snapshot {
+                let head = local_head(disk, &at, b"temper-head").expect("a prepared checkout has HEAD");
+                merging = local_head(disk, &at, b"MERGE_HEAD").or(if head == parent { merging } else { None });
+                parent = head;
+                if let Some(second) = merging.map(fake).or_else(|| forge.merge_parent(fake(head))) {
+                    let heads = match forge.heads(&snapshot.remote) {
+                        Ok(heads) => heads,
+                        Err(fault) => return failed(fault),
+                    };
+                    if !heads.iter().any(|head| contains(forge, second, *head)) {
+                        return Done::FailedWithOutput {
+                            fault: Fault::Refused,
+                            diagnostic: temper_worker_domain_checkout::git::PushDiagnostic::new(
+                                b"delivery second parent is not reachable from the branch's remote",
+                                0,
+                            ),
+                        };
+                    }
+                }
+            }
             let message =
                 if body.is_empty() { title.to_vec() } else { [title.as_ref(), b"\n\n", body.as_ref()].concat() };
             match merging {
@@ -164,7 +180,13 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
                     .expect("parent is locally fetched")
                 {
                     Some(committed) => Done::Committed { commit: commit(committed) },
-                    None => Done::Unchanged,
+                    None => {
+                        if snapshot.is_some() {
+                            Done::Committed { commit: parent }
+                        } else {
+                            Done::Unchanged
+                        }
+                    }
                 },
                 Some(second) => {
                     match git::commit_merging(forge, disk, &path(&at), fake(parent), fake(second), &message) {
@@ -254,4 +276,9 @@ fn contains(forge: &impl Remote, ancestor: u64, commit: u64) -> bool {
         }
     }
     false
+}
+
+fn local_head(disk: &Checkout, at: &Place, name: &[u8]) -> Option<Commit> {
+    let bytes = disk.content(&[path(at).as_slice(), b"/.git/", name].concat())?;
+    Some(commit(u64::from_le_bytes(bytes.try_into().expect("fake git head"))))
 }

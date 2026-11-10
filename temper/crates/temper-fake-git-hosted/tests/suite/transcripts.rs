@@ -390,6 +390,7 @@ fn hosted_git_stages_no_hidden_log() {
             assert_eq!(difference.exit, 0, "hidden logs alone leave the parent tree unchanged");
             let op = git::Op::Commit {
                 always: false,
+                snapshot: None,
                 at: git::Place { git: None, workspace: skein_lib::Token::new(1), repository: b"app".as_slice().into() },
                 parent: commit(parent),
                 merging: None,

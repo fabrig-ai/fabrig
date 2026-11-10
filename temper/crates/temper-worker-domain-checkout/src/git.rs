@@ -89,7 +89,9 @@ pub enum Op {
     /// authored as `identity`. Ends in `Committed`, or in `Unchanged` if the tree is `parent`'s and
     /// `merging` is None and `always` is false. With a second parent it always records both parents; before doing so io
     /// refuses markers remaining in originally conflicted paths, ending `Conflicted` with those
-    /// paths.
+    /// paths. A delivery snapshot reads the checkout's parents, keeps an unchanged local
+    /// commit, validates its second parent on the remote and advances HEAD after committing
+    /// (temper/docs/design/protocol/git.md, 4.7).
     Commit {
         at: Place,
         parent: Commit,
@@ -98,6 +100,7 @@ pub enum Op {
         title: Box<[u8]>,
         body: Box<[u8]>,
         identity: u32,
+        snapshot: Option<Snapshot>,
     },
     /// Push `commit` to `branch` on the forge, as a fast-forward, never forced:
     /// a branch that does not exist is created, and one that is not an
@@ -122,6 +125,15 @@ pub enum Into {
     Fetched,
     /// The landing pin, written once during prepare.
     Landing,
+}
+
+/// Delivery reads HEAD and `MERGE_HEAD` before committing, preserving a local
+/// commit whose tree is unchanged. Any second parent must be reachable from
+/// this remote's branches or tags (temper/docs/design/protocol/git.md, 4.7).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Snapshot {
+    pub remote: Box<[u8]>,
+    pub account: Option<u64>,
 }
 
 /// What a fetch asks for.
@@ -249,12 +261,8 @@ impl Op {
     pub const fn is_remote(&self) -> bool {
         match self {
             Op::Clone { .. } | Op::Fetch { .. } | Op::Create { .. } | Op::Push { .. } => true,
-            Op::Look { .. }
-            | Op::IsAncestor { .. }
-            | Op::Make { .. }
-            | Op::CheckOut { .. }
-            | Op::Merge { .. }
-            | Op::Commit { .. } => false,
+            Op::Commit { snapshot, .. } => snapshot.is_some(),
+            Op::Look { .. } | Op::IsAncestor { .. } | Op::Make { .. } | Op::CheckOut { .. } | Op::Merge { .. } => false,
         }
     }
 }

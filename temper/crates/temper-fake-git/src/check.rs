@@ -77,7 +77,11 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
     let author = if env.contains_key(b"GIT_AUTHOR_NAME".as_slice()) || env.contains_key(b"GIT_AUTHOR_EMAIL".as_slice())
     {
         match command {
-            Command::Unmerged
+            Command::SnapshotHead
+            | Command::SnapshotMerge { .. }
+            | Command::SnapshotReachable { .. }
+            | Command::SnapshotReset { .. }
+            | Command::Unmerged
             | Command::Add
             | Command::DiffIndex { .. }
             | Command::WriteTree
@@ -85,6 +89,7 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
             Command::Origin { .. }
             | Command::Version
             | Command::Clone { .. }
+            | Command::SnapshotFetch { .. }
             | Command::Fetch { .. }
             | Command::Create { .. }
             | Command::CheckOut { .. }
@@ -188,11 +193,16 @@ fn check_remote(url: &[u8]) -> Result<(), Refusal> {
 }
 pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
     match command {
-        Command::Clone { remote, .. }
+        Command::SnapshotFetch { remote, .. }
+        | Command::Clone { remote, .. }
         | Command::Fetch { remote, .. }
         | Command::Create { remote, .. }
         | Command::Push { remote, .. } => Some(remote),
-        Command::Version
+        Command::SnapshotHead
+        | Command::SnapshotMerge { .. }
+        | Command::SnapshotReachable { .. }
+        | Command::SnapshotReset { .. }
+        | Command::Version
         | Command::CheckOut { .. }
         | Command::Clean
         | Command::Merge { .. }
@@ -207,6 +217,26 @@ pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
 }
 fn parse(args: &[&[u8]]) -> Option<Command> {
     Some(match args {
+        [b"log", b"-1", b"--format=%H %P", b"HEAD", b"--"] => Command::SnapshotHead,
+        [b"rev-parse", b"--verify", b"--quiet", b"MERGE_HEAD"] => {
+            Command::SnapshotMerge { head: dummy(), second: None }
+        }
+        [
+            b"fetch",
+            b"--quiet",
+            b"--prune",
+            b"--no-tags",
+            b"--no-write-fetch-head",
+            b"--no-recurse-submodules",
+            b"--",
+            remote,
+            b"+refs/heads/*:refs/temper/delivery/heads/*",
+            b"+refs/tags/*:refs/temper/delivery/tags/*",
+        ] => Command::SnapshotFetch { remote: (*remote).into(), head: dummy(), merging: None, second: dummy() },
+        [b"for-each-ref", b"--count=1", b"--format=%(objectname)", b"--contains", second, b"refs/temper/delivery/"] => {
+            Command::SnapshotReachable { head: dummy(), merging: None, second: invocation::object(second)? }
+        }
+        [b"reset", b"--mixed", b"-q", commit] => Command::SnapshotReset { commit: invocation::object(commit)? },
         [b"version"] => Command::Version,
         [git_dir, b"config", b"--local", b"--get", b"remote.origin.url"] => {
             Command::Origin { directory: git_dir.strip_prefix(b"--git-dir=")?.strip_suffix(b"/.git")?.into() }
@@ -284,4 +314,8 @@ fn push(url: &[u8], spec: &[u8], lease: Option<&[u8]>) -> Option<Command> {
         });
     }
     Some(Command::Push { remote, branch: branch.into(), commit, expected: None })
+}
+
+fn dummy() -> temper_worker_domain_checkout::git::Commit {
+    temper_worker_domain_checkout::git::Commit::new([0; 32])
 }

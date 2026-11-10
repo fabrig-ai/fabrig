@@ -106,7 +106,8 @@ pub(crate) fn pick(
         | git::Op::Fetch { at, account, .. }
         | git::Op::Create { at, account, .. }
         | git::Op::Push { at, account, .. } => (at, account),
-        git::Op::Commit { .. } => {
+        git::Op::Commit { at, snapshot: Some(snapshot), .. } => (at, &snapshot.account),
+        git::Op::Commit { snapshot: None, .. } => {
             return Ok(Some(component::Identity {
                 token: skein_lib::Secret::new(Box::default()),
                 login: login.clone(),

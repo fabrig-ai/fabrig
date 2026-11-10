@@ -38,6 +38,54 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
     transport.authenticate(checked.credential.as_ref());
     let at = checked.at.as_ref();
     match &checked.command {
+        Command::SnapshotHead => {
+            let Some(head) = checkout.content(&path(at, b".git/temper-head")).map(count_bytes) else {
+                return Answer::local_failure();
+            };
+            let mut stdout = [id(head).as_slice(), b" "].concat();
+            if let Some(parent) = transport.parent(head) {
+                stdout.extend(id(parent));
+            }
+            if let Some(second) = transport.merge_parent(head) {
+                stdout.push(b' ');
+                stdout.extend(id(second));
+            }
+            stdout.push(b'\n');
+            Answer::success(stdout)
+        }
+        Command::SnapshotMerge { .. } => match checkout.content(&path(at, b".git/MERGE_HEAD")) {
+            Some(head) => Answer::success([id(count_bytes(head)).as_slice(), b"\n"].concat()),
+            None => Answer { exit: 1, stdout: Vec::new(), stderr: Vec::new() },
+        },
+        Command::SnapshotFetch { remote, .. } => {
+            let heads = match transport.heads(remote) {
+                Ok(heads) => heads,
+                Err(fault) => return failed(remote, fault),
+            };
+            checkout.remove(&path(at, b".git/temper-delivery-heads"));
+            for head in heads {
+                if let Err(fault) = git::fetch(transport, checkout, remote, at, Want::Commit(head)) {
+                    return failed(remote, fault);
+                }
+                checkout.write(&path(at, format!(".git/temper-delivery-heads/{head}").as_bytes()), &head.to_le_bytes());
+            }
+            Answer::success(Vec::new())
+        }
+        Command::SnapshotReachable { second, .. } => {
+            let head = checkout
+                .tree(&path(at, b".git/temper-delivery-heads"))
+                .into_values()
+                .map(|bytes| count_bytes(&bytes))
+                .find(|head| transport.is_ancestor(count(*second), *head));
+            Answer::success(head.map_or_else(Vec::new, |head| [id(head).as_slice(), b"\n"].concat()))
+        }
+        Command::SnapshotReset { commit } => {
+            checkout.write(&path(at, b".git/temper-head"), &count(*commit).to_le_bytes());
+            checkout.remove(&path(at, b".git/MERGE_HEAD"));
+            checkout.remove(&path(at, b".git/temper-conflicts"));
+            write_index(checkout, at, transport.tree(count(*commit)));
+            Answer::success(Vec::new())
+        }
         Command::Version => Answer::success(b"git version 2.47.3\n".to_vec()),
         Command::Origin { directory } => {
             let directory = path(at, directory);

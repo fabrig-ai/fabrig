@@ -260,6 +260,19 @@ impl Component {
         self.slots.retire(id);
     }
     fn advance(&mut self, id: Id<Operation>, next: Next, out: &mut Outputs) {
+        let next = match next {
+            Next::Snapshot { parent, merging } => {
+                let operation = self.slots.get_mut(id).expect("live snapshot");
+                let Some(git::Op::Commit { parent: target, merging: second, .. }) = &mut operation.op else {
+                    unreachable!("snapshot sequence belongs to a commit")
+                };
+                *target = parent;
+                *second = merging;
+                let command = if merging.is_some() { Command::Unmerged } else { Command::Add };
+                Next::Run(command)
+            }
+            other @ (Next::Run(_) | Next::End(_) | Next::Make | Next::Scan { .. }) => other,
+        };
         match next {
             Next::Run(command) => {
                 let operation = self.slots.get(id).expect("live index");
@@ -288,6 +301,7 @@ impl Component {
                 operation.spawn(token, command, &self.settings, out);
                 assert!(self.index.insert(token, id).expect("same operation").is_none(), "unique token");
             }
+            Next::Snapshot { .. } => unreachable!("snapshot parents were resolved before dispatch"),
             Next::End(done) => self.finish(id, done, out),
             Next::Make => {
                 let op = self.slots.get(id).expect("live index").op.as_ref().expect("Make op");
