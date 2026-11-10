@@ -124,7 +124,7 @@ fn make_closer(world: &mut World, goal: &engine::Assignment, call: u64) -> u64 {
     let engine::CallAnswer::Delegated(made) = answer else { panic!("closer admitted: {answer:?}") };
     made[0].task
 }
-fn closer_row(world: &World, task: u64) -> Option<&forge_top::CloserRow> {
+pub(super) fn closer_row(world: &World, task: u64) -> Option<&forge_top::CloserRow> {
     match world.store.rows.get(&Key::Forge(forge_top::Key::Closer(task))) {
         Some(Record::Forge { row }) => match row.as_ref() {
             forge_top::Stored::Closer(row) => Some(row),
@@ -133,7 +133,7 @@ fn closer_row(world: &World, task: u64) -> Option<&forge_top::CloserRow> {
         _ => None,
     }
 }
-fn wait_ended(world: &mut World, task: u64) {
+pub(super) fn wait_ended(world: &mut World, task: u64) {
     for _ in 0..4000 {
         if ended(world, task).is_some() {
             return;
@@ -147,7 +147,7 @@ fn wait_ended(world: &mut World, task: u64) {
         live_task(world, task).phase
     )
 }
-fn result_words(world: &World, task: u64) -> &[u8] {
+pub(super) fn result_words(world: &World, task: u64) -> &[u8] {
     let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Report { words })) =
         &ended(world, task).expect("closer ended").phase
     else {
@@ -174,7 +174,7 @@ fn add_change(
 
     task
 }
-fn close_job(world: &mut World) -> host::JobAssignment {
+pub(super) fn close_job(world: &mut World) -> host::JobAssignment {
     for _ in 0..STEPS {
         if !world.jobs.is_empty() {
             return world.jobs.remove(0);
@@ -183,7 +183,7 @@ fn close_job(world: &mut World) -> host::JobAssignment {
     }
     panic!("close job was not assigned; errors {:?}", world.call_errors)
 }
-fn finish_close(world: &mut World, task: u64, branch: &[u8], job: &host::JobAssignment) {
+pub(super) fn finish_close(world: &mut World, task: u64, branch: &[u8], job: &host::JobAssignment) {
     let own = row(world, task).branch.clone();
     let tip = branch_tip(world, branch);
     assert_eq!(
@@ -203,7 +203,7 @@ fn finish_close(world: &mut World, task: u64, branch: &[u8], job: &host::JobAssi
     );
     world.send(event);
 }
-fn wait_landing(world: &mut World, closer: u64) -> u64 {
+pub(super) fn wait_landing(world: &mut World, closer: u64) -> u64 {
     for _ in 0..STEPS {
         if let Some(task) = closer_row(world, closer).and_then(|row| row.closer.landing)
             && world.store.rows.contains_key(&Key::Forge(forge_top::Key::Change(task)))
@@ -220,7 +220,7 @@ fn wait_landing(world: &mut World, closer: u64) -> u64 {
     )
 }
 
-fn producer_for(world: &mut World, task: u64) -> engine::Assignment {
+pub(super) fn producer_for(world: &mut World, task: u64) -> engine::Assignment {
     for _ in 0..STEPS {
         let child = row(world, task).delegate.map(|(child, _)| child);
         if let Some(run) = world.assigned.iter().find(|run| Some(run.task) == child) {
@@ -432,7 +432,7 @@ fn a_closer_of_a_goal_with_no_goal_branch_only_reports() {
     world.close();
 }
 
-fn wait_held(world: &mut World, task: u64, goal: u64) {
+pub(super) fn wait_held(world: &mut World, task: u64, goal: u64) {
     for _ in 0..STEPS {
         if matches!(live_task(world, task).phase, tasks::Phase::Held { .. })
             && matches!(live_task(world, task).escalation, tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Task(holder), .. } if holder == goal)
