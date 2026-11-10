@@ -163,8 +163,11 @@ pub fn named(full: &[u8], protected: Option<&[u8]>) -> Scenario {
     let mut transport = Typed::new(forge, &table(full, protected));
     let identity = identity();
     transport.authenticate(Some(&(identity.login, identity.token)));
-    let topic =
-        if base == 0 { 0 } else { transport.store(base, None, tree(b"topic\n"), b"topic").expect("changed tree") };
+    let topic = if base == 0 {
+        0
+    } else {
+        transport.store(base, None, false, tree(b"topic\n"), b"topic").expect("changed tree")
+    };
     if base != 0 {
         transport.push(&remote(full), b"topic", topic, None).expect("new topic");
     }
@@ -203,7 +206,7 @@ pub fn apply(scenario: &mut Scenario, command: &Command) -> Answer {
     answer(&checked, &mut scenario.checkout, &mut scenario.transport)
 }
 fn ours(scenario: &mut Scenario) -> u64 {
-    let number = scenario.transport.store(scenario.base, None, tree(b"ours\n"), b"ours").expect("changed tree");
+    let number = scenario.transport.store(scenario.base, None, false, tree(b"ours\n"), b"ours").expect("changed tree");
     scenario.checkout.write(&[scenario.at.as_slice(), format!("/.git/objects/{number}").as_bytes()].concat(), b"");
     number
 }

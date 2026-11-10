@@ -129,9 +129,9 @@ impl Remote for Store {
         self.commits.get(&commit).expect("test queries an existing commit").message.clone()
     }
 
-    fn store(&mut self, parent: u64, merging: Option<u64>, tree: Tree, message: &[u8]) -> Option<u64> {
+    fn store(&mut self, parent: u64, merging: Option<u64>, always: bool, tree: Tree, message: &[u8]) -> Option<u64> {
         let old = self.commits.get(&parent).expect("test stores on an existing parent");
-        if merging.is_none() && old.tree == tree {
+        if !always && merging.is_none() && old.tree == tree {
             return None;
         }
         assert!(merging.is_none_or(|commit| self.commits.contains_key(&commit)), "test merge parent exists");
@@ -196,7 +196,7 @@ pub fn merge_case(seed: u64) -> String {
     let (mut store, mut checkout, first) = cloned(&[(b"code", b"a\nb\nc\n")]);
     checkout.write(b"work/code", &left_bytes);
     let ours = git::commit(&mut store, &mut checkout, b"work", first, b"left").expect("local root").unwrap_or(first);
-    let theirs = store.store(first, None, tree(&[(b"code", &right_bytes)]), b"right").unwrap_or(first);
+    let theirs = store.store(first, None, false, tree(&[(b"code", &right_bytes)]), b"right").unwrap_or(first);
     git::fetch(&mut store, &mut checkout, b"repo", b"work", Want::Commit(theirs)).expect("known side");
     let before = format!("{checkout:?}");
     git::fetch(&mut store, &mut checkout, b"repo", b"work", Want::Commit(theirs)).expect("repeat fetch");

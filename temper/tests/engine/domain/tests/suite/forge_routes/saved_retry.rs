@@ -71,9 +71,15 @@ impl Remote for Git<'_> {
     fn message(&self, commit: u64) -> Vec<u8> {
         self.0.fake.object(commit).expect("commit").message.to_vec()
     }
-    fn store(&mut self, parent: u64, merging: Option<u64>, tree: Tree, message: &[u8]) -> Option<u64> {
+    fn store(&mut self, parent: u64, merging: Option<u64>, always: bool, tree: Tree, message: &[u8]) -> Option<u64> {
         let files =
             tree.into_iter().map(|(path, content)| raw::File { path: path.into(), content: content.into() }).collect();
+        if always {
+            return Some(
+                fake::commit_tree(&mut self.0.fake, &self.0.fake_env.limits, parent, merging, files, message)
+                    .expect("commit-tree store"),
+            );
+        }
         match merging {
             Some(second) => Some(
                 fake::merge_commit(&mut self.0.fake, &self.0.fake_env.limits, parent, second, files, message)

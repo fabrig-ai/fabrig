@@ -46,7 +46,7 @@ impl History {
         let mut tree = self.tree(self.branch);
         tree.insert(b"remote.txt".to_vec(), b"another change".to_vec());
         let previous = self.branch;
-        self.branch = self.store(previous, None, tree, b"remote moved").expect("remote commit exists");
+        self.branch = self.store(previous, None, false, tree, b"remote moved").expect("remote commit exists");
     }
 }
 
@@ -111,8 +111,8 @@ impl Remote for History {
         self.commit_message(commit).to_vec()
     }
 
-    fn store(&mut self, parent: u64, merging: Option<u64>, tree: Tree, message: &[u8]) -> Option<u64> {
-        if merging.is_none() && self.tree(parent) == tree {
+    fn store(&mut self, parent: u64, merging: Option<u64>, always: bool, tree: Tree, message: &[u8]) -> Option<u64> {
+        if !always && merging.is_none() && self.tree(parent) == tree {
             return None;
         }
         let next = self.next;

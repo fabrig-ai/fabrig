@@ -87,12 +87,12 @@ impl Remote for Store {
         self.commits[&commit].message.clone()
     }
 
-    fn store(&mut self, parent: u64, merging: Option<u64>, tree: Tree, message: &[u8]) -> Option<u64> {
+    fn store(&mut self, parent: u64, merging: Option<u64>, always: bool, tree: Tree, message: &[u8]) -> Option<u64> {
         assert!(self.commits.contains_key(&parent));
         if let Some(merging) = merging {
             assert!(self.commits.contains_key(&merging));
         }
-        if merging.is_none() && tree == self.tree(parent) {
+        if !always && merging.is_none() && tree == self.tree(parent) {
             return None;
         }
         let id = self.commits.last_key_value().expect("finite initial graph").0 + 1;

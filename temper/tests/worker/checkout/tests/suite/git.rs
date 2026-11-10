@@ -261,7 +261,8 @@ fn merges_preserve_additions_deletions_and_modify_delete_conflicts() {
     checkout.write(b"w/temper/ours", b"added");
     let ours =
         git::commit(&mut forge, &mut checkout, b"w/temper", first, b"fixture").expect("parent").expect("changed");
-    let theirs = forge.store(first, None, tree(&[(b"theirs", b"added too")]), b"side").expect("deletions change tree");
+    let theirs =
+        forge.store(first, None, false, tree(&[(b"theirs", b"added too")]), b"side").expect("deletions change tree");
     assert_eq!(forge.push(b"forge/temper", b"main", theirs, None), Ok(Pushed::Pushed));
     git::fetch(&mut forge, &mut checkout, b"forge/temper", b"w/temper", Want::Commit(theirs)).expect("fetch");
     let merged = git::merge(&forge, &mut checkout, b"w/temper", theirs).expect("merge");

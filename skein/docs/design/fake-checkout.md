@@ -103,11 +103,11 @@ The caller implements `git::Remote`: synchronous repository tip queries,
 fetch selection, branch creation, push policy, and a commit store queried
 for both parents, trees and messages. Remote names and fault policy are opaque to
 the kit. IDs increase topologically in a finite acyclic graph; every
-queried commit exists. Nonmerge store returns `None` for an unchanged
-tree, dropping the supplied message without creating an object. Merge
-store always returns a fresh ID with both supplied parents, even for an
-unchanged tree. Each stored commit keeps its message as opaque bytes, and
-the world can read the message of an existing commit. Messages are sized
+queried commit exists. Nonmerge store with `always` false returns `None`
+for an unchanged tree, dropping the supplied message without creating an
+object. Merge store, and a nonmerge store with `always` true, return a
+fresh ID with the supplied parent or parents, even for an unchanged tree.
+Each stored commit keeps its message as opaque bytes, and the world can read the message of an existing commit. Messages are sized
 by the fixture, without a production bound. Local operations never move
 references.
 
@@ -117,7 +117,8 @@ objects in both parent chains, retaining existing object versions.
 Checkout requires a local object, replaces non-git files and clears merge
 metadata. Commit requires its local parent and snapshots regular files
 less git paths, passing the caller's message to the store; unchanged
-content makes no object. Removing a working
+content makes no object. `commit_always` instead records a fresh single-parent
+object with the supplied message, including an unchanged tree. Removing a working
 directory removes all its local object-presence markers.
 
 Merge requires checked-out head metadata and a local second parent. It

@@ -171,7 +171,10 @@ impl Remote for Route {
     fn message(&self, commit: u64) -> Vec<u8> {
         self.object(commit).map_or_else(Vec::new, |o| o.message.to_vec())
     }
-    fn store(&mut self, parent: u64, merging: Option<u64>, tree: Tree, message: &[u8]) -> Option<u64> {
+    fn store(&mut self, parent: u64, merging: Option<u64>, always: bool, tree: Tree, message: &[u8]) -> Option<u64> {
+        if always {
+            return Some(Transport::commit_tree(self, parent, merging, tree, message));
+        }
         let tree = files(tree);
         let call = match merging {
             Some(merge_parent) => Call::Merge { parent, merge_parent, tree, message: message.into() },

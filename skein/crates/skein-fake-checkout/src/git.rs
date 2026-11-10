@@ -66,11 +66,11 @@ pub trait Remote {
     fn message(&self, commit: u64) -> Vec<u8>;
 
     /// Store the supplied tree with existing parent IDs. With no second parent,
-    /// return `None` only when unchanged from `parent`; with a second parent,
+    /// return `None` only when unchanged from `parent` and `always` is false; with a second parent,
     /// always issue a fresh ID recording both parents, even if unchanged.
     /// A new object records `message` verbatim; an unchanged tree drops it.
     /// No remote reference moves (fake-checkout.md, section 4).
-    fn store(&mut self, parent: u64, merging: Option<u64>, tree: Tree, message: &[u8]) -> Option<u64>;
+    fn store(&mut self, parent: u64, merging: Option<u64>, always: bool, tree: Tree, message: &[u8]) -> Option<u64>;
 }
 
 /// Remote implementation’s terminal refusal to a synchronous call. The kit
@@ -234,12 +234,34 @@ pub fn commit(
     parent: u64,
     message: &[u8],
 ) -> Result<Option<u64>, NotFetched> {
+    commit_with(forge, checkout, at, parent, false, message)
+}
+
+/// Store a fresh single-parent object even when its tree is unchanged (fake-checkout.md, section 4).
+pub fn commit_always(
+    forge: &mut impl Remote,
+    checkout: &mut Checkout,
+    at: &[u8],
+    parent: u64,
+    message: &[u8],
+) -> Result<u64, NotFetched> {
+    Ok(commit_with(forge, checkout, at, parent, true, message)?.expect("always stores an object"))
+}
+
+fn commit_with(
+    forge: &mut impl Remote,
+    checkout: &mut Checkout,
+    at: &[u8],
+    parent: u64,
+    always: bool,
+    message: &[u8],
+) -> Result<Option<u64>, NotFetched> {
     if !checkout.exists(&object(at, parent)) {
         return Err(NotFetched);
     }
     let mut tree = checkout.tree(at);
     tree.retain(|path, _| !in_git(path));
-    let Some(commit) = forge.store(parent, None, tree, message) else {
+    let Some(commit) = forge.store(parent, None, always, tree, message) else {
         return Ok(None);
     };
     checkout.write(&object(at, commit), b"");
@@ -364,7 +386,7 @@ pub fn commit_merging(
     }
     let mut tree = checkout.tree(at);
     tree.retain(|path, _| !in_git(path));
-    let commit = forge.store(parent, Some(merging), tree, message).expect("a merge always records both parents");
+    let commit = forge.store(parent, Some(merging), false, tree, message).expect("a merge always records both parents");
     checkout.write(&object(at, commit), b"");
     checkout.write(&[at, b"/.git/temper-head"].concat(), &commit.to_le_bytes());
     checkout.remove(&[at, b"/.git/temper-conflicts"].concat());
