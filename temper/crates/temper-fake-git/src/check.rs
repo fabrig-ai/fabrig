@@ -95,6 +95,7 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
             | Command::CheckOut { .. }
             | Command::Clean
             | Command::Merge { .. }
+            | Command::DiffPaths { .. }
             | Command::IsAncestor { .. }
             | Command::Push { .. } => return Err(Refusal::Broken("author outside commit")),
         }
@@ -212,6 +213,7 @@ pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
         | Command::WriteTree
         | Command::CommitTree { .. }
         | Command::Origin { .. }
+        | Command::DiffPaths { .. }
         | Command::IsAncestor { .. } => None,
     }
 }
@@ -275,6 +277,9 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
         [b"merge", b"--no-commit", b"--no-ff", b"--", theirs] => Command::Merge { theirs: invocation::object(theirs)? },
         [b"diff-files", b"--name-only", b"-z", b"--diff-filter=U"] => Command::Unmerged,
         [b"add", b"--all", b"--", b".", b":(exclude,glob)**/.*.log"] => Command::Add,
+        [b"diff-tree", b"--no-commit-id", b"--name-only", b"--no-renames", b"-r", b"-z", before, after, b"--"] => {
+            Command::DiffPaths { before: invocation::object(before)?, after: invocation::object(after)? }
+        }
         [b"diff-index", b"--cached", b"--quiet", parent, b"--"] => {
             Command::DiffIndex { parent: invocation::object(parent)? }
         }

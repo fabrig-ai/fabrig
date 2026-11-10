@@ -60,6 +60,7 @@ fn merge_git(op: root::checkout::git::Op) -> root::checkout::git::Done {
             assert_eq!(branch.as_ref(), b"temper/task-7");
             Done::Succeeded
         }
+        Op::DiffPaths { .. } => Done::Paths { files: Box::new([]) },
         Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
         Op::Make { .. } | Op::Clone { .. } | Op::Create { .. } | Op::CheckOut { .. } => Done::Succeeded,
     }

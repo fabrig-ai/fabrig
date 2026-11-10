@@ -26,57 +26,57 @@ pub(crate) struct Spec {
 const ITEMS_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"since":{"type":"integer","description":"Only items updated at or after this time, in nanoseconds.","minimum":0,"maximum":18446744073709551615,"default":0},"page":{"type":"integer","description":"The page.","minimum":1,"maximum":4294967295,"default":1},"item_kind":{"type":"string","description":"Issues or pull requests alone; both when absent.","enum":["issue","pull"]}},"required":[]}"#;
 const ITEMS_SPEC: Spec = Spec {
     name: b"read_items",
-    description:
-        b"Read a page of a repository's issues and pull requests, those updated least recently first, from a time on.",
+    description: b"Issues/pulls, oldest updates first; forge.client.rows/answer_bytes bounded. Advance page.",
     schema: ITEMS_SCHEMA,
     effect: run::HostEffect::Read,
 };
 const ITEM_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"number":{"type":"integer","description":"The issue's or pull request's number.","minimum":1,"maximum":18446744073709551615},"after":{"type":"integer","description":"Only the comments after this comment's id.","minimum":0,"maximum":18446744073709551615,"default":0}},"required":["number"]}"#;
 const ITEM_SPEC: Spec = Spec {
     name: b"read_item",
-    description: b"Read an issue or a pull request with its comments.",
+    description: b"Issue/pull and comments within forge.client.rows/answer_bytes. Advance after for comments; read_items for summaries.",
     schema: ITEM_SCHEMA,
     effect: run::HostEffect::Read,
 };
 const PULL_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"number":{"type":"integer","description":"The pull request's number.","minimum":1,"maximum":18446744073709551615}},"required":["number"]}"#;
 const PULL_SPEC: Spec = Spec {
     name: b"read_pull",
-    description: b"Read a pull request.",
+    description: b"Pull within forge.client.rows/answer_bytes. Files: read_pull_files by page, or read_file by path at head/base.",
     schema: PULL_SCHEMA,
     effect: run::HostEffect::Read,
 };
 const PULL_FOR_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"head":{"type":"string","description":"The branch it merges from."},"base":{"type":"string","description":"The branch it merges into."}},"required":["head","base"]}"#;
 const PULL_FOR_SPEC: Spec = Spec {
     name: b"read_pull_for",
-    description: b"Find the pull request from one branch into another.",
+    description: b"Find a pull by head/base within forge.client.rows/answer_bytes. Files: read_pull_files by page or read_file by path at head/base.",
     schema: PULL_FOR_SCHEMA,
     effect: run::HostEffect::Read,
 };
 const REVIEWS_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"number":{"type":"integer","description":"The pull request's number.","minimum":1,"maximum":18446744073709551615},"page":{"type":"integer","description":"The page.","minimum":1,"maximum":4294967295,"default":1}},"required":["number"]}"#;
 const REVIEWS_SPEC: Spec = Spec {
     name: b"read_reviews",
-    description: b"Read a page of a pull request's reviews.",
+    description:
+        b"Pull reviews within forge.client.rows/answer_bytes. Advance page for other rows; it skips an oversized page.",
     schema: REVIEWS_SCHEMA,
     effect: run::HostEffect::Read,
 };
 const STATUSES_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"commit":{"type":"string","description":"The commit's id: 40 or 64 lowercase hexadecimal digits."},"page":{"type":"integer","description":"The page.","minimum":1,"maximum":4294967295,"default":1}},"required":["commit"]}"#;
 const STATUSES_SPEC: Spec = Spec {
     name: b"read_statuses",
-    description: b"Read a page of the statuses posted on a commit.",
+    description: b"Commit statuses within forge.client.rows/answer_bytes. Advance page for other rows; it skips an oversized page.",
     schema: STATUSES_SCHEMA,
     effect: run::HostEffect::Read,
 };
 const REMARKS_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"number":{"type":"integer","description":"The pull request's number.","minimum":1,"maximum":18446744073709551615},"review":{"type":"integer","description":"The review's id, as read_reviews answers it.","minimum":1,"maximum":18446744073709551615},"page":{"type":"integer","description":"The page.","minimum":1,"maximum":4294967295,"default":1}},"required":["number","review"]}"#;
 const REMARKS_SPEC: Spec = Spec {
     name: b"read_remarks",
-    description: b"Read a page of one review's remarks on a pull request.",
+    description: b"Review remarks within forge.client.rows/answer_bytes. Advance page for other rows; it skips an oversized page.",
     schema: REMARKS_SCHEMA,
     effect: run::HostEffect::Read,
 };
 const BRANCH_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"branch":{"type":"string","description":"The branch's name."}},"required":["branch"]}"#;
 const BRANCH_SPEC: Spec = Spec {
     name: b"read_branch",
-    description: b"Read a branch's head.",
+    description: b"Branch head within forge.client.answer_bytes; read_branches with a longer prefix lists names.",
     schema: BRANCH_SCHEMA,
     effect: run::HostEffect::Read,
 };
@@ -90,21 +90,22 @@ const BRANCHES_SPEC: Spec = Spec {
 const PULL_FILES_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"number":{"type":"integer","description":"The pull request's number.","minimum":1,"maximum":18446744073709551615},"head":{"type":"string","description":"The head's commit id: 40 or 64 lowercase hexadecimal digits."},"page":{"type":"integer","description":"The page.","minimum":1,"maximum":4294967295,"default":1}},"required":["number","head"]}"#;
 const PULL_FILES_SPEC: Spec = Spec {
     name: b"read_pull_files",
-    description: b"Read changed files at a head. Sides fit forge and host limits; oversized pages omit contents. Use read_file at both commits; later pages skip this page.",
+    description: b"Changed files within forge.client.rows/answer_bytes. Whole sides; read_file at head/base. Next page lists other files, not this page.",
     schema: PULL_FILES_SCHEMA,
     effect: run::HostEffect::Read,
 };
 const COMPARE_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"before":{"type":"string","description":"The earlier commit's id: 40 or 64 lowercase hexadecimal digits."},"after":{"type":"string","description":"The later commit's id: 40 or 64 lowercase hexadecimal digits."}},"required":["before","after"]}"#;
 const COMPARE_SPEC: Spec = Spec {
     name: b"read_compare",
-    description: b"Compare commits whole; no pages. Files and commits each fit forge.client.rows, decoded bytes fit forge.client.answer_bytes. Use read_pull_files or read_file.",
+    description: b"Compare commits by names, counts and containment, without contents. No raw reads. Read a path's contents with read_file at each commit; Missing means absent.",
     schema: COMPARE_SCHEMA,
     effect: run::HostEffect::Read,
 };
 const CHECKS_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"commit":{"type":"string","description":"The commit's id: 40 or 64 lowercase hexadecimal digits."}},"required":["commit"]}"#;
 const CHECKS_SPEC: Spec = Spec {
     name: b"read_checks",
-    description: b"Read a commit's combined checks.",
+    description:
+        b"Combined checks within forge.client.rows/answer_bytes; read_statuses by page, then read_job for a failed job.",
     schema: CHECKS_SCHEMA,
     effect: run::HostEffect::Read,
 };
@@ -112,42 +113,43 @@ const FILE_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"pr
 const FILE_SPEC: Spec = Spec {
     name: b"read_file",
     description:
-        b"Read a file prefix or list a directory. max_bytes limits raw bytes; metadata and escaping use host room. Too large: lower max_bytes; a prefix is incomplete.",
+        b"File prefix or directory within forge.client.answer_bytes and max_bytes. A cut is incomplete; lower max_bytes or select directory paths.",
     schema: FILE_SCHEMA,
     effect: run::HostEffect::Read,
 };
 const JOB_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"head":{"type":"string","description":"The commit's id the CI ran on: 40 or 64 lowercase hexadecimal digits."},"run":{"type":"integer","description":"The CI run's id.","minimum":1,"maximum":18446744073709551615},"job":{"type":"integer","description":"The CI job's id, which may be 0 on Forgejo.","minimum":0,"maximum":18446744073709551615},"attempt":{"type":"integer","description":"The attempt's number, which may be 0 on Forgejo.","minimum":0,"maximum":4294967295},"max_bytes":{"type":"integer","description":"At most this many bytes; the read's limit when absent.","minimum":1,"maximum":4294967295}},"required":["head","run","job","attempt"]}"#;
 const JOB_SPEC: Spec = Spec {
     name: b"read_job",
-    description: b"Read one CI job's failed-step end or job tail, cut at a byte limit.",
+    description:
+        b"Failed-step end or job tail within forge.client.answer_bytes. Lower max_bytes for the same attempt to fit.",
     schema: JOB_SCHEMA,
     effect: run::HostEffect::Read,
 };
 const PROTECTION_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"branch":{"type":"string","description":"The branch's name."}},"required":["branch"]}"#;
 const PROTECTION_SPEC: Spec = Spec {
     name: b"read_protection",
-    description: b"Read a branch's protection.",
+    description: b"Branch protection within forge.client.rows/answer_bytes. No pages; read_branch or read_items for narrower context.",
     schema: PROTECTION_SCHEMA,
     effect: run::HostEffect::Read,
 };
 const SETTINGS_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."}},"required":[]}"#;
 const SETTINGS_SPEC: Spec = Spec {
     name: b"read_settings",
-    description: b"Read the repository's settings.",
+    description: b"Repository settings within forge.client.answer_bytes. No pages; read_branch or read_items for narrower context.",
     schema: SETTINGS_SCHEMA,
     effect: run::HostEffect::Read,
 };
 const COLLABORATORS_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"page":{"type":"integer","description":"The page.","minimum":1,"maximum":4294967295,"default":1}},"required":[]}"#;
 const COLLABORATORS_SPEC: Spec = Spec {
     name: b"read_collaborators",
-    description: b"Read a page of the repository's collaborators; read_permission names each.",
+    description: b"Collaborators within forge.client.rows/answer_bytes; advance page. read_permission reads one user.",
     schema: COLLABORATORS_SCHEMA,
     effect: run::HostEffect::Read,
 };
 const PERMISSION_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"user":{"type":"integer","description":"The forge user's id.","minimum":1,"maximum":18446744073709551615}},"required":["user"]}"#;
 const PERMISSION_SPEC: Spec = Spec {
     name: b"read_permission",
-    description: b"Read a forge user's permission on the repository, with their id and login when available.",
+    description: b"User permission within forge.client.answer_bytes. No pages; read_collaborators lists users by page.",
     schema: PERMISSION_SCHEMA,
     effect: run::HostEffect::Read,
 };

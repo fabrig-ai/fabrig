@@ -198,7 +198,7 @@ fn read_result(
         Err(Error::Missing) if !pending.default => missing(d, env, owner, pending, out),
         Err(error) => {
             wake(d, &pending.name);
-            failed(pending.task, pending.name, crate::effect_words::error_words(error), out);
+            failed(pending.task, pending.name, &crate::effect_words::error_words(error), out);
             released(d, pending.task, out);
         }
         Ok(_) => {
@@ -308,12 +308,12 @@ pub(super) fn outcome(d: &mut Domain, number: u64, outcome: Outcome, out: &mut Q
     let reason = match outcome {
         Outcome::Made { .. } => None,
         Outcome::Failed(error) | Outcome::Raced { why: error, .. } => Some(crate::effect_words::error_words(error)),
-        Outcome::Held => Some(b"uncertain: the forge cannot safely retry the branch making".as_slice()),
-        Outcome::Withdrawn => Some(b"branch making withdrawn before completion".as_slice()),
+        Outcome::Held => Some(Box::from(b"uncertain: the forge cannot safely retry the branch making".as_slice())),
+        Outcome::Withdrawn => Some(Box::from(b"branch making withdrawn before completion".as_slice())),
         Outcome::Uncertain | Outcome::Queued => unreachable!("unsettled returned above"),
     };
     if let Some(reason) = reason {
-        failed(task, name.clone(), reason, out);
+        failed(task, name.clone(), &reason, out);
     }
     wake(d, &name);
 }

@@ -151,6 +151,22 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
             checkout.remove(&path(at, b".git/temper-conflicts"));
             Answer::success(Vec::new())
         }
+        Command::DiffPaths { before, after } => {
+            if !checkout.exists(&object(at, count(*before))) || !checkout.exists(&object(at, count(*after))) {
+                return Answer::local_failure();
+            }
+            let before = transport.tree(count(*before));
+            let after = transport.tree(count(*after));
+            let paths: std::collections::BTreeSet<_> = before.keys().chain(after.keys()).collect();
+            let mut bytes = Vec::new();
+            for path in paths {
+                if before.get(path) != after.get(path) {
+                    bytes.extend(path);
+                    bytes.push(0);
+                }
+            }
+            Answer::success(bytes)
+        }
         Command::DiffIndex { parent } => {
             if !checkout.exists(&object(at, count(*parent))) {
                 return Answer::local_failure();

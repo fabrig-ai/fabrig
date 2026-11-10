@@ -82,6 +82,10 @@ pub enum Op {
     CheckOut { at: Place, commit: Commit, clean: bool },
     /// Whether fetched ancestor is contained in commit, including equality. Local and read-only.
     IsAncestor { at: Place, ancestor: Commit, commit: Commit },
+    /// Paths differing between two commits, including deletions, without rename
+    /// detection, in git's order. Ends Paths, bounded by conflict/path limits;
+    /// an incomplete or over-bound list fails rather than omitting a path.
+    DiffPaths { at: Place, before: Commit, after: Commit },
     /// Merge fetched `theirs` into the checked-out commit, without committing;
     /// leave conflict markers and merge state on disk. Ends Merged/Conflicted.
     Merge { at: Place, theirs: Commit },
@@ -151,6 +155,8 @@ pub enum Want {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "diagnostics stay inline with a fixed byte capacity")]
 pub enum Done {
+    /// Complete changed-path list, bounded by the checkout's conflict/path limits.
+    Paths { files: Box<[Box<[u8]>]> },
     /// The directory holds the requested remote.
     Looked { holds: bool },
     /// The standalone local ancestry query.
@@ -235,6 +241,7 @@ pub enum Kind {
     CheckOut,
     Merge,
     IsAncestor,
+    DiffPaths,
     Commit,
     Push,
 }
@@ -251,6 +258,7 @@ impl Op {
             Op::CheckOut { .. } => Kind::CheckOut,
             Op::Merge { .. } => Kind::Merge,
             Op::IsAncestor { .. } => Kind::IsAncestor,
+            Op::DiffPaths { .. } => Kind::DiffPaths,
             Op::Commit { .. } => Kind::Commit,
             Op::Push { .. } => Kind::Push,
         }
@@ -262,7 +270,12 @@ impl Op {
         match self {
             Op::Clone { .. } | Op::Fetch { .. } | Op::Create { .. } | Op::Push { .. } => true,
             Op::Commit { snapshot, .. } => snapshot.is_some(),
-            Op::Look { .. } | Op::IsAncestor { .. } | Op::Make { .. } | Op::CheckOut { .. } | Op::Merge { .. } => false,
+            Op::Look { .. }
+            | Op::IsAncestor { .. }
+            | Op::DiffPaths { .. }
+            | Op::Make { .. }
+            | Op::CheckOut { .. }
+            | Op::Merge { .. } => false,
         }
     }
 }

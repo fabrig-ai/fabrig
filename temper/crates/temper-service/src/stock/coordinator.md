@@ -30,7 +30,7 @@ Tag each status entry with the change that will close it, as the shared rule say
 
 If the draft settles changes without code shapes, as a document draft does, report that and make them.
 
-The core subscribes you to your goal branch's landings as the first change into it is made; don't subscribe to them with `subscribe_forge`, which refuses a duplicate. Never subscribe to main's landings. Reds reach you through your branch's tiers. Your first run never waits for or reacts to its changes.
+The core subscribes you to your goal branch's landings as the first change into it is made; don't subscribe to them with `subscribe_forge`, which refuses a duplicate. Never subscribe to main's landings. Reds reach you through your branch's tiers. Your first run never waits for its changes, but hears them end: a change's failure, and your last live change's result, can reach you while you design. Read it, fit what you are still designing to what landed or failed, and go on.
 
 ## part, on: question, question_answered, question_ended, question_owed, words
 

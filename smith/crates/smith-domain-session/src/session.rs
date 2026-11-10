@@ -1775,6 +1775,48 @@ fn advance(
     finish_tools(conversation, id, tools, env, out)
 }
 
+/// Append the run's offer after settled results and replace only an unsent request.
+pub fn append_messages(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    text: Box<[u8]>,
+    out: &mut Queue<Request>,
+) {
+    let Some(id) = addressed(&domain.sessions, owner) else {
+        return;
+    };
+    let session = domain.sessions.get_mut(id).expect("addressed above");
+    let attempt = match session.state {
+        State::Completing { attempt } => attempt,
+        State::Backoff { .. }
+        | State::Tooling { .. }
+        | State::Resting { .. }
+        | State::Yielded { .. }
+        | State::Closing { .. }
+        | State::Closed => return,
+    };
+    let mark = out.len();
+    let conversation = &mut session.conversation;
+    release_provider(conversation);
+    let cost = skein_lib::len_u64(text.len()).checked_add(u64::try_from(size_of::<Block>()).expect("block cell fits"));
+    session.state = if conversation.compaction.asking()
+        || conversation.transcript.room() == 0
+        || !blocks_fit(conversation, 1, &env.limits)
+        || !charge(conversation, cost, &env.limits)
+    {
+        match history::hold_note(conversation, text, &env.limits) {
+            Some(end) => finish(end),
+            None => ask(conversation, id, attempt, env, out),
+        }
+    } else {
+        let content = Box::new([Block::Text { text, replay: None }]);
+        conversation.transcript.push(Message { role: Role::User, content }).expect("offer slot checked");
+        ask(conversation, id, attempt, env, out)
+    };
+    conclude(domain, env, id, out, mark);
+}
+
 /// Assemble a fully settled batch in original call order, then issue the next
 /// provider request only after its new receiving credit is available.
 fn finish_tools(

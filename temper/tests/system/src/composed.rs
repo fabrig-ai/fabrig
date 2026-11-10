@@ -981,7 +981,7 @@ impl World {
             Ok(answer) => {
                 let answer = api::answer(op, answer, client);
                 if skein_forge::measure::answer(&answer).expect("fake answer size") > u64::from(client.answer_bytes) {
-                    Err(skein_forge::api::Error::TooLarge)
+                    Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()))
                 } else {
                     Ok(answer)
                 }
@@ -1562,6 +1562,7 @@ fn forge_operation(mut op: worker::checkout::git::Op) -> worker::checkout::git::
         Op::Make { .. }
         | Op::CheckOut { .. }
         | Op::Look { .. }
+        | Op::DiffPaths { .. }
         | Op::IsAncestor { .. }
         | Op::Merge { .. }
         | Op::Commit { snapshot: None, .. } => return op,

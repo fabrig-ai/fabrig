@@ -67,13 +67,6 @@ fn file_transcript_mutations_are_malformed_naming_the_field() {
             Malformed::Value { field: b"status" },
         ),
         (
-            "compare",
-            "sha",
-            br#""sha":"0000000000000000000000000000000000000004""#.as_slice(),
-            br#""sha":"000000000000000000000000000000000000000""#.as_slice(),
-            Malformed::Id { field: b"sha" },
-        ),
-        (
             "actions-run",
             "commit_sha",
             br#""commit_sha":"0000000000000000000000000000000000000010","#.as_slice(),

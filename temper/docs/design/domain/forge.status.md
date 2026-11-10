@@ -215,15 +215,24 @@ is withdrawn and the interval passes; the root's
 `src/tests/projection_room.rs` holds the step ending and the backstop's
 rows. Both are crate tables: no engine world story fills the outbox.
 
-Sections 8.1, 8.5, 11 and 11.1 have no known implementation gap in a
-goal's delivery through r. The six engine domain stories in
-`tests/engine/domain/tests/suite/forge_routes/goal_delivery.rs` cover
-merges into g while the goal runs, an early dependent, a second run,
-work r holds that g lacks, a new delivery under an open change, the merge
-job and resolution after the goal frees r's slot, and the goal's close.
-A change's close leaves r held by its goal; the goal's close deletes it.
-Coverage uses the fake forge. Section 20 keeps the default for deleting
-unlanded run work and the deferred saved-start case overtaken by a repair.
+Section 8.2, step 2 has no known implementation gap in a released opening
+hold: a change released from its branch moved or missing returns to opening
+unless its pull request is open, and no release resumes checking or gating
+without an open pull (`temper-engine-domain-forge-change/src/domain.rs`;
+`src/tests.rs`, `a_release_never_checks_or_gates_without_an_open_pull`); the
+forge world's `simulation::a_released_opening_move_on_a_requesters_branch_opens_before_ci`
+runs it on the fake forge.
+
+- **Not yet:** 8.1, 8.5, 11, 11.1, 11.3: a goal's runs push to its run
+  branch r, and a `"branch": "run"` change lands r into g; g records no
+  design writers, so a push to g by the goal's run would hold the goal as
+  drift and a landing change on g as "branch moved"; a goal's run prepared
+  before g is made and confirmed starts on the base, its run unable to
+  deliver (`temper-engine-domain-forge/src/items.rs`,
+  `task_workspace_item`) [in flight: change 98].
+- **Not yet:** 11.2: a closer whose land step's change ended cancelled or
+  failed holds without reading whether the base already holds the goal's
+  branch, and its release holds again on the same ended change.
 
 Section 8.4 has no known implementation gap in a resolution's files:
 its pull section carries a file whole, both sides, where it fits the

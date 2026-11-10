@@ -9,8 +9,8 @@ remains `per-wake.md`, section 11's open decision; the combined domain
 story's restart gap is in `../protocol/configuration.status.md`, 13.9.
 
 Section 4's delivery path and section 3's delivery and `after` ordering are carried by
-`../domain/agent.md`, 4.3 and 4.3.1, `../domain/forge.md`, 8.1, 8.5, 11
-and 11.1, `../domain/worker.md`, section 5, and jig's `domain/hosts.md`,
+`../domain/agent.md`, 4.3 and 4.3.1, `../domain/forge.md`, 8.1, 8.5, 11,
+11.1 and 11.3, `../domain/worker.md`, section 5, and jig's `domain/hosts.md`,
 section 8. The saved-start exception and remaining reference-workflow
 gaps are below.
 
@@ -42,11 +42,19 @@ section 11). The stock's figures stay as they are.
     2026-11-10 draft decides it: a model for judgement, code for
     mechanisms.
   - 4: a run resuming saved work starts from that saved tree, rather than
-    from g's current tip with r merged in (`../domain/forge.md`, 11.1
-    and 20; `../domain/worker.md`, sections 5 and 12). The goal-delivery
-    cut keeps the ordinary saved-work path to preserve parked edits.
-    If a repair or resolution has moved r since the save, delivery ends
-    stale; reconciliation remains deferred.
+    from g's current tip (`../domain/forge.md`, 11.3;
+    `../domain/worker.md`, sections 5 and 12), to preserve parked edits.
+    Its design delivery merges g's moved tip first, so it is never stale.
+  - 1, 4: the goal's runs deliver straight to g, as its design writers
+    (`../domain/forge.md`, 11.3), where section 4 has them deliver to
+    their run branch r and a `"branch": "run"` change land r into g: g is
+    written by change and by the goal's own design pushes, Markdown alone,
+    and code by change alone. On a deployment on 2026-11-10 that change
+    sat held 16 minutes for an r not yet delivered, and a coordinator that
+    found no delivery had a coding agent write its design again (goal 88's
+    request). Section 2's extra designers stay changes, their design
+    landed into g by pull request: only the goal's own runs push to g (the
+    user, 2026-11-10). The `"run"` form goes [in flight: change 98].
 - **Open:**
   - 6: whether the stock's window and output follow the reference's, to settle with the owner of `model-catalogue.md`. Until then they stay the stock's.
   - 10: a spec past one call, a foreman before a repair, what a

@@ -55,6 +55,14 @@ pub(crate) fn category(kind: &MessageKind) -> u8 {
 
 fn rule(domain: &Domain, number: u64, word: &Word) -> WakeRule {
     let task = record(domain, number).expect("inbox task live");
+    let live_run = match task.phase {
+        Phase::Active(Active::Claimed { .. } | Active::Running { .. }) => true,
+        Phase::Waiting
+        | Phase::Active(Active::Idle | Active::Due | Active::Preparing | Active::BackingOff { .. })
+        | Phase::Closing(_)
+        | Phase::Held { .. }
+        | Phase::Ended(_) => false,
+    };
     match &word.kind {
         MessageKind::Words => match word.from {
             Party::Person(_) => WakeRule::Immediate,
@@ -90,7 +98,9 @@ fn rule(domain: &Domain, number: u64, word: &Word) -> WakeRule {
         MessageKind::Result(result) => match task.wake.results {
             ResultsWake::Never => WakeRule::Never,
             ResultsWake::Each => WakeRule::Immediate,
-            ResultsWake::LastOrFailure => result_wake(result, task.delegates.is_empty() && !crate::closer::named(task)),
+            ResultsWake::LastOrFailure => {
+                result_wake(result, task.delegates.is_empty() && (live_run || !crate::closer::named(task)))
+            }
         },
         MessageKind::Notice { .. } => task.wake.notices,
         MessageKind::Timer { .. } => {
@@ -104,6 +114,23 @@ fn rule(domain: &Domain, number: u64, word: &Word) -> WakeRule {
             NewsClass::Wakes => task.wake.news,
             NewsClass::Kept | NewsClass::Dropped => WakeRule::Never,
         },
+    }
+}
+
+/// A live run hears results by its wake policy, without choosing another part
+/// (jig/docs/design/domain/tasks.md, 8.6). Refill judges waiting results again.
+pub(crate) fn offered(domain: &Domain, number: u64, word: &Word) -> bool {
+    let task = record(domain, number).expect("offered task live");
+    if crate::offered(word, task.offered) {
+        return true;
+    }
+    match word.kind.family() {
+        MessageFamily::Result => rule(domain, number, word) == WakeRule::Immediate,
+        MessageFamily::Spoken(_)
+        | MessageFamily::Hint(_)
+        | MessageFamily::Slot(_)
+        | MessageFamily::Separate(_)
+        | MessageFamily::Virtual => false,
     }
 }
 
@@ -267,7 +294,7 @@ pub(crate) fn after_message(
             activate(domain, number, out);
         }
         Phase::Active(Active::Claimed { attempt } | Active::Running { attempt }) => {
-            if !crate::offered(&word, row.offered) {
+            if !offered(domain, number, &word) {
                 return;
             }
             // A run behind its choice hears nothing more: the message starts the next run

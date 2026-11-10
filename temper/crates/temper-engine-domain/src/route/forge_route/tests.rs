@@ -1121,7 +1121,7 @@ fn a_goals_failed_reread_routes_a_resource_hold_with_its_cause() {
         task,
         attempt: 4,
         resource,
-        reason: b"forge policy refused the operation",
+        reason: Box::from(b"forge policy refused the operation".as_slice()),
     });
     let mut decision = super::Decision::decide(&mut domain.journal, &env.limits.journal);
     super::outputs(&mut domain, &env, &mut decision, &mut out);

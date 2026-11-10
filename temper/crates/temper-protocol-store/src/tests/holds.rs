@@ -101,13 +101,11 @@ fn answer_piece_words_read_their_full_fixtures() {
             (d::Answer::PullFiles { files, .. }, w::Answer::PullFiles(value)) => {
                 ("PullFilesAnswer.files", value.into_parts().files, Items::Files(files))
             }
-            (d::Answer::Compare { files, .. }, w::Answer::Compare(value)) => {
-                ("CompareAnswer.files", value.into_parts().files, Items::Files(files))
-            }
             (d::Answer::Checks(statuses), w::Answer::Checks(value)) => {
                 ("ChecksAnswer.statuses", value.into_parts().statuses, Items::Statuses(statuses))
             }
-            (d::Answer::Collaborators { .. }, w::Answer::Collaborators(_)) => continue,
+            (d::Answer::Compare { .. }, w::Answer::Compare(_))
+            | (d::Answer::Collaborators { .. }, w::Answer::Collaborators(_)) => continue,
             _ => panic!("matching full answer fixtures"),
         };
         rows.push(ItemRow { path, bytes, expected }).expect("one row per answer word");

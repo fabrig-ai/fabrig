@@ -1065,20 +1065,41 @@ refused `Busy`, an answer or a failure reaches the one read that asked
 for it, never a read of another kind or another party's.
 
 - **Containment needs only ancestry.** The landing decision reads
-  `Read::Range { before: head, after: base_tip }` (skein's `forge.md`,
-  3.2), tied to the head and base tip this step observed. A count of 0
-  proves the head contains that base tip; any other count disproves it,
-  however far behind the head is, and the change takes its base (8.2).
-  A failed read, or an answer whose `before` and `after` are not the
-  step's, leaves containment unknown and never permits a merge. A
-  catch-up's range, from its landing branch's tip to the commit it
-  takes, is read by the same rule (8.2, step 1). This read lists no
-  commit, changed file or file contents, so a goal's diff and forward
-  history do not bound its landing. After an update the proof is made
-  again at the new head (section 10). Every other containment the
-  connector asks is the same read: a landing's member holding its main
-  (`landing.md`), and a lost run's observed head holding the head it
-  was last known at, a move that is not forward being drift (8.5).
+  `Read::Commits { before: head, after: base_tip, page: 1 }`, tied to
+  the head and base tip this step observed. A complete empty reverse
+  range proves the head contains that base tip. Any commit the range
+  lists disproves it, whether or not more follow, and so does a range
+  the forge refuses as too large to list (`TooLarge`), which only a
+  range with commits in it can be: the head lacks the base's tip
+  however far behind it is, and the change takes its base (8.2). A
+  failed read otherwise, or an empty page that says more follow, leaves
+  containment unknown and never permits a merge. A catch-up's range,
+  from its landing branch's tip to the commit it takes, is read by the
+  same rule (8.2, step 1). This read collects no changed
+  files or file contents, so a goal's diff and forward history do not
+  bound its landing. After an update the proof is made again at the
+  new head (section 10).
+- **Every containment reader reads ancestry, never a comparison.** A
+  reader that needs only whether one commit contains another reads the
+  ancestry range by the rule above, never `Read::Compare`: `Read::Commits
+  { before: container, after: contained, page: 1 }`, the commits the
+  contained one has that the container lacks. On Forgejo that is one
+  comparison with `files=false` (skein's `forge.md`, 5.2), so a branch
+  however far ahead of and behind the other answers in a page, and no
+  file's name or side is read. Complete and empty, it is contained; a
+  range that lists a commit, whether or not more follow, or one the forge
+  refuses as too large to list, is not; any other failure, or an empty
+  page that says more follow, leaves it unknown. Its readers:
+  - **a landing's candidate,** whether its head contains main's tip
+    (`landing.md`, 5.2): `before` the head, `after` main's tip;
+    contained, the head is the candidate as it is; not contained, it is
+    prepared; unknown, the landing waits as it does for any fact it lacks;
+  - **a goal's closer,** whether its base holds the goal branch's tip
+    (11.2): `before` the base's tip, `after` the goal's tip;
+  - **a lost writer's reread,** whether the branch moved forward from the
+    head it last knew (11.1): `before` the observed head, `after` the
+    known one; contained, the move is forward; not contained, it is
+    drift; unknown, the reread fails as any failed reread does.
 - **CI on a commit** is read as its checks, skein's `Read::Checks`: the
   commit statuses and, on GitHub, the check runs, each a row with its
   context and verdict (skein's `forge.md`, 5.2; `forge-github.md`, 4.4),
@@ -1719,13 +1740,13 @@ LLM:
   prefix, or with none named, or when the overlap is unknown.
 
 The files are read from the forge (a pull request's files, or the
-comparison of the branch's old and new tips), cached per head and cut at
-a limit past which the overlap is unknown. Forgejo pages a pull
-request's files but answers a comparison whole
-(skein's `forge.md`, section 9): the protocol layer bounds the
-comparison's bytes, files and commits before the domain holds them, and
-a bound reached, an unusable answer or an uncertain completeness makes
-the overlap unknown and wakes every affected subscriber. A pull
+comparison of the branch's old and new tips, by names alone: skein's
+`forge.md`, 3.2 and 3.3), cached per head and cut at a limit past which
+the overlap is unknown. A comparison names at most `forge.client.rows`
+paths and counts the rest (`changed`): one that leaves a path out, an
+unusable answer or an uncertain completeness makes the overlap unknown
+and wakes every affected subscriber, and its paths are a landing's files
+for workflow discovery too (4.7). A pull
 request's pages count only while fresh reads before and after them name
 the same head; a head that moved voids the listing.
 
@@ -1742,9 +1763,8 @@ branch. Its parameters:
   `domain/tasks.md`, 6.4), or its own, named after its tree
   (section 11), which a producing task pushes; or, held by its
   requester and not by the task, its requester's held branch: the
-  requester's own goal branch (11.1), which the change lands whole, or
-  its own run branch (section 11), which the change lands as its
-  deliveries left it (below);
+  requester's own goal branch (11.1), which the change lands whole
+  (below);
 - **what to produce,** when nothing is pushed yet: the spec of its
   producing task, and its producer's charter, which its repairs,
   resolutions and checks' gates run under too: the one `change` names,
@@ -1854,11 +1874,11 @@ A goal across repositories is several change tasks, ordered by their
 dependencies: skein's change lands before temper's that bumps its lock.
 
 **A change on its requester's held branch** (`change`'s `"branch":
-"mine"` or `"run"`, `agent.md`, 4.3.1) is how a goal lands what it holds:
-the goal's landing, a change into the base whose branch is the goal's own
-(11.1); or what its runs delivered, a change whose branch is the goal's
-run branch, usually into g (11.1). It is an ordinary change, but for the
-branch:
+"mine"`, `agent.md`, 4.3.1) is how a goal lands what it holds: the
+goal's landing, a change into the base whose branch is the goal's own
+(11.1). What a goal's runs write needs no such change: they push it
+straight to the goal's branch (11.3). It is an ordinary change, but for
+the branch:
 
 - **No producing step,** as for a branch handed over: it starts at
   opening, its head the branch's tip as read then. Its pull request is
@@ -1884,11 +1904,9 @@ branch:
   leaves the branch its requester's, deleted or kept as its requester
   closes (section 11). Cancelled, its pull request is closed as any
   (8.6), and its requester may make another.
-- **Beside the run that made it:** a change on a run branch is made by a
-  run that goes on, its requester's run in the branch's writer slot. That
-  doesn't stop the change, which steps at the head it reads (8.5). A run
-  branch nothing has reached holds the change at its opening, as a branch
-  missing does (8.5), and its requester cancels it and makes another.
+- **Beside the run that made it:** the goal's own runs push design to
+  the branch while the change lives (11.3). That doesn't stop the change,
+  which steps at the head it reads (8.5).
 
 The question route is number parameter 14: 1 for `foreman`, 2 for `up`;
 absent means `none`. The root writes it only for `foreman` or `up`. Any
@@ -1966,7 +1984,13 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    at once with no change, its words saying so.
 2. **Opening:** its pull request into its landing branch, keyed by its
    branches, its body naming its goal's issue ("Part of
-   `ai/temper#12`").
+   `ai/temper#12`"). **No step past it without its pull:** CI runs on
+   pull requests, so a change reaches checking or gating only with its
+   pull request open. A change released from a hold at opening (its
+   branch moved or missing, 8.5) comes back to this step at the head it
+   then reads: it opens its pull request, or finds the one already open,
+   before it reads CI. A release of any other hold that finds no pull
+   request open does the same.
 3. **Checking:** CI runs on its head, where its landing branch's rules
    ask CI passed (8.7). A failure is a repair (8.4): a task given the
    failing output. A repository without CI is checked by its checks
@@ -2351,20 +2375,31 @@ delegate's terminal wakes it to offer the landed result.
   `absent after`. A named file takes its lines' room alone, so the files
   after it are carried as they fit. The charter's fit
   (`agent.md`, 4.3) can still cut the section's end, with its own line.
-  If the pull section's pinned comparison exceeds the forge client's answer
-  byte or row limit, the section keeps its pull identity and gathered content
-  and appends a comparison-omitted notice within its byte budget. This completes
-  the section; it does not retry the comparison or raise the client's limits.
-  Other comparison read failures are the section's read failures (below). The
-  same rule applies to the pull sections for reviews and repairs.
+  Its pinned comparison, of the head and the base it conflicts with, is by
+  names (skein's `forge.md`, 3.2 and 3.3), so a conflict however far its
+  branches have gone apart is compared: `What landed in the base: N
+  commits`, N its `ahead`; then each path it names, `Base file: PATH`,
+  followed by `Conflicting file: PATH` where the pull's own files name it
+  too; then, where it names fewer than its `changed`, `[K more base files
+  not listed: past forge.client.rows (R); read them in your checkout]`, K
+  what it left out and R the configured rows. A repair's comparison, from
+  its last clean head, reads the same. A review's says `Against base:`,
+  then its paths, then `[K more files not listed: past forge.client.rows
+  (R); read_pull_files lists them]`. Each line is appended where it fits
+  the section's room, so the section keeps what fits and names what it
+  left out. A comparison refused `TooLarge` keeps the section's pull
+  identity and gathered content and appends a comparison-omitted notice
+  within its byte budget. This completes the section; it does not retry
+  the comparison or raise the client's limits. Other comparison read
+  failures are the section's read failures (below). The same rule applies
+  to the pull sections for reviews and repairs.
   Likewise, if a page of the pull's files exceeds the forge client's answer
   byte or row limit (a page carries each of its files whole on both sides,
   skein's `forge.md`, 5.2, so one large document can pass it however small
   its change), the section keeps its pull identity, its gathered content and
   the pages before it, and appends a files-omitted notice within its byte
-  budget, naming that page and the tools that read its files
-  (`read_pull_files` from the next page, `read_file` for a path at the head
-  or the base). The section then goes on as after its last page, to its
+  budget, naming that page, its bound and the tools that read its files:
+  `[files omitted from page P: past BOUND; read_pull_files from page P+1 lists the rest, and read_file reads a path at the head or the base]`. The section then goes on as after its last page, to its
   comparison where it has one; it reads no later page of files and raises no
   limit. This holds for every pull section, a review's included, so a
   review of a small change to a large document starts.
@@ -2384,11 +2419,25 @@ delegate's terminal wakes it to offer the landed result.
   | an answer of another shape | permanent | `the forge answered another read` |
   | `Forbidden`, `NotInstalled` | permanent | `the forge forbids this read`, `the forge App is not installed` |
   | `Missing`, `MissingJob` | permanent | `the forge has no such object` |
-  | `TooLarge` | permanent | `the answer is past the client's limit` |
+  | `TooLarge` | permanent | `the answer is past BOUND`, in a bound's words (below) |
   | any other error | permanent | `the forge refused this read` |
   | no change for the pull, its identity past the section's bytes, or a title that fills them; no repository for a home-access reason | permanent | `the change cannot be named in its section` |
   | failed checks whose heads do not fit their section | permanent | `the failed checks do not fit their section` |
   | a section the plan gave wrong bounds, or the connector no longer holds | permanent | `the connector cannot hold this section` |
+
+- **A bound's words.** A `TooLarge` is named by its `Excess` (skein's
+  `forge.md`, 3.4), in the same words wherever temper writes it: a
+  brief's notices and its REASON above, a host tool's refusal
+  (`agent.md`, 4.3) and the log's `brief read refused` line. BOUND is
+  `forge.client.rows (LIMIT): SIZE rows`, `forge.client.answer_bytes
+  (LIMIT): SIZE bytes` or `forge.client.op_bytes (LIMIT): SIZE bytes`,
+  SIZE read `at least SIZE` where the size is not exact; `a bound of the
+  forge's (LIMIT): SIZE` for `Forge`, or `a bound of the forge's` where it
+  holds no figure; and `an unnamed bound` for `Unnamed`. LIMIT is the
+  configured figure the client refused at, so the words agree with the
+  configuration (`../protocol/configuration.md`, section 7), as in
+  `the answer is past forge.client.rows (8): 22 rows`. A pull section's
+  comparison-omitted notice reads `[comparison omitted: past BOUND]`.
 
   A repair's two forge sections, its pull section and its reason (CI's or
   reviews'), are a pair, and each can stand without the other: the agent has
@@ -2537,7 +2586,8 @@ the change reads the head afresh once the slot is freed. Otherwise:
   project's turn, the rewrite its own prepare made is the change's: the
   forge's rebase (`landing.md`, 5.2) or a prepare job's delivery
   (`worker.md`, 4.4). A release
-  takes the new head as the change's and checks it, gates asked again.
+  takes the new head as the change's and checks it, gates asked again,
+  its pull request opened first where none is open (8.2, step 2).
 - **Its branch deleted:** held. A release creates the branch again at
   the head temper last knew, which the forge keeps under the pull
   request, and reopens the pull request.
@@ -2562,14 +2612,14 @@ released, and the release takes the head as it then is, checked again.
 A move with no writer of its requester's subtree in the slot, by
 another identity, or not forward, is drift, as above.
 
-**Its requester's own run in the slot** (a goal's run, on its run branch:
-11.1) is the one writer the change doesn't wait for. A forward move by
-temper's identity is that run's delivery, and the change's new head as it
-reads it, checked again as above, while the run goes on; a move by another
-identity, or not forward, is drift. The change's own delegates, its repairs,
-its resolution and its merge job, wait for the slot as any claim does (jig's
-`domain/tasks.md`, 6.3), until that run answers, parks included. So do its
-updates. The change's stall counts that wait.
+**Its requester's own runs** (a goal's design writers, 11.3) are writers
+the change doesn't wait for: they take no writer slot of the branch. A
+forward move by temper's identity while one lives is that run's design
+push, and the change's new head as it reads it, checked again as above,
+while the run goes on, never "branch moved"; a move by another identity,
+or not forward, is drift. The change's own delegates, its repairs, its
+resolution and its merge job, take the slot as any claim does (jig's
+`domain/tasks.md`, 6.3), beside the design writer.
 
 Nothing is written over: a held change makes no effect until it is
 released. A drift is the change's to judge: what the forge says of a
@@ -3594,11 +3644,12 @@ instead (`landing.md`, section 5).
   - a goal's own branch: `temper/<root>/g<task>`, the goal's number, in
     its project's home, held by the goal (11.1);
   - an agent's task's own branch, for runs that push outside a change,
-    as a chat making a small fix does and a goal's runs do:
+    as a chat making a small fix does:
     `temper/<root>/r<task>`, in each repository its runs may write, the
     project's home among them, which the task holds from the commit that
-    makes it. A chat hands it to the change task that lands it; a goal
-    keeps it, and a change on it lands what it holds (8.1, 11.1).
+    makes it. A chat hands it to the change task that lands it. A goal's
+    runs push to its goal branch instead (11.3): a goal holding a run
+    branch has nothing push it, and its close deletes it as below.
 
   A task made before its project's home was adopted holds no run branch
   there: its runs read the home without pushing, and its brief says why.
@@ -3618,7 +3669,8 @@ instead (`landing.md`, section 5).
   once it has its number (jig's `domain/authority.md`, section 4).
 - **Held by the task it is named after,** a change's by the change that
   lands it, a goal's own by its goal, and written by its delegates one
-  at a time (jig's `domain/tasks.md`, 6.3).
+  at a time (jig's `domain/tasks.md`, 6.3); a goal's own is written by
+  its own runs too, beside them (11.3).
 - **Landing branches are never made by a push.** A landing branch must
   exist when it is adopted or named; a goal's own branch (11.1) is made
   at its base's tip as its goal's hold is taken, as the taking's effect
@@ -3633,10 +3685,9 @@ instead (`landing.md`, section 5).
   read, until deleted by hand or by the deployment's retention. A change
   on its requester's held branch (8.1) holds no branch and deletes none
   as it closes: the goal's landing leaves its goal's branch to the
-  goal's own close, and a change on a run branch leaves it to its goal. A
-  goal's run branch goes as its goal closes, what it holds that g lacks
-  with it (section 20). A release waits for a lost
-  writer's reread, and fails only if that reread fails.
+  goal's own close. A goal's run branch goes as its goal closes. A
+  release waits for a lost writer's reread, and fails only if that
+  reread fails.
 
 A goal's release recognises its branch as landed from a change in the same
 repository on that branch, in landed, red, cleared or uncleared state, whose
@@ -3683,32 +3734,27 @@ own, never a change's:
   refuses, and made at the home's default branch's tip as the hold is
   taken, as the taking's effect. A making that fails for good holds the
   goal, its words naming the branch and what the forge answered.
-- **Written by change alone:** each of the goal's changes lands into it
-  as its landing branch. An ordinary `change` call from the goal or its
+- **Written by change, and by the goal's design:** each of the goal's
+  changes lands into it as its landing branch, and the goal's own runs
+  push their design and status documents to it (11.3); code reaches it
+  by change alone. An ordinary `change` call from the goal or its
   subtree defaults to the nearest applicable held goal branch; an explicit
   destination outside it refuses the whole call before delegation. This
   also holds for every member of a batch. The deliberate `"branch": "mine"`
   change lands that held branch whole into the base instead (8.1).
   Each child merge is ordered by the branch's queue (section
   9) and takes the branch's writer slot while in flight; the goal's own
-  runs read it and take no writer slot of it (jig's `domain/tasks.md`, 6.3),
+  runs take no writer slot of it (jig's `domain/tasks.md`, 6.3; 11.3),
   so merges into it go on while they run.
   A change whose landing branch is a goal's own, made by a task that is
   neither that goal nor one of its subtree, is refused at its batch,
   naming the goal.
-- **What a goal writes goes by its run branch,** where its charter's
-  `modify` is set (`agent.md`, 4.3). Its run pushes to its own run branch
-  (section 11), taking that branch's writer slot and never g's. A change
-  with `"branch": "run"` lands what that branch holds into g, by g's queue,
-  like any change (8.1), and a conflict goes to the merge job and a
-  resolution. A change `after` it starts early on the branch's pushed head
-  (8.11). The first run starts at g's tip; with the run branch at a head, a
-  later run starts from g's tip with that head merged in (`worker.md`,
-  section 5), so its delivery fast-forwards the run branch: a head g holds
-  is no merge, one that merges cleanly is committed before the run starts,
-  and a conflict is left in its checkout for it to settle. A run resuming
-  saved work starts from it, as any does. A charter without `modify` leaves
-  its goal's run to inspect its confirmed branch, as it starts there.
+- **What a goal writes goes straight to g,** where its charter's
+  `modify` is set (`agent.md`, 4.3): its runs are g's design writers
+  (11.3), and `deliver` pushes their design to g, at any point in a run
+  and as often as it likes, with no change to land it. A charter without
+  `modify` leaves its goal's run to inspect its confirmed branch, as it
+  starts there.
 - **Landed whole** by a change into the base whose branch is the goal's
   own: made by the goal's closer (11.2) where the goal is ended by one,
   and otherwise by the goal on its held branch (8.1); and deleted as the
@@ -3779,6 +3825,16 @@ section 6).
   words naming the step and the change, which escalates to the goal:
   its release makes the step's change again, and its cancel ends the
   closer, the goal's branch kept.
+- **A landing that ended is never the end.** When the land step's
+  change ends cancelled or failed, the closer first reads afresh
+  whether the base holds the goal's branch (the land step's own test,
+  above): where it does, someone or something landed it meanwhile, and
+  the closer goes on to report, its landing part `The landing: none,
+  its base already held the goal's branch.`; where it does not, it
+  holds as above. Its release reads that again, and either reports or
+  makes a new landing change, never holding again on the landing that
+  ended: a hold names a change still to be made, never one that has
+  ended.
 - **New work waits for, and reopens, the steps.** A change the goal
   makes while its closer lives is the closer's dependency (jig's
   `domain/tasks.md`, 5.10). The closer, kept, makes no new step while it
@@ -3791,6 +3847,17 @@ section 6).
   reports.
 - **Never a catch-up:** the closer makes none, and nor does a goal it
   ends (11.1).
+- **Whether the base holds the goal's tip** is read afresh before a land
+  step is made and before the closer reports: the goal branch's tip, or
+  the merge a squash landing recorded for it, against the base's tip,
+  by the ancestry range (5.3, every containment reader), so a goal
+  branch far ahead of and behind its base still lands. Contained, the
+  land step is skipped; not contained, it is made. Unknown, the closer
+  makes no step and reads again after a wait: `forge.client.backoff`
+  first, doubled after each unknown in a row, capped at
+  `forge.client.poll_max`, as the client's own reads and polls back off
+  (skein's `forge-client.md`, sections 4 and 5). A known answer ends the
+  run of waits, and a restart starts it again from `backoff`.
 
 **The report.** The closer's result, a report in the words of the
 goal's contract, from what the store and the forge already hold, each
@@ -3849,6 +3916,68 @@ CI selection:
   bytes cut]`; then, if it still passes, the report keeps its first
   bytes that fit, at a UTF-8 boundary, and ends with `[N bytes cut]`,
   N what it dropped.
+
+### 11.3 A goal's design writers
+
+A goal's design goes straight to its goal branch. A run of the goal
+whose charter sets `modify`, its goal branch made, confirmed and
+undrifted, is a **design writer** of it: its workspace starts at g's tip
+(or its saved work, or, where its run branch holds a head g lacks, g's
+tip with that head merged in) and names g as both its push branch and
+its landing branch, which the worker takes as a design delivery
+(`worker.md`, section 5): Markdown only, g's moved tip merged first, a
+fast-forward never forced. Its repository's other writes are as before.
+
+- **Its first run among them.** A goal's run prepared while its goal
+  branch is still being made (the taking's effect in flight, jig's
+  `domain/connectors.md`, 4.7) or not yet confirmed (its head not yet
+  recorded as temper's own) waits, as a write into a branch still being
+  made does, and starts once g is made and confirmed, at g's tip, a
+  design writer like any later run. A modifying goal holding g never
+  starts on its base or with its workspace's writes read-only, so its
+  first run can deliver the first wave's design before it cuts its
+  changes. A making that fails for good holds the goal (11.1); a drifted
+  g holds it (8.5), and its run starts once a release settles it.
+- **How it calls it:** smith's `deliver`, with a `title` and a `body`
+  as a change's delivery has them, at any point in its run and as often
+  as it likes; the project's checks run at it (`agent.md`, section 6).
+  It answers a delivery's receipt, `pushed <head> to branch <g>; your
+  checkout stays detached, as expected`, or, where g had moved, `pushed
+  <head> to branch <g>, merging its tip <tip> first; ...`; or a refusal
+  the run settles and delivers again: a path that isn't Markdown, named,
+  since code goes through `change`; files in conflict with g's moved
+  tip, named, the merge left in its checkout; g kept moving. It is never
+  stale, and a `save` there pushes nothing and is refused.
+- **No writer slot.** A design writer takes no writer slot of g (jig's
+  `domain/tasks.md`, 6.3): g's hold keeps its design writers beside its
+  slot, each a run's attempt, so merges into g, a landing's repairs and
+  the goal's other writers go on while it runs. The hold keeps them with
+  it in the store, so a restart keeps them.
+- **Its pushes are g's own.** While g has a design writer, a forward
+  move by temper's identity is that writer's push, never drift, as
+  while any writer holds a branch (8.5); a move by another identity, or
+  not forward, is drift as before. When the design writer's run
+  answers, or its attempt is lost, g is read afresh, as a lost writer's
+  branch is (section 11): a tip that descends from the head temper last
+  knew becomes g's recorded head, as the branch's own; one that does not
+  is drift. What the run reports pushing is not taken as the head, since
+  merges land beside it.
+- **Written while any writes it.** The forge's keep counts g as written
+  while a design writer lives, a run holds its slot, or a merge into it
+  is in flight; each of them ending leaves g written while another
+  stands.
+- **Changes on g take it.** A change on g (the goal's landing,
+  `"branch": "mine"`, the closer's land step) treats a live design
+  writer as its requester's own run (8.5): a forward move is its new
+  head, checked again, never "branch moved".
+- **Its brief says so**: one line, that `deliver` pushes the
+  checkout's Markdown straight to the goal branch, merging its moved tip
+  first, and that code goes through `change`.
+- **The goal's own runs alone.** A designer the goal makes besides
+  itself stays a change (`../draft/goal-as-designer.md`, section 2): its
+  producer delivers its change's branch, and its design reaches g by
+  that change's pull request, as any change's does. A push to g from
+  anywhere but a design writer holds as drift (8.5).
 
 ## 12. Issues
 
@@ -4282,24 +4411,6 @@ whole.
   belongs beside the owned-Forgejo domain story, then a real person's
   review in the live tier (`testing.md`, section 11). Default: lower
   setup, link and review checks establish those separate pieces alone.
-- **A forge read past its bound** (8.4): distinguishing
-  `forge.client.rows` from `forge.client.answer_bytes`, with the measured
-  size, needs skein's bare `TooLarge` to carry the bound and an exact or
-  lower-bound measure, then temper's stored answer to retain them.
-  Those public-interface and stored-format decisions belong to their
-  owners. Default: keep the files-omitted notice and the tool's unknown
-  measure; neither raise the room nor split a file across pages. A host
-  answer's rendered-size bound is separate from the forge client's bound.
-- **A goal closing with a run branch g lacks** (section 11): the branch goes
-  with its goal, what it held with it. A goal's own branch is kept where no
-  change landed it. Retaining unlanded run work on close would need a
-  retention rule of its own. Default: the run branch goes.
-- **A saved start a change overtook** (11.1): a goal's run that parked with
-  edits resumes from them. If a repair or a resolution has since moved the run
-  branch, its delivery finds the branch moved and the run ends stale, and its
-  next run resumes from the same saved tree. Recovery from this case, with
-  a parked edit and a live change's repair on one branch, is left for later.
-  Default: the stale end and the saved tree remain.
 - **Saved branches outside the task's saved set** (11): a terminal the
   engine never heard, a repository no longer in the set, or full holds at
   close can leave a branch on the forge. Finding these needs a branch

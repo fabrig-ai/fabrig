@@ -1,5 +1,6 @@
 //! Read refusals, transport failures and table invalidation (forge-github.md, 7).
 use super::tables::Tables;
+use crate::api::Excess;
 pub use crate::plan::transport;
 use crate::{
     api,
@@ -34,7 +35,7 @@ pub fn read(
 #[must_use]
 pub fn malformed(malformed: Malformed) -> api::Error {
     match malformed {
-        Malformed::Bound { .. } => api::Error::TooLarge,
+        Malformed::Bound { .. } => api::Error::TooLarge(Excess::unnamed()),
         Malformed::Json(_)
         | Malformed::Shape { .. }
         | Malformed::Missing { .. }

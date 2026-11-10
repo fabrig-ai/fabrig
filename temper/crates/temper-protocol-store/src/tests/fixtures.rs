@@ -495,7 +495,7 @@ pub fn conditions() -> [skein_forge_client::Condition; 4] {
     ]
 }
 
-pub fn errors() -> [(skein_forge::api::Error, u8); 18] {
+pub fn errors() -> [(skein_forge::api::Error, u8); 23] {
     use skein_forge::api::Error;
     [
         (Error::Unavailable, 0),
@@ -504,7 +504,19 @@ pub fn errors() -> [(skein_forge::api::Error, u8); 18] {
         (Error::Forbidden, 3),
         (Error::Missing, 4),
         (Error::MissingJob, 5),
-        (Error::TooLarge, 6),
+        (Error::TooLarge(skein_forge::api::Excess::unnamed()), 6),
+        (Error::TooLarge(skein_forge::api::Excess::exact(skein_forge::api::Bound::OpBytes, 32, 44)), 6),
+        (Error::TooLarge(skein_forge::api::Excess::at_least(skein_forge::api::Bound::AnswerBytes, 65_536, 70_000)), 6),
+        (Error::TooLarge(skein_forge::api::Excess::exact(skein_forge::api::Bound::Rows, 8, 9)), 6),
+        (
+            Error::TooLarge(skein_forge::api::Excess::exact(
+                skein_forge::api::Bound::Forge,
+                u64::from(u32::MAX),
+                1_u64 << 32,
+            )),
+            6,
+        ),
+        (Error::TooLarge(skein_forge::api::Excess::at_least(skein_forge::api::Bound::Forge, 0, 0)), 6),
         (Error::Empty, 7),
         (Error::Full, 8),
         (Error::Exists, 9),
@@ -730,12 +742,10 @@ pub fn remaining_answers() -> [skein_forge::api::Answer; 6] {
         Answer::Compare {
             before: [9; 32],
             after: [10; 32],
-            contains_before: true,
-            files: Box::new([
-                file(),
-                skein_forge::api::File { path: Box::new([11]), before: Some(Box::new([12])), after: None },
-            ]),
-            commits: Box::new([[13; 32], [14; 32]]),
+            files: Box::new([file().path, Box::new([11])]),
+            ahead: 22,
+            behind: 3,
+            changed: 12,
         },
         Answer::Checks(Box::new([status(), skein_forge::api::Status { job: None, ..status() }])),
         Answer::Collaborators {

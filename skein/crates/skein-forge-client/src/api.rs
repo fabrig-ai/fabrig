@@ -490,8 +490,8 @@ fn observed_head(answer: &Answer) -> Option<Commit> {
 }
 fn compared(answer: &Answer, before: Commit, after: Commit) -> bool {
     match answer {
-        Answer::Compare { before: observed_before, after: observed_after, .. } => {
-            *observed_before == before && *observed_after == after
+        Answer::Compare { before: observed_before, after: observed_after, files, changed, .. } => {
+            *observed_before == before && *observed_after == after && len_u64(files.len()) <= *changed
         }
         Answer::Items { .. }
         | Answer::Runs { .. }

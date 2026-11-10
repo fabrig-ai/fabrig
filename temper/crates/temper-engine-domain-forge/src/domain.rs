@@ -659,19 +659,27 @@ impl Domain {
                 .key(&config.namespace, l.client.op_bytes)
                 .is_none()
         {
-            return Err(skein_forge::api::Error::TooLarge);
+            return Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()));
         }
         let (configured, forge_number) = crate::forges::document(l.forges, forges)?;
         let mut credentials = Map::with_capacity(l.forges);
         for identity in identities {
             if credentials.insert(identity.forge, identity.credential).is_err() {
-                return Err(skein_forge::api::Error::TooLarge);
+                return Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::at_least(
+                    skein_forge::api::Bound::Forge,
+                    u64::from(l.forges),
+                    u64::from(credentials.len()).saturating_add(1),
+                )));
             }
         }
         let mut writers = Map::with_capacity(l.client.repositories);
         for writer in &config.writers {
             if writers.insert(writer.forge, writer.author).is_err() {
-                return Err(skein_forge::api::Error::TooLarge);
+                return Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::at_least(
+                    skein_forge::api::Bound::Forge,
+                    u64::from(l.client.repositories),
+                    u64::from(writers.len()).saturating_add(1),
+                )));
             }
         }
         Ok(Domain {
@@ -708,7 +716,11 @@ impl Domain {
             connect: crate::connect::State::new(l.applications),
             installations: Map::with_capacity(l.client.rows),
             repositories: Map::with_capacity(l.repositories),
-            names: Map::with_capacity(l.tasks.checked_add(l.repositories).ok_or(skein_forge::api::Error::TooLarge)?),
+            names: Map::with_capacity(
+                l.tasks
+                    .checked_add(l.repositories)
+                    .ok_or(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()))?,
+            ),
             holds: Map::with_capacity(l.holds),
             subscriptions: Map::with_capacity(l.subscriptions),
             goal_files: Map::with_capacity(l.changes),
@@ -750,7 +762,10 @@ impl Domain {
             landing: crate::landing::State::new(l),
             tier_ops: crate::tiers::State::new(l),
             tiers: Map::with_capacity(l.repositories.checked_mul(l.tiers.tiers).expect("checked tier capacity")),
-            setting_rows: Map::with_capacity(crate::settings::rows(l).ok_or(skein_forge::api::Error::TooLarge)?),
+            setting_rows: Map::with_capacity(
+                crate::settings::rows(l)
+                    .ok_or(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()))?,
+            ),
             setting_stock: None,
             held_rules: empty_rules(l),
             held_charters: crate::ForgeCharters { change: 0, review: 0 },
@@ -773,7 +788,11 @@ impl Domain {
             close_kind: None,
             projection_due: Map::with_capacity(l.issues),
             full_outbox_met: false,
-            change_due: Map::with_capacity(l.changes.checked_add(l.tasks).ok_or(skein_forge::api::Error::TooLarge)?),
+            change_due: Map::with_capacity(
+                l.changes
+                    .checked_add(l.tasks)
+                    .ok_or(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()))?,
+            ),
             procedure_wakes: Map::with_capacity(l.changes),
             settling: Map::with_capacity(l.changes),
         })
@@ -1534,7 +1553,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         }
         Event::GatherPlanned { section, parts, bytes, ci_budget, deadline } => {
             let Some(planned) = d.brief_planned.remove(&section) else {
-                out.push(Request::BriefSized { section, size: Err(crate::brief_words::BOUNDS) });
+                out.push(Request::BriefSized { section, size: Err(crate::brief_words::bounds()) });
                 return;
             };
             let source = planned.source;
@@ -1990,7 +2009,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 } else if d.capabilities.contains_key(&owner) {
                     crate::capabilities::answered(d, env, owner, result, out);
                 } else if d.brief_fetches.contains_key(&owner) || d.document_fetches.contains_key(&owner) {
-                    brief::brief_answer(d, owner, result, out);
+                    brief::brief_answer(d, owner, result, env.limits.client.rows, out);
                 } else if d.adoptions.contains_key(&owner) {
                     adoption::adoption_read(d, env, owner, result, out);
                 } else if d.landings.contains_key(&owner) {
@@ -2640,7 +2659,7 @@ fn lost(d: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, out: &mut Qu
     }
 }
 
-/// Ask one waiting lost writer's read again: its branch, or the comparison
+/// Ask one waiting lost writer's read again: its branch, or the ancestry
 /// of the head it found with the head the forge last knew.
 fn ask_lost_again(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let mut waiting = None;
@@ -2659,7 +2678,9 @@ fn ask_lost_again(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let comparison = pending.comparison;
     let Some(resource) = to_client(&pending.name, &env.limits) else { return };
     let read = match (comparison, resource.what) {
-        (Some((before, after)), _) => skein_forge::api::Read::Compare { before, after },
+        (Some((baseline, observed)), _) => {
+            skein_forge::api::Read::Commits { before: observed, after: baseline, page: 1 }
+        }
         (None, skein_forge_client::What::Branch(branch)) => skein_forge::api::Read::Branch { branch },
         (
             None,
@@ -2725,7 +2746,7 @@ fn lost_read(
                     skein_forge_client::Event::Read {
                         owner,
                         repository: resource.repository,
-                        read: skein_forge::api::Read::Compare { before, after: commit },
+                        read: skein_forge::api::Read::Commits { before: commit, after: before, page: 1 },
                     },
                     out,
                 );
@@ -2733,18 +2754,31 @@ fn lost_read(
             }
             Some(commit)
         }
-        (
-            Some((expected_before, expected_after)),
-            Ok(skein_forge::api::Answer::Compare { before, after, contains_before, .. }),
-        ) if before == expected_before && after == expected_after => {
-            if !contains_before {
-                drift(
+        (Some((before, after)), result) => {
+            let error = match &result {
+                Err(error) => *error,
+                Ok(_) => skein_forge::api::Error::InvalidAnswer,
+            };
+            match ancestry_status(result) {
+                change::Status::Passed => {}
+                change::Status::Failed => drift(
                     d,
                     env,
                     resource.clone(),
                     crate::DriftChange::Branch { expected: before, observed: Some(after) },
                     out,
-                );
+                ),
+                change::Status::Unknown | change::Status::Pending => {
+                    lost_failed(
+                        d,
+                        pending.task,
+                        pending.attempt,
+                        &pending.name,
+                        &crate::effect_words::error_words(error),
+                        out,
+                    );
+                    return;
+                }
             }
             Some(after)
         }
@@ -2761,7 +2795,7 @@ fn lost_read(
                 Ok(_) => skein_forge::api::Error::InvalidAnswer,
                 Err(error) => error,
             };
-            lost_failed(d, pending.task, pending.attempt, &pending.name, crate::effect_words::error_words(error), out);
+            lost_failed(d, pending.task, pending.attempt, &pending.name, &crate::effect_words::error_words(error), out);
             return;
         }
     };
@@ -2799,9 +2833,9 @@ fn lost_read(
     lost_release(d, &pending.name, false, out);
 }
 
-fn lost_failed(d: &Domain, task: u64, attempt: u64, name: &Name, reason: &'static [u8], out: &mut Queue<Request>) {
+fn lost_failed(d: &Domain, task: u64, attempt: u64, name: &Name, reason: &[u8], out: &mut Queue<Request>) {
     lost_release(d, name, true, out);
-    emit(out, Request::LostReadFailed { task, attempt, resource: name.clone(), reason });
+    emit(out, Request::LostReadFailed { task, attempt, resource: name.clone(), reason: Box::from(reason) });
 }
 
 /// Wake the holder's existing release after its lost writer's reread ends.
@@ -3520,7 +3554,7 @@ fn status(ci: skein_forge::api::Ci) -> change::Status {
 
 // Any listed commit, or a range too large to list, disproves containment
 // (temper/docs/design/domain/forge.md, 5.3).
-fn ancestry_status(result: Result<skein_forge::api::Answer, skein_forge::api::Error>) -> change::Status {
+pub(crate) fn ancestry_status(result: Result<skein_forge::api::Answer, skein_forge::api::Error>) -> change::Status {
     match result {
         Ok(skein_forge::api::Answer::Commits { commits, more }) => {
             if !commits.is_empty() {
@@ -3531,7 +3565,7 @@ fn ancestry_status(result: Result<skein_forge::api::Answer, skein_forge::api::Er
                 change::Status::Passed
             }
         }
-        Err(skein_forge::api::Error::TooLarge) => change::Status::Failed,
+        Err(skein_forge::api::Error::TooLarge(_)) => change::Status::Failed,
         Ok(_) | Err(_) => change::Status::Unknown,
     }
 }
@@ -6012,14 +6046,10 @@ fn landing_read(
 ) {
     let Some(pending) = d.landings.remove(&owner) else { return };
     let files = match result {
-        Ok(skein_forge::api::Answer::Compare { before, after, files, commits: _, contains_before: _ })
-            if before == pending.before && after == pending.after =>
+        Ok(skein_forge::api::Answer::Compare { before, after, files, changed, .. })
+            if before == pending.before && after == pending.after && skein_lib::len_u64(files.len()) == changed =>
         {
-            let mut names = List::with_capacity(u32::try_from(files.len()).unwrap_or(u32::MAX));
-            for file in files {
-                names.push(file.path).expect("sized from bounded comparison");
-            }
-            Some(names.into_boxed())
+            Some(files)
         }
         Ok(_) | Err(_) => None,
     };

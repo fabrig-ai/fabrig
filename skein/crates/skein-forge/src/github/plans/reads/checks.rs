@@ -1,5 +1,6 @@
 //! Status pages, run pages, then sequential failed Actions jobs (forge-github.md, 4.1).
 use super::{Bounds, Plan, Read, Response, Stage, Step, api, document, pulls::RUN_PAGES, size};
+use crate::api::Excess;
 use crate::{
     github::{plans::reading, request::Request},
     measure,
@@ -100,24 +101,42 @@ impl Plan {
             | document::Row::Entry { .. }
             | document::Row::File(_) => return Err(api::Error::InvalidAnswer),
         };
-        self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge)?;
+        self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if self.count > self.limit || self.checks.statuses.len() >= bounds.rows {
-            return Err(api::Error::TooLarge);
+            let excess = if self.checks.statuses.len() >= bounds.rows {
+                Excess::at_least(
+                    api::Bound::Rows,
+                    u64::from(bounds.rows),
+                    u64::from(self.checks.statuses.len()).saturating_add(1),
+                )
+            } else {
+                Excess::at_least(api::Bound::Forge, u64::from(self.limit), u64::from(self.count))
+            };
+            return Err(api::Error::TooLarge(excess));
         }
         let mut total = self
             .size
-            .checked_add(u64::try_from(measure::STATUS_BYTES).ok().ok_or(api::Error::TooLarge)?)
-            .ok_or(api::Error::TooLarge)?;
+            .checked_add(u64::try_from(measure::STATUS_BYTES).ok().ok_or(api::Error::TooLarge(Excess::unnamed()))?)
+            .ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         for bytes in [&status.context, &status.description, &status.url] {
-            total = total.checked_add(len_u64(bytes.len())).ok_or(api::Error::TooLarge)?;
+            total = total.checked_add(len_u64(bytes.len())).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         }
         if total > u64::from(bounds.answer_bytes) {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(Excess {
+                bound: api::Bound::AnswerBytes,
+                limit: u64::from(bounds.answer_bytes),
+                size: total,
+                exact: false,
+            }));
         }
         if let Some(id) = job {
-            self.checks.jobs.push((self.checks.statuses.len(), id)).ok().ok_or(api::Error::TooLarge)?;
+            self.checks
+                .jobs
+                .push((self.checks.statuses.len(), id))
+                .ok()
+                .ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         }
-        self.checks.statuses.push(status).ok().ok_or(api::Error::TooLarge)?;
+        self.checks.statuses.push(status).ok().ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         self.size = total;
         Ok(())
     }
@@ -179,9 +198,9 @@ impl Plan {
         if next {
             // Each complete listing, including empty linked pages, is capped at Pull's 50 pages.
             if self.page >= RUN_PAGES {
-                return Err(api::Error::TooLarge);
+                return Err(api::Error::TooLarge(Excess::unnamed()));
             }
-            self.page = self.page.checked_add(1).ok_or(api::Error::TooLarge)?;
+            self.page = self.page.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         }
         Ok(next)
     }
@@ -225,7 +244,7 @@ impl Plan {
         }
         let status = self.checks.statuses.get_mut(*index).ok_or(api::Error::InvalidAnswer)?;
         status.job = Some(api::JobAttempt { head: commit, run: job.run, job: job.id, attempt: job.attempt });
-        self.checks.job = self.checks.job.checked_add(1).ok_or(api::Error::TooLarge)?;
+        self.checks.job = self.checks.job.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         self.checks_jobs_or_answer(bounds)
     }
 }

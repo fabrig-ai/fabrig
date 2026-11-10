@@ -442,7 +442,7 @@ fn route_now(
             domain.now.push(crate::Request::Now(value));
         }
         core::Now::BriefCorePlanned { task, sections, .. } => {
-            if let Some(failure) = domain.scripted_brief_failure {
+            if let Some(failure) = domain.scripted_brief_failure.clone() {
                 work.push(Work::Core(core::Event::BriefAssembled { task, failure: Some(failure) }));
                 return;
             }

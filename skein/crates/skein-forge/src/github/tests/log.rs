@@ -138,7 +138,9 @@ fn log_cursor_accepts_128_printable_bytes_and_refuses_long_or_unprintable_values
 fn log_listing_past_inner_is_too_large() {
     let (_, result) = decode(Kind::LogRows, &list(PING, limits().inner + 1), 7, &limits());
     assert_eq!(result, Err(Malformed::Bound { field: b"deliveries" }));
-    assert_eq!(page(Ask::First { validator: None }, head(None), &list(PING, 5)), Err(api::Error::TooLarge));
+    let Err(api::Error::TooLarge(_)) = page(Ask::First { validator: None }, head(None), &list(PING, 5)) else {
+        panic!("expected a typed size refusal");
+    };
 }
 #[test]
 fn log_requests_use_the_jwt_and_only_next_pages_have_a_cursor() {
@@ -274,14 +276,17 @@ fn logged_delivery_checks_event_agreement_and_payload_bound() {
     let mut small = limits();
     small.json.length = u32::try_from(input.len()).unwrap() - 1;
     let error = logged(b"issues", &input, 1, &small).1.unwrap_err();
-    assert_eq!(crate::github::plans::failure::malformed(error), api::Error::TooLarge);
+    let api::Error::TooLarge(_) = crate::github::plans::failure::malformed(error) else {
+        panic!("expected a typed size refusal");
+    };
     let mut plan = LogDelivery::new(1, copy_of(b"issues"));
     plan.begin(bounds()).unwrap();
     plan.heard(Heard::Head { status: 200, head: Head::new() }, bounds()).unwrap();
-    assert_eq!(
-        plan.heard(Heard::Done(Body::Malformed(error)), bounds()).unwrap(),
-        Some(Step::Done(Err(api::Error::TooLarge)))
-    );
+    let Some(Step::Done(Err(api::Error::TooLarge(_)))) =
+        plan.heard(Heard::Done(Body::Malformed(error)), bounds()).unwrap()
+    else {
+        panic!("expected a typed size refusal");
+    };
 }
 #[test]
 fn logged_unhinted_event_is_other() {
