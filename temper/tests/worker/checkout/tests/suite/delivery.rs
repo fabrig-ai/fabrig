@@ -188,3 +188,39 @@ fn an_unpushed_second_parent_refuses_a_staged_or_committed_merge() {
         }
     }
 }
+
+
+#[test]
+fn a_design_delivery_fast_forwards_g() {
+    temper_worker_checkout_world::merges::design_fast_forward();
+}
+
+#[test]
+fn a_design_delivery_merges_gs_moved_tip_before_pushing() {
+    temper_worker_checkout_world::merges::design_clean_move();
+}
+
+#[test]
+fn a_design_delivery_leaves_a_conflict_to_settle_and_deliver_again() {
+    temper_worker_checkout_world::merges::design_conflicting_move();
+}
+
+#[test]
+fn a_design_delivery_refuses_non_markdown_additions_and_deletions() {
+    temper_worker_checkout_world::merges::design_markdown_only();
+}
+
+#[test]
+fn a_design_delivery_retries_a_leased_push_up_to_three_times() {
+    temper_worker_checkout_world::merges::design_moving_again(2);
+}
+
+#[test]
+fn a_design_delivery_refuses_a_goal_that_keeps_moving_without_ending_stale() {
+    temper_worker_checkout_world::merges::design_moving_again(3);
+}
+
+#[test]
+fn a_design_repository_refuses_unchecked_save_but_keeps_saved_work() {
+    temper_worker_checkout_world::merges::design_no_unchecked_save();
+}

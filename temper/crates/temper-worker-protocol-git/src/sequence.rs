@@ -39,6 +39,7 @@ pub fn first(op: &git::Op) -> Next {
         }
         git::Op::CheckOut { commit, .. } => Command::CheckOut { commit: *commit },
         git::Op::IsAncestor { ancestor, commit, .. } => Command::IsAncestor { expected: *ancestor, commit: *commit },
+        git::Op::DiffPaths { before, after, .. } => Command::DiffPaths { before: *before, after: *after },
         git::Op::Merge { theirs, .. } => Command::Merge { theirs: *theirs },
         git::Op::Commit { snapshot: Some(_), .. } => Command::SnapshotHead,
         git::Op::Commit { merging, snapshot: None, .. } => {
@@ -88,7 +89,8 @@ pub fn after(
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
             | git::Op::CheckOut { .. }
-            | git::Op::IsAncestor { .. }
+            | git::Op::DiffPaths { .. }
+                    | git::Op::IsAncestor { .. }
             | git::Op::Merge { .. }
             | git::Op::Commit { .. }
             | git::Op::Push { .. } => unreachable!("origin is a look's invocation"),
@@ -115,6 +117,11 @@ pub fn after(
             1 => return Next::Run(Command::Unmerged),
             _ => {}
         },
+        Command::DiffPaths { .. } if code == 0 => {
+            if let Some(files) = output::paths(stdout, checkout) {
+                return Next::End(git::Done::Paths { files });
+            }
+        }
         Command::Unmerged if code == 0 => {
             if let Some(next) = unmerged(op, stdout, checkout) {
                 return next;
@@ -134,7 +141,8 @@ pub fn after(
             | git::Op::Create { .. }
             | git::Op::CheckOut { .. }
             | git::Op::Look { .. }
-            | git::Op::IsAncestor { .. }
+            | git::Op::DiffPaths { .. }
+                    | git::Op::IsAncestor { .. }
             | git::Op::Merge { .. }
             | git::Op::Push { .. } => {}
         },
@@ -182,7 +190,8 @@ pub fn after(
                 }
                 _ => {}
             },
-            git::Op::Look { .. }
+            git::Op::DiffPaths { .. }
+            | git::Op::Look { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Fetch { .. }
@@ -201,6 +210,7 @@ pub fn after(
         | Command::Fetch { .. }
         | Command::CheckOut { .. }
         | Command::Clean
+        | Command::DiffPaths { .. }
         | Command::Unmerged
         | Command::Add
         | Command::WriteTree
@@ -253,7 +263,8 @@ fn unmerged(op: &git::Op, stdout: &[u8], checkout: &checkout::Limits) -> Option<
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
         | git::Op::Look { .. }
-        | git::Op::IsAncestor { .. }
+        | git::Op::DiffPaths { .. }
+                    | git::Op::IsAncestor { .. }
         | git::Op::Push { .. } => None,
     }
 }
@@ -269,7 +280,8 @@ fn commit_tree(op: &git::Op, stdout: &[u8]) -> Option<Command> {
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
         | git::Op::Look { .. }
-        | git::Op::IsAncestor { .. }
+        | git::Op::DiffPaths { .. }
+                    | git::Op::IsAncestor { .. }
         | git::Op::Merge { .. }
         | git::Op::Push { .. } => None,
     }
@@ -284,7 +296,8 @@ fn checked_out(op: &git::Op) -> Next {
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
         | git::Op::Look { .. }
-        | git::Op::IsAncestor { .. }
+        | git::Op::DiffPaths { .. }
+                    | git::Op::IsAncestor { .. }
         | git::Op::Merge { .. }
         | git::Op::Commit { .. }
         | git::Op::Push { .. } => Next::Run(Command::Clean),

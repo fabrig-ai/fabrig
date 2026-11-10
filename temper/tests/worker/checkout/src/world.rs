@@ -1063,7 +1063,8 @@ impl World {
             | Op::Create { .. }
             | Op::CheckOut { .. }
             | Op::Look { .. }
-            | Op::IsAncestor { .. }
+            | Op::DiffPaths { .. }
+                    | Op::IsAncestor { .. }
             | Op::Merge { .. } => {
                 panic!("a push or a save commits, pushes and verifies, nothing else: {op:?}")
             }
@@ -1169,7 +1170,8 @@ impl World {
             | Op::Commit { .. }
             | Op::Push { .. }
             | Op::Look { .. }
-            | Op::IsAncestor { .. }
+            | Op::DiffPaths { .. }
+                    | Op::IsAncestor { .. }
             | Op::Merge { .. } => None,
         };
         let creates = op.kind() == Kind::Create;

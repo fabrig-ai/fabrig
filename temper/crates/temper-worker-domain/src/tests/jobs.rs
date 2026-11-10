@@ -102,7 +102,8 @@ fn git(h: &mut Harness, initial: Box<[Request]>, stale: bool) -> Box<[Request]> 
                     assert_eq!(*commit, Commit::new([2; 32]));
                     if stale { Done::Rejected } else { Done::Succeeded }
                 }
-                Op::Look { .. } | Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
+                Op::Look { .. } | Op::DiffPaths { .. }
+                    | Op::IsAncestor { .. } => Done::IsAncestor { contains: true },
                 Op::Make { .. } | Op::Clone { .. } | Op::Create { .. } | Op::CheckOut { .. } => Done::Succeeded,
                 Op::Merge { .. } => Done::Merged,
             };

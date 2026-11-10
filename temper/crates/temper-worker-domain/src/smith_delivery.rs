@@ -9,7 +9,7 @@ use jig_domain_host as host;
 use skein_lib::{List, Writer};
 use smith_host_domain as smith;
 
-use crate::{Domain, wire, workspace};
+use crate::{Domain, checkout, wire, workspace};
 
 pub(crate) struct Fields {
     pub(crate) title: Box<[u8]>,
@@ -57,50 +57,51 @@ pub(crate) fn reply(domain: &Domain, reply_bytes: u32, reply: host::CallAnswer) 
     }
 }
 
-pub(crate) fn landings(landings: &[wire::Landing], branches: &[Option<Box<[u8]>>], unchecked: bool) -> smith::Delivery {
+pub(crate) fn landings(landings: &[checkout::Landing], branches: &[Option<Box<[u8]>>], unchecked: bool) -> smith::Delivery {
     let mut receipts = List::with_capacity(u32::try_from(landings.len()).expect("bounded directories"));
     let mut first = None;
     let mut moved = false;
     for (directory, landing) in landings.iter().enumerate() {
         let directory = u32::try_from(directory).expect("bounded directories");
         let failure = match landing {
-            wire::Landing::Landed { commit } => {
-                let branch = branches
-                    .get(skein_lib::usize_of(directory))
-                    .expect("every item has a branch slot")
-                    .as_deref()
-                    .expect("a landed repository is writable");
-                let text = receipt_text(commit, branch, unchecked);
-                receipts
-                    .push(smith::Receipt::new(directory, text).expect("bounded commit receipt"))
-                    .expect("room for changed directories");
+            checkout::Landing::Landed { commit } => {
+                receipts.push(receipt(directory, &commit.raw(), branches, unchecked, None)).expect("room for changed directories");
                 None
             }
-            wire::Landing::Moved => {
+            checkout::Landing::DesignMerged { commit, tip } => {
+                receipts.push(receipt(directory, &commit.raw(), branches, unchecked, Some(&tip.raw()))).expect("room for changed directories");
+                None
+            }
+            checkout::Landing::Moved => {
                 moved = true;
                 None
             }
-            wire::Landing::Unchanged => None,
-            wire::Landing::Conflicted { files } => {
-                let marker = match files.first() {
-                    Some(path) => Some(smith::Marker::new(directory, path.clone()).expect("validated conflict path")),
-                    None => None,
-                };
-                Some(smith::Delivery::Refused(
-                    smith::DeliveryRefusal::new(marker, Box::from(&b"resolve conflict markers before delivering"[..]))
-                        .expect("bounded conflict feedback"),
-                ))
-            }
-            wire::Landing::Refused => {
+            checkout::Landing::Unchanged => None,
+            checkout::Landing::Conflicted { files } => Some(refused(
+                directory, first_path(files), b"resolve conflict markers before delivering",
+            )),
+            checkout::Landing::DesignConflict { files } => Some(refused(
+                directory, first_path(files), b"settle the files in conflict and deliver again",
+            )),
+            checkout::Landing::DesignCode { path } => Some(refused(
+                directory, Some(path), b"a delivery to the goal branch carries Markdown only; code goes through a change",
+            )),
+            checkout::Landing::DesignMoving => Some(refused(
+                directory, None, b"the goal branch kept moving; deliver again",
+            )),
+            checkout::Landing::DesignUnchecked => Some(refused(
+                directory, None, b"the goal branch takes checked deliveries alone; deliver instead",
+            )),
+            checkout::Landing::Refused => {
                 Some(failed(directory, smith::DeliveryReason::RefusedByTarget, &smith::Diagnostic::empty()))
             }
-            wire::Landing::Failed => {
+            checkout::Landing::Failed | checkout::Landing::Aborted => {
                 Some(failed(directory, smith::DeliveryReason::Unknown, &smith::Diagnostic::empty()))
             }
-            wire::Landing::Explained { failure } => Some(failed(
+            checkout::Landing::Explained { fault, diagnostic } => Some(failed(
                 directory,
-                reason(failure.reason),
-                &smith::Diagnostic::new(failure.diagnostic.output(), failure.diagnostic.cut()),
+                reason(crate::translate::push_reason(*fault)),
+                &smith::Diagnostic::new(diagnostic.output(), diagnostic.cut()),
             )),
         };
         if first.is_none() {
@@ -120,7 +121,42 @@ pub(crate) fn landings(landings: &[wire::Landing], branches: &[Option<Box<[u8]>>
     }
 }
 
-fn receipt_text(commit: &[u8; 32], branch: &[u8], unchecked: bool) -> Box<[u8]> {
+fn first_path(files: &[Box<[u8]>]) -> Option<&[u8]> {
+    match files.first() {
+        Some(path) => Some(path),
+        None => None,
+    }
+}
+
+fn refused(directory: u32, path: Option<&[u8]>, words: &[u8]) -> smith::Delivery {
+    let marker = match path {
+        Some(path) => Some(smith::Marker::new(directory, path.into()).expect("validated checkout path")),
+        None => None,
+    };
+    smith::Delivery::Refused(smith::DeliveryRefusal::new(marker, words.into()).expect("bounded delivery feedback"))
+}
+
+fn receipt(
+    directory: u32, commit: &[u8; 32], branches: &[Option<Box<[u8]>>], unchecked: bool, merged: Option<&[u8; 32]>,
+) -> smith::Receipt {
+    let branch = branches.get(skein_lib::usize_of(directory)).expect("every item has a branch slot")
+        .as_deref().expect("a landed repository is writable");
+    smith::Receipt::new(directory, receipt_text(commit, branch, unchecked, merged)).expect("bounded commit receipt")
+}
+
+fn head_width(commit: &[u8; 32]) -> usize {
+    if commit.get(20..).expect("fixed id") == [0; 12] { 20 } else { 32 }
+}
+
+fn put_head(text: &mut Writer, commit: &[u8; 32]) {
+    for byte in commit.get(..head_width(commit)).expect("fixed id") {
+        let high = *b"0123456789abcdef".get(usize::from(byte >> 4_u8)).expect("hex nibble");
+        let low = *b"0123456789abcdef".get(usize::from(byte & 15)).expect("hex nibble");
+        text.put(&[high, low]).expect("two characters per commit byte");
+    }
+}
+
+fn receipt_text(commit: &[u8; 32], branch: &[u8], unchecked: bool, merged: Option<&[u8; 32]>) -> Box<[u8]> {
     const TO_BRANCH: &[u8] = b" to branch ";
     let prefix: &[u8] = if unchecked { b"saved " } else { b"pushed " };
     let suffix: &[u8] = if unchecked {
@@ -128,15 +164,20 @@ fn receipt_text(commit: &[u8; 32], branch: &[u8], unchecked: bool) -> Box<[u8]> 
     } else {
         b"; your checkout stays detached, as expected"
     };
-    let width = if commit.get(20..).expect("fixed id") == [0; 12] { 20_usize } else { 32 };
-    let digits = commit.get(..width).expect("fixed id");
+    let width = head_width(commit);
+    let merged_size = match merged {
+        Some(tip) => b", merging its tip ".len().checked_add(head_width(tip).checked_mul(2).expect("fixed digits"))
+            .expect("fixed merge prefix").checked_add(b" first".len()).expect("fixed merge suffix"),
+        None => 0,
+    };
     let base = width
         .checked_mul(2)
         .expect("fixed commit digits")
         .checked_add(prefix.len())
         .expect("fixed receipt prefix")
         .checked_add(suffix.len())
-        .expect("fixed receipt suffix");
+        .expect("fixed receipt suffix")
+        .checked_add(merged_size).expect("fixed merged tip");
     let room = smith::Receipt::CAPACITY
         .checked_sub(base)
         .expect("fixed receipt fits")
@@ -153,14 +194,15 @@ fn receipt_text(commit: &[u8; 32], branch: &[u8], unchecked: bool) -> Box<[u8]> 
     };
     let mut text = Writer::new(len);
     text.put(prefix).expect("measured receipt prefix");
-    for byte in digits {
-        let high = *b"0123456789abcdef".get(usize::from(byte >> 4_u8)).expect("hex nibble");
-        let low = *b"0123456789abcdef".get(usize::from(byte & 15)).expect("hex nibble");
-        text.put(&[high, low]).expect("two characters per commit byte");
-    }
+    put_head(&mut text, commit);
     if let Some(branch) = branch {
         text.put(TO_BRANCH).expect("measured branch prefix");
         text.put(branch).expect("measured branch");
+    }
+    if let Some(tip) = merged {
+        text.put(b", merging its tip ").expect("measured merge prefix");
+        put_head(&mut text, tip);
+        text.put(b" first").expect("measured merge suffix");
     }
     text.put(suffix).expect("measured receipt suffix");
     text.finish()

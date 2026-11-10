@@ -40,6 +40,8 @@ struct World {
     trace: Vec<String>,
     commits: Vec<(Commit, Commit, u32, Vec<u8>)>,
     landing_fetches: usize,
+    push_races: usize,
+    push_attempts: usize,
     expected: temper_fake_checkout::git::Tree,
     ours: u64,
     base: u64,
@@ -119,6 +121,8 @@ impl World {
             trace: Vec::new(),
             commits: Vec::new(),
             landing_fetches: 0,
+            push_races: 0,
+            push_attempts: 0,
             expected,
             ours,
             base,
@@ -171,6 +175,13 @@ impl World {
                 self.landing_fetches += 1;
             }
             let pushing = matches!(op, Op::Push { .. });
+            if pushing {
+                self.push_attempts += 1;
+                if self.push_races > 0 {
+                    self.push_races -= 1;
+                    self.forge.advance(b"forge/temper", b"g", b"src/race.rs", self.push_races.to_string().as_bytes());
+                }
+            }
             let mut done = translate::perform_within(&mut self.forge, &mut self.disk, op, self.env.limits.conflicts);
             if ambiguous && pushing {
                 assert_eq!(done, Done::Succeeded, "the timed-out push actually landed");
@@ -739,5 +750,134 @@ pub fn goal_later_run(case: Case) {
     assert_eq!(world.forge.branch(b"forge/temper", b"topic"), Some(head));
     assert_eq!(world.forge.branch(b"forge/temper", b"main"), Some(world.base), "g is never pushed");
     assert_eq!(world.push(false, false), pushed, "a repeated delivery keeps the same head");
+    release_heads(&mut world);
+}
+
+
+fn design_start() -> (World, Vec<u8>, u64) {
+    let mut world = World::new(73, Case::Clean, 64);
+    // Use the same forge and checkout driver as the merge scenarios.
+    world.forge.create_branch(b"forge/temper", b"g", world.ours).expect("g created");
+    let spec = Spec {
+        key: b"design".as_slice().into(),
+        repositories: Box::new([Repository {
+            name: b"temper".as_slice().into(), remote: b"forge/temper".as_slice().into(), git: None,
+            start: Start::Branch { branch: b"g".as_slice().into() },
+            identity: 17, account: None, push: Some(b"g".as_slice().into()),
+            expected: Some(translate::commit(world.ours)), landing: Some(b"g".as_slice().into()),
+            save: Some(b"saved".as_slice().into()),
+        }]),
+    };
+    let Request::Prepared { prepared: Prepared::Ready { workspace, conflicts }, .. } =
+        world.finish(Event::Prepare { client: Token::new(9), spec }, false) else { panic!("design prepared") };
+    assert!(conflicts.is_empty());
+    let at = translate::path(&temper_worker_domain_checkout::git::Place {
+        git: None, workspace, repository: b"temper".as_slice().into(),
+    });
+    world.forge.moves();
+    let tip = world.ours;
+    (world, at, tip)
+}
+
+pub fn design_fast_forward() {
+    let (mut world, at, tip) = design_start();
+    world.disk.write(&[at.as_slice(), b"/docs/a.md"].concat(), b"design\n");
+    let landed = world.push(false, false);
+    let [Landing::Landed { commit }] = &*landed else { panic!("design landed: {landed:?}") };
+    let head = translate::fake(*commit);
+    assert_eq!(world.forge.branch(b"forge/temper", b"g"), Some(head));
+    assert_eq!(world.forge.parent(head), Some(tip));
+    assert_eq!(world.forge.merge_parent(head), None);
+    assert_eq!(world.disk.content(&[at.as_slice(), b"/.git/temper-head"].concat()), Some(head.to_le_bytes().as_slice()));
+    release_heads(&mut world);
+}
+
+pub fn design_clean_move() {
+    let (mut world, at, tip) = design_start();
+    let moved = world.forge.advance(b"forge/temper", b"g", b"src/x.rs", b"landed code\n");
+    world.disk.write(&[at.as_slice(), b"/docs/a.md"].concat(), b"design\n");
+    let landed = world.push(false, false);
+    let head = world.forge.branch(b"forge/temper", b"g").expect("g exists");
+    assert_ne!(head, moved, "delivery merges the moved tip and pushes");
+    let delivered = world.forge.parent(head).expect("delivery parent");
+    assert_eq!(world.forge.parent(delivered), Some(tip));
+    assert_eq!(world.forge.merge_parent(head), Some(moved));
+    assert_eq!(world.forge.message(head), b"Merge g");
+    assert_eq!(world.commits, vec![(translate::commit(delivered), translate::commit(moved), 17, b"Merge g".to_vec())]);
+    assert_eq!(world.disk.content(&[at.as_slice(), b"/.git/temper-head"].concat()), Some(head.to_le_bytes().as_slice()));
+    assert!(!world.disk.exists(&[at.as_slice(), b"/.git/MERGE_HEAD"].concat()));
+    assert_eq!(world.disk.content(&[at.as_slice(), b"/src/x.rs"].concat()), Some(b"landed code\n".as_slice()));
+    assert_eq!(world.push(false, false), landed, "repeat keeps the landing");
+    world.disk.write(&[at.as_slice(), b"/docs/b.md"].concat(), b"next\n");
+    world.push(false, false);
+    let next = world.forge.branch(b"forge/temper", b"g").expect("g exists");
+    assert_eq!(world.forge.parent(next), Some(head), "next delivery builds on pushed merge");
+    release_heads(&mut world);
+}
+
+pub fn design_conflicting_move() {
+    let (mut world, at, _) = design_start();
+    let moved = world.forge.advance(b"forge/temper", b"g", b"docs/a.md", b"other design\n");
+    world.disk.write(&[at.as_slice(), b"/docs/a.md"].concat(), b"our design\n");
+    let refused = world.push(false, false);
+    assert!(!matches!(&*refused, [Landing::Moved]), "design conflicts never end stale");
+    assert_eq!(world.forge.branch(b"forge/temper", b"g"), Some(moved));
+    assert_eq!(world.disk.content(&[at.as_slice(), b"/.git/MERGE_HEAD"].concat()), Some(moved.to_le_bytes().as_slice()));
+    let ours = world.disk.content(&[at.as_slice(), b"/.git/temper-head"].concat()).expect("delivery head");
+    let ours = u64::from_le_bytes(ours.try_into().expect("fake id"));
+    assert!(world.disk.content(&[at.as_slice(), b"/docs/a.md"].concat()).expect("conflicted file").starts_with(b"<<<<<<< "));
+    assert_eq!(&*world.push(false, false), &[Landing::Conflicted { files: Box::new([b"docs/a.md".as_slice().into()]) }]);
+    world.disk.write(&[at.as_slice(), b"/docs/a.md"].concat(), b"resolved\n");
+    world.push(false, false);
+    let head = world.forge.branch(b"forge/temper", b"g").expect("g exists");
+    assert_eq!(world.forge.parent(head), Some(ours));
+    assert_eq!(world.forge.merge_parent(head), Some(moved));
+    release_heads(&mut world);
+}
+
+pub fn design_markdown_only() {
+    for deletion in [false, true] {
+        let (mut world, at, tip) = design_start();
+        world.disk.write(&[at.as_slice(), b"/docs/a.md"].concat(), b"design\n");
+        if deletion {
+            world.disk.remove(&[at.as_slice(), b"/code"].concat());
+        } else {
+            world.disk.write(&[at.as_slice(), b"/src/lib.rs"].concat(), b"code\n");
+        }
+        world.push(false, false);
+        assert_eq!(world.forge.branch(b"forge/temper", b"g"), Some(tip), "code additions and deletions are refused");
+        assert_eq!(world.push_attempts, 0);
+        release_heads(&mut world);
+    }
+}
+
+pub fn design_moving_again(races: usize) {
+    let (mut world, at, _) = design_start();
+    world.disk.write(&[at.as_slice(), b"/docs/a.md"].concat(), b"design\n");
+    world.push_races = races;
+    let landed = world.push(false, false);
+    assert_eq!(world.push_attempts, 3, "three leased tries in all");
+    assert!(!matches!(&*landed, [Landing::Moved]), "design delivery is never stale");
+    let head = world.forge.branch(b"forge/temper", b"g").expect("g exists");
+    assert_eq!(world.forge.tree(head).contains_key(b"docs/a.md".as_slice()), races < 3);
+    if races == 3 {
+        world.push(false, false);
+        let head = world.forge.branch(b"forge/temper", b"g").expect("g exists");
+        assert!(world.forge.tree(head).contains_key(b"docs/a.md".as_slice()), "a refusal leaves the run able to deliver again");
+    }
+    release_heads(&mut world);
+}
+
+pub fn design_no_unchecked_save() {
+    let (mut world, at, tip) = design_start();
+    world.disk.write(&[at.as_slice(), b"/docs/a.md"].concat(), b"design\n");
+    let hold = world.hold.expect("prepared");
+    world.finish(Event::PushUnchecked { hold }, false);
+    assert_eq!(world.forge.branch(b"forge/temper", b"g"), Some(tip), "unchecked save never touches g");
+    assert_eq!(world.push_attempts, 0);
+    assert_eq!(world.disk.content(&[at.as_slice(), b"/.git/temper-head"].concat()), Some(tip.to_le_bytes().as_slice()), "refused before committing");
+    let saved = world.push(true, false);
+    assert!(matches!(&*saved, [Landing::Landed { .. }]), "saved-work branch remains writable");
+    assert_eq!(world.forge.branch(b"forge/temper", b"g"), Some(tip));
     release_heads(&mut world);
 }

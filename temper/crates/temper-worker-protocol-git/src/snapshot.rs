@@ -15,7 +15,8 @@ pub(crate) fn enabled(op: &git::Op) -> bool {
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
-        | git::Op::IsAncestor { .. }
+        | git::Op::DiffPaths { .. }
+                    | git::Op::IsAncestor { .. }
         | git::Op::Merge { .. }
         | git::Op::Push { .. } => false,
     }
@@ -103,7 +104,8 @@ pub(crate) fn after(op: &git::Op, command: &Command, code: u8, stdout: &[u8]) ->
         | Command::Merge { .. }
         | Command::Unmerged
         | Command::Add
-        | Command::DiffIndex { .. }
+        | Command::DiffPaths { .. }
+            | Command::DiffIndex { .. }
         | Command::WriteTree
         | Command::CommitTree { .. }
         | Command::IsAncestor { .. }
@@ -121,7 +123,8 @@ fn parameters(op: &git::Op) -> (&git::Commit, &Option<git::Commit>, &git::Snapsh
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
-        | git::Op::IsAncestor { .. }
+        | git::Op::DiffPaths { .. }
+                    | git::Op::IsAncestor { .. }
         | git::Op::Merge { .. }
         | git::Op::Push { .. } => unreachable!("snapshot sequence belongs to a delivery"),
     }

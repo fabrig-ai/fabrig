@@ -171,6 +171,7 @@ pub fn version(stdout: &[u8]) -> Option<Version> {
 pub fn classify(tail: &[u8], kind: git::Kind) -> git::Fault {
     match kind {
         git::Kind::Look
+        | git::Kind::DiffPaths
         | git::Kind::IsAncestor
         | git::Kind::Make
         | git::Kind::CheckOut

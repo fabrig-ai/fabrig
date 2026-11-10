@@ -158,7 +158,7 @@ pub(crate) fn landings(outcome: checkout::Outcome, repositories: u32) -> Box<[wi
 
 fn landing(landing: checkout::Landing) -> wire::Landing {
     match landing {
-        checkout::Landing::Conflicted { files } => wire::Landing::Conflicted { files },
+        checkout::Landing::Conflicted { files } | checkout::Landing::DesignConflict { files } => wire::Landing::Conflicted { files },
         checkout::Landing::Explained { fault, diagnostic } => wire::Landing::Explained {
             failure: wire::PushFailure {
                 repository: None,
@@ -166,21 +166,21 @@ fn landing(landing: checkout::Landing) -> wire::Landing {
                 diagnostic: wire::PushDiagnostic::new(diagnostic.output(), diagnostic.cut()),
             },
         },
-        checkout::Landing::Landed { commit } => wire::Landing::Landed { commit: commit.raw() },
+        checkout::Landing::Landed { commit } | checkout::Landing::DesignMerged { commit, .. } => wire::Landing::Landed { commit: commit.raw() },
         checkout::Landing::Moved => wire::Landing::Moved,
         checkout::Landing::Unchanged => wire::Landing::Unchanged,
-        checkout::Landing::Refused => wire::Landing::Refused,
+        checkout::Landing::DesignCode { .. } | checkout::Landing::DesignMoving | checkout::Landing::DesignUnchecked | checkout::Landing::Refused => wire::Landing::Refused,
         checkout::Landing::Failed | checkout::Landing::Aborted => wire::Landing::Failed,
     }
 }
 
-pub(crate) const fn delivery_outcome(result: &wire::Push) -> host::DeliveryOutcome {
+pub(crate) const fn delivery_outcome(result: &agent::Delivery) -> host::DeliveryOutcome {
     match result {
-        wire::Push::Done => host::DeliveryOutcome::Delivered,
-        wire::Push::Nothing => host::DeliveryOutcome::Nothing,
-        wire::Push::Moved => host::DeliveryOutcome::Stale,
-        wire::Push::Conflicted { .. } => host::DeliveryOutcome::Refused,
-        wire::Push::Failed { .. } => host::DeliveryOutcome::Failed,
+        agent::Delivery::Delivered(_) => host::DeliveryOutcome::Delivered,
+        agent::Delivery::Nothing => host::DeliveryOutcome::Nothing,
+        agent::Delivery::Stale => host::DeliveryOutcome::Stale,
+        agent::Delivery::Refused(_) => host::DeliveryOutcome::Refused,
+        agent::Delivery::Failed(_) => host::DeliveryOutcome::Failed,
     }
 }
 
@@ -298,7 +298,7 @@ pub(crate) const fn unstarted(end: agent::End) -> Option<&'static [u8]> {
     }
 }
 
-const fn push_reason(fault: git::Fault) -> wire::PushReason {
+pub(crate) const fn push_reason(fault: git::Fault) -> wire::PushReason {
     match fault {
         git::Fault::Missing { missing: git::Missing::Repository } => wire::PushReason::MissingRepository,
         git::Fault::Missing { missing: git::Missing::Branch } => wire::PushReason::MissingBranch,
@@ -308,61 +308,6 @@ const fn push_reason(fault: git::Fault) -> wire::PushReason {
         git::Fault::Broken => wire::PushReason::Broken,
         git::Fault::TimedOut => wire::PushReason::TimedOut,
         git::Fault::Cancelled => wire::PushReason::Cancelled,
-    }
-}
-
-/// What the run is told of a push: done only if every repository with a
-/// change landed it; moved if any branch moved; failed if the forge refused
-/// one, or one failed.
-pub(crate) fn summarize(push: Box<[wire::Landing]>) -> wire::Push {
-    let mut landed = false;
-    let mut moved = false;
-    let mut first = None;
-    let mut index = 0_u32;
-    for landing in push {
-        let failed = match landing {
-            wire::Landing::Conflicted { files } => Some(wire::Push::Conflicted { repository: index, files }),
-            wire::Landing::Landed { .. } => {
-                landed = true;
-                None
-            }
-            wire::Landing::Moved => {
-                moved = true;
-                None
-            }
-            wire::Landing::Failed => Some(wire::Push::Failed {
-                failure: wire::PushFailure {
-                    repository: Some(index),
-                    reason: wire::PushReason::Unknown,
-                    diagnostic: wire::PushDiagnostic::empty(),
-                },
-            }),
-            wire::Landing::Refused => Some(wire::Push::Failed {
-                failure: wire::PushFailure {
-                    repository: Some(index),
-                    reason: wire::PushReason::Refused,
-                    diagnostic: wire::PushDiagnostic::empty(),
-                },
-            }),
-            wire::Landing::Explained { mut failure } => {
-                failure.repository = Some(index);
-                Some(wire::Push::Failed { failure })
-            }
-            wire::Landing::Unchanged => None,
-        };
-        if first.is_none() {
-            first = failed;
-        }
-        index = index.checked_add(1).expect("bounded repository count");
-    }
-    if moved {
-        wire::Push::Moved
-    } else if let Some(failed) = first {
-        failed
-    } else if landed {
-        wire::Push::Done
-    } else {
-        wire::Push::Nothing
     }
 }
 

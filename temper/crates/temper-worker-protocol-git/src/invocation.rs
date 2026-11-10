@@ -43,6 +43,7 @@ pub enum Command {
     Unmerged,
     Add,
     DiffIndex { parent: git::Commit },
+    DiffPaths { before: git::Commit, after: git::Commit },
     WriteTree,
     CommitTree { tree: git::Commit, parent: git::Commit, merging: Option<git::Commit> },
     IsAncestor { expected: git::Commit, commit: git::Commit },
@@ -58,7 +59,8 @@ pub(crate) fn item_program(op: &git::Op) -> Option<&[u8]> {
         | git::Op::Create { at, .. }
         | git::Op::CheckOut { at, .. }
         | git::Op::Look { at, .. }
-        | git::Op::IsAncestor { at, .. }
+        | git::Op::DiffPaths { at, .. }
+                    | git::Op::IsAncestor { at, .. }
         | git::Op::Merge { at, .. }
         | git::Op::Commit { at, .. }
         | git::Op::Push { at, .. } => at.git.as_deref(),
@@ -75,7 +77,8 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
         | Command::Push { remote, .. } => Some(remote.as_ref()),
         Command::IsAncestor { .. } => match op {
             git::Op::Push { remote, .. } => Some(remote.as_ref()),
-            git::Op::Look { .. } | git::Op::IsAncestor { .. } => None,
+            git::Op::Look { .. } | git::Op::DiffPaths { .. }
+                    | git::Op::IsAncestor { .. } => None,
             git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Fetch { .. }
@@ -95,7 +98,8 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
         | Command::Merge { .. }
         | Command::Unmerged
         | Command::Add
-        | Command::DiffIndex { .. }
+        | Command::DiffPaths { .. }
+            | Command::DiffIndex { .. }
         | Command::WriteTree
         | Command::CommitTree { .. } => None,
     };
@@ -221,6 +225,9 @@ pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
         Command::CheckOut { commit } => words(&mut out, &[b"checkout", b"--force", b"--detach", &hex(*commit)]),
         Command::Clean => words(&mut out, &[b"clean", b"-ffdxq"]),
         Command::Merge { theirs } => words(&mut out, &[b"merge", b"--no-commit", b"--no-ff", b"--", &hex(*theirs)]),
+        Command::DiffPaths { before, after } => words(
+            &mut out, &[b"diff-tree", b"--no-commit-id", b"--name-only", b"--no-renames", b"-r", b"-z", &hex(*before), &hex(*after), b"--"],
+        ),
         Command::Unmerged => words(&mut out, &[b"diff-files", b"--name-only", b"-z", b"--diff-filter=U"]),
         Command::Add => words(&mut out, &[b"add", b"--all", b"--", b".", HIDDEN_LOG_EXCLUSION]),
         Command::DiffIndex { parent } => {
@@ -256,7 +263,7 @@ pub fn environment(home: &[u8], kind: Option<git::Kind>, identity: Option<&Ident
     let identity = match kind {
         Some(git::Kind::Clone | git::Kind::Fetch | git::Kind::Create | git::Kind::Commit | git::Kind::Push) => identity,
         None
-        | Some(git::Kind::Look | git::Kind::IsAncestor | git::Kind::Make | git::Kind::CheckOut | git::Kind::Merge) => {
+        | Some(git::Kind::Look | git::Kind::DiffPaths | git::Kind::IsAncestor | git::Kind::Make | git::Kind::CheckOut | git::Kind::Merge) => {
             None
         }
     };
@@ -300,7 +307,7 @@ pub fn environment(home: &[u8], kind: Option<git::Kind>, identity: Option<&Ident
             }
         }
         None
-        | Some(git::Kind::Look | git::Kind::IsAncestor | git::Kind::Make | git::Kind::CheckOut | git::Kind::Merge) => {}
+        | Some(git::Kind::Look | git::Kind::DiffPaths | git::Kind::IsAncestor | git::Kind::Make | git::Kind::CheckOut | git::Kind::Merge) => {}
     }
     out.into_boxed()
 }

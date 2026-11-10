@@ -32,7 +32,8 @@ pub fn spawn_of(command: &Command) -> Spawn {
         | Command::SnapshotReset { .. }
         | Command::Unmerged
         | Command::Add
-        | Command::DiffIndex { .. }
+        | Command::DiffPaths { .. }
+            | Command::DiffIndex { .. }
         | Command::WriteTree
         | Command::CommitTree { .. } => Some(git::Kind::Commit),
         Command::CheckOut { .. } | Command::Clean => Some(git::Kind::CheckOut),
