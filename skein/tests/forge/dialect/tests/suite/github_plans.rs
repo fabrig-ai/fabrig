@@ -275,7 +275,7 @@ fn github_plans_repository_missing_drops_the_row() {
         for read in [
             api::Read::Settings,
             api::Read::Branches { prefix: Box::from(&b"m"[..]) },
-            api::Read::Item { number: 1, after: 0 },
+            api::Read::Item { number: 1, after: 0, since: skein_lib::Time::ZERO },
         ] {
             let mut tables = Tables::new(2, 2);
             keep(&mut tables);

@@ -201,6 +201,7 @@ pub enum Request {
     Comments {
         at: Repo,
         number: u64,
+        since: Option<skein_lib::Wall>,
     },
     Pull {
         at: Repo,

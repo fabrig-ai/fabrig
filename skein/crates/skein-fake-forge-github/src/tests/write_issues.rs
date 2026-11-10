@@ -25,7 +25,9 @@ fn github_fake_issue_writes_drive_plans_and_read_back() {
         Ok(api::Answer::Done)
     );
     assert_eq!(w::write(&mut h, &token, api::Write::Close { number }), Ok(api::Answer::Done));
-    let api::Answer::Item { item, .. } = r::read(&mut h, &token, api::Read::Item { number, after: 0 }).unwrap() else {
+    let api::Answer::Item { item, .. } =
+        r::read(&mut h, &token, api::Read::Item { number, after: 0, since: skein_lib::Time::ZERO }).unwrap()
+    else {
         panic!("closed item")
     };
     assert_eq!(item.state, api::State::Closed);
@@ -39,7 +41,7 @@ fn github_fake_issue_writes_drive_plans_and_read_back() {
         panic!("posted comment")
     };
     let api::Answer::Item { item, comments, .. } =
-        r::read(&mut h, &token, api::Read::Item { number, after: 0 }).unwrap()
+        r::read(&mut h, &token, api::Read::Item { number, after: 0, since: skein_lib::Time::ZERO }).unwrap()
     else {
         panic!("item readback")
     };
