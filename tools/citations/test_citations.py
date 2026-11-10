@@ -321,6 +321,13 @@ class Citations(unittest.TestCase):
         result = self.run_check("--all")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
+    def test_parenthesis_after_owner_words_ends_the_owner(self):
+        self.write("temper/docs/design/a.md", "# a\n\n## 9. Nine\n")
+        self.write("temper/docs/design/c.md", "# c\n\nskein's client wire (`a.md`, section 9).\n")
+        self.commit("parenthesis after words")
+        result = self.run_check("--all")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_suffix_readings_match_the_archive_despite_creation_order(self):
         self.write("smith/docs/design/view.md", "# view\n\n## 7. Seven\n")
         self.write("jig/docs/design/view.md", "# view\n\n## 8. Eight\n")

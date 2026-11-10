@@ -22,7 +22,8 @@ python3 -I -B tools/citations/test_citations.py
   Sections after a path include possessives followed by a comma or "section"
   ("`x.md`'s, 6.2", "`x.md`'s section 15") and parentheses ("`x.md` (section 10 is ...)").
   An "its" before a path inherits the nearest explicit tree owner in the same sentence.
-  Opening parentheses keep an explicit owner ("skein's (`forge.md`, section 6)").
+  Opening parentheses keep an explicit owner only directly after its possessive
+  ("skein's (`forge.md`, section 6)"); intervening words end that ownership at "(".
   A list item's bold heading path ("- **`x.md`:**", "6. **x.md:**") is also a target for bare
   sections throughout the item. Strings in code are test data, not citations. Left out:
   everything under a tree's `docs/plan/`, whatever its extension (a runner's records of a
