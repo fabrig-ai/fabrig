@@ -1,4 +1,4 @@
-//! Configured bounds for git's stream machines (hearth/docs/design/domain/render.md, 2.3).
+//! Configured bounds for git's stream machines (hearth/docs/design/domain/render/README.md, 2.3).
 use alloc::boxed::Box;
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {

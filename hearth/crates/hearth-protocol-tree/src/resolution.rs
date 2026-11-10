@@ -1,5 +1,5 @@
-//! Resolution records, kind 4 at version 1 (hearth/docs/design/domain/store.md, 6.4;
-//! hearth/docs/design/domain/render.md, 5.4).
+//! Resolution records, kind 4 at version 1 (hearth/docs/design/domain/store/records.md, 4;
+//! hearth/docs/design/domain/render/spec.md, 2.4).
 
 use crate::{
     fields::Fields,
@@ -20,7 +20,7 @@ pub struct Resolution {
     pub made: Made,
     pub sources: Box<[Line]>,
 }
-/// The key's four values, as the packages part holds them (hearth/docs/design/domain/render.md, 5.1).
+/// The key's four values, as the packages part holds them (hearth/docs/design/domain/render/spec.md, 2.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Inputs {
     pub apt: Box<[Item]>,

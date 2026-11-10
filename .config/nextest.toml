@@ -185,7 +185,7 @@ global-timeout = "120s"
 slow-timeout = { period = "40s" }
 test-threads = 1
 
-# The conformance tier, outside the gate (hearth/docs/design/domain/testing.md, 2.8);
+# The conformance tier, outside the gate (hearth/docs/design/testing/README.md, 2.8);
 # HEARTH_RECORD=1 captures.
 [profile.conformance-hearth]
 default-filter = "(binary(/^conformance_/) | binary(/^recorded_/)) & package(/^hearth(-|$)/)"

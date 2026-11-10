@@ -1,4 +1,4 @@
-//! Static references in every expression, including untaken branches (hearth/docs/design/protocol/format.md, 6.4).
+//! Static references in every expression, including untaken branches (hearth/docs/design/protocol/format/README.md, 5.4).
 use super::Fault;
 use crate::{
     errors::{Root, Schema},

@@ -1,5 +1,5 @@
 use crate::{Filter, Op};
-/// Explicit parser nesting, bounded by `Limits::nesting` (hearth/docs/design/domain/render.md, 2.3).
+/// Explicit parser nesting, bounded by `Limits::nesting` (hearth/docs/design/domain/render/README.md, 2.3).
 #[derive(Debug)]
 pub(super) enum Pending {
     And { jump: u32 },

@@ -1,5 +1,5 @@
-//! One owned tree from tokenizer demands (hearth/docs/design/protocol/format.md, 2.2;
-//! hearth/docs/design/domain/render.md, 3.1).
+//! One owned tree from tokenizer demands (hearth/docs/design/protocol/format/README.md, 2.2;
+//! hearth/docs/design/domain/render/README.md, 3.1).
 use crate::{
     Error, Fault, Position,
     limits::{self, Limits},
@@ -301,7 +301,7 @@ fn finish(frame: Frame) -> Value {
 const EVENTS: u32 = 4;
 
 /// Bounds the decoder's retained heap, including the tree under construction
-/// (skein/docs/foundation/programming-model.md, 6.3; hearth/docs/design/domain/render.md, 2.3).
+/// (skein/docs/foundation/programming-model.md, 6.3; hearth/docs/design/domain/render/README.md, 2.3).
 #[must_use]
 pub fn decoder_bound(limits: &Limits) -> Option<u64> {
     let tokenizer = tk::tokenizer_bound(&limits::tokenizer(limits))?;

@@ -105,7 +105,7 @@ pub fn empty_layer() -> crate::vocabulary::Layer {
         at: Wall::EPOCH,
     }
 }
-/// H("packages", resolution digest, part digest), written out (hearth/docs/design/domain/store.md, 3.3).
+/// H("packages", resolution digest, part digest), written out (hearth/docs/design/domain/store/README.md, 3.3).
 pub fn packages_layer() -> crate::vocabulary::Layer {
     let mut hash = hearth_lib::hash::H::new(b"packages", 2);
     hash.values().digest(&D2);

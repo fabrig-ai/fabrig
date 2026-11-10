@@ -1,4 +1,4 @@
-//! Byte forms from hearth/docs/design/protocol/format.md, 2.4, 5.3 and 6.2.
+//! Byte forms from hearth/docs/design/protocol/format/README.md, 2.4, and hearth/docs/design/protocol/format/tasks.md, 3, and hearth/docs/design/protocol/format/README.md, 5.2.
 use super::{Check, Composed, Composite};
 use crate::{
     errors::{Format, Schema},

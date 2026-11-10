@@ -1,4 +1,4 @@
-//! A single debconf answer and an initramfs module (hearth/docs/design/protocol/format.md, 5.3, 5.4).
+//! A single debconf answer and an initramfs module (hearth/docs/design/protocol/format/tasks.md, 3, 4).
 use crate::{
     entries::Concrete,
     errors::{Format, Schema},

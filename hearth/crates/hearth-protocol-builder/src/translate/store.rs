@@ -1,4 +1,4 @@
-//! Records crossing the store boundary (hearth/docs/design/domain/store.md, 6.6).
+//! Records crossing the store boundary (hearth/docs/design/domain/store/records.md, 6).
 use crate::{
     builder::store::vocabulary::{Range, StoreRecord},
     tree,
@@ -159,7 +159,7 @@ pub fn tree_resolution(record: crate::builder::store::vocabulary::Resolution) ->
     }
 }
 
-/// A layer's record, as far as the store's index reads it (hearth/docs/design/domain/store.md, 6.2 and 8.1).
+/// A layer's record, as far as the store's index reads it (hearth/docs/design/domain/store/records.md, 2, and hearth/docs/design/domain/store/README.md, 6.1).
 #[must_use]
 pub fn layer(record: tree::layer::Layer) -> crate::builder::store::vocabulary::Layer {
     use crate::builder::store::vocabulary::{Layer, LayerInputs};
@@ -178,9 +178,9 @@ pub fn layer(record: tree::layer::Layer) -> crate::builder::store::vocabulary::L
     }
 }
 
-/// A sealed layer's record as it is written (hearth/docs/design/domain/store.md, 6.2). `tools` and `costs` are empty
+/// A sealed layer's record as it is written (hearth/docs/design/domain/store/records.md, 2). `tools` and `costs` are empty
 /// and a packages layer is a scratch build with no base, until the tasks that fill them; the scan's rules, which only a
-/// walk with them can name, are the zero digest, until the scan (hearth/docs/design/domain/build.md, 9.3).
+/// walk with them can name, are the zero digest, until the scan (hearth/docs/design/domain/build/README.md, 7.3).
 #[must_use]
 pub fn tree_layer(record: &crate::builder::store::vocabulary::Record) -> tree::layer::Layer {
     use crate::builder::store::vocabulary::LayerInputs;

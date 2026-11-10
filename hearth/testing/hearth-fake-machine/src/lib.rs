@@ -1,4 +1,4 @@
-//! The machine's generic Linux half (hearth/docs/design/domain/testing.md, 3.1 and 3.2).
+//! The machine's generic Linux half (hearth/docs/design/testing/fake-machine.md, 1 and 2).
 #![forbid(unsafe_code)]
 extern crate alloc;
 pub mod behind;

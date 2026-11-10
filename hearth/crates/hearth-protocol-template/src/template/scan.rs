@@ -1,4 +1,4 @@
-//! Byte validation and tag boundaries (hearth/docs/design/protocol/format.md, 2.3, 7.2).
+//! Byte validation and tag boundaries (hearth/docs/design/protocol/format/README.md, 2.3, hearth/docs/design/protocol/format/templates.md, 2).
 use crate::{Error, ErrorKind, Expected, limits::Limits, utf8::Utf8};
 use alloc::boxed::Box;
 use skein_lib::{List, bytes};

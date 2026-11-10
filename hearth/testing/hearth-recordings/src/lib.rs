@@ -1,4 +1,4 @@
-//! Captured tool runs, hearth/docs/design/domain/testing.md, 4.5. Paths are relative to this checkout.
+//! Captured tool runs, hearth/docs/design/testing/tool-fakes.md, 5. Paths are relative to this checkout.
 use skein_scratch::paths;
 use std::{
     fs,

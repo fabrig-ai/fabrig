@@ -1,4 +1,4 @@
-//! Recursive descent over hearth/docs/design/protocol/format.md, 7.4, independent of the machine's stack.
+//! Recursive descent over hearth/docs/design/protocol/format/templates.md, 4, independent of the machine's stack.
 pub mod template;
 use hearth_protocol_template::{Expression, Filter, Missing, Op, Operation, limits::Limits};
 #[derive(Clone)]

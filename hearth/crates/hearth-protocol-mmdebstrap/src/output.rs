@@ -1,4 +1,4 @@
-//! The two pipe readers and apt's install triples (hearth/docs/design/domain/render.md, 5.3).
+//! The two pipe readers and apt's install triples (hearth/docs/design/domain/render/spec.md, 2.3).
 use crate::{
     limits::Limits,
     tail::{self, Tail},

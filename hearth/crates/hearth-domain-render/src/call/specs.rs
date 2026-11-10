@@ -1,4 +1,4 @@
-//! Count held specs as records of values (hearth/docs/design/domain/render.md, 2.3).
+//! Count held specs as records of values (hearth/docs/design/domain/render/README.md, 2.3).
 mod config;
 mod packages;
 mod values;

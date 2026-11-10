@@ -1,4 +1,4 @@
-//! Resolution's mmdebstrap machine (hearth/docs/design/domain/render.md, 5.2 to 5.5).
+//! Resolution's mmdebstrap machine (hearth/docs/design/domain/render/spec.md, 2.2 to 2.5).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;

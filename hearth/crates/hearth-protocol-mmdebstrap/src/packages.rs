@@ -1,4 +1,4 @@
-//! Bounded deb822 Packages stanzas (hearth/docs/design/domain/render.md, 5.3).
+//! Bounded deb822 Packages stanzas (hearth/docs/design/domain/render/spec.md, 2.3).
 use crate::{limits::Limits, vector::Name};
 use alloc::boxed::Box;
 use skein_lib::{

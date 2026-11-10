@@ -1,4 +1,4 @@
-//! A pull decoder of the canonical value's pre-order items (hearth/docs/design/domain/store.md, 3.1).
+//! A pull decoder of the canonical value's pre-order items (hearth/docs/design/domain/store/README.md, 3.1).
 
 use crate::limits::Limits;
 use alloc::boxed::Box;

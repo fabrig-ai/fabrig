@@ -29,7 +29,7 @@ pub fn end(rng: &mut skein_lib::Rng, bytes: &[u8]) -> End {
 }
 
 /// What one entry point left in a machine's queues, before the driver took them.
-/// Orders follow hearth/docs/design/domain/render.md, 8.5.
+/// Orders follow hearth/docs/design/domain/render/README.md, 5.5.
 #[derive(Debug)]
 pub struct Step<T> {
     pub above: Vec<T>,

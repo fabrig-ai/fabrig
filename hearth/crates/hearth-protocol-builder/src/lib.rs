@@ -1,4 +1,4 @@
-//! The root's requests as git processes and decoded documents (hearth/docs/design/domain/render.md, 8.1).
+//! The root's requests as git processes and decoded documents (hearth/docs/design/domain/render/README.md, 5.1).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -406,7 +406,7 @@ pub fn up(protocol: &mut Protocol, env: &Env<Limits>, ev: Told, above: &mut Queu
     io_up(protocol, env, event, below);
 }
 /// Whether a store step answered: it added to what this entry gave above, whatever
-/// that queue already held (hearth/docs/design/domain/render.md, 8.5).
+/// that queue already held (hearth/docs/design/domain/render/README.md, 5.5).
 fn store_answered(before: u32, above: &Queue<Event>) -> bool {
     above.len() != before
 }
@@ -554,7 +554,7 @@ pub fn resume(protocol: &mut Protocol, env: &Env<Limits>, above: &mut Queue<Even
         protocol.client.resume(&Env { now: env.now, wall: env.wall, limits: env.limits.printer }, below);
         return;
     }
-    // Every step is unavailable until the task that runs it (hearth/docs/design/domain/build.md, 4.3).
+    // Every step is unavailable until the task that runs it (hearth/docs/design/domain/build/README.md, 4.3).
     match protocol.current {
         Current::Step(step) => {
             protocol.current = Current::Idle;

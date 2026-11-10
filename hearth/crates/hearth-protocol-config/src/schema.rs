@@ -1,4 +1,4 @@
-//! Settings' schema and its pre-order type arena (hearth/docs/design/protocol/format.md, 6.1 and 6.2).
+//! Settings' schema and its pre-order type arena (hearth/docs/design/protocol/format/README.md, 5.1 and 5.2).
 use crate::{
     Declared, Error, Expected, Object, Position, Required,
     declaration::{Number, Text, fault, object, text, texts, unknown, wrong},
@@ -41,7 +41,7 @@ pub struct Spec {
     pub max: Option<Number>,
     pub max_length: Option<Number>,
 }
-/// An export's declared type and its expression text (hearth/docs/design/protocol/format.md, 8.1).
+/// An export's declared type and its expression text (hearth/docs/design/protocol/format/README.md, 6.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Export {
     pub name: Text,

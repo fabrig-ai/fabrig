@@ -31,7 +31,7 @@ fn only_diff_exit_one_permits_its_hunks() {
     }
 }
 
-/// An outcome answers its request (hearth/docs/design/domain/render.md, 8.5).
+/// An outcome answers its request (hearth/docs/design/domain/render/README.md, 5.5).
 #[test]
 fn an_end_or_a_fault_before_the_read_answers_the_read() {
     use hearth_protocol_git::hunks::{self, Diff, Error, Event, Request};

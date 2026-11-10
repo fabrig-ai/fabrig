@@ -1,4 +1,4 @@
-//! Declaration maps (hearth/docs/design/protocol/format.md, 5.1).
+//! Declaration maps (hearth/docs/design/protocol/format/tasks.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Map {
     Packages,
@@ -102,7 +102,7 @@ pub struct Spec {
     pub max_length: Option<Number>,
 }
 
-/// A declaration expression at its JSON string (hearth/docs/design/protocol/format.md, 5.9).
+/// A declaration expression at its JSON string (hearth/docs/design/protocol/format/tasks.md, 9).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Condition {
     pub at: Position,
@@ -116,7 +116,7 @@ pub struct Guard {
     pub message: Text,
 }
 
-/// A compiled entry key at its opening quote (hearth/docs/design/protocol/format.md, 5.2).
+/// A compiled entry key at its opening quote (hearth/docs/design/protocol/format/tasks.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Interpolated {
     Plain { at: Position, text: Box<[u8]> },
@@ -282,7 +282,7 @@ impl Name {
     }
 }
 
-/// One typed public value (hearth/docs/design/protocol/format.md, 8.1).
+/// One typed public value (hearth/docs/design/protocol/format/README.md, 6.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Export {
     pub name: Text,

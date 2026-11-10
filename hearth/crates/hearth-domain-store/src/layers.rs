@@ -1,4 +1,4 @@
-//! Published layers, indexed by key from their records (hearth/docs/design/domain/store.md, 6.2, 8.1 and 8.2).
+//! Published layers, indexed by key from their records (hearth/docs/design/domain/store/records.md, 2, and hearth/docs/design/domain/store/README.md, 6.1 and 6.2).
 use crate::{
     Store,
     scan::Scan,
@@ -14,12 +14,12 @@ pub(super) fn want(store: &Store, key: Digest, out: &mut Queue<Output>) {
         Answer::Free { key }
     }));
 }
-/// The empty layer's key (hearth/docs/design/domain/store.md, 3.3).
+/// The empty layer's key (hearth/docs/design/domain/store/README.md, 3.3).
 #[must_use]
 pub fn empty() -> Digest {
     H::new(b"empty", 0).finish()
 }
-/// The key a record's kind, parent and inputs make (hearth/docs/design/domain/store.md, 3.3), if they agree.
+/// The key a record's kind, parent and inputs make (hearth/docs/design/domain/store/README.md, 3.3), if they agree.
 #[must_use]
 pub fn key(record: &Layer) -> Option<Digest> {
     let empty = empty();

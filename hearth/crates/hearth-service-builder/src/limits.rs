@@ -8,7 +8,7 @@ pub struct Limits {
     pub domain: domain::Limits,
     /// The two queues shared with the kernel, `completions` and `submissions`.
     pub queue: u32,
-    /// Where render waits, and the most a pass resumes a layer (render.md, 8.4).
+    /// Where render waits, and the most a pass resumes a layer (domain/render/README.md, 5.4).
     pub watermark: u32,
 }
 

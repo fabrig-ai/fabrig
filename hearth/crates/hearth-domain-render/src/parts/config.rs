@@ -1,4 +1,4 @@
-//! The static file tree's canonical record (hearth/docs/design/domain/render.md, 4.2).
+//! The static file tree's canonical record (hearth/docs/design/domain/render/spec.md, 1.2).
 use crate::revision::Mode;
 use alloc::boxed::Box;
 use hearth_lib::{
@@ -100,7 +100,7 @@ fn absolute(path: &[u8]) -> Box<[u8]> {
     writer.finish()
 }
 
-/// Paths changed in byte order (hearth/docs/design/domain/render.md, 6.1).
+/// Paths changed in byte order (hearth/docs/design/domain/render/README.md, 4.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Change {
     pub presets: Box<[PresetKeyed]>,

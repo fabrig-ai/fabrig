@@ -1,4 +1,4 @@
-//! Simulate as a process, with the child's files, permissions and pipes (hearth/docs/design/domain/testing.md, 4.1).
+//! Simulate as a process, with the child's files, permissions and pipes (hearth/docs/design/testing/tool-fakes.md, 1).
 use crate::{
     apt,
     face::{self, Outcome, Printed},

@@ -1,4 +1,4 @@
-//! Errors in the answer (hearth/docs/design/domain/render.md, 7.1 to 7.3).
+//! Errors in the answer (hearth/docs/design/domain/render/errors.md, 1 to 3).
 mod ids;
 mod validation;
 use crate::form::{json::field, text::Lines};
@@ -464,7 +464,7 @@ impl Field {
     }
 }
 
-/// Why a decoded task.json is no declaration (hearth/docs/design/protocol/format.md, 5.1).
+/// Why a decoded task.json is no declaration (hearth/docs/design/protocol/format/tasks.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Declared {
     Unknown { of: Object },
@@ -705,7 +705,7 @@ pub use composition::{Composition, Host};
 mod collisions;
 pub use collisions::{Collision, Id, Subject};
 
-/// Reference roots restricted to literal names (hearth/docs/design/protocol/format.md, 6.4).
+/// Reference roots restricted to literal names (hearth/docs/design/protocol/format/README.md, 5.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Root {
     Debian,
@@ -719,7 +719,7 @@ pub enum ExportFault {
     Root { root: Root },
 }
 
-/// Another target's exports failed (hearth/docs/design/domain/render.md, 3.4).
+/// Another target's exports failed (hearth/docs/design/domain/render/README.md, 3.4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Exported {
     pub exporter: Box<[u8]>,

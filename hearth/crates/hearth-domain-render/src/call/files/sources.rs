@@ -1,4 +1,4 @@
-//! Named templates and repository copies (hearth/docs/design/protocol/format.md, 2.1, 5.5, 6.2).
+//! Named templates and repository copies (hearth/docs/design/protocol/format/README.md, 2.1, hearth/docs/design/protocol/format/tasks.md, 5, hearth/docs/design/protocol/format/README.md, 5.2).
 use super::{Box, Class, Error, Kind, List, Map, Meta, Mode, Place, Plan, Repository, Side, Writer, copy_of, revision};
 use crate::{
     entries::Fault,

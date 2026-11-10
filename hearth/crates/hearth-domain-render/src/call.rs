@@ -1,4 +1,4 @@
-//! One render call: distinct reads, ordered answers (hearth/docs/design/domain/render.md, 2.2, 8.2).
+//! One render call: distinct reads, ordered answers (hearth/docs/design/domain/render/README.md, 2.2, 5.2).
 mod comparison;
 mod debian;
 mod decoded;

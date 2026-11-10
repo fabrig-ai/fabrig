@@ -1,4 +1,4 @@
-//! A diff keeps successful decodes by object id and interpretation (hearth/docs/design/domain/render.md, 8.4).
+//! A diff keeps successful decodes by object id and interpretation (hearth/docs/design/domain/render/README.md, 5.4).
 use super::{Side, files};
 use crate::{
     limits::Limits,

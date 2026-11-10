@@ -1,4 +1,4 @@
-//! Software downloads and scripts; fetch hints stay outside the digest (hearth/docs/design/domain/render.md, 4.2).
+//! Software downloads and scripts; fetch hints stay outside the digest (hearth/docs/design/domain/render/spec.md, 1.2).
 pub use super::config::Script;
 use crate::{entries::Expansion, errors::Error, revision::declaration::Map};
 use alloc::boxed::Box;

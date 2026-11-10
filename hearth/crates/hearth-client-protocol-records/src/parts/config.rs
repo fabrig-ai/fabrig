@@ -1,4 +1,4 @@
-//! The config part's file tree (hearth/docs/design/domain/render.md, 4.2).
+//! The config part's file tree (hearth/docs/design/domain/render/spec.md, 1.2).
 use crate::form::text::{Lines, octal};
 use alloc::boxed::Box;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

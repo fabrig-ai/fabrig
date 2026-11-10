@@ -1,4 +1,4 @@
-//! A build's plan, from its keys and what the store has published (hearth/docs/design/domain/build.md, 4.1).
+//! A build's plan, from its keys and what the store has published (hearth/docs/design/domain/build/README.md, 4.1).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -48,7 +48,7 @@ impl Parts {
         }
     }
 }
-/// A build runs its plan the way hearth/docs/design/domain/store.md, 4.2 lays out a layer's life: for each
+/// A build runs its plan the way hearth/docs/design/domain/store/README.md, 4.2 lays out a layer's life: for each
 /// layer, bottom-up, stage it, run its steps in order, seal it. One request is in flight.
 #[derive(Debug, Hash)]
 pub struct Build {

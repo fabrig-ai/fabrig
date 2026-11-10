@@ -1,14 +1,14 @@
 use crate::Filter;
-/// A decode refusal, placed in its file by the caller (hearth/docs/design/domain/render.md, 7.2).
+/// A decode refusal, placed in its file by the caller (hearth/docs/design/domain/render/errors.md, 2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Error {
     pub at: u32,
     pub kind: ErrorKind,
 }
-/// Why expression text was refused (hearth/docs/design/protocol/format.md, 7.4).
+/// Why expression text was refused (hearth/docs/design/protocol/format/templates.md, 4).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ErrorKind {
-    /// A statement, comment or minus marker in an interpolated string (hearth/docs/design/protocol/format.md, 5.2).
+    /// A statement, comment or minus marker in an interpolated string (hearth/docs/design/protocol/format/tasks.md, 2).
     Interpolation,
     Unmatched,
     Unended,

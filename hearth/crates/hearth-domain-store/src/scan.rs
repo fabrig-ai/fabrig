@@ -1,4 +1,4 @@
-//! Paged settlement of startup debris (hearth/docs/design/domain/store.md, 4.4 and 8.2).
+//! Paged settlement of startup debris (hearth/docs/design/domain/store/README.md, 4.4 and 6.2).
 use crate::{
     Phase, Standing, Store, index,
     limits::Limits,

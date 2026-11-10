@@ -12,9 +12,9 @@ Later section needs an update. `tools/tiers/design.md`, 7.3 already
 describes the table. The unrelated design changes made while this plan
 was running need no reconciliation for this entry.
 
-The question in `hearth/docs/design/domain/testing.md`, 11 remains open:
+The question in `hearth/docs/design/testing/README.md`, 6 remains open:
 whether the fuzzy suite's 120 seconds stay wall time or become a CPU
-budget. Section 9.1 and `testing.status.md` remain unchanged, as the
+budget. Section 9.1 and `../design/testing/README.status.md` remain unchanged, as the
 request requires. The entry's comment preserves that question; the entry
 does not settle the figure. No contradiction was corrected.
 

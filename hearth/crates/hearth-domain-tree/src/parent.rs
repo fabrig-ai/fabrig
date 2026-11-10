@@ -1,5 +1,5 @@
 //! The parent's tree file, read as a stream of typed entries and merged with the walk
-//! (hearth/docs/design/domain/store.md, 4.3 and 5.4).
+//! (hearth/docs/design/domain/store/README.md, 4.3, and hearth/docs/design/domain/store/tree-helper.md, 4).
 //!
 //! The walk holds one parent entry at a time. Before it visits a path, every parent path that
 //! comes before it in tree order is a delete; after it ends, every parent path left is. At a

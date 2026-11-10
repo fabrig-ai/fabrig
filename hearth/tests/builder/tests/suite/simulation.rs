@@ -55,12 +55,12 @@ fn each_resolved_costs_equal_the_bytes_served_and_the_spawn_to_exit_span() {
     assert_eq!(
         costs.fetched,
         outcome.machine.served_bytes(),
-        "hearth/docs/design/domain/testing.md, 9.3: the mirror's own byte count"
+        "hearth/docs/design/testing/README.md, 4.3: the mirror's own byte count"
     );
     assert_eq!(
         costs.took,
         *fixtures::only(&fixtures::tool_spans(&outcome.trace, b"/usr/bin/mmdebstrap")),
-        "hearth/docs/design/domain/testing.md, 9.3: spawn to exit"
+        "hearth/docs/design/testing/README.md, 4.3: spawn to exit"
     );
 }
 
@@ -100,7 +100,7 @@ fn a_lock_held_past_the_resolve_limit_is_waited_out_then_the_call_renders() {
         simulated::with_lock(&fixtures::thin(), fixtures::SIMULATION_SEED, Config::calm(), fixtures::LONG_LOCK_RELEASE);
     assert!(
         outcome.end >= fixtures::LONG_LOCK_RELEASE,
-        "hearth/docs/design/domain/store.md, 8.2 sets no lock wait limit"
+        "hearth/docs/design/domain/store/README.md, 6.2 sets no lock wait limit"
     );
     assert_eq!(
         outcome.machine.contents(fixtures::ERROR).as_deref(),

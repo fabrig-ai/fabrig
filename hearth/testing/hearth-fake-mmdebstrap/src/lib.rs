@@ -1,4 +1,4 @@
-//! The deterministic mmdebstrap domain (hearth/docs/design/domain/testing.md, 3.6).
+//! The deterministic mmdebstrap domain (hearth/docs/design/testing/fake-machine.md, 6).
 #![forbid(unsafe_code)]
 extern crate alloc;
 pub mod apt;

@@ -30,7 +30,7 @@ pub struct Failed {
     pub step: Step,
     pub why: Why,
 }
-/// A layer's steps, by their names in a layer's costs (hearth/docs/design/domain/build.md, 5 to 7).
+/// A layer's steps, by their names in a layer's costs (hearth/docs/design/domain/build/packages.md and hearth/docs/design/domain/build/README.md, 5 to 6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Step {
     Fetch,

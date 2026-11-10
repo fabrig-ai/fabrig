@@ -1,4 +1,4 @@
-//! The packages record in client forms (hearth/docs/design/domain/render.md, 4.2).
+//! The packages record in client forms (hearth/docs/design/domain/render/spec.md, 1.2).
 use crate::form::text::Lines;
 use alloc::boxed::Box;
 mod change;

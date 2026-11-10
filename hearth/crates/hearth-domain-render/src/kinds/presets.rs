@@ -1,4 +1,4 @@
-//! Unit presets (hearth/docs/design/protocol/format.md, 5.6).
+//! Unit presets (hearth/docs/design/protocol/format/tasks.md, 6).
 use super::secrets::{fault, required};
 use crate::{
     entries::Located,

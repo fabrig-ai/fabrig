@@ -1,4 +1,4 @@
-//! Recorded closures compared by name, then architecture (hearth/docs/design/domain/store.md, 6.4).
+//! Recorded closures compared by name, then architecture (hearth/docs/design/domain/store/records.md, 4).
 use crate::resolution::Package;
 use alloc::boxed::Box;
 use hearth_lib::encode::Digest;

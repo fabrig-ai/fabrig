@@ -1,4 +1,4 @@
-//! Decoded declaration strings compiled without template whitespace rules (hearth/docs/design/protocol/format.md, 5.2).
+//! Decoded declaration strings compiled without template whitespace rules (hearth/docs/design/protocol/format/tasks.md, 2).
 use crate::{
     Does, Error, ErrorKind, Instruction,
     limits::Limits,

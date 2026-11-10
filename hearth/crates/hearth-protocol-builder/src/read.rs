@@ -1,4 +1,4 @@
-//! One cat-file response at a time, then the bounded JSON machine (hearth/docs/design/domain/render.md, 2.2).
+//! One cat-file response at a time, then the bounded JSON machine (hearth/docs/design/domain/render/README.md, 2.2).
 use crate::{
     Asked, Current, Limits, Mode, builder,
     cache::Cache,

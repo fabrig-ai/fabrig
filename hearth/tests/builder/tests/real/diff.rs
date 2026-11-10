@@ -11,7 +11,7 @@ fn hearth_diff_names_each_changed_target_and_its_rebuild() {
     assert_eq!(
         String::from_utf8_lossy(&rendered.stdout),
         fixtures::MOTD_DIFF_TEXT,
-        "hearth/docs/design/domain/render.md 6.3"
+        "hearth/docs/design/domain/render/README.md 4.3"
     );
 }
 #[test]

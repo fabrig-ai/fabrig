@@ -1,4 +1,4 @@
-//! Group declarations and bounded account ids (hearth/docs/design/protocol/format.md, 5.6).
+//! Group declarations and bounded account ids (hearth/docs/design/protocol/format/tasks.md, 6).
 use super::secrets::fault;
 use crate::{
     entries::{Concrete, Located},

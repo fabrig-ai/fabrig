@@ -1,4 +1,4 @@
-//! Fixed owners and package seeds (hearth/docs/design/domain/render.md, 3.3 and 4.2).
+//! Fixed owners and package seeds (hearth/docs/design/domain/render/README.md, 3.3, and hearth/docs/design/domain/render/spec.md, 1.2).
 use crate::{
     entries::Expansion,
     errors::{Error, Ids, Kind, Owns, Place, Why},

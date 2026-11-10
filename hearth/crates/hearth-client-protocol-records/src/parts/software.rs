@@ -1,4 +1,4 @@
-//! Software records and their fetch hints (hearth/docs/design/domain/render.md, 4.2).
+//! Software records and their fetch hints (hearth/docs/design/domain/render/spec.md, 1.2).
 pub use super::config::Script;
 use crate::form::text::{Lines, octal};
 use alloc::boxed::Box;

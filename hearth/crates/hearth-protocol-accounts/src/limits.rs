@@ -1,4 +1,4 @@
-//! Configured limits (hearth/docs/design/domain/activator.md, 2.3; hearth/docs/design/domain/store.md, 5.3).
+//! Configured limits (hearth/docs/design/domain/activator/README.md, 2.3; hearth/docs/design/domain/store/tree-helper.md, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     /// The most bytes of one file.

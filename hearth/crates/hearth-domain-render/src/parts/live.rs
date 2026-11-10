@@ -1,4 +1,4 @@
-//! Live paths and their ordered consumers (hearth/docs/design/domain/render.md, 4.4).
+//! Live paths and their ordered consumers (hearth/docs/design/domain/render/spec.md, 1.4).
 use crate::{
     entries::Expansion,
     errors::Error,

@@ -1,4 +1,4 @@
-//! Typed packages differences (hearth/docs/design/domain/render.md, 6.1).
+//! Typed packages differences (hearth/docs/design/domain/render/README.md, 4.1).
 use super::{Apt, Box, Initramfs, List, Packages, Preseed, Sources, Variant};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Change {

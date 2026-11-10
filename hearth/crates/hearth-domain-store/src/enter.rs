@@ -1,4 +1,4 @@
-//! Cache admission preserves the first record and never evicts (hearth/docs/design/domain/store.md, 6.8, 8.1).
+//! Cache admission preserves the first record and never evicts (hearth/docs/design/domain/store/records.md, 8, hearth/docs/design/domain/store/README.md, 6.1).
 use crate::{
     Flight, Standing, Store,
     limits::Limits,

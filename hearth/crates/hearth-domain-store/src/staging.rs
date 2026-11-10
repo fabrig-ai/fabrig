@@ -1,4 +1,4 @@
-//! A layer's life past the index: staging, sealing and discarding (hearth/docs/design/domain/store.md, 4.2).
+//! A layer's life past the index: staging, sealing and discarding (hearth/docs/design/domain/store/README.md, 4.2).
 //!
 //! One request is in flight at a time: the store sends the next of a chain's steps when the
 //! answer to the last one comes, and answers the build when the chain ends.

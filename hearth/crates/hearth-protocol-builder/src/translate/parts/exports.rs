@@ -1,4 +1,4 @@
-//! Public evaluated values become typed client values (hearth/docs/design/protocol/format.md, 8).
+//! Public evaluated values become typed client values (hearth/docs/design/protocol/format/README.md, 6).
 use crate::{
     records::parts::exports as target,
     render::{evaluate as source, parts::exports::Exports},

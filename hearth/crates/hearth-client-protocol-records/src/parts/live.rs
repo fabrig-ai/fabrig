@@ -1,4 +1,4 @@
-//! Live consumers (hearth/docs/design/domain/render.md, 4.4).
+//! Live consumers (hearth/docs/design/domain/render/spec.md, 1.4).
 use crate::form::text::Lines;
 use alloc::boxed::Box;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

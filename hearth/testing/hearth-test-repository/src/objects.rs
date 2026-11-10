@@ -1,5 +1,5 @@
 //! A scratch repository's objects as `git add -A` and `git commit` would write them
-//! (hearth/docs/design/domain/testing.md, 9.1).
+//! (hearth/docs/design/testing/README.md, 4.1).
 use sha1::{Digest, Sha1, digest::Output};
 use std::{
     fmt::Write,
