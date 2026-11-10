@@ -2253,6 +2253,79 @@ fn an_external_move_of_a_held_branch_is_reported_as_drift() {
 }
 
 #[test]
+fn a_released_opening_move_on_a_requesters_branch_opens_before_ci() {
+    const BRANCH: &[u8] = b"temper/1/g1";
+    let mut world = World::new(293);
+    world.adopt();
+    world.landing_ci(b"main", true);
+    world.produce_on(BRANCH, b"main");
+    let prior = translate::commit(world.branch(BRANCH));
+    let name = top::Name {
+        forge: REPO.forge,
+        repository: REPO.repository,
+        what: top::What::Branch(Box::new([
+            Box::from(b"temper".as_slice()),
+            Box::from(b"1".as_slice()),
+            Box::from(b"g1".as_slice()),
+        ])),
+    };
+    world.event(top::Event::Hold { entry: 0, task: 1, resource: name, from: None });
+    world.run_for(1);
+    let mut row = change_row();
+    row.branch = BRANCH.into();
+    row.change.state = change::State::Opening { requested: false };
+    row.change.last_head = Some(prior);
+    row.change.since = world.wall();
+    world.event(top::Event::Change { row });
+    world.push(BRANCH, b"moved before opening");
+    let head = translate::commit(world.branch(BRANCH));
+    assert_ne!(head, prior);
+    assert_eq!(
+        change_step(&mut world, 1, change::Status::Passed, Box::new([])),
+        change::Decision::Hold(change::Hold::BranchMoved)
+    );
+    assert_eq!(
+        world.change(51).change.state,
+        change::State::Held {
+            was: Box::new(change::State::Opening { requested: false }),
+            why: change::Hold::BranchMoved,
+        }
+    );
+    assert_eq!(world.change(51).pull, None);
+    world.status(BRANCH, skein_fake_forge_domain::api::Check::Pending);
+    world.event(top::Event::ReleaseChange { task: 51 });
+    world.take_calls();
+    assert_eq!(
+        change_step_with_release(&mut world, 2, change::Status::Passed, Box::new([]), true),
+        change::Decision::Effect(change::Effect::Open)
+    );
+    assert_eq!(world.change(51).change.last_head, Some(head));
+    assert_eq!(world.change(51).change.state, change::State::Opening { requested: true });
+    assert!(
+        world.take_calls().iter().any(|op| matches!(op,
+            skein_forge::api::Op::Write(skein_forge::api::Write::OpenPull { head, base, .. })
+                if head.as_ref() == BRANCH && base.as_ref() == b"main"
+        )),
+        "the create-pull request reaches the forge before checking"
+    );
+    let checking = change_step(&mut world, 3, change::Status::Passed, Box::new([]));
+    assert!(matches!(checking, change::Decision::Wait { .. }), "CI pending: {checking:?}");
+    assert!(world.change(51).pull.is_some());
+    assert_eq!(world.change(51).change.state, change::State::Checking { head });
+    world.status(BRANCH, skein_fake_forge_domain::api::Check::Passed);
+    let mut landed = None;
+    for entry in 4..16 {
+        if let change::Decision::Finish { merge } = change_step(&mut world, entry, change::Status::Passed, Box::new([]))
+        {
+            landed = Some(merge);
+            break;
+        }
+    }
+    assert_eq!(landed, Some(translate::commit(world.branch(b"main"))));
+    assert_eq!(world.writes(), 2, "one pull opened, one merge");
+}
+
+#[test]
 fn idle_forge_call_cost_does_not_follow_old_issue_history() {
     let issue = top::Name { forge: REPO.forge, repository: REPO.repository, what: top::What::Issue(1) };
     let mut small = World::new(47);
