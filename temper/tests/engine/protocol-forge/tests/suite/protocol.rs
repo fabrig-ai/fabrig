@@ -391,7 +391,7 @@ fn idle_forge_call_cost_does_not_follow_old_issue_history() {
     let mut small = Protocol::new(47);
     small.preload_history(2);
     small.adopt();
-    small.event(top::Event::Names { task: 1, resources: Box::new([main_name()]) });
+    small.event(top::Event::Names { task: 1, resources: Box::new([main_name(), issue_name()]) });
     small.run_for(60);
     let before = small.tally().total;
     small.run_for(60);
@@ -400,7 +400,7 @@ fn idle_forge_call_cost_does_not_follow_old_issue_history() {
     let mut large = Protocol::new(47);
     large.preload_history(20);
     large.adopt();
-    large.event(top::Event::Names { task: 1, resources: Box::new([main_name()]) });
+    large.event(top::Event::Names { task: 1, resources: Box::new([main_name(), issue_name()]) });
     large.run_for(60);
     let before = large.tally().total;
     large.run_for(60);
@@ -444,7 +444,7 @@ fn honest_costs_equal_the_requests_the_fake_served() {
 fn a_busy_pass_lists_at_most_changed_items_over_the_page_plus_one() {
     let mut world = Protocol::new(12);
     world.adopt();
-    world.event(top::Event::Names { task: 1, resources: Box::new([main_name()]) });
+    world.event(top::Event::Names { task: 1, resources: Box::new([issue_name()]) });
     world.run_for(61);
     for _ in 0..6 {
         world.issue(b"Changed", b"body");
@@ -478,6 +478,10 @@ fn the_api_token_reaches_no_record_request_or_fact() {
         "the check recognizes text secrets"
     );
     assert!(world.token_kept());
+}
+
+fn issue_name() -> top::Name {
+    top::Name { forge: REPO.forge, repository: REPO.repository, what: top::What::Issue(1) }
 }
 
 fn main_name() -> top::Name {

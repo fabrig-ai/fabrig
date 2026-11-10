@@ -1,4 +1,4 @@
-//! Bounded keeping-up of live forge resources (forge-client.md, section 5).
+//! Bounded keeping-up of live forge resources (forge-client.md, sections 3–4).
 //!
 //! The working set holds live rows, scan positions, inbox delivery stamps,
 //! and observed heads. It never discovers resources from labels or reads
@@ -120,6 +120,7 @@ impl Refusals {
 struct Repo {
     record: RepositoryRecord,
     active: bool,
+    dropping: bool,
     fresh: Fresh,
     state: Scan,
     hinted: bool,
@@ -133,6 +134,7 @@ enum Fresh {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Scan {
+    Off,
     Idle,
     Due(Progress),
     Busy(Progress),
@@ -177,8 +179,8 @@ impl Keep {
         }
         for (_, row) in &self.repos {
             match row.state {
-                Scan::Due(_) if row.active => return true,
-                Scan::Due(_) | Scan::Idle | Scan::Busy(_) | Scan::Waiting(_) => {}
+                Scan::Due(_) if row.active && !row.dropping => return true,
+                Scan::Off | Scan::Due(_) | Scan::Idle | Scan::Busy(_) | Scan::Waiting(_) => {}
             }
         }
         false
@@ -230,15 +232,49 @@ fn live(record: LiveRecord, l: &Limits, alarm: u64) -> Live {
     }
 }
 fn repository(record: RepositoryRecord) -> Repo {
-    let progress = Progress::first(record.mark);
     Repo {
         record,
         active: true,
+        dropping: false,
         fresh: Fresh::Complete,
-        state: Scan::Due(progress),
+        state: Scan::Off,
         hinted: false,
         heard: None,
         retry: Duration::ZERO,
+    }
+}
+fn listed(k: &Keep, repository: Repository) -> bool {
+    for (key, row) in &k.live {
+        if row.active && key.repository == repository {
+            match key.what {
+                What::Pull(_) | What::Issue(_) => return true,
+                What::Repository | What::Branch(_) => {}
+            }
+        }
+    }
+    false
+}
+fn listings(d: &mut Domain, out: &mut Queue<Request>) {
+    for key in repos(&d.keep) {
+        let listed = listed(&d.keep, key);
+        let row = d.keep.repos.get_mut(&key).expect("repository remains");
+        match row.state {
+            Scan::Off if listed => row.state = Scan::Due(Progress::first(row.record.mark)),
+            Scan::Idle | Scan::Due(_) | Scan::Busy(_) | Scan::Waiting(_) if !listed => {
+                d.alarms.cancel(Alarm::Repository(key));
+                if scan_busy(row.state) && !calls::cancel_repository(&mut d.calls, key) {
+                    row.dropping = true;
+                }
+                row.state = Scan::Off;
+                row.fresh = Fresh::Complete;
+                row.hinted = false;
+                row.record.mark = None;
+                if row.active {
+                    out.push(Request::Save { record: Stored::Repository(row.record) });
+                }
+            }
+            Scan::Off | Scan::Idle | Scan::Due(_) | Scan::Busy(_) | Scan::Waiting(_) => {}
+        }
     }
 }
 /// Stretch a timed read while its active repository hears (forge-client.md, 4.1).
@@ -282,7 +318,7 @@ fn busy(state: State) -> bool {
 fn scan_busy(state: Scan) -> bool {
     match state {
         Scan::Busy(_) => true,
-        Scan::Idle | Scan::Due(_) | Scan::Waiting(_) => false,
+        Scan::Off | Scan::Idle | Scan::Due(_) | Scan::Waiting(_) => false,
     }
 }
 fn admission(k: &Keep, l: &Limits, watches: &[Watch]) -> Result<(), Error> {
@@ -321,7 +357,7 @@ fn admission(k: &Keep, l: &Limits, watches: &[Watch]) -> Result<(), Error> {
         }
     }
     for (key, row) in &k.repos {
-        if !has_repo(watches, *key) && scan_busy(row.state) {
+        if !has_repo(watches, *key) && (scan_busy(row.state) || row.dropping) {
             repositories = repositories.saturating_add(1);
         }
     }
@@ -391,6 +427,7 @@ pub(crate) fn replace(
             }
         }
     }
+    listings(d, out);
     out.push(Request::Kept { owner, result: Ok(()) });
 }
 fn remove_live(d: &mut Domain, watches: &[Watch], out: &mut Queue<Request>) {
@@ -430,7 +467,7 @@ fn remove_repos(d: &mut Domain, watches: &[Watch], out: &mut Queue<Request>) {
             if scan_busy(row.state) && calls::cancel_repository(&mut d.calls, *key) {
                 row.state = Scan::Idle;
             }
-            if !scan_busy(row.state) {
+            if !scan_busy(row.state) && !row.dropping {
                 removed.push(*key).expect("bounded removals");
             }
         }
@@ -472,7 +509,7 @@ pub(crate) fn active_resource(k: &Keep, key: &Resource) -> bool {
 }
 pub(crate) fn active_repository(k: &Keep, key: Repository) -> bool {
     match k.repos.get(&key) {
-        Some(row) => row.active,
+        Some(row) => row.active && !row.dropping && row.state != Scan::Off,
         None => false,
     }
 }

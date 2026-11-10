@@ -880,11 +880,11 @@ fn poll_at_answers_the_fallback_rule() {
                 h.event(Event::Hint { hint: api::Hint { repository: Repository { repository: 6, ..REPO }, ..valid } });
             }
             Restored => {
-                h.clock();
                 h.event(Event::Hint { hint: valid });
                 h.restart();
             }
             Retired => {
+                h.keep(Box::new([watch(fixtures::keep::issue(), false)]));
                 let _outstanding = h.one();
                 h.event(Event::Hint { hint: valid });
                 h.keep(Box::new([]));

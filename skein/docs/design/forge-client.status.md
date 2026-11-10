@@ -9,10 +9,3 @@
   rebase's concurrent-push behaviour. The connector world checks a dropped
   push by an explicit branch rewrite; the design takes the forced push at
   its worst until the real forge's behaviour is recorded.
-- **Not yet:** 3, 4: every watched repository is listed each `poll`, one
-  watched only for branches or as a `Repository` included, and a hint
-  starts its listing.
-- **Not yet:** 2.2, 4.1, 7.7: `Limits` has no `fallback` and the client
-  keeps no hearing: every rest, repair and queued merge's look keeps
-  section 4's pace while deliveries arrive, and `Domain::poll_at` is
-  missing.

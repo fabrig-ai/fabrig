@@ -487,21 +487,9 @@ fn a_green_whole_run_clears_its_nonempty_range() {
 }
 
 fn observe_branch(d: &mut Domain, expected: &[u8]) {
-    for _ in 0..LIMITS.client.pending {
-        let (call, op) = fixtures::next_call(d);
-        match op {
-            api::Op::Read(api::Read::Items { .. }) => {
-                fixtures::answer(d, call, Ok(api::Answer::Items { items: Box::new([]), more: false, now: env().now }));
-            }
-            api::Op::Read(api::Read::Branch { branch }) => {
-                assert_eq!(branch.as_ref(), expected);
-                fixtures::answer(d, call, Ok(api::Answer::Commit(BASE)));
-                return;
-            }
-            _ => panic!("unexpected watch call: {op:?}"),
-        }
-    }
-    panic!("tier branch was not watched");
+    let (call, op) = fixtures::next_call(d);
+    assert_eq!(op, api::Op::Read(api::Read::Branch { branch: expected.into() }));
+    fixtures::answer(d, call, Ok(api::Answer::Commit(BASE)));
 }
 #[test]
 fn first_observation_of_each_followed_branch_starts_its_baseline() {

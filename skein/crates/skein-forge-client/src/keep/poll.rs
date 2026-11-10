@@ -11,7 +11,7 @@ pub(crate) fn pump(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
         let row = d.keep.repos.get_mut(&key).expect("bounded key remains");
         let key = &key;
         match row.state {
-            Scan::Due(progress) if row.active => {
+            Scan::Due(progress) if row.active && !row.dropping => {
                 row.state = Scan::Busy(progress);
                 calls::queue(
                     &mut d.calls,
@@ -22,7 +22,7 @@ pub(crate) fn pump(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
                 );
                 return true;
             }
-            Scan::Due(_) | Scan::Idle | Scan::Busy(_) | Scan::Waiting(_) => {}
+            Scan::Off | Scan::Due(_) | Scan::Idle | Scan::Busy(_) | Scan::Waiting(_) => {}
         }
     }
     for key in super::keys(&d.keep) {
@@ -38,7 +38,7 @@ pub(crate) fn pump(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
         let key = &key;
         match row.state {
             State::Due(phase, priority) if row.active => {
-                // Repository watches use only the repository listing.
+                // Repository watches keep a row and read nothing of their own.
                 match key.what {
                     What::Repository => {
                         row.state = State::Idle;
@@ -122,7 +122,7 @@ pub(crate) fn due_repository(d: &mut Domain, key: Repository) {
     row.state = match row.state {
         Scan::Waiting(progress) => Scan::Due(progress),
         Scan::Idle => Scan::Due(Progress::first(row.record.mark)),
-        Scan::Due(_) | Scan::Busy(_) => unreachable!("idle repository alarm"),
+        Scan::Off | Scan::Due(_) | Scan::Busy(_) => unreachable!("idle repository alarm"),
     };
 }
 pub(crate) fn writer(d: &mut Domain, env: &Env<Limits>, key: &Resource, taken: bool) {
@@ -212,6 +212,7 @@ pub(crate) fn hint(d: &mut Domain, env: &Env<Limits>, hint: api::Hint) {
         && row.active
     {
         match row.state {
+            Scan::Off => {}
             Scan::Idle => {
                 row.state = Scan::Waiting(Progress::first(row.record.mark));
                 d.alarms

@@ -431,8 +431,10 @@ fn oversized_hints_read_nothing() {
         ),
     ] {
         let mut h = kept::Harness::new();
-        h.keep(Box::new([kept::watch(resource, false)]));
-        h.clock();
+        h.keep(Box::new([kept::watch(resource.clone(), false)]));
+        if resource != kept::branch() {
+            h.clock();
+        }
         let sent = h.one();
         h.answer(sent, answer);
         while h.domain.pop_fact().is_some() {}

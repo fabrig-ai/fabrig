@@ -12,13 +12,17 @@ pub(crate) fn answered_repository(
     out: &mut Queue<Request>,
 ) {
     let polled = super::poll_at(&d.keep, &env.limits, env.now, key, env.limits.poll);
-    let row = d.keep.repos.get(&key).expect("call owns repository");
+    let row = d.keep.repos.get_mut(&key).expect("call owns repository");
     if !row.active {
         d.keep.repos.remove(&key).expect("inactive repository exists");
         return;
     }
+    if core::mem::replace(&mut row.dropping, false) {
+        return;
+    }
     let mut progress = match row.state {
         Scan::Busy(progress) => progress,
+        Scan::Off => return,
         Scan::Idle | Scan::Due(_) | Scan::Waiting(_) => unreachable!("repository terminal while busy"),
     };
     let Ok(answer) = result else {

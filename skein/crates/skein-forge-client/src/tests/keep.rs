@@ -99,7 +99,6 @@ fn owned_pull_keeps_ci_and_base_on_backoff_without_reading_forge_reviews() {
 fn own_pushes_and_held_writer_hints_are_not_drift_but_a_later_external_tip_is() {
     let mut h = Harness::new();
     h.keep(Box::new([watch(branch(), false)]));
-    h.clock();
     let read = h.one();
     h.answer(read, Answer::Commit([1; 32]));
     h.event(Event::Writer { resource: branch(), taken: true });
@@ -115,8 +114,6 @@ fn own_pushes_and_held_writer_hints_are_not_drift_but_a_later_external_tip_is() 
         hint: api::Hint { repository: REPO, change: Change::Branch(Box::from(&b"topic"[..])), key: None },
     });
     h.fire(101);
-    let listing = h.one();
-    h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(101) });
     let read = h.one();
     h.answer(read, Answer::Commit([3; 32]));
     assert_eq!(h.drift, 1);
@@ -169,8 +166,9 @@ fn own_comment_echo_never_skips_an_intervening_unread_human_comment() {
 #[test]
 fn time_paging_keeps_the_tie_replay_point_when_an_item_moves_during_the_pass() {
     let mut h = Harness::new();
-    h.keep(Box::new([watch(Resource { repository: REPO, what: What::Repository }, false)]));
+    h.keep(Box::new([watch(issue(), false)]));
     h.clock();
+    let _item_in_flight = h.one();
     h.fire(105);
     let first = h.one();
     assert_eq!(first.op, Op::Read(Read::Items { since: at(100), page: 1, kind: None }));
@@ -585,7 +583,6 @@ fn writer_moves_require_forward_ancestry_and_authenticated_identity() {
     {
         let mut h = Harness::new();
         h.keep(Box::new([watch(branch(), false)]));
-        h.clock();
         let read = h.one();
         h.answer(read, Answer::Commit([1; 32]));
         h.event(Event::Writer { resource: branch(), taken: true });
@@ -597,8 +594,6 @@ fn writer_moves_require_forward_ancestry_and_authenticated_identity() {
             },
         });
         h.fire(101);
-        let listing = h.one();
-        h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(101) });
         let read = h.one();
         assert_eq!(read.op, Op::Read(Read::Branch { branch: Box::from(&b"topic"[..]) }));
         h.answer(read, Answer::Commit([2; 32]));
@@ -628,7 +623,6 @@ fn a_branch_read_from_before_our_push_is_read_again() {
     for writer in [false, true] {
         let mut h = Harness::new();
         h.keep(Box::new([watch(branch(), false)]));
-        h.clock();
         let read = h.one();
         if writer {
             h.event(Event::Writer { resource: branch(), taken: true });
@@ -649,7 +643,6 @@ fn a_branch_read_from_before_our_push_is_read_again() {
 fn a_branch_still_missing_on_its_read_after_our_push_drifts() {
     let mut h = Harness::new();
     h.keep(Box::new([watch(branch(), false)]));
-    h.clock();
     let read = h.one();
     h.event(Event::Pushed { resource: branch(), commit: [1; 32] });
     missing(&mut h, read);
@@ -667,7 +660,6 @@ fn missing_branch_rests_at_slow_and_reports_each_absence_once() {
         h.env.limits.poll = skein_lib::Duration::from_secs(1000);
         h.env.limits.poll_max = h.env.limits.poll;
         h.keep(Box::new([watch(branch(), false)]));
-        h.clock();
         if cached {
             h.event(Event::Pushed { resource: branch(), commit: [1; 32] });
         }
@@ -742,23 +734,18 @@ fn missing_issue_and_pull_rest_at_slow_and_suppress_repeated_news() {
 fn missing_uses_hinted_rest_and_unavailable_keeps_backoff() {
     let mut h = Harness::new();
     h.keep(Box::new([watch(branch(), false)]));
-    h.clock();
     let read = h.one();
     h.event(Event::Hint {
         hint: api::Hint { repository: REPO, change: Change::Branch(Box::from(&b"topic"[..])), key: None },
     });
     missing(&mut h, read);
     h.fire(101);
-    let listing = h.one();
-    h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(101) });
     let read = h.one();
     missing(&mut h, read);
     assert_eq!(h.failures.as_slice(), &[Error::Missing]);
 
     let mut h = Harness::new();
     h.keep(Box::new([watch(branch(), false)]));
-    h.clock();
-    h.domain.alarms.cancel(crate::domain::Alarm::Repository(REPO));
     for now in [101, 103, 107] {
         let read = h.one();
         h.event(Event::Answered { call: read.call, cost: 1, free: 0, rate: None, result: Err(Error::Unavailable) });
@@ -809,8 +796,9 @@ fn repository_listing_waits_for_hints_within_the_poll_interval() {
     const HINTED: skein_lib::Duration = skein_lib::Duration::from_millis(10);
     const SLOW: skein_lib::Duration = skein_lib::Duration::from_millis(100);
     let mut h = Harness::with_limits(Limits { poll: POLL, poll_max: POLL, hinted: HINTED, slow: SLOW, ..LIMITS });
-    h.keep(Box::new([watch(Resource { repository: REPO, what: What::Repository }, false)]));
+    h.keep(Box::new([watch(issue(), false)]));
     h.clock();
+    let _item_in_flight = h.one();
     let end = h.env.now.saturating_add(STORY);
     // Cross several of the ordinary five-second poll deadlines without
     // shortening the timer fixture's configured poll interval.
@@ -850,12 +838,14 @@ fn timed_reads_fall_back_while_their_repository_hears() {
         for hears in [false, true] {
             let mut h = Harness::with_limits(Limits { fallback: FALLBACK, poll, poll_max: poll, rate: 100, ..LIMITS });
             h.keep(Box::new([watch(resource.clone(), participating)]));
-            h.clock();
+            if resource != branch() {
+                h.clock();
+            }
             if hears {
                 h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(10), key: None } });
             }
             h.fire(105);
-            if hears || poll == LIMITS.poll {
+            if resource != branch() && (hears || poll == LIMITS.poll) {
                 let read = h.one();
                 assert_eq!(read.op, Op::Read(Read::Items { since: at(100), page: 1, kind: None }));
                 h.answer(read, Answer::Items { items: Box::new([]), more: false, now: at(105) });
@@ -891,25 +881,17 @@ fn timed_reads_fall_back_while_their_repository_hears() {
 fn a_repository_that_stops_hearing_polls_at_its_own_pace_again() {
     let mut h = Harness::with_limits(Limits { fallback: FALLBACK, rate: 100, ..LIMITS });
     h.keep(Box::new([watch(branch(), false)]));
-    h.clock();
     h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(10), key: None } });
     h.fire(101);
-    let listing = h.one();
-    h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(101) });
     let read = h.one();
     h.answer(read, Answer::Commit([1; 32]));
     assert_eq!(h.domain.next_deadline(), Some(at(220)));
     h.fire(219);
     assert!(h.send().is_none());
     h.fire(220);
-    let listing = h.one();
-    assert_eq!(listing.op, Op::Read(Read::Items { since: at(100), page: 1, kind: None }));
-    h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(220) });
     let read = h.one();
     assert_eq!(read.op, Op::Read(Read::Branch { branch: Box::from(&b"topic"[..]) }));
     h.answer(read, Answer::Commit([1; 32]));
-    assert_eq!(h.domain.next_deadline(), Some(at(225)));
-    h.domain.alarms.cancel(crate::domain::Alarm::Repository(REPO));
     assert_eq!(h.domain.next_deadline(), Some(at(280)));
 }
 
@@ -917,7 +899,6 @@ fn a_repository_that_stops_hearing_polls_at_its_own_pace_again() {
 fn a_hint_still_reads_at_hinted_while_its_repository_hears() {
     let mut h = Harness::with_limits(Limits { fallback: FALLBACK, rate: 100, ..LIMITS });
     h.keep(Box::new([watch(branch(), false)]));
-    h.clock();
     let read = h.one();
     h.answer(read, Answer::Commit([1; 32]));
     h.event(Event::Hint {
@@ -925,8 +906,6 @@ fn a_hint_still_reads_at_hinted_while_its_repository_hears() {
     });
     assert_eq!(h.domain.next_deadline(), Some(at(101)));
     h.fire(101);
-    let listing = h.one();
-    h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(101) });
     let read = h.one();
     assert_eq!(read.op, Op::Read(Read::Branch { branch: Box::from(&b"topic"[..]) }));
     // A hint received in flight still asks for a hinted rest, not fallback.
@@ -936,9 +915,246 @@ fn a_hint_still_reads_at_hinted_while_its_repository_hears() {
     h.answer(read, Answer::Commit([1; 32]));
     assert_eq!(h.domain.next_deadline(), Some(at(102)));
     h.fire(102);
-    let listing = h.one();
-    h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(102) });
     let read = h.one();
     h.answer(read, Answer::Commit([1; 32]));
     assert_eq!(h.domain.next_deadline(), Some(at(221)));
+}
+
+fn empty_listing(now: u64) -> Answer {
+    Answer::Items { items: Box::new([]), more: false, now: at(now) }
+}
+fn empty_object() -> Answer {
+    Answer::Item { item: summary(), comments: Box::new([]), more: false }
+}
+fn listing_read(since: u64) -> Read {
+    Read::Items { since: at(since), page: 1, kind: None }
+}
+fn branch_read() -> Read {
+    Read::Branch { branch: Box::from(*b"topic") }
+}
+fn drain_kept_reads(h: &mut Harness) -> Box<[Read]> {
+    let mut reads = List::with_capacity(20); // each tiny watch set has at most four phases
+    for _ in 0_u32..20 {
+        let Some(sent) = h.send() else { break };
+        let Op::Read(read) = &sent.op else { panic!("keeping reads only") };
+        reads.push(read.clone()).expect("bounded fixture calls");
+        let answer = match read {
+            Read::Items { .. } => empty_listing(100),
+            Read::Item { .. } => empty_object(),
+            Read::Pull { .. } => Answer::Pull(current()),
+            Read::Branch { .. } => Answer::Commit([1; 32]),
+            Read::Locate { .. }
+            | Read::PullFor { .. }
+            | Read::Reviews { .. }
+            | Read::Statuses { .. }
+            | Read::Remarks { .. }
+            | Read::Branches { .. }
+            | Read::PullFiles { .. }
+            | Read::Compare { .. }
+            | Read::Checks { .. }
+            | Read::Job { .. }
+            | Read::File { .. }
+            | Read::Protection { .. }
+            | Read::Settings
+            | Read::Collaborators { .. }
+            | Read::Permission { .. }
+            | Read::Runs { .. }
+            | Read::Run { .. }
+            | Read::Tree { .. }
+            | Read::Artifact { .. }
+            | Read::Commits { .. } => panic!("unexpected keeping phase"),
+        };
+        h.answer(sent, answer);
+    }
+    reads.into_boxed()
+}
+#[test]
+fn a_listing_runs_only_while_an_issue_or_pull_watch_lives() {
+    let repository = Resource { repository: REPO, what: What::Repository };
+    for (name, resource, first, listed) in [
+        ("branch only", branch(), Some(branch_read()), false),
+        ("repository only", repository, None, false),
+        ("issue", issue(), Some(listing_read(u64::MAX)), true),
+        ("pull", pull(), Some(listing_read(u64::MAX)), true),
+    ] {
+        let mut h = Harness::new();
+        h.keep(Box::new([watch(resource, false)]));
+        let reads = drain_kept_reads(&mut h);
+        assert_eq!(reads.first(), first.as_ref(), "{name}: first call");
+        assert_eq!(reads.contains(&listing_read(u64::MAX)), listed, "{name}: bootstrap");
+        for now in [105, 110] {
+            h.fire(now);
+            let reads = drain_kept_reads(&mut h);
+            assert_eq!(reads.contains(&listing_read(100)), listed, "{name}: each poll");
+        }
+        h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(9), key: None } });
+        h.fire(111);
+        let reads = drain_kept_reads(&mut h);
+        assert_eq!(reads.contains(&listing_read(100)), listed, "{name}: hint");
+        // restart's fixture checks the listing's stored mark when one is owed.
+        h.restart();
+        let reads = drain_kept_reads(&mut h);
+        assert!(!has_listing(&reads), "{name}: no extra listing after restart");
+        h.event(Event::ReadAfresh);
+        let reads = drain_kept_reads(&mut h);
+        assert_eq!(reads.contains(&listing_read(100)), listed, "{name}: fresh listing from stored mark");
+        assert_eq!(h.fresh_done, 1, "{name}: fresh pass completes");
+    }
+}
+
+fn has_listing(reads: &[Read]) -> bool {
+    for read in reads {
+        if is_listing(read) {
+            return true;
+        }
+    }
+    false
+}
+
+fn is_listing(read: &Read) -> bool {
+    match read {
+        Read::Items { .. } => true,
+        Read::Item { .. }
+        | Read::Pull { .. }
+        | Read::Branch { .. }
+        | Read::Locate { .. }
+        | Read::PullFor { .. }
+        | Read::Reviews { .. }
+        | Read::Statuses { .. }
+        | Read::Remarks { .. }
+        | Read::Branches { .. }
+        | Read::PullFiles { .. }
+        | Read::Compare { .. }
+        | Read::Checks { .. }
+        | Read::Job { .. }
+        | Read::File { .. }
+        | Read::Protection { .. }
+        | Read::Settings
+        | Read::Collaborators { .. }
+        | Read::Permission { .. }
+        | Read::Runs { .. }
+        | Read::Run { .. }
+        | Read::Tree { .. }
+        | Read::Artifact { .. }
+        | Read::Commits { .. } => false,
+    }
+}
+
+#[test]
+fn a_departed_repository_holds_its_room_and_rejoins_with_no_listing_mark() {
+    for rejoin in [false, true] {
+        let mut h = Harness::with_limits(Limits { repositories: 1, rate: 100, reserve: 0, ..LIMITS });
+        h.keep(Box::new([watch(issue(), false)]));
+        drain_kept_reads(&mut h);
+        h.fire(105);
+        let sent = h.one();
+        assert_eq!(sent.op, Op::Read(listing_read(100)));
+        h.keep(Box::new([]));
+        assert!(h.records.get(&Key::Repository(REPO)).is_none(), "departed row erased");
+        let other = Resource { repository: api::Repository { repository: 6, ..REPO }, what: What::Repository };
+        h.keep(Box::new([watch(other.clone(), false)]));
+        assert_eq!(h.kept.as_slice().last(), Some(&Err(Error::Busy)), "out call holds its room");
+        if rejoin {
+            h.keep(Box::new([watch(issue(), false)]));
+            let saved = h.records.get(&Key::Repository(REPO)).expect("repository saved on rejoin");
+            match saved {
+                Stored::Repository(row) => assert_eq!(row.mark, None, "rejoin clears the old mark"),
+                Stored::Live(_) | Stored::Writer(_) => panic!("repository record"),
+            }
+            assert!(!has_listing(&drain_kept_reads(&mut h)), "old call still out");
+        }
+        h.event(Event::Answered {
+            call: sent.call,
+            cost: 1,
+            free: 0,
+            rate: None,
+            result: Err(Error::RateLimited { after: skein_lib::Duration::from_secs(1) }),
+        });
+        h.fire(106);
+        if rejoin {
+            assert!(drain_kept_reads(&mut h).contains(&listing_read(u64::MAX)), "new watch bootstraps");
+        } else {
+            h.keep(Box::new([watch(other, false)]));
+            assert_eq!(h.kept.as_slice().last(), Some(&Ok(())), "answer releases the room");
+            assert!(h.send().is_none(), "no departed listing is requeued");
+        }
+    }
+}
+
+#[test]
+fn listing_departures() {
+    enum CallState {
+        Due,
+        Queued,
+        Out,
+        RateRefused,
+    }
+    for (name, state, result, rejoin) in [
+        ("due", CallState::Due, Ok(empty_listing(999)), false),
+        ("queued", CallState::Queued, Ok(empty_listing(999)), false),
+        ("out", CallState::Out, Ok(empty_listing(999)), false),
+        ("already rate refused", CallState::RateRefused, Ok(empty_listing(999)), false),
+        ("rate refused", CallState::Out, Err(Error::RateLimited { after: skein_lib::Duration::from_secs(1) }), false),
+        ("rejoined before answer", CallState::Out, Ok(empty_listing(999)), true),
+        (
+            "rejoined before rate refusal",
+            CallState::Out,
+            Err(Error::RateLimited { after: skein_lib::Duration::from_secs(1) }),
+            true,
+        ),
+    ] {
+        let mut h = Harness::new();
+        h.keep(Box::new([watch(issue(), false), watch(branch(), false)]));
+        drain_kept_reads(&mut h);
+        h.fire(105);
+        let sent = match state {
+            CallState::Due => None,
+            CallState::Queued => {
+                let mut out = skein_lib::Queue::uncapped();
+                crate::keep::poll::pump(&mut h.domain, &h.env, &mut out);
+                h.take(&mut out);
+                None
+            }
+            CallState::Out => Some(h.one()),
+            CallState::RateRefused => {
+                let sent = h.one();
+                h.event(Event::Answered {
+                    call: sent.call,
+                    cost: 1,
+                    free: 0,
+                    rate: None,
+                    result: Err(Error::RateLimited { after: skein_lib::Duration::from_secs(1) }),
+                });
+                None
+            }
+        };
+        h.keep(Box::new([watch(branch(), false)]));
+        let saved = match h.records.get(&Key::Repository(REPO)).expect("repository retained") {
+            Stored::Repository(record) => *record,
+            Stored::Live(_) | Stored::Writer(_) => panic!("repository record"),
+        };
+        assert_eq!(saved.mark, None, "{name}");
+        if rejoin {
+            h.keep(Box::new([watch(issue(), false), watch(branch(), false)]));
+        }
+        let reads = drain_kept_reads(&mut h);
+        assert!(!has_listing(&reads), "{name}: stopped call holds the listing off");
+        if let Some(sent) = sent {
+            h.event(Event::Answered { call: sent.call, cost: 1, free: 0, rate: None, result });
+            assert_eq!(
+                h.records.get(&Key::Repository(REPO)),
+                Some(&Stored::Repository(saved)),
+                "{name}: old answer dropped"
+            );
+        }
+        h.fire(106);
+        let reads = drain_kept_reads(&mut h);
+        assert_eq!(reads.contains(&listing_read(u64::MAX)), rejoin, "{name}: new watch bootstraps");
+        assert!(!reads.contains(&listing_read(100)), "{name}: no old listing");
+        assert!(!has_listing(&reads) || rejoin, "{name}: stopped listing stays off");
+        if !rejoin {
+            h.keep(Box::new([watch(issue(), false), watch(branch(), false)]));
+            assert!(drain_kept_reads(&mut h).contains(&listing_read(u64::MAX)), "{name}: later return bootstraps");
+        }
+    }
 }

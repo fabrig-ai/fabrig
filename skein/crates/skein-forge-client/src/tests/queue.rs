@@ -340,7 +340,6 @@ fn a_queued_merge_is_looked_at_after_the_fallback_while_its_repository_hears() {
     let mut h =
         Harness::with_limits(Limits { fallback: FALLBACK, slow: Duration::from_secs(1000), rate: 100, ..LIMITS });
     h.keep(Box::new([watch(branch(), false)]));
-    h.clock();
     let read = h.one();
     h.answer(read, Answer::Commit([1; 32]));
     h.event(Event::Make {
@@ -358,24 +357,19 @@ fn a_queued_merge_is_looked_at_after_the_fallback_while_its_repository_hears() {
     let sent = h.one();
     h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(10), key: None } });
     h.answer(sent, Answer::Queued);
-    // Remove the unrelated listing's hinted alarm to observe the entry alone.
-    h.domain.alarms.cancel(crate::domain::Alarm::Repository(REPO));
     assert_eq!(h.domain.next_deadline(), Some(at(220)));
     h.fire(220);
     let look = h.one();
     assert_eq!(look.op, Op::Read(Read::Pull { number: 9 }));
     h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(10), key: None } });
     h.answer(look, still_queued_answer());
-    h.domain.alarms.cancel(crate::domain::Alarm::Repository(REPO));
     assert_eq!(h.domain.next_deadline(), Some(at(340)));
     // A hint naming the entry still reads at hinted, including in flight.
     h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(9), key: None } });
-    h.domain.alarms.cancel(crate::domain::Alarm::Repository(REPO));
     assert_eq!(h.domain.next_deadline(), Some(at(221)));
     h.fire(221);
     let look = h.one();
     h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(9), key: None } });
     h.answer(look, still_queued_answer());
-    h.domain.alarms.cancel(crate::domain::Alarm::Repository(REPO));
     assert_eq!(h.domain.next_deadline(), Some(at(222)));
 }
