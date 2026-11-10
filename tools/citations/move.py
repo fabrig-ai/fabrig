@@ -535,7 +535,7 @@ class Plan:
             return
         tokens.update({"/" + old: old for old in self.moves})
         tokens.update({"./" + token: old for token, old in list(tokens.items()) if not token.startswith("/")})
-        pattern = re.compile(r"(?<![\w./-])(?:" + "|".join(re.escape(t) for t in sorted(tokens, key=len, reverse=True)) + r")(?![\w/-])")
+        pattern = re.compile(r"(?<![\w./-])(?:(?:\.\./)+)?(?:" + "|".join(re.escape(t) for t in sorted(tokens, key=len, reverse=True)) + r")(?![\w/-])")
         for path in sorted(self.tracked):
             # Credential-shaped files are never opened by this advisory scan.
             if (self.root / path).is_symlink() or re.search(r"(?i)(?:^|/)(?:auth\.json|\.credentials\.json|[^/]*(?:secret|token|credential|private[-_]key)[^/]*)$|\.(?:pem|key|p12|pfx)$", path):
