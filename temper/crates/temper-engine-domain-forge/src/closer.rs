@@ -1,8 +1,8 @@
 //! Durable goal closer progress and fresh containment (temper/docs/design/domain/forge.md, 11.2).
-use crate::{Domain, Limits, Request, Stored};
+use crate::{Domain, Key, Limits, Request, Stored};
 use alloc::boxed::Box;
 use skein_forge::api::{Answer, Commit, Error, Read, Repository};
-use skein_lib::{Env, Map, Queue, Token};
+use skein_lib::{Env, List, Map, Queue, Token};
 use temper_engine_domain_forge_closer::{Closer, Step};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -55,8 +55,39 @@ impl Domain {
     }
 }
 pub(crate) fn save(d: &mut Domain, row: CloserRow, out: &mut Queue<Request>) {
+    if row.done {
+        discard_check(d, row.task);
+    }
     d.closing.rows.insert(row.task, row.clone()).expect("closer is bounded by tasks");
     out.push(Request::Save { record: Stored::Closer(row), release: None, read_afresh: None });
+}
+
+// The goal's closing projection has settled before its connector state is forgotten.
+pub(crate) fn forget(d: &mut Domain, goal: u64, out: &mut Queue<Request>) {
+    let mut tasks = List::with_capacity(d.closing.rows.len());
+    for (task, row) in &d.closing.rows {
+        if row.goal == goal && row.done {
+            tasks.push(*task).expect("bounded closer rows");
+        }
+    }
+    for task in &tasks {
+        discard_check(d, *task);
+        d.closing.rows.remove(task);
+        out.push(Request::Erase { key: Key::Closer(*task) });
+    }
+}
+fn discard_check(d: &mut Domain, task: u64) {
+    d.closing.checked.remove(&task);
+    d.offered_change(task);
+    let mut owners = List::with_capacity(d.closing.reads.len());
+    for (owner, reading) in &d.closing.reads {
+        if reading.task == task {
+            owners.push(*owner).expect("bounded closer reads");
+        }
+    }
+    for owner in &owners {
+        d.closing.reads.remove(owner);
+    }
 }
 
 #[expect(clippy::too_many_arguments, reason = "a fresh check carries the procedure step and both branch names")]

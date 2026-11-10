@@ -19,7 +19,7 @@ fn producing_with_history(known: bool, pushed: bool, merged: bool) -> Domain {
     row.pull = if known { Some(1) } else { None };
     row.change.state = change::State::Producing { requested: false };
     row.change.last_head = if pushed { Some(fixtures::HEAD) } else { None };
-    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
     outputs(&mut d, Event::SettleOutbox);
@@ -1001,7 +1001,7 @@ fn only_the_active_successful_repair_supplies_an_account() {
         row.delegate = Some((52, change::Delegate::Repair(change::Repair::Ci)));
         row.result.repaired(change::Repair::Ci, Some(fixtures::HEAD), LIMITS.client.answer_bytes);
         row.report = b"exports CSV".as_slice().into();
-        outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
         outputs(
             &mut d,
             Event::ProducedTitle {

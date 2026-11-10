@@ -92,7 +92,11 @@ fn drift_on_a_goal_branch_reaches_the_change_landing_it() {
             assert!(requests.contains(&Request::Drift { task, resource: name() }), "{requests:?}");
         }
         let row = d.change(fixtures::CHANGE).unwrap().clone();
-        assert!(requests.contains(&Request::Save { read_afresh: None, release: None, record: Stored::Change(row) }));
+        assert!(requests.contains(&Request::Save {
+            read_afresh: None,
+            release: None,
+            record: Stored::Change(Box::new(row))
+        }));
     }
 }
 

@@ -601,7 +601,9 @@ fn a_drifted_change_stays_held_at_a_green_head() {
         was: Box::new(State::Repairing { requested: true, why: Repair::Ci }),
         why: temper_engine_domain_forge_change::Hold::BranchMoved,
     };
-    world.store.seed(Box::new([Record::Forge { row: Box::new(forge_top::Stored::Change(drifted)) }]), Box::new([]));
+    world
+        .store
+        .seed(Box::new([Record::Forge { row: Box::new(forge_top::Stored::Change(Box::new(drifted))) }]), Box::new([]));
     world.restart_same();
     for _ in 0..STEPS {
         world.tick();

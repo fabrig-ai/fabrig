@@ -161,7 +161,7 @@ fn entry(repository: Repository, number: u64, head: [u8; 32], parked: bool) -> d
     }
 }
 fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u8; 32]>) -> d::Stored {
-    d::Stored::Change(d::ChangeRow {
+    d::Stored::Change(Box::new(d::ChangeRow {
         task,
         repository,
         branch: b"temper/change".as_slice().into(),
@@ -217,7 +217,7 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
         catch_up: None,
         close: None,
         merge_result: None,
-    })
+    }))
 }
 fn landed(commit: u64) -> d::Stored {
     d::Stored::Landed { commit: routes::object(commit).bytes, task: 4 }

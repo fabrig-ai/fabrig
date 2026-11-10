@@ -634,7 +634,7 @@ fn a_cold_restart_keeps_red_rows_and_changes() {
     let mut d = configured_domain(&[(TIER, None)]);
     d.restore_begin(Wall::EPOCH);
     restore(&mut d, &env(), Stored::Verification(row.clone()));
-    restore(&mut d, &env(), Stored::Change(change));
+    restore(&mut d, &env(), Stored::Change(Box::new(change)));
     assert_eq!(d.verifications.get(&(REPO, LAST)), Some(&row));
     assert_eq!(d.change_verification(SECOND), change::Verification::Red);
 }

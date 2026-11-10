@@ -115,7 +115,7 @@ fn row(kind: RecordKind, number: u32) -> Stored {
         RecordKind::Change => {
             let mut row = fixtures::opening_row();
             row.task = n;
-            Stored::Change(row)
+            Stored::Change(Box::new(row))
         }
         RecordKind::Issue => Stored::Issue(IssueRow {
             goal: n,

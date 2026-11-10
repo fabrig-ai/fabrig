@@ -20,7 +20,7 @@ fn producing() -> Domain {
         change::StartedFrom { task: 41, head: fixtures::HEAD },
         change::StartedFrom { task: 42, head: fixtures::BASE },
     ]));
-    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
     outputs(&mut d, Event::SettleOutbox);

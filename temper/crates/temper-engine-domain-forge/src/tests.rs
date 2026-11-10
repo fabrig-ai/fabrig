@@ -9,6 +9,7 @@ mod brief_document;
 mod change;
 #[path = "tests/brief.rs"]
 mod ci_brief;
+mod closer;
 mod connect;
 mod dismissed;
 mod early;
@@ -196,7 +197,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
     row.pull = Some(1);
     row.pending = None;
     row.effect = temper_engine_domain_forge_change::EffectResult::None;
-    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
     outputs(&mut d, Event::SettleOutbox);
@@ -2454,7 +2455,7 @@ fn a_merge_delegate_asks_for_a_merge_in_progress_named_as_its_repository() {
         outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
         let mut row = fixtures::opening_row();
         row.delegate = Some((CHILD, change::Delegate::Merge { base: fixtures::BASE, from }));
-        outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
         let item = d
             .workspace_item(items::Seed {
                 modify: false,
@@ -2497,7 +2498,7 @@ fn workspace_landing_is_only_for_an_existing_inherited_writable_producer() {
                     let task = row.task;
                     let branch = row.branch.clone();
                     let base = row.base.clone();
-                    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+                    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
                     if existing {
                         let name = run_branch(b"51");
                         assert!(items::branch_matches(&name, &branch), "the fixture's producer branch");
@@ -2784,7 +2785,7 @@ fn an_open_write_with_an_empty_title_uses_the_default() {
     row.pending = None;
     row.effect = temper_engine_domain_forge_change::EffectResult::None;
     row.change.state = temper_engine_domain_forge_change::State::Opening { requested: false };
-    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
     outputs(&mut d, Event::SettleOutbox);

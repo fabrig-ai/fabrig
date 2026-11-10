@@ -129,7 +129,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::Receipt(row) => landing::decode_receipt(row)?,
         w::Value::Application(value) => application::decode(value, bounds)?,
         w::Value::Issue(value) => d::Stored::Issue(issues::decode(*value)),
-        w::Value::Change(value) => d::Stored::Change(change::decode_change_row(*value)),
+        w::Value::Change(value) => d::Stored::Change(Box::new(change::decode_change_row(*value))),
         w::Value::Dismissed(value) => {
             let w::DismissedParts { party, what } = value.into_parts();
             let what = match what {

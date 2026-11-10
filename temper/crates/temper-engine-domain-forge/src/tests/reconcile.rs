@@ -156,7 +156,7 @@ fn repository_rows(repository: skein_forge::api::Repository) -> [Stored; 7] {
             pushed: None,
             echoes: Box::new([]),
         })),
-        Stored::Change(change),
+        Stored::Change(Box::new(change)),
         Stored::Application {
             token: 1,
             until: Wall::EPOCH,
@@ -205,7 +205,7 @@ fn historical_records_need_no_live_task_or_member() {
     let d = held_domain();
     for row in [
         Stored::Landed { task: OTHER_TASK, commit: [9; 32] },
-        Stored::Change(fixtures::opening_row()),
+        Stored::Change(Box::new(fixtures::opening_row())),
         issue(true),
         Stored::Binding { address: b"former@example.com".as_slice().into(), subject: b"former".as_slice().into() },
         Stored::Application {

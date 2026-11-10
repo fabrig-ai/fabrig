@@ -1490,6 +1490,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         }
         Event::ApplicationAnswered { request, outcome } => adoption::answered(d, env, request, outcome, out),
         Event::ForgetProjection { goal } => {
+            crate::closer::forget(d, goal, out);
             if let Some(row) = d.issues.get(&goal)
                 && row.pending.is_none()
                 && !row.failed
@@ -3600,7 +3601,10 @@ fn step_read(
                         && row.result.checked(head, &rows, env.limits.client.answer_bytes)
                     {
                         let saved = row.clone();
-                        emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Change(saved) });
+                        emit(
+                            out,
+                            Request::Save { read_afresh: None, release: None, record: Stored::Change(Box::new(saved)) },
+                        );
                     }
                 }
                 Ok(_) | Err(_) => {
@@ -6367,7 +6371,7 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::Change(row) => {
             // Volatile waits are rebuilt by stepping every restored change (domain/forge.md, 16).
             d.change_due.insert(row.task, env.wall).expect("a wake per restored change");
-            d.changes.insert(row.task, row).expect("restored change within limits");
+            d.changes.insert(row.task, *row).expect("restored change within limits");
         }
         Stored::Issue(row) => {
             if row.pending.is_none() && !row.failed && !row.state.closed && row.desired.is_some() {
@@ -6689,7 +6693,7 @@ pub(crate) fn save_change(d: &mut Domain, out: &mut Queue<Request>, mut row: Cha
         }
     }
     let tasks = tasks.into_boxed();
-    emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Change(row) });
+    emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Change(Box::new(row)) });
     emit(out, Request::Marked { tasks });
 }
 
@@ -6756,7 +6760,7 @@ fn save_queue_change(
         previous = Some(next);
     }
     retain_terminal_ci(d, &mut row);
-    emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Change(row) });
+    emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Change(Box::new(row)) });
     emit(out, Request::Marked { tasks: tasks.into_boxed() });
 }
 

@@ -629,6 +629,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         }
         Stored::Change(row) => skein_lib::len_u64(row.repair_tasks.len())
             .checked_mul(8)?
+            .checked_add(u64::try_from(size_of::<ChangeRow>()).ok()?)?
             .checked_add(skein_lib::len_u64(row.resolution_tasks.len()).checked_mul(8)?)?
             .checked_add(match &row.ending {
                 Some(Ending::Failed { line }) => bytes(line),

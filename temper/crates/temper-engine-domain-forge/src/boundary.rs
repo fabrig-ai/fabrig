@@ -1173,7 +1173,7 @@ pub enum Stored {
     /// A goal closer's committed state.
     Closer(crate::CloserRow),
     /// A change procedure's committed state.
-    Change(ChangeRow),
+    Change(Box<ChangeRow>),
     /// A goal issue's committed projection.
     Issue(IssueRow),
     Release(ReleaseRow),
@@ -1359,6 +1359,7 @@ pub struct ChangeDependencies {
 
 /// A parent or child input to the connector top.
 #[derive(PartialEq, Eq, Hash, Debug)]
+#[expect(clippy::large_enum_variant, reason = "change admission carries a full row across the root procedure boundary")]
 pub enum Event {
     SetAway {
         request: Token,
@@ -1950,10 +1951,6 @@ pub fn is_root_read(owner: Token) -> bool {
 
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Hash, Debug)]
-#[expect(
-    clippy::large_enum_variant,
-    reason = "Save carries the change row and its producer report; changing the request boundary is separate"
-)]
 pub enum Request {
     Decided {
         to: skein_lib::ReplyTo,
