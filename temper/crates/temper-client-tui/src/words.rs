@@ -132,8 +132,12 @@ pub enum Word {
     ThemeNoticeAutoNone,
     ThemeNoticeLight,
     ThemeNoticeDark,
+    DraftCommand,
+    DraftStart,
+    KindSession,
+    Drafter,
 }
-pub(crate) const ALL: [Word; 122] = [
+pub(crate) const ALL: [Word; 126] = [
     Word::Title,
     Word::State,
     Word::QuitKeys,
@@ -256,6 +260,10 @@ pub(crate) const ALL: [Word; 122] = [
     Word::ThemeNoticeAutoNone,
     Word::ThemeNoticeLight,
     Word::ThemeNoticeDark,
+    Word::DraftCommand,
+    Word::DraftStart,
+    Word::KindSession,
+    Word::Drafter,
 ];
 
 #[derive(Clone, Copy)]
@@ -435,6 +443,10 @@ impl Word {
             Self::ThemeNoticeAutoNone => 122,
             Self::ThemeNoticeLight => 123,
             Self::ThemeNoticeDark => 124,
+            Self::DraftCommand => 125,
+            Self::DraftStart => 126,
+            Self::KindSession => 127,
+            Self::Drafter => 128,
         }
     }
     const fn id(self) -> PhraseId {
@@ -443,6 +455,10 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table holds every TUI phrase and its holes")]
     fn english(self) -> (&'static [&'static [u8]], &'static [Slot]) {
         match self {
+            Self::DraftCommand => (&[b"A design session that ends in a draft and a goal"], &[]),
+            Self::DraftStart => (&[b"a design session that ends in a draft and a goal"], &[]),
+            Self::KindSession => (&[b", a design session"], &[]),
+            Self::Drafter => (&[b"drafter"], &[]),
             Self::KindChat => (&[b", a chat"], &[]),
             Self::KindGoal => (&[b", a goal"], &[]),
             Self::ChatNumber => (&[b"/chats ", b""], &[Slot::Number]),

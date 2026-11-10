@@ -51,6 +51,7 @@ pub(crate) fn quit(root: &Domain, tui: &Tui, words: &Words) -> Option<Options> {
         2.. => words.say(Word::QuitMany, &[Hole::Number(u64::from(running.count))]),
     };
     Some(Options {
+        style: look::OPTION,
         name: head.clone(),
         head: Some(head),
         items: Box::new([

@@ -1,0 +1,39 @@
++- Session ------------------------------------------------+
+|Chat and draft                                            |
++----------------------------------------------------------+
+Entry 11: a conversation line │ > Draft: notes
+wraps beside the draft.       │ # away-mode.md
+Entry 12: a conversation line │ A person's needs wait while
+wraps beside the draft.       │ they are away.
+Entry 13: a conversation line │ Draft row 01
+wraps beside the draft.       │ Draft row 02
+Entry 14: a conversation line │ Draft row 03
+wraps beside the draft.       │ Draft row 04
+Entry 15: a conversation line │ Draft row 05
+wraps beside the draft.       │ Draft row 06
+Entry 16: a conversation line │ Draft row 07
+wraps beside the draft.       │ Draft row 08
+Ready
+--
+aaa.......aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+a..........................................................a
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+..............................bcddddddddddddddcccccccccccccc
+..............................bccccccccccccccccccccccccccccc
+..............................bccccccccccccccccccccccccccccc
+..............................bccccccccccccccccccccccccccccc
+..............................bccccccccccccccccccccccccccccc
+..............................bccccccccccccccccccccccccccccc
+..............................bccccccccccccccccccccccccccccc
+..............................bccccccccccccccccccccccccccccc
+..............................bccccccccccccccccccccccccccccc
+..............................bccccccccccccccccccccccccccccc
+..............................bccccccccccccccccccccccccccccc
+..............................bccccccccccccccccccccccccccccc
+............................................................
+--
+a: bold
+b: back #202020 bold
+c: back #202020
+d: back #202020 reverse
+cursor 3 41
