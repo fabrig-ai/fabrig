@@ -351,6 +351,50 @@ fn the_bound_keeps_a_day_sweeps_seven_days_and_numbers_rise() {
         assert!(d.decisions.contains_key(&(2, 1)));
     }
 }
+fn decide_at_a_full_day(with_expired: bool) -> (Domain, Queue<Request>) {
+    let mut env = env();
+    env.limits.decided_per_project = 4;
+    env.wall = Wall::from_nanos(DECIDED_KEPT_NS + 1);
+    let mut d = domain_with_limits(&env.limits);
+    for number in 2..=5 {
+        outputs(&mut d, Event::Restore { record: Stored::Decided(Decided { at: env.wall, ..decision(number) }) });
+    }
+    if with_expired {
+        // Seed the sweep's excess row directly: restart refuses rows past the bound.
+        d.decisions.insert((PROJECT, 1), Decided { at: Wall::EPOCH, ..decision(1) }).unwrap();
+    }
+    let mut out = Queue::uncapped();
+    crate::away::decided(
+        &mut d,
+        &env,
+        ReplyTo::new(REQUEST),
+        KEY,
+        PARTY,
+        PROJECT,
+        KEY.task,
+        false,
+        call(Kind::Retry),
+        &mut out,
+    );
+    (d, out)
+}
+#[test]
+fn a_sweep_at_the_bound_marks_before_answering_ask() {
+    let (d, mut out) = decide_at_a_full_day(true);
+    assert_eq!(out.pop(), Some(Request::Erase { key: Key::Decided { project: PROJECT, number: 1 } }));
+    assert_eq!(out.pop(), Some(mark(decided_subject(PROJECT))));
+    assert_eq!(out.pop(), Some(reply(None, Some(reach(Kind::Retry, Class::Decide, false, Reason::Kind)))));
+    assert!(out.is_empty());
+    assert!(!d.decisions.contains_key(&(PROJECT, 1)));
+    assert_eq!(d.decisions.len(), 4);
+}
+#[test]
+fn a_full_day_without_a_sweep_only_answers_ask() {
+    let (d, mut out) = decide_at_a_full_day(false);
+    assert_eq!(out.pop(), Some(reply(None, Some(reach(Kind::Retry, Class::Decide, false, Reason::Kind)))));
+    assert!(out.is_empty());
+    assert_eq!(d.decisions.len(), 4);
+}
 #[test]
 fn overturn_marks_once_then_refuses() {
     let mut d = with(&[Stored::Decided(decision(1))]);
