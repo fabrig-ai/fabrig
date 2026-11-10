@@ -159,7 +159,7 @@ fn attempt() -> api::JobAttempt {
     api::JobAttempt { head, run: 1, job: 1, attempt: 1 }
 }
 fn read(world: &mut Machine, call: u64, max_bytes: u32) {
-    world.call(call, REPO, Op::Read(Read::Job { attempt: attempt(), max_bytes }));
+    world.call(call, REPO, Op::Read(Read::Job { part: api::LogPart::End, attempt: attempt(), max_bytes }));
     world.run_for(SECOND);
 }
 fn terminal(world: &Machine, call: u64, cost: u32, expected: &Result<Value, Error>) {
@@ -320,7 +320,7 @@ fn checks_log(w: &mut Machine, head: api::Commit, call: u64) {
     assert!(check.url.windows(b"/job/".len()).any(|bytes| bytes == b"/job/"));
     let pinned = check.job.expect("Actions job resolved from its link");
     assert_eq!(pinned.head, head);
-    w.call(call + 1, REPO, Op::Read(Read::Job { attempt: pinned, max_bytes: 96 }));
+    w.call(call + 1, REPO, Op::Read(Read::Job { part: api::LogPart::End, attempt: pinned, max_bytes: 96 }));
     w.run_for(SECOND);
     let Ok(Value::Job { attempt, log, truncated, .. }) = &w.answered(call + 1).expect("job log").result else {
         panic!("pinned job log")

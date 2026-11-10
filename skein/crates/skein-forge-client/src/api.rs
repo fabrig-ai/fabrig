@@ -167,7 +167,7 @@ fn read_accepts(read: &Read, answer: &Answer) -> bool {
         }
         Read::Locate { .. } => skein_forge::locate::accepts(answer),
         Read::Items { kind, .. } => items_ordered(answer, *kind),
-        Read::Job { attempt, max_bytes } => match answer {
+        Read::Job { attempt, max_bytes, .. } => match answer {
             Answer::Job { attempt: received, log, .. } => received == attempt && log.len() <= usize_of(*max_bytes),
             Answer::Items { .. }
             | Answer::Runs { .. }

@@ -658,7 +658,11 @@ fn next_failed_job(fetch: &mut BriefFetch) -> Option<skein_forge::api::Read> {
                     .expect("positive check count")
                     .checked_div(2)
                     .expect("positive divisor");
-                return Some(skein_forge::api::Read::Job { attempt, max_bytes: share.max(1).min(fetch.max_job_bytes) });
+                return Some(skein_forge::api::Read::Job {
+                    part: skein_forge::api::LogPart::End,
+                    attempt,
+                    max_bytes: share.max(1).min(fetch.max_job_bytes),
+                });
             }
             Some(_) | None => {
                 append(&mut fetch.words, b"[no pinned job log for this head]\n");

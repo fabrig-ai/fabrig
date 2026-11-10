@@ -107,7 +107,7 @@ pub(super) fn answered(
     let (fetch, read) = match fetch {
         Fetch::Jobs { attempts, logs, next, share } => match attempts.get(next) {
             Some(attempt) => {
-                let read = api::Read::Job { attempt: *attempt, max_bytes: share };
+                let read = api::Read::Job { part: api::LogPart::End, attempt: *attempt, max_bytes: share };
                 (Fetch::Jobs { attempts, logs, next, share }, Some(read))
             }
             None => (Fetch::Done(logs), None),

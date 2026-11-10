@@ -117,11 +117,11 @@ fn a_connection_close_answer_ends_its_connection_after_it() {
 #[test]
 fn raw_reads_keep_the_range_and_refuse_bytes_past_remaining_answer_room() {
     let rows: [RawRow; 5] = [
-        ("short", b"ab", 3, 10, b"ab", false, Phase::Idle, b"Range: bytes=0-3\r\n"),
-        ("exact max", b"abc", 3, 10, b"abc", false, Phase::Idle, b"Range: bytes=0-3\r\n"),
-        ("one more", b"abcdef", 3, 10, b"abcd", true, Phase::Closed, b"Range: bytes=0-3\r\n"),
-        ("remaining answer", b"abcdef", 5, 3, b"abc", true, Phase::Closed, b"Range: bytes=0-5\r\n"),
-        ("empty", b"", 3, 10, b"", false, Phase::Idle, b"Range: bytes=0-3\r\n"),
+        ("short", b"ab", 3, 10, b"ab", false, Phase::Idle, b"Range: bytes=0-2\r\n"),
+        ("exact max", b"abc", 3, 10, b"abc", false, Phase::Idle, b"Range: bytes=0-2\r\n"),
+        ("one more", b"abcdef", 3, 10, b"abcd", true, Phase::Closed, b"Range: bytes=0-2\r\n"),
+        ("remaining answer", b"abcdef", 5, 3, b"abc", true, Phase::Closed, b"Range: bytes=0-4\r\n"),
+        ("empty", b"", 3, 10, b"", false, Phase::Idle, b"Range: bytes=0-2\r\n"),
     ];
     for (name, response, max, room, expected, more, phase, range) in rows {
         let mut h = fixtures::ConnectionHarness::new();

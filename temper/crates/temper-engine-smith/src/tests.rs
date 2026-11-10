@@ -2601,7 +2601,8 @@ fn job_and_attempt_zero_decode_but_run_and_explicit_byte_limit_remain_positive()
             r#"{{"head":"0000000000000000000000000000000000000000","run":1,"job":0,"attempt":{attempt_number}}}"#
         );
         let call = decided(b"read_job", input.as_bytes()).expect("zero job or attempt");
-        let engine::Tool::ReadNamed { read: skein_forge::api::Read::Job { attempt, max_bytes }, .. } = call.tool else {
+        let engine::Tool::ReadNamed { read: skein_forge::api::Read::Job { attempt, max_bytes, .. }, .. } = call.tool
+        else {
             panic!("decoded job read")
         };
         assert_eq!((attempt.job, attempt.attempt, max_bytes), (0, attempt_number, 0));

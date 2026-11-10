@@ -367,7 +367,11 @@ fn checks_read_every_status_page_until_one_comes_short() {
 #[test]
 fn a_job_log_at_another_head_is_missing_job() {
     let mut h = fixtures::known();
-    h.call(1, fixtures::REPO, Op::Read(Read::Job { attempt: ATTEMPT, max_bytes: 4 }));
+    h.call(
+        1,
+        fixtures::REPO,
+        Op::Read(Read::Job { part: skein_forge::api::LogPart::End, attempt: ATTEMPT, max_bytes: 4 }),
+    );
     h.run(Duration::from_millis(1));
     assert_eq!(
         h.request_lines(fixtures::FORGE).into_boxed().last().expect("run").as_ref(),
@@ -389,7 +393,11 @@ fn a_job_of_another_id_run_or_attempt_is_missing_job() {
         ("other run", &br#"{"id":10,"run_id":8,"attempt":3}"#[..]),
     ] {
         let mut h = fixtures::known();
-        h.call(1, fixtures::REPO, Op::Read(Read::Job { attempt: ATTEMPT, max_bytes: 4 }));
+        h.call(
+            1,
+            fixtures::REPO,
+            Op::Read(Read::Job { part: skein_forge::api::LogPart::End, attempt: ATTEMPT, max_bytes: 4 }),
+        );
         h.answer(fixtures::FORGE, &fixtures::ok(RUN));
         h.answer(fixtures::FORGE, &fixtures::ok(jobs));
         h.run(Duration::from_millis(10));
@@ -401,7 +409,11 @@ fn a_job_of_another_id_run_or_attempt_is_missing_job() {
 fn a_job_read_answered_404_is_missing_job_at_each_exchange() {
     for (name, before, cost) in [("run", &[][..], 1), ("job", &[RUN][..], 2), ("log", &[RUN, JOB][..], 3)] {
         let mut h = fixtures::known();
-        h.call(1, fixtures::REPO, Op::Read(Read::Job { attempt: ATTEMPT, max_bytes: 4 }));
+        h.call(
+            1,
+            fixtures::REPO,
+            Op::Read(Read::Job { part: skein_forge::api::LogPart::End, attempt: ATTEMPT, max_bytes: 4 }),
+        );
         for document in before {
             h.answer(fixtures::FORGE, &fixtures::ok(document));
         }
@@ -449,7 +461,11 @@ fn job_log_responses_retain_tails_and_report_truncation() {
         ],
         |(response, log, truncated)| {
             let mut h = fixtures::known();
-            h.call(1, fixtures::REPO, Op::Read(Read::Job { attempt: ATTEMPT, max_bytes: 4 }));
+            h.call(
+                1,
+                fixtures::REPO,
+                Op::Read(Read::Job { part: skein_forge::api::LogPart::End, attempt: ATTEMPT, max_bytes: 4 }),
+            );
             h.answer(fixtures::FORGE, &fixtures::ok(RUN));
             h.answer(fixtures::FORGE, &fixtures::ok(JOB));
             let request = h.request_bytes(fixtures::FORGE);
@@ -502,7 +518,11 @@ fn job(statuses: [&str; 3]) -> Box<[u8]> {
 }
 fn read_job(document: &[u8], log: &[u8], max: u32) -> fixtures::Harness {
     let mut h = fixtures::known();
-    h.call(1, fixtures::REPO, Op::Read(Read::Job { attempt: ATTEMPT, max_bytes: max }));
+    h.call(
+        1,
+        fixtures::REPO,
+        Op::Read(Read::Job { part: skein_forge::api::LogPart::End, attempt: ATTEMPT, max_bytes: max }),
+    );
     h.answer(fixtures::FORGE, &fixtures::ok(RUN));
     h.answer(fixtures::FORGE, &fixtures::ok(document));
     h.answer(fixtures::FORGE, &fixtures::ok(log));
@@ -647,7 +667,11 @@ fn a_jobs_log_room_is_answer_bytes_less_its_steps_name() {
     h.answer(fixtures::FORGE, &fixtures::user_ok());
     h.answer(fixtures::FORGE, &fixtures::settings_ok());
     h.known(fixtures::REPO, fixtures::specimen());
-    h.call(1, fixtures::REPO, Op::Read(Read::Job { attempt: ATTEMPT, max_bytes: max }));
+    h.call(
+        1,
+        fixtures::REPO,
+        Op::Read(Read::Job { part: skein_forge::api::LogPart::End, attempt: ATTEMPT, max_bytes: max }),
+    );
     h.answer(fixtures::FORGE, &fixtures::ok(RUN));
     h.answer(fixtures::FORGE, &fixtures::ok(JOB));
     h.answer(fixtures::FORGE, &fixtures::ok(log.as_slice()));

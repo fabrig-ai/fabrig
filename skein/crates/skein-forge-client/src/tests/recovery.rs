@@ -497,8 +497,13 @@ fn invalid_reads_make_no_call() {
         Read::Collaborators { page: 0 },
         Read::File { head: [1; 32], path: Box::from(&b"kit"[..]), max_bytes: 0 },
         Read::File { head: [1; 32], path: Box::from(&b"kit"[..]), max_bytes: fixture::EXCESS_ANSWER_BYTES },
-        Read::Job { attempt: api::JobAttempt { head: [1; 32], run: 1, job: 1, attempt: 1 }, max_bytes: 0 },
         Read::Job {
+            part: api::LogPart::End,
+            attempt: api::JobAttempt { head: [1; 32], run: 1, job: 1, attempt: 1 },
+            max_bytes: 0,
+        },
+        Read::Job {
+            part: api::LogPart::End,
             attempt: api::JobAttempt { head: [1; 32], run: 1, job: 1, attempt: 1 },
             max_bytes: fixture::EXCESS_ANSWER_BYTES,
         },

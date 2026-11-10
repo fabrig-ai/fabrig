@@ -19,7 +19,7 @@ fn attempt() -> api::JobAttempt {
     api::JobAttempt { head: [0; 32], run: 22, job: 11, attempt: 2 }
 }
 fn job() -> Op {
-    Op::Read(Read::Job { attempt: attempt(), max_bytes: TAIL_BYTES })
+    Op::Read(Read::Job { part: api::LogPart::End, attempt: attempt(), max_bytes: TAIL_BYTES })
 }
 fn origin(host: &[u8]) -> Origin {
     Origin { tls: false, host: Box::from(host), port: LOG_PORT }

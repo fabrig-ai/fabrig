@@ -405,7 +405,11 @@ fn github_plans_malformed_body() {
 #[test]
 fn github_plans_job_and_protection_resolve_repository() {
     for read in [
-        api::Read::Job { attempt: api::JobAttempt { head: [0; 32], run: 1, job: 1, attempt: 1 }, max_bytes: 1 },
+        api::Read::Job {
+            part: skein_forge::api::LogPart::End,
+            attempt: api::JobAttempt { head: [0; 32], run: 1, job: 1, attempt: 1 },
+            max_bytes: 1,
+        },
         api::Read::Protection { branch: Box::from(*b"b") },
     ] {
         let mut tables = Tables::new(2, 2);

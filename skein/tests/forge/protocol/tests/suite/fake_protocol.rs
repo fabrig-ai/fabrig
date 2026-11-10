@@ -84,7 +84,7 @@ fn a_failed_job_read_names_its_failed_step_and_reads_its_log() {
         panic!("Checks: {:?}", joint.answered(1))
     };
     let attempt = statuses[0].job.expect("The failed status links its job");
-    joint.call(2, REPO, Op::Read(Read::Job { attempt, max_bytes: 4096 }));
+    joint.call(2, REPO, Op::Read(Read::Job { part: skein_forge::api::LogPart::End, attempt, max_bytes: 4096 }));
     joint.run_for(Duration::from_secs(1));
     let answered = joint.answered(2).expect("Job answer");
     assert_eq!(answered.cost, 3, "Run, job, the step log");
@@ -104,7 +104,7 @@ fn a_failed_jobs_log_end_comes_through_a_suffix_range() {
         panic!("Checks: {:?}", joint.answered(1))
     };
     let attempt = statuses[0].job.expect("The failed status links its job");
-    joint.call(2, REPO, Op::Read(Read::Job { attempt, max_bytes: 8 }));
+    joint.call(2, REPO, Op::Read(Read::Job { part: skein_forge::api::LogPart::End, attempt, max_bytes: 8 }));
     joint.run_for(Duration::from_secs(1));
     let answered = joint.answered(2).expect("Job answer");
     assert_eq!(answered.cost, 3, "Run, job, the step log");

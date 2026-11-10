@@ -392,6 +392,7 @@ fn the_groundwork_reads_keep_the_fake_api_facts_in_the_client_projection() {
     world.read(
         1,
         api::Read::Job {
+            part: api::LogPart::End,
             attempt: api::JobAttempt {
                 head: skein_forge_client_world::translate::commit(1),
                 run: 1,
@@ -428,7 +429,7 @@ fn the_groundwork_reads_keep_the_fake_api_facts_in_the_client_projection() {
 #[test]
 fn bounded_job_bytes_translate_to_a_truncated_attempt_log() {
     let attempt = api::JobAttempt { head: skein_forge_client_world::translate::commit(3), run: 3, job: 7, attempt: 2 };
-    let asked = api::Op::Read(api::Read::Job { attempt, max_bytes: 4 });
+    let asked = api::Op::Read(api::Read::Job { part: api::LogPart::End, attempt, max_bytes: 4 });
     let result = skein_forge_client_world::translate::answer(
         &asked,
         skein_fake_forge_domain::api::Answer::Job {

@@ -748,8 +748,9 @@ fn github_peer_runs_the_dialects_job_log_redirect_plan_through_the_blob_face() {
     let expected =
         b"set up ci\nfailing check ci 0\nfailing check ci 1\nfailing check ci 2\nfailing check ci 3\njob ci failed\n";
     for max_bytes in [4096, 8] {
-        let api::Answer::Job { log, truncated, .. } =
-            world.plan(&token, api::Op::Read(api::Read::Job { attempt, max_bytes })).expect("job plan follows one 302")
+        let api::Answer::Job { log, truncated, .. } = world
+            .plan(&token, api::Op::Read(api::Read::Job { part: skein_forge::api::LogPart::End, attempt, max_bytes }))
+            .expect("job plan follows one 302")
         else {
             panic!("job answer")
         };

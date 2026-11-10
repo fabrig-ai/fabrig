@@ -119,7 +119,7 @@ impl Plan {
                             path: path.clone(),
                             reference: self.row.id(head),
                         },
-                        range: Some(crate::forgejo::plans::plan::Range::Head(max)),
+                        range: Some(crate::forgejo::plans::plan::Range::Head(max.saturating_add(1))),
                     });
                     (State::File { head, path, max, missing }, step)
                 }

@@ -534,7 +534,10 @@ fn job_logs(r: &mut Runner<'_>, index: usize, sha: &str) -> Result<()> {
     let mut request = Request::new(Method::Get, if r.fake() { path.clone() } else { location.clone() }, None, b"");
     request.blob = true;
     let whole = r.ask(&request)?;
-    let plan = r.plan(index, api::Op::Read(api::Read::Job { attempt: job, max_bytes: 4096 }))?;
+    let plan = r.plan(
+        index,
+        api::Op::Read(api::Read::Job { part: skein_forge::api::LogPart::End, attempt: job, max_bytes: 4096 }),
+    )?;
     r.fact(
         "job-log-302-blob",
         response.status == 302

@@ -15,7 +15,7 @@ fn pull_files_stops_at_a_stale_head() {
 #[test]
 fn job_mismatch_is_missing_job() {
     for (attempt, replies, sends) in job_failures() {
-        let mut run = Run::known(Op::Read(Read::Job { attempt, max_bytes: RAW_BYTES }));
+        let mut run = Run::known(Op::Read(Read::Job { part: api::LogPart::End, attempt, max_bytes: RAW_BYTES }));
         let mut step = run.begin();
         for (status, body) in replies {
             step = run.answer(*status, body);
@@ -499,7 +499,7 @@ fn partial_reads() -> [PartialRead; 2] {
             Answer::File { head: HEAD, path: Box::from(&b"x"[..]), bytes: Box::from(&b"abc"[..]), truncated: false },
         ),
         (
-            Op::Read(Read::Job { attempt: ATTEMPT, max_bytes: RAW_BYTES }),
+            Op::Read(Read::Job { part: api::LogPart::End, attempt: ATTEMPT, max_bytes: RAW_BYTES }),
             &[(200, RUN), (200, JOB), (206, b"abc")],
             Answer::Job {
                 attempt: ATTEMPT,
@@ -554,7 +554,7 @@ fn open_pull_inner_overflow_is_too_large() {
 
 #[test]
 fn log_body_overflow_is_invalid_answer() {
-    let mut run = Run::known(Op::Read(Read::Job { attempt: ATTEMPT, max_bytes: RAW_BYTES }));
+    let mut run = Run::known(Op::Read(Read::Job { part: api::LogPart::End, attempt: ATTEMPT, max_bytes: RAW_BYTES }));
     replies(&mut run, &[(200, RUN), (200, JOB)]);
     run.hear(Heard::Head { status: 200, fields: fixtures::fields() });
     assert_eq!(
@@ -599,7 +599,7 @@ fn file_cuts_to_remaining_answer_room() {
 fn job_cuts_to_remaining_answer_room() {
     let mut run = Run::with(
         super::super::plan::Bounds { answer_bytes: RAW_BYTES, ..BOUNDS },
-        Op::Read(Read::Job { attempt: ATTEMPT, max_bytes: RAW_BYTES }),
+        Op::Read(Read::Job { part: api::LogPart::End, attempt: ATTEMPT, max_bytes: RAW_BYTES }),
     );
     replies(&mut run, &[(200, RUN), (200, JOB)]);
     assert_eq!(

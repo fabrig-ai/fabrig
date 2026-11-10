@@ -85,7 +85,7 @@ fn gather(checks: Box<[Status]>, log: &[u8], budget: u32) -> Domain {
     for _ in 0..LIMITS.client.rows.saturating_add(1) {
         let Some(request) = out.pop() else { break };
         if let Request::BriefClient {
-            event: skein_forge_client::Event::Read { read: Read::Job { attempt, max_bytes }, .. },
+            event: skein_forge_client::Event::Read { read: Read::Job { attempt, max_bytes, .. }, .. },
         } = request
         {
             assert_eq!(max_bytes, job_bound, "the shipped five-check allowance reaches the provider");
