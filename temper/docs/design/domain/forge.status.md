@@ -230,9 +230,6 @@ runs it on the fake forge.
   before g is made and confirmed starts on the base, its run unable to
   deliver (`temper-engine-domain-forge/src/items.rs`,
   `task_workspace_item`) [in flight: change 98].
-- **Not yet:** 11.2: a closer whose land step's change ended cancelled or
-  failed holds without reading whether the base already holds the goal's
-  branch, and its release holds again on the same ended change.
 
 Section 8.4 has no known implementation gap in a resolution's files:
 its pull section carries a file whole, both sides, where it fits the

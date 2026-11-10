@@ -621,6 +621,151 @@ fn a_closers_landing_held_escalates_to_the_goal() {
     world.close();
 }
 
+fn pending_landing() -> (World, engine::Assignment, Box<[u8]>, u64, u64) {
+    let (mut world, goal, branch) = goal_world_in(false, true, None, true);
+    add_change(&mut world, &goal, &branch, 93, b"First", b"done");
+    let head = branch_tip(&mut world, &branch);
+    status(&mut world, head, raw::Check::Pending);
+    let closer = make_closer(&mut world, &goal, 94);
+    let landing = wait_landing(&mut world, closer);
+    (world, goal, branch, closer, landing)
+}
+
+fn cancel_landing(world: &mut World, goal: &engine::Assignment, landing: u64) {
+    let answer = world.scripted_call(
+        goal,
+        95,
+        engine::Tool::Cancel { target: landing, reason: b"end this landing".as_slice().into() },
+    );
+    assert!(matches!(answer, engine::CallAnswer::Controlled), "{answer:?}");
+    wait_ended(world, landing);
+}
+
+fn base_holds_goal(world: &mut World, branch: &[u8]) {
+    let head = branch_tip(world, branch);
+    let old = branch_tip(world, b"main");
+    assert_eq!(
+        world.external(
+            1,
+            raw::Op::Git(raw::Git::Push { branch: b"main".as_slice().into(), commit: head, expected: Some(old) })
+        ),
+        raw::Answer::Pushed(raw::Pushed::Pushed)
+    );
+}
+
+fn release_ended_landing(base_holds: bool, restart: bool) {
+    let (mut world, goal, branch, closer, landing) = pending_landing();
+    cancel_landing(&mut world, &goal, landing);
+    wait_held(&mut world, closer, goal.task);
+    assert_eq!(
+        closer_row(&world, closer).expect("held closer").closer.hold,
+        Some(closer::Hold::ClosingStep { step: closer::Step::Land, change: landing })
+    );
+    if restart {
+        let mut cut = false;
+        for _ in 0..STEPS {
+            if temper_engine_domain_world::tier_runs::restart_cut(&world) {
+                cut = true;
+                break;
+            }
+            world.tick();
+        }
+        assert!(cut, "restart between hold and release");
+        world.restart_same();
+        world.until(Until::Ready);
+        wait_held(&mut world, closer, goal.task);
+    }
+    if base_holds {
+        base_holds_goal(&mut world, &branch);
+    }
+    world.fake_env.limits.latency_min = Duration::from_secs(1);
+    world.fake_env.limits.latency_max = Duration::from_secs(1);
+    let revision = live_task(&world, closer).revisions.hold;
+    let answer = world.scripted_call(&goal, 96, engine::Tool::Release { target: closer, revision, again: None });
+    assert!(matches!(answer, engine::CallAnswer::Revised { .. }), "{answer:?}");
+    for _ in 0..STEPS {
+        if closer_row(&world, closer).expect("released closer").closer.retry == Some(closer::Step::Land) {
+            break;
+        }
+        world.tick();
+    }
+    let progress = &closer_row(&world, closer).expect("released closer").closer;
+    assert_eq!(progress.retry, Some(closer::Step::Land), "release survives the containment read");
+    assert_eq!(progress.hold, None);
+    world.fake_env.limits.latency_min = Duration::ZERO;
+    world.fake_env.limits.latency_max = Duration::ZERO;
+    if base_holds {
+        wait_ended(&mut world, closer);
+        let output = core::str::from_utf8(result_words(&world, closer)).expect("report UTF-8");
+        assert!(output.contains("The landing: none, its base already held the goal's branch."), "{output}");
+        assert_eq!(closer_row(&world, closer).expect("reported closer").landing_changes.as_ref(), &[landing]);
+    } else {
+        for _ in 0..STEPS {
+            if closer_row(&world, closer).expect("retry closer").landing_changes.len() == 2 {
+                break;
+            }
+            world.tick();
+        }
+        let row = closer_row(&world, closer).expect("retry closer");
+        assert_eq!(row.landing_changes.len(), 2, "release makes a new landing, not another hold: {row:?}");
+        assert_ne!(row.closer.landing, Some(landing));
+        assert_eq!(row.closer.hold, None);
+    }
+    world.close();
+}
+
+#[test]
+fn a_cancelled_landing_release_makes_a_new_landing() {
+    release_ended_landing(false, false);
+}
+
+#[test]
+fn a_cancelled_landing_release_reports_if_main_now_holds_the_goal() {
+    release_ended_landing(true, false);
+}
+
+#[test]
+fn an_ended_landing_release_survives_restart() {
+    for base_holds in [false, true] {
+        release_ended_landing(base_holds, true);
+    }
+}
+
+#[test]
+fn a_failed_landing_reports_without_holding_if_main_holds_the_goal() {
+    let (mut world, goal, branch, closer, landing) = pending_landing();
+    base_holds_goal(&mut world, &branch);
+    world.fake_env.limits.latency_min = Duration::from_secs(1);
+    world.fake_env.limits.latency_max = Duration::from_secs(1);
+    let answer = world.scripted_call(
+        &goal,
+        95,
+        engine::Tool::Cancel { target: landing, reason: b"stop the failed landing".as_slice().into() },
+    );
+    assert!(matches!(answer, engine::CallAnswer::Controlled), "{answer:?}");
+    wait_ended(&mut world, landing);
+    assert!(!closer_row(&world, closer).expect("closer still deciding").done);
+    // Supply the failed terminal account while the closer reads containment.
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::ChangeEnding {
+        task: landing,
+        ending: forge_top::Ending::Failed { line: b"landing failed".as_slice().into() },
+    })));
+    for _ in 0..STEPS {
+        if matches!(row(&world, landing).ending, Some(forge_top::Ending::Failed { .. })) {
+            break;
+        }
+        world.tick();
+    }
+    assert!(matches!(row(&world, landing).ending, Some(forge_top::Ending::Failed { .. })));
+    world.fake_env.limits.latency_min = Duration::ZERO;
+    world.fake_env.limits.latency_max = Duration::ZERO;
+    wait_ended(&mut world, closer);
+    let output = core::str::from_utf8(result_words(&world, closer)).expect("report UTF-8");
+    assert!(output.contains("The landing: none, its base already held the goal's branch."), "{output}");
+    assert_eq!(ended(&world, closer).expect("closer ended").revisions.hold, 0, "the closer never held");
+    world.close();
+}
+
 #[test]
 fn a_closer_survives_restart() {
     let (mut world, goal, branch) = goal_world(true, true);
