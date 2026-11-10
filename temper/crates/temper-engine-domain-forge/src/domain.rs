@@ -2497,6 +2497,7 @@ fn answered(
                     d.heads.insert(name.clone(), head.clone()).expect("reported head was a live resource");
                     wake_head_dependents(d, name, previous, *commit);
                     emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
+                    record_delegate_head(d, task, name, *commit, out);
                     child(
                         d,
                         env,
@@ -2507,6 +2508,36 @@ fn answered(
             }
             child(d, env, skein_forge_client::Event::Writer { resource, taken: false }, out);
         }
+    }
+}
+
+/// A producer's last push, including an unchecked save, pins its next brief
+/// without completing its delegation (temper/docs/design/domain/agent.md, 6).
+fn record_delegate_head(
+    d: &mut Domain,
+    task: u64,
+    name: &Name,
+    commit: skein_forge::api::Commit,
+    out: &mut Queue<Request>,
+) {
+    let mut pushed = None;
+    for (_, row) in &d.changes {
+        if let Some((child, _)) = row.delegate
+            && child == task
+            && row.repository.forge == name.forge
+            && row.repository.repository == name.repository
+            && crate::items::branch_matches(name, &row.branch)
+            && row.change.last_head != Some(commit)
+        {
+            let mut row = row.clone();
+            row.change.last_head = Some(commit);
+            pushed = Some(row);
+            break;
+        }
+    }
+    if let Some(row) = pushed {
+        d.changes.insert(row.task, row.clone()).expect("reported head belongs to a retained change");
+        save_change(d, out, row);
     }
 }
 

@@ -2,6 +2,13 @@
 
 2026-11-10. Where temper's code lags or departs from [agent.md](agent.md).
 
+Section 6 has no known gap in recording a save's pushed head: the engine
+accepts it under the attempt's writer claim and records it in the change
+without completing its delegate. The engine domain world's
+`a_resolution_that_saves_and_asks_reads_its_next_pull_brief_at_the_saved_head`
+holds a resolution's unchecked push, question and answered next attempt,
+whose pull section reads the saved head and content with no failed try.
+
 Sections 4.3's `decided`, 8.1 and 8.4.1 have no known implementation gap
 but the one below in what reaches a person, the whole story's milestone
 N1, by plan `ui-reaches`: the tool takes the ten kinds, `paths` and
