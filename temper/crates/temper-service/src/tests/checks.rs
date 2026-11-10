@@ -579,6 +579,20 @@ fn fixed_redirects() -> [crate::startup::RedirectPort; 2] {
 }
 
 #[test]
+fn charter_admission_shortfalls_warn_but_do_not_hide_deployment_refusals() {
+    let mut agent = fixtures::startup_agent();
+    agent.bounds.turns = 1;
+    let engine = fixtures::guard_engine().jig;
+    let core = config::core(&engine, [7; 16], 7);
+    let mut found = Problems::empty();
+    checks::admission(&core, &engine, &agent, &mut found);
+    assert!(found.is_empty(), "charter bounds belong to stored settings: {:?}", found);
+    agent.bounds.message_bytes = 0;
+    checks::admission(&core, &engine, &agent, &mut found);
+    assert!(core::str::from_utf8(&lines(&found)).unwrap().contains("messages (tasks.message_bytes)"));
+}
+
+#[test]
 fn admission_names_global_and_time_requirements_with_their_units() {
     use skein_lib::Duration;
     for (time, waiting, spend, inbox, unacknowledged, expected) in [
