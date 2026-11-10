@@ -77,7 +77,7 @@ renumber skein/docs/design/forge.md
   citations. This form requires a created destination and its title.
 - **A whole tree fits one map.** Section entries apply before a document entry for the same
   source; the rest of the document and its companions then follow the document entry.
-  `renumber PATH.md`, naming the source before the move, numbers its remaining top-level
+  A `renumber` entry, naming the source before the move, numbers its remaining top-level
   sections consecutively, with their subsections, citations and status labels following.
 - **New documents** made from sections require a `title` entry. Destinations must be under
   one of the five trees' `docs/`. Missing sources, duplicate destinations and occupied
