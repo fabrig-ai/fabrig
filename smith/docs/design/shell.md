@@ -159,7 +159,7 @@ Each lands in skein, with its design, before its smith consumer
 (AGENTS.md):
 
 - **`Host` and `drive`,** moved from `skein-world` to `skein-shell`:
-  `drive` is the loop of programming-model.md, section 2, with a hook
+  `drive` is the loop of skein/docs/foundation/programming-model.md, section 2, with a hook
   each iteration for a shell's drains. `skein-world` re-exports `Host`,
   and no shipped binary links a testing crate.
 - **An append sink:** a bounded append stream on the ring, to a file or
@@ -199,7 +199,7 @@ Each lands in skein, with its design, before its smith consumer
 
 A host that embeds the agent, rather than spawning `smith-agent`, hands
 it everything: an application's world, natively or in a browser's Web
-Worker (skein's `world.md` and `playground.md`), hosts it so. That
+Worker (skein's `world.md` and `skein/docs/design/playground.md`), hosts it so. That
 part of `smith-agent-shell` reads nothing of the system, and builds for
 `wasm32-unknown-unknown`, the portable target of skein's `shell.md`,
 section 14.
@@ -326,12 +326,12 @@ closure:
 - **Files before the loop.** A shell may read whole files with std before
   its loop runs: the settings, the agent configuration. Once the loop
   runs, every file and process operation is a ring operation
-  (programming-model.md, section 2.1).
+  (skein/docs/foundation/programming-model.md, section 2.1).
 
 ### 3.2 Lints
 
 - **The root package has its own `[lints]` table,** not the workspace's:
-  the ordinary-Rust table of skein's echo shell (programming-model.md,
+  the ordinary-Rust table of skein's echo shell (skein/docs/foundation/programming-model.md,
   section 10.2). `unsafe` is forbidden; silent casts, overflow and
   panicking indexing are out; disallowed types and methods are denied.
   The shell crates under `crates/` carry the same table. No crate allows
@@ -339,7 +339,7 @@ closure:
 - **Two `clippy.toml` files, split by layer.** Clippy reads the nearest
   `clippy.toml` above each manifest:
   - `crates/clippy.toml` holds the step crates' rules
-    (programming-model.md, section 10), for every crate below `crates/`
+    (skein/docs/foundation/programming-model.md, section 10), for every crate below `crates/`
     without its own;
   - the root `clippy.toml` holds the shell bans of skein's echo: `File`,
     `OwnedFd`, std's sockets, `std::process`, `Instant`, `SystemTime`,
@@ -1453,7 +1453,7 @@ whether the settings are admitted.
 
 ## 10. The world
 
-Within the focused and fuzzy suites' budgets (testing-strategy.md,
+Within the focused and fuzzy suites' budgets (skein/docs/foundation/testing-strategy.md,
 section 8):
 
 - **Step tests in `smith-local-shell`:**
