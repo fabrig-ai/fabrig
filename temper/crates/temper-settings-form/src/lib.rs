@@ -137,7 +137,8 @@ impl Limits {
             result_bytes: 6_292_480,
             text: 32_768,
             rows: 32,
-            authority: 16,
+            // Eighteen executor places size each receiving authority list.
+        authority: 18,
             fields: 16,
         }
     }

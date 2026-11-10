@@ -201,7 +201,8 @@ fn the_standard_profile_holds_fabrig_scale_work() {
                 ..small.root.brief
             },
             journal: temper_engine_domain::JournalLimits {
-                transcript_bytes: 22_467_696,
+                // The closer owner adds 32 bytes; two executor places add 16.
+                transcript_bytes: 22_467_744,
                 result_bytes: 353_072,
                 ..small.root.journal
             },

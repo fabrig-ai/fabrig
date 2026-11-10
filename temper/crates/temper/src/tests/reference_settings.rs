@@ -717,3 +717,43 @@ fn the_reference_project_file_shows_its_goals_and_lands_main_alone() {
     assert!(rule.gates.is_empty());
     assert!(rule.approvals.is_empty());
 }
+
+// temper/docs/design/client/README.md, 2: each client receives the stock delegation whole.
+#[test]
+fn the_stock_settings_document_decodes_in_every_client() {
+    use jig_domain_core::{reads, settings};
+    let engine = reference_engine(&serde_json::json!({"profile":"standard","overrides":{}}));
+    let stock = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    assert_eq!(stock.rules.ceiling.delegation.kinds.len(), 17);
+    let source = reads::SettingDocument {
+        setting: settings::Setting::Rules,
+        revision: 1,
+        value: Some(settings::Value::Rules(Box::new(stock.rules))),
+        application: None,
+        proposed: None,
+    };
+    let presets = [
+        ("terminal", temper_client_shell_terminal::limits::native().client.client),
+        ("browser", temper_client_shell_web::limits::client().client),
+        ("ctl", temper_client_tools::limits::client().client),
+    ];
+    for (name, preset) in presets {
+        let link = jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("client limits");
+        let wire = jig_protocol_engine_clients::translate::settings::setting_document(&source, &[], link.wire())
+            .unwrap_or_else(|why| panic!("{name} receives stock settings: {why:?}"));
+        let mut bytes = skein_lib::Writer::new(usize::try_from(wire.measure()).unwrap());
+        wire.encode(&mut bytes).unwrap();
+        let bytes = bytes.finish();
+        let mut reader = skein_lib::Reader::new(&bytes);
+        let decoded = jig_client_protocol_wire::SettingDocument::decode(link.wire(), &mut reader).unwrap();
+        let restored = jig_client_protocol_link::translate::settings::restore_setting_document(&decoded, &link)
+            .unwrap_or_else(|why| panic!("{name} restores stock settings: {why:?}"));
+        let Some(jig_client::contract::SettingValue::Rules(rules)) = restored.value else { panic!("stock rules") };
+        assert_eq!(rules.ceiling.delegation.kinds.len(), 17, "{name}");
+        for form in [temper_client_tools::limits::form(), settings_form::Limits::standard()] {
+            let restored = settings_form::wire::restore_setting_document(&decoded, &form).expect("settings form");
+            let Some(SettingValue::Rules(rules)) = restored.value else { panic!("form rules") };
+            assert_eq!(rules.ceiling.delegation.kinds.len(), 17);
+        }
+    }
+}
