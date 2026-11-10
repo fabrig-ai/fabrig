@@ -715,7 +715,7 @@ fn listings_filter_by_state_kind_labels_and_time() {
 #[test]
 fn an_items_comments_come_a_page_at_a_time_after_an_id() {
     for (name, filtered, edited, after_second, expected, more) in [
-        ("all first page", None, false, false, &[1, 2][..], true),
+        ("all first page", None, false, false, &[1_u8, 2][..], true),
         ("all last page", None, false, true, &[3][..], false),
         ("inclusive since before paging", Some(0), false, false, &[2, 3][..], false),
         ("coarse inclusive since", Some(500), false, false, &[2, 3][..], false),
