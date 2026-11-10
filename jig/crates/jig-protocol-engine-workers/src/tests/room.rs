@@ -84,6 +84,57 @@ fn job(bad: bool) -> hub::LinkDown {
 }
 
 #[test]
+fn a_resumed_start_is_fitted_to_the_engines_room() {
+    const ENGINE: u32 = 600;
+    const WORKER: u32 = 2048;
+    // Header8 + fixed57 + charter7 + four (fields14 + name3 + tool4 + body256).
+    const WHOLE: u32 = 1180;
+    let limits = Limits {
+        room: ENGINE,
+        sizes: sizes::Sizes { answer: 256, answered: 4, ..fixtures::SIZES },
+        ..fixtures::LIMITS
+    };
+    let mut component = Component::new(&limits, fixtures::workers(), fixtures::PAYLOAD).expect("engine limits");
+    let connection = Token::new(100);
+    let channel = Token::new(1);
+    component.down(Time::ZERO, Event::Accepted { connection }, &mut Queue::uncapped());
+    // Bypass the opening guard to isolate fitting from refusal of unequal rooms.
+    // The unopened channel refuses the fitted frame, exposing its measured bytes.
+    let state = component.connections.get_mut(&connection).expect("accepted");
+    state.phase = crate::connection::Phase::Open;
+    state.heard = true;
+    state.worker = Some(0);
+    state.channel = channel;
+    let mut assignment = fixtures::assignment();
+    assignment.assignment.workspace = None;
+    assignment.assignment.grants = Box::new([]);
+    assignment.turns = Box::new([]);
+    assignment.messages = Box::new([]);
+    let mut calls = List::with_capacity(4);
+    for _ in 0_u32..4 {
+        calls
+            .push(hub::AnsweredCall {
+                name: Box::new([0, 2, 7]),
+                tool: Box::from(b"read".as_slice()),
+                answer: hub::SettledAnswer::Host { error: false, body: Box::new([b'a'; 256]) },
+            })
+            .expect("four calls");
+    }
+    assignment.answered = calls.into_boxed();
+    let mut out = Queue::uncapped();
+    component.down(
+        Time::ZERO,
+        Event::Down { channel, down: hub::LinkDown::Assign { assignment }, parts: Box::new([]), values: Box::new([]) },
+        &mut out,
+    );
+    let Some(Request::Unsent { unsent, .. }) = out.pop() else { panic!("fitted frame refused by unopened channel") };
+    // Four 256-byte answers become 67-byte cut words; none can fit whole.
+    assert_eq!(unsent.bytes, 424);
+    assert_eq!(unsent.bound, Bound::Channel(skein_channel::Unsent::Closed));
+    assert!(unsent.bytes <= ENGINE && ENGINE < WHOLE && WHOLE < WORKER);
+}
+
+#[test]
 fn an_unencodable_job_is_answered_with_bounded_words() {
     for detail in [0, 16, 128] {
         let limits = Limits { sizes: sizes::Sizes { detail, ..fixtures::SIZES }, ..fixtures::LIMITS };

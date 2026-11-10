@@ -69,6 +69,9 @@ pub fn workers() -> Box<[Worker]> {
 
 #[must_use]
 pub fn credential(name: &[u8], secret: &[u8], payload: u32) -> Box<[u8]> {
+    credential_with_output(name, secret, payload, LIMITS.room)
+}
+fn credential_with_output(name: &[u8], secret: &[u8], payload: u32, output: u32) -> Box<[u8]> {
     let limits = jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec limits");
     let value = jig_protocol_worker_wire::Credential::new(
         &limits,
@@ -76,6 +79,7 @@ pub fn credential(name: &[u8], secret: &[u8], payload: u32) -> Box<[u8]> {
             name: Box::from(name),
             secret: Secret::new(Box::from(secret)),
             payload,
+            output,
         },
     )
     .expect("small credential");
@@ -117,12 +121,23 @@ pub fn peer(
     secret: &[u8],
     payload: u32,
 ) -> skein_fake_channel::ScriptedPeer {
+    peer_with_output(schema, version, name, secret, payload, LIMITS.room)
+}
+#[must_use]
+pub fn peer_with_output(
+    schema: skein_channel::Schema,
+    version: u16,
+    name: &[u8],
+    secret: &[u8],
+    payload: u32,
+    output: u32,
+) -> skein_fake_channel::ScriptedPeer {
     skein_fake_channel::ScriptedPeer::new(
         schema,
         skein_channel::Role::Initiator,
         channel_limits(),
         version,
-        credential(name, secret, payload),
+        credential_with_output(name, secret, payload, output),
     )
     .expect("scripted worker")
 }

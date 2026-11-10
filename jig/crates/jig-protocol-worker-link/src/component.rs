@@ -60,7 +60,12 @@ impl Component {
         let bodies = sizes::limits(&limits.sizes).ok_or(Unusable::Limits)?;
         let credential = wire::Credential::new(
             &bodies,
-            wire::CredentialParts { name: credential.name, secret: credential.secret, payload: credential.payload },
+            wire::CredentialParts {
+                name: credential.name,
+                secret: credential.secret,
+                payload: credential.payload,
+                output: limits.room,
+            },
         );
         let Ok(credential) = credential else { return Err(Unusable::Credential) };
         let backoff = Backoff::new(limits, seed);

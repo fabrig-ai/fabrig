@@ -2635,7 +2635,7 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 | the engine's `core.resume_bytes` | T + 4 |
 | both `hub.transcript_bytes` | resume + 12 × ⌊resume / 4⌋ |
 | both `hub.turn_queue_bytes` | 8 × T |
-| each worker's `io.output` | a turn of T's frame on the worker's link, where it passes the profile's |
+| the engine's and each worker's `io.output` | the same room, the greatest worker room derived from a turn of T's frame and the workers' configured rooms |
 | `root.journal.transcript_bytes` | resume |
 | `root.loads.transcript_bytes` | T |
 | `root.loads.bytes`, `root.loads.reply_bytes` | T + a temper record's size |

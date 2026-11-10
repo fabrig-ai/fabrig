@@ -149,13 +149,17 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
   numbers. A
   worker of another version is refused with skein's *version*, and
   nothing is translated (skein's `codec.md`, section 5). An engine and
-  its workers are one application, released together.
+  its workers are one application, released together. Before v0.1.0,
+  protocol changes are made in place, without a version bump or migration;
+  there is no supported deployment or compatibility.
 - **A worker's credential** is a record of `jig-protocol-worker-wire`'s:
   - the worker's name, which the engine's configuration lists;
   - its secret;
   - the application's payload version: one number the application gives
     both components when it makes them, which moves whenever an encoding
-    of the application's carried on the channel changes (section 6).
+    of the application's carried on the channel changes (section 6);
+  - the worker's output room in bytes, its `io.output`, taken from the
+    worker component's stream room.
 - **The engine's side checks, in order,** before its domain hears
   anything:
   - the name and the secret, the secret compared in constant time with
@@ -163,6 +167,10 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
     a wrong secret are one refusal, *unauthorized*, so names cannot be
     probed;
   - the application's payload version, equal to its own, or *application*;
+  - the worker's `io.output`, equal to the engine's stream room, or
+    skein's *limits*. The refusal and the engine's opening diagnostic
+    name both byte values and tell the operator to change `io.output`
+    to agree. This check precedes replacing an existing channel;
   - room for one more channel: the fleet's limit on workers, less the
     channels open, or *busy*. An opening under the name of a worker that
     has a channel always has room, since it replaces that channel (4.2).
@@ -765,7 +773,10 @@ holds, and neither of its components reads them.
   whose turn was never told, its program working an hour between two
   turns, carries as many as the core retains, each answer up to its
   bound, far past any room. Before an assignment is measured against the
-  room, the engine's component fits them. It keeps every committed call,
+  room, the engine's component fits them to the engine's own stream room,
+  its `io.output`. A worker declaring a different room is refused at the
+  authenticated opening (4.1); its declaration never enlarges the fit's
+  bound. It keeps every committed call,
   by its name and tool, in its order; each delivery's answer whole,
   since its evidence must decode and agree on the worker (6.1); and
   each host answer no longer than the words below, which a cut would not

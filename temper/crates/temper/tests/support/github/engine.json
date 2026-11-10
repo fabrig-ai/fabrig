@@ -30,6 +30,7 @@
         "hub.turn_bytes": 1327470,
         "hub.turn_queue_bytes": 10619760,
         "hub.turns": 1,
+        "io.output": 1327857,
         "link.ping_ms": 100,
         "link.silence_ms": 1000,
         "notes.entries_per_scope": 1,

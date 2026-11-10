@@ -56,6 +56,8 @@ pub enum Loss {
     /// Refused here, with the reason sent: jig's (`jig_protocol_worker_wire::Reason`),
     /// or skein's channel's (2, limits; 3, framing).
     Refused { reason: u16 },
+    /// The authenticated worker's io.output differs from the engine's (protocol/channel.md, 4.1).
+    OutputRoom { engine: u32, worker: u32 },
     /// The worker refused, with its reason.
     RefusedPeer { reason: u16 },
     /// No room for another connection: turned away at its accept.

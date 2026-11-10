@@ -730,6 +730,11 @@ fn engine_worker_loss(why: temper_service::EngineWorkerLoss) -> String {
         Loss::Stream => "stream".into(),
         Loss::Framing => "framing".into(),
         Loss::Refused { reason } => format!("refused {}", loss_refusal(reason)),
+        Loss::OutputRoom { engine, worker } => {
+            format!(
+                "engine io.output {engine} bytes differs from worker io.output {worker} bytes; change io.output to agree"
+            )
+        }
         Loss::RefusedPeer { reason } => format!("refused-by-peer {}", loss_refusal(reason)),
         Loss::NoRoom => "no-room".into(),
         Loss::Stopping => "stopping".into(),
@@ -1102,6 +1107,11 @@ fn worker_loss_lines_name_each_cause_and_refusal_exactly() {
 fn engine_worker_loss_lines_name_each_cause_and_refusal_exactly() {
     use temper_service::{EngineWorkerLoss as Loss, Note};
     for (why, lost, opening) in [
+        (
+            Loss::OutputRoom { engine: 1_048_576, worker: 18_432_634 },
+            "temper serve: worker lost worker=worker-a channel=7: engine io.output 1048576 bytes differs from worker io.output 18432634 bytes; change io.output to agree\n",
+            "temper serve: worker opening ended worker=-: engine io.output 1048576 bytes differs from worker io.output 18432634 bytes; change io.output to agree\n",
+        ),
         (
             Loss::Silence,
             "temper serve: worker lost worker=worker-a channel=7: silence\n",

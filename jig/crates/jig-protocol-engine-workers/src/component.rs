@@ -392,6 +392,13 @@ impl Component {
                         self.refuse(now, connection, state, reason.code(), Box::new([]), out);
                         return;
                     }
+                    Verdict::OutputRoom { worker, output } => {
+                        state.worker = Some(worker);
+                        ended(connection, state, Loss::OutputRoom { engine: self.limits.room, worker: output }, out);
+                        let text = crate::opening::output_room_words(self.limits.room, output);
+                        self.refuse(now, connection, state, 2, text, out);
+                        return;
+                    }
                     Verdict::Accept { worker } => worker,
                     Verdict::Replace { worker, older } => {
                         if let Some(mut old) = self.connections.remove(&older) {
