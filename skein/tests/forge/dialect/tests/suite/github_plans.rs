@@ -441,13 +441,12 @@ fn github_plans_page_size_and_empty_listing() {
             ended(Ok(api::Answer::Branches(Box::from([]))))
         );
     }
-    for bounds in [Bounds { page_size: 0, ..bounds() }] {
-        let mut tables = Tables::new(0, 0);
-        assert_eq!(
-            read_plan(api::Read::Branches { prefix: Box::from(&b"m"[..]) }).begin(bounds, b"example-app", &mut tables),
-            Err(api::Error::TooLarge)
-        );
-    }
+    let bounds = Bounds { page_size: 0, ..bounds() };
+    let mut tables = Tables::new(0, 0);
+    assert_eq!(
+        read_plan(api::Read::Branches { prefix: Box::from(&b"m"[..]) }).begin(bounds, b"example-app", &mut tables),
+        Err(api::Error::TooLarge)
+    );
 }
 
 #[test]
@@ -591,7 +590,7 @@ fn github_branch_prefix_keeps_two_matches_among_222_branches() {
 #[test]
 fn github_branch_prefix_matches_are_bounded_by_bytes_alone() {
     // temper/N has eight name bytes for N < 10 and nine thereafter, plus 16 per name.
-    for (count, measured) in [(9, 216), (40, 990)] {
+    for (count, measured) in [(9_u32, 216), (40, 990)] {
         for rows in [0, 8] {
             for (answer_bytes, fits) in [(measured, true), (measured - 1, false)] {
                 let mut tables = Tables::new(2, 2);
@@ -600,7 +599,7 @@ fn github_branch_prefix_matches_are_bounded_by_bytes_alone() {
                 let mut plan = read_plan(api::Read::Branches { prefix: Box::from(&b"temper/"[..]) });
                 assert_eq!(plan.begin(bounds, b"example-app", &mut tables), Ok(Step::send(branches_request(1, 2))));
                 let mut names = skein_lib::List::with_capacity(count);
-                let pages = (count + 1) / 2;
+                let pages = count.div_ceil(2);
                 for page in 1..=pages {
                     head(&mut plan, page != pages, bounds, &mut tables);
                     for index in page * 2 - 2..(page * 2).min(count) {
@@ -613,10 +612,14 @@ fn github_branch_prefix_matches_are_bounded_by_bytes_alone() {
                         assert_eq!(result, Ok(None), "{count} {rows} {answer_bytes} index {index}");
                         names.push(branch).expect("fixture names");
                     }
-                    if !fits && page == pages { break; }
+                    if !fits && page == pages {
+                        break;
+                    }
                     let expected = if page == pages {
                         ended(Ok(api::Answer::Branches(names.clone().into_boxed())))
-                    } else { Ok(Some(Step::send(branches_request(page + 1, 2)))) };
+                    } else {
+                        Ok(Some(Step::send(branches_request(page + 1, 2))))
+                    };
                     assert_eq!(done(&mut plan, Document::Rows, bounds, &mut tables), expected);
                 }
             }

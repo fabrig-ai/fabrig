@@ -212,7 +212,9 @@ fn fixed_answer_lists_past_their_counts_fail_to_decode() {
         collaborators.push(Collaborator { user, permission: Permission::Write }).expect("fixture room");
     }
     let mut names = skein_lib::List::with_capacity(9);
-    for _ in 0..9 { names.push(Box::<[u8]>::default()).expect("fixture names"); }
+    for _ in 0_u32..9 {
+        names.push(Box::<[u8]>::default()).expect("fixture names");
+    }
     let names = names.into_boxed();
     let mut item = fixtures::summary();
     item.labels = names.clone();

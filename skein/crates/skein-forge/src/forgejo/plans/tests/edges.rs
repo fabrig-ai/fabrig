@@ -721,15 +721,21 @@ fn branch_prefix_matches_are_bounded_by_bytes_alone() {
     // Each temper/NN name measures 16 bytes of storage and 9 of name.
     for count in [9, 40] {
         let mut names = skein_lib::List::with_capacity(count);
-        let mut body = skein_lib::Writer::new(usize::try_from(count.checked_mul(64).unwrap()).unwrap());
+        let row_bytes = br#"{"ref":"refs/heads/"#.len() + 9 + br#""}"#.len();
+        let length = usize::try_from(count).unwrap() * (row_bytes + 1) + 1;
+        let mut body = skein_lib::Writer::new(length);
         body.put(b"[").unwrap();
         for index in 0..count {
             let mut name = skein_lib::Writer::new(9);
             name.put(b"temper/").unwrap();
-            if index < 10 { name.put(b"0").unwrap(); }
+            if index < 10 {
+                name.put(b"0").unwrap();
+            }
             name.put(skein_lib::Decimal::of(u64::from(index)).as_bytes()).unwrap();
             let name = name.finish();
-            if index != 0 { body.put(b",").unwrap(); }
+            if index != 0 {
+                body.put(b",").unwrap();
+            }
             body.put(br#"{"ref":"refs/heads/"#).unwrap();
             body.put(&name).unwrap();
             body.put(br#""}"#).unwrap();
