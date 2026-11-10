@@ -3,6 +3,7 @@
     {
       "project": 1,
       "merge_job": ".temper/merge",
+      "close_job": ".temper/close",
       "gates": [
         {
           "forge": 1,

@@ -134,19 +134,36 @@ fn checked_text(
         }
     }
 }
-// The merge command is relative, with no parent segment or NUL
-// (temper/docs/design/protocol/configuration.md, 3).
 fn optional_merge_job(
     object: &mut crate::startup::members::Object,
     document: &Document,
     path: &Path,
     problems: &mut Problems,
 ) -> Option<Box<[u8]>> {
-    let at = object.member(document, b"merge_job")?;
+    optional_job(object, document, b"merge_job", path, problems)
+}
+fn optional_close_job(
+    object: &mut crate::startup::members::Object,
+    document: &Document,
+    path: &Path,
+    problems: &mut Problems,
+) -> Option<Box<[u8]>> {
+    optional_job(object, document, b"close_job", path, problems)
+}
+// The job command is relative, with no parent segment or NUL
+// (temper/docs/design/protocol/configuration.md, 3).
+fn optional_job(
+    object: &mut crate::startup::members::Object,
+    document: &Document,
+    name: &[u8],
+    path: &Path,
+    problems: &mut Problems,
+) -> Option<Box<[u8]>> {
+    let at = object.member(document, name)?;
     let value = match config::read::text(document, at, 4_096) {
         Ok(value) => value,
         Err(what) => {
-            problems.push(path.member(b"merge_job"), What::Jig(what));
+            problems.push(path.member(name), What::Jig(what));
             return None;
         }
     };
@@ -164,7 +181,7 @@ fn optional_merge_job(
         }
     }
     valid &= length != 2 || !dots;
-    read::form(valid, path.member(b"merge_job"), problems);
+    read::form(valid, path.member(name), problems);
     Some(value)
 }
 // Ignored paths are whole segments; no empty segment, dot or parent segment.
@@ -411,6 +428,7 @@ fn project_landing(
     let retries = optional_integer(object, document, b"tier_retries", 2, u64::from(u8::MAX), path, problems);
     let bound = optional_integer(object, document, b"verification_bound_ms", 7_200_000, u64::MAX, path, problems);
     let by = optional_word(object, document, b"by", b"queue", path, problems)?;
+    let close_job = optional_close_job(object, document, path, problems);
     let merge_job = optional_merge_job(object, document, path, problems);
     let by = match by.as_ref() {
         b"queue" => engine::Way::Queue,
@@ -436,7 +454,7 @@ fn project_landing(
     }
     Some(engine::ProjectLanding {
         by,
-        close_job: None,
+        close_job,
         merge_job,
         repositories: repositories.into_boxed(),
         after: engine::AfterLandingCheck {

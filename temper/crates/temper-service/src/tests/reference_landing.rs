@@ -77,6 +77,7 @@ fn the_reference_landing_member_parses() {
         Some(b".temper/merge".as_slice())
     );
     let landing = members.landings.get(&1).expect("reference project landing");
+    assert_eq!(landing.close_job.as_deref(), Some(b".temper/close".as_slice()));
     assert_eq!(
         landing.repositories.as_ref(),
         &[RepositoryChecks {
