@@ -694,6 +694,53 @@ git = fail_add
         self.assertTrue(self.read(A).endswith("See [b](b.md); section 4.\n"))
         self.clean_check()
 
+    def test_companion_link_labels_are_consumed_even_when_the_name_stays(self):
+        self.write(f"{DESIGN}/a.status.md", "# status\n\nSee [a.md](a.md).\n\nNo gap.\n")
+        self.commit("companion link label")
+        result = self.apply(f"{A} -> {DESIGN}/sub/a.md\n")
+        self.assertNotIn("name in code", result.stdout)
+        self.assertEqual(self.read(f"{DESIGN}/sub/a.status.md"), "# status\n\nSee [a.md](a.md).\n\nNo gap.\n")
+        self.clean_check()
+
+    def test_discarded_section_heading_has_no_surviving_citation(self):
+        self.write(A, "# a\n\n## 2. See `b.md`\n\nOpening.\n\n### 2.1 Part\n\nBody.\n")
+        self.commit("discarded heading")
+        result = self.apply(f"{A} 2 -> {DESIGN}/new.md\ntitle {DESIGN}/new.md: New\n")
+        self.assertNotIn("Wrong:", result.stdout)
+        self.assertEqual(self.read(f"{DESIGN}/new.md"), "# New\n\nOpening.\n\n## 1. Part\n\nBody.\n")
+        self.clean_check()
+
+    def test_newly_read_citations_need_an_original_reading(self):
+        self.write("skein/docs/plan/old.md", "# old\n\nSee `a.md`, 2.1.\n")
+        self.commit("unread source")
+        result = self.move(f"skein/docs/plan/old.md -> {DESIGN}/new.md\n")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("Wrong:", result.stdout)
+        self.assertIn("should read: an original reading", result.stdout)
+
+    def test_missing_original_heading_cannot_gain_a_different_heading(self):
+        self.write(B, "# b\n\nSee `a.md`, 9.\n")
+        self.commit("missing original heading")
+        result = self.move(f"{A} 2 -> {A} 9\n")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("Wrong:", result.stdout)
+        self.assertIn("should read: unresolved", result.stdout)
+
+    def test_whole_destination_subsumes_its_numbered_list_members(self):
+        self.write(B, "# b\n\n`a.md`, 2 and 2.1; `a.md`, 2.1 and 2; `a.md`, 1 and 2 and 2.1.\n")
+        self.commit("whole list members")
+        self.apply(f"{A} 2 -> {DESIGN}/new.md\ntitle {DESIGN}/new.md: New\n")
+        self.assertEqual(self.read(B), "# b\n\n`new.md`; `new.md`; `a.md`, 1 and `new.md`.\n")
+        self.clean_check()
+
+    def test_whole_status_citation_keeps_the_status_path(self):
+        self.write(f"{DESIGN}/a.status.md", "# status\n\n- **Not yet:** 2.1: waiting.\n")
+        self.write(B, "# b\n\nSee `a.status.md`, 2 and 2.1.\n")
+        self.commit("whole status citation")
+        self.apply(f"{A} 2 -> {DESIGN}/new.md\ntitle {DESIGN}/new.md: New\n")
+        self.assertEqual(self.read(B), "# b\n\nSee `new.status.md`.\n")
+        self.clean_check()
+
     def test_all_map_errors_leave_tree_and_index_unchanged(self):
         cases = [
             (f"{DESIGN}/gone.md -> {DESIGN}/new.md", "source does not exist"),
