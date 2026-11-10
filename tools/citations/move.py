@@ -107,8 +107,18 @@ def number_key(number):
 
 def slug(text):
     text = re.sub(r"^#{1,6}\s+|\s+#+\s*$", "", text.strip()).lower()
+    # Code spans contain literal markup: protect them before reading the visible text.
+    code = []
+
+    def protect(match):
+        code.append(match.group(2))
+        return f"\0{len(code) - 1}\0"
+
+    text = re.sub(r"(`+)(.+?)\1", protect, text)
     text = html.unescape(re.sub(r"<[^>]*>", "", text))
-    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)
+    text = re.sub(r"!?\[([^\]]*)\]\([^)]*\)", r"\1", text)
+    text = re.sub(r"(?<![\w\\])_{1,3}(.+?)_{1,3}(?!\w)", r"\1", text)
+    text = re.sub(r"\0(\d+)\0", lambda m: code[int(m.group(1))], text)
     return "".join(ch for ch in text if ch in "-_ " or unicodedata.category(ch)[0] in "LNM").replace(" ", "-")
 
 
@@ -531,8 +541,6 @@ class Plan:
             if (self.root / path).is_symlink() or re.search(r"(?i)(?:^|/)(?:auth\.json|\.credentials\.json|[^/]*(?:secret|token|credential|private[-_]key)[^/]*)$|\.(?:pem|key|p12|pfx)$", path):
                 continue
             raw = (self.root / path).read_bytes()
-            if b"\0" in raw:
-                continue
             for ln, line in enumerate(raw.decode("utf-8", errors="surrogateescape").splitlines(), 1):
                 edits = [(a, b) for (number, a, b) in self.edits.get(path, {}) if number == ln]
                 for m in pattern.finditer(line):
