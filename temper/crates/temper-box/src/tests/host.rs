@@ -3059,7 +3059,17 @@ fn source_steps() -> temper_forge_setup::Steps {
     for step in &steps.asked[0].steps {
         group.push(step.clone()).unwrap();
     }
-    group.push((temper_forge_setup::Stage::Source, once(b"source 3", &[b"never"]).ending_ignored())).unwrap();
+    group
+        .push((
+            temper_forge_setup::Stage::Source,
+            Step::new(
+                b"source 3".as_slice().into(),
+                Box::new([b"never".as_slice().into(), b"source 3".as_slice().into()]),
+                temper_forge_setup::Kind::Source,
+            )
+            .ending_ignored(),
+        ))
+        .unwrap();
     steps.asked[0].steps = group.into_boxed();
     steps
 }
@@ -3082,9 +3092,60 @@ fn source_outcomes_precede_started_are_replayed_and_failures_are_logged_once() {
         assert!(h.reply_bytes().ends_with(&crate::lines::joined(&[&ending, &ending])));
         let count = bytes::count(&h.log(), b"no sign-in through temper:", u32::MAX);
         assert_eq!(count, u32::from(line.starts_with(b"source failed")));
-        assert_eq!(h.spawn_times(b"source 3").len(), 1);
+        assert_eq!(h.spawn_times(b"source 3").len(), 1, "another start does not bypass the retry wait");
+        if line.starts_with(b"source failed") {
+            h.sim.advance_to(h.sim.now().saturating_add(crate::limits::small().backoff));
+            h.run_until_idle();
+            let child = h.child_index(b"source 3");
+            h.write_stdout(child, b"source added\n");
+            finish_child(&mut h, b"source 3", 0);
+            assert!(h.reply_bytes().ends_with(b"source 3 added\n"));
+            assert_eq!(h.spawn_times(b"source 3").len(), 2);
+        }
         stop_fetch_box(&mut h);
     }
+}
+
+#[test]
+fn a_failed_source_retries_with_doubling_waits_and_says_only_changed_endings() {
+    use skein_shell::Host;
+    let mut h = Harness::grouped(source_steps(), &[], true);
+    h.run_until_idle();
+    h.ask(b"start 3\n");
+    h.run_until_idle();
+    for attempt in 0..3 {
+        let child = h.child_index(b"source 3");
+        h.write_stdout(child, if attempt == 2 { b"source added\n" } else { b"source failed discovery unavailable\n" });
+        finish_child(&mut h, b"source 3", 0);
+        if attempt == 0 {
+            assert!(h.reply_bytes().ends_with(b"source 3 failed discovery unavailable\nstarted 3\n"));
+        }
+        if attempt < 2 {
+            let before = h.sim.now();
+            let delay = crate::limits::small().backoff.saturating_mul(if attempt == 0 { 1 } else { 2 });
+            assert_eq!(h.service.next_policy_deadline(), Some(before.saturating_add(delay)));
+            h.sim.advance_to(skein_lib::Time::from_nanos(
+                before.saturating_add(delay).as_nanos().checked_sub(1).unwrap(),
+            ));
+            h.run_until_idle();
+            assert_eq!(h.spawn_times(b"source 3").len(), attempt + 1);
+            h.sim.advance_to(before.saturating_add(delay));
+            h.run_until_idle();
+            assert_eq!(h.spawn_times(b"source 3").len(), attempt + 2);
+        }
+    }
+    let replies = h.reply_bytes();
+    assert!(replies.ends_with(b"source 3 added\n"), "{replies:?}");
+    assert_eq!(bytes::count(&replies, b"source 3 failed", u32::MAX), 1, "same retry ending is silent");
+    assert_eq!(bytes::count(&replies, b"started 3\n", u32::MAX), 1, "only first ending completes start");
+    assert_eq!(bytes::count(&h.log(), b"no sign-in through temper:", u32::MAX), 1);
+    assert!(h.service.next_policy_deadline().is_none(), "added disarms retries");
+    h.sim.advance_to(h.sim.now().saturating_add(crate::limits::small().backoff_max));
+    h.ask(b"start 3\n");
+    h.run_until_idle();
+    assert!(h.reply_bytes().ends_with(b"source 3 added\nstarted 3\n"));
+    assert_eq!(h.spawn_times(b"source 3").len(), 3, "added never runs again in this group");
+    stop_fetch_box(&mut h);
 }
 
 #[test]

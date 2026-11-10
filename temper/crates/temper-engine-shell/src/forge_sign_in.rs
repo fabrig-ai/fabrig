@@ -1,4 +1,6 @@
 //! Host the sign-in file effects; all printable bytes belong to forge-setup.
+//! Source serving follows temper/docs/design/protocol/sign-in.md, 9.9.
+mod http;
 use jig_protocol_config as config;
 use std::{
     fs,
@@ -118,10 +120,31 @@ pub(crate) fn source(
     let clock = skein_shell::Clock::new();
     let until = clock.now().now.saturating_add(deadline);
     let limits = jig_protocol_config::profile(config::Profile::Small).io;
+    let answered = http::get(&discovery, until).is_ok_and(|answer| (200..300).contains(&answer.status));
+    if !answered {
+        return Err("temper's discovery did not answer".into());
+    }
     // An unreadable list still attempts add: its refusal explains the failure.
     let present = command::run_until(&limits, &spec::source_list(owned, place), until)
         .is_ok_and(|answer| answer.exit == Exit::Code(0) && sign_in::source_present(answer.stdout.expose()));
-    if !present {
+    if present {
+        let url = format!("http://{}/user/oauth2/temper", owned.listen);
+        let issuer = discovery.strip_suffix(b"/.well-known/openid-configuration").expect("discovery path");
+        let mut authorize = issuer.to_vec();
+        authorize.extend_from_slice(b"/oauth/authorize");
+        let served = http::get(url.as_bytes(), until).is_ok_and(|answer| {
+            (300..400).contains(&answer.status)
+                && answer.header(b"location").is_some_and(|location| {
+                    location == authorize
+                        || location
+                            .strip_prefix(authorize.as_slice())
+                            .is_some_and(|tail| tail.starts_with(b"?") || tail.starts_with(b"#"))
+                })
+        });
+        if !served {
+            return Err("Forgejo does not serve the source".into());
+        }
+    } else {
         let answer = command::run_until(&limits, &spec::source_add(owned, place, client, &discovery), until)
             .map_err(super::forge::command_error)?;
         if answer.exit != Exit::Code(0) {

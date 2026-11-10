@@ -1,4 +1,5 @@
-//! The box's ordered commands; each hides whether it is once, long or link.
+//! The box's ordered commands and lifetimes (temper/docs/design/protocol/setup.md, 7.2).
+//! Source retries follow temper/docs/design/protocol/sign-in.md, 9.9.
 use crate::machine::{BoxKind, Machine};
 use alloc::boxed::Box;
 use skein_lib::{List, bytes};
@@ -46,6 +47,8 @@ pub enum Kind {
     Once,
     Long,
     Link,
+    /// Ends the group's start once, then retries until the source serves.
+    Source,
 }
 /// One command of the temper binary that the box runs.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -80,7 +83,7 @@ impl Step {
     }
     #[must_use]
     pub fn ignores_ending(&self) -> bool {
-        self.ignore_ending
+        self.ignore_ending || self.kind == Kind::Source
     }
     /// Opaque public lines supplied by the binary, printed once this forge starts.
     pub fn set_started_notice(&mut self, notice: Box<[u8]>) {
@@ -207,5 +210,12 @@ fn slot(action: &[u8], flags: &[Box<[u8]>], run: Option<&[u8]>) -> Step {
         }
         None => action,
     };
-    Step::new(bytes::copy_of(name), args.into_boxed(), if run.is_some() { Kind::Long } else { Kind::Once })
+    let kind = if run.is_some() {
+        Kind::Long
+    } else if action == b"source" {
+        Kind::Source
+    } else {
+        Kind::Once
+    };
+    Step::new(bytes::copy_of(name), args.into_boxed(), kind)
 }

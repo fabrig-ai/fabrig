@@ -5676,6 +5676,7 @@ dependencies = [
  "skein-channel",
  "skein-forge",
  "skein-forge-connection",
+ "skein-http",
  "skein-io",
  "skein-json",
  "skein-lib",

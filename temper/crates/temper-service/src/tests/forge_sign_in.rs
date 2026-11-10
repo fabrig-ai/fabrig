@@ -528,7 +528,14 @@ fn a_box_owned_forge_has_an_off_fact_until_its_source_is_added_whatever_its_numb
     assert!(notes(&mut service).is_empty(), "the same unserved reason is named once");
     let engine = service.engine.as_mut().unwrap();
     engine.box_link.read(b"source 8 added\n", &mut out);
-    let Some(crate::route::box_link::Out::Named(_)) = out.pop() else { panic!("another forge cannot enable this one") };
+    crate::route::box_link::drain(engine, &mut out);
+    let (reply, _, _) = get(&mut service, None);
+    assert_eq!(
+        fixtures::bundle::body(&reply),
+        page(b"<meta name=\"temper-forge-sign-in-off\" content=\"9\">").as_ref(),
+        "another forge cannot enable this one"
+    );
+    let engine = service.engine.as_mut().unwrap();
     engine.box_link.read(b"source 9 added\n", &mut out);
     crate::route::box_link::drain(engine, &mut out);
     let (reply, status, headers) = get(&mut service, Some(&tag));
@@ -540,6 +547,46 @@ fn a_box_owned_forge_has_an_off_fact_until_its_source_is_added_whatever_its_numb
     );
     assert!(notes(&mut service).is_empty());
 }
+#[test]
+fn a_source_added_after_started_turns_the_box_forges_links_back_on() {
+    let mut service = world();
+    box_entries(&mut service, true);
+    let mut owned = record(9);
+    owned.mode = forge::Mode::Owned;
+    fixtures::keep_forge(&mut service, owned);
+    let engine = service.engine.as_mut().unwrap();
+    engine.box_link = crate::route::box_link::Link::new(256, true);
+    let mut out = skein_lib::Queue::uncapped();
+    engine.box_link.ask(9, Token::new(991), &mut out);
+    out.clear();
+    engine.box_link.read(b"source 9 failed temper's discovery did not answer\nstarted 9\n", &mut out);
+    crate::route::box_link::drain(engine, &mut out);
+    let (reply, _, headers) = get(&mut service, None);
+    assert_eq!(
+        fixtures::bundle::body(&reply),
+        page(b"<meta name=\"temper-forge-sign-in-off\" content=\"9\">").as_ref()
+    );
+    let tag = fixtures::header(&headers, b"etag").unwrap().to_vec();
+    let engine = service.engine.as_mut().unwrap();
+    engine.box_link.ask(8, Token::new(992), &mut out);
+    out.clear();
+    engine.box_link.read(b"source 9 added\n", &mut out);
+    crate::route::box_link::drain(engine, &mut out);
+    let (reply, status, headers) = get(&mut service, Some(&tag));
+    assert_eq!(status, 200, "later added invalidates the off page even during another group's ask");
+    service.engine.as_mut().unwrap().box_link.read(b"started 8\n", &mut out);
+    assert_eq!(
+        out.pop(),
+        Some(crate::route::box_link::Out::Started { forge: 8 }),
+        "source did not consume the other ask"
+    );
+    assert_ne!(fixtures::header(&headers, b"etag"), Some(tag.as_slice()));
+    assert_eq!(
+        fixtures::bundle::body(&reply),
+        page(b"<meta name=\"temper-forge-sign-in\" content=\"9 forgejo https://git.example.com owned\">").as_ref()
+    );
+}
+
 #[test]
 fn a_restored_box_source_fact_serves_without_an_active_setup_ask() {
     let mut service = world();
