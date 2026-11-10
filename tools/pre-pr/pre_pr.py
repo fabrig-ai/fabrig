@@ -251,12 +251,11 @@ def nextest(packages, root, env, expression=None, build=False):
         junit = directory / 'junit.xml'
         overlay = directory / 'nextest.toml'
         overlay.write_text('[profile.default.junit]\npath = ' + json.dumps(str(junit)) + '\n')
-        arguments = ['cargo', 'nextest', 'run', '--profile', 'default', '--no-fail-fast', '--no-tests=warn']
+        arguments = ['cargo', 'nextest', 'run', '--profile', 'default']
         arguments += package_args(packages) + ['--tool-config-file', f'temper-pre-pr:{overlay}']
         if expression:
             arguments += ['-E', expression]
-        if build:
-            arguments.append('--no-run')
+        arguments += ['--no-run'] if build else ['--no-fail-fast', '--no-tests=warn']
         code, log = run(arguments, root, env, stdout=True)
         if code == 0:
             return code, []

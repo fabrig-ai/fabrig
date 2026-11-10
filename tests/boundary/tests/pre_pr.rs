@@ -106,7 +106,8 @@ elif name == 'cargo':
         sys.exit(101 if errors else ledger.get('clippy_exit', 0))
     assert args[:2] == ['nextest', 'run']
     assert '--profile' in args and args[args.index('--profile') + 1] == 'default'
-    assert '--no-fail-fast' in args and '--no-tests=warn' in args
+    assert ('--no-fail-fast' in args) == ('--no-run' not in args), 'execution and build-only flags conflict'
+    assert ('--no-tests=warn' in args) == ('--no-run' not in args)
     overlay = args[args.index('--tool-config-file') + 1]
     assert overlay.startswith('temper-pre-pr:')
     config = tomllib.loads(Path(overlay.split(':', 1)[1]).read_text())
