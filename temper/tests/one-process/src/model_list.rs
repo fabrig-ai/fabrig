@@ -1,5 +1,5 @@
 //! A list through the real worker and hosted agent, without run accounting
-//! (jig/docs/design/domain/engine.md, 17.12).
+//! (jig/docs/design/domain/engine/settings.md, 12).
 use crate::{
     referee::{Store, client::Received},
     world::{HarnessProcess, Proc},

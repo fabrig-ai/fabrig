@@ -1,4 +1,4 @@
-//! Keyed requests, memory-only Seen and kept work (client/domain/client.md, 6 and 11).
+//! Keyed requests, memory-only Seen and kept work (client/domain/client/requests.md and client/domain/client/README.md, 8).
 use crate::{
     Ask, Domain, Down, Held, Key, Limits, Outcome, Pending, Progress, Request, Retry, State, Told, contract,
     domain::{down, tell},
@@ -90,7 +90,7 @@ impl Domain {
             Err(RequestRefused::Held(_)) => tell(out, Told::Answered { key, outcome: Outcome::Held }),
         }
     }
-    /// Restores decoded records from the small store (client/domain/client.md, 11).
+    /// Restores decoded records from the small store (client/domain/client/README.md, 8).
     pub fn restore_record(&mut self, env: &Env<Limits>, records: List<RequestRecord<Held>>, out: &mut Queue<Request>) {
         let mut dropped = 0_u32;
         for record in records.into_boxed() {

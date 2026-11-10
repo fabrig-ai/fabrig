@@ -1,4 +1,4 @@
-//! Limits for fabrig-scale development (jig/docs/design/protocol/configuration.md, 6).
+//! Limits for fabrig-scale development (jig/docs/design/protocol/limits.md).
 //! The profile holds project work with five times the largest figures seen.
 use super::small;
 use super::{Limits, Link};
@@ -217,10 +217,10 @@ pub(super) const CLIENTS: jig_protocol_engine_clients::Limits = jig_protocol_eng
 // Retained-revision release adds 2 * 8 heads + 16 versions + one extent = 33.
 // Placed holds: tightened core room plus 18 connector slots needs 151,673 writes.
 const JOURNAL: super::JournalSizes = super::JournalSizes { commits: 3, writes: 151_673, door: 1024, release: 1024 };
-// check_commits sets value to the largest map value, 100,881,496 bytes at these limits (store.md, 5.4).
+// check_commits sets value to the largest map value, 100,881,496 bytes at these limits (protocol/store/records.md, 4).
 // RunPolicy.tools is priced in the largest task row.
 // Page bytes are key + value = 2,079 + 100,881,496 = 100,883,575, above the 33,554,496-byte
-// TurnRecord frame for smith's 33,554,432-byte turn (store.md, 8.1).
+// TurnRecord frame for smith's 33,554,432-byte turn (protocol/store/transcripts.md, 1).
 // Chunk bytes are skein_kv::chunk_bytes(key, value) = 100,883,595, including framing.
 const STORE_KV: skein_kv::Limits = skein_kv::Limits {
     value: 100_881_496,

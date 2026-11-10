@@ -1350,7 +1350,7 @@ pub struct Installation {
     pub suspended: bool,
 }
 /// Pending task dependencies supplied by the root, never retained by the connector
-/// (jig's domain/tasks.md, 5.7; domain/landing.md, 4.1).
+/// (jig's domain/tasks/lifecycle.md, 8; domain/landing.md, 4.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ChangeDependencies {
     pub change: u64,
@@ -1452,7 +1452,7 @@ pub enum Event {
         entry: u64,
     },
     /// Release adoptions after the project's tasks are erased
-    /// (jig/docs/design/domain/people.md, 5.2; temper/docs/design/domain/forge.md, 4.1).
+    /// (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge.md, 4.1).
     ReleaseProject {
         project: u32,
         request: Token,

@@ -1,4 +1,4 @@
-//! The client contract's records for both ends (protocol/client.md, sections 3 and 9).
+//! The client contract's records for both ends (protocol/client/wire.md, section 1, and protocol/client/README.md, section 6).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -18,7 +18,7 @@ pub mod public_v1;
 mod public;
 pub use public::{PublicIndexBounds, public_bounds, public_limits};
 
-/// The independently versioned public wire (client/domain/contract.md, section 12).
+/// The independently versioned public wire (client/domain/contract/README.md, section 10).
 pub const PUBLIC_VERSION: u16 = 1;
 /// The public projects answer kind.
 pub const PUBLIC_PROJECTS: u16 = 1;

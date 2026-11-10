@@ -8,7 +8,7 @@ nothing else: "It should print nothing else, and only refreshed links.
 Except for errors, those would be printed too, but that's it." The user
 chose this version over a progress page. It changes `../protocol/setup.md`,
 7.2 (the box's terminal and its sign-in block), and jig's
-`protocol/client.md`, section 8 (the printed link's secret). The user
+`protocol/client/sign-in.md` (the printed link's secret). The user
 asked for it to be built (2026-11-05).
 
 ## 1. In one page
@@ -69,7 +69,7 @@ Opened again once spent, it prints a fresh one here.
   serve's only reader holds (its standard input, or an inherited
   descriptor), never its arguments or environment.
 - **jig's sign-in component takes a given secret.** At start, where it
-  draws the first link's secret (jig's `protocol/client.md`, section 8),
+  draws the first link's secret (jig's `protocol/client/sign-in.md`),
   it takes the given one instead, if any. Its expiry runs from when the
   component takes it. All else stays as jig's client protocol has it: one link live at a time;
   a spent, expired or unknown secret draws a fresh one; not ready, busy

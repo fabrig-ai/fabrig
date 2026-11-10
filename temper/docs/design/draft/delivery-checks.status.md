@@ -16,6 +16,6 @@
   full check, and only a producer's checked finish is merged into the goal's
   branch. smith's charter (version 4) and channel (version 6) change in
   place, before v0.1.0; temper's store and the worker wires do not
-  (smith's `domain/run.md`, 8.5; jig's `domain/hosts.md`, sections 7 to 9;
+  (smith's `domain/run.md`, 8.5; jig's `domain/hosts/README.md`, section 6 and `domain/hosts/charters.md` and `domain/hosts/README.md`, section 7;
   `../domain/agent.md`, 4.3 and section 6; `../domain/worker.md`,
   section 5; `../protocol/git.md`, 4.7).

@@ -1,4 +1,4 @@
-//! Public wire bounds and closure (jig/docs/design/client/domain/contract.md, section 12).
+//! Public wire bounds and closure (jig/docs/design/client/domain/contract/README.md, section 10).
 #[path = "public/fixtures.rs"]
 mod fixtures;
 #[path = "public/schema.rs"]
@@ -77,7 +77,7 @@ fn one_more_entry_is_refused_by_each_public_list_limit() {
 
 #[test]
 fn bounds_past_a_ceiling_are_refused() {
-    // contract.md, section 12: goals, ended and lines 256; depth 64; projects 4096.
+    // client/domain/contract/README.md, section 10: goals, ended and lines 256; depth 64; projects 4096.
     for bounds in [
         PublicIndexBounds { goals: 257, ..PROPOSED },
         PublicIndexBounds { ended: 257, ..PROPOSED },

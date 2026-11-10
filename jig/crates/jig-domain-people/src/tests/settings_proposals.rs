@@ -1,4 +1,4 @@
-//! Settings asks carry admission facts, never the held set (engine.md, 17.6).
+//! Settings asks carry admission facts, never the held set (domain/engine/settings.md, 6).
 #![expect(
     clippy::wildcard_enum_match_arm,
     clippy::match_like_matches_macro,

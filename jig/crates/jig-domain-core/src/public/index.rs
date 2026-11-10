@@ -1,11 +1,11 @@
-//! The public index (jig/docs/design/domain/people.md, 13.7 and 13.9).
+//! The public index (jig/docs/design/domain/people/public-reading.md, 7 and 9).
 //!
 //! Publication and start build from live tasks and begin with no ended goals.
 //! Decisions retain bounded public lines as delegates end, then freeze the goal's
 //! tree when it ends. A goal folded out of the live list enters the ended list
 //! with its line alone: none of its descendants was held public. No operation
 //! reads the store. Person adoption is followed;
-//! Move under another task (people.md, 5.1) is not built.
+//! Move under another task (domain/people/acts.md, 1) is not built.
 //!
 //! Structural changes rebuild live membership in the decision, never in a read. This
 //! also reselects the priority prefix when a goal is reprioritized. Temporary
@@ -22,7 +22,7 @@ pub(crate) use hooks::{follow, publish, restored};
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Map};
 
-/// The public index (jig/docs/design/domain/people.md, 13.9).
+/// The public index (jig/docs/design/domain/people/public-reading.md, 9).
 #[derive(Hash, Debug)]
 pub(crate) struct Index {
     projects: Map<u32, Option<Project>>,

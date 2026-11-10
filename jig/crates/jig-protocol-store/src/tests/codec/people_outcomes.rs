@@ -1,4 +1,4 @@
-//! Permanent people answers preserve their request and refusal facts (protocol/store.md, 5.1).
+//! Permanent people answers preserve their request and refusal facts (protocol/store/records.md, 1).
 use super::{fixtures, people_round_trip};
 use fixtures::people_outcomes as values;
 use jig_domain_people as domain;

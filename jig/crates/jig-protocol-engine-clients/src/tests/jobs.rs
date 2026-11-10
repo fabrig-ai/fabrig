@@ -1,10 +1,10 @@
-//! Jobs are not party-created executors (jig/docs/design/client/domain/contract.md, 5.7).
+//! Jobs are not party-created executors (jig/docs/design/client/domain/contract/documents.md, 7).
 use super::fixtures as f;
 use crate::translate::{asks, operations};
 use jig_client_protocol_wire::v19 as w;
 use skein_lib::{List, Reader, Writer};
 
-/// Create refuses a job as an executor not offered (jig/docs/design/client/domain/contract.md, 5.7).
+/// Create refuses a job as an executor not offered (jig/docs/design/client/domain/contract/documents.md, 7).
 #[test]
 fn create_naming_a_job_is_refused_as_not_offered() {
     let limits = f::wire();

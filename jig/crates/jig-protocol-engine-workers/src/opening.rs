@@ -1,4 +1,4 @@
-//! Ordered authentication, payload and capacity checks (protocol/channel.md, 4.1).
+//! Ordered authentication, payload and capacity checks (protocol/channel/README.md, 4.1).
 use crate::Component;
 use alloc::boxed::Box;
 use jig_protocol_worker_wire::{Credential, Reason};
@@ -42,7 +42,7 @@ impl Component {
         if open >= self.limits.workers { Verdict::Refuse(Reason::Busy) } else { Verdict::Accept { worker } }
     }
 }
-/// The authenticated opening's unequal rooms (protocol/channel.md, 4.1).
+/// The authenticated opening's unequal rooms (protocol/channel/README.md, 4.1).
 pub(crate) fn output_room_words(engine: u32, worker: u32) -> Box<[u8]> {
     use skein_lib::{Decimal, Writer};
     let engine = Decimal::of(u64::from(engine));

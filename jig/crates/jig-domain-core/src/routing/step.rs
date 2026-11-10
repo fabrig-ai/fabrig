@@ -1,4 +1,4 @@
-//! Child entry points and their shared ordering (jig/docs/design/domain/engine.md, 3 and 4.4).
+//! Child entry points and their shared ordering (jig/docs/design/domain/engine/README.md, 3 and 4.4).
 
 use crate::{Core, Limits};
 use jig_domain_accounts as accounts;

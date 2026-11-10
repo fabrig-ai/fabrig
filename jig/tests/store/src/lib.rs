@@ -1,4 +1,4 @@
-//! The component's simulated crashing disk world (protocol/store.md, 14).
+//! The component's simulated crashing disk world (protocol/store/README.md, 9).
 #![forbid(unsafe_code)]
 pub mod model;
 pub mod patches;

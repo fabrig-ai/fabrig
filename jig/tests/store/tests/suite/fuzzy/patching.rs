@@ -52,7 +52,7 @@ fn check_fresh(world: &mut World, rows: &[jig_domain_core::Record], seed: u64, c
     for row in rows {
         let mut expected = row.clone();
         if let Record::Core(CoreRecord::RunProof(proof)) = &mut expected {
-            // store.md 10.2, step 4: every proof crosses, including one without a window.
+            // protocol/store/opening.md 2, step 4: every proof crosses, including one without a window.
             proof.crossed = true;
             if let Some(window) = &mut proof.window {
                 window.closed = true;

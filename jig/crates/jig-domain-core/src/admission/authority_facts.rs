@@ -1,5 +1,5 @@
 //! Authority check findings translated with the request's accounting snapshot
-//! (client/domain/contract.md, section 4; domain/authority.md, section 8.4).
+//! (client/domain/contract/README.md, section 3; domain/authority.md, section 8.4).
 //! This module keeps no state. The pure check supplies which source and component
 //! lacks; the core supplies the requested values and that source's current caps.
 use crate::Core;

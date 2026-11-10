@@ -1,4 +1,4 @@
-//! The subjects named by the current page's sections (client/domain/client.md, 5.1).
+//! The subjects named by the current page's sections (client/domain/client/README.md, 5.1).
 use crate::{
     Ui,
     state::{
@@ -298,7 +298,7 @@ pub(crate) fn uses(section: Section, subject: &jig_client::contract::Subject) ->
     }
 }
 
-/// What a section says about its sources on an application's page (client.md, 5.1).
+/// What a section says about its sources on an application's page (client/domain/client/README.md, 5.1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SectionStatus {
     pub behind: bool,

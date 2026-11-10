@@ -2,7 +2,7 @@
 //! Adoption stays in its connector form; generic confirmation emits no adoption ask (pages.md, 6.5).
 //! No authority, key or retry is computed here. Revisions come from the confirmation
 //! that the person opened. See client/domain/objects.md, 2, 4–9 and 11, and
-//! client/domain/view.md, 18.4.
+//! client/domain/view-state.md, 4.
 use crate::state::{
     confirm::Confirmation,
     fields::{Fields, Purpose},

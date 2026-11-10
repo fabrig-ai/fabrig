@@ -1,4 +1,4 @@
-//! Restore requests through their paged loads and connector continuations (engine.md, 17.10).
+//! Restore requests through their paged loads and connector continuations (domain/engine/settings.md, 10).
 #![expect(
     clippy::wildcard_enum_match_arm,
     clippy::match_like_matches_macro,

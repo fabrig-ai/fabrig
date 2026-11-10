@@ -1,4 +1,4 @@
-//! Scope indexes and recall (jig's domain/engine.md, section 10). Indexes
+//! Scope indexes and recall (jig's domain/engine/briefs.md, section 2). Indexes
 //! are loaded a page at a time and kept only while recently used. A recall
 //! loads entry bodies on demand; its index search reads descriptions only.
 

@@ -1,7 +1,7 @@
 //! The client spine: frame facts, the shared link, page generation and watches.
 //! No platform or application value is known. Each entry handles one owned event;
 //! fire expires one timer, and reclaim frees entities whose obligations ended.
-//! Nothing is accepted before Start. See client/domain/client.md, 3, 4 and 8.
+//! Nothing is accepted before Start. See client/domain/client/README.md, 3 and 4 and client/domain/client/watches.md.
 //!
 //! | Client | Event | Next | Emits |
 //! |---|---|---|---|
@@ -193,7 +193,7 @@ impl Ui {
             history_rows: crate::state::windows::HistoryWindow::new(client.rows),
         })
     }
-    /// The page's sections in their display order (client/domain/client.md, 5.1).
+    /// The page's sections in their display order (client/domain/client/README.md, 5.1).
     #[must_use]
     pub fn sections(&self) -> &[Section] {
         match self.page {
@@ -212,7 +212,7 @@ impl Ui {
         self.navigation = navigation;
         Ok(())
     }
-    /// Installs an application's arrangement before start (client/domain/client.md, 5.1).
+    /// Installs an application's arrangement before start (client/domain/client/README.md, 5.1).
     pub fn configure_arrangement(&mut self, arrangement: Arrangement) -> Result<(), Arrangement> {
         if self.started || !arrangement.valid() {
             return Err(arrangement);

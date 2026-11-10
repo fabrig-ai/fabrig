@@ -1,5 +1,5 @@
 //! Whole immutable semantic history (client/domain/objects.md, 11;
-//! domain/tasks.md, 7). Revision is not an activity commit position.
+//! domain/tasks/changes.md). Revision is not an activity commit position.
 use super::{
     AddressChange, AmendmentState, AuthorityDocument, DocumentText, MessageProposalKind, Part, ProposedTask, Requester,
     SpecificationDocument, WakePolicy,

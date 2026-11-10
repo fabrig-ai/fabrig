@@ -9,7 +9,7 @@ use jig_domain_link::Hosting;
 use skein_lib::{Decision, Env, Queue, Token};
 
 // The engine's hub connects directly to the fleet at construction and is never lost
-// (jig/docs/design/domain/hosts.md, 6.1), so every hand-off uses this one channel.
+// (jig/docs/design/domain/hosts/hub.md, 1), so every hand-off uses this one channel.
 const ENGINE: Token = Token::new(0);
 
 fn permanent(channel: Token) {

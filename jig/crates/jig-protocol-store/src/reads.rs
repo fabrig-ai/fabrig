@@ -1,4 +1,4 @@
-//! Parties' bounded durable reads and joins (protocol/store.md, 7.3).
+//! Parties' bounded durable reads and joins (protocol/store/loads.md, 3).
 mod erasure;
 mod indexed;
 mod joins;

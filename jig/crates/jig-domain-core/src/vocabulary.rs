@@ -1,4 +1,4 @@
-//! The core's vocabulary toward its root (`domain/engine.md`, section 4).
+//! The core's vocabulary toward its root (`domain/engine/README.md`, section 4).
 
 use crate::{CallKey, CallPart, Delegate, EscalationDecisionRecord, Key, ProcedureStep, Record, RunCharter};
 use alloc::boxed::Box;
@@ -36,7 +36,7 @@ pub struct Assignment {
 }
 
 /// A charter document's section in a core plan, for the root to give its connector
-/// (domain/engine.md, 17.9).
+/// (domain/engine/settings.md, 9).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PlannedDocument {
     pub token: Token,
@@ -44,7 +44,7 @@ pub struct PlannedDocument {
 }
 
 /// A value a client's request carried, kept in the secrets' store before
-/// the core sees the request (`protocol/client.md`, section 5): the core
+/// the core sees the request (`protocol/client/README.md`, section 3): the core
 /// gets its number and digest, never the value.
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub struct Carried {
@@ -75,7 +75,7 @@ pub enum Ask {
         models: Box<[crate::settings::CatalogueModel]>,
     },
     /// Release every adoption this connector holds for a project being deleted
-    /// (jig/docs/design/domain/people.md, 5.2). Answered by
+    /// (jig/docs/design/domain/people/acts.md, 2). Answered by
     /// `Event::ProjectReleased` once the release commits; at once when none are held.
     /// Sent again at each start until answered, so a connector releases idempotently.
     ReleaseProject {
@@ -237,7 +237,7 @@ pub enum Ask {
         kinds: fleet::Kinds,
         version: fleet::Version,
     },
-    /// Start a claimed job after its decision is durable (jig/docs/design/domain/engine.md, 7.5).
+    /// Start a claimed job after its decision is durable (jig/docs/design/domain/engine/executors.md, 5).
     JobClaimed {
         task: u64,
         attempt: u64,
@@ -265,7 +265,7 @@ pub enum Ask {
         context: Box<tasks::RunContext>,
         step: u64,
     },
-    /// Ask a connector for a public document (jig/docs/design/domain/engine.md, 11).
+    /// Ask a connector for a public document (jig/docs/design/domain/engine/views.md).
     Public {
         reply: ReplyTo,
         kind: u16,
@@ -279,8 +279,8 @@ pub enum Ask {
 /// Store mutation issued by a child of the core.
 #[derive(Hash, Debug)]
 pub enum Write {
-    /// Drop a task transcript whole with its places (jig/docs/design/protocol/store.md, 8.5, 11.1;
-    /// jig/docs/design/domain/people.md, 5.2).
+    /// Drop a task transcript whole with its places (jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/README.md, 6.1;
+    /// jig/docs/design/domain/people/acts.md, 2).
     DropTranscript { task: u64 },
     /// Copy the old held revision to history without materialising it in the core.
     CopySettingsRevision(u32),
@@ -311,7 +311,7 @@ pub enum Held {
     Applied { to: ReplyTo, connector: u16, token: Token },
     /// A request's carried value went unused (refused, sent again, joined
     /// or stopped): the clients' component erases it, if its own decode
-    /// kept it, before the request's answer (`protocol/store.md`, 9).
+    /// kept it, before the request's answer (`protocol/store/secrets.md`).
     CarriedUnused { number: u64 },
     /// Current subject document, held until every preceding commit is durable.
     Delivery { watcher: Token, document: Box<crate::documents::Document> },
@@ -324,7 +324,7 @@ pub enum Held {
     SettledCall { to: ReplyTo, key: CallKey, call: crate::SettledCall },
     /// A claimed host receives the parent's conversation references.
     Assign { channel: Token, run: Token, attempt: Token, activation: u64, assignment: fleet::Assignment },
-    /// Read an account's list on this channel (jig/docs/design/protocol/channel.md, 5.2).
+    /// Read an account's list on this channel (jig/docs/design/protocol/channel/records.md, 2).
     ReadList { channel: Token, read: u64, endpoint: u32, grant: jig_domain_link::Grant },
     /// Replace the connected worker's whole program-source list after commit.
     Sources { channel: Token, sources: Box<[SourceName]> },
@@ -334,7 +334,7 @@ pub enum Held {
     SignOutSource { channel: Token, name: SourceName },
     /// End one source sign-out; None means the channel could not confirm it.
     SourceSignedOut { to: ReplyTo, channel: Token, name: SourceName, result: Option<SignOutResult> },
-    /// A grant follows every prior commit and its attempt's assignment (engine.md, 5.2).
+    /// A grant follows every prior commit and its attempt's assignment (domain/engine/README.md, 5.2).
     Grant { channel: Token, run: Token, attempt: Token, grant: jig_domain_link::Grant },
     /// The host receives an answer under its original opaque call name.
     Relayed { channel: Token, run: Token, attempt: Token, call: Box<[u8]>, answer: Token },
@@ -370,13 +370,13 @@ pub enum Held {
     NotesWritten { owner: Token, name: u64, revision: u32 },
     /// A note deletion's accepted name.
     NotesDeleted { owner: Token, name: u64 },
-    /// A public read's answer after durability (jig/docs/design/domain/people.md, 13.10).
+    /// A public read's answer after durability (jig/docs/design/domain/people/public-reading.md, 10).
     PublicRead { reply: ReplyTo, answer: crate::PublicAnswer },
-    /// Recheck a public read after preceding commits (jig/docs/design/domain/people.md, 13.10).
+    /// Recheck a public read after preceding commits (jig/docs/design/domain/people/public-reading.md, 10).
     PublicWait { read: Token },
 }
 
-/// Why an unkeyed watch was not admitted (`client/domain/contract.md`, 7.2).
+/// Why an unkeyed watch was not admitted (`client/domain/contract/README.md`, 5.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum WatchRefusal {
     /// Its sign-in is absent or expired.
@@ -392,7 +392,7 @@ pub enum WatchRefusal {
 /// The core's outputs that are the link's (domain/root.md, 5).
 #[derive(Hash, Debug)]
 pub enum LinkNow {
-    /// The host receives a read answer without waiting for a commit (domain/engine.md, 4.4).
+    /// The host receives a read answer without waiting for a commit (domain/engine/README.md, 4.4).
     Relayed { channel: Token, run: Token, attempt: Token, call: Box<[u8]>, answer: Token },
     /// Forget a root-owned host payload that the fleet no longer needs.
     DropPayload { payload: Token },
@@ -411,14 +411,14 @@ pub enum LinkNow {
 pub enum Now {
     /// The core's outputs for the link (domain/root.md, 5).
     Link(LinkNow),
-    /// A bounded task read has no durable call record (engine.md, 7.3).
+    /// A bounded task read has no durable call record (domain/engine/executors.md, 3).
     TaskRead { to: ReplyTo, key: CallKey, answer: Box<Result<crate::reads::run_task::TaskRead, tasks::Refusal>> },
-    /// A settings document leaves without a durable call record (engine.md, 7.3).
+    /// A settings document leaves without a durable call record (domain/engine/executors.md, 3).
     SettingsAnswer { to: ReplyTo, key: CallKey, answer: Box<crate::reads::SettingsAnswer> },
     /// A run's read as its person answered: the party read's own answer, `None(Why::Unknown)`
-    /// for what is not admitted, `None(Why::Busy)` where the loads are full (engine.md, 7.3).
+    /// for what is not admitted, `None(Why::Busy)` where the loads are full (domain/engine/executors.md, 3).
     PersonAnswer { to: ReplyTo, key: CallKey, answer: Box<crate::reads::Answer> },
-    /// A run's proposal read answered (engine.md, 7.3).
+    /// A run's proposal read answered (domain/engine/executors.md, 3).
     ProposalRead { to: ReplyTo, key: CallKey, answer: Box<crate::reads::ProposalRead> },
     /// The root answers this host call with its own busy payload.
     CallBusy { to: ReplyTo },
@@ -482,7 +482,7 @@ pub enum Now {
     /// Assemble connector-held sections for a still-current brief.
     CompleteBrief { brief: Token, order: Box<[brief::GatherPlaced]> },
     /// Core-owned sections and charter documents are ready; the root may append its connector
-    /// sections (domain/engine.md, 17.9).
+    /// sections (domain/engine/settings.md, 9).
     BriefCorePlanned {
         task: u64,
         parent: Option<u64>,
@@ -493,7 +493,7 @@ pub enum Now {
     WorkspaceRequest { task: u64, attempt: u64, context: Box<tasks::RunContext> },
     /// Core admission and claim preparation failed; discard root-owned assembly parts.
     RunPreparationFailed { task: u64 },
-    /// A brief failed, for the application's log (`domain/engine.md`, 9.1).
+    /// A brief failed, for the application's log (`domain/engine/briefs.md`, 1.1).
     BriefFailed { task: u64, failure: brief::GatherFailure },
     /// Core-owned run parts are ready for root assembly with the connector workspace.
     RunPrepared {
@@ -526,7 +526,7 @@ pub struct Limits {
     pub settings: crate::settings::Limits,
     /// Configured templates and overrides per project policy.
     pub templates: u32,
-    /// Store map bytes at or above which new party work is refused (store.md, 11.2).
+    /// Store map bytes at or above which new party work is refused (protocol/store/README.md, 6.2).
     pub fill_mark: u64,
     /// Number of numbered connectors retained by the core.
     pub connectors: u32,
@@ -570,7 +570,7 @@ pub struct Limits {
     pub views: views::Limits,
 }
 
-/// Public index bounds (jig/docs/design/domain/people.md, 13.9).
+/// Public index bounds (jig/docs/design/domain/people/public-reading.md, 9).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct PublicIndexLimits {
     pub goals: u16,
@@ -593,7 +593,7 @@ pub struct CoreBriefBudgets {
     pub plan: u32,
     /// Maximum note index text in one brief.
     pub notes: u32,
-    /// Whole preferences of the run's requester (domain/engine.md, 10.1).
+    /// Whole preferences of the run's requester (domain/engine/briefs.md, 2.1).
     pub preferences: u32,
 }
 
@@ -601,9 +601,9 @@ pub struct CoreBriefBudgets {
 #[derive(Hash, Debug)]
 pub enum Event {
     /// A connector's release of a deleted project's adoptions has committed
-    /// (jig/docs/design/domain/people.md, 5.2).
+    /// (jig/docs/design/domain/people/acts.md, 2).
     ProjectReleased { connector: u16, project: u32 },
-    /// One model act at the newest revision (engine.md, 17.11).
+    /// One model act at the newest revision (domain/engine/settings.md, 11).
     ChangeModel {
         reply_to: ReplyTo,
         sign_in: u64,
@@ -629,11 +629,11 @@ pub enum Event {
     },
     /// Commit a restored release before opening; `room` is the settings restore's write budget.
     SettingsCommit { room: u32 },
-    /// A connector's deployment act, without a party or sign-in (people.md, 5.3).
+    /// A connector's deployment act, without a party or sign-in (domain/people/acts.md, 3).
     Act { reply_to: ReplyTo, connector: u16, key: [u8; 16], act: Box<people::Act>, carried: Option<Carried> },
-    /// Store map bytes from each commit answer; needs no commit (store.md, 11.2).
+    /// Store map bytes from each commit answer; needs no commit (protocol/store/README.md, 6.2).
     Fill { bytes: u64 },
-    /// Refuse new decisions while the service drains (engine.md, 6.1).
+    /// Refuse new decisions while the service drains (domain/engine/restart.md, 1).
     Stopping,
     /// A connector's state change names its opaque subjects in this decision.
     Marked { connector: u16, subjects: List<Token> },
@@ -662,7 +662,7 @@ pub enum Event {
     ApplicationFinished { request: Token, outcome: Result<Token, people::Again> },
     /// A connector's final projection write has settled, or its project has no home there.
     ProjectionSettled { goal: u64, connector: u16 },
-    /// A protocol-rendered answer; its live reply address is never retained (store.md, 5.1).
+    /// A protocol-rendered answer; its live reply address is never retained (protocol/store/records.md, 1).
     SettledCall { to: ReplyTo, key: CallKey, name: Box<[u8]>, call: crate::SettledCall },
     /// A connector owns the decoded effect under this transient owner.
     EffectStart { owner: Token, connector: u16, origin: crate::EffectOrigin },
@@ -719,7 +719,7 @@ pub enum Event {
         attempt: u64,
         writes: Option<Box<[authority::Write]>>,
         /// A job's held names, translated by its connectors from workspace writes
-        /// (jig/docs/design/domain/engine.md, 7.1, step 3); empty for an agent.
+        /// (jig/docs/design/domain/engine/executors.md, 1, step 3); empty for an agent.
         holds: Box<[tasks::Name]>,
         credentials: Box<[u32]>,
         /// A job's application-encoded workspace items, within `Limits::run_bytes`.
@@ -873,14 +873,14 @@ pub enum Event {
     View(views::Event),
     /// A scoped note.
     Notes(notes::Event),
-    /// An unsigned public read (jig/docs/design/protocol/client.md, 19).
+    /// An unsigned public read (jig/docs/design/protocol/client/public-reads.md).
     PublicRead { reply: ReplyTo, read: crate::PublicRead },
-    /// A connector's public document (jig/docs/design/domain/engine.md, 11).
+    /// A connector's public document (jig/docs/design/domain/engine/views.md).
     PublicAnswered { reply: ReplyTo, answer: Option<crate::PublicApplication> },
     /// The root released this read after preceding commits became durable.
     PublicDurable { read: Token },
 }
-/// Why a connector refuses a member's holdings (domain/tasks.md, 6.1 and 6.2).
+/// Why a connector refuses a member's holdings (domain/tasks/holds.md, 1 and 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum HoldingsRefusal {
     /// The member names a symbol this connector does not offer it.
@@ -918,20 +918,20 @@ pub enum NamedAction {
         field: crate::reads::TaskTextField,
         task: u64,
         from: u64,
-        /// The most words this answer holds, named by its application (engine.md, 7.3).
+        /// The most words this answer holds, named by its application (domain/engine/executors.md, 3).
         room: u32,
     },
-    /// A settings read decides nothing and keeps no call record (engine.md, 7.3).
+    /// A settings read decides nothing and keeps no call record (domain/engine/executors.md, 3).
     Settings(crate::reads::SettingsRead),
     /// A run reads as its task's requester, a person, of its task's project alone
-    /// (engine.md, 7.3, *A run's read as its person*). Decides nothing, keeps no call record.
+    /// (domain/engine/executors.md, 3, *A run's read as its person*). Decides nothing, keeps no call record.
     PersonRead(crate::reads::Read),
-    /// A run's read of one proposal of settings, by the `settings` family (engine.md, 7.3).
+    /// A run's read of one proposal of settings, by the `settings` family (domain/engine/executors.md, 3).
     ReadProposal {
         proposer: jig_domain_people::Proposer,
         number: u64,
     },
-    /// A run proposes settings against the revision it read (engine.md, 17.6).
+    /// A run proposes settings against the revision it read (domain/engine/settings.md, 6).
     ProposeSettings {
         against: u32,
         items: Box<[crate::settings::Item]>,
@@ -1008,7 +1008,7 @@ pub enum NamedAction {
         recalled: u32,
         range: notes::LineRange,
     },
-    /// Drop one scoped note at a revision seen by the run (domain/engine.md, 10.1).
+    /// Drop one scoped note at a revision seen by the run (domain/engine/briefs.md, 2.1).
     NoteDelete {
         scope: notes::Scope,
         name: u64,
@@ -1456,7 +1456,7 @@ mod admission_tests {
     }
 }
 
-/// Core-owned continuations drained within one decision (jig/docs/design/domain/engine.md, 4.3).
+/// Core-owned continuations drained within one decision (jig/docs/design/domain/engine/README.md, 4.3).
 #[derive(Debug)]
 #[expect(
     clippy::large_enum_variant,
@@ -1485,7 +1485,7 @@ pub(crate) enum Work {
     },
 }
 
-/// The store transport's transcript answer (jig/docs/design/domain/engine.md, 4.1 and 7.2).
+/// The store transport's transcript answer (jig/docs/design/domain/engine/README.md, 4.1, and jig/docs/design/domain/engine/executors.md, 2).
 #[derive(Hash, Debug)]
 pub enum TranscriptLoad {
     Page {
@@ -1494,7 +1494,7 @@ pub enum TranscriptLoad {
     },
     /// A window's turn past its store page's room, alone in its page: its
     /// fields, `turn.transcript` empty and its transcript's length
-    /// (jig/docs/design/domain/engine.md, 7.2).
+    /// (jig/docs/design/domain/engine/executors.md, 2).
     Cut {
         turn: crate::TurnRecord,
         bytes: u64,

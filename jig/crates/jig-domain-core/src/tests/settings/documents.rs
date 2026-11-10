@@ -1,4 +1,4 @@
-//! Charter document bounds at start, change and restart (domain/engine.md, 17.9).
+//! Charter document bounds at start, change and restart (domain/engine/settings.md, 9).
 use crate::settings::{Changed, Current, Edit, Failure, Fault, Item, Record, Setting, Value};
 use crate::tests::*;
 
@@ -217,7 +217,7 @@ fn document_faults(limits: &Limits) -> [(people::SettingMember, people::SettingR
     ]
 }
 
-/// Parts own their struct, instructions and joining blank line (configuration.md, 6).
+/// Parts own their struct, instructions and joining blank line (protocol/limits.md).
 #[test]
 fn charter_parts_own_their_instructions_and_joining_blank_lines() {
     let mut charter = config(1).defaults.charters[0].clone();

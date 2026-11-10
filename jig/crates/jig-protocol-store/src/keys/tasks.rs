@@ -1,4 +1,4 @@
-//! Task and funding addresses (protocol/store.md, section 4.1).
+//! Task and funding addresses (protocol/store/README.md, section 4.1).
 use jig_domain_tasks::{Funder, Key, Newest, UpdateObject};
 use skein_kv::{KeyReader, KeyWriter};
 pub(super) fn write(writer: &mut KeyWriter, key: &Key) {

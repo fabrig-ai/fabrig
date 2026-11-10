@@ -2,7 +2,7 @@
 //! set, owned reads/watches and revision-naming acts (root.md, sections 6–8).
 //! Departures stay beside the supplied document and keyed answer. Busy,
 //! stopping and dropped watches wait for the supplied retry deadline; signed
-//! out watches park until confirmation (contract.md, sections 6–7).
+//! out watches park until confirmation (client/domain/contract/README.md, sections 4–5).
 pub mod me;
 pub mod proposal;
 use crate::family::{self, Document, Kind, Scope, Subject};

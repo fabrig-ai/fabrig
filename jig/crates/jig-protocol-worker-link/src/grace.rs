@@ -1,4 +1,4 @@
-//! One grace per loss, stopped by a channel back (protocol/channel.md, 10.1).
+//! One grace per loss, stopped by a channel back (protocol/channel/README.md, 9.1).
 use skein_lib::{Duration, Time};
 #[derive(Debug)]
 pub(crate) struct Grace {

@@ -1,5 +1,5 @@
-//! Canonical public targets over seeded bytes (jig/docs/design/protocol/client.md,
-//! 17.5 and section 19).
+//! Canonical public targets over seeded bytes (jig/docs/design/protocol/client/default-http.md, 5 and jig/docs/design/protocol/client/public-reads.md
+//! ).
 use jig_client_protocol_http::{PublicPath, public_target};
 use jig_protocol_engine_clients::PublicRead;
 use jig_protocol_engine_clients_http::public_path;

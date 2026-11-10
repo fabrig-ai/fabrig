@@ -1,4 +1,4 @@
-//! Every core row and the transcript frame body (protocol/store.md, 5.1, 8.3).
+//! Every core row and the transcript frame body (protocol/store/records.md, 1, protocol/store/transcripts.md, 3).
 use super::{call_limits, core_round_trip};
 use crate::codec::core as codec;
 use crate::tests::fixtures::core_rows as fixtures;

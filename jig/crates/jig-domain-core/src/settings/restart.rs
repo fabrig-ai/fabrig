@@ -1,4 +1,4 @@
-//! Settings restore precedes live work; stored defaults survive until its holders are known (engine.md, 17.7–17.8).
+//! Settings restore precedes live work; stored defaults survive until its holders are known (domain/engine/settings.md, 7–8).
 use crate::{
     Core, CoreKey, CoreRecord, HeldLimit, Limits, Request, Write,
     settings::{
@@ -661,7 +661,7 @@ pub(crate) fn first_start(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Re
     true
 }
 
-/// Erasing history and its connector values belongs to one decision (engine.md, 17.10).
+/// Erasing history and its connector values belongs to one decision (domain/engine/settings.md, 10).
 pub(crate) fn forget_replaced(core: &Core, before: u32, out: &mut Queue<Request>) {
     let mut connectors = Map::with_capacity(u32::try_from(core.kinds.len()).expect("declared kinds"));
     for kind in &core.kinds {

@@ -1,4 +1,4 @@
-//! Party and run settings proposals through the real store and commit barrier (engine.md, 17.6).
+//! Party and run settings proposals through the real store and commit barrier (domain/engine/settings.md, 6).
 
 use crate::settings_support as support;
 use jig_core_world::client_peer::ClientPeer;

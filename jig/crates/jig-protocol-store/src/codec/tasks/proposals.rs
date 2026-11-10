@@ -1,4 +1,4 @@
-//! Proposals and immutable task history (protocol/store.md, 5.1, None).
+//! Proposals and immutable task history (protocol/store/records.md, 1, None).
 use super::{phase, value};
 use crate::tasks_v9 as wire;
 use alloc::boxed::Box;

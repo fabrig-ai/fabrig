@@ -1,4 +1,4 @@
-//! Public component stories (jig/docs/design/protocol/client.md, 19).
+//! Public component stories (jig/docs/design/protocol/client/public-reads.md).
 use jig_client_protocol_wire::{self as wire, public_v1 as w, v19};
 use jig_domain_core as core;
 use jig_engine_clients_world::fixtures::{self, Peer};

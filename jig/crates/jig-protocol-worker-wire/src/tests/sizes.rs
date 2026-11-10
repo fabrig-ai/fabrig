@@ -125,7 +125,7 @@ fn the_facts_reserve_that_overflows_the_cap_is_refused() {
     assert_eq!(worker_cap(&sizes), None);
 }
 
-/// Job body bounds use the deployment's limits (jig/docs/design/protocol/channel.md, 5.4).
+/// Job body bounds use the deployment's limits (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn job_body_bounds_follow_the_supplied_limits() {
     // Job: task16 + kind4 + spec20 + deadline8 + workspace29 + grants118.

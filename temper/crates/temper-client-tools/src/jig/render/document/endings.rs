@@ -1,4 +1,4 @@
-//! Concrete integer JSON for the client contract (contract.md, 5).
+//! Concrete integer JSON for the client contract (jig/docs/design/client/domain/contract/documents.md).
 use skein_json::writer::Encoder;
 pub(super) fn encode_ending(value: &jig_client::contract::Ending, out: &mut Encoder, budget: &mut super::Cut) {
     match value {

@@ -1,4 +1,4 @@
-//! Seed references copy the same three parts as `MakeProject` (people.md, 5.2).
+//! Seed references copy the same three parts as `MakeProject` (domain/people/acts.md, 2).
 use super::{defaults, fixtures, policies};
 use crate::{Defaults, Path, Problem, Segment, What};
 

@@ -7,7 +7,7 @@ jig's `domain/root.md` gives every application's root. It says what the
 root composes and carries, its vocabulary toward the protocol layer, the
 one shape as temper holds it, how it routes, translates and puts outputs
 together, its store vocabulary, its part in restart and stopping, its
-limits, and what it never does. The core is jig's `domain/engine.md`;
+limits, and what it never does. The core is jig's `domain/engine/README.md`;
 the forge is forge.md; the worker the root assigns runs to is worker.md,
 and the agent agent.md. What is still open is listed in section 13.
 
@@ -50,7 +50,7 @@ and the agent agent.md. What is still open is listed in section 13.
 
 ```
 temper-engine-domain                       the root: the journal, routing, translation, putting outputs together
-├── jig-domain-core                        jig's core and its children (jig's domain/engine.md, section 3)
+├── jig-domain-core                        jig's core and its children (jig's domain/engine/README.md, section 3)
 ├── temper-engine-domain-forge             the forge connector's top (forge.md, section 3)
 │   ├── skein-forge-client                 the working set, keeping up, fresh reads, the request budget, effects' keys, write lanes (skein's forge-client.md)
 │   ├── temper-engine-domain-forge-change  the change procedure and the landing queues
@@ -69,13 +69,13 @@ temper-engine-domain                       the root: the journal, routing, trans
   up and down (section 3). The engine has no slots of its own
   (`fleet.engine_slots` 0) and temper's charters run on workers
   (`hosts: "workers"`), so the fleet places every run on a worker (jig's
-  `domain/hosts.md`, section 3).
+  `domain/hosts/README.md`, section 3).
 - **Workers in the engine's process, in standalone.** The worker joins
   the engine by an in-process address (`../protocol/README.md`, section
   8), so the core is configured with its workers in process
   (`workers_in_process`, which jig's configuration sets from an
   in-process hosts' listener), and a restart settles their claims at once
-  (jig's `domain/engine.md`, section 6). temper's domain worlds run their
+  (jig's `domain/engine/restart.md`). temper's domain worlds run their
   workers apart.
 - **Its state:** its children's; the journal; what it keeps of its
   configuration (the forge's number); its facts
@@ -218,7 +218,7 @@ release(root):   (the service's iterate)
   pressure release nothing before their commit.
 - **Handed back, not answered.** An input the journal cannot take returns
   to its owner unchanged, who offers it again; the root answers nobody
-  busy itself. Busy answers are the core's (jig's `domain/engine.md`,
+  busy itself. Busy answers are the core's (jig's `domain/engine/README.md`,
   5.1).
 - **The deployment's record rides every commit:** the core's numbers,
   with the commit's own, so a restart reads the last durable commit from
@@ -405,7 +405,7 @@ to the forge; a timer to the child that armed it. What temper adds:
   that decision's commit is durable.
 - **A run's read as its person,** `see`'s for an address of the person's
   (`agent.md`, 8.4.1), goes to the core as the run's named action
-  `PersonRead` (jig's `domain/engine.md`, 7.3), its answers back to the
+  `PersonRead` (jig's `domain/engine/executors.md`, 3), its answers back to the
   call's flight; an application read of the forge's it makes, the core
   admits as a party's and asks of the forge with the person and the
   project's scope, and the forge's document for that person, made as its
@@ -417,7 +417,7 @@ to the forge; a timer to the child that armed it. What temper adds:
   its task's live attempt; the root hands it out (`HostRequest::Decode`),
   and the protocol layer decodes its input into the root's `Tool`
   (`../protocol/llm.md`, section 4). No domain parses a call's input
-  (jig's `domain/engine.md`, 4.4).
+  (jig's `domain/engine/README.md`, 4.4).
 - **Checked for shape** against the core's bounds before any child sees
   it: a call past them becomes its refusal, answered and recorded as any
   decided call is.
@@ -449,8 +449,8 @@ to the forge; a timer to the child that armed it. What temper adds:
   `core.call_answer_bytes` and within `root.journal.transcript_bytes` less
   the most the answer's metadata can take, since the door takes no delivery
   past that bound. That reply bound is the one the attempt's worker names in
-  its hello (jig's `protocol/channel.md`, 5.1), as jig's fleet keeps it by
-  the attempt (jig's `domain/engine.md`, section 8); where the worker names
+  its hello (jig's `protocol/channel/records.md`, 1), as jig's fleet keeps it by
+  the attempt (jig's `domain/engine/fleet.md`); where the worker names
   none, the local agent's `host_reply_text`. Every temper worker names its
   agent's `tool_payload` (`worker.md`, section 6), the local agent's
   in-process worker among them. Where neither names one, as for a worker
@@ -504,7 +504,7 @@ forge's number:
 
 ### 5.4 The forge's routes
 
-What temper adds to the core's usual routes (jig's `domain/engine.md`,
+What temper adds to the core's usual routes (jig's `domain/engine/README.md`,
 4.4):
 
 | What arrives | Route | Then |
@@ -551,7 +551,7 @@ section 13's.
 
 - **temper's kinds are the forge's.** A change of settings naming items
   of temper's kinds reaches the root within the change's decision, as a
-  requirement's verdict is asked (jig's `domain/engine.md`, 17.5); the
+  requirement's verdict is asked (jig's `domain/engine/settings.md`, 5); the
   root gives each item to the forge, which accepts or refuses it with
   its reason, and carries the answer back. In the decision that commits
   the change the root gives the forge the core's word to keep the
@@ -609,7 +609,7 @@ child, the calendar, which renews each project's period.
   calendar says each one's next start, a span after its start.
 - **A project made after it** has its first period opened by the core
   in the decision that makes it, with no next start (jig's
-  `domain/people.md`, 5.2); the root hears it was made, and the
+  `domain/people/acts.md`, 2); the root hears it was made, and the
   calendar says that period's next start, a span after it began.
 - **At a next start** the calendar says the project's next period to
   the core (jig's `Event::Period`: the project, the period's number one
@@ -642,7 +642,7 @@ child, the calendar, which renews each project's period.
   journal writes per project it renews (its period's ledger and its next
   start), within the commit's bytes in the store.
 - **Seen and raised:** a project's document carries its period's start
-  and next start (jig's `client/domain/contract.md`, 5.1), and `temper
+  and next start (jig's `client/domain/contract/documents.md`, 1), and `temper
   ctl project show` prints them with what the period has left; `temper
   ctl project fund` raises the project's spend and a role's, the open
   period's with them (`../client/tools.md`, 5.3).
@@ -723,8 +723,8 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
   its resource. The reported evidence of what the landing passed
   (`forge.md`, 8.2) follows, fitted to what the bound leaves. A client
   reads the id from the first line. A result's
-  words are text that summarises it (jig's `domain/tasks.md`, section 3,
-  and `client/domain/contract.md`, 5.3), never the commit's bytes; the
+  words are text that summarises it (jig's `domain/tasks/README.md`, section 3,
+  and `jig/docs/design/client/domain/contract/documents.md`, 3), never the commit's bytes; the
   whole id stays the change's and its pull request's (`forge.md`, 8.2).
   The short id keeps any bound the task's creator chose: a bound under
   the id's digits is not refused, and the result never passes it.
@@ -738,7 +738,7 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
   each commit as text: its id in lowercase hexadecimal, 40 digits for a
   SHA-1 id and 64 for a SHA-256 one, as the forge's ids are written
   (skein's `forge.md`, 5.1), since a task's parameters are text (jig's
-  `client/domain/contract.md`, 5.3); its contract is a change, or a
+  `client/domain/contract/documents.md`, 3); its contract is a change, or a
   gate's verdict; its authority is the change's, its budget what the
   change has left, with no delegation of its own.
 - **A collaborator's permission** on the forge (read, write, admin)
@@ -746,11 +746,11 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
   repository is adopted (forge.md, section 4).
 - **A repository as a notes scope** is jig's resource scope on the
   forge's connector, its pattern the repository's path; the root
-  translates nothing of it (jig's `domain/engine.md`, section 10).
+  translates nothing of it (jig's `domain/engine/briefs.md`, section 2).
 - **The hub's link vocabulary** to the fleet's and back: a hello with its
   bounds, the worker's stop bound among them (worker.md, section 2), a
   run's phases, activity and counts. A run's live piece goes to the
-  core as the run's text instead (jig's `domain/engine.md`, section 11):
+  core as the run's text instead (jig's `domain/engine/views.md`):
   one of a kind other than text, or past the offsets the core keeps, is
   dropped and counted. A message relayed to a run
   keeps its kind in its words: a result, a proposal decided, a person
@@ -764,7 +764,7 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
 The core's part (the run, its attempt and conversation, its ask for the
 run's live content, its charter, its brief's core sections, its start's
 messages, its transcript's current window, the calls committed since its
-last turn; jig's `domain/engine.md`, 7.1) and the forge's (the
+last turn; jig's `domain/engine/executors.md`, 1) and the forge's (the
 workspace, the brief's forge sections), put together while the task is
 preparing, held until its claim commits:
 
@@ -785,12 +785,12 @@ preparing, held until its claim commits:
   own otherwise.
 - **Saving:** the task's saved-work branch (forge.md, section 11) for a
   run that may write, so the unfinished work it leaves is saved and the
-  next run starts from it (jig's `domain/engine.md`, 7.4; worker.md,
+  next run starts from it (jig's `domain/engine/executors.md`, 4; worker.md,
   4.2).
 - **Grants:** the LLM accounts its charter's models need, the core's;
   and each repository's forge's git identity, one of temper's
   application credentials, by number and generation (jig's
-  `domain/engine.md`, 12.1). Their values come from the forge's records
+  `domain/engine/README.md`, 6.1). Their values come from the forge's records
   in jig's secrets' store, generation 1 at each start and the next at
   each change of value, each announced before the restart
   (`../protocol/credentials.md`, section 4). The forge's API token or App
@@ -815,13 +815,13 @@ preparing, held until its claim commits:
 - **For a task holding no run branch in its project's adopted home**
   (forge.md, section 11), one section, required: why its runs read the
   home without pushing, bounded by its words.
-- **For each document its charter names** (jig's `domain/engine.md`,
-  17.9; `../protocol/configuration.md`, 13.7), one section, optional,
+- **For each document its charter names** (jig's `domain/engine/settings.md`,
+  9; `../protocol/configuration.md`, 13.7), one section, optional,
   titled by the repository, the path and the heading: the file, or its
   part, at the branch's head when the run is prepared, within the
   `document` budget, or why it could not be read.
 - **Planned with the core's.** The brief child places, cuts and orders
-  them with the core's sections (jig's `domain/engine.md`, section 9);
+  them with the core's sections (jig's `domain/engine/briefs.md`, section 1);
   the forge gathers each and keeps it, cut to its allotment, and the root
   takes it once the brief is complete. A read refused at the forge
   client's admission (`Busy`) is retained and retried after the client
@@ -829,7 +829,7 @@ preparing, held until its claim commits:
   at that deadline leaves its required section late: the brief fails,
   counting as transient, and no attempt is spent. A section whose bytes
   the forge no longer has fails the brief too, counting as permanent
-  (jig's `domain/engine.md`, 9.1).
+  (jig's `domain/engine/briefs.md`, 1.1).
 
 Required forge sections take room from optional core sections alone, never
 from a charter's document sections. The small root's eight section slots
@@ -891,21 +891,21 @@ its bounded retry path.
 
 - **`Key`, `Record`, `Write`** wrap the core's and the forge's, one
   variant each, the core's first; a write saves a record under its own
-  key or erases a key (jig's `domain/engine.md`, 5.6).
+  key or erases a key (jig's `domain/engine/README.md`, 5.6).
 - **No records of its own.** The deployment's record is the core's; a
   call's record is the core's part and the forge's (7.3).
 - **`Range`:** the core's ranges the root loads; the census of ended
-  owners (jig's `protocol/store.md`, 7.2); and `Range::Forge`, every
+  owners (jig's `protocol/store/loads.md`, 2); and `Range::Forge`, every
   record of the forge's, all live (`../protocol/store.md`, section 2).
   The core's: at restart, the deployment's record, people, live tasks and
   goals' projections, claims and calls; on demand, a task's result, an
   ended read position, a task's current window, an attempt's turns, a
   decided escalation or proposal, a page of notes.
 - **Pages,** bounded in rows and bytes, are taken in the order jig's
-  walk gives them (jig's `protocol/store.md`, 7.2), each row within its
+  walk gives them (jig's `protocol/store/loads.md`, 2), each row within its
   bytes; a page past its bytes comes back cut, saying how much. Their
   range, order and cursors are the tests' to assert, never refused at a
-  start (jig's `domain/engine.md`, section 6).
+  start (jig's `domain/engine/restart.md`).
 - **Loads for the core.** A run's preparation (its transcript's window,
   its dependencies' and inputs' results), a delegate batch's inputs, and
   the core's historical reads (ended conversations, decided escalations
@@ -914,12 +914,12 @@ its bounded retry path.
 - **An issued transcript load that fails** answers the core's
   `TranscriptLoad::Unread`, retiring its read once; an answer to a stale
   preparation is ignored. The core owns the window policy (jig's
-  `domain/engine.md`, 7.2): a closed window starts fresh with an empty
+  `domain/engine/executors.md`, 2): a closed window starts fresh with an empty
   tail and no added failure or refusal, while an open window keeps its
   transient failure policy. A transcript load is issued only with read
   room: without it the root answers the activation `busy` and the task
   stays due (jig's `domain/root.md`, 3). A window's turn the store hands
-  on cut (jig's `protocol/store.md`, 8.3) reaches the core as
+  on cut (jig's `protocol/store/transcripts.md`, 3) reaches the core as
   `TranscriptLoad::Cut`: its place and its length, never its bytes. So
   does a turn the store carried whole but past the root's own page bounds
   (`root.loads.transcript_bytes` for a row, `root.loads.bytes` for a
@@ -942,7 +942,7 @@ its bounded retry path.
 
 ### 9.1 Restart
 
-The core's script (jig's `domain/engine.md`, section 6); the root does
+The core's script (jig's `domain/engine/restart.md`); the root does
 each step the core asks for:
 
 1. **The core's records:** every configured account wanted; the
@@ -957,23 +957,23 @@ each step the core asks for:
    forge links them, judging none: a record whose forge, repository or
    task the restart does not hold is a writer's bug, and its link
    refuses the start, naming the record and what it links to, as jig's
-   children's do (jig's `domain/engine.md`, section 6).
+   children's do (jig's `domain/engine/restart.md`).
    Before them, the forge loads its kinds' values from its family
    `Setting`, is given temper's stock defaults, and tells the core which
    differ (5.6). Once both are loaded, the root hands the forge the
    deployment's sole owner, the party jig's people answer as such, or none
-   (jig's `domain/people.md`, section 4), before the forge's restore
+   (jig's `domain/people/README.md`, section 4), before the forge's restore
    decision: a forge's link to a box's person holds only while that person
    is the sole owner (`forge.md`, 4.6). Then **the switch** (jig's `start::Phase::Switch`), at
    every start: over a generation the store holds pending (jig's
-   `protocol/store.md`, 10.2, step 7) the root asks the store to switch
+   `protocol/store/opening.md`, 2, step 7) the root asks the store to switch
    and goes on once it answers; then it commits the start's wires (jig's
-   `protocol/store.md`, 5.3). Nothing leaves the process before that
+   `protocol/store/records.md`, 3). Nothing leaves the process before that
    commit is durable, the accounts' driver made after it (jig's
    `protocol/llm.md`, 5.1); over a pending generation the restores'
    commits before it land in the copy alone, and a refusal before the
    switch leaves the generation patched from active (jig's
-   `domain/engine.md`, section 6). A rehearsing root
+   `domain/engine/restart.md`). A rehearsing root
    (`../protocol/README.md`, section 4, `temper upgrade --check`) ends
    before this step, reporting the restores whole.
 4. **Runs adopted:** the claims to the fleet, those on in-process
@@ -992,7 +992,7 @@ from its restore on.
 ### 9.2 Stopping
 
 A stop settles first (`../draft/upgrades.md`, section 8), then the core
-drains as jig's `domain/engine.md`, 6.1 says.
+drains as jig's `domain/engine/restart.md`, 1 says.
 
 - **Settling.** Told to stop, the root tells the forge to settle
   (forge.md, section 6) and holds the core's stop until the forge says
@@ -1044,20 +1044,20 @@ over-bound project policy by project number.
 A change of settings whose charter's stored policy, its parts with it,
 passes `root.journal.run_bytes` is refused as that charter's item out of
 shape, with the facts jig's refusal carries for it (jig's
-`domain/engine.md`, 17.9): the policy's stored bytes and the bound. ctl
+`domain/engine/settings.md`, 9): the policy's stored bytes and the bound. ctl
 and a run's settings tool word them alike, as
 `out of shape; item 1; charter 5: shape; stored policy: supplied 70112; maximum root.journal.run_bytes 65536`,
 and the client's JSON names the member `stored_policy`.
 Startup also checks the seed policy after enforced landing requirements are joined, before constructing the core.
 
 - **The restart's workspace** holds a cold restore page, which holds
-  any row a writer commits (jig's `protocol/store.md`, 7.1). It lives
+  any row a writer commits (jig's `protocol/store/loads.md`, 1). It lives
   only before the engine serves; a startup answer goes straight to
   the restart, one at a time, and occupies no retained read-answer slot.
 - **The core's children's limits** are `engine.limits`, jig's part:
   tasks, authority, people, the fleet, accounts, notes, documents,
-  templates and call records (jig's `protocol/configuration.md`, section
-  6).
+  templates and call records (jig's `protocol/limits.md`
+  ).
 - **The root's own,** `root.` in temper's limits
   (`../protocol/configuration.md`, section 7):
   - the journal (temper's `JournalLimits`, its decision `Limits`):
@@ -1201,7 +1201,7 @@ as jig's default chat is: what they test is a result's terminal path,
 which temper's goals still take.
 
 Its referees hold the root to jig's promises from outside (jig's
-`domain/core.md`, section 11): the walking referee reads durable rows,
+`domain/model.md`, section 11): the walking referee reads durable rows,
 never the root's state; a referee per promise rejects a fault injected
 against it; jig's conformance referee checks that nothing a party, a
 host or the forge saw depended on a lost commit, and that every effect

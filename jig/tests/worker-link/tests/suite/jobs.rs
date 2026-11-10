@@ -44,7 +44,7 @@ fn job_record(limits: &wire::v9::Limits) -> wire::Job {
     .expect("job")
 }
 
-/// Job kinds cross whole (jig/docs/design/protocol/channel.md, 5.4).
+/// Job kinds cross whole (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn a_hello_carries_its_job_kinds() {
     for count in [0, 1, 2] {
@@ -77,7 +77,7 @@ fn a_hello_carries_its_job_kinds() {
     }
 }
 
-/// Workspace bytes become parts, and grants precede the job (jig/docs/design/protocol/channel.md, 5.4).
+/// Workspace bytes become parts, and grants precede the job (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn a_job_record_reaches_the_hub_as_an_assign_job() {
     let mut world = world();
@@ -103,7 +103,7 @@ fn a_job_record_reaches_the_hub_as_an_assign_job() {
     assert_eq!(secret.expose(), fixtures::TOKEN_ONE);
 }
 
-/// The hub supplies its kept answer again after hello (jig/docs/design/protocol/channel.md, 5.4).
+/// The hub supplies its kept answer again after hello (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn a_job_answer_goes_up_and_again_after_a_redial() {
     let mut world = world();
@@ -138,7 +138,7 @@ fn a_job_answer_goes_up_and_again_after_a_redial() {
     );
 }
 
-/// An oversized spec is refused before any parts or values leave (jig/docs/design/protocol/channel.md, 5.4).
+/// An oversized spec is refused before any parts or values leave (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn a_job_past_its_wire_bound_is_refused_as_framing() {
     let mut world = world();
@@ -153,7 +153,7 @@ fn a_job_past_its_wire_bound_is_refused_as_framing() {
     assert!(!world.root().iter().any(|r| matches!(r, Request::Down { .. })));
 }
 
-/// Missing work and excessive result bytes are dropped as run answers are (jig/docs/design/protocol/channel.md, 5.4).
+/// Missing work and excessive result bytes are dropped as run answers are (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn a_job_answer_without_its_parts_or_past_its_bound_is_dropped() {
     let mut world = world();
@@ -173,7 +173,7 @@ fn a_job_answer_without_its_parts_or_past_its_bound_is_dropped() {
     assert_eq!(world.records()[0].len(), 1);
 }
 
-/// Every job ending crosses both real translations (jig/docs/design/protocol/channel.md, 5.4).
+/// Every job ending crosses both real translations (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn every_job_ending_crosses_without_changing_its_fields() {
     let work = host::Work { left: None, saved: None };
@@ -231,7 +231,7 @@ fn every_job_ending_crosses_without_changing_its_fields() {
     world.finish();
 }
 
-/// Preparation resources precede work parts as in a run's answer (jig/docs/design/protocol/channel.md, 5.4).
+/// Preparation resources precede work parts as in a run's answer (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn a_job_failure_hands_up_its_resource_and_work_parts_in_order() {
     let mut world = crate::joined_world::Joined::new(&fixtures::joined_limits(), 1);

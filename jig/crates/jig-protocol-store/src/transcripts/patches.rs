@@ -1,4 +1,4 @@
-//! Resident frame machines, bounded independently of map records (store.md 8.6, 13).
+//! Resident frame machines, bounded independently of map records (protocol/store/transcripts.md, 6, protocol/store/README.md, 8).
 use crate::patching::{
     machines::{self, Room},
     plan::Unplanned,
@@ -68,7 +68,7 @@ pub(crate) fn capacity(set: &PatchSet, ix: usize, limits: &Limits) -> Option<Cap
     let mut capacity = machines::capacity(set, ix, Room { bytes, nodes: 0 })?;
     capacity.patches = u32::try_from(set.patches.len()).ok()?;
     // Either owner's nodes are the most its kept texts allow from the
-    // frames' root, so every frame those texts allow is read (store.md 8.6).
+    // frames' root, so every frame those texts allow is read (protocol/store/transcripts.md 6).
     let meta = machines::kept_patcher(set, ix, Capacity { bytes: 0, nodes: 0, ..capacity }).ok()?;
     let last = last(family.texts)?;
     for text in family.texts {

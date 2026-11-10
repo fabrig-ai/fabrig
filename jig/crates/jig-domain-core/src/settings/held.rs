@@ -1,4 +1,4 @@
-//! Revisions and charter versions retained by live work (engine.md, 17.3 and 17.8).
+//! Revisions and charter versions retained by live work (domain/engine/settings.md, 3 and 8).
 use crate::{
     Charter, Core, CoreKey, CoreRecord, Limits, Request, Write,
     settings::{CharterVersion, Current, Edit, Head, Item, Key, Record, Setting},

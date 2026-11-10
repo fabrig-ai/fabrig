@@ -551,7 +551,7 @@ pub(super) fn story() {
 }
 
 /// A review task supplies its verdict and narrower authority; the charter supplies
-/// its workspace families (jig's domain/engine.md, 7.1).
+/// its workspace families (jig's domain/engine/executors.md, 1).
 pub(super) fn reviewer() {
     let (mut driver, chat) = chat();
     let mut review = delegate(&driver, chat.task, b"Review the named head", 0, K);

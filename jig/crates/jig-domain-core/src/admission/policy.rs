@@ -275,7 +275,7 @@ impl Core {
         Ok((snapshot, resize))
     }
 
-    /// The current project policy, whole, independently of revisioned settings (engine.md, 17.2).
+    /// The current project policy, whole, independently of revisioned settings (domain/engine/settings.md, 2).
     pub(crate) fn configured_policy(&self, project: u32) -> Option<crate::ConfiguredPolicy> {
         Some(crate::ConfiguredPolicy {
             policy: self.authority.policy(project)?.clone(),

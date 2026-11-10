@@ -1,4 +1,4 @@
-//! Restart pages, including the inbox census joins (protocol/store.md, 7.2).
+//! Restart pages, including the inbox census joins (protocol/store/loads.md, 2).
 mod diagnostic;
 pub use diagnostic::{
     Arithmetic, Cause, DecodeFailure, Failure, JoinFailure, OpenFailure, RangeFailure, RowSite, WalkFailure,
@@ -39,7 +39,7 @@ pub(crate) fn restore(
     }
 }
 
-/// Restore completes people's inventory before arming its sweep (store.md, 9).
+/// Restore completes people's inventory before arming its sweep (protocol/store/secrets.md).
 fn finish(
     store: &mut Store,
     env: &Env<Limits>,

@@ -1,4 +1,4 @@
-//! One accepted stream and its opening (protocol/channel.md, 10.3).
+//! One accepted stream and its opening (protocol/channel/README.md, 9.3).
 use crate::{Limits, Loss};
 use skein_channel::{Event, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode, WriteWait};
 use skein_lib::{Queue, Time, Token};

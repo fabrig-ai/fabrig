@@ -327,7 +327,7 @@ jobs of every earlier window and activation.
   baseline, a change of `Hit` waits for them.
 - **The channel's records a host keeps as bytes:** jig's store keeps a
   settled call's name and a delivery's evidence as the channel encodes
-  them (jig's `protocol/store.md`, section 16). The channel is versioned
+  them (jig's `protocol/store/README.md`, section 11). The channel is versioned
   whole, so its records carry no version of their own, and no host can
   learn from their bytes which code reads them. Either smith keeps them as
   a versioned family of their own, kept and patched as the turn is, or a
@@ -337,11 +337,11 @@ jobs of every earlier window and activation.
 
 A host keeps turns beyond a release: jig's store keeps each in its
 transcript's frames and reads them back after its engine is upgraded
-(jig's `protocol/store.md`, 8.6; temper's `draft/upgrades.md`, 7.2). From
+(jig's `protocol/store/transcripts.md`, 6; temper's `draft/upgrades.md`, 7.2). From
 the baseline, that host patches a turn of an older version to the
 current one as it reads it, by smith's patches, so a run resumes across
 a change of turns and people read old turns in the current version. Every
-other reader reads one version (section 6), and its host hands it no
+other reader reads one version (`transcript.md`, section 6), and its host hands it no
 other.
 
 - **The kept families** are the turn's and the local host's store's:
@@ -397,13 +397,13 @@ other.
   `written` that answers every site `NoSite`. The baseline's run of the
   command (`--baseline`) keeps the current text as the first and
   generates `patches/mod.rs` in its place, under the same name. jig's store takes the constants into its `Smith` slot (jig's
-  `protocol/store.md`, 10.3), handed by the host's shell.
+  `protocol/store/opening.md`, 3), handed by the host's shell.
 - **The mark:** a smith patch whose change an agent would misread on a
   resume, such as a provider's replay it cannot carry or a call whose
   meaning moved, carries `mark fresh-windows` in its header (skein's
   `codec.md`, 11.1). A host closes each live window across it, and the
   next run starts afresh from its brief with the transcript's tail (jig's
-  `domain/engine.md`, 7.2), never resumed from patched turns. A patch
+  `domain/engine/executors.md`, 2), never resumed from patched turns. A patch
   without it is resumed across. The word is `FRESH_WINDOWS` and its
   meaning smith's; a host reads it from the constant, as data. A patch
   may carry the mark and change no declaration.
@@ -411,7 +411,7 @@ other.
   `Default` `Context`: a host patches a turn each time it reads it, in any
   order, and keeps the bytes as they were written. A holder's own
   functions never read the turn it holds, so that the order of its
-  patches and smith's changes no byte (jig's `protocol/store.md`, 8.6).
+  patches and smith's changes no byte (jig's `protocol/store/transcripts.md`, 6).
 - **Frozen texts.** Once a landed patch names a version of
   `smith-transcript`, that version's kept text is frozen: a variant
   appended, a bound widened or a declaration added takes a patch the

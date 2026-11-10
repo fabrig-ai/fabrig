@@ -15,7 +15,7 @@ fn find(offers: &List<crate::acts::Offered>, act: Act) -> Option<&Admission> {
 
 #[test]
 fn document_offers_fit_the_object_and_preserve_actor_specific_refusals() {
-    // Project subject actions, including Rename (people.md, 5.1).
+    // Project subject actions, including Rename (domain/people/acts.md, 1).
     const PROJECT_ACTS: u32 = 7;
     let (mut core, mut limits) = make_tree();
     limits.authority.roles = 2;

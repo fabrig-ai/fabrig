@@ -1,4 +1,4 @@
-//! Exhaustive owner translations (protocol/client.md, 3 and 5).
+//! Exhaustive owner translations (protocol/client/wire.md, 1, and protocol/client/README.md, 3).
 pub mod answers;
 pub mod asks;
 pub mod documents;

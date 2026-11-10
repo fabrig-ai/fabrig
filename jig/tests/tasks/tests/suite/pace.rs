@@ -1,4 +1,4 @@
-//! A pace holds news until the span since the last run start (domain/tasks.md, 8.3).
+//! A pace holds news until the span since the last run start (domain/tasks/messages.md, 3).
 use jig_domain_tasks::{
     Active, End, Event, MessageKind, NewsClass, Party, Phase, Refusal, ResultsWake, Subscription, SubscriptionKind,
     WakeRule, Word,

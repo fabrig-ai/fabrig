@@ -152,11 +152,11 @@ their words and look are refined on the recording (section 5).
 ### 4.2 Signing in from the browser
 
 - **A built-in way of jig's,** a third beside the printed link and a
-  service's credential (jig's `client/domain/contract.md`, section 2):
+  service's credential (jig's `client/domain/contract/README.md`, section 2):
   **a sign-in approved by a signed-in browser, for that browser's own
   party.** It is enabled where the printed link is, by configuration
-  and on a loopback listener alone (jig's `protocol/client.md`, section
-  8). Why jig's and not temper's: `notes.md`, section 9.
+  and on a loopback listener alone (jig's `protocol/client/sign-in.md`
+  ). Why jig's and not temper's: `notes.md`, section 9.
 - **The flow:**
   1. The TUI, signed out, asks the engine for an approval. The answer
      holds a secret, which the TUI keeps and never shows, a short code
@@ -185,8 +185,8 @@ their words and look are refined on the recording (section 5).
      approved for that party. Nothing is made yet.
   5. The TUI, asking with its secret, takes it: only then does the
      engine make the sign-in and draw its credential, handed out once
-     in that answer, as any sign-in's is (jig's `protocol/client.md`,
-     section 8). The TUI keeps it in its directory and draws the first
+     in that answer, as any sign-in's is (jig's `protocol/client/sign-in.md`
+     ). The TUI keeps it in its directory and draws the first
      screen; the page says "Signed in. You can close this tab." An
      approval never taken expires with nothing made.
 - **A browser approves, nothing else:** the approval is sent with the
@@ -212,7 +212,7 @@ their words and look are refined on the recording (section 5).
 - **Bounds:** a code of a few characters, none that look alike; a few
   approvals waiting at once per deployment; each spent by its first
   approval or refusal. The sign-in it makes counts as any does (jig's
-  `protocol/client.md`, section 8, *Full*).
+  `protocol/client/sign-in.md`, *Full*).
 - **Opening a browser** is the TUI's shell's, `xdg-open` on Linux and
   `open` on macOS: a departure, on purpose, from `temper open`, which
   never opens one (`../client/README.md`, 6.5).

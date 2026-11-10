@@ -1,4 +1,4 @@
-//! Public membership is observed through the one project lookup (jig/docs/design/domain/people.md, 13.7 and 13.9).
+//! Public membership is observed through the one project lookup (jig/docs/design/domain/people/public-reading.md, 7 and 9).
 #[path = "index/fixtures.rs"]
 mod fixtures;
 #[path = "index/lifecycle.rs"]

@@ -1,4 +1,4 @@
-//! Direct public component messages (jig/docs/design/protocol/client.md, 19).
+//! Direct public component messages (jig/docs/design/protocol/client/public-reads.md).
 use super::{Event, Peer, ReplyTo, Token, core};
 use jig_protocol_engine_clients::{FromTransport, PublicRead, PublicReply};
 impl Peer {

@@ -1,4 +1,4 @@
-//! A task's LLM choice as a party names it, mirroring the tasks child's (domain/tasks.md, 3):
+//! A task's LLM choice as a party names it, mirroring the tasks child's (domain/tasks/README.md, 3):
 //! models and efforts by index in configuration's order. The root checks the choice when it
 //! makes or amends the task; this child only keeps it with the request.
 use alloc::boxed::Box;
@@ -29,7 +29,7 @@ pub struct LlmChoice {
 }
 
 /// The choice every run whose reasons hold no `first` takes
-/// (jig/docs/design/domain/tasks.md, 3).
+/// (jig/docs/design/domain/tasks/README.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LlmLater {
     pub main: ModelEffort,
@@ -99,7 +99,7 @@ pub enum AccountMoveWhy {
     Moving,
 }
 
-/// Why a finish was refused (client/domain/contract.md, section 4).
+/// Why a finish was refused (client/domain/contract/README.md, section 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SignInRedirectWhy {
     /// No sign-in of this party's waits for its redirect under that number.

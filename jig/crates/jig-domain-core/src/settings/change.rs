@@ -1,4 +1,4 @@
-//! The edits a settings decision leaves (engine.md, 17.1–17.2).
+//! The edits a settings decision leaves (domain/engine/settings.md, 1–2).
 use crate::{
     CoreKey, CoreRecord, Limits, Write,
     settings::{Changed, Current, Edit, Failure, Fault, Item, Key, Record, Setting},

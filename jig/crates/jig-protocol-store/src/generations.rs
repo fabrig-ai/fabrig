@@ -1,4 +1,4 @@
-//! The deployment's generations on disk (protocol/store.md, 2, 10.1, 10.2 and 10.4).
+//! The deployment's generations on disk (protocol/store/README.md, 2, and protocol/store/opening.md, 1, 2 and 4).
 use crate::{Arrived, Root, directory::OWNER};
 use alloc::boxed::Box;
 use skein_io::{digest::Digest, file, kernel::Kind};
@@ -7,15 +7,15 @@ use skein_lib::{Decimal, List, Queue, Writer};
 pub(crate) const ACTIVE: &[u8] = b"active";
 pub(crate) const GENERATIONS: &[u8] = b"generations";
 pub(crate) const TRANSCRIPTS: &[u8] = b"transcripts";
-/// A first start's generation (store.md 2).
+/// A first start's generation (protocol/store/README.md 2).
 pub(crate) const FIRST: u64 = 1;
-/// Twenty digits and a newline (store.md 10.1).
+/// Twenty digits and a newline (protocol/store/opening.md 1).
 pub(crate) const ACTIVE_BYTES: u32 = 21;
 /// Both the world and service drivers accept 32 entries per page.
 pub(crate) const PAGE: u32 = 32;
 pub(crate) const DEPTH: u32 = 3;
 
-/// The digest is kept only in memory for the switch's `Expect::Digest` (store.md 10.2).
+/// The digest is kept only in memory for the switch's `Expect::Digest` (protocol/store/opening.md 2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) struct Active {
     pub number: u64,
@@ -47,7 +47,7 @@ pub(crate) fn number(name: &[u8]) -> Option<u64> {
     }
     Some(number)
 }
-/// Immutable account of the generation, at the wall clock of its write (store.md 2).
+/// Immutable account of the generation, at the wall clock of its write (protocol/store/README.md 2).
 pub(crate) fn manifest(
     generation: u64,
     from: Option<u64>,
@@ -134,7 +134,7 @@ enum Step {
 }
 /// A bounded stack; a page belongs to each level until its children are removed.
 /// Every nonempty page is followed by a fresh open, so moving directory cursors
-/// cannot hide entries (store.md 10.1). Failure drains every opened directory too.
+/// cannot hide entries (protocol/store/opening.md 1). Failure drains every opened directory too.
 #[derive(Debug)]
 pub(crate) struct Removing {
     levels: List<Level>,
@@ -299,7 +299,7 @@ enum CopyStep {
     Failing,
     Finished,
 }
-/// Generation `from`'s maps copied into `from + 1` (store.md 10.2, step 2).
+/// Generation `from`'s maps copied into `from + 1` (protocol/store/opening.md 2, step 2).
 /// Directories are made 0o700, secrets opened private, files created exclusively
 /// 0o600 and copied through one bounded chunk. Files, map directories and finally
 /// generations are synced. The source is only read; a standing destination fails.
@@ -430,7 +430,7 @@ pub(crate) fn copied(copying: &mut Copying, arrived: Arrived, below: &mut crate:
     copying.progress = progress;
     progress
 }
-#[expect(clippy::too_many_lines, reason = "exhaustive copy transitions, one file request in flight (store.md 10.2)")]
+#[expect(clippy::too_many_lines, reason = "exhaustive copy transitions, one file request in flight (protocol/store/opening.md 2)")]
 fn copy_arrived(copying: &mut Copying, arrived: Arrived, queue: &mut Queue<file::Request>) -> Progress {
     match core::mem::replace(&mut copying.step, CopyStep::Finished) {
         CopyStep::Generation => {
@@ -629,7 +629,7 @@ fn copy_arrived(copying: &mut Copying, arrived: Arrived, queue: &mut Queue<file:
 }
 
 /// `active` replaced by io's durable replace, conditional on what open read
-/// (store.md 10.2, step 7). After `Done`, `active` holds the new number and digest.
+/// (protocol/store/opening.md 2, step 7). After `Done`, `active` holds the new number and digest.
 /// A `Conflict` or `Failed` (including committed) stops this start.
 #[derive(Debug)]
 pub(crate) struct Switching {
@@ -675,7 +675,7 @@ enum DropStep {
     Finished,
 }
 /// The previous generation renamed to `dropped`, generations synced, removed as
-/// a stray, and generations synced again (store.md 10.2, step 1). Active 1 and a
+/// a stray, and generations synced again (protocol/store/opening.md 2, step 1). Active 1 and a
 /// `NotFound` rename finish successfully. All handles use the transcripts driver.
 #[derive(Debug)]
 pub(crate) struct Dropping {
@@ -810,7 +810,7 @@ impl Switching {
     }
 }
 
-/// A generation's manifest stored once by durable replace (store.md 2 and 10.2).
+/// A generation's manifest stored once by durable replace (protocol/store/README.md, 2, and protocol/store/opening.md, 2).
 #[derive(Debug)]
 pub(crate) struct Manifesting {
     progress: Progress,

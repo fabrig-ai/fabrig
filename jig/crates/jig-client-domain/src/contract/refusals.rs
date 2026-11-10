@@ -1,4 +1,4 @@
-//! Durable refusals with facts, never phrases; client/domain/contract.md, 4.
+//! Durable refusals with facts, never phrases; client/domain/contract/README.md, 3.
 //! These are final answers; busy and signed out are envelopes below this vocabulary.
 use super::{AdmissionLimit, ChipExecutor, Ending, HoldReason, Revision};
 use alloc::boxed::Box;
@@ -76,7 +76,7 @@ pub enum Lacking {
     },
 }
 
-/// The owner of a placed hold (client/domain/contract.md, 5.6).
+/// The owner of a placed hold (client/domain/contract/documents.md, 6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum HoldOwner {
     Party { person: u64 },
@@ -119,7 +119,7 @@ pub enum CurrentHold {
 /// Sparse engine hold facts; absent words, clocks and parts stay absent.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum HoldCategory {
-    /// A configured bound refused the run's model call (domain/hosts.md, 6.3).
+    /// A configured bound refused the run's model call (domain/hosts/hub.md, 3).
     Exceeded(Exceeded),
     Failures {
         class: HoldFailure,
@@ -141,7 +141,7 @@ pub enum HoldCategory {
     Budget,
     Deadline,
     HoldsWaited,
-    /// Joining a queue would close a circle of waits (domain/tasks.md, 6.7).
+    /// Joining a queue would close a circle of waits (domain/tasks/holds.md, 7).
     Circle,
     ResourceUnavailable,
     ResourceAccess,
@@ -194,12 +194,12 @@ pub enum Refusal {
         why: SignInRedirectWhy,
     },
     Stale(super::RefusalStale),
-    /// The revision left the history (domain/engine.md, 17.10).
+    /// The revision left the history (domain/engine/settings.md, 10).
     Forgotten {
         oldest: u32,
     },
     Full(super::RefusalFull),
-    /// An account move refused (client/domain/contract.md, 4).
+    /// An account move refused (client/domain/contract/README.md, 3).
     AccountMove {
         why: AccountMoveWhy,
     },
@@ -318,7 +318,7 @@ pub enum Bound {
     Output,
 }
 
-/// Why an account move was refused (client/domain/contract.md, 4).
+/// Why an account move was refused (client/domain/contract/README.md, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum AccountMoveWhy {
     NotSignedIn,
@@ -328,7 +328,7 @@ pub enum AccountMoveWhy {
     Moving,
 }
 
-/// Why a finish was refused (client/domain/contract.md, section 4).
+/// Why a finish was refused (client/domain/contract/README.md, section 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SignInRedirectWhy {
     /// No sign-in of this party's waits for its redirect under that number.

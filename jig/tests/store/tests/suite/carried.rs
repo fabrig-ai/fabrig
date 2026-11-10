@@ -1,4 +1,4 @@
-//! A value a client's request carried, across crashes (store.md 9: kept
+//! A value a client's request carried, across crashes (protocol/store/secrets.md: kept
 //! durably before the core sees the request, numbered by jig and never
 //! reused, erased when its request goes unused).
 use jig_protocol_store::{CARRIED, CarriedKind, Event, SecretOwner, SecretValue, Secrets};

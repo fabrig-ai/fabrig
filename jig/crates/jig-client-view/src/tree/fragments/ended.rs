@@ -1,5 +1,5 @@
-//! Passive whole ended objects (client/domain/client.md, 5;
-//! contract.md, 6 and view.md, 7, 10). Original identities and independent
+//! Passive whole ended objects (client/domain/client/README.md, 5;
+//! client/domain/contract/README.md, 4 and view.md, 7, 10). Original identities and independent
 //! sources are retained without acquiring current offers or manufacturing context.
 use crate::JigBindings;
 use crate::words::Words;

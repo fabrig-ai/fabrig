@@ -30,7 +30,7 @@ pub enum Story {
     PastedState,
     SignInAgain,
 }
-/// The installation's identifier at a start (configuration.md 8): the one
+/// The installation's identifier at a start (configuration.md 7): the one
 /// this start drew, and the one an earlier start kept in the store, if any.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Installation {

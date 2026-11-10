@@ -1,4 +1,4 @@
-//! Hub-link transitions (jig/docs/design/domain/hosts.md, 6.1–6.8).
+//! Hub-link transitions (jig/docs/design/domain/hosts/hub.md, 1–8).
 use super::*;
 use jig_domain_link::{Form, Grant, Scheme};
 use skein_lib::Duration;
@@ -344,7 +344,7 @@ fn a_brief_plan_keeps_its_task_sections_budget_and_deadline() {
     );
 }
 
-/// jig/docs/design/domain/engine.md, 7.5: a job crosses the committed assignment door, including retries.
+/// jig/docs/design/domain/engine/executors.md, 5: a job crosses the committed assignment door, including retries.
 #[test]
 fn a_job_start_is_retained_for_placement_and_busy_replacement() {
     let mut link = link();
@@ -368,7 +368,7 @@ fn a_job_start_is_retained_for_placement_and_busy_replacement() {
     }
 }
 
-/// jig/docs/design/domain/engine.md, 7.5: an answer becomes the tasks child's existing End.
+/// jig/docs/design/domain/engine/executors.md, 5: an answer becomes the tasks child's existing End.
 #[test]
 fn a_jobs_answer_reaches_the_core_as_its_end() {
     let work = host::Work { left: None, saved: None };
@@ -424,7 +424,7 @@ fn a_jobs_answer_reaches_the_core_as_its_end() {
     }
 }
 
-/// jig/docs/design/domain/engine.md, 7.5: every job failure has a task retry class.
+/// jig/docs/design/domain/engine/executors.md, 5: every job failure has a task retry class.
 #[test]
 fn job_failures_keep_their_contract_classes() {
     use host::{DeliveryOutcome as D, JobFailure as F, Preparation as P, Reason as R};
@@ -448,7 +448,7 @@ fn job_failures_keep_their_contract_classes() {
     }
 }
 
-/// jig/docs/design/domain/engine.md, 7.5: a terminal frees retained job bytes, including a lost claim's.
+/// jig/docs/design/domain/engine/executors.md, 5: a terminal frees retained job bytes, including a lost claim's.
 #[test]
 fn a_job_terminal_releases_its_assignment_and_keeps_a_newer_attempts() {
     let mut link = link();
@@ -596,7 +596,7 @@ fn a_refused_start_is_transient_permanent_or_busy() {
     }
 }
 
-/// jig/docs/design/domain/engine.md, 7.5: the cause accompanies the class.
+/// jig/docs/design/domain/engine/executors.md, 5: the cause accompanies the class.
 #[test]
 fn a_failed_jobs_cause_is_carried_to_its_task() {
     for (detail, reason) in [

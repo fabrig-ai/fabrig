@@ -1,4 +1,4 @@
-//! Named calls and settled answers (protocol/store.md, 5.1).
+//! Named calls and settled answers (protocol/store/records.md, 1).
 use super::{
     Box, List, View, Wall, authority, decode_answer, decode_delivery_outcome, decode_escalation_outcome,
     decode_finding, decode_outbox_outcome, decode_proposal_outcome, domain, encode_answer, encode_delivery_outcome,

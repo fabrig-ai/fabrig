@@ -1,5 +1,5 @@
 //! Closed named fields accompany a verdict without interpreting their values
-//! (domain/tasks.md, section 3; programming-model.md, sections 4.4 and 6).
+//! (domain/tasks/README.md, section 3; programming-model.md, sections 4.4 and 6).
 use crate::{FieldRule, ResultField, VERDICT_FIELDS, Verdict};
 
 pub(crate) fn fields_bytes(fields: &[ResultField]) -> Option<usize> {

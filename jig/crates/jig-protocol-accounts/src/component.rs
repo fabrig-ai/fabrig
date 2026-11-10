@@ -986,7 +986,7 @@ impl Component {
         }
     }
     /// The store's answers: the records it holds, and whether each write was
-    /// kept (store.md 9).
+    /// kept (protocol/store/secrets.md).
     fn answers(&mut self, store: &mut StoreState, values: &mut table::Table, events: &mut Queue<domain::Event>) {
         for _ in 0..store.answers.len() {
             let answer = store.answers.pop().expect("source answers");

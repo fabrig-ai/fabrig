@@ -1,5 +1,5 @@
 //! Party task controls, amendments, messages, answers and moves routed to tasks
-//! under current authority (`domain/people.md`, section 5.1).
+//! under current authority (`domain/people/acts.md`, section 1).
 
 use crate::{
     Core, Event, Limits, Now, PersonTaskRoute, Request,

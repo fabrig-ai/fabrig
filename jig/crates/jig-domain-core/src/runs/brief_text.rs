@@ -1,5 +1,5 @@
 //! The core's bounded task, dependency, attempt and transcript sections
-//! (domain/engine.md, section 9).
+//! (domain/engine/briefs.md, section 1).
 
 use alloc::boxed::Box;
 use jig_domain_notes as notes;
@@ -24,7 +24,7 @@ pub enum BriefPart {
     Delegates,
     Attempts,
     TranscriptTail,
-    /// Whole requester preferences (domain/engine.md, 10.1).
+    /// Whole requester preferences (domain/engine/briefs.md, 2.1).
     Preferences,
 }
 

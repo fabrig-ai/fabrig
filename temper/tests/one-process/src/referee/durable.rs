@@ -132,7 +132,7 @@ impl Store {
                 Observed::Bytes { path, at, bytes } => {
                     // The secrets' store keeps a signed-in or handed-in source's
                     // record; the store, its snapshots and its logs hold none
-                    // (jig's store.md, section 9).
+                    // (jig's protocol/store/secrets.md).
                     if !path.starts_with(b"generations/1/secrets/") {
                         super::secrets::require(&bytes, "store bytes");
                     }

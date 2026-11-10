@@ -19,7 +19,7 @@ section 8.
   cannot decide. Feedback on code is the agents' business.
 - **An application of jig.** jig's core runs the work: tasks, their
   executors (agents, procedures, people), messages, authority, and
-  connectors to external systems (jig's `domain/core.md`). temper brings
+  connectors to external systems (jig's `domain/model.md`). temper brings
   what is its own: the forge as a connector, its agents' charters and
   tools, the checkout its workers prepare, its client, and the forge's
   setup.
@@ -116,11 +116,11 @@ forge     Forgejo and its runner: polled, hinted by its webhooks (domain/forge.m
 ```
 
 - **One engine per deployment.** It is the store's only writer and the
-  forge's only client (jig's `domain/core.md`, section 2).
+  forge's only client (jig's `domain/model.md`, section 2).
 - **The engine decides, the worker hosts, agents think.** The worker
   prepares checkouts, runs agents and pushes what they made; agents reach
   the engine only through the tools their host relays (jig's
-  `domain/hosts.md`).
+  `domain/hosts/README.md`).
 - **People reach temper through its client:** temper's pages on jig's
   client, `jig-client`, in a terminal and in a browser
   (`client/README.md`; `client/browser.md`).
@@ -147,7 +147,7 @@ never built around jig in temper.
 
 ## 5. What temper promises
 
-jig's promises (jig's `domain/core.md`, section 11) hold for temper,
+jig's promises (jig's `domain/model.md`, section 11) hold for temper,
 checked by jig's referee in temper's worlds with temper's wiring. On the
 forge, temper adds:
 
@@ -213,8 +213,8 @@ forge, temper adds:
   3.2; `client/README.md`, 3.5.
 - **jig's documents** are named with jig's name and their path in jig's
   `docs/design/`: jig's `domain/connectors.md`, jig's
-  `protocol/channel.md`, jig's `client/domain/client.md`. jig has two
-  `client.md` and two `testing.md`, so a bare jig file name is never
+  `protocol/channel/README.md`, jig's `client/domain/client/README.md`. jig has two
+  `jig/docs/design/client/domain/client/README.md` and two `testing.md`, so a bare jig file name is never
   enough.
 - **smith's documents** likewise: smith's `domain/run.md`. skein's
   foundation documents by their own names: `programming-model.md`,

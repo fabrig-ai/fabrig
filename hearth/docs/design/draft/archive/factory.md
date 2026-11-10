@@ -130,7 +130,7 @@ temper ──"run this experiment at this head" (active)────────
   wait on the run side's health status at the commit it landed, and end
   only then.
 - **Identities.** The lab and the run side are parties on the forge of
-  their own, services (jig's `domain/people.md`, section 3).
+  their own, services (jig's `domain/people/README.md`, section 3).
 
 ## 5. The ground: targets and pools
 
@@ -350,7 +350,7 @@ baseline     for measurements: main's distribution, per experiment and metric
 7. **Scheduling follows value per cost:** gates that hold a landing,
    then landings, nightly runs, exploration. A burst of heads coalesces
    to its last, except for gates. Pools' slots are pooled holds (jig's
-   `domain/tasks.md`, section 6), runs are priced, budgets are per period.
+   `domain/tasks/holds.md`), runs are priced, budgets are per period.
    Untrusted heads wait for a maintainer, and pools reach nothing but
    their caches.
 

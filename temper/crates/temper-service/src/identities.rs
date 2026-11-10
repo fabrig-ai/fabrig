@@ -70,7 +70,7 @@ impl IdentityTable {
     pub fn newest(&self, number: u32, now: Time) -> Option<&Value> {
         let entry = self.identities.get(&number)?.newest.as_ref()?;
         // The accounts' table uses the same holder clock and strict expiry edge
-        // (jig's protocol/channel.md, 8). Keep the generation after it lapses:
+        // (jig's protocol/channel/README.md, 7). Keep the generation after it lapses:
         // neither expiry nor a failed decode can restore an older value.
         if now < entry.expires { entry.value.as_ref() } else { None }
     }

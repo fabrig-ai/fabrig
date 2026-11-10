@@ -1,4 +1,4 @@
-//! Public lines take only their field sources (jig/docs/design/client/domain/contract.md, 12).
+//! Public lines take only their field sources (jig/docs/design/client/domain/contract/README.md, 10).
 use super::*;
 use crate::{PublicExecutor, PublicHold, PublicLine, PublicPhase, documents::Text};
 

@@ -1,4 +1,4 @@
-//! Effective authorities follow configured names (jig/docs/design/protocol/store.md, 5.1).
+//! Effective authorities follow configured names (jig/docs/design/protocol/store/records.md, 1).
 
 fn authority(value: &mut crate::Authority, moved: &[u64; 64]) {
     value.models = value.models.remap(moved);
@@ -31,7 +31,7 @@ fn proposal(value: &mut crate::Proposal, moved: &[u64; 64]) {
     }
 }
 impl crate::Stored {
-    /// Remap every retained effective authority (jig/docs/design/protocol/store.md, 5.1).
+    /// Remap every retained effective authority (jig/docs/design/protocol/store/records.md, 1).
     pub fn remap_models(&mut self, moved: &[u64; 64]) {
         match self {
             crate::Stored::Live(row) | crate::Stored::Ended(row) => {

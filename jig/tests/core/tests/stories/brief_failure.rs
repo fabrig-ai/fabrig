@@ -1,5 +1,5 @@
 //! Preparation failures keep their class and reason through backoff and restart
-//! (`jig/docs/design/domain/engine.md`, 9.1).
+//! (`jig/docs/design/domain/engine/briefs.md`, 1.1).
 use super::*;
 use jig_domain_brief::{GatherFailure, GatherFate};
 use skein_lib::Duration;

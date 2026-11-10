@@ -245,7 +245,7 @@ fn prepare_with_limits(
     let mut deployment = [0_u8; 16];
     deployment.copy_from_slice(drawn.expose().get(..16).expect("32-byte seed"));
     // Drawn at every start; the service keeps it at the first and restores
-    // the kept one at every later start (jig's configuration.md 8).
+    // the kept one at every later start (jig's configuration.md 7).
     let drawn = skein_shell::crypto_seed().map_err(|errno| format!("installation id: errno {errno}"))?;
     let mut installation = [0_u8; 16];
     installation.copy_from_slice(drawn.expose().get(..16).expect("32-byte seed"));

@@ -1,5 +1,5 @@
 //! Step-local document rendering; no borrowed document survives a step.
-//! Creating bounds follow jig/docs/design/client/domain/contract.md, 5.3.
+//! Creating bounds follow jig/docs/design/client/domain/contract/documents.md, 3.
 mod account_lines;
 mod account_programs;
 mod account_text;
@@ -650,7 +650,7 @@ mod result_words;
 mod task_settings;
 use result_words::text as result_text;
 
-// jig/docs/design/client/domain/contract.md, 3.2: person answers name their revision and offers.
+// jig/docs/design/client/domain/contract/requests.md, 2: person answers name their revision and offers.
 fn person_text(
     person: &jig_client::contract::PersonTask,
     answerer: Option<u64>,

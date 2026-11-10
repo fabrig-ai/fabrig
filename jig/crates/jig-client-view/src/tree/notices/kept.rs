@@ -1,6 +1,6 @@
 //! Short-lived outcomes with no card, on monotonic deadlines.
 //! Notices never decide whether a request was made. The root table's answer
-//! remains its one durable answer. See client/domain/client.md, 13.
+//! remains its one durable answer. See client/domain/client/README.md, 10.
 use crate::{Ui, state::ui::Timer};
 use jig_client::Link;
 use jig_client::contract::{Answer, Limit, ObjectKey};

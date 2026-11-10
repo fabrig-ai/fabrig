@@ -1,4 +1,4 @@
-//! Client wire refusals and round trips (protocol/client.md, section 3).
+//! Client wire refusals and round trips (protocol/client/wire.md, section 1).
 mod approval;
 mod fixtures;
 mod link_sign_in;
@@ -458,7 +458,7 @@ fn a_me_project_without_its_name_cannot_decode() {
     );
 }
 
-// protocol/client.md, 5: Keyed.value holds at most 128 KiB of a moved file.
+// protocol/client/README.md, 3: Keyed.value holds at most 128 KiB of a moved file.
 const MOVED_FILE_BYTES: usize = 131_072;
 #[test]
 fn a_keyed_value_at_the_move_bound_round_trips() {

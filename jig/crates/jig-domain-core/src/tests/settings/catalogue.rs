@@ -56,7 +56,7 @@ fn catalogue_drop_patterns_win_over_keeps() {
 }
 
 const READ_AT: Wall = Wall::from_nanos(1_000_000_000);
-// Model numbers 64, 63 and 62 are bits 63, 62 and 61 (engine.md, 17.11).
+// Model numbers 64, 63 and 62 are bits 63, 62 and 61 (domain/engine/settings.md, 11).
 const LAST: u64 = 0x8000_0000_0000_0000;
 const LAST_TWO: u64 = 0xc000_0000_0000_0000;
 const LAST_THREE: u64 = 0xe000_0000_0000_0000;

@@ -1,5 +1,5 @@
-//! Party acts judged from current engine facts (`client/domain/contract.md`,
-//! sections 3.2 and 5.3; `domain/people.md`, section 5.1).
+//! Party acts judged from current engine facts (`client/domain/contract/requests.md`, section 2, and `client/domain/contract/documents.md`, section 3
+//! ; `domain/people/acts.md`, section 1).
 //! No state, drafts, keys or document cache is retained. A request and a
 //! document use the same judgments. Draft-dependent acts carry numerical and
 //! listed bounds; the client compares its form with these engine facts.
@@ -22,7 +22,7 @@ pub(crate) use standing::role;
 /// An act in the client's closed order, translated between vocabularies by the wire.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Act {
-    /// Delete the project (jig/docs/design/domain/people.md, 5.2).
+    /// Delete the project (jig/docs/design/domain/people/acts.md, 2).
     RemoveProject,
     /// Write to an agent.
     Message,
@@ -74,7 +74,7 @@ pub enum Act {
     Withdraw,
 }
 
-/// Proposal and escalation decisions (`client/domain/contract.md`, section 5.3).
+/// Proposal and escalation decisions (`client/domain/contract/documents.md`, section 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Decision {
     Accept,
@@ -139,7 +139,7 @@ pub struct CreateProcedure {
     pub code: u32,
 }
 
-/// Creating bounds and the judgement beyond the first (contract.md, 5.3).
+/// Creating bounds and the judgement beyond the first (client/domain/contract/documents.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Creating {
     pub within: Bounds,

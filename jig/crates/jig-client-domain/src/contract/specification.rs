@@ -1,4 +1,4 @@
-//! Whole specification values and explicit document loss (client/domain/contract.md, 5.2–5.3).
+//! Whole specification values and explicit document loss (client/domain/contract/documents.md, 2–3).
 use super::{DocumentText, Text};
 use skein_lib::List;
 

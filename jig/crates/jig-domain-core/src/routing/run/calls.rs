@@ -1,5 +1,5 @@
 //! Named run calls, turns and terminals routed to tasks, authority and the root
-//! (`domain/engine.md`, sections 4.4 and 7). Delegation and preparation
+//! (`domain/engine/README.md`, section 4.4 and `domain/engine/executors.md`). Delegation and preparation
 //! are separate families so each route file stays under 1,500 lines.
 
 use super::{Call, Proposing};
@@ -941,7 +941,7 @@ pub(crate) fn named_amend(
     out
 }
 
-/// Resolve host omission before the whole amendment is admitted (domain/tasks.md, 7).
+/// Resolve host omission before the whole amendment is admitted (domain/tasks/changes.md).
 fn keep_spec_parameters(core: &Core, target: u64, mut amendment: tasks::Amendment, keep: bool) -> tasks::Amendment {
     if keep
         && let Some(spec) = &mut amendment.spec

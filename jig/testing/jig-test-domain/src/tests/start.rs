@@ -1,4 +1,4 @@
-//! Scripted store and commit releases (jig/docs/design/domain/engine.md, 6).
+//! Scripted store and commit releases (jig/docs/design/domain/engine/restart.md).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,

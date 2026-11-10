@@ -113,7 +113,7 @@ fn update(front: &mut Scripted, task: u64, position: u64) -> c::InboxEntry {
         None,
     )
 }
-/// jig/docs/design/domain/engine.md, 11.2.
+/// jig/docs/design/domain/engine/views.md, 2.
 pub fn a_person_s_inbox_lists_needs_oldest_first_and_updates_newest_first<F: Front<Test>>(world: &mut World<Test, F>) {
     world.seed(Seed::ChatProject { party: SIGNING_PARTY, project: PROJECT });
     world.seed(Seed::Project(Facts::InboxOrder));

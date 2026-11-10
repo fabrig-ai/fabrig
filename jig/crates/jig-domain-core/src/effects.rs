@@ -1,6 +1,6 @@
 //! Effect decisions and answer lifetimes belong to the core. Descriptions,
 //! facts and outbox payloads belong to their numbered connectors
-//! (`domain/engine.md`, 4.3 and 7.3; `domain/connectors.md`, 4.4–4.5).
+//! (`domain/engine/README.md`, 4.3, and `domain/engine/executors.md`, 3; `domain/connectors.md`, 4.4–4.5).
 //! Projection origins use current project grants and requirements, with no
 //! task debit (`domain/authority.md`, 6; `domain/connectors.md`, 8).
 //!
@@ -819,7 +819,7 @@ fn discard_origin(core: &mut Core, origin: &EffectOrigin) {
 }
 
 /// Slots apply only to resources the hub knows are held. Shared resources use
-/// their connector's declared recovery protocol instead (`domain/tasks.md`, 6.3).
+/// their connector's declared recovery protocol instead (`domain/tasks/holds.md`, 3).
 fn held_resources(core: &Core, description: &connector::EffectDescription) -> Box<[tasks::Name]> {
     let count = u32::try_from(description.effect.additional.len()).expect("bounded effect resources");
     let mut names = List::with_capacity(count.checked_add(1).expect("effect resources fit"));
@@ -1495,7 +1495,7 @@ fn projection_refused(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Work>
 
 impl Core {
     /// Earliest absolute wall time among retained effect reply rights
-    /// (`domain/engine.md`, 4.4). Stale rights remain visible until the
+    /// (`domain/engine/README.md`, 4.4). Stale rights remain visible until the
     /// existing effect-deadline event consumes them; this query changes nothing.
     #[must_use]
     pub fn effect_deadline(&self) -> Option<Wall> {

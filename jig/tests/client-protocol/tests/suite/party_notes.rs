@@ -1,4 +1,4 @@
-//! A person's preferences through the client wire (client/domain/contract.md, 6).
+//! A person's preferences through the client wire (client/domain/contract/README.md, 4).
 use jig_client::{Answered, Ask, Asker, Handle, Key, Outcome, Readable, Readout, contract as c};
 use jig_client_protocol_world::{client::Story, fixtures};
 use jig_domain_core as core;

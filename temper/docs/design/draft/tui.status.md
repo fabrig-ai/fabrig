@@ -41,8 +41,8 @@
     the engine keeps two one-time links live, the printed link and the
     file's, each spent once and expiring as the printed link does, and
     draws the file's next when a TUI spends it, so the TUI never spends
-    the link the person opens in a browser (jig's `protocol/client.md`,
-    section 8, *The local link*; `../client/README.md`, 6.12): the
+    the link the person opens in a browser (jig's `protocol/client/sign-in.md`
+    , *The local link*; `../client/README.md`, 6.12): the
     user's decision of 2026-11-08, `tui-native-secret`, which set aside
     a reusable link and no link on loopback. One case is left: a TUI's
     try by a local link the engine no longer remembers, read before a
@@ -51,7 +51,7 @@
     none is live, so the box prints again, where the request has the
     TUI never make it print. The cut of `tui-native-secret` kept the
     unknown secret's answer, which needs no stored history (jig's
-    `protocol/client.md`, section 8 and section 15, *Remembering why a
+    `protocol/client/sign-in.md` and `protocol/client/README.md`, section 12, *Remembering why a
     printed link failed*).
   - 4.1: the local sign-in's expiry/revocation distinction uses a note,
     because the engine answers both as signed out (`../client/README.md`,

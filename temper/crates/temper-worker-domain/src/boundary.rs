@@ -3,8 +3,8 @@
 //!
 //! Five peers are behind it, and each record names which by its variant:
 //!
-//! - The engine, over jig's worker link (jig's `domain/hosts.md`, 6.1;
-//!   jig's `protocol/channel.md`, section 10), which dials, redials, keeps the
+//! - The engine, over jig's worker link (jig's `domain/hosts/hub.md`, 1;
+//!   jig's `protocol/channel/README.md`, section 9), which dials, redials, keeps the
 //!   grace and the relays across channels, and tells the domain what it
 //!   notices: a channel [`Event::Ready`], [`Event::Lost`], the grace passed
 //!   ([`Event::GracePassed`]), a turn to send again ([`Event::Resend`]), a
@@ -17,7 +17,7 @@
 //!   engine acknowledges it, and the root sends them again right after every
 //!   hello. A refusal goes once, and holds no slot.
 //! - The protocol layer's routing, which decodes and encodes smith's
-//!   payloads by hand-out (jig's `domain/hosts.md`, 6.8), keeping no state:
+//!   payloads by hand-out (jig's `domain/hosts/hub.md`, 8), keeping no state:
 //!   a [`Request::Decode`] is answered by one [`Event::Decoded`] and a
 //!   [`Request::Encode`] by one [`Event::Encoded`], each in the order it went
 //!   out; a [`Request::Fact`] by one [`Event::Activity`], best effort, as
@@ -68,8 +68,8 @@ pub enum Event {
     /// One endpoint list read settled below the worker root.
     ListRead { read: u64, outcome: jig_domain_link::ListOutcome },
     /// From the engine: an assignment, jig's record, with temper's workspace
-    /// items with their per-repository saved-work branches (jig's `protocol/channel.md`,
-    /// 6.2). The record's workspace, if it has one, names the workstream the
+    /// items with their per-repository saved-work branches (jig's `protocol/channel/README.md`,
+    /// 5.2). The record's workspace, if it has one, names the workstream the
     /// checkout is keyed by; the root names the items to the hub itself.
     Assign { assignment: host::Assignment, items: Result<wire::Workspace, wire::Undecodable> },
     /// A job with the service's decoded workspace items and command spec
@@ -98,7 +98,7 @@ pub enum Event {
     Process(Box<agent::process::Event>),
     /// A piece of a run's live content from its agent's channel, named by
     /// the agent's token: progress for its watchdog, and the hub's to send
-    /// up (jig's `domain/hosts.md`, 6.5).
+    /// up (jig's `domain/hosts/hub.md`, 5).
     Live { agent: Token, piece: host::Piece },
     /// Terminal for `Decode`: smith's start, typed, or what did not decode.
     Decoded { agent: Token, start: Result<Box<agent::Start>, host::Undecoded> },
@@ -116,11 +116,11 @@ pub enum Event {
 /// domain -> protocol
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
-    /// Read an endpoint without taking a run slot or workspace (jig's domain/hosts.md, 5.1).
+    /// Read an endpoint without taking a run slot or workspace (jig's domain/hosts/README.md, 5.1).
     ReadList { read: u64, endpoint: u32, grant: jig_domain_link::Grant },
     /// Cancel a list read and settle its child before the source queue is reused.
     CancelRead { read: u64 },
-    /// Run one bounded program sign-in/sign-out command below the root (jig's domain/hosts.md, 5.1).
+    /// Run one bounded program sign-in/sign-out command below the root (jig's domain/hosts/README.md, 5.1).
     Source { owner: Token, name: SourceName, operation: host::sources::Operation, deadline: Time },
     /// The source-command component violated its contract; stop this worker.
     SourceFault,

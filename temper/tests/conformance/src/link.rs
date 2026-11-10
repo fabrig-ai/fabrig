@@ -1,6 +1,6 @@
 //! The protocol layer this world plays for its scripted worker: the hub's
 //! link records, engine tools called by name and their relayed answers
-//! (jig's `domain/hosts.md`, 2 and 6.4). The engine world's protocol stand
+//! (jig's `domain/hosts/README.md`, 2, and `domain/hosts/hub.md`, 4). The engine world's protocol stand
 //! decodes, renders and reads outcomes, as jig's worlds do.
 use crate::{Peers, Temper, send};
 use jig_conformance::{Harness, referee as r};

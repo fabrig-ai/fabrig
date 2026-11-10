@@ -1,4 +1,4 @@
-//! Selected amendments are independent of displayed source facts (view.md, 18.5).
+//! Selected amendments are independent of displayed source facts (client/domain/view-state.md, 5).
 
 use crate::tests::fixtures::Fixture;
 use crate::tests::kit::Goldens;

@@ -263,7 +263,7 @@ phone's, and its walk follow landing (section 11).
 - **Not yet:** 5.17, *A refusal* and *Full*: the bounds are the
   client's constants, not jig's. jig answers a party's correction past
   `notes.party_bytes` as an admission limit on words, naming no bound
-  (`jig/docs/design/client/domain/contract.status.md`, 6), so the page
+  (`jig/docs/design/client/domain/contract/README.status.md`, 4), so the page
   says "A line is at most 120 bytes." from `refusal_for`'s 120, and says
   it of a correction past jig's other word bounds too; no client document
   carries `notes.party_entries`, so the view's `PARTY_ENTRIES`, 12, draws
@@ -688,8 +688,8 @@ its 320 px, as the user accepted in `look-round-17`.
 
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs
-  design coverage reconciliation against `jig/docs/design/domain/engine.md`,
-  7.3; this is a design gap, not an absent implementation.
+  design coverage reconciliation against `jig/docs/design/domain/engine/executors.md`,
+  3; this is a design gap, not an absent implementation.
 
 - **Departs:** 3.5, *A chat's terminal*: the quiet line says "N spent · of B",
   because `temper-client-view`'s `pages/terminal.rs`, `under`, reuses
@@ -710,7 +710,7 @@ its 320 px, as the user accepted in `look-round-17`.
   last 8 used or expired links only until restart. A forgotten used link
   reads "This link isn't from this temper. Use the one its terminal
   printed." The plan chose bounded memory rather than stored history
-  (jig's `protocol/client.md`, section 8).
+  (jig's `protocol/client/sign-in.md`).
 
 Sections 3.5 and 5.8 have no known implementation gap in a person-addressed
 report task reading as a question under Needs you, on Home or in a goal's
@@ -828,7 +828,7 @@ section 11 keeps that observation and the page comparison after landing.
 
 - **Not yet:** 3.5, *The `Models` tab*: the omitted count can stay stale
   when a provider read changes that count alone, because jig does not
-  mark `me` for it (`jig/docs/design/domain/engine.status.md`, 17.12).
+  mark `me` for it (`jig/docs/design/domain/engine/settings.status.md`, 12).
   A fresh Frame supplies the count; the view draws what it receives.
 
 - **Design departs:** 3.5, *The `Models` tab*, from the look request `model-picker`'s 07, for
@@ -1222,7 +1222,7 @@ section 11's after-landing work (*Away on All projects after landing*).
   2026-11-06, decided by its plan's cut: a Chats row says "Starting" for a chat
   that can't start, where the request has a run that isn't about to start say why,
   because a row holds no run wait and its query carries no run's check per row
-  (jig's `client/domain/client.md`, 19.1). The chat's own page says why.
+  (jig's `client/domain/client/helpers.md`, 1). The chat's own page says why.
 - **Design departs:** 3.5, *Where the focus stands on a chat*, from the request `ui-composer-focus` of 2026-11-06,
   decided by its plan's cut: a suggested request's press asks for the composer's focus on a phone too,
   where the request has no press raise a keyboard the person did not ask for, because the tree has no width and telling
@@ -1412,7 +1412,7 @@ section 11's after-landing work (*Away on All projects after landing*).
   request gives none connected `.empty` and no words for that case, so that no
   state is dropped.
 - **Design departs:** 3.5, *Goals*, from the request of 2026-11-05: "6 / 9" is
-  on the task line (jig's `client/domain/contract.md`, 5.1), where the request
+  on the task line (jig's `client/domain/contract/documents.md`, 1), where the request
   offered the goal's document or the tree's read, and a row reads its report
   alone, not also its tasks by `parent`: each place needed the same stored
   counter, and the line needs no read per row. The lede's ways run in template
@@ -1427,7 +1427,7 @@ section 11's after-landing work (*Away on All projects after landing*).
 - **Design departs:** `README.md`, sections 3.5, 5.13 and 10, from the request `ui-walk-large` of 2026-11-06:
   - 3.5: a proposal of settings shows in the Needs you of a project's owner who also
     owns the deployment, those who can decide it, by that plan's cut: a project's owner
-    alone has no row of it (jig's `domain/engine.md`, 17.6, and its status).
+    alone has no row of it (jig's `domain/engine/settings.md`, 6, and its status).
   - 10: that request's browser walk was made by hand, at 1440 and 420 on fresh fake
     boxes, its driver thrown away as that plan's cut has it, so no test keeps it. The
     client's world holds the card, count and Accept (its story of Ask temper's

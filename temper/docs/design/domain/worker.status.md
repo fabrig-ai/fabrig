@@ -31,7 +31,7 @@ link takes its `io.largest_room` and the worker's its own
 `worker_settings.rs`, `link_limits`); jig's engine link fits a resumed
 start's committed calls to that room, the newest answers whole and the
 older cut to words naming their bytes (jig's
-`protocol/channel.status.md`); a start still past the room fails as an
+`protocol/channel/README.status.md`); a start still past the room fails as an
 invalid start naming its bytes and the room, serve writes its refused-run
 line and `worker unsent`, and the link, its pings and a later run go on.
 On each stock profile, `link_room.rs`'s

@@ -1,4 +1,4 @@
-//! Populated settings proposals shared by both wire ends (contract.md, 3.2 and 5.1).
+//! Populated settings proposals shared by both wire ends (client/domain/contract/requests.md, 2, and client/domain/contract/documents.md, 1).
 use jig_client_domain::contract as c;
 use skein_lib::List;
 /// A review's oversized value is described by its size, beyond wire 19's document ceiling.

@@ -1,4 +1,4 @@
-//! Core-owned task indexes, saved in the owner's decision (store.md 7.4).
+//! Core-owned task indexes, saved in the owner's decision (protocol/store/loads.md 4).
 use crate::{Core, Record, Request, Write};
 use jig_domain_tasks as tasks;
 use skein_lib::Queue;

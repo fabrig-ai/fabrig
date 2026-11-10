@@ -1,4 +1,4 @@
-//! Durable indexes for parties' reads (protocol/store.md, section 7.4).
+//! Durable indexes for parties' reads (protocol/store/loads.md, section 4).
 use skein_lib::Wall;
 
 /// A number ordered newest first by its stored complement.
@@ -58,7 +58,7 @@ impl Update {
 }
 
 /// Logical store `key` for task state or financial history, with no byte encoding performed
-/// in this child. (domain/tasks.md, section 2).
+/// in this child. (domain/tasks/README.md, section 2).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Key {
     /// Logical mutable live-task row.
@@ -132,7 +132,7 @@ pub enum Key {
 }
 
 impl Key {
-    /// Whether a restart loads this family (protocol/store.md, 7.2).
+    /// Whether a restart loads this family (protocol/store/loads.md, 2).
     #[must_use]
     pub const fn live(&self) -> bool {
         match self {
@@ -167,7 +167,7 @@ pub struct ResultRow {
     pub task: u64,
 }
 
-/// Lifetime ended descendants' outcomes, saturating (domain/tasks.md, section 3).
+/// Lifetime ended descendants' outcomes, saturating (domain/tasks/README.md, section 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Endings {
     pub done: u32,
@@ -192,14 +192,14 @@ impl Endings {
     }
 }
 
-/// A requester-to-delegate edge retained until adoption (store.md 7.3).
+/// A requester-to-delegate edge retained until adoption (protocol/store/loads.md 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Edge {
     pub requester: u64,
     pub task: u64,
 }
 
-/// An ended task indexed by its requesting party (protocol/store.md, 7.4).
+/// An ended task indexed by its requesting party (protocol/store/loads.md, 4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct EndedByParty {
     pub party: u64,
@@ -220,7 +220,7 @@ impl EndedByParty {
     }
 }
 
-/// An ended task indexed by its project when listed (protocol/store.md, 7.4).
+/// An ended task indexed by its project when listed (protocol/store/loads.md, 4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct EndedByProject {
     pub project: u32,

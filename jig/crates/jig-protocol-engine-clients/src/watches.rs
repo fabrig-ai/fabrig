@@ -1,4 +1,4 @@
-//! Watch exchanges and released stream outputs (protocol/client.md, 4 and 7).
+//! Watch exchanges and released stream outputs (protocol/client/wire.md, 2, and protocol/client/README.md, 5).
 use super::{Box, Component, Env, Limits, Queue, Request, Token, Waiting, core, routes, w};
 use crate::{
     routes::Route,

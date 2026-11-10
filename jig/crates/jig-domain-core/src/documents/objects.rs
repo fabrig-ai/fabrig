@@ -1,5 +1,5 @@
 //! Decision objects and retained rows (`client/domain/objects.md`, sections 4–8;
-//! Closed at once (jig/docs/design/domain/people.md, 5.2).
+//! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 //! `client/domain/pages.md`, 5.2). Store readers supply retained rows. Routing
 //! trails and before/after history require those store rows; no trail is cached.
 

@@ -350,7 +350,7 @@ fn a_live_credential_keeps_the_sign_in_without_minting_and_spends_the_link() {
 #[test]
 fn a_held_credential_answered_with_another_sign_in_draws_a_token() {
     const NEW_SIGN_IN: u64 = fixtures::FIRST_SIGN_IN + 1;
-    // A credential carries an eight-byte sign-in number and 32 drawn bytes (protocol/client.md, 8).
+    // A credential carries an eight-byte sign-in number and 32 drawn bytes (protocol/client/sign-in.md).
     const TOKEN_BYTES: usize = 40;
     let mut peer = peer();
     let bearer = fixtures::signed_in(&mut peer);
@@ -693,7 +693,7 @@ fn a_services_sign_in_is_busy_for_busy_or_full() {
     }
 }
 
-// The in-memory history's bound (jig/docs/design/protocol/client.md, 8).
+// The in-memory history's bound (jig/docs/design/protocol/client/sign-in.md).
 const REMEMBERED_LINKS: u32 = 8;
 #[test]
 fn a_link_that_cannot_sign_in_answers_why() {

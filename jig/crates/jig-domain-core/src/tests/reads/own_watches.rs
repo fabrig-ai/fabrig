@@ -1,4 +1,4 @@
-//! The core names own watch subjects from live and restored sign-ins (protocol/client.md, 7).
+//! The core names own watch subjects from live and restored sign-ins (protocol/client/README.md, 5).
 use crate::tests::*;
 use jig_domain_link::{Hello, Hosting, Phase};
 

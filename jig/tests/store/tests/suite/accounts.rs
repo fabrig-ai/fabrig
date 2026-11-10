@@ -1,4 +1,4 @@
-//! The accounts family across crashes (store.md 4.4 item 9): the counter, an
+//! The accounts family across crashes (protocol/store/README.md 4.4 item 9): the counter, an
 //! account and its sources are kept whole with the commit that saves them,
 //! go whole with the one that erases them, and restore at start beside the
 //! installation's row, which the accounts' range never hands up.

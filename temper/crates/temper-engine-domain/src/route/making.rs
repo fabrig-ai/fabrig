@@ -1,5 +1,5 @@
 //! The made repository's connector act (temper/docs/design/domain/forge.md, 4.5;
-//! jig/docs/design/domain/people.md, 5.3).
+//! jig/docs/design/domain/people/acts.md, 3).
 use super::{Domain, Work, core, forge, forge_route, people};
 use alloc::boxed::Box;
 use skein_lib::{List, ReplyTo, Token};

@@ -199,7 +199,7 @@ pub(crate) fn demo_asked(directory: &Path, cue: &str, turns: serde_json::Value) 
 }
 
 /// Public reading's demo alone (temper/docs/design/protocol/sign-in.md, 2.4;
-/// jig/docs/design/domain/people.md, 13.7). Its two-second freshness is the walk's subject.
+/// jig/docs/design/domain/people/public-reading.md, 7). Its two-second freshness is the walk's subject.
 pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
     demo(directory, program, bundle);
     let path = directory.join("temper.json");

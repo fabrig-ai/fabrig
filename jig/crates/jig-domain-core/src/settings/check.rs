@@ -1,4 +1,4 @@
-//! One whole-set check, also used after restoring stored changes (engine.md, 17.1).
+//! One whole-set check, also used after restoring stored changes (domain/engine/settings.md, 1).
 use crate::{
     Limits, Settings,
     settings::{Current, Edit, Failure, Fault, Item, Setting, Value},
@@ -572,7 +572,7 @@ fn charter_fault(setting: Setting, charter: &crate::Charter, limits: &Limits) ->
 }
 
 /// The parts' shape and stored policy bound also hold for restored values
-/// (jig/docs/design/protocol/configuration.md, 6; jig/docs/design/domain/tasks.md, 8.6).
+/// (jig/docs/design/protocol/limits.md; jig/docs/design/domain/tasks/messages.md, 6).
 fn parts_fault(setting: Setting, charter: &crate::Charter, limits: &Limits) -> Option<Failure> {
     if charter.parts.len() > skein_lib::length::usize_of(limits.tasks.charter_parts) {
         return Some(Failure { setting, fault: Fault::Count, detail: None });

@@ -1,6 +1,6 @@
 //! Connector-owned keyed requests and their synchronous party parts
-//! (`domain/connectors.md`, section 5.5; `domain/core.md`, section 5).
-//! Closed at once (jig/docs/design/domain/people.md, 5.2).
+//! (`domain/connectors.md`, section 5.5; `domain/model.md`, section 5).
+//! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 
 use crate::{
     Ask, Core, Event, Family, Held, Limits, Request, fresh,

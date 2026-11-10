@@ -49,7 +49,7 @@ pub(crate) fn start(
     crate::routing::application_routes::first(unused, routed)
 }
 
-/// A carried account change's cleanup is fixed at admission (store.md, section 9).
+/// A carried account change's cleanup is fixed at admission (protocol/store/secrets.md).
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub(crate) struct Flight {
     pub number: u64,

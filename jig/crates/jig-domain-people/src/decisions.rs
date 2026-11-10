@@ -1,5 +1,5 @@
 //! Facts about the independent revisions a party decides about
-//! (client/domain/contract.md, section 5.2). The parent translates task state
+//! (client/domain/contract/documents.md, section 2). The parent translates task state
 //! into these values; people keeps them with a keyed refusal for replay.
 
 /// The current revision of a changed decision subject.
@@ -20,7 +20,7 @@ pub enum Moved {
 /// The reason a task is held, in the party's vocabulary.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum HoldReason {
-    /// A configured bound refused the run's model call (domain/hosts.md, 6.3).
+    /// A configured bound refused the run's model call (domain/hosts/hub.md, 3).
     Exceeded(Exceeded),
     /// Its retry allowance was exhausted.
     Failures { class: FailureClass },
@@ -46,7 +46,7 @@ pub enum HoldReason {
     Deadline,
     /// It waited too long for its resource holds.
     HoldsWaited,
-    /// Joining a queue would close a circle of waits (domain/tasks.md, 6.7).
+    /// Joining a queue would close a circle of waits (domain/tasks/holds.md, 7).
     Circle,
     /// A required resource is unavailable.
     ResourceUnavailable,

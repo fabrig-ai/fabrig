@@ -1,4 +1,4 @@
-//! The composition's receiving limits (client/domain/client.md, 14).
+//! The composition's receiving limits (client/domain/client/README.md, 11).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Limits {
     pub domain: crate::DomainLimits,

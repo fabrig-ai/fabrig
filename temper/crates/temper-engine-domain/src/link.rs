@@ -1,5 +1,5 @@
-//! Worker channels in the hub's link vocabulary (jig's `domain/hosts.md`, 2,
-//! 6.4 and 6.5; `domain/engine.md`, 11; `testing/jig-test-domain/src/link.rs`).
+//! Worker channels in the hub's link vocabulary (jig's `domain/hosts/README.md`, 2, and `domain/hosts/hub.md`, 4 and 5
+//! ; `jig/docs/design/domain/engine/views.md`; `testing/jig-test-domain/src/link.rs`).
 //! Payloads stay owned here until the fleet asks for or drops them. The
 //! protocol layer alone reads an ended answer's outcome and encodes typed
 //! assignments.
@@ -39,7 +39,7 @@ pub(crate) fn settled_resource(heads: &[(forge::Name, skein_forge::api::Commit)]
 }
 
 /// Translate one channel input into the core's vocabulary. Unkept live pieces
-/// are dropped and counted (jig's `domain/engine.md`, 11). Other records return
+/// are dropped and counted (jig's `domain/engine/views.md`). Other records return
 /// `None` when the root has no room for their bytes, which admission
 /// ([`crate::try_step`]) hands back first, and their host sends again.
 pub(crate) fn receive(domain: &mut Domain, channel: Token, link: Link) -> Option<core::Event> {

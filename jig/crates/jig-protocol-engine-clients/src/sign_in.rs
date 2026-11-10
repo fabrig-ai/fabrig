@@ -1,9 +1,9 @@
-//! Independent printed and local links, fresh bearer tokens, and durable digest admission (protocol/client.md, 8).
+//! Independent printed and local links, fresh bearer tokens, and durable digest admission (protocol/client/sign-in.md).
 use crate::{Kept, SecretOwner, routes::Route};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v19 as w;
 use skein_lib::{CryptoRng, Map, Secret, Time, Token, Writer, length::len_u64};
-/// How many past links a component keeps the digests of (protocol/client.md, 8).
+/// How many past links a component keeps the digests of (protocol/client/sign-in.md).
 pub(crate) const PAST_LINKS: u32 = 8;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Past {
@@ -47,7 +47,7 @@ pub(crate) enum Waiting {
     ApplicationRead { sign_in: u64, family: u16, version: u32 },
     Ask { sign_in: u64, family: Option<u16>, version: u32 },
     // A request whose carried value the store is keeping: the core sees
-    // `request` only once the value is durable (store.md 9).
+    // `request` only once the value is durable (protocol/store/secrets.md).
     Carry { sign_in: u64, family: Option<u16>, version: u32, request: Box<CarriedRequest> },
     Checked { sign_in: u64, body: Box<[u8]>, route: Route },
 }
@@ -82,7 +82,7 @@ pub(crate) struct Pending {
     pub mints: Map<Token, Token>,
     /// The values this component's decodes kept, by exchange: none while
     /// the store keeps it, then its number until the core answers or
-    /// leaves it unused (store.md 9).
+    /// leaves it unused (protocol/store/secrets.md).
     pub carried: Map<Token, Option<u64>>,
 }
 pub(crate) fn draw(rng: &mut CryptoRng) -> Secret {

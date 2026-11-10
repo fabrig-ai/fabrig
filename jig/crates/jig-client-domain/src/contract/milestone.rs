@@ -1,4 +1,4 @@
-//! Immutable lifecycle milestones (client/domain/objects.md, 11; domain/tasks.md, 7).
+//! Immutable lifecycle milestones (client/domain/objects.md, 11; domain/tasks/changes.md).
 //! Position is the supplied activity position, independent of semantic revisions.
 use super::{ChipEnding, ClosingStage, HoldCategory, Part, PriorPhase, RunStage};
 use skein_lib::Wall;

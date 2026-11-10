@@ -1,5 +1,5 @@
 //! Smith payloads are translated in the worker layer (jig's
-//! protocol/channel.md, 6.1 and 6.4).
+//! protocol/channel/README.md, 5.1 and 5.4).
 use alloc::boxed::Box;
 use jig_domain_host as hub;
 use jig_protocol_worker_agents::route;

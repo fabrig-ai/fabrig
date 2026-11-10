@@ -1,4 +1,4 @@
-//! The public key and root handoffs (jig/docs/design/protocol/client.md, 19).
+//! The public key and root handoffs (jig/docs/design/protocol/client/public-reads.md).
 use super::*;
 #[test]
 fn public_reads_go_to_the_root_and_both_terminals_come_back_as_public() {

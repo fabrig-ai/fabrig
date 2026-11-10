@@ -1,4 +1,4 @@
-//! Jig's enum phrases, overridable one by one (client/domain/client.md, 19).
+//! Jig's enum phrases, overridable one by one (client/domain/client/helpers.md).
 mod decision;
 mod facts;
 pub use facts::decision;

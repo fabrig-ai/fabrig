@@ -118,7 +118,7 @@ a project's rule 1 reset to the every-project default, which the forge
 does not report to jig, keep their state, and the forge names at each
 start only the defaults it stored that the stock no longer gives
 (`temper-engine-domain-forge/src/kinds.rs`, `dropped_settings_defaults`;
-jig's `domain/engine.status.md`, its 17.5). The engine's domain world's
+jig's `domain/engine/README.status.md`, its 17.5). The engine's domain world's
 `a_restore_leaves_out_a_deleted_projects_rule` and the client world's
 story of each kind through ctl (`../client/tools.status.md`, 11.2) run.
 
@@ -317,8 +317,8 @@ remain section 11's deferred work.
   deployment's receiving limit still applies
   (`smith/docs/design/protocol/limits.status.md`, 2.4).
 - **Departs:** 13.9: template 4's report reaches its run as at most
-  1,024 bytes, jig's bound on a contract's text (jig's `domain/hosts.md`,
-  section 8; `jig-protocol-charter`'s `assignment.rs`, `CONTRACT_TEXT_MAX`),
+  1,024 bytes, jig's bound on a contract's text (jig's `domain/hosts/charters.md`
+  ; `jig-protocol-charter`'s `assignment.rs`, `CONTRACT_TEXT_MAX`),
   where this section gives it the reference's `tasks.result_bytes`, 63,738,
   and `docs/examples/reference/settings.json` asks that. Smith's finish
   schema gives the run's model the smaller bound (`smith-protocol-llm`'s

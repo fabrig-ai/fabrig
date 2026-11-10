@@ -1,5 +1,5 @@
 //! Project funding closes after its last live task, preserving spend in history
-//! (jig/docs/design/domain/tasks.md, 7).
+//! (jig/docs/design/domain/tasks/changes.md).
 use crate::{Domain, Funder, Key, Request, Scope};
 use skein_lib::{List, Queue};
 

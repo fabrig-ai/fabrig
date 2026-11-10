@@ -1,5 +1,5 @@
 //! A delivery's commit fields and smith's delivery terminals (jig's
-//! `domain/hosts.md`, sections 7 and 9). The fields arrive typed; this keeps
+//! `domain/hosts/README.md`, sections 6 and 7). The fields arrive typed; this keeps
 //! temper's policy over them, and translates a push's landings into smith's
 //! terminal, push receipts in words (`temper/docs/design/domain/agent.md`,
 //! section 6) and operator tails as data.

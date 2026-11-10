@@ -1,4 +1,4 @@
-//! Connections on sockets, with private durable storage (protocol/client.md, 12).
+//! Connections on sockets, with private durable storage (protocol/client/README.md, 9).
 use crate::{Conn, Connections, Limits, files::Files};
 use jig_client as client;
 use jig_client_protocol_http::{Mapping, Unlinked};
@@ -24,7 +24,7 @@ struct Socket {
     closed: bool,
     below: VecDeque<Down>,
 }
-/// The shared socket loop for native clients (protocol/client.md, 12).
+/// The shared socket loop for native clients (protocol/client/README.md, 9).
 /// `owner` reserves the high 32 bits of socket tokens; zero uses bare connection names.
 pub struct Transport {
     pub(super) connections: Connections,

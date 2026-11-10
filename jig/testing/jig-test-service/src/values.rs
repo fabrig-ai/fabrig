@@ -1,4 +1,4 @@
-//! Credential values travel between protocol components only (channel.md, 8).
+//! Credential values travel between protocol components only (protocol/channel/README.md, 7).
 use alloc::boxed::Box;
 use jig_domain_link::{Form, Grant};
 use jig_protocol_accounts::table::{self, Table};

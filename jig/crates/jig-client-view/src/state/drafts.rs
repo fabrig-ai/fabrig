@@ -1,7 +1,7 @@
 //! Bounded per-task drafts, with persisted touch order and coalesced saves.
 //! A confirmed party alone restores fields. Durable words clear only the exact
-//! submitted draft; later typing survives its answer. See view.md, 18.5, and
-//! client.md, 11.
+//! submitted draft; later typing survives its answer. See client/domain/view-state.md, 5, and
+//! client/domain/client/README.md, 8.
 //!
 //! | Event | Draft | Effect |
 //! |---|---|---|

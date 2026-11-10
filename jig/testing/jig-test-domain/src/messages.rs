@@ -1,4 +1,4 @@
-//! Route the fleet's opaque payloads through its hub link (hosts.md, 6.4).
+//! Route the fleet's opaque payloads through its hub link (domain/hosts/hub.md, 4).
 use crate::{Domain, Work};
 pub(super) use jig_domain_hub_link::Payload;
 use skein_lib::{Queue, Token};

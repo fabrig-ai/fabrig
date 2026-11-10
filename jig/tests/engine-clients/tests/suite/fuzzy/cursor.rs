@@ -1,4 +1,4 @@
-//! Hostile cursor bytes (jig/docs/design/protocol/client.md, 6; skein/docs/design/codec.md, 6).
+//! Hostile cursor bytes (jig/docs/design/protocol/client/README.md, 4; skein/docs/design/codec.md, 6).
 use jig_protocol_engine_clients::cursor_v1::{CEILINGS, Held};
 use skein_lib::{Reader, Rng, Writer, length::len_u64};
 use std::fs;

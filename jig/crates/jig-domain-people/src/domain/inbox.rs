@@ -1,5 +1,5 @@
 //! Task-derived inbox census, one shared recent prefix, and explicit read marks
-//! (`domain/people.md`, section 6). Owner rows rebuild volatile counts after
+//! (`domain/people/README.md`, section 5). Owner rows rebuild volatile counts after
 //! positions restore. Ended conversations retain positions until the owner forgets them.
 mod moving;
 pub(super) use moving::move_chat;
@@ -34,7 +34,7 @@ pub(crate) struct Recent {
 }
 
 impl Domain {
-    /// The person who must answer this received question (domain/people.md, 6).
+    /// The person who must answer this received question (domain/people/README.md, 5).
     #[must_use]
     pub fn question_person(&self, task: u64, question: u64) -> Option<u64> {
         let needs = self.needs.get(&task)?;
@@ -216,7 +216,7 @@ impl Domain {
         Some(chat.party)
     }
 
-    /// Live read positions for the core's join after its task census (engine.md, 6).
+    /// Live read positions for the core's join after its task census (domain/engine/restart.md).
     #[must_use]
     pub fn read_conversations(&self) -> &Map<(u64, u64), u64> {
         &self.conversations_seen

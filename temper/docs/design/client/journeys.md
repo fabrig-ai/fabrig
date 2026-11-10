@@ -309,7 +309,7 @@ the replay drew on the way.
 - **Where it looks:** every field of each line, a stream's records
   decoded and its other text among them; each run's text and its
   writing call's input, joined by their offsets (`RunText`,
-  `WritingCall`; `jig/docs/design/protocol/client.md`, 7), since a
+  `WritingCall`; `jig/docs/design/protocol/client/README.md`, 5), since a
   model's stream splits a token across deliveries that no one line
   shows; the page the
   replay drew at each turn's end, its escapes read back, so that what a

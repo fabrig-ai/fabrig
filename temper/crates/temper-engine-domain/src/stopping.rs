@@ -1,5 +1,5 @@
 //! Routing the engine's drain without deciding connector work (jig's
-//! `domain/engine.md`, 6.1; `testing/jig-test-domain/src/stopping.rs`).
+//! `domain/engine/restart.md`, 1; `testing/jig-test-domain/src/stopping.rs`).
 use crate::boundary::{Event, Payload, Work};
 use crate::domain::Domain;
 use alloc::boxed::Box;

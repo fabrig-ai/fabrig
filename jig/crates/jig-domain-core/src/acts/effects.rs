@@ -1,4 +1,4 @@
-//! Engine-owned consequences of a decision (client/domain/contract.md, 5.4).
+//! Engine-owned consequences of a decision (client/domain/contract/documents.md, 4).
 use crate::documents::PhaseCounts;
 /// What lifting the task's hold does.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

@@ -1,4 +1,4 @@
-//! Job placement and shared claims (jig/docs/design/domain/engine.md, 7.5).
+//! Job placement and shared claims (jig/docs/design/domain/engine/executors.md, 5).
 use super::*;
 use jig_domain_link::{JobBound, JobKind};
 
@@ -28,7 +28,7 @@ fn worker(h: &mut Harness, channel: Token, jobs: Box<[JobBound]>) {
     );
 }
 
-/// jig/docs/design/domain/engine.md, 7.5: busy releases its slot and retries the same fenced attempt.
+/// jig/docs/design/domain/engine/executors.md, 5: busy releases its slot and retries the same fenced attempt.
 #[test]
 fn a_busy_job_is_placed_again_and_its_answer_is_acknowledged() {
     let mut h = Harness::new(LIMITS);
@@ -53,7 +53,7 @@ fn a_busy_job_is_placed_again_and_its_answer_is_acknowledged() {
     );
 }
 
-/// jig/docs/design/domain/engine.md, 7.5: affinity and capacity are shared with runs.
+/// jig/docs/design/domain/engine/executors.md, 5: affinity and capacity are shared with runs.
 #[test]
 fn a_job_prefers_its_workstream_and_waits_for_a_free_slot() {
     let mut h = Harness::new(LIMITS);
@@ -73,7 +73,7 @@ fn a_job_prefers_its_workstream_and_waits_for_a_free_slot() {
     assert!(h.settle().contains(&Request::AssignJob { channel: C1, run: R2, attempt: A2 }));
 }
 
-/// jig/docs/design/domain/engine.md, 7.5: stray traffic is dropped once a claim identifies a job.
+/// jig/docs/design/domain/engine/executors.md, 5: stray traffic is dropped once a claim identifies a job.
 #[test]
 fn adopting_a_job_drops_a_turn_retained_before_its_claim() {
     let mut h = Harness::new(Limits { turns: 2, ..LIMITS });
@@ -90,7 +90,7 @@ fn adopting_a_job_drops_a_turn_retained_before_its_claim() {
     h.step(job(R1, A1, JOB, true));
     assert_eq!(&*h.settle(), &[Request::Drop { payload: payload(6) }]);
 }
-/// jig/docs/design/domain/engine.md, 7.5: a job does not wait on a run's login inventory.
+/// jig/docs/design/domain/engine/executors.md, 5: a job does not wait on a run's login inventory.
 #[test]
 fn a_job_needs_no_run_models_or_login_inventory() {
     let mut h = Harness::new(LIMITS);

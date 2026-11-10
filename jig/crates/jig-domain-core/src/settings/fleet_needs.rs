@@ -1,4 +1,4 @@
-//! The core's configured charter requirements for fleet admission (engine.md, 8).
+//! The core's configured charter requirements for fleet admission (domain/engine/fleet.md).
 use crate::{Config, Limits};
 use jig_domain_fleet::{CharterNeeds, ModelNeed, Needs};
 use skein_lib::List;

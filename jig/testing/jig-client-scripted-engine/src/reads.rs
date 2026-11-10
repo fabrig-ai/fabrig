@@ -1,4 +1,4 @@
-//! Retained rows and scoped opaque cursors; contract.md, 6.
+//! Retained rows and scoped opaque cursors; client/domain/contract/README.md, 4.
 use crate::{Bounds, Engine, Invalid, Up};
 use jig_client_domain::contract::{
     ActivityPage, Cursor, DecodedActivityLine, EndedDelegate, EndedPage, FundingRecord, HistoryPage, HistoryRow,

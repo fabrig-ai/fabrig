@@ -1,4 +1,4 @@
-//! Complete fixture readers (jig/docs/design/protocol/store.md, 7.1, 8.3 and 14).
+//! Complete fixture readers (jig/docs/design/protocol/store/loads.md, 1, and jig/docs/design/protocol/store/transcripts.md, 3, and jig/docs/design/protocol/store/README.md, 9).
 use super::{Store, protocol, root};
 use jig_domain_core as core;
 use protocol::{Event, Get, Request, codec, keys};

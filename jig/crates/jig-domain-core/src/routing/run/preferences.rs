@@ -1,5 +1,5 @@
 //! Whole requester preferences in asking briefs
-//! (`jig/docs/design/domain/engine.md`, sections 9, 9.1 and 10.1).
+//! (`jig/docs/design/domain/engine/briefs.md`, sections 1, 1.1 and 2.1).
 //! The party index is gathered before the ordinary notes index and retained
 //! for this preparation alone. Its required section cannot be cut.
 

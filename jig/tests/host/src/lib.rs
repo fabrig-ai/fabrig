@@ -1,5 +1,5 @@
 //! A domain world for the host child domain (programming-model.md,
-//! 4.5; testing-strategy.md, 2.2; hosts.md, sections 4 and 9): the
+//! 4.5; testing-strategy.md, 2.2; domain/hosts/README.md, sections 4 and 7): the
 //! host, with the world as its parent, a scripted engine assigning it runs
 //! ([`engine`]), and the parent's capabilities scripted ([`parent`]):
 //! workspaces that prepare, delivery and save, and agents whose runs make host
@@ -29,7 +29,7 @@
 //! The peer world in [`turn_world`] adds a committing engine,
 //! a link that loses and restores contact, and the host's agent and workspace
 //! capabilities. It checks each refusal inside a turn or answer no later than the first whose fence passes it, the retained turns, their replay and exact ACKs,
-//! independent agent acknowledgements, answer order, and best-effort agent facts (hosts.md, 11).
+//! independent agent acknowledgements, answer order, and best-effort agent facts (domain/hosts/README.md, 9).
 
 pub mod engine;
 pub mod parent;

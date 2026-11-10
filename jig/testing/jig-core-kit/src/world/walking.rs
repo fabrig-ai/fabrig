@@ -1,4 +1,4 @@
-//! Short walking scripts share the core world's store and loop (engine.md, 15).
+//! Short walking scripts share the core world's store and loop (domain/engine/README.md, 9).
 use super::{ReplyTo, Token, World, core, people, root, tasks};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

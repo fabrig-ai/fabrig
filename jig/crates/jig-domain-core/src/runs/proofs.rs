@@ -1,4 +1,4 @@
-//! Live run proofs and their restoration bounds (`jig/docs/design/domain/engine.md`, sections 6 and 7).
+//! Live run proofs and their restoration bounds (`jig/docs/design/domain/engine/restart.md` and `jig/docs/design/domain/engine/executors.md`).
 use crate::{Core, CoreKey, Key, RunProof, TerminalRecord, start};
 use jig_domain_tasks as tasks;
 use skein_lib::{Token, length::len_u64};

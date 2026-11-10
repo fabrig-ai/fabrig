@@ -1,4 +1,4 @@
-//! The directories a document's relative paths are joined to (configuration.md, 10).
+//! The directories a document's relative paths are joined to (configuration.md, 9).
 use crate::What;
 use alloc::boxed::Box;
 use skein_lib::{Writer, bytes};

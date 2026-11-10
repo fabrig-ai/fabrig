@@ -129,7 +129,7 @@ pub enum Stacked {
     JsonOverServer,
 }
 
-/// Why the component cannot start (protocol/configuration.md, 7:
+/// Why the component cannot start (protocol/configuration.md, 6:
 /// "each failure naming both limits").
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Unusable {

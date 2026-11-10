@@ -1,5 +1,5 @@
 //! Job preparation and claims, without agent state
-//! (jig/docs/design/domain/engine.md, 7.5).
+//! (jig/docs/design/domain/engine/executors.md, 5).
 
 use alloc::boxed::Box;
 use jig_domain_authority as authority;

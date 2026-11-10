@@ -1,4 +1,4 @@
-//! Project closure and retained deletion progress (jig/docs/design/domain/people.md, 5.2).
+//! Project closure and retained deletion progress (jig/docs/design/domain/people/acts.md, 2).
 use super::Domain;
 use crate::{Act, Ask, DeletionStep, KeptDeletion, Key, Outcome, OutcomeFamily, Request, Stored};
 use skein_lib::{Duration, List, Queue};
@@ -82,7 +82,7 @@ fn forget_census(domain: &mut Domain, project: u32) {
     }
 }
 
-/// A removal's terminal stays until the deletion finishes (jig/docs/design/domain/people.md, 5.2).
+/// A removal's terminal stays until the deletion finishes (jig/docs/design/domain/people/acts.md, 2).
 pub(super) fn kept_answer(domain: &Domain, outcome: &Outcome) -> bool {
     for (&project, _) in &domain.deletions {
         if *outcome == (Outcome::ProjectRemoved { project }) {

@@ -1,5 +1,5 @@
 //! Supplied frame identity, membership, names and independent loss facts.
-//! See client/domain/contract.md, 5.1, and pages.md, 2.
+//! See client/domain/contract/documents.md, 1, and pages.md, 2.
 use crate::tree::fragments::document_text;
 use crate::words::phrases::jig::JigPhrase;
 use crate::words::{Words, name};

@@ -1,4 +1,4 @@
-//! Durable engine categories and complete refusal facts; client/domain/contract.md, 4.
+//! Durable engine categories and complete refusal facts; client/domain/contract/README.md, 3.
 use super::Words;
 use crate::words::phrases::jig::JigPhrase;
 use jig_client::contract::{AdmissionLimit, CurrentHold, HeldRole, Limit, Malformed, Moved, NameRule, Refusal};

@@ -1,5 +1,5 @@
 //! Translate the core charter into Smith's without adding policy
-//! (domain/hosts.md, section 8; smith's `run.md`, section 3).
+//! (domain/hosts/charters.md; smith's `run.md`, section 3).
 //! A Finite report takes delivery only with the policy's modify grant and
 //! the root's workspace delivery fact; its outcome keeps the contract's forms.
 

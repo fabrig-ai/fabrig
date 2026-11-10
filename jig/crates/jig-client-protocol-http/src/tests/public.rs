@@ -1,4 +1,4 @@
-//! Public calls and freshness (jig/docs/design/protocol/client.md, 17.5).
+//! Public calls and freshness (jig/docs/design/protocol/client/default-http.md, 5).
 use super::{fixtures::mapping, *};
 use skein_lib::List;
 fn path(ids: &[u64]) -> PublicPath {

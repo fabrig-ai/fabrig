@@ -1,4 +1,4 @@
-//! Restores use the checked copy; activation is a separate durable request (store.md 10.2).
+//! Restores use the checked copy; activation is a separate durable request (protocol/store/opening.md 2).
 use jig_protocol_store::{Event, OpenRefusal, Request, Wire, Write, codec, component_v3, keys};
 use jig_store_world::{
     World,
@@ -184,7 +184,7 @@ fn a_cut_at_the_switch_s_first_mutation_and_around_its_rename_leaves_one_generat
 }
 
 const WIRES: &[Wire] = &[Wire { name: "channel", version: 3 }, Wire { name: "payload", version: 7 }];
-// store.md 5.3: 16 wires and 32-byte names, and each first refused size.
+// protocol/store/records.md 3: 16 wires and 32-byte names, and each first refused size.
 const MAX_WIRES: usize = 16;
 const MAX_NAME: &str = "01234567890123456789012345678901";
 const LONG_NAME: &str = "012345678901234567890123456789012";

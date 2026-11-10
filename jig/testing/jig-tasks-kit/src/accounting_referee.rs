@@ -1,5 +1,5 @@
 //! Independent conservation from durable task allocations, ended transitions
-//! and admitted priced inputs (domain/tasks.md, 2 and 5).
+//! and admitted priced inputs (domain/tasks/README.md, 2 and domain/tasks/lifecycle.md).
 use jig_domain_tasks::{
     Accepted, Active, Escalation, EscalationHolder, Executor, Funder, Key, MessageKind, Phase, ProposalHolder,
     ProposalState, Request, RetryNotice, Stored, TaskRecord, Was,
@@ -116,7 +116,7 @@ impl Accounting {
         if self.amendments.get(&before.number) == Some(&(before.funder, after.numbers.budget)) {
             return true;
         }
-        // A closer yields on its task's claim and takes its idle task's available budget (domain/tasks.md, 5.10).
+        // A closer yields on its task's claim and takes its idle task's available budget (domain/tasks/lifecycle.md, 11).
         let Funder::Task(parent) = after.funder else { return false };
         let (Some(old), Some(parent)) = (live(&self.before, parent), live(rows, parent)) else { return false };
         if old.closer != Some(before.number) || parent.closer != Some(after.number) {
@@ -277,7 +277,7 @@ impl Accounting {
     }
 
     /// Accepted cumulative input supplied by the scripted parent, independently
-    /// of production counters (domain/tasks.md, 5).
+    /// of production counters (domain/tasks/lifecycle.md).
     pub fn charged(&mut self, task: u64, cumulative: u64) {
         let old = live(&self.before, task).expect("priced input names a live allocation");
         self.charged = Some((task, cumulative.checked_sub(old.run_spent).expect("admitted cumulative grows")));
@@ -294,7 +294,7 @@ impl Accounting {
 
     /// # Errors
     /// Rejects changed identities, missing postings, lost reservations or
-    /// invented expense at the durable boundary (domain/tasks.md, 2).
+    /// invented expense at the durable boundary (domain/tasks/README.md, 2).
     #[expect(clippy::too_many_lines, reason = "accounting referee checks all durable row forms")]
     pub fn committed(&mut self, rows: &BTreeMap<Key, Stored>, requests: &[Request]) -> Result<(), &'static str> {
         self.messages_and_holders(rows, requests)?;

@@ -1,4 +1,4 @@
-//! Charter documents follow the run's revision (domain/engine.md, sections 9, 17.3 and 17.9).
+//! Charter documents follow the run's revision (domain/engine/briefs.md, section 1, and domain/engine/settings.md, sections 3 and 9).
 use crate::settings::{Change, Decider, Edit, Item, Running, Setting, Value};
 use crate::tests::*;
 use jig_domain_brief as brief;

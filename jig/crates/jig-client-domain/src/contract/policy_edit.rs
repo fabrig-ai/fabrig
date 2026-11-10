@@ -1,4 +1,4 @@
-//! One keyed edit to project policy; domain/people.md, 5.2.
+//! One keyed edit to project policy; domain/people/acts.md, 2.
 //! These are whole owner values, with no policy inferred from display text.
 use super::{Authority, Grant, Pattern};
 use skein_lib::{Duration, List};

@@ -1,4 +1,4 @@
-//! Task lifecycle and proposal rows in both directions (protocol/store.md, 5.1).
+//! Task lifecycle and proposal rows in both directions (protocol/store/records.md, 1).
 use super::{bound_problem, fixtures, saved_tasks, saved_wire, tasks_limits};
 
 const WITHDRAWN_AT: skein_lib::Wall = skein_lib::Wall::from_nanos(73);

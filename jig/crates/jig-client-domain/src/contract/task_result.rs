@@ -1,5 +1,5 @@
 //! A task supplies its ending; separately supplied result documents keep their own facts.
-//! See client/domain/contract.md, 5.1, and pages.md, 5.2.
+//! See client/domain/contract/documents.md, 1, and pages.md, 5.2.
 use super::{ChipEnding, Result};
 use alloc::boxed::Box;
 

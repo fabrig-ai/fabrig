@@ -13,7 +13,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use temper_engine_domain as engine;
 
 /// The bounds every scripted worker says in its hello: wide enough for the
-/// world's one charter (jig's `domain/hosts.md`, 8).
+/// world's one charter (jig's `domain/hosts/charters.md`).
 #[must_use]
 pub fn bounds() -> Bounds {
     Bounds {
@@ -251,7 +251,7 @@ impl Protocol {
         up(channel, host::LinkUp::Answer { run: Token::new(task), attempt: Token::new(attempt), answer }, parts)
     }
 
-    /// Answer the oldest read through the worker link (jig/docs/design/domain/engine.md, 17.12).
+    /// Answer the oldest read through the worker link (jig/docs/design/domain/engine/settings.md, 12).
     pub fn answer_read(&mut self, outcome: jig_domain_link::ListOutcome) -> engine::Event {
         let (channel, read) = self.list_reads.pop_front().expect("a worker holds the list read");
         up(channel, host::LinkUp::ListRead { read, outcome }, engine::Parts::none())

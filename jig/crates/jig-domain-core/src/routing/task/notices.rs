@@ -1,5 +1,5 @@
 //! Root-numbered task notices
-//! (jig/docs/design/domain/engine.md, 4.4).
+//! (jig/docs/design/domain/engine/README.md, 4.4).
 
 use crate::{Core, Limits};
 use alloc::boxed::Box;

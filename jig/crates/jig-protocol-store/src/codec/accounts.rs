@@ -1,11 +1,11 @@
-//! The accounts family's rows (protocol/store.md, 4.4): the installation's
+//! The accounts family's rows (protocol/store/README.md, 4.4): the installation's
 //! identifier, and the accounts child's counter, accounts, sources and facts (item 9).
 use crate::accounts_v2 as wire;
 use alloc::boxed::Box;
 use jig_domain_accounts as domain;
 use skein_lib::{Duration, List, Reader, Wall, Writer};
 
-/// The installation's identifier, drawn at the first start (configuration.md, 8).
+/// The installation's identifier, drawn at the first start (configuration.md, 7).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Installation {
     pub id: [u8; 16],
@@ -30,7 +30,7 @@ impl Installation {
     }
 }
 
-/// Encode one of the accounts child's records (store.md 4.4 item 9) within the
+/// Encode one of the accounts child's records (protocol/store/README.md 4.4 item 9) within the
 /// schema's ceilings, which are the child's own bounds.
 pub fn encode(row: &domain::Stored) -> Result<Box<[u8]>, wire::Problem> {
     let limits = &wire::CEILINGS;

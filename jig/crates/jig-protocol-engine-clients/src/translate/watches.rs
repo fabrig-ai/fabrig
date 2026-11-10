@@ -1,4 +1,4 @@
-//! Watches retain their whole subject and stream record (protocol/client.md, 7).
+//! Watches retain their whole subject and stream record (protocol/client/README.md, 5).
 use super::{chips, cursor, deployment, inbox, live, objects, owner, task, w};
 use alloc::boxed::Box;
 use jig_domain_core::{self as core, documents as d};

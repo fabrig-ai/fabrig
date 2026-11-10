@@ -1,4 +1,4 @@
-//! Store-family deletion stories (jig/docs/design/domain/people.md, 5.2 and 8).
+//! Store-family deletion stories (jig/docs/design/domain/people/acts.md, 2, and jig/docs/design/domain/people/README.md, 7).
 use crate::{Config, Testing, actions::World};
 use jig_conformance::{Cut, Harness};
 use jig_domain_accounts as accounts;

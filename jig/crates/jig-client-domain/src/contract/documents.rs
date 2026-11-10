@@ -1,5 +1,5 @@
 //! Whole committed documents, made by the engine and owned by this client.
-//! See client/domain/contract.md, 5, and client/domain/objects.md, 3–8.
+//! See client/domain/contract/documents.md, and client/domain/objects.md, 3–8.
 //! List capacities and Text byte bounds are validated by the protocol before entry;
 //! the working set keeps only what its own configured limits admit.
 use super::{
@@ -36,7 +36,7 @@ pub struct ChipPhaseFacts {
 }
 
 /// The settings revisions an agent task's runs read their charter from
-/// (client/domain/contract.md, 5.1; domain/engine.md, 17.3).
+/// (client/domain/contract/documents.md, 1; domain/engine/settings.md, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct TaskSettings {
     /// The revision the task records.
@@ -55,7 +55,7 @@ pub struct Task {
     pub label: u32,
     pub flags: super::TaskFlags,
     pub last_activity: Wall,
-    /// When the task was made: its record's `created_at` (jig/docs/design/client/domain/contract.md, 5.1).
+    /// When the task was made: its record's `created_at` (jig/docs/design/client/domain/contract/documents.md, 1).
     pub made: Wall,
     pub waits_on: super::WaitsOn,
     pub chip: Chip,
@@ -102,7 +102,7 @@ pub struct Task {
     pub run_wait: Option<super::TaskRunWait>,
 }
 
-/// Whole separately supplied task context (client/domain/contract.md, 5.1).
+/// Whole separately supplied task context (client/domain/contract/documents.md, 1).
 /// Absence supplies no runtime, impact, spend, panel or writer-slot facts.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TaskContext {
@@ -133,7 +133,7 @@ pub struct SpendLine {
     pub spent: u64,
 }
 
-/// Allocated offer slots for the closed act vocabulary (contract.md, 5.3).
+/// Allocated offer slots for the closed act vocabulary (client/domain/contract/documents.md, 3).
 /// Offers are independent of paged rows; their nested values keep their own bounds.
 pub const MAX_OFFERED_ACTS: u32 = 25;
 
@@ -180,7 +180,7 @@ pub enum ActKind {
     ChangePolicy,
     /// Rename a project.
     Rename,
-    /// Remove a project (jig/docs/design/domain/people.md, 5.2).
+    /// Remove a project (jig/docs/design/domain/people/acts.md, 2).
     RemoveProject,
     /// Change roles.
     SetRoles,
@@ -550,10 +550,10 @@ pub struct ArchivedTurn {
     pub turn: TurnRead,
 }
 /// What a line weighs in a window: its bytes, and this for it and for each
-/// message, block, object and part it holds (client/domain/client.md, section 10).
+/// message, block, object and part it holds (client/domain/client/conversations.md).
 pub const LINE_ROOM: u32 = 64;
 impl DecodedActivityLine {
-    /// Retained payload bytes and structural room (client/domain/client.md, section 10).
+    /// Retained payload bytes and structural room (client/domain/client/conversations.md).
     #[must_use]
     pub fn weight(&self) -> u64 {
         let mut weight = u64::from(LINE_ROOM).saturating_add(activity_weight(&self.source.line));

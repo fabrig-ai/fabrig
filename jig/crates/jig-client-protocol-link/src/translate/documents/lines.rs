@@ -1,4 +1,4 @@
-//! Field-for-field document values (client/domain/contract.md, 5–7).
+//! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/README.md, 4–5).
 use super::{Limits, List, Reader, bytes, c, too_large, w};
 
 pub(crate) fn cursor_fields(value: &w::Cursor, limits: &Limits) -> Result<c::Cursor, w::Problem> {

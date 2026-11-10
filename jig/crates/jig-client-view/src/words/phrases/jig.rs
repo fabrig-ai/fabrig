@@ -279,7 +279,7 @@ pub enum JigPhrase {
     TasksMissing,
     /// Agent.
     Agent,
-    /// A job and its kind (0), jig/docs/design/client/domain/contract.md, 5.7.
+    /// A job and its kind (0), jig/docs/design/client/domain/contract/documents.md, 7.
     Job,
     /// Procedure.
     Procedure,

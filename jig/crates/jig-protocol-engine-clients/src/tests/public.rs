@@ -1,4 +1,4 @@
-//! Public identifiers, admission and records (jig/docs/design/protocol/client.md, 19).
+//! Public identifiers, admission and records (jig/docs/design/protocol/client/public-reads.md).
 use super::fixtures as f;
 use crate::{
     Component, Event, FromTransport, Kept, Limits, PublicRead, PublicReply, Request, SecretOwner, SecretsAnswer,

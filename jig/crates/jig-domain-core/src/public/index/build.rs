@@ -1,4 +1,4 @@
-//! Membership and tree order share one requester walk (jig/docs/design/domain/people.md, 13.7).
+//! Membership and tree order share one requester walk (jig/docs/design/domain/people/public-reading.md, 7).
 use super::{CoreTasks, Project, Tree, relations};
 use crate::{PublicIndexLimits, PublicLine};
 use alloc::boxed::Box;

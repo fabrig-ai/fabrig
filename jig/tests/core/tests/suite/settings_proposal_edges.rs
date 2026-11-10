@@ -1,4 +1,4 @@
-//! Adversarial proposals of deployment settings (`domain/engine.md`, 17.6).
+//! Adversarial proposals of deployment settings (`domain/engine/settings.md`, 6).
 use crate::settings_support as support;
 use jig_core_world::fixtures;
 use jig_core_world::fixtures::{PARTY as OWNER, sign_in as signin};
@@ -800,7 +800,7 @@ fn settings_revision(world: &World, number: u32) -> &s::Revision {
         .expect("durable settings revision")
 }
 
-// The catalogue includes the model the proposed charter names (engine.md, 17.11).
+// The catalogue includes the model the proposed charter names (domain/engine/settings.md, 11).
 fn model_proposal_configuration() -> (root::Config, root::Limits, core::Model) {
     let (mut config, limits) = configuration();
     let mut model = config.core.settings.models[0].clone();
@@ -837,7 +837,7 @@ fn durable_settings(world: &World) -> Vec<root::Record> {
 
 #[test]
 fn held_versions_past_the_limit_keep_the_pending_set_across_restart() {
-    // engine.md, 17.2, 17.4, 17.6 and 17.8: a model change can keep
+    // domain/engine/settings.md, 2, 4, 6 and 8: a model change can keep
     // an incompatible task on its version; a second held version is full.
     let (config, mut limits, model) = model_proposal_configuration();
     limits.core.settings.versions = 1;

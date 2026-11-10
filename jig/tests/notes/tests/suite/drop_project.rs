@@ -1,5 +1,5 @@
 //! Project deletion pages the project's index lines and erases their entries
-//! (jig/docs/design/domain/engine.md, 10).
+//! (jig/docs/design/domain/engine/briefs.md, 2).
 
 use jig_domain_notes::{Event, Key, Last, Pattern, Record, Scope};
 use jig_notes_world::{Answer, PROJECT, World, one_scope, saved_entry, task_entry};

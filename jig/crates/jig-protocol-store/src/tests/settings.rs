@@ -398,7 +398,7 @@ fn live_settings_remap_efforts_by_name_and_refuse_missing_efforts() {
     assert_eq!(value.llm.unwrap().main.model, u8::MAX);
 }
 
-/// Settings' policies retain job kinds (jig/docs/design/protocol/store.md, 5.1).
+/// Settings' policies retain job kinds (jig/docs/design/protocol/store/records.md, 1).
 #[test]
 fn job_delegation_kinds_round_trip_in_settings() {
     let limits = codec::limits(&fixtures::CORE_LIMITS).unwrap();
@@ -562,7 +562,7 @@ fn document_records(charter: core::Charter) -> [s::Record; 6] {
     ]
 }
 
-/// Documents stay with every stored charter value (jig/docs/design/domain/engine.md, 17.9).
+/// Documents stay with every stored charter value (jig/docs/design/domain/engine/settings.md, 9).
 #[test]
 fn charter_documents_at_their_bounds_round_trip_in_every_settings_record() {
     let limits = codec::settings::limits(&document_domain()).unwrap();
@@ -710,7 +710,7 @@ fn proposal_keys_and_the_extent_counter_round_trip_without_narrowing() {
 #[path = "models.rs"]
 mod models;
 
-/// A part selects one or more known run reasons (jig/docs/design/protocol/store.md, 5).
+/// A part selects one or more known run reasons (jig/docs/design/protocol/store/records.md).
 #[test]
 fn charter_parts_refuse_empty_and_unknown_reason_bits() {
     // Bit 14 is the first bit outside the fourteen stored reasons.

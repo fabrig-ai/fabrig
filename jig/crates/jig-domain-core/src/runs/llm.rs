@@ -1,5 +1,5 @@
-//! A task's named or current default LLM choice (domain/tasks.md, section 3;
-//! domain/engine.md, 7.1).
+//! A task's named or current default LLM choice (domain/tasks/README.md, section 3;
+//! domain/engine/executors.md, 1).
 
 use alloc::boxed::Box;
 use jig_domain_people as people;
@@ -9,7 +9,7 @@ use skein_lib::List;
 use crate::{Core, Model, RunPolicy, Settings};
 
 impl Core {
-    /// Check each agent task's named or omitted choice (domain/tasks.md, section 3),
+    /// Check each agent task's named or omitted choice (domain/tasks/README.md, section 3),
     /// and the members of a recurring task's template, which tasks makes each occurrence from.
     /// A task whose charter is configured but whose authority allows none of its models is
     /// refused, naming the charter's
@@ -180,7 +180,7 @@ impl Core {
         Some(defaults(&self.settings, policy, choice, candidates.as_slice()))
     }
 
-    /// A template's observation of the first offered charter candidate (domain/engine.md, 11.1).
+    /// A template's observation of the first offered charter candidate (domain/engine/views.md, 1).
     pub(crate) fn preview_llm(
         &self,
         charter: u32,
@@ -218,8 +218,8 @@ impl Core {
     }
 
     /// The policy a run of `task` uses: its charter's, running its LLM choice's models, each the
-    /// charter's model of that configured name with its chosen effort's name (domain/engine.md,
-    /// 7.1). A choice the catalogue or charter no longer holds falls back to the charter's own.
+    /// charter's model of that configured name with its chosen effort's name (domain/engine/executors.md,
+    /// 1). A choice the catalogue or charter no longer holds falls back to the charter's own.
     pub(crate) fn chosen_policy(&self, task: u64) -> RunPolicy {
         let policy = &self.charter_of(task).policy;
         let chosen = match self.next_llm(self.tasks.task(task).expect("live agent task")) {
@@ -262,7 +262,7 @@ pub(super) fn defaults(
 }
 
 /// A party's LLM choice as tasks keeps it, models and efforts by position in the catalogue
-/// both: tasks checks it when it makes or amends the task (domain/tasks.md, section 3).
+/// both: tasks checks it when it makes or amends the task (domain/tasks/README.md, section 3).
 pub(crate) fn choice(value: Option<&people::LlmChoice>) -> Option<tasks::LlmChoice> {
     let value = value?;
     let later = match &value.later {

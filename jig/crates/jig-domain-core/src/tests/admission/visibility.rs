@@ -1,4 +1,4 @@
-//! Visibility decisions, projections and kept rows (jig/docs/design/domain/people.md, 13.2).
+//! Visibility decisions, projections and kept rows (jig/docs/design/domain/people/public-reading.md, 2).
 use crate::tests::*;
 
 fn environment(limits: &Limits) -> Env<Limits> {

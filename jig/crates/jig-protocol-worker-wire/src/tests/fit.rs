@@ -1,4 +1,4 @@
-//! A resumed start fitted to its room (jig/docs/design/protocol/channel.md, 12).
+//! A resumed start fitted to its room (jig/docs/design/protocol/channel/README.md, 11).
 use super::fixtures::{self, SIZES_LARGE, SIZES_ONE_SLOT, repeated};
 use crate::fit::{Fitted, cut_words, fit};
 use crate::{self as wire, sizes, v9};
@@ -198,7 +198,7 @@ fn a_resumed_start_is_fitted_to_its_room() {
 #[test]
 fn the_smallest_resumed_start_is_measured() {
     // Stock core call records, call name, wire tool ceiling and answer bytes
-    // (jig/docs/design/protocol/channel.md, 11).
+    // (jig/docs/design/protocol/channel/README.md, 10).
     for (count, name, tool, answer, expected) in [(32, 64, 64, 69_632, 6817), (128, 64, 64, 135_168, 27_201)] {
         let limits = sizes::limits(&sizes::Sizes {
             answered: count,

@@ -1,4 +1,4 @@
-//! Requests carrying a value, beside the table (client/domain/client.md, 6):
+//! Requests carrying a value, beside the table (client/domain/client/requests.md):
 //! sent once under the name their caller gives, never kept nor sent again.
 use crate::{
     Ask, Domain, Down, Key, Limits, Outcome, Pending, Progress, Request, Told,

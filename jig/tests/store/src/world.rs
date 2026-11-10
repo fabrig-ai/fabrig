@@ -1,4 +1,4 @@
-//! Three file drivers over the simulated crashing machine (protocol/store.md, 14).
+//! Three file drivers over the simulated crashing machine (protocol/store/README.md, 9).
 use crate::{model::Model, root};
 use jig_domain_core as core;
 use jig_protocol_store::{
@@ -59,9 +59,9 @@ pub struct World {
     transcript_sync: Option<u32>,
     next: u64,
     pub model: Model,
-    /// The identifier the shell draws for the next start (configuration.md 8).
+    /// The identifier the shell draws for the next start (configuration.md 7).
     pub drawn: [u8; 16],
-    /// The installation's identifier the last open answered (store.md 4.4).
+    /// The installation's identifier the last open answered (protocol/store/README.md 4.4).
     pub installation: [u8; 16],
     pub pending: bool,
 }
@@ -505,7 +505,7 @@ impl World {
     }
 
     /// A request whose serving sites the shell answers at once, each by its
-    /// owner's fixture with a fresh context (store.md 8.6); `request` hands
+    /// owner's fixture with a fresh context (protocol/store/transcripts.md 6); `request` hands
     /// them up instead.
     pub fn answered(&mut self, request: Request) -> Vec<Event> {
         let mut events = Vec::new();
@@ -674,7 +674,7 @@ impl World {
     }
 
     /// Rewrite any file beneath the root: an operator's rewrite of `active`
-    /// (store.md 2, "Strays"), or a test laying kept bytes in place of the store's.
+    /// (protocol/store/README.md 2, "Strays"), or a test laying kept bytes in place of the store's.
     pub fn rewrite(&mut self, path: &[u8], bytes: &[u8]) {
         use skein_fake_machine::How;
         let root = self.machine.reopen_root(0);
@@ -699,7 +699,7 @@ impl World {
     }
 
     /// The deployment's sorted paths, kinds and permission modes for its
-    /// layout golden (store.md 2 and 14), excluding the deployment root.
+    /// layout golden (protocol/store/README.md 2 and 9), excluding the deployment root.
     #[must_use]
     pub fn layout_entries(&mut self) -> Vec<(Vec<u8>, bool, u32)> {
         use skein_fake_machine::{How, Is};
@@ -1005,8 +1005,8 @@ fn tree(machine: &mut Machine, root: skein_fake_machine::Opened, path: &[u8], pa
     machine.close(directory);
 }
 
-// Patching retains each owner's context for the open (store.md 10.3).
-// Serving makes a new set of defaults at each site (store.md 8.6).
+// Patching retains each owner's context for the open (protocol/store/opening.md 3).
+// Serving makes a new set of defaults at each site (protocol/store/transcripts.md 6).
 #[derive(Default)]
 struct Contexts {
     application: jig_test_patches::patches::Context,

@@ -1,4 +1,4 @@
-//! Index ranges for the inbox's restart census (protocol/store.md 7.2).
+//! Index ranges for the inbox's restart census (protocol/store/loads.md 2).
 use crate::Key;
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;

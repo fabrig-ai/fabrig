@@ -1,4 +1,4 @@
-//! Every durable family names its owners (jig/docs/design/domain/people.md, 5.2).
+//! Every durable family names its owners (jig/docs/design/domain/people/acts.md, 2).
 use super::{core, people, r, tasks};
 use jig_domain_accounts as accounts;
 use jig_domain_notes as notes;

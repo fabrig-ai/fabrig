@@ -1,5 +1,5 @@
 //! Whole owner wake facts and separate standing interests.
-//! See domain/tasks.md, 8.3–8.4, and client/domain/contract.md, 5.1–5.3.
+//! See domain/tasks/messages.md, 3–4, and client/domain/contract/documents.md, 1–3.
 //! These values carry the owner's choices; they infer no charter defaults,
 //! connector names or schedule. The decoding owner bounds list capacities.
 use skein_lib::{Duration, List, Wall};
@@ -13,7 +13,7 @@ pub enum WakeRule {
         count: u32,
         age: Duration,
     },
-    /// At most once in `span` from the task's last run's start (domain/tasks.md, 8.3).
+    /// At most once in `span` from the task's last run's start (domain/tasks/messages.md, 3).
     Paced {
         span: Duration,
     },

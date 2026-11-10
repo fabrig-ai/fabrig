@@ -1,4 +1,4 @@
-//! Whole settings asks into core values (client/domain/contract.md, 3.2).
+//! Whole settings asks into core values (client/domain/contract/requests.md, 2).
 use super::super::{Untranslatable, asks, operations, w};
 use alloc::boxed::Box;
 use jig_domain_authority as a;

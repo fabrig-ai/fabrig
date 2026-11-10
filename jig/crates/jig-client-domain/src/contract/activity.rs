@@ -1,5 +1,5 @@
-//! Whole immutable activity and admitted words (domain/engine.md, 5.4 and 7.2;
-//! client/domain/contract.md, 5 and 7). Commit position orders lines; wall time
+//! Whole immutable activity and admitted words (domain/engine/README.md, 5.4, and domain/engine/executors.md, 2;
+//! client/domain/contract/documents.md and client/domain/contract/README.md, 5). Commit position orders lines; wall time
 //! is supplied metadata. Turns here are archive references, never decoded content.
 use super::{FailureTries, HoldFailure, Requester, ResultField, Text};
 use skein_lib::{List, Wall};
@@ -46,7 +46,7 @@ pub enum RunEnd {
     },
     Refused,
 }
-/// Public cause of an invalid run result (protocol/client.md, 3).
+/// Public cause of an invalid run result (protocol/client/wire.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum InvalidReason {
     /// The result used a different contract form.

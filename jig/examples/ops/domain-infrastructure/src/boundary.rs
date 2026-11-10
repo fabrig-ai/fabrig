@@ -644,7 +644,7 @@ pub enum RestartStage {
     Outbox,
 }
 
-/// The maker of a dependency amendment (domain/tasks.md, section 7).
+/// The maker of a dependency amendment (domain/tasks/changes.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Party {
     Person(u64),
@@ -660,7 +660,7 @@ pub struct Added {
     pub by: Party,
 }
 
-/// Infrastructure's translation of people.md 5.3's close answers.
+/// Infrastructure's translation of domain/people/acts.md 3's close answers.
 /// The root preserves the full saved refusal as a report fact.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum CloseOutcome {

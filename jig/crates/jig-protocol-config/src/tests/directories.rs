@@ -1,7 +1,7 @@
 use super::fixtures;
 use crate::{Directories, Directory, Engine, Path, Problem, Problems, Segment, Transport, What, Worker};
 
-// configuration.md, 10: both a path and a given directory are at most 4096 bytes.
+// configuration.md, 9: both a path and a given directory are at most 4096 bytes.
 const BOUND: usize = 4096;
 const PAST: usize = 4097;
 fn given() -> Directories {

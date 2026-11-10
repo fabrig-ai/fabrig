@@ -1,4 +1,4 @@
-//! Only supplied authority facts are said; client/domain/contract.md, 4.
+//! Only supplied authority facts are said; client/domain/contract/README.md, 3.
 use super::Words;
 use crate::words::phrases::jig::JigPhrase;
 use jig_client::contract::Lacking;

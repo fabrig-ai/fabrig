@@ -1,4 +1,4 @@
-//! Whole pages and single documents (protocol/client.md, 3 and 6).
+//! Whole pages and single documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
 use super::{Box, Limits, List, Reader, Wall, c, carried_turn_fields, cursor_fields, long_text, text, too_large, w};
 
 pub(crate) fn message_proposal_kind_fields(value: &w::MessageProposalKind) -> c::MessageProposalKind {

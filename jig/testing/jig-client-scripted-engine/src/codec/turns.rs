@@ -1,4 +1,4 @@
-//! Committed turns use the engine's transcript codec (client/domain/contract.md, 10).
+//! Committed turns use the engine's transcript codec (client/domain/contract/README.md, 8).
 use super::{List, bytes, c, encoded, problem, w};
 use smith_transcript::v7 as t;
 

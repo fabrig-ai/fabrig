@@ -1,6 +1,6 @@
 //! Conversation words use the original admitted intent, never a later composer edit.
 //! The draft owner clears that edit on its durable receipt; this module only keeps
-//! the submitted words and their read position. See client/domain/client.md, 10.
+//! the submitted words and their read position. See client/domain/client/conversations.md.
 use crate::{Ui, state::intents::Intent};
 use jig_client::contract::{Answer, Ask, Limit, MeParty, Text};
 use skein_lib::{Id, Token};

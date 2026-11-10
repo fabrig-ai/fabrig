@@ -1,4 +1,4 @@
-//! A run replaces only its own pending settings proposal (domain/tasks.md, section 9).
+//! A run replaces only its own pending settings proposal (domain/tasks/proposals.md).
 #![expect(
     clippy::disallowed_methods,
     clippy::disallowed_macros,

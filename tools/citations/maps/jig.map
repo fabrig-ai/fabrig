@@ -1,0 +1,127 @@
+jig/docs/design/domain/core.md -> jig/docs/design/domain/model.md
+title jig/docs/design/domain/engine/restart.md: The engine's restart
+jig/docs/design/domain/engine.md 6 -> jig/docs/design/domain/engine/restart.md
+title jig/docs/design/domain/engine/executors.md: Agent executors
+jig/docs/design/domain/engine.md 7 -> jig/docs/design/domain/engine/executors.md
+title jig/docs/design/domain/engine/fleet.md: The fleet
+jig/docs/design/domain/engine.md 8 -> jig/docs/design/domain/engine/fleet.md
+title jig/docs/design/domain/engine/briefs.md: Briefs and notes
+jig/docs/design/domain/engine.md 9 -> jig/docs/design/domain/engine/briefs.md 1
+jig/docs/design/domain/engine.md 10 -> jig/docs/design/domain/engine/briefs.md 2
+title jig/docs/design/domain/engine/views.md: Views
+jig/docs/design/domain/engine.md 11 -> jig/docs/design/domain/engine/views.md
+title jig/docs/design/domain/engine/settings.md: The engine's settings
+jig/docs/design/domain/engine.md 17 -> jig/docs/design/domain/engine/settings.md
+jig/docs/design/domain/engine.md -> jig/docs/design/domain/engine/README.md
+title jig/docs/design/domain/tasks/lifecycle.md: A task's lifecycle
+jig/docs/design/domain/tasks.md 5 -> jig/docs/design/domain/tasks/lifecycle.md
+title jig/docs/design/domain/tasks/holds.md: Holds
+jig/docs/design/domain/tasks.md 6 -> jig/docs/design/domain/tasks/holds.md
+title jig/docs/design/domain/tasks/changes.md: Amending, cancelling and moving
+jig/docs/design/domain/tasks.md 7 -> jig/docs/design/domain/tasks/changes.md
+title jig/docs/design/domain/tasks/messages.md: Messages
+jig/docs/design/domain/tasks.md 8 -> jig/docs/design/domain/tasks/messages.md
+title jig/docs/design/domain/tasks/proposals.md: Proposals and escalations
+jig/docs/design/domain/tasks.md 9 -> jig/docs/design/domain/tasks/proposals.md
+jig/docs/design/domain/tasks.md -> jig/docs/design/domain/tasks/README.md
+title jig/docs/design/domain/people/acts.md: What a party does
+jig/docs/design/domain/people.md 5 -> jig/docs/design/domain/people/acts.md
+title jig/docs/design/domain/people/public-reading.md: Public reading
+jig/docs/design/domain/people.md 13 -> jig/docs/design/domain/people/public-reading.md
+jig/docs/design/domain/people.md -> jig/docs/design/domain/people/README.md
+title jig/docs/design/domain/hosts/hub.md: The hub
+jig/docs/design/domain/hosts.md 6 -> jig/docs/design/domain/hosts/hub.md
+title jig/docs/design/domain/hosts/charters.md: Charters, tools and contracts
+jig/docs/design/domain/hosts.md 8 -> jig/docs/design/domain/hosts/charters.md
+jig/docs/design/domain/hosts.md -> jig/docs/design/domain/hosts/README.md
+title jig/docs/design/protocol/limits.md: Limits
+jig/docs/design/protocol/configuration.md 6 -> jig/docs/design/protocol/limits.md
+jig/docs/design/protocol/configuration.md -> jig/docs/design/protocol/configuration.md
+title jig/docs/design/protocol/channel/records.md: The channel's records
+jig/docs/design/protocol/channel.md 5 -> jig/docs/design/protocol/channel/records.md
+jig/docs/design/protocol/channel.md -> jig/docs/design/protocol/channel/README.md
+title jig/docs/design/protocol/store/records.md: Records
+jig/docs/design/protocol/store.md 5 -> jig/docs/design/protocol/store/records.md
+title jig/docs/design/protocol/store/loads.md: Loads
+jig/docs/design/protocol/store.md 7 -> jig/docs/design/protocol/store/loads.md
+title jig/docs/design/protocol/store/transcripts.md: Transcripts
+jig/docs/design/protocol/store.md 8 -> jig/docs/design/protocol/store/transcripts.md
+title jig/docs/design/protocol/store/secrets.md: Secrets
+jig/docs/design/protocol/store.md 9 -> jig/docs/design/protocol/store/secrets.md
+title jig/docs/design/protocol/store/opening.md: Opening and restart
+jig/docs/design/protocol/store.md 10 -> jig/docs/design/protocol/store/opening.md
+jig/docs/design/protocol/store.md -> jig/docs/design/protocol/store/README.md
+title jig/docs/design/protocol/client/wire.md: The wire and the connection
+jig/docs/design/protocol/client.md 3 -> jig/docs/design/protocol/client/wire.md 1
+jig/docs/design/protocol/client.md 4 -> jig/docs/design/protocol/client/wire.md 2
+title jig/docs/design/protocol/client/sign-in.md: Signing in
+jig/docs/design/protocol/client.md 8 -> jig/docs/design/protocol/client/sign-in.md
+title jig/docs/design/protocol/client/default-http.md: The default HTTP mapping
+jig/docs/design/protocol/client.md 17 -> jig/docs/design/protocol/client/default-http.md
+title jig/docs/design/protocol/client/openid.md: The OpenID provider
+jig/docs/design/protocol/client.md 18 -> jig/docs/design/protocol/client/openid.md
+title jig/docs/design/protocol/client/public-reads.md: Public reads
+jig/docs/design/protocol/client.md 19 -> jig/docs/design/protocol/client/public-reads.md
+jig/docs/design/protocol/client.md -> jig/docs/design/protocol/client/README.md
+title jig/docs/design/client/domain/client/requests.md: Keyed requests
+jig/docs/design/client/domain/client.md 6 -> jig/docs/design/client/domain/client/requests.md
+title jig/docs/design/client/domain/client/watches.md: Watches and the link
+jig/docs/design/client/domain/client.md 8 -> jig/docs/design/client/domain/client/watches.md
+title jig/docs/design/client/domain/client/conversations.md: Conversations
+jig/docs/design/client/domain/client.md 10 -> jig/docs/design/client/domain/client/conversations.md
+title jig/docs/design/client/domain/client/helpers.md: Helpers
+jig/docs/design/client/domain/client.md 19 -> jig/docs/design/client/domain/client/helpers.md
+jig/docs/design/client/domain/client.md -> jig/docs/design/client/domain/client/README.md
+title jig/docs/design/client/domain/view-state.md: The view's state
+jig/docs/design/client/domain/view.md 18 -> jig/docs/design/client/domain/view-state.md
+jig/docs/design/client/domain/view.md -> jig/docs/design/client/domain/view.md
+title jig/docs/design/client/domain/contract/requests.md: Requests
+jig/docs/design/client/domain/contract.md 3 -> jig/docs/design/client/domain/contract/requests.md
+title jig/docs/design/client/domain/contract/documents.md: Documents
+jig/docs/design/client/domain/contract.md 5 -> jig/docs/design/client/domain/contract/documents.md
+jig/docs/design/client/domain/contract.md -> jig/docs/design/client/domain/contract/README.md
+renumber jig/docs/design/domain/engine.md
+renumber jig/docs/design/domain/tasks.md
+renumber jig/docs/design/domain/people.md
+renumber jig/docs/design/domain/hosts.md
+renumber jig/docs/design/protocol/configuration.md
+renumber jig/docs/design/protocol/channel.md
+renumber jig/docs/design/protocol/store.md
+renumber jig/docs/design/protocol/client.md
+renumber jig/docs/design/client/domain/client.md
+renumber jig/docs/design/client/domain/view.md
+renumber jig/docs/design/client/domain/contract.md
+renumber jig/docs/design/domain/engine/restart.md
+renumber jig/docs/design/domain/engine/executors.md
+renumber jig/docs/design/domain/engine/fleet.md
+renumber jig/docs/design/domain/engine/briefs.md
+renumber jig/docs/design/domain/engine/views.md
+renumber jig/docs/design/domain/engine/settings.md
+renumber jig/docs/design/domain/tasks/lifecycle.md
+renumber jig/docs/design/domain/tasks/holds.md
+renumber jig/docs/design/domain/tasks/changes.md
+renumber jig/docs/design/domain/tasks/messages.md
+renumber jig/docs/design/domain/tasks/proposals.md
+renumber jig/docs/design/domain/people/acts.md
+renumber jig/docs/design/domain/people/public-reading.md
+renumber jig/docs/design/domain/hosts/hub.md
+renumber jig/docs/design/domain/hosts/charters.md
+renumber jig/docs/design/protocol/limits.md
+renumber jig/docs/design/protocol/channel/records.md
+renumber jig/docs/design/protocol/store/records.md
+renumber jig/docs/design/protocol/store/loads.md
+renumber jig/docs/design/protocol/store/transcripts.md
+renumber jig/docs/design/protocol/store/secrets.md
+renumber jig/docs/design/protocol/store/opening.md
+renumber jig/docs/design/protocol/client/wire.md
+renumber jig/docs/design/protocol/client/sign-in.md
+renumber jig/docs/design/protocol/client/default-http.md
+renumber jig/docs/design/protocol/client/openid.md
+renumber jig/docs/design/protocol/client/public-reads.md
+renumber jig/docs/design/client/domain/client/requests.md
+renumber jig/docs/design/client/domain/client/watches.md
+renumber jig/docs/design/client/domain/client/conversations.md
+renumber jig/docs/design/client/domain/client/helpers.md
+renumber jig/docs/design/client/domain/view-state.md
+renumber jig/docs/design/client/domain/contract/requests.md
+renumber jig/docs/design/client/domain/contract/documents.md

@@ -1,4 +1,4 @@
-//! Total translations of the test connector records (protocol/store.md, 12).
+//! Total translations of the test connector records (protocol/store/README.md, 7).
 use crate::{Undecodable, v2 as w};
 use alloc::boxed::Box;
 use jig_test_connector as d;

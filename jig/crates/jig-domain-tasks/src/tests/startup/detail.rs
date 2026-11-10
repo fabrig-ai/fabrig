@@ -1,4 +1,4 @@
-//! Stored rows exercise keyed fit diagnostics (engine.md, 6).
+//! Stored rows exercise keyed fit diagnostics (domain/engine/restart.md).
 use super::*;
 use crate::{RestoreBound as B, RestoreCause as C, RestoreFailure, RestoreLlmWhy as Why};
 use skein_lib::length::len_u64;

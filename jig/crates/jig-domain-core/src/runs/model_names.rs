@@ -1,4 +1,4 @@
-//! Fresh named authority admission follows people's retained-key lookup (store.md, 5.1).
+//! Fresh named authority admission follows people's retained-key lookup (protocol/store/records.md, 1).
 use alloc::boxed::Box;
 use jig_domain_people as people;
 

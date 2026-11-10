@@ -1,5 +1,5 @@
-//! Kept-task stories at the core's public entrances (engine.md, section 15;
-//! tasks.md, section 5.7). Assertions observe durable rows and party deliveries.
+//! Kept-task stories at the core's public entrances (domain/engine/README.md, section 9;
+//! domain/tasks/lifecycle.md, section 8). Assertions observe durable rows and party deliveries.
 use super::*;
 use jig_core_world::world::Setup;
 use jig_domain_link::{Form, Hello, Hosting, Phase, Scheme};

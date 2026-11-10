@@ -1,5 +1,5 @@
 //! People act on the public tree over actual core, worker and applied store doors
-//! (client/domain/testing.md, sections 5–6; domain/people.md, section 11).
+//! (client/domain/testing.md, sections 5–6; domain/people/README.md, section 10).
 use super::{Joint, session::Session};
 use crate::{Settings, Test, Until, World};
 use jig_client_domain::contract as client;

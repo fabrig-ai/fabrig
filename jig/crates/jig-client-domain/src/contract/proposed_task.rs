@@ -1,5 +1,5 @@
-//! Future batch members' contracts and funding (domain/tasks.md, 3 and 10;
-//! client/domain/contract.md, 5). Contract codes and fields belong to their owner.
+//! Future batch members' contracts and funding (domain/tasks/README.md, 3 and 5;
+//! client/domain/contract/documents.md). Contract codes and fields belong to their owner.
 use super::{FieldRule, Part};
 use alloc::boxed::Box;
 use skein_lib::List;
@@ -15,7 +15,7 @@ pub struct VerdictChoice {
 
 /// Result form, owner bounds and explicit projection completeness.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-/// Job tasks: jig/docs/design/client/domain/contract.md, 5.7.
+/// Job tasks: jig/docs/design/client/domain/contract/documents.md, 7.
 pub enum TaskContractDocument {
     Approval { state: Box<[u8]>, part: Part },
     Report { words: u32 },

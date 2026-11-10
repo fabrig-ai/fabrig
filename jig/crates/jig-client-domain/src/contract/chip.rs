@@ -1,4 +1,4 @@
-//! Exact retained chip owner metadata (client/domain/contract.md, 5.1;
+//! Exact retained chip owner metadata (client/domain/contract/documents.md, 1;
 //! objects.md, 3). Optional observations never attest placement or clocks.
 use super::{
     Budget, ClosingStage, DocumentText, Executor, HoldCategory, Part, Requester, ResultValue, RetryNotice, RunStage,
@@ -131,7 +131,7 @@ pub enum ChipWork {
     Ending,
 }
 
-/// Added-dependency facts carried beside task links (contract.md, 5.1).
+/// Added-dependency facts carried beside task links (client/domain/contract/documents.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Dependency {
     pub number: u64,

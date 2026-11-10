@@ -1,4 +1,4 @@
-//! A member's symbols and connector refusals (domain/tasks.md, 6.1 and 6.2).
+//! A member's symbols and connector refusals (domain/tasks/holds.md, 1 and 2).
 use super::{
     fill::{ask, filled_core, goal, signed_in},
     *,

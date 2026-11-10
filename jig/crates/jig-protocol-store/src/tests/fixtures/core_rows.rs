@@ -1,4 +1,4 @@
-//! Core archive and projection fixtures (protocol/store.md, 5.1).
+//! Core archive and projection fixtures (protocol/store/records.md, 1).
 use jig_domain_core as core;
 use jig_domain_fleet::HostKind;
 use jig_domain_people as people;

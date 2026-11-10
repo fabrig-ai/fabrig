@@ -1,4 +1,4 @@
-//! Scripted records, without an engine domain (protocol/store.md, 14).
+//! Scripted records, without an engine domain (protocol/store/README.md, 9).
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -236,7 +236,7 @@ pub fn limits() -> Limits {
     let commits = sizes::Commits { in_flight: 2, writes: 2000 };
     let mut map = skein_kv::Limits {
         key: 1024,
-        // Admit the record bounds before tightening to check_commits' sizes (protocol/store.md, 5.4).
+        // Admit the record bounds before tightening to check_commits' sizes (protocol/store/records.md, 4).
         value: 2_097_152,
         // Two places per journal write, three creation rows and one orphan erase.
         ops: 4004,
@@ -464,7 +464,7 @@ pub fn plain_commit(number: u64) -> Box<[Write]> {
     Box::new([Write::Save(header(number)), Write::Save(live_task(LIVE + 1))])
 }
 
-/// A linked person/task pair for crash rows (protocol/store.md, 14).
+/// A linked person/task pair for crash rows (protocol/store/README.md, 9).
 #[must_use]
 pub fn person(number: u64) -> core::Record {
     core::Record::People(people::Stored::Person {

@@ -1,5 +1,5 @@
 //! Long saved conversations cross the engine, worker decoding and Smith admission.
-//! Contract: temper/docs/design/domain/agent.md, 7; jig/docs/design/domain/engine.md, 9.
+//! Contract: temper/docs/design/domain/agent.md, 7; jig/docs/design/domain/engine/briefs.md, 1.
 use super::{World, engine, open_config, parties, people, tasks, text_script, worker};
 
 const HISTORY_BYTES: u32 = 2 * 1_048_576;

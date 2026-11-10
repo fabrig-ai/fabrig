@@ -1,4 +1,4 @@
-//! Client handles and exchanges (client/domain/client.md, 3 and 8).
+//! Client handles and exchanges (client/domain/client/README.md, 3 and client/domain/client/watches.md).
 use crate::contract;
 use alloc::boxed::Box;
 use skein_lib::{List, RequestEnvelope, RequestKey, RequestRecord, Secret, Token};
@@ -88,7 +88,7 @@ pub enum Why {
 pub enum Event {
     Start { kept: List<RequestRecord<Held>> },
     Send { key: Key, name: Option<RequestKey>, request: Ask },
-    // A value carried either way: sent once under its name, never kept (client/domain/client.md, 6).
+    // A value carried either way: sent once under its name, never kept (client/domain/client/requests.md).
     Carry { key: Key, name: RequestKey, request: Ask, value: Option<Secret> },
     Watch { handle: Handle, subject: Watchable },
     Unwatch { handle: Handle },
@@ -118,7 +118,7 @@ pub enum Request {
 pub enum Down {
     Save { record: RequestRecord<Held> },
     Erase { key: RequestKey },
-    // `value` only for a request carrying one, sent once (client/domain/client.md, 6).
+    // `value` only for a request carrying one, sent once (client/domain/client/requests.md).
     Send { attempt: Token, key: RequestKey, request: Ask, value: Option<Secret> },
     Open { watch: Token, subject: Watchable },
     Continue { watch: Token, subject: contract::Subject },
@@ -192,7 +192,7 @@ pub struct Pending {
     pub owner: Option<u16>,
 }
 
-/// The stream and the client-owned watch of me (client/domain/client.md, 8.2).
+/// The stream and the client-owned watch of me (client/domain/client/watches.md, 2).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Link {
     SignedOut,
@@ -202,7 +202,7 @@ pub enum Link {
     OutOfDate,
 }
 
-/// The stream admission bound reached (jig/docs/design/protocol/client.md, 4).
+/// The stream admission bound reached (jig/docs/design/protocol/client/wire.md, 2).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum StreamBound {
     Component,

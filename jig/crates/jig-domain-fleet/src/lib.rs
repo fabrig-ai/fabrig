@@ -1,9 +1,9 @@
 //! The fleet child domain of the core
-//! (programming-model.md, 4.5; domain/engine.md, sections 3 and 8): the
+//! (programming-model.md, 4.5; domain/engine/README.md, section 3 and domain/engine/fleet.md): the
 //! core's knowledge of hosts and the runs they hold. Workers dial in,
 //! and each says hello first on its channel: its slots, the workstreams it
 //! holds workspaces for, and the runs it hosts with where each is
-//! (domain/hosts.md, section 2). The engine's own configured slots are a
+//! (domain/hosts/README.md, section 2). The engine's own configured slots are a
 //! second host, present from construction and lost only on restart. The fleet
 //! places each run on a permitted host with a free slot, preferring a worker
 //! that holds its workstream,

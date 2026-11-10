@@ -1,4 +1,4 @@
-//! Hand-outs waiting for the protocol layer (jig's `domain/hosts.md`, 6.8):
+//! Hand-outs waiting for the protocol layer (jig's `domain/hosts/hub.md`, 8):
 //! each of smith's payloads goes out to be encoded, and what it was for waits
 //! here, in order, until it comes back, once.
 

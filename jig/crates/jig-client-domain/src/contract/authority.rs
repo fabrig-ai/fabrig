@@ -1,4 +1,4 @@
-//! Owner authority facts without interpretation (client/domain/contract.md, 3.2 and 5).
+//! Owner authority facts without interpretation (client/domain/contract/requests.md, 2 and client/domain/contract/documents.md).
 //! Exact field vocabulary follows domain/authority.md, sections 3 and 4.
 //! Document completeness belongs to the document wrapper; an admitted payload
 //! carries only the authority. Literal pattern bytes are never rendered as paths.
@@ -26,7 +26,7 @@ pub struct Grant {
 }
 /// Authority executor codes, distinct from a task's concrete executor.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-/// Job tasks: jig/docs/design/client/domain/contract.md, 5.7.
+/// Job tasks: jig/docs/design/client/domain/contract/documents.md, 7.
 pub enum AuthorityExecutor {
     Charter(u32),
     Procedure(u32),

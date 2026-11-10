@@ -1,4 +1,4 @@
-//! The start's switch and mark follow durable restores (engine.md, 6).
+//! The start's switch and mark follow durable restores (domain/engine/restart.md).
 
 use jig_core_world::fixtures::PROJECT;
 use jig_core_world::world::Setup;
@@ -25,7 +25,7 @@ const RESTORES: &[core::start::Phase] = &[
 fn before() -> World {
     let mut world = World::new(Setup { seed: f::SEED, patch_sets: f::BEFORE, ..Setup::default() });
     // Establish the recovered source bytes before comparing generations: a
-    // normal open may trim a log's unused tail during recovery (store.md, 10.1).
+    // normal open may trim a log's unused tail during recovery (protocol/store/opening.md, 1).
     world.store.crash(f::SEED);
     world
 }

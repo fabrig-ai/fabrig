@@ -1,4 +1,4 @@
-//! Authenticated unkeyed reads (`client/domain/contract.md`, section 6).
+//! Authenticated unkeyed reads (`client/domain/contract/README.md`, section 4).
 //! Live documents are copied at admission; past rows load in bounded owner
 //! ranges. The core keeps only each load's reply, sign-in and query. A terminal
 //! consumes it, checks current visibility and moves the answer to the journal.
@@ -50,7 +50,7 @@ use alloc::boxed::Box;
 use core::mem::size_of;
 use skein_lib::{Env, Id, List, Queue, ReplyTo, Token};
 
-/// Which physical rows a read scope loads (protocol/store.md, 4.3 and 7.3).
+/// Which physical rows a read scope loads (protocol/store/README.md, 4.3, and protocol/store/loads.md, 3).
 /// Cursor admission is separate: notes lines are joined to entry rows before paging.
 #[must_use]
 pub fn admits(party: u64, scope: &Scope, key: &crate::Key) -> bool {

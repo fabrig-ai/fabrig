@@ -120,7 +120,7 @@ fn quoted_description(description: &[u8]) -> Box<[u8]> {
     quoted.put(b"\"").unwrap();
     quoted.finish()
 }
-// MODEL_DESCRIPTION_BYTES (configuration.md, 6); each é takes two bytes.
+// MODEL_DESCRIPTION_BYTES (protocol/limits.md); each é takes two bytes.
 const DESCRIPTION_BYTES: usize = 512;
 const DESCRIPTION_CHARACTERS: usize = DESCRIPTION_BYTES / 2;
 #[test]

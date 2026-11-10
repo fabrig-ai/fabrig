@@ -33,10 +33,10 @@ a model for judgement, code for mechanisms. This draft wins over
 
 - **Today** a result-ended agent task that parks with nothing left to await
   is woken with the `NothingAwaited` notice, "Finish with your result"
-  (jig's `domain/tasks.md`, 5.2). For a goal, that run has nothing to judge:
+  (jig's `domain/tasks/lifecycle.md`, 2). For a goal, that run has nothing to judge:
   it makes the landing, later the close-out, and finishes.
 - **Then** a task may name a **closer** when it is made: a procedure
-  executor (jig's `domain/tasks.md`, 5.3) that jig runs, as the task's own
+  executor (jig's `domain/tasks/lifecycle.md`, 3) that jig runs, as the task's own
   delegate, where it would have numbered that notice. jig decides when, by
   the same rule as today; the application's procedure decides what. A task
   with no closer keeps today's notice.
@@ -125,7 +125,7 @@ store and the forge already hold:
 
 - **Words from a task wake it and are read.** Every kind its wake policy
   lets through is offered to the run it wakes: the coordinator's parts
-  cover `words` (jig's `domain/tasks.md`, 8.3 and 8.6).
+  cover `words` (jig's `domain/tasks/messages.md`, 3 and 6).
 - **No subscription to main's landings** for catch-ups. Reds still reach the
   goal through its branch's tiers (`../domain/forge.md`, section 10).
 

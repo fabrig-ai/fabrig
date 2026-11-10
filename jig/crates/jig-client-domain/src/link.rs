@@ -1,4 +1,4 @@
-//! Stream state, confirmed through the own watch (client/domain/client.md, 8.2).
+//! Stream state, confirmed through the own watch (client/domain/client/watches.md, 2).
 use crate::{Domain, Link, Request, Told, Watchable, contract, domain::tell};
 use skein_lib::Queue;
 impl Domain {
@@ -10,7 +10,7 @@ impl Domain {
     pub fn streams_full(&self) -> Option<crate::StreamsFull> {
         self.streams_full
     }
-    /// A watch held was last answered busy, with no answer since (client.md, 8.2).
+    /// A watch held was last answered busy, with no answer since (client/domain/client/watches.md, 2).
     #[must_use]
     pub fn watches_full(&self) -> bool {
         for (_, watch) in &self.watches {

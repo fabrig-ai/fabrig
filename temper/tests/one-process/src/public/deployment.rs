@@ -1,4 +1,4 @@
-//! Opening figures and start refusals (jig/docs/design/protocol/configuration.md, 6).
+//! Opening figures and start refusals (jig/docs/design/protocol/limits.md).
 use crate::{
     fixtures, stories,
     world::{self, Story},

@@ -1,4 +1,4 @@
-//! Secrets' durability, paging and restart sweep (store.md, section 9).
+//! Secrets' durability, paging and restart sweep (protocol/store/secrets.md).
 use super::fixtures;
 use crate::{CARRIED, CarriedKind, Event, Phase, Request, Restore, SecretOwner, SecretValue, Secrets, Store};
 use alloc::boxed::Box;

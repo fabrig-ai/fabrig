@@ -1,5 +1,5 @@
-//! Durable refusal facts and unsaved retry kinds (client/domain/contract.md,
-//! section 4). A judged settings refusal also carries the connector's bounded words.
+//! Durable refusal facts and unsaved retry kinds (client/domain/contract/README.md,
+//! section 3). A judged settings refusal also carries the connector's bounded words.
 use crate::Role;
 use alloc::boxed::Box;
 use skein_lib::Wall;
@@ -7,7 +7,7 @@ use skein_lib::Wall;
 /// Maximum named tasks in circle and settings-full refusal records.
 pub const NAMED_TASKS: u32 = 32;
 
-/// Who may accept a proposal of a refused request (client/domain/contract.md, 3.5).
+/// Who may accept a proposal of a refused request (client/domain/contract/requests.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Accepter {
     /// No proposal of this request could be accepted.
@@ -19,7 +19,7 @@ pub enum Accepter {
 /// A final reason a keyed request was refused.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Refusal {
-    /// A revision below the history cutoff (jig/docs/design/domain/engine.md, 17.10).
+    /// A revision below the history cutoff (jig/docs/design/domain/engine/settings.md, 10).
     Forgotten {
         oldest: u32,
     },
@@ -46,17 +46,17 @@ pub enum Refusal {
     AccountMove {
         why: crate::AccountMoveWhy,
     },
-    /// The bounded wait circle in traversal order (tasks.md, 6.7).
+    /// The bounded wait circle in traversal order (domain/tasks/holds.md, 7).
     Circle {
         tasks: Box<[u64]>,
         cut: bool,
     },
-    /// An added prerequisite already failed or was cancelled (tasks.md, 7).
+    /// An added prerequisite already failed or was cancelled (domain/tasks/changes.md).
     Dependency {
         dependency: u64,
         how: DependencyStatus,
     },
-    /// An answer is kept by its pending prerequisites (tasks.md, 5.7).
+    /// An answer is kept by its pending prerequisites (domain/tasks/lifecycle.md, 8).
     Kept {
         pending: Box<[u64]>,
     },
@@ -112,9 +112,9 @@ pub enum Refusal {
     Provider,
     /// This party's key names another ask.
     KeyConflict,
-    /// The root's requester has nobody to hold its escalations (domain/people.md, 5.1).
+    /// The root's requester has nobody to hold its escalations (domain/people/acts.md, 1).
     NoEscalationHolder,
-    /// The task's LLM choice names this configured model, refused for `why` (domain/tasks.md, 3).
+    /// The task's LLM choice names this configured model, refused for `why` (domain/tasks/README.md, 3).
     Llm {
         model: u8,
         why: crate::LlmWhy,
@@ -146,7 +146,7 @@ pub enum Malformed {
 pub enum Lack {
     /// A policy edit passes this ceiling; scalar values use their dimension's unit.
     Ceiling { holder: CeilingHolder, dimension: CeilingDimension, value: Option<u64>, asked: Option<u64> },
-    /// A placed hold waits for its owner (domain/tasks.md, 5.9).
+    /// A placed hold waits for its owner (domain/tasks/lifecycle.md, 10).
     HoldOwner { hold: u64, owner: HoldOwner },
     /// No policy role may accept this kind of party proposal.
     Approver,
@@ -326,7 +326,7 @@ pub enum Again {
     NotReady,
 }
 
-/// The terminal phase of an added prerequisite (client/domain/contract.md, 4).
+/// The terminal phase of an added prerequisite (client/domain/contract/README.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum DependencyStatus {
     Done,
@@ -334,7 +334,7 @@ pub enum DependencyStatus {
     Cancelled,
 }
 
-/// Who placed a hold, independent of the tasks child (domain/tasks.md, 5.9).
+/// Who placed a hold, independent of the tasks child (domain/tasks/lifecycle.md, 10).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum HoldOwner {
     Party { person: u64 },

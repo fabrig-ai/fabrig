@@ -1,5 +1,5 @@
-//! Restoring a version through the real store (jig/docs/design/domain/engine.md, 17.5, 17.7, 17.10;
-//! jig/docs/design/domain/connectors.md, 17; jig/docs/design/domain/people.md, 5.1 and 5.2).
+//! Restoring a version through the real store (jig/docs/design/domain/engine/settings.md, 5, 7, 10;
+//! jig/docs/design/domain/connectors.md, 17; jig/docs/design/domain/people/acts.md, 1 and 2).
 use crate::settings_support::*;
 use jig_core_world::fixtures::PROJECT;
 use jig_core_world::{
@@ -109,7 +109,7 @@ fn no_left_out(reply: &people::Reply) -> u64 {
 }
 
 #[test]
-#[ignore = "engine.md, 17.10: Restore is not admitted by people (restore-request)"]
+#[ignore = "domain/engine/settings.md, 10: Restore is not admitted by people (restore-request)"]
 fn restoring_a_revision_proposes_what_later_revisions_replaced() {
     let (mut world, owner) = setup();
     let earlier = later(&mut world, owner);
@@ -135,7 +135,7 @@ fn restoring_a_revision_proposes_what_later_revisions_replaced() {
 }
 
 #[test]
-#[ignore = "engine.md, 17.10: Restore is not admitted by people (restore-request)"]
+#[ignore = "domain/engine/settings.md, 10: Restore is not admitted by people (restore-request)"]
 fn a_restore_reads_every_page_of_the_history_after_r() {
     // Three later records cross two pages of two rows each.
     const PAGE_ROWS: u32 = 2;
@@ -170,7 +170,7 @@ fn a_restore_reads_every_page_of_the_history_after_r() {
 }
 
 #[test]
-#[ignore = "engine.md, 17.10: Restore is not admitted by people (restore-request)"]
+#[ignore = "domain/engine/settings.md, 10: Restore is not admitted by people (restore-request)"]
 fn a_restore_of_a_forgotten_revision_names_the_oldest_kept() {
     let mut world = start(2);
     let owner = sign_in(&mut world);
@@ -195,7 +195,7 @@ fn a_restore_of_a_forgotten_revision_names_the_oldest_kept() {
 }
 
 #[test]
-#[ignore = "engine.md, 17.10: Restore is not admitted by people (restore-request)"]
+#[ignore = "domain/engine/settings.md, 10: Restore is not admitted by people (restore-request)"]
 fn a_restore_of_the_newest_is_empty() {
     let (mut world, owner) = setup();
     assert_eq!(
@@ -210,7 +210,7 @@ fn a_restore_of_the_newest_is_empty() {
 }
 
 #[test]
-#[ignore = "engine.md, 17.10: Restore is not admitted by people (restore-request)"]
+#[ignore = "domain/engine/settings.md, 10: Restore is not admitted by people (restore-request)"]
 fn a_revision_made_while_a_restore_loads_refuses_it_stale() {
     let (mut world, owner) = setup();
     let edit = template_edit(&world, 7);
@@ -245,7 +245,7 @@ fn a_revision_made_while_a_restore_loads_refuses_it_stale() {
 }
 
 #[test]
-#[ignore = "engine.md, 17.10: Restore is not admitted by people (restore-request)"]
+#[ignore = "domain/engine/settings.md, 10: Restore is not admitted by people (restore-request)"]
 fn a_restore_past_the_whole_set_is_refused_too_large() {
     // A restore may carry one project's policy; two later policies exceed it.
     let (mut config, limits) = configuration();
@@ -278,7 +278,7 @@ fn a_restore_past_the_whole_set_is_refused_too_large() {
 }
 
 #[test]
-#[ignore = "engine.md, 17.10: Restore is not admitted by people (restore-request)"]
+#[ignore = "domain/engine/settings.md, 10: Restore is not admitted by people (restore-request)"]
 fn a_restore_proposes_a_project_policy_it_replaced() {
     let (mut config, limits) = configuration();
     config.core.defaults.rules.period_spend = 200;
@@ -307,7 +307,7 @@ fn connector_row(world: &World, key: connector::RecordKey) -> Option<&connector:
 }
 
 #[test]
-#[ignore = "engine.md, 17.10: Restore is not admitted by people (restore-request)"]
+#[ignore = "domain/engine/settings.md, 10: Restore is not admitted by people (restore-request)"]
 fn a_restore_of_an_applications_kind_takes_its_connectors_kept_value() {
     let (mut world, owner) = application(HISTORY);
     changed(&change(&mut world, owner, 1, 1, Box::new([app(b"v2")])), 2);
@@ -371,7 +371,7 @@ fn a_restore_leaves_out_and_names_a_deleted_projects_items() {
 }
 
 #[test]
-#[ignore = "engine.md, 17.10: history pruning sends no ForgetReplaced (restore-request)"]
+#[ignore = "domain/engine/settings.md, 10: history pruning sends no ForgetReplaced (restore-request)"]
 fn forgetting_a_revision_erases_what_its_items_replaced_at_the_connector() {
     let (mut world, owner) = application(2);
     for (against, value) in [(1, b"v2".as_slice()), (2, b"v3"), (3, b"v4"), (4, b"v5")] {
@@ -429,7 +429,7 @@ fn forgetting_a_revision_erases_what_its_items_replaced_at_the_connector() {
 }
 
 #[test]
-#[ignore = "engine.md, 17.10: Restore is not admitted by people (restore-request)"]
+#[ignore = "domain/engine/settings.md, 10: Restore is not admitted by people (restore-request)"]
 fn a_pending_restore_survives_a_restart_and_is_accepted() {
     let (mut world, owner) = setup();
     let earlier = later(&mut world, owner);

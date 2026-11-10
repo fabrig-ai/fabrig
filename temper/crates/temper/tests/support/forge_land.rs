@@ -1287,7 +1287,7 @@ impl LiveModel<'_> {
     }
     /// The stock row read after startup: the selected model's own, or the
     /// provider's dearest, whose figures a model taken by name copies
-    /// (jig's `domain/engine.md`, 17.11).
+    /// (jig's `domain/engine/settings.md`, 11).
     const fn number(self) -> &'static str {
         match self {
             Self::ChatGpt { .. } => "7",

@@ -1,5 +1,5 @@
 //! This domain's records, separate from the root request table records.
-//! Records restore, save and erase under this owner; client/domain/client.md, 11.
+//! Records restore, save and erase under this owner; client/domain/client/README.md, 8.
 use crate::state::address::Address;
 use jig_client::contract::Text;
 /// A key owned by this domain in the small store.

@@ -1,4 +1,4 @@
-//! Patched transcript reads over real file drivers and a fake disk (store.md 8.6).
+//! Patched transcript reads over real file drivers and a fake disk (protocol/store/transcripts.md 6).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,

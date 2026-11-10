@@ -1,6 +1,6 @@
 use super::*;
 
-// MODEL_DESCRIPTION_BYTES (configuration.md, 6).
+// MODEL_DESCRIPTION_BYTES (protocol/limits.md).
 const DESCRIPTION_BYTES: usize = 512;
 
 fn me_with_model(prices: w::MePricesParts, description: Option<Box<[u8]>>) -> w::Me {

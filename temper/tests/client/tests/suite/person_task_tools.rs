@@ -1,5 +1,5 @@
 //! Revisioned ctl answers wake the real requesting goal (temper/docs/design/client/tools.md, 5.5;
-//! jig/docs/design/client/domain/contract.md, 3.2).
+//! jig/docs/design/client/domain/contract/requests.md, 2).
 use jig_domain_tasks as tasks;
 use temper_client_tools::jig::{
     Printed,

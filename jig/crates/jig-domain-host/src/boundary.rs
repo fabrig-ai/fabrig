@@ -1,4 +1,4 @@
-//! The host's boundary (domain/hosts.md, sections 4 to 7). Its root
+//! The host's boundary (domain/hosts/README.md, sections 4 to 5 and domain/hosts/hub.md and domain/hosts/README.md, section 6). Its root
 //! translates core messages and the optional workspace and agent capabilities. A
 //! request's `owner` names the hosted run or its call; a terminal echoes it.
 //! The root owns application workspace items and interprets opaque tokens.
@@ -149,8 +149,8 @@ pub enum Request {
     },
 }
 
-/// The host's agent capability, translated by its root (domain/hosts.md,
-/// section 6). These requests carry no process or channel vocabulary.
+/// The host's agent capability, translated by its root (domain/hosts/hub.md
+/// ). These requests carry no process or channel vocabulary.
 #[derive(PartialEq, Eq, Debug)]
 pub enum ToAgent {
     /// Pass a named message with its sender label and words.
@@ -198,7 +198,7 @@ pub enum FromAgent {
     Withdrawn { owner: Token, call: Box<[u8]> },
     /// One completed conversation turn from the agent.
     Turn { owner: Token, turn: Turn },
-    /// A piece of live content (hosts.md, 6.5).
+    /// A piece of live content (domain/hosts/hub.md, 5).
     Piece { owner: Token, piece: crate::Piece },
     /// Typed agent activity, kept best effort for the engine.
     Activity { owner: Token, activity: crate::AgentActivity },
@@ -228,7 +228,7 @@ pub enum FromAgent {
     Gone { owner: Token, detail: Box<[u8]> },
 }
 
-/// The agent's complete start (hosts.md, sections 2 and 9).
+/// The agent's complete start (domain/hosts/README.md, sections 2 and 7).
 #[derive(PartialEq, Eq, Debug)]
 pub struct Start {
     pub live: crate::LiveAsk,
@@ -242,7 +242,7 @@ pub struct Start {
     pub grants: Box<[Grant]>,
 }
 
-/// A start's inbox message, oldest first (hosts.md, section 9).
+/// A start's inbox message, oldest first (domain/hosts/README.md, section 7).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct StartMessage {
     pub name: Token,
@@ -251,7 +251,7 @@ pub struct StartMessage {
     pub finish_requested: bool,
 }
 
-/// What the core gives the host for one run (domain/hosts.md, section 2).
+/// What the core gives the host for one run (domain/hosts/README.md, section 2).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct RunAssignment {
     pub identity: [u8; 16],
@@ -268,7 +268,7 @@ pub struct RunAssignment {
     pub grants: Box<[Grant]>,
 }
 
-/// An assignment with the conversation state the agent consumes (hosts.md, 2).
+/// An assignment with the conversation state the agent consumes (domain/hosts/README.md, 2).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct Assignment {
     pub messages: Box<[StartMessage]>,
@@ -445,7 +445,7 @@ pub enum Invalid {
     Messages,
 }
 
-/// Why a hosted run failed (hosts.md, section 6): what the engine acts on.
+/// Why a hosted run failed (domain/hosts/hub.md): what the engine acts on.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Failure {
     /// Its workspace could not be prepared.
@@ -467,10 +467,10 @@ pub enum Preparation {
     Permanent { resource: Option<Token> },
 }
 
-/// Why a run failed, as it reports it (hosts.md, section 6).
+/// Why a run failed, as it reports it (domain/hosts/hub.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RunFailure {
-    /// A configured bound refused the run's model call (domain/hosts.md, 6.3).
+    /// A configured bound refused the run's model call (domain/hosts/hub.md, 3).
     Exceeded(Exceeded),
     /// The LLM could not do the work.
     Model,
@@ -517,7 +517,7 @@ pub enum Reason {
     Shutdown,
 }
 
-/// A message refusal carried by its next turn or answer (hosts.md, 6.4).
+/// A message refusal carried by its next turn or answer (domain/hosts/hub.md, 4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Refused {
     pub name: Token,
@@ -567,7 +567,7 @@ pub enum Bound {
 }
 
 impl Event {
-    /// Whether this input starts work, rather than settling admitted work (domain/hosts.md, 6).
+    /// Whether this input starts work, rather than settling admitted work (domain/hosts/hub.md).
     #[must_use]
     pub fn new_work(&self) -> bool {
         match self {
@@ -601,7 +601,7 @@ impl Event {
     }
 }
 impl FromAgent {
-    /// Calls start new work; other reports settle hosted work (domain/hosts.md, 6).
+    /// Calls start new work; other reports settle hosted work (domain/hosts/hub.md).
     #[must_use]
     pub const fn new_work(&self) -> bool {
         match self {
@@ -625,7 +625,7 @@ impl FromAgent {
     }
 }
 
-/// What the core gives the host for one job (jig/docs/design/domain/hosts.md, 6.9).
+/// What the core gives the host for one job (jig/docs/design/domain/hosts/hub.md, 9).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct JobAssignment {
     /// The engine's names for the job task and this attempt at it.
@@ -649,7 +649,7 @@ pub enum JobEnding {
     Failed { failure: JobFailure, detail: Box<[u8]>, work: Work },
 }
 
-/// Why a hosted job failed (jig/docs/design/domain/hosts.md, 6.9): what the engine acts on.
+/// Why a hosted job failed (jig/docs/design/domain/hosts/hub.md, 9): what the engine acts on.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum JobFailure {
     /// Its workspace could not be prepared.
@@ -699,7 +699,7 @@ pub enum ToJob {
 }
 
 impl ToJob {
-    /// What a root without a job capability answers (domain/hosts.md, 6.9).
+    /// What a root without a job capability answers (domain/hosts/hub.md, 9).
     #[must_use]
     pub fn refused(self) -> FromJob {
         match self {

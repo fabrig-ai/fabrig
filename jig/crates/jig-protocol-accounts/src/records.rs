@@ -1,5 +1,5 @@
 //! Each source's record, kept in the owner's secrets' store (protocol/llm.md,
-//! 5.1, 5.2 and 5.4; store.md, 9).
+//! 5.1, 5.2 and 5.4; protocol/store/secrets.md).
 //!
 //! The driver starts from the records the store holds; each renewed record
 //! goes to the store stating the digest of the one it replaces, and the

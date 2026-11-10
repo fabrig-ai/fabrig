@@ -1,4 +1,4 @@
-//! A read of an account's list, into settings and the account's record (domain/engine.md, 17.12).
+//! A read of an account's list, into settings and the account's record (domain/engine/settings.md, 12).
 use super::party::dispatch::Routed;
 use crate::{Core, Limits, settings as s};
 use jig_domain_accounts as accounts;

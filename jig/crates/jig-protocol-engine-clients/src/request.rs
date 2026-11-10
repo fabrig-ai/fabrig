@@ -1,4 +1,4 @@
-//! Keyed request admission and version envelopes (protocol/client.md, 5 and 9).
+//! Keyed request admission and version envelopes (protocol/client/README.md, 3 and 6).
 use super::{Box, Component, Env, Limits, Queue, ReplyTo, Request, Token, Waiting, core, people, routes, sign_in, w};
 use crate::sign_in::CarriedRequest;
 use skein_lib::length::len_u64;
@@ -283,7 +283,7 @@ impl Component {
         out.push(request);
     }
     /// Answer unsupported model choices before translating names to core indices
-    /// (client/domain/contract.md, 4). Malformed records remain the caller's to reject.
+    /// (client/domain/contract/README.md, 3). Malformed records remain the caller's to reject.
     fn refuse_llm(&mut self, env: &Env<Limits>, exchange: Token, ask: &w::Ask) -> bool {
         if let Ok(Some(answer)) = crate::translate::llm::refused(ask, &self.settings.models, &env.limits.wire) {
             self.respond(exchange, routes::encoded(&answer));
@@ -296,7 +296,7 @@ impl Component {
     }
     /// Keeps the value a request carried before the core sees the
     /// request, which names it by number and digest only
-    /// (protocol/client.md, 5; store.md 9).
+    /// (protocol/client/README.md, 3; protocol/store/secrets.md).
     fn carry(
         &mut self,
         exchange: Token,

@@ -67,7 +67,7 @@ matching prompts and model/effort". Reasons: `notes.md`, section 7.
    while the run goes on. This is the pipeline's release of early tasks, with
    nothing to build. The run ends when every part of the request is in the tree.
 
-Then the goal parks (jig's `domain/engine.md`, 7.4).
+Then the goal parks (jig's `domain/engine/executors.md`, 4).
 
 ## 4. A goal's delivery
 
@@ -80,7 +80,7 @@ Then the goal parks (jig's `domain/engine.md`, 7.4).
   delivery, as for a producer.
 - **Delivering isn't finishing.** The goal's result stays a report. jig's
   charter translation grants `deliver` and `modify` with a change contract today
-  (jig's `domain/hosts.md`, section 8); a goal takes them with no change among
+  (jig's `domain/hosts/charters.md`); a goal takes them with no change among
   its outcomes.
 - **`change` lands it:** `{"branch": "run", "landing": "goal", "words": "..."}`.
   It is a change on its requester's held branch as `"mine"` is
@@ -151,7 +151,7 @@ stock's follow is settled with that plan's owner.
 ## 7. Wakes
 
 The goal's charter takes `results: last_or_failure` (jig's
-`domain/tasks.md`, 8.3): the pipeline's designer is never woken by a result.
+`domain/tasks/messages.md`, 3): the pipeline's designer is never woken by a result.
 
 | Wake | The goal |
 |---|---|

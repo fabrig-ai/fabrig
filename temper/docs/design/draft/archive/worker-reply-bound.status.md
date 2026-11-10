@@ -5,10 +5,10 @@
 Archived: the design carries the draft's vision in full. No design lag,
 departure or open decision remains.
 
-The hello's optional reply bound is `jig/docs/design/protocol/channel.md`,
-5.1 and `jig/docs/design/domain/hosts.md`, section 2; the fleet keeping it
-by a run's live attempt is `jig/docs/design/domain/engine.md`, sections 8
-and 17.8. A temper worker naming `host_reply_text` is
+The hello's optional reply bound is `jig/docs/design/protocol/channel/records.md`,
+1 and `jig/docs/design/domain/hosts/README.md`, section 2; the fleet keeping it
+by a run's live attempt is `jig/docs/design/domain/engine/fleet.md` and `jig/docs/design/domain/engine/settings.md`, section 8
+. A temper worker naming `host_reply_text` is
 `temper/docs/design/domain/worker.md`, section 6; a task read's room and
 its rendering are `temper/docs/design/domain/root.md`, 5.2 and
 `temper/docs/design/domain/agent.md`, 4.3. Where the worker names none,

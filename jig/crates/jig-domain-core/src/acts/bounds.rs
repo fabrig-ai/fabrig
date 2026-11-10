@@ -468,7 +468,7 @@ fn unproposable() -> people::Refusal {
     people::Refusal::Authority { lacking: people::Lack::Approver, proposable: Some(people::Accepter::Nobody) }
 }
 
-/// Only a newly admitted proposal needs an accepting policy role (tasks.md, 9).
+/// Only a newly admitted proposal needs an accepting policy role (domain/tasks/proposals.md).
 pub(crate) fn proposal_has_recipient(core: &Core, holder: tasks::ProposalHolder) -> bool {
     let (project, kind) = match holder {
         tasks::ProposalHolder::Policy { project, kind } => (project, kind),

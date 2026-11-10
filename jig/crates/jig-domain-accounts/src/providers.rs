@@ -1,5 +1,5 @@
 //! The configured LLM providers whose accounts this child holds (accounts.md, 3.1 and 3.4;
-//! configuration.md, 3). Numbered apart from identity providers (people.md, 3).
+//! configuration.md, 3). Numbered apart from identity providers (domain/people/README.md, 3).
 use alloc::boxed::Box;
 
 /// Maximum UTF-8 bytes in a configured provider name.

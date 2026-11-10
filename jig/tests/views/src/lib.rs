@@ -1,4 +1,4 @@
-//! A parent and scripted watchers for the views child (domain/engine.md, 11).
+//! A parent and scripted watchers for the views child (domain/engine/views.md).
 
 pub mod referee;
 pub mod world;

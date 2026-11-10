@@ -1,4 +1,4 @@
-//! Whole-prefix, header, page and transcript promises (protocol/store.md, 14).
+//! Whole-prefix, header, page and transcript promises (protocol/store/README.md, 9).
 use crate::{Restored, model::Model, root};
 use jig_domain_core as core;
 

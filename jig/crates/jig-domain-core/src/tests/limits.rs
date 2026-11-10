@@ -1,4 +1,4 @@
-//! Composite bounds agree with their children (jig/docs/design/domain/engine.md, sections 13 and 17.8).
+//! Composite bounds agree with their children (jig/docs/design/domain/engine/README.md, section 7, and jig/docs/design/domain/engine/settings.md, section 8).
 
 fn composite() -> crate::Limits {
     let mut limits = super::limits();

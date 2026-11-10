@@ -1,4 +1,4 @@
-//! Stock creation offers fit their receivers (jig/docs/design/client/domain/contract.md, 5.3).
+//! Stock creation offers fit their receivers (jig/docs/design/client/domain/contract/documents.md, 3).
 use jig_domain_core::{
     Core, Record,
     documents::{self, Document, Frame},

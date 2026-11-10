@@ -2569,7 +2569,7 @@ impl Front<Temper> for Joint {
             FrontFault::Slow { span } => self.due = Some(now.saturating_add(span)),
             // The engine receives the request but its answer is lost on a live link.
             // Report Lost immediately: this front has no exchange deadline to wait for
-            // (jig's client/domain/client.md, 16); jig-client owns the retry backoff.
+            // (jig's client/domain/client/README.md, 13); jig-client owns the retry backoff.
             FrontFault::NoAnswer => self.lose_answers = self.lose_answers.checked_add(1).expect("finite lost answers"),
             FrontFault::DropWatch => self.drop_watches(),
             FrontFault::Busy => self.keyed_fault = Some(RequestEnvelope::Again),

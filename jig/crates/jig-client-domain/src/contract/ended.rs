@@ -1,5 +1,5 @@
-//! Whole ended object facts (client/domain/contract.md, 6;
-//! client/domain/client.md, 5). These passive values supply no current offers.
+//! Whole ended object facts (client/domain/contract/README.md, 4;
+//! client/domain/client/README.md, 5). These passive values supply no current offers.
 //! Raw person goals are admitted with recurrence absent at both entry and restore;
 //! their boundary translator must refuse an unadmitted recurrence before copying.
 use super::{

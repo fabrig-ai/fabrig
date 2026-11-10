@@ -1,4 +1,4 @@
-//! Ordered restart pages and census joins (protocol/store.md, 7.2).
+//! Ordered restart pages and census joins (protocol/store/loads.md, 2).
 use super::fixtures::{self, ALICE, ENDED, LIVE};
 use crate::{Cursor, Event, Phase, Request, Restore, Row, Store, Write, keys};
 use jig_domain_core::{Census, ReadResults, Record, RestoreRange};

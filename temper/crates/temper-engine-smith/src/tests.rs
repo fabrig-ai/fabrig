@@ -442,7 +442,7 @@ fn a_finite_change_run_keeps_its_modify_policy() {
 #[test]
 fn a_starting_run_hears_its_met_dependency_by_name() {
     // A run resumed by its last dependency's end hears the Met notice that woke it (jig's
-    // domain/tasks.md, section 8.1), as a live run does.
+    // domain/tasks/messages.md, section 1), as a live run does.
     let mut assignment = assignment();
     assignment.messages = Box::new([tasks::Word {
         number: 2,

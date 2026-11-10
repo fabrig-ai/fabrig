@@ -1,4 +1,4 @@
-//! Prefixes, folded counts and zero bounds (jig/docs/design/domain/people.md, 13.9).
+//! Prefixes, folded counts and zero bounds (jig/docs/design/domain/people/public-reading.md, 9).
 use super::*;
 
 #[test]

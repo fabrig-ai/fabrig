@@ -1,6 +1,6 @@
 //! Party pages (`client/domain/pages.md`, sections 3 and 4;
-//! Closed at once (jig/docs/design/domain/people.md, 5.2).
-//! `contract.md`, 5 and 7.1). Entries are bounded cache views;
+//! Closed at once (jig/docs/design/domain/people/acts.md, 2).
+//! `client/domain/contract/documents.md` and `client/domain/contract/README.md`, 5.1). Entries are bounded cache views;
 //! needs count all live task projections across the party's projects. Reply
 //! read positions and stored inbox rows are supplied by their owners.
 use crate::{

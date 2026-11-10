@@ -1,5 +1,5 @@
 //! Authentic finite periods/pools and task-allotment accounting
-//! (domain/tasks.md, section 2; domain/authority.md, section 7).
+//! (domain/tasks/README.md, section 2; domain/authority.md, section 7).
 //! Root authorizes new allocations; tasks reserves, charges and closes their
 //! financial links once, emitting rows for one root decision. No move
 //! and retires superseded sources after their last reservations settle.
@@ -343,7 +343,7 @@ pub(crate) fn restore_fits(domain: &Domain) -> Result<(), crate::RestoreFailure>
 }
 
 /// Owned finite external period or person-pool accounting; tasks mutates the authentic counters and
-/// emits ledger saves for the root's atomic commit. (domain/tasks.md, sections 2–3).
+/// emits ledger saves for the root's atomic commit. (domain/tasks/README.md, sections 2–3).
 /// (domain/authority.md, section 7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct FundingRecord {

@@ -1,4 +1,4 @@
-//! Scripted hosts on `domain/hosts.md`, 2, 6. They know their own assignments,
+//! Scripted hosts on `domain/hosts/README.md`, 2, `domain/hosts/hub.md`. They know their own assignments,
 //! scripts and retained turns and answers; they know no core or task types.
 //! Every connection begins with hello, followed by retained traffic. A dropped
 //! connection preserves flights; past the stop bound it parks the runs. A

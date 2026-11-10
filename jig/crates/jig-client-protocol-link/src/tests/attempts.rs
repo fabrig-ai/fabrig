@@ -212,7 +212,7 @@ fn template_overrides_keep_the_wire_ceiling_when_the_client_accepts_more_rows() 
 }
 
 // The list classes stop at 32 and field text at 65,536
-// (jig/docs/design/client/domain/client.md, 14; skein/docs/design/codec.md, 4).
+// (jig/docs/design/client/domain/client/README.md, 11; skein/docs/design/codec.md, 4).
 const PAST_LIST_CLASS: u32 = 33;
 const PAST_TEXT_CLASS: u32 = 65_537;
 #[test]

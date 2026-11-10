@@ -72,7 +72,7 @@ fn stray(world: &mut World) {
 
 #[test]
 fn pinned_order_reports_exact_walk_counts() {
-    // store.md 10.2 step 4 and 10.3: each page is one commit within skein-kv's bounds (5.4), in the plan's pinned order.
+    // protocol/store/opening.md 2 step 4 and 10.3: each page is one commit within skein-kv's bounds (5.4), in the plan's pinned order.
     let mut limits = patches::limits();
     limits.commits.writes = u32::try_from(PAGE_ROWS).expect("two-put page");
     let mut world = World::unopened_observed(SEED, limits, None);
@@ -105,7 +105,7 @@ fn pinned_order_reports_exact_walk_counts() {
 
 #[test]
 fn written_keys_and_held_values_survive_paging() {
-    // store.md 10.3: the shell sets the record key in Context, and held bytes are patched by their own family.
+    // protocol/store/opening.md 3: the shell sets the record key in Context, and held bytes are patched by their own family.
     let mut records = Records::story();
     records.shelves[0].key = b"s/a".to_vec();
     records.shelves[1].key = b"s/a-much-longer-key".to_vec();
@@ -118,7 +118,7 @@ fn written_keys_and_held_values_survive_paging() {
 
 #[test]
 fn wrong_record_version_refuses_with_its_key() {
-    // store.md 10.2 step 4: a record at another version refuses Patch with its key.
+    // protocol/store/opening.md 2 step 4: a record at another version refuses Patch with its key.
     let records = Records::story();
     let key = b"l/1";
     let replacement = records.rows(PATCHED).get(key.as_slice()).expect("modeled label").clone();
@@ -149,7 +149,7 @@ fn wrong_record_version_refuses_with_its_key() {
 
 #[test]
 fn written_refusal_repeats_and_old_binary_reopens() {
-    // store.md 10.2: every start refuses the same record, and the build before opens the source as it was.
+    // protocol/store/opening.md 2: every start refuses the same record, and the build before opens the source as it was.
     let mut records = Records::story();
     records.shelves[2].books = 0;
     let mut world = pending(&records);
@@ -175,7 +175,7 @@ fn written_refusal_repeats_and_old_binary_reopens() {
 
 #[test]
 fn jig_baseline_does_not_hide_unleveled_application() {
-    // store.md 5.3: Unleveled includes another owner's none in a row whose jig level is set.
+    // protocol/store/records.md 3: Unleveled includes another owner's none in a row whose jig level is set.
     let mut world = Records::story().committed(SEED, JIG_ONLY);
     world.patch_sets(BASE);
     let before = world.contents();
@@ -186,7 +186,7 @@ fn jig_baseline_does_not_hide_unleveled_application() {
 
 #[test]
 fn manifest_is_opaque_and_unchanged_at_open() {
-    // store.md 2: nothing at open reads the manifest; it is the operator's record.
+    // protocol/store/README.md 2: nothing at open reads the manifest; it is the operator's record.
     let mut world = World::unopened(SEED);
     world.lay(&[
         Item::directory(b"generations"),
@@ -205,7 +205,7 @@ fn manifest_is_opaque_and_unchanged_at_open() {
 
 #[test]
 fn stray_cleanup_restarts_listing_and_keeps_previous() {
-    // store.md 10.1 step 5: directories are listed again from their first page until empty; active and previous stay.
+    // protocol/store/opening.md 1 step 5: directories are listed again from their first page until empty; active and previous stay.
     const STRAY_FILES: u32 = 35; // More than the world's 32-entry directory page.
     let mut world = pending(&Records::story());
     world.open_switched().expect("upgrade opens");
@@ -227,7 +227,7 @@ fn stray_cleanup_restarts_listing_and_keeps_previous() {
 
 #[test]
 fn pin_already_passed_in_store_refuses_before_copy() {
-    // store.md 10.3: after naming an upstream level already passed in the store refuses the set.
+    // protocol/store/opening.md 3: after naming an upstream level already passed in the store refuses the set.
     let mut records = Records::story();
     records.notes.clear(); // The upstream is at level 1 with an empty family; application rows remain at version 1.
     let mut world = records.committed(SEED, JIG_APPLIED);
@@ -240,7 +240,7 @@ fn pin_already_passed_in_store_refuses_before_copy() {
 
 #[test]
 fn first_start_recovers_after_every_disk_mutation() {
-    // store.md 10.4: after each first-start write, sync and rename the next start opens one whole generation.
+    // protocol/store/opening.md 4: after each first-start write, sync and rename the next start opens one whole generation.
     let mut trace = World::unopened(SEED);
     trace.trace_writes();
     trace.open_switched().expect("traced first start");

@@ -71,8 +71,8 @@ milestone that meets a question the draft leaves open takes its section
 
 - **Executes:** `tui.md`, 4.2.
 - **Design:** jig's third built-in way, in jig's
-  `client/domain/contract.md`, section 2, jig's `domain/people.md`,
-  section 3, and jig's `protocol/client.md`, section 8; the web's
+  `client/domain/contract/README.md`, section 2, jig's `domain/people/README.md`,
+  section 3, and jig's `protocol/client/sign-in.md`; the web's
   approval page in `../client/README.md` and `../client/browser.md`, 2.3
   and 2.4; the TUI's signing in, with its own lines.
 - **Builds:** jig's approval, asked, approved, refused, expired and

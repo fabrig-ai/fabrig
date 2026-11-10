@@ -1,5 +1,5 @@
 //! Requests are decided once in the party's key space and released after durability.
-//! Revision and decided-first checks precede scripted outcomes; contract.md, 3–4.
+//! Revision and decided-first checks precede scripted outcomes; client/domain/contract/requests.md and client/domain/contract/README.md, 3.
 mod creating;
 mod decisions;
 use decisions::{decided, repeated};

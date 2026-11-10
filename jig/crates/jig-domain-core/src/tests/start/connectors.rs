@@ -1,4 +1,4 @@
-//! Connector loading and the durable output gate (jig/docs/design/domain/engine.md, 6).
+//! Connector loading and the durable output gate (jig/docs/design/domain/engine/restart.md).
 use crate::{
     Ask, CoreRecord, Restored,
     effects::{connector, resources},

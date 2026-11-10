@@ -84,7 +84,7 @@ pub enum Event {
     /// engine; whoever hosts its runs' agents answers the hub's requests.
     Agent(host::FromAgent),
     /// What a run's agent streams while a completion is in flight, for the
-    /// run's followers (client/domain/contract.md, 7.3).
+    /// run's followers (client/domain/contract/README.md, 5.3).
     AgentContent { owner: Token, content: AgentContent },
     /// A typed store terminal or page.
     Store(Store),

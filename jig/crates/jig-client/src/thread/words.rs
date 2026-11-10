@@ -2,7 +2,7 @@
 //! Pending words name the root-table intent; a durable answer supplies their
 //! inbox number. Activity restores messages after reload without inventing a
 //! request token. Read words may release room because activity keeps them whole.
-//! See client/domain/client.md, 10, and domain/engine.md, 7.2.
+//! See client/domain/client/conversations.md, and domain/engine/executors.md, 2.
 //!
 //! | State | Event | Next |
 //! |---|---|---|

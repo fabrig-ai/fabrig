@@ -1,4 +1,4 @@
-//! A paged proposal of what later revisions replaced (jig/docs/design/domain/engine.md, 17.10).
+//! A paged proposal of what later revisions replaced (jig/docs/design/domain/engine/settings.md, 10).
 use crate::routing::{
     Work,
     party::dispatch::{Party, Routed},

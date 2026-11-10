@@ -1,5 +1,5 @@
 //! Run delegation, procedure batches and recurring work routed through tasks
-//! and numbered connector holdings (`domain/engine.md`, sections 4.4 and 7).
+//! and numbered connector holdings (`domain/engine/README.md`, section 4.4 and `domain/engine/executors.md`).
 
 use super::Proposing;
 use crate::routing::{HoldingsNeed, Work, effect::procedure::ProcedureCall};

@@ -11,7 +11,7 @@ extern crate alloc;
 mod binding;
 pub mod boundary;
 mod generated {
-    //! Stored reference UI records (jig/docs/design/client/domain/view.md, 18.8).
+    //! Stored reference UI records (jig/docs/design/client/domain/view-state.md, 8).
     #[rustfmt::skip]
     #[expect(
         dead_code, clippy::unnecessary_wraps, clippy::ref_option, clippy::unused_self,
@@ -23,14 +23,14 @@ mod generated {
 mod owner;
 pub mod regions;
 pub mod sizes {
-    //! Tree envelopes (jig/docs/design/client/domain/view.md, 10 and 18.9).
+    //! Tree envelopes (jig/docs/design/client/domain/view.md, 10, and jig/docs/design/client/domain/view-state.md, 9).
     pub mod limits;
     #[expect(clippy::module_inception, reason = "sizes.rs keeps its role inside the sizes namespace (view.md, 2)")]
     pub(crate) mod sizes;
 }
 
 pub mod state {
-    //! The reference UI's state (jig/docs/design/client/domain/view.md, 18).
+    //! The reference UI's state (jig/docs/design/client/domain/view-state.md).
     pub mod action;
     pub(crate) mod activity;
     pub(crate) mod acts;

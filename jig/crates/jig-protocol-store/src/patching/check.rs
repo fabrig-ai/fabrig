@@ -1,4 +1,4 @@
-//! The copy's read-only check before the switch (store.md 10.2, step 5).
+//! The copy's read-only check before the switch (protocol/store/opening.md 2, step 5).
 use super::plan::Levels;
 use crate::codec::component::{Count, CountParts};
 use crate::directory::OWNER;

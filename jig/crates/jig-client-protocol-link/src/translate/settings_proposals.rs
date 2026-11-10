@@ -1,4 +1,4 @@
-//! Settings proposal and review facts (client/domain/contract.md, 3.2 and 5.1).
+//! Settings proposal and review facts (client/domain/contract/requests.md, 2, and client/domain/contract/documents.md, 1).
 use super::settings::{
     restore_revision_item_edit, restore_revision_item_head, restore_setting, restore_setting_item, restore_setting_set,
     restore_size, wire_setting_item,

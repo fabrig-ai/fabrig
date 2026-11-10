@@ -1,4 +1,4 @@
-//! Level-triggered subjects and one-terminal watches; client/domain/contract.md, 7.
+//! Level-triggered subjects and one-terminal watches; client/domain/contract/README.md, 5.
 //! Deliveries replace the previous document. Run text alone is offset based and
 //! provisional, and never resets text belonging to an earlier turn.
 use super::{Chip, CurrentCall, LiveCall, Me, Task, Text, TurnName};

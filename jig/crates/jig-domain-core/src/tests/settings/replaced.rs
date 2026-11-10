@@ -1,4 +1,4 @@
-//! Revisions keep the states their items replaced (jig/docs/design/domain/engine.md, 17.10).
+//! Revisions keep the states their items replaced (jig/docs/design/domain/engine/settings.md, 10).
 use crate::routing::{party::dispatch::Routed, settings::dispatch};
 use crate::settings::{self as s, application as app};
 use crate::tests::*;

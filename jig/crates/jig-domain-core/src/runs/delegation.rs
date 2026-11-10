@@ -1,5 +1,5 @@
 //! Generic delegate executor and symbolic-grant decisions owned by the core
-//! (domain/engine.md, 4.4 and 17.3).
+//! (domain/engine/README.md, 4.4, and domain/engine/settings.md, 3).
 #![cfg_attr(
     not(target_arch = "wasm32"),
     expect(
@@ -36,7 +36,7 @@ pub struct Delegate {
     /// wall ends with its creator's.
     pub deadline: tasks::Deadline,
     /// An agent child's LLM choice; none for the core to resolve its charter's default within
-    /// the child's authority, as at Create (tasks.md, 3).
+    /// the child's authority, as at Create (domain/tasks/README.md, 3).
     pub llm: Option<tasks::LlmChoice>,
     /// Open connector grants narrowed with the allocated task number.
     pub symbolic_grants: Box<[tasks::Grant]>,
@@ -321,7 +321,7 @@ impl Core {
     }
 }
 
-/// A closer is a procedure the task's own delegation must name (jig/docs/design/domain/tasks.md, 5.10).
+/// A closer is a procedure the task's own delegation must name (jig/docs/design/domain/tasks/lifecycle.md, 11).
 pub(crate) fn missing_closer(flags: tasks::Flags, authority: &tasks::Authority) -> Option<tasks::Closer> {
     match flags.ended_by {
         tasks::EndedBy::Result | tasks::EndedBy::Requester => None,
@@ -384,7 +384,7 @@ pub fn resolved_delegate_authority(
 /// One delegation waiting for the task child's durable creation reply.
 pub type Delegating = (CallKey, Box<[tasks::Stub]>, Option<jig_domain_people::Given>);
 
-/// A procedure's job takes its application's bounds (jig/docs/design/domain/engine.md, 7.5).
+/// A procedure's job takes its application's bounds (jig/docs/design/domain/engine/executors.md, 5).
 pub(crate) fn job_member(jobs: &[jig_domain_link::JobBound], member: &mut Delegate) -> Result<(), tasks::Refusal> {
     let tasks::Executor::Job { kind } = member.executor else { return Ok(()) };
     let mut declared = None;

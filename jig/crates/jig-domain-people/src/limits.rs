@@ -1,9 +1,9 @@
-//! Root-configured capacities and operation-answer envelopes (domain/people.md, sections 2–5).
+//! Root-configured capacities and operation-answer envelopes (domain/people/README.md, sections 2–4 and domain/people/acts.md).
 
 use skein_lib::Duration;
 
 /// Immutable root-configured capacities and payload limits for people's retained state;
-/// validate via `valid` before construction. (domain/people.md, sections 2–5).
+/// validate via `valid` before construction. (domain/people/README.md, sections 2–4 and domain/people/acts.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     /// Configured workers plus the engine host in one retained program outcome.

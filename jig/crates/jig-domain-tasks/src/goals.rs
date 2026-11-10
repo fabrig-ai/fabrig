@@ -1,4 +1,4 @@
-//! Admission of live tracked tasks per project (domain/tasks.md, 11).
+//! Admission of live tracked tasks per project (domain/tasks/README.md, 6).
 use crate::{Domain, Limits, Refusal};
 
 pub(crate) fn room(domain: &Domain, project: u32, adding: u32, limits: &Limits) -> Result<(), Refusal> {

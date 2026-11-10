@@ -119,7 +119,7 @@ fn configured_read_room_is_smaller_than_the_maximum_frame() {
     }
 }
 
-// jig/docs/design/protocol/configuration.md, 6: development figures and their coupled limits.
+// jig/docs/design/protocol/limits.md: development figures and their coupled limits.
 #[test]
 fn standard_holds_fabrig_scale() {
     let limits = profile(Profile::Standard);
@@ -200,7 +200,7 @@ fn profiles_retain_a_day_of_deciding_answers_with_fivefold_room() {
     }
 }
 
-// jig/docs/design/domain/engine.md, 10: bodies and the calls and loads carrying them.
+// jig/docs/design/domain/engine/briefs.md, 2: bodies and the calls and loads carrying them.
 #[test]
 fn profiles_hold_a_documents_body_and_carriers() {
     for (kind, body, escaped, load) in

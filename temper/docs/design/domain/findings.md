@@ -40,7 +40,7 @@ findings, kept in the store and never read back. What is open is section
 
 ## 2. What a finding is
 
-- **Its issue,** in the project's home (jig's `domain/core.md`, 6.1),
+- **Its issue,** in the project's home (jig's `domain/model.md`, 6.1),
   created by temper (skein's `Write::CreateIssue` with its labels),
   keyed by its purpose (section 4), its title the finder's.
 - **Its labels:** `finding`; `kind:qa`, `kind:flake`, `kind:red` or

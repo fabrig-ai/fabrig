@@ -1,4 +1,4 @@
-//! Reads bounded by durable places, walking complete frames (store.md, 8.3).
+//! Reads bounded by durable places, walking complete frames (protocol/store/transcripts.md, 3).
 use super::{File, Stage, frame};
 use crate::{Arrived, Below, Event, Limits, Phase, Store, TranscriptRead, codec, keys, open, reads};
 use alloc::boxed::Box;

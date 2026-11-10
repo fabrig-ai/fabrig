@@ -1,4 +1,4 @@
-//! Startup file names and bounds; this crate performs no reads (configuration.md, 7).
+//! Startup file names and bounds; this crate performs no reads (configuration.md, 6).
 use crate::{Engine, Path, Segment, Worker, llm::Transport};
 use alloc::boxed::Box;
 use skein_lib::{List, Secret, bytes};
@@ -102,7 +102,7 @@ pub(crate) fn push(files: &mut List<File>, at: Path, path: &[u8], max: u32, priv
     files.push(file).expect("capacity includes every configured file");
 }
 
-/// The files a configuration names, by path, as a process's shell read them (configuration.md, 7).
+/// The files a configuration names, by path, as a process's shell read them (configuration.md, 6).
 #[derive(Debug)]
 pub struct Files {
     pub entries: List<(Box<[u8]>, Secret)>,

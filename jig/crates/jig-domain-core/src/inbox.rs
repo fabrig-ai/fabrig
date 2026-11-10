@@ -1,5 +1,5 @@
 //! Volatile party inbox projections from the task child's durable rows.
-//! The core routes these sibling facts on save and restore (domain/engine.md, 4.4).
+//! The core routes these sibling facts on save and restore (domain/engine/README.md, 4.4).
 
 mod census;
 
@@ -446,7 +446,7 @@ fn matches_ended(phase: &tasks::Phase) -> bool {
 }
 
 impl Core {
-    /// Projects on a reader's settings row (jig/docs/design/domain/engine.md, 17.6).
+    /// Projects on a reader's settings row (jig/docs/design/domain/engine/settings.md, 6).
     pub(crate) fn settings_row_projects(&self, party: u64, key: (people::Proposer, u32)) -> List<u32> {
         let Some(proposal) = self.settings_proposals.get(&key) else { return List::with_capacity(0) };
         let mut projects = proposal.projects();
@@ -483,7 +483,7 @@ impl Core {
 }
 
 impl Core {
-    /// Enable the person's direct inbox answers (domain/people.md, 6).
+    /// Enable the person's direct inbox answers (domain/people/README.md, 5).
     /// Set by the application after `Core::new`, before the first step; off by default.
     pub fn person_answers(&mut self) {
         self.person_answers = true;

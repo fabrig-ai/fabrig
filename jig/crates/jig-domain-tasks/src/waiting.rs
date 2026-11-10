@@ -1,4 +1,4 @@
-//! The live inbox and pending decisions in message-number order (tasks.md, 8.2 and 9).
+//! The live inbox and pending decisions in message-number order (domain/tasks/messages.md, 2 and domain/tasks/proposals.md).
 use crate::Word;
 use crate::domain::{Domain, record};
 

@@ -271,7 +271,7 @@ fn refusal_for(refusal: &c::Refusal) -> Refusal {
         return Refusal::TooLong { bound: *limit };
     }
     if let c::Refusal::Limit { which: c::Limit::Admission { which: c::AdmissionLimit::Words } } = refusal {
-        // jig/docs/design/domain/engine.md, 10.1: admission names no bound; notes.party_bytes defaults to 120.
+        // jig/docs/design/domain/engine/briefs.md, 2.1: admission names no bound; notes.party_bytes defaults to 120.
         return Refusal::TooLong { bound: 120 };
     }
     Refusal::Other(refusal.clone())

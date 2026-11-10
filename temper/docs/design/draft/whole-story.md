@@ -182,7 +182,7 @@ Each thing they do has its place in temper:
 | plans cut by a designer and run by coding agents, questions through a foreman | a goal, its coordinator, its changes | `reference-code-production.md`, `goal-as-designer.md`, `per-wake.md` |
 | a landing queue, tiers after landing | landing, tiers | `reference-landing.md` |
 | long sessions owning areas, woken by their mail, timers and watches | standing roles and what wakes them | `standing-roles.md` |
-| messages between sessions, each with a class: now, by a time, for information | messages between tasks, and wake policies | jig's `domain/tasks.md`, 8.3 |
+| messages between sessions, each with a class: now, by a time, for information | messages between tasks, and wake policies | jig's `domain/tasks/messages.md`, 3 |
 | a status written for the person, rolled up | Home's brief, from the owners' Nows | `surfaces.md`, section 3 |
 | decisions taken in the person's place, listed for review | Decided for you | `what-reaches-you.md`, section 6 |
 | design sessions with the person | design sessions in the terminal, then Draft first | `surfaces.md`, 11.2 |

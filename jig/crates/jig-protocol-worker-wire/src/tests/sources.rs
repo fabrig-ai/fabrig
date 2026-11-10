@@ -6,7 +6,7 @@ use crate::{
 };
 use skein_lib::{List, Reader, Writer};
 
-// jig/docs/design/protocol/channel.md, 5.1 bounds a login email in bytes.
+// jig/docs/design/protocol/channel/records.md, 1 bounds a login email in bytes.
 const EMAIL_BYTES: usize = 255;
 
 #[test]
@@ -56,7 +56,7 @@ fn source_record_fields_refuse_one_byte_past_each_bound() {
             length == 32
         );
     }
-    // channel.md, 5.1: optional UTF-8 email, at most 255 bytes.
+    // protocol/channel/records.md, 1: optional UTF-8 email, at most 255 bytes.
     for (email, valid) in [
         (None, true),
         (Some(Box::from(b"you@example.com".as_slice())), true),

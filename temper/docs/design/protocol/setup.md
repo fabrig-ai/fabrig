@@ -1558,7 +1558,7 @@ temper box
   serve to read its standard input to its end before it starts anything,
   and it gives what it read to jig's sign-in component, the first 32 bytes
   as the printed link's `link_secret` and the next 32 as the local link's
-  `local_secret` (jig's `protocol/client.md`, section 8, *A secret given*). No argument and no
+  `local_secret` (jig's `protocol/client/sign-in.md`, *A secret given*). No argument and no
   environment entry carries it, and no log holds it. Every later start
   has no such pipe, its standard input is the null device, and its
   component draws its own first secret, so a restart never replays a
@@ -1729,7 +1729,7 @@ temper box
   (7.6).
 
   The box draws the link's secret as jig's sign-in component draws one
-  (jig's `protocol/client.md`, section 8): 32 bytes from the platform's
+  (jig's `protocol/client/sign-in.md`): 32 bytes from the platform's
   randomness, once, before the box starts anything. Serve's first start
   takes it (7.1), and its expiry runs from then. A link opened before serve
   is ready waits on its connection, in the backlog of the socket the box
@@ -1740,7 +1740,7 @@ temper box
   passes as it does for any listener given.
 
   A fresh link, after a spent or expired one was opened (jig's
-  `protocol/client.md`, section 8) or a restarted serve's first, is printed
+  `protocol/client/sign-in.md`) or a restarted serve's first, is printed
   alone, a blank line on stderr and then the link on stdout, neither with a
   time. A restarted serve draws its own first secret, and the box gives a
   secret to serve's first start alone.
@@ -2154,7 +2154,7 @@ and the terminal's foreground skein's `shell.md`, 6.3.
   it (`../client/README.md`, 6.17).
 - **The sign-in it hands.** Beside the printed link's secret the box
   draws the first local link's, 32 bytes as jig's sign-in component draws
-  one (jig's `protocol/client.md`, section 8), once, before it starts
+  one (jig's `protocol/client/sign-in.md`), once, before it starts
   anything, and gives both to serve's first start (7.1, *The first link's
   secret*). The local link's URL, made at the clients' listener with no
   public origin, so that its host is the front's address, on the link
@@ -2436,7 +2436,7 @@ runs it (section 7).
   with the grant as a bearer (jig's `protocol/llm.md`, 5.3). The charters
   allow the provider's models in order, the default the first whose LLM
   provider has a usable account (llm.md, section 5; jig's
-  `domain/tasks.md`, section 3).
+  `domain/tasks/README.md`, section 3).
 - **Its agent's configuration** (configuration.md, section 5),
   `owned/agent.json`, declares OpenAI's endpoint and model, and
   Claude Code's program, its path and its programs directory, a
@@ -2449,7 +2449,7 @@ runs it (section 7).
   `protocol/limits.md`, 2.2: a run's main conversation and its
   sub-agents', each a program session of its own on Claude Code, smith's
   `protocol/programs.md`, 5.10) and `calls_per_response` 48 (smith's
-  `domain/session.md`, 5, and `protocol/limits.md`, 2.3), and `policy`
+  `domain/session.md`, 5, and smith's `protocol/limits.md`, 2.3), and `policy`
   `max_turns` 800, `check_timeout` 60,000 ms, `group_stop` 10, `inbox` 82
   (a run's inbox, jig's `standard` `tasks.run_inbox`, which the fleet
   holds the agent to at its hello) and `unacknowledged` 8. The stock's
@@ -2473,15 +2473,15 @@ runs it (section 7).
     `documents.text_bytes` 512, the most document text its web and
     terminal clients receive: their wire takes the larger of their
     `text`, 512, and a hold's account, 512 (jig's
-    `client/domain/contract.md`, 5.3), and refuses a longer one. It is
+    `client/domain/contract/documents.md`, 3), and refuses a longer one. It is
     also the piece a client reads a task's text in (jig's
-    `client/domain/contract.md`, 6), so it is as large as they take. A
+    `client/domain/contract/README.md`, 4), so it is as large as they take. A
     run's `read_task` has its own room, the agent's `tool_payload`, 10,662
     (`../domain/root.md`, 5.2);
   - `tasks.message_bytes` and `tasks.result_bytes`, the agent's
     advertised message bytes (above): the fleet holds the agent to the
     engine's message bound at its hello (jig's
-    `protocol/configuration.md`, 6), and a result is a message in its
+    `protocol/limits.md`), and a result is a message in its
     parent's inbox; and `tasks.inbox_bytes`, `tasks.inbox_messages` at
     that bound, 874,120, so that a task's row stays within the journal's
     carrier (`root.journal.transcript_bytes`, below);
@@ -2525,7 +2525,7 @@ runs it (section 7).
     (the worker's check, above);
   - the worker's `limits`: `io.output` a turn of T's frame on its link,
     header included, past the profile's 1,048,576, so that the worker's
-    link is made (jig's `protocol/channel.md`, 9 and 11);
+    link is made (jig's `protocol/channel/README.md`, 8 and 10);
   - `engine.limits`: `core.resume_bytes` T + 4, one largest turn with
     its length, so that a chat's window resumes whole up to that size;
   - `application.limits`: `root.journal.transcript_bytes` T + 4, the
@@ -2543,7 +2543,7 @@ runs it (section 7).
 
   jig's `standard` store page admits the frame of any turn smith admits,
   up to 33,554,432 bytes, and the store's frame and the worker wire
-  carry it (configuration.md, 13.8; jig's `protocol/store.md`, 8.1).
+  carry it (configuration.md, 13.8; jig's `protocol/store/transcripts.md`, 1).
   The other KV bounds stay as they are: a turn's body is a transcript
   file's, never a KV value. Startup refuses a figure past its wire
   field's ceiling.
@@ -2801,7 +2801,7 @@ override.
   declares it too (8.2).
 - **Its projects:** none. Its `engine.projects` is `[]`: jig makes
   each first owner a deployment owner with no project configured
-  (jig's `domain/people.md`, 3), and the engine, the playground and the
+  (jig's `domain/people/README.md`, 3), and the engine, the playground and the
   client run a deployment with no project. Projects are made at
   runtime: the playground's start makes the playground's, "Demo"
   (8.4), and the welcome's Ready the person's first, "Hello" for
@@ -2941,8 +2941,8 @@ them as it does any Forgejo.
   order, each under the sign-in of the person who sent the start, with a
   key derived from the start's, since the account's uses are its
   holder's request, a first owner's for the deployment's account, which
-  no act in the deployment's name makes (jig's `domain/people.md`, 5.1
-  and 5.3):
+  no act in the deployment's name makes (jig's `domain/people/acts.md`, 1
+  and 3):
   1. the scripted account: `llm.key`'s bytes less a final newline, as
      the deployment's account of `llm.provider`, by `AddKey { provider,
      join: None, digest }`, unless the deployment holds one of that
@@ -2982,11 +2982,11 @@ them as it does any Forgejo.
   each the deployment's, the row's step naming the one under way, and
   each sent under a key derived from the fake forge's number and the
   step; the project's and the account's are acts in the deployment's
-  name, the forge connector's own (jig's `domain/people.md`, 5.3),
+  name, the forge connector's own (jig's `domain/people/acts.md`, 3),
   granted by the document's `acts` (8.3), and the forge's is the
   connector's own removal, which needs no grant:
   1. `project`: the playground's project deleted, by `RemoveProject`
-     (jig's `domain/people.md`, 5.2), with the grace of temper's chat
+     (jig's `domain/people/acts.md`, 2), with the grace of temper's chat
      template (template 1, `configuration.md`, section 2) as the
      settings hold it when the act is sent, or none once it is removed:
      jig's core reads no template, so temper's root reads it and fills
@@ -4287,7 +4287,7 @@ Each is intended; what it needs is named with it.
   first repository is adopted by the welcome's Ready, by the person
   from the adoption form, or by ctl's call in its own run, while the
   playground's start makes its acts itself (8.4). Projects are
-  made at runtime by jig's `MakeProject` (jig's `domain/core.md`,
+  made at runtime by jig's `MakeProject` (jig's `domain/model.md`,
   6.1), none seeded (8.3): the welcome's Ready makes the first run's,
   "Hello" for `work/hello` (`../client/README.md`, 3.5), and ctl's `forge setup`
   makes its `--project`, named after the repository unless the call
@@ -4428,7 +4428,7 @@ Each is intended; what it needs is named with it.
 - **A task's text past what the clients receive** (8.1). A client reads a
   spec in pieces of `documents.text_bytes`, 512, where the request
   `first-goal-fixes` of 2026-11-05 has 8,192. Going past 512 needs the web and
-  terminal clients' `text` raised (jig's `client/domain/contract.md`, 6).
+  terminal clients' `text` raised (jig's `client/domain/contract/README.md`, 4).
   Default: 512. The user's to choose, with no answer yet. A run's `read_task`
   is outside it where its worker or its process's local agent names a reply
   bound, reading in that room (`../domain/root.md`, 5.2).

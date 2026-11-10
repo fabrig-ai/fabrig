@@ -1,4 +1,4 @@
-//! Owner model acts decide against the current catalogue (domain/engine.md, 17.11).
+//! Owner model acts decide against the current catalogue (domain/engine/settings.md, 11).
 use crate::settings_support::*;
 use jig_core_world::{
     client_peer::ClientPeer,

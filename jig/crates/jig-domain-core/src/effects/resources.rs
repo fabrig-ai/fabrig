@@ -1,5 +1,5 @@
 //! Connector reports drive named hold admission (domain/connectors.md, 3.3;
-//! domain/tasks.md, 6.2). An unreported batch retains its reply and bounded
+//! domain/tasks/holds.md, 2). An unreported batch retains its reply and bounded
 //! payload without creating tasks or reserving funding. Current project roles
 //! narrow every effect and workspace check (domain/authority.md, 6). Reports retry the
 //! complete batch against current state. Uncommitted requests are retried by

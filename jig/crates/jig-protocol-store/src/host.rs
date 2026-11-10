@@ -1,5 +1,5 @@
 //! The store's three single-flight file drivers, adoption and close
-//! (jig/docs/design/protocol/store.md, 13; jig/docs/design/protocol/service.md, 11.5).
+//! (jig/docs/design/protocol/store/README.md, 8; jig/docs/design/protocol/service.md, 11.5).
 use crate::Below;
 use skein_io::{
     file,
@@ -24,7 +24,7 @@ pub struct Hosted {
     pub above: Queue<crate::Event>,
     /// Terminals the owner's dispatch hands its clients' side.
     pub secrets: Queue<crate::Event>,
-    /// The answers to the accounts' records' loads and writes (store.md, 9).
+    /// The answers to the accounts' records' loads and writes (protocol/store/secrets.md).
     pub sources: Queue<crate::Event>,
     env: Env<crate::Limits>,
     drivers: Drivers,

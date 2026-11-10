@@ -1,4 +1,4 @@
-//! Smith payloads are translated in the worker layer (jig/docs/design/protocol/channel.md, 6.1 and 6.4).
+//! Smith payloads are translated in the worker layer (jig/docs/design/protocol/channel/README.md, 5.1 and 5.4).
 use alloc::boxed::Box;
 use jig_domain_host as hub;
 use jig_domain_link::{CountKind, Form, Grant, Scheme};
@@ -7,7 +7,7 @@ use smith_host_domain as smith;
 use smith_host_protocol::Limits;
 use smith_protocol_channel::Endpoints;
 
-/// What a settled delivery's evidence is (jig/docs/design/protocol/channel.md, 6.2).
+/// What a settled delivery's evidence is (jig/docs/design/protocol/channel/README.md, 5.2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Evidence {
     /// The bytes are a receipt's or a refusal's words, as they stand.
@@ -372,7 +372,7 @@ fn exited(exit: Option<skein_io::kernel::Exit>) -> Option<smith::Exit> {
     }
 }
 
-/// Translate a settled agent list answer without exposing its credential (channel.md, 5.1).
+/// Translate a settled agent list answer without exposing its credential (protocol/channel/records.md, 1).
 #[must_use]
 pub fn list_outcome(outcome: smith::ListOutcome) -> jig_domain_link::ListOutcome {
     use jig_domain_link::{ListFailure, ListOutcome, ListedModel};

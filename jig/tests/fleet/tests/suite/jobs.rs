@@ -1,4 +1,4 @@
-//! Job hosts in the fleet's scripted world (jig/docs/design/domain/engine.md, 7.5).
+//! Job hosts in the fleet's scripted world (jig/docs/design/domain/engine/executors.md, 5).
 use jig_domain_fleet::{Answer, Call, Domain, Event, HelloRefusal, Limits, Message, Request, Undelivered};
 use jig_domain_link::{Form, Grant, Hello, Hosting, JobBound, JobKind, Phase};
 use jig_fleet_world::{Settings, World, fixtures};
@@ -77,7 +77,7 @@ impl Harness {
 
 use skein_lib::Duration;
 
-/// jig/docs/design/domain/engine.md, 7.5: jobs finish and acknowledge without agent traffic.
+/// jig/docs/design/domain/engine/executors.md, 5: jobs finish and acknowledge without agent traffic.
 #[test]
 fn jobs_settle_in_the_workers_world_without_messages_relays_or_grants() {
     for seed in 0..5 {
@@ -125,7 +125,7 @@ fn worker(h: &mut Harness, channel: Token, jobs: Box<[JobBound]>) {
     );
 }
 
-/// jig/docs/design/domain/engine.md, 7.5: placement depends only on job bounds and room.
+/// jig/docs/design/domain/engine/executors.md, 5: placement depends only on job bounds and room.
 #[test]
 fn a_job_is_placed_only_on_a_worker_whose_hello_declares_its_kind() {
     let mut h = Harness::new(LIMITS);
@@ -146,7 +146,7 @@ fn a_job_is_placed_only_on_a_worker_whose_hello_declares_its_kind() {
     );
 }
 
-/// jig/docs/design/domain/engine.md, 7.5: every bound is inclusive.
+/// jig/docs/design/domain/engine/executors.md, 5: every bound is inclusive.
 #[test]
 fn a_job_past_a_workers_bounds_for_its_kind_is_not_placed_there() {
     for bound in [
@@ -161,7 +161,7 @@ fn a_job_past_a_workers_bounds_for_its_kind_is_not_placed_there() {
     }
 }
 
-/// jig/docs/design/domain/engine.md, 7.5; jig/docs/design/protocol/channel.md, 4.3.
+/// jig/docs/design/domain/engine/executors.md, 5; jig/docs/design/protocol/channel/README.md, 4.3.
 #[test]
 fn a_hello_with_job_kinds_out_of_order_is_not_admitted() {
     for jobs in [Box::new([JobBound { kind: JobKind(9), ..JOB }, JOB]), Box::new([JOB, JOB])] {
@@ -183,7 +183,7 @@ fn a_hello_with_job_kinds_out_of_order_is_not_admitted() {
     }
 }
 
-/// jig/docs/design/domain/engine.md, 7.5: jobs receive no messages, turns, relay or renewed grants.
+/// jig/docs/design/domain/engine/executors.md, 5: jobs receive no messages, turns, relay or renewed grants.
 #[test]
 fn a_worker_never_gets_a_message_or_relay_for_a_job() {
     let mut h = Harness::new(LIMITS);
@@ -221,7 +221,7 @@ fn a_worker_never_gets_a_message_or_relay_for_a_job() {
     );
 }
 
-/// jig/docs/design/domain/engine.md, 7.5: a restored claim finds its worker with the run's adoption machinery.
+/// jig/docs/design/domain/engine/executors.md, 5: a restored claim finds its worker with the run's adoption machinery.
 #[test]
 fn an_engine_restart_adopts_a_job_its_worker_still_hosts() {
     for listed_first in [false, true] {
@@ -254,7 +254,7 @@ fn an_engine_restart_adopts_a_job_its_worker_still_hosts() {
     }
 }
 
-/// jig/docs/design/domain/engine.md, 7.5: an unlisted job claim is lost past the adoption grace.
+/// jig/docs/design/domain/engine/executors.md, 5: an unlisted job claim is lost past the adoption grace.
 #[test]
 fn an_engine_restart_loses_a_job_past_the_grace() {
     let mut h = Harness::new(LIMITS);
@@ -265,7 +265,7 @@ fn an_engine_restart_loses_a_job_past_the_grace() {
     assert_eq!(h.domain.attempts(), 0);
 }
 
-/// jig/docs/design/domain/engine.md, 7.5: the scripted world's restart restores jobs through adoption.
+/// jig/docs/design/domain/engine/executors.md, 5: the scripted world's restart restores jobs through adoption.
 #[test]
 fn jobs_are_adopted_after_a_restart_in_the_workers_world() {
     let mut adopted = 0;

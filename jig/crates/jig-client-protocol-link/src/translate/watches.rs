@@ -1,4 +1,4 @@
-//! Watch subjects and terminal reasons (protocol/client.md, 7).
+//! Watch subjects and terminal reasons (protocol/client/README.md, 5).
 use super::{documents, live, objects, pages};
 use crate::{Limits, Undecodable};
 use alloc::boxed::Box;

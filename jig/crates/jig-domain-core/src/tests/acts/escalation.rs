@@ -1,4 +1,4 @@
-//! A rejected escalation remains visible while it waits for nobody (people.md, 5.1).
+//! A rejected escalation remains visible while it waits for nobody (domain/people/acts.md, 1).
 use super::*;
 
 #[test]

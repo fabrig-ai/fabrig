@@ -1,4 +1,4 @@
-//! Signing belongs to the link (client/domain/client.md, 12).
+//! Signing belongs to the link (client/domain/client/README.md, 9).
 use crate::{
     Link, Message, Request, Signing, With,
     component::{Attempt, ExchangeKind},

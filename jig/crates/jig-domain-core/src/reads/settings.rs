@@ -1,4 +1,4 @@
-//! Dense revision reads (engine.md, 17.7; client/domain/contract.md, section 6).
+//! Dense revision reads (domain/engine/settings.md, 7; client/domain/contract/README.md, section 4).
 use crate::{
     Core, CoreRecord, Limits, Record, Request,
     reads::{
@@ -22,7 +22,7 @@ pub fn may_read(core: &Core, revision: u32) -> bool {
     core.held(revision)
 }
 
-/// Run reads use the same documents and load slots as party reads (engine.md, 7.3).
+/// Run reads use the same documents and load slots as party reads (domain/engine/executors.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum SettingsRead {
     Inventory,
@@ -39,7 +39,7 @@ pub enum SettingsAnswer {
     Unknown,
 }
 
-/// One proposal of settings, as a run reads it (engine.md, 7.3).
+/// One proposal of settings, as a run reads it (domain/engine/executors.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[cfg_attr(
     target_pointer_width = "64",
@@ -335,7 +335,7 @@ fn setting_value(core: &Core, setting: settings::Setting, revision: u32) -> Answ
     }
 }
 
-// engine.md, 17.6: current authority is read whole, never as a retained revision.
+// domain/engine/settings.md, 6: current authority is read whole, never as a retained revision.
 fn project_policy(core: &Core, project: u32, revision: u32) -> Answer {
     if revision != core.current.newest() {
         return Answer::None(Why::Unknown);
@@ -497,7 +497,7 @@ pub(super) fn revision(
 }
 
 /// A project's member may load its application revision metadata for the application's own reads.
-/// Core values and other scopes' items stay private (jig/docs/design/domain/engine.md, 17.5 and 17.7).
+/// Core values and other scopes' items stay private (jig/docs/design/domain/engine/settings.md, 5 and 7).
 pub fn revision_metadata(
     core: &mut Core,
     env: &Env<Limits>,
@@ -521,7 +521,7 @@ pub fn revision_metadata(
 }
 
 /// A project's member reads a proposal of settings that touches the project, for the application's own reads
-/// (jig/docs/design/domain/engine.md, 17.6). Other scopes' items and core values stay as the run's read gives them.
+/// (jig/docs/design/domain/engine/settings.md, 6). Other scopes' items and core values stay as the run's read gives them.
 /// Decided party proposals have no retained projects and are unknown to this read.
 pub fn project_proposal(
     core: &mut Core,
@@ -1005,7 +1005,7 @@ fn item_preview(revision: &settings::Revision, lines: u32) -> List<RevisionItemH
     items
 }
 
-/// Restore pages use the same range and byte admission as history reads (engine.md, 17.10).
+/// Restore pages use the same range and byte admission as history reads (domain/engine/settings.md, 10).
 pub(crate) fn restore_load(
     core: &mut Core,
     env: &Env<Limits>,

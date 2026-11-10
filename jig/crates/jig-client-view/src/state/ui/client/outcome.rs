@@ -1,4 +1,4 @@
-//! Local client refusals remain distinct from engine answers (view.md, 18.4).
+//! Local client refusals remain distinct from engine answers (client/domain/view-state.md, 4).
 use crate::{
     Config, Request, Ui,
     state::intents::{self, NotSent, Origin},

@@ -1,4 +1,4 @@
-//! Small requester trees for party reads (protocol/store.md, 7.3).
+//! Small requester trees for party reads (protocol/store/loads.md, 3).
 use super::{core_rows, ended_task};
 use alloc::boxed::Box;
 use jig_domain_core::{self as core, Record};

@@ -23,7 +23,7 @@ pub struct Referee {
     revisions: Vec<(Watchable, u64)>,
     stored: BTreeMap<[u8; 16], u64>,
     /// Each value the application carried: how often it was given, and how
-    /// often an exchange sent it (protocol/client.md, 5).
+    /// often an exchange sent it (protocol/client/README.md, 3).
     carried: BTreeMap<Box<[u8]>, (u64, u64)>,
 }
 impl Referee {
@@ -355,7 +355,7 @@ impl Story {
     pub fn send_named(&mut self, key: Key, name: skein_lib::RequestKey, request: Ask) {
         self.event(Event::Send { key, name: Some(name), request });
     }
-    /// Sends a request carrying `value` under `name` (protocol/client.md, 5).
+    /// Sends a request carrying `value` under `name` (protocol/client/README.md, 3).
     pub fn carry(&mut self, key: Key, name: skein_lib::RequestKey, request: Ask, value: &[u8]) {
         self.event(Event::Carry { key, name, request, value: Some(skein_lib::Secret::new(Box::from(value))) });
     }

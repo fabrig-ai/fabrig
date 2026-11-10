@@ -99,7 +99,7 @@ Code, with no model:
   costs parity.
 - **Makes the follow change** for each, its words as section 2 says, a
   delegate of the owner's, depending on the follow change before it (jig's
-  `domain/tasks.md`, 5.7). With `owner` it waits for its owner's word; with
+  `domain/tasks/lifecycle.md`, 8). With `owner` it waits for its owner's word; with
   `code` it starts when its dependency lands.
 - **Keeps the lag** (section 5) from the queue and the landed follow
   changes, with each held change's reason.
@@ -117,7 +117,7 @@ Its owner, at a wake (`standing-roles.md`, section 3):
   follow lists it with its reason.
 - **Keeps the chain whole.** A merge or a skip takes changes out of the
   chain, and jig holds a change whose dependency is cancelled until an
-  amendment removes it (jig's `domain/tasks.md`, 5.5). So the same decision
+  amendment removes it (jig's `domain/tasks/lifecycle.md`, 6). So the same decision
   that merges or skips amends the next follow change's dependency to the
   change before the ones taken out, or to none, and nothing is held for
   them.

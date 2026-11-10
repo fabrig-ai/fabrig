@@ -1,4 +1,4 @@
-//! Durable, exclusive writer slots for held resources (domain/tasks.md, 6.3).
+//! Durable, exclusive writer slots for held resources (domain/tasks/holds.md, 3).
 //! The hub knows only opaque names and fences; connectors own fresh reads.
 use crate::domain::{Domain, record, refused};
 use crate::{Limits, Name, Party, Refusal, Request, Stored, Writer, WriterSlot};

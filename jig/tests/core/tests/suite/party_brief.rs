@@ -1,4 +1,4 @@
-//! Whole requester preferences in asking briefs (`jig/docs/design/domain/engine.md`, 10.1).
+//! Whole requester preferences in asking briefs (`jig/docs/design/domain/engine/briefs.md`, 2.1).
 
 use crate::settings_support as support;
 use jig_core_world::{
@@ -17,7 +17,7 @@ use std::fmt::Write as _;
 
 const P: u64 = support::OWNER;
 const Q: u64 = 2; // The second configured owner, signed in after P.
-// The party-scope bounds in domain/engine.md, 10.1.
+// The party-scope bounds in domain/engine/briefs.md, 2.1.
 const PARTY_ENTRIES: usize = 12;
 const PARTY_BYTES: usize = 120;
 

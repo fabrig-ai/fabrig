@@ -1,4 +1,4 @@
-//! Each kept family's layout fingerprint in this build's schemas (store.md 5.3).
+//! Each kept family's layout fingerprint in this build's schemas (protocol/store/records.md 3).
 //! Written and checked by `SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-store-codecs-world --test drift`.
 use crate::codec::component::Layouts;
 

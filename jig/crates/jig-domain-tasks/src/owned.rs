@@ -1,5 +1,5 @@
 //! Pure borrowed durable-row heap measurement for root journal/load admission
-//! (domain/tasks.md, section 2; domain/engine.md, sections 5.3 and 5.6).
+//! (domain/tasks/README.md, section 2; domain/engine/README.md, sections 5.3 and 5.6).
 //! Measures existing ownership without allocating or cloning; shape admission
 //! remains with tasks and authority decisions remain with root policy checks.
 use crate::{
@@ -111,7 +111,7 @@ pub fn terminal_bytes(end: &End) -> Option<u64> {
 }
 
 /// Bytes one batch's task records and owned fields hold in all, including recurring templates
-/// (domain/tasks.md, sections 4 and 11). Returns `None` on overflow.
+/// (domain/tasks/README.md, sections 4 and 6). Returns `None` on overflow.
 #[must_use]
 pub fn batch_bytes(batch: &[crate::New]) -> Option<u64> {
     let mut total = bytes(size_of_val(batch))?;

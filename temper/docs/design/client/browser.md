@@ -22,7 +22,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   default HTTP mapping over fetch (`jig-client-protocol-http`). temper
   writes no web wire and no web protocol of its own: the client's
   records cross as jig's wire carries them, binary records from a schema
-  per owner, never JSON (jig's `protocol/client.md`, section 3).
+  per owner, never JSON (jig's `protocol/client/wire.md`, section 1).
 - **The pages temper has,** in both shells: the client's (`README.md`,
   3.5). A page added to the view is in the browser once it is in the
   view, with its look and, where it has one, its browser-only story
@@ -210,12 +210,12 @@ replay says the same clocks (`README.md`, 5.12).
   Host allow-list holding the listener's own address; a cookie without
   jig's browser header refused.
 - **Ordinary calls wait for jig's mapping's room** (jig's
-  `protocol/client.md`, 17.4). Each waiting head stays under the listener's
+  `protocol/client/default-http.md`, 4). Each waiting head stays under the listener's
   connection bound and stall deadline, with no body read until admitted;
   a closed connection drops its head. The small profile's six calls,
   four ordinary exchanges beside its two streams, therefore serve one
   page's concurrent requests in turn. Public reads retain their separate busy response (jig's
-  `protocol/client.md`, 17.5); stopping refuses waiting ordinary calls.
+  `protocol/client/default-http.md`, 5); stopping refuses waiting ordinary calls.
 - **The bundle** is skein's bundler's output (skein's `ui-web.md`,
   section 4): the shell's module, skein's stylesheet and temper's
   (2.5). temper's build embeds it in the binary (2.6);
@@ -368,7 +368,7 @@ replay says the same clocks (`README.md`, 5.12).
   address and this path alone (`README.md`, 7.1). The place is no
   page's address, as `Authorize` is none: the pages' links never lead
   to it, and the person reaches it by the address alone. The code is
-  no secret (jig's `protocol/client.md`, section 8, *Its risk*), and
+  no secret (jig's `protocol/client/sign-in.md`, *Its risk*), and
   the server's `Referrer-Policy: no-referrer` (2.2) keeps it from any
   other site the page might link to. temper's server answers `GET
   /terminal` with the page, as it answers every path that is no route
@@ -420,14 +420,14 @@ replay says the same clocks (`README.md`, 5.12).
   `protocol/browser.md`, section 11). The browser sends its cookie with
   the link's sign-in, as with any exchange: with a live link, a person
   still signed in keeps their sign-in, its number and expiry, and the answer sets no
-  cookie, so the browser's stays as it was (jig's `domain/people.md`,
+  cookie, so the browser's stays as it was (jig's `domain/people/README.md`,
   section 3); a cookie the engine does not know, or one ended or
   expired, signs in afresh, with a new cookie. The welcome follows,
   which moves on to the chats page once the first run is over, and to
   the inbox, drawing nothing of itself, on a deployment with no welcome
   (`README.md`, 3.5, The welcome).
 - **A reload, or another tab,** signs in with `Transport`, by the cookie
-  (jig's `client/domain/client.md`, section 12).
+  (jig's `client/domain/client/README.md`, section 9).
 - **Signed out,** by "Sign out" (`README.md`, 6.6; jig's sign-out clears
   the cookie) or with no link: the main is the view's
   signed-out column (`README.md`, 5.1), its heading "Signed out" and,
@@ -464,7 +464,7 @@ replay says the same clocks (`README.md`, 5.12).
   (`../protocol/sign-in.md`, 9.3). Its read and its decision go under
   jig's browser guards (jig's `protocol/browser.md`, 12.2), and the
   mapping tells the engine they carried the cookie, so the engine
-  takes them as a browser's (jig's `protocol/client.md`, 17.3); `temper
+  takes them as a browser's (jig's `protocol/client/default-http.md`, 3); `temper
   ctl`'s bearer is refused (`tools.md`, section 9). Signed out,
   the page says "Sign in first". With Google's way given, as the
   sign-in page reads it, it offers "Continue with Google", whose `then`
@@ -1308,7 +1308,7 @@ without it.
    the reason-specific signed-out paragraph (`README.md`, 5.1). After a
    server restart, reopening the first printed link shows "This link
    isn't from this temper. Use the one its terminal printed." because a
-   restart forgets retired link digests (jig's `protocol/client.md`, section 8).
+   restart forgets retired link digests (jig's `protocol/client/sign-in.md`).
    That the secret leaves the address before the first request is held by
    the shell's start order (2.1), and is not tested.
 2. **Addresses:** skein's `back_and_forward` (skein's `ui-web.md`,
@@ -1809,7 +1809,7 @@ Not in the tier, each in the lowest world that shows it:
 
 - **A failed link with a live cookie** (2.4): falling back to the cookie
   instead of keeping the link's reason is jig's client question
-  (`jig/docs/design/client/domain/client.md`, section 18). Default: the
+  (`jig/docs/design/client/domain/client/README.md`, section 15). Default: the
   reason remains until another sign-in; reload to use the cookie.
 
 - **The fresh project's draft flow** (`README.md`, 3.5, 5.3, 5.13):
@@ -1859,8 +1859,8 @@ Not in the tier, each in the lowest world that shows it:
   (section 8). Default: none; pages read again at the `max-age`, and a
   visitor never holds a stream.
 - **Public history** (8.3): ended goals from before publication or across
-  a restart need jig's source index (`jig/docs/design/domain/people.md`,
-  section 12). Default: goals ended while the public index kept the
+  a restart need jig's source index (`jig/docs/design/domain/people/README.md`,
+  section 11). Default: goals ended while the public index kept the
   project, and the board's line says what it leaves out. A merge from
   before publication can show while its change is handed from a live
   goal's tree; publication is not a commit-time cutoff. A merge past the
@@ -2467,7 +2467,7 @@ gallery builds it.
 ## 8. Reading without signing in
 
 The web client's anonymous mode: a visitor reads a public project
-(jig's `domain/people.md`, section 13) through its public documents,
+(jig's `domain/people/public-reading.md`) through its public documents,
 jig's and the forge's (`forge.md`, section 11), never signing in and
 never streaming (`../draft/first-release.md`, 5.3).
 
@@ -2483,7 +2483,7 @@ never streaming (`../draft/first-release.md`, 5.3).
 
 - **By temper's address codec,** as every page's (2.3); `<project>`
   and `<task>` are public identifiers, 16 lowercase hexadecimal digits
-  (jig's `domain/people.md`, 13.8), never numbers. A path under
+  (jig's `domain/people/public-reading.md`, 8), never numbers. A path under
   `/public` that does not read is `/public`.
 - **Served as every page is:** the server answers each with the page
   and the bundle (2.2); nothing on the server is new but the public
@@ -2495,7 +2495,7 @@ never streaming (`../draft/first-release.md`, 5.3).
   `/public`, the shell starts the public mode in place of `jig-client`'s
   sign-in: no `Transport`, no credential, no watch. It reads each
   document its page shows by jig's public `GET` through jig's HTTP
-  client end (jig's `protocol/client.md`, 17.5), and decodes it with
+  client end (jig's `protocol/client/default-http.md`, 5), and decodes it with
   jig's and the forge's public records alone.
 - **It reads again by itself,** when a document's freshness ends (the
   `max-age` its answer gave, less the `Age` a cache added), while its
@@ -2524,7 +2524,7 @@ never streaming (`../draft/first-release.md`, 5.3).
 ### 8.3 What it shows
 
 - **Titles and the project's name, no other text:** the records carry
-  no text but these (jig's `domain/people.md`, 13.3), so a project is
+  no text but these (jig's `domain/people/public-reading.md`, 3), so a project is
   its name, and a goal is "Goal" and a task "task", each with the first
   eight digits of its public identifier, then its title, with "…" where
   cut; an executor is its kind, "an agent", "a procedure", "a person".

@@ -1,4 +1,4 @@
-//! Text answers from the core's parts (protocol/channel.md, section 6.3).
+//! Text answers from the core's parts (protocol/channel/README.md, section 5.3).
 use crate::{Problem, Rendered, Why};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
@@ -449,7 +449,7 @@ fn inbox_busy(action: jig_domain_tasks::CapacityAction, task: u64, messages: u32
     )
 }
 
-// The client's dependency phrases in one line (domain/tasks.md, sections 5.7 and 6.7).
+// The client's dependency phrases in one line (domain/tasks/lifecycle.md, section 8, and domain/tasks/holds.md, section 7).
 fn dependency_list(
     problem: &jig_domain_tasks::Problem,
     plain: &[u8],
@@ -746,7 +746,7 @@ fn hold_owner(task: u64, hold: u64, revision: u64, owner: &jig_domain_people::Ho
     )
 }
 
-/// A proposal read's one-line host answer (engine.md, 7.3).
+/// A proposal read's one-line host answer (domain/engine/executors.md, 3).
 #[must_use]
 pub fn proposal_read(answer: &core::ProposalRead) -> Rendered {
     match answer {

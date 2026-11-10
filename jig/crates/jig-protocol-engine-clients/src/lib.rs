@@ -1,5 +1,5 @@
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-//! Native client exchanges and streams (protocol/client.md, sections 2 and 8).
+//! Native client exchanges and streams (protocol/client/README.md, section 2 and protocol/client/sign-in.md).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -25,5 +25,5 @@ pub use public::{PublicKind, jig_kinds};
 
 pub mod translate;
 
-/// The first printed link's secret length (jig/docs/design/protocol/client.md, 8).
+/// The first printed link's secret length (jig/docs/design/protocol/client/sign-in.md).
 pub const LINK_SECRET_BYTES: usize = 32;

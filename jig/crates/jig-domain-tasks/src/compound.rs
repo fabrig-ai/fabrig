@@ -1,4 +1,4 @@
-//! Ordered admission and whole application of a party's task operations (people.md, 5.1).
+//! Ordered admission and whole application of a party's task operations (domain/people/acts.md, 1).
 mod staged;
 use crate::{Domain, Funder, Limits, Numbers, Party, Problem, Refusal, Request};
 use alloc::boxed::Box;

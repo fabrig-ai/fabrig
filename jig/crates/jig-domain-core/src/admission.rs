@@ -1,4 +1,4 @@
-//! Admission of party and task changes (`jig/docs/design/domain/engine.md`, 4.4 and 11.5).
+//! Admission of party and task changes (`jig/docs/design/domain/engine/README.md`, 4.4, and `jig/docs/design/domain/engine/views.md`, 5).
 
 pub(crate) mod amendments;
 pub(crate) mod as_allowed;

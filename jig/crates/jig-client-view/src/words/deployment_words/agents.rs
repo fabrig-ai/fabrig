@@ -1,4 +1,4 @@
-//! The agent capability that refused a hello (engine.md, section 8).
+//! The agent capability that refused a hello (domain/engine/fleet.md).
 use skein_ui::phrases::HoleKind;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AgentPhrase {

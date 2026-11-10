@@ -1,4 +1,4 @@
-//! The core-owned charter vocabulary toward Smith (domain/hosts.md, section 8).
+//! The core-owned charter vocabulary toward Smith (domain/hosts/charters.md).
 //! Its sections, tools and contracts name no application system.
 
 use alloc::boxed::Box;
@@ -16,7 +16,7 @@ pub struct Model {
     /// The most output tokens one completion may have, thinking included.
     pub output: u32,
     /// The reasoning effort the task's LLM choice names for this model, one it declares; `None`
-    /// is the LLM provider's default (domain/tasks.md, section 3; domain/engine.md, 7.1).
+    /// is the LLM provider's default (domain/tasks/README.md, section 3; domain/engine/executors.md, 1).
     pub effort: Option<Box<[u8]>>,
 }
 
@@ -137,7 +137,7 @@ pub struct Conventions {
     pub checks: Box<[u8]>,
 }
 
-/// Workspace tool rights granted by the core's run policy (domain/hosts.md, 8).
+/// Workspace tool rights granted by the core's run policy (domain/hosts/charters.md).
 /// Translation grants `modify` only with `deliver`.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct WorkspaceTools {
@@ -148,7 +148,7 @@ pub struct WorkspaceTools {
 
 /// One core charter with its explicit tool rights.
 #[derive(Clone, PartialEq, Eq, Debug)]
-#[expect(clippy::struct_excessive_bools, reason = "independent run grants and workspace facts (domain/hosts.md, 8)")]
+#[expect(clippy::struct_excessive_bools, reason = "independent run grants and workspace facts (domain/hosts/charters.md)")]
 pub struct Charter {
     pub mode: smith_domain_run::Mode,
     pub instructions: Box<[u8]>,
@@ -158,10 +158,10 @@ pub struct Charter {
     pub agents: bool,
     pub workspace: WorkspaceTools,
     /// The application's workspace delivers for this run, outside a change among its outcomes
-    /// (domain/hosts.md, section 8). A fact of the connectors' items; it grants nothing alone.
+    /// (domain/hosts/charters.md). A fact of the connectors' items; it grants nothing alone.
     pub delivers: bool,
     pub conventions: Option<Conventions>,
-    /// The report or change contract's words, zero for other result forms (domain/hosts.md, 8).
+    /// The report or change contract's words, zero for other result forms (domain/hosts/charters.md).
     pub words: u32,
     pub contract: Contract,
     pub budget: Budget,

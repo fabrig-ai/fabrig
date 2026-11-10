@@ -1,4 +1,4 @@
-//! Secrets family ceilings stay those of their producers (store.md 9).
+//! Secrets family ceilings stay those of their producers (protocol/store/secrets.md).
 use jig_protocol_store::secrets_v1::CEILINGS;
 #[test]
 fn the_saved_record_bound_is_oauths_ceiling() {

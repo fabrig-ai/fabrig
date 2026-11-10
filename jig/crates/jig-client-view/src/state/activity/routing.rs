@@ -1,7 +1,7 @@
 //! Routes task activity, stream cursors and page folds into the conversation.
 //! Reads use the page generation's activity source; stale terminals stay outside
 //! this module. The root only carries the resulting reads, names and parts.
-//! See client/domain/client.md, 10, and contract.md, 6 and 7.3.
+//! See client/domain/client/conversations.md, and client/domain/contract/README.md, 4 and 5.3.
 use crate::{Request, Ui, state::objects::Source};
 use jig_client::contract::{ActivityPage, ChipExecutor, Limit, Read, Runtime, Task};
 use jig_client::thread::window::End;

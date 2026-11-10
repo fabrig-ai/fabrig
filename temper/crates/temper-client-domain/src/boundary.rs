@@ -97,7 +97,7 @@ pub enum Request {
     Client {
         request: jig_client::Request,
     },
-    /// What the unlinked client asks, which its host carries (jig's client.md, 4.4).
+    /// What the unlinked client asks, which its host carries (jig's client/domain/client/README.md, 4.4).
     Unlinked {
         request: jig_client::UnlinkedRequest,
     },

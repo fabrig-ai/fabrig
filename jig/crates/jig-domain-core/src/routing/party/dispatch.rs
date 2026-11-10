@@ -1,4 +1,4 @@
-//! Owned party routing values (domain/engine.md, section 4.4).
+//! Owned party routing values (domain/engine/README.md, section 4.4).
 use crate::{Request, admission::compound::PartyTask, routing::Work};
 use jig_domain_people as people;
 use skein_lib::{Queue, ReplyTo, Token};

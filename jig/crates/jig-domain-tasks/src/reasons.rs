@@ -1,9 +1,9 @@
-//! Run reasons and offered kinds (jig/docs/design/domain/tasks.md, 8.6;
-//! jig/docs/design/protocol/store.md, 5).
+//! Run reasons and offered kinds (jig/docs/design/domain/tasks/messages.md, 6;
+//! jig/docs/design/protocol/store/records.md).
 use crate::{MessageKind, Party, Word};
 
 /// Why a run runs, and the reasons a charter's part is for: one bit each
-/// (jig/docs/design/domain/tasks.md, 8.6; jig/docs/design/protocol/store.md, 5).
+/// (jig/docs/design/domain/tasks/messages.md, 6; jig/docs/design/protocol/store/records.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Reasons(pub u32);
 
@@ -116,14 +116,14 @@ pub const ALWAYS_OFFERED_NAMES: [&[u8]; 7] = [
     b"finish_requested",
 ];
 
-/// Whether the run read instructions for this entry's kind (domain/tasks.md, 8.6).
+/// Whether the run read instructions for this entry's kind (domain/tasks/messages.md, 6).
 pub(crate) fn covered(word: &Word, offered: Reasons) -> bool {
     offered.meets(Reasons::of(&word.kind))
 }
 
 /// Whether `word` goes to a run offered `offered`: always-offered kinds, entries and
 /// a person's words always; other kinds when their bit meets the offering
-/// (jig/docs/design/domain/tasks.md, 8.6).
+/// (jig/docs/design/domain/tasks/messages.md, 6).
 #[must_use]
 pub fn offered(word: &Word, offered: Reasons) -> bool {
     match &word.kind {

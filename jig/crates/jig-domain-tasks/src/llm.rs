@@ -1,15 +1,15 @@
 //! An agent task's LLM choice: its main model and the models its runs' sub-agents may use, each
-//! with an effort (domain/tasks.md, section 3). Tasks checks a choice as a batch or an amendment is
+//! with an effort (domain/tasks/README.md, section 3). Tasks checks a choice as a batch or an amendment is
 //! checked: an agent task's only, each model configured, each effort among those its model
-//! declares, each model among its charter's and within its authority's models (domain/tasks.md,
-//! sections 4 and 7; domain/authority.md, section 8.1). It resolves a charter's default for the
-//! root, which checks an omitted choice against its charter and authority (domain/tasks.md, section 3).
+//! declares, each model among its charter's and within its authority's models (domain/tasks/README.md, section 4 and domain/tasks/changes.md
+//! ; domain/authority.md, section 8.1). It resolves a charter's default for the
+//! root, which checks an omitted choice against its charter and authority (domain/tasks/README.md, section 3).
 //! The root may check a choice alone against its charter and authority's models at the newest
-//! revision, before asking for its batch (domain/tasks.md, section 4).
+//! revision, before asking for its batch (domain/tasks/README.md, section 4).
 //!
 //! Model index `i` is catalogue setting `i + 1` and bit `i` of `Models`; a hole has no
 //! efforts and belongs to no charter. Effort `e` is the `e`th effort that row declares
-//! (domain/engine.md, 17.11; `../protocol/configuration.md`, section 3).
+//! (domain/engine/settings.md, 11; `../protocol/configuration.md`, section 3).
 
 use alloc::boxed::Box;
 
@@ -22,7 +22,7 @@ use crate::{Authority, Executor, Models, Refusal};
 /// choice's sub-agents name at most this many.
 pub const MODELS: u32 = 64;
 
-/// One model and its effort (domain/tasks.md, section 3).
+/// One model and its effort (domain/tasks/README.md, section 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct ModelEffort {
     /// The catalogue number's position, starting at zero.
@@ -34,12 +34,12 @@ pub struct ModelEffort {
 
 impl ModelEffort {
     /// The index of a kept choice whose model, or the effort it named, left the catalogue:
-    /// no configured model has it (jig/docs/design/protocol/store.md, 5.1).
+    /// no configured model has it (jig/docs/design/protocol/store/records.md, 1).
     pub const GONE: u8 = u8::MAX;
 }
 
 /// What an agent task's runs' LLMs are, including its creator's optional account preference
-/// (domain/tasks.md, section 3; domain/accounts.md, section 4.3).
+/// (domain/tasks/README.md, section 3; domain/accounts.md, section 4.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LlmChoice {
     /// Creator preference, distinct from the task's successfully claimed account.
@@ -54,7 +54,7 @@ pub struct LlmChoice {
 }
 
 /// The choice every run whose reasons hold no `first` takes
-/// (jig/docs/design/domain/tasks.md, 3).
+/// (jig/docs/design/domain/tasks/README.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LlmLater {
     pub main: ModelEffort,
@@ -62,7 +62,7 @@ pub struct LlmLater {
     pub subagents: Box<[ModelEffort]>,
 }
 
-/// Why an LLM choice is refused (domain/tasks.md, sections 4 and 7).
+/// Why an LLM choice is refused (domain/tasks/README.md, section 4 and domain/tasks/changes.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum LlmFault {
     /// The model is not configured.
@@ -80,7 +80,7 @@ pub enum LlmFault {
 }
 
 /// One charter version's models, in charter order; a removal offers none
-/// (domain/engine.md, 17.3).
+/// (domain/engine/settings.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct CharterModels {
     /// The charter's number.
@@ -112,7 +112,7 @@ pub(crate) fn valid_member(new: &crate::New) -> bool {
     }
 }
 
-/// Check `choice` for a task run by `executor` within `authority` (domain/tasks.md, section 4;
+/// Check `choice` for a task run by `executor` within `authority` (domain/tasks/README.md, section 4;
 /// domain/authority.md, section 8.1). A refusal names the first model that fails and why. A choice
 /// beyond the authority is refused, not proposed: proposing a model's widening comes later.
 pub(crate) fn check(
@@ -210,7 +210,7 @@ fn allows(models: Models, model: u8) -> bool {
     }
 }
 
-/// An unnamed task must have at least one charter model within its authority (tasks.md, 3).
+/// An unnamed task must have at least one charter model within its authority (domain/tasks/README.md, 3).
 pub(crate) fn any_allowed(models: &[u8], allowed: Models) -> bool {
     for model in models {
         if allows(allowed, *model) {
@@ -229,7 +229,7 @@ fn first_effort(domain: &Domain, model: u8) -> Option<u8> {
 
 impl Domain {
     /// Check `choice` for an agent task of `charter` within `models`, at the newest
-    /// revision, as a batch checks it (domain/tasks.md, section 4): each model configured,
+    /// revision, as a batch checks it (domain/tasks/README.md, section 4): each model configured,
     /// named once among the sub-agents, each effort one its model declares, each model one
     /// the charter allows and `models` allows. A refusal names the first model that fails.
     pub fn check_llm(&self, charter: u32, models: Models, choice: &LlmChoice) -> Result<(), Refusal> {
@@ -237,7 +237,7 @@ impl Domain {
     }
 
     /// The default LLM choice of an agent task of `charter` within `models`
-    /// (domain/tasks.md, section 3): main is the first of the charter's models,
+    /// (domain/tasks/README.md, section 3): main is the first of the charter's models,
     /// in its order, within `models`, and the sub-agents the charter's others within `models`;
     /// each with its model's first declared effort, or the provider's default for a model that
     /// declares none. `None` when the charter is not configured or allows none of `models`.
@@ -246,7 +246,7 @@ impl Domain {
         self.default_llm_at(charter, self.newest(), models)
     }
 
-    /// The charter-order choice at a task's own settings revision (domain/tasks.md, section 3).
+    /// The charter-order choice at a task's own settings revision (domain/tasks/README.md, section 3).
     #[must_use]
     pub fn default_llm_at(&self, charter: u32, revision: u32, models: Models) -> Option<LlmChoice> {
         let configured = self.charter_models(charter, revision)?;
@@ -270,7 +270,7 @@ impl Domain {
 }
 
 /// Clearing the creator preference keeps the pin; an explicit different account supersedes it
-/// only in the admitted amendment (accounts.md, 4.3; tasks.md, section 7).
+/// only in the admitted amendment (accounts.md, 4.3; domain/tasks/changes.md).
 pub(crate) fn replaces_account(kept: Option<u32>, choice: &LlmChoice) -> bool {
     match choice.account {
         Some(account) => kept.is_some() && kept != Some(account),

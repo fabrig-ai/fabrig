@@ -1,5 +1,5 @@
 //! Whole-task transcript drops at the fake store's durable boundary
-//! (jig/docs/design/protocol/store.md, 11.1; jig/docs/design/protocol/store.md, 8.5, 11.1).
+//! (jig/docs/design/protocol/store/README.md, 6.1; jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/README.md, 6.1).
 use super::{core, root};
 use jig_conformance::Durable;
 use std::collections::BTreeMap;

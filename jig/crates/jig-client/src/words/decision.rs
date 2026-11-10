@@ -1,4 +1,4 @@
-//! Decision facts in the public phrasebook (client/domain/client.md, 19).
+//! Decision facts in the public phrasebook (client/domain/client/helpers.md).
 use alloc::boxed::Box;
 use skein_lib::bytes::copy_of;
 use skein_ui::phrases::{HoleKind, Segment};

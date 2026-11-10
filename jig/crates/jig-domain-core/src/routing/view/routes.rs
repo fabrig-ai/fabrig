@@ -1,6 +1,6 @@
 //! Watch admission and construction in the core's vocabulary.
-//! Closed at once (jig/docs/design/domain/people.md, 5.2).
-//! `client/domain/contract.md`, sections 3.2 and 7. Documents are made when
+//! Closed at once (jig/docs/design/domain/people/acts.md, 2).
+//! `client/domain/contract/requests.md`, section 2, and `client/domain/contract/README.md`, section 5. Documents are made when
 //! views asks and moved into held outputs; no document remains in the core.
 //! The child owns pacing and provisional text, and knows no concrete subject.
 //!
@@ -296,7 +296,7 @@ pub(crate) fn open_run(
     )
 }
 
-// Retain one clamped window for every construction (`client/domain/contract.md`, 7.2).
+// Retain one clamped window for every construction (`client/domain/contract/README.md`, 5.2).
 fn open_follow(
     core: &mut Core,
     env: &Env<Limits>,
@@ -375,7 +375,7 @@ fn open_follow(
 }
 
 // Construction authenticates jig's named values; connector values remain opaque.
-// Unmakeable documents refuse Unknown (`client/domain/contract.md`, 7.2).
+// Unmakeable documents refuse Unknown (`client/domain/contract/README.md`, 5.2).
 fn admission(core: &Core, env: &Env<Limits>, party: u64, subject: &Subject, window: &Window) -> Option<WatchRefusal> {
     if closed_subject(core, party, subject) {
         return Some(WatchRefusal::NotAllowed);

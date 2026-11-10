@@ -35,7 +35,7 @@ pub struct Limits {
     /// Public admission bounds (jig/docs/design/domain/root.md, 10).
     pub public_watermark: u32,
     pub public_reads: u32,
-    /// Public index bounds copied into the core (jig/docs/design/domain/people.md, 13.9).
+    /// Public index bounds copied into the core (jig/docs/design/domain/people/public-reading.md, 9).
     pub public: jig_domain_core::PublicIndexLimits,
     /// The byte budget for transcripts and turns (domain/root.md, 4.1).
     /// Past it, a due task’s activation waits: pacing, as the watermark is in entries.

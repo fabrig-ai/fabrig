@@ -1,4 +1,4 @@
-//! Attempt fencing through the hub's public step boundary (hosts.md, 6.5).
+//! Attempt fencing through the hub's public step boundary (domain/hosts/hub.md, 5).
 use super::*;
 use crate::{LiveAsk, LiveKind, Piece};
 

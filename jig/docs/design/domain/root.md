@@ -6,7 +6,7 @@ writes, which composes jig's core with the application's connectors and
 its own child domains. It says what the root carries, the one shape
 every root has, what jig asks of skein-lib's journal, how the root
 routes, translates and puts outputs together, its part in restart and in
-effects, and what it must never do. The core is engine.md; connectors
+effects, and what it must never do. The core is engine/README.md; connectors
 are connectors.md. What is still open is listed in section 14.
 
 ## 1. In one page
@@ -52,7 +52,7 @@ are connectors.md. What is still open is listed in section 14.
 ├── core                    jig's core (engine.md)
 ├── <connector>…            the application's connectors (connectors.md)
 ├── jig-domain-host         jig's hub, for runs on the engine's slots, if the application runs agents there (hosts.md)
-├── smith-inline-agent      the hub's agent in the engine, smith's: its domains in this process (hosts.md, 5.2)
+├── smith-inline-agent      the hub's agent in the engine, smith's: its domains in this process (hosts/README.md, 5.2)
 └── …                       the application's own child domains
 ```
 
@@ -68,7 +68,7 @@ are connectors.md. What is still open is listed in section 14.
   exhaustive enum per direction, with one variant per child.
 - **Its children are siblings,** sharing no types (programming-model.md,
   4.5). `jig-domain-link` is a shared leaf value crate, like skein-lib:
-  it owns the link's values (hosts.md, 6.1), the checked `SourceName`, `Worker`
+  it owns the link's values (hosts/hub.md, 1), the checked `SourceName`, `Worker`
   and the immutable configured-membership minter among them, which the fleet,
   the hub and accounts share. It knows no fleet, hub or accounts state, and
   whoever reads its values names it: none of the three re-exports them. The core knows each connector
@@ -107,7 +107,7 @@ iterate, after the step:
   journal. A root cannot send a held output early without writing code
   to get around the journal.
 - **Every request says what it is.** The core and the connectors mark
-  each request as part of the decision, held, or now (engine.md, 4.2).
+  each request as part of the decision, held, or now (engine/README.md, 4.2).
   The root keeps the mark: a held output goes to `d.push_held`, a now one to
   `journal.now`. The door for outputs that decide nothing and show
   nothing durable is one call, so review finds every use.
@@ -116,7 +116,7 @@ iterate, after the step:
   backlog, the journal's (`backlog()`) with the root's own work and
   queued store answers, is under the watermark; an event handed back
   changes nothing, and its sender keeps it and offers it again, as
-  engine.md, 5.1 says. What finishes admitted work is always taken, so
+  engine/README.md, 5.1 says. What finishes admitted work is always taken, so
   the backlog drains. An event that carries both is split: the root
   steps the admitted part and hands back the rest, an event of its own
   holding only the new work. The connector captures the rest's baseline
@@ -145,13 +145,13 @@ iterate, after the step:
   `new_work`, and `LinkUp` answers `new_work` as the core and the host
   do. What is left in a root's `class` is its own connectors' vocabulary.
 - **Public reads come behind.** A public read, the public party's
-  (people.md, section 13), is new work admitted only while the backlog
+  (people/public-reading.md), is new work admitted only while the backlog
   is under the public watermark, below the one every other new work
   meets, and while the core holds fewer public reads than their limit
-  (section 10); handed back, it is answered busy by the clients'
+  (`root.md`, section 10); handed back, it is answered busy by the clients'
   component and never offered again, so load from signed-in parties
   refuses public reads first. A public read loads nothing and its work
-  is bounded (people.md, 13.9), so engine completions and signed-in
+  is bounded (people/public-reading.md, 9), so engine completions and signed-in
   reads never wait on one.
 - **One decision per event.** Hand-offs complete within the step;
   nothing of a decision is left for a later step but what a child holds
@@ -170,7 +170,7 @@ iterate, after the step:
   timers at the supplied clocks. A due timer, including one refused
   admission, forbids omission. `quiescent` includes this same finishing
   derivation and its broader idle fences; false does not promise
-  that finishing can advance (engine.md, 6.1 and 11; people.md, 3).
+  that finishing can advance (engine/restart.md, 1 and engine/views.md; people/README.md, 3).
 - **A task that comes due asks its root once.** In the decision that
   makes a task due, the core asks its root with `Now::Activate`, so an
   activation runs in that decision. The root answers with
@@ -216,8 +216,8 @@ It inspects nothing it holds. What jig asks of it:
   `decide()`, that gathers one decision's writes and held outputs
   (`push_write`, `push_held`). It reserves nothing and cannot fail. The
   store's commit is an edge: it refuses a commit of more writes than its
-  `Limits.commits.writes` (`sizes::Commits`, `../protocol/store.md`,
-  5.4), and a decision past it stops the root.
+  `Limits.commits.writes` (`sizes::Commits`, `../protocol/store/records.md`,
+  4), and a decision past it stops the root.
 - **At most one commit per decision,** numbered in order; a decision
   with no write makes no commit, and its held outputs wait for the last
   commit made.
@@ -274,13 +274,13 @@ It inspects nothing it holds. What jig asks of it:
   - the workers' channel to the core, but for what a run's answer says
     it left on resources, which goes to the connectors that own them;
   - a run's call to the core's fleet, which fences it; the admitted call
-    is handed out to be decoded (`../protocol/channel.md`, 6.3), and its
+    is handed out to be decoded (`../protocol/channel/README.md`, 5.3), and its
     typed request goes to the core, or, for a connector's read or effect,
     to that connector first (section 9);
   - clients' requests, reads and watches to the core; what the core
     admits for an application's own object or subject goes, as a
     hand-off, to the connector it names, which decides the request or
-    makes the document (`../client/domain/contract.md`, 3.3;
+    makes the document (`../client/domain/contract/requests.md`, 3;
     connectors.md, 5.5);
   - a connector's system's events and answers to that connector;
   - a timer to the child that armed it.
@@ -293,7 +293,7 @@ It inspects nothing it holds. What jig asks of it:
   core. What the core says of a procedure's step, the task it made, goes
   to the procedure's connector in the same decision, and is never
   dropped (connectors.md, 6.3).
-- **Settings of the application's kinds** (engine.md, 17.5): a change's
+- **Settings of the application's kinds** (engine/settings.md, 5): a change's
   items of a kind go, as a hand-off within the change's step, to the
   connector the kind names, and its judgement back to the core; the
   core's word to keep or erase values, at a change's commit and a
@@ -301,37 +301,37 @@ It inspects nothing it holds. What jig asks of it:
   root routes by the kind's connector number, which may name any child
   of its own, and reads nothing of the values. A child of the
   application that needs a value reads it from the connector that keeps
-  it, by kind, scope and number (engine.md, 17.5).
-- **A project made** (`people.md`, 5.2): the core's word that it was
+  it, by kind, scope and number (engine/settings.md, 5).
+- **A project made** (`people/acts.md`, 2): the core's word that it was
   made, released once its commit is durable, goes to the application's
   period source, which, keeping a calendar, says the project's periods
   from then on; the reference service's, keeping none, takes nothing
   from it.
 - **To the hub inside the engine:** the core's assignments, relays and
   cancels for runs placed on the engine's own slots go to the hub, and
-  what it says goes back to the core as a worker's would (hosts.md,
-  6.1). `jig-domain-hub-link` holds what every root would otherwise spell
+  what it says goes back to the core as a worker's would (hosts/hub.md,
+  1). `jig-domain-hub-link` holds what every root would otherwise spell
   on this way: the job's assignment, a settled call's relay, a brief's
   plan, and what the core's `Now::Link` says to the link. A root sends
   the rest to its own child or its door.
 - **Between the hub and its agent capability:** `smith-inline-agent`, in
   the engine. The root translates between them as a worker's root does
   between its hub and either of smith's agent capabilities, with the
-  same functions, since both kinds speak smith's parent face (hosts.md,
+  same functions, since both kinds speak smith's parent face (hosts/README.md,
   sections 4 and 5).
 - **Below the inline agent:** its LLM completions go to the protocol
   layer, which runs them on smith's LLM component, keeping each slot's
   result contract beside it, and their terminals come back to the run
-  that asked (`../protocol/llm.md`, section 3; hosts.md, 5.2). They pass
+  that asked (`../protocol/llm.md`, section 3; hosts/README.md, 5.2). They pass
   through neither the hub nor the core. The root drains the inline
   agent's facts and content (smith's `domain/host.md`, 9.1), and a run's
   text comes from smith's LLM component in the protocol layer
   (`../protocol/llm.md`, section 3); both reach the hub as text and
-  activity (hosts.md, 6.5).
+  activity (hosts/hub.md, 5).
 - **smith's payloads, by hand-out:** as the root routes one between the
   hub and `smith-inline-agent`, it hands it out to the protocol layer to
   be decoded or encoded, as a host tool's call is, and routes on what
-  comes back; it never encodes or decodes one itself (hosts.md, 6.8).
+  comes back; it never encodes or decodes one itself (hosts/hub.md, 8).
 - **Nothing is routed by content** beyond the variant: which child an
   event is for is in its type.
 
@@ -340,13 +340,13 @@ It inspects nothing it holds. What jig asks of it:
 - **Small total functions,** one per pair of vocabularies, matching
   exhaustively, with no `_` arm, so a change on either side breaks the
   build in one place.
-- **The core's connector vocabulary** (engine.md, 4.1) is translated to
+- **The core's connector vocabulary** (engine/README.md, 4.1) is translated to
   each connector's own and back: a connector's number, its resources'
   names as paths, its effect descriptions, its verdicts, its news.
 - **The hub's agent vocabulary** is translated to smith's parent face and
   back, with the same functions whichever of smith's agent capabilities
   the root composes, smith's payloads among it by hand-out (section 5;
-  hosts.md, section 4).
+  hosts/README.md, section 4).
 - **The store's vocabulary.** The root's `Key`, `Record`, `Write` and
   `Range` wrap the core's and each connector's: one variant per child.
   Its keys order first by child, then by the child's own order, so a
@@ -359,7 +359,7 @@ It inspects nothing it holds. What jig asks of it:
 ## 7. Putting outputs together
 
 What leaves the engine is often made of parts that different children
-own (core.md, section 5). The root puts each together in the step it is
+own (model.md, section 5). The root puts each together in the step it is
 decided:
 
 - **An assignment:** the core's part (the run, its attempt, its charter,
@@ -374,7 +374,7 @@ decided:
   asked again.
 - **A run's read's answer** is the connector's alone, and goes out
   through the door; a party's read of a connector's document is held
-  behind the last commit made (engine.md, 5.2).
+  behind the last commit made (engine/README.md, 5.2).
 - **A connector's result in a dependent's brief** is a section like any
   other.
 - **A token the core drops** (a brief abandoned, a call withdrawn) is
@@ -385,7 +385,7 @@ in the root between steps; each owner hands over its part once.
 
 ## 8. Restart, from the root
 
-The core runs restart as a script (engine.md, section 6). The root:
+The core runs restart as a script (engine/restart.md). The root:
 
 1. loads the core's live ranges, the deployment's and then the
    settings' first, and restores them into the core, then says done;
@@ -444,7 +444,7 @@ stops taking them.
   half the watermark: public reads are admitted under it (section 3),
   so they never fill the backlog signed-in work is admitted to; and
   **the public reads in the core,** a third, the clients' component's
-  public reads in flight (`../protocol/configuration.md`, section 6).
+  public reads in flight (`../protocol/limits.md`).
   Both follow from the other figures, and neither is configured apart.
 - **No sum along routes,** and no worst case of the root's: the
   per-process estimate goes with the startup fit check
@@ -453,7 +453,7 @@ stops taking them.
   one core decision routes, sibling continuations included. It is the
   bound of every drain within a step (each drain a `for` over at most
   `routes`, its predicate asserted empty after: section 5 and
-  engine.md, 4.4), a loop's bound, not a reservation: nothing is sized
+  engine/README.md, 4.4), a loop's bound, not a reservation: nothing is sized
   by it. The profiles set it (small 20,783, standard 151,655); an
   application whose root wraps jig's core takes it from jig's profile.
 - **The application's limits** are configuration, given to each child as
@@ -522,7 +522,7 @@ application's.
 - **The fixed answers two roots keep.** `ops`'s and the test root's
   answers to `Now::BriefCorePlanned`, and `ops`'s to
   `Now::WorkspaceRequest`, are fixed, and the values stay, since temper's
-  do real work there (engine.md, 7.1, 9 and 17.9; section 7). Taking
+  do real work there (engine/executors.md, 1, and engine/briefs.md, 1, and engine/settings.md, 9; `root.md`, section 7). Taking
   those steps from the roots would need a new hand-off for connectors'
   sections and a gather timeout in the core. Default: the steps stay in
   the roots, and `jig-domain-hub-link`'s `brief_plan`, which takes the
@@ -545,7 +545,7 @@ application's.
   root.
 - **`ops`'s fixed host answers.** `link.rs`'s `host_out` answers the job
   starts, preparation, stops and deliveries `ops` does not offer with
-  fixed refusals, `ToJob::refused` spelling a job's (hosts.md, 6.9). They
+  fixed refusals, `ToJob::refused` spelling a job's (hosts/hub.md, 9). They
   are its capability choices, not copies. Default: they stay in `ops`,
   with a preparation's and a delivery's spelled there: a preparation's
   has one caller, and a shared delivery's saves no line.

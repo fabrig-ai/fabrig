@@ -1,11 +1,11 @@
-//! Host handoffs and opaque settled answers (domain/engine.md, 7.2–7.3;
-//! domain/hosts.md, 2). Protocol decoding and rendering remain with the root.
+//! Host handoffs and opaque settled answers (domain/engine/executors.md, 2–3;
+//! domain/hosts/README.md, 2). Protocol decoding and rendering remain with the root.
 
 use crate::{CallKey, CallRecord, Core, CoreRecord, Held, Limits, Now, Record, Request, Write};
 use alloc::boxed::Box;
 use skein_lib::{Queue, ReplyTo, length::len_u64};
 
-/// The original host tool and answer; its name is its key's (store.md, 5.1).
+/// The original host tool and answer; its name is its key's (protocol/store/records.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SettledCall {
     /// Core-issued order of this settled answer; the protocol supplies zero.
@@ -14,7 +14,7 @@ pub struct SettledCall {
     pub answer: SettledAnswer,
 }
 
-/// A settled answer and its original key, carried together on replay (store.md, 5.1).
+/// A settled answer and its original key, carried together on replay (protocol/store/records.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Settled {
     pub key: CallKey,

@@ -1,4 +1,4 @@
-//! Independent acceptance checks for store.md 8.6, 10.3 and 13.
+//! Independent acceptance checks for protocol/store/transcripts.md, 6, and protocol/store/opening.md, 3, and protocol/store/README.md, 8.
 use crate::frame_reads;
 
 use jig_protocol_store::{
@@ -460,7 +460,7 @@ fn several_frames_suspend_at_their_own_offsets_in_both_directions() {
                 panic!("page terminal: {events:?}")
             };
             assert_eq!(*owner, READER);
-            // store.md 8.3 selects a page from either end without promising its turn order.
+            // protocol/store/transcripts.md 3 selects a page from either end without promising its turn order.
             let mut page_turns: Vec<_> = turns.iter().map(|turn| turn.turn - 1).collect();
             page_turns.sort_unstable();
             let mut expected = page.to_vec();

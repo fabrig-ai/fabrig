@@ -1,4 +1,4 @@
-//! Key order against protocol/store.md, 4.3: live families come first.
+//! Key order against protocol/store/README.md, 4.3: live families come first.
 use crate::{Funder, Key};
 
 #[test]

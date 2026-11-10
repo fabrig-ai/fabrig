@@ -1,4 +1,4 @@
-//! Values carried by core rows in their own family (protocol/store.md, 5.1).
+//! Values carried by core rows in their own family (protocol/store/records.md, 1).
 use crate::tasks_v9 as wire;
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;

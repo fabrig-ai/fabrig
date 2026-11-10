@@ -1,4 +1,4 @@
-//! Incremental SSE and canonical base64 framing (protocol/client.md, 4 and 7).
+//! Incremental SSE and canonical base64 framing (protocol/client/wire.md, 2, and protocol/client/README.md, 5).
 use crate::Limits;
 use jig_client_protocol_link::{Heard, Streamed};
 use skein_http::sse;

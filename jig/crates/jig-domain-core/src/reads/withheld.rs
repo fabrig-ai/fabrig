@@ -1,5 +1,5 @@
 //! Private turn and live-input parts belong to their task's requester
-//! (`jig/docs/design/domain/engine.md`, 7.3 and 10.1).
+//! (`jig/docs/design/domain/engine/executors.md`, 3, and `jig/docs/design/domain/engine/briefs.md`, 2.1).
 //! Durable read owners take precedence over live tasks. Every turn read by
 //! a run as its person is withheld before it can join the run's transcript.
 //! Live streams and opening snapshots project copies for each follower.

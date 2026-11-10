@@ -1,5 +1,5 @@
 //! Init's offers, template previews and runs for the party's usable accounts
-//! (jig/docs/design/client/domain/contract.md, 5.1;
+//! (jig/docs/design/client/domain/contract/documents.md, 1;
 //! temper/docs/design/protocol/configuration.md, 13.4; temper/docs/design/domain/testing.md, 2).
 #![expect(
     clippy::disallowed_methods,

@@ -1,7 +1,7 @@
 //! Store transport, fixture writes and cold restart.
 use super::{Fault, StoreOut, Up, World, connector, core, fixture, root, tasks};
 impl World {
-    /// Serve the phase selected by the core (jig/docs/design/domain/engine.md, 6).
+    /// Serve the phase selected by the core (jig/docs/design/domain/engine/restart.md).
     pub(super) fn start_step(&mut self, phase: core::start::Phase, census: Option<core::Census>) {
         use core::start::Phase;
         if phase == Phase::Sweep && self.restoring.is_some_and(|(selected, _)| selected == Phase::Sweep) {

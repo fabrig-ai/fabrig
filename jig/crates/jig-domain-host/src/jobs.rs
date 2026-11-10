@@ -1,4 +1,4 @@
-//! Hosted jobs share the run slab, names and kept answers (jig/docs/design/domain/hosts.md, 6.9).
+//! Hosted jobs share the run slab, names and kept answers (jig/docs/design/domain/hosts/hub.md, 9).
 use crate::hosted::Hosted;
 use crate::{
     Delivery, DeliveryOutcome, FromJob, Hub, JobAssignment, JobEnd, JobEnding, JobFailure, JobInvalid, JobKind,

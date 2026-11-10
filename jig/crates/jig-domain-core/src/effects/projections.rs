@@ -1,5 +1,5 @@
 //! Whole task-tree feeds and closing retention (`domain/connectors.md`, 8;
-//! `domain/engine.md`, 4.4 and 5.4). The core retains only the feed's task
+//! `domain/engine/README.md`, 4.4 and 5.4). The core retains only the feed's task
 //! facts and unread history milestones. Connector digests and writes stay
 //! with their owners. Roots call `finish_decision` after routing ordinary
 //! work, route its asks synchronously, and call again until it emits no work.

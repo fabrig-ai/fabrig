@@ -1,4 +1,4 @@
-//! Same-step joins, each get and owned byte charged to the page (store.md, 7.3).
+//! Same-step joins, each get and owned byte charged to the page (protocol/store/loads.md, 3).
 use super::{Failure, Spent, point};
 use crate::Store;
 use alloc::boxed::Box;

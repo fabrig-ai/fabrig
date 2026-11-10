@@ -1,5 +1,5 @@
 //! List counts respect visibility; keyed retries retain their first answer
-//! (jig/docs/design/client/domain/contract.md, 3.1 and 5.1).
+//! (jig/docs/design/client/domain/contract/requests.md, 1, and jig/docs/design/client/domain/contract/documents.md, 1).
 use super::*;
 
 #[test]

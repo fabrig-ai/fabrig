@@ -1,4 +1,4 @@
-//! The layout vocabulary and bounded tree removal (store.md 2 and 10.1).
+//! The layout vocabulary and bounded tree removal (protocol/store/README.md, 2, and protocol/store/opening.md, 1).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,

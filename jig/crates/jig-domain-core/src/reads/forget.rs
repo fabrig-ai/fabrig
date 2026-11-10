@@ -1,4 +1,4 @@
-//! Reading releases tasks of the forgotten-once-read retention class (people.md, 6).
+//! Reading releases tasks of the forgotten-once-read retention class (domain/people/README.md, 5).
 //! Its erasure tells every connector (jig/docs/design/domain/connectors.md, 3.4).
 use crate::{Core, routing::Work};
 use jig_domain_people as people;
@@ -109,7 +109,7 @@ pub(crate) fn forget(core: &mut Core, work: &mut Queue<Work>, owner: &Owner) -> 
     out
 }
 
-/// Keys named by a party-requested ended record (protocol/store.md, 7.4).
+/// Keys named by a party-requested ended record (protocol/store/loads.md, 4).
 pub(crate) fn record_keys(owner: &Owner) -> List<tasks::Key> {
     let mut keys = List::with_capacity(5);
     let update =

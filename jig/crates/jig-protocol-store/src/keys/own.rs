@@ -1,4 +1,4 @@
-//! Component rows (protocol/store.md, sections 5.3 and 8.1).
+//! Component rows (protocol/store/records.md, section 3, and protocol/store/transcripts.md, section 1).
 use skein_kv::{KeyReader, KeyWriter};
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Own {

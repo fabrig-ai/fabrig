@@ -1,5 +1,5 @@
-//! Person-task lifecycle at the tasks hub (domain/tasks.md, sections 5.4 and 5.7;
-//! domain/people.md, section 8). Root authenticates people and role membership;
+//! Person-task lifecycle at the tasks hub (domain/tasks/lifecycle.md, sections 5 and 8;
+//! domain/people/README.md, section 7). Root authenticates people and role membership;
 //! this child retains the durable role claim, active waiting interval and one
 //! numbered stall notice. The task alarm projects its durable wall deadline;
 //! restart projects it anew. Claims and held intervals preserve the wait.

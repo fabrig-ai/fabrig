@@ -1,4 +1,4 @@
-//! Job stories on the host's seeded world (jig/docs/design/domain/hosts.md, 6.9).
+//! Job stories on the host's seeded world (jig/docs/design/domain/hosts/hub.md, 9).
 use super::*;
 use crate::World;
 use crate::world::{Arrival, Engine, Limits, Parent, Settings, engine, parent};
@@ -85,7 +85,7 @@ fn delivery_end() -> JobEnd {
     JobEnd::Finished { result: Box::from(&b"r"[..]), delivery: Some(Box::from(&b"made"[..])) }
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: the job uses its prepared workspace, answers, and frees its slot on ACK.
+/// jig/docs/design/domain/hosts/hub.md, 9: the job uses its prepared workspace, answers, and frees its slot on ACK.
 #[test]
 fn a_job_of_a_declared_kind_runs_in_its_workspace_and_answers_its_result() {
     let mut w = world(7);
@@ -99,7 +99,7 @@ fn a_job_of_a_declared_kind_runs_in_its_workspace_and_answers_its_result() {
     assert_eq!(w.parent.tally().saves, 0);
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: invalid jobs never prepare and retain nothing.
+/// jig/docs/design/domain/hosts/hub.md, 9: invalid jobs never prepare and retain nothing.
 #[test]
 fn a_job_of_a_kind_not_declared_is_refused_as_invalid() {
     let mut kind = assignment();
@@ -129,7 +129,7 @@ fn a_job_of_a_kind_not_declared_is_refused_as_invalid() {
     }
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: delivery and Gone precede release and answer.
+/// jig/docs/design/domain/hosts/hub.md, 9: delivery and Gone precede release and answer.
 #[test]
 fn a_finished_job_delivers_through_its_workspace_before_release() {
     let mut w = world(9);
@@ -146,7 +146,7 @@ fn a_finished_job_delivers_through_its_workspace_before_release() {
     assert!(delivered < released);
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: Stale is a typed delivery failure.
+/// jig/docs/design/domain/hosts/hub.md, 9: Stale is a typed delivery failure.
 #[test]
 fn a_stale_job_delivery_fails_undelivered() {
     let mut w = world(10);
@@ -157,7 +157,7 @@ fn a_stale_job_delivery_fails_undelivered() {
     assert_eq!(failure(&w), JobFailure::Undelivered(host::DeliveryOutcome::Stale));
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: cancellation stops the capability and waits for Gone.
+/// jig/docs/design/domain/hosts/hub.md, 9: cancellation stops the capability and waits for Gone.
 #[test]
 fn a_cancelled_job_is_stopped_and_answered_once_its_processes_are_gone() {
     let mut w = world(11);
@@ -171,7 +171,7 @@ fn a_cancelled_job_is_stopped_and_answered_once_its_processes_are_gone() {
     assert_eq!(w.parent.tally().stops, 1);
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: a begun delivery is waited for after cancel.
+/// jig/docs/design/domain/hosts/hub.md, 9: a begun delivery is waited for after cancel.
 #[test]
 fn a_cancelled_job_waits_for_its_delivery() {
     let mut w = world(12);
@@ -187,7 +187,7 @@ fn a_cancelled_job_waits_for_its_delivery() {
     assert!(work.left.is_some());
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: deadline is distinct from the job's own failure.
+/// jig/docs/design/domain/hosts/hub.md, 9: deadline is distinct from the job's own failure.
 #[test]
 fn a_job_past_its_deadline_fails_deadline() {
     let mut w = world(13);
@@ -197,7 +197,7 @@ fn a_job_past_its_deadline_fails_deadline() {
     assert_eq!(failure(&w), JobFailure::Deadline);
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: an oversized result never reaches the workspace's delivery.
+/// jig/docs/design/domain/hosts/hub.md, 9: an oversized result never reaches the workspace's delivery.
 #[test]
 fn a_result_past_its_kinds_bound_fails_and_delivers_nothing() {
     let mut w = world(14);
@@ -209,7 +209,7 @@ fn a_result_past_its_kinds_bound_fails_and_delivers_nothing() {
     assert!(!w.trace().iter().any(|line| line.contains("DeliverJob")));
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: a redial lists kinds and hosted jobs, then replays kept answers.
+/// jig/docs/design/domain/hosts/hub.md, 9: a redial lists kinds and hosted jobs, then replays kept answers.
 #[test]
 fn the_hello_states_the_kinds_and_lists_a_hosted_job() {
     let mut w = world(15);
@@ -234,7 +234,7 @@ fn the_hello_states_the_kinds_and_lists_a_hosted_job() {
     assert_eq!(w.trace().iter().filter(|line| line.contains("engine <- Up(JobAnswer")).count(), 2);
 }
 
-/// jig/docs/design/domain/hosts.md, 6.9: runs and jobs share two slots and replay the same trace after restart.
+/// jig/docs/design/domain/hosts/hub.md, 9: runs and jobs share two slots and replay the same trace after restart.
 #[test]
 fn a_seeded_world_mixes_a_run_and_a_job_and_replays() {
     fn run(seed: u64) -> World {

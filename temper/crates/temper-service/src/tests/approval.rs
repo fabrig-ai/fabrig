@@ -3,7 +3,7 @@ use super::fixtures;
 use jig_client_protocol_wire::{ApprovalCode, CODE_ALPHABET, CODE_LETTERS, v19 as w};
 use skein_lib::{Reader, Time, Wall, Writer, bytes};
 
-// jig/docs/design/protocol/client.md, 8: 32 secret bytes, valid for ten minutes.
+// jig/docs/design/protocol/client/sign-in.md: 32 secret bytes, valid for ten minutes.
 const SECRET_BYTES: usize = 32;
 const SPAN_NANOS: u64 = 600_000_000_000;
 

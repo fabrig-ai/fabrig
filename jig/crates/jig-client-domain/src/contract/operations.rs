@@ -1,4 +1,4 @@
-//! Operations admitted in order and committed together; contract.md, 3.4.
+//! Operations admitted in order and committed together; client/domain/contract/requests.md, 4.
 use super::{Amendment, Revision, Text};
 use alloc::boxed::Box;
 use skein_lib::Duration;
@@ -27,7 +27,7 @@ pub enum Malformed {
     Name(NameRule),
 }
 
-/// The project name shape rule that failed (domain/core.md, 6.1).
+/// The project name shape rule that failed (domain/model.md, 6.1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum NameRule {
     Empty,
@@ -116,18 +116,18 @@ pub enum ProposeAction {
     Amendment { task: u64, revision: Revision, change: Box<Amendment> },
 }
 
-/// The immutable authority that may end a task (domain/tasks.md, 5.8).
+/// The immutable authority that may end a task (domain/tasks/lifecycle.md, 9).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum EndedBy {
     /// Its run's judged result ends it.
     Result,
     /// Only its requester ends it; a run's raw finish parks it (5.8).
     Requester,
-    /// A named procedure closes an agent task (jig/docs/design/domain/tasks.md, 5.10).
+    /// A named procedure closes an agent task (jig/docs/design/domain/tasks/lifecycle.md, 11).
     Closer(Closer),
 }
 
-/// The procedure named to close a task (jig/docs/design/domain/tasks.md, 5.10).
+/// The procedure named to close a task (jig/docs/design/domain/tasks/lifecycle.md, 11).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Closer {
     pub connector: u16,
