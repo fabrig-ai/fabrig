@@ -1,5 +1,6 @@
 """Regression checks for the citation checker, on small repositories built per test."""
 from pathlib import Path
+import runpy
 import subprocess
 import sys
 import tempfile
@@ -319,6 +320,18 @@ class Citations(unittest.TestCase):
         self.commit("parenthesised owner")
         result = self.run_check("--all")
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_suffix_readings_match_the_archive_despite_creation_order(self):
+        self.write("smith/docs/design/view.md", "# view\n\n## 7. Seven\n")
+        self.write("jig/docs/design/view.md", "# view\n\n## 8. Eight\n")
+        self.write("temper/docs/design/ref.md", "# ref\n\nSee `view.md`.\n")
+        self.commit("suffix candidates")
+        reader = runpy.run_path(str(SCRIPT))
+        tree = reader["Tree"](str(self.root), set(self.git("ls-files").splitlines()))
+        cite, = reader["citations"](tree, "temper/docs/design/ref.md", ["See `view.md`."], False)
+        self.assertEqual(cite.target, "jig/docs/design/view.md")
+        self.assertEqual({r.target for r in cite.readings},
+                         {"jig/docs/design/view.md", "smith/docs/design/view.md"})
 
     def test_a_determiners_repository_is_this_one(self):
         self.write(f"{DESIGN}/c.md",
