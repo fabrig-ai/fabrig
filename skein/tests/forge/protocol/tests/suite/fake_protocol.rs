@@ -62,6 +62,8 @@ fn opening_with_nothing_to_merge_writes_no_pull_request() {
     assert_eq!(joint.tally().routes.get(&Route::OpenPull), None);
     let pulls = joint
         .direct(skein_fake_forge_domain::api::Op::Read(skein_fake_forge_domain::api::Read::OpenPulls {
+            head: None,
+            base: None,
             page: 1,
             limit: 2,
         }))

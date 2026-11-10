@@ -436,21 +436,40 @@ fn read_plans_emit_escaped_targets_for_supplied_inputs() {
     skein_rows::check(
         [
             (
+                "pull_listing_branches_have_golden_targets",
+                (
+                    Read::PullFor { head: Box::from(&b"feat/x y"[..]), base: Box::from(&b"main/z &"[..]) },
+                    [CLOSED_PULL].as_slice(),
+                    [
+                        "GET /api/v1/repos/fixture/specimen/pulls/main%2Fz%20%26/feat%2Fx%20y",
+                        "GET /api/v1/repos/fixture/specimen/pulls?state=open&head=feat%2Fx%20y&base=main%2Fz%20%26&sort=oldest&page=1&limit=2",
+                    ].as_slice(),
+                ),
+            ),
+            (
                 "branch_slashes_have_golden_targets",
-                (Read::Branch { branch: Box::from(&b"a/b"[..]) }, "GET /api/v1/repos/fixture/specimen/branches/a%2Fb"),
+                (
+                    Read::Branch { branch: Box::from(&b"a/b"[..]) },
+                    [].as_slice(),
+                    ["GET /api/v1/repos/fixture/specimen/branches/a%2Fb"].as_slice(),
+                ),
             ),
             (
                 "far_future_times_have_golden_targets",
                 (
                     Read::Items { since: Time::from_nanos(u64::MAX), page: 1, kind: None },
-                    "GET /api/v1/repos/fixture/specimen/issues?state=all&since=2554-07-21T23%3A34%3A33Z&sort=leastupdate&page=1&limit=2",
+                    [].as_slice(),
+                    ["GET /api/v1/repos/fixture/specimen/issues?state=all&since=2554-07-21T23%3A34%3A33Z&sort=leastupdate&page=1&limit=2"].as_slice(),
                 ),
             ),
         ],
-        |(read, target)| {
+        |(read, before, targets)| {
             let mut run = Run::known(Op::Read(read));
             run.begin();
-            run.assert_sent(&[target]);
+            for body in before {
+                run.answer(200, body);
+            }
+            run.assert_sent(targets);
         },
     );
 }

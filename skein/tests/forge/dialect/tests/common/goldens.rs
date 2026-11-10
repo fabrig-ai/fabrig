@@ -217,7 +217,7 @@ pub fn request(name: &str) -> (Method, &'static [u8], &'static [u8]) {
         "writer-branch-protection" => (Method::Get, br#"/api/v1/repos/fixture/specimen/branch_protections/main"#, br#""#),
         "writer-branch-protections" => (Method::Get, br#"/api/v1/repos/fixture/specimen/branch_protections"#, br#""#),
         "wrong-token" => (Method::Get, br#"/api/v1/user"#, br#""#),
-        "pulls" => (Method::Get, b"/api/v1/repos/fixture/specimen/pulls?state=open&sort=oldest&page=1&limit=2", b""),
+        "pulls" => (Method::Get, b"/api/v1/repos/fixture/specimen/pulls?state=open&head=work&base=main&sort=oldest&page=1&limit=2", b""),
         "delete-hook" => (Method::Delete, b"/api/v1/orgs/ensemble/hooks/1", b""),
         _ => panic!("request golden {name}"),
     }

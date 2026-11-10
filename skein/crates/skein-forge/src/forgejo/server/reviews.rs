@@ -1,6 +1,6 @@
 use super::{
     Answer, Route, Unrouted,
-    items::{number_value, page},
+    items::{number_value, page, query_value},
 };
 use crate::forgejo::{
     document::{Body, Review, ReviewComment, ReviewState},
@@ -31,7 +31,12 @@ pub(super) fn route(method: Method, bytes: &[u8], limits: &Limits) -> Result<Rou
         {
             Request::ReviewComments { at, number: number_value(number)?, review: number_value(review)? }
         }
-        [pulls] if &**pulls == b"pulls" => Request::Pulls { at, page: page(&target.query)? },
+        [pulls] if &**pulls == b"pulls" => Request::Pulls {
+            at,
+            head: query_value(&target.query, b"head"),
+            base: query_value(&target.query, b"base"),
+            page: page(&target.query)?,
+        },
         _ => return Err(Unrouted::NotFound),
     };
     match method {

@@ -115,7 +115,9 @@ pub(crate) fn read(domain: &Domain, config: &Config, id: Id<Repository>, read: &
             Some(number) => pulls::view(domain, limits, repository, number),
             None => Err(Error::Missing(What::Pull)),
         },
-        Read::OpenPulls { page, limit } => open_pulls(domain, limits, repository, *page, *limit),
+        Read::OpenPulls { head, base, page, limit } => {
+            open_pulls(domain, limits, repository, head.as_deref(), base.as_deref(), *page, *limit)
+        }
         Read::Comments { number } => {
             let item = repository.item(*number)?;
             let mut comments = List::with_capacity(limits.comments);
@@ -255,6 +257,8 @@ fn open_pulls(
     domain: &Domain,
     limits: &Limits,
     repository: &Repository,
+    head: Option<&[u8]>,
+    base: Option<&[u8]>,
     page: u32,
     limit: u32,
 ) -> Result<Answer, Error> {
@@ -263,7 +267,18 @@ fn open_pulls(
     let mut skipped: u64 = 0;
     let mut answer = List::with_capacity(size);
     for (&number, item) in &repository.items {
-        if item.pull.is_none() || item.state != State::Open {
+        let Some(pull) = &item.pull else { continue };
+        if item.state != State::Open {
+            continue;
+        }
+        if let Some(head) = head
+            && pull.head.as_ref() != head
+        {
+            continue;
+        }
+        if let Some(base) = base
+            && pull.base.as_ref() != base
+        {
             continue;
         }
         if skipped < skip {
