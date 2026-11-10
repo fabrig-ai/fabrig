@@ -114,7 +114,9 @@ hears every failure; the verdict is section 6's.
    build failure; any other, a failure of the check itself.
 
 **The environment** is the check's, with `TEMPER_BUNDLE=none` set where it
-is unset (`AGENTS.md`, 5). No `cargo clean`, no `--workspace`, no network
+is unset (`AGENTS.md`, 5). Builds and tests do not inherit the snapshot's
+private index; their scratch repositories keep their own indexes. No
+`cargo clean`, no `--workspace`, no network
 fetch beyond what cargo's own configuration does.
 
 ## 5. Inherited failures

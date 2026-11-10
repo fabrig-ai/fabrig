@@ -44,6 +44,7 @@ if side == 'base':
     assert 'GIT_INDEX_FILE' not in os.environ, 'private index leaked to base'
     assert os.environ['CARGO_TARGET_DIR'] == str(root / 'target')
 if name == 'cargo' and args[0] in ('clippy', 'nextest'):
+    assert 'GIT_INDEX_FILE' not in os.environ, 'private index leaked to build or tests'
     assert os.environ.get('TEMPER_BUNDLE') == 'none'
 fail = state.get('fail', '')
 def spend(cost, event):
@@ -323,10 +324,12 @@ fn only_the_exact_passed_tree_skips_checks() {
 fn private_index_checks_new_sources_without_staging_them() {
     let scratch = fixture();
     let root = scratch.path();
+    pin(root);
     let index = fs::read(root.join(".git/index")).expect("real index");
     write(root, "temper/delivery.rs", "fn delivered() {}\n");
+    write(root, "a/src/new.rs", "fn delivered() {}\n");
     let output = deliver(root);
-    assert!(output.status.success(), "baseline must see new source: {}", String::from_utf8_lossy(&output.stderr));
+    assert!(output.status.success(), "checks must see new source: {}", text(&output));
     assert!(fs::read(root.join(".git/index")).expect("index after checks") == index, "real index changed");
 }
 

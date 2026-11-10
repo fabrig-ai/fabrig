@@ -431,10 +431,10 @@ def main():
                     print('pre-pr: no package changed', flush=True)
                 pending = {}
                 if lints:
-                    _, found = timed('clippy', lambda: clippy(lints, data, root, private), pending)
+                    _, found = timed('clippy', lambda: clippy(lints, data, root, env), pending)
                     errors += found
                 if tests:
-                    _, found = timed('tests', lambda: nextest(tests, root, private), pending)
+                    _, found = timed('tests', lambda: nextest(tests, root, env), pending)
                     errors += found
                 if any(e['key'] is not None or e['name'] == 'build' for e in errors):
                     why = inherited(base_id, git_dir, data, lints, tests, errors, root, env)
