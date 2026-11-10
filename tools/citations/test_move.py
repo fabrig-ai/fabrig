@@ -899,7 +899,7 @@ git = fail_add
         self.commit("numbered suffix")
         result = self.apply(f"{A} 2 -> temper/docs/design/format/tasks.md\n"
                             "title temper/docs/design/format/tasks.md: Tasks\n")
-        self.assertEqual(self.read(path), '// (jig jig\'s tasks.md, 12)\nconst S: &str = "(jig jig\'s tasks.md, 12)";\n')
+        self.assertEqual(self.read(path), '// (jig\'s tasks.md, 12)\nconst S: &str = "(jig\'s tasks.md, 12)";\n')
         self.assertNotIn("the bare name now resolves", result.stdout)
         self.clean_check()
 
