@@ -106,6 +106,7 @@ pub enum Request {
         number: u64,
         page: u32,
         per_page: u32,
+        since: Option<Wall>,
     },
     Pull {
         owner: Box<[u8]>,
@@ -691,12 +692,16 @@ fn items_target(request: &Request, out: &mut Target) -> Result<(), Refusal> {
             out.put(b"/issues/");
             out.number(*number);
         }
-        Request::Comments { owner, name, number, page, per_page } => {
+        Request::Comments { owner, name, number, page, per_page, since } => {
             out.repo(owner, name)?;
             out.put(b"/issues/");
             out.number(*number);
             out.put(b"/comments");
-            out.page(*page, *per_page, false);
+            if let Some(since) = since {
+                out.put(b"?since=");
+                out.segment(&crate::time::write(*since))?;
+            }
+            out.page(*page, *per_page, since.is_some());
         }
         Request::Pull { owner, name, number } => {
             out.repo(owner, name)?;

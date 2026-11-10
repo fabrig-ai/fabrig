@@ -590,6 +590,12 @@ a change's merge job from the engine through its worker to the fake forge
   `tasks.message_bytes` and marked with `…`, as a question passed up is.
   This keeps the message within its admission bound, where the design says
   the answer's words are whole.
+- **Not yet:** 5.3, 8.5: containment is read as a commit list or a
+  comparison, not a `Range`: the change step's up-to-date and catch-up
+  ranges (`Read::Commits`, `temper-engine-domain-forge/src/domain.rs`,
+  `ancestry_status`), a landing member's main (`landing.rs`) and a lost
+  run's observed head (`domain.rs`, `lost_read`) (skein's `forge.md`,
+  3.2).
 - **Not yet:** 6: a `Flight` row whose entry the forge does not hold
   panics at its link, where the section refuses the start
   (`root.status.md`, 9.1).

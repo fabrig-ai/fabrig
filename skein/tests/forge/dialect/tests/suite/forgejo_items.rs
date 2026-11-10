@@ -1,7 +1,7 @@
 #![cfg(test)]
 #![expect(clippy::needless_raw_string_hashes, reason = "literal malformed fields use consistent raw-byte notation")]
 use crate::common;
-use common::cases::items::{cases, expected};
+use common::cases::items::{cases, comment_requests, expected};
 use common::forgejo;
 use skein_forge::forgejo::{client, decode::Malformed, server};
 #[test]
@@ -24,11 +24,23 @@ fn item_requests_encode_as_the_tool_sent_them() {
         assert_eq!(encoded.target.as_ref(), transcript.target, "{case}");
         assert_eq!(encoded.body.as_deref().unwrap_or(b""), transcript.request_body, "{case}");
     }
+    for (request, target) in comment_requests() {
+        let encoded = client::encode(&request, &forgejo::limits()).expect("comments since request");
+        assert_eq!(encoded.target.as_ref(), target);
+    }
 }
 #[test]
 fn item_requests_route_on_the_servers_side_to_the_same_request() {
     for (case, request, _) in cases() {
         assert_eq!(forgejo::route(&forgejo::transcript(case)), request, "{case}");
+    }
+    for (request, target) in comment_requests() {
+        let Ok(server::Route::Ready(actual)) =
+            server::route(skein_forge::forgejo::request::Method::Get, target, &forgejo::limits())
+        else {
+            panic!("comments since route")
+        };
+        assert_eq!(actual, request);
     }
 }
 #[test]

@@ -215,8 +215,8 @@ impl Plan {
     }
     fn comments_request(&mut self) -> Result<Option<Step>, api::Error> {
         let row = self.row.as_ref().ok_or(api::Error::InvalidAnswer)?;
-        let number = match self.read {
-            Read::Item { number, .. } => number,
+        let (number, since) = match self.read {
+            Read::Item { number, since, .. } => (number, since),
             Read::Items { .. }
             | Read::Locate { .. }
             | Read::Settings
@@ -243,6 +243,7 @@ impl Plan {
             number,
             page: self.page,
             per_page: self.limit,
+            since: if since == Time::ZERO { None } else { Some(skein_lib::Wall::from_nanos(since.as_nanos())) },
         })))
     }
     pub(super) fn issue_rows_done(&mut self, bounds: Bounds) -> Result<Option<Step>, api::Error> {

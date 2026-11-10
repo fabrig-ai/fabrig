@@ -23,11 +23,21 @@ fn branch_read() -> Read {
     Read::Branch { branch: Box::from(*b"topic") }
 }
 fn object_read(after: u64) -> Read {
-    Read::Item { number: 9, after }
+    let since = if after == u64::MAX { skein_lib::Time::from_nanos(u64::MAX) } else { skein_lib::Time::ZERO };
+    Read::Item { number: 9, after, since }
+}
+// These scripts pin a read's object and cursor; keep.rs pins a participating item's comments' `since`.
+fn unpinned(op: Op) -> Op {
+    if let Op::Read(Read::Item { number, after, .. }) = &op
+        && *after != u64::MAX
+    {
+        return Op::Read(Read::Item { number: *number, after: *after, since: skein_lib::Time::ZERO });
+    }
+    op
 }
 fn read_answer(h: &mut Harness, read: Read, result: Result<Answer, Error>) {
     let sent = h.one();
-    assert_eq!(sent.op, Op::Read(read));
+    assert_eq!(unpinned(sent.op.clone()), Op::Read(read));
     h.event(Event::Answered { call: sent.call, cost: 1, free: 0, rate: None, result });
 }
 
@@ -297,7 +307,7 @@ fn refusal_row((resource, participating, errors, steps): RefusalCase) {
             HintOut(read, answer) => {
                 pending_listing(&mut h);
                 let sent = h.one();
-                assert_eq!(sent.op, Op::Read(read));
+                assert_eq!(unpinned(sent.op.clone()), Op::Read(read));
                 h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(9), key: None } });
                 h.answer(sent, answer);
             }

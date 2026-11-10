@@ -7,8 +7,8 @@ fn lists() -> [Request; 17] {
     [
         Request::PullFiles { at: fixtures::repository(), number: 1, page },
         Request::Issues { at: fixtures::repository(), state: None, kind: None, since: None, sort: None, page },
-        Request::Comments { at: fixtures::repository(), number: 1 },
-        Request::Pulls { at: fixtures::repository(), page },
+        Request::Comments { at: fixtures::repository(), number: 1, since: None },
+        Request::Pulls { at: fixtures::repository(), head: None, base: None, page },
         Request::Reviews { at: fixtures::repository(), number: 1, page },
         Request::ReviewComments { at: fixtures::repository(), number: 1, review: 1 },
         Request::Branches { at: fixtures::repository(), prefix: None, page },

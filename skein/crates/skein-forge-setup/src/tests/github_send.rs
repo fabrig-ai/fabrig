@@ -389,7 +389,7 @@ fn other_requests() -> [Request; 36] {
         Request::Locate { owner: owner.clone(), name: name.clone() },
         Request::Issues { owner: owner.clone(), name: name.clone(), since: Wall::EPOCH, page: 1, per_page: 4 },
         Request::Issue { owner: owner.clone(), name: name.clone(), number: 1 },
-        Request::Comments { owner: owner.clone(), name: name.clone(), number: 1, page: 1, per_page: 4 },
+        Request::Comments { owner: owner.clone(), name: name.clone(), number: 1, page: 1, per_page: 4, since: None },
         Request::Pull { owner: owner.clone(), name: name.clone(), number: 1 },
         Request::PullsFor {
             owner: owner.clone(),
