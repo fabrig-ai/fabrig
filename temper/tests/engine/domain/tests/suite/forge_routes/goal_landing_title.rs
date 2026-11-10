@@ -5,7 +5,7 @@ use super::*;
 
 const LANDING_CALL: u64 = 95;
 const STEPS: u32 = 1000; // The forge world's bound for opening a landing.
-const TITLE_BYTES: usize = 256; // forge.md, 8.1.
+const TITLE_BYTES: usize = 256; // temper/docs/design/domain/forge.md, 8.1.
 const SPEC_BYTES: u32 = 1024; // Holds the longest words, their title parameter, and branch names.
 const GOAL_REQUEST: u8 = 92;
 

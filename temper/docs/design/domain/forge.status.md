@@ -445,7 +445,7 @@ a change's merge job from the engine through its worker to the fake forge
     accepted, a change landed or held, a report kept.
   - 12.1: questions on the forge.
   - 13: participating objects beyond their news; a landing waiting for
-    someone else's merge where temper may not merge (also 4.4 and 9).
+    someone else's merge where temper may not merge (also sections 4.4 and 9).
   - 14: upstream contributions.
   - 18: the rules as settings (8.9) in the forge's world: `tests/engine/forge`
     tells none of them. The engine's domain world tells a rule changed

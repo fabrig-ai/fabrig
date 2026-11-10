@@ -983,7 +983,7 @@ part:
   deciding; an irrelevant hint adds no restart. Gate results, task
   dependencies and queue changes keep their existing wake routes. Each
   decision still uses the rules held then (8.7–8.9); hints do not replace
-  polling, settling or stall deadlines (8.3–8.4, 9).
+  polling, settling or stall deadlines (sections 8.3–8.4 and 9).
 - **temper's own polls fall back too.** A landing's or a tier's flight
   polling its runs in flight (`landing.md`, 7.1; `after-landing.md`,
   section 3) and a queued merge's look (skein's `forge-client.md`, 7.7)
@@ -4306,7 +4306,7 @@ whole.
   inventory beyond the set a next attempt resumes from. Default: manual
   deletion or deployment retention; a failed descendant's known saved
   work stays with its root until that root closes.
-- **A clean update's other words** (8.4, 10): the result still says
+- **A clean update's other words** (sections 8.4 and 10): the result still says
   `the base broke it`, and the client panel calls its repair a semantic
   conflict, although the path proves only that CI failed after an update.
   Aligning those words needs the client's owner too. Default: the task's

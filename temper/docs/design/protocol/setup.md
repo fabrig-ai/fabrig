@@ -3430,7 +3430,7 @@ them as it does any Forgejo.
     task reviews an outside contribution and sets its reviewers
     (`../domain/forge.md`, section 13), while an update of one stays
     foreign, since temper updates only its own change's branch
-    (section 10 there); `bounds` the decisions' count, and
+    (`../domain/forge.md`, section 10); `bounds` the decisions' count, and
     `temper-fake`'s constant for the objects, past which the judge is
     undecided: `judge full`. The constant is sized for the runs the check
     judges, not for the fake's limits: the judge reserves each repository
@@ -4056,7 +4056,7 @@ it checks of this document:
   budget (configuration.md, section 7; `../domain/forge.md`, 8.4), and its
   CI's job outlasting `settle` from the change's push, so that it lands
   within its budget only if the job's end is delivered and the reads
-  that follow it (section 10, "Checked"); and with no conflict resolved,
+  that follow it (`../domain/forge.md`, section 10, "Checked"); and with no conflict resolved,
   since its changes never conflict. With no webhooks, the same story
   misses its budget.
 - **`temper box`,** a test of its own on a scratch directory, with no
