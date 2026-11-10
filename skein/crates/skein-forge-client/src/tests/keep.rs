@@ -50,7 +50,7 @@ fn watch_batches_are_atomic_and_leaving_an_outstanding_resource_consumes_its_ter
     h.keep(Box::new([watch(issue(), true)]));
     h.clock();
     let read = h.one();
-    assert_eq!(read.op, Op::Read(Read::Item { number: 9, after: 0 , since: skein_lib::Time::ZERO }));
+    assert_eq!(read.op, Op::Read(Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }));
     let before = h.records.len();
     h.keep(Box::new([watch(issue(), true), watch(issue(), true)]));
     assert_eq!(h.kept.as_slice().last(), Some(&Err(Error::Refused)));
@@ -77,7 +77,10 @@ fn owned_pull_keeps_ci_and_base_on_backoff_without_reading_forge_reviews() {
     h.keep(Box::new([watch(pull(), false)]));
     h.clock();
     let item = h.one();
-    assert_eq!(item.op, Op::Read(Read::Item { number: 9, after: u64::MAX , since: skein_lib::Time::ZERO }));
+    assert_eq!(
+        item.op,
+        Op::Read(Read::Item { number: 9, after: u64::MAX, since: skein_lib::Time::from_nanos(u64::MAX) })
+    );
     h.answer(item, Answer::Item { item: summary(), comments: Box::new([]), more: false });
     let read = h.one();
     assert_eq!(read.op, Op::Read(Read::Pull { number: 9 }));
@@ -154,7 +157,7 @@ fn own_comment_echo_never_skips_an_intervening_unread_human_comment() {
     let listing = h.one();
     h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(101) });
     let read = h.one();
-    assert_eq!(read.op, Op::Read(Read::Item { number: 9, after: 0 , since: skein_lib::Time::ZERO }));
+    assert_eq!(read.op, Op::Read(Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }));
     h.answer(read, Answer::Item { item: summary(), comments: Box::new([comment(6), comment(7)]), more: false });
     assert_eq!(h.record(&issue()).position.comment, 7);
     assert!(h.record(&issue()).echoes.is_empty());
@@ -428,7 +431,10 @@ fn a_reserved_background_share_is_admitted_even_with_one_pending_slot_and_replen
         assert_eq!(read.op, Op::Read(Read::Items { since, page: 1, kind: None }));
         h.answer(read, Answer::Items { items: Box::new([]), more: false, now: h.env.now });
         let read = h.one();
-        assert_eq!(read.op, Op::Read(Read::Item { number: 9, after: u64::MAX , since: skein_lib::Time::ZERO }));
+        assert_eq!(
+            read.op,
+            Op::Read(Read::Item { number: 9, after: u64::MAX, since: skein_lib::Time::from_nanos(u64::MAX) })
+        );
         h.answer(read, Answer::Item { item: summary(), comments: Box::new([]), more: false });
         h.clock();
         let write = h.one();
@@ -483,13 +489,13 @@ fn comment_scan_progress_and_edited_old_versions_are_durable() {
     h.news.clear();
     h.restart();
     let read = h.one();
-    assert_eq!(read.op, Op::Read(Read::Item { number: 9, after: 1 , since: skein_lib::Time::ZERO }));
+    assert_eq!(read.op, Op::Read(Read::Item { number: 9, after: 1, since: skein_lib::Time::ZERO }));
     h.answer(read, Answer::Item { item: summary(), comments: Box::new([comment(2)]), more: false });
     assert_eq!(h.record(&issue()).comment_after, 2);
     h.news.clear();
     h.restart();
     let read = h.one();
-    assert_eq!(read.op, Op::Read(Read::Item { number: 9, after: 0 , since: skein_lib::Time::ZERO }));
+    assert_eq!(read.op, Op::Read(Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }));
     let mut edited = comment(1);
     edited.revision = 2;
     edited.body = Box::from(&b"edited"[..]);
@@ -523,7 +529,7 @@ fn inbox_overflow_never_partially_delivers_or_advances_a_page() {
     h.env.limits.inbox = 2;
     h.restart();
     let read = h.one();
-    assert_eq!(read.op, Op::Read(Read::Item { number: 9, after: 0 , since: skein_lib::Time::ZERO }));
+    assert_eq!(read.op, Op::Read(Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }));
     h.answer(read, Answer::Item { item: summary(), comments: Box::new([comment(1), comment(2)]), more: false });
     match h.news.as_slice() {
         [Answer::Item { comments, .. }] => assert_eq!(comments.as_ref(), &[comment(2)]),
@@ -831,38 +837,60 @@ fn repository_listing_waits_for_hints_within_the_poll_interval() {
     assert!(h.send().is_none(), "one hint makes one listing");
 }
 
-
 #[test]
 fn item_polls_name_since_only_after_a_completed_comment_scan() {
     #[derive(Clone, Copy)]
-    enum Next { Ready, Listing, Slow, Repair }
+    enum Next {
+        Ready,
+        Listing,
+        Slow,
+        Repair,
+    }
     let updated = skein_lib::Time::from_nanos(1_700_000_000_000_000_000);
     for (name, participating, answers, next, after, since) in [
         ("no cached item", true, &[][..], Next::Ready, 0, skein_lib::Time::ZERO),
-        ("finished", true, &[false][..], Next::Listing, 1, updated),
-        ("scan continues", true, &[true][..], Next::Ready, 1, skein_lib::Time::ZERO),
-        ("scan ended on later answer", true, &[true, false][..], Next::Listing, 2, updated),
-        ("slow rescans from zero", true, &[false][..], Next::Slow, 0, skein_lib::Time::ZERO),
-        ("hint repairs from zero", true, &[false][..], Next::Repair, 0, skein_lib::Time::ZERO),
+        ("finished", true, &[(false, true)][..], Next::Listing, 1, updated),
+        ("finished empty", true, &[(false, false)][..], Next::Listing, 0, updated),
+        ("scan continues", true, &[(true, true)][..], Next::Ready, 1, skein_lib::Time::ZERO),
+        (
+            "scan ended on later answer",
+            true,
+            &[(true, true), (false, true)][..],
+            Next::Listing,
+            2,
+            skein_lib::Time::from_nanos(updated.as_nanos() + 1),
+        ),
+        ("slow rescans from zero", true, &[(false, true)][..], Next::Slow, 0, skein_lib::Time::ZERO),
+        ("hint repairs from zero", true, &[(false, true)][..], Next::Repair, 0, skein_lib::Time::ZERO),
         ("not participating", false, &[][..], Next::Ready, u64::MAX, skein_lib::Time::from_nanos(u64::MAX)),
+        (
+            "not participating with cache",
+            false,
+            &[(false, false)][..],
+            Next::Listing,
+            u64::MAX,
+            skein_lib::Time::from_nanos(u64::MAX),
+        ),
     ] {
         let mut h = Harness::new();
         h.keep(Box::new([watch(issue(), participating)]));
         h.clock();
-        for (index, more) in answers.iter().enumerate() {
+        for (index, (more, with_comment)) in answers.iter().enumerate() {
             let read = h.one();
             let mut item = summary();
-            item.updated = updated;
-            h.answer(read, Answer::Item { item, comments: Box::new([comment(u64::try_from(index).unwrap() + 1)]), more: *more });
+            item.updated = skein_lib::Time::from_nanos(updated.as_nanos() + u64::try_from(index).unwrap());
+            let comments: Box<[api::Comment]> =
+                if *with_comment { Box::new([comment(u64::try_from(index).unwrap() + 1)]) } else { Box::new([]) };
+            h.answer(read, Answer::Item { item, comments, more: *more });
         }
         match next {
-            Next::Ready => {},
+            Next::Ready => {}
             Next::Repair => {
                 h.event(Event::Hint { hint: api::Hint { repository: REPO, change: Change::Item(9), key: None } });
                 h.fire(101);
                 let listing = h.one();
                 h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(101) });
-            },
+            }
             Next::Listing | Next::Slow => {
                 let now = if matches!(next, Next::Slow) { 160 } else { 105 };
                 h.fire(now);
@@ -871,7 +899,7 @@ fn item_polls_name_since_only_after_a_completed_comment_scan() {
                 item.updated = updated;
                 h.answer(listing, Answer::Items { items: Box::new([item]), more: false, now: at(now) });
                 h.fire(now + 1);
-            },
+            }
         }
         let read = h.one();
         assert_eq!(read.op, Op::Read(Read::Item { number: 9, after, since }), "{name}");

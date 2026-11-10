@@ -46,11 +46,11 @@ pub(super) struct ReadCase {
     kept: bool,
     login: Option<&'static [u8]>,
 }
-pub(super) fn read_cases() -> [Vec<ReadCase>; 4] {
-    [find_cases(), Vec::from(review_cases()), Vec::from(content_cases()), Vec::from(repository_cases())]
+pub(super) fn read_cases() -> [Box<[ReadCase]>; 4] {
+    [find_cases(), Box::new(review_cases()), Box::new(content_cases()), Box::new(repository_cases())]
 }
-fn find_cases() -> Vec<ReadCase> {
-    vec![
+fn find_cases() -> Box<[ReadCase]> {
+    Box::new([
         ReadCase {
             name: "locate",
             read: Read::Locate { owner: Box::from(&b"fixture"[..]), name: Box::from(&b"specimen"[..]) },
@@ -76,7 +76,7 @@ fn find_cases() -> Vec<ReadCase> {
         },
         ReadCase {
             name: "item",
-            read: Read::Item { number: 1, after: 0 , since: skein_lib::Time::ZERO },
+            read: Read::Item { number: 1, after: 0 , since: Time::ZERO },
             replies: &[(200, REPOSITORY), (200, ISSUE), (200, b"[]")],
             expected: Ok(Answer::Item { item: summary(), comments: Box::new([]), more: false }),
             sends: &[
@@ -132,7 +132,7 @@ fn find_cases() -> Vec<ReadCase> {
             kept: true,
             login: None,
         },
-    ]
+    ])
 }
 fn review_cases() -> [ReadCase; 5] {
     [
@@ -464,8 +464,10 @@ fn read_plans_emit_escaped_targets_for_supplied_inputs() {
             ),
             (
                 "comments_escape_far_future_time",
-                (Read::Item { number: 1, after: 0, since: Time::from_nanos(u64::MAX) },
-                 "GET /api/v1/repos/fixture/specimen/issues/1/comments?since=2554-07-21T23%3A34%3A33Z"),
+                (
+                    Read::Item { number: 1, after: 0, since: Time::from_nanos(u64::MAX) },
+                    "GET /api/v1/repos/fixture/specimen/issues/1/comments?since=2554-07-21T23%3A34%3A33Z",
+                ),
             ),
         ],
         |(read, target)| {
@@ -646,7 +648,7 @@ fn refusals_match_status_and_whole_message() {
 #[test]
 fn first_failure_ends_the_plan() {
     for (factory, replies, sends) in first_failures() {
-        let mut run = factory(Op::Read(Read::Item { number: 1, after: 0 , since: skein_lib::Time::ZERO }));
+        let mut run = factory(Op::Read(Read::Item { number: 1, after: 0, since: Time::ZERO }));
         run.begin();
         for (status, body) in replies {
             run.answer(*status, body);

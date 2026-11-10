@@ -82,7 +82,10 @@ fn github_decode_kind_names_each_documented_answer() {
         (Request::Locate { owner: owner(), name: name() }, Kind::Repository),
         (Request::Issues { owner: owner(), name: name(), since: Wall::EPOCH, page: 1, per_page: 100 }, Kind::IssueRows),
         (Request::Issue { owner: owner(), name: name(), number: 9 }, Kind::Issue),
-        (Request::Comments { owner: owner(), name: name(), number: 9, page: 1, per_page: 100 , since: None }, Kind::CommentRows),
+        (
+            Request::Comments { owner: owner(), name: name(), number: 9, page: 1, per_page: 100, since: None },
+            Kind::CommentRows,
+        ),
         (Request::Pull { owner: owner(), name: name(), number: 9 }, Kind::Pull),
         (
             Request::PullsFor {

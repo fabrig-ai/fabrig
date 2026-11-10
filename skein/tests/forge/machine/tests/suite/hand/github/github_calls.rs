@@ -712,7 +712,7 @@ fn mixed_dialects_keep_independent_repository_and_user_rows() {
 #[test]
 fn close_during_a_normal_multistep_call_has_no_terminal() {
     let mut h = known();
-    begin(&mut h, Op::Read(Read::Item { number: 7, after: 0 , since: skein_lib::Time::ZERO }));
+    begin(&mut h, Op::Read(Read::Item { number: 7, after: 0, since: Time::ZERO }));
     h.answer(FORGE, &f::ok(f::GITHUB_ISSUE));
     h.send(Request::Close);
     h.run(Duration::ZERO);

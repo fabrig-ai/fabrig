@@ -77,7 +77,7 @@ pub(crate) fn read(domain: &Domain, config: &Config, id: Id<Repository>, read: &
                 items(repository, config, *state, *kind, labels, *author, *order, *since, *page, *limit);
             Ok(Answer::Items { items, more, now: domain.clock })
         }
-        Read::Item { number, after , since: _ } => item(repository, limits, *number, *after),
+        Read::Item { number, after, since } => item(repository, config, *number, *after, *since),
         Read::Comment { id } => {
             let Some(&number) = repository.comments.get(id) else {
                 return Err(Error::Missing(What::Comment));
@@ -116,10 +116,17 @@ pub(crate) fn read(domain: &Domain, config: &Config, id: Id<Repository>, read: &
             None => Err(Error::Missing(What::Pull)),
         },
         Read::OpenPulls { page, limit } => open_pulls(domain, limits, repository, *page, *limit),
-        Read::Comments { number , since: _ } => {
+        Read::Comments { number, since } => {
+            let since = match since {
+                Some(time) => Some(domain::stamp(config, *time)),
+                None => None,
+            };
             let item = repository.item(*number)?;
             let mut comments = List::with_capacity(limits.comments);
             for (&id, comment) in &item.comments {
+                if !comment_since(comment, since) {
+                    continue;
+                }
                 comments.push(comment.view(id)).expect("bounded thread");
             }
             Ok(Answer::Comments(comments.into_boxed()))
@@ -234,12 +241,23 @@ fn items(
 }
 
 /// The item `number` and a page of its comments with ids above `after`.
-fn item(repository: &Repository, limits: &Limits, number: u64, after: u64) -> Result<Answer, Error> {
+fn item(
+    repository: &Repository,
+    config: &Config,
+    number: u64,
+    after: u64,
+    since: Option<Time>,
+) -> Result<Answer, Error> {
+    let limits = &config.limits;
+    let since = match since {
+        Some(time) => Some(domain::stamp(config, time)),
+        None => None,
+    };
     let item = repository.item(number)?;
     let mut comments = List::with_capacity(limits.page_size);
     let mut more = false;
     for (&id, comment) in &item.comments {
-        if id <= after {
+        if id <= after || !comment_since(comment, since) {
             continue;
         }
         if comments.room() == 0 {
@@ -249,6 +267,18 @@ fn item(repository: &Repository, limits: &Limits, number: u64, after: u64) -> Re
         comments.push(comment.view(id)).expect("checked for room above");
     }
     Ok(Answer::Item { item: item.summary(number), comments: comments.into_boxed(), more })
+}
+
+// An edit's time is the comment's update, even when the item's time stays still.
+fn comment_since(comment: &crate::store::Comment, since: Option<Time>) -> bool {
+    let updated = match comment.edited {
+        Some(time) => time,
+        None => comment.created,
+    };
+    match since {
+        Some(since) => updated >= since,
+        None => true,
+    }
 }
 
 fn open_pulls(

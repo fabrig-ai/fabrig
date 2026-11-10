@@ -260,7 +260,10 @@ fn operation(service: &Service, request: Request, access: &Access) -> Result<(St
             return Ok((Stage::UpdateHead { number, head }, Op::Read(a::Read::Pull { number })));
         }
         Request::Review { number, verdict, body, .. } => {
-            return Ok((Stage::ReviewAuthor { number, verdict, body }, Op::Read(a::Read::Item { number, after: 0 , since: None })));
+            return Ok((
+                Stage::ReviewAuthor { number, verdict, body },
+                Op::Read(a::Read::Item { number, after: 0, since: None }),
+            ));
         }
         Request::Reviewers { number, add, logins, .. } => {
             let mut reviewers = skein_lib::List::with_capacity(service.limits.github.inner);

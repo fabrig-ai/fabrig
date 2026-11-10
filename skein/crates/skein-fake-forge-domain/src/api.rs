@@ -86,7 +86,8 @@ pub enum Read {
         page: u32,
         limit: u32,
     },
-    /// The item `number` and a page of its comments with ids above `after`.
+    /// The item `number` and a page of its comments with ids above `after`,
+    /// updated at or after `since` when given.
     /// Answered by [`Answer::Item`].
     Item {
         number: u64,
@@ -159,7 +160,7 @@ pub enum Read {
     Jobs {
         run: u64,
     },
-    /// The whole thread, oldest first.
+    /// The thread updated at or after `since` when given, oldest first.
     Comments {
         number: u64,
         since: Option<Time>,

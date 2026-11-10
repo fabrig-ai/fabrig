@@ -50,7 +50,7 @@ fn an_uncertain_comment_is_found_by_key_without_a_second_write() {
     let sent = h.one();
     h.answer(sent, Err(Error::Timeout));
     let find = h.one();
-    assert_eq!(find.op, Op::Read(Read::Item { number: 9, after: 0 , since: skein_lib::Time::ZERO }));
+    assert_eq!(find.op, Op::Read(Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }));
     let comment = api::Comment {
         provenance: api::Provenance::Original,
         id: 42,
@@ -100,7 +100,7 @@ fn a_missing_comment_target_is_searched_until_its_deadline_then_held() {
     let sent = h.one();
     h.answer(sent, Err(Error::Timeout));
     let find = h.one();
-    assert_eq!(find.op, Op::Read(Read::Item { number: 9, after: 0 , since: skein_lib::Time::ZERO }));
+    assert_eq!(find.op, Op::Read(Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }));
     h.answer(find, Err(Error::Missing));
     assert_eq!(h.domain.next_deadline(), Some(at(111)));
     h.fire(111);
@@ -280,7 +280,7 @@ fn a_rehanded_entry_with_a_started_attempt_finds_before_writing() {
     h.step(Event::Restored { clock: RecoveryClock::Monotonic });
     h.step(Event::Make { entry: record.clone() });
     let find = h.one();
-    assert_eq!(find.op, Op::Read(Read::Item { number: 9, after: 0 , since: skein_lib::Time::ZERO }));
+    assert_eq!(find.op, Op::Read(Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }));
     h.answer(find, Ok(Answer::Item { item: summary(), comments: Box::new([]), more: false }));
     assert_eq!(h.domain.next_deadline(), Some(record.attempt.unwrap().deadline));
     assert_eq!(h.writes, 1);
@@ -409,7 +409,7 @@ fn a_copied_pending_key_cannot_establish_the_effects_outcome() {
     h.answer(find, Ok(Answer::Item { item: summary(), comments: Box::new([copied]), more: true }));
     assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Uncertain)]);
     let find = h.one();
-    assert_eq!(find.op, Op::Read(Read::Item { number: 9, after: 41 , since: skein_lib::Time::ZERO }));
+    assert_eq!(find.op, Op::Read(Read::Item { number: 9, after: 41, since: skein_lib::Time::ZERO }));
     let own = api::Comment {
         provenance: api::Provenance::Original,
         id: 42,

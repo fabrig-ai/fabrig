@@ -125,7 +125,7 @@ pub fn mixed_calls(seed: u64) -> World {
     });
     world.checkpoint();
     world.run_for(Duration::from_secs(1));
-    let _ = world.read(Read::Item { number, after: 0 , since: skein_lib::Time::ZERO });
+    let _ = world.read(Read::Item { number, after: 0, since: Time::ZERO });
     world
 }
 

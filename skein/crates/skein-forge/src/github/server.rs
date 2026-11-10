@@ -180,9 +180,17 @@ fn item_route(owner: Box<[u8]>, name: Box<[u8]>, tail: &[u8], query: &Query) -> 
         let number = bytes::decimal(number)?;
         return match suffix {
             b"" => Some(Request::Issue { owner, name, number }),
-            b"comments" => {
-                Some(Request::Comments { owner, name, number, page: query.page()?, per_page: query.size()? , since: None })
-            }
+            b"comments" => Some(Request::Comments {
+                owner,
+                name,
+                number,
+                page: query.page()?,
+                per_page: query.size()?,
+                since: match query.get(b"since") {
+                    Some(value) => Some(time::read(value)?),
+                    None => None,
+                },
+            }),
             _ => None,
         };
     }

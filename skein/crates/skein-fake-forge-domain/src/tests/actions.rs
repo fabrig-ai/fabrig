@@ -156,13 +156,15 @@ fn a_thread_is_one_read_oldest_first() {
             "{text:?}"
         );
     }
-    let Answer::Comments(comments) = h.ok(ENGINE, read(Read::Comments { number: 1 , since: None })) else { unreachable!("thread") };
+    let Answer::Comments(comments) = h.ok(ENGINE, read(Read::Comments { number: 1, since: None })) else {
+        unreachable!("thread")
+    };
     assert_eq!(comments.len(), 3);
     for (comment, (text, id)) in comments.iter().zip(rows) {
         assert_eq!((comment.id, &*comment.body), (id, text), "comment {id}");
     }
-    assert_eq!(h.call(PERSON, read(Read::Comments { number: 2 , since: None })), Err(Error::Missing(What::Item)));
-    assert_eq!(h.call(STRANGER, read(Read::Comments { number: 1 , since: None })), Err(Error::Forbidden));
+    assert_eq!(h.call(PERSON, read(Read::Comments { number: 2, since: None })), Err(Error::Missing(What::Item)));
+    assert_eq!(h.call(STRANGER, read(Read::Comments { number: 1, since: None })), Err(Error::Forbidden));
 }
 
 #[test]

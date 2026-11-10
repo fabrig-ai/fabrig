@@ -538,7 +538,7 @@ fn write_inner_overflow_is_timeout() {
 
 #[test]
 fn read_inner_overflow_is_too_large() {
-    let mut run = bounded_run(Op::Read(Read::Item { number: ITEM_NUMBER, after: 0 , since: skein_lib::Time::ZERO }));
+    let mut run = bounded_run(Op::Read(Read::Item { number: ITEM_NUMBER, after: 0, since: skein_lib::Time::ZERO }));
     assert_eq!(run.answer(200, THREE_LABELS), Step::Done(Err(Error::TooLarge)));
     for read in [Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1 }, Read::Checks { commit: HEAD }] {
         let mut run = bounded_run(Op::Read(read));

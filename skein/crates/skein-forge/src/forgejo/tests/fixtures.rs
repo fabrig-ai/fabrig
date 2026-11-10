@@ -17,7 +17,7 @@ pub fn repository() -> crate::forgejo::request::Repo {
     crate::forgejo::request::Repo { owner: Box::from(*b"fixture"), name: Box::from(*b"specimen") }
 }
 pub fn comments(number: u64) -> crate::forgejo::request::Request {
-    crate::forgejo::request::Request::Comments { at: repository(), number , since: None }
+    crate::forgejo::request::Request::Comments { at: repository(), number, since: None }
 }
 pub fn capped(body: &[u8], cap: u32, limits: &Limits) -> tokenizer::Event {
     let mut feed = tokenizer::Feed::new(body, &limits.json);
@@ -260,7 +260,8 @@ impl Run {
         } else {
             client::decoder(request, &self.limits)
         };
-        let body = if let Some(decoder) = decoder {
+        let body = if let Some(mut decoder) = decoder {
+            client::keep_after(&mut decoder, self.plan.after());
             let result = decode(decoder, bytes, &self.limits);
             for row in result.rows.into_boxed() {
                 if let Some(step) = self.hear(Heard::Row(row)) {

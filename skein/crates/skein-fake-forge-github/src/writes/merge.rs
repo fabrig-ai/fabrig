@@ -98,7 +98,7 @@ pub(super) fn finish(
                 user,
                 repository,
                 Stage::Author { pull: Box::new(pull), queue },
-                a::Op::Read(a::Read::Item { number, after: 0 , since: None }),
+                a::Op::Read(a::Read::Item { number, after: 0, since: None }),
                 reply_to,
             )
         }

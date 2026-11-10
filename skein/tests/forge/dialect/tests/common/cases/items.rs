@@ -92,7 +92,7 @@ pub fn cases() -> Vec<(&'static str, Request, Answer)> {
         ("issue-of-pull", Request::Issue { at: forgejo::specimen(), number: 1 }, Answer::Issue(feature())),
         (
             "issue-comments",
-            Request::Comments { at: forgejo::specimen(), number: 3 , since: None },
+            Request::Comments { at: forgejo::specimen(), number: 3, since: None },
             Answer::Comments(Box::from([
                 Comment {
                     id: 4,
@@ -109,11 +109,6 @@ pub fn cases() -> Vec<(&'static str, Request, Answer)> {
                     body: Body::Kept(Box::from(*b"plain comment")),
                 },
             ])),
-        ),
-        (
-            "issue-comments-since",
-            Request::Comments { at: forgejo::specimen(), number: 3, since: Some(Wall::from_nanos(1_577_817_004_000_000_000)) },
-            Answer::Comments(Box::from([])),
         ),
         ("pull", Request::Pull { at: forgejo::specimen(), number: 1 }, Answer::Pull(pull(false))),
         ("pull-merged", Request::Pull { at: forgejo::specimen(), number: 5 }, Answer::Pull(pull(true))),
@@ -148,6 +143,17 @@ pub fn cases() -> Vec<(&'static str, Request, Answer)> {
             },
         ),
     ]
+}
+// Synthetic request rows supplement the recorded exchanges without changing them.
+pub fn comment_requests() -> [(Request, &'static [u8]); 1] {
+    [(
+        Request::Comments {
+            at: forgejo::specimen(),
+            number: 3,
+            since: Some(Wall::from_nanos(1_577_817_004_000_000_000)),
+        },
+        b"/api/v1/repos/fixture/specimen/issues/3/comments?since=2019-12-31T18%3A30%3A04Z",
+    )]
 }
 pub fn expected(answer: Answer) -> (Document, Vec<Row>) {
     match answer {

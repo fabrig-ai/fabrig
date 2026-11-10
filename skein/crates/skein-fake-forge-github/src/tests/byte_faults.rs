@@ -97,7 +97,8 @@ fn github_fake_byte_faults_reset_drop_and_server_error() {
         (Faults { reset: 0, drop: 0, server_error: 0 }, true, Some(b"HTTP/1.1 201 ".as_slice())),
     ] {
         let (h, output, read) = exchange(faults, 23);
-        let result = h.domain.inspect(&h.env.limits, b"acme/widgets", &a::Read::Item { number: 1, after: 0 , since: None });
+        let result =
+            h.domain.inspect(&h.env.limits, b"acme/widgets", &a::Read::Item { number: 1, after: 0, since: None });
         if applied {
             let Ok(a::Answer::Item { item, .. }) = result else { panic!("write applied before reply loss") };
             assert_eq!(item.title.as_ref(), b"faulted issue");

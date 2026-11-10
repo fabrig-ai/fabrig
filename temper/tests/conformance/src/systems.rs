@@ -368,7 +368,11 @@ impl FakeForge {
                 })
             }
             raw::Write::EditItem { number, .. } | raw::Write::Close { number } => {
-                match self.domain.inspect(&self.config, b"org/repo", &raw::Read::Item { number: *number, after: 0 , since: None }) {
+                match self.domain.inspect(
+                    &self.config,
+                    b"org/repo",
+                    &raw::Read::Item { number: *number, after: 0, since: None },
+                ) {
                     Ok(raw::Answer::Item { item, .. }) => (
                         Some(observations::value(
                             format!("{:?}:{:?}:{:?}", item.title, item.body, item.state).as_bytes(),

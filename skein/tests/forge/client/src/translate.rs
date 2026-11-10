@@ -114,7 +114,9 @@ fn read_op(read: &client::Read, l: &Limits) -> forge::Read {
             author: None,
             limit: l.rows,
         },
-        client::Read::Item { number, after, since } => forge::Read::Item { number: *number, after: *after, since: Some(*since) },
+        client::Read::Item { number, after, since } => {
+            forge::Read::Item { number: *number, after: *after, since: Some(*since) }
+        }
         client::Read::Pull { number } | client::Read::Reviews { number, .. } | client::Read::Remarks { number, .. } => {
             forge::Read::Pull { number: *number }
         }

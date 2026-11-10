@@ -345,7 +345,7 @@ fn a_goal_and_its_issue_are_titled_by_the_callers_first_line() {
     let number = issue(&world, goal.task).number.expect("issue created");
     let raw::Answer::Item { item, .. } = world
         .fake
-        .inspect(&world.fake_env.limits, b"org/repo", &raw::Read::Item { number, after: 0 , since: None })
+        .inspect(&world.fake_env.limits, b"org/repo", &raw::Read::Item { number, after: 0, since: None })
         .expect("fake issue")
     else {
         panic!("item read");
@@ -393,7 +393,7 @@ fn a_goal_with_a_long_request_and_nine_tasks_reports_and_its_issue_fits() {
     assert_eq!(record(&world, goal.task).made, u32::try_from(CHILDREN).expect("bounded children") + 1);
     let raw::Answer::Item { item, .. } = world
         .fake
-        .inspect(&world.fake_env.limits, b"org/repo", &raw::Read::Item { number, after: 0 , since: None })
+        .inspect(&world.fake_env.limits, b"org/repo", &raw::Read::Item { number, after: 0, since: None })
         .expect("fake issue")
     else {
         panic!("item read");
@@ -409,7 +409,7 @@ fn a_goal_with_a_long_request_and_nine_tasks_reports_and_its_issue_fits() {
     assert_eq!(item.state, raw::State::Closed);
     let raw::Answer::Comments(comments) = world
         .fake
-        .inspect(&world.fake_env.limits, b"org/repo", &raw::Read::Comments { number , since: None })
+        .inspect(&world.fake_env.limits, b"org/repo", &raw::Read::Comments { number, since: None })
         .expect("fake comments")
     else {
         panic!("comments read");
@@ -505,7 +505,7 @@ fn a_pending_closing_projection_finishes_after_a_cold_restart() {
     assert!(!restarted.store.rows.contains_key(&Key::Forge(forge::Key::Issue(goal.task))));
     let raw::Answer::Item { item, .. } = restarted
         .fake
-        .inspect(&restarted.fake_env.limits, b"org/repo", &raw::Read::Item { number, after: 0 , since: None })
+        .inspect(&restarted.fake_env.limits, b"org/repo", &raw::Read::Item { number, after: 0, since: None })
         .expect("recovered issue")
     else {
         panic!("item read")

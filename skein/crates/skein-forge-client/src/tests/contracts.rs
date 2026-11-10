@@ -243,7 +243,7 @@ type ByteCase = (&'static str, Read, Answer, u32);
 fn byte_cases() -> [ByteCase; BYTE_CASES] {
     [
         ("items", Read::Items { since: at(0), page: 1, kind: None }, items_answer(), ITEMS_BYTES),
-        ("item", Read::Item { number: 9, after: 0 , since: skein_lib::Time::ZERO }, item_answer(), ITEM_BYTES),
+        ("item", Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }, item_answer(), ITEM_BYTES),
         ("pull", Read::Pull { number: 9 }, pull_answer(), PULL_BYTES),
         (
             "job",
@@ -322,7 +322,7 @@ const ROW_CASES: usize = 4; // branches, labels, reviewers, protection contexts
 fn row_reads() -> [(&'static str, Read); ROW_CASES] {
     [
         ("branches", Read::Branches { prefix: Box::from(&b"m"[..]) }),
-        ("labels", Read::Item { number: 9, after: 0 , since: skein_lib::Time::ZERO }),
+        ("labels", Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }),
         ("reviewers", Read::Pull { number: 9 }),
         ("protection", Read::Protection { branch: Box::from(&b"kit"[..]) }),
     ]
@@ -476,7 +476,7 @@ fn an_answered_busy_makes_a_write_uncertain() {
     h.answer(write, Err(Error::Busy));
     assert_eq!(h.store.get(&1).expect("progress saved").failures, 1);
     assert_eq!(h.outcomes.as_slice(), &[(1, crate::Outcome::Uncertain)]);
-    assert_eq!(h.one().op, api::Op::Read(Read::Item { number: 9, after: 0 , since: skein_lib::Time::ZERO }));
+    assert_eq!(h.one().op, api::Op::Read(Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }));
     assert_eq!(h.writes, 1);
 }
 
