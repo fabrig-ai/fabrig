@@ -24,13 +24,14 @@ pub struct Closer {
     pub running: Option<Running>,
     pub landing: Option<u64>,
     pub hold: Option<Hold>,
+    pub retry: Option<Step>,
 }
 
 impl Closer {
     #[must_use]
     #[expect(clippy::new_without_default, reason = "step values use named constructors, not user-defined traits")]
     pub fn new() -> Self {
-        Self { closed: None, running: None, landing: None, hold: None }
+        Self { closed: None, running: None, landing: None, hold: None, retry: None }
     }
 }
 
@@ -50,6 +51,7 @@ pub struct Facts {
     pub landed: Box<[u64]>,
     pub base_holds: bool,
     pub child: Child,
+    pub landing_child: Child,
     pub released: bool,
 }
 
@@ -76,16 +78,29 @@ pub fn step(closer: &Closer, facts: &Facts) -> Stepped {
             return Stepped { closer, decision };
         }
         closer.hold = None;
-        let Some(running) = closer.running else { unreachable!("a closing hold names the running change") };
-        closer.running = None;
+        let Some(running) = closer.running.take() else { unreachable!("a closing hold names the running change") };
+        closer.retry = Some(running.step);
+    }
+    if let Some(retry) = closer.retry {
         if facts.pending {
             return Stepped { closer, decision: Decision::Wait };
         }
-        return Stepped { closer, decision: Decision::Make(running.step) };
+        closer.retry = None;
+        return Stepped { closer, decision: Decision::Make(retry) };
     }
     if let Some(running) = closer.running {
         match facts.child {
-            Child::Pending => return Stepped { closer, decision: Decision::Wait },
+            Child::Pending => {
+                if running.step == Step::Land
+                    && !facts.pending
+                    && facts.close_job
+                    && closer.closed.as_deref() != Some(facts.landed.as_ref())
+                {
+                    closer.running = None;
+                    return Stepped { closer, decision: Decision::Make(Step::Close) };
+                }
+                return Stepped { closer, decision: Decision::Wait };
+            }
             Child::Ended => {
                 let hold = Hold::ClosingStep { step: running.step, change: running.change };
                 closer.hold = Some(hold.clone());
@@ -98,6 +113,23 @@ pub fn step(closer: &Closer, facts: &Facts) -> Stepped {
         Decision::Wait
     } else if facts.goal_branch && facts.close_job && closer.closed.as_deref() != Some(facts.landed.as_ref()) {
         Decision::Make(Step::Close)
+    } else if let Some(change) = closer.landing {
+        match facts.landing_child {
+            Child::Pending => Decision::Wait,
+            Child::Ended => {
+                let hold = Hold::ClosingStep { step: Step::Land, change };
+                closer.running = Some(Running { step: Step::Land, change });
+                closer.hold = Some(hold.clone());
+                Decision::Hold(hold)
+            }
+            Child::Done => {
+                if facts.goal_branch && !facts.base_holds {
+                    Decision::Make(Step::Land)
+                } else {
+                    Decision::Report
+                }
+            }
+        }
     } else if facts.goal_branch && !facts.base_holds {
         Decision::Make(Step::Land)
     } else {

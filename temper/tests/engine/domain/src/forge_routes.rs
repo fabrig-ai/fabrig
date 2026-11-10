@@ -1289,19 +1289,15 @@ impl World {
                 project.policy.policy.roles[0].authority.delegation.kinds.clone_from(kinds);
             }
         }
-        self.restart_config
-            .landings
-            .insert(
-                1,
-                engine::ProjectLanding {
-                    by: engine::Way::Queue,
-                    merge_job: None,
-                    close_job: command.map(Into::into),
-                    repositories: Box::new([]),
-                    after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
-                },
-            )
-            .expect("one project's landing");
+        let mut landing = self.restart_config.landings.get(&1).cloned().unwrap_or(engine::ProjectLanding {
+            by: engine::Way::Queue,
+            merge_job: None,
+            close_job: None,
+            repositories: Box::new([]),
+            after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
+        });
+        landing.close_job = command.map(Into::into);
+        self.restart_config.landings.insert(1, landing).expect("one project's landing");
         self.env.limits.documents = paths::document_limits(self.env.limits.documents, &self.env.limits);
         self.creating =
             jig_test_profile::fixtures::Creating::new(&self.restart_config.core, self.env.limits.tasks.tree_tasks);
@@ -1316,6 +1312,44 @@ impl World {
         self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid close job configuration");
+        self
+    }
+
+    /// Give these stories the goal closer's procedure without changing other fixtures.
+    #[must_use]
+    pub fn with_goal_closer(mut self) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "closer authority precedes startup");
+        // The closer's report and new work reserve words beside the goal's landing news.
+        self.env.limits.tasks.inbox_bytes = self.env.limits.tasks.inbox_bytes.max(24_576);
+        self.env.limits.journal.transcript_bytes = self.env.limits.journal.transcript_bytes.max(131_072);
+        self.env.limits.loads.transcript_bytes = self.env.limits.loads.transcript_bytes.max(131_072);
+        self.env.limits.loads.bytes = self.env.limits.loads.bytes.max(131_072);
+        self.env.limits.loads.reply_bytes = self.env.limits.loads.reply_bytes.max(131_072);
+        let kinds = &mut self.restart_config.core.defaults.rules.ceiling.delegation.kinds;
+        let mut extended = kinds.to_vec();
+        extended.push(authority::Executor::Procedure(6));
+        let count = u32::try_from(extended.len()).expect("fixture executor count");
+        self.env.limits.tasks.executor_kinds = self.env.limits.tasks.executor_kinds.max(count);
+        self.env.limits.authority.executors = self.env.limits.authority.executors.max(count);
+        *kinds = extended.into_boxed_slice();
+        for project in &mut self.restart_config.core.seed_projects {
+            project.policy.policy.ceiling.delegation.kinds.clone_from(kinds);
+            project.policy.policy.roles[0].authority.delegation.kinds.clone_from(kinds);
+        }
+        self.env.limits.documents = paths::document_limits(self.env.limits.documents, &self.env.limits);
+        self.creating =
+            jig_test_profile::fixtures::Creating::new(&self.restart_config.core, self.env.limits.tasks.tree_tasks);
+        let mut codec = crate::store::widest();
+        codec.tasks = self.env.limits.tasks;
+        codec.authority = self.env.limits.authority;
+        self.store = crate::fixtures::restored_over(
+            Store::with_limits(&codec),
+            crate::oracle::config::copy(&self.restart_config),
+            &self.env.limits,
+        );
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid closer configuration");
         self
     }
 

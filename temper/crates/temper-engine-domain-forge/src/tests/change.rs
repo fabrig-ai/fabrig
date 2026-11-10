@@ -1587,3 +1587,50 @@ fn a_stored_held_update_keeps_its_hold_and_its_words() {
         decide_update_again(&mut d, preparing, 1);
     }
 }
+
+#[test]
+fn a_release_keeps_the_repair_and_resolution_tasks_made_before_it() {
+    use temper_engine_domain_forge_change as change;
+    let mut d = delegate_waiting(
+        change::State::Repairing { requested: true, why: change::Repair::Gate(1) },
+        change::Delegate::Repair(change::Repair::Gate(1)),
+    );
+    outputs(
+        &mut d,
+        Event::Delegated {
+            task: fixtures::CHANGE,
+            child: 90,
+            kind: change::Delegate::Resolve { base: fixtures::BASE },
+        },
+    );
+    outputs(
+        &mut d,
+        Event::Delegated { task: fixtures::CHANGE, child: 52, kind: change::Delegate::Repair(change::Repair::Gate(1)) },
+    );
+    let row = d.changes.get_mut(&fixtures::CHANGE).expect("live change");
+    row.change.repairs = 1;
+    row.change.resolutions = 1;
+    row.change.state = change::State::Held { was: Box::new(row.change.state.clone()), why: change::Hold::Failed };
+    outputs(&mut d, Event::ReleaseChange { task: fixtures::CHANGE });
+    assert_eq!(d.change(fixtures::CHANGE).expect("released").change.repairs, 0);
+    outputs(&mut d, waiting_step(false, true));
+    fixtures::missing_pull_reads(&mut d);
+    let made = fixtures::finish_missing(&mut d);
+    assert!(
+        made.contains(&Request::ChangeDecision {
+            task: fixtures::CHANGE,
+            decision: change::Decision::Delegate(change::Delegate::Repair(change::Repair::Gate(1))),
+            entry: None,
+            evidence: None
+        }),
+        "{made:?}"
+    );
+    outputs(
+        &mut d,
+        Event::Delegated { task: fixtures::CHANGE, child: 53, kind: change::Delegate::Repair(change::Repair::Gate(1)) },
+    );
+    let row = d.change(fixtures::CHANGE).expect("second repair");
+    assert_eq!(row.change.repairs, 1);
+    assert_eq!(row.repair_tasks.as_ref(), &[52, 53]);
+    assert_eq!(row.resolution_tasks.as_ref(), &[90]);
+}

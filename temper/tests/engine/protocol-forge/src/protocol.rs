@@ -600,6 +600,7 @@ impl Protocol {
                 | top::Request::Retained { .. }
                 | top::Request::ReleaseFailed { .. }
                 | top::Request::StepDependents { .. }
+                | top::Request::CloserChecked { .. }
                 | top::Request::WakeProcedure { .. }
                 | top::Request::ProjectAfter { .. }
                 | top::Request::ProjectionSettled { .. }
@@ -753,6 +754,7 @@ fn key(row: &top::Stored) -> top::Key {
                 unreachable!("the connector keeps the client's writer as Stored::Writer")
             }
         }),
+        top::Stored::Closer(row) => top::Key::Closer(row.task),
         top::Stored::Change(row) => top::Key::Change(row.task),
         top::Stored::Issue(row) => top::Key::Issue(row.goal),
         top::Stored::Setting(row) => top::Key::Setting(row.key),

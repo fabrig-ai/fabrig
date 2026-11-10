@@ -8,6 +8,7 @@ fn facts() -> Facts {
         landed: Box::new([9, 12]),
         base_holds: false,
         child: Child::Pending,
+        landing_child: Child::Pending,
         released: false,
     }
 }
@@ -91,6 +92,7 @@ fn a_change_landed_into_the_branch_since_the_close_step_closes_again() {
 fn a_branch_moved_past_its_landing_lands_again() {
     let mut f = facts();
     f.child = Child::Done;
+    f.landing_child = Child::Done;
     let mut c = Closer::new();
     c.closed = Some(f.landed.clone());
     c.running = Some(Running { step: Step::Land, change: 20 });
@@ -109,4 +111,35 @@ fn a_kept_closer_makes_no_new_step() {
     let s = step(&c, &f);
     assert_eq!(s.decision, Decision::Wait);
     assert_eq!(s.closer.running, c.running);
+}
+
+#[test]
+fn new_work_closes_again_while_the_landing_is_live() {
+    let mut f = facts();
+    let mut c = Closer::new();
+    c.closed = Some(Box::new([9]));
+    c.landing = Some(20);
+    c.running = Some(Running { step: Step::Land, change: 20 });
+    assert_eq!(step(&c, &f).decision, Decision::Make(Step::Close));
+    c.running = Some(Running { step: Step::Close, change: 21 });
+    c.closed = Some(f.landed.clone());
+    f.child = Child::Done;
+    assert_eq!(step(&c, &f).decision, Decision::Wait);
+}
+#[test]
+fn a_released_retry_waits_for_dependencies() {
+    let mut f = facts();
+    f.released = true;
+    f.pending = true;
+    let mut c = Closer::new();
+    c.closed = Some(f.landed.clone());
+    c.running = Some(Running { step: Step::Close, change: 20 });
+    c.hold = Some(Hold::ClosingStep { step: Step::Close, change: 20 });
+    let s = step(&c, &f);
+    assert_eq!(s.decision, Decision::Wait);
+    assert_eq!(s.closer.hold, None);
+    assert_eq!(s.closer.retry, Some(Step::Close));
+    f.released = false;
+    f.pending = false;
+    assert_eq!(step(&s.closer, &f).decision, Decision::Make(Step::Close));
 }

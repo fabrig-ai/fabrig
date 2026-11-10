@@ -35,6 +35,9 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             None
         }
         core::Ask::StepRefused { task, step, why } => {
+            if connector == domain.config.forge_connector && forge_route::closer_refused(domain, task, &why) {
+                return;
+            }
             if connector == domain.config.forge_connector && forge_route::status_refused(domain, task, &why) {
                 return;
             }
@@ -238,6 +241,19 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 let branches = forge_route::saved_branches(domain, env, task, root);
                 if !branches.is_empty() {
                     domain.work.push(Work::Forge(forge::Event::SavedWork { task, branches }));
+                }
+                let account = match &ending {
+                    tasks::Ending::Done(tasks::TaskResult::NoChange { .. }) => forge::Ending::NoChange,
+                    tasks::Ending::Done(_) => forge::Ending::Landed,
+                    tasks::Ending::Failed { reason } => {
+                        forge::Ending::Failed { line: temper_engine_domain_forge_closer::first_line(reason).into() }
+                    }
+                    tasks::Ending::Cancelled { .. } => forge::Ending::Cancelled,
+                };
+                domain.work.push(Work::Forge(forge::Event::ChangeEnding { task, ending: account }));
+                if let Some(mut row) = domain.forge.closer(task).cloned() {
+                    row.done = true;
+                    domain.work.push(Work::Forge(forge::Event::Closer { row }));
                 }
                 let reason = release_reason(domain, task, &ending);
                 domain.work.push(Work::Forge(forge::Event::Release {
@@ -509,6 +525,8 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                 }
             } else if connector == domain.config.forge_connector && code == forge_route::LANDING_CODE {
                 forge_route::start_landing_step(domain, env, &context);
+            } else if connector == domain.config.forge_connector && code == forge_route::GOAL_CLOSER_CODE {
+                forge_route::start_closer_step(domain, env, &context);
             } else if connector == domain.config.forge_connector && code == forge_route::STATUS_CODE {
                 forge_route::start_status_step(domain, env, &context);
             } else if connector == domain.config.forge_connector && code == forge_route::AFTER_LANDING_CODE {
@@ -639,6 +657,7 @@ fn step_made(
     step: u64,
     child: Option<u64>,
 ) {
+    forge_route::closer_made(domain, task, child);
     if domain.forge.tier_task(task).is_some()
         && let Some(row) = domain.core.tasks.task(task)
     {

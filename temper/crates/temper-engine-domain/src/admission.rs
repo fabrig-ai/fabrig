@@ -142,6 +142,9 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::ReviewRequested { .. }
             | forge::Event::StepChange { .. }
             | forge::Event::SavedWork { .. }
+            | forge::Event::Closer { .. }
+            | forge::Event::CheckCloser { .. }
+            | forge::Event::ChangeEnding { .. }
             | forge::Event::ReleaseChange { .. }
             | forge::Event::SettleEffects { .. }
             | forge::Event::Release { .. }

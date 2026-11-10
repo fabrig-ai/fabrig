@@ -367,6 +367,25 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
         Stored::Writer(row) => {
             room(K::Writer, Rows(K::Writer), d.writers.len(), d.writers.capacity(), d.writers.contains_key(&row.forge))
         }
+        Stored::Closer(row) => {
+            room(
+                K::Closer,
+                Rows(K::Closer),
+                d.closing.rows.len(),
+                d.closing.rows.capacity(),
+                d.closing.rows.contains_key(&row.task),
+            )?;
+            if !row.done {
+                room(
+                    K::Closer,
+                    RestoreSet::ChangeTimers,
+                    d.change_due.len(),
+                    d.change_due.capacity(),
+                    d.change_due.contains_key(&row.task),
+                )?;
+            }
+            Ok(())
+        }
         Stored::Change(row) => {
             room(K::Change, Rows(K::Change), d.changes.len(), d.changes.capacity(), d.changes.contains_key(&row.task))?;
             room(

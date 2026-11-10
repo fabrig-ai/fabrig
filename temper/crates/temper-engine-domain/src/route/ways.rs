@@ -307,6 +307,7 @@ pub(crate) fn erased(domain: &mut Domain, key: &forge::Key) {
         | forge::Key::Landed(_)
         | forge::Key::Entry(_)
         | forge::Key::Client(_)
+        | forge::Key::Closer(_)
         | forge::Key::Change(_)
         | forge::Key::Issue(_)
         | forge::Key::Release(_)

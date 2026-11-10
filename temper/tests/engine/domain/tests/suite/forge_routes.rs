@@ -36,6 +36,8 @@ mod questions;
 
 #[path = "forge_routes/foremen.rs"]
 mod foremen;
+#[path = "forge_routes/goal_closer.rs"]
+mod goal_closer;
 #[path = "forge_routes/status.rs"]
 mod status;
 

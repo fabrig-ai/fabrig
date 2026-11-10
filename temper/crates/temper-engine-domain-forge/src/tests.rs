@@ -480,6 +480,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Drift { .. }
         | Request::ProjectionEffect { .. }
         | Request::StepDependents { .. }
+        | Request::CloserChecked { .. }
         | Request::WakeProcedure { .. }
         | Request::ProjectAfter { .. }
         | Request::ProjectionFailed { .. }
@@ -571,6 +572,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Drift { .. }
         | Request::ProjectionEffect { .. }
         | Request::StepDependents { .. }
+        | Request::CloserChecked { .. }
         | Request::WakeProcedure { .. }
         | Request::ProjectAfter { .. }
         | Request::ProjectionFailed { .. }
@@ -655,6 +657,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Drift { .. }
         | Request::ProjectionEffect { .. }
         | Request::StepDependents { .. }
+        | Request::CloserChecked { .. }
         | Request::WakeProcedure { .. }
         | Request::ProjectAfter { .. }
         | Request::ProjectionFailed { .. }

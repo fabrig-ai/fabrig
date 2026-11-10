@@ -9,6 +9,7 @@ mod application;
 mod away;
 mod change;
 mod client;
+mod closer;
 #[cfg(test)]
 pub(crate) use api::encode_error;
 mod entries;
@@ -29,6 +30,7 @@ const FITS: &str = "admitted fields fit the schema";
 #[must_use]
 pub fn encode(value: &d::Stored) -> Box<[u8]> {
     let value = match value {
+        d::Stored::Closer(row) => w::Value::Closer(closer::encode(row)),
         d::Stored::ProjectFacts(row) => w::Value::ProjectFacts(status::encode_facts(row)),
         d::Stored::Away(row) => w::Value::Away(away::encode_away(row)),
         d::Stored::Decided(row) => w::Value::Decided(away::encode_decided(row)),
@@ -107,6 +109,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
 pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
     let row = w::Row::decode(bounds.limits(), &mut Reader::new(bytes)).or(Err(Undecodable))?;
     Ok(match row.into_parts().value {
+        w::Value::Closer(row) => d::Stored::Closer(closer::decode(row)),
         w::Value::ProjectFacts(row) => d::Stored::ProjectFacts(status::decode_facts(row)),
         w::Value::Away(row) => d::Stored::Away(away::decode_away(row)),
         w::Value::Decided(row) => d::Stored::Decided(away::decode_decided(row)?),

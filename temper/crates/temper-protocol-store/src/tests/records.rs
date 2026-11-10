@@ -1952,3 +1952,103 @@ fn a_change_row_with_a_close_request_round_trips() {
     let row = forge::Stored::Change(row);
     assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
 }
+
+#[test]
+fn a_change_row_keeps_its_goal_ending_and_delegate_history() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    for ending in [
+        None,
+        Some(forge::Ending::Landed),
+        Some(forge::Ending::NoChange),
+        Some(forge::Ending::Cancelled),
+        Some(forge::Ending::Failed { line: b"failed first line".as_slice().into() }),
+    ] {
+        let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Ended);
+        row.goal = Some(7);
+        row.ending = ending;
+        row.repair_tasks = Box::new([52, 53]);
+        row.resolution_tasks = Box::new([90]);
+        let row = forge::Stored::Change(row);
+        let meter = skein_world::domain::heap::Meter::new();
+        meter.start();
+        let cloned = row.clone();
+        let held = meter.end().held();
+        assert_eq!(forge::stored_bytes(&cloned), Some(held));
+        drop(cloned);
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    }
+}
+
+#[test]
+fn a_closer_row_round_trips() {
+    use temper_engine_domain_forge_closer::{Closer, Hold, Running, Step};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let rows = [
+        forge::CloserRow {
+            task: 8,
+            goal: 7,
+            closer: Closer::new(),
+            making: None,
+            close_changes: Box::new([]),
+            landing_changes: Box::new([]),
+            done: false,
+        },
+        forge::CloserRow {
+            task: 8,
+            goal: 7,
+            closer: Closer {
+                closed: Some(Box::new([])),
+                running: Some(Running { step: Step::Close, change: 20 }),
+                landing: None,
+                hold: Some(Hold::ClosingStep { step: Step::Close, change: 20 }),
+                retry: None,
+            },
+            making: Some(Step::Close),
+            close_changes: Box::new([20]),
+            landing_changes: Box::new([]),
+            done: false,
+        },
+        forge::CloserRow {
+            task: 8,
+            goal: 7,
+            closer: Closer {
+                closed: Some(Box::new([9, 12])),
+                running: Some(Running { step: Step::Land, change: 21 }),
+                landing: Some(21),
+                hold: Some(Hold::ClosingStep { step: Step::Land, change: 21 }),
+                retry: Some(Step::Land),
+            },
+            making: Some(Step::Land),
+            close_changes: Box::new([20, 22]),
+            landing_changes: Box::new([21, 23]),
+            done: true,
+        },
+    ];
+    for row in rows.into_iter().chain([forge::CloserRow {
+        task: 8,
+        goal: 7,
+        closer: Closer {
+            closed: Some(Box::new([9])),
+            running: None,
+            landing: None,
+            hold: None,
+            retry: Some(Step::Close),
+        },
+        making: None,
+        close_changes: Box::new([20]),
+        landing_changes: Box::new([]),
+        done: false,
+    }]) {
+        let row = forge::Stored::Closer(row);
+        let meter = skein_world::domain::heap::Meter::new();
+        meter.start();
+        let cloned = row.clone();
+        let held = meter.end().held();
+        assert_eq!(forge::stored_bytes(&cloned), Some(held));
+        drop(cloned);
+        let key = forge::stored_key(&row);
+        let key = crate::keys::encode(&key, u32::MAX).expect("closer key fits");
+        assert_eq!(crate::keys::decode(&key, &fixtures::LIMITS), Some(forge::stored_key(&row)));
+        assert_eq!(records::row(&key, &records::encode(&row), &bounds), Ok(row));
+    }
+}
