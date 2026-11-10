@@ -334,3 +334,22 @@ fn a_delivering_job_without_one_writable_repository_pushes_nothing() {
     let host::JobEnding::Failed { failure, .. } = answer(&rows) else { panic!("no delivery target") };
     assert_eq!(*failure, host::JobFailure::Failed);
 }
+
+/// temper/docs/design/domain/worker.md, 4.4; temper/docs/design/protocol/tooling.md, 4.2.
+#[test]
+fn a_close_jobs_commit_title_names_its_goal() {
+    for (kind, request, expected) in [
+        (4, b"{\"version\":1,\"goal\":7,\"changes\":[]}".as_slice(), b"Settle goal 7's status".as_slice()),
+        (4, b"{\"version\":1,\"goal\":12345678901234567890,", b"Settle goal 12345678901234567890's status"),
+        (4, b"request", b"job 4"),
+        (4, b"{\"version\":2,\"goal\":7,", b"job 4"),
+        (4, b"{\"version\":1,\"goal\":,", b"job 4"),
+        (4, b"{\"version\":1,\"goal\":123456789012345678901,", b"job 4"),
+        (4, b"{\"version\":1,\"goal\":7x,", b"job 4"),
+        (4, "{\"version\":1,\"goal\":７,".as_bytes(), b"job 4"),
+        (4, b"{\"version\":1,\"goal\":7", b"job 4"),
+        (3, b"{\"version\":1,\"goal\":7,", b"job 3"),
+    ] {
+        assert_eq!(crate::jobs::commit_title(JobKind(kind), request).as_ref(), expected, "{request:?}");
+    }
+}

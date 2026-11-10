@@ -18,6 +18,7 @@ use temper_worker_domain::{
 
 use crate::protocol;
 
+pub mod close;
 pub mod jobs;
 pub mod merge;
 pub mod orders;

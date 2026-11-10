@@ -159,9 +159,9 @@ keeps of a goal's work in its own files.
   `{"version":1,"goal":7,"changes":[{"task":9,"landed":true},{"task":12,"landed":false}]}`.
 - **What it does:** it edits the files it settles and stages each
   (`git add`); it never commits, never writes another branch, and never
-  reaches a forge. temper commits what is staged, with one parent, the
+  reaches a forge. temper commits the tree as it left it, with one parent, the
   tip, its message `Settle goal G's status`, and pushes it as the close
-  change's head; nothing staged is no commit.
+  change's head; an unchanged tree is no commit.
 - **`result.json`, exit 0:** `{"settled": [PATH]}`, the files it staged,
   in index order, cut to the kind's result bound with `"more": N` as
   `merge`'s are (4.1). Nothing staged with exit 0 is success: the close
