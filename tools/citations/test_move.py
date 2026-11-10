@@ -923,6 +923,18 @@ git = fail_add
         self.assertIn("Rewrote in code strings:", result.stdout)
         self.clean_check()
 
+    def test_shadowed_suffix_uses_root_path_inside_single_quoted_literals(self):
+        self.write("jig/docs/design/domain/tasks.md", "# tasks\n\n## 12. Tasks\n")
+        for extension in ("py", "sh", "toml", "js"):
+            self.write(f"temper/testing/message.{extension}", "message = 'jig tasks.md, 12'\n")
+        self.commit("single quoted suffix")
+        self.apply(f"{A} 2 -> temper/docs/design/format/tasks.md\n"
+                   "title temper/docs/design/format/tasks.md: Tasks\n")
+        for extension in ("py", "sh", "toml", "js"):
+            self.assertEqual(self.read(f"temper/testing/message.{extension}"),
+                             "message = 'jig jig/docs/design/domain/tasks.md, 12'\n")
+        self.clean_check()
+
     def test_dynamic_and_disk_paths_remain_by_hand_before_markdown(self):
         path = "skein/crates/k/src/lib.rs"
         text = ('let disk = include_str!("../../../docs/design/a.md");\n'
