@@ -271,6 +271,20 @@ fn fields_refuse_measured_bytes_and_normal_admission_still_judges_identity() {
 }
 
 #[test]
+fn named_branch_names_fit_by_bytes_not_rows() {
+    use skein_forge::api::Answer;
+    for rows in [CLIENT.rows, CLIENT.rows + 1, 40] {
+        let names = vec![Box::from(&b"temper/goal"[..]); usize::try_from(rows).unwrap()].into_boxed_slice();
+        let answer = CallPayload::Read(Box::new(Ok(Answer::Branches(names))));
+        let key = NamedCall { task: 1, attempt: 1, completion: 1, position: 1 };
+        let mut d = domain();
+        restore(&mut d, Stored::Call { key, answer: answer.clone() });
+        assert_eq!(d.restore_fit_failure(), None);
+        assert_eq!(d.named_answer(key), Some(answer));
+    }
+}
+
+#[test]
 fn named_payload_bytes_and_nested_rows_have_exact_boundaries() {
     use skein_forge::api::Answer;
     for bytes in [CLIENT.answer_bytes, CLIENT.answer_bytes + 1] {
@@ -304,20 +318,46 @@ fn named_payload_bytes_and_nested_rows_have_exact_boundaries() {
         }
     }
     for rows in [CLIENT.rows, CLIENT.rows + 1] {
-        let mut d = domain();
-        let answer = Answer::Branches(vec![Box::<[u8]>::default(); usize::try_from(rows).unwrap()].into_boxed_slice());
-        restore(
-            &mut d,
-            Stored::Call {
-                key: NamedCall { task: 1, attempt: 1, completion: 1, position: 1 },
-                answer: CallPayload::Read(Box::new(Ok(answer))),
-            },
-        );
-        if rows == CLIENT.rows {
-            assert_eq!(d.restore_fit_failure(), None);
-        } else {
-            assert_eq!(d.restore_fit_failure().unwrap().set, RestoreSet::NamedAnswerRows);
-            assert_eq!(d.restore_fit_failure().unwrap().held, u64::from(rows));
+        let names = vec![Box::<[u8]>::default(); usize::try_from(rows).unwrap()].into_boxed_slice();
+        let item = skein_forge::api::Summary {
+            labels: names.clone(),
+            kind: skein_forge::api::Kind::Issue,
+            author: 7,
+            key: None,
+            updated: env().now,
+            number: 1,
+            title: Box::new([]),
+            body: Box::new([]),
+            state: skein_forge::api::State::Open,
+        };
+        for answer in [
+            Answer::Item { item, comments: Box::new([]), more: false },
+            Answer::Protection(Some(skein_forge::api::Protection {
+                branch: Box::new([]),
+                contexts: names,
+                approvals: 0,
+                dismiss_stale: false,
+                queue: false,
+                signatures: false,
+                linear: false,
+                code_owners: false,
+                bypass: skein_forge::api::Bypass::Never,
+            })),
+        ] {
+            let mut d = domain();
+            restore(
+                &mut d,
+                Stored::Call {
+                    key: NamedCall { task: 1, attempt: 1, completion: 1, position: 1 },
+                    answer: CallPayload::Read(Box::new(Ok(answer))),
+                },
+            );
+            if rows == CLIENT.rows {
+                assert_eq!(d.restore_fit_failure(), None);
+            } else {
+                assert_eq!(d.restore_fit_failure().unwrap().set, RestoreSet::NamedAnswerRows);
+                assert_eq!(d.restore_fit_failure().unwrap().held, u64::from(rows));
+            }
         }
     }
     for rows in [CLIENT.rows, CLIENT.rows + 1] {

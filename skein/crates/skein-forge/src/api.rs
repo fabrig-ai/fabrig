@@ -109,8 +109,11 @@ pub enum Read {
         page: u32,
         kind: Option<Kind>,
     },
-    /// Read item.
-    Item { number: u64, after: u64 },
+    /// An item and its comments with ids above `after`.
+    /// `since` is at or before the update of every comment above `after`;
+    /// the dialect sends it as the forge's filter. Zero sends no filter.
+    /// `after` stays the answer's check; an owner knowing no time sends zero.
+    Item { number: u64, after: u64, since: Time },
     /// Read pull.
     Pull { number: u64 },
     /// The open matching pull, else the oldest.

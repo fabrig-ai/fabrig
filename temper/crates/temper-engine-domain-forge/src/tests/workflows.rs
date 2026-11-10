@@ -225,9 +225,6 @@ fn observe(d: &mut Domain, branch: &[u8], previous: Option<api::Commit>) {
             },
         },
     );
-    let (call, op) = fixtures::next_call(d);
-    let Op::Read(Read::Items { .. }) = op else { panic!("repository poll: {op:?}") };
-    fixtures::answer(d, call, Ok(Answer::Items { items: Box::new([]), more: false, now: env().now }));
     let call = expect_read(d, Read::Branch { branch: branch.into() });
     fixtures::answer(d, call, Ok(Answer::Commit(TIP)));
 }

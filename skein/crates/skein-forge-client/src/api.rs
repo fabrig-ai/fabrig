@@ -203,7 +203,7 @@ fn read_accepts(read: &Read, answer: &Answer) -> bool {
         Read::Checks { commit } => checks_at_head(answer, *commit),
         Read::PullFiles { head, .. } => observed_head(answer) == Some(*head),
         Read::Compare { before, after } => compared(answer, *before, *after),
-        Read::Item { number, after } => item_matches(answer, *number, *after),
+        Read::Item { number, after, since: _ } => item_matches(answer, *number, *after),
         Read::Reviews { .. } => reviews_ordered(answer),
         Read::Pull { number } => match pull_answer(answer) {
             Some(pull) => pull.number == *number,

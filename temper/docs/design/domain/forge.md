@@ -936,14 +936,37 @@ the landing branches' tips, the slow pass and the forge's clock. temper's
 part:
 
 - **Its values:** `forge.client.poll_ms`, `poll_max_ms`, `hinted_ms`,
-  `slow_ms` and `settle_ms`. The paces are what they are with no
-  webhook, so a delivery lost, refused or never sent costs latency,
-  never liveness (skein's `forge-client.md`, section 4).
+  `slow_ms`, `settle_ms` and `fallback_ms`. The paces are what they are
+  with no webhook, so a delivery lost, refused or never sent costs
+  latency, never liveness (skein's `forge-client.md`, section 4).
+- **Listings only for items.** A repository is listed only while one of
+  its issue or pull watches lives (skein's `forge-client.md`, section 4):
+  one temper names only for branches, as a goal's, a landing's and a
+  tier's are, or watches as itself, lists nothing, and a hint there starts
+  no listing. Its branches keep their own paces.
+- **Events first, polls as a fallback.** While a repository's
+  deliveries arrive, its timed reads, and temper's own polls of it,
+  fall back to `fallback`, 5 minutes as shipped (skein's
+  `forge-client.md`, 4.1). temper knows deliveries arrive by their
+  arrival: each hint the client takes for a repository, temper's own
+  echoes among them, keeps it hearing for `fallback`; no heartbeat or
+  test delivery is sent. It is safe because nothing waits on a pace: a
+  hint still reads at `hinted`, the read due at the last hint plus
+  `fallback` reads all a lost delivery could have announced, and a
+  repository with no delivery for `fallback` polls at the paces above
+  until its next one. 5 minutes bounds that latency for a lost
+  delivery while a busy repository, hearing every few minutes, makes
+  each timed read about once per `fallback` in place of once per
+  `poll`. `fallback_ms` 0 keeps today's paces. A Forgejo hook that
+  stops, or a GitHub App's log not read, stops a repository's
+  deliveries alike, and it stops hearing within `fallback`.
 - **Hints** come from the forge's webhook deliveries, or a GitHub App's
-  delivery log (`../protocol/forge.md`, section 5 and 5.1). The client
-  reads on every hint it holds a resource for. temper, the owner, drops
-  its own echoes, by key and by pusher: a creation's key for an item,
-  the pusher for a push (skein's `forge-client.md`, section 4).
+  delivery log (`../protocol/forge.md`, section 5 and 5.1). Every hint
+  goes to the client, temper's own echoes among them, which keep their
+  repository hearing. The client reads on every hint it holds a
+  resource for, and drops the news temper's own writes cause by its
+  echo ledger and keys (skein's `forge-client.md`, 4 and 7.6); a hint's
+  pusher is used for drift alone.
 - **Which change a hint wakes:** within its repository, a named branch
   wakes changes with that head branch or landing base; a commit wakes
   changes using it as their last head or observed base tip, including
@@ -961,6 +984,23 @@ part:
   dependencies and queue changes keep their existing wake routes. Each
   decision still uses the rules held then (8.7–8.9); hints do not replace
   polling, settling or stall deadlines (8.3–8.4, 9).
+- **temper's own polls fall back too.** A landing's or a tier's flight
+  polling its runs in flight (`landing.md`, 7.1; `after-landing.md`,
+  section 3) and a queued merge's look (skein's `forge-client.md`, 7.7)
+  are due at `Domain::poll_at` for their repository with `poll`, so
+  while it hears they come at the later of `poll` and its last hint
+  plus `fallback`. A job's delivery still wakes its flight at once.
+  Settling's rereads (below), fresh reads and stall deadlines are not
+  stretched.
+- **Failures stop or back off.** A keeping read refused for its inputs
+  (`TooLarge`: a branch's comparison, a comment or review scan past its cap,
+  an answer past the client's bounds) is reported once and not read again
+  until a hint or the listing names its resource, or its branch reads another
+  tip (skein's `forge-client.md`, 4.2). Any other failure is read again after
+  the client's `backoff`, 1 second as shipped, doubling after each failure in
+  a row to `slow_ms`, and an answer sets it back; a failing listing waits
+  alike. These waits are not stretched while a repository hears, and a
+  restart forgets a refusal and tries once more.
 - **What Forgejo settles after it delivers** is read again sooner, by
   the change procedure, which reads its pull request afresh (5.3), not
   by the keep. Forgejo checks a pull request's mergeability after a push
@@ -1083,7 +1123,10 @@ for it, never a read of another kind or another party's.
   (Forgejo 17 does: a read of one status reads success while a job is
   still pending), so CI on a commit, a pull request's included, is
   every row of every page, folded as above, and a combined state read
-  from a limited page is never a verdict. The fake forge computes a
+  from a page that came full is never a verdict. A first page that came
+  short holds every row, so its combined state is their fold, which
+  skein's Forgejo dialect takes for a pull request's CI but where it
+  reads `warning` (skein's `forge.md`, 5.1). The fake forge computes a
   page's combined state as Forgejo does, so that the worlds meet it.
 
 ### 5.4 The request budget
@@ -2601,7 +2644,7 @@ merge, kind 4, on a pattern of landing branches (jig's
 | Requirement | Its parameters | Met | Wait | Refuse | Guarded or observed |
 |---|---|---|---|---|---|
 | 1, CI passed | none | CI passed at the head; for a repository without CI, every one of its checks passed at exactly the head; no CI verdict is needed for the explicit adoption choice to land without CI described below | CI pending or unknown; a check with no verdict at the head | CI failed; a check failed; a repository with neither CI nor checks unless explicitly adopted to land without CI as described below | guarded |
-| 2, up to date | none | the head contains the base's tip | the ancestry range unread or failed, or an empty page that says more follow | the head lacks the base's tip: the range lists a commit, or is too large to list (5.3) | observed, freshness 0 |
+| 2, up to date | none | the head contains the base's tip | the ancestry range unread or failed | the head lacks the base's tip: the range counts a commit (5.3) | observed, freshness 0 |
 | 3, a gate | its number; `exact` or `clean` (8.3) | its verdict, at the head or, where `clean`, at a head the change's clean updates led through, approves | no such verdict yet, or one pending | such a verdict asks for changes | guarded |
 | 4, an approval | a role; how many people; `exact` or `clean` | that many distinct people holding the role in the project approved the pull request at the head, or where `clean` at a head its clean updates led through | fewer have; the reviews too many to read whole | one of them asked for changes at such a head, which a change repairs (8.3) | guarded |
 
@@ -2712,7 +2755,7 @@ merge, kind 4, on a pattern of landing branches (jig's
   | Requirement | Its parameters | Met | Wait | Refuse | Guarded or observed |
   |---|---|---|---|---|---|
   | 5, the landing rules | none | each such rule's CI, gates and approvals are met, as 1, 3 and 4 above; or no rule enforces there | one waits, and none refuses | one refuses | guarded |
-  | 6, up to date by the landing rules | none | each such rule asking for it is met, as 2 above; or none asks | the ancestry range unread or failed, or an empty page that says more follow | the head lacks the base's tip: the range lists a commit, or is too large to list (5.3) | observed, freshness 0 |
+  | 6, up to date by the landing rules | none | each such rule asking for it is met, as 2 above; or none asks | the ancestry range unread or failed | the head lacks the base's tip: the range counts a commit (5.3) | observed, freshness 0 |
 
   The change keeps the rule and the criterion of its last wait or
   refusal, by the rule's scope and number and the criterion's kind
@@ -4133,8 +4176,8 @@ restored change is judged by the rules as they are. temper's steps:
    history is Missing and never supplies the change's pull number.
 
 Its listings start from the newest time the store kept for each
-repository, inclusive, so what changed while the engine was down is
-read once.
+repository with an issue or pull watch, inclusive, so what changed while
+the engine was down is read once.
 
 ## 18. The world
 

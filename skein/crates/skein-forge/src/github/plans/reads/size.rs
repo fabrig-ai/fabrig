@@ -5,11 +5,14 @@ use crate::{github::pin, measure};
 use skein_lib::len_u64;
 
 pub(super) fn capacity(bounds: Bounds, width: usize) -> Result<u32, api::Error> {
+    Ok(bounds.rows.min(byte_capacity(bounds, width)?))
+}
+// Branch names have no row bound (skein/docs/design/forge.md, 3.7).
+pub(super) fn byte_capacity(bounds: Bounds, width: usize) -> Result<u32, api::Error> {
     let Ok(width) = u32::try_from(width) else {
         return Err(api::Error::TooLarge(Excess::unnamed()));
     };
-    let room = bounds.answer_bytes.checked_div(width).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
-    Ok(bounds.rows.min(room))
+    bounds.answer_bytes.checked_div(width).ok_or(api::Error::TooLarge(Excess::unnamed()))
 }
 pub(super) fn page_size(bounds: Bounds, capacity: u32) -> Result<u32, api::Error> {
     let limit = bounds.page_size.min(capacity).min(pin::PAGE_CAP);

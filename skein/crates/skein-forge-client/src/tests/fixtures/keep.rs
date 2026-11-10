@@ -138,8 +138,24 @@ impl Harness {
             self.event(Event::Restore { record });
         }
         self.event(Event::Restored { clock: RecoveryClock::Monotonic });
-        let listing = self.one();
-        self.answer(listing, Answer::Items { items: Box::new([]), more: false, now: self.env.now });
+        let mut listed = false;
+        for (_, record) in &self.records {
+            if let Stored::Live(row) = record {
+                match row.watch.resource.what {
+                    What::Issue(_) | What::Pull(_) => listed = true,
+                    What::Repository | What::Branch(_) => {}
+                }
+            }
+        }
+        if listed {
+            let since = match self.records.get(&Key::Repository(REPO)).expect("restored repository") {
+                Stored::Repository(row) => row.mark.unwrap_or(at(u64::MAX)),
+                Stored::Live(_) | Stored::Writer(_) => panic!("repository record"),
+            };
+            let listing = self.one();
+            assert_eq!(listing.op, Op::Read(Read::Items { since, page: 1, kind: None }));
+            self.answer(listing, Answer::Items { items: Box::new([]), more: false, now: self.env.now });
+        }
     }
     pub(in crate::tests) fn record(&self, resource: &Resource) -> &LiveRecord {
         match self.records.get(&Key::Live(resource.clone())).expect("saved live row") {

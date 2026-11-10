@@ -83,8 +83,7 @@ const BRANCH_SPEC: Spec = Spec {
 const BRANCHES_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"prefix":{"type":"string","description":"A nonempty prefix of the names, as temper/."}},"required":["prefix"]}"#;
 const BRANCHES_SPEC: Spec = Spec {
     name: b"read_branches",
-    description:
-        b"Branch names within forge.client.rows/answer_bytes; narrow with a longer prefix, or read_branch for one name.",
+    description: b"List the branches whose names start with a prefix. The names fit forge.client.answer_bytes; a longer prefix reads fewer.",
     schema: BRANCHES_SCHEMA,
     effect: run::HostEffect::Read,
 };

@@ -11,6 +11,7 @@ use skein_forge::forgejo::{
 };
 use skein_lib::{Duration, Time, Wall};
 
+#[expect(clippy::too_many_lines, reason = "the table keeps one row per Forgejo read route")]
 fn read_rows() -> [(Request, Route, Op); 26] {
     let p = r::Page { page: Some(2), limit: Some(3) };
     let oid = routes::object(9);
@@ -38,8 +39,16 @@ fn read_rows() -> [(Request, Route, Op); 26] {
                 limit: 2,
             }),
         ),
-        (Request::Issue { at: at(), number: 3 }, Route::Issue, Op::Read(Read::Item { number: 3, after: 0 })),
-        (Request::Comments { at: at(), number: 3 }, Route::Comments, Op::Read(Read::Comments { number: 3 })),
+        (
+            Request::Issue { at: at(), number: 3 },
+            Route::Issue,
+            Op::Read(Read::Item { number: 3, after: 0, since: None }),
+        ),
+        (
+            Request::Comments { at: at(), number: 3, since: None },
+            Route::Comments,
+            Op::Read(Read::Comments { number: 3, since: None }),
+        ),
         (Request::Pull { at: at(), number: 3 }, Route::Pull, Op::Read(Read::Pull { number: 3 })),
         (
             Request::PullFor { at: at(), head: boxed(b"work"), base: boxed(b"main") },
@@ -75,7 +84,11 @@ fn read_rows() -> [(Request, Route, Op); 26] {
             Route::Permission,
             Op::Read(Read::Permission { user: 2 }),
         ),
-        (Request::Pulls { at: at(), page: p }, Route::Pulls, Op::Read(Read::OpenPulls { page: 2, limit: 2 })),
+        (
+            Request::Pulls { at: at(), head: Some(boxed(b"feat/x y")), base: Some(boxed(b"main")), page: p },
+            Route::Pulls,
+            Op::Read(Read::OpenPulls { head: Some(boxed(b"feat/x y")), base: Some(boxed(b"main")), page: 2, limit: 2 }),
+        ),
         (
             Request::PullFiles { at: at(), number: 3, page: p },
             Route::PullFiles,

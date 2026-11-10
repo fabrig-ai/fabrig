@@ -345,7 +345,7 @@ fn operation(w: &Writing, phase: Phase) -> Op {
                 kind: Some(api::Kind::Issue),
             },
             Write::OpenPull { head, base, .. } => Read::PullFor { head: head.clone(), base: base.clone() },
-            Write::Post { number, .. } => Read::Item { number: *number, after },
+            Write::Post { number, .. } => Read::Item { number: *number, after, since: Time::ZERO },
             Write::Review { number, .. } => Read::Reviews { number: *number, page },
             Write::Merge { number, .. } | Write::Update { number, .. } => Read::Pull { number: *number },
             Write::CreateBranch { branch, .. } | Write::DeleteBranch { branch } => {

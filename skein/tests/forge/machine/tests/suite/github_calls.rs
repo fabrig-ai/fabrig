@@ -102,7 +102,7 @@ fn github_item_reads_its_comments() {
         ],
     );
     located(&mut w);
-    w.call(2, REPO, Op::Read(Read::Item { number: 7, after: 0 }));
+    w.call(2, REPO, Op::Read(Read::Item { number: 7, after: 0, since: Time::ZERO }));
     w.run_for(SECOND);
     let time =
         Time::from_nanos(skein_forge::forgejo::time::read(b"2026-10-20T08:00:00Z").expect("fixture time").as_nanos());

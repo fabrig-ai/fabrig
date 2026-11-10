@@ -1115,12 +1115,19 @@ fn branch_page(call: &mut Call, names: &[&[u8]], chunk: u32) -> Result<Option<St
 #[test]
 fn branches_skip_a_long_middle_name_and_keep_both_neighbors() {
     let long = fixtures::filled(usize::try_from(limits().string_bytes).unwrap() + 1, b'x');
-    for chunk in [1, 7, ROOM] {
-        let mut call = started(api::Read::Branches { prefix: Box::from(&b"b"[..]) }, bounds());
-        assert_eq!(
-            branch_page(&mut call, &[b"before", &long, b"behind"], chunk),
-            ended(Ok(api::Answer::Branches(Box::from([Box::from(*b"before"), Box::from(*b"behind")]))))
-        );
+    for (names, answer_bytes, expected) in [
+        (
+            [b"before".as_slice(), long.as_ref(), b"behind"],
+            ROOM,
+            Box::from([Box::from(*b"before"), Box::from(*b"behind")]),
+        ),
+        ([b"foreign".as_slice(), long.as_ref(), b"other"], 0, Box::<[Box<[u8]>]>::default()),
+    ] {
+        for chunk in [1, 7, ROOM] {
+            let mut call =
+                started(api::Read::Branches { prefix: Box::from(&b"b"[..]) }, Bounds { answer_bytes, ..bounds() });
+            assert_eq!(branch_page(&mut call, &names, chunk), ended(Ok(api::Answer::Branches(expected.clone()))));
+        }
     }
 }
 #[test]
@@ -1129,6 +1136,7 @@ fn branches_keep_a_name_at_the_string_bound() {
     let mut call = started(api::Read::Branches { prefix: Box::from(&b"x"[..]) }, bounds());
     assert_eq!(branch_page(&mut call, &[&name], 1), ended(Ok(api::Answer::Branches(Box::from([name])))));
 }
+
 #[test]
 fn branches_skip_a_queue_name_and_keep_its_base() {
     // The prefix, one-digit queue number and SHA surround the base name.

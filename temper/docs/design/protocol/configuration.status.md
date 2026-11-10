@@ -272,6 +272,9 @@ Section 13.8 has no gap in note-backed settings transport within the call payloa
   asking for them (`docs/examples/reference/settings.json`), where the
   delivery hook owns those checks. The charters' words are generated
   elsewhere (`../draft/delivery-checks.md`).
+- **Not yet:** section 7's `forge.client.fallback_ms`, by plan
+  `forge-polls-quiet`: temper's profiles hold no `fallback`, so the name
+  is refused.
 - **Not yet:** 13.9: stage one's golden (`../domain/testing.md`, the
   reference's roles) names the deployment's two landing rules and not
   the case's project's rule 1, so a box Ask temper configures from the

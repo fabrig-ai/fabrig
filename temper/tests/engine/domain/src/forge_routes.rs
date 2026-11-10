@@ -1955,6 +1955,20 @@ impl World {
         assert!(matches!(answer, engine::CallAnswer::Sent { .. }), "goal answers question {question}: {answer:?}");
     }
 
+    /// Drain the current terminals before choosing a committed restart cut.
+    pub fn drain_cut(&mut self) {
+        for _ in 0..STEPS {
+            if self.store.pending.is_empty() && self.pending.is_empty() && self.events.is_empty() {
+                return;
+            }
+            self.tick();
+        }
+        assert!(
+            self.store.pending.is_empty() && self.pending.is_empty() && self.events.is_empty(),
+            "restart cut drains within the fixture's bound"
+        );
+    }
+
     /// Restore a delegate question with its reserved answer room at a committed cut.
     pub fn restore_delegate_question(&mut self, delegate: u64, words: &[u8]) -> u64 {
         self.restore_delegate_message(delegate, words, tasks::MessageKind::Question)
@@ -1966,6 +1980,7 @@ impl World {
     }
 
     fn restore_delegate_message(&mut self, delegate: u64, words: &[u8], kind: tasks::MessageKind) -> u64 {
+        self.drain_cut();
         assert!(self.store.pending.is_empty());
         let mut header = self.store.header();
         header.messages += 1;

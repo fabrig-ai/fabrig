@@ -45,7 +45,6 @@ fn held_by(holder: Option<u64>) -> Domain {
 fn watched_goal() -> Domain {
     let mut d = held_goal();
     outputs(&mut d, Event::Names { task: GOAL, resources: Box::new([name()]) });
-    fixtures::answer_next(&mut d, Ok(Answer::Items { items: Box::new([]), more: false, now: env().now }));
     fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
     outputs(
         &mut d,

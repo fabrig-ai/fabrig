@@ -35,10 +35,16 @@ fn shared_policy_refreshes_adapter_edits_and_replaces_referee_edits() {
 fn indexed_effect_evidence_matches_whole_rows_for_each_origin_and_cold_retry() {
     // Unit-test builds compare effect identities, outcomes and issue evidence
     // with full walks. These stories exercise call, projection and procedure keys.
-    for story in [stories::Story::IssueCreation, stories::Story::GoalIssue, stories::Story::LostMerge] {
-        let outcome = stories::run(story, jig_conformance::Cut::AfterCommit(20), 71)
+    for (story, cut) in [
+        // After the uncertain creation's entry retired; its scripted crash covers the retry.
+        (stories::Story::IssueCreation, 17),
+        // The goal issue's creation attempt is saved but has not reached the forge.
+        (stories::Story::GoalIssue, 19),
+        (stories::Story::LostMerge, 20),
+    ] {
+        let outcome = stories::run(story, jig_conformance::Cut::AfterCommit(cut), 71)
             .expect("indexed and whole effect evidence agree");
-        assert!(outcome.crashes.contains(&20));
+        assert!(outcome.crashes.contains(&cut));
     }
 }
 

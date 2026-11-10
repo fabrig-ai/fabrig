@@ -4568,7 +4568,16 @@ fn step_dependents(domain: &mut Domain, env: &Env<Limits>, dependency: u64) {
                 && row.waiting_on.contains(&dependency)
                 && let tasks::Phase::Active(_) = row.phase
             {
-                domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+                if domain.core.tasks.procedure_due(task).is_some() {
+                    // An idle-only wake cannot refresh a step already reading its facts.
+                    let repository = change.repository;
+                    let base = change.base.clone();
+                    let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return };
+                    let step = change_step(domain, env, task, entry, repository, &base, false);
+                    domain.work.push(Work::Forge(step));
+                } else {
+                    domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+                }
             }
         }
     }

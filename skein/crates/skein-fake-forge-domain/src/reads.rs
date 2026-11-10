@@ -36,6 +36,7 @@ use crate::{pulls, wiki};
 
 /// What `read` answers on the repository `id`.
 #[expect(clippy::too_many_lines, reason = "the read dispatcher names every variant of the domain vocabulary")]
+#[expect(clippy::manual_map, reason = "step code spells Option transformations with exhaustive matches")]
 pub(crate) fn read(domain: &Domain, config: &Config, id: Id<Repository>, read: &Read) -> Result<Answer, Error> {
     let limits = &config.limits;
     let repository = domain.repositories.get(id).expect("a repository of the forge");
@@ -77,7 +78,7 @@ pub(crate) fn read(domain: &Domain, config: &Config, id: Id<Repository>, read: &
                 items(repository, config, *state, *kind, labels, *author, *order, *since, *page, *limit);
             Ok(Answer::Items { items, more, now: domain.clock })
         }
-        Read::Item { number, after } => item(repository, limits, *number, *after),
+        Read::Item { number, after, since } => item(repository, config, *number, *after, *since),
         Read::Comment { id } => {
             let Some(&number) = repository.comments.get(id) else {
                 return Err(Error::Missing(What::Comment));
@@ -115,11 +116,20 @@ pub(crate) fn read(domain: &Domain, config: &Config, id: Id<Repository>, read: &
             Some(number) => pulls::view(domain, limits, repository, number),
             None => Err(Error::Missing(What::Pull)),
         },
-        Read::OpenPulls { page, limit } => open_pulls(domain, limits, repository, *page, *limit),
-        Read::Comments { number } => {
+        Read::OpenPulls { head, base, page, limit } => {
+            open_pulls(domain, limits, repository, head.as_deref(), base.as_deref(), *page, *limit)
+        }
+        Read::Comments { number, since } => {
+            let since = match since {
+                Some(time) => Some(domain::stamp(config, *time)),
+                None => None,
+            };
             let item = repository.item(*number)?;
             let mut comments = List::with_capacity(limits.comments);
             for (&id, comment) in &item.comments {
+                if !comment_since(comment, since) {
+                    continue;
+                }
                 comments.push(comment.view(id)).expect("bounded thread");
             }
             Ok(Answer::Comments(comments.into_boxed()))
@@ -234,12 +244,24 @@ fn items(
 }
 
 /// The item `number` and a page of its comments with ids above `after`.
-fn item(repository: &Repository, limits: &Limits, number: u64, after: u64) -> Result<Answer, Error> {
+#[expect(clippy::manual_map, reason = "step code spells Option transformations with exhaustive matches")]
+fn item(
+    repository: &Repository,
+    config: &Config,
+    number: u64,
+    after: u64,
+    since: Option<Time>,
+) -> Result<Answer, Error> {
+    let limits = &config.limits;
+    let since = match since {
+        Some(time) => Some(domain::stamp(config, time)),
+        None => None,
+    };
     let item = repository.item(number)?;
     let mut comments = List::with_capacity(limits.page_size);
     let mut more = false;
     for (&id, comment) in &item.comments {
-        if id <= after {
+        if id <= after || !comment_since(comment, since) {
             continue;
         }
         if comments.room() == 0 {
@@ -251,10 +273,24 @@ fn item(repository: &Repository, limits: &Limits, number: u64, after: u64) -> Re
     Ok(Answer::Item { item: item.summary(number), comments: comments.into_boxed(), more })
 }
 
+// An edit's time is the comment's update, even when the item's time stays still.
+fn comment_since(comment: &crate::store::Comment, since: Option<Time>) -> bool {
+    let updated = match comment.edited {
+        Some(time) => time,
+        None => comment.created,
+    };
+    match since {
+        Some(since) => updated >= since,
+        None => true,
+    }
+}
+
 fn open_pulls(
     domain: &Domain,
     limits: &Limits,
     repository: &Repository,
+    head: Option<&[u8]>,
+    base: Option<&[u8]>,
     page: u32,
     limit: u32,
 ) -> Result<Answer, Error> {
@@ -263,7 +299,18 @@ fn open_pulls(
     let mut skipped: u64 = 0;
     let mut answer = List::with_capacity(size);
     for (&number, item) in &repository.items {
-        if item.pull.is_none() || item.state != State::Open {
+        let Some(pull) = &item.pull else { continue };
+        if item.state != State::Open {
+            continue;
+        }
+        if let Some(head) = head
+            && pull.head.as_ref() != head
+        {
+            continue;
+        }
+        if let Some(base) = base
+            && pull.base.as_ref() != base
+        {
             continue;
         }
         if skipped < skip {

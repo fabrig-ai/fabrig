@@ -156,13 +156,15 @@ fn a_thread_is_one_read_oldest_first() {
             "{text:?}"
         );
     }
-    let Answer::Comments(comments) = h.ok(ENGINE, read(Read::Comments { number: 1 })) else { unreachable!("thread") };
+    let Answer::Comments(comments) = h.ok(ENGINE, read(Read::Comments { number: 1, since: None })) else {
+        unreachable!("thread")
+    };
     assert_eq!(comments.len(), 3);
     for (comment, (text, id)) in comments.iter().zip(rows) {
         assert_eq!((comment.id, &*comment.body), (id, text), "comment {id}");
     }
-    assert_eq!(h.call(PERSON, read(Read::Comments { number: 2 })), Err(Error::Missing(What::Item)));
-    assert_eq!(h.call(STRANGER, read(Read::Comments { number: 1 })), Err(Error::Forbidden));
+    assert_eq!(h.call(PERSON, read(Read::Comments { number: 2, since: None })), Err(Error::Missing(What::Item)));
+    assert_eq!(h.call(STRANGER, read(Read::Comments { number: 1, since: None })), Err(Error::Forbidden));
 }
 
 #[test]
@@ -224,8 +226,9 @@ fn items_come_newest_created_first_in_forgejos_default_order() {
 }
 
 #[test]
+#[expect(clippy::manual_map, reason = "the strict subset requires explicit Option matches")]
 fn pull_for_answers_the_open_pull_before_an_older_closed_one() {
-    let (mut h, _) = failing(0);
+    let (mut h, work) = failing(0);
     assert_eq!(h.open(b"work"), Ok(Answer::Created(1)));
     h.ok(ENGINE, write(Write::Close { number: 1 }));
     assert_eq!(h.open(b"work"), Ok(Answer::Created(2)));
@@ -237,11 +240,30 @@ fn pull_for_answers_the_open_pull_before_an_older_closed_one() {
         assert_eq!(pull.number, expected, "{input:?}");
         assert_eq!(pull.merge_base, Some(FIRST), "{input:?} merge base");
     }
-    let Answer::Pulls(pulls) = h.ok(PERSON, read(Read::OpenPulls { page: 1, limit: 2 })) else {
-        unreachable!("open pulls")
-    };
-    assert_eq!(pulls.len(), 1);
-    assert_eq!(pulls.first().unwrap().number, 2);
+    h.push(ENGINE, b"other", work).expect("another head");
+    assert_eq!(h.open(b"other"), Ok(Answer::Created(3)));
+    for (head, base, page, limit, expected) in [
+        (None, None, 1, 2, [2, 3].as_slice()),
+        (Some(b"other".as_slice()), Some(MAIN), 1, 1, [3].as_slice()),
+        (Some(b"other".as_slice()), None, 1, 2, [3].as_slice()),
+        (None, Some(b"other".as_slice()), 1, 2, [].as_slice()),
+        (Some(b"other".as_slice()), Some(MAIN), 2, 1, [].as_slice()),
+    ] {
+        let head = match head {
+            Some(head) => Some(copy_of(head)),
+            None => None,
+        };
+        let base = match base {
+            Some(base) => Some(copy_of(base)),
+            None => None,
+        };
+        let input = Read::OpenPulls { head, base, page, limit };
+        let Answer::Pulls(pulls) = h.ok(PERSON, read(input.clone())) else { unreachable!("open pulls") };
+        assert_eq!(pulls.len(), expected.len(), "{input:?}");
+        for (pull, number) in pulls.iter().zip(expected) {
+            assert_eq!(pull.number, *number, "{input:?}");
+        }
+    }
     h.ok(ENGINE, write(Write::Close { number: 2 }));
     let Answer::Pull(pull) = h.ok(PERSON, read(Read::PullFor { head: copy_of(b"work"), base: copy_of(MAIN) })) else {
         unreachable!("oldest closed pull")

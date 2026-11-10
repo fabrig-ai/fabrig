@@ -26,6 +26,11 @@ by its path (`forge-setup.md`), nor a comparison's `removed` (`forge.md`); the f
 at a refused copy, asks a delete the wrong scope and answers a read by
 path `403` to a caller with no grant, a public repository's too, and the
 fake GitHub refuses no push as `GH013` (`fake-forge.md`).
+The forge kit's targeted reads are designed and not built: `Range` for
+containment and emptiness, `Item`'s `since`, `PullFor`'s `head` and `base`
+filters, branch names bounded by bytes, runs found by `workflow_id` and
+resolved once per call, and `Pull`'s CI from a short first page
+(`forge.md`, `forge-github.md`, `forge-client.md`, `fake-forge.md`).
 No macOS runner runs skein's suites, no build of the shell's `posix` for macOS is on record, and its two systems each keep eight functions alike but for a word (`shell.md`). json, tls and http's collector have no fuzz target
 (`json.md`, `tls.md`, `http.md`). A few items lag in `lib.md`,
 `examples.md`, `forge-setup.md`, `kv.md` and `ui.md`, and the LLM live
