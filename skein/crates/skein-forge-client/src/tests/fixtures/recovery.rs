@@ -203,11 +203,24 @@ pub(in crate::tests) fn held_comment() -> (super::outbox::Harness, crate::Entry)
 
 pub(in crate::tests) fn accepted_live(name: &str, row: LiveRecord) {
     let mut fresh = Harness::new(LIMITS);
+    let branch = match &row.watch.resource.what {
+        crate::What::Branch(name) => name.clone(),
+        crate::What::Repository | crate::What::Pull(_) | crate::What::Issue(_) => panic!("branch fixture"),
+    };
+    let watch = row.watch.clone();
     paired(&mut fresh, row);
     fresh.step(Event::Restored { clock: RecoveryClock::Monotonic });
     assert!(!fresh.domain.restoration_failed(), "corrected {name}");
+    let sent = fresh.one();
+    assert_eq!(sent.op, skein_forge::api::Op::Read(Read::Branch { branch: branch.clone() }));
+    fresh.answer(&sent, 1, Ok(Answer::Commit([1; 32])));
+    fresh.step(Event::ReadAfresh);
+    let sent = fresh.one();
+    assert_eq!(sent.op, skein_forge::api::Op::Read(Read::Branch { branch }));
+    assert!(fresh.answer(&sent, 1, Ok(Answer::Commit([1; 32]))).contains(&Request::ReadAfreshDone));
+    assert!(fresh.send().is_none(), "no listing owed: {name}");
     assert_eq!(
-        fresh.step(Event::Keep { owner: Token::new(1), watches: Box::new([live().watch]) }).as_ref(),
+        fresh.step(Event::Keep { owner: Token::new(1), watches: Box::new([watch]) }).as_ref(),
         &[Request::Kept { owner: Token::new(1), result: Ok(()) }],
         "corrected {name}"
     );

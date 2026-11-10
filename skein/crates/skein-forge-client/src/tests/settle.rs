@@ -111,10 +111,9 @@ fn settle_starts_no_listing_poll_or_find() {
     // An independently kept branch has its poll due when the stop arrives.
     let mut kept = Kept::new();
     kept.keep(Box::new([watch(branch(), false)]));
-    kept.clock();
     let read = kept.one();
     kept.answer(read, Answer::Commit([1; 32]));
-    kept.fire(105);
+    kept.fire(160);
     assert!(kept.domain.is_ready());
     kept.event(Event::Settle);
     assert!(kept.send().is_none(), "a due poll starts no call");

@@ -391,7 +391,8 @@ impl Harness {
     }
 
     fn item(&self, number: u64) -> (Summary, Box<[Comment]>) {
-        let Ok(Answer::Item { item, comments, more: _ }) = self.inspect(&Read::Item { number, after: 0 }) else {
+        let Ok(Answer::Item { item, comments, more: _ }) = self.inspect(&Read::Item { number, after: 0, since: None })
+        else {
             unreachable!("an item");
         };
         (item, comments)
@@ -556,7 +557,11 @@ fn an_issue_is_opened_with_labels_and_read_back() {
             permission: Permission::Admin
         })
     );
-    assert_eq!(h.call(STRANGER, read(Read::Item { number: 1, after: 0 })), Err(Error::Forbidden), "no permission");
+    assert_eq!(
+        h.call(STRANGER, read(Read::Item { number: 1, after: 0, since: None })),
+        Err(Error::Forbidden),
+        "no permission"
+    );
 }
 
 #[test]
@@ -708,26 +713,61 @@ fn listings_filter_by_state_kind_labels_and_time() {
 }
 
 #[test]
+#[expect(clippy::manual_map, reason = "step-style tests spell Option transformations with exhaustive matches")]
 fn an_items_comments_come_a_page_at_a_time_after_an_id() {
-    let mut h = Harness::new(CALM);
-    let number = h.issue(ENGINE, b"talk");
-    let other = h.issue(ENGINE, b"other");
-    let first = h.comment(PERSON, number, b"one");
-    let elsewhere = h.comment(PERSON, other, b"elsewhere");
-    let second = h.comment(ENGINE, number, b"two");
-    let third = h.comment(PERSON, number, b"three");
-    assert!(first < elsewhere && elsewhere < second && second < third, "ids only grow, across items");
-    let Answer::Item { comments, more: true, .. } = h.ok(ENGINE, read(Read::Item { number, after: 0 })) else {
-        unreachable!("a first page, and more");
-    };
-    assert_eq!([comments[0].id, comments[1].id], [first, second]);
-    assert_eq!(&*comments[1].body, b"two");
-    assert_eq!(comments[1].author, ENGINE);
-    let Answer::Item { comments, more: false, .. } = h.ok(ENGINE, read(Read::Item { number, after: second })) else {
-        unreachable!("the last page");
-    };
-    assert_eq!(comments.len(), 1);
-    assert_eq!(comments[0].id, third);
+    for (name, filtered, edited, after_second, expected, more) in [
+        ("all first page", None, false, false, &[1_u8, 2][..], true),
+        ("all last page", None, false, true, &[3][..], false),
+        ("inclusive since before paging", Some(0), false, false, &[2, 3][..], false),
+        ("coarse inclusive since", Some(500), false, false, &[2, 3][..], false),
+        ("edited old comment is included", Some(0), true, false, &[1, 2][..], true),
+        ("after still checks edited old comment", Some(0), true, true, &[3][..], false),
+    ] {
+        let mut h = Harness::new(CALM);
+        let number = h.issue(ENGINE, b"talk");
+        let other = h.issue(ENGINE, b"other");
+        h.until(Time::ZERO.saturating_add(Duration::from_secs(10)));
+        let first = h.comment(PERSON, number, b"one");
+        let elsewhere = h.comment(PERSON, other, b"elsewhere");
+        h.wait(Duration::from_secs(10));
+        let second = h.comment(ENGINE, number, b"two");
+        let t2 = h.item(number).1.last().expect("second").created;
+        h.wait(Duration::from_secs(10));
+        let third = h.comment(PERSON, number, b"three");
+        assert!(first < elsewhere && elsewhere < second && second < third, "ids only grow, across items");
+        if edited {
+            h.ok(PERSON, edit(first, b"edited"));
+        }
+        // Like issues, a fractional bound is inclusive at the configured resolution.
+        let since = match filtered {
+            Some(millis) => Some(t2.saturating_add(Duration::from_millis(millis))),
+            None => None,
+        };
+        let after = if after_second { second } else { 0 };
+        let Answer::Item { comments, more: actual, .. } = h.ok(ENGINE, read(Read::Item { number, after, since }))
+        else {
+            unreachable!("item page");
+        };
+        assert_eq!(comments.len(), expected.len(), "{name}");
+        for (comment, id) in comments.iter().zip(expected) {
+            let wanted = match id {
+                1 => first,
+                2 => second,
+                3 => third,
+                _ => unreachable!(),
+            };
+            assert_eq!(comment.id, wanted, "{name}");
+        }
+        assert_eq!(actual, more, "{name}");
+        let Answer::Comments(comments) = h.inspect(&Read::Comments { number, since }).expect("unpaged listing") else {
+            unreachable!("comments");
+        };
+        let wanted: &[u64] = if filtered.is_some() && !edited { &[second, third] } else { &[first, second, third] };
+        assert_eq!(comments.len(), wanted.len(), "{name}: unpaged");
+        for (comment, id) in comments.iter().zip(wanted) {
+            assert_eq!(comment.id, *id, "{name}: unpaged");
+        }
+    }
 }
 
 // Writes and refusals.
@@ -867,10 +907,10 @@ fn what_is_missing_is_refused() {
     let mut h = Harness::new(CALM);
     h.issue(ENGINE, b"one");
     assert_eq!(
-        h.call_on(b"ai/nowhere", ENGINE, read(Read::Item { number: 1, after: 0 })),
+        h.call_on(b"ai/nowhere", ENGINE, read(Read::Item { number: 1, after: 0, since: None })),
         Err(Error::Missing(What::Repository))
     );
-    assert_eq!(h.call(ENGINE, read(Read::Item { number: 9, after: 0 })), Err(Error::Missing(What::Item)));
+    assert_eq!(h.call(ENGINE, read(Read::Item { number: 9, after: 0, since: None })), Err(Error::Missing(What::Item)));
     assert_eq!(
         h.call(ENGINE, write(Write::Comment { number: 9, body: copy_of(b"hello") })),
         Err(Error::Missing(What::Item))
@@ -1557,7 +1597,11 @@ fn webhooks_come_late_or_never() {
 fn a_call_fails_before_it_is_made_or_times_out_after() {
     let mut h = Harness::new(Config { unavailable: 1000, ..CALM });
     assert_eq!(h.call(PERSON, create(b"lost", b"", &[])), Err(Error::Unavailable));
-    assert_eq!(h.inspect(&Read::Item { number: 1, after: 0 }), Err(Error::Missing(What::Item)), "nothing was done");
+    assert_eq!(
+        h.inspect(&Read::Item { number: 1, after: 0, since: None }),
+        Err(Error::Missing(What::Item)),
+        "nothing was done"
+    );
     assert_eq!(h.domain.tally().unavailable, 1);
     let mut h = Harness::new(Config { timeouts: 1000, ..CALM });
     assert_eq!(h.call(PERSON, create(b"made", b"", &[])), Err(Error::Timeout));
@@ -1569,7 +1613,11 @@ fn a_call_fails_before_it_is_made_or_times_out_after() {
 fn a_call_may_land_after_it_was_answered_as_timed_out() {
     let mut h = Harness::new(Config { landing: 1000, ..CALM });
     assert_eq!(h.call(PERSON, create(b"later", b"", &[])), Err(Error::Timeout));
-    assert_eq!(h.inspect(&Read::Item { number: 1, after: 0 }), Err(Error::Missing(What::Item)), "not made yet");
+    assert_eq!(
+        h.inspect(&Read::Item { number: 1, after: 0, since: None }),
+        Err(Error::Missing(What::Item)),
+        "not made yet"
+    );
     assert_eq!(h.domain.calls(), 1, "the call is held until it lands");
     h.observations();
     h.settle();
@@ -1893,7 +1941,7 @@ fn refused_writes_and_rejected_pushes_are_observed() {
     assert_eq!(h.call(ENGINE, merge(1, work)), Err(Error::Protected));
     assert_eq!(h.push(ENGINE, b"work", aside), Ok(Answer::Pushed(Pushed::Rejected)));
     assert_eq!(h.call(PERSON, set_labels(1, &[b"bug"])), Err(Error::Forbidden));
-    h.call(PERSON, read(Read::Item { number: 9, after: 0 })).expect_err("missing");
+    h.call(PERSON, read(Read::Item { number: 9, after: 0, since: None })).expect_err("missing");
     h.call_on(b"ai/nowhere", ENGINE, delete_branch(b"work")).expect_err("no such repository");
     let expected = [
         Observation::Refused {

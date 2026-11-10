@@ -78,26 +78,40 @@ fn review_transcript_mutations_are_malformed_naming_the_field() {
 }
 #[test]
 fn open_pulls_rows_are_the_pull_transcripts_documents() {
-    let request = Request::Pulls { at: forgejo::specimen(), page: forgejo::page(1, 2) };
-    let (body, pulls) = open_pulls();
-    let expected = pulls.iter().cloned().map(Row::Pull).collect::<Vec<_>>();
-    let decoded = forgejo::decode(&request, &body);
-    assert_eq!(decoded.document, Ok(Document::Listed { skipped: 0 }));
-    assert_eq!(decoded.rows, expected);
-    let bytes = server::encode(&Answer::Pulls(pulls.into_boxed_slice()), &forgejo::limits()).expect("pull list");
-    let decoded = forgejo::decode(&request, &bytes);
-    assert_eq!(decoded.document, Ok(Document::Listed { skipped: 0 }));
-    assert_eq!(decoded.rows, expected);
-    assert!(forgejo::shape(&bytes).is_subset(&forgejo::shape(&body)));
-    let encoded = client::encode(&request, &forgejo::limits()).expect("request");
-    assert_eq!(encoded.method, skein_forge::forgejo::request::Method::Get);
-    assert_eq!(&*encoded.target, b"/api/v1/repos/fixture/specimen/pulls?state=open&sort=oldest&page=1&limit=2");
-    let server::Route::Ready(routed) =
-        server::route(encoded.method, &encoded.target, &forgejo::limits()).expect("route")
-    else {
-        panic!("read route has no body")
-    };
-    assert_eq!(routed, request);
+    for (head, base, target) in [
+        (
+            Some(b"feat/x y".as_slice()),
+            Some(b"main/z &".as_slice()),
+            b"/api/v1/repos/fixture/specimen/pulls?state=open&head=feat%2Fx%20y&base=main%2Fz%20%26&sort=oldest&page=1&limit=2".as_slice(),
+        ),
+        (None, None, b"/api/v1/repos/fixture/specimen/pulls?state=open&sort=oldest&page=1&limit=2".as_slice()),
+    ] {
+        let request = Request::Pulls {
+            at: forgejo::specimen(),
+            head: head.map(Box::from),
+            base: base.map(Box::from),
+            page: forgejo::page(1, 2),
+        };
+        let (body, pulls) = open_pulls();
+        let expected = pulls.iter().cloned().map(Row::Pull).collect::<Vec<_>>();
+        let decoded = forgejo::decode(&request, &body);
+        assert_eq!(decoded.document, Ok(Document::Listed { skipped: 0 }));
+        assert_eq!(decoded.rows, expected);
+        let bytes = server::encode(&Answer::Pulls(pulls.into_boxed_slice()), &forgejo::limits()).expect("pull list");
+        let decoded = forgejo::decode(&request, &bytes);
+        assert_eq!(decoded.document, Ok(Document::Listed { skipped: 0 }));
+        assert_eq!(decoded.rows, expected);
+        assert!(forgejo::shape(&bytes).is_subset(&forgejo::shape(&body)));
+        let encoded = client::encode(&request, &forgejo::limits()).expect("request");
+        assert_eq!(encoded.method, skein_forge::forgejo::request::Method::Get);
+        assert_eq!(&*encoded.target, target);
+        let server::Route::Ready(routed) =
+            server::route(encoded.method, &encoded.target, &forgejo::limits()).expect("route")
+        else {
+            panic!("read route has no body")
+        };
+        assert_eq!(routed, request);
+    }
 }
 
 fn open_pulls() -> (Vec<u8>, Vec<skein_forge::forgejo::document::PullRequest>) {

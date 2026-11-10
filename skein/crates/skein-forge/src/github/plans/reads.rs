@@ -33,7 +33,7 @@ enum Read {
     Branch { branch: Box<[u8]> },
     Branches { prefix: Box<[u8]> },
     Items { since: skein_lib::Time, page: u32, kind: Option<api::Kind> },
-    Item { number: u64, after: u64 },
+    Item { number: u64, after: u64, since: skein_lib::Time },
     Pull { number: u64 },
     PullFor { head: Box<[u8]>, base: Box<[u8]> },
     Statuses { commit: api::Commit, page: u32 },
@@ -124,7 +124,7 @@ impl Plan {
             api::Read::Branch { branch } => Read::Branch { branch },
             api::Read::Branches { prefix } => Read::Branches { prefix },
             api::Read::Items { since, page, kind } => Read::Items { since, page, kind },
-            api::Read::Item { number, after } => Read::Item { number, after },
+            api::Read::Item { number, after, since } => Read::Item { number, after, since },
             api::Read::Pull { number } => Read::Pull { number },
             api::Read::PullFor { head, base } => Read::PullFor { head, base },
             api::Read::Statuses { commit, page } => Read::Statuses { commit, page },
@@ -185,8 +185,8 @@ impl Plan {
                 if prefix.is_empty() {
                     return Err(api::Error::Empty);
                 }
-                let capacity = size::capacity(bounds, crate::measure::STRING_BYTES)?;
-                self.limit = size::page_size(bounds, capacity)?;
+                let capacity = size::byte_capacity(bounds, crate::measure::STRING_BYTES)?;
+                self.limit = size::page_size(bounds, crate::github::pin::PAGE_CAP)?;
                 self.rows = List::with_capacity(capacity);
             }
             Read::Items { .. } | Read::Item { .. } => self.issue_admission(bounds)?,
@@ -530,8 +530,8 @@ impl Plan {
         self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if self.count > self.limit {
             return Err(api::Error::TooLarge(Excess::at_least(
-                if self.count > bounds.rows { api::Bound::Rows } else { api::Bound::Forge },
-                u64::from(if self.count > bounds.rows { bounds.rows } else { self.limit }),
+                api::Bound::Forge,
+                u64::from(self.limit),
                 u64::from(self.count),
             )));
         }
@@ -540,13 +540,6 @@ impl Plan {
             document::Row::Branch(name) => {
                 if !name.starts_with(prefix) {
                     return Ok(());
-                }
-                if self.rows.len() >= bounds.rows {
-                    return Err(api::Error::TooLarge(Excess::at_least(
-                        api::Bound::Rows,
-                        u64::from(bounds.rows),
-                        u64::from(self.rows.len()).saturating_add(1),
-                    )));
                 }
                 self.size = size::add(self.size, &name, bounds)?;
                 match self.rows.push(name) {

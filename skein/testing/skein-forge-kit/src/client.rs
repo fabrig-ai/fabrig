@@ -27,6 +27,7 @@ pub const LIMITS: Limits = Limits {
     hinted: Duration::from_secs(1),
     slow: Duration::from_secs(40),
     settle: Duration::from_secs(30),
+    fallback: Duration::ZERO,
     facts: 8,
 };
 

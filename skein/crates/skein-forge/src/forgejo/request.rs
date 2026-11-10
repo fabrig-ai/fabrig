@@ -201,6 +201,7 @@ pub enum Request {
     Comments {
         at: Repo,
         number: u64,
+        since: Option<skein_lib::Wall>,
     },
     Pull {
         at: Repo,
@@ -252,6 +253,8 @@ pub enum Request {
     },
     Pulls {
         at: Repo,
+        head: Option<Box<[u8]>>,
+        base: Option<Box<[u8]>>,
         page: Page,
     },
     PullFiles {

@@ -369,7 +369,10 @@ For a project with no prepare command, one member per repository:
   start; then read as it goes (`Read::Run`), on the job deliveries'
   hints where they come and on the landing's own polling of its runs in
   flight: a dispatch-only job publishes no commit status on its head
-  (skein's `forge.md`, section 9), so no status read wakes it. A
+  (skein's `forge.md`, section 9), so no status read wakes it. Its polls
+  are due at the client's `poll_at` for the run's repository, every
+  `poll` or, while that repository hears, at its last hint plus
+  `fallback` (`forge.md`, 5.2). A
   run another user triggered is never taken. Two that match are two of
   temper's own dispatches of one key at one commit, either of which
   proves it: the first to complete makes the receipt. A run whose

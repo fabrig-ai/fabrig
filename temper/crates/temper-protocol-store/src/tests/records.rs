@@ -136,16 +136,26 @@ fn an_answer_piece_past_its_limit_fails_to_decode() {
 }
 #[test]
 fn a_full_answer_at_the_fixture_limits_fits_its_pieces() {
-    let mut branches = skein_lib::List::with_capacity(8);
-    for _ in 0_u32..8 {
-        let branch: Box<[u8]> = Box::new([0_u8; 496]);
-        branches.push(branch).expect("fixture rows");
-    }
-    let answer = skein_forge::api::Answer::Branches(branches.into_boxed());
-    let row = fixtures::named_call(forge::CallPayload::Read(Box::new(Ok(answer))));
-    let bytes = records::encode(&row);
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
-    assert_eq!(records::decode(&bytes, &bounds), Ok(row));
+    for count in [8, 9, 40] {
+        for extra in [0, 1] {
+            let bytes = fixtures::LIMITS.client.answer_bytes + extra;
+            let name_len = bytes / count - 16; // Each name has a 16-byte measure slot.
+            let mut branches = skein_lib::List::with_capacity(count);
+            for index in 0..count {
+                let length = name_len + if index == 0 { bytes % count } else { 0 };
+                branches.push(skein_lib::bytes::zeroed(usize::try_from(length).unwrap())).expect("fixture rows");
+            }
+            let answer = skein_forge::api::Answer::Branches(branches.into_boxed());
+            let row = fixtures::named_call(forge::CallPayload::Read(Box::new(Ok(answer))));
+            let encoded = records::encode(&row);
+            let decoded = records::decode(&encoded, &bounds);
+            assert_eq!(decoded.is_ok(), extra == 0, "{count} names, {bytes} measured bytes");
+            if extra == 0 {
+                assert_eq!(decoded, Ok(row));
+            }
+        }
+    }
 }
 
 #[test]
@@ -205,7 +215,29 @@ fn fixed_answer_lists_past_their_counts_fail_to_decode() {
     for _ in 0u32..9 {
         paths.push(Box::from(b"x".as_slice())).unwrap();
     }
+    let mut names = skein_lib::List::with_capacity(9);
+    for _ in 0_u32..9 {
+        names.push(Box::<[u8]>::default()).expect("fixture names");
+    }
+    let names = names.into_boxed();
+    let mut item = fixtures::summary();
+    item.labels = names.clone();
     let cases = [
+        ("labels", Answer::Item { item, comments: Box::new([]), more: false }),
+        (
+            "contexts",
+            Answer::Protection(Some(skein_forge::api::Protection {
+                branch: Box::new([]),
+                contexts: names,
+                approvals: 0,
+                dismiss_stale: false,
+                queue: false,
+                signatures: false,
+                linear: false,
+                code_owners: false,
+                bypass: skein_forge::api::Bypass::Never,
+            })),
+        ),
         ("collaborators", Answer::Collaborators { collaborators: collaborators.into_boxed(), more: true }),
         (
             "compared paths",

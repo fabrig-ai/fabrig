@@ -444,6 +444,14 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
     read_branches lists the names under a prefix, as temper/. A goal's
     own branch is there only where its goal holds one, and a run branch
     from its first push."
+  - `read_branches`, `TooLarge`, first line `Forge read failed: too
+    large`: "The names under this prefix pass forge.client.answer_bytes,
+    the one bound a branch list has: name a longer prefix, as
+    temper/goal/ in place of temper/, or read one branch by its name
+    with read_branch." No row bound is named, since none applies to
+    branch names (skein's `forge.md`, 3.7). The tool's description says
+    the same in its words: the names fit forge.client.answer_bytes, and
+    a longer prefix reads fewer.
 
   Every other tool's `Missing` and `Empty` keep their one line. A forge read
   refused as too large names the bound it passed and the size it met, in a
@@ -1024,7 +1032,11 @@ question`, with no body, and a landed save's receipt reads `saved <head> to
 branch <branch>, unchecked: no check ran; your checkout stays detached, as
 expected`. Its other outcomes are the table's. A save's push moves the
 change's own branch as a delivery's does, so the engine hears of it as of
-any push the run left (worker.md, 4.2), and the forge opens no pull request
+any push the run left (worker.md, 4.2). When it accepts that run's answer
+under the attempt's writer claim, it records the pushed head in the change
+as well as the branch; the next attempt's pull section pins that head
+(`forge.md`, 8.4). Recording the head completes no production, repair or
+resolution: the save remains unchecked, and the forge opens no pull request
 on it (`forge.md`, 8.1). In its hold, the next checked delivery, or the
 worker's own save of saved work, commits afresh on a save's head even with
 the tree unchanged (worker.md, section 5), so the head a finish delivers

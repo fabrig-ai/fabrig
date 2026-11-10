@@ -234,7 +234,6 @@ fn github_plans_branches_page_twice() {
 fn github_plans_branches_past_the_bound() {
     let width = u32::try_from(measure::STRING_BYTES).expect("string width");
     for (bounds, first, second) in [
-        (Bounds { rows: 1, ..bounds() }, b"a".as_slice(), b"aa".as_slice()),
         (Bounds { answer_bytes: width + 1, ..bounds() }, b"a".as_slice(), b"aa".as_slice()),
         (Bounds { answer_bytes: width * 2, ..bounds() }, b"12345678".as_slice(), b"123456789".as_slice()),
     ] {
@@ -244,8 +243,8 @@ fn github_plans_branches_past_the_bound() {
         plan.begin(bounds, b"example-app", &mut tables).expect("admitted");
         head(&mut plan, true, bounds, &mut tables);
         assert_eq!(name(&mut plan, first, bounds, &mut tables), Ok(None));
-        // A fresh page separates the total-row/byte bound from the per-page bound.
-        let per_page = bounds.page_size.min(bounds.rows).min(bounds.answer_bytes / width);
+        // A fresh page separates the answer byte bound from the per-page bound.
+        let per_page = bounds.page_size.min(pin::PAGE_CAP);
         assert_eq!(
             done(&mut plan, Document::Rows, bounds, &mut tables),
             Ok(Some(Step::send(branches_request(2, per_page))))
@@ -294,7 +293,7 @@ fn github_plans_repository_missing_drops_the_row() {
         for read in [
             api::Read::Settings,
             api::Read::Branches { prefix: Box::from(&b"m"[..]) },
-            api::Read::Item { number: 1, after: 0 },
+            api::Read::Item { number: 1, after: 0, since: skein_lib::Time::ZERO },
         ] {
             let mut tables = Tables::new(2, 2);
             keep(&mut tables);
@@ -446,8 +445,11 @@ fn github_plans_page_size_and_empty_listing() {
     let width = u32::try_from(measure::STRING_BYTES).expect("string width");
     for (bounds, limit) in [
         (Bounds { page_size: 200, rows: 200, answer_bytes: 4000, ..bounds() }, pin::PAGE_CAP),
-        (Bounds { page_size: 200, rows: 3, ..bounds() }, 3),
-        (Bounds { page_size: 200, rows: 200, answer_bytes: width * 2, ..bounds() }, 2),
+        (Bounds { page_size: 200, rows: 3, ..bounds() }, pin::PAGE_CAP),
+        (Bounds { page_size: 200, rows: 200, answer_bytes: width * 2, ..bounds() }, pin::PAGE_CAP),
+        (Bounds { rows: 0, ..bounds() }, 2),
+        (Bounds { answer_bytes: 0, ..bounds() }, 2),
+        (Bounds { answer_bytes: width - 1, ..bounds() }, 2),
         (Bounds { page_size: 1, ..bounds() }, 1),
     ] {
         let mut tables = Tables::new(2, 2);
@@ -460,19 +462,12 @@ fn github_plans_page_size_and_empty_listing() {
             ended(Ok(api::Answer::Branches(Box::from([]))))
         );
     }
-    for bounds in [
-        Bounds { page_size: 0, ..bounds() },
-        Bounds { rows: 0, ..bounds() },
-        Bounds { answer_bytes: 0, ..bounds() },
-        Bounds { answer_bytes: width - 1, ..bounds() },
-    ] {
-        let mut tables = Tables::new(0, 0);
-        let Err(api::Error::TooLarge(_)) =
-            read_plan(api::Read::Branches { prefix: Box::from(&b"m"[..]) }).begin(bounds, b"example-app", &mut tables)
-        else {
-            panic!("expected a typed size refusal");
-        };
-    }
+    let bounds = Bounds { page_size: 0, ..bounds() };
+    let mut tables = Tables::new(0, 0);
+    assert_eq!(
+        read_plan(api::Read::Branches { prefix: Box::from(&b"m"[..]) }).begin(bounds, b"example-app", &mut tables),
+        Err(api::Error::TooLarge(api::Excess::at_least(api::Bound::Forge, 0, 1)))
+    );
 }
 
 #[test]
@@ -616,27 +611,50 @@ fn github_branch_prefix_keeps_two_matches_among_222_branches() {
 }
 
 #[test]
-fn github_branch_prefix_ninth_match_exceeds_eight_rows() {
-    let mut tables = Tables::new(2, 2);
-    keep(&mut tables);
-    let bounds = Bounds { rows: 8, ..bounds() };
-    let mut plan = read_plan(api::Read::Branches { prefix: Box::from(&b"temper/"[..]) });
-    plan.begin(bounds, b"example-app", &mut tables).expect("begin");
-    for page in 1_u32..=5 {
-        head(&mut plan, page != 5, bounds, &mut tables);
-        for index in [page * 2 - 2, page * 2 - 1] {
-            let result = name(&mut plan, &numbered_prefix(b"temper/", index), bounds, &mut tables);
-            if index == 8 {
-                let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = result else {
-                    panic!("expected a typed size refusal");
-                };
-                return;
+fn github_branch_prefix_matches_are_bounded_by_bytes_alone() {
+    // temper/N has eight name bytes for N < 10 and nine thereafter, plus 16 per name.
+    for (count, measured) in [(9_u32, 216), (40, 990)] {
+        for rows in [0, 8] {
+            for (answer_bytes, fits) in [(measured, true), (measured - 1, false)] {
+                let mut tables = Tables::new(2, 2);
+                keep(&mut tables);
+                let bounds = Bounds { rows, answer_bytes, ..bounds() };
+                let mut plan = read_plan(api::Read::Branches { prefix: Box::from(&b"temper/"[..]) });
+                assert_eq!(plan.begin(bounds, b"example-app", &mut tables), Ok(Step::send(branches_request(1, 2))));
+                let mut names = skein_lib::List::with_capacity(count);
+                let pages = count.div_ceil(2);
+                for page in 1..=pages {
+                    head(&mut plan, page != pages, bounds, &mut tables);
+                    for index in page * 2 - 2..(page * 2).min(count) {
+                        let branch = numbered_prefix(b"temper/", index);
+                        let result = name(&mut plan, &branch, bounds, &mut tables);
+                        if !fits && index + 1 == count {
+                            assert_eq!(
+                                result,
+                                ended(Err(api::Error::TooLarge(api::Excess::at_least(
+                                    api::Bound::AnswerBytes,
+                                    u64::from(answer_bytes),
+                                    u64::from(measured)
+                                ))))
+                            );
+                            break;
+                        }
+                        assert_eq!(result, Ok(None), "{count} {rows} {answer_bytes} index {index}");
+                        names.push(branch).expect("fixture names");
+                    }
+                    if !fits && page == pages {
+                        break;
+                    }
+                    let expected = if page == pages {
+                        ended(Ok(api::Answer::Branches(names.clone().into_boxed())))
+                    } else {
+                        Ok(Some(Step::send(branches_request(page + 1, 2))))
+                    };
+                    assert_eq!(done(&mut plan, Document::Rows, bounds, &mut tables), expected);
+                }
             }
-            assert_eq!(result, Ok(None));
         }
-        done(&mut plan, Document::Rows, bounds, &mut tables).expect("page");
     }
-    panic!("ninth row must refuse");
 }
 
 #[test]

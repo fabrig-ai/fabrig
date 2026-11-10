@@ -2,6 +2,13 @@
 
 2026-11-10. Where temper's code lags or departs from [agent.md](agent.md).
 
+Section 6 has no known gap in recording a save's pushed head: the engine
+accepts it under the attempt's writer claim and records it in the change
+without completing its delegate. The engine domain world's
+`a_resolution_that_saves_and_asks_reads_its_next_pull_brief_at_the_saved_head`
+holds a resolution's unchecked push, question and answered next attempt,
+whose pull section reads the saved head and content with no failed try.
+
 Sections 4.3's `decided`, 8.1 and 8.4.1 have no known implementation gap
 but the one below in what reaches a person, the whole story's milestone
 N1, by plan `ui-reaches`: the tool takes the ten kinds, `paths` and
@@ -362,6 +369,9 @@ coordinator plans and makes no close-out." (the engine world's
   has it, and the tools' declarations and `help settings` name the kind
   and its members alone; no story proposes one. Stage one's golden asks
   it of the reference's (`testing.status.md`, 6.5.1).
+- **Not yet:** 4.3, *A refused branch read*: `read_branches`'s
+  `TooLarge` keeps its one line and names no bound
+  (`temper-engine-smith/src/answers.rs`).
 - **Not yet:** 4.4: a verdict's follow-up tasks.
 - **Not yet:** 4.3.2: no supplied owned-forge live result establishes the
   `live-change-call` request's plain change through the shipped chat's own

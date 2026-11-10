@@ -92,6 +92,18 @@ impl Domain {
             lost: 0,
         }
     }
+    /// The owner's next poll, stretched while the repository hears
+    /// (forge-client.md, 4.1). Reads state and changes none.
+    #[must_use]
+    pub fn poll_at(
+        &self,
+        limits: &Limits,
+        now: Time,
+        repository: api::Repository,
+        interval: skein_lib::Duration,
+    ) -> Time {
+        keep::poll_at(&self.keep, limits, now, repository, interval)
+    }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
         match (self.alarms.next(), outbox::stop::deadline(&self.outbox)) {

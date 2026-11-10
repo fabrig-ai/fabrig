@@ -3049,9 +3049,15 @@ fn forge_read_too_large_names_configured_bounds_and_clips() {
 fn a_refused_branch_read_says_what_to_read_instead() {
     use skein_forge::api::Error;
     const BRANCHES_EMPTY: &str = "Forge read failed: empty. read_branches needs a nonempty prefix, as temper/ for temper's branches. read_settings names the default branch, and read_branch reads one branch by its name.";
+    const BRANCHES_TOO_LARGE: &str = "Forge read failed: too large: past forge.client.answer_bytes (65536): at least 65537 bytes. Use a longer prefix, or read_branch for one name.";
     const BRANCH_MISSING: &str = "Forge read failed: missing. The forge has no branch of that name in this repository. read_settings names its default branch, and read_branches lists the names under a prefix, as temper/. A goal's own branch is there only where its goal holds one, and a run branch from its first push.";
     for (tool, error, expected) in [
         (b"read_branches".as_slice(), Error::Empty, BRANCHES_EMPTY),
+        (
+            b"read_branches",
+            Error::TooLarge(skein_forge::api::Excess::at_least(skein_forge::api::Bound::AnswerBytes, 65536, 65537)),
+            BRANCHES_TOO_LARGE,
+        ),
         (b"read_branch", Error::Missing, BRANCH_MISSING),
         (b"read_branch", Error::Empty, "Forge read failed: empty"),
         (b"read_branches", Error::Missing, "Forge read failed: missing"),
@@ -3071,6 +3077,33 @@ fn a_refused_branch_read_says_what_to_read_instead() {
     }
 }
 
+#[test]
+fn branch_lists_render_whole_within_the_host_byte_bound() {
+    use skein_forge::api::Answer;
+    for count in [9, 40, 600, 2000] {
+        let mut names = skein_lib::List::with_capacity(count);
+        let mut expected = skein_lib::Writer::new(usize::try_from(count).unwrap() * 12);
+        for index in 0..count {
+            let name: Box<[u8]> = format!("temper/{index:04}").into_bytes().into();
+            expected.put(&name).unwrap();
+            expected.put(b"\n").unwrap();
+            names.push(name).expect("fixture names");
+        }
+        let expected = expected.finish();
+        let value = Answer::Branches(names.into_boxed());
+        assert!(skein_forge::measure::answer(&value).unwrap() <= u64::from(crate::ForgeReadBounds::STOCK.answer_bytes));
+        let recorded = engine::CallAnswer::ForgeRead(Box::new(Ok(value)));
+        let rendered = crate::answer_for_tool(
+            &recorded,
+            b"read_branches",
+            crate::ForgeReadBounds::STOCK.answer_bytes,
+            crate::ForgeReadBounds::STOCK,
+        );
+        assert!(!rendered.error(), "{count} names");
+        assert_eq!(rendered.text(), expected.as_ref());
+    }
+}
+
 /// agent.md, 4.3 and 4.3.2: a declaration says what a run calls instead.
 #[test]
 fn declarations_say_when_to_call_goal_and_what_prefix_to_give() {
@@ -3080,6 +3113,7 @@ fn declarations_say_when_to_call_goal_and_what_prefix_to_give() {
             b"goal" => assert_eq!(tool.description.as_ref(), b"Have one goal tracked, only for work your person wants agreed first (set agree) or a survey that changes nothing. For a change to a repository, call change."),
             b"delegate" => assert!(tool.description.ends_with(b"For a change to a repository, call change.")),
             b"read_branches" => {
+                assert_eq!(tool.description.as_ref(), b"List the branches whose names start with a prefix. The names fit forge.client.answer_bytes; a longer prefix reads fewer.");
                 let schema = crate::json::parse(&tool.schema).expect("JSON schema");
                 let prefix = schema.required(b"properties").unwrap().required(b"prefix").unwrap();
                 let description = prefix.required(b"description").unwrap().text(b"description").unwrap();
@@ -3152,11 +3186,13 @@ fn many_pull_paths_fit_the_text_fragments() {
         files: files.into_boxed(),
         more: false,
     })));
-    let feedback = crate::answer_bounded(&recorded, 10_240);
-    assert!(feedback.error());
-    assert!(feedback.text().len() <= 10_240);
-    assert!(skein_lib::bytes::find(feedback.text(), b"[changed paths omitted:").is_some());
-    assert!(skein_lib::bytes::find(feedback.text(), b"list directories").is_some());
+    for (cap, omitted) in [(4096, true), (10_240, false)] {
+        let feedback = crate::answer_bounded(&recorded, cap);
+        assert!(feedback.error());
+        assert!(feedback.text().len() <= usize::try_from(cap).unwrap());
+        assert_eq!(skein_lib::bytes::find(feedback.text(), b"[changed paths omitted:").is_some(), omitted);
+        assert!(skein_lib::bytes::find(feedback.text(), b"list directories").is_some());
+    }
 }
 
 fn oversized_file_and_pull_feedback() {

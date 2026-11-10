@@ -328,7 +328,7 @@ A read.
 
 ## read_branches
 
-Branch names within forge.client.rows/answer_bytes; narrow with a longer prefix, or read_branch for one name.
+List the branches whose names start with a prefix. The names fit forge.client.answer_bytes; a longer prefix reads fewer.
 
 A read.
 

@@ -295,6 +295,7 @@ fn commit_messages(commits: &[api::CommitMessage]) -> Option<u64> {
 }
 
 /// Check every answer list, including nested lists, independently of bytes.
+/// Branches' names have no row bound, only bytes (skein/docs/design/forge.md, 3.7).
 #[must_use]
 pub fn answer_rows(value: &Answer, rows: u32) -> bool {
     answer_list_rows(value) <= usize_of(rows)
@@ -332,7 +333,6 @@ pub fn answer_list_rows(value: &Answer) -> usize {
         Answer::Reviews { reviews, .. } => reviews.len(),
         Answer::Statuses { statuses, .. } | Answer::Checks(statuses) => statuses.len(),
         Answer::Remarks { remarks, .. } => remarks.len(),
-        Answer::Branches(branches) => branches.len(),
         Answer::PullFiles { files, .. } => files.len(),
         Answer::Compare { files, .. } => files.len(),
         Answer::Protection(protection) => match protection {
@@ -340,7 +340,8 @@ pub fn answer_list_rows(value: &Answer) -> usize {
             None => 0,
         },
         Answer::Collaborators { collaborators, .. } => collaborators.len(),
-        Answer::Located { .. }
+        Answer::Branches(_)
+        | Answer::Located { .. }
         | Answer::Commit(_)
         | Answer::Job { .. }
         | Answer::Directory { .. }

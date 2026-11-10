@@ -30,7 +30,13 @@ pub(crate) struct Text {
 
 impl Text {
     fn new() -> Self {
-        Self { parts: List::with_capacity(1024), len: 0, count_only: false }
+        // Every retained fragment has at least one byte; the host byte bound
+        // bounds their count too (domain/agent.md, 4.3).
+        Self {
+            parts: List::with_capacity(u32::try_from(HostAnswer::CAPACITY).expect("host byte bound fits")),
+            len: 0,
+            count_only: false,
+        }
     }
 
     fn counter() -> Self {
@@ -41,7 +47,7 @@ impl Text {
         const DIGITS: &[u8; 16] = b"0123456789abcdef";
         let len = escaped_len(text);
         self.len = self.len.checked_add(len).ok_or(Problem::TooLarge)?;
-        if self.count_only {
+        if self.count_only || text.is_empty() {
             return Ok(());
         }
         if self.len > HostAnswer::CAPACITY {
@@ -75,6 +81,9 @@ impl Text {
 
     // Fixed UTF-8 punctuation in the note acknowledgement is already trusted text.
     pub(crate) fn literal(&mut self, text: &[u8]) -> Result<(), Problem> {
+        if text.is_empty() {
+            return Ok(());
+        }
         self.len = self.len.checked_add(text.len()).ok_or(Problem::TooLarge)?;
         if self.len > HostAnswer::CAPACITY {
             return Err(Problem::TooLarge);
