@@ -1,11 +1,8 @@
-//! Comparison rows stream with independent inner bounds on commits and files.
+//! Compared paths stream to their plan; pull-file rows keep their inner bound.
 use super::{Malformed, walk::Node};
-use crate::{
-    api,
-    github::{
-        document::{self, Row},
-        id,
-    },
+use crate::github::{
+    document::{self, Row},
+    id,
 };
 use alloc::boxed::Box;
 use skein_json::Token;
@@ -13,23 +10,19 @@ use skein_lib::bytes;
 #[derive(Debug)]
 pub(super) struct State {
     comparison: document::Compare,
-    commit: api::Commit,
     path: Box<[u8]>,
     status: document::FileStatus,
     previous: Option<Box<[u8]>>,
-    commits: u32,
     files: u32,
     inner: u32,
 }
 impl State {
     pub(super) fn new(inner: u32) -> Self {
         Self {
-            comparison: document::Compare { total_commits: 0, behind_by: 0, merge_base: None },
-            commit: [0; 32],
+            comparison: document::Compare { total_commits: 0, ahead_by: 0, behind_by: 0, merge_base: None },
             path: Box::from([]),
             status: document::FileStatus::Modified,
             previous: None,
-            commits: 0,
             files: 0,
             inner,
         }
@@ -38,17 +31,10 @@ impl State {
         self.comparison.clone()
     }
     pub(super) fn end(&mut self, node: Node) -> Result<Option<Row>, Malformed> {
-        if node == Node::CompareCommit {
-            self.commits = self.commits.checked_add(1).ok_or(Malformed::Bound { field: b"commits" })?;
-            if self.commits > self.inner {
-                return Err(Malformed::Bound { field: b"commits" });
-            }
-            return Ok(Some(Row::Commit(self.commit)));
-        }
         if node == Node::CompareFile || node == Node::FileRow {
             self.files = self.files.checked_add(1).ok_or(Malformed::Bound { field: b"files" })?;
             // GitHub caps a comparison's file list at 300, so that length cannot prove completeness.
-            if self.files > self.inner || (node == Node::CompareFile && self.files >= 300) {
+            if (node == Node::FileRow && self.files > self.inner) || (node == Node::CompareFile && self.files >= 300) {
                 return Err(Malformed::Bound { field: b"files" });
             }
             if node == Node::FileRow && self.status == document::FileStatus::Renamed && self.previous.is_none() {
@@ -68,6 +54,8 @@ impl State {
                 let value = bytes::decimal(&text).ok_or(Malformed::Range { field: key })?;
                 if key == b"total_commits" {
                     self.comparison.total_commits = value;
+                } else if key == b"ahead_by" {
+                    self.comparison.ahead_by = value;
                 } else {
                     self.comparison.behind_by = value;
                 }
@@ -93,7 +81,7 @@ impl State {
                     if node == Node::MergeBase {
                         self.comparison.merge_base = Some(commit);
                     } else {
-                        self.commit = commit;
+                        return Err(Malformed::Shape { field: key });
                     }
                 }
             }

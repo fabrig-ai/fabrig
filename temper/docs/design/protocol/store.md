@@ -313,6 +313,13 @@ schema ceiling of 65,536 bytes. Their runtime bounds, `open_words` and
 `held_answer`, both come from `forge.client.op_bytes`; the start refuses a
 bound above the ceiling by the ordinary schema-bound check (2026-11-04).
 
+A named call's `TooLarge` keeps its excess (skein's `forge.md`, 3.4):
+`Error`'s `too_large` carries an `Excess` record, its `bound` an enum of
+the five bounds and `limit`, `size` and `exact` beside it, replaced in
+place in store v11 with no version bump, no migration and no arm kept
+for older rows; a store written before it is made afresh (A deployment
+made again, above) (2026-11-10).
+
 A tier's stored goal-branch list has a ceiling of 256, sorted by goal number
 with no duplicate. Its runtime bound is `forge.holds`; a value above 256
 refuses the start. The ceiling keeps the tier row's worst-case encoding,
@@ -325,6 +332,8 @@ forge's constants `WORKFLOWS` and `WORKFLOW_BYTES` (`../domain/forge.md`,
 4.7), not configured, and the schema's ceilings equal them. The field
 joins family 2's record in place, in store v11 with no migration
 (2026-11-08).
+
+A named call's comparison answer is names and counts (skein's `forge.md`, 3.3): `CompareAnswer` holds `before`, `after`, `ahead`, `behind`, `files`, a list of at most `forge.client.rows` paths, and `changed`, replaced in place in store v11 with no version bump, no migration and no arm kept for older rows: before the first release a stored format changes in place, and a store written before it is made afresh (A deployment made again, above) (2026-11-10).
 
 ## 5. The restart
 

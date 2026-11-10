@@ -188,7 +188,7 @@ pub(crate) fn tag_notes(
                         failure: jig_domain_brief::GatherFailure {
                             fate: jig_domain_brief::GatherFate::Capacity,
                             section: b"notes",
-                            words: b"no room for the index",
+                            words: Box::from(b"no room for the index".as_slice()),
                         },
                     }),
                     notes::Refusal::Oversized
@@ -203,7 +203,7 @@ pub(crate) fn tag_notes(
                             failure: jig_domain_brief::GatherFailure {
                                 fate: jig_domain_brief::GatherFate::Permanent,
                                 section: b"notes",
-                                words: b"the index could not be read",
+                                words: Box::from(b"the index could not be read".as_slice()),
                             },
                         });
                     }

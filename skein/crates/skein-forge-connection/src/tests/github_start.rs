@@ -56,7 +56,7 @@ fn github_mint_one_past_a_small_token_bound_is_too_large() {
         }
     }
     match outcome {
-        Some(Err(error)) => assert_eq!(error, skein_forge::api::Error::TooLarge),
+        Some(Err(error)) => assert_eq!(error, skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed())),
         Some(Ok(_)) | None => unreachable!("oversized token is refused"),
     }
 }

@@ -81,7 +81,9 @@ record ProposedEffect { number: u64 resource: What entry: Entry }
 
 # 04.3b: named effects, errors and reads without answer-item pieces.
 record RateLimited { after: duration }
-enum Error { unavailable, timeout, rate_limited: RateLimited, forbidden, missing, missing_job, too_large, empty, full, exists, nothing_to_merge, closed, stale, conflict, protected, refused, invalid_answer, busy, not_installed }
+enum Bound { op_bytes, answer_bytes, rows, forge, unnamed }
+record Excess { bound: Bound limit: u64 size: u64 exact: bool }
+enum Error { unavailable, timeout, rate_limited: RateLimited, forbidden, missing, missing_job, too_large: Excess, empty, full, exists, nothing_to_merge, closed, stale, conflict, protected, refused, invalid_answer, busy, not_installed }
 record ErrorValue { error: Error }
 enum Made { created: Number, commented: Number, reviewed: Number, merged: Commit, updated: Commit, branch: Commit, set }
 record OutcomeMade { made: Made found: bool }
@@ -119,7 +121,7 @@ record Collaborator { user: u64 permission: Permission }
 record StatusesAnswer { ci: Ci statuses: bytes 2097152 pieces Status more: bool }
 record RemarksAnswer { remarks: bytes 2097152 pieces Remark more: bool }
 record PullFilesAnswer { head: fixed 32 files: bytes 2097152 pieces File more: bool }
-record CompareAnswer { before: fixed 32 after: fixed 32 contains_before: bool files: bytes 2097152 pieces File commits: list 65536 fixed 32 }
+record CompareAnswer { before: fixed 32 after: fixed 32 ahead: u64 behind: u64 files: list 1024 bytes 1048576 changed: u64 }
 record ChecksAnswer { statuses: bytes 2097152 pieces Status }
 record CollaboratorsAnswer { collaborators: list 65536 Collaborator more: bool }
 record Located { repository: u32 }

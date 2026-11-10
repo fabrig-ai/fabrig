@@ -80,7 +80,7 @@ enum Phase {
     Pull,
     Reviews(u32),
     Branch,
-    BranchCompare { before: Commit, after: Commit },
+    BranchAncestry { before: Commit, after: Commit },
 }
 // A refusal belongs to a phase kind, not a scan page (forge-client.md, 4.2).
 #[derive(Hash, Debug)]
@@ -90,11 +90,11 @@ struct Refusals {
     pull: bool,
     reviews: bool,
     branch: bool,
-    comparison: Option<(Commit, Commit)>,
+    ancestry: Option<(Commit, Commit)>,
 }
 impl Refusals {
     const fn new() -> Self {
-        Self { object: false, pull: false, reviews: false, branch: false, comparison: None }
+        Self { object: false, pull: false, reviews: false, branch: false, ancestry: None }
     }
     fn contains(&self, phase: Phase) -> bool {
         match phase {
@@ -102,7 +102,7 @@ impl Refusals {
             Phase::Pull => self.pull,
             Phase::Reviews(_) => self.reviews,
             Phase::Branch => self.branch,
-            Phase::BranchCompare { before, after } => self.comparison == Some((before, after)),
+            Phase::BranchAncestry { before, after } => self.ancestry == Some((before, after)),
         }
     }
     fn set(&mut self, phase: Phase, refused: bool) {
@@ -111,8 +111,8 @@ impl Refusals {
             Phase::Pull => self.pull = refused,
             Phase::Reviews(_) => self.reviews = refused,
             Phase::Branch => self.branch = refused,
-            Phase::BranchCompare { before, after } => {
-                self.comparison = if refused { Some((before, after)) } else { None };
+            Phase::BranchAncestry { before, after } => {
+                self.ancestry = if refused { Some((before, after)) } else { None };
             }
         }
     }
@@ -324,14 +324,25 @@ fn scan_busy(state: Scan) -> bool {
 }
 fn admission(k: &Keep, l: &Limits, watches: &[Watch]) -> Result<(), Error> {
     if watches.len() > usize_of(l.resources) {
-        return Err(Error::TooLarge);
+        return Err(Error::TooLarge(api::Excess::exact(
+            api::Bound::Forge,
+            u64::from(l.resources),
+            skein_lib::len_u64(watches.len()),
+        )));
     }
     if !k.ready || k.failed {
         return Err(Error::Busy);
     }
     for (index, watch) in watches.iter().enumerate() {
         if !valid_resource(&watch.resource, l) {
-            return Err(Error::TooLarge);
+            let excess = match &watch.resource.what {
+                What::Branch(name) if name.is_empty() => api::Excess::unnamed(),
+                What::Branch(name) => {
+                    api::Excess::exact(api::Bound::OpBytes, u64::from(l.op_bytes), skein_lib::len_u64(name.len()))
+                }
+                What::Repository | What::Pull(_) | What::Issue(_) => api::Excess::unnamed(),
+            };
+            return Err(Error::TooLarge(excess));
         }
         if watch.participating {
             match watch.resource.what {

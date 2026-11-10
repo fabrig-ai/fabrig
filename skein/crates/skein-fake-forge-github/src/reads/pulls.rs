@@ -100,7 +100,7 @@ pub(super) fn files(answer: a::Answer, target: &[u8], page: u32, size: u32, limi
     page.link_next(answers::response(200, &Body::Files(rows.as_slice()), limits), target, limits)
 }
 pub(super) fn compare(answer: a::Answer, size: u32, limits: &Limits) -> Response {
-    let a::Answer::Comparison { merge_base, contains_base, files, commits, .. } = answer else {
+    let a::Answer::Comparison { merge_base, ahead, behind, files, commits, .. } = answer else {
         return answers::failed();
     };
     let total_commits = skein_lib::len_u64(commits.len());
@@ -115,7 +115,7 @@ pub(super) fn compare(answer: a::Answer, size: u32, limits: &Limits) -> Response
         rows.push(file(row)).expect("comparison file cap");
     }
     let document =
-        d::Compare { total_commits, behind_by: u64::from(!contains_base), merge_base: optional_commit(merge_base) };
+        d::Compare { total_commits, ahead_by: ahead, behind_by: behind, merge_base: optional_commit(merge_base) };
     answers::response(200, &Body::Compare(&document, ids.as_slice(), rows.as_slice()), limits)
 }
 

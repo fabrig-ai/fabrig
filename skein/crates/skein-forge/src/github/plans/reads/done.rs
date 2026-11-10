@@ -1,5 +1,6 @@
 //! Repository resolution and terminal documents for GitHub's first reads.
 use super::{Bounds, Plan, Read, Response, Stage, Step, Tables, api, document, tables};
+use crate::api::Excess;
 use crate::{github::id, measure};
 use skein_lib::List;
 
@@ -209,16 +210,21 @@ impl Plan {
             Response::None | Response::Head | Response::Refusal { .. } => return Err(api::Error::InvalidAnswer),
         };
         if next {
-            self.page = self.page.checked_add(1).ok_or(api::Error::TooLarge)?;
+            self.page = self.page.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
             return Ok(Some(self.initial()?));
         }
         let rows = core::mem::replace(&mut self.rows, List::with_capacity(0));
         self.terminal(api::Answer::Branches(rows.into_boxed()), bounds)
     }
     pub(super) fn terminal(&mut self, answer: api::Answer, bounds: Bounds) -> Result<Option<Step>, api::Error> {
-        let size = measure::answer(&answer).ok_or(api::Error::TooLarge)?;
+        let size = measure::answer(&answer).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if size > u64::from(bounds.answer_bytes) {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(Excess {
+                bound: api::Bound::AnswerBytes,
+                limit: u64::from(bounds.answer_bytes),
+                size,
+                exact: true,
+            }));
         }
         self.stage = Stage::Done;
         self.response = Response::None;

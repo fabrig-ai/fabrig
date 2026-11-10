@@ -109,7 +109,7 @@ fn largest_github_set_reviewers_stays_under_the_ceiling() {
             assert_eq!((answer.cost, &answer.result), (3, &Ok(Answer::Done)));
         } else {
             let answer = h.answered(1).expect("body cap checked before mutation");
-            assert_eq!((answer.cost, &answer.result), (1, &Err(Error::TooLarge)));
+            assert_eq!((answer.cost, &answer.result), (1, &Err(Error::TooLarge(skein_forge::api::Excess::unnamed()))));
         }
         fits(&heap, label, CEILING);
     }

@@ -104,14 +104,13 @@ fn github_fake_pull_files_compare_and_raw_drive_complete_plans() {
             assert!(file.after.is_some());
         }
     }
-    let api::Answer::Compare { files, commits, contains_before, .. } =
+    let api::Answer::Compare { files, ahead, behind, changed, .. } =
         r::read(&mut h, &token, api::Read::Compare { before: first, after: r::object(commit) }).expect("compare plan")
     else {
         panic!("comparison")
     };
     assert_eq!(files.len(), 3);
-    assert_eq!(commits.as_ref(), &[r::object(commit)]);
-    assert!(contains_before);
+    assert_eq!((ahead, behind, changed), (1, 0, 3));
     let api::Answer::File { bytes, truncated, .. } =
         r::read(&mut h, &token, api::Read::File { head: r::object(commit), path: f::boxed(b"one"), max_bytes: 3 })
             .expect("raw plan")
@@ -156,8 +155,8 @@ fn github_fake_compare_uses_the_merge_base_on_divergent_branches() {
     let encoded = github::request::encode(&request, &h.limits.github).unwrap();
     let response = h.ask(Method::Get, &encoded.target, Some(token.expose()), b"");
     let (_, Document::Compare(row)) = h.decode(Kind::Compare, &response) else { panic!("compare") };
-    assert_eq!(row.merge_base, Some(r::object(h.first)));
-    assert_ne!(row.behind_by, 0);
+    assert_eq!(row.merge_base, None, "names-only Compare keeps no merge base id");
+    assert_eq!((row.ahead_by, row.behind_by), (1, 1));
     let api::Answer::PullFiles { files, .. } =
         r::read(&mut h, &token, api::Read::PullFiles { number, head: r::object(commit), page: 1 }).unwrap()
     else {
