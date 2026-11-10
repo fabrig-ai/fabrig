@@ -1,6 +1,6 @@
 # host: status
 
-2026-11-08. Where smith's code lags or departs from [host.md](host.md).
+2026-11-10. Where smith's code lags or departs from [host.md](host.md).
 
 Section 4 has no known gap in retaining a panic's closing line and
 message when they fit the detail bound. The host-protocol detail table
@@ -17,10 +17,3 @@ remains a tail.
   - 4: an agent spawned in a contained tree, in its view, and gone once
     the tree is proved empty: `smith-host-protocol/src/process.rs`
     spawns a plain child in a process group.
-  - 7: a grant refreshed while the local chat still starts. The oauth
-    driver's `granted` again for a held grant (skein's `oauth.md`, 6.3)
-    reaches the starting chat as the answer to an account request
-    (`smith-local-domain/src/domain/chat_machine.rs`, `granted` and
-    `no_credential`): with no request waiting it aborts ("one terminal
-    per account request"), and with another account's waiting it is
-    counted as that one's answer.

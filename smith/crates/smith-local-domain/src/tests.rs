@@ -435,6 +435,107 @@ fn spawned_agent_receives_saved_start_message_and_durable_turn_ack() {
     }));
 }
 
+fn starting_spawned_chat(config: Config) -> (Domain, Env<Limits>, Queue<Request>) {
+    let mut limits = limits();
+    let mut child_limits = host_limits();
+    child_limits.turns = 9;
+    limits.agent = crate::AgentLimits::Spawned(child_limits);
+    let env = Env { now: Time::ZERO, wall: Wall::from_nanos(0), limits: limits.clone() };
+    let mut domain = Domain::new(config, &limits, 11).expect("spawned local domain");
+    let mut out = Queue::uncapped();
+    crate::resume(&mut domain, &env, &mut out);
+    let Some(Request::Load) = out.pop() else { panic!("initial load") };
+    crate::step(&mut domain, &env, crate::fixture::loaded(), &mut out);
+    crate::step(&mut domain, &env, Event::Line { text: Box::from(&b"hello"[..]) }, &mut out);
+    for account in &domain.config.accounts {
+        let Some(Request::Credential { account: requested }) = out.pop() else { panic!("requested grant") };
+        assert_eq!(requested, *account);
+    }
+    let Some(Request::SaveState { state, fresh: false }) = out.pop() else { panic!("activation saved") };
+    assert_eq!(state.activation, 1);
+    (domain, env, out)
+}
+
+fn startup_credential(account: u32, generation: u64, valid: Duration) -> Event {
+    Event::Credential {
+        form: smith_host_domain::Form::Credential(smith_host_domain::Scheme::Bearer),
+        grant: smith_domain::Grant { name: smith_domain::GrantName { account, generation }, renewable: true, valid },
+    }
+}
+
+fn spawned_start_grants(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    out: &mut Queue<Request>,
+) -> Box<[smith_host_domain::Grant]> {
+    use smith_host_domain::{self as host, process};
+    let Some(Request::Process(process::Request::Spawn { owner, .. })) = out.pop() else { panic!("owned child spawn") };
+    crate::step(domain, env, Event::Process(process::Event::Spawned { owner, process: Token::new(3) }), out);
+    let Some(Request::Process(process::Request::Send { message: host::Down::Start { start, .. }, .. })) = out.pop()
+    else {
+        panic!("typed start first")
+    };
+    start.grants
+}
+
+const REFRESHED_START_GRANT: smith_host_domain::Grant = smith_host_domain::Grant {
+    account: 7,
+    generation: 2,
+    valid: Duration::from_secs(120),
+    form: smith_host_domain::Form::Credential(smith_host_domain::Scheme::Bearer),
+};
+
+fn refreshed_start(config: Config) -> (Domain, Env<Limits>, Queue<Request>) {
+    let (mut domain, env, mut out) = starting_spawned_chat(config);
+    crate::step(&mut domain, &env, startup_credential(7, 1, Duration::from_secs(60)), &mut out);
+    crate::step(&mut domain, &env, startup_credential(7, 2, Duration::from_secs(120)), &mut out);
+    crate::step(&mut domain, &env, Event::StateSaved, &mut out);
+    (domain, env, out)
+}
+
+#[test]
+fn a_starting_chats_newer_grant_replaces_the_held_grant() {
+    let (mut domain, env, mut out) = refreshed_start(config());
+    let grants = spawned_start_grants(&mut domain, &env, &mut out);
+    assert_eq!(grants.as_ref(), &[REFRESHED_START_GRANT]);
+}
+
+#[test]
+fn a_starting_chat_keeps_its_grant_against_stale_refreshes() {
+    for generation in [1, 2] {
+        let (mut domain, env, mut out) = starting_spawned_chat(config());
+        crate::step(&mut domain, &env, startup_credential(7, 2, Duration::from_secs(120)), &mut out);
+        crate::step(&mut domain, &env, startup_credential(7, generation, Duration::from_secs(60)), &mut out);
+        crate::step(&mut domain, &env, Event::StateSaved, &mut out);
+        let grants = spawned_start_grants(&mut domain, &env, &mut out);
+        assert_eq!(grants.as_ref(), &[REFRESHED_START_GRANT], "refresh generation {generation}");
+    }
+}
+
+#[test]
+fn a_starting_chats_refresh_does_not_answer_another_account() {
+    let mut config = config();
+    config.accounts = Box::new([7, 8]);
+    let (mut domain, env, mut out) = refreshed_start(config);
+    let crate::chat::State::Starting(starting) = &domain.chat.phase else { panic!("second account still awaited") };
+    assert_eq!(starting.grants.awaiting, 1);
+    assert!(out.is_empty(), "no child starts before the second account answers");
+    crate::step(&mut domain, &env, startup_credential(8, 1, Duration::from_secs(60)), &mut out);
+    let grants = spawned_start_grants(&mut domain, &env, &mut out);
+    assert_eq!(
+        grants.as_ref(),
+        &[
+            REFRESHED_START_GRANT,
+            smith_host_domain::Grant {
+                account: 8,
+                generation: 1,
+                valid: Duration::from_secs(60),
+                form: smith_host_domain::Form::Credential(smith_host_domain::Scheme::Bearer),
+            },
+        ]
+    );
+}
+
 #[expect(
     clippy::wildcard_enum_match_arm,
     clippy::match_like_matches_macro,
@@ -442,26 +543,7 @@ fn spawned_agent_receives_saved_start_message_and_durable_turn_ack() {
 )]
 pub(super) fn spawned_chat_with_saved_hello() -> (Domain, Env<Limits>, Queue<Request>, Token) {
     use smith_host_domain::{self as host, process};
-    let mut limits = limits();
-    let mut child_limits = host_limits();
-    child_limits.turns = 9;
-    limits.agent = crate::AgentLimits::Spawned(child_limits);
-    let env = Env { now: Time::ZERO, wall: Wall::from_nanos(0), limits: limits.clone() };
-    let mut domain = Domain::new(config(), &limits, 11).expect("spawned local domain");
-    let mut out = Queue::uncapped();
-    crate::resume(&mut domain, &env, &mut out);
-    assert!(match out.pop() {
-        Some(Request::Load) => true,
-        _ => false,
-    });
-    crate::step(&mut domain, &env, crate::fixture::loaded(), &mut out);
-    crate::step(&mut domain, &env, Event::Line { text: Box::from(&b"hello"[..]) }, &mut out);
-    assert!(match out.pop() {
-        Some(Request::Credential { account: 7 }) => true,
-        _ => false,
-    });
-    let Some(Request::SaveState { state, fresh: false }) = out.pop() else { panic!("activation saved") };
-    assert_eq!(state.activation, 1);
+    let (mut domain, env, mut out) = starting_spawned_chat(config());
     crate::step(
         &mut domain,
         &env,
@@ -482,7 +564,7 @@ pub(super) fn spawned_chat_with_saved_hello() -> (Domain, Env<Limits>, Queue<Req
     else {
         panic!("typed start first")
     };
-    assert_eq!(window.turns, limits.unsaved, "advertised credit fits the durable save queue");
+    assert_eq!(window.turns, env.limits.unsaved, "advertised credit fits the durable save queue");
     assert_eq!(start.activation, 1);
     assert_eq!(start.messages[0].name, Token::new(1));
     assert_eq!(start.messages[0].label.as_ref(), b"person");
