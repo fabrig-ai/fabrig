@@ -2002,6 +2002,7 @@ fn a_closer_row_round_trips() {
                 landing: None,
                 hold: Some(Hold::ClosingStep { step: Step::Close, change: 20 }),
                 retry: None,
+                selections: Box::new([]),
             },
             making: Some(Step::Close),
             close_changes: Box::new([20]),
@@ -2017,6 +2018,7 @@ fn a_closer_row_round_trips() {
                 landing: Some(21),
                 hold: Some(Hold::ClosingStep { step: Step::Land, change: 21 }),
                 retry: Some(Step::Land),
+                selections: Box::new([]),
             },
             making: Some(Step::Land),
             close_changes: Box::new([20, 22]),
@@ -2033,6 +2035,7 @@ fn a_closer_row_round_trips() {
             landing: None,
             hold: None,
             retry: Some(Step::Close),
+            selections: Box::new([]),
         },
         making: None,
         close_changes: Box::new([20]),
@@ -2051,4 +2054,43 @@ fn a_closer_row_round_trips() {
         assert_eq!(crate::keys::decode(&key, &fixtures::LIMITS), Some(forge::stored_key(&row)));
         assert_eq!(records::row(&key, &records::encode(&row), &bounds), Ok(row));
     }
+}
+
+#[test]
+fn a_closers_selection_progress_round_trips_with_its_owned_bytes() {
+    use temper_engine_domain_forge_closer::{Closer, PullSelection, SelectionProgress};
+    let attempt = skein_forge::api::JobAttempt { head: [3; 32], run: 4, job: 5, attempt: 2 };
+    let mut closer = Closer::new();
+    closer.selections = Box::new([
+        PullSelection::new(1, None),
+        PullSelection::new(2, Some(attempt.head)),
+        PullSelection {
+            pull: 3,
+            head: Some(attempt.head),
+            progress: SelectionProgress::Jobs { attempts: Box::new([attempt, attempt]), next: 1 },
+        },
+        PullSelection {
+            pull: 4,
+            head: Some(attempt.head),
+            progress: SelectionProgress::Done { line: Some(b"selection: full".as_slice().into()) },
+        },
+        PullSelection { pull: 5, head: Some(attempt.head), progress: SelectionProgress::Done { line: None } },
+    ]);
+    let row = forge::Stored::Closer(forge::CloserRow {
+        task: 8,
+        goal: 7,
+        closer,
+        making: None,
+        close_changes: Box::new([]),
+        landing_changes: Box::new([]),
+        done: false,
+    });
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let meter = skein_world::domain::heap::Meter::new();
+    meter.start();
+    let cloned = row.clone();
+    let held = meter.end().held();
+    assert_eq!(forge::stored_bytes(&cloned), Some(held));
+    drop(cloned);
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
 }

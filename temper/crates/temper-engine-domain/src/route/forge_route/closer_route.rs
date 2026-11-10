@@ -98,8 +98,17 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
         }
         c::Decision::Report => {
             row.closer = stepped.closer;
+            let mut report = report(domain, &row, &goal_words, branch.as_deref());
+            prepare_selections(domain, &mut row, &report);
+            if c::selection_read(&row.closer).is_some() {
+                domain.work.push(Work::Forge(forge::Event::Closer { row }));
+                domain
+                    .work
+                    .push(Work::Forge(forge::Event::ReadCloserSelection { task, repository: repository.provider }));
+                return;
+            }
+            report.selections = settled_selections(&row.closer);
             row.done = true;
-            let report = report(domain, &row, &goal_words, branch.as_deref());
             ProcedureStep::new(StepEnd::Result(tasks::TaskResult::Report { words: c::words(&report, bound) }))
         }
     };
@@ -518,6 +527,47 @@ pub(crate) fn refused(domain: &mut Domain, task: u64, why: &jig_domain_core::Ste
             true
         }
     }
+}
+
+fn prepare_selections(domain: &Domain, row: &mut forge::CloserRow, report: &c::Report) {
+    let mut pulls = skein_lib::Map::uncapped();
+    for selection in &report.selections {
+        let mut head = None;
+        for task in domain.forge.change_tasks() {
+            let change = domain.forge.change(task).expect("enumerated change");
+            if change.pull == Some(selection.pull) {
+                head = change.change.last_head;
+                break;
+            }
+        }
+        let mut progress = c::PullSelection::new(selection.pull, head);
+        for previous in &row.closer.selections {
+            if previous.pull == selection.pull && (head.is_none() || previous.head == head) {
+                progress = previous.clone();
+                break;
+            }
+        }
+        pulls.insert(selection.pull, progress).expect("goal tree bounds selections");
+    }
+    let mut selections = List::uncapped();
+    for (_, progress) in &pulls {
+        selections.push(progress.clone()).expect("goal tree bounds selections");
+    }
+    row.closer.selections = selections.into_boxed();
+}
+
+fn settled_selections(closer: &c::Closer) -> Box<[c::Selection]> {
+    let mut selections = List::uncapped();
+    for selection in &closer.selections {
+        let line = match &selection.progress {
+            c::SelectionProgress::Done { line } => line.clone(),
+            c::SelectionProgress::Pull | c::SelectionProgress::Checks | c::SelectionProgress::Jobs { .. } => {
+                unreachable!("report waits for selections")
+            }
+        };
+        selections.push(c::Selection { pull: selection.pull, line }).expect("goal tree bounds selections");
+    }
+    selections.into_boxed()
 }
 
 #[cfg(test)]

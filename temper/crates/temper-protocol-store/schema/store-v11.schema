@@ -359,6 +359,10 @@ record Decided { project: u32 number: u32 party: u64 task: u64 at: u64 question:
 enum ClosingStep { close, land }
 record ClosingRun { step: ClosingStep change: u64 }
 record ClosingTasks { tasks: list 1024 u64 }
-record Closer { task: u64 goal: u64 closed: option ClosingTasks running: option ClosingRun landing: option u64 hold: option ClosingRun retry: option ClosingStep making: option ClosingStep close_changes: list 1024 u64 landing_changes: list 1024 u64 done: bool }
+record ClosingJobs { attempts: list 8 JobAttempt next: u32 }
+record ClosingLine { line: option bytes 256 }
+enum ClosingSelectionProgress { pull, checks, jobs: ClosingJobs, done: ClosingLine }
+record ClosingSelection { pull: u64 head: option Commit progress: ClosingSelectionProgress }
+record Closer { task: u64 goal: u64 closed: option ClosingTasks running: option ClosingRun landing: option u64 hold: option ClosingRun retry: option ClosingStep making: option ClosingStep close_changes: list 1024 u64 landing_changes: list 1024 u64 selections: list 1024 ClosingSelection done: bool }
 enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground, tier: boxed TierRow, verification: Verification, setting: SettingRow, dismissed: Dismissed, making: RepositoryMaking, landing_log: LandingLog, project_facts: ProjectFacts, looked: Looked, away: Away, decided: Decided, closer: Closer }
 versioned record Row { value: Value }

@@ -6,7 +6,9 @@ extern crate alloc;
 
 mod policy;
 mod report;
+mod selection;
 pub use policy::{Child, Closer, Decision, Facts, Hold, Running, Step, Stepped, step};
+pub use selection::{PullSelection, SELECTION_JOBS, SelectionProgress, selection_answer, selection_read};
 #[cfg(test)]
 mod tests;
 

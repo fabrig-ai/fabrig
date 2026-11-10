@@ -147,7 +147,13 @@ pub(crate) fn job(repository: &Repository, id: u64, ci_user: u64) -> Result<Answ
         return Ok(Answer::Job { steps: job.steps.clone(), job });
     }
     let (mut job, context, failing) = failed_job(repository, id, ci_user)?;
-    job.steps = crate::actions::steps(context, failing, crate::ci::cue(&repository.checks, context), run.pull);
+    job.steps = crate::actions::steps(
+        context,
+        failing,
+        crate::ci::cue(&repository.checks, context),
+        run.pull,
+        repository.opening.get(usize_of(job.index)).expect("CI context"),
+    );
     Ok(Answer::Job { steps: job.steps.clone(), job })
 }
 
@@ -188,6 +194,7 @@ pub(crate) fn log(
         crate::ci::cue(&repository.checks, context),
         crate::actions::run(repository, job.run)?.pull,
         step,
+        repository.opening.get(usize_of(job.index)).expect("CI context"),
     )?))
 }
 

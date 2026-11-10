@@ -25,13 +25,14 @@ pub struct Closer {
     pub landing: Option<u64>,
     pub hold: Option<Hold>,
     pub retry: Option<Step>,
+    pub selections: Box<[crate::PullSelection]>,
 }
 
 impl Closer {
     #[must_use]
     #[expect(clippy::new_without_default, reason = "step values use named constructors, not user-defined traits")]
     pub fn new() -> Self {
-        Self { closed: None, running: None, landing: None, hold: None, retry: None }
+        Self { closed: None, running: None, landing: None, hold: None, retry: None, selections: Box::new([]) }
     }
 }
 

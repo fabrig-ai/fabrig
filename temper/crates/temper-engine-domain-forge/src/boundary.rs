@@ -1822,6 +1822,11 @@ pub enum Event {
     Closer {
         row: crate::CloserRow,
     },
+    /// Read the next pending CI selection for the closer report.
+    ReadCloserSelection {
+        task: u64,
+        repository: skein_forge::api::Repository,
+    },
     /// Read fresh containment for the named closer step.
     CheckCloser {
         task: u64,

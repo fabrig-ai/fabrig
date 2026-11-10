@@ -287,6 +287,24 @@ pub fn set_failing(domain: &mut Domain, repository: &[u8], context: &[u8], faili
         failing;
 }
 
+/// Sets a context's whole job log opening (skein/docs/design/fake-forge.md, 2.3).
+pub fn set_opening(domain: &mut Domain, repository: &[u8], context: &[u8], bytes: &[u8]) {
+    let id = domain.id(repository);
+    let repository = domain.repositories.get_mut(id).expect("a repository of the forge");
+    fits(bytes, repository.opening_limit).expect("a job log opening within the content limit");
+    let mut found = None;
+    for (index, name) in repository.checks.contexts.iter().enumerate() {
+        if name.as_ref() == context {
+            found = Some(index);
+            break;
+        }
+    }
+    *repository
+        .opening
+        .get_mut(found.expect("a context of the repository's checks"))
+        .expect("one opening per context") = copy_of(bytes);
+}
+
 /// Starts checking the pull's mergeability for `span` on the forge's clock.
 pub fn check(domain: &mut Domain, env: &Env<Config>, repository: &[u8], number: u64, span: Duration) {
     let id = *domain.names.get(repository).expect("a scenario repository");

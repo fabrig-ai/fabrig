@@ -17,11 +17,25 @@ fn goal_world_in(
     tier: Option<temper_engine_domain_world::tier_runs::Tier>,
     main_ci: bool,
 ) -> (World, engine::Assignment, Box<[u8]>) {
+    goal_world_with_ci(close, branch, tier, main_ci, true, STEPS)
+}
+#[expect(
+    clippy::fn_params_excessive_bools,
+    reason = "stories vary the close job, goal branch, landing rule and CI silence independently"
+)]
+fn goal_world_with_ci(
+    close: bool,
+    branch: bool,
+    tier: Option<temper_engine_domain_world::tier_runs::Tier>,
+    main_ci: bool,
+    silent_ci: bool,
+    passes: u32,
+) -> (World, engine::Assignment, Box<[u8]>) {
     let mut world = World::configured_limits(
         true,
         true,
-        true,
-        STEPS,
+        silent_ci,
+        passes,
         Gate::default(),
         None,
         StoryLimits {
@@ -240,6 +254,17 @@ fn assigned(world: &mut World, task: u64) -> engine::Assignment {
     panic!("assignment for {task}")
 }
 fn produce(world: &mut World, task: u64, branch: &[u8], producer: &engine::Assignment, title: &[u8], report: &[u8]) {
+    produce_with_status(world, task, branch, producer, title, report, Some(raw::Check::Passed));
+}
+fn produce_with_status(
+    world: &mut World,
+    task: u64,
+    branch: &[u8],
+    producer: &engine::Assignment,
+    title: &[u8],
+    report: &[u8],
+    check: Option<raw::Check>,
+) {
     let own = row(world, task).branch.clone();
     let tip = branch_tip(world, branch);
     assert_eq!(
@@ -249,7 +274,9 @@ fn produce(world: &mut World, task: u64, branch: &[u8], producer: &engine::Assig
     let contents = if title == b"failures" { temper_engine_domain_world::tier_runs::FAILURES } else { b"added" };
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &own, title, contents, 1)
         .expect("producer pushed");
-    status(world, head, raw::Check::Passed);
+    if let Some(check) = check {
+        status(world, head, check);
+    }
     finish_run(
         world,
         producer,
@@ -671,5 +698,111 @@ fn a_red_after_the_closers_landing_is_news_for_the_goal() {
     );
     assert!(!live_task(&world, closer).inbox.iter().any(|word| word.words.starts_with(b"Red after landing:")));
     assert!(world.store.rows.values().any(|row| matches!(row, Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Subscription(sub) if sub.task == goal.task && sub.topic == forge_top::Topic::Landings { repository: forge_world::REPO, branch: b"main".as_slice().into() }))));
+    world.close();
+}
+
+fn selection_change(world: &mut World, goal: &engine::Assignment, branch: &[u8], call: u64, title: &[u8]) {
+    let assigned = world.assigned.len();
+    let Some(engine::CallAnswer::Delegated(made)) =
+        mine(world, goal, call, br#"{"words":"Implement or repair the goal"}"#)
+    else {
+        panic!("goal change admitted")
+    };
+    let producer = reviews::next_assignment(world, assigned);
+    produce_with_status(world, made[0].task, branch, &producer, title, b"done", None);
+}
+fn selection_world() -> (World, engine::Assignment, Box<[u8]>, u64, u64) {
+    let (mut world, goal, branch) = goal_world_with_ci(false, true, None, false, false, 0);
+    fake::set_opening(&mut world.fake, b"org/repo", b"build", b"selection: full\n...");
+    selection_change(&mut world, &goal, &branch, 93, b"source");
+    let closer = make_closer(&mut world, &goal, 94);
+    let landing = wait_landing(&mut world, closer);
+    (world, goal, branch, closer, landing)
+}
+
+fn hold_selection_answer(world: &mut World, failed: bool) -> engine::Event {
+    for _ in 0..STEPS {
+        if let Some(index) = world.events.iter().position(|event| matches!(event,
+            engine::Event::Forge(event) if matches!(event.as_ref(), forge_top::Event::Client(skein_forge_client::Event::Answered { result, .. }) if match result { Ok(skein_forge::api::Answer::Job { .. }) => !failed, Err(skein_forge::api::Error::Refused) => failed, _ => false }))) {
+            return world.events.remove(index).expect("independent forge job answer");
+        }
+        world.tick();
+    }
+    panic!("selection job answer not read")
+}
+
+#[test]
+fn a_goals_report_quotes_each_main_pulls_ci_selection() {
+    let (mut world, goal, _, closer, landing) = selection_world();
+    let answer = hold_selection_answer(&mut world, false);
+    assert!(ended(&world, landing).is_some(), "repair follows the landing");
+    assert!(ended(&world, closer).is_none(), "report waits for selection reads");
+    fake::set_opening(&mut world.fake, b"org/repo", b"build", b"cargo ...\n");
+    let assigned = world.assigned.len();
+    let mut delegate = ordinary_delegate(&world, &goal, b"Repair main");
+    delegate.executor = tasks::Executor::Procedure { connector: 0, code: 2 };
+    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 4096 };
+    delegate.authority = live_task(&world, goal.task).authority.clone();
+    delegate.authority.delegation.depth -= 1;
+    delegate.authority.delegation.tasks = 6;
+    delegate.authority.budget.spend = 60;
+    delegate.spec.parameters = Box::new([
+        tasks::Parameter::Resource {
+            name: 1,
+            connector: 0,
+            resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
+        },
+        tasks::Parameter::Bytes { name: 2, value: b"main".as_slice().into() },
+    ]);
+    let delegated = world.scripted_call(&goal, 95, engine::Tool::Delegate { batch: Box::new([delegate]) });
+    let engine::CallAnswer::Delegated(made) = delegated else { panic!("main repair admitted: {delegated:?}") };
+    let repair = made[0].task;
+    let producer = reviews::next_assignment(&mut world, assigned);
+    let mut amendment = temper_engine_domain_world::fixtures::task_amendment(None, None, b"Wait for the main repair");
+    amendment.dependencies = Some(Box::new([repair]));
+    let revision = live_task(&world, closer).revisions.spec;
+    let amended = world.scripted_call(
+        &goal,
+        97,
+        engine::Tool::Amend { target: closer, revision, amendment, keep_parameters: false },
+    );
+    assert!(matches!(amended, engine::CallAnswer::Amended { .. }), "{amended:?}");
+    world.events.push_front(answer);
+    produce_with_status(&mut world, repair, b"main", &producer, b"Repair main", b"repaired", None);
+    assert_eq!(row(&world, repair).base.as_ref(), b"main");
+    assert!(row(&world, repair).change.last_head.is_some());
+    wait_ended(&mut world, closer);
+    let landing_pull = row(&world, landing).pull.expect("landing pull");
+    let repair_pull = row(&world, repair).pull.expect("repair pull");
+    let output = core::str::from_utf8(result_words(&world, closer)).expect("report UTF-8");
+    assert!(
+        output.ends_with(&format!(
+            "CI selection:\n- pull request #{landing_pull}: selection: full\n- pull request #{repair_pull}: unknown\n"
+        )),
+        "{output}"
+    );
+    for _ in 0..300 {
+        world.tick();
+    }
+    world.close();
+}
+
+#[test]
+fn a_failed_log_read_reads_unknown() {
+    let (mut world, goal, _, closer, landing) = selection_world();
+    world.fail_job_reads = true;
+    let answer = hold_selection_answer(&mut world, true);
+    assert!(ended(&world, closer).is_none(), "report waits for the failed job read");
+    world.events.push_front(answer);
+    wait_ended(&mut world, closer);
+    let pull = row(&world, landing).pull.expect("landing pull");
+    let output = core::str::from_utf8(result_words(&world, closer)).expect("report UTF-8");
+    assert!(output.ends_with(&format!("CI selection:\n- pull request #{pull}: unknown\n")), "{output}");
+    let words = result_words(&world, closer).into();
+    finish_run(&mut world, &goal, tasks::TaskResult::Report { words });
+    wait_ended(&mut world, goal.task);
+    for _ in 0..300 {
+        world.tick();
+    }
     world.close();
 }

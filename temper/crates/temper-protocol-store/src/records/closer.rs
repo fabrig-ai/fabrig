@@ -1,5 +1,6 @@
 //! Goal closer rows (temper/docs/design/domain/forge.md, 11.2).
 use super::{FITS, w};
+use alloc::boxed::Box;
 use skein_lib::List;
 use temper_engine_domain_forge::CloserRow;
 use temper_engine_domain_forge_closer as c;
@@ -60,6 +61,7 @@ pub(super) fn encode(row: &CloserRow) -> w::Closer {
             making,
             close_changes: List::from_boxed(row.close_changes.clone()),
             landing_changes: List::from_boxed(row.landing_changes.clone()),
+            selections: encode_selections(&row.closer.selections),
             done: row.done,
         },
     )
@@ -77,6 +79,7 @@ pub(super) fn decode(row: w::Closer) -> CloserRow {
         making,
         close_changes,
         landing_changes,
+        selections,
         done,
     } = row.into_parts();
     let closed = match closed {
@@ -98,10 +101,75 @@ pub(super) fn decode(row: w::Closer) -> CloserRow {
     CloserRow {
         task,
         goal,
-        closer: c::Closer { closed, running: decode_run(running), landing, hold, retry },
+        closer: c::Closer {
+            closed,
+            running: decode_run(running),
+            landing,
+            hold,
+            retry,
+            selections: decode_selections(selections),
+        },
         making,
         close_changes: close_changes.into_boxed(),
         landing_changes: landing_changes.into_boxed(),
         done,
     }
+}
+
+fn encode_selections(selections: &[c::PullSelection]) -> List<w::ClosingSelection> {
+    let mut rows = List::with_capacity(u32::try_from(selections.len()).expect(FITS));
+    for selection in selections {
+        let head = match selection.head {
+            Some(commit) => Some(w::Commit::new(&w::CEILINGS, w::CommitParts { commit }).expect(FITS)),
+            None => None,
+        };
+        let progress = match &selection.progress {
+            c::SelectionProgress::Pull => w::ClosingSelectionProgress::Pull,
+            c::SelectionProgress::Checks => w::ClosingSelectionProgress::Checks,
+            c::SelectionProgress::Jobs { attempts, next } => {
+                let mut jobs = List::with_capacity(u32::try_from(attempts.len()).expect(FITS));
+                for attempt in attempts {
+                    jobs.push(super::answers::encode_job_attempt(attempt)).expect(FITS);
+                }
+                w::ClosingSelectionProgress::Jobs(
+                    w::ClosingJobs::new(&w::CEILINGS, w::ClosingJobsParts { attempts: jobs, next: *next }).expect(FITS),
+                )
+            }
+            c::SelectionProgress::Done { line } => w::ClosingSelectionProgress::Done(
+                w::ClosingLine::new(&w::CEILINGS, w::ClosingLineParts { line: line.clone() }).expect(FITS),
+            ),
+        };
+        rows.push(
+            w::ClosingSelection::new(&w::CEILINGS, w::ClosingSelectionParts { pull: selection.pull, head, progress })
+                .expect(FITS),
+        )
+        .expect(FITS);
+    }
+    rows
+}
+
+fn decode_selections(selections: List<w::ClosingSelection>) -> Box<[c::PullSelection]> {
+    let mut rows = List::with_capacity(selections.len());
+    for selection in selections.into_boxed() {
+        let w::ClosingSelectionParts { pull, head, progress } = selection.into_parts();
+        let head = match head {
+            Some(head) => Some(head.into_parts().commit),
+            None => None,
+        };
+        let progress = match progress {
+            w::ClosingSelectionProgress::Pull => c::SelectionProgress::Pull,
+            w::ClosingSelectionProgress::Checks => c::SelectionProgress::Checks,
+            w::ClosingSelectionProgress::Jobs(jobs) => {
+                let w::ClosingJobsParts { attempts, next } = jobs.into_parts();
+                let mut jobs = List::with_capacity(attempts.len());
+                for attempt in attempts.into_boxed() {
+                    jobs.push(super::answers::decode_job_attempt(attempt)).expect(FITS);
+                }
+                c::SelectionProgress::Jobs { attempts: jobs.into_boxed(), next }
+            }
+            w::ClosingSelectionProgress::Done(line) => c::SelectionProgress::Done { line: line.into_parts().line },
+        };
+        rows.push(c::PullSelection { pull, head, progress }).expect(FITS);
+    }
+    rows.into_boxed()
 }

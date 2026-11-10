@@ -206,8 +206,14 @@ pub(crate) fn jobs(repository: &Repository, id: u64) -> Result<Answer, Error> {
                 None => unreachable!("a completed CI job has a conclusion"),
             };
             let failing = *repository.failing.get(usize_of(job.index)).expect("CI context");
-            view.steps =
-                outcome_steps(&job.name, state, failing, crate::ci::cue(&repository.checks, &job.name), kept.pull);
+            view.steps = outcome_steps(
+                &job.name,
+                state,
+                failing,
+                crate::ci::cue(&repository.checks, &job.name),
+                kept.pull,
+                repository.opening.get(usize_of(job.index)).expect("CI context"),
+            );
         }
         answer.push(view).expect("one entry per job");
     }
@@ -282,12 +288,15 @@ pub(crate) fn outcome_steps(
     failing: Failing,
     cue: Option<&Cue>,
     pull: Option<u64>,
+    opening: &[u8],
 ) -> Box<[Step]> {
-    let mut steps = steps(context, failing, cue, pull);
+    let mut steps = steps(context, failing, cue, pull, opening);
     if state == Check::Passed || state == Check::Skipped {
         for step in &mut steps {
             step.status = StepStatus::Success;
-            step.log = Box::new([]);
+            if opening.is_empty() || step.number != 0 {
+                step.log = Box::new([]);
+            }
         }
     }
     steps
@@ -324,7 +333,13 @@ pub enum StepStatus {
 /// The number of the job's one workflow step.
 pub const WORKFLOW_STEP: u32 = 1;
 
-pub(crate) fn steps(context: &[u8], failing: Failing, cue: Option<&Cue>, pull: Option<u64>) -> Box<[Step]> {
+pub(crate) fn steps(
+    context: &[u8],
+    failing: Failing,
+    cue: Option<&Cue>,
+    pull: Option<u64>,
+    opening: &[u8],
+) -> Box<[Step]> {
     let status = match failing {
         Failing::Workflow => StepStatus::Failure,
         Failing::Setup | Failing::NoStep => StepStatus::Cancelled,
@@ -334,7 +349,7 @@ pub(crate) fn steps(context: &[u8], failing: Failing, cue: Option<&Cue>, pull: O
             number: 0,
             name: copy_of(b"Set up job"),
             status: if failing == Failing::Setup { StepStatus::Failure } else { StepStatus::Success },
-            log: log(context, failing, cue, pull, Some(0)).expect("set-up log"),
+            log: log(context, failing, cue, pull, Some(0), opening).expect("set-up log"),
         },
         Step {
             number: WORKFLOW_STEP,
@@ -345,13 +360,13 @@ pub(crate) fn steps(context: &[u8], failing: Failing, cue: Option<&Cue>, pull: O
                 }
             },
             status,
-            log: log(context, failing, cue, pull, Some(1)).expect("workflow log"),
+            log: log(context, failing, cue, pull, Some(1), opening).expect("workflow log"),
         },
         Step {
             number: 2,
             name: copy_of(b"Complete job"),
             status,
-            log: log(context, failing, cue, pull, Some(2)).expect("completion log"),
+            log: log(context, failing, cue, pull, Some(2), opening).expect("completion log"),
         },
     ])
 }
@@ -362,6 +377,7 @@ pub(crate) fn log(
     cue: Option<&Cue>,
     pull: Option<u64>,
     step: Option<u32>,
+    opening: &[u8],
 ) -> Result<Box<[u8]>, Error> {
     if let Some(number) = step
         && number > 2
@@ -382,8 +398,14 @@ pub(crate) fn log(
         Some(line) => u32::try_from(line.len()).expect("bounded log").checked_add(1).expect("bounded log"),
         None => 0,
     };
-    let mut out = List::with_capacity(capacity.checked_add(extra).expect("bounded log"));
+    let capacity = capacity
+        .checked_add(extra)
+        .expect("bounded log")
+        .checked_add(u32::try_from(opening.len()).expect("bounded opening"))
+        .expect("bounded log and opening");
+    let mut out = List::with_capacity(capacity);
     if step.is_none() || step == Some(0) {
+        append(&mut out, opening);
         append(&mut out, b"set up ");
         append(&mut out, context);
         append(&mut out, b"\n");
