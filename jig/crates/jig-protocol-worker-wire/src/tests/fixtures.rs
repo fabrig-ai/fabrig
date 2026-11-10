@@ -81,8 +81,11 @@ pub fn encode(hello: &Hello) -> Box<[u8]> {
 }
 
 pub fn credential(name: &[u8], secret: &[u8]) -> Credential {
-    Credential::new(&LIMITS, CredentialParts { name: name.into(), secret: Secret::new(secret.into()), payload: 1 })
-        .expect("small credential")
+    Credential::new(
+        &LIMITS,
+        CredentialParts { name: name.into(), secret: Secret::new(secret.into()), payload: 1, output: 1_048_576 },
+    )
+    .expect("small credential")
 }
 
 pub fn model() -> EndpointBound {

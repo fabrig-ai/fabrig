@@ -862,6 +862,8 @@ fn bounded_template_profile(directory: &Path, overlays: &[(&str, &[u8])], room: 
         let document_path = directory.join("temper.json");
         let mut document: serde_json::Value =
             serde_json::from_slice(&fs::read(&document_path).expect("init document")).expect("init document JSON");
+        document["engine"]["limits"]["overrides"]["io.output"] =
+            room["worker"]["limits"]["overrides"]["io.output"].clone();
         for worker in document["workers"].as_array_mut().expect("init workers") {
             merge_profile(worker, room["worker"].clone());
         }

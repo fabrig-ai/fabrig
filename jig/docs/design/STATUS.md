@@ -38,9 +38,10 @@ connection is aborted at the stall deadline, so a worker lost fifty
 times each way is taken back each time; the fifty-loss row leaves out
 a full cap and the worker's refusal (`protocol/channel.md`, 9, 10.1,
 10.2 and 12; `domain/hosts.md`, 6.6). Each side's link takes its
-stream's room: a resumed start's committed calls are fitted to it
-first, the newest answers whole and the older cut to words naming
-their bytes, a start still past it fails its run with its bytes and the
+stream's room; the authenticated opening refuses unequal `io.output`
+values and names both. A resumed start's committed calls are fitted to
+the engine's room first, the newest answers whole and the older cut to
+words naming their bytes, a start still past it fails its run with its bytes and the
 room, the link and its pings going on, and a side whose other frames,
 or the engine's smallest resumed start, could pass it is not made;
 making a start past it by its other parts run is an open question

@@ -266,6 +266,15 @@ mod joined_story {
     }
 }
 
+fn largest_worker_frame(sizes: &jig_protocol_worker_wire::sizes::Sizes) -> u32 {
+    jig_protocol_worker_wire::KINDS
+        .iter()
+        .filter(|rule| rule.direction == skein_channel::Direction::FromInitiator)
+        .map(|rule| jig_protocol_worker_wire::sizes::largest_body(sizes, rule.body).expect("worker body bound") + 8)
+        .max()
+        .expect("worker records")
+}
+
 #[test]
 fn an_assignment_past_the_engines_room_keeps_the_link_and_fails_its_run() {
     use jig_domain_host as host;
@@ -273,17 +282,20 @@ fn an_assignment_past_the_engines_room_keeps_the_link_and_fails_its_run() {
     use jig_protocol_worker_link::Request;
     use jig_worker_link_world::fixtures;
     use skein_lib::{Duration, Token};
+    // Both sides' equal room must hold every worker frame. A charter of that
+    // size makes the assignment larger than the room by its fixed fields.
+    let charter = largest_worker_frame(&fixtures::SIZES);
     let limits = jig_protocol_worker_link::Limits {
-        sizes: jig_protocol_worker_wire::sizes::Sizes { charter: 1024, detail: 128, ..fixtures::SIZES },
+        sizes: jig_protocol_worker_wire::sizes::Sizes { charter, detail: 128, ..fixtures::SIZES },
         ..fixtures::joined_limits()
     };
-    let bytes = fixtures::assignment_record(fixtures::window()).measure() + 8 + 1024 - 7
+    let bytes = fixtures::assignment_record(fixtures::window()).measure() + 8 + charter - 7
         + u32::try_from(fixtures::TOKEN_TWO.len() - fixtures::TOKEN_ONE.len()).expect("fixture grant length");
     let room = bytes - 1;
-    let mut world = joined::Joined::with_engine_room(&limits, 1, room);
+    let mut world = joined::Joined::with_engine_room(&jig_protocol_worker_link::Limits { room, ..limits }, 1, room);
     world.run();
     let mut assignment = fixtures::assignment();
-    assignment.assignment.charter = vec![b'x'; 1024].into();
+    assignment.assignment.charter = vec![b'x'; usize::try_from(charter).expect("charter size")].into();
     world.engine_down(host::LinkDown::Assign { assignment }, fixtures::assignment_parts(), joined::values());
     world.run();
     let mut pings = Vec::new();
@@ -453,7 +465,8 @@ fn a_resumed_start_fits_the_room_on_each_stock_profile() {
         let engine = jig_test_service::limits::for_profile(p, &config).workers;
         // The world's worker fixtures keep their deadlines and entrances;
         // its wire sizes are the profile's, with io's room capping its pipe.
-        let limits = Limits { sizes: engine.sizes, chunk: engine.chunk, ..fixtures::joined_limits() };
+        let limits =
+            Limits { sizes: engine.sizes, chunk: engine.chunk, room: engine.room, ..fixtures::joined_limits() };
         let answer = config.core.call_answer_bytes;
         let room = config.io.largest_room();
         let words = cut_words(answer);

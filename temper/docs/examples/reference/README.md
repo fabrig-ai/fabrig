@@ -17,14 +17,14 @@ the fallback in `../../design/protocol/configuration.md`, 13.8. Its agent's
 measured largest turn is 18,431,842 bytes; `limits.json` and `room.json`
 carry the bounds derived from that turn and payload.
 
-Set the agent, every worker and the application before the first start,
+Set the agent, the engine, every worker and the application before the first start,
 retaining the document's other application members and overrides. Run these
 in the deployment's configuration directory, with the reference's `room.json`:
 
 ```sh
 jq --slurpfile room room.json '.profile.declared.tool_payload = $room[0].agent.tool_payload | .endpoints[].limits.output = $room[0].agent.output' agent.json > agent.next.json
 mv agent.next.json agent.json
-jq --slurpfile room room.json '(.workers[] |= (. * $room[0].worker)) | .application = (.application * $room[0].application)' temper.json > temper.next.json
+jq --slurpfile room room.json '.engine.limits.overrides["io.output"] = $room[0].worker.limits.overrides["io.output"] | (.workers[] |= (. * $room[0].worker)) | .application = (.application * $room[0].application)' temper.json > temper.next.json
 mv temper.next.json temper.json
 ```
 

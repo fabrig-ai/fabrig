@@ -23,6 +23,51 @@ mod opening {
         assert!(world.root().is_empty());
     }
     #[test]
+    fn unequal_output_rooms_are_refused_with_both_values_and_the_setting() {
+        use jig_protocol_engine_workers::{Loss, Request};
+        use jig_protocol_worker_wire as wire;
+        const ENGINE: u32 = 1_048_576;
+        for (output, secret, payload, reason) in [
+            (ENGINE, SECRET_A, PAYLOAD, None),
+            (ENGINE - 1, SECRET_A, PAYLOAD, Some(2)),
+            (ENGINE + 1, SECRET_A, PAYLOAD, Some(2)),
+            (18_432_634, SECRET_A, PAYLOAD, Some(2)),
+            (u32::MAX, SECRET_A, PAYLOAD, Some(2)),
+            (18_432_634, b"wrong".as_slice(), PAYLOAD, Some(256)),
+            (18_432_634, SECRET_A, OTHER_PAYLOAD, Some(257)),
+        ] {
+            let limits = jig_protocol_engine_workers::Limits { room: ENGINE, ..fixtures::limits() };
+            let mut world = World::new(&limits, &fixtures::workers(), 1);
+            let peer = fixtures::peer_with_output(fixtures::schema(), wire::VERSION, WORKER_A, secret, payload, output);
+            let connection = world.connect(peer);
+            world.run();
+            if let Some(reason) = reason {
+                let text = if reason == 2 {
+                    format!("engine io.output {ENGINE} bytes differs from worker io.output {output} bytes; change io.output to agree")
+                        .into_bytes()
+                        .into_boxed_slice()
+                } else {
+                    Box::new([])
+                };
+                assert_eq!(world.refusal(connection), Some((reason, text)), "worker room {output}");
+                assert!(!world.ready(connection));
+                if reason == 2 {
+                    let [Request::Ended { worker, channel, why, .. }] = world.ended() else {
+                        panic!("one opening diagnostic")
+                    };
+                    assert_eq!(
+                        (*worker, *channel, *why),
+                        (Some(0), None, Loss::OutputRoom { engine: ENGINE, worker: output })
+                    );
+                }
+            } else {
+                assert_eq!(world.refusal(connection), None);
+                assert!(world.ready(connection));
+            }
+            assert!(world.root().is_empty(), "no hello reaches the domain");
+        }
+    }
+    #[test]
     fn a_wrong_secret_is_refused_as_unauthorized() {
         let mut world = world();
         let connection = world.connect(fixtures::worker(WORKER_A, b"wrong", PAYLOAD));

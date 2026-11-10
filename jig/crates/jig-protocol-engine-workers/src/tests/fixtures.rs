@@ -73,6 +73,7 @@ pub fn credential(name: &[u8], secret: &[u8], payload: u32) -> Box<[u8]> {
             name: Box::from(name),
             secret: Secret::new(Box::from(secret)),
             payload,
+            output: LIMITS.room,
         },
     )
     .expect("small credential");

@@ -33,15 +33,20 @@ pub fn apply(document: &mut Value, turn: u32) {
     let box_bytes = u64::try_from(size_of::<Box<[u8]>>()).expect("turn box slot");
     let window = resume + (box_bytes - 4) * (resume / 4);
     let loaded = turn + u64::try_from(size_of::<temper_engine_domain::Record>()).expect("record slot");
+    let output = document["workers"]
+        .as_array()
+        .and_then(|workers| workers.iter().map(|worker| worker_output(&worker["limits"], turn)).max())
+        .or_else(|| (!document["engine"].is_null()).then(|| worker_output(&document["engine"]["limits"], turn)));
     if !document["engine"].is_null() {
         let limits = &mut document["engine"]["limits"]["overrides"];
         hub(limits, turn, window);
         limits["core.resume_bytes"] = resume.into();
+        limits["io.output"] = output.expect("engine room derived").into();
     }
     if let Some(workers) = document["workers"].as_array_mut() {
         for worker in workers {
             hub(&mut worker["limits"]["overrides"], turn, window);
-            worker_output(&mut worker["limits"], turn);
+            worker["limits"]["overrides"]["io.output"] = output.expect("worker room derived").into();
         }
     }
     if !document["application"]["limits"].is_null() {
@@ -57,7 +62,7 @@ pub fn apply(document: &mut Value, turn: u32) {
         }
     }
 }
-fn worker_output(limits: &mut Value, turn: u64) {
+fn worker_output(limits: &Value, turn: u64) -> u64 {
     use jig_protocol_config::{Profile, profile};
     use jig_protocol_worker_wire::v9;
 
@@ -66,7 +71,7 @@ fn worker_output(limits: &mut Value, turn: u64) {
         "standard" => Profile::Standard,
         other => panic!("unknown worker profile: {other}"),
     });
-    let overrides = &mut limits["overrides"];
+    let overrides = &limits["overrides"];
     let inbox = overrides["tasks.run_inbox"].as_u64().unwrap_or(u64::from(defaults.core.tasks.run_inbox));
     let bodies = v9::Limits {
         turn_body: u32::try_from(turn).expect("turn body"),
@@ -75,7 +80,7 @@ fn worker_output(limits: &mut Value, turn: u64) {
     };
     let frame = v9::Turn::encoded_bound(&bodies).expect("turn frame") + 8;
     let output = overrides["io.output"].as_u64().unwrap_or(u64::from(defaults.io.output));
-    overrides["io.output"] = output.max(frame).into();
+    output.max(frame)
 }
 fn hub(limits: &mut Value, turn: u64, window: u64) {
     limits["hub.turn_bytes"] = turn.into();

@@ -117,6 +117,7 @@ impl Peer {
                     b"worker-secret".as_slice().into()
                 }),
                 payload: if matches!(case, Some(Opening::Application)) { 2 } else { 1 },
+                output: jig_protocol_config::profile(jig_protocol_config::Profile::Small).io.output,
             },
         )
         .expect("peer credential");

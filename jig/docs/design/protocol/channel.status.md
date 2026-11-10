@@ -1,6 +1,17 @@
 # channel: status
 
-2026-11-09. Where jig's code lags or departs from [channel.md](channel.md).
+2026-11-10. Where jig's code lags or departs from [channel.md](channel.md).
+
+Sections 4.1 and 9 have no known gap in agreeing output rooms. The v9
+credential declares the worker component's room; the engine checks it
+after authentication and payload, before capacity or replacement, and
+refuses unequal rooms with both values and `io.output` in the refusal
+and its opening diagnostic. The engine world's
+`unequal_output_rooms_are_refused_with_both_values_and_the_setting`
+holds agreement, both sides of inequality and authentication order;
+the component's `a_resumed_start_is_fitted_to_the_engines_room` pins the
+fit independently of the opening guard. temper's service shell renders
+both values and the setting in its operator line.
 
 Section 5.1's hello carries endpoint bounds, not a model list; no known
 implementation gap remains in that declaration or its fleet checks.

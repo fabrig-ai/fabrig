@@ -7,6 +7,10 @@ use crate::{documents, fakes};
 fn the_deployment_document_is_one_temper_serve_starts() {
     let bytes = documents::document();
     let value = documents::world_document();
+    assert_eq!(
+        value["engine"]["limits"]["overrides"]["io.output"],
+        value["workers"][0]["limits"]["overrides"]["io.output"]
+    );
     let result = temper_service::startup::with_setup_given(
         &bytes,
         &jig_protocol_config::Directories::working(),

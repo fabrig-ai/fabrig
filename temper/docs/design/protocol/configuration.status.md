@@ -1,6 +1,14 @@
 # configuration: status
 
-2026-11-09. Where temper's code lags or departs from [configuration.md](configuration.md).
+2026-11-10. Where temper's code lags or departs from [configuration.md](configuration.md).
+
+Section 13.8 has no known gap in the engine and workers' shared output
+room. Init's templates and the owned example give the engine the
+workers' 16,804,602 bytes; the turn-bound writer derives one worker room
+for both sides, and its engine-only fixture derives it from the same
+turn. The reference applies its worker's room to the engine too, taking
+the figure once from `room.json`. The `turn_bounds` table holds the
+checked-in values and the playground's deployment test holds agreement.
 
 Sections 7, 13.2, 13.4 and 13.10 have no known implementation gap in a
 project's classes, the whole story's milestone N1, by plan
