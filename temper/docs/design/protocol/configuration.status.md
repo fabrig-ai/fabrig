@@ -346,3 +346,10 @@ Sections 3, 13.2, 13.4 and 13.9's close job setting, coordinator policy and
 instructions, template 4's closer and reference delegation are built.
 `temper-service`'s stock tables check the configured editions; the
 engine-domain world's goal closer stories exercise their composition.
+
+- **Not yet:**
+  - 4: `temper init` writes `graces.grace_ms` 10000; a hello refused for a
+    charter's reserve does not name `reserve_time`; a standalone start
+    refuses on a configured charter's bound. [in flight: change 69]
+  - 13.8: `core.resume_bytes` is T + 4, with no 4 MiB floor.
+    [in flight: change 69]

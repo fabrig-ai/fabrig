@@ -80,3 +80,10 @@ Section 12 defers the general message-rendering allowance.
   the request keeps behaviour unchanged; `inbox_sender` starts from
   `Party::sender` (the code's side is
   `jig/docs/development/debt/D004-ops-root-jig-wiring.md`).
+
+- **Not yet:**
+  - 6.6: the worker's grace stops at a channel's opening, not at its hello's
+    admission, and its redials are not kept within it. [in flight: change 65]
+  - 6.3 and 6.6: an agent run cancelled for lost contact or for shutdown ends
+    as the agent's failure, spending a try, not interrupted.
+    [in flight: change 66]
