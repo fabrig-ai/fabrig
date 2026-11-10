@@ -224,6 +224,7 @@ fn items_come_newest_created_first_in_forgejos_default_order() {
 }
 
 #[test]
+#[expect(clippy::manual_map, reason = "the strict subset requires explicit Option matches")]
 fn pull_for_answers_the_open_pull_before_an_older_closed_one() {
     let (mut h, work) = failing(0);
     assert_eq!(h.open(b"work"), Ok(Answer::Created(1)));
