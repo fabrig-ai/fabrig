@@ -675,7 +675,7 @@ class Plan:
             else:
                 groups.append((target, [number]))
         original = self.span_text(cite.numbers[0].start, cite.numbers[-1].end)
-        word = "sections " if re.search(r"\bsections\b", self.span_text(cite.start, cite.numbers[0].start)) else (
+        word = "sections " if re.search(r"\bsections\b", self.span_text(cite.start, cite.numbers[0].start), re.IGNORECASE) else (
             "section " if cite.kind == "section-self" or re.search(r"\bsection\b", self.span_text(cite.start, cite.numbers[0].start)) else "")
         parts = []
         for target, numbers in groups:
@@ -690,7 +690,8 @@ class Plan:
             if len(nums) == 1:
                 label = label.replace("sections", "section")
             if len(groups) == 1 and cite.kind in ("section-self", "bare-number") and target == c.doc_of_status(source) and suffix and not force_path:
-                parts.append(label + suffix)
+                original_word = re.match(r"sections?", self.span_text(cite.start, cite.numbers[0].start), re.IGNORECASE)
+                parts.append((original_word.group() + " " if original_word else "") + suffix)
             else:
                 start, _ = self.reference_span(cite)
                 quoted = cite.kind != "path" or start != cite.start

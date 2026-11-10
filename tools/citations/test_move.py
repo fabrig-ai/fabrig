@@ -780,6 +780,14 @@ git = fail_add
             "Its section 2.1; HTTP/2.1; TLS 2.1. Own (1).\n"))
         self.clean_check()
 
+    def test_capitalised_ranges_keep_plural_and_local_word_case(self):
+        self.write(A, "# a\n\n(Sections 2.1 to 2.2).\n\n## 2. Two\n\n(Sections 2.1 to 2.2).\n\n### 2.1 First\n\n### 2.2 Second\n")
+        self.commit("capital ranges")
+        self.apply(f"{A} 2 -> {DESIGN}/new.md\ntitle {DESIGN}/new.md: New\n")
+        self.assertEqual(self.read(A), "# a\n\n(`new.md`, sections 1 to 2).\n\n")
+        self.assertIn("(Sections 1 to 2).", self.read(f"{DESIGN}/new.md"))
+        self.clean_check()
+
     def test_all_map_errors_leave_tree_and_index_unchanged(self):
         cases = [
             (f"{DESIGN}/gone.md -> {DESIGN}/new.md", "source does not exist"),
