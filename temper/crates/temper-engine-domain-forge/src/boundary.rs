@@ -1962,7 +1962,7 @@ pub enum Event {
     },
 }
 /// The owner of the root's fresh read `serial`: bit 61 alone of the top five
-/// bits, the serial below 2^59; `None` past that (forge.md, 5.3).
+/// bits, the serial below 2^59; `None` past that (temper/docs/design/domain/forge.md, 5.3).
 #[must_use]
 pub fn root_read(serial: u64) -> Option<Token> {
     if serial < 1_u64.checked_shl(59).expect("read serial bound fits u64") {
@@ -1973,7 +1973,7 @@ pub fn root_read(serial: u64) -> Option<Token> {
 }
 
 /// Whether a client owner is in the root's read range: bits 63 to 59 are
-/// 0, 0, 1, 0, 0 (forge.md, 5.3).
+/// 0, 0, 1, 0, 0 (temper/docs/design/domain/forge.md, 5.3).
 #[must_use]
 pub fn is_root_read(owner: Token) -> bool {
     owner.raw().checked_shr(59).expect("read range shift fits u64") == 0b0_0100

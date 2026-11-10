@@ -241,7 +241,7 @@ own" (the Team example on fabrig.ai's home page says so).
   its head, then takes its place again after the change then first. The
   rest of the branch lands meanwhile. This revises
   `../domain/forge.md`, 8.12, where the read leaves the branch held by the
-  change first in line, and section 9's queue: a sign-off can wait a
+  change first in line, and `../domain/forge.md`, section 9's queue: a sign-off can wait a
   night, and vsr's other changes shouldn't.
 - **Its approval** is a rule's `approvals`, as today: a person's review on
   the forge. Needs you's card leads with "Review on GitHub ↗" or "Sign off

@@ -1613,7 +1613,7 @@ struct GoalMembers {
 }
 
 /// Whether `task` is in `goal`'s subtree below it: its requesters, task by
-/// task, reach `goal` (forge.md, 7.2).
+/// task, reach `goal` (temper/docs/design/domain/forge.md, 7.2).
 fn in_subtree(domain: &Domain, task: &tasks::TaskRecord, goal: u64) -> bool {
     let mut current = task;
     for _ in 0..task.depth {

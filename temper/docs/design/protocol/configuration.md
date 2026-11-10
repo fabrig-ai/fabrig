@@ -1091,7 +1091,7 @@ longer to start raises it.
   name them. temper's client takes a path's segments, 9, apart from its
   rows (jig's `client/domain/client.md`, section 14), so a page of the
   forge's work is never refused for a path, and a long path shows cut,
-  with jig's mark (`../client/README.md`, 5.4).
+  with jig's mark (`temper/docs/design/client/README.md`, 5.4).
 - **The forge's authorities fit a document.** jig's documents carry an
   authority's lists whole, with as many entries as the engine admits in
   each, and neither cut nor refuse a document or an offer for one (jig's
@@ -1101,7 +1101,7 @@ longer to start raises it.
   `client/domain/client.md`, section 14): the most the process tier and
   the owned example admit in a list, their `authority.grants` and
   `tasks.authority_grants` (setup.md, 8.1). A long authority shows
-  in part, with jig's mark (`../client/README.md`, 5.4). The test above holds
+  in part, with jig's mark (`temper/docs/design/client/README.md`, 5.4). The test above holds
   the engine's bounds on an authority's lists to temper's client's.
 - **The engine's byte budget** is `engine.memory_bytes`, metered at
   the root (`../domain/root.md`, 4.1). No start compares a memory
