@@ -775,6 +775,238 @@ fn restored_ci_subscriptions_are_read_in_the_fresh_step_and_delay_its_completion
 }
 
 #[test]
+fn ci_reads_retry_and_a_forge_answer_refreshes_only_its_subscriptions() {
+    use skein_forge::api::{Error, Op, Read};
+    let mut d = Domain::new(
+        &LIMITS,
+        4,
+        skein_forge_client::Config {
+            namespace: b"test".as_slice().into(),
+            writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
+        },
+        &[GitIdentity { forge: 1, credential: 1 }],
+        &configured(),
+        false,
+    )
+    .expect("two forges");
+    let mut env = env();
+    env.limits.client.read_attempts = 1;
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut second = adopted();
+    second.provider.forge = 2;
+    second.home = false;
+    outputs(&mut d, Event::Restore { record: Stored::Repository(second) });
+    for (number, repository, head) in [
+        (1, REPO, fixtures::HEAD),
+        (2, REPO, fixtures::BASE),
+        (3, skein_forge::api::Repository { forge: 2, repository: 2 }, [5; 32]),
+    ] {
+        outputs(
+            &mut d,
+            Event::Restore {
+                record: Stored::Subscription(Subscriber {
+                    task: 7,
+                    number,
+                    topic: Topic::Ci { repository, head },
+                    own_change: None,
+                    goal_tasks: None,
+                    paths: Box::new([]),
+                }),
+            },
+        );
+    }
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    for _ in 0_u32..3 {
+        let (call, _) = fixtures::next_at(&mut d, &env);
+        fixtures::answer_at(&mut d, &env, call, Ok(fixtures::checks(skein_forge::api::Check::Pending)));
+    }
+    outputs(&mut d, Event::SettleOutbox);
+    outputs(
+        &mut d,
+        Event::Hint {
+            hint: skein_forge::api::Hint {
+                repository: REPO,
+                change: skein_forge::api::Change::Commit(fixtures::HEAD),
+                key: None,
+            },
+        },
+    );
+    let (failed, op) = fixtures::next_at(&mut d, &env);
+    assert_eq!(op, Op::Read(Read::Checks { commit: fixtures::HEAD }));
+    fixtures::answer_at(&mut d, &env, failed, Err(Error::Unavailable));
+    fixtures::advance(&mut d, &mut env, CLIENT.backoff);
+    let (retried, retry_op) = fixtures::next_at(&mut d, &env);
+    assert_eq!(retry_op, op, "a failed Checks stays pending");
+    let green = fixtures::answer_at(&mut d, &env, retried, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
+    let mut passed = false;
+    for request in &green {
+        if let Request::Save { record: Stored::Ci(CiState { status: skein_forge::api::Ci::Passed, .. }), .. } = request
+        {
+            passed = true;
+        }
+    }
+    assert!(passed, "green is read without a delivery: {green:?}");
+    // Recovery rereads every head on this forge, including the subscription
+    // without an outstanding read, but never the other forge.
+    let mut refreshed = skein_lib::List::with_capacity(6);
+    for _ in 0_u32..6 {
+        let mut out = Queue::uncapped();
+        resume(&mut d, &env, &mut out);
+        for request in &out {
+            if let Request::Call { call, repository, op: Op::Read(Read::Checks { commit }) } = request {
+                refreshed.push((*repository, *commit)).expect("one recovery refresh per head");
+                fixtures::answer_at(&mut d, &env, *call, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
+            }
+        }
+    }
+    assert!(refreshed.as_slice().contains(&(REPO, fixtures::BASE)), "forge back rereads its other head: {refreshed:?}");
+    for (repo, _) in &refreshed {
+        assert_eq!(repo.forge, REPO.forge, "another forge is not refreshed");
+    }
+}
+
+#[test]
+fn ci_recovery_rereads_an_older_checks_snapshot_after_it_finishes() {
+    use skein_forge::api::{Check, Error, Op, Read};
+    let mut d = domain();
+    let mut env = env();
+    env.limits.client.read_attempts = 1;
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    for (number, head) in [(1, fixtures::HEAD), (2, fixtures::BASE)] {
+        outputs(
+            &mut d,
+            Event::Restore {
+                record: Stored::Subscription(Subscriber {
+                    task: 7,
+                    number,
+                    topic: Topic::Ci { repository: REPO, head },
+                    own_change: None,
+                    goal_tasks: None,
+                    paths: Box::new([]),
+                }),
+            },
+        );
+    }
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    let (failed, failed_op) = fixtures::next_at(&mut d, &env);
+    let (older, older_op) = fixtures::next_at(&mut d, &env);
+    fixtures::answer_at(&mut d, &env, failed, Err(Error::Unavailable));
+    fixtures::advance(&mut d, &mut env, CLIENT.backoff);
+    let (again, op) = fixtures::next_at(&mut d, &env);
+    assert_eq!(op, failed_op);
+    fixtures::answer_at(&mut d, &env, again, Ok(fixtures::checks(Check::Passed)));
+    fixtures::answer_at(&mut d, &env, older, Ok(fixtures::checks(Check::Pending)));
+    let mut refreshed = skein_lib::List::with_capacity(2);
+    for _ in 0_u32..2 {
+        let (call, op) = fixtures::next_at(&mut d, &env);
+        assert!(matches!(op, Op::Read(Read::Checks { .. })));
+        refreshed.push(op).expect("both subscriptions read after recovery");
+        fixtures::answer_at(&mut d, &env, call, Ok(fixtures::checks(Check::Passed)));
+    }
+    assert!(refreshed.as_slice().contains(&failed_op));
+    assert!(refreshed.as_slice().contains(&older_op), "an old pending snapshot cannot stand in for a recovery read");
+}
+
+#[test]
+fn a_never_sent_write_is_committed_again_with_the_same_identity_after_growing_waits() {
+    use skein_forge::api::{Answer, Error, Op};
+    let (mut d, mut call) = fixtures::opening();
+    let mut env = env();
+    env.limits.client.write_attempts = 1;
+    let original = d.entries.get(&fixtures::OPEN).expect("opening entry").entry.clone();
+    for seconds in [1, 2, 4] {
+        let out = fixtures::answer_at(&mut d, &env, call, Err(Error::Unavailable));
+        for request in &out {
+            assert!(
+                !matches!(request, Request::Outcome { .. } | Request::ChangeDecision { .. }),
+                "no task failure: {out:?}"
+            );
+        }
+        assert_eq!(d.change(fixtures::CHANGE).expect("change").pending, Some(fixtures::OPEN));
+        let ready = fixtures::advance(&mut d, &mut env, Duration::from_secs(seconds));
+        for request in &ready {
+            if let Request::Save { release: Some(entry), .. } = request {
+                let mut out = Queue::uncapped();
+                step(&mut d, &env, Event::Committed { entry: *entry }, &mut out);
+            }
+        }
+        let (clock, op) = fixtures::next_at(&mut d, &env);
+        assert!(matches!(op, Op::Read(_)), "a new never-sent entry reads its clock");
+        fixtures::answer_at(&mut d, &env, clock, Ok(Answer::Items { items: Box::new([]), more: false, now: env.now }));
+        let (next, op) = fixtures::next_at(&mut d, &env);
+        assert_eq!(op, Op::Write(original.effect.write.clone()), "same purpose and key");
+        call = next;
+    }
+    let out = fixtures::answer_at(&mut d, &env, call, Ok(Answer::Created(1)));
+    let mut made = false;
+    for request in &out {
+        if let Request::Outcome { outcome: skein_forge_client::Outcome::Made { .. }, .. } = request {
+            made = true;
+        }
+    }
+    assert!(made, "one opening effect completes");
+    assert_eq!(
+        d.change(fixtures::CHANGE).expect("opened").effect,
+        temper_engine_domain_forge_change::EffectResult::Made
+    );
+    assert_eq!(d.change(fixtures::CHANGE).expect("opened").pending, None);
+}
+
+#[test]
+fn remaking_a_never_sent_entry_keeps_later_entry_numbers_and_makes_each_once() {
+    use skein_forge::api::{Answer, Error, Op};
+    let (mut d, first) = fixtures::opening();
+    let mut env = env();
+    env.limits.client.write_attempts = 1;
+    let reset = fixtures::answer_at(&mut d, &env, first, Err(Error::Unavailable));
+    let mut saved_reset = false;
+    for request in &reset {
+        if let Request::Save { release: None, record: Stored::Entry { entry, held: false }, .. } = request {
+            assert_eq!(entry.number, fixtures::OPEN);
+            assert_eq!((entry.start, entry.attempt, entry.failures), (None, None, 0));
+            saved_reset = true;
+        }
+    }
+    assert!(saved_reset, "restart cannot find a known-never-sent attempt");
+    let later = fixtures::OPEN + 1;
+    outputs(&mut d, Event::Enqueue { entry: status(later, 7) });
+    outputs(&mut d, Event::Committed { entry: later });
+    let (clock, _) = fixtures::next_at(&mut d, &env);
+    fixtures::answer_at(&mut d, &env, clock, Ok(Answer::Items { items: Box::new([]), more: false, now: env.now }));
+    let (later_call, later_op) = fixtures::next_at(&mut d, &env);
+    assert_eq!(later_op, Op::Write(status(later, 7).effect.write));
+    let due = fixtures::advance(&mut d, &mut env, CLIENT.backoff);
+    let mut commit = false;
+    for request in &due {
+        if let Request::Save { release: Some(number), .. } = request {
+            assert_eq!(*number, fixtures::OPEN);
+            commit = true;
+        }
+    }
+    assert!(commit);
+    let mut out = Queue::uncapped();
+    step(&mut d, &env, Event::Committed { entry: fixtures::OPEN }, &mut out);
+    let (clock, _) = fixtures::next_at(&mut d, &env);
+    fixtures::answer_at(&mut d, &env, clock, Ok(Answer::Items { items: Box::new([]), more: false, now: env.now }));
+    let (first_call, first_op) = fixtures::next_at(&mut d, &env);
+    assert!(matches!(first_op, Op::Write(skein_forge::api::Write::OpenPull { .. })));
+    let first = fixtures::answer_at(&mut d, &env, first_call, Ok(Answer::Created(1)));
+    let second = fixtures::answer_at(&mut d, &env, later_call, Ok(Answer::Done));
+    let mut made = skein_lib::List::with_capacity(2);
+    for requests in [&first, &second] {
+        for request in requests {
+            if let Request::Outcome { entry, outcome: skein_forge_client::Outcome::Made { .. }, .. } = request {
+                made.push(*entry).expect("one effect each");
+            }
+        }
+    }
+    assert_eq!(made.as_slice(), &[fixtures::OPEN, later]);
+    assert!(d.entries.is_empty());
+}
+
+#[test]
 fn workspace_items_are_sized_context_is_read_only_and_saved_work_starts_the_next_run() {
     let mut d = domain();
     let mut repository = adopted();
@@ -1306,6 +1538,34 @@ fn a_lost_writers_read_answered_not_connected_is_asked_again_when_its_forge_conn
         );
         assert_eq!(d.hold(&run_branch(b"7")).unwrap().writer.is_some(), refused);
     }
+}
+
+#[test]
+fn a_lost_writers_outage_keeps_the_release_waiting_without_a_hold() {
+    let mut d = restarted_lost_writer();
+    let mut env = env();
+    env.limits.client.read_attempts = 1;
+    let (call, op) = fixtures::next_at(&mut d, &env);
+    let out = fixtures::answer_at(&mut d, &env, call, Err(skein_forge::api::Error::Unavailable));
+    for request in &out {
+        assert!(!matches!(request, Request::LostReadFailed { .. } | Request::ReleaseFailed { .. }), "{out:?}");
+    }
+    let releasing =
+        outputs(&mut d, Event::Release { task: 7, root: 7, ending: ReleaseEnding::Cancelled, reason: None, entry: 20 });
+    assert!(!release_failed(&releasing, 7));
+    assert!(!releasing.contains(&Request::Released { task: 7 }));
+    fixtures::advance(&mut d, &mut env, CLIENT.backoff);
+    let (again, asked) = fixtures::next_at(&mut d, &env);
+    assert_eq!(asked, op);
+    let out = fixtures::answer_at(&mut d, &env, again, Err(skein_forge::api::Error::Missing));
+    assert_eq!(d.hold(&run_branch(b"7")).expect("holder").writer, None);
+    let mut continued = false;
+    for request in &out {
+        if let Request::ContinueRelease { task: 7 } = request {
+            continued = true;
+        }
+    }
+    assert!(continued, "absence answers the lost read and resumes its release");
 }
 
 #[test]

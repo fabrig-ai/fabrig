@@ -24,6 +24,8 @@ mod goal_branch;
 mod hints;
 #[path = "make.rs"]
 pub(crate) mod make;
+#[path = "outage.rs"]
+mod outage;
 #[path = "restore.rs"]
 mod restore;
 pub use restore::{RestoreFit, RestoreSet};
@@ -54,6 +56,7 @@ enum LostReadState {
 pub(crate) struct PendingCi {
     repository: skein_forge::api::Repository,
     head: skein_forge::api::Commit,
+    refresh: bool,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum StepStage {
@@ -227,6 +230,7 @@ pub struct Domain {
     pub(crate) reconciliation: crate::reconcile::Reconciliation,
     restore_started: Option<skein_lib::Wall>,
     restore_fit: Option<Box<RestoreFit>>,
+    outage: Option<Box<outage::State>>,
     client: skein_forge_client::Domain,
     client_out: Queue<skein_forge_client::Request>,
     // A refused brief read waits for the next client reclamation.
@@ -665,6 +669,7 @@ impl Domain {
             }
         }
         Ok(Domain {
+            outage: None,
             machine: None,
             retire_pending: false,
             watch_due: None,
@@ -816,6 +821,7 @@ impl Domain {
         .chain(self.playground_due)
         .chain(crate::tiers::deadline(self))
         .chain(goal_branch::deadline(self))
+        .chain(if self.stopping { None } else { outage::deadline(self) })
         .min()
     }
 
@@ -1811,6 +1817,7 @@ pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     brief::expire(d, env.now, out);
     goal_branch::fire(d, env.now);
     admission::fire(d, env, out);
+    outage::fire(d, env, out);
     crate::tiers::fire(d, env, out);
     let mut goals = List::with_capacity(env.limits.issues);
     for (goal, when) in &d.projection_due {
@@ -1863,8 +1870,10 @@ fn child_env(env: &Env<Limits>) -> Env<skein_forge_client::Limits> {
 }
 
 pub(crate) fn child(d: &mut Domain, env: &Env<Limits>, event: skein_forge_client::Event, out: &mut Queue<Request>) {
+    outage::track(d, env, &event);
     skein_forge_client::step(&mut d.client, &child_env(env), event, &mut d.client_out);
     drain(d, env, out);
+    outage::refresh(d, env, out);
 }
 
 #[expect(
@@ -1896,6 +1905,9 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             skein_forge_client::Request::Erase { key } => emit(out, Request::Erase { key: Key::Client(key) }),
             skein_forge_client::Request::Progress { entry } => keep_entry(d, entry, None, out),
             skein_forge_client::Request::Outcome { entry, task, outcome } => {
+                if outage::outcome(d, env, entry, outcome, out) {
+                    continue;
+                }
                 if outcome == skein_forge_client::Outcome::Held && goal_branch::remake_held(d, env, entry, out) {
                     continue;
                 }
@@ -1958,17 +1970,26 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     emit(out, Request::ContinueRelease { task });
                 }
             }
-            skein_forge_client::Request::Changed { resource, result } => changed(d, env, resource, result, out),
+            skein_forge_client::Request::Changed { resource, result } => {
+                if let Err(skein_forge::api::Error::Unavailable | skein_forge::api::Error::Timeout) = &result {
+                    outage::observed(d, env, resource.repository.forge, true);
+                }
+                changed(d, env, resource, result, out);
+            }
             skein_forge_client::Request::Drift { resource, expected, observed } => {
                 drift(d, env, resource, crate::DriftChange::Branch { expected, observed }, out);
             }
             skein_forge_client::Request::Call { call, repository, op } => {
+                outage::called(d, env, call, repository, &op);
                 emit(out, Request::Call { call, repository, op });
             }
             skein_forge_client::Request::Kept { owner, result } => {
                 admission::kept(d, env, owner, result, out);
             }
             skein_forge_client::Request::Read { owner, result } => {
+                if outage::read_ended(d, env, owner, &result) {
+                    continue;
+                }
                 if d.closing.selection_reads.contains_key(&owner) {
                     crate::closer::selection_answered(d, owner, result, out);
                 } else if d.closing.reads.contains_key(&owner) {
@@ -1992,7 +2013,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 } else if d.steps.contains_key(&owner) {
                     step_read(d, env, owner, result, out);
                 } else if d.pending_ci.contains_key(&owner) {
-                    ci_read(d, owner, result, out);
+                    ci_read(d, env, owner, result, out);
                 } else if d.workflows.reading(owner) {
                     crate::workflows::answered(d, env, owner, result, out);
                 } else if crate::is_root_read(owner) {
@@ -5441,7 +5462,12 @@ fn handoff_one(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     row.handoff = Handoff::Handed;
     let entry = row.entry.clone();
     admission::merge_writer(d, env, &entry, true);
-    child(d, env, skein_forge_client::Event::Make { entry }, out);
+    let event = if outage::recommitted(d, number) {
+        skein_forge_client::Event::Remake { entry }
+    } else {
+        skein_forge_client::Event::Make { entry }
+    };
+    child(d, env, event, out);
 }
 
 /// A person's choice for a held entry: again hands it back to the client,
@@ -5474,6 +5500,7 @@ fn erase_flight(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Request>)
 
 /// Settle one held entry as not made, freeing its room.
 fn not_made(d: &mut Domain, number: u64, out: &mut Queue<Request>) {
+    outage::forget_entry(d, number);
     let row = d.entries.remove(&number).expect("a held entry lives");
     emit(out, Request::Erase { key: Key::Entry(number) });
     erase_flight(d, row.entry.task, number, out);
@@ -5624,7 +5651,7 @@ fn ci_refresh(
     let Some(sequence) = d.sequence.checked_add(1) else { return };
     d.sequence = sequence;
     let owner = Token::new(sequence | (1_u64 << 60));
-    d.pending_ci.insert(owner, PendingCi { repository, head }).expect("CI read capacity checked");
+    d.pending_ci.insert(owner, PendingCi { repository, head, refresh: false }).expect("CI read capacity checked");
     child(
         d,
         env,
@@ -5659,6 +5686,7 @@ fn ci_hint(d: &mut Domain, env: &Env<Limits>, hint: &skein_forge::api::Hint, out
 
 fn ci_read(
     d: &mut Domain,
+    env: &Env<Limits>,
     owner: Token,
     result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
     out: &mut Queue<Request>,
@@ -5671,6 +5699,9 @@ fn ci_read(
         };
         let ci = crate::ci::fold(&rows, required);
         ci_observed(d, pending.repository, pending.head, ci, out);
+    }
+    if pending.refresh && !d.stopping {
+        ci_refresh(d, env, pending.repository, pending.head, out);
     }
 }
 
@@ -6485,6 +6516,7 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 // kept task names retain repository rows; live watches and release gates retire.
 /// Drop the forge's local reads now; the event's environment retires its watches before returning.
 pub(crate) fn retire_forge(d: &mut Domain, forge: u16) {
+    outage::retire(d, forge);
     goal_branch::retire(d, forge);
     let mut removed = List::with_capacity(d.lost.capacity());
     for (owner, pending) in &d.lost {
