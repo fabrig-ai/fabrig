@@ -1,6 +1,6 @@
 # tui-design-session: a design session in the terminal, T2 of whole-story
 
-The spec is `temper/docs/design/draft/surfaces.md`, section 11.2, with 11.1's and 11.4's `/draft`. It's carried out as `temper/docs/design/draft/whole-story.execution.md`, T2 says, with the mockup `temper/docs/design/client/tui/whole-story/design-session.html` as its look and `surfaces.md`, section 13, for the mockups' precedence. Read section 11 whole, then T2's entry. `surfaces.md`, 11 revises `temper/docs/design/draft/tui.md`, section 3, *Drafting* (`tui.status.md`), and makes this v0.1.0 work. It designs and builds together, writes its design into `temper/docs/design/client/README.md`, 6.14, with status entries for what it leaves, and lands whole.
+The spec is `temper/docs/design/draft/surfaces.md`, section 11.2, with 11.1's and 11.4's `/draft`. It's carried out as `temper/docs/design/draft/whole-story.execution.md`, T2 says, with the mockup `temper/docs/design/client/tui/whole-story/design-session.html` as its look and `surfaces.md`, section 13, for the mockups' precedence. Read `surfaces.md`, section 11, whole, then T2's entry. `surfaces.md`, 11 revises `temper/docs/design/draft/tui.md`, section 3, *Drafting* (`tui.status.md`), and makes this v0.1.0 work. It designs and builds together, writes its design into `temper/docs/design/client/README.md`, 6.14, with status entries for what it leaves, and lands whole.
 
 It builds on P6, landed: the drafter is charter 12 and a design session template 6 (`temper/docs/design/domain/agent.md`, 8.5); the client knows one by `pages::chats::DRAFTING_TEMPLATE` and `pages::chats::drafting`, and starts one with `Chats::start` and `draft` (`temper/docs/design/client/README.md`, 3.5, *A chat's document*, *A design session*). The drafter's instructions, `temper/crates/temper-service/src/stock/drafter.txt`, say how it asks and writes: read them first.
 
@@ -29,7 +29,7 @@ It builds on P6, landed: the drafter is charter 12 and a design session template
 
 ## Overlaps
 
-- **`temper-client-domain`** is shared with the web's owner: the smallest change the TUI needs, named in `plan.md`. The web's design session and start sheet stay as they are.
+- **`temper-client-domain`** is shared with the web's owner: the smallest change the TUI needs, named in your report. The web's design session and start sheet stay as they are.
 
 ## Walk
 
@@ -40,7 +40,7 @@ It builds on P6, landed: the drafter is charter 12 and a design session template
 - **A plan is complete when it lands.** No walk, render check or throwaway driver in it. Recording a journey again is generation, which a task runs.
 - **Only focused and fuzzy run.** Never `tools/tiers/run`, a browser, process or live tier, one of their stories, or a tier's CPU figure. A new story for those tiers is written and compiled (`cargo check --tests`), not run. A slow-tier test whose expected output the change makes stale is updated in the same task, compiled, and named in the report.
 - **Tests stay cheap:** a new case of one behaviour is a row of an existing table test. Budgets and timeouts are never raised.
-- **Decide, don't ask.** A stored format, a protocol or a public interface may change freely before v0.1.0: no compatibility, no migration; note it in `plan.md`. A small edit a task needs just outside its file list is made and named in the report. Ask only what truly blocks the work.
+- **Decide, don't ask.** A stored format, a protocol or a public interface may change freely before v0.1.0: no compatibility, no migration; note it in your report. A small edit a task needs just outside its file list is made and named in the report. Ask only what truly blocks the work.
 - **Recording flakes:** a re-record that stops on a moving screen is retried up to three times, each on a fresh fake box; if all fail, widen the mark's wait and say so.
 - **Generated files** that a change makes stale are that task's to regenerate.
 - **Before calling a focused or fuzzy failure "outside the change",** run it once on the pristine base. If main passes and the branch fails, it's the branch's.
