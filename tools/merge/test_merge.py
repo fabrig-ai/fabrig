@@ -10,6 +10,9 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 BASELINE = 'temper/scripts/old-forms.txt'
+RECORDING = 'temper/tests/playground/tests/fixtures/story-a.log'
+GENERATOR = 'temper/tests/playground/tests/suite/walk.rs'
+WALK = 'walk::story_a_walks_from_the_welcome_to_the_csv_change_landed'
 
 
 def counts(first, second, comment='# Head baseline\n'):
@@ -55,7 +58,7 @@ class Merge(unittest.TestCase):
 
     def conflict(self, baseline=True, other=False, head_comment='# Head baseline\n',
                  base_comment='# Incoming baseline\n', trees=('temper',), delete=None,
-                 other_path='temper/x.rs', other_paths=()):
+                 other_path='temper/x.rs', other_paths=(), head_files=(), base_files=()):
         self.commit('common')
         self.git('branch', 'base')
         if baseline:
@@ -66,6 +69,8 @@ class Merge(unittest.TestCase):
         if other:
             for path in (other_path, *other_paths):
                 self.write(path, 'const X: u8 = 1;\n')
+        for path, content in head_files:
+            self.write(path, content)
         self.commit('head')
         head = self.git('rev-parse', 'HEAD').stdout.decode().strip()
         self.git('checkout', '-q', 'base')
@@ -77,6 +82,8 @@ class Merge(unittest.TestCase):
         if other:
             for path in (other_path, *other_paths):
                 self.write(path, 'const X: u8 = 2;\n')
+        for path, content in base_files:
+            self.write(path, content)
         self.commit('base')
         base = self.git('rev-parse', 'HEAD').stdout.decode().strip()
         self.git('checkout', '-q', 'head')
@@ -88,9 +95,9 @@ class Merge(unittest.TestCase):
     def run_merge(self, settled, left, truncated=False):
         head = self.git('rev-parse', 'HEAD').stdout
         base = self.git('rev-parse', 'MERGE_HEAD').stdout
-        result = subprocess.run(['fabrig/.temper/merge', 'merge', 'request.json'],
-                                cwd=self.job, env=self.env, capture_output=True)
-        self.assertEqual(result.returncode, 3 if left else 0, result.stderr.decode())
+        execution = subprocess.run(['fabrig/.temper/merge', 'merge', 'request.json'],
+                                   cwd=self.job, env=self.env, capture_output=True)
+        self.assertEqual(execution.returncode, 3 if left else 0, execution.stderr.decode())
         encoded = (self.job / 'result.json').read_bytes()
         self.assertLessEqual(len(encoded), 512)
         result = json.loads(encoded)
@@ -116,6 +123,7 @@ class Merge(unittest.TestCase):
                          b''.join(os.fsencode(path) + b'\0' for path in left))
         self.assertEqual(self.git('rev-parse', 'HEAD').stdout, head)
         self.assertEqual(self.git('rev-parse', 'MERGE_HEAD').stdout, base)
+        return execution
 
     def snapshot(self):
         paths = set(self.git('ls-files', '-z').stdout.split(b'\0')) - {b''}
@@ -127,6 +135,121 @@ class Merge(unittest.TestCase):
         expected = counts(6, 6, comment).encode()
         self.assertEqual((self.repository / path).read_bytes(), expected)
         self.assertEqual(self.git('show', f':0:{path}').stdout, expected)
+
+    def recording_generator(self, outcome='write'):
+        self.write(RECORDING, 'common recording\n')
+        self.write(GENERATOR, 'merged generator\n')
+        self.write('left-input', 'common left\n')
+        self.write('right-input', 'common right\n')
+        executable = self.job / 'bin/cargo'
+        executable.parent.mkdir()
+        executable.write_text(
+            '#!/usr/bin/python3\n'
+            'import json, os, sys\nfrom pathlib import Path\n'
+            'root = Path.cwd()\n'
+            'job = Path(os.environ["TEMPER_JOB"])\n'
+            '(job / "generator-call.json").write_text(json.dumps({\n'
+            '    "args": sys.argv[1:], "cwd": str(root),\n'
+            '    "write": os.environ.get("SKEIN_CODEGEN_WRITE"),\n'
+            '    "bundle": os.environ.get("TEMPER_BUNDLE")}))\n'
+            f'target = root / {RECORDING!r}\n'
+            'assert not target.exists(), "a fresh output is required"\n'
+            f'outcome = {outcome!r}\n'
+            'if outcome == "write":\n'
+            f'    target.write_text((root / {GENERATOR!r}).read_text() +\n'
+            '                      (root / "left-input").read_text() +\n'
+            '                      (root / "right-input").read_text())\n'
+            'elif outcome == "fail":\n'
+            '    target.write_text("partial recording")\n    sys.exit(1)\n'
+            'elif outcome == "markers":\n'
+            '    target.write_text("<<<<<<< head\\n=======\\n>>>>>>> base\\n")\n',
+            encoding='utf-8')
+        executable.chmod(0o755)
+        self.env['PATH'] = str(executable.parent) + ':' + self.env['PATH']
+
+    def assert_generator_called(self):
+        call_path = self.job / 'generator-call.json'
+        self.assertTrue(call_path.is_file(), 'the recording generator was invoked')
+        call = json.loads(call_path.read_bytes())
+        self.assertEqual(call, {
+            'args': ['nextest', 'run', '-p', 'temper-playground-world', '--test', 'suite',
+                     '-E', f'test(={WALK})'],
+            'cwd': str(self.repository), 'write': '1', 'bundle': 'none'})
+
+    def test_recording_is_generated_on_the_merged_tree_and_only_known_paths_are_staged(self):
+        self.recording_generator()
+        unknown = ['temper/tests/playground/tests/fixtures/other.log',
+                   'temper/tests/real-loop/tests/fixtures/b0/llm.json',
+                   'temper/tests/real-loop/tests/fixtures/b1/llm.json']
+        for path in unknown:
+            self.write(path, 'common fixture\n')
+        self.conflict(other=True, other_path=RECORDING, other_paths=unknown,
+                      head_files=[('left-input', 'head input\n')],
+                      base_files=[('right-input', 'base input\n'),
+                                  (GENERATOR, 'incoming generator\n')])
+        previous = {path: ((self.repository / path).read_bytes(),
+                          self.git('ls-files', '--stage', '--', path).stdout) for path in unknown}
+        self.run_merge([BASELINE, RECORDING], sorted(unknown))
+        expected = b'incoming generator\nhead input\nbase input\n'
+        self.assertEqual((self.repository / RECORDING).read_bytes(), expected)
+        self.assertEqual(self.git('show', f':0:{RECORDING}').stdout, expected)
+        self.assert_recounted()
+        self.assert_generator_called()
+        for path in unknown:
+            self.assertEqual(((self.repository / path).read_bytes(),
+                              self.git('ls-files', '--stage', '--', path).stdout), previous[path])
+
+    def test_failed_recording_generator_restores_conflict_and_index(self):
+        self.recording_generator('fail')
+        self.conflict(baseline=False, other=True, other_path=RECORDING)
+        previous = self.snapshot()
+        self.run_merge([], [RECORDING])
+        self.assert_generator_called()
+        self.assertEqual(self.snapshot(), previous)
+
+    def test_recording_generator_must_produce_a_fresh_file(self):
+        self.recording_generator('no-output')
+        self.conflict(baseline=False, other=True, other_path=RECORDING)
+        previous = self.snapshot()
+        self.run_merge([], [RECORDING])
+        self.assert_generator_called()
+        self.assertEqual(self.snapshot(), previous)
+
+    def test_recording_generator_cannot_leave_conflict_markers(self):
+        self.recording_generator('markers')
+        self.conflict(baseline=False, other=True, other_path=RECORDING)
+        previous = self.snapshot()
+        self.run_merge([], [RECORDING])
+        self.assert_generator_called()
+        self.assertEqual(self.snapshot(), previous)
+
+    def test_unavailable_recording_generator_leaves_conflict(self):
+        self.recording_generator()
+        (self.job / 'bin/cargo').unlink()
+        self.conflict(baseline=False, other=True, other_path=RECORDING)
+        previous = self.snapshot()
+        execution = self.run_merge([], [RECORDING])
+        self.assertIn(b'No such file or directory', execution.stderr)
+        self.assertEqual(self.snapshot(), previous)
+
+    def test_conflicted_recording_generator_is_not_run(self):
+        self.recording_generator()
+        self.conflict(baseline=False, other=True, other_path=RECORDING, other_paths=[GENERATOR])
+        previous = self.snapshot()
+        execution = self.run_merge([], sorted([RECORDING, GENERATOR]))
+        self.assertIn(b'generator source is missing or unmerged', execution.stderr)
+        self.assertFalse((self.job / 'generator-call.json').exists())
+        self.assertEqual(self.snapshot(), previous)
+
+    def test_missing_recording_generator_is_not_run(self):
+        self.recording_generator()
+        (self.repository / GENERATOR).unlink()
+        self.conflict(baseline=False, other=True, other_path=RECORDING)
+        previous = self.snapshot()
+        execution = self.run_merge([], [RECORDING])
+        self.assertIn(b'generator source is missing or unmerged', execution.stderr)
+        self.assertFalse((self.job / 'generator-call.json').exists())
+        self.assertEqual(self.snapshot(), previous)
 
     def test_baseline_alone_is_recounted_and_staged(self):
         self.assertTrue(os.access(ROOT / '.temper/merge', os.X_OK))

@@ -1,4 +1,4 @@
-"""Recount conflicted baselines (temper/docs/design/protocol/tooling.md, 4.1)."""
+"""Settle known generated conflicts (temper/docs/design/protocol/tooling.md, 4.1)."""
 import json
 import os
 from pathlib import Path
@@ -10,6 +10,13 @@ import sys
 BASELINES = {f'{tree}/scripts/old-forms.txt'
              for tree in ('skein', 'smith', 'jig', 'temper', 'hearth')}
 ROW = re.compile(rb'(\S+)([ \t]+)([0-9]+)([ \t]*(?:\r?\n)?)')
+RECORDINGS = {
+    'temper/tests/playground/tests/fixtures/story-a.log': (
+        'temper/tests/playground/tests/suite/walk.rs',
+        ['cargo', 'nextest', 'run', '-p', 'temper-playground-world', '--test', 'suite',
+         '-E', 'test(=walk::story_a_walks_from_the_welcome_to_the_csv_change_landed)']),
+}
+MARKER = re.compile(rb'^(?:<{7}|={7}|>{7}|\|{7})(?:[ \r\n]|$)', re.MULTILINE)
 
 
 def git(repository, *args):
@@ -73,6 +80,41 @@ def settle(repository, path, stages):
     return True
 
 
+def regenerate(repository, path, stages, conflicts):
+    source, command = RECORDINGS[path]
+    if source in conflicts or not (repository / source).is_file():
+        print(f'{path}: generator source is missing or unmerged: {source}', file=sys.stderr)
+        return False
+    if any(stage not in stages or stages[stage][0] not in (b'100644', b'100755')
+           for stage in (2, 3)):
+        return False
+    target = repository / path
+    if target.is_symlink() or not target.is_file():
+        return False
+    previous = target.read_bytes()
+    mode = target.stat().st_mode
+    try:
+        # Require a fresh output: success without writing cannot settle a file.
+        target.unlink()
+        subprocess.run(command, cwd=repository, check=True, stdin=subprocess.DEVNULL,
+                       env={**os.environ, 'SKEIN_CODEGEN_WRITE': '1', 'TEMPER_BUNDLE': 'none'})
+        if target.is_symlink() or not target.is_file():
+            raise ValueError('generator did not produce a regular file')
+        generated = target.read_bytes()
+        if not generated or MARKER.search(generated):
+            raise ValueError('generator left an empty file or conflict markers')
+        target.chmod(mode)
+        git(repository, 'add', '--', path)
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        print(f'{path}: {error}', file=sys.stderr)
+        if target.is_symlink():
+            target.unlink()
+        target.write_bytes(previous)
+        target.chmod(mode)
+        return False
+    return True
+
+
 def result_bytes(settled, left):
     def encode(result):
         return (json.dumps(result, ensure_ascii=True, separators=(',', ':')) + '\n').encode('utf-8')
@@ -108,13 +150,15 @@ def main():
             raise ValueError(f'invalid {member} commit')
     repository = Path(__file__).resolve().parents[2]
     settled = []
-    for path, stages in sorted(unmerged(repository).items()):
-        if path in BASELINES:
-            try:
-                if settle(repository, path, stages):
-                    settled.append(path)
-            except (OSError, ValueError, subprocess.CalledProcessError) as error:
-                print(f'{path}: {error}', file=sys.stderr)
+    conflicts = unmerged(repository)
+    for path, stages in sorted(conflicts.items()):
+        try:
+            if path in BASELINES and settle(repository, path, stages):
+                settled.append(path)
+            elif path in RECORDINGS and regenerate(repository, path, stages, conflicts):
+                settled.append(path)
+        except (OSError, ValueError, subprocess.CalledProcessError) as error:
+            print(f'{path}: {error}', file=sys.stderr)
     left = sorted(unmerged(repository))
     (Path(os.environ['TEMPER_JOB']) / 'result.json').write_bytes(result_bytes(settled, left))
     return 3 if left else 0

@@ -110,6 +110,12 @@ baseline recounted, a generated file made again), with no model.
   each it settles (`git add`); it never commits, aborts the merge or
   writes another branch. temper commits the tree as the merge, with
   both parents, and pushes it.
+  The reference recounts counted baselines and regenerates story A's
+  playground log with its focused walk test on the merged tree,
+  `SKEIN_CODEGEN_WRITE=1`. A generator that is unavailable, fails or
+  does not produce a fresh file free of conflict markers leaves the
+  file unmerged. The reference's B0 and B1 recordings require captured data
+  outside the checkout; without that input they stay unmerged.
 - **`result.json`, exit 0:** `{"settled": [PATH]}`, no file left
   unmerged: temper commits and delivers the merge (`../domain/worker.md`,
   4.4). A file left unmerged or still marked fails the delivery, and
