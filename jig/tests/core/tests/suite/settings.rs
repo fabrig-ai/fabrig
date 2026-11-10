@@ -2243,8 +2243,14 @@ fn a_hello_before_settings_restore_uses_the_stored_reserve_and_adopts_its_run() 
     let mut bounds = jig_test_profile::fixtures::bounds();
     bounds.checks = Duration::from_secs(60);
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
-        worker: 0, channel: Token::new(7), hello: Hello { jobs: Box::new([]), bounds,
-            stop_bound: Duration::from_millis(1), slots: 1, workstreams: Box::new([]),
+        worker: 0,
+        channel: Token::new(7),
+        hello: Hello {
+            jobs: Box::new([]),
+            bounds,
+            stop_bound: Duration::from_millis(1),
+            slots: 1,
+            workstreams: Box::new([]),
             hosting: Box::new([Hosting { run: Token::new(task), attempt: Token::new(attempt), phase: Phase::Active }]),
         },
     })));

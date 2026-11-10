@@ -291,7 +291,11 @@ fn a_closed_window_keeps_its_tail_after_a_transient_try() {
     assert_eq!(f::tail(&world), Some(f::TAIL));
     assert_eq!(f::tries(&world).transient, 1);
     assert_eq!(f::tries(&world), f::tries(&control));
-    assert_eq!(f::activity(&world), f::activity(&control));
+    assert!(control.assigned.as_ref().expect("control resumes").run.policy.resume);
+    let mut activity = f::activity(&world);
+    let Some(tasks::Line::RunBegan { resumed, .. }) = activity.last_mut() else { panic!("fresh run activity") };
+    *resumed = true;
+    assert_eq!(activity, f::activity(&control));
 }
 
 #[test]
@@ -696,7 +700,13 @@ fn host_ending(world: &mut World, ending: jig_domain_host::Ending, spent: u64) {
         link: root::link::Event::Up(jig_domain_host::LinkUp::Answer {
             run: Token::new(world.task()),
             attempt: Token::new(world.attempt()),
-            answer: jig_domain_host::RunAnswer { read: None, refused: Box::new([]), turns: 0, spent, ending },
+            answer: jig_domain_host::RunAnswer {
+                read: None,
+                refused: Box::new([]),
+                turns: world.domain.core().tasks.task(world.task()).expect("answer's task").turn,
+                spent,
+                ending,
+            },
         }),
     });
 }
@@ -705,10 +715,15 @@ fn host_ending(world: &mut World, ending: jig_domain_host::Ending, spent: u64) {
 fn an_unrelated_transient_try_does_not_disable_a_later_windows_resume() {
     use jig_domain_host as host;
     let mut world = World::new(Setup { seed: 118, ..Setup::default() });
-    host_ending(&mut world, host::Ending::Failed {
-        failure: host::Failure::Unprepared(host::Preparation::Transient),
-        detail: Box::new([]), work: host::Work { left: None, saved: None },
-    }, 0);
+    host_ending(
+        &mut world,
+        host::Ending::Failed {
+            failure: host::Failure::Unprepared(host::Preparation::Transient),
+            detail: Box::new([]),
+            work: host::Work { left: None, saved: None },
+        },
+        0,
+    );
     world.retry_due();
     let conversation = world.attempt();
     world.window_turn(1, 1, None, b"window after preparation retry");
@@ -724,9 +739,16 @@ fn an_unrelated_transient_try_does_not_disable_a_later_windows_resume() {
 fn unusable_history_closes_its_committed_window_before_the_retry() {
     use jig_domain_host as host;
     for ending in [
-        host::Ending::Failed { failure: host::Failure::Run(host::RunFailure::Transcript), detail: Box::new([]), work: host::Work { left: None, saved: None } },
+        host::Ending::Failed {
+            failure: host::Failure::Run(host::RunFailure::Transcript),
+            detail: Box::new([]),
+            work: host::Work { left: None, saved: None },
+        },
         host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Transcript)),
-        host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start { cause: host::StartCause::Transcript, why: b"unusable".as_slice().into() })),
+        host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
+            cause: host::StartCause::Transcript,
+            why: b"unusable".as_slice().into(),
+        })),
     ] {
         let mut world = World::new(Setup { seed: 119, ..Setup::default() });
         world.store.transcript_text(window_text);

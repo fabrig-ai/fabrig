@@ -579,7 +579,9 @@ fn answer(domain: &mut Link, run: Token, attempt: Token, payload: Token, work: &
 }
 #[must_use]
 pub fn result_event(domain: &Link, payload: Token, end: tasks::End) -> Option<core::Event> {
-    let Some(Payload::Answer { task, attempt, cumulative, read, refused, end: retained }) = domain.payloads.get(&payload) else {
+    let Some(Payload::Answer { task, attempt, cumulative, read, refused, end: retained }) =
+        domain.payloads.get(&payload)
+    else {
         return None;
     };
     Some(core::Event::AnswerPayload {

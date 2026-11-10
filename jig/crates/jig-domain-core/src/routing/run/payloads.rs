@@ -76,7 +76,7 @@ pub(crate) fn route_answer_payload(
         | tasks::End::FailedWithReason {
             class: tasks::Class::Transient | tasks::Class::Permanent | tasks::Class::Run,
             ..
-        } if account_wait => tasks::End::Recheck,
+        } if account_wait && !unusable_history => tasks::End::Recheck,
         tasks::End::Finished { .. }
         | tasks::End::FinishedWithFollowups { .. }
         | tasks::End::Exceeded(_)

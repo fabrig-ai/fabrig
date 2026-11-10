@@ -208,7 +208,8 @@ pub(crate) fn worker_restarting(inherited: &Inherited) -> Proc {
     let mut proc = worker(root);
     let Proc::Worker(host) = &mut proc else { unreachable!("worker factory") };
     host.service.adopt_signals(inherited.signal).expect("worker signal source");
-    host.restart_root = Some(inherited.roots.iter().find(|(name, _)| name.as_ref() == b"replacement").expect("replacement root").1);
+    host.restart_root =
+        Some(inherited.roots.iter().find(|(name, _)| name.as_ref() == b"replacement").expect("replacement root").1);
     proc
 }
 

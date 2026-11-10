@@ -876,8 +876,12 @@ impl Referee {
         if !matches!(self.story, crate::stories::Story::Shutdown) {
             return;
         }
-        if !self.injected && !turns(&self.store.borrow()).is_empty()
-            && procs.iter().any(|proc| matches!(proc, Proc::Peer(peer) if smith_agent_process_world::fake::queries(peer).count() >= 2)) {
+        if !self.injected
+            && !turns(&self.store.borrow()).is_empty()
+            && procs.iter().any(
+                |proc| matches!(proc, Proc::Peer(peer) if smith_agent_process_world::fake::queries(peer).count() >= 2),
+            )
+        {
             self.injected = true;
             for proc in procs.iter_mut() {
                 if let Proc::Worker(host) = proc {
@@ -888,21 +892,27 @@ impl Referee {
         }
         for proc in procs.iter_mut() {
             if let Proc::Worker(host) = proc
-                && self.injected && host.service.is_empty()
+                && self.injected
+                && host.service.is_empty()
                 && let Some(root) = host.restart_root.take()
             {
-                let Proc::Worker(replacement) = crate::processes::worker(root) else { unreachable!("replacement worker") };
+                let Proc::Worker(replacement) = crate::processes::worker(root) else {
+                    unreachable!("replacement worker")
+                };
                 host.service = replacement.service;
                 host.wire.restarted();
                 host.stopping = false;
             }
         }
         if self.views.borrow().resumed_tries.is_none()
-            && worker_wire(procs).frames.iter().filter(|(_, kind, _)| *kind == 0x0180).count() >= 2 {
+            && worker_wire(procs).frames.iter().filter(|(_, kind, _)| *kind == 0x0180).count() >= 2
+        {
             self.views.borrow_mut().resumed_tries = self.store.borrow().rows.values().find_map(|row| {
                 if let jig_test_domain::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(task))) = row {
                     Some(task.tries)
-                } else { None }
+                } else {
+                    None
+                }
             });
         }
     }

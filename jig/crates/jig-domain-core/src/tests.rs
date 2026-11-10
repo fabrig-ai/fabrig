@@ -548,7 +548,9 @@ fn clear_projects(core: &mut Core, limits: &Limits) {
 }
 
 fn seeded_core(config: Config, limits: &Limits) -> Result<Core, Problem> {
+    let needs = fleet_needs::configured(&config, limits);
     let mut core = Core::new(config, limits)?;
+    fixtures::restore_needs(&mut core.fleet, limits, needs);
     core.people.start_restore(Wall::EPOCH);
     let projects = core::mem::replace(&mut core.seed_projects, Box::new([]));
     for project in projects {

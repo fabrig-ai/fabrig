@@ -125,7 +125,9 @@ fn run_at(mut settings: Settings, script: Script, before_cut: Option<u32>) -> (O
     let root = if matches!(script.story, crate::stories::Story::Shutdown) {
         machine.close(root.expect("worker root to reopen through startup"));
         None
-    } else { root };
+    } else {
+        root
+    };
     let mut harness = skein_world::World::new(settings.seed, settings.config, referee, skein_world::Memory::Unchecked)
         .with_machine(Machine(machine));
     launch(&mut harness, root, &script, before_cut);
@@ -706,10 +708,13 @@ fn spawn_channel_side(
     } else if let crate::stories::Story::Opening(case) = script.story {
         harness.spawn(|| Proc::Probe(Box::new(crate::relay::Peer::opening(case))));
     } else if matches!(script.story, crate::stories::Story::Shutdown) {
-        harness.spawn_restartable(vec![
-            skein_world::StartupRoot { name: b"worker".as_slice().into(), path: b"worker".as_slice().into() },
-            skein_world::StartupRoot { name: b"replacement".as_slice().into(), path: b"worker".as_slice().into() },
-        ], processes::worker_restarting);
+        harness.spawn_restartable(
+            vec![
+                skein_world::StartupRoot { name: b"worker".as_slice().into(), path: b"worker".as_slice().into() },
+                skein_world::StartupRoot { name: b"replacement".as_slice().into(), path: b"worker".as_slice().into() },
+            ],
+            processes::worker_restarting,
+        );
     } else {
         let factory = if matches!(script.story, crate::stories::Story::Providers) {
             processes::worker_providers

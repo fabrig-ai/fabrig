@@ -847,7 +847,9 @@ pub(crate) fn transcript_unread(core: &mut Core, work: &mut Queue<Work>, task: u
             },
         );
         if let Some(proof) = core.proofs.get(&task) {
-            out.push(Request::Write(crate::Write::Save(crate::Record::Core(crate::CoreRecord::RunProof(proof.clone())))));
+            out.push(Request::Write(crate::Write::Save(crate::Record::Core(crate::CoreRecord::RunProof(
+                proof.clone(),
+            )))));
         }
         return out;
     }

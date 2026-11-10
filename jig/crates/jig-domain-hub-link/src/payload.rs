@@ -209,16 +209,32 @@ pub(crate) fn unusable_history(ending: &host::Ending) -> bool {
             host::Invalid::Transcript | host::Invalid::Start { cause: host::StartCause::Transcript, .. },
         ))
         | host::Ending::Failed { failure: host::Failure::Run(host::RunFailure::Transcript), .. } => true,
-        host::Ending::Refused(host::Refusal::Busy | host::Refusal::Invalid(
-            host::Invalid::Charter | host::Invalid::Grants | host::Invalid::Messages
-            | host::Invalid::Start { cause: host::StartCause::Other | host::StartCause::Grants, .. },
-        ))
-        | host::Ending::Failed { failure: host::Failure::Unprepared(_)
-            | host::Failure::Agent(_)
-            | host::Failure::Cancelled(_)
-            | host::Failure::Run(host::RunFailure::Exceeded(_) | host::RunFailure::Model
-                | host::RunFailure::Budget | host::RunFailure::Policy | host::RunFailure::Cancelled
-                | host::RunFailure::Stale | host::RunFailure::Limited { .. } | host::RunFailure::Refused { .. }), .. }
+        host::Ending::Refused(
+            host::Refusal::Busy
+            | host::Refusal::Invalid(
+                host::Invalid::Charter
+                | host::Invalid::Grants
+                | host::Invalid::Messages
+                | host::Invalid::Start { cause: host::StartCause::Other | host::StartCause::Grants, .. },
+            ),
+        )
+        | host::Ending::Failed {
+            failure:
+                host::Failure::Unprepared(_)
+                | host::Failure::Agent(_)
+                | host::Failure::Cancelled(_)
+                | host::Failure::Run(
+                    host::RunFailure::Exceeded(_)
+                    | host::RunFailure::Model
+                    | host::RunFailure::Budget
+                    | host::RunFailure::Policy
+                    | host::RunFailure::Cancelled
+                    | host::RunFailure::Stale
+                    | host::RunFailure::Limited { .. }
+                    | host::RunFailure::Refused { .. },
+                ),
+            ..
+        }
         | host::Ending::Parked { .. }
         | host::Ending::Ended { .. } => false,
     }
