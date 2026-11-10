@@ -7,7 +7,7 @@ gates proved by receipts kept by key, and the project's landing turn,
 which fast-forwards each main to its proved candidate. It replaces, for
 such a project, the change's CI, its queue, its updates and its merge
 in the repository's style (`forge.md`, 8.2 steps 3 and 5 to 7,
-sections 9 and 10). What follows a landing, its tiers and its verdict,
+`forge.md`, sections 9 and 10). What follows a landing, its tiers and its verdict,
 is `after-landing.md`. The forge's calls it makes are skein's
 `forge.md`, 3.2. What is still open is section 17.
 

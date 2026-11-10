@@ -154,9 +154,9 @@ binary (`jig-test`).
 | the webhooks' listener | the forge component's own listener for Forgejo's signed deliveries, plaintext on loopback, one path per forge (skein's `forge-connection.md`, section 6; forge.md, section 5) |
 
 The forge's setup's names are setup.md's: connected, managed and owned
-(section 2), the forge's directory (section 3), reconcile, a plan of the
-setup host's (section 5),
-the pin (6.1), the preparation (6.3), the box and its steps (section 7).
+(setup.md, section 2), the forge's directory (setup.md, section 3), reconcile, a plan of the
+setup host's (setup.md, section 5),
+the pin (setup.md, 6.1), the preparation (setup.md, 6.3), the box and its steps (setup.md, section 7).
 
 ## 4. The processes and the binary
 
@@ -1573,7 +1573,7 @@ shape, below (4.1): `temper-engine serve` an engine alone (4.2), and
   nearest a worker alone; one whose `engine.hosts.listener`'s first
   entry is a socket address, an engine alone; any other, standalone.
 - **Each shape's checks** (configuration.md, section 2): standalone's,
-  as section 2 gives them; an engine alone's the same, but for its
+  as configuration.md, section 2 gives them; an engine alone's the same, but for its
   listener and its workers, by the table's rule, and the root's for
   every shape with an engine; a worker alone's, its worker part's, its
   entry of `application.workers` (configuration.md, section 4) and the

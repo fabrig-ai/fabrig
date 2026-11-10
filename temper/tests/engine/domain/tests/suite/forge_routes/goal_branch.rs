@@ -5,7 +5,7 @@ use super::*;
 use jig_domain_link::EndpointBound;
 
 const FORGE_CONNECTOR: u16 = 0;
-const OWN_GOAL_BRANCH: u16 = 1; // forge.md, 2, Symbols.
+const OWN_GOAL_BRANCH: u16 = 1; // temper/docs/design/domain/forge.md, 2, Symbols.
 const GOAL_REQUEST: u8 = 92;
 const CHAT_REQUEST: u8 = 93;
 const CHANGE_CALL: u64 = 94;

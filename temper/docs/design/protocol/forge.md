@@ -804,15 +804,15 @@ Held by skein's `forge.md`, section 5.4.
 ### 3.5 What the protocol layer keeps
 
 Held by skein's `forge-connection.md`: each forge's start and its access
-in section 3, the repositories, the users and a GitHub App's
-installations in section 4, the credentials and the installation tokens
-in section 5, and a GitHub App's delivery log in 6.5. What temper keeps
+in skein's `forge-connection.md`, section 3, the repositories, the users and a GitHub App's
+installations in skein's `forge-connection.md`, section 4, the credentials and the installation tokens
+in skein's `forge-connection.md`, section 5, and a GitHub App's delivery log in skein's `forge-connection.md`, 6.5. What temper keeps
 of a forge is its records (2.1), never the component's state.
 
 ### 3.6 GitHub's API as temper uses it
 
 Held by skein's `forge-github.md`: the dialect's paths, headers, paging,
-validators, pauses and failures, each a named fact (section 13). Of it,
+validators, pauses and failures, each a named fact (skein's `forge-github.md`, section 13). Of it,
 temper sets one thing, where a job log may be read from:
 
 - **A job log's redirect** is followed only to an origin its forge's
@@ -1099,7 +1099,7 @@ each start from the records and the events (`../domain/forge.md`,
 ## 9. The fake forge's protocol layer
 
 Held by skein's `fake-forge.md`, section 4, for Forgejo's dialect, and
-section 10, its GitHub layer, for GitHub's (with skein's
+skein's `fake-forge.md`, section 10, its GitHub layer, for GitHub's (with skein's
 `forge-github.md`): its App, installations, installation tokens, merge
 queue, delivery log, job log redirect, rate windows and pauses, its
 fixed test keys, and its two browser pages answered as redirects, so
