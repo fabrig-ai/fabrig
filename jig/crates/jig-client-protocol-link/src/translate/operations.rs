@@ -251,6 +251,10 @@ fn new_task(v: &c::NewTask, limits: &w::Limits) -> Result<w::NewTask, w::Problem
                     ended_by: match v.flags.ended_by {
                         c::EndedBy::Result => w::EndedBy::Result,
                         c::EndedBy::Requester => w::EndedBy::Requester,
+                        c::EndedBy::Closer(closer) => w::EndedBy::Closer(w::Closer::new(
+                            limits,
+                            w::CloserParts { connector: closer.connector, code: closer.code },
+                        )?),
                     },
                     conversation: v.flags.conversation,
                     listed: v.flags.listed,
@@ -357,6 +361,9 @@ fn restore_task(v: &w::NewTask, limits: &crate::Limits) -> Result<c::NewTask, w:
             ended_by: match v.flags().ended_by() {
                 w::EndedBy::Result => c::EndedBy::Result,
                 w::EndedBy::Requester => c::EndedBy::Requester,
+                w::EndedBy::Closer(closer) => {
+                    c::EndedBy::Closer(c::Closer { connector: closer.connector(), code: closer.code() })
+                }
             },
             conversation: v.flags().conversation(),
             listed: v.flags().listed(),

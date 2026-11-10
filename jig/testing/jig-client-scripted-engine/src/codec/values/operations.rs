@@ -20,10 +20,14 @@ pub(in crate::codec) fn wire_retention(value: &c::Retention, _limits: &w::Limits
     })
 }
 
-pub(in crate::codec) fn wire_ended_by(value: &c::EndedBy, _limits: &w::Limits) -> Result<w::EndedBy, w::Problem> {
+pub(in crate::codec) fn wire_ended_by(value: &c::EndedBy, limits: &w::Limits) -> Result<w::EndedBy, w::Problem> {
     Ok::<_, w::Problem>(match value {
         c::EndedBy::Result => w::EndedBy::Result,
         c::EndedBy::Requester => w::EndedBy::Requester,
+        c::EndedBy::Closer(closer) => w::EndedBy::Closer(w::Closer::new(
+            limits,
+            w::CloserParts { connector: closer.connector, code: closer.code },
+        )?),
     })
 }
 

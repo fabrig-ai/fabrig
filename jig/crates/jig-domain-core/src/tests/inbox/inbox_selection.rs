@@ -919,6 +919,7 @@ fn settings_document_bytes() -> u64 {
     // The two value sets each carry eight bytes for RunPolicy.tools.
     // Each set also carries a 16-byte parts slice and eight templates, each with
     // 24-byte later choices in both its Template and New carriers.
+    // The closer adds 2 * 8 * (16 + 8) bytes to the Template and New carriers.
     // Each also holds 64 catalogue rows: a 184-byte carrier, two names, a description,
     // a program, efforts and the default effort. The inventory shares one model range.
     120_528
@@ -940,6 +941,7 @@ fn settings_document_bytes() -> u64 {
         + 2 * 64 * (184 + 2 * 4096 + 512 + 32 + 16 * (32 + 16) + 32)
         + 64 * 88
         + 2 * (16 + 8 * (24 + 24))
+        + 2 * 8 * (16 + 8)
 }
 
 #[test]
@@ -947,7 +949,8 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
     // Each template envelope carries the resource slice: 32 document lines,
     // eight templates per line, and sixteen bytes per slice carrier. Each
     // template also carries its 24-byte optional later choice.
-    const TEMPLATE_ENVELOPES: u64 = 989_184 + 32 * 8 * (16 + 24);
+    // The closer adds sixteen bytes to each template carrier.
+    const TEMPLATE_ENVELOPES: u64 = 989_184 + 32 * 8 * (16 + 24 + 16);
 
     let (mut core, limits) = fixture();
     waiting(

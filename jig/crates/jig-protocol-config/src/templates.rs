@@ -100,6 +100,7 @@ fn report_list(value: Result<List<u32>, What>, path: &Path, problems: &mut Probl
         }
     }
 }
+#[expect(clippy::too_many_lines, reason = "one template reads and checks its complete configuration shape")]
 fn template(
     document: &Document,
     at: u32,
@@ -147,10 +148,13 @@ fn template(
         None => tasks::EndedBy::Result,
         Some(at) if named(document, at, b"result") => tasks::EndedBy::Result,
         Some(at) if named(document, at, b"requester") => tasks::EndedBy::Requester,
-        Some(_) => {
-            problems.push(path.member(b"ended_by"), What::Form);
-            return None;
-        }
+        Some(at) => match closer(document, at, &path.member(b"ended_by")) {
+            Ok(value) => tasks::EndedBy::Closer(value),
+            Err(what) => {
+                problems.push(path.member(b"ended_by"), what);
+                return None;
+            }
+        },
     };
     let retention = check::text(&mut object, document, b"retention", path, problems);
     let label = check::count(&mut object, document, b"label", path, problems);
@@ -190,9 +194,13 @@ fn template(
         grace: grace.ok()?,
         llm: llm.ok()?,
     };
-    if template.flags.ended_by == tasks::EndedBy::Requester
-        && (!template.flags.conversation || template.executor == TemplateExecutor::Chosen)
-    {
+    if !tasks::shaped(
+        template.flags,
+        match template.executor {
+            TemplateExecutor::Charter(charter) => tasks::Executor::Agent { charter },
+            TemplateExecutor::Chosen => tasks::Executor::Person(tasks::PersonAddress::Person(1)),
+        },
+    ) {
         problems.push(path.member(b"ended_by"), What::Form);
     }
     if template.number == 0 {
@@ -240,6 +248,21 @@ fn resource(document: &Document, at: u32, path: &Path) -> Result<Symbol, What> {
     let symbol = u16::try_from(symbol.ok_or(What::Form)?).or(Err(What::Form))?;
     Ok(Symbol { connector, symbol })
 }
+fn closer(document: &Document, at: u32, path: &Path) -> Result<tasks::Closer, What> {
+    let mut object = read::Object::shaped(document, at, "ended_by").or(Err(What::Form))?;
+    let mut form = Problems::empty();
+    let at = object.required(document, b"closer", path, &mut form).ok_or(What::Form)?;
+    object.finish(document, path, &mut form);
+    let mut object = read::Object::shaped(document, at, "closer").or(Err(What::Form))?;
+    let connector = check::short(&mut object, document, b"connector", path, &mut form);
+    let code = check::count(&mut object, document, b"code", path, &mut form);
+    object.finish(document, path, &mut form);
+    if !form.is_empty() {
+        return Err(What::Form);
+    }
+    Ok(tasks::Closer { connector: connector.ok_or(What::Form)?, code: code.ok_or(What::Form)? })
+}
+
 fn null(document: &Document, at: u32) -> bool {
     match document.token(at) {
         Some(token) => token.kind == Kind::Null,

@@ -652,6 +652,17 @@ pub fn encode_ended_by(value: c::EndedBy, out: &mut Encoder) {
     match value {
         c::EndedBy::Result => out.string(b"result"),
         c::EndedBy::Requester => out.string(b"requester"),
+        c::EndedBy::Closer(closer) => {
+            out.object_start();
+            out.key(b"closer");
+            out.object_start();
+            out.key(b"connector");
+            out.unsigned(u64::from(closer.connector));
+            out.key(b"code");
+            out.unsigned(u64::from(closer.code));
+            out.object_end();
+            out.object_end();
+        }
     }
 }
 pub fn encode_model_effort(value: &c::ModelEffort, out: &mut Encoder) {

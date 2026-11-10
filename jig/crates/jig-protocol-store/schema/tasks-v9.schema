@@ -92,7 +92,8 @@ enum ResultsWake { never, each, last_or_failure }
 record WakePolicy { words: WakeRule notices: WakeRule news: WakeRule results: ResultsWake questions: bool answers: bool timers: bool }
 enum RecurringOverlap { skip, wait }
 enum Retention { kept, forgotten_once_read }
-enum EndedBy { result, requester }
+record Closer { connector: u16 code: u32 }
+enum EndedBy { result, requester, closer: Closer }
 record Flags { conversation: bool listed: bool retention: Retention ended_by: EndedBy }
 record DeadlineSpan { value: duration }
 enum Deadline { named, span: DeadlineSpan }
@@ -347,7 +348,7 @@ record TaskOutcome {
     phase: Phase
     room_wait: option RoomWait
 }
-record TaskRecord { history: TaskHistory run: TaskRun definition: TaskDefinition started_from: list 64 Number interests: TaskInterests outcome: TaskOutcome asked_requester: bool }
+record TaskRecord { closer: option u64 history: TaskHistory run: TaskRun definition: TaskDefinition started_from: list 64 Number interests: TaskInterests outcome: TaskOutcome asked_requester: bool }
 record EndedByParty { party: u64 label: u32 ended_at: u64 task: u64 }
 record EndedByProject { project: u32 label: u32 ended_at: u64 task: u64 }
 enum HoldOwner { party: Person, task: Number }

@@ -386,6 +386,9 @@ impl StockBox {
         member.flags = people::Flags {
             ended_by: match template.flags.ended_by {
                 tasks::EndedBy::Requester => people::EndedBy::Requester,
+                tasks::EndedBy::Closer(closer) => {
+                    people::EndedBy::Closer(people::Closer { connector: closer.connector, code: closer.code })
+                }
                 tasks::EndedBy::Result => people::EndedBy::Result,
             },
             conversation: template.flags.conversation,
@@ -529,7 +532,7 @@ impl StockBox {
         // Complete this activation before the world's cold-restart oracle.
         let end = match assignment.run.ended_by {
             tasks::EndedBy::Requester => tasks::End::Parked,
-            tasks::EndedBy::Result => tasks::End::Finished {
+            tasks::EndedBy::Result | tasks::EndedBy::Closer(_) => tasks::End::Finished {
                 result: tasks::TaskResult::Report { words: b"Done".as_slice().into() },
                 cancel_delegates: false,
             },

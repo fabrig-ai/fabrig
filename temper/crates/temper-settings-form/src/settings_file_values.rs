@@ -1037,7 +1037,14 @@ fn ended_by(d: &Decoder<'_>, at: u32) -> Result<c::EndedBy, Error> {
             _ => Err(error(b"ended_by", b"unknown word")),
         };
     }
-    Err(error(b"ended_by", b"expected word"))
+    let fields = d.object(at, &[b"closer"])?;
+    let closer = d.object(field(&fields, b"closer")?, &[b"connector", b"code"])?;
+    Ok(c::EndedBy::Closer(c::Closer {
+        connector: u16::try_from(d.number(field(&closer, b"connector")?)?)
+            .or(Err(error(b"ended_by.closer.connector", b"integer bound")))?,
+        code: u32::try_from(d.number(field(&closer, b"code")?)?)
+            .or(Err(error(b"ended_by.closer.code", b"integer bound")))?,
+    }))
 }
 fn model_effort(d: &Decoder<'_>, at: u32) -> Result<c::ModelEffort, Error> {
     let fields = d.object(at, &[b"model", b"effort"])?;

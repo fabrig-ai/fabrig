@@ -60,6 +60,10 @@ pub(super) fn flags(value: jig_domain_tasks::Flags, limits: &w::Limits) -> Resul
             ended_by: match value.ended_by {
                 jig_domain_tasks::EndedBy::Result => w::EndedBy::Result,
                 jig_domain_tasks::EndedBy::Requester => w::EndedBy::Requester,
+                jig_domain_tasks::EndedBy::Closer(closer) => w::EndedBy::Closer(w::Closer::new(
+                    limits,
+                    w::CloserParts { connector: closer.connector, code: closer.code },
+                )?),
             },
             conversation: value.conversation,
             listed: value.listed,

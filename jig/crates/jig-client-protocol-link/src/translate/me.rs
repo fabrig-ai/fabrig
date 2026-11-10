@@ -47,6 +47,9 @@ pub(crate) fn template(value: &w::Template, limits: &Limits) -> Result<c::Templa
             ended_by: match value.flags().ended_by() {
                 w::EndedBy::Result => c::EndedBy::Result,
                 w::EndedBy::Requester => c::EndedBy::Requester,
+                w::EndedBy::Closer(closer) => {
+                    c::EndedBy::Closer(c::Closer { connector: closer.connector(), code: closer.code() })
+                }
             },
             conversation: value.flags().conversation(),
             listed: value.flags().listed(),

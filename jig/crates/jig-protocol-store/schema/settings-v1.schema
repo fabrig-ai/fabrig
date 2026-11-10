@@ -70,7 +70,8 @@ record VerdictChoices { choices: list 8 Verdict }
 record Change { connector: u16 kind: u16 words: u32 }
 enum Contract { approval: Approval, report: Report, verdict: VerdictChoices, change: Change }
 enum Retention { kept, forgotten_once_read }
-enum EndedBy { result, requester }
+record Closer { connector: u16 code: u32 }
+enum EndedBy { result, requester, closer: Closer }
 record Flags { conversation: bool listed: bool retention: Retention ended_by: EndedBy }
 record ModelEffort { model: u8 effort: option u8 }
 record LlmLater { main: ModelEffort subagents: list 64 ModelEffort }

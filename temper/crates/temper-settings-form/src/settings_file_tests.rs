@@ -785,3 +785,30 @@ fn inline_proposals_resolve_only_the_projects_repository_identities() {
         }
     }
 }
+
+#[test]
+fn a_templates_closer_reads_and_writes() {
+    let original = joined(&[
+        br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"resources":[],"#,
+        TEMPLATE_PREFIX.strip_prefix(br#"{"items":[{"setting":{"kind":"template","number":4},"set":{"#).unwrap(),
+        SUFFIX,
+    ]);
+    let at = skein_lib::bytes::find(&original, br#""ended_by":"result""#).unwrap();
+    let end = at.checked_add(br#""ended_by":"result""#.len()).unwrap();
+    let bytes = joined(&[
+        original.get(..at).unwrap(),
+        br#""ended_by":{"closer":{"connector":1,"code":6}}"#,
+        original.get(end..).unwrap(),
+    ]);
+    let limits = Limits::standard();
+    let value = template(&bytes, &limits);
+    assert_eq!(value.flags.ended_by, c::EndedBy::Closer(c::Closer { connector: 1, code: 6 }));
+    let setting = c::Setting::Template(c::SettingNumber { number: 4 });
+    let value = c::SettingValue::Template(Box::new(value));
+    let bounds = JsonLimits { depth: 32, length: 8192 };
+    let mut measure = Encoder::measure(&bounds);
+    encode_policy_file(setting, &value, &mut measure);
+    let mut out = Encoder::write(measure.measured().unwrap(), &bounds);
+    encode_policy_file(setting, &value, &mut out);
+    assert_eq!(out.finish(), bytes);
+}

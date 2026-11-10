@@ -81,6 +81,9 @@ fn from_template(world: &World, stock: &core::settings::Defaults, number: u32) -
         retention: people::Retention::Kept,
         ended_by: match template.flags.ended_by {
             tasks::EndedBy::Requester => people::EndedBy::Requester,
+            tasks::EndedBy::Closer(closer) => {
+                people::EndedBy::Closer(people::Closer { connector: closer.connector, code: closer.code })
+            }
             tasks::EndedBy::Result => people::EndedBy::Result,
         },
     };

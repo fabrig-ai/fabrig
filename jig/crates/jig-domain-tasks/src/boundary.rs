@@ -1105,6 +1105,8 @@ pub struct SettingsRevision {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent durable lifecycle facts are explicit")]
 pub struct TaskRecord {
+    /// The live closer's task number (jig/docs/design/domain/tasks.md, 3 and 5.10).
+    pub closer: Option<u64>,
     /// Why this activation runs (jig/docs/design/domain/tasks.md, 8.6).
     pub reasons: crate::Reasons,
     /// The kinds the claimed attempt is offered (jig/docs/design/domain/tasks.md, 8.6).

@@ -1462,6 +1462,7 @@ pub(crate) fn make_admitted(
     for new in batch {
         let number = new.number;
         let task = Task::new(TaskRecord {
+            closer: None,
             reasons: crate::Reasons::FIRST,
             offered: crate::Reasons::ALL,
             asked_requester: false,
