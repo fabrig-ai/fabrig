@@ -18,7 +18,7 @@ fn cases() -> Box<[(Option<HelloRefused>, &'static [u8])]> {
         (Some(agent(A::Turns { charter: 3 }, figures)), b"charter 3: needs 64 turns; the agent's profile.policy.max_turns allows 32"),
         (Some(agent(A::Time { charter: 3 }, figures)), b"charter 3: needs 64 ms of run time; the agent's profile.policy.max_time allows 32 ms"),
         (Some(agent(A::Waiting { charter: 3 }, figures)), b"charter 3: needs 64 ms of waiting; the agent's profile.policy.max_waiting allows 32 ms"),
-        (Some(agent(A::Checks { charter: 3 }, figures)), b"charter 3: needs checks within 64 ms; the agent's profile.policy.check_timeout is 32 ms"),
+        (Some(agent(A::Checks { charter: 3 }, figures)), b"charter 3: needs checks within 64 ms; the agent's profile.policy.check_timeout is 32 ms; raise charter 3's reserve_time (temper help settings) or lower the timeout"),
         (Some(agent(A::Spend, figures)), b"needs a spend allowance of 64; the agent's profile.policy.max_spend allows 32"),
         (Some(agent(A::Message, figures)), b"needs 64-byte messages (tasks.message_bytes); the agent offers 32 (tool_payload less 2)"),
         (Some(agent(A::Inbox, figures)), b"needs an inbox of 64 (tasks.run_inbox); the agent's profile.policy.inbox allows 32"),

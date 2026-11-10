@@ -29,7 +29,7 @@ pub fn turn_body(agent: &Value) -> u32 {
 /// Apply the agent's turn allowance to the engine and workers.
 pub fn apply(document: &mut Value, turn: u32) {
     let turn = u64::from(turn);
-    let resume = turn + 4;
+    let resume = (turn + 4).max(4_194_304);
     let box_bytes = u64::try_from(size_of::<Box<[u8]>>()).expect("turn box slot");
     let window = resume + (box_bytes - 4) * (resume / 4);
     let loaded = turn + u64::try_from(size_of::<temper_engine_domain::Record>()).expect("record slot");

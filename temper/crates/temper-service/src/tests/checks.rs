@@ -585,8 +585,12 @@ fn charter_admission_shortfalls_warn_but_do_not_hide_deployment_refusals() {
     let engine = fixtures::guard_engine().jig;
     let core = config::core(&engine, [7; 16], 7);
     let mut found = Problems::empty();
-    checks::admission(&core, &engine, &agent, &mut found);
-    assert!(found.is_empty(), "charter bounds belong to stored settings: {:?}", found);
+    let warnings = checks::admission(&core, &engine, &agent, &mut found);
+    assert!(found.is_empty(), "charter bounds belong to stored settings: {found:?}");
+    assert_eq!(
+        core::str::from_utf8(&lines(&warnings)).unwrap(),
+        "engine.charters[0].turns: needs 64 turns; the agent's profile.policy.max_turns allows 1\n"
+    );
     agent.bounds.message_bytes = 0;
     checks::admission(&core, &engine, &agent, &mut found);
     assert!(core::str::from_utf8(&lines(&found)).unwrap().contains("messages (tasks.message_bytes)"));
@@ -602,7 +606,7 @@ fn admission_names_global_and_time_requirements_with_their_units() {
             100,
             8,
             8,
-            "charter 1.time_ms: needs 3600000 ms of run time; the agent's profile.policy.max_time allows 119999 ms\n",
+            "engine.charters[0].time_ms: needs 3600000 ms of run time; the agent's profile.policy.max_time allows 119999 ms\n",
         ),
         (
             28_800_000,
@@ -610,7 +614,7 @@ fn admission_names_global_and_time_requirements_with_their_units() {
             256,
             8,
             8,
-            "charter 1.waiting_ms: needs 10000 ms of waiting; the agent's profile.policy.max_waiting allows 9999 ms\n",
+            "engine.charters[0].waiting_ms: needs 10000 ms of waiting; the agent's profile.policy.max_waiting allows 9999 ms\n",
         ),
         (
             28_800_000,
@@ -618,7 +622,7 @@ fn admission_names_global_and_time_requirements_with_their_units() {
             9,
             8,
             8,
-            "rules.maximum_run_spend: needs a spend allowance of 256; the agent's profile.policy.max_spend allows 9\n",
+            "engine.rules.maximum_run_spend: needs a spend allowance of 256; the agent's profile.policy.max_spend allows 9\n",
         ),
         (
             28_800_000,
@@ -646,8 +650,32 @@ fn admission_names_global_and_time_requirements_with_their_units() {
         let engine = fixtures::guard_engine().jig;
         let core = config::core(&engine, [7; 16], 7);
         let mut found = Problems::empty();
-        checks::admission(&core, &engine, &agent, &mut found);
-        assert_eq!(&*lines(&found), expected.as_bytes());
+        let warnings = checks::admission(&core, &engine, &agent, &mut found);
+        let (reported, empty) =
+            if expected.starts_with("engine.limits") { (&found, &warnings) } else { (&warnings, &found) };
+        assert!(empty.is_empty(), "{empty:?}");
+        assert_eq!(&*lines(reported), expected.as_bytes());
+    }
+}
+
+#[test]
+fn missing_and_small_charter_models_warn_at_their_configuration_path() {
+    for (window, output, expected) in [
+        (None, 8192, "engine.charters[0].model: not in the agent's configuration under the same name\n"),
+        (Some(1), 8192, "engine.charters[0].model: needs a context window of 8192 tokens; the agent offers 1 tokens\n"),
+        (Some(1_048_576), 1, "engine.charters[0].model: needs 1024 output tokens; the agent offers 1 tokens\n"),
+    ] {
+        let mut agent = fixtures::startup_agent();
+        agent.bounds.endpoints = match window {
+            None => Box::new([]),
+            Some(window) => Box::new([jig_domain_link::EndpointBound { endpoint: 1, window, output }]),
+        };
+        let engine = fixtures::guard_engine().jig;
+        let core = config::core(&engine, [7; 16], 7);
+        let mut found = Problems::empty();
+        let warnings = checks::admission(&core, &engine, &agent, &mut found);
+        assert!(found.is_empty(), "{found:?}");
+        assert!(core::str::from_utf8(&lines(&warnings)).unwrap().starts_with(expected));
     }
 }
 

@@ -768,66 +768,83 @@ pub fn agent(engine: &config::Engine, agent: &settings::Agent, problems: &mut Pr
             }
         }
     }
-    for (index, charter) in engine.charters.iter().enumerate() {
-        let path = charter_path(engine, index);
-        let Some(charter) =
-            jig_domain_core::settings::charters::resolved(charter, &engine.llm.models, &engine.limits.core)
-        else {
-            continue;
-        };
-        model(&charter.policy.model, agent.bounds(), path.member(b"model"), problems);
-        for (index, alternative) in charter.policy.alternatives.iter().enumerate() {
-            model(alternative, agent.bounds(), at(index, path.member(b"alternatives")), problems);
-        }
-    }
 }
-fn model(model: &jig_domain_core::Model, bounds: &jig_domain_link::Bounds, path: Path, problems: &mut Problems) {
-    let mut found = false;
-    for bound in &bounds.endpoints {
-        found |= bound.endpoint == model.endpoint && bound.window >= model.window && bound.output >= model.output;
-    }
-    if !found {
-        problems.push(path, What::Agent);
-    }
-}
-/// Report the fleet's selected admission failure; amounts only project that decision.
+/// Charter settings warn; deployment receiving bounds still refuse
+/// (temper/docs/design/protocol/configuration.md, 4).
 pub fn admission(
     core: &jig_domain_core::Config,
     engine: &config::Engine,
     agent: &settings::Agent,
     problems: &mut Problems,
-) {
+) -> Problems {
     use fleet::AgentShortfall;
     let needs = jig_domain_core::settings::fleet_needs::configured(core, &engine.limits.core);
-    let bounds = agent.bounds().clone();
-    let Some(why) = fleet::shortfall(&needs, &bounds, fleet::HostKind::Worker) else { return };
+    let bounds = agent.bounds();
+    let mut warnings = Problems::empty();
+    for charter in &needs.charters {
+        if !charter.kinds.allows(fleet::HostKind::Worker) {
+            continue;
+        }
+        for (model, need) in charter.models.iter().enumerate() {
+            let mut found = false;
+            for bound in &bounds.endpoints {
+                found |= bound.endpoint == need.endpoint;
+            }
+            if !found {
+                warnings.push(
+                    model_path(
+                        charter_index(engine, charter.version.charter),
+                        u32::try_from(model).expect("configured model"),
+                    ),
+                    What::Agent,
+                );
+            }
+        }
+    }
+    // A charter warning must not mask a deployment's receiving shortfall.
+    for (why, offered, required) in [
+        (AgentShortfall::Message, bounds.message_bytes, needs.message_bytes),
+        (AgentShortfall::Inbox, bounds.inbox, needs.start_messages),
+        (AgentShortfall::Unacknowledged, bounds.unacknowledged, needs.unacknowledged),
+    ] {
+        if offered < required {
+            problems.push(
+                Path::root().member(b"engine").member(b"limits"),
+                What::Admission { why, offered: u64::from(offered), required: u64::from(required) },
+            );
+            break;
+        }
+    }
+    let Some(why) = fleet::shortfall(&needs, bounds, fleet::HostKind::Worker) else { return warnings };
     let engine_path = Path::root().member(b"engine");
     let path = match why {
         AgentShortfall::Model { charter, model } => {
-            problems.push(model_path(engine, charter_index(engine, charter), model), What::Agent);
-            return;
+            warnings.push(model_path(charter_index(engine, charter), model), What::Agent);
+            return warnings;
         }
         AgentShortfall::Window { charter, model } | AgentShortfall::Output { charter, model } => {
-            model_path(engine, charter_index(engine, charter), model)
+            model_path(charter_index(engine, charter), model)
         }
-        AgentShortfall::Turns { charter } => charter_path(engine, charter_index(engine, charter)).member(b"turns"),
-        AgentShortfall::Time { charter } => charter_path(engine, charter_index(engine, charter)).member(b"time_ms"),
+        AgentShortfall::Turns { charter } => admission_charter_path(charter_index(engine, charter)).member(b"turns"),
+        AgentShortfall::Time { charter } => admission_charter_path(charter_index(engine, charter)).member(b"time_ms"),
         AgentShortfall::Waiting { charter } => {
-            charter_path(engine, charter_index(engine, charter)).member(b"waiting_ms")
+            admission_charter_path(charter_index(engine, charter)).member(b"waiting_ms")
         }
         AgentShortfall::Checks { charter } => {
-            charter_path(engine, charter_index(engine, charter)).member(b"reserve_time_ms")
+            admission_charter_path(charter_index(engine, charter)).member(b"reserve_time_ms")
         }
-        AgentShortfall::Spend => Path::root().member(b"rules").member(b"maximum_run_spend"),
-        AgentShortfall::Message | AgentShortfall::Inbox | AgentShortfall::Unacknowledged => {
-            engine_path.member(b"limits")
-        }
+        AgentShortfall::Spend => engine_path.member(b"rules").member(b"maximum_run_spend"),
+        AgentShortfall::Message | AgentShortfall::Inbox | AgentShortfall::Unacknowledged => return warnings,
     };
-    let figures = fleet::figures(&needs, &bounds, fleet::HostKind::Worker, why).expect("selected numerical shortfall");
-    problems.push(path, What::Admission { why, offered: figures.offered, required: figures.required });
+    let figures = fleet::figures(&needs, bounds, fleet::HostKind::Worker, why).expect("selected numerical shortfall");
+    warnings.push(path, What::Admission { why, offered: figures.offered, required: figures.required });
+    warnings
 }
-fn model_path(engine: &config::Engine, index: usize, model: u32) -> Path {
-    let path = charter_path(engine, index);
+fn admission_charter_path(index: usize) -> Path {
+    at(index, Path::root().member(b"engine").member(b"charters"))
+}
+fn model_path(index: usize, model: u32) -> Path {
+    let path = admission_charter_path(index);
     match model.checked_sub(1) {
         None => path.member(b"model"),
         Some(alternative) => {

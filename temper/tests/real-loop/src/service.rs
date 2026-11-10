@@ -52,6 +52,7 @@ pub struct ServiceHost {
     pub(crate) workers_address: Option<SocketAddr>,
     pub(crate) notes: Vec<temper_service::Note>,
     pub(crate) runs: crate::cluster::Runs,
+    pub(crate) tries: std::collections::BTreeMap<u64, jig_domain_tasks::Tries>,
     started_at: Option<Time>,
     pub(crate) service: Option<temper_service::Service>,
     pub(crate) address: Option<SocketAddr>,
@@ -142,8 +143,10 @@ impl ServiceHost {
         let config = std::fs::read(roots.document()).expect("standalone document");
         let operations =
             temper::operations_in_with(&roots, &config, &fixtures::given(&path)).expect("standalone operation count");
-        let restartable = matches!(cluster, Some(crate::cluster::Shape::Worker { .. }));
+        let restartable = cluster.is_some();
         let queued = if restartable { operations } else { 1 };
+        let records_seeded =
+            matches!(cluster, Some(crate::cluster::Shape::Worker { .. })) || fixture.is_none() && github.is_none();
         Self {
             pending_streak: crate::patience::PendingStreak::default(),
             restartable,
@@ -160,6 +163,7 @@ impl ServiceHost {
             workers_address: None,
             notes: Vec::new(),
             runs: crate::cluster::Runs::default(),
+            tries: std::collections::BTreeMap::new(),
             started_at: None,
             service: None,
             address: None,
@@ -171,7 +175,7 @@ impl ServiceHost {
             blob_address: None,
             fixture,
             github,
-            records_seeded: restartable || fixture.is_none() && github.is_none(),
+            records_seeded,
             clients,
             clients_listener,
             github_seen: crate::github::Seen::default(),
@@ -244,7 +248,7 @@ impl ServiceHost {
     pub(crate) fn stop_for_restart(&mut self) {
         assert!(
             self.restartable && self.state == LifeState::First && !self.is_empty(),
-            "stop the first live worker service"
+            "stop the first live cluster service"
         );
         self.state = LifeState::Stopping;
     }
@@ -255,7 +259,7 @@ impl ServiceHost {
             && self.service.as_ref().is_some_and(temper_service::Service::is_empty)
     }
     pub(crate) fn restart(&mut self) {
-        assert!(self.state == LifeState::Stopping && self.settled(), "restart a settled worker");
+        assert!(self.state == LifeState::Stopping && self.settled(), "restart a settled cluster service");
         // The referee requests only; dropping and preparing stay in this host's iteration.
         self.state = LifeState::Restarting;
     }
@@ -376,6 +380,11 @@ impl ServiceHost {
     pub fn ran(&self) -> &[u64] {
         &self.runs.tasks
     }
+    /// Assignments decoded at the worker's own wire, retained across lives.
+    #[must_use]
+    pub fn assignments(&self) -> &[jig_protocol_worker_wire::Assignment] {
+        &self.runs.assignments
+    }
     /// Worker openings retained from the shipped service's diagnostics.
     #[must_use]
     pub fn linked(&self) -> usize {
@@ -416,6 +425,37 @@ impl ServiceHost {
     pub(crate) fn delivered(&self) -> bool {
         self.watch.delivered
     }
+}
+
+fn record_tries(
+    tries: &mut std::collections::BTreeMap<u64, jig_domain_tasks::Tries>,
+    service: &temper_service::Service,
+) {
+    if let Some(engine) = service.engine_domain() {
+        for row in &engine.tasks().view_tasks() {
+            let task = engine.tasks().task(row.number).expect("view task");
+            let seen = tries.entry(row.number).or_insert(jig_domain_tasks::Tries::NONE);
+            seen.transient = seen.transient.max(task.tries.transient);
+            seen.permanent = seen.permanent.max(task.tries.permanent);
+            seen.run = seen.run.max(task.tries.run);
+            seen.agent = seen.agent.max(task.tries.agent);
+            seen.lost = seen.lost.max(task.tries.lost);
+            seen.invalid = seen.invalid.max(task.tries.invalid);
+        }
+    }
+}
+
+fn retain_listener(data: &std::path::Path, listener: temper_service::Listening, addr: SocketAddr) {
+    let path = ServiceHost::directories(data, true).document();
+    let mut document: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).expect("engine document")).expect("engine JSON");
+    let socket = serde_json::json!({"socket":addr.to_string()});
+    match listener {
+        temper_service::Listening::Workers => document["engine"]["hosts"]["listener"] = serde_json::json!([socket]),
+        temper_service::Listening::Clients => document["application"]["clients"]["listener"] = socket,
+        temper_service::Listening::Webhooks => document["application"]["webhooks"]["listener"] = socket,
+    }
+    fixtures::private(&path, &serde_json::to_vec(&document).expect("engine JSON")).expect("retained engine address");
 }
 
 fn configure_job_logs(service: &mut temper_service::Service, api: SocketAddr, blob: SocketAddr) {
@@ -508,8 +548,12 @@ impl Host for ServiceHost {
                 }
             }
             temper_service::iterate(service, now, wall);
+            record_tries(&mut self.tries, service);
             while let Some(note) = service.listening().pop() {
                 if let temper_service::Note::Listening { listener, addr } = note {
+                    if self.records_seeded && matches!(self.cluster, Some(crate::cluster::Shape::Engine { .. })) {
+                        retain_listener(&self.path, listener, addr);
+                    }
                     match listener {
                         temper_service::Listening::Workers => {
                             if self.records_seeded {
@@ -546,7 +590,7 @@ impl Host for ServiceHost {
                 self.link.push(b'\n');
                 fixtures::private(&self.path.join("link"), &self.link).expect("private printed link");
             }
-            if service.is_empty() && self.records_seeded {
+            if service.is_empty() && self.records_seeded && self.state != LifeState::Stopping {
                 self.forge = None;
                 self.clients_listener = None;
             }

@@ -149,6 +149,7 @@ impl Host for Kind {
                 && std::mem::take(&mut llm.cue)
             {
                 llm.peer.release(crate::cluster::PLACED).expect("placement hold");
+                llm.placement_released = true;
             }
             if let Self::Llm(llm) = self
                 && let Some(name) = llm.release.take()
@@ -266,6 +267,8 @@ fn run_with_issuer(
             recipe: None,
             rules: None,
             cue: false,
+            placement_released: false,
+            holds: Vec::new(),
             release: None,
             released: None,
         })))
@@ -327,6 +330,8 @@ pub(crate) struct Llm {
     recipe: Option<crate::ForgeRecipe>,
     rules: Option<Rules>,
     cue: bool,
+    placement_released: bool,
+    holds: Vec<Box<[u8]>>,
     pub(crate) release: Option<&'static [u8]>,
     pub(crate) released: Option<&'static [u8]>,
 }
@@ -409,6 +414,8 @@ pub(crate) fn run_forge(
             recipe,
             rules,
             cue: false,
+            placement_released: false,
+            holds: Vec::new(),
             release: None,
             released: None,
         })))
@@ -454,6 +461,8 @@ pub(crate) fn run_github(
             recipe: None,
             rules: None,
             cue: false,
+            placement_released: false,
+            holds: Vec::new(),
             release: None,
             released: None,
         })))
@@ -817,9 +826,27 @@ impl Referee<Proc> for Judge {
                 *engine = service.workers_address;
             }
         }
+        if caller.stopping_engine() {
+            if !service.stopping() {
+                service.stop_for_restart();
+                self.controls.signal(engine_index, ServiceSignal::Terminate);
+            }
+            caller.engine_ready.set(service.settled());
+        }
+        if caller.starting_engine() {
+            if service.stopping() {
+                service.restart();
+            }
+            caller.engine_ready.set(service.links() > 1 && story_ready(service, workers));
+        }
+        if let Some(name) = caller.cancelled_worker() {
+            let position = worker_position(workers, name).expect("configured worker");
+            let Kind::Service(worker) = &workers[position].kind else { panic!("worker root") };
+            caller.contact_cancelled.set(contact_cancelled(worker));
+        }
         self.worker_actions(caller_end, caller, workers);
         peer.release_hold(caller);
-        if placed(workers) && !self.lifecycle.finished {
+        if placed(workers) && !peer.placement_released && !self.lifecycle.finished {
             peer.cue = true;
         }
         if !self.armed {
@@ -934,7 +961,15 @@ impl Referee<Proc> for Judge {
                 line.as_ref() == b"temper open: the link was refused: use the fresh link temper serve printed\n"
             }));
         }
-        caller.held.set(service.held_at(caller.held_index()));
+        let queries = peer.observations().iter().filter(|event| matches!(event, Query { .. })).count();
+        caller.llm_queries.set(queries);
+        caller.held.set(
+            service.held_at(caller.held_index())
+                || !workers.is_empty()
+                    && caller.held_name().is_some_and(|name| peer.holds.iter().any(|hold| hold.as_ref() == name))
+                    && queries > caller.held_queries.get()
+                    && pending_llm(peer.observations()),
+        );
         caller.links.set(service.links());
         let lock_changed = self.children.lock_changed(children, caller);
         let forge_changed = self.forge.as_ref().is_some_and(|state| {
@@ -950,7 +985,7 @@ impl Referee<Proc> for Judge {
                     && (!forge.observations().is_empty() || !service.seen.responses().is_empty()))
         });
         let pending = self.llm_history.observe(peer.observations());
-        let placing = placed(workers) && pending > 0;
+        let placing = placed(workers) && pending > 0 && !peer.placement_released;
         let named_worker = |name| {
             worker_position(workers, name).map(|position| {
                 let Kind::Service(worker) = &workers[position].kind else { panic!("worker root") };
@@ -966,7 +1001,14 @@ impl Referee<Proc> for Judge {
                     || worker.linked() > worker.lives().iter().map(|life| life.linked).sum()
                         && !caller.worker_ready.get()
             });
-        if worker_action || caller.adding_worker().and_then(named_worker).is_some_and(|worker| {
+        let engine_action = caller.stopping_engine()
+            && (!service.stopping() || service.settled() && !caller.engine_ready.get())
+            || caller.starting_engine() && (service.stopping() || service.links() > 1 && !caller.engine_ready.get())
+            || caller
+                .cancelled_worker()
+                .and_then(named_worker)
+                .is_some_and(|worker| contact_cancelled(worker) && !caller.contact_cancelled.get());
+        if engine_action || worker_action || caller.adding_worker().and_then(named_worker).is_some_and(|worker| {
             !worker_started(worker) || worker.linked() > 0 && !caller.added.get()
         })
             || (caller.releasing_hold().is_some() && !caller.hold_released.get() && peer.release.is_none())
@@ -1085,13 +1127,14 @@ fn github_cues(
 
 pub(crate) fn run_cluster(
     workers: &[&'static str],
+    grace: skein_lib::Duration,
     scratch: &[skein_scratch::Scratch],
     recipe: impl FnOnce() -> llm::Recipe,
     steps: impl FnOnce() -> Vec<crate::calls::Step>,
 ) -> CheckedOutcome<Proc> {
     let patience = crate::PATIENCE;
     let mut world = World::new_controlled_checked(|controls| cluster_judge(controls, workers, None, patience));
-    cluster_roots(&mut world, workers, &[], scratch, recipe, None, steps);
+    cluster_roots(&mut world, workers, &[], grace, scratch, recipe, None, steps);
     world.run(&skein_shell::Clock::new(), patience)
 }
 
@@ -1111,6 +1154,7 @@ pub(crate) fn run_cluster_forge(
         &mut world,
         workers,
         late,
+        skein_lib::Duration::from_millis(10),
         scratch,
         || llm::scripted(Box::new([])),
         Some((fixture, scripts, rules)),
@@ -1146,10 +1190,15 @@ fn cluster_judge(
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "cluster roots share the story's worker grace alongside its peers and scripts"
+)]
 fn cluster_roots<R: Referee<Proc>>(
     world: &mut World<Proc, R>,
     workers: &[&'static str],
     late: &[&str],
+    grace: skein_lib::Duration,
     scratch: &[skein_scratch::Scratch],
     recipe: impl FnOnce() -> llm::Recipe,
     forge: Option<(forge::Fixture, Scripts, Rules)>,
@@ -1157,14 +1206,18 @@ fn cluster_roots<R: Referee<Proc>>(
 ) {
     let (engine, worker_scratch) = scratch.split_first().expect("engine scratch");
     world.spawn(|| {
+        let recipe = recipe();
+        let holds = script_holds(&recipe);
         Proc::new(Kind::Llm(Box::new(Llm {
             pending_streak: crate::patience::PendingStreak::default(),
-            peer: llm::peer(recipe()).expect("cluster LLM"),
+            peer: llm::peer(recipe).expect("cluster LLM"),
             scripts: forge.map(|(_, scripts, _)| scripts),
             groups: None,
             recipe: None,
             rules: forge.map(|(_, _, rules)| rules),
             cue: false,
+            placement_released: false,
+            holds,
             release: None,
             released: None,
         })))
@@ -1173,7 +1226,7 @@ fn cluster_roots<R: Referee<Proc>>(
         Proc::new(Kind::Service(Box::new(ServiceHost::cluster(
             engine.path(),
             signals,
-            crate::cluster::Shape::Engine(workers.to_vec()),
+            crate::cluster::Shape::Engine { workers: workers.to_vec(), grace },
             forge.map(|(fixture, _, _)| fixture),
         ))))
     });
@@ -1183,7 +1236,7 @@ fn cluster_roots<R: Referee<Proc>>(
             Proc::new(Kind::Service(Box::new(ServiceHost::cluster(
                 scratch.path(),
                 signals,
-                crate::cluster::Shape::Worker { name, engine: None, started: !late.contains(name) },
+                crate::cluster::Shape::Worker { name, engine: None, started: !late.contains(name), grace },
                 forge.map(|(fixture, _, _)| fixture),
             ))))
         });
@@ -1196,6 +1249,45 @@ fn cluster_roots<R: Referee<Proc>>(
 fn worker_position(workers: &[Proc], name: &str) -> Option<usize> {
     workers.iter().position(|proc| matches!(&proc.kind, Kind::Service(worker)
         if matches!(worker.cluster, Some(crate::cluster::Shape::Worker { name: worker_name, .. }) if worker_name == name)))
+}
+
+fn script_holds(recipe: &llm::Recipe) -> Vec<Box<[u8]>> {
+    let mut names = Vec::new();
+    for script in recipe.domain.scripts() {
+        for turn in &script.turns {
+            for line in &turn.lines {
+                if let skein_fake_llm_domain::api::Line::Pieces { pieces } = line {
+                    names.extend(pieces.iter().filter_map(|piece| piece.hold.clone()));
+                }
+            }
+        }
+    }
+    names
+}
+
+fn pending_llm(observations: &[skein_fake_peers::llm::Observation]) -> bool {
+    observations.iter().filter(|event| matches!(event, Query { .. })).count()
+        > observations.iter().filter(|event| matches!(event, Answered { .. })).count()
+}
+
+fn contact_cancelled(worker: &ServiceHost) -> bool {
+    let Some(domain) = worker.service.as_ref().and_then(temper_service::Service::worker_domain) else { return false };
+    let hub = domain.host();
+    (0..hub.kept_answers()).any(|index| {
+        matches!(
+            hub.answer_at(index),
+            Some(jig_domain_host::LinkUp::Answer {
+                answer: jig_domain_host::RunAnswer {
+                    ending: jig_domain_host::Ending::Failed {
+                        failure: jig_domain_host::Failure::Cancelled(jig_domain_host::Reason::Contact),
+                        ..
+                    },
+                    ..
+                },
+                ..
+            })
+        )
+    })
 }
 
 fn worker_started(worker: &ServiceHost) -> bool {

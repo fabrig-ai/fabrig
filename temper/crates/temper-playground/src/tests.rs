@@ -7,6 +7,7 @@ use crate::{documents, fakes};
 fn the_deployment_document_is_one_temper_serve_starts() {
     let bytes = documents::document();
     let value = documents::world_document();
+    assert!(value["engine"]["limits"]["overrides"]["core.resume_bytes"].as_u64().unwrap() >= 4_194_304);
     assert_eq!(
         value["engine"]["limits"]["overrides"]["io.output"],
         value["workers"][0]["limits"]["overrides"]["io.output"]
@@ -104,7 +105,9 @@ fn the_owned_values_equal_the_test_kits_values() {
         source["engine"]["limits"]["overrides"].as_object_mut().expect("engine overrides").remove(name);
     }
     assert_eq!(owned, source);
-    assert_eq!(documents::WORKER_DOCUMENT, channel::WORKER_DOCUMENT);
+    let mut worker: serde_json::Value = serde_json::from_slice(channel::WORKER_DOCUMENT).expect("kit worker JSON");
+    worker["workers"][0]["graces"]["grace_ms"] = 60_000.into();
+    assert_eq!(serde_json::from_slice::<serde_json::Value>(documents::WORKER_DOCUMENT).expect("worker JSON"), worker);
 
     let mut profile = smith_agent_process_world::profile();
     profile.policy.host_tools =

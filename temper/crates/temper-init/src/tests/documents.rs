@@ -20,11 +20,27 @@ fn written_workers_outlast_an_engine_restart_below_the_fleet_grace() {
             "standard" => jig_protocol_config::Profile::Standard,
             other => panic!("unknown profile {other}"),
         });
-        let grace = limits["overrides"]["fleet.grace_ms"].as_u64().unwrap_or(profile.core.fleet.grace.as_nanos() / 1_000_000);
+        let grace = limits["overrides"]["fleet.grace_ms"].as_u64().unwrap_or(profile.core.fleet.grace.as_millis());
+        let engine = &limits["overrides"];
+        let turn = engine["hub.turn_bytes"].as_u64().unwrap();
+        let resume = (turn + 4).max(4_194_304);
+        let window = resume + (u64::try_from(size_of::<Box<[u8]>>()).unwrap() - 4) * (resume / 4);
+        assert_eq!(engine["core.resume_bytes"], resume);
+        assert_eq!(engine["hub.transcript_bytes"], window);
+        assert_eq!(document["application"]["limits"]["overrides"]["root.journal.transcript_bytes"], resume);
         for worker in document["workers"].as_array().unwrap() {
-            assert_eq!(worker["graces"], json!({"grace_ms":60000,"agent_stop_ms":5000,"delivery_ms":1000,"save_ms":1000}));
-            let stop = 5_000 + 15_000 + worker["graces"]["grace_ms"].as_u64().unwrap()
-                + worker["graces"]["agent_stop_ms"].as_u64().unwrap().max(worker["graces"]["delivery_ms"].as_u64().unwrap())
+            assert_eq!(
+                worker["graces"],
+                json!({"grace_ms":60_000_u64,"agent_stop_ms":5_000_u64,"delivery_ms":1_000_u64,"save_ms":1_000_u64})
+            );
+            assert_eq!(worker["limits"]["overrides"]["hub.transcript_bytes"], window);
+            let stop = profile.link.ping.as_millis()
+                + profile.link.silence.as_millis()
+                + worker["graces"]["grace_ms"].as_u64().unwrap()
+                + worker["graces"]["agent_stop_ms"]
+                    .as_u64()
+                    .unwrap()
+                    .max(worker["graces"]["delivery_ms"].as_u64().unwrap())
                 + worker["graces"]["save_ms"].as_u64().unwrap();
             assert_eq!(stop, 86_000);
             assert!(stop < grace);
@@ -173,6 +189,7 @@ fn the_default_keeps_the_owned_structure_with_stock_models() {
             "{row}"
         );
         let mut expected = owned.clone();
+        expected["workers"][0]["graces"]["grace_ms"] = json!(60_000_u64);
         expected["engine"]["acts"] =
             json!([{ "connector": 1_u16, "may": ["remove_project", "remove_account", "adopt"] }]);
         assert!(!actual["engine"]["owners"].as_array().unwrap().is_empty());
