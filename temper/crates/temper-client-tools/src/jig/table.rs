@@ -10,6 +10,8 @@ pub struct Limits {
     pub ask_bytes: u64,
     pub result_bytes: u64,
     pub text: u32,
+    /// Most bytes of an act's words and a model's or effort's name, checked before sending (client/tools.md, 12).
+    pub words: u32,
     pub part: u32,
     pub wait: Duration,
     pub wait_most: Duration,

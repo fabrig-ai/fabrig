@@ -1241,7 +1241,7 @@ pub fn limits(v: &crate::jig::Limits) -> settings_form::Limits {
         kinds: settings_form::Limits::standard().kinds,
         ask_bytes: v.ask_bytes,
         result_bytes: v.result_bytes,
-        text: v.text,
+        text: v.words,
         rows: 32,
         // Eighteen executor places size each receiving authority list.
         authority: 18,

@@ -42,18 +42,64 @@ fn a_page_turn_that_fits_prints_whole() {
 #[test]
 fn a_turn_part_is_cut_with_its_continuation() {
     let printed = fixtures::read_answer(fixtures::TURN_CALL, fixtures::turn_text(fixtures::LONG_PART));
-    assert_eq!(printed.stdout, fixtures::golden("turn_part"));
+    fixtures::check_golden("turn_part", &printed.stdout);
 }
 #[test]
 fn a_turn_part_at_the_bound_is_complete() {
     let printed = fixtures::read_answer(fixtures::TURN_CALL, fixtures::turn_text(fixtures::PART_SIZE));
-    assert_eq!(printed.stdout, fixtures::golden("turn_part_complete"));
+    fixtures::check_golden("turn_part_complete", &printed.stdout);
 }
 #[test]
 fn a_turn_continuation_starts_at_its_byte_offset() {
     let printed = fixtures::read_answer(fixtures::TURN_NEXT_CALL, fixtures::turn_text(fixtures::LONG_PART));
-    assert_eq!(printed.stdout, fixtures::golden("turn_part_next"));
+    fixtures::check_golden("turn_part_next", &printed.stdout);
 }
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the step table inspects rendered UTF-8 lines")]
+fn a_part_read_says_its_cut_first() {
+    let mut failures = skein_lib::List::with_capacity(5); // Five part/control rows (tools.md, 11.1).
+    for (argv, turn, first, last, uncut) in [
+        (
+            fixtures::TURN_PART_CALL,
+            fixtures::turn_text(fixtures::LONG_PART),
+            "part 1 page 1 of 2 holds 65536 bytes; 1 bytes left; read on with: task turn 41 3.7 --part 1 --from 65536",
+            Some("1 bytes left; read on with: task turn 41 3.7 --part 1 --from 65536"),
+            false,
+        ),
+        (
+            fixtures::TURN_NEXT_CALL,
+            fixtures::turn_text(fixtures::LONG_PART),
+            "part 1 page 2 of 2 holds 1 bytes; no more",
+            Some("no more"),
+            false,
+        ),
+        (fixtures::TURN_PART_CALL, fixtures::turn_text(fixtures::PART_SIZE), "turn 3.7", None, true),
+        (
+            fixtures::TURN_OUTCOME_CALL,
+            fixtures::turn_call(None),
+            "part 2 page 2 of 2 holds 3 bytes; no more",
+            Some("no more"),
+            false,
+        ),
+        (fixtures::TURN_CALL, fixtures::turn_text(fixtures::LONG_PART), "turn 3.7", None, true),
+    ] {
+        let printed = fixtures::read_answer(argv, turn);
+        let stdout = core::str::from_utf8(&printed.stdout).unwrap();
+        let last_matches = match last {
+            Some(line) => stdout.lines().last() == Some(line),
+            None => true,
+        };
+        let correct = printed.status == 0
+            && stdout.lines().next() == Some(first)
+            && last_matches
+            && (!uncut || !stdout.contains(" page "));
+        if !correct {
+            failures.push((argv, Box::<str>::from(stdout.lines().next().unwrap_or("")))).unwrap();
+        }
+    }
+    assert!(failures.is_empty(), "cut part positions: {failures:?}");
+}
+
 #[test]
 fn client_document_limits_exit_1() {
     for readout in [Readout::Limit, Readout::Jig(ReadResult::None(ReadNone::TooLarge { bytes: fixtures::TOO_LARGE }))] {
@@ -86,12 +132,12 @@ fn a_turn_prints_its_supplied_blocks() {
 #[test]
 fn a_path_is_never_cut() {
     let printed = fixtures::read_answer(fixtures::TURN_CALL, fixtures::turn_call(Some(fixtures::long_path())));
-    assert_eq!(printed.stdout, fixtures::golden("turn_path"));
+    fixtures::check_golden("turn_path", &printed.stdout);
 }
 #[test]
 fn a_json_turn_part_carries_its_continuation() {
     let printed = fixtures::read_answer(fixtures::TURN_JSON_CALL, fixtures::turn_text(fixtures::LONG_PART));
-    assert_eq!(printed.stdout, fixtures::golden("turn_part_json"));
+    fixtures::check_golden("turn_part_json", &printed.stdout);
 }
 
 #[test]
@@ -108,16 +154,16 @@ fn a_document_sized_turn_prints_escaped_tool_names_with_the_shipped_limits() {
     use skein_lib::List;
 
     // Leave 256 bytes per call for its source framing. Each retained tool
-    // name fits TEXT; together their six-byte NUL escapes pass ask_bytes.
-    let tool_bytes = limits::TEXT.checked_sub(256).expect("room for call framing");
+    // name fits CLIENT_TEXT; together their six-byte NUL escapes pass ask_bytes.
+    let tool_bytes = limits::CLIENT_TEXT.checked_sub(256).expect("room for call framing");
     let mut blocks = List::with_capacity(limits::ROWS);
     for number in 0..limits::ROWS {
         blocks
             .push(c::Block::Call(c::Call {
                 number: u64::from(number),
-                tool: c::Text::new(fixtures::maximally_escaped_json_text(tool_bytes), limits::TEXT)
+                tool: c::Text::new(fixtures::maximally_escaped_json_text(tool_bytes), limits::CLIENT_TEXT)
                     .expect("tool within shipped text bound"),
-                input: c::Text::new(Box::default(), limits::TEXT).expect("empty input"),
+                input: c::Text::new(Box::default(), limits::CLIENT_TEXT).expect("empty input"),
                 outcome: None,
                 failed: false,
                 objects: List::with_capacity(0),

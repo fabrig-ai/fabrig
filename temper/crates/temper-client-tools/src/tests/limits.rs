@@ -6,17 +6,31 @@ fn each_ceiling_is_within_the_client_limit_it_reads_from() {
     assert_eq!(client.authority, 18);
     assert_eq!(client.delegates, 80);
     assert_eq!(limits::ROWS, client.rows, "a page's rows are the client's rows per window");
-    assert_eq!(limits::TEXT, client.text, "a result's text is the client's text");
+    assert_eq!(limits::PART, 65_536, "a page holds 64 KiB");
+    assert_eq!(client.text, limits::CLIENT_TEXT, "the client's text keeps its own bound");
+    assert_eq!(client.turn_text, limits::CLIENT_TEXT, "the client's turn text keeps its own bound");
+    assert!(client.text <= limits::TEXT, "the client's text fits a result's text");
+    assert_eq!(limits::tools().words, client.text, "an act's words use the client's text bound");
+    assert_eq!(
+        crate::jig::form_limits(&limits::tools()).text,
+        limits::CLIENT_TEXT,
+        "the settings form keeps the client's text"
+    );
     assert!(u64::from(limits::TEXT) <= client.document_bytes, "a result's text fits one document");
-    assert!(limits::PART <= limits::TEXT && limits::PART <= client.turn_bytes, "a part fits the text and a turn");
+    assert!(limits::PART <= client.turn_bytes, "a page fits a turn");
+    assert_eq!(
+        crate::jig::render::task_source::capacity(&limits::tools()),
+        usize::try_from(limits::PART).expect("page fits usize"),
+        "a task text page holds a whole page"
+    );
     assert!(limits::WAIT <= limits::WAIT_MOST && limits::LOCK_TRY <= limits::LOCK, "each default within its most");
 }
 #[test]
 fn the_tools_preset_covers_deployments_with_its_windows_and_retries() {
     let mut terminal = temper_client_shell_terminal::limits::native().client;
     terminal.client.domain.rows = limits::ROWS;
-    terminal.client.domain.text = limits::TEXT;
-    terminal.client.domain.turn_text = limits::TEXT;
+    terminal.client.domain.text = limits::CLIENT_TEXT;
+    terminal.client.domain.turn_text = limits::CLIENT_TEXT;
     terminal.client.domain.requests.most = skein_lib::Duration::from_secs(2);
     terminal.client.domain.backoff.most = skein_lib::Duration::from_secs(2);
     assert_eq!(limits::client(), terminal);

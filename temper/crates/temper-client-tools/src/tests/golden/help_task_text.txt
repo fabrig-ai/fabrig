@@ -3,7 +3,7 @@ task text TASK [--field specification|instructions|result] [--from OFFSET]
   --field specification|instructions|result: one of specification, instructions or result; optional. Which source to read; specification when absent
   --from OFFSET: a number; optional. Byte offset printed by the previous chunk; zero when absent
 Read a chunk of a task's specification, effective instructions or kept report
-Prints: The source words, byte offsets and total size; then a continuation call or `no more`
+Prints: A cut page first prints `FIELD page N of M holds B bytes;` and the bytes left with the call that reads on, or `no more`; then the source words, byte offsets and total size; then a continuation call or `no more`
 --json: the record task-text.
 Key: none.
 Each chunk keeps UTF-8 characters whole. Follow the printed call

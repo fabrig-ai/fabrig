@@ -1166,6 +1166,7 @@ Drafts:
 - [`draft/goal-as-designer.md`](draft/goal-as-designer.status.md)
 - [`draft/goal-runs-itself.md`](draft/goal-runs-itself.status.md)
 - [`draft/look-requests.md`](draft/look-requests.status.md)
+- [`draft/long-text-pages.md`](draft/long-text-pages.status.md) — landed whole in pull #157; plan complete, vision folded into design, read-only text retained pending proposed removal.
 - [`draft/macos.md`](draft/macos.status.md)
 - [`draft/model-catalogue.md`](draft/model-catalogue.status.md)
 - [`draft/model-check.md`](draft/model-check.status.md)

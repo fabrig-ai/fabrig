@@ -320,7 +320,7 @@ fn settings_neutral_form_preserves_ctls_bounds() {
     let ctl = temper_client_tools::limits::tools();
     assert_eq!(neutral.ask_bytes, ctl.ask_bytes);
     assert_eq!(neutral.result_bytes, ctl.result_bytes);
-    assert_eq!(neutral.text, ctl.text);
+    assert_eq!(neutral.text, ctl.words, "the settings form keeps the client's text");
     assert_eq!(neutral.settings.change_settings_items, ctl.settings.change_settings_items, "change_settings_items");
     assert_eq!(neutral.settings.charter_alternatives, ctl.settings.charter_alternatives, "charter_alternatives");
     assert_eq!(neutral.settings.charter_instructions, ctl.settings.charter_instructions, "charter_instructions");

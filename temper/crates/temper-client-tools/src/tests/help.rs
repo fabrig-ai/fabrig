@@ -177,12 +177,13 @@ fn model_panels_keep_projection_loss_and_output_bounds() {
         match loss {
             0 => me.providers.get_mut(0).expect("provider").name.cut = true,
             1 => {
-                let mut description = skein_lib::Writer::new(usize::try_from(crate::limits::TEXT).expect("text bound"));
-                for _ in 0..crate::limits::TEXT {
+                let mut description =
+                    skein_lib::Writer::new(usize::try_from(crate::limits::CLIENT_TEXT).expect("text bound"));
+                for _ in 0..crate::limits::CLIENT_TEXT {
                     description.put(b"x").expect("description bound");
                 }
                 me.projects.get_mut(0).expect("project").models.get_mut(0).expect("model").description =
-                    Some(c::Text::new(description.finish(), crate::limits::TEXT).expect("description"));
+                    Some(c::Text::new(description.finish(), crate::limits::CLIENT_TEXT).expect("description"));
             }
             _ => {
                 let project = me.projects.get_mut(0).expect("project");

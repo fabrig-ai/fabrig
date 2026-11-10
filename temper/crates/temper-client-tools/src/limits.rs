@@ -3,12 +3,15 @@ pub use crate::jig::call::{KEY_BYTES, MOVED_BYTES};
 use skein_lib::{Duration, RequestLimits};
 use temper_client_domain as client;
 pub const ROWS: u32 = 32;
-pub const TEXT: u32 = 32_768;
+pub const TEXT: u32 = 81_920;
+/// The client's text and turn text; jig's wire caps these at 65,536 (`task_text_words`).
+/// `task text` joins the engine's chunks (client/tools.md, 12).
+pub const CLIENT_TEXT: u32 = 32_768;
 /// Whole document bodies and goal words (client/README.md, 5.4).
 pub const LONG_TEXT: u32 = 131_072;
 /// jig's portable login-directory name and configured adapter-name bounds.
 pub use crate::jig::call::{PROGRAM_ADAPTER, PROGRAM_NAME};
-pub const PART: u32 = 16_384;
+pub const PART: u32 = 65_536;
 pub const DOCUMENT: u64 = 1_048_576;
 /// A document's bytes can each become six JSON bytes (`\u00XX` in skein's
 /// encoder). Reserve the same 1 KiB envelope as the me window for the printed
@@ -54,9 +57,9 @@ pub fn client() -> client::Limits {
             records: 16,
             kept: 16,
             projects: 9, // Covers Small and Standard deployment membership capacity.
-            text: TEXT,
+            text: CLIENT_TEXT,
             long_text: LONG_TEXT,
-            turn_text: TEXT,
+            turn_text: CLIENT_TEXT,
             rows: ROWS, // Entries in a document's short lists and result windows.
             fields: 16,
             segments: 9,
@@ -89,6 +92,7 @@ pub fn tools() -> crate::jig::Limits {
         ask_bytes: client.ask_bytes,
         result_bytes: RESULT_BYTES,
         text: TEXT,
+        words: client.text,
         part: PART,
         wait: WAIT,
         wait_most: WAIT_MOST,

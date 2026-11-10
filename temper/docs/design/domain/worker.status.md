@@ -117,9 +117,12 @@ relinking every two to two and a half minutes on 2026-11-08, but that is
 unproven: its evidence is outside the repository, and no deployment on
 record has run since.
 
-Section 6 has no known gap in every temper worker naming its agent's
+Section 6's agent program is the worker's named program: the box's
+`temper internal agent AGENT.json` or a deployment's `temper-agent
+AGENT.json`, with the same program used for a model list
+(`../protocol/README.status.md`, 7). Every temper worker names its agent's
 `host_reply_text` as the hello's reply bound, the in-process worker among
-them (`temper/crates/temper/src/agent.rs`). The service gives the worker's
+them (`temper-worker-shell/src/agent.rs`). The service gives the worker's
 `Limits::reply_bytes` the same figure (`temper-service/src/worker_settings.rs`).
 
 - **Not yet:** 4.3: a held task names no run's failure, which the user's
