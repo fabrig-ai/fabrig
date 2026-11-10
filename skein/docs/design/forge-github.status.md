@@ -2,9 +2,11 @@
 
 2026-11-10. Where skein's code lags or departs from [forge-github.md](forge-github.md).
 
-- **Not yet:** 4.1: `Read::Range`; `Item`'s `since`, which the comments'
-  pages do not send; `Branches`' names bounded by `rows`
-  (`skein-forge/src/github/plans/reads.rs`).
+- **Not yet:** 4.1: `Item`'s `since`, which the comments' pages do not send.
+  [in flight: change 25]
+- **Not yet:** 4.1: `Branches`' names bounded by `rows`
+  (`skein-forge/src/github/plans/reads.rs`). [in flight: change 32]
+- **Not yet:** 4.1: `Read::Range`.
 
 - **Not yet:** 13: no live result establishes `app-owner-id-login-type` on
   `GET /app`. The case is present in
