@@ -1,5 +1,5 @@
-//! A goal delivers on r and lands through a change into g (domain/agent.md,
-//! 4.3, 4.3.1 and 6; domain/forge.md, 8.1 and 11.1).
+//! A goal delivers its design straight to g (domain/agent.md,
+//! 4.3 and 6; domain/forge.md, 11.3).
 use serde_json::{Value, json};
 use skein_fake_forge_domain::api;
 use skein_fake_llm_domain::api::{Finish, Line, Part, Script, Turn};
@@ -69,12 +69,8 @@ fn scripts(_: SocketAddr) -> Box<[Script]> {
     Box::new([Script {
         cue: WORDS.as_bytes().into(),
         turns: Box::new([
-            // The goal's first activation parks while its branch is confirmed.
-            tool(b"wait", &json!({})),
             tool(b"edit", &json!({"path":"README.md","edits":[{"old":"# app\n","new":"# app\nGoal design\n"}]})),
             tool(b"deliver", &json!({"fields":{"title":"Goal design","body":"Write the goal's design."}})),
-            tool(b"change", &json!({"words":"Land the design","branch":"run","landing":"goal"})),
-            tool(b"wait", &json!({})),
             tool(b"finish", &json!({"form":"report","text":REPORT,"fields":{}})),
         ]),
     }])
@@ -135,7 +131,7 @@ fn commit_file(transport: &temper_fake_git_hosted::Typed, head: u64) -> Vec<u8> 
 }
 
 #[test]
-fn a_goals_run_delivers_and_lands_through_a_change() {
+fn a_goals_run_delivers_design_straight_to_its_goal_branch() {
     let ran = world::run_forge(forge::Fixture { configure, ..forge::fixture() }, scripts, steps);
     for call in ran.calls() {
         assert_eq!(
@@ -147,18 +143,15 @@ fn a_goals_run_delivers_and_lands_through_a_change() {
         );
     }
     let transport = FORGE.with(|slot| slot.borrow_mut().take().expect("captured public git transport"));
-    // The run branch is released when its goal closes (domain/forge.md, 11).
-    let run_head = ran
-        .forge()
-        .snapshots()
-        .iter()
-        .rev()
-        .flat_map(|snapshot| snapshot.branches.iter())
-        .find_map(|(name, head)| (name.as_ref() == RUN_BRANCH).then_some(*head))
-        .expect("the worker published the run branch before goal close");
-    assert_eq!(commit_file(&transport, run_head), EDITED);
+    assert!(
+        !ran.forge()
+            .snapshots()
+            .iter()
+            .flat_map(|snapshot| &snapshot.branches)
+            .any(|(name, _)| name.as_ref() == RUN_BRANCH)
+    );
     assert_eq!(branch_file(&transport, GOAL_BRANCH), EDITED);
-    assert_eq!(ran.forge().main_file(b"README.md"), landing::README);
+    assert_eq!(branch_file(&transport, b"main"), landing::README);
     let task: Value = serde_json::from_slice(&ran.calls().last().expect("ended goal").stdout).expect("task JSON");
     assert_eq!(task["task"]["chip"]["phase"], "ended", "{task}");
     assert!(
@@ -166,26 +159,6 @@ fn a_goals_run_delivers_and_lands_through_a_change() {
         "the goal ends done: {task}"
     );
     assert_eq!(task["task"]["result"]["value"]["report"]["bytes"], REPORT, "{task}");
-    let last_query = ran
-        .llm()
-        .iter()
-        .rev()
-        .find_map(|observation| if let Observation::Query { query, .. } = observation { Some(query) } else { None })
-        .expect("report's provider turn");
-    let texts: Vec<_> = last_query
-        .messages
-        .iter()
-        .flat_map(|message| &message.parts)
-        .filter_map(|part| match part {
-            Part::Text { text } => Some(String::from_utf8_lossy(text)),
-            Part::ToolOutput { output, .. } => Some(String::from_utf8_lossy(output)),
-            Part::ToolCall { .. } | Part::Opaque { .. } => None,
-        })
-        .collect();
-    assert!(
-        texts.iter().any(|text| text.contains("Result from task 2:") && text.contains("pull request #2 of acme/app")),
-        "the change landed before finish: {texts:?}"
-    );
     let mut delivered = false;
     for observed in ran.llm() {
         if let Observation::Query { query, .. } = observed {
@@ -211,8 +184,8 @@ fn a_goals_run_delivers_and_lands_through_a_change() {
                                 String::from_utf8_lossy(output)
                             );
                             assert!(
-                                output.windows(RUN_BRANCH.len()).any(|bytes| bytes == RUN_BRANCH),
-                                "receipt names the run branch: {}",
+                                output.windows(GOAL_BRANCH.len()).any(|bytes| bytes == GOAL_BRANCH),
+                                "receipt names the goal branch: {}",
                                 String::from_utf8_lossy(output)
                             );
                             println!("delivery answer: {}", String::from_utf8_lossy(output));
@@ -223,5 +196,5 @@ fn a_goals_run_delivers_and_lands_through_a_change() {
             }
         }
     }
-    assert!(delivered, "the model received its run branch's delivery receipt");
+    assert!(delivered, "the model received its goal branch's delivery receipt");
 }

@@ -1,7 +1,7 @@
 //! Complete watch admission and timed retry (temper/docs/design/domain/forge.md, 5.1 and 8.5).
 use super::{
-    ChangeRow, Domain, Env, Limits, Name, PendingStep, Request, StepStage, Stored, What, Writer, child, child_env,
-    drain, emit, participating, to_client, valid_name,
+    ChangeRow, Domain, Env, Limits, Name, PendingStep, Request, StepStage, Stored, What, child, child_env, drain, emit,
+    participating, to_client, valid_name,
 };
 use crate::RefusalCause;
 use alloc::boxed::Box;
@@ -197,8 +197,8 @@ pub(super) fn kept(
 }
 
 pub(super) fn writers(d: &mut Domain, env: &Env<Limits>) {
-    for (name, hold) in &d.holds {
-        if let Some(Writer::Run { .. } | Writer::Lost { .. }) = hold.writer
+    for (name, _) in &d.holds {
+        if super::branch_written(d, name, None)
             && let Some(resource) = to_client(name, &env.limits)
         {
             skein_forge_client::step(
@@ -230,6 +230,7 @@ pub(super) fn merge_writer(d: &mut Domain, env: &Env<Limits>, entry: &skein_forg
     if !d.holds.contains_key(&name) {
         return;
     }
+    let taken = taken || super::branch_written(d, &name, Some(entry.number));
     skein_forge_client::step(
         &mut d.client,
         &child_env(env),

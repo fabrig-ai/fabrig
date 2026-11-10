@@ -23,9 +23,9 @@ pub enum Start {
     Merged { branch: Box<[u8]>, heads: Box<[api::Commit]> },
 }
 /// Root-translated identities and branch names for one repository.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Seed {
-    /// The run may modify through its held run branch (temper/docs/design/domain/forge.md, 11.1).
+    /// The run may write its goal's design (temper/docs/design/domain/forge.md, 11.3).
     pub modify: bool,
     pub task: u64,
     pub parent: Option<u64>,
@@ -36,7 +36,7 @@ pub struct Seed {
 /// A sized workspace item ready to hand to the worker.
 #[derive(Debug)]
 pub struct Item {
-    /// This item delivers a goal's work through its run branch.
+    /// This item delivers a goal's design straight to its goal branch.
     pub delivers: bool,
     pub provider: api::Repository,
     pub name: Box<[u8]>,
@@ -68,6 +68,41 @@ impl Domain {
         }
         Some(selected.into_boxed())
     }
+    /// A modifying goal waits for its held branch's taking and owned head
+    /// (temper/docs/design/domain/forge.md, 11.3).
+    #[must_use]
+    pub fn design_workspace_waiting(&self, task: u64) -> bool {
+        for (name, hold) in &self.holds {
+            if hold.task != task {
+                continue;
+            }
+            let provider = api::Repository { forge: name.forge, repository: name.repository };
+            let Some(repository) = self.repository(provider) else { continue };
+            if repository.role == Role::Context {
+                continue;
+            }
+            if let Some((_, goal)) = goal_branch(name, &repository.prefix)
+                && goal == task
+                && self.design_branch_waiting(name)
+            {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn design_branch_waiting(&self, name: &crate::Name) -> bool {
+        let undrifted = match self.holds.get(name) {
+            Some(hold) => hold.drift.is_none(),
+            None => false,
+        };
+        let owned = match self.heads.get(name) {
+            Some(head) => head.owned,
+            None => false,
+        };
+        !undrifted || !owned || self.goal_branch_waiting(name)
+    }
+
     /// Select one checkout item from the task's saved and procedure state.
     #[must_use]
     #[expect(
@@ -175,6 +210,7 @@ impl Domain {
                 | change::Delegate::Merge { .. }
                 | change::Delegate::Gate { .. },
             )) => None,
+            None if delivers && push.is_some() => selected_landing,
             None => match &start {
                 Start::Merge { .. } if push.is_some() => selected_landing,
                 Start::Base(_) | Start::Branch(_) | Start::Saved(_) | Start::Merge { .. } | Start::Merged { .. } => {
@@ -225,7 +261,7 @@ impl Domain {
         })
     }
 
-    /// A modifying goal delivers through its run branch from its confirmed goal branch;
+    /// A modifying goal delivers design straight to its confirmed goal branch;
     /// other tasks start at the repository's base
     /// (temper/docs/design/domain/forge.md, 11.1).
     fn task_workspace_item(&self, seed: &Seed, repository: &crate::Repository) -> Option<CheckoutSelection> {
@@ -234,8 +270,17 @@ impl Domain {
                 if name.forge != seed.repository.forge
                     || name.repository != seed.repository.repository
                     || hold.task != seed.task
-                    || hold.drift.is_some()
                 {
+                    continue;
+                }
+                if let Some((_, task)) = goal_branch(name, &repository.prefix)
+                    && task == seed.task
+                    && seed.modify
+                    && self.design_branch_waiting(name)
+                {
+                    return None;
+                }
+                if hold.drift.is_some() {
                     continue;
                 }
                 if let Some((_, task)) = goal_branch(name, &repository.prefix)
@@ -245,11 +290,11 @@ impl Domain {
                 {
                     let branch = branch_bytes(name)?;
                     if seed.modify {
-                        let (start, landing) = match branch_head(self, seed.repository, &seed.run_branch) {
-                            Some(base) => (Start::Merge { branch: branch.clone(), base }, Some(branch)),
-                            None => (Start::Base(branch), None),
+                        let start = match branch_head(self, seed.repository, &seed.run_branch) {
+                            Some(base) => Start::Merge { branch: branch.clone(), base },
+                            None => Start::Base(branch.clone()),
                         };
-                        return Some((start, Some(seed.run_branch.clone()), None, landing, true));
+                        return Some((start, Some(branch.clone()), None, Some(branch), true));
                     }
                     return Some((Start::Branch(branch), None, None, None, false));
                 }
@@ -337,11 +382,19 @@ pub(crate) fn branch_starts_with(name: &crate::Name, prefix: &[u8]) -> bool {
 
 /// The goal's own branch (temper/docs/design/domain/forge.md, 11.1).
 pub(crate) fn goal_branch(name: &crate::Name, prefix: &[u8]) -> Option<(u64, u64)> {
+    task_branch(name, prefix, b"g")
+}
+
+pub(crate) fn run_branch(name: &crate::Name, prefix: &[u8]) -> Option<(u64, u64)> {
+    task_branch(name, prefix, b"r")
+}
+
+fn task_branch(name: &crate::Name, prefix: &[u8], letter: &[u8]) -> Option<(u64, u64)> {
     let branch = branch_bytes(name)?;
     let own = branch.strip_prefix(prefix)?;
     let slash = skein_lib::bytes::find(own, b"/")?;
     let root = decimal(own.get(..slash)?)?;
-    let task = own.get(slash.checked_add(1)?..)?.strip_prefix(b"g")?;
+    let task = own.get(slash.checked_add(1)?..)?.strip_prefix(letter)?;
     Some((root, decimal(task)?))
 }
 

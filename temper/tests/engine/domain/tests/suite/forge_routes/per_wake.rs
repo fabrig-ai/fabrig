@@ -226,7 +226,7 @@ fn reference_goal() -> ReferenceGoal {
     let mut world = World::configured_stock_limits(&defaults, &model, &limits);
     world.adopt();
     apply(&mut world, items);
-    let mut event = protocol::hello_slots(CHANNEL, 2, Box::new([]));
+    let mut event = protocol::hello_slots(CHANNEL, 3, Box::new([]));
     let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
     else {
         panic!("worker hello")
@@ -313,7 +313,8 @@ fn the_reference_goals_running_cut_hears_a_cancelled_change_and_its_last_landing
     assert_eq!(made.len(), 2);
     let (cancelled, last) = (made[0].task, made[1].task);
     assert_eq!(live_task(&world, first.task).delegates.as_ref(), &[cancelled, last]);
-    let producer = super::reviews::next_assignment(&mut world, 1);
+    let producer = super::questions::next_producer(&mut world, cancelled);
+    let remaining = super::questions::next_producer(&mut world, last);
     assert_eq!(live_task(&world, producer.task).requester, tasks::Party::Task(cancelled));
     let answer = world.scripted_call(
         &first,
@@ -328,7 +329,7 @@ fn the_reference_goals_running_cut_hears_a_cancelled_change_and_its_last_landing
     read_change_result(&mut world, &first, cancelled, true);
     assert_eq!(live_task(&world, first.task).delegates.as_ref(), &[last]);
 
-    let producer = super::reviews::next_assignment(&mut world, 2);
+    let producer = remaining;
     assert_eq!(live_task(&world, producer.task).requester, tasks::Party::Task(last));
     let branch = producer.workspace.repositories[0].push.clone().expect("change push branch");
     super::change_tool::land_change(&mut world, &producer, &branch);

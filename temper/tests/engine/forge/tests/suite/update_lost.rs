@@ -221,6 +221,7 @@ fn hold_branch(world: &mut World) {
     world.event(top::Event::Hold { entry: 0, task: CHANGE, resource: name.clone(), from: None });
     world.run_for(1);
     world.event(top::Event::Claim {
+        designs: Box::new([]),
         task: CHANGE,
         attempt: 1,
         writes: Box::new([name.clone()]),

@@ -357,6 +357,7 @@ fn busy_run(world: &mut Protocol, scheduler: &mut Scheduler, count: usize, movin
                 let branch = format!("temper/{task}");
                 let name = branch_name(branch.as_bytes());
                 world.event(forge::Event::Claim {
+                    designs: Box::new([]),
                     task,
                     attempt: second,
                     writes: Box::new([name.clone()]),

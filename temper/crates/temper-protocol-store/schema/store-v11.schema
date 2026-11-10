@@ -30,7 +30,8 @@ record BranchDrift { expected: fixed 32 observed: option fixed 32 }
 record Retargeted { number: u64 before: bytes 4096 after: bytes 4096 }
 enum DriftChange { branch: BranchDrift, pull_closed: Number, retargeted: Retargeted }
 record Drift { at: u64 change: DriftChange }
-record Hold { name: Name task: u64 writer: option Writer drift: option Drift }
+record DesignWriter { task: u64 attempt: u64 rereading: bool }
+record Hold { name: Name task: u64 writer: option Writer design_writers: list 65536 DesignWriter drift: option Drift }
 # 04.2: family 4, Names.
 record Names { task: u64 resources: list 1024 Name }
 # 04.2: family 5, Subscription (forge::Subscriber).

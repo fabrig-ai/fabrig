@@ -1,7 +1,5 @@
 //! The admitted step and ordered journal release (jig's domain/root.md, 3).
-use crate::boundary::{
-    BriefConnector, BriefSection, Event, Fact, Payload, PreparedWorkspace, Read, Released, Request, Work,
-};
+use crate::boundary::{BriefConnector, BriefSection, Event, Fact, Payload, Read, Released, Request, Work};
 use crate::limits::{Limits, backlog, core_limits, environment_core, payload_slots, run_policy_bound, valid};
 use crate::restart::{connector_restarting, request_load};
 use crate::route::{forge_route, host_route, policy_translate, route_core_requests, route_into, step_routed};
@@ -86,7 +84,7 @@ pub struct Domain {
     pub(crate) brief_connectors: Slab<BriefConnector>,
     pub(crate) brief_document_titles: Map<u64, Box<[Box<[u8]>]>>,
     pub(crate) forge_briefs: Map<Token, BriefSection>,
-    pub(crate) run_workspaces: Map<u64, PreparedWorkspace>,
+    pub(crate) run_workspaces: Map<u64, crate::boundary::WorkspacePreparation>,
     pub(crate) job_workspaces: Map<u64, crate::ForgeWorkspace>,
     pub(crate) forge: forge::Domain,
     pub(crate) application: Option<(Token, crate::Application)>,

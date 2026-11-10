@@ -27,6 +27,9 @@ pub(crate) mod make;
 #[path = "restore.rs"]
 mod restore;
 pub use restore::{RestoreFit, RestoreSet};
+#[path = "design.rs"]
+mod design;
+use design::{branch_written, design_claim_permitted, pending_writer, read_designs, unused_goal_run};
 
 /// One comparison in flight for a branch's observed tip move.
 #[derive(Hash, Debug)]
@@ -41,7 +44,14 @@ pub(crate) struct PendingLost {
     attempt: u64,
     name: Name,
     comparison: Option<(skein_forge::api::Commit, skein_forge::api::Commit)>,
+    baseline: Option<skein_forge::api::Commit>,
     state: LostReadState,
+    kind: LostWriterKind,
+}
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+enum LostWriterKind {
+    Slot,
+    Design,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum LostReadState {
@@ -1070,6 +1080,7 @@ impl Domain {
     }
 
     /// Resolve worker head reports against this attempt's durable forge writers.
+    /// Design writers read their branch afresh instead (domain/forge.md, 11.3).
     /// Prepared assignments leave the root when delivered; their temporary
     /// lifetime must not determine whether a finished writer can be released.
     #[must_use]
@@ -1093,6 +1104,10 @@ impl Domain {
             }
         }
         names.into_boxed()
+    }
+
+    pub(crate) fn goal_branch_waiting(&self, name: &Name) -> bool {
+        goal_branch::waiting(self, name)
     }
 
     /// Current holder and writer of one named resource for root claim checks.
@@ -1603,7 +1618,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
         }
         Event::Hold { entry, task, resource, from } => hold(d, env, entry, task, resource, from, out),
-        Event::Claim { task, attempt, writes, holders } => claim(d, env, task, attempt, &writes, &holders, out),
+        Event::Claim { task, attempt, writes, designs, holders } => {
+            claim(d, env, task, attempt, &writes, &designs, &holders, out);
+        }
         Event::Answered { task, attempt, pushed } => answered(d, env, task, attempt, &pushed, out),
         Event::Lost { task, attempt } => lost(d, env, task, attempt, out),
         Event::KeepProposedEffect { row } => {
@@ -1723,6 +1740,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             );
         }
         Event::ReleaseChange { task } => release_change(d, env, task, out),
+        Event::GoalReleased { task } => goal_branch::accept_release(d, env, task, out),
         Event::SettleEffects { task, root, ending } => settle_effects(d, env, task, root, ending, out),
         Event::SavedWork { task, branches } => saved_work(d, env, task, &branches, out),
         Event::Release { task, root, ending, reason, entry } => release(d, env, task, root, ending, reason, entry, out),
@@ -2197,7 +2215,7 @@ fn saved_work(d: &mut Domain, env: &Env<Limits>, task: u64, branches: &[Name], o
         if !valid_name(d, &env.limits, name) || d.holds.contains_key(name) || d.holds.len() == env.limits.holds {
             continue;
         }
-        let row = Hold { name: name.clone(), task, writer: None, drift: None };
+        let row = Hold { design_writers: Box::new([]), name: name.clone(), task, writer: None, drift: None };
         d.holds.insert(name.clone(), row.clone()).expect("saved-work hold capacity checked");
         emit(out, Request::Save { record: Stored::Hold(row), release: None, read_afresh: None });
     }
@@ -2421,23 +2439,32 @@ fn hold(
         Some(row) => row.drift.clone(),
         None => None,
     };
-    let row = Hold { name: resource.clone(), task, writer, drift };
+    let design_writers = match d.holds.get(&resource) {
+        Some(row) => row.design_writers.clone(),
+        None => Box::new([]),
+    };
+    let row = Hold { name: resource.clone(), task, writer, design_writers, drift };
     d.holds.insert(resource.clone(), row.clone()).expect("preflighted hold capacity");
     save_hold(out, row);
     goal_branch::start(d, env, resource, Some(entry), out);
 }
 
+#[expect(clippy::too_many_arguments, reason = "a claim carries slot writes and design writes beside their holders")]
 fn claim(
     d: &mut Domain,
     env: &Env<Limits>,
     task: u64,
     attempt: u64,
     writes: &[Name],
+    designs: &[Name],
     holders: &[u64],
     out: &mut Queue<Request>,
 ) {
     if writes.len() > skein_lib::usize_of(env.limits.resources_per_task) {
         emit(out, Request::Refused { task });
+        return;
+    }
+    if !design_claim_permitted(d, env, task, attempt, designs, holders, out) {
         return;
     }
     for name in writes {
@@ -2471,6 +2498,23 @@ fn claim(
             None => {}
         }
     }
+    for name in designs {
+        let row = d.holds.get_mut(name).expect("preflighted design hold");
+        let mut designers = List::with_capacity(env.limits.holds);
+        for writer in &row.design_writers {
+            if writer.task != task {
+                designers.push(*writer).expect("preflighted design writer capacity");
+            }
+        }
+        designers
+            .push(crate::DesignWriter { task, attempt, rereading: false })
+            .expect("preflighted design writer capacity");
+        row.design_writers = designers.into_boxed();
+        save_hold(out, row.clone());
+        if let Some(resource) = to_client(name, &env.limits) {
+            child(d, env, skein_forge_client::Event::Writer { resource, taken: true }, out);
+        }
+    }
     for name in writes {
         let Some(row) = d.holds.get_mut(name) else { unreachable!("preflighted hold") };
         row.writer = Some(Writer::Run { task, attempt });
@@ -2490,6 +2534,7 @@ fn answered(
     pushed: &[(Name, skein_forge::api::Commit)],
     out: &mut Queue<Request>,
 ) {
+    read_designs(d, env, task, attempt, out);
     let mut freed = List::with_capacity(env.limits.holds);
     for (name, row) in &d.holds {
         let mut reported = false;
@@ -2525,7 +2570,8 @@ fn answered(
                     );
                 }
             }
-            child(d, env, skein_forge_client::Event::Writer { resource, taken: false }, out);
+            let taken = branch_written(d, name, None);
+            child(d, env, skein_forge_client::Event::Writer { resource, taken }, out);
         }
     }
 }
@@ -2561,6 +2607,7 @@ fn record_delegate_head(
 }
 
 fn lost(d: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, out: &mut Queue<Request>) {
+    read_designs(d, env, task, attempt, out);
     let mut names = List::with_capacity(env.limits.holds);
     for (name, row) in &d.holds {
         if d.forge_ended(name.forge) {
@@ -2590,10 +2637,19 @@ fn lost(d: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, out: &mut Qu
         };
         d.sequence = sequence;
         let owner = Token::new(sequence | (1_u64 << 62));
+        let baseline = d.branch_head(name);
         if d.lost
             .insert(
                 owner,
-                PendingLost { task, attempt, name: name.clone(), comparison: None, state: LostReadState::Asked },
+                PendingLost {
+                    task,
+                    attempt,
+                    name: name.clone(),
+                    comparison: None,
+                    baseline,
+                    state: LostReadState::Asked,
+                    kind: LostWriterKind::Slot,
+                },
             )
             .is_err()
         {
@@ -2614,8 +2670,12 @@ fn ask_lost_again(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         }
     }
     let Some(owner) = waiting else { return };
+    let baseline = d.branch_head(&d.lost.get(&owner).expect("found above").name);
     let pending = d.lost.get_mut(&owner).expect("found above");
     pending.state = LostReadState::Asked;
+    if pending.comparison.is_none() {
+        pending.baseline = baseline;
+    }
     let comparison = pending.comparison;
     let Some(resource) = to_client(&pending.name, &env.limits) else { return };
     let read = match (comparison, resource.what) {
@@ -2635,10 +2695,7 @@ fn ask_lost_again(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     child(d, env, skein_forge_client::Event::Read { owner, repository: resource.repository, read }, out);
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one fresh-read chain retains the lost writer through branch and ancestry answers"
-)]
+#[expect(clippy::too_many_lines, reason = "slot and design writers share the fresh branch and ancestry read")]
 fn lost_read(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -2648,7 +2705,7 @@ fn lost_read(
 ) {
     let Some(mut pending) = d.lost.remove(&owner) else { return };
     let Some(row) = d.holds.get(&pending.name) else { return };
-    if row.writer != Some(Writer::Lost { task: pending.task, attempt: pending.attempt }) {
+    if !pending_writer(row, &pending) {
         return;
     }
     // The writer slot is freed only once the branch is read afresh (jig's
@@ -2666,6 +2723,17 @@ fn lost_read(
     }
     let Some(resource) = to_client(&pending.name, &env.limits) else { return };
     let baseline = d.branch_head(&pending.name);
+    let stale = match pending.comparison {
+        Some((before, _)) => baseline != Some(before),
+        None => baseline != pending.baseline,
+    };
+    if pending.kind == LostWriterKind::Design && stale {
+        pending.comparison = None;
+        pending.state = LostReadState::WaitingForRoom;
+        d.lost.insert(owner, pending).expect("the design read retains its slot");
+        ask_lost_again(d, env, out);
+        return;
+    }
     let observed = match (pending.comparison, result) {
         (None, Ok(skein_forge::api::Answer::Commit(commit))) => {
             if let Some(before) = baseline
@@ -2733,10 +2801,21 @@ fn lost_read(
         }
     };
     let Some(row) = d.holds.get_mut(&pending.name) else { return };
-    if row.writer != Some(Writer::Lost { task: pending.task, attempt: pending.attempt }) {
+    if !pending_writer(row, &pending) {
         return;
     }
-    row.writer = None;
+    match pending.kind {
+        LostWriterKind::Slot => row.writer = None,
+        LostWriterKind::Design => {
+            let mut writers = List::with_capacity(env.limits.holds);
+            for writer in &row.design_writers {
+                if writer.task != pending.task || writer.attempt != pending.attempt {
+                    writers.push(*writer).expect("retained design writer count");
+                }
+            }
+            row.design_writers = writers.into_boxed();
+        }
+    }
     let undrifted = row.drift.is_none();
     save_hold(out, row.clone());
     if undrifted && let Some(commit) = observed {
@@ -2750,7 +2829,8 @@ fn lost_read(
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
         child(d, env, skein_forge_client::Event::Pushed { resource: resource.clone(), commit }, out);
     }
-    child(d, env, skein_forge_client::Event::Writer { resource, taken: false }, out);
+    let taken = branch_written(d, &pending.name, None);
+    child(d, env, skein_forge_client::Event::Writer { resource, taken }, out);
     lost_release(d, &pending.name, false, out);
 }
 
@@ -4783,11 +4863,11 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
         let mut selected = None;
         for (name, hold) in &d.holds {
             if hold.task == task {
-                selected = Some((name.clone(), hold.writer));
+                selected = Some((name.clone(), hold.writer, !hold.design_writers.is_empty()));
                 break;
             }
         }
-        if let Some((name, writer)) = selected {
+        if let Some((name, writer, designing)) = selected {
             if d.forge_ended(name.forge) {
                 d.holds.remove(&name);
                 crate::tiers::released(d, &name, out);
@@ -4800,6 +4880,15 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
                         return;
                     }
                 }
+            }
+            if designing {
+                return;
+            }
+            if unused_goal_run(d, &name) && writer.is_none() {
+                d.holds.remove(&name);
+                crate::tiers::released(d, &name, out);
+                emit(out, Request::Erase { key: Key::Hold(name) });
+                continue;
             }
             if goal_branch::reading(d, &name) {
                 return;
@@ -6175,7 +6264,8 @@ fn change_requester_writing(d: &Domain, row: &ChangeRow) -> bool {
         if change_on_held_branch(row, name, hold.task) {
             return match hold.writer {
                 Some(Writer::Run { task, .. }) => task == hold.task,
-                Some(Writer::Lost { .. } | Writer::Entry(_)) | None => false,
+                Some(Writer::Lost { .. } | Writer::Entry(_)) => false,
+                None => !hold.design_writers.is_empty(),
             };
         }
     }
@@ -6201,6 +6291,13 @@ fn drift(
     let mut affected = List::with_capacity(env.limits.holds);
     for (name, row) in &d.holds {
         if to_client(name, &env.limits) == Some(resource.clone()) {
+            let repeated = match &row.drift {
+                Some(known) => known.change == change,
+                None => false,
+            };
+            if repeated {
+                continue;
+            }
             if held_branch_updating_entry(d, name, row.task) {
                 continue;
             }
@@ -6503,8 +6600,17 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     d.restore_phase = RestorePhase::Active;
     crate::playground::restart(d, out);
     d.restart_fresh = Some(false);
-    let mut lost_runs = List::with_capacity(env.limits.holds);
+    let mut count = d.holds.len();
     for (_, hold) in &d.holds {
+        count = count.saturating_add(u32::try_from(hold.design_writers.len()).expect("bounded design writer count"));
+    }
+    let mut lost_runs = List::with_capacity(count);
+    for (_, hold) in &d.holds {
+        for writer in &hold.design_writers {
+            if writer.rereading && !lost_runs.as_slice().contains(&(writer.task, writer.attempt)) {
+                lost_runs.push((writer.task, writer.attempt)).expect("rereading runs bounded by holds");
+            }
+        }
         if let Some(Writer::Lost { task, attempt }) = hold.writer
             && !lost_runs.as_slice().contains(&(task, attempt))
         {
@@ -6921,6 +7027,11 @@ impl Domain {
             }
             RecordKind::Hold => {
                 for (key, row) in &self.holds {
+                    for writer in &row.design_writers {
+                        if need.task(writer.task, Some(key.forge)) {
+                            return Key::Hold(key.clone());
+                        }
+                    }
                     if need.name(key)
                         || need.task(row.task, Some(key.forge))
                         || match row.writer {

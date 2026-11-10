@@ -11,6 +11,26 @@ fn each_family_of_names_holds_and_topics_round_trips_unchanged() {
     }
 }
 #[test]
+fn a_holds_design_writers_and_their_fresh_read_progress_round_trip() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    for rereading in [false, true] {
+        let row = forge::Stored::Hold(forge::Hold {
+            name: forge::Name {
+                forge: 1,
+                repository: 2,
+                what: forge::What::Branch(Box::new([b"g1".as_slice().into()])),
+            },
+            task: 1,
+            writer: None,
+            design_writers: Box::new([forge::DesignWriter { task: 1, attempt: 2, rereading }]),
+            drift: None,
+        });
+        let bytes = records::encode(&row);
+        assert_eq!(records::decode(&bytes, &bounds), Ok(row));
+    }
+}
+
+#[test]
 fn a_truncated_row_fails_to_decode() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     for (name, row) in fixtures::names_holds_and_topics() {
@@ -28,6 +48,7 @@ fn a_branch_past_name_bytes_fails_to_decode() {
         segments.push(1_u8).expect("bounded bytes");
     }
     let row = forge::Stored::Hold(forge::Hold {
+        design_writers: Box::new([]),
         name: forge::Name { forge: 1, repository: 2, what: forge::What::Branch(Box::new([segments.into_boxed()])) },
         task: 1,
         writer: None,
@@ -1586,7 +1607,7 @@ fn standard_sized_question_words_and_held_answers_round_trip() {
     let bytes = records::encode(&row);
     assert_eq!(records::decode(&bytes, &bounds), Ok(row));
     for words in [false, true] {
-        let mut short = bounds;
+        let mut short = bounds.clone();
         if words {
             short.limits.open_words -= 1;
         } else {

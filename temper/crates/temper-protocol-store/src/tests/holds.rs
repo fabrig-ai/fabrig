@@ -133,7 +133,13 @@ fn answer_name(bounds: &Bounds, reader: &mut Reader<'_>) -> Box<[u8]> {
 fn name_piece_words_read_their_full_fixtures() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     let name = fixtures::named_branch();
-    let row = forge::Stored::Hold(forge::Hold { name: name.clone(), task: 1, writer: None, drift: None });
+    let row = forge::Stored::Hold(forge::Hold {
+        design_writers: Box::new([]),
+        name: name.clone(),
+        task: 1,
+        writer: None,
+        drift: None,
+    });
     let w::Value::Hold(held) = stored(&row, &bounds) else { panic!("hold fixture") };
     let w::What::Branch(segments) = held.into_parts().name.into_parts().what else { panic!("branch fixture") };
     let forge::What::Branch(expected) = name.what else { panic!("branch fixture") };

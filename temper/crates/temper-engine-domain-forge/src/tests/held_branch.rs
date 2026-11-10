@@ -204,6 +204,7 @@ fn a_landing_changes_repair_writes_the_goal_branch_under_its_goals_hold() {
             let requests = outputs(
                 &mut d,
                 Event::Claim {
+                    designs: Box::new([]),
                     task: DELEGATE,
                     attempt: 1,
                     writes: Box::new([name()]),
@@ -278,8 +279,129 @@ fn an_unconfirmed_move_of_a_goal_branch_is_drift_before_the_keep_reads_it() {
     );
 }
 
+fn design_claim(d: &mut Domain) {
+    outputs(
+        d,
+        Event::Claim {
+            task: GOAL,
+            attempt: 1,
+            writes: Box::new([]),
+            designs: Box::new([name()]),
+            holders: Box::new([]),
+        },
+    );
+}
+
+#[test]
+fn a_design_writer_takes_no_slot_and_its_answer_reads_the_goal_afresh() {
+    let mut d = held_goal();
+    design_claim(&mut d);
+    let hold = d.hold(&name()).unwrap();
+    assert_eq!(hold.writer, None);
+    assert_eq!(hold.design_writers.as_ref(), &[DesignWriter { task: GOAL, attempt: 1, rereading: false }]);
+    outputs(&mut d, Event::Answered { task: GOAL, attempt: 1, pushed: Box::new([(name(), fixtures::BASE)]) });
+    assert_eq!(d.branch_head(&name()), Some(fixtures::HEAD), "the report is not the head");
+    let (call, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Branch { branch: GOAL_BRANCH.into() }));
+    fixtures::answer(&mut d, call, Ok(Answer::Commit(fixtures::BASE)));
+    let (call, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Commits { before: fixtures::BASE, after: fixtures::HEAD, page: 1 }));
+    fixtures::answer(&mut d, call, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+    assert_eq!(d.branch_head(&name()), Some(fixtures::BASE));
+    assert!(d.hold(&name()).unwrap().design_writers.is_empty());
+    assert_eq!(d.hold(&name()).unwrap().drift, None);
+}
+
+fn design_ancestry(forward: bool) -> Answer {
+    let commits: Box<[_]> = if forward {
+        Box::new([])
+    } else {
+        Box::new([skein_forge::api::CommitMessage { id: fixtures::HEAD, parents: Box::new([]), message: Box::new([]) }])
+    };
+    Answer::Commits { commits, more: false }
+}
+
+fn design_move(d: &mut Domain, actor: u64, forward: bool) -> Box<[Request]> {
+    outputs(
+        d,
+        Event::Hint {
+            hint: Hint {
+                repository: REPO,
+                change: skein_forge::api::Change::BranchMoved {
+                    branch: GOAL_BRANCH.into(),
+                    head: fixtures::BASE,
+                    actor,
+                },
+                key: None,
+            },
+        },
+    );
+    let mut later = env();
+    later.now = later.now.saturating_add(LIMITS.client.hinted);
+    fire(d, &later, &mut Queue::uncapped());
+    fixtures::answer_next(d, Ok(Answer::Commit(fixtures::BASE)));
+    assert_eq!(d.hold(&name()).unwrap().drift, None, "a live writer's move is compared before judgement");
+    fixtures::answer_next(d, Ok(design_ancestry(forward)))
+}
+
+#[test]
+fn design_pushes_are_owned_but_other_identities_and_rewrites_still_drift() {
+    for (actor, forward, drifted) in [(7, true, false), (8, true, true), (7, false, true)] {
+        let mut d = watched_goal();
+        design_claim(&mut d);
+        // A slot writer ending leaves the design writer beside it.
+        confirm_head(&mut d, fixtures::HEAD);
+        let requests = design_move(&mut d, actor, forward);
+        assert_eq!(d.hold(&name()).unwrap().drift.is_some(), drifted, "{actor}/{forward}: {requests:?}");
+        assert_eq!(d.branch_head(&name()), Some(fixtures::HEAD), "an observation keeps the baseline");
+    }
+}
+
+#[test]
+fn a_restored_design_writer_survives_until_loss_and_its_fresh_read_detects_rewrites() {
+    for forward in [true, false] {
+        let mut d = held_goal();
+        design_claim(&mut d);
+        let hold = d.hold(&name()).unwrap().clone();
+        let mut d = domain();
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        outputs(&mut d, Event::Restore { record: Stored::Hold(hold.clone()) });
+        outputs(
+            &mut d,
+            Event::Restore {
+                record: Stored::BranchHead(BranchHead { name: name(), commit: fixtures::HEAD, owned: true }),
+            },
+        );
+        outputs(&mut d, Event::Restore { record: Stored::Names { task: GOAL, resources: Box::new([name()]) } });
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
+        assert_eq!(d.hold(&name()).unwrap(), &hold);
+        design_move(&mut d, 7, true);
+        assert_eq!(d.hold(&name()).unwrap().drift, None, "restart restores the keep's written flag");
+        outputs(&mut d, Event::Lost { task: GOAL, attempt: 1 });
+        assert!(d.hold(&name()).unwrap().design_writers[0].rereading, "loss reads the restored design writer afresh");
+        let tip = [9; 32];
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(tip)));
+        fixtures::answer_next(&mut d, Ok(design_ancestry(forward)));
+        assert!(d.hold(&name()).unwrap().design_writers.is_empty());
+        assert_eq!(d.hold(&name()).unwrap().drift.is_none(), forward);
+        assert_eq!(d.branch_head(&name()), Some(if forward { tip } else { fixtures::HEAD }));
+    }
+}
+
 fn confirm_head(d: &mut Domain, head: skein_forge::api::Commit) {
-    outputs(d, Event::Claim { task: DELEGATE, attempt: 1, writes: Box::new([name()]), holders: Box::new([GOAL]) });
+    outputs(
+        d,
+        Event::Claim {
+            designs: Box::new([]),
+            task: DELEGATE,
+            attempt: 1,
+            writes: Box::new([name()]),
+            holders: Box::new([GOAL]),
+        },
+    );
     outputs(d, Event::Answered { task: DELEGATE, attempt: 1, pushed: Box::new([(name(), head)]) });
 }
 
@@ -310,7 +432,16 @@ fn held_run(holder: u64, writer: Option<Writer>) -> Domain {
     let mut d = held_by(None);
     outputs(&mut d, Event::Hold { entry: 0, task: holder, resource: run_name(), from: None });
     if let Some(Writer::Run { task, attempt }) = writer {
-        outputs(&mut d, Event::Claim { task, attempt, writes: Box::new([run_name()]), holders: Box::new([holder]) });
+        outputs(
+            &mut d,
+            Event::Claim {
+                designs: Box::new([]),
+                task,
+                attempt,
+                writes: Box::new([run_name()]),
+                holders: Box::new([holder]),
+            },
+        );
     } else {
         d.holds.get_mut(&run_name()).unwrap().writer = writer;
     }
@@ -321,18 +452,18 @@ fn held_run(holder: u64, writer: Option<Writer>) -> Domain {
 }
 
 #[test]
-fn a_run_change_checks_deliveries_beside_its_requesters_run() {
+fn a_change_checks_deliveries_beside_its_requesters_run_or_design_writer() {
     let writer = Writer::Run { task: GOAL, attempt: 1 };
     let mut goal = held_goal();
-    outputs(&mut goal, Event::Claim { task: GOAL, attempt: 1, writes: Box::new([name()]), holders: Box::new([GOAL]) });
+    design_claim(&mut goal);
     outputs(&mut goal, Event::Change { row: landing_row() });
-    for (mut d, name) in [(held_run(GOAL, Some(writer)), run_name()), (goal, name())] {
+    for (mut d, name, slot) in [(held_run(GOAL, Some(writer)), run_name(), Some(writer)), (goal, name(), None)] {
         let requests = step_at_head(&mut d, fixtures::BASE);
         let row = d.change(fixtures::CHANGE).unwrap();
         assert_eq!(row.change.state, change::State::Checking { head: fixtures::BASE }, "{requests:?}");
         assert_eq!(row.change.last_head, Some(fixtures::BASE));
         assert_eq!(row.drift, None);
-        assert_eq!(d.hold(&name).unwrap().writer, Some(writer));
+        assert_eq!(d.hold(&name).unwrap().writer, slot);
     }
 }
 
@@ -344,12 +475,17 @@ fn a_run_change_waits_for_every_other_writer() {
         (GOAL, Writer::Lost { task: GOAL, attempt: 1 }),
         (fixtures::CHANGE, Writer::Run { task: fixtures::CHANGE, attempt: 1 }),
     ] {
-        let mut d = held_run(holder, Some(writer));
-        let requests = step_at_head(&mut d, fixtures::BASE);
-        assert_eq!(
-            d.change(fixtures::CHANGE).unwrap().change.state,
-            change::State::Checking { head: fixtures::HEAD },
-            "{holder}: {writer:?}: {requests:?}"
-        );
+        let mut goal = held_goal();
+        design_claim(&mut goal);
+        goal.holds.get_mut(&name()).unwrap().writer = Some(writer);
+        outputs(&mut goal, Event::Change { row: landing_row() });
+        for mut d in [held_run(holder, Some(writer)), goal] {
+            let requests = step_at_head(&mut d, fixtures::BASE);
+            assert_eq!(
+                d.change(fixtures::CHANGE).unwrap().change.state,
+                change::State::Checking { head: fixtures::HEAD },
+                "{holder}: {writer:?}: {requests:?}"
+            );
+        }
     }
 }
