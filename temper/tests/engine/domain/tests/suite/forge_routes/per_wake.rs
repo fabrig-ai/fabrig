@@ -178,8 +178,15 @@ fn instructions(shared: &[u8], part: &[u8]) -> Vec<u8> {
     [shared, b"\n\n", part].concat()
 }
 
-#[test]
-fn the_reference_goal_reads_its_cut_then_its_questions_part() {
+struct ReferenceGoal {
+    world: World,
+    first: engine::Assignment,
+    template: jig_domain_core::Template,
+    cut: Vec<u8>,
+    questions: Vec<u8>,
+}
+
+fn reference_goal() -> ReferenceGoal {
     let mut model = stock::box_model();
     model.name = MODEL.into();
     // The scripted catalogue uses the reference's token prices, within charter 5's spend.
@@ -225,20 +232,18 @@ fn the_reference_goal_reads_its_cut_then_its_questions_part() {
     world.send(event);
     let ask = request(&world, &template);
     let first = assigned_chat(&mut world, GOAL_REQUEST, ask);
+    ReferenceGoal { world, first, template: *template, cut, questions }
+}
+
+#[test]
+fn the_reference_goal_reads_its_cut_then_its_questions_part() {
+    let ReferenceGoal { mut world, first, template, cut, questions } = reference_goal();
     assert_eq!(first.run.policy.model.name.as_ref(), MODEL, "row 1: model");
     assert_eq!(first.run.policy.model.effort.as_deref(), Some(b"xhigh".as_slice()), "row 1: effort");
     assert!(live_task(&world, first.task).reasons.contains(tasks::Reasons::FIRST));
 
-    let mut delegate =
-        temper_engine_domain_world::fixtures::report_delegate(b"Ask the goal about its cut", Box::new([]));
-    delegate.authority = live_task(&world, first.task).authority.clone();
-    delegate.authority.budget.spend = 10_000; // Covers the scripted delegate's reserved completion.
-    delegate.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
-    let answer = world.scripted_call(&first, DELEGATE_CALL, engine::Tool::Delegate { batch: Box::new([delegate]) });
-    let engine::CallAnswer::Delegated(made) = answer else { panic!("delegate admitted: {answer:?}") };
-    let child = made[0].task;
-    world.until(Until::SecondAssignment);
-    let delegate = world.assigned.iter().find(|run| run.task == child).expect("delegate assigned").clone();
+    let delegate = delegate(&mut world, &first);
+    let child = delegate.task;
     let answer = world.scripted_call(
         &delegate,
         QUESTION_CALL,
@@ -279,5 +284,64 @@ fn the_reference_goal_reads_its_cut_then_its_questions_part() {
     let stored = live_task(&world, first.task);
     assert_eq!(stored.llm.as_ref(), template.llm.as_ref(), "row 3: original choice retained");
     assert_eq!(stored.revisions.spec, 0, "row 3: no amendment");
+    world.close();
+}
+
+fn delegate(world: &mut World, first: &engine::Assignment) -> engine::Assignment {
+    let mut delegate =
+        temper_engine_domain_world::fixtures::report_delegate(b"Ask the goal about its cut", Box::new([]));
+    delegate.authority = live_task(world, first.task).authority.clone();
+    delegate.authority.budget.spend = 10_000; // Covers the scripted delegate's reserved completion.
+    delegate.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    let answer = world.scripted_call(first, DELEGATE_CALL, engine::Tool::Delegate { batch: Box::new([delegate]) });
+    let engine::CallAnswer::Delegated(made) = answer else { panic!("delegate admitted: {answer:?}") };
+    let child = made[0].task;
+    world.until(Until::SecondAssignment);
+    world.assigned.iter().find(|run| run.task == child).expect("delegate assigned").clone()
+}
+
+#[test]
+fn a_tasks_words_to_a_coordinator_are_offered_to_the_run_they_wake() {
+    let ReferenceGoal { mut world, first, questions, .. } = reference_goal();
+    let delegate = delegate(&mut world, &first);
+    let turns = live_task(&world, first.task).turn;
+    park_after_turn(&mut world, &first, None, turns);
+    world.until(Until::Ready);
+    assert_eq!(live_task(&world, first.task).phase, tasks::Phase::Active(tasks::Active::Idle));
+
+    let answer = world.scripted_call(
+        &delegate,
+        QUESTION_CALL,
+        engine::Tool::Message { target: first.task, form: engine::MessageForm::Words, words: QUESTION.into() },
+    );
+    let engine::CallAnswer::Sent { message } = answer else { panic!("delegate words sent: {answer:?}") };
+    world.until(Until::Ready);
+    let next = world
+        .assigned
+        .iter()
+        .find(|run| run.task == first.task && run.attempt > first.attempt)
+        .expect("task's words wake the idle goal")
+        .clone();
+    assert!(live_task(&world, first.task).offered.contains(tasks::Reasons::WORDS));
+    let offered = next.messages.iter().find(|word| word.number == message).expect("waking words offered");
+    assert_eq!(offered.kind, tasks::MessageKind::Words);
+    assert_eq!(offered.from, tasks::Party::Task(delegate.task));
+    assert_eq!(offered.words.as_ref(), QUESTION);
+    assert_eq!(next.run.policy.instructions.as_ref(), questions);
+    assert!(
+        String::from_utf8_lossy(&next.run.policy.instructions)
+            .contains("On a task's words, read them and act as on a question")
+    );
+
+    let runs = world.assigned.len();
+    world.scripted_read_inbox(&next);
+    let turns = live_task(&world, next.task).turn;
+    park_after_turn(&mut world, &next, None, turns);
+    world.until(Until::Ready);
+    for _ in 0..20 {
+        world.tick();
+    }
+    assert_eq!(world.assigned.len(), runs, "the same words cause no second wake");
+    assert_eq!(live_task(&world, first.task).phase, tasks::Phase::Active(tasks::Active::Idle));
     world.close();
 }

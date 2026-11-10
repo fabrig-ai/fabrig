@@ -190,10 +190,10 @@ fn the_profile_as_proposed_passes() {
     assert!(report.text().ends_with("passed\n"));
 }
 #[test]
-fn the_goal_templates_design_and_close_out_are_required() {
-    for member in ["design", "close_out"] {
-        let mut value = json!({"design":true,"close_out":true});
-        value[member] = json!(false);
+fn the_goal_template_requires_design_and_no_close_out() {
+    for (member, wrong, required) in [("design", false, true), ("close_out", true, false)] {
+        let mut value = json!({"design":true,"close_out":false});
+        value[member] = json!(wrong);
         for edit in [Edit::Set(value), Edit::Removed, Edit::Reset] {
             let mut evidence = proposed(unedited);
             for file in [&mut evidence.items, &mut evidence.current] {
@@ -203,7 +203,7 @@ fn the_goal_templates_design_and_close_out_are_required() {
             let result = report(&evidence);
             assert!(!result.passed(), "{}", result.text());
             let expected = match edit {
-                Edit::Set(_) => Outcome::Wrong { found: json!(false), expected: json!(true) },
+                Edit::Set(_) => Outcome::Wrong { found: json!(wrong), expected: json!(required) },
                 Edit::Removed | Edit::Reset => Outcome::Missing,
             };
             assert_eq!(outcome(&result, &format!("goal-template.{member}")), &expected);
