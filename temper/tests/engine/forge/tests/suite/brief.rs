@@ -65,7 +65,7 @@ fn gather(world: &mut World, pull: u64, head: api::Commit) {
     world.run_for(5);
 }
 
-fn completed(world: &mut World, pull: u64, head: api::Commit, omitted: bool) {
+fn completed(world: &mut World, pull: u64, head: api::Commit, excess_rows: usize) {
     let sizes: Vec<_> = world
         .seen()
         .iter()
@@ -96,8 +96,12 @@ fn completed(world: &mut World, pull: u64, head: api::Commit, omitted: bool) {
     ] {
         assert!(text.contains(&context), "missing pinned context {context}: {text}");
     }
-    assert_eq!(text.contains("[comparison omitted: forge client limit exceeded]"), omitted, "{text}");
-    if !omitted {
+    assert_eq!(
+        text.contains(&format!("[comparison omitted: past forge.client.rows (8): {excess_rows} rows]")),
+        excess_rows > 8,
+        "{text}"
+    );
+    if excess_rows <= 8 {
         assert!(text.contains("What landed in the base:") && text.contains("Base file: base-1"));
     }
     world.take_calls();
@@ -129,7 +133,7 @@ fn resolver_compare_over_rows_keeps_required_pull_section() {
             1,
             "one pinned comparison"
         );
-        completed(&mut world, pull, head, files > 8 || commits > 8);
+        completed(&mut world, pull, head, usize::try_from(files).expect("file rows").max(commits));
     }
 }
 

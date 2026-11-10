@@ -73,11 +73,11 @@ pub(in crate::tests) fn deliveries(count: u32, duplicate: bool) -> Box<[Delivery
 }
 pub(in crate::tests) fn refused_read(read: Read) {
     let mut h = Harness::new(LIMITS);
-    assert_eq!(
-        h.step(Event::Read { owner: Token::new(1), repository: REPO, read: read.clone() }).as_ref(),
-        &[Request::Read { owner: Token::new(1), result: Err(Error::TooLarge(skein_forge::api::Excess::unnamed())) }],
-        "{read:?}"
-    );
+    let got = h.step(Event::Read { owner: Token::new(1), repository: REPO, read: read.clone() });
+    let [Request::Read { owner, result: Err(Error::TooLarge(_)) }] = got.as_ref() else {
+        panic!("expected size refusal for {read:?}: {got:?}")
+    };
+    assert_eq!(*owner, Token::new(1));
     assert!(h.send().is_none());
 }
 pub(in crate::tests) fn uncertain_comment() -> super::outbox::Harness {

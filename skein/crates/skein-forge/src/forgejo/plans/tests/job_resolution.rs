@@ -132,7 +132,15 @@ fn resolving_statuses_keeps_the_answer_byte_bound() {
         }
         assert_eq!(
             step,
-            Step::Done(if fits { Ok(expected.clone()) } else { Err(Error::TooLarge(api::Excess::unnamed())) })
+            Step::Done(if fits {
+                Ok(expected.clone())
+            } else {
+                Err(Error::TooLarge(api::Excess::at_least(
+                    api::Bound::AnswerBytes,
+                    u64::from(answer_bytes),
+                    u64::from(size),
+                )))
+            })
         );
     }
 }

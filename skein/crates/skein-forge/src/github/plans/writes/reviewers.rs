@@ -83,7 +83,12 @@ impl Plan {
         let count = add.len().checked_add(remove.len()).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         let bytes = u64::from(count).checked_mul(8).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if count > bounds.rows || bytes > u64::from(bounds.answer_bytes) {
-            return Err(api::Error::TooLarge(Excess::unnamed()));
+            let excess = if count > bounds.rows {
+                Excess::at_least(api::Bound::Rows, u64::from(bounds.rows), u64::from(count))
+            } else {
+                Excess::at_least(api::Bound::AnswerBytes, u64::from(bounds.answer_bytes), bytes)
+            };
+            return Err(api::Error::TooLarge(excess));
         }
         if count == 0 {
             return self.terminal(api::Answer::Done, bounds);

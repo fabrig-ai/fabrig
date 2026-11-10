@@ -472,7 +472,7 @@ fn branch_ancestry_answered(
                 true
             }
         }
-        Err(Error::TooLarge) => false,
+        Err(Error::TooLarge(_)) => false,
         result => {
             let error = match result {
                 Err(error) => error,

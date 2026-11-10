@@ -388,10 +388,18 @@ fn keep_refuses_invalid_participation() {
 fn keep_refuses_invalid_branch_names() {
     for branch in [Box::from(&b""[..]), fixture::repeated(b'a', fixture::EXCESS_OP_BYTES)] {
         let mut h = fixture::ready();
+        let length = skein_lib::len_u64(branch.len());
         let watch = kept::watch(Resource { repository: REPO, what: What::Branch(branch) }, false);
         assert_eq!(
             h.step(Event::Keep { owner: Token::new(1), watches: Box::new([watch]) }).as_ref(),
-            &[Request::Kept { owner: Token::new(1), result: Err(Error::TooLarge(api::Excess::unnamed())) }]
+            &[Request::Kept {
+                owner: Token::new(1),
+                result: Err(Error::TooLarge(if length == 0 {
+                    api::Excess::unnamed()
+                } else {
+                    api::Excess::exact(api::Bound::OpBytes, 256, length)
+                }))
+            }]
         );
         assert!(h.domain.cached(&kept::branch()).is_none());
         assert!(h.send().is_none());

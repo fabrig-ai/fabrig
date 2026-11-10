@@ -45,16 +45,7 @@ impl Domain {
     /// Root configuration comes from its durable deployment identity and the
     /// authenticated writer account used for each forge.
     pub fn configured(l: &Limits, seed: u64, config: crate::Config) -> Result<Domain, api::Error> {
-        if !crate::identity::valid(&config, l) {
-            let size = skein_lib::len_u64(config.namespace.len()).saturating_add(
-                skein_lib::len_u64(config.writers.len())
-                    .saturating_mul(skein_lib::len_u64(crate::measure::WRITER_BYTES)),
-            );
-            let excess = if size > u64::from(l.op_bytes) {
-                api::Excess::exact(api::Bound::OpBytes, u64::from(l.op_bytes), size)
-            } else {
-                api::Excess::unnamed()
-            };
+        if let Err(excess) = crate::identity::check(&config, l) {
             return Err(api::Error::TooLarge(excess));
         }
         Ok(Self::construct(l, seed, Some(config)))

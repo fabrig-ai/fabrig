@@ -493,7 +493,7 @@ fn job_logs_are_bounded_and_pinned_to_the_failing_attempt() {
             read: Read::Job { part: api::LogPart::End, attempt, max_bytes: LIMITS.answer_bytes + 1 },
         }),
         5,
-        Error::TooLarge(api::Excess::unnamed()),
+        Error::TooLarge(api::Excess::exact(api::Bound::AnswerBytes, 4096, 4097)),
     );
 }
 #[test]
@@ -665,7 +665,7 @@ fn deployment_config_and_decoded_key_frames_are_checked() {
     };
     assert_eq!(
         Domain::configured(&Limits { op_bytes: 1, ..LIMITS }, 0, config).expect_err("oversized config"),
-        Error::TooLarge(api::Excess::unnamed())
+        Error::TooLarge(api::Excess::exact(api::Bound::OpBytes, 1, 19))
     );
 }
 
@@ -698,7 +698,10 @@ fn file_reads_are_pinned_bounded_and_charged_to_the_fresh_lane() {
     });
     assert_eq!(
         refused.as_ref(),
-        &[Request::Read { owner: Token::new(1), result: Err(Error::TooLarge(api::Excess::unnamed())) }]
+        &[Request::Read {
+            owner: Token::new(1),
+            result: Err(Error::TooLarge(api::Excess::exact(api::Bound::AnswerBytes, 4096, 4097)))
+        }]
     );
     assert!(h.send().is_none());
 }
@@ -720,7 +723,11 @@ fn a_job_answers_step_name_counts_against_answer_bytes() {
             log: Box::from(&[b'x'; 4096][..length]),
             truncated: false,
         };
-        let expected = if accepted { Ok(answer.clone()) } else { Err(Error::TooLarge(api::Excess::unnamed())) };
+        let expected = if accepted {
+            Ok(answer.clone())
+        } else {
+            Err(Error::TooLarge(api::Excess::exact(api::Bound::AnswerBytes, 4096, 4097)))
+        };
         assert_eq!(
             h.answer(&sent, 1, Ok(answer)).as_ref(),
             &[Request::Read { owner: Token::new(1), result: expected }],

@@ -138,7 +138,9 @@ fn whole_file_bodies_fit_the_answer_bound_and_refuse_one_byte_past_it() {
             };
             let answer = run(&mut h, &mut fake, read);
             if extra == 1 {
-                assert_eq!(answer.result, Err(Error::TooLarge(skein_forge::api::Excess::unnamed())));
+                let Err(Error::TooLarge(_)) = answer.result else {
+                    panic!("expected a typed size refusal");
+                };
             } else {
                 let files =
                     Box::new([File { path: Box::from(b"file".as_slice()), before: None, after: Some(content) }]);

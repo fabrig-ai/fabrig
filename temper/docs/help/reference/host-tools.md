@@ -248,7 +248,7 @@ A write.
 
 ## read_items
 
-Read issues/pulls, oldest updates first. Within forge.client.rows/answer_bytes; advance page for the rest.
+Issues/pulls, oldest updates first; forge.client.rows/answer_bytes bounded. Advance page.
 
 A read.
 
@@ -259,7 +259,7 @@ A read.
 
 ## read_item
 
-Read an issue/pull with comments within forge.client.rows/answer_bytes. Advance after for later comments; read_items lists summaries.
+Issue/pull and comments within forge.client.rows/answer_bytes. Advance after for comments; read_items for summaries.
 
 A read.
 
@@ -269,7 +269,7 @@ A read.
 
 ## read_pull
 
-Read a pull within forge.client.rows/answer_bytes. Read files by page with read_pull_files or by path at head/base with read_file.
+Pull within forge.client.rows/answer_bytes. Files: read_pull_files by page, or read_file by path at head/base.
 
 A read.
 
@@ -278,7 +278,7 @@ A read.
 
 ## read_pull_for
 
-Find a pull by head/base within forge.client.rows/answer_bytes. Read files with read_pull_files by page or read_file by path at head/base.
+Find a pull by head/base within forge.client.rows/answer_bytes. Files: read_pull_files by page or read_file by path at head/base.
 
 A read.
 
@@ -288,7 +288,7 @@ A read.
 
 ## read_reviews
 
-Read a pull's reviews within forge.client.rows/answer_bytes. Advance page for the rest; a later page skips an oversized one.
+Pull reviews within forge.client.rows/answer_bytes. Advance page for other rows; it skips an oversized page.
 
 A read.
 
@@ -298,7 +298,7 @@ A read.
 
 ## read_statuses
 
-Read commit statuses within forge.client.rows/answer_bytes. Advance page for the rest; a later page skips an oversized one.
+Commit statuses within forge.client.rows/answer_bytes. Advance page for other rows; it skips an oversized page.
 
 A read.
 
@@ -308,7 +308,7 @@ A read.
 
 ## read_remarks
 
-Read review remarks within forge.client.rows/answer_bytes. Advance page for the rest; a later page skips an oversized one.
+Review remarks within forge.client.rows/answer_bytes. Advance page for other rows; it skips an oversized page.
 
 A read.
 
@@ -319,7 +319,7 @@ A read.
 
 ## read_branch
 
-Read a branch head within forge.client.answer_bytes. Use read_branches with a longer prefix to list names.
+Branch head within forge.client.answer_bytes; read_branches with a longer prefix lists names.
 
 A read.
 
@@ -328,7 +328,7 @@ A read.
 
 ## read_branches
 
-List branch names within forge.client.rows/answer_bytes. Use a longer prefix to narrow the list, or read_branch for one name.
+Branch names within forge.client.rows/answer_bytes; narrow with a longer prefix, or read_branch for one name.
 
 A read.
 
@@ -337,7 +337,7 @@ A read.
 
 ## read_pull_files
 
-Read changed files within forge.client.rows/answer_bytes. Sides fit whole; use read_file at head/base. Advance page for other files, not this page.
+Changed files within forge.client.rows/answer_bytes. Whole sides; read_file at head/base. Next page lists other files, not this page.
 
 A read.
 
@@ -358,7 +358,7 @@ A read.
 
 ## read_checks
 
-Read combined checks within forge.client.rows/answer_bytes. Use read_statuses by page, then read_job for a failed job.
+Combined checks within forge.client.rows/answer_bytes; read_statuses by page, then read_job for a failed job.
 
 A read.
 
@@ -367,7 +367,7 @@ A read.
 
 ## read_file
 
-Read a file prefix or directory within forge.client.answer_bytes and max_bytes. A cut is incomplete; lower max_bytes or select directory paths.
+File prefix or directory within forge.client.answer_bytes and max_bytes. A cut is incomplete; lower max_bytes or select directory paths.
 
 A read.
 
@@ -378,7 +378,7 @@ A read.
 
 ## read_job
 
-Read a failed-step end or job tail within forge.client.answer_bytes. Lower max_bytes for the same attempt to fit.
+Failed-step end or job tail within forge.client.answer_bytes. Lower max_bytes for the same attempt to fit.
 
 A read.
 
@@ -391,7 +391,7 @@ A read.
 
 ## read_protection
 
-Read branch protection within forge.client.rows/answer_bytes. No pages; read_branch or read_items provides narrower context.
+Branch protection within forge.client.rows/answer_bytes. No pages; read_branch or read_items for narrower context.
 
 A read.
 
@@ -400,7 +400,7 @@ A read.
 
 ## read_settings
 
-Read repository settings within forge.client.answer_bytes. No pages; read_branch or read_items provides narrower context.
+Repository settings within forge.client.answer_bytes. No pages; read_branch or read_items for narrower context.
 
 A read.
 
@@ -408,7 +408,7 @@ A read.
 
 ## read_collaborators
 
-Read collaborators within forge.client.rows/answer_bytes. Advance page for the rest; read_permission reads one user.
+Collaborators within forge.client.rows/answer_bytes; advance page. read_permission reads one user.
 
 A read.
 
@@ -417,7 +417,7 @@ A read.
 
 ## read_permission
 
-Read user permission within forge.client.answer_bytes. No pages; read_collaborators lists users by page.
+User permission within forge.client.answer_bytes. No pages; read_collaborators lists users by page.
 
 A read.
 

@@ -234,6 +234,7 @@ fn admission(k: &Keep, l: &Limits, watches: &[Watch]) -> Result<(), Error> {
     for (index, watch) in watches.iter().enumerate() {
         if !valid_resource(&watch.resource, l) {
             let excess = match &watch.resource.what {
+                What::Branch(name) if name.is_empty() => api::Excess::unnamed(),
                 What::Branch(name) => {
                     api::Excess::exact(api::Bound::OpBytes, u64::from(l.op_bytes), skein_lib::len_u64(name.len()))
                 }

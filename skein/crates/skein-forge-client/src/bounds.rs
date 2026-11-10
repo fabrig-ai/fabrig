@@ -14,15 +14,15 @@ pub(crate) fn op(value: &Op, l: &Limits) -> Result<(), Excess> {
         }
         Op::Read(_) | Op::Write(_) => {}
     }
+    let held = skein_forge::measure::op(value).ok_or(Excess::unnamed())?;
+    if held > u64::from(l.op_bytes) {
+        return Err(Excess::exact(Bound::OpBytes, u64::from(l.op_bytes), held));
+    }
     let valid = match value {
         Op::Read(value) => read(value).is_some(),
         Op::Write(value) => write(value, l).is_some(),
     };
-    if !valid {
-        return Err(Excess::unnamed());
-    }
-    let held = skein_forge::measure::op(value).ok_or(Excess::unnamed())?;
-    if held > u64::from(l.op_bytes) { Err(Excess::exact(Bound::OpBytes, u64::from(l.op_bytes), held)) } else { Ok(()) }
+    if valid { Ok(()) } else { Err(Excess::unnamed()) }
 }
 pub(crate) fn read(value: &Read) -> Option<u64> {
     let valid = match value {

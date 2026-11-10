@@ -176,7 +176,7 @@ pub fn ancestry_cases()
         (Ok(Answer::Commits { commits: Box::new([]), more: false }), Status::Passed),
         (Ok(Answer::Commits { commits: Box::new([listed.clone()]), more: false }), Status::Failed),
         (Ok(Answer::Commits { commits: Box::new([listed]), more: true }), Status::Failed),
-        (Err(Error::TooLarge), Status::Failed),
+        (Err(Error::TooLarge(skein_forge::api::Excess::unnamed())), Status::Failed),
         (Ok(Answer::Commits { commits: Box::new([]), more: true }), Status::Unknown),
         (Err(Error::Unavailable), Status::Unknown),
         (Err(Error::Forbidden), Status::Unknown),

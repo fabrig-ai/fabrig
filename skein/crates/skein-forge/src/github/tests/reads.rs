@@ -312,17 +312,17 @@ fn github_collaborators_link_and_bounds() {
     }
     let mut call = started(api::Read::Collaborators { page: 1 }, Bounds { rows: 1, ..bounds() });
     collaborator_row(&mut call, collaborator(USER, api::Permission::Read)).unwrap();
-    assert_eq!(
-        collaborator_row(&mut call, collaborator(2, api::Permission::Read)),
-        ended(Err(api::Error::TooLarge(Excess::unnamed())))
-    );
+    let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) =
+        collaborator_row(&mut call, collaborator(2, api::Permission::Read))
+    else {
+        panic!("expected a typed size refusal");
+    };
     for bounds in
         [Bounds { answer_bytes: 15, ..bounds() }, Bounds { rows: 0, ..bounds() }, Bounds { page_size: 0, ..bounds() }]
     {
-        assert_eq!(
-            Call::new(api::Read::Collaborators { page: 1 }, bounds, true).begin(),
-            Err(api::Error::TooLarge(Excess::unnamed()))
-        );
+        let Err(api::Error::TooLarge(_)) = Call::new(api::Read::Collaborators { page: 1 }, bounds, true).begin() else {
+            panic!("expected a typed size refusal");
+        };
     }
 }
 #[test]
@@ -444,13 +444,17 @@ fn github_remarks_bounds_and_failures() {
     ] {
         malformed(Kind::RemarkRows, wire);
     }
-    for (room, expected) in [(76, Ok(None)), (75, ended(Err(api::Error::TooLarge(Excess::unnamed()))))] {
+    for (room, expected) in
+        [(76, Ok(None)), (75, ended(Err(api::Error::TooLarge(Excess::at_least(api::Bound::AnswerBytes, 75, 76)))))]
+    {
         let mut call = started(remarks_read(), Bounds { answer_bytes: room, ..bounds() });
         assert_eq!(call.heard(Heard::Row(Row::Remark(remark(1)))), expected);
     }
     let mut call = started(remarks_read(), Bounds { page_size: 1, ..bounds() });
     call.heard(Heard::Row(Row::Remark(remark(1)))).unwrap();
-    assert_eq!(call.heard(Heard::Row(Row::Remark(remark(2)))), ended(Err(api::Error::TooLarge(Excess::unnamed()))));
+    let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = call.heard(Heard::Row(Row::Remark(remark(2)))) else {
+        panic!("expected a typed size refusal");
+    };
     let mut call = started(remarks_read(), bounds());
     assert_eq!(call.done(Document::User(user())), ended(Err(api::Error::InvalidAnswer)));
     let mut call = Call::new(remarks_read(), bounds(), true);
@@ -572,10 +576,14 @@ fn github_reviews_page_bounds_and_failures() {
         assert_eq!(review_answer(&mut call).1, more);
     }
     let mut call = started(reviews_read(), Bounds { answer_bytes: 132, ..bounds() });
-    assert_eq!(call.heard(Heard::Row(Row::Review(review(1)))), ended(Err(api::Error::TooLarge(Excess::unnamed()))));
+    let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = call.heard(Heard::Row(Row::Review(review(1)))) else {
+        panic!("expected a typed size refusal");
+    };
     let mut call = started(reviews_read(), Bounds { page_size: 1, ..bounds() });
     call.heard(Heard::Row(Row::Review(document::Review { verdict: None, ..review(1) }))).unwrap();
-    assert_eq!(call.heard(Heard::Row(Row::Review(review(2)))), ended(Err(api::Error::TooLarge(Excess::unnamed()))));
+    let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = call.heard(Heard::Row(Row::Review(review(2)))) else {
+        panic!("expected a typed size refusal");
+    };
     let mut call = started(reviews_read(), bounds());
     call.heard(Heard::Row(Row::Review(review(2)))).unwrap();
     assert_eq!(call.heard(Heard::Row(Row::Review(review(1)))), ended(Err(api::Error::InvalidAnswer)));
@@ -675,12 +683,14 @@ fn github_file_exact_limit_and_truncated() {
             }))
         );
     }
-    assert_eq!(
-        Call::new(file_read(3), Bounds { answer_bytes: 6, ..bounds() }, true).begin(),
-        Err(api::Error::TooLarge(Excess::unnamed()))
-    );
+    let Err(api::Error::TooLarge(_)) = Call::new(file_read(3), Bounds { answer_bytes: 6, ..bounds() }, true).begin()
+    else {
+        panic!("expected a typed size refusal");
+    };
     let mut call = started(file_read(3), bounds());
-    assert_eq!(raw_body(&mut call, b"abcd", false), ended(Err(api::Error::TooLarge(Excess::unnamed()))));
+    let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = raw_body(&mut call, b"abcd", false) else {
+        panic!("expected a typed size refusal");
+    };
 }
 
 fn compare_read() -> api::Read {
@@ -770,13 +780,15 @@ fn github_compare_caps_and_short_commits() {
     }
     let mut call = started(compare_read(), bounds());
     call.heard(Heard::Row(Row::Commit(review(1).commit))).unwrap();
-    assert_eq!(call.done(Document::Compare(comparison(2, 0))), ended(Err(api::Error::TooLarge(Excess::unnamed()))));
+    let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = call.done(Document::Compare(comparison(2, 0))) else {
+        panic!("expected a typed size refusal");
+    };
     let mut call = started(compare_read(), Bounds { page_size: 1, ..bounds() });
     call.heard(Heard::Row(Row::Commit(review(1).commit))).unwrap();
-    assert_eq!(
-        call.heard(Heard::Row(Row::Commit(review(1).commit))),
-        ended(Err(api::Error::TooLarge(Excess::unnamed())))
-    );
+    let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = call.heard(Heard::Row(Row::Commit(review(1).commit)))
+    else {
+        panic!("expected a typed size refusal");
+    };
     for count in [299u32, 300] {
         let mut wire = Writer::new(12000);
         let mut files = skein_lib::List::with_capacity(300);
@@ -832,13 +844,14 @@ fn github_compare_absent_side_and_budget() {
         compare_rows(&mut call, false);
         sent(call.done(Document::Compare(comparison(0, 0))));
         call.head(false);
-        assert_eq!(raw_body(&mut call, body, more), ended(Err(api::Error::TooLarge(Excess::unnamed()))));
+        let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = raw_body(&mut call, body, more) else {
+            panic!("expected a typed size refusal");
+        };
     }
     let mut call = started(compare_read(), Bounds { answer_bytes: 70, ..bounds() });
-    assert_eq!(
-        call.heard(Heard::Row(Row::File(file(b"dir/x y")))),
-        ended(Err(api::Error::TooLarge(Excess::unnamed())))
-    );
+    let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = call.heard(Heard::Row(Row::File(file(b"dir/x y")))) else {
+        panic!("expected a typed size refusal");
+    };
     for status in [200, 410, 500] {
         let mut call = started(compare_read(), bounds());
         compare_rows(&mut call, false);
@@ -1063,12 +1076,16 @@ fn github_pull_files_page_and_budget() {
                 }))
             );
         } else {
-            assert_eq!(result, ended(Err(api::Error::TooLarge(Excess::unnamed()))));
+            let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = result else {
+                panic!("expected a typed size refusal");
+            };
         }
     }
     let mut call = pull_files_listing(Bounds { page_size: 1, ..bounds() }, false);
     call.heard(Heard::Row(Row::File(file(b"x")))).unwrap();
-    assert_eq!(call.heard(Heard::Row(Row::File(file(b"y")))), ended(Err(api::Error::TooLarge(Excess::unnamed()))));
+    let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = call.heard(Heard::Row(Row::File(file(b"y")))) else {
+        panic!("expected a typed size refusal");
+    };
     for cap in [65, 66] {
         let mut call = pull_files_listing(Bounds { answer_bytes: cap, ..bounds() }, false);
         let result = call.heard(Heard::Row(Row::File(document::File {
@@ -1079,7 +1096,9 @@ fn github_pull_files_page_and_budget() {
         if cap == 66 {
             assert_eq!(result, Ok(None));
         } else {
-            assert_eq!(result, ended(Err(api::Error::TooLarge(Excess::unnamed()))));
+            let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = result else {
+                panic!("expected a typed size refusal");
+            };
         }
     }
     for (wire, fits) in [
@@ -1215,10 +1234,10 @@ fn skipped_branches_count_toward_per_page_and_paging_continues() {
     );
 
     let mut call = started(api::Read::Branches { prefix: Box::from(&b"b"[..]) }, Bounds { page_size: 2, ..bounds() });
-    assert_eq!(
-        branch_page(&mut call, &[b"before", &long, b"behind"], 1),
-        ended(Err(api::Error::TooLarge(Excess::unnamed())))
-    );
+    let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = branch_page(&mut call, &[b"before", &long, b"behind"], 1)
+    else {
+        panic!("expected a typed size refusal");
+    };
 }
 
 #[test]

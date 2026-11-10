@@ -223,7 +223,7 @@ impl Plan {
                 bound: api::Bound::AnswerBytes,
                 limit: u64::from(bounds.answer_bytes),
                 size,
-                exact: false,
+                exact: true,
             }));
         }
         self.stage = Stage::Done;

@@ -544,14 +544,14 @@ fn repeated_comparison_paths_obey_file_and_answer_byte_bounds() {
                 "compare_distinct_files_still_obey_answer_bounds: files",
                 (
                     crate::forgejo::plans::plan::Bounds { rows: COMPARE_PATHS - 1, ..BOUNDS },
-                    Step::Done(Err(Error::TooLarge(api::Excess::unnamed()))),
+                    Step::Done(Err(Error::TooLarge(api::Excess::at_least(api::Bound::Rows, 2, 3)))),
                 ),
             ),
             (
                 "compare_distinct_files_still_obey_answer_bounds: bytes",
                 (
                     crate::forgejo::plans::plan::Bounds { answer_bytes: COMPARE_BYTES - 1, ..BOUNDS },
-                    Step::Done(Err(Error::TooLarge(api::Excess::unnamed()))),
+                    Step::Done(Err(Error::TooLarge(api::Excess::at_least(api::Bound::AnswerBytes, 264, 265)))),
                 ),
             ),
         ],

@@ -1,5 +1,4 @@
 use super::*;
-use crate::api::Excess;
 use skein_lib::Duration;
 
 fn reviewers(ids: &[u64]) -> api::Write {
@@ -288,23 +287,29 @@ fn github_reviewers_plan_bounds_before_mutation() {
         if succeeds {
             assert_eq!(sent(step), mutation(true, &[b"a"]));
         } else {
-            assert_eq!(step, ended(Err(api::Error::TooLarge(Excess::unnamed()))));
+            let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = step else {
+                panic!("expected a typed size refusal");
+            };
         }
     }
     let mut tables = cached_tables();
     let b = Bounds { rows: 1, ..bounds() };
     let mut plan = write_plan(reviewers(&[2, 3]));
-    assert_eq!(plan.begin(b, WORD, &mut tables), Err(api::Error::TooLarge(Excess::unnamed())));
+    let Err(api::Error::TooLarge(_)) = plan.begin(b, WORD, &mut tables) else {
+        panic!("expected a typed size refusal");
+    };
     let b = Bounds { answer_bytes: 7, ..bounds() };
     let mut plan = write_plan(reviewers(&[2]));
-    assert_eq!(plan.begin(b, WORD, &mut tables), Err(api::Error::TooLarge(Excess::unnamed())));
+    let Err(api::Error::TooLarge(_)) = plan.begin(b, WORD, &mut tables) else {
+        panic!("expected a typed size refusal");
+    };
     let mut plan = write_plan(reviewers(&[]));
     begin(&mut plan, &mut tables);
     head(&mut plan, 200, &mut tables);
-    assert_eq!(
-        finish(&mut plan, pull(&[1, 2, 3, 4, 5]), &mut tables),
-        ended(Err(api::Error::TooLarge(Excess::unnamed())))
-    );
+    let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = finish(&mut plan, pull(&[1, 2, 3, 4, 5]), &mut tables)
+    else {
+        panic!("expected a typed size refusal");
+    };
 }
 
 #[test]

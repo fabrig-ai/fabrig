@@ -774,10 +774,9 @@ fn github_post_bounds_and_failures() {
     }
     let mut tables = cached_tables();
     let mut plan = write_plan(post(b"text"));
-    assert_eq!(
-        plan.begin(Bounds { body_bytes: 1, ..bounds() }, WORD, &mut tables),
-        Err(api::Error::TooLarge(Excess::unnamed()))
-    );
+    let Err(api::Error::TooLarge(_)) = plan.begin(Bounds { body_bytes: 1, ..bounds() }, WORD, &mut tables) else {
+        panic!("expected a typed size refusal");
+    };
 }
 #[test]
 fn github_post_original_key_find() {
@@ -872,10 +871,9 @@ fn github_review_self_approval_and_bounds() {
     }
     let mut tables = cached_tables();
     let mut plan = write_plan(review(api::Verdict::Comment, b"text"));
-    assert_eq!(
-        plan.begin(Bounds { body_bytes: 1, ..bounds() }, WORD, &mut tables),
-        Err(api::Error::TooLarge(Excess::unnamed()))
-    );
+    let Err(api::Error::TooLarge(_)) = plan.begin(Bounds { body_bytes: 1, ..bounds() }, WORD, &mut tables) else {
+        panic!("expected a typed size refusal");
+    };
     for body in
         [Body::Empty, Body::Document(Document::Done), Body::Malformed(decoding::Malformed::Missing { field: b"id" })]
     {

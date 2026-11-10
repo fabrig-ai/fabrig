@@ -655,7 +655,7 @@ impl Domain {
         let mut credentials = Map::with_capacity(l.forges);
         for identity in identities {
             if credentials.insert(identity.forge, identity.credential).is_err() {
-                return Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::exact(
+                return Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::at_least(
                     skein_forge::api::Bound::Forge,
                     u64::from(l.forges),
                     u64::from(credentials.len()).saturating_add(1),
@@ -665,7 +665,7 @@ impl Domain {
         let mut writers = Map::with_capacity(l.client.repositories);
         for writer in &config.writers {
             if writers.insert(writer.forge, writer.author).is_err() {
-                return Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::exact(
+                return Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::at_least(
                     skein_forge::api::Bound::Forge,
                     u64::from(l.client.repositories),
                     u64::from(writers.len()).saturating_add(1),
@@ -2676,7 +2676,7 @@ fn lost_read(
                         pending.task,
                         pending.attempt,
                         &pending.name,
-                        crate::effect_words::error_words(error),
+                        &crate::effect_words::error_words(error),
                         out,
                     );
                     return;

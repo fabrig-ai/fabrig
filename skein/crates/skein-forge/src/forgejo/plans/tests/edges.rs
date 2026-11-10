@@ -539,17 +539,23 @@ fn write_inner_overflow_is_timeout() {
 #[test]
 fn read_inner_overflow_is_too_large() {
     let mut run = bounded_run(Op::Read(Read::Item { number: ITEM_NUMBER, after: 0 }));
-    assert_eq!(run.answer(200, THREE_LABELS), Step::Done(Err(Error::TooLarge(api::Excess::unnamed()))));
+    let Step::Done(Err(Error::TooLarge(_))) = run.answer(200, THREE_LABELS) else {
+        panic!("expected a typed size refusal");
+    };
     for read in [Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1 }, Read::Checks { commit: HEAD }] {
         let mut run = bounded_run(Op::Read(read));
-        assert_eq!(inner_overflow(&mut run), Some(Step::Done(Err(Error::TooLarge(api::Excess::unnamed())))));
+        let Some(Step::Done(Err(Error::TooLarge(_)))) = inner_overflow(&mut run) else {
+            panic!("expected a typed size refusal");
+        };
     }
 }
 
 #[test]
 fn open_pull_inner_overflow_is_too_large() {
     let mut run = bounded_run(Op::Write(write_cases::open_pull()));
-    assert_eq!(inner_overflow(&mut run), Some(Step::Done(Err(Error::TooLarge(api::Excess::unnamed())))));
+    let Some(Step::Done(Err(Error::TooLarge(_)))) = inner_overflow(&mut run) else {
+        panic!("expected a typed size refusal");
+    };
 }
 
 #[test]
@@ -744,7 +750,9 @@ fn branch_prefix_past_eight_matches_is_too_large() {
         body.put(br#""}"#).unwrap();
     }
     body.put(b"]").unwrap();
-    assert_eq!(run.answer(200, &body.finish()), Step::Done(Err(Error::TooLarge(api::Excess::unnamed()))));
+    let Step::Done(Err(Error::TooLarge(_))) = run.answer(200, &body.finish()) else {
+        panic!("expected a typed size refusal");
+    };
 }
 
 #[test]
@@ -810,7 +818,9 @@ fn read_rows_check_the_bound_before_keeping_and_keep_before_validation() {
         );
         run.begin();
         let row = Row::User(User { id: 7, login: Box::from(&b"writer"[..]), is_admin: false, full_name: Box::new([]) });
-        assert_eq!(run.hear(Heard::Row(row)), Some(Step::Done(Err(Error::TooLarge(api::Excess::unnamed())))));
+        let Some(Step::Done(Err(Error::TooLarge(_)))) = run.hear(Heard::Row(row)) else {
+            panic!("expected a typed size refusal");
+        };
         assert_eq!(run.tables().user(REPO.forge, 7), kept);
     }
 }

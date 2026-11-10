@@ -9,7 +9,7 @@ fn a_locate_past_the_call_bound_is_refused_too_large() {
         repository: Repository { forge: REPO.forge, repository: 0 },
         read: Read::Locate { owner: Box::new([b'a'; 200]), name: Box::new([b'b'; 57]) },
     });
-    terminal(&requests, 1, Error::TooLarge(api::Excess::unnamed()));
+    terminal(&requests, 1, Error::TooLarge(api::Excess::exact(api::Bound::OpBytes, 256, 257)));
     assert!(h.send().is_none());
 }
 

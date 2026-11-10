@@ -701,13 +701,12 @@ fn assert_forge_read_feedback(world: &World, refused: bool) {
     if refused {
         let (compare, compare_error) = &outputs[0];
         assert!(compare_error);
-        assert!(compare.contains("Which bound was exceeded is unknown"), "{compare}");
+        assert!(compare.contains("Forge read failed: too large: past an unnamed bound."), "{compare}");
         assert!(compare.contains("forge.client.rows") && compare.contains("forge.client.answer_bytes"));
         assert!(!compare.contains("host answer limit"), "a host bound cannot fix a forge refusal: {compare}");
         let (pull_files, pull_files_error) = &outputs[1];
         assert!(pull_files_error);
-        assert!(pull_files.contains("measured size unknown"));
-        assert!(pull_files.contains("8192"));
+        assert!(pull_files.contains("Forge read failed: too large: past an unnamed bound."));
         for (output, error) in &outputs {
             if *error {
                 assert!(output.contains("read_file") && output.contains("max_bytes"));

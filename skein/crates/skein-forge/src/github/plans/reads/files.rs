@@ -68,7 +68,18 @@ impl Plan {
             return Err(api::Error::InvalidAnswer);
         };
         if skein_lib::len_u64(bytes.len()) > u64::from(self.raw_cap) {
-            return Err(api::Error::TooLarge(Excess::unnamed()));
+            let size = self.size.saturating_add(skein_lib::len_u64(bytes.len()));
+            let excess = if size > u64::from(bounds.answer_bytes) {
+                Excess { bound: api::Bound::AnswerBytes, limit: u64::from(bounds.answer_bytes), size, exact: !more }
+            } else {
+                Excess {
+                    bound: api::Bound::Forge,
+                    limit: u64::from(self.raw_cap),
+                    size: skein_lib::len_u64(bytes.len()),
+                    exact: !more,
+                }
+            };
+            return Err(api::Error::TooLarge(excess));
         }
         if path.is_empty() {
             return Err(api::Error::InvalidAnswer);

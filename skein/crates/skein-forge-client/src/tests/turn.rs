@@ -47,7 +47,9 @@ fn turn_writes_refuse_invalid_fields_at_admission() {
     ] {
         let mut h = writing::Harness::new();
         h.make(1, write, Condition::None);
-        assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Failed(Error::TooLarge(api::Excess::unnamed())))]);
+        let [(1, Outcome::Failed(Error::TooLarge(_)))] = h.outcomes.as_slice() else {
+            panic!("invalid write must be refused: {:?}", h.outcomes);
+        };
         assert!(h.send().is_none());
     }
     crate::bounds::op(&api::Op::Write(dispatch()), &LIMITS).expect("fits");

@@ -37,7 +37,11 @@ impl Plan {
             .checked_mul(bounds.page_size)
             .ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if skip >= bounds.rows {
-            return Err(api::Error::TooLarge(Excess::unnamed()));
+            return Err(api::Error::TooLarge(Excess::at_least(
+                api::Bound::Rows,
+                u64::from(bounds.rows),
+                u64::from(skip).saturating_add(1),
+            )));
         }
         let capacity = bounds.rows.min(
             bounds
@@ -152,7 +156,16 @@ impl Plan {
         let end = self.skip.checked_add(bounds.page_size).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         let needed = self.given.min(end);
         if self.commits.len() < needed {
-            return Err(api::Error::TooLarge(Excess::unnamed()));
+            let excess = if needed > bounds.rows {
+                Excess::at_least(api::Bound::Rows, u64::from(bounds.rows), u64::from(needed))
+            } else {
+                Excess::at_least(
+                    api::Bound::AnswerBytes,
+                    u64::from(bounds.answer_bytes),
+                    u64::from(bounds.answer_bytes).saturating_add(1),
+                )
+            };
+            return Err(api::Error::TooLarge(excess));
         }
         let more = self.given > end;
         let count = needed.saturating_sub(self.skip);

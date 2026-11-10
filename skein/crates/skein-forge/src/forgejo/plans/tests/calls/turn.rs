@@ -380,7 +380,9 @@ fn commits_reverse_before_paging_and_keep_merge_parents() {
 #[test]
 fn a_commit_page_past_the_range_bound_is_refused() {
     let mut run = known(Op::Read(Read::Commits { before: BASE, after: HEAD, page: ROWS }));
-    assert_eq!(run.begin(), Step::Done(Err(Error::TooLarge(Excess::unnamed()))));
+    let Step::Done(Err(Error::TooLarge(_))) = run.begin() else {
+        panic!("expected a typed size refusal");
+    };
 }
 // Three native commit slots, three parent ids, and these whole messages.
 const RANGE_BYTES: u32 = 192 + 96 + 22 + 7 + 23;
@@ -413,7 +415,11 @@ fn a_range_past_the_answer_keeps_its_oldest_commits() {
                 (
                     crate::forgejo::plans::plan::Bounds { answer_bytes: OLDEST_TWO_BYTES - 1, ..BOUNDS },
                     1,
-                    Step::Done(Err(Error::TooLarge(Excess::unnamed()))),
+                    Step::Done(Err(Error::TooLarge(Excess::at_least(
+                        api::Bound::AnswerBytes,
+                        u64::from(OLDEST_TWO_BYTES - 1),
+                        u64::from(OLDEST_TWO_BYTES),
+                    )))),
                 ),
             ),
             (
@@ -421,7 +427,11 @@ fn a_range_past_the_answer_keeps_its_oldest_commits() {
                 (
                     crate::forgejo::plans::plan::Bounds { answer_bytes: OLDEST_BYTES - 1, ..BOUNDS },
                     1,
-                    Step::Done(Err(Error::TooLarge(Excess::unnamed()))),
+                    Step::Done(Err(Error::TooLarge(Excess::at_least(
+                        api::Bound::AnswerBytes,
+                        u64::from(OLDEST_BYTES - 1),
+                        u64::from(OLDEST_BYTES),
+                    )))),
                 ),
             ),
             (
@@ -429,7 +439,7 @@ fn a_range_past_the_answer_keeps_its_oldest_commits() {
                 (
                     crate::forgejo::plans::plan::Bounds { rows: 2, ..BOUNDS },
                     2,
-                    Step::Done(Err(Error::TooLarge(Excess::unnamed()))),
+                    Step::Done(Err(Error::TooLarge(Excess::at_least(api::Bound::Rows, 2, 3)))),
                 ),
             ),
         ],

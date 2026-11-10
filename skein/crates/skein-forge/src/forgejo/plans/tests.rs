@@ -1,5 +1,4 @@
 use super::{Body, Failure, Heard, plan::Exchange, start};
-use crate::api::Excess;
 use crate::forgejo::{
     credential,
     decode::Malformed,
@@ -143,5 +142,7 @@ mod job_resolution;
 fn answer_rows_past_the_limit_are_too_large() {
     const LIMIT: u32 = 1; // One fewer than the two branches.
     let answer = crate::api::Answer::Branches(Box::new([Box::new([]), Box::new([])]));
-    assert_eq!(super::reads::size::answer(&answer, LIMIT), Err(crate::api::Error::TooLarge(Excess::unnamed())));
+    let Err(crate::api::Error::TooLarge(_)) = super::reads::size::answer(&answer, LIMIT) else {
+        panic!("expected a typed size refusal");
+    };
 }

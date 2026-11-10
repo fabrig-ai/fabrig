@@ -286,17 +286,32 @@ fn answers_exceeding_configured_admission_bounds_are_refused_consistently() {
         [
             (
                 "answer_bytes_past_bound_are_refused",
-                byte_cases().map(|(name, read, answer, bytes)| (name, read, answer, bytes - 1)),
+                byte_cases().map(|(name, read, answer, bytes)| {
+                    (
+                        name,
+                        read,
+                        answer,
+                        bytes - 1,
+                        api::Excess::exact(api::Bound::AnswerBytes, u64::from(bytes - 1), u64::from(bytes)),
+                    )
+                }),
             ),
             (
                 "row_answers_past_bound_are_refused",
-                row_cases(OVER_ROWS).map(|(name, read, answer)| (name, read, answer, ROW_BYTE_ROOM)),
+                row_cases(OVER_ROWS).map(|(name, read, answer)| {
+                    (
+                        name,
+                        read,
+                        answer,
+                        ROW_BYTE_ROOM,
+                        api::Excess::exact(api::Bound::Rows, u64::from(ROW_BOUND), u64::from(OVER_ROWS)),
+                    )
+                }),
             ),
         ],
         |cases| {
-            for (name, read, answer, bytes) in cases {
-                let expected =
-                    Request::Read { owner: Token::new(1), result: Err(Error::TooLarge(api::Excess::unnamed())) };
+            for (name, read, answer, bytes, excess) in cases {
+                let expected = Request::Read { owner: Token::new(1), result: Err(Error::TooLarge(excess)) };
                 assert_eq!(admitted(read, answer, bytes).as_ref(), &[expected], "{name}");
             }
         },
@@ -406,7 +421,10 @@ fn keep_count_refusal_precedes_restore_busy() {
     let watches = watches.into_boxed();
     assert_eq!(
         h.step(Event::Keep { owner: Token::new(1), watches }).as_ref(),
-        &[Request::Kept { owner: Token::new(1), result: Err(Error::TooLarge(api::Excess::unnamed())) }]
+        &[Request::Kept {
+            owner: Token::new(1),
+            result: Err(Error::TooLarge(api::Excess::exact(api::Bound::Forge, 4, 5)))
+        }]
     );
 }
 
@@ -434,7 +452,10 @@ fn read_size_refusal_precedes_full_slab() {
     });
     assert_eq!(
         got.as_ref(),
-        &[Request::Read { owner: Token::new(9), result: Err(Error::TooLarge(api::Excess::unnamed())) }]
+        &[Request::Read {
+            owner: Token::new(9),
+            result: Err(Error::TooLarge(api::Excess::exact(api::Bound::OpBytes, 256, 257)))
+        }]
     );
 }
 

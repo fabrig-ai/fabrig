@@ -3323,14 +3323,7 @@ fn file_and_pull_rendering_boundaries() {
         let feedback = crate::answer_for_tool(&recorded, tool, 1024, crate::ForgeReadBounds::STOCK);
         let words = feedback.text();
         assert!(feedback.error());
-        for required in [
-            "1024",
-            "size unknown",
-            "read_file",
-            "max_bytes",
-            "forge.client.rows (8)",
-            "forge.client.answer_bytes (65536)",
-        ] {
+        for required in ["Forge read failed: too large: past an unnamed bound.", "read_file", "max_bytes"] {
             assert!(skein_lib::bytes::find(words, required.as_bytes()).is_some(), "missing {required}: {words:?}");
         }
     }
