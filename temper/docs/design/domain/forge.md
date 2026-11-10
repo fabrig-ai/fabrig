@@ -1039,6 +1039,27 @@ for it, never a read of another kind or another party's.
   files or file contents, so a goal's diff and forward history do not
   bound its landing. After an update the proof is made again at the
   new head (section 10).
+- **Every containment reader reads ancestry, never a comparison.** A
+  reader that needs only whether one commit contains another reads the
+  ancestry range by the rule above, never `Read::Compare`: `Read::Commits
+  { before: container, after: contained, page: 1 }`, the commits the
+  contained one has that the container lacks. On Forgejo that is one
+  comparison with `files=false` (skein's `forge.md`, 5.2), so a branch
+  however far ahead of and behind the other answers in a page, and no
+  file's name or side is read. Complete and empty, it is contained; a
+  range that lists a commit, whether or not more follow, or one the forge
+  refuses as too large to list, is not; any other failure, or an empty
+  page that says more follow, leaves it unknown. Its readers:
+  - **a landing's candidate,** whether its head contains main's tip
+    (`landing.md`, 5.2): `before` the head, `after` main's tip;
+    contained, the head is the candidate as it is; not contained, it is
+    prepared; unknown, the landing waits as it does for any fact it lacks;
+  - **a goal's closer,** whether its base holds the goal branch's tip
+    (11.2): `before` the base's tip, `after` the goal's tip;
+  - **a lost writer's reread,** whether the branch moved forward from the
+    head it last knew (11.1): `before` the observed head, `after` the
+    known one; contained, the move is forward; not contained, it is
+    drift; unknown, the reread fails as any failed reread does.
 - **CI on a commit** is read as its checks, skein's `Read::Checks`: the
   commit statuses and, on GitHub, the check runs, each a row with its
   context and verdict (skein's `forge.md`, 5.2; `forge-github.md`, 4.4),
@@ -3748,6 +3769,17 @@ section 6).
   reports.
 - **Never a catch-up:** the closer makes none, and nor does a goal it
   ends (11.1).
+- **Whether the base holds the goal's tip** is read afresh before a land
+  step is made and before the closer reports: the goal branch's tip, or
+  the merge a squash landing recorded for it, against the base's tip,
+  by the ancestry range (5.3, every containment reader), so a goal
+  branch far ahead of and behind its base still lands. Contained, the
+  land step is skipped; not contained, it is made. Unknown, the closer
+  makes no step and reads again after a wait: `forge.client.backoff`
+  first, doubled after each unknown in a row, capped at
+  `forge.client.poll_max`, as the client's own reads and polls back off
+  (skein's `forge-client.md`, sections 4 and 5). A known answer ends the
+  run of waits, and a restart starts it again from `backoff`.
 
 **The report.** The closer's result, a report in the words of the
 goal's contract, from what the store and the forge already hold, each

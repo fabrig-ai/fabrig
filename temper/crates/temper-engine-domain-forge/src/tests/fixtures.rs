@@ -167,6 +167,46 @@ pub fn opening() -> (Domain, Token) {
     (d, call)
 }
 
+pub fn ancestry_cases()
+-> [(Result<skein_forge::api::Answer, skein_forge::api::Error>, temper_engine_domain_forge_change::Status); 8] {
+    use skein_forge::api::{Answer, CommitMessage, Error};
+    use temper_engine_domain_forge_change::Status;
+    let listed = CommitMessage { id: BASE, parents: Box::new([]), message: Box::new([]) };
+    [
+        (Ok(Answer::Commits { commits: Box::new([]), more: false }), Status::Passed),
+        (Ok(Answer::Commits { commits: Box::new([listed.clone()]), more: false }), Status::Failed),
+        (Ok(Answer::Commits { commits: Box::new([listed]), more: true }), Status::Failed),
+        (Err(Error::TooLarge), Status::Failed),
+        (Ok(Answer::Commits { commits: Box::new([]), more: true }), Status::Unknown),
+        (Err(Error::Unavailable), Status::Unknown),
+        (Err(Error::Forbidden), Status::Unknown),
+        (Err(Error::Missing), Status::Unknown),
+    ]
+}
+
+/// One terminal read, without the client's transient retries, for reader tables.
+pub fn answer_once(
+    d: &mut Domain,
+    call: Token,
+    result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
+) -> Box<[Request]> {
+    let mut e = env();
+    e.limits.client.read_attempts = 1;
+    let mut out = Queue::uncapped();
+    step(
+        d,
+        &e,
+        Event::Client(skein_forge_client::Event::Answered { free: 0, rate: None, call, cost: 1, result }),
+        &mut out,
+    );
+    d.reclaim();
+    let mut requests = skein_lib::List::with_capacity(out.len());
+    for _ in 0..out.len() {
+        requests.push(out.pop().expect("counted request")).expect("counted output room");
+    }
+    requests.into_boxed()
+}
+
 pub fn next_call(d: &mut Domain) -> (Token, skein_forge::api::Op) {
     if !d.steps.is_empty() {
         landing_seen(d);
