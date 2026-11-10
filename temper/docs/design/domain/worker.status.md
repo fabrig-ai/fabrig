@@ -231,12 +231,3 @@ them (`temper-worker-shell/src/agent.rs`). The service gives the worker's
   runs the variable from a worker through a real agent process to a file, as
   the request of 2026-11-05 leaves that to the next comparison's run.
 
-- **Not yet:**
-  - 2: an engine's restart: the worker's grace stops at a channel's opening,
-    and its redials may pass a quarter of it (jig's link).
-    [in flight: change 65]
-  - 2: past the bound, and a worker's stop: the cancelled run spends a try,
-    and a transient try spent earlier keeps it from resuming (jig's core).
-    [in flight: change 66]
-  - 2: the stock engine-away bound is 10,000 ms, shorter than an engine's
-    restart, and no world restarts an engine alone. [in flight: change 69]

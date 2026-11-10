@@ -162,6 +162,3 @@ approval setting reaches an ask. The TUI's browser flow and recorded
 approval journey are present. Its fresh-box terminal check remains
 later work in section 15 and `../client/README.md`, section 11.
 
-- **Not yet:**
-  - 7.1 and 7.2: the `source` step runs once, a listed source counts as
-    served, and a failed step is not run again. [in flight: change 71]
