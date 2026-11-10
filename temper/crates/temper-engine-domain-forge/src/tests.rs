@@ -1112,7 +1112,11 @@ fn a_lost_writers_read_refused_for_room_is_asked_again_when_room_frees() {
         &[Request::Call {
             call: Token::new(5),
             repository: REPO,
-            op: skein_forge::api::Op::Read(skein_forge::api::Read::Commits { before: [4; 32], after: [2; 32], page: 1 }),
+            op: skein_forge::api::Op::Read(skein_forge::api::Read::Commits {
+                before: [4; 32],
+                after: [2; 32],
+                page: 1
+            }),
         }]
     );
 }
@@ -1125,7 +1129,12 @@ fn a_lost_writer_uses_reverse_ancestry_for_its_reread() {
         let mut d = domain();
         let name = run_branch(b"7");
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
-        outputs(&mut d, Event::Restore { record: Stored::BranchHead(BranchHead { name: name.clone(), commit: fixtures::BASE, owned: true }) });
+        outputs(
+            &mut d,
+            Event::Restore {
+                record: Stored::BranchHead(BranchHead { name: name.clone(), commit: fixtures::BASE, owned: true }),
+            },
+        );
         outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
         outputs(&mut d, Event::Claim { task: 9, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([7]) });
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
@@ -1432,11 +1441,8 @@ fn a_release_waits_while_its_lost_writer_is_waiting_for_read_room() {
     ready(&mut d);
     branch_at(&mut d, 3, 2);
     let (call, _) = fixtures::next_call(&mut d);
-    let answered = fixtures::answer(
-        &mut d,
-        call,
-        Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: false }),
-    );
+    let answered =
+        fixtures::answer(&mut d, call, Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: false }));
     assert!(answered.contains(&Request::ContinueRelease { task: 10 }));
 }
 

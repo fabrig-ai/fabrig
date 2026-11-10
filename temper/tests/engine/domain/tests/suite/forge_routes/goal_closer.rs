@@ -455,15 +455,18 @@ fn a_far_diverged_goal_closes_lands_and_reports_without_comparisons() {
     goal_tips.push(translate::commit(branch_tip(&mut world, &branch)));
     let landing = wait_landing(&mut world, closer);
     wait_ended(&mut world, closer);
-    let change::State::Cleared { merge } = row(&world, landing).change.state else { panic!("landing state: {:?}", row(&world, landing).change.state) };
+    let change::State::Landed { merge, .. } = row(&world, landing).change.state else { panic!("landing merged") };
     assert_eq!(translate::commit(branch_tip(&mut world, b"main")), merge);
     assert!(!result_words(&world, closer).is_empty(), "closer reported");
-    assert!(!world.forge_reads.as_ref().expect("recorded reads").iter().any(|(_, read)| matches!(read,
-        Read::Compare { before, after } if
-            (*before == main && goal_tips.contains(after)) ||
-            (*after == main && goal_tips.contains(before)) ||
-            (goal_tips.contains(before) && goal_tips.contains(after))
-    )), "containment reads no full comparison");
+    assert!(
+        !world.forge_reads.as_ref().expect("recorded reads").iter().any(|(_, read)| matches!(read,
+            Read::Compare { before, after } if
+                (*before == main && goal_tips.contains(after)) ||
+                (*after == main && goal_tips.contains(before)) ||
+                (goal_tips.contains(before) && goal_tips.contains(after))
+        )),
+        "containment reads no full comparison"
+    );
     world.close();
 }
 

@@ -2569,7 +2569,9 @@ fn ask_lost_again(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let comparison = pending.comparison;
     let Some(resource) = to_client(&pending.name, &env.limits) else { return };
     let read = match (comparison, resource.what) {
-        (Some((baseline, observed)), _) => skein_forge::api::Read::Commits { before: observed, after: baseline, page: 1 },
+        (Some((baseline, observed)), _) => {
+            skein_forge::api::Read::Commits { before: observed, after: baseline, page: 1 }
+        }
         (None, skein_forge_client::What::Branch(branch)) => skein_forge::api::Read::Branch { branch },
         (
             None,
@@ -2583,6 +2585,10 @@ fn ask_lost_again(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     child(d, env, skein_forge_client::Event::Read { owner, repository: resource.repository, read }, out);
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one fresh-read chain retains the lost writer through branch and ancestry answers"
+)]
 fn lost_read(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -2646,7 +2652,14 @@ fn lost_read(
                     out,
                 ),
                 change::Status::Unknown | change::Status::Pending => {
-                    lost_failed(d, pending.task, pending.attempt, &pending.name, crate::effect_words::error_words(error), out);
+                    lost_failed(
+                        d,
+                        pending.task,
+                        pending.attempt,
+                        &pending.name,
+                        crate::effect_words::error_words(error),
+                        out,
+                    );
                     return;
                 }
             }

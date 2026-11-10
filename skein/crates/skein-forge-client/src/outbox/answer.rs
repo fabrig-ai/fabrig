@@ -23,8 +23,14 @@ pub(crate) fn answered(
             super::find::ancestry_answered(d, env, number, phase, result, out);
             return;
         }
-        Phase::Clock | Phase::Check | Phase::Make | Phase::Queued | Phase::Find { .. }
-        | Phase::DispatchRuns { .. } | Phase::AfterUpdate | Phase::AfterMerge { .. } => {}
+        Phase::Clock
+        | Phase::Check
+        | Phase::Make
+        | Phase::Queued
+        | Phase::Find { .. }
+        | Phase::DispatchRuns { .. }
+        | Phase::AfterUpdate
+        | Phase::AfterMerge { .. } => {}
     }
     let answer = match result {
         Ok(answer) => answer,

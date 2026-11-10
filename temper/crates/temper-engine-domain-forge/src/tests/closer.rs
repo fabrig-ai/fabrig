@@ -31,10 +31,16 @@ fn a_forgotten_goal_reclaims_its_completed_closer_rows() {
 }
 
 fn checking(d: &mut Domain, step: u64) {
-    outputs(d, Event::CheckCloser {
-        task: 3, step, repository: REPO,
-        branch: b"g".as_slice().into(), base: b"main".as_slice().into(),
-    });
+    outputs(
+        d,
+        Event::CheckCloser {
+            task: 3,
+            step,
+            repository: REPO,
+            branch: b"g".as_slice().into(),
+            base: b"main".as_slice().into(),
+        },
+    );
     fixtures::answer_next(d, Ok(skein_forge::api::Answer::Commit(fixtures::HEAD)));
     fixtures::answer_next(d, Ok(skein_forge::api::Answer::Commit(fixtures::BASE)));
 }
@@ -80,13 +86,18 @@ fn unknown_closer_checks_double_their_wait_to_poll_max_and_known_resets() {
                 let (call, _) = fixtures::next_call(&mut d);
                 fixtures::answer_once(&mut d, call, unknown.clone());
                 assert_eq!(d.closer_checked(3, u64::try_from(step).unwrap()).expect("checked").ok(), None);
-                assert_eq!(d.next_wall_deadline(), Some(Wall::from_nanos(env().wall.as_nanos() + seconds * 1_000_000_000)));
+                assert_eq!(
+                    d.next_wall_deadline(),
+                    Some(Wall::from_nanos(env().wall.as_nanos() + seconds * 1_000_000_000))
+                );
             }
             d.offered_change(3);
             checking(&mut d, 8);
-            let commits: Box<[_]> = if contained { Box::new([]) } else { Box::new([CommitMessage {
-                id: fixtures::HEAD, parents: Box::new([]), message: Box::new([]),
-            }]) };
+            let commits: Box<[_]> = if contained {
+                Box::new([])
+            } else {
+                Box::new([CommitMessage { id: fixtures::HEAD, parents: Box::new([]), message: Box::new([]) }])
+            };
             fixtures::answer_next(&mut d, Ok(Answer::Commits { commits, more: false }));
             assert_eq!(d.closer_checked(3, 8), Some(Ok(contained)));
             assert_eq!(d.next_wall_deadline(), None);

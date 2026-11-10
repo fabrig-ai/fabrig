@@ -167,7 +167,8 @@ pub fn opening() -> (Domain, Token) {
     (d, call)
 }
 
-pub fn ancestry_cases() -> [(Result<skein_forge::api::Answer, skein_forge::api::Error>, temper_engine_domain_forge_change::Status); 8] {
+pub fn ancestry_cases()
+-> [(Result<skein_forge::api::Answer, skein_forge::api::Error>, temper_engine_domain_forge_change::Status); 8] {
     use skein_forge::api::{Answer, CommitMessage, Error};
     use temper_engine_domain_forge_change::Status;
     let listed = CommitMessage { id: BASE, parents: Box::new([]), message: Box::new([]) };
@@ -184,11 +185,20 @@ pub fn ancestry_cases() -> [(Result<skein_forge::api::Answer, skein_forge::api::
 }
 
 /// One terminal read, without the client's transient retries, for reader tables.
-pub fn answer_once(d: &mut Domain, call: Token, result: Result<skein_forge::api::Answer, skein_forge::api::Error>) -> Box<[Request]> {
+pub fn answer_once(
+    d: &mut Domain,
+    call: Token,
+    result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
+) -> Box<[Request]> {
     let mut e = env();
     e.limits.client.read_attempts = 1;
     let mut out = Queue::uncapped();
-    step(d, &e, Event::Client(skein_forge_client::Event::Answered { free: 0, rate: None, call, cost: 1, result }), &mut out);
+    step(
+        d,
+        &e,
+        Event::Client(skein_forge_client::Event::Answered { free: 0, rate: None, call, cost: 1, result }),
+        &mut out,
+    );
     d.reclaim();
     let mut requests = skein_lib::List::with_capacity(out.len());
     for _ in 0..out.len() {

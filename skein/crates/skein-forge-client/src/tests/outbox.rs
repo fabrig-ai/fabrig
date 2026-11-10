@@ -192,8 +192,11 @@ fn update_recovery_proves_the_requested_base_is_an_ancestor() {
         for lost in [false, true] {
             let mut h = Harness::new();
             h.env.limits.read_attempts = 1;
-            h.make(1, Write::Update { number: 9, style: api::UpdateStyle::Merge },
-                Condition::Update { head: [1; 32], base: [2; 32] });
+            h.make(
+                1,
+                Write::Update { number: 9, style: api::UpdateStyle::Merge },
+                Condition::Update { head: [1; 32], base: [2; 32] },
+            );
             h.clock();
             let check = h.one();
             h.answer(check, Ok(Answer::Pull(pull([1; 32]))));
@@ -208,7 +211,10 @@ fn update_recovery_proves_the_requested_base_is_an_ancestor() {
             match proved {
                 Some(true) => {
                     assert_eq!(h.writes, 1);
-                    assert_eq!(h.outcomes.as_slice().last(), Some(&(1, Outcome::Made { made: Made::Updated([1; 32]), found: true })));
+                    assert_eq!(
+                        h.outcomes.as_slice().last(),
+                        Some(&(1, Outcome::Made { made: Made::Updated([1; 32]), found: true }))
+                    );
                 }
                 Some(false) => {
                     let check = h.one();

@@ -27,9 +27,11 @@ fn look_update(h: &mut writing::Harness, head: [u8; 32], found: bool) {
     h.answer(
         compare,
         Ok(Answer::Commits {
-            commits: if found { Box::new([]) } else { Box::new([api::CommitMessage {
-                id: [2; 32], parents: Box::new([]), message: Box::new([]),
-            }]) },
+            commits: if found {
+                Box::new([])
+            } else {
+                Box::new([api::CommitMessage { id: [2; 32], parents: Box::new([]), message: Box::new([]) }])
+            },
             more: false,
         }),
     );

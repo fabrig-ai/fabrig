@@ -257,8 +257,14 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
         d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
             temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
         member_landing(&mut d);
-        outputs(&mut d, Event::StepLanding { task: 61, entry: 91,
-            heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) } });
+        outputs(
+            &mut d,
+            Event::StepLanding {
+                task: 61,
+                entry: 91,
+                heard: LandingHeard { released: false, cancelled: false, kept: Box::new([]) },
+            },
+        );
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
         let (call, op) = fixtures::next_call(&mut d);
@@ -279,8 +285,10 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
             Status::Unknown | Status::Pending => policy::Decision::Wait { until: None },
         };
         assert_eq!(decision, expected);
-        assert_eq!(d.landing.rows.get(&61).expect("landing").landing.members[0].candidate,
-            if status == Status::Passed { Some(fixtures::HEAD) } else { None });
+        assert_eq!(
+            d.landing.rows.get(&61).expect("landing").landing.members[0].candidate,
+            if status == Status::Passed { Some(fixtures::HEAD) } else { None }
+        );
     }
 }
 
@@ -323,10 +331,7 @@ fn landing_merge_carries_coherent_evidence_and_veto_withdraws_it() {
     assert!(ready(&mut d).is_empty(), "the higher entry waits while the landing's lower entry is reserved");
     fixtures::answer(&mut d, branch_call, Ok(Answer::Commit(fixtures::HEAD)));
     fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
-    fixtures::answer_next(
-        &mut d,
-        Ok(Answer::Commits { commits: Box::new([]), more: false }),
-    );
+    fixtures::answer_next(&mut d, Ok(Answer::Commits { commits: Box::new([]), more: false }));
     fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
     let (call, op) = fixtures::next_call(&mut d);
     assert_eq!(op, Op::Read(Read::Reviews { number: 1, page: 1 }));
