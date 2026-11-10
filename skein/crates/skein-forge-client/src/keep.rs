@@ -77,7 +77,7 @@ enum Phase {
     Pull,
     Reviews(u32),
     Branch,
-    BranchCompare { before: Commit, after: Commit },
+    BranchAncestry { before: Commit, after: Commit },
 }
 #[derive(Hash, Debug)]
 struct Repo {

@@ -18,6 +18,20 @@ pub(crate) fn answered(
         State::Busy(phase) => phase,
         State::Due(_) | State::Waiting(_) => unreachable!("entry terminal while busy"),
     };
+    match phase {
+        Phase::Ancestry { .. } => {
+            super::find::ancestry_answered(d, env, number, phase, result, out);
+            return;
+        }
+        Phase::Clock
+        | Phase::Check
+        | Phase::Make
+        | Phase::Queued
+        | Phase::Find { .. }
+        | Phase::DispatchRuns { .. }
+        | Phase::AfterUpdate
+        | Phase::AfterMerge { .. } => {}
+    }
     let answer = match result {
         Ok(answer) => answer,
         Err(error) => {
@@ -34,7 +48,6 @@ pub(crate) fn answered(
         Answer::Item { comments, more, .. } => super::find::comments_found(d, env, number, phase, &comments, more, out),
         Answer::Reviews { reviews, more } => super::find::reviews_found(d, env, number, phase, &reviews, more, out),
         Answer::Pull(pull) => pulled(d, env, number, phase, pull, out),
-        Answer::Compare { ahead, .. } => super::find::compared(d, env, number, phase, ahead == 0, out),
         Answer::Commit(commit) => branch_found(d, env, number, commit, out),
         Answer::Created(item) => super::finished(d, env, number, Made::Created(item), false, out),
         Answer::Commented(comment) => super::finished(d, env, number, Made::Commented(comment), false, out),
@@ -49,7 +62,8 @@ pub(crate) fn answered(
             assert!(phase == Phase::Make && super::is_merge(&w.entry.effect.write), "only a merge is queued");
             super::queue::queued(d, env, number, out);
         }
-        Answer::Statuses { .. }
+        Answer::Compare { .. }
+        | Answer::Statuses { .. }
         | Answer::Branches(_)
         | Answer::Remarks { .. }
         | Answer::PullFiles { .. }
@@ -223,7 +237,7 @@ fn pulled(d: &mut Domain, env: &Env<Limits>, number: u64, phase: Phase, pull: ap
                         unreachable!("update condition admitted")
                     }
                 };
-                super::next(d, number, Phase::Compare { head: pull.commit, base });
+                super::next(d, number, Phase::Ancestry { head: pull.commit, base });
             }
             Write::CreateIssue { .. }
             | Write::Post { .. }
@@ -247,9 +261,9 @@ fn pulled(d: &mut Domain, env: &Env<Limits>, number: u64, phase: Phase, pull: ap
                     unreachable!("update completion has update condition")
                 }
             };
-            super::next(d, number, Phase::Compare { head: pull.commit, base });
+            super::next(d, number, Phase::Ancestry { head: pull.commit, base });
         }
-        Phase::Clock | Phase::Make | Phase::DispatchRuns { .. } | Phase::Compare { .. } => {
+        Phase::Clock | Phase::Make | Phase::DispatchRuns { .. } | Phase::Ancestry { .. } => {
             unreachable!("pull answers conditional checks and recovery")
         }
     }

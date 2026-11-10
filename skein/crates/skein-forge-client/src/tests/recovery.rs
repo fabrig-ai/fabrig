@@ -23,16 +23,16 @@ fn check_update(h: &mut writing::Harness, pull: api::Pull) {
 fn look_update(h: &mut writing::Harness, head: [u8; 32], found: bool) {
     check_update(h, writing::pull(head));
     let compare = h.one();
-    assert_eq!(compare.op, Op::Read(Read::Compare { before: head, after: [2; 32] }));
+    assert_eq!(compare.op, Op::Read(Read::Commits { before: head, after: [2; 32], page: 1 }));
     h.answer(
         compare,
-        Ok(Answer::Compare {
-            before: head,
-            after: [2; 32],
-            files: Box::new([]),
-            ahead: u64::from(!found),
-            behind: 1,
-            changed: 0,
+        Ok(Answer::Commits {
+            commits: if found {
+                Box::new([])
+            } else {
+                Box::new([api::CommitMessage { id: [2; 32], parents: Box::new([]), message: Box::new([]) }])
+            },
+            more: false,
         }),
     );
 }

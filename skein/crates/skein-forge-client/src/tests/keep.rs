@@ -580,10 +580,22 @@ fn a_first_inbox_read_never_hides_an_edited_or_unknown_completed_own_echo() {
 
 #[test]
 fn writer_moves_require_forward_ancestry_and_authenticated_identity() {
-    for (actor, forward, hint_head, expected_drift) in
-        [(1, true, [2; 32], 0), (2, true, [2; 32], 1), (1, false, [2; 32], 1), (2, true, [3; 32], 0)]
-    {
+    let contained = Ok(Answer::Commits { commits: Box::new([]), more: false });
+    let listed = api::CommitMessage { id: [1; 32], parents: Box::new([]), message: Box::new([]) };
+    for (actor, result, hint_head, expected_drift, failure) in [
+        (1, contained.clone(), [2; 32], 0, None),
+        (2, contained.clone(), [2; 32], 1, None),
+        (2, contained, [3; 32], 0, None),
+        (1, Ok(Answer::Commits { commits: Box::new([listed.clone()]), more: false }), [2; 32], 1, None),
+        (1, Ok(Answer::Commits { commits: Box::new([listed]), more: true }), [2; 32], 1, None),
+        (1, Err(Error::TooLarge), [2; 32], 1, None),
+        (1, Ok(Answer::Commits { commits: Box::new([]), more: true }), [2; 32], 0, Some(Error::InvalidAnswer)),
+        (1, Err(Error::Unavailable), [2; 32], 0, Some(Error::Unavailable)),
+        (1, Err(Error::Forbidden), [2; 32], 0, Some(Error::Forbidden)),
+        (1, Err(Error::Missing), [2; 32], 0, Some(Error::Missing)),
+    ] {
         let mut h = Harness::new();
+        h.env.limits.read_attempts = 1;
         h.keep(Box::new([watch(branch(), false)]));
         h.clock();
         let read = h.one();
@@ -603,18 +615,10 @@ fn writer_moves_require_forward_ancestry_and_authenticated_identity() {
         assert_eq!(read.op, Op::Read(Read::Branch { branch: Box::from(&b"topic"[..]) }));
         h.answer(read, Answer::Commit([2; 32]));
         let compare = h.one();
-        assert_eq!(compare.op, Op::Read(Read::Compare { before: [1; 32], after: [2; 32] }));
-        h.answer(
-            compare,
-            Answer::Compare {
-                before: [1; 32],
-                after: [2; 32],
-                files: Box::new([]),
-                ahead: 0,
-                behind: u64::from(!forward),
-                changed: 0,
-            },
-        );
+        assert_eq!(compare.op, Op::Read(Read::Commits { before: [2; 32], after: [1; 32], page: 1 }));
+        h.event(Event::Answered { call: compare.call, cost: 1, free: 0, rate: None, result });
+        assert_eq!(h.failures.as_slice(), failure.as_slice());
+        assert_eq!(h.record(&branch()).cached.tip, Some(if failure.is_some() { [1; 32] } else { [2; 32] }));
         assert_eq!(h.drift, expected_drift);
         assert_eq!(h.news.as_slice(), &[Answer::Commit([1; 32])]);
     }

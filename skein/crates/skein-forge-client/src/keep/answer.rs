@@ -164,6 +164,13 @@ pub(crate) fn answered_resource(
         row.state = State::Due(Phase::Branch, Priority::Fresh);
         return;
     }
+    match phase {
+        Phase::BranchAncestry { before, after } => {
+            branch_ancestry_answered(d, env, key, before, after, result, out);
+            return;
+        }
+        Phase::Object | Phase::Pull | Phase::Reviews(_) | Phase::Branch => {}
+    }
     let answer = match result {
         Ok(answer) => answer,
         Err(error) => {
@@ -191,10 +198,8 @@ pub(crate) fn answered_resource(
         }
         Answer::Reviews { reviews, more } => reviews_answered(d, env, key, phase, reviews, more, out),
         Answer::Commit(commit) => branch_answered(d, env, key, commit, out),
-        Answer::Compare { before, after, behind, .. } => {
-            branch_compared(d, env, key, before, after, behind == 0, out);
-        }
-        Answer::Items { .. }
+        Answer::Compare { .. }
+        | Answer::Items { .. }
         | Answer::Runs { .. }
         | Answer::Run(_)
         | Answer::Tree { .. }
@@ -317,7 +322,7 @@ fn reviews_answered(
 ) {
     let page = match phase {
         Phase::Reviews(page) => page,
-        Phase::Object | Phase::Pull | Phase::Branch | Phase::BranchCompare { .. } => unreachable!("reviews stage"),
+        Phase::Object | Phase::Pull | Phase::Branch | Phase::BranchAncestry { .. } => unreachable!("reviews stage"),
     };
     if more && page >= env.limits.inbox {
         failed_resource(d, env, key, phase, Error::TooLarge, out);
@@ -434,28 +439,49 @@ fn branch_answered(d: &mut Domain, env: &Env<Limits>, key: &Resource, commit: Co
         && let Some(before) = row.record.cached.tip
     {
         let row = d.keep.live.get_mut(key).expect("resource remains");
-        row.state = State::Due(Phase::BranchCompare { before, after: commit }, Priority::Fresh);
+        row.state = State::Due(Phase::BranchAncestry { before, after: commit }, Priority::Fresh);
         return;
     }
     branch_observed(d, env, key, commit, false, out);
 }
-fn branch_compared(
+fn branch_ancestry_answered(
     d: &mut Domain,
     env: &Env<Limits>,
     key: &Resource,
     before: Commit,
     after: Commit,
-    forward: bool,
+    result: Result<Answer, Error>,
     out: &mut Queue<Request>,
 ) {
     let row = d.keep.live.get(key).expect("resource remains");
-    // A run answer can confirm a newer head while this comparison is in flight.
-    // The comparison cannot overwrite that confirmation.
+    // A run answer can confirm a newer head while this ancestry read is in flight.
+    // The read cannot overwrite that confirmation.
     if row.record.cached.tip != Some(before) {
         let row = d.keep.live.get_mut(key).expect("resource remains");
         row.state = State::Due(Phase::Branch, Priority::Fresh);
         return;
     }
+    let forward = match result {
+        Ok(Answer::Commits { commits, more }) => {
+            if !commits.is_empty() {
+                false
+            } else if more {
+                failed_resource(d, env, key, Phase::BranchAncestry { before, after }, Error::InvalidAnswer, out);
+                return;
+            } else {
+                true
+            }
+        }
+        Err(Error::TooLarge) => false,
+        result => {
+            let error = match result {
+                Err(error) => error,
+                Ok(_) => Error::InvalidAnswer,
+            };
+            failed_resource(d, env, key, Phase::BranchAncestry { before, after }, error, out);
+            return;
+        }
+    };
     branch_observed(d, env, key, after, !forward, out);
 }
 fn branch_observed(
@@ -498,7 +524,11 @@ fn failed_resource(
     error: Error,
     out: &mut Queue<Request>,
 ) {
-    if error == Error::Missing {
+    let ancestry = match phase {
+        Phase::BranchAncestry { .. } => true,
+        Phase::Object | Phase::Pull | Phase::Reviews(_) | Phase::Branch => false,
+    };
+    if error == Error::Missing && !ancestry {
         let row = d.keep.live.get_mut(key).expect("resource remains");
         if row.presence != super::Presence::Missing {
             if let What::Branch(_) = key.what

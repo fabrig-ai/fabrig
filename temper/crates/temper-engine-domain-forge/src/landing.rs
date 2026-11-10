@@ -46,7 +46,7 @@ pub(crate) struct Pending {
 enum Stage {
     Branch(u16),
     Main(u16),
-    Compare(u16),
+    Ancestry(u16),
     Pull(u16),
     Reviews(u16, u32),
     Collect,
@@ -895,7 +895,7 @@ pub(crate) fn answered(
         }
     }
     match p.stage.clone() {
-        Stage::Branch(index) | Stage::Main(index) | Stage::Compare(index) | Stage::Pull(index) => {
+        Stage::Branch(index) | Stage::Main(index) | Stage::Ancestry(index) | Stage::Pull(index) => {
             let member = row.landing.members.get(usize::from(index)).expect("member");
             let Some(change) = d.changes.get(&member.change) else {
                 return;
@@ -954,21 +954,14 @@ pub(crate) fn answered(
                         return;
                     };
                     fact.main = main;
-                    p.stage = Stage::Compare(index);
-                    api::Read::Compare { before: main, after: fact.head }
+                    p.stage = Stage::Ancestry(index);
+                    api::Read::Commits { before: fact.head, after: main, page: 1 }
                 }
-                Stage::Compare(_) => {
-                    fact.contains_main = match answer {
-                        Ok(api::Answer::Compare { before, after, behind, .. })
-                            if before == fact.main && after == fact.head =>
-                        {
-                            if behind == 0 {
-                                policy::Status::Passed
-                            } else {
-                                policy::Status::Failed
-                            }
-                        }
-                        Ok(_) | Err(_) => policy::Status::Unknown,
+                Stage::Ancestry(_) => {
+                    fact.contains_main = match crate::domain::ancestry_status(answer) {
+                        change::Status::Passed => policy::Status::Passed,
+                        change::Status::Failed => policy::Status::Failed,
+                        change::Status::Unknown | change::Status::Pending => policy::Status::Unknown,
                     };
                     p.stage = Stage::Pull(index);
                     api::Read::Pull { number: member.pull }
