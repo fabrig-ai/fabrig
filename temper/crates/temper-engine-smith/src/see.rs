@@ -45,6 +45,7 @@ pub fn see_answer(
     answer: &SeeAnswer,
     catalogue: &[jig_domain_core::settings::CatalogueModel],
     max_bytes: u32,
+    forge: crate::ForgeReadBounds,
 ) -> HostAnswer {
     let text = match answer {
         SeeAnswer::Ways(document) => Ok(ways_text(document)),
@@ -82,9 +83,13 @@ pub fn see_answer(
             )
         }
         SeeAnswer::Call { tool, answer } => {
-            let (text, error) =
-                crate::answer_for_tool(answer, tool, u32::try_from(HostAnswer::CAPACITY).expect("host capacity"))
-                    .into_parts();
+            let (text, error) = crate::answer_for_tool(
+                answer,
+                tool,
+                u32::try_from(HostAnswer::CAPACITY).expect("host capacity"),
+                forge,
+            )
+            .into_parts();
             if error {
                 return refused(line, &text, max_bytes);
             }

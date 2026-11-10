@@ -765,11 +765,16 @@ bounds still hold.
   within 64 bytes, or says missing, duplicate, invalid or too long, and
   carries neither parameters nor body text.
 - **Affinity.** The key renders as 36 bytes: lowercase hexadecimal in the
-  8-4-4-4-12 form of a UUID, in the body as `prompt_cache_key`. The
-  thread is not rendered: conversations that share a key share its cache
-  routing. No `session-id` or `thread-id` header is sent; both stay
-  reserved names, which an endpoint's configured headers may not use. A
-  prompt without affinity sends no cache key.
+  8-4-4-4-12 form of a UUID, in the body as `prompt_cache_key` and in the
+  call's `session_id` header. The header is what keeps a conversation's
+  calls on its cached prefix: without it, a plan's route spread one run's
+  calls across machines and cached under a fifth of its input, against
+  95% with it (measured 11-09). The thread is not rendered: conversations
+  that share a key share its cache routing. No `thread-id` header is
+  sent. `session_id`, `session-id` and `thread-id` stay reserved names,
+  which an endpoint's configured headers may not use. A prompt without
+  affinity sends neither key nor header, and model-list reads carry no
+  `session_id`.
 - **Tool choice.** `Auto` sends `"auto"`, `None` sends `"none"`, and
   `Only` sends `"auto"` (section 2.2). `parallel_tool_calls` is false
   where `calls_per_response` is 1, and true above it (section 2.2).
@@ -884,9 +889,10 @@ supply its schemas, body menus, invalid inputs and scripts.
 The contracts of sections 2 and 4 add these, all in the focused suite
 unless marked:
 
-- **Affinity:** the public route carries the key in the body alone, with
-  neither header; no affinity sends none; an endpoint header named
-  `session-id` or `thread-id` is refused on every route; Anthropic encodes
+- **Affinity:** the public route carries the key in the body and in the
+  `session_id` header, with no `thread-id`; no affinity sends neither; an
+  endpoint header named `session_id`, `session-id` or `thread-id` is
+  refused on every route; Anthropic encodes
   byte-identical requests with and without affinity. Through the fake peer, every request of one
   conversation carries the same affinity (fake-llm.md, section 3.1).
 - **Determinism:** each request of a growing conversation, encoded twice,

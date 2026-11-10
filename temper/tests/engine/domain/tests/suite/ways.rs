@@ -876,7 +876,8 @@ fn see_ways(driver: &mut Driver, completion: u32) -> String {
         .expect("chat person's see ways");
     let Delivery::Host(delivery) = driver.delivered.remove(at) else { unreachable!() };
     let engine::HostDelivery::See { to, answer, .. } = *delivery else { unreachable!() };
-    let rendered = temper_engine_smith::see_answer(b"ways", 0, &answer, &[], 8192);
+    let rendered =
+        temper_engine_smith::see_answer(b"ways", 0, &answer, &[], 8192, temper_engine_smith::ForgeReadBounds::STOCK);
     let text = std::str::from_utf8(rendered.text()).expect("see text").to_owned();
     assert!(!rendered.error(), "{text}");
     driver.send(Event::Worker(engine::WorkerInput::RenderedHostCall {

@@ -284,6 +284,40 @@ fn list_reads_launch_temper_without_credentials_or_a_run_slot() {
 }
 
 #[test]
+fn a_one_argument_agent_lists_with_its_configuration_alone() {
+    use jig_protocol_accounts::table::{Scheme, Value};
+    let mut settings = fixtures::worker_settings();
+    settings.jig.agent.arguments = Box::new([Box::from(fixtures::AGENT_JSON)]);
+    settings.jig.agent.configuration = Box::from(fixtures::AGENT_JSON);
+    let mut worker = crate::Worker::new(
+        &settings,
+        &fixtures::worker_agent(),
+        &fixtures::worker_limits(),
+        &fixtures::worker_files(),
+        crate::WorkerRuntime { root: io::kernel::Fd::new(9), path: b"/worker".as_slice().into() },
+        7,
+    )
+    .unwrap();
+    worker
+        .values
+        .granted(
+            LIST_ACCOUNT,
+            LIST_GENERATION,
+            Value { scheme: Scheme::Key, token: Secret::new(b"list-fixture-key".as_slice().into()) },
+            Time::from_nanos(10),
+        )
+        .unwrap();
+    worker.route(root::Request::ReadList {
+        read: LIST_READ,
+        endpoint: LIST_ENDPOINT,
+        grant: list_grant(jig_domain_link::Form::Credential(jig_domain_link::Scheme::Key)),
+    });
+    let (_, launched) = fixtures::spawn(&mut worker);
+    assert_eq!(launched.program.as_ref(), fixtures::TEMPER);
+    assert_eq!(launched.args.as_ref(), [Box::from(b"--list".as_slice()), Box::from(fixtures::AGENT_JSON)]);
+}
+
+#[test]
 fn reads_without_a_usable_launch_or_grant_fail_without_io() {
     use jig_domain_link::{Form, ListFailure, ListOutcome, Scheme as GrantScheme};
     use jig_protocol_accounts::table::{Scheme, Value};

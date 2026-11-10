@@ -9,6 +9,9 @@ pub enum WorkerRuntime {}
 pub enum Agent {}
 
 impl Agent {
+    pub(crate) fn charter_bytes(&self) -> u64 {
+        match *self {}
+    }
     pub(crate) fn tool_payload(&self) -> u32 {
         match *self {}
     }
@@ -39,6 +42,9 @@ impl Agent {
 }
 
 impl Worker {
+    pub(crate) fn drain_notes(&mut self, _sink: &mut skein_lib::Queue<crate::Note>) {
+        match *self {}
+    }
     pub(crate) fn pending(&self, _now: skein_lib::Time) -> crate::diagnostics::Worker {
         match *self {}
     }
@@ -98,9 +104,6 @@ impl Worker {
         match *self {}
     }
     pub(crate) fn refused(&self) -> Option<&jig_protocol_config::Problems> {
-        match *self {}
-    }
-    pub(crate) fn link_taken(&self) -> bool {
         match *self {}
     }
     pub(crate) fn accepts(&self, _event: &skein_io::Event) -> bool {

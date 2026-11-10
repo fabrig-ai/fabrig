@@ -15,7 +15,7 @@ crates hold them: `binaries.rs`'s `temper-engine` row, unchanged, since
 no launcher; and `closure.rs`'s `temper-agent` row, 4.4's seven temper
 crates, no jig crate and no exception, since `temper-shell` links
 skein's crates and `temper-docs` alone and jig's form of the three
-directories is `temper-engine-shell`'s `jig_directories`, which the
+directories is `temper-service-shell`'s `jig_directories`, which the
 box's `temper::directories` re-exports. The client's and the worker's
 rows remain M5's. The box's modes and the worker's current program are
 unchanged; naming `temper-agent` is M3's
@@ -36,6 +36,12 @@ incident's unexplained 503 (`../domain/root.md`, section 13).
   `temper-service/src/clients/translation.rs`, `not_ready`, still refuses
   watches as `Busy`. The sign-in line is present, but other calls can
   still claim all watches are in use while the gate is shut.
+
+Section 4.5's `temper-worker` is present on `temper-worker-shell` and
+`temper-service-shell`, with its step test (`bin/temper-worker/tests/suite/main.rs`).
+15.6's story on the deployment's binaries is written and compiled, and runs
+after landing (`crates/temper/tests/process.rs`,
+`a_task_runs_on_each_worker_of_the_deployments_binaries`).
 
 Section 4's `temper [ADDRESS]` command is present, including bare
 `temper` choosing the TUI only when stdin and stdout are terminals.
@@ -72,7 +78,7 @@ Section 15.3 has no known gap in a link's loss lines: the worker prints
 channel that said hello and `worker opening ended` for an opening, once
 until that worker's reason changes or it links, and a failed workers'
 listener prints its line when it fails (`temper-service/src/worker.rs`,
-`link`; `workers.rs`, `route`; `temper-engine-shell/src/serve/host.rs`).
+`link`; `workers.rs`, `route`; `temper-service-shell/src/host.rs`).
 The binary's line tables
 `worker_loss_lines_name_each_cause_and_refusal_exactly`,
 `engine_worker_loss_lines_name_each_cause_and_refusal_exactly` and
@@ -81,7 +87,12 @@ The binary's line tables
 `a_linked_loss_is_noted_once_and_a_refused_dial_has_no_lost_line`,
 `worker_opening_ends_are_suppressed_by_name_and_reason_until_hello` and
 `a_workers_listener_failure_is_noted_before_the_service_finishes` hold
-it. The request `worker-relinks` of 2026-11-08 also asked that the
+it. Nor in `worker unsent`: the engine writes it once for each record its
+link did not send, naming the record, its frame's bytes and the room or
+the channel's reason (`workers.rs`, `route`, `Note::WorkerUnsent`;
+`serve/host.rs`, `note_line`), as
+`worker_unsent_lines_name_the_record_bytes_and_bound` and
+`each_unsent_record_reaches_the_operator_once` hold. The request `worker-relinks` of 2026-11-08 also asked that the
 engine stop on SIGTERM within its stop grace, where a service manager
 killed one after 90 seconds: the workers' part closes within the
 stall deadline of the close (jig's `protocol/channel.md`, 10.2), but no
@@ -95,7 +106,6 @@ engine has no stop deadline of its own (section 14).
   `domain/engine.md`, section 8), and the real-loop story supplies no
   proof of that process boundary. No reference-case story runs in this tier; the task-per-worker,
   lost-worker, hung-worker and late-worker boundary stories remain.
-
 
 - **Not yet:** 4: `temper versions`, `temper upgrade --check` and `--back`, and a patching start's lines: the binary's table has no row for them (`crates/temper/src/commands.rs`). A link the forge's restore cannot make still panics, with serve's fail-stop report and its backtrace, where jig's start's are refusals (`../domain/root.status.md`, 9.1). 6: the setup adapter's close kept as requested apart from `Close` sent, and sent once the host's room permits: `close()` sends `Close` at once (`temper-service/src/setup.rs`). 9: the baseline's set and its rehearsal: no owner's kept texts (`--baseline`), no real patch sets in place of jig's `PatchSets::NONE`, no gate check of patches, no golden store.
 - **Departs:** 4: a group's file holds its kind alone, which the box writes at `start FORGE owned|fake`, and `temper forge fetch`, `prepare` and `run` compose the setup entry from `application.machine` by that kind (`temper-engine-shell/src/forge.rs`, `entry`; `temper-forge-setup/src/machine.rs`, `group_file`); the code records no reason (`forge.status.md`, 2.8). 6, 7: `temper-worker-domain/src/translate.rs` rebuilds smith's `SourceName` with `.expect("same source name grammar")`, so a stored name smith refuses aborts the process, where `jig/crates/jig-protocol-worker-agents/src/sources.rs` answers its command `Unconfigured`; no reason is recorded. 15.5, 15.6: the cluster's description keeps the lab's format, cost label, file name, `{experiment}` binding and empty fields, and the ignored case 4.6 story uses it (`tests/support/case.rs`); their purposes, the lab and that case, are retired, and the code awaits removal with this design.

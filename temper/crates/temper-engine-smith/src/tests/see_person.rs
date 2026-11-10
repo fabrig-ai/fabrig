@@ -1121,7 +1121,9 @@ fn person_answers_read_as_named_bounded_lines() {
         ),
     ] {
         let answer = SeeAnswer::Person(Box::new(SeePerson { read, names: names() }));
-        let (bytes, error) = crate::see_answer(address.as_bytes(), 0, &answer, &catalogue(), 20_000).into_parts();
+        let (bytes, error) =
+            crate::see_answer(address.as_bytes(), 0, &answer, &catalogue(), 20_000, crate::ForgeReadBounds::STOCK)
+                .into_parts();
         let rendered = core::str::from_utf8(&bytes).unwrap();
         assert!(!error, "{address}: {rendered}");
         assert_eq!(rendered.lines().next(), Some(first), "{address}");

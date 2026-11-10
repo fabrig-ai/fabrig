@@ -1,4 +1,5 @@
-//! Worker channel records, without domain or payload policy.
+//! Worker channel records and their sizes, and a resumed start's
+//! committed calls fitted to a room, without domain or payload policy.
 //! Contracts: protocol/channel.md, sections 3, 4.1 and 6.2.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
@@ -10,7 +11,12 @@ use skein_lib::Token;
 #[path = "generated/v9.rs"]
 pub mod v9;
 mod kinds;
+mod loss;
+pub use loss::Loss;
 pub mod sizes;
+
+pub mod fit;
+
 #[cfg(test)]
 mod tests;
 

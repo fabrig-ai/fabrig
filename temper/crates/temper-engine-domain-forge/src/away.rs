@@ -191,12 +191,16 @@ pub(crate) fn decided(
             }
         }
     }
+    let swept = !erases.is_empty();
     for number in erases.into_boxed() {
         d.decisions.remove(&(project, number));
         out.push(Request::Erase { key: Key::Decided { project, number } });
     }
     if count >= env.limits.decided_per_project {
         let Some((_, number)) = oldest else {
+            if swept {
+                out.push(Request::Marked { tasks: Box::new([decided_subject(project)]) });
+            }
             out.push(Request::Decided { to, key, took: None, reach: Some(reach) });
             return;
         };

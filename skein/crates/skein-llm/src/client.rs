@@ -135,7 +135,9 @@ pub fn request_head(endpoint: &Endpoint, credential: &CredentialLimits, limits: 
         Provider::OpenAi => Scheme::Bearer,
         Provider::Anthropic => Scheme::Key,
     };
-    let fields = provider_headers(endpoint);
+    // Every Responses call may carry its affinity's session field (llm.md, 4.8).
+    let session = [b'-'; 36];
+    let fields = route_fields(endpoint, (endpoint.provider == Provider::OpenAi).then_some(&session));
     let fixed = match endpoint.encoding {
         Encoding::Identity => 5,
         Encoding::Gzip => 6,
@@ -373,7 +375,15 @@ pub fn measure(
         Provider::Anthropic => anthropic::measure_request(prompt, limits.declared_output_tokens, &limits.native())?,
     };
     let compressed = compressed(endpoint, body, limits);
-    let head = measure_headers(endpoint, credential, limits, coding(compressed), content_length(body, compressed))?;
+    let session = session_id(endpoint, prompt);
+    let head = measure_headers(
+        endpoint,
+        credential,
+        session.as_ref(),
+        limits,
+        coding(compressed),
+        content_length(body, compressed),
+    )?;
     Ok(Measured { head, body, compressed })
 }
 
@@ -507,9 +517,11 @@ impl Client {
         let kept_body = if keep_body { Some(rendered.clone()) } else { None };
         let length = u32::try_from(rendered.len()).expect("an encoded request fits its measured bound");
         let compressed = compressed(&input.endpoint, length, limits);
+        let session = session_id(&input.endpoint, &input.prompt);
         let head = measure_headers(
             &input.endpoint,
             input.credential.as_ref(),
+            session.as_ref(),
             limits,
             coding(compressed),
             content_length(length, compressed),
@@ -532,6 +544,7 @@ impl Client {
         let headers = headers(
             &input.endpoint,
             input.credential.as_ref(),
+            session.as_ref(),
             limits,
             coding(compressed),
             u64::try_from(end).expect("a body length fits u64"),
@@ -1590,6 +1603,7 @@ pub fn encoder_bound(limits: &Limits) -> Option<u64> {
 fn measure_headers(
     endpoint: &Endpoint,
     credential: Option<&Credential>,
+    session: Option<&[u8; 36]>,
     limits: &Limits,
     coding: Encoding,
     content_length: u64,
@@ -1609,7 +1623,7 @@ fn measure_headers(
         Some(credential) => (Some(credential.scheme), credential.value.len()),
         None => (None, 0),
     };
-    let fields = provider_headers(endpoint);
+    let fields = route_fields(endpoint, session);
     let total = head_length(endpoint, value_bytes, coding, content_length, scheme, &fields)?;
     let mut fixed_count = if credential.is_some() { 5_usize } else { 4_usize };
     if coding == Encoding::Gzip {
@@ -1640,11 +1654,12 @@ fn measure_headers(
 fn headers(
     endpoint: &Endpoint,
     credential: Option<&Credential>,
+    session: Option<&[u8; 36]>,
     limits: &Limits,
     coding: Encoding,
     content_length: u64,
 ) -> Result<Box<[Header]>, Error> {
-    measure_headers(endpoint, credential, limits, coding, content_length)?;
+    measure_headers(endpoint, credential, session, limits, coding, content_length)?;
     let mut headers = List::with_capacity(limits.http.headers);
     for (name, value) in [
         (b"Host".as_slice(), endpoint.authority.as_ref()),
@@ -1663,6 +1678,11 @@ fn headers(
     }
     for header in credential_headers(endpoint, credential)? {
         headers.push(header).expect("route and credential fields fit the checked cap");
+    }
+    if let Some(session) = session {
+        headers
+            .push(Header { name: bytes::copy_of(SESSION), value: bytes::copy_of(session) })
+            .expect("the session field fits the checked cap");
     }
     for header in &endpoint.headers {
         headers.push(header.clone()).expect("extra headers fit the checked cap");
@@ -1763,6 +1783,27 @@ fn head_length(
         .ok_or(Error::Invalid)
 }
 
+/// The field that keeps a conversation's Responses calls on the provider's
+/// cached prefix (llm.md, 4.8). Model-list reads carry none.
+const SESSION: &[u8] = b"session_id";
+
+/// The affinity key as a UUID, sent on Responses calls only.
+fn session_id(endpoint: &Endpoint, prompt: &Prompt) -> Option<[u8; 36]> {
+    match (endpoint.provider, prompt.affinity) {
+        (Provider::OpenAi, Some(affinity)) => Some(crate::affinity::uuid(&affinity.key)),
+        (Provider::OpenAi | Provider::Anthropic, _) => None,
+    }
+}
+
+/// A call's fixed route fields: the provider's version field and the session.
+fn route_fields<'a>(endpoint: &Endpoint, session: Option<&'a [u8; 36]>) -> [Option<(&'a [u8], &'a [u8])>; 2] {
+    let [provider] = provider_headers(endpoint);
+    match session {
+        Some(session) => [provider, Some((SESSION, session.as_slice()))],
+        None => [provider, None],
+    }
+}
+
 fn provider_headers(endpoint: &Endpoint) -> [Option<(&'static [u8], &'static [u8])>; 1] {
     match endpoint.provider {
         Provider::OpenAi => [None],
@@ -1802,6 +1843,7 @@ fn reserved(name: &[u8]) -> bool {
         b"authorization",
         b"chatgpt-account-id",
         b"session-id",
+        b"session_id",
         b"thread-id",
         b"x-api-key",
         b"content-type",

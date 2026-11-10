@@ -59,6 +59,17 @@ pub fn valid(limits: &Limits) -> bool {
     let Some(codec) = sizes::limits(&limits.sizes) else {
         return false;
     };
+    let Some(smallest) = sizes::smallest_resumed(
+        limits.sizes.answered,
+        limits.sizes.call_name,
+        limits.sizes.tool_name,
+        limits.sizes.answer,
+    ) else {
+        return false;
+    };
+    if smallest > limits.room {
+        return false;
+    }
     for rule in wire::KINDS {
         let required = rule.direction == skein_channel::Direction::FromResponder
             && rule.body != wire::Kind::Assignment

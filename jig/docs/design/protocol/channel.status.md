@@ -45,6 +45,50 @@ what stopped a deployment's engine taking its worker back on
 2026-11-08 is unproven: that evidence is outside the repository, and no
 deployment on record has run since.
 
+Sections 5.2, 9, 11 and 12 have no known gap in the room. Each side's
+component takes its stream's room, io's `largest_room`, and is not made
+unless the room holds a `Refuse` and the largest frame of each kind it
+sends, the worker's `Open` among them, the engine's assignment and job
+alone exempt (each crate's `limits.rs`, `valid`). The engine's component
+measures each record's frame before the channel takes it: an assignment
+or a job past the room, or one the channel refuses at its entrance for
+anything but a full queue, is answered refused with words naming its
+bytes and the bound, a read list fails as one that cannot encode, any
+other record is dropped and counted, and each is told once as
+`Request::Unsent`, the connection's ping armed again an interval on
+(`component.rs`, `send` and `unsent`). A job that cannot encode is
+answered `job cannot encode`. The engine's world's
+`a_start_past_the_room_is_answered_and_the_link_lives`, the component's
+`the_room_holds_control_and_every_non_start_frame`,
+`an_unencodable_job_is_answered_with_bounded_words` and
+`a_channels_closed_entrance_answers_the_current_record_once`, the
+worker's world's `a_room_below_a_frame_the_worker_sends_is_not_made`,
+and the joined
+`an_assignment_past_the_engines_room_keeps_the_link_and_fails_its_run`
+hold it. That a start past the room is what silenced a deployment's
+link on 2026-11-09, at fabrig `a66fcfb9f7`, which already held the
+loss handling above, stands on reading alone: that evidence is outside the
+repository, and its proof is that deployment's next `worker unsent`
+line, which no record shows.
+
+Sections 5.2, 9, 11 and 12 have no known gap in *A resumed start fits
+its room first*. `jig-protocol-worker-wire`'s `fit::fit` keeps an
+assignment whole when its frame fits; otherwise it cuts every host
+answer longer than its words, `fit::cut_words`, and gives back from
+the newest call the answers whose frame still fits, stopping at the
+first that does not; a delivery's answer, and a host answer no longer
+than its words, stay whole; an assignment still past the room is
+returned cut, `Fitted::Past` with its bytes. `sizes::smallest_resumed`
+measures the smallest resumed start. The engine's component fits each
+assignment before measuring it, never a job, and refuses one `Past`
+with the bytes so cut (`component.rs`, `send`); `valid` refuses limits
+whose smallest resumed start passes the room (`limits.rs`). The wire's
+`a_resumed_start_is_fitted_to_its_room` and
+`the_smallest_resumed_start_is_measured`, the engine's world's
+`a_resumed_start_fits_the_room` and
+`the_room_holds_the_smallest_resumed_start`, and the joined
+`a_resumed_start_fits_the_room_on_each_stock_profile` hold it.
+
 - **Not yet:** 12: the engine's fifty-loss row loses its worker by
   silence, stall, a send held below, the stream failing and ending, not
   admitted, replaced and framing, but not by a full cap or the worker's

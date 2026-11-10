@@ -288,6 +288,14 @@ pub(super) fn credential(
 
 pub(super) fn granted(mut starting: Starting, grant: host::Grant, config: &Config) -> State {
     assert!(config.accounts.contains(&grant.account), "grant names a requested account");
+    for held in starting.grants.values.iter_mut() {
+        if held.account == grant.account {
+            if grant.generation > held.generation {
+                *held = grant;
+            }
+            return State::Starting(starting);
+        }
+    }
     assert!(starting.grants.awaiting > 0, "one terminal per account request");
     starting.grants.awaiting = starting.grants.awaiting.checked_sub(1).expect("pending account");
     starting.grants.values.push(grant).expect("validated account capacity");

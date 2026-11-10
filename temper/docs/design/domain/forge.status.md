@@ -1,9 +1,9 @@
 # forge: status
 
-2026-11-09. Where temper's code lags or departs from [forge.md](forge.md).
+2026-11-10. Where temper's code lags or departs from [forge.md](forge.md).
 
-Sections 5.5, 5.8, 5.9 and 5.10 have no known implementation gap but
-the one below in what reaches a person, the whole story's milestone N1,
+Sections 5.5, 5.8, 5.9 and 5.10 have no known implementation gap
+in what reaches a person, the whole story's milestone N1,
 by plan `ui-reaches`. The crate `temper-protocol-reaches` holds the
 kinds, the classes, a project's table and its check, the patterns, the
 stock tables, `judge`, `away_may_decide` and Stop asking's offers, with a
@@ -32,12 +32,6 @@ draft's lags (`../draft/what-reaches-you.status.md`, 4).
   check passed, which would need temper's store and worker wire to change; the
   dependent's own checks cover its whole tree at its delivery meanwhile (the
   owner, 2026-11-09).
-- **Not yet:** 5.9: a call answered ask at the bound, with no row past
-  its day, erases the project's rows older than 7 days without marking
-  `decided`, so its document lists them until the next mark
-  (`temper-engine-domain-forge/src/away.rs`, `decided`); no test holds
-  that branch's sweep.
-
 Section 11.1 has no known implementation gap in whole-goal child isolation:
 words-only calls and batch members use the nearest held goal branch,
 including callers in its subtree; an explicit destination outside it is

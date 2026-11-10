@@ -2457,7 +2457,7 @@ fn serve_and_a_worker_alone_place_links_only_for_a_fetched_program() {
             let launcher = directory.join("claude-code/claude");
             let cache = directory.join("claude-code/cache");
             if fetched {
-                assert_eq!(fs::read_link(&launcher).unwrap(), std::env::current_exe().unwrap());
+                assert_eq!(fs::read_link(&launcher).unwrap(), skein_scratch::paths::binary("temper"));
                 assert_eq!(fs::read_link(&cache).unwrap(), directory);
             } else {
                 assert!(fs::symlink_metadata(launcher).is_err());

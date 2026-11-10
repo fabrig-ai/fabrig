@@ -924,7 +924,13 @@ program its endpoint names (`../protocol/configuration.md`, section 3).
   within the resume limit (the deployment's bound on the current
   window's bytes, across the attempts it spans, as the window crosses to
   a host: `../protocol/channel.md`, 6.1), and, as a note after
-  it, the calls committed after its last turn, with their answers. One
+  it, the calls committed after its last turn, with their answers. A
+  start that crosses a worker's link carries those answers within the
+  link's room: the newest whole and each older host answer cut to fixed
+  words saying the call ran and how many bytes its answer had
+  (`../protocol/channel.md`, 9, *A resumed start fits its room first*),
+  so however many calls a run made since its last turn, it is told of
+  each and resumes. The core keeps every call as committed. One
   past the limit starts fresh from a brief that carries the transcript's
   tail. Earlier windows' turns stay readable by parties
   (`../client/domain/contract.md`, section 6), and are never sent to a

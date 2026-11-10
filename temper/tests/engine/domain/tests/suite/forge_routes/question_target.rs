@@ -35,6 +35,7 @@ fn a_producer_asking_its_own_task_is_told_where_its_change_is() {
         refused,
         b"message",
         smith_domain_run::HostAnswer::CAPACITY.try_into().expect("host answer bound"),
+        temper_engine_smith::ForgeReadBounds::STOCK,
     );
     assert!(rendered.error());
     assert_eq!(rendered.text(), b"Authority refused: task reference. Your brief's [Requested by ...] line names your requester; [This task: N] is you. If it says [Requested by person N], they have no task to message: ask with delegate, a person task addressed to person N.");
