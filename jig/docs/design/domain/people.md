@@ -34,7 +34,7 @@ is still open is listed in section 12.
   its task's authority, committed, and answered once durable. Ordinary
   deciding acts retain their original answers under their keys for the
   advertised retention; `Seen` retains no new answer and advances a read
-  position only forward (5.1 and section 6). A compound request holds
+  position only forward (people.md, 5.1 and section 6). A compound request holds
   several, committed all or none.
 - **Proposing is explicit.** A request beyond the party's authority is
   refused, naming what it lacked and whether a proposal could be

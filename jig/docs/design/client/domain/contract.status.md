@@ -83,7 +83,7 @@ task replacements with Stays and Moves, and unchanged settings, task,
 decision record and pending replacement. Missing-proposal rows cover
 both proposers with and without a running-work choice.
 
-- **Departs:** 3.2, 4, from `ui-goal-asks-2`'s request for a replaced
+- **Departs:** 3.2 and 4: from `ui-goal-asks-2`'s request for a replaced
   proposal to answer decided first: automatic task replacement retains
   no decision and answers `Unknown`. The answer of 2026-11-07 retained
   that refusal and declined an archive or a new decider because this is

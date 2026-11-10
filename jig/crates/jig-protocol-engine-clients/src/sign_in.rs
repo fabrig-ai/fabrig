@@ -1,4 +1,4 @@
-//! Independent printed and local links, fresh bearer tokens, and durable digest admission (client.md, 8).
+//! Independent printed and local links, fresh bearer tokens, and durable digest admission (protocol/client.md, 8).
 use crate::{Kept, SecretOwner, routes::Route};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v19 as w;

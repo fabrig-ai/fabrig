@@ -111,10 +111,10 @@ io: a listener's sockets                            io: one socket, dialled
 | `jig-protocol-engine-workers` | component | the listener's accepted channels, up to the fleet's workers and those still opening; the opening's checks; one channel per worker; pings, silence and stall; the translation to and from the hub's vocabulary; credential grants' values filled in |
 | `jig-protocol-worker-link` | component | the one link, dialled and redialled; its liveness; the grace after losing it; the relays in flight across channels; the translation to and from the hub's vocabulary; credential grants' values taken out |
 
-- **Both components are step code** (programming-model.md, section 10),
+- **Both components are step code** (skein/docs/foundation/programming-model.md, section 10),
   with their own limits, worst case, most outputs per entry point and
   deadlines, which their protocol layer reports and fires
-  (programming-model.md, section 9). Each depends on skein-lib, skein's
+  (skein/docs/foundation/programming-model.md, section 9). Each depends on skein-lib, skein's
   channel, `jig-protocol-worker-wire` and `jig-domain-host`'s vocabulary;
   neither depends on the core, smith or an application's crate. smith's
   payloads pass through both as bytes; smith's codecs are the routing's
@@ -127,7 +127,7 @@ io: a listener's sockets                            io: one socket, dialled
   component hands up a part's bytes as it decodes a record, and the
   application's protocol layer decodes them with its own codecs before the
   event reaches its root, which routes typed values only
-  (programming-model.md, section 4). On the way down it encodes them, and
+  (skein/docs/foundation/programming-model.md, section 4). On the way down it encodes them, and
   the component carries them whole.
 
 ## 4. Opening
@@ -237,7 +237,7 @@ answer, and a **notice** is not answered.
 | Record | Fields | Shape |
 |---|---|---|
 | hello | slots; stop bound, a duration; the agent's bounds: for each endpoint it serves, its number and the largest window and output a charter may name on it; the most turns, spend, time and waiting a run may have; its checks' timeout; the largest message a run takes and how many its inbox holds; the turns it keeps unacknowledged (4.3); the longest host answer its agent takes, in bytes, if it names one (`../domain/hosts.md`, section 2); the job kinds it runs, ascending and each once, each with the most bytes a spec and a result of it may hold and its longest deadline (5.4); workstreams held; runs hosted, jobs among them, each with its task, attempt and phase; runs whose turns or answer wait for acknowledgement | first, once |
-| turn | task, attempt; its number within the attempt; its cumulative spend; the last message it read, by name, if any; the messages refused since the run's previous turn, each by name with smith's reason: too large as the run reads it, the run's inbox full, a name in use, or the run ending; whether it opens a window; its bytes, smith's (6.1) | notice, kept by the hub until acknowledged |
+| turn | task, attempt; its number within the attempt; its cumulative spend; the last message it read, by name, if any; the messages refused since the run's previous turn, each by name with smith's reason: too large as the run reads it, the run's inbox full, a name in use, or the run ending; whether it opens a window; its bytes, smith's (jig/docs/design/protocol/channel.md, 6.1) | notice, kept by the hub until acknowledged |
 | call | task, attempt; the run's name for the call, as bytes (section 7); the host tool's name; whether it writes; its input; the time left on its deadline | call |
 | answer | task, attempt; the turns it took; what it spent; the last message it read, by name, if any: the unread fence; the messages refused since the run's last turn, each by name with smith's reason, as a turn carries them; how it ended: refused (busy, or invalid and what), ended with its result, smith's bytes (6.1), parked, or failed with its typed failure and bounded detail; what it left on resources and what it saved, each the application's bytes (6.2) | answer to an assignment, kept by the hub until acknowledged; a refusal, kept by nothing (below) |
 | job answer | task, attempt; how it ended: refused (busy, or invalid and what), finished with its result, the application's bytes, or failed with its typed failure and bounded detail (5.4); what it left on resources, the application's bytes (6.2) | answer to a job, kept by the hub until acknowledged; a refusal, kept by nothing |
@@ -907,7 +907,7 @@ holds, and neither of its components reads them.
 ### 10.3 Connections' states
 
 Each side's connection is a state machine whose state names the deadline
-that runs (programming-model.md, section 9):
+that runs (skein/docs/foundation/programming-model.md, section 9):
 
 ```
 engine:  accepted ─► opening ─► terms ─► hello ─► open ─► closing ─► closed
@@ -969,7 +969,7 @@ and resends what it must after the next hello.
 
 ## 12. Testing
 
-Following testing-strategy.md, and skein's `channel.md`, section 11, each
+Following skein/docs/foundation/testing-strategy.md, and skein's `channel.md`, section 11, each
 within jig's suites' budgets: focused tests in the default suite, randomized
 ones in the fuzzy suite.
 

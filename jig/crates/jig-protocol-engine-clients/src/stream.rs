@@ -1,4 +1,4 @@
-//! One paced SSE writer, with one outstanding item of each kind per watch (client.md, 7).
+//! One paced SSE writer, with one outstanding item of each kind per watch (protocol/client.md, 7).
 use crate::{Limits, translate::watches as translate};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::v19 as w;
