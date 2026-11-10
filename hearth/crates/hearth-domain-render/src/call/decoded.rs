@@ -1,4 +1,4 @@
-//! Charge decoded ownership before retaining an arrival (hearth/docs/design/domain/render.md, 2.3).
+//! Charge decoded ownership before retaining an arrival (hearth/docs/design/domain/render/README.md, 2.3).
 use super::Side;
 use crate::{
     errors::{self, Decode, Limit},

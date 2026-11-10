@@ -17,7 +17,7 @@ fn a_false_guard_prints_as_render_md_shows() {
     assert_eq!(
         printed.as_deref(),
         Ok(GUARD.as_bytes()),
-        "hearth/docs/design/domain/render.md, 7.3, after a spec's blank line"
+        "hearth/docs/design/domain/render/errors.md, 3, after a spec's blank line"
     );
 }
 const WITHOUT_TARGET: &str =

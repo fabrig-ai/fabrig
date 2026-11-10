@@ -14,7 +14,7 @@ fn a_spec_prints_its_meta_and_config_as_render_md_shows() {
     assert_eq!(
         printed.as_deref(),
         Ok(fixtures::X1_PROD_TEXT.as_bytes()),
-        "hearth/docs/design/domain/render.md, 9.2's lines"
+        "hearth/docs/design/domain/render/README.md, 6.2's lines"
     );
 }
 #[test]

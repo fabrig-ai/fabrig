@@ -1,4 +1,4 @@
-//! Real mmdebstrap captures paired with hand-reviewed expectations (hearth/docs/design/domain/testing.md, 4.5).
+//! Real mmdebstrap captures paired with hand-reviewed expectations (hearth/docs/design/testing/tool-fakes.md, 5).
 use crate::reference::{self, Decoded};
 use hearth_recordings::Recording;
 use skein_scratch::paths;

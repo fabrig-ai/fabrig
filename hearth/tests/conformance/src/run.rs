@@ -1,4 +1,4 @@
-//! Real git with the same environment and vectors as hearth (hearth/docs/design/domain/render.md, 2.2).
+//! Real git with the same environment and vectors as hearth (hearth/docs/design/domain/render/README.md, 2.2).
 use hearth_protocol_git::invocation::{self, Exit};
 use hearth_recordings::Recording;
 use std::{

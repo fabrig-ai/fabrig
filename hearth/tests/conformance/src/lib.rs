@@ -1,4 +1,4 @@
-//! Real tools and their captured scenarios (hearth/docs/design/domain/testing.md, 5).
+//! Real tools and their captured scenarios (hearth/docs/design/testing/README.md, 3).
 pub mod fake_git;
 pub mod fake_mmdebstrap;
 pub mod fixtures;

@@ -20,7 +20,7 @@ fn a_cold_restart_settles_what_a_cut_left_behind() {
         let left = run.finish();
         assert!(left.strays() > 0, "seed {seed}: a synced arrival awaits its rename");
         let after = left.restart().finish();
-        assert_eq!(after.strays(), 0, "seed {seed}: hearth/docs/design/domain/store.md, 11");
+        assert_eq!(after.strays(), 0, "seed {seed}: hearth/docs/design/domain/store/README.md, 9");
         assert_eq!(after.outcome, Some(Outcome::Done), "seed {seed}: call answered");
         assert_eq!(after.answers.len(), 1, "seed {seed}: one spec");
         assert!(matches!(fixtures::only(&after.answers), Answer::Spec(_)), "seed {seed}");
@@ -186,7 +186,7 @@ fn a_build_from_an_empty_store_publishes_the_empty_packages_software_and_config_
             assert_eq!(
                 layers::key(&hearth_protocol_builder::translate::store::layer(record.clone())),
                 Some(key),
-                "seed {seed}: hearth/docs/design/domain/store.md, 6.2: the key recomputes from kind, parent and inputs"
+                "seed {seed}: hearth/docs/design/domain/store/records.md, 2: the key recomputes from kind, parent and inputs"
             );
             if let Some(parent) = parent {
                 let beneath = fixtures::build::record(&run.shared, parent).expect("the parent's record");
@@ -276,7 +276,7 @@ fn a_build_whose_config_layer_is_published_finds_all_three() {
                 Answer::Layer { layer: Layer::Software, key: keys.software, state: State::Found },
                 Answer::Layer { layer: Layer::Config, key: keys.config, state: State::Found },
             ],
-            "seed {seed}: hearth/docs/design/domain/build.md, 4.1: a published config key is the output"
+            "seed {seed}: hearth/docs/design/domain/build/README.md, 4.1: a published config key is the output"
         );
         assert!(
             !found.requests().iter().any(|request| matches!(request, Request::Run { .. })),
@@ -287,7 +287,7 @@ fn a_build_whose_config_layer_is_published_finds_all_three() {
 }
 
 /// Every step and helper request of a clean build, as a build can fail it: with the layer it is
-/// in and what its failure is reported as (hearth/docs/design/domain/build.md, 4.3).
+/// in and what its failure is reported as (hearth/docs/design/domain/build/README.md, 4.3).
 fn failures(clean: &hearth_builder_world::domain::Run) -> Vec<(Failing, hearth_lib::encode::Digest, Why)> {
     let empty = hearth_domain_store::layers::empty();
     let (mut steps, mut helpers, mut layer) = (0, 0, empty);

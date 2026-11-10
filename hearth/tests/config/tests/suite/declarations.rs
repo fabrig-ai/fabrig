@@ -42,7 +42,7 @@ fn the_reads_example_decodes_to_its_three_reads_cut_anywhere() {
     for seed in 0..8 {
         let settings = Settings::calm(&mut Rng::new(seed), SHIPPED);
         let declaration = world::declare(examples::task("reads").bytes, &settings, seed)
-            .expect("hearth/docs/design/protocol/format.md, 6.4");
+            .expect("hearth/docs/design/protocol/format/README.md, 5.4");
         assert_eq!(declaration.reads.len(), 3);
         for (read, expected) in declaration.reads.iter().zip(READS) {
             assert_eq!(
@@ -62,7 +62,7 @@ fn the_reads_example_keeps_each_setting_at_its_string() {
     for seed in 0..8 {
         let settings = Settings::calm(&mut Rng::new(seed), SHIPPED);
         let declaration = world::declare(examples::task("reads").bytes, &settings, seed)
-            .expect("hearth/docs/design/protocol/format.md, 6.4");
+            .expect("hearth/docs/design/protocol/format/README.md, 5.4");
         let observed: Vec<_> = declaration
             .reads
             .iter()
@@ -80,7 +80,7 @@ fn the_scripts_example_decodes_cut_anywhere() {
     for seed in 0..8 {
         let settings = Settings::calm(&mut Rng::new(seed), SHIPPED);
         let declaration = world::declare(examples::task("scripts").bytes, &settings, seed)
-            .expect("hearth/docs/design/protocol/format.md, 5.8");
+            .expect("hearth/docs/design/protocol/format/tasks.md, 8");
         assert_eq!(&*declaration.scripts, SCRIPTS, "seed {seed}");
     }
 }
@@ -89,7 +89,7 @@ fn the_bless_example_decodes_cut_anywhere() {
     for seed in 0..8 {
         let settings = Settings::calm(&mut Rng::new(seed), SHIPPED);
         let declaration = world::declare(examples::task("bless").bytes, &settings, seed)
-            .expect("hearth/docs/design/protocol/format.md, 5.13");
+            .expect("hearth/docs/design/protocol/format/tasks.md, 13");
         let bless = declaration.bless.expect("bless");
         let [unit] = &bless.ignore_failed[..] else { panic!("one unit") };
         assert_eq!(bless.at, Position { offset: 11, line: 1, column: 12 });

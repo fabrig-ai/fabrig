@@ -1,4 +1,4 @@
-//! A recipe's layers and their keys (hearth/docs/design/domain/build.md, 3; hearth/docs/design/domain/store.md, 3.3).
+//! A recipe's layers and their keys (hearth/docs/design/domain/build/README.md, 3; hearth/docs/design/domain/store/README.md, 3.3).
 use hearth_lib::{encode::Digest, hash::H};
 /// The layers a rootfs recipe builds, bottom-up; the empty layer is no step's.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]

@@ -1,4 +1,4 @@
-/// Filters by name and argument count (hearth/docs/design/protocol/format.md, 7.5).
+/// Filters by name and argument count (hearth/docs/design/protocol/format/templates.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Filter {
     Default,

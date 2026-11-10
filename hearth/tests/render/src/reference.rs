@@ -1,10 +1,10 @@
-//! Recursive references from hearth/docs/design/protocol/format.md, 4.1 and 7.4 to 7.7.
+//! Recursive references from hearth/docs/design/protocol/format/README.md, 4.1, and hearth/docs/design/protocol/format/templates.md, 4 to 7.
 use super::expressions::{Binary, Plain, Roots, Tree};
 use hearth_domain_render::{
     evaluate::{Filter, Missing, Value},
     limits::Limits,
 };
-/// hearth/docs/design/protocol/format.md, 4.1's recursive pseudocode; independent of render's merge.
+/// hearth/docs/design/protocol/format/README.md, 4.1's recursive pseudocode; independent of render's merge.
 #[must_use]
 pub fn merge(target: Option<crate::json::Json>, patch: &crate::json::Json) -> Option<crate::json::Json> {
     use crate::json::Json;
@@ -37,7 +37,7 @@ impl Made {
     }
 }
 /// # Errors
-/// Returns the first fault specified by hearth/docs/design/protocol/format.md, 7.4 to 7.7.
+/// Returns the first fault specified by hearth/docs/design/protocol/format/templates.md, 4 to 7.
 pub fn evaluate(tree: &Tree, roots: &Roots, limits: &Limits) -> Result<Option<Plain>, &'static str> {
     let mut left = limits.made;
     expression(tree, roots, limits, &mut left).map(|v| v.value)

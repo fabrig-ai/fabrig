@@ -1,4 +1,4 @@
-//! Data directories in name order (hearth/docs/design/domain/render.md, 4.3).
+//! Data directories in name order (hearth/docs/design/domain/render/spec.md, 1.3).
 use crate::{
     entries::Expansion,
     errors::{Error, Schema},

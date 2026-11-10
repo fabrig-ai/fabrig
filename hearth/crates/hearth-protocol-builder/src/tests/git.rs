@@ -19,7 +19,7 @@ fn a_list_spawns_rev_parse_with_render_md_2_2s_vector_and_environment() {
     let Some(Asked::Io(io::Request::Spawn { spawn, .. })) = layer.asked() else {
         panic!("rev-parse spawn");
     };
-    assert_eq!(&*spawn.program, b"/usr/bin/git", "hearth/docs/design/domain/render.md 2.2 executable");
+    assert_eq!(&*spawn.program, b"/usr/bin/git", "hearth/docs/design/domain/render/README.md 2.2 executable");
     assert_eq!(
         spawn.args.as_ref(),
         &[

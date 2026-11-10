@@ -1,5 +1,5 @@
-//! Apt's list names for the source lines (hearth/docs/design/domain/render.md, 5.3;
-//! hearth/docs/design/domain/store.md, 6.4).
+//! Apt's list names for the source lines (hearth/docs/design/domain/render/spec.md, 2.3;
+//! hearth/docs/design/domain/store/records.md, 4).
 use crate::vector::{Component, Line, Name};
 use alloc::boxed::Box;
 use skein_lib::{List, Writer};

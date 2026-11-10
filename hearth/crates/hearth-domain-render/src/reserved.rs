@@ -1,4 +1,4 @@
-//! Refuse reserved entries before kinds validate them (hearth/docs/design/protocol/format.md, 5.11).
+//! Refuse reserved entries before kinds validate them (hearth/docs/design/protocol/format/tasks.md, 11).
 mod live;
 mod owners;
 mod paths;

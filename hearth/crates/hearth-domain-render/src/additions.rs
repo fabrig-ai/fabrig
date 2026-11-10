@@ -1,4 +1,4 @@
-//! Files and tmpfiles lines render contributes (hearth/docs/design/domain/render.md, 3.6, 4.2).
+//! Files and tmpfiles lines render contributes (hearth/docs/design/domain/render/README.md, 3.6, hearth/docs/design/domain/render/spec.md, 1.2).
 use crate::{
     kinds::{
         data,

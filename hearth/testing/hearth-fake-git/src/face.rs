@@ -1,4 +1,4 @@
-//! Git's four argument vectors and byte face (hearth/docs/design/domain/render.md, 2.2).
+//! Git's four argument vectors and byte face (hearth/docs/design/domain/render/README.md, 2.2).
 use crate::{
     diff::{self, Diff, Line, Span},
     objects::{Oid, Type, hash},
@@ -45,18 +45,18 @@ pub fn check(args: &[Box<[u8]>], env: &[Box<[u8]>]) -> Command {
         b"GIT_TERMINAL_PROMPT=0",
         b"HOME=/dev/null",
     ];
-    assert_eq!(env.len(), ENV.len(), "exactly hearth/docs/design/domain/render.md 2.2's six environment names");
+    assert_eq!(env.len(), ENV.len(), "exactly hearth/docs/design/domain/render/README.md 2.2's six environment names");
     for expected in ENV {
         assert_eq!(
             env.iter().filter(|e| e.as_ref() == *expected).count(),
             1,
-            "hearth/docs/design/domain/render.md 2.2's environment"
+            "hearth/docs/design/domain/render/README.md 2.2's environment"
         );
     }
     let dir = args
         .first()
         .and_then(|s| s.strip_prefix(b"--git-dir="))
-        .expect("hearth/docs/design/domain/render.md 2.2's git-dir");
+        .expect("hearth/docs/design/domain/render/README.md 2.2's git-dir");
     let tail: Vec<_> = args[1..].iter().map(AsRef::as_ref).collect();
     match tail.as_slice() {
         [b"rev-parse", b"--verify", b"--quiet", revision] => Command::RevParse {
@@ -82,7 +82,7 @@ pub fn check(args: &[Box<[u8]>], env: &[Box<[u8]>]) -> Command {
             assert_eq!(dir, b"/dev/null", "diff discovers no repository");
             Command::DiffNoIndex { before: (*before).into(), after: (*after).into() }
         }
-        _ => panic!("only hearth/docs/design/domain/render.md 2.2's four vectors"),
+        _ => panic!("only hearth/docs/design/domain/render/README.md 2.2's four vectors"),
     }
 }
 #[derive(Debug)]

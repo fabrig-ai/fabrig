@@ -1,4 +1,4 @@
-//! Reserved rules cross intact (hearth/docs/design/domain/render.md, 7.2).
+//! Reserved rules cross intact (hearth/docs/design/domain/render/errors.md, 2).
 use crate::{records::errors as target, render::errors as source};
 pub(super) fn reserved(value: source::Reserved) -> target::Reserved {
     target::Reserved { rule: rule(value.rule), what: value.what }

@@ -1,4 +1,4 @@
-//! The render goldens' readers, generated repositories and scripted parent (hearth/docs/design/domain/testing.md, 2.9).
+//! The render goldens' readers, generated repositories and scripted parent (hearth/docs/design/testing/README.md, 2.9).
 pub mod golden;
 pub mod json;
 pub mod parent;

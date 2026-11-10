@@ -9,7 +9,7 @@ use crate::{
 pub fn written_debian() -> revision::Value {
     map(at(1, 1), &super::forms::debian_fields())
 }
-/// What each of hearth/docs/design/protocol/format.md, 3.2's six layers holds; a row says the ones it sets.
+/// What each of hearth/docs/design/protocol/format/README.md, 3.2's six layers holds; a row says the ones it sets.
 #[derive(Clone, Copy)]
 pub struct SixLayers<'a> {
     pub fleet: Option<&'a str>,

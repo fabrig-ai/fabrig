@@ -1,4 +1,4 @@
-//! The real resolve scenario through the pinned loopback mirror (hearth/docs/design/domain/testing.md, 5.2).
+//! The real resolve scenario through the pinned loopback mirror (hearth/docs/design/testing/README.md, 3.2).
 use crate::run::{self, Run};
 use hearth_protocol_mmdebstrap::{
     limits::{self, Limits},

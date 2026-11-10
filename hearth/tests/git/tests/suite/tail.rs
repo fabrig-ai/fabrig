@@ -1,4 +1,4 @@
-//! Stderr keeps its newest lines in order (hearth/docs/design/domain/render.md, 2.2).
+//! Stderr keeps its newest lines in order (hearth/docs/design/domain/render/README.md, 2.2).
 use hearth_git_world::{fixtures::SMALL, generate, world};
 use hearth_protocol_git::limits::Limits;
 use skein_lib::Rng;

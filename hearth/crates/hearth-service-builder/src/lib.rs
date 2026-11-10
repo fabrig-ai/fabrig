@@ -1,6 +1,6 @@
 //! The builder's two passes and reclaim point (skein/docs/foundation/programming-model.md, 2).
 //! A pass resumes each layer at most the watermark; remaining work waits for
-//! the next pass (hearth/docs/design/domain/render.md, 8.4).
+//! the next pass (hearth/docs/design/domain/render/README.md, 5.4).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -69,7 +69,7 @@ impl Service {
     pub const fn domain(&self) -> &Builder {
         &self.domain
     }
-    /// What `told`, `file_told`, `answers` and `asked` hold (render.md, 8.4).
+    /// What `told`, `file_told`, `answers` and `asked` hold (domain/render/README.md, 5.4).
     #[must_use]
     pub fn backlog(&self) -> u32 {
         self.told
@@ -407,7 +407,7 @@ fn protocol_accepts_answer(service: &Service) -> bool {
 fn io_accepts_request(service: &Service) -> bool {
     service.io_asked.is_empty() && service.files.takes()
 }
-/// Whether the domain's next resume may run: the backlog is under the watermark (render.md, 8.5).
+/// Whether the domain's next resume may run: the backlog is under the watermark (domain/render/README.md, 5.5).
 fn admits(service: &Service) -> bool {
     service.backlog() < service.watermark
 }

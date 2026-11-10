@@ -10,7 +10,7 @@ unchanged. Between the two capture versions, only five stderr files differ,
 as the request describes.
 
 No design or status file needs changing: the plan's decision preserves
-`hearth/docs/design/domain/testing.md`, section 4.5, whose versioned
+`hearth/docs/design/testing/tool-fakes.md`, section 5, whose versioned
 recording contract already covers both apt versions. Its status records
 M2's missing tool fakes and captures, not a gap in these resolution
 recordings. Those M2 gaps and the separate gap in automatic conformance

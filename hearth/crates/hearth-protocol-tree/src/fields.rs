@@ -1,4 +1,4 @@
-//! A record reader's fields in canonical key order (hearth/docs/design/domain/store.md, 6.1).
+//! A record reader's fields in canonical key order (hearth/docs/design/domain/store/records.md, 1).
 
 use crate::{
     decode::{Decoder, Malformed},

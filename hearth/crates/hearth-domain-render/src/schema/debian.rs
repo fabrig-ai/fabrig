@@ -1,4 +1,4 @@
-//! The fixed Debian schema (hearth/docs/design/protocol/format.md, 5.3); composition supplies its bottom layer.
+//! The fixed Debian schema (hearth/docs/design/protocol/format/tasks.md, 3); composition supplies its bottom layer.
 use super::{
     Against, Box, Check, Composed, Composite, Declaration, Evaluated, Fault, Form, Layer, List, Merge, Position,
     Provenance, Schema, Spec, Validator, Wanted, bytes, fault, forms, revision, task_defaults,

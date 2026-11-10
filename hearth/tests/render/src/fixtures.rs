@@ -631,7 +631,7 @@ pub fn on_error(on: &[u8], host: hearth_domain_render::errors::Host) -> hearth_d
 
 pub mod goldens;
 
-// hearth/docs/design/domain/render.md, 7.1: divide the retained 16 MiB among its 256 records.
+// hearth/docs/design/domain/render/errors.md, 1: divide the retained 16 MiB among its 256 records.
 pub const ERROR_RECORD_BYTES: usize = 16_777_216 / 256;
 // at, also, target, task and guard name each contribute one byte.
 pub const ERROR_FIELDS_BYTES: usize = 5;

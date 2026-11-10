@@ -1,4 +1,4 @@
-//! The configured record bounds (hearth/docs/design/domain/store.md, 6.1).
+//! The configured record bounds (hearth/docs/design/domain/store/records.md, 1).
 
 use crate::{
     decode,
@@ -64,7 +64,7 @@ pub struct CacheFileLimits {
     pub path: u32,
     pub oid: u32,
 }
-/// hearth/docs/design/domain/store.md, 6.1's defaults and the plan's decoder bounds.
+/// hearth/docs/design/domain/store/records.md, 1's defaults and the plan's decoder bounds.
 pub const SHIPPED: Limits = Limits {
     depth: 8,
     key: 64,
@@ -109,7 +109,7 @@ const fn key(kind: Kind, limits: &Limits) -> u32 {
     }
 }
 
-/// The heap bound of a decoded record (hearth/docs/design/domain/store.md, 6.1).
+/// The heap bound of a decoded record (hearth/docs/design/domain/store/records.md, 1).
 /// Returns `None` past the encoder's depth, or past a u64 for a resolution.
 /// Boxed bytes together fit within the body's bound; a tree file's, within an item's.
 #[must_use]

@@ -1,4 +1,4 @@
-//! Git's deterministic objects and face (hearth/docs/design/domain/testing.md, 4.2 and 4.4).
+//! Git's deterministic objects and face (hearth/docs/design/testing/tool-fakes.md, 2 and 4).
 #![forbid(unsafe_code)]
 extern crate alloc;
 pub mod diff;

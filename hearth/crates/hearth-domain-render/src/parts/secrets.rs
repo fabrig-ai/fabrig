@@ -1,4 +1,4 @@
-//! Names and places for the activator, never values (hearth/docs/design/domain/render.md, 4.3).
+//! Names and places for the activator, never values (hearth/docs/design/domain/render/spec.md, 1.3).
 use crate::{
     entries::Expansion,
     errors::Error,

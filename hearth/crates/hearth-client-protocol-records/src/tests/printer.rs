@@ -157,7 +157,7 @@ fn steps(form: Form, limits: Limits, record: Record, told: Told) -> Box<[Step]> 
 
 const CHUNKS: [u32; 6] = [1, 2, 3, 16, 64, 65_536];
 
-// One write at a time (hearth/docs/design/domain/render.md, 8.5).
+// One write at a time (hearth/docs/design/domain/render/README.md, 5.5).
 #[test]
 fn a_printer_has_one_demand_out_whatever_the_chunk() {
     for chunk in CHUNKS {
@@ -215,7 +215,7 @@ fn answered_once(steps: &[Step], expected: Event, no_bytes: bool) {
     }
 }
 
-// A record is answered once (hearth/docs/design/domain/render.md, 8.5).
+// A record is answered once (hearth/docs/design/domain/render/README.md, 5.5).
 #[test]
 fn a_record_is_answered_once_whatever_the_chunk() {
     for chunk in CHUNKS {

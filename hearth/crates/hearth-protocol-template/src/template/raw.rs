@@ -1,4 +1,4 @@
-//! Raw tags use ASCII whitespace inside and ordinary edge rules outside (hearth/docs/design/protocol/format.md, 7.3).
+//! Raw tags use ASCII whitespace inside and ordinary edge rules outside (hearth/docs/design/protocol/format/templates.md, 3).
 use super::{
     scan::{self, Tag},
     whitespace,

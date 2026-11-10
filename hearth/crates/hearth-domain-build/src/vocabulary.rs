@@ -1,4 +1,4 @@
-//! A build's events, requests and terminals (hearth/docs/design/domain/build.md, 4.1 and 4.3).
+//! A build's events, requests and terminals (hearth/docs/design/domain/build/README.md, 4.1 and 4.3).
 use crate::{
     keys::Layer,
     plan::{Plan, Step},
@@ -33,7 +33,7 @@ pub enum Request {
     Want {
         key: Digest,
     },
-    /// A writable copy of the parent layer, to become the layer of this key (hearth/docs/design/domain/store.md, 4.2).
+    /// A writable copy of the parent layer, to become the layer of this key (hearth/docs/design/domain/store/README.md, 4.2).
     Stage {
         key: Digest,
         parent: Digest,
@@ -42,7 +42,7 @@ pub enum Request {
         step: Step,
     },
     /// Walk, freeze, record and publish the staged layer: `parent` and `inputs` are what its
-    /// key and record are made of (hearth/docs/design/domain/store.md, 6.2).
+    /// key and record are made of (hearth/docs/design/domain/store/records.md, 2).
     Seal {
         key: Digest,
         parent: Digest,
@@ -53,7 +53,7 @@ pub enum Request {
         key: Digest,
     },
 }
-/// The parts a layer's key is made of, which name its kind (hearth/docs/design/domain/store.md, 3.3).
+/// The parts a layer's key is made of, which name its kind (hearth/docs/design/domain/store/README.md, 3.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Inputs {
     Packages { part: Digest, resolution: Digest },

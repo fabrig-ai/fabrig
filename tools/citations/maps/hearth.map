@@ -1,0 +1,99 @@
+title hearth/docs/design/decisions.md: hearth's decisions
+hearth/docs/design/README.md 7 -> hearth/docs/design/decisions.md
+title hearth/docs/design/testing/fake-machine.md: The fake machine
+hearth/docs/design/domain/testing.md 3 -> hearth/docs/design/testing/fake-machine.md
+title hearth/docs/design/testing/tool-fakes.md: The fakes of tools
+hearth/docs/design/domain/testing.md 4 -> hearth/docs/design/testing/tool-fakes.md
+title hearth/docs/design/testing/real-builds.md: Real builds
+hearth/docs/design/domain/testing.md 6 -> hearth/docs/design/testing/real-builds.md
+title hearth/docs/design/testing/vm.md: The VM tier
+hearth/docs/design/domain/testing.md 7 -> hearth/docs/design/testing/vm.md
+title hearth/docs/design/testing/worlds.md: Worlds and their invariants
+hearth/docs/design/domain/testing.md 8 -> hearth/docs/design/testing/worlds.md
+hearth/docs/design/domain/testing.md -> hearth/docs/design/testing/README.md
+title hearth/docs/design/domain/build/packages.md: The packages layer
+hearth/docs/design/domain/build.md 5 -> hearth/docs/design/domain/build/packages.md
+title hearth/docs/design/domain/build/sandboxes.md: Sandboxes
+hearth/docs/design/domain/build.md 8 -> hearth/docs/design/domain/build/sandboxes.md
+hearth/docs/design/domain/build.md -> hearth/docs/design/domain/build/README.md
+hearth/docs/design/domain/artifacts.md -> hearth/docs/design/domain/build/artifacts.md
+hearth/docs/design/domain/reproducible.md -> hearth/docs/design/domain/build/reproducible.md
+title hearth/docs/design/domain/store/tree-helper.md: The tree helper
+hearth/docs/design/domain/store.md 5 -> hearth/docs/design/domain/store/tree-helper.md
+title hearth/docs/design/domain/store/records.md: The store's records
+hearth/docs/design/domain/store.md 6 -> hearth/docs/design/domain/store/records.md
+hearth/docs/design/domain/store.md -> hearth/docs/design/domain/store/README.md
+title hearth/docs/design/domain/render/spec.md: The spec and its resolution
+hearth/docs/design/domain/render.md 4 -> hearth/docs/design/domain/render/spec.md 1
+hearth/docs/design/domain/render.md 5 -> hearth/docs/design/domain/render/spec.md 2
+title hearth/docs/design/domain/render/errors.md: A render's errors
+hearth/docs/design/domain/render.md 7 -> hearth/docs/design/domain/render/errors.md
+hearth/docs/design/domain/render.md -> hearth/docs/design/domain/render/README.md
+title hearth/docs/design/domain/slots/prepare.md: Preparing a slot
+hearth/docs/design/domain/slots.md 5 -> hearth/docs/design/domain/slots/prepare.md
+title hearth/docs/design/domain/slots/trial.md: A slot's trial
+hearth/docs/design/domain/slots.md 6 -> hearth/docs/design/domain/slots/trial.md
+title hearth/docs/design/domain/slots/bless.md: Bless, fall back, roll back and drift
+hearth/docs/design/domain/slots.md 7 -> hearth/docs/design/domain/slots/bless.md 1
+hearth/docs/design/domain/slots.md 8 -> hearth/docs/design/domain/slots/bless.md 2
+hearth/docs/design/domain/slots.md 9 -> hearth/docs/design/domain/slots/bless.md 3
+hearth/docs/design/domain/slots.md 10 -> hearth/docs/design/domain/slots/bless.md 4
+title hearth/docs/design/domain/slots/crashes.md: Crashes and power cuts
+hearth/docs/design/domain/slots.md 11 -> hearth/docs/design/domain/slots/crashes.md
+title hearth/docs/design/domain/slots/containers.md: Containers and pool hosts
+hearth/docs/design/domain/slots.md 12 -> hearth/docs/design/domain/slots/containers.md
+hearth/docs/design/domain/slots.md -> hearth/docs/design/domain/slots/README.md
+title hearth/docs/design/domain/activator/operations.md: The activator's operations
+hearth/docs/design/domain/activator.md 5 -> hearth/docs/design/domain/activator/operations.md
+hearth/docs/design/domain/activator.md -> hearth/docs/design/domain/activator/README.md
+title hearth/docs/design/domain/machine/boot.md: Booting a machine
+hearth/docs/design/domain/machine.md 4 -> hearth/docs/design/domain/machine/boot.md 1
+hearth/docs/design/domain/machine.md 5 -> hearth/docs/design/domain/machine/boot.md 2
+hearth/docs/design/domain/machine.md 6 -> hearth/docs/design/domain/machine/boot.md 3
+hearth/docs/design/domain/machine.md 7 -> hearth/docs/design/domain/machine/boot.md 4
+hearth/docs/design/domain/machine.md 9 -> hearth/docs/design/domain/machine/boot.md 5
+title hearth/docs/design/domain/machine/bootstrap.md: Bootstrap and disks
+hearth/docs/design/domain/machine.md 8 -> hearth/docs/design/domain/machine/bootstrap.md
+hearth/docs/design/domain/machine.md -> hearth/docs/design/domain/machine/README.md
+title hearth/docs/design/protocol/standalone.md: Standalone mode
+hearth/docs/design/protocol/wire.md 4 -> hearth/docs/design/protocol/standalone.md
+title hearth/docs/design/protocol/format/tasks.md: The format's tasks
+hearth/docs/design/protocol/format.md 5 -> hearth/docs/design/protocol/format/tasks.md
+title hearth/docs/design/protocol/format/templates.md: The format's templates
+hearth/docs/design/protocol/format.md 7 -> hearth/docs/design/protocol/format/templates.md
+hearth/docs/design/protocol/format.md -> hearth/docs/design/protocol/format/README.md
+hearth/docs/design/README.md -> hearth/docs/design/README.md
+hearth/docs/design/protocol/wire.md -> hearth/docs/design/protocol/wire.md
+renumber hearth/docs/design/README.md
+renumber hearth/docs/design/domain/testing.md
+renumber hearth/docs/design/domain/build.md
+renumber hearth/docs/design/domain/store.md
+renumber hearth/docs/design/domain/render.md
+renumber hearth/docs/design/domain/slots.md
+renumber hearth/docs/design/domain/activator.md
+renumber hearth/docs/design/domain/machine.md
+renumber hearth/docs/design/protocol/wire.md
+renumber hearth/docs/design/protocol/format.md
+renumber hearth/docs/design/decisions.md
+renumber hearth/docs/design/testing/fake-machine.md
+renumber hearth/docs/design/testing/tool-fakes.md
+renumber hearth/docs/design/testing/real-builds.md
+renumber hearth/docs/design/testing/vm.md
+renumber hearth/docs/design/testing/worlds.md
+renumber hearth/docs/design/domain/build/packages.md
+renumber hearth/docs/design/domain/build/sandboxes.md
+renumber hearth/docs/design/domain/store/tree-helper.md
+renumber hearth/docs/design/domain/store/records.md
+renumber hearth/docs/design/domain/render/spec.md
+renumber hearth/docs/design/domain/render/errors.md
+renumber hearth/docs/design/domain/slots/prepare.md
+renumber hearth/docs/design/domain/slots/trial.md
+renumber hearth/docs/design/domain/slots/bless.md
+renumber hearth/docs/design/domain/slots/crashes.md
+renumber hearth/docs/design/domain/slots/containers.md
+renumber hearth/docs/design/domain/activator/operations.md
+renumber hearth/docs/design/domain/machine/boot.md
+renumber hearth/docs/design/domain/machine/bootstrap.md
+renumber hearth/docs/design/protocol/standalone.md
+renumber hearth/docs/design/protocol/format/tasks.md
+renumber hearth/docs/design/protocol/format/templates.md

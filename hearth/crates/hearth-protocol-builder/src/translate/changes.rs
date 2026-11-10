@@ -1,4 +1,4 @@
-//! Typed changes translated to client records (hearth/docs/design/domain/render.md, 6.1).
+//! Typed changes translated to client records (hearth/docs/design/domain/render/README.md, 4.1).
 use crate::{
     records::diff as target,
     render::{diff as source, parts::config},

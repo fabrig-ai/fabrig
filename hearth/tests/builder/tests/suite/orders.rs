@@ -1,4 +1,4 @@
-//! Orders beside the service's room checks (hearth/docs/design/domain/render.md, 8.5).
+//! Orders beside the service's room checks (hearth/docs/design/domain/render/README.md, 5.5).
 use hearth_builder_world::{fixtures, protocol, simulated};
 use hearth_lib::encode::Digest;
 use skein_io::kernel::{Done, Exit};
@@ -60,7 +60,7 @@ fn what_a_call_prints_and_stores_does_not_depend_on_its_queues() {
 }
 
 // A kept index's terminal store answer releases the next index, after the
-// cache record and its directory close (hearth/docs/design/domain/render.md, 8.5).
+// cache record and its directory close (hearth/docs/design/domain/render/README.md, 5.5).
 fn a_store_answer_precedes_the_next_index(outcome: &skein_world::Outcome<simulated::Proc, fixtures::Shared>) {
     let records = fixtures::simulation_records(&outcome.machine);
     let resolution = fixtures::only(&records);

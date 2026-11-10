@@ -1,4 +1,4 @@
-//! Seeded package universes with a Debian-shaped core (hearth/docs/design/domain/testing.md, 3.6).
+//! Seeded package universes with a Debian-shaped core (hearth/docs/design/testing/fake-machine.md, 6).
 use super::universe::{Alternative, Package, Priority, Provide, Relation, Universe};
 use alloc::{boxed::Box, format, vec::Vec};
 use skein_lib::{Rng, sha256};

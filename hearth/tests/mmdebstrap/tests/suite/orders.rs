@@ -1,4 +1,4 @@
-//! Orders beside the readers (hearth/docs/design/domain/render.md, 8.5).
+//! Orders beside the readers (hearth/docs/design/domain/render/README.md, 5.5).
 use hearth_mmdebstrap_world::{
     fixtures::LIMITS,
     generate,

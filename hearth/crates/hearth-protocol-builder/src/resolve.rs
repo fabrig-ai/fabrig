@@ -1,4 +1,4 @@
-//! One mmdebstrap run, its pipe readers, deadlines and scratch reclamation (hearth/docs/design/domain/render.md, 5.2).
+//! One mmdebstrap run, its pipe readers, deadlines and scratch reclamation (hearth/docs/design/domain/render/spec.md, 2.2).
 use crate::{Asked, Roots, Told, builder::vocabulary::Event, limits::Limits, render, translate, walk::Walker};
 use crate::{Current, indices::Indices, resource::Resource};
 use alloc::boxed::Box;

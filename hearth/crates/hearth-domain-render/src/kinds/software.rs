@@ -1,4 +1,4 @@
-//! Download declarations (hearth/docs/design/protocol/format.md, 10.1).
+//! Download declarations (hearth/docs/design/protocol/format/README.md, 8.1).
 use super::secrets::{fault, formed, mode_with_default, required as required_text, text};
 use crate::{
     entries::Located,

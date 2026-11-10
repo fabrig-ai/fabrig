@@ -1,4 +1,4 @@
-//! The M1 package index (hearth/docs/design/domain/testing.md, 3.6), with Policy 7.1 relations.
+//! The M1 package index (hearth/docs/design/testing/fake-machine.md, 6), with Policy 7.1 relations.
 use super::version;
 use alloc::{
     boxed::Box,

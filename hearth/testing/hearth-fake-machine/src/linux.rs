@@ -1,4 +1,4 @@
-//! Files and process-owned handles, hearth/docs/design/domain/testing.md, 3.1 and 3.2.
+//! Files and process-owned handles, hearth/docs/design/testing/fake-machine.md, 1 and 2.
 use alloc::{
     boxed::Box,
     collections::{BTreeMap, BTreeSet, VecDeque},

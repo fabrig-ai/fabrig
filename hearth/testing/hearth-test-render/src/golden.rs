@@ -1,4 +1,4 @@
-//! Reviewed repository goldens and independently written file witnesses (hearth/docs/design/domain/render.md, 9.2).
+//! Reviewed repository goldens and independently written file witnesses (hearth/docs/design/domain/render/README.md, 6.2).
 use skein_scratch::paths;
 use std::{
     ffi::OsStr,

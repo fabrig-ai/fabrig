@@ -1,4 +1,4 @@
-//! One source per destination and directory governance (hearth/docs/design/protocol/format.md, 5.5).
+//! One source per destination and directory governance (hearth/docs/design/protocol/format/tasks.md, 5).
 use crate::{
     entries::{Concrete, Fault, Located},
     errors::{Format, Kind, Repository, Schema, TypeName},

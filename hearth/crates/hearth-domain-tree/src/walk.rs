@@ -1,4 +1,4 @@
-//! The walk's course: the stack, the listings, and the ends (hearth/docs/design/domain/store.md, 5.4).
+//! The walk's course: the stack, the listings, and the ends (hearth/docs/design/domain/store/tree-helper.md, 4).
 use crate::{
     After, Level, Tree, Wait,
     batch::Batch,

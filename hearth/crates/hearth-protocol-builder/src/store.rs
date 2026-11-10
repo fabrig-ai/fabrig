@@ -1,4 +1,4 @@
-//! Store io, with no waiting in the protocol layer (hearth/docs/design/domain/store.md, 8.2).
+//! Store io, with no waiting in the protocol layer (hearth/docs/design/domain/store/README.md, 6.2).
 pub(super) mod names;
 use crate::{
     Asked, Current, Roots,
@@ -340,7 +340,7 @@ impl Store {
             file::Event::Locked { .. } => Event::Locked,
             file::Event::Busy { .. } => Event::Busy,
             file::Event::Loaded { bytes, .. } => loaded(&bytes, pending, limits),
-            // A store made by a builder that built no layer has no `layers/` (hearth/docs/design/domain/store.md, 2.4).
+            // A store made by a builder that built no layer has no `layers/` (hearth/docs/design/domain/store/README.md, 2.4).
             file::Event::Failed { error: Error::NotFound, .. }
                 if *pending == Request::List { directory: Directory::Layers, max: self.max } =>
             {
@@ -377,7 +377,7 @@ impl Store {
 fn unavailable(request: &Request) -> bool {
     match request {
         // The protocol holds no root for layers/: nothing is made, renamed, written or removed there
-        // before the tasks that do it with btrfs, h08 (hearth/docs/design/domain/store.md, 4.2 and 7.3).
+        // before the tasks that do it with btrfs, h08 (hearth/docs/design/domain/store/README.md, 4.2 and 5.3).
         Request::Create { .. }
         | Request::Rename { .. }
         | Request::WriteLayer { .. }

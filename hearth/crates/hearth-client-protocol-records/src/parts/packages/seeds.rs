@@ -1,4 +1,4 @@
-//! Fixed ids in the packages record (hearth/docs/design/domain/render.md, 4.2).
+//! Fixed ids in the packages record (hearth/docs/design/domain/render/spec.md, 1.2).
 use super::Seeds;
 use crate::form::text::Lines;
 use skein_json::writer::Encoder;

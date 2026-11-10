@@ -2,7 +2,7 @@
 //! answering the walk's questions the way a layer would. Directories list their names in an
 //! order of the seed's choosing, since a real directory has none.
 //! Indexed names and link counts keep each call's cost to what it touches
-//! (hearth/docs/design/domain/testing.md, 9.1).
+//! (hearth/docs/design/testing/README.md, 4.1).
 use hearth_domain_tree::vocabulary::{Kind, Stat};
 use skein_lib::Rng;
 use std::collections::BTreeMap;

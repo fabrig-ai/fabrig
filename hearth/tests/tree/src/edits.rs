@@ -1,5 +1,5 @@
 //! Edits to a copy of a layer, as the things that happen to a layer between a parent and its
-//! child: each moves the change times the kernel moves (hearth/docs/design/domain/store.md, 4.3), and no more.
+//! child: each moves the change times the kernel moves (hearth/docs/design/domain/store/README.md, 4.3), and no more.
 use crate::{
     fs::{Fs, Node},
     layers,

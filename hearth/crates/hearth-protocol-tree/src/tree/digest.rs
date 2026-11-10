@@ -1,5 +1,5 @@
 //! The tree digest and the change set's digest, hashed as their values are
-//! fed, without a copy (hearth/docs/design/domain/store.md, 3.4 and 3.5). Each names its count
+//! fed, without a copy (hearth/docs/design/domain/store/README.md, 3.4 and 3.5). Each names its count
 //! first, so a hasher is told it when made; a wrong count panics, as `H` does.
 
 use super::{Entry, Op, encode_entry};

@@ -1,4 +1,4 @@
-//! Shared requirements of concrete declaration kinds (hearth/docs/design/protocol/format.md, 5.2).
+//! Shared requirements of concrete declaration kinds (hearth/docs/design/protocol/format/tasks.md, 2).
 pub mod data;
 pub mod identity;
 pub mod live;

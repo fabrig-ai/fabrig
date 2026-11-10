@@ -1,4 +1,4 @@
-//! Boot parameters and mutability (hearth/docs/design/domain/render.md, 4.3).
+//! Boot parameters and mutability (hearth/docs/design/domain/render/spec.md, 1.3).
 use crate::{
     entries::Expansion,
     errors::Error,
