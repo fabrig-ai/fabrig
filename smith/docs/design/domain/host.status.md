@@ -17,3 +17,11 @@ remains a tail.
   - 4: an agent spawned in a contained tree, in its view, and gone once
     the tree is proved empty: `smith-host-protocol/src/process.rs`
     spawns a plain child in a process group.
+  - 7: a missing grant while the local chat still starts. A grant that
+    fails for an account the starting chat already holds, as a refresh
+    that fails (skein's `oauth.md`, 6.3), reaches the starting chat as
+    the answer to an account request
+    (`smith-local-domain/src/domain/chat_machine.rs`, `no_credential`):
+    with no request waiting it aborts ("one terminal per account
+    request"), and with another account's waiting it is counted as that
+    one's answer.
