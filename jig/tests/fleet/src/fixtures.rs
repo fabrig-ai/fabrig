@@ -119,7 +119,21 @@ pub fn restored_fleet(limits: &jig_domain_fleet::Limits, needs: jig_domain_fleet
         &mut out,
     );
     assert!(out.is_empty(), "fixture has no early hellos");
+    settle_fleet(&mut domain, limits);
     domain
+}
+
+fn settle_fleet(domain: &mut jig_domain_fleet::Domain, limits: &jig_domain_fleet::Limits) {
+    let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: *limits };
+    for _ in 0_u8..4 {
+        if !domain.is_ready() {
+            return;
+        }
+        let mut out = skein_lib::Queue::uncapped();
+        jig_domain_fleet::resume(domain, &env, &mut out);
+        assert!(out.is_empty(), "fixture fleet pass must be empty: {out:?}");
+    }
+    assert!(!domain.is_ready(), "fixture fleet readiness settles within four passes");
 }
 
 /// Independent served endpoints for the three model fixtures.

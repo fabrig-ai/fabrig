@@ -30,6 +30,7 @@ pub(crate) fn restore_needs(domain: &mut jig_domain_fleet::Domain, limits: &Limi
         &mut out,
     );
     assert!(out.is_empty(), "fixture has no early hellos");
+    settle_fleet(domain, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet });
 }
 
 pub(crate) fn restored_fleet(limits: &Limits, needs: jig_domain_fleet::Needs) -> jig_domain_fleet::Domain {

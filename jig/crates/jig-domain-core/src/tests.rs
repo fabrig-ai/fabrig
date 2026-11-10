@@ -3903,6 +3903,19 @@ pub(crate) fn finish_started(core: &mut Core, env: &Env<Limits>, mut action: cra
     panic!("bounded fixture start");
 }
 
+/// Completed-start fixtures drive empty fleet readiness as the shell does.
+pub(crate) fn settle_fleet(domain: &mut fleet::Domain, env: &Env<fleet::Limits>) {
+    for _ in 0_u8..4 {
+        if !domain.is_ready() {
+            return;
+        }
+        let mut out = Queue::uncapped();
+        fleet::resume(domain, env, &mut out);
+        assert!(out.is_empty(), "fixture fleet pass must be empty: {out:?}");
+    }
+    assert!(!domain.is_ready(), "fixture fleet readiness settles within four passes");
+}
+
 fn finish_people(domain: &mut people::Domain, env: &Env<people::Limits>) {
     assert!(domain.start_link());
     domain.start_sweep();

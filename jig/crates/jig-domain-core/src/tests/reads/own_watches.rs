@@ -54,6 +54,7 @@ fn started_signed_core() -> (Core, Limits, u64, Box<[Record]>) {
     configuration.owners = Box::new([]);
     let mut core = Core::new(configuration, &limits).expect("fixture core configuration");
     let mut seeded = finish_start(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits });
+    settle_fleet(&mut core.fleet, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet });
     let (sign_in, records) = sign_in(&mut core, &limits, 1);
     let mut saved = List::with_capacity(
         seeded.len().checked_add(u32::try_from(records.len()).expect("sign-in records")).expect("saved records"),
