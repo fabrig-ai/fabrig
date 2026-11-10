@@ -1248,7 +1248,7 @@ class Plan:
         for path, line, reason, context in self.by_hand:
             if path in self.layout_sources and (path, line) not in self.final_positions:
                 continue
-            locations = self.final_positions.get((path, line), [(self.moves.get(path, path), line, 1)])
+            locations = sorted(self.final_positions.get((path, line), [(self.moves.get(path, path), line, 1)]))
             if reason in ("moved status entry", "split status entry"):
                 locations = locations[:1]
             for dst, ln, _ in locations:
