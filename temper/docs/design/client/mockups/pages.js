@@ -57,7 +57,7 @@
   }
   if (params.has('future')) document.body.classList.add(FLAGS.future);
 
-  // The pages under the README's rules (README.md, section 5; STATUS.md,
+  // The pages under the README's rules (client/mockups/README.md, section 5; STATUS.md,
   // section 1): realistic, with their future pieces marked.
   const REVIEWED = { welcome: '2026-10-25', github: '2026-10-25' };
 
@@ -189,7 +189,7 @@
     projectless: ['no project at first', 'temper init seeding no project, which the playground’s start or the first repository makes (draft archive/first-run.md, 2.4; design STATUS.md, first-run-ux-2)'],
     eligible: ['jig’s not-eligible end', 'a sign-in’s ending for an account not eligible for plan usage (client README, section 11)'],
     port: ['jig’s port-taken end', 'a sign-in’s ending for the listener’s port held by another program (client README, section 11)'],
-    login: ['the person’s login', 'the person’s Forgejo login on the owned forge’s row (client forge.md, 5.4)'],
+    login: ['the person’s login', 'the person’s Forgejo login on the owned forge’s row (client/forge.md, 5.4)'],
     grant: ['not designed', 'an installation’s choice of repositories, all or those selected, and their count'],
   };
   function future(need, html) {
@@ -367,7 +367,7 @@
     return `<div class="compact-context first-run-context"><span>${project()} · ${fact('temper: the demo’s repository, and its forge', `<strong>${esc(world.repos[demo.repo].name)}</strong> on Playground forge`)}</span><span>${fact('jig: your role on the deployment', 'Signed in as the deployment’s owner')}</span></div>`;
   }
 
-  // The forges the configuration names (client forge.md, 5.4); the demo's
+  // The forges the configuration names (client/forge.md, 5.4); the demo's
   // in the phrasebook's name (client README, 5.6).
   const forgeOf = n => world.forges.find(f => f.n === n);
   const forgeName = f => f.name || (f.mode === 'owned' ? 'Forgejo on this machine' : f.kind);
@@ -1026,7 +1026,7 @@
     return listPage('changes', [[project(), 'board.html'], ['Changes', 'changes.html'], [id]], `
       <div class="page-header"><div class="task-heading"><div class="meta-row"><span class="tag accent">${fact('temper: a change', `Change · ${id}`)}</span>${ref(t.ref)}<span>Goal ${chip(goal)}</span></div><h1>${title(id)}</h1><p class="intro">${fact('temper: its pull request, branch and landing branch', `${t.pr ? `PR #${t.pr}` : 'No pull request yet'} · ${esc(repo.name)} · temper/${id.slice(1)}/${esc(t.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'))} → ${esc(repo.branch)}`)}</p></div>
       <div class="task-toolbar"><a class="button" href="${esc(forgeLink(repo, t.pr))}" target="_blank" rel="noreferrer">View on forge ↗</a></div></div>
-      <section class="card card-pad">${fact(`temper: ${id}'s stage (forge.md, section 8)`, `<div class="steps">${steps}</div>`)}
+      <section class="card card-pad">${fact(`temper: ${id}'s stage (domain/forge.md, section 8)`, `<div class="steps">${steps}</div>`)}
         ${fixes ? `<div class="notice"><span>◇</span><div><strong>Fixes finding ${esc(fixes.id)}.</strong> ${esc(fixes.title)}: ${esc(fixes.rate)}. ${gap('6.5', 'an open finding at the landing tip')}</div></div>` : ''}
         <div class="section-heading"><h3>Its tasks</h3><span class="muted tiny">made by the change procedure: producing, repairs, reviews, resolving</span></div>
         ${kids(id).map(k => `<div class="gate"><strong><a href="${href(k)}">${k} ${title(k)}</a> <span class="muted" style="font-weight:400">${kind(k)}</span></strong><span>${phase(k, true)}</span></div>`).join('') || '<p class="muted">None yet.</p>'}
@@ -1436,7 +1436,7 @@
   };
 
   // The forges' part of the deployment's connectors, in temper's words
-  // (client forge.md, 5.4): a row for each forge the person has acted on,
+  // (client/forge.md, 5.4): a row for each forge the person has acted on,
   // with its connection, its access, temper's App on GitHub and its load,
   // and the acts its kind, mode and state offer.
   function forgeConnection(f) {
@@ -1445,7 +1445,7 @@
     return cap(f.state);
   }
   const PASTED = '<p class="muted tiny" style="margin:0">A pasted value is sent once and shown nowhere, then or after.</p>';
-  // GitHub's ways (client forge.md, 5.4). Connect GitHub leaves for GitHub
+  // GitHub's ways (client/forge.md, 5.4). Connect GitHub leaves for GitHub
   // in this tab at once, with no page of temper's before it, and GitHub
   // sends the tab back to the page it left; an App of your own is the one
   // GitHub way with Details. GitHub's side is drawn in its own world, at
@@ -1470,13 +1470,13 @@
   function githubReady(f, from = 'connect-forge') {
     const install = f.app.installs[0];
     const adopted = githubAdopted(f);
-    if (adopted) return `<div class="forge-setup"><h3>${fact('client forge.md, 5.4, Ready: the forges watch’s Row.repositories[].{owner, name}', esc(`${adopted.name} is ready`))}</h3><p>In the new project ${fact('jig’s client/domain/contract.md, 3.2: MakeProject’s ProjectMade, and Row.repositories[].project', esc(adopted.project))}, on GitHub.</p><p>${fact('client README, 4.7, and client forge.md, 5.4: the adoption’s Adopted.kinds, a GitHub App’s status never set', 'temper may: read; push; open pull requests; land; review; comment; create issues; create and delete branches.')}</p><p>${fact('temper: on GitHub, always (client README, 4.7)', 'Commit statuses stay temper\'s own: GitHub\'s rules cannot require them.')}</p><p>${fact('temper: the branch rules the adoption read (domain forge.md, 5.1)', 'The branch has no rules.')}</p>
+    if (adopted) return `<div class="forge-setup"><h3>${fact('client/forge.md, 5.4, Ready: the forges watch’s Row.repositories[].{owner, name}', esc(`${adopted.name} is ready`))}</h3><p>In the new project ${fact('jig’s client/domain/contract.md, 3.2: MakeProject’s ProjectMade, and Row.repositories[].project', esc(adopted.project))}, on GitHub.</p><p>${fact('client README, 4.7, and client/forge.md, 5.4: the adoption’s Adopted.kinds, a GitHub App’s status never set', 'temper may: read; push; open pull requests; land; review; comment; create issues; create and delete branches.')}</p><p>${fact('temper: on GitHub, always (client README, 4.7)', 'Commit statuses stay temper\'s own: GitHub\'s rules cannot require them.')}</p><p>${fact('temper: the branch rules the adoption read (domain/forge.md, 5.1)', 'The branch has no rules.')}</p>
         <div class="button-row"><a class="button primary" href="${esc(u(`chats.html?project=${encodeURIComponent(adopted.project)}`))}">Open ${esc(adopted.project)}</a><a class="text-link" href="#" data-later="${esc(`Mockup: github.com/${adopted.name}, in a new tab.`)}">Open on GitHub ↗</a></div><p class="muted tiny">GitHub is on the <a class="text-link" href="${esc(u('forges.html'))}">Forges</a> page, with its details.</p></div>`;
     const repos = install.names.map(n => [n, (world.github?.repos[install.account] || []).find(([r]) => r === n)?.[1]]);
     const target = from === 'welcome' ? 'welcome.html?at=model' : 'connect-forge.html?forge=2';
     const first = repos[0][0];
     return `<div class="forge-setup"><h3>Choose a repository to start in</h3><p>${fact('client README, 4.6: the forges watch’s Row.installations[].account, and the App’s slug', variant('grant', esc(`${f.app.slug} is installed on ${install.account}.`), esc(`${f.app.slug} is installed on ${install.account}, with ${install.all ? `all its repositories, ${install.names.length}` : `${plural(install.names.length, 'repository', 'repositories')} you chose`}.`)))}</p>
-        <div class="pick-list" data-pick="${esc(u(target, '5'))}" data-owner="${esc(install.account)}">${repos.map(([n, priv], i) => `<label class="pick-row"><input type="radio" name="pick" value="${esc(n)}"${i ? '' : ' checked'}><span>${fact('client forge.md, 4.3: the Reachable read’s rows, Reached.{owner, name, private}', esc(`${install.account}/${n}`))}</span>${priv ? '<span class="tag">private</span>' : ''}</label>`).join('')}</div>
+        <div class="pick-list" data-pick="${esc(u(target, '5'))}" data-owner="${esc(install.account)}">${repos.map(([n, priv], i) => `<label class="pick-row"><input type="radio" name="pick" value="${esc(n)}"${i ? '' : ' checked'}><span>${fact('client/forge.md, 5.1: the Reachable read’s rows, Reached.{owner, name, private}', esc(`${install.account}/${n}`))}</span>${priv ? '<span class="tag">private</span>' : ''}</label>`).join('')}</div>
         <label class="forge-field"><span>Into a new project, named</span><input type="text" value="${esc(first)}" data-pick-project></label>
         <div class="button-row"><a class="button primary" data-pick-go href="${esc(u(`${target}&pick=${encodeURIComponent(first)}`, '5'))}">Adopt ${esc(`${install.account}/${first}`)}</a></div>
         <p class="muted tiny">Not listed? <a class="text-link" href="${esc(toGithub('install', from, '4'))}">Choose its repositories on GitHub</a>, and GitHub sends you back here.</p></div>`;
@@ -1488,20 +1488,20 @@
     return flowSteps(f.state === 'connected' ? (githubAdopted(f) ? n : n - 1) : f.state === 'connecting' ? n - 2 : 1, '', labels);
   }
   // What the clients' listener answers itself, where GitHub's way can't go
-  // on: its own short page, with the way back (client forge.md, 9.1).
+  // on: its own short page, with the way back (client/forge.md, 9.1).
   function githubRefusal(why, from = 'connect-forge') {
     const [head, words, back, step] = {
       request: ['GitHub sent a request, not an installation', 'Only an owner of an organization can install temper’s App there, and temper can’t wait for an owner to approve it yet: an installation approved later isn’t used. Install it on your own account, or on an organization you own.', githubBack(from), '3'],
       ended: ['This link has ended', 'It was used already, it expired, or temper restarted since. Start again from temper.', 'connect-forge.html?forge=2', '1'],
     }[why];
-    return `<div class="forge-setup"><h3>${esc(head)}</h3><p>${fact('client forge.md, 9.1: the clients’ listener’s own page, in its words', esc(words))}</p><a class="button primary" href="${esc(u(back, step))}">Back to temper</a></div>`;
+    return `<div class="forge-setup"><h3>${esc(head)}</h3><p>${fact('client/forge.md, 9.1: the clients’ listener’s own page, in its words', esc(words))}</p><a class="button primary" href="${esc(u(back, step))}">Back to temper</a></div>`;
   }
   function ownedNotUnderTheBox(f) { return `<div class="forge-setup"><h3>Set it up under temper box</h3><p>temper was not started by temper box, so it does not start a Forgejo itself. Start temper with temper box to set one up here.</p></div>`; }
   function ownedForm(f, target = `connect-forge.html?forge=${f.n}`, at = '6') {
     const setup = f.setup;
     return `<div class="forge-setup">
         <h3>Forgejo on this machine</h3>
-        <p>temper box downloads Forgejo ${fact('client forge.md, 5.4: the forges watch’s Row.owned.forgejo, its pin', esc(f.versions.forgejo))} and its runner, starts them, and makes your first repository, with a README and a CI workflow. No restart.</p>
+        <p>temper box downloads Forgejo ${fact('client/forge.md, 5.4: the forges watch’s Row.owned.forgejo, its pin', esc(f.versions.forgejo))} and its runner, starts them, and makes your first repository, with a README and a CI workflow. No restart.</p>
         <div class="forge-fields"><label class="forge-field"><span>Organization</span><input type="text" value="${esc(setup.org)}"></label><label class="forge-field"><span>Repository</span><input type="text" value="${esc(setup.repo)}"></label></div>
         <div class="forge-fields"><label class="forge-field"><span>Into a new project, named</span><input type="text" value="${esc(setup.project)}"></label></div>
         <ul class="forge-facts"><li>Its CI jobs run on this machine, as you, with no isolation.</li><li>Forgejo stops when temper box stops. Its repositories are kept in temper’s data directory.</li></ul>
@@ -1515,7 +1515,7 @@
     const order = ['fetching', 'preparing', 'starting', 'connecting', 'repository'];
     const current = allDone ? order.length : order.indexOf(failedAt || f.setup.step);
     const lines = [esc(`${current > 0 ? 'Fetched' : 'Fetching'} Forgejo ${f.versions.forgejo} and its runner ${f.versions.runner}`), `Preparing: its database, temper’s admin, your account${future('login', esc(` ${f.person}`))}`, 'Starting Forgejo and its runner', 'Connecting as temper', esc(`Making ${f.setup.org}/${f.setup.repo}, and adopting it into ${f.setup.project}`)];
-    return fact('client forge.md, 5.4, Setting up: Row.connection (SettingUp.step, Connecting), Row.first.state, the adoption; Row.owned’s versions', `<ol class="forge-progress">${lines.map((line, i) => `<li${i < current ? ' class="done"' : i === current ? ` class="${failedAt ? 'failed' : 'current'}"` : ''}>${line}</li>`).join('')}</ol>`);
+    return fact('client/forge.md, 5.4, Setting up: Row.connection (SettingUp.step, Connecting), Row.first.state, the adoption; Row.owned’s versions', `<ol class="forge-progress">${lines.map((line, i) => `<li${i < current ? ' class="done"' : i === current ? ` class="${failedAt ? 'failed' : 'current'}"` : ''}>${line}</li>`).join('')}</ol>`);
   }
   function forgeActs(f) {
     if (f.state === 'setting up') return `${ownedProgress(f)}<a class="text-link" href="${esc(u(`connect-forge.html?forge=${f.n}`))}">Open its set-up ›</a>`;
@@ -1548,7 +1548,7 @@
   function forgeLoad(f) {
     const l = f.load;
     if (!l) return '';
-    return `<div class="kv"><span>Requests</span><strong>${fact('temper: the forge’s request budget, the configuration’s rate per window (domain forge.md, 5.4)', esc(`${l.used.toLocaleString('en')} of ${l.rate.toLocaleString('en')} this ${l.window} · ${l.reserve} kept for keeping up and the slow pass`))}</strong></div>
+    return `<div class="kv"><span>Requests</span><strong>${fact('temper: the forge’s request budget, the configuration’s rate per window (domain/forge.md, 5.4)', esc(`${l.used.toLocaleString('en')} of ${l.rate.toLocaleString('en')} this ${l.window} · ${l.reserve} kept for keeping up and the slow pass`))}</strong></div>
       <div class="kv"><span>Used by</span><strong>${fact('temper: what used the budget, by queue', esc(l.uses.map(([q, n]) => `${q} ${n.toLocaleString('en')}`).join(' · ')))}</strong></div>
       <div class="kv"><span>Pause for its rate</span><strong>${fact('temper: a pause the forge asked for', 'none')}</strong></div>
       <div class="kv"><span>Outbox</span><strong>${fact('temper: the effects waiting, and those uncertain, being looked for', esc(`${plural(l.outbox.waiting, 'effect')} waiting · ${l.outbox.uncertain ? `${l.outbox.uncertain} uncertain` : 'none uncertain'}`))}</strong></div>
@@ -1573,7 +1573,7 @@
 
           <p>For a forge at forge.example, add this entry to application.forges in ~/.config/temper/temper.json. Replace the example host with yours; use an unused forge number.</p>
           <pre><code>{
-  "number": ${conf('application.forges: one past the highest forge number (client forge.md, 5.4)', esc(next))},
+  "number": ${conf('application.forges: one past the highest forge number (client/forge.md, 5.4)', esc(next))},
   "kind": "forgejo",
   "api": {"host": "forge.example", "port": 443},
   "transport": {"tls": {
@@ -1585,7 +1585,7 @@
 }</code></pre>
           <p>Add its git identity to application.identities, using an unused identity number and the same forge number:</p>
           <pre><code>{
-  "number": ${conf('application.forges: one past the highest forge number (client forge.md, 5.4)', esc(next))}, "forge": ${conf('application.forges: one past the highest forge number (client forge.md, 5.4)', esc(next))}, "login": null,
+  "number": ${conf('application.forges: one past the highest forge number (client/forge.md, 5.4)', esc(next))}, "forge": ${conf('application.forges: one past the highest forge number (client/forge.md, 5.4)', esc(next))}, "login": null,
   "author": {
     "name": "temper",
     "email": "temper-bot@forge.example"
@@ -1593,7 +1593,7 @@
 }</code></pre>
           <p>To connect as its admin, add its setup entry to application.setup:</p>
           <pre><code>{
-  "forge": ${conf('application.forges: one past the highest forge number (client forge.md, 5.4)', esc(next))},
+  "forge": ${conf('application.forges: one past the highest forge number (client/forge.md, 5.4)', esc(next))},
   "bot": {"login": "temper", "email": "temper-bot@forge.example"},
   "mode": "managed"
 }</code></pre>
@@ -1723,7 +1723,7 @@
         ? `<li class="done">Model: ${accountHeading(a)}${future('preview', esc(` · ${next?.model || a.models?.[0] || ''}`))}</li>`
         : `<li>Model: none yet · <a class="text-link" href="${esc(u('welcome.html?at=model'))}">Connect a model</a>${end ? signInEnd(end) : ''}</li>`;
       const forgeLine = !startedForge ? `<li>Forge: none yet · <a class="text-link" href="${esc(u('welcome.html?at=forge'))}">Connect a forge</a></li>`
-        : `<li class="${done ? 'done' : 'current'}">${fact('client forge.md, 5.4: the forges watch’s Row.connection, and Connected.login', esc(f.state === 'connected' ? `Forge: ${forgeName(f)}, connected as ${f.login}` : `Forge: ${forgeName(f)} · ${f.state}`))}${!done && f.state !== 'connected' ? eachStep() : ''}</li>`;
+        : `<li class="${done ? 'done' : 'current'}">${fact('client/forge.md, 5.4: the forges watch’s Row.connection, and Connected.login', esc(f.state === 'connected' ? `Forge: ${forgeName(f)}, connected as ${f.login}` : `Forge: ${forgeName(f)} · ${f.state}`))}${!done && f.state !== 'connected' ? eachStep() : ''}</li>`;
       const projectLine = repo ? `<li class="${done ? 'done' : ''}">${fact('client README, 3.5, The welcome: Row.first’s org and repository, and its project; Row.repositories once adopted', esc(`Project ${proj}, with ${repo}`))}${done && owned ? future('ci', ' · its first CI run passed') : ''}</li>` : '';
       // Connected with no first repository: adopt one (client README, 4.4).
       const acts = done ? `<div class="button-row"><a class="button primary" href="${esc(u(`chats.html?project=${encodeURIComponent(proj)}`))}">Open ${esc(proj)}</a>${owned ? `<a class="text-link" href="#" data-later="${esc(`Mockup: Forgejo opens in a new tab at its /user/oauth2/temper, and signs ${f.person} in through temper.`)}">Open Forgejo ↗</a>` : f.kind === 'GitHub' ? `<a class="text-link" href="#" data-later="${esc(`Mockup: github.com/${repo}, in a new tab.`)}">Open on GitHub ↗</a>` : `<a class="text-link" href="#" data-later="Mockup: the repository on Forgejo">Open ${esc(repo)} on Forgejo ↗</a>`}</div>`
