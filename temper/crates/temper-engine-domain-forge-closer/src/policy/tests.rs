@@ -6,7 +6,7 @@ fn facts() -> Facts {
         close_job: true,
         pending: false,
         landed: Box::new([9, 12]),
-        base_holds: false,
+        base_holds: Some(false),
         child: Child::Pending,
         landing_child: Child::Pending,
         released: false,
@@ -34,7 +34,7 @@ fn land_after_close_unless_the_base_holds_the_branch() {
     let mut c = Closer::new();
     c.closed = Some(f.landed.clone());
     assert_eq!(step(&c, &f).decision, Decision::Make(Step::Land));
-    f.base_holds = true;
+    f.base_holds = Some(true);
     assert_eq!(step(&c, &f).decision, Decision::Report);
 }
 
@@ -48,7 +48,7 @@ fn no_landing_without_a_goal_branch() {
 #[test]
 fn report_last() {
     let mut f = facts();
-    f.base_holds = true;
+    f.base_holds = Some(true);
     let mut c = Closer::new();
     c.closed = Some(f.landed.clone());
     c.running = Some(Running { step: Step::Land, change: 20 });
@@ -78,6 +78,86 @@ fn a_release_makes_the_step_change_again() {
     assert_eq!(s.decision, Decision::Make(Step::Close));
     assert_eq!(s.closer.hold, None);
     assert_eq!(s.closer.running, None);
+}
+
+#[test]
+fn an_ended_landing_reports_when_the_base_holds_the_branch() {
+    for running in [true, false] {
+        let mut f = facts();
+        f.child = Child::Ended;
+        f.landing_child = Child::Ended;
+        f.base_holds = Some(true);
+        let mut c = Closer::new();
+        c.closed = Some(f.landed.clone());
+        c.landing = Some(20);
+        c.running = running.then_some(Running { step: Step::Land, change: 20 });
+        let s = step(&c, &f);
+        assert_eq!(s.decision, Decision::Report);
+        assert_eq!(s.closer.landing, None, "the report names no landing");
+        assert_eq!(s.closer.hold, None);
+    }
+}
+
+#[test]
+fn an_ended_landing_holds_when_the_base_does_not_hold_the_branch() {
+    for running in [true, false] {
+        let mut f = facts();
+        f.child = Child::Ended;
+        f.landing_child = Child::Ended;
+        let mut c = Closer::new();
+        c.closed = Some(f.landed.clone());
+        c.landing = Some(20);
+        c.running = running.then_some(Running { step: Step::Land, change: 20 });
+        assert_eq!(step(&c, &f).decision, Decision::Hold(Hold::ClosingStep { step: Step::Land, change: 20 }));
+    }
+}
+
+#[test]
+fn a_released_landing_reports_or_makes_a_new_landing() {
+    for base_holds in [true, false] {
+        let mut f = facts();
+        f.child = Child::Ended;
+        f.landing_child = Child::Ended;
+        f.base_holds = Some(base_holds);
+        f.released = true;
+        let mut c = Closer::new();
+        c.closed = Some(f.landed.clone());
+        c.landing = Some(20);
+        c.running = Some(Running { step: Step::Land, change: 20 });
+        c.hold = Some(Hold::ClosingStep { step: Step::Land, change: 20 });
+        let s = step(&c, &f);
+        assert_eq!(s.decision, if base_holds { Decision::Report } else { Decision::Make(Step::Land) });
+        assert_eq!(s.closer.hold, None);
+        assert_eq!(s.closer.running, None);
+    }
+}
+
+#[test]
+fn an_ended_landing_reads_before_deciding_and_keeps_its_release() {
+    let mut f = facts();
+    f.child = Child::Ended;
+    f.landing_child = Child::Ended;
+    f.base_holds = None;
+    let mut c = Closer::new();
+    c.closed = Some(f.landed.clone());
+    c.landing = Some(20);
+    c.running = Some(Running { step: Step::Land, change: 20 });
+    let s = step(&c, &f);
+    assert_eq!(s.decision, Decision::Check);
+    assert_eq!(s.closer.hold, None);
+    c.hold = Some(Hold::ClosingStep { step: Step::Land, change: 20 });
+    f.released = true;
+    let s = step(&c, &f);
+    assert_eq!(s.decision, Decision::Check);
+    assert_eq!(s.closer.hold, None);
+    assert_eq!(s.closer.retry, Some(Step::Land));
+    f.released = false;
+    for base_holds in [false, true] {
+        f.base_holds = Some(base_holds);
+        let s = step(&s.closer, &f);
+        assert_eq!(s.decision, if base_holds { Decision::Report } else { Decision::Make(Step::Land) });
+        assert_eq!(s.closer.hold, None, "a release never holds again on the ended landing");
+    }
 }
 
 #[test]
