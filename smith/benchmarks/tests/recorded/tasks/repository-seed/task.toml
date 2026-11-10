@@ -5,7 +5,7 @@ kind = "repository"
 tier = "small"
 deadline_seconds = 10
 prompt = "Read the README and finish.\n"
-guards = ["../../../../../docs/design/benchmarks/README.md, section 5.2"]
+guards = ["benchmarks/README.md, section 5.2"]
 seed_sha256 = "c8403ab94b8fe8c26799eacfda4c4e2c0478ff691fa6552d0258a84ace0336d4"
 
 [[grade]]
