@@ -960,7 +960,7 @@ part:
   deciding; an irrelevant hint adds no restart. Gate results, task
   dependencies and queue changes keep their existing wake routes. Each
   decision still uses the rules held then (8.7–8.9); hints do not replace
-  polling, settling or stall deadlines (8.3–8.4, 9).
+  polling, settling or stall deadlines (sections 8.3–8.4 and 9).
 - **What Forgejo settles after it delivers** is read again sooner, by
   the change procedure, which reads its pull request afresh (5.3), not
   by the keep. Forgejo checks a pull request's mergeability after a push
@@ -4263,7 +4263,7 @@ whole.
   inventory beyond the set a next attempt resumes from. Default: manual
   deletion or deployment retention; a failed descendant's known saved
   work stays with its root until that root closes.
-- **A clean update's other words** (8.4, 10): the result still says
+- **A clean update's other words** (sections 8.4 and 10): the result still says
   `the base broke it`, and the client panel calls its repair a semantic
   conflict, although the path proves only that CI failed after an update.
   Aligning those words needs the client's owner too. Default: the task's

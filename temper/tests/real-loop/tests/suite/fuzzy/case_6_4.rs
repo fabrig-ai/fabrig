@@ -24,7 +24,7 @@ fn a_red_tip_pauses_kits_queue_for_one_repair_that_lands_before_a4_while_the_dir
     // Timer acknowledgement precedes A1's report even within one query.
     // The armed activity prefix completes the ended journal page.
     // Owners/changes use 5.4's six grants and its change/hold helpers.
-    // F9, the pause's news to waiting goals (forge.md, 9), is missing on main:
+    // F9, the pause's news to waiting goals (temper/docs/design/domain/forge.md, 9), is missing on main:
     // crates/temper-engine-domain/src/route/forge_route.rs:1958
     // start_queue_repair notifies no goal.
     // crates/temper-engine-domain-forge/src/boundary.rs:484 News has no pause event.

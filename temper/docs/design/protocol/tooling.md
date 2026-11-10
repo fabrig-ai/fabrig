@@ -206,8 +206,7 @@ limit of the worker's jobs (`../domain/worker.md`, 4.4).
 
 - **The worker's `PATH` and its jobs' limits as configuration:** section
   2's `PATH` and section 6's limits have no member of the worker's
-  (`configuration.md`, section 4) and no override (section 7 of
-  `configuration.md`). The first kind built, `merge`, keeps them the
+  (`configuration.md`, section 4) and no override (`configuration.md`, section 7). The first kind built, `merge`, keeps them the
   profile's constants, so they stay open until a deployment needs
   another.
 - **A command's own network:** whether a worker gives it none, so that

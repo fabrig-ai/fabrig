@@ -857,12 +857,12 @@ is cited by its probe's number across this document.
   from the client); the layers' files (section 13), `admin_token` a
   handover the engine takes and removes, the only file `temper serve`
   reads of a setup; reconcile's host in the engine; `setup.orgs` gone,
-  `person.orgs` for owned; the box's steps; section 9's table, every
+  `person.orgs` for owned; the box's steps; `../protocol/setup.md`, section 9's table, every
   credential of the engine's in the store; GitHub (part B) in place of
   "Not here".
 - **`../protocol/forge.md`:** GitHub's dialect as temper uses it, the
   delivery log as a hint feed, credentials at runtime.
-- **`../domain/forge.md`:** a forge connected or not (section 4); the
+- **`../domain/forge.md`:** a forge connected or not (`../domain/forge.md`, section 4); the
   writer at runtime; adoption's org paragraph replaced by access at
   adoption on managed and owned forges (12.2); GitHub's rules and its
   merge queue as a landing queue (section 10).

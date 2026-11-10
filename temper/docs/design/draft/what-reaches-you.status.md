@@ -50,7 +50,7 @@ files'.
   projects, the shown card's first, the count marked "+" past them, where
   this section lists every project's, since each project's rows are a
   watch of their own within the client's room
-  (`../client/README.md`, 3.5, *Decided for you*, and section 11's open
+  (`../client/README.md`, 3.5, *Decided for you*, and `../client/README.md`, section 11's open
   question, default four); and a page draws at most seven rows, the
   newest, counting the rest in its heading, as Home has since `ui-away`.
 - **Design departs:** 2, decided by the cut of `ui-reaches` on

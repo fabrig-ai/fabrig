@@ -1885,11 +1885,11 @@ skein's (skein's `fake-llm.md`):
 ### 4.2 The forge
 
 The fake forge is skein's (skein's `fake-forge.md`): its domain, with its
-refusals, timing, faults and CI (section 2); its git, in the store the
+refusals, timing, faults and CI (skein's `fake-forge.md`, section 2); its git, in the store the
 API reads, so a branch the worker pushes is the head the engine reads
-(section 3); its protocol layer, which serves Forgejo's API, signed
-deliveries and the setup's routes (section 4); and its forge peer on
-loopback (section 5). temper's worlds add:
+(skein's `fake-forge.md`, section 3); its protocol layer, which serves Forgejo's API, signed
+deliveries and the setup's routes (skein's `fake-forge.md`, section 4); and its forge peer on
+loopback (skein's `fake-forge.md`, section 5). temper's worlds add:
 
 - **What the engine's worlds need of it** (`root.md`, section 12;
   `forge.md`, section 18): CI that passes, fails or never
@@ -2245,7 +2245,7 @@ The worker's child domain worlds keep their checks inline.
 ### 5.3 The reference case
 
 The case library: a fixed case in three acts, its stories numbered by
-its steps (4.1 to 6.8) and named `suite::fuzzy::case_*`. They run in the
+its steps (`4.1` to `6.8`) and named `suite::fuzzy::case_*`. They run in the
 real loop (2.4), each on the case's cast, its scripts and its oracle,
 written once for the real loop's cluster and the process tier's
 retained, ignored 4.6 story (../protocol/README.md, 15.6).
