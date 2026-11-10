@@ -313,6 +313,13 @@ class Citations(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn(f"{DESIGN}/c.md:5: path docs/design/gone.md", result.stdout)
 
+    def test_parenthesis_keeps_explicit_tree_owner(self):
+        self.write("temper/docs/design/a.md", "# a\n\n## 9. Nine\n")
+        self.write("temper/docs/design/c.md", "# c\n\nskein's (`a.md`, section 2.1).\n")
+        self.commit("parenthesised owner")
+        result = self.run_check("--all")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_a_determiners_repository_is_this_one(self):
         self.write(f"{DESIGN}/c.md",
                    "# c\n\nA gate is a repository's (`a.md`, 2.1); the repository's `a.md`, 9, is gone.\n")
