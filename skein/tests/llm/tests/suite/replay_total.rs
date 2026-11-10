@@ -1,4 +1,4 @@
-//! Replay storage is charged at the bytes the completion holds (llm.md, 4.2).
+//! Replay storage is charged at the bytes the completion holds (llm/README.md, 4.2).
 use skein_llm::{Block, Cap, Declared, Failure, Limits, Provider, client};
 use skein_llm_world::{TERMINAL, World, call, events, limits, response};
 

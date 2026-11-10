@@ -1,4 +1,4 @@
-//! Bounded drawing marks in preorder (ui.md, section 11).
+//! Bounded drawing marks in preorder (ui/scenes.md).
 
 use crate::{DrawingKind, Limits, Style};
 use skein_lib::{List, usize_of};
@@ -9,17 +9,17 @@ pub struct Point {
     pub x: u16,
     pub y: u16,
 }
-/// A fade's stop: its place in thousandths of the way, 0 to 1000, and its tokens (ui.md, 11.2).
+/// A fade's stop: its place in thousandths of the way, 0 to 1000, and its tokens (ui/scenes.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct FadeStop<'a> {
     pub offset: u16,
     pub styles: &'a [Style],
 }
-/// A mark's fade as its scene holds it (ui.md, 11.2).
+/// A mark's fade as its scene holds it (ui/scenes.md, 2).
 #[derive(Clone, Copy, Debug)]
 #[expect(
     clippy::partial_pub_fields,
-    reason = "The points are public; stored stops are read by their iterator (ui.md, 11.2)."
+    reason = "The points are public; stored stops are read by their iterator (ui/scenes.md, 2)."
 )]
 pub struct Fade<'a> {
     pub from: Point,
@@ -34,7 +34,7 @@ impl<'a> Fade<'a> {
         FadeStops { bytes: skein_lib::Reader::new(self.stops), styles: self.styles }
     }
 }
-/// The stops read from a scene's fade (ui.md, 11.2).
+/// The stops read from a scene's fade (ui/scenes.md, 2).
 #[derive(Debug)]
 pub struct FadeStops<'a> {
     bytes: skein_lib::Reader<'a>,
@@ -54,7 +54,7 @@ impl<'a> Iterator for FadeStops<'a> {
         Some(FadeStop { offset, styles })
     }
 }
-/// The scene's bytes a fade of `stops` stops takes: 8 and 4 for each stop (ui.md, 15).
+/// The scene's bytes a fade of `stops` stops takes: 8 and 4 for each stop (ui/README.md, 13).
 #[must_use]
 pub const fn fade_bytes(stops: u32) -> Option<u32> {
     let Some(bytes) = stops.checked_mul(4) else {
@@ -141,7 +141,7 @@ impl Scene {
         self.height = None;
         self.refused = false;
     }
-    /// Say this scene's width, drawn at it and scaled to its box's (ui.md, 11.2).
+    /// Say this scene's width, drawn at it and scaled to its box's (ui/scenes.md, 2).
     pub fn set_width(&mut self, width: u16) {
         if !self.refused {
             self.width = Some(width);
@@ -152,7 +152,7 @@ impl Scene {
     pub const fn width(&self) -> Option<u16> {
         self.width
     }
-    /// Say this scene's height, in place of its box's (ui.md, 11.2).
+    /// Say this scene's height, in place of its box's (ui/scenes.md, 2).
     pub fn set_height(&mut self, height: u16) {
         if !self.refused {
             self.height = Some(height);
@@ -209,7 +209,7 @@ impl Scene {
         let styles = self.styles.as_slice().get(usize_of(properties.styles.end)..).expect("fade follows mark tokens");
         Some(Fade { from, to, stops, styles })
     }
-    /// Paint the last mark's stroke, a line's, a polyline's or a path's, with a linear fade (ui.md, 11.2).
+    /// Paint the last mark's stroke, a line's, a polyline's or a path's, with a linear fade (ui/scenes.md, 2).
     pub fn fade(&mut self, from: Point, to: Point, stops: &[FadeStop<'_>]) -> bool {
         if self.refused {
             return false;
@@ -444,7 +444,7 @@ impl Scene {
         self.background = Some(span);
         true
     }
-    /// Resolve platform hit-test indices, topmost first (ui.md, 11.3).
+    /// Resolve platform hit-test indices, topmost first (ui/scenes.md, 3).
     /// Replaces `out` whole, returning false when no act or insufficient room.
     pub fn act_at(&self, under: &[u32], point: Point, out: &mut List<u8>) -> bool {
         out.clear();
@@ -485,7 +485,7 @@ impl Scene {
         }
     }
 }
-/// Drawing code, routed by the kind's owner (ui.md, 11.1).
+/// Drawing code, routed by the kind's owner (ui/scenes.md, 1).
 pub type Draw = fn(kind: DrawingKind, data: &[u8], width: u16, height: u16, scene: &mut Scene) -> bool;
 
 fn emit_act(bytes: &[u8], point: Option<Point>, out: &mut List<u8>) -> bool {

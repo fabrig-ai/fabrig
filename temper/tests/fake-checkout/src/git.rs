@@ -1,5 +1,5 @@
 //! The shared checkout's git entry points and remote contract
-//! (skein's docs/design/fake-checkout.md, section 4). Local operations keep objects and merge
+//! (skein's testing/fakes/checkout.md, section 4). Local operations keep objects and merge
 //! metadata; temper's world-owned `Remote` implementations retain forge policy.
 //! These explicit exports preserve their trait identity and terminal outcomes.
 

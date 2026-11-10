@@ -1,4 +1,4 @@
-//! TLS records as the worlds read and corrupt them (tls.md, 5).
+//! TLS records as the worlds read and corrupt them (net/tls.md, 5).
 
 /// The length of a record's body, from its five-byte header.
 #[must_use]

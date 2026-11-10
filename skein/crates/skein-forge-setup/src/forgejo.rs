@@ -1,4 +1,4 @@
-//! Forgejo's owner-provided values and plans (forge-setup.md, 4).
+//! Forgejo's owner-provided values and plans (forge/setup/forgejo.md, 1).
 mod access;
 mod admin;
 pub mod adopt;
@@ -15,7 +15,7 @@ use crate::plan::{self, Event, Why};
 use alloc::boxed::Box;
 use skein_forge::forgejo::document::{Document, Row};
 
-/// The answers this dialect's plans read (forge-setup.md, 4.2).
+/// The answers this dialect's plans read (forge/setup/forgejo.md, 1.2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 #[cfg_attr(
     not(target_arch = "wasm32"),

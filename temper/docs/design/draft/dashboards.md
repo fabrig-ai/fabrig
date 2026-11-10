@@ -51,7 +51,7 @@ here is adopted, and nothing here is a part of v0.1.0 (`v0.1.0.md`).
 - **Semantic, not a layout.** Panels become skein-ui's tree in
   `temper-client-view`, so the terminal and the browser show the same
   dashboard; a dashboard says what each part is and their order, never
-  where it goes or how big (skein's `ui.md`, section 1). Every chart has
+  where it goes or how big (skein's `ui/README.md`, section 1). Every chart has
   its words.
 - **Read-only, and never wider.** A panel leads to temper's own pages
   and acts on nothing; a dashboard shows only what the viewer's role in
@@ -223,7 +223,7 @@ caption:
 
 ### 5.2 The palette
 
-Each panel is nodes of skein-ui's closed roles (skein's `ui.md`, 3.1),
+Each panel is nodes of skein-ui's closed roles (skein's `ui/README.md`, 3.1),
 drawn by `temper-client-view`:
 
 | Panel | Shows | In skein-ui |
@@ -242,7 +242,7 @@ drawn by `temper-client-view`:
   a panel; it arranges them.
 - **Nothing said by style alone.** A warning is an alert in words, a
   chart's colour is a token the shell may ignore, and the fake person
-  reads every panel by role, name and text (skein's `ui.md`, section 17).
+  reads every panel by role, name and text (skein's `ui/README.md`, section 14).
 
 ### 5.3 In the client
 

@@ -1,4 +1,4 @@
-//! The listener (io.md, 3.2): a socket made, bound and listening, which
+//! The listener (runtime/io/sockets.md, 2): a socket made, bound and listening, which
 //! accepts one connection at a time while its owner has room, announces each,
 //! and closes once whatever it has in flight has settled.
 
@@ -529,7 +529,7 @@ fn outcome(io: &mut Io, listener: Id<Entity>, result: Result<Done, kernel::Error
     }
 }
 
-/// The transition table of io.md, 3.2.
+/// The transition table of runtime/io/sockets.md, 2.
 fn step(
     state: State,
     me: Me,
@@ -753,7 +753,7 @@ fn settle_discard(settling: Settling, me: Me, tables: &mut Tables, subs: &mut Qu
 }
 
 /// A cancel completed: one that could not be submitted is tried again while
-/// its accept still waits (kernel.md, 5).
+/// its accept still waits (runtime/kernel.md, 5).
 fn settle_cancel(
     settling: Settling,
     target: Id<Flight>,

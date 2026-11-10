@@ -1,4 +1,4 @@
-//! Plain data supplied by the application (ui-web.md, 3.2).
+//! Plain data supplied by the application (ui/web/README.md, 3.2).
 
 use skein_ui::{Owner, look::Names, scene::Draw};
 

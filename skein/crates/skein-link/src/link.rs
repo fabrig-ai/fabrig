@@ -1,4 +1,4 @@
-//! The stream and its close rule (skein/docs/design/link.md, 3.1–3.3).
+//! The stream and its close rule (skein/docs/design/net/link.md, 3.1–3.3).
 use core::fmt;
 use skein_io as io;
 use skein_lib::stream::{Down, Up};

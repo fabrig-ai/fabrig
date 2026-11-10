@@ -1,4 +1,4 @@
-//! Positions (json.md, 3.6), counted by hand.
+//! Positions (data/json.md, 3.6), counted by hand.
 use super::{LIMITS, Machine, number, placed};
 use crate::{
     Token,

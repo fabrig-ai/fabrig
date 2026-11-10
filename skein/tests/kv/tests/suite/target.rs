@@ -1,5 +1,5 @@
 //! Snapshot chunks pack to a target, with heap for their rows and one encoding
-//! (skein/docs/design/kv.md, 5, 7 and 9).
+//! (skein/docs/design/data/kv.md, 5, 7 and 9).
 
 use skein_fake_machine::Item;
 use skein_heap::Span;

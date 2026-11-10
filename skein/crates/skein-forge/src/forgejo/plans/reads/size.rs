@@ -1,4 +1,4 @@
-//! Answer row limits beside the allocation measure (skein/docs/design/forge.md, 3.7).
+//! Answer row limits beside the allocation measure (skein/docs/design/forge/README.md, 3.7).
 use crate::api;
 
 fn rows(count: usize, limit: u32) -> Result<(), api::Error> {

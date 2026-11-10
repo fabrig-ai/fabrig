@@ -1,8 +1,8 @@
-//! Keyless, target-independent state digests (lib.md, 5.1).
+//! Keyless, target-independent state digests (runtime/lib.md, 5.1).
 
 use core::hash::{Hash, Hasher};
 
-/// A keyless `Hasher` over SHA-256, alike on every target (lib.md, 5.1).
+/// A keyless `Hasher` over SHA-256, alike on every target (runtime/lib.md, 5.1).
 #[derive(Clone, Debug)]
 pub struct StateHasher {
     sha: crate::sha256::Sha256,

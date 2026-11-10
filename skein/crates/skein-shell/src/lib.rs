@@ -1,10 +1,10 @@
-//! The shell kit (shell.md): what a service's `main` runs its
+//! The shell kit (runtime/shell.md): what a service's `main` runs its
 //! loop on (programming-model.md, section 2). The root holds a service's calls.
 //! Host, settings and tables are portable; system access and the drive loop are native,
-//! under `cfg(unix)` (shell.md, 14).
+//! under `cfg(unix)` (runtime/shell.md, 13).
 //!
 //! - [`Kernel`]: the ring or readiness backend of io's kernel records
-//!   (`skein_io::kernel`; shell.md, 3), opened once, then submitted to
+//!   (`skein_io::kernel`; runtime/shell.md, 3), opened once, then submitted to
 //!   and reaped from once per iteration.
 //! - [`open_append`]: a regular file opened beneath a root for output at startup.
 //! - [`inherited_listeners`], [`listener_at`] and [`open_listener`]: startup listeners.
@@ -13,16 +13,16 @@
 //! - [`directory_access`]: the kernel's startup answer on writing and searching a directory.
 //! - [`process_id`]: the startup process ID for the service's report.
 //! - [`read_file`] and [`read_trust_roots`]: startup reads within configured bounds.
-//! - [`resolve`] and [`help`]: a command's settings, their sources and help (shell.md, 6.5).
+//! - [`resolve`] and [`help`]: a command's settings, their sources and help (runtime/shell.md, 6.5).
 //! - [`open_termination_signals`]: the SIGINT/SIGTERM source io adopts.
 //! - [`Clock`]: monotonic and wall time, read together once per iteration.
 //! - [`seed`]: the random seed, drawn from the system once at startup.
 //!
-//! [`Host`] adapts the service; [`drive`] runs it until settlement (shell.md, 12 and 13).
+//! [`Host`] adapts the service; [`drive`] runs it until settlement (runtime/shell.md, 11 and 12).
 //!
 //! This is ordinary Rust (programming-model.md, 10.2). System calls live
 //! in `linux`, including its ring adapter, `darwin` and `posix`. The crate's
-//! lints confine the audited boundary to these modules (testing.md, 6).
+//! lints confine the audited boundary to these modules (testing/README.md, 6).
 
 #[cfg(unix)]
 mod calls;

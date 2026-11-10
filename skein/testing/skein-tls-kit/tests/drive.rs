@@ -1,5 +1,5 @@
 //! The prompt wire preserves fills across a wrapped byte queue
-//! (skein/docs/design/testing.md, 6).
+//! (skein/docs/design/testing/README.md, 6).
 
 use skein_lib::stream::{Down, Read, Up};
 use skein_tls_kit::{drive::Wire, pki, server::Server};

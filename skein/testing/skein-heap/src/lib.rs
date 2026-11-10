@@ -1,7 +1,7 @@
 //! The counting allocator (testing-strategy.md, 6): it counts the live heap
 //! of each thread and its peak, so that a test can check the most a part
 //! held at once in each step against its worst case (programming-model.md,
-//! 6.3). skein supplies it to a service's worlds as to its own (testing.md,
+//! 6.3). skein supplies it to a service's worlds as to its own (testing/README.md,
 //! 5). Each memory test binary declares it its global allocator, and
 //! measures each step with a [`Meter`]:
 //!
@@ -16,7 +16,7 @@
 //! # A step's own
 //!
 //! An input moved into a step was counted by whoever made it; the step's
-//! bound covers what it keeps and what it allocates (testing.md, 5). What a
+//! bound covers what it keeps and what it allocates (testing/README.md, 5). What a
 //! step hands out in its requests is no longer its own (programming-model.md,
 //! 6.2), but the input of the step that takes it, which a test checks
 //! against its bound and that input. So a step is checked at the most it held
@@ -32,11 +32,11 @@
 //! # Around a call
 //!
 //! A simulated world checks the heap its processes hold at every iteration
-//! (simulator.md, 5), counting what grew within their own calls and leaving
+//! (testing/simulator.md, 5), counting what grew within their own calls and leaving
 //! out the simulator's. A process frees what it allocated in earlier calls,
 //! so the heap may fall below where a call began: a [`Span`] measures the
 //! growth around one call, signed, at its peak and in all. It also counts
-//! the allocations its thread made, a reallocation as one (testing.md, 5).
+//! the allocations its thread made, a reallocation as one (testing/README.md, 5).
 //!
 //! # The runtime's own
 //!
@@ -63,7 +63,7 @@
 //!
 //! A global allocator is an `unsafe impl`: beside the ring adapter, the one
 //! `unsafe` in skein, allowed because this crate is test-only and never
-//! linked into a service (testing.md, 6). It only counts; `System`
+//! linked into a service (testing/README.md, 6). It only counts; `System`
 //! allocates. On an allocation's path it never panics: where an invariant of
 //! its own breaks, it aborts, as a global allocator must not unwind. It
 //! constructs a padded layout after checking its size once in `alloc`;
@@ -335,7 +335,7 @@ fn padded(layout: Layout) -> (usize, usize) {
 
 #[expect(
     unsafe_code,
-    reason = "a global allocator is an unsafe impl; it only counts, and System allocates (testing.md, 6)"
+    reason = "a global allocator is an unsafe impl; it only counts, and System allocates (testing/README.md, 6)"
 )]
 // SAFETY: each block is `offset` bytes into one of System's, which is aligned
 // to `offset`, a multiple of the block's alignment, and `offset` bytes longer
@@ -521,7 +521,7 @@ impl Span {
     }
 
     /// The allocations this thread made since the start, a reallocation
-    /// as one: none shows a table kept rather than replaced (testing.md, 5).
+    /// as one: none shows a table kept rather than replaced (testing/README.md, 5).
     #[must_use]
     pub fn made(&self) -> u64 {
         COUNTS.with(|counts| counts.made.get().wrapping_sub(self.before))

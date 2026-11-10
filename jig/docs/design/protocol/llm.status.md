@@ -4,6 +4,6 @@
 
 Section 5.2 has no known gap in requesting email and name and translating
 sign-in and refresh claims to the accounts child. The refresh reader's
-nonce requirement is recorded in `skein/docs/design/oauth.status.md`, 2.2.
+nonce requirement is recorded in `skein/docs/design/oauth/README.status.md`, 2.2.
 
 - **Not yet:** 1 to 4, 5.3, 6 to 8: agents in a host's own process: no engine or worker of jig's composes `smith-inline-agent`, so smith's LLM component for its runs, the slots' contracts, its grants from the accounts' table, their limits and their protocol-world stories are not in jig.

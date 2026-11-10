@@ -18,7 +18,7 @@
   in `skein-fake-person-browser`, `skein-shell` and `skein-forge-setup`,
   one each in `skein-codegen`, `skein-oauth` and `skein-llm`.
 - 98 inline `#[cfg(test)] mod tests {` blocks sit in source files.
-- `skein/docs/design/testing.md`, 6, gives `src/tests.rs` and
+- `skein/docs/design/testing/README.md`, 6, gives `src/tests.rs` and
   `src/tests/` as the place.
 
 ## Why it matters
@@ -29,5 +29,5 @@ test picks whichever its neighbour used.
 ## What pays it back
 
 Move the sibling files under `src/tests/` crate by crate (mechanical,
-names kept), then the inline modules. Agree the rule in `skein/docs/design/testing.md`, 6,
+names kept), then the inline modules. Agree the rule in `skein/docs/design/testing/README.md`, 6,
 first if the module-level `tests.rs` exception is to stay.

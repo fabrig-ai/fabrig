@@ -1,4 +1,4 @@
-//! Whole-input parsing, grammar and independent bounds (skein/docs/design/json.md, 5.3).
+//! Whole-input parsing, grammar and independent bounds (skein/docs/design/data/json.md, 5.3).
 
 use crate::{Kind, ParseError, document, parse, tokenizer};
 

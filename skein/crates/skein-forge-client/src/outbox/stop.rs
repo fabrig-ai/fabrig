@@ -1,4 +1,4 @@
-//! The final client phase: finish sent entries, without starting another write (forge-client.md, 7.8).
+//! The final client phase: finish sent entries, without starting another write (forge/client.md, 7.8).
 use super::{Domain, Env, Limits, Op, Outbox, Queue, Request, Time};
 use crate::calls::Owner;
 use skein_lib::List;

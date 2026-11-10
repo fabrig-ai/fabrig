@@ -1,4 +1,4 @@
-//! Bounded conversion frames shared by next and carry (codec.md, 11.4–11.5).
+//! Bounded conversion frames shared by next and carry (data/codec/patches.md, 4–5).
 
 use super::{
     Build, DeclIx, Expected, FieldIx, Frame, Halt, Held, Node, Old, Part, Path, Shape, Site, Source, Span, State, Step,

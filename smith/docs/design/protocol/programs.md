@@ -61,7 +61,7 @@ open is section 9.
 - **The child is inside the run's containment.** The agent's tree is the
   run's (host.md, section 1), so a cancel, a drop or the host's stop
   ends the program with the run, and its own children with it. An
-  agent that aborts closes nothing (skein's `shell.md`, section 13), so
+  agent that aborts closes nothing (skein's `runtime/shell.md`, section 12), so
   on Linux each program process is started to die with its agent (5.1).
   On macOS an abort still needs the host's tree ended (5.1, section 9).
 - **The run is still smith's.** Its charter, budget, result contract,
@@ -178,7 +178,7 @@ open is section 9.
     `ANTHROPIC_API_KEY` whenever it is present), so that a key in the
     host's own environment never stands in for the subscription.
 - **The settings file** in the directory is the agent's (5.3): written
-  whole, by durable replace (skein's `io.md`, 5.2), with the same content
+  whole, by durable replace (skein's `runtime/io/files.md`, 2), with the same content
   for every run, so that runs on one source never race over it.
 
 ## 5. Running Claude Code
@@ -226,7 +226,7 @@ open is section 9.
   2026-11-07).
 - **The run's own files for the program,** its instructions, its MCP
   configuration and its outcome's schema, are private files (skein's
-  `io.md`, 5.3) in a directory of the run's own outside its workspace,
+  `runtime/io/files.md`, 3) in a directory of the run's own outside its workspace,
   removed when the run ends.
 - **Each program's files are its own.** Main's program, its summary
   session's and each child's (5.10) keep their files in a directory of
@@ -256,7 +256,7 @@ open is section 9.
   `<parent>` the agent's process ID in decimal and `<program>` the
   program's path. That mode execs the program with its arguments,
   environment, directory and descriptors unchanged, through skein's
-  `exec_dying_with_parent` (skein's `shell.md`, section 3) with Kill,
+  `exec_dying_with_parent` (skein's `runtime/shell.md`, section 3) with Kill,
   so an agent that aborts takes its program with it at once: nothing
   waits for a graceful stop, and the program's spend ends with the
   agent. A failure, its parent changed or the program missing, prints
@@ -267,7 +267,7 @@ open is section 9.
   which the program starts, ends at the end of its input, when the
   program has gone. Where no parent-death signal exists (macOS), the
   agent starts the program directly, and an abort leaves it running
-  until its host's tree is ended (skein's `shell.md`, section 13).
+  until its host's tree is ended (skein's `runtime/shell.md`, section 12).
 
 ### 5.2 Isolated
 
@@ -833,7 +833,7 @@ the next turn of that same cued script (decided 2026-11-02).
 - **Program lifetime after an agent abort on macOS** (2, 5.1): how to
   end the program and relay without Linux's parent-death signal.
   Default: direct launch and the host's supervisor ending the whole tree;
-  parent-death exec there is skein's `shell.md`, section 10's question.
+  parent-death exec there is skein's `runtime/shell.md`, section 9's question.
 - **Claude Code's own request with MCP attached** (5.1): record its overhead
   once with smith's server, including tool search's placeholder and prefixed
   tool names. The 2.1.312 subscription check establishes prompt replacement;
@@ -849,7 +849,7 @@ the next turn of that same cued script (decided 2026-11-02).
   release it runs.
 - **How the MCP server reaches its agent:** Claude Code starts it with
   pipes of its own, and skein's io has no local sockets. Default: a
-  loopback listener of the agent's (skein's `io.md`, 3.2), its address
+  loopback listener of the agent's (skein's `runtime/io/sockets.md`, 2), its address
   and a secret of the run's own in the MCP configuration's private file,
   and every connection without the secret refused.
 - **A refusal from the program:** whether Claude Code tells an account's

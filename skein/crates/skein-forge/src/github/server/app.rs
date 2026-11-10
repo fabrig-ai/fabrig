@@ -51,7 +51,7 @@ pub fn mint_scope(body: &[u8]) -> Option<Scope> {
         _ => None,
     }
 }
-/// Reads the exact identity query body (forge-github.md, 4.3).
+/// Reads the exact identity query body (forge/github.md, 4.3).
 #[must_use]
 pub fn graphql(body: &[u8]) -> Option<Request> {
     let query = body.strip_prefix(br#"{"query":""#)?.strip_suffix(br#""}"#)?;

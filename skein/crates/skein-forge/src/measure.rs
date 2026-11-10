@@ -1,4 +1,4 @@
-//! Fixed payload accounting for forge values (forge.md, section 3.7).
+//! Fixed payload accounting for forge values (forge/README.md, section 3.7).
 use crate::api::{self, Answer, File, Op, Pull, Read, Summary, Write};
 use alloc::boxed::Box;
 use skein_lib::{len_u64, usize_of};

@@ -1,6 +1,6 @@
 //! Bridge between the provider-neutral vocabulary and Responses documents.
 //! No state or owner references are retained. Measurement and encoding borrow
-//! schemas/replay into the reserved bytes (llm.md, sections 4.2, 4.5 and 4.7).
+//! schemas/replay into the reserved bytes (llm/README.md, sections 4.2, 4.5 and 4.7).
 use crate::{Block, Error, Prompt, Provider, Replay, Role, openai};
 use alloc::boxed::Box;
 use skein_json::{Kind, writer};
@@ -782,7 +782,7 @@ fn write_replay(out: &mut writer::Encoder, first: &[u8], value: &[u8], second: &
 /// Classifies a bounded document refusal without starting or driving a call.
 /// Callers retain `TooLarge` as `Error::Limit`; malformed grammar, missing
 /// fields and wrong types become `Error::Invalid`. This does not emit a Client
-/// terminal or add retry policy. See `docs/design/llm.md`, Vocabulary and ownership.
+/// terminal or add retry policy. See `docs/design/llm/README.md`, Vocabulary and ownership.
 #[must_use]
 pub const fn decode(error: crate::DocumentError) -> Error {
     match error {

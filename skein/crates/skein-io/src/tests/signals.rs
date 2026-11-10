@@ -1,4 +1,4 @@
-//! Signal intake through io's public entry points (io.md, section 7).
+//! Signal intake through io's public entry points (runtime/io/README.md, section 4).
 
 use super::{Kind, Rig, limits};
 use crate::kernel::{Done, Error, Fd, Op, ServiceSignal};

@@ -1,4 +1,4 @@
-//! Provider reset evidence remains distinct from an unknown reset (llm.md, 2.5).
+//! Provider reset evidence remains distinct from an unknown reset (llm/README.md, 2.5).
 use skein_lib::Duration;
 use skein_llm::{Call, Endpoint, Failure, Report, client};
 use skein_llm_world::{World, call, limits, response, run_call};
@@ -58,7 +58,7 @@ fn exhausted_without_a_reset_carries_none_never_zero() {
 }
 
 const REQUEST_ID: &[u8] = b"fixture-request";
-// llm.md 4.2 bounds each of the three report values at 128 bytes.
+// llm/README.md 4.2 bounds each of the three report values at 128 bytes.
 const REPORT_BOUND: usize = 128;
 
 fn report(world: &World) -> Report {

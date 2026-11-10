@@ -1,4 +1,4 @@
-//! Call-specific HTTP refusals and table invalidation (forge.md, 3.4).
+//! Call-specific HTTP refusals and table invalidation (forge/README.md, 3.4).
 use crate::api;
 use crate::forgejo::failure::Refusal;
 use crate::forgejo::plans::{Fields, tables::Tables};
@@ -83,7 +83,7 @@ pub fn classify(asked: Asked, status: u16, refusal: Option<Refusal>, retry: Opti
     };
     Classified { error: before_write(asked, error), drop }
 }
-/// The refusal a status means, dropping the repository row where it says the row is stale (forge.md, 3.4).
+/// The refusal a status means, dropping the repository row where it says the row is stale (forge/README.md, 3.4).
 pub fn refused(
     asked: Asked,
     status: u16,

@@ -1,4 +1,4 @@
-//! Synthetic public Responses cases implement llm.md 4.8's wire contract.
+//! Synthetic public Responses cases implement llm/README.md 4.8's wire contract.
 use skein_json::Kind;
 use skein_lib::Rng;
 use skein_llm::{Call, Credential, Error, Failure, Json, Provider, Stop, ToolChoice, client};
@@ -77,7 +77,7 @@ fn the_public_route_sends_affinity_in_the_body_and_the_session_field() {
             }
         });
         assert_eq!(key, expected);
-        // The session field keeps the conversation's calls on its cached prefix (llm.md, 4.8).
+        // The session field keeps the conversation's calls on its cached prefix (llm/README.md, 4.8).
         match expected {
             Some(uuid) => assert_eq!(fields_holding(&world.sent, uuid), ["session_id"]),
             None => assert!(!names(&world).contains(&"session_id")),
@@ -128,7 +128,7 @@ fn drawn_call(seed: u64) -> Call {
 
 #[test]
 fn no_drawn_prompt_carries_a_refused_field() {
-    // llm.md 4.8's literal refused fields, plus the forbidden retained state.
+    // llm/README.md 4.8's literal refused fields, plus the forbidden retained state.
     const REFUSED: &[&[u8]] = &[
         b"background",
         b"conversation",

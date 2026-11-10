@@ -1,4 +1,4 @@
-//! Failed Keep replies name their own step (skein/docs/design/ui-web.md, 14.2).
+//! Failed Keep replies name their own step (skein/docs/design/ui/web/testing.md, 2).
 use super::{Play, Script, Step, expected_trouble, step_failure, trouble_report, trouble_step};
 use crate::tests::face;
 use skein_browser::boundary::{Event, Key, Read, Refusal, Request, Trouble};

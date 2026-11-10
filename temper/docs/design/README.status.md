@@ -17,7 +17,7 @@ there are.
   `client/README.md` holds the browser's pages' look and the TUI's
   sections, 6.11 to 6.16, beside what is generic. They move in a cleanup
   of their own, which fixes every citation to them.
-- **Departs:** 4: skein's `lib.md`, 6 has `len_u64` and `usize_of` widen a
+- **Departs:** 4: skein's `runtime/lib.md`, 6 has `len_u64` and `usize_of` widen a
   length and a `u32` count, so that no step writes `try_from` for either,
   and the user's request of 11-04 asked that temper's hand-written code
   holds no such form. Six stay. Two steps write

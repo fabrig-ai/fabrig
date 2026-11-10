@@ -1,5 +1,5 @@
 //! Access-token metadata is unauthenticated; `verify_id_token` authenticates
-//! an `OpenID` ID token and checks its sign-in claims (oauth.md, section 2.2).
+//! an `OpenID` ID token and checks its sign-in claims (oauth/README.md, section 2.2).
 use crate::{ClaimSelector, DecodeError, Json, Limits, Profile, ProfileClaims, common, json};
 use alloc::boxed::Box;
 use skein_lib::{Duration, Wall, base64, bytes, usize_of};
@@ -246,14 +246,14 @@ fn profile_text(tokens: &[skein_json::Token], name: &[u8]) -> Option<Box<[u8]>> 
     Some(bytes::copy_of(value))
 }
 
-/// What the record and registration expect of a refresh's ID token (oauth.md, 2.2).
+/// What the record and registration expect of a refresh's ID token (oauth/README.md, 2.2).
 pub(crate) struct RefreshExpected<'a> {
     pub(crate) issuer: &'a [u8],
     pub(crate) client_id: &'a [u8],
     pub(crate) subject: &'a [u8],
 }
 
-/// A refresh's ID token: no signature; empty when any check fails (oauth.md, 2.2).
+/// A refresh's ID token: no signature; empty when any check fails (oauth/README.md, 2.2).
 pub(crate) fn refreshed_profile(
     token: &[u8],
     expected: &RefreshExpected<'_>,

@@ -1,4 +1,4 @@
-//! Bounded file operations over kernel records (io.md, section 5).
+//! Bounded file operations over kernel records (runtime/io/files.md).
 //!
 //! `FileIo` keeps open file and root descriptors behind tokens, one request
 //! in flight, its deadline, and bounded bytes or entries while a whole-file
@@ -30,16 +30,16 @@ mod private;
 pub mod step;
 mod store;
 
-/// The file-operation lane, below a service's namespace tags (io.md, 5; lib.md, 4).
+/// The file-operation lane, below a service's namespace tags (runtime/io/files.md; runtime/lib.md, 4).
 pub const LANE: u64 = 1 << 59;
 
-/// Whether an operation belongs to `FileIo` rather than `Io` (io.md, 5).
+/// Whether an operation belongs to `FileIo` rather than `Io` (runtime/io/files.md).
 #[must_use]
 pub const fn owns(op: Token) -> bool {
     op.raw() & LANE != 0
 }
 
-// io.md, 5: a file's contents print as their length, never their bytes.
+// runtime/io/files.md: a file's contents print as their length, never their bytes.
 struct Contents(Vec<u8>);
 
 impl core::fmt::Debug for Contents {
@@ -251,7 +251,7 @@ struct Opened {
     private_owner: Option<u32>,
 }
 
-/// File admission and transfer bounds (skein/docs/design/io.md, 5).
+/// File admission and transfer bounds (skein/docs/design/runtime/io/files.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
     pub files: u32,
@@ -267,7 +267,7 @@ pub fn valid(limits: &Limits) -> bool {
     limits.files > 0 && limits.read > 0 && limits.entries > 0 && limits.whole > 0 && limits.timeout.as_nanos() > 0
 }
 
-/// A bounded file driver with one terminal per owner request (io.md, section 5).
+/// A bounded file driver with one terminal per owner request (runtime/io/files.md).
 #[derive(Debug)]
 pub struct FileIo {
     files: Map<Token, Opened>,
@@ -294,7 +294,7 @@ impl FileIo {
         }
     }
 
-    /// Configures the shell's effective user read once at startup (io.md, section 5.3).
+    /// Configures the shell's effective user read once at startup (runtime/io/files.md, section 3).
     #[must_use]
     pub fn with_effective_user(mut self, effective_user: u32) -> FileIo {
         assert!(self.takes() && self.files.is_empty(), "configure the user before adopting roots");

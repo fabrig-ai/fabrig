@@ -1,4 +1,4 @@
-//! One connection's core (skein/docs/design/fake-forge.md, 12).
+//! One connection's core (skein/docs/design/testing/fakes/github.md, 3).
 use alloc::boxed::Box;
 use skein_http::{Header, server as http};
 use skein_lib::{

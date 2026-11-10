@@ -1,4 +1,4 @@
-//! Scenes as SVG, with all visual choices in the stylesheet (ui-web.md, 8).
+//! Scenes as SVG, with all visual choices in the stylesheet (ui/web/README.md, 6).
 
 use skein_lib::usize_of;
 use skein_ui::{
@@ -10,7 +10,7 @@ use skein_ui::{
 use crate::dom::Element;
 
 /// A refused scene is an empty fragment, so the page keeps its fallback.
-/// `ids` is a stem unique in the document; a fade's gradient is `<ids>-<mark index>` (ui-web.md, 8).
+/// `ids` is a stem unique in the document; a fade's gradient is `<ids>-<mark index>` (ui/web/README.md, 6).
 #[must_use]
 pub fn draw(scene: &Scene, names: &[Names<'_>], width: u16, height: u16, ids: &str) -> Element {
     if scene.refused() {

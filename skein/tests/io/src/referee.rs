@@ -250,7 +250,7 @@ fn common(a: &[u8], b: &[u8]) -> usize {
     a.iter().zip(b).take_while(|(x, y)| x == y).count()
 }
 
-/// The scenario's expectations at each turn and idle point (io.md, 8).
+/// The scenario's expectations at each turn and idle point (runtime/io/README.md, 5).
 pub(crate) struct Judge(pub Referee);
 
 impl skein_world::Referee<crate::world::Hosted> for Judge {

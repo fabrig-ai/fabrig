@@ -1,4 +1,4 @@
-// No owned Forgejo on macOS: the pinned binary releases are Linux's (shell.md, 9).
+// No owned Forgejo on macOS: the pinned binary releases are Linux's (runtime/shell.md, 8).
 #![cfg(target_os = "linux")]
 
 use skein_forge::forgejo::pin::VERSION;

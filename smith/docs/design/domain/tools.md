@@ -260,7 +260,7 @@ workspace that can write can remove, with no shell needed.
 - **A variable prints its name alone.** `smith-protocol-machine`'s
   `Variable`, `Environment` and `Spawn`, and the component that holds the
   environment, show each variable's name in `Debug`, never its value, as
-  skein's `Spawn` does (skein's `kernel.md`, 6.2): one rule for a spawned
+  skein's `Spawn` does (skein's `runtime/kernel.md`, 6.2): one rule for a spawned
   environment, whatever it holds.
 - **Search** is `rg`, run as a process of its own: no configuration, the
   pattern and glob passed so that neither reads as an option, and an

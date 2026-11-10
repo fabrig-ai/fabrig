@@ -133,7 +133,7 @@ desktop browsers are well supported (the user, 10-26).
 - **The printed link** reaches the page by the service's standard
   output: the composition's host of the service drains its links each
   iteration and writes each as a line, as `temper serve`'s host does,
-  to a pipe the world captures (skein's `world.md`, 2), whose lines the
+  to a pipe the world captures (skein's `testing/world.md`, 2), whose lines the
   bridge brings (skein's `playground.md`, 5).
 - **The clients' listener** is at the address the deployment's document
   names, and the visitor sends that address as its Host, so jig's guards
@@ -202,7 +202,7 @@ delegate's phases; the frame's speed changes how long the person waits
 
 - **Built from the shipped shell,** `temper-client-shell-web` with its
   feature `playground`, which holds skein's worker platform where the
-  shipped shell holds the browser's (skein's `ui-web.md`, 18): the
+  shipped shell holds the browser's (skein's `ui/web/README.md`, 15): the
   shell's platform is a type the feature chooses, and nothing else of
   its loop changes.
 - **The starter:** it shows the frame and the loading line, starts the
@@ -226,8 +226,8 @@ delegate's phases; the frame's speed changes how long the person waits
 
 - **Static files:** the page, its starter, the two modules and their
   glue, the stylesheets; each but the page under its digest's name and
-  cached for good, the page with a short lifetime (skein's `ui-web.md`,
-  4.4). Any path answers with the page, which always starts at the
+  cached for good, the page with a short lifetime (skein's `ui/web/bundle.md`,
+  4). Any path answers with the page, which always starts at the
   printed link.
 - **At the site's playground address,** which the site's design names.
 - **The page's policy** is temper's (`client/browser.md`, 2.2) with
@@ -239,9 +239,9 @@ delegate's phases; the frame's speed changes how long the person waits
   for whatever host serves them to map, and a test holds the two
   equal. How the site's host takes them is the site's design.
 - **Compressing it is its host's:** its bundle is made with `--gzip off`
-  (skein's `ui-web.md`, 4.2), so a site's host uploads no `.gz` files it
-  does not need and the download's figure stays the directory's (section
-  9). It keeps its own page, its frame's line "Loading the playground…"
+  (skein's `ui/web/bundle.md`, 2), so a site's host uploads no `.gz` files it
+  does not need and the download's figure stays the directory's (`playground.md`, section 9
+  ). It keeps its own page, its frame's line "Loading the playground…"
   in place of the client's placeholder (`client/browser.md`, 2.5).
 - **Built by `scripts/bundle.sh --playground OUT`:** temper's web shell
   with `playground`, in the `web` profile, and `temper-playground` for
@@ -263,7 +263,7 @@ delegate's phases; the frame's speed changes how long the person waits
 - **Its documents bound it:** the engine's and the worker's memory, jig's
   capacities, smith's windows and the fakes' limits, each just big
   enough for its stories, every story at its high water. The trace is
-  off (skein's `world.md`, 7) and nothing is captured.
+  off (skein's `testing/world.md`, 7) and nothing is captured.
 - **Clear of the bounds that count slots:** a bound that counts what it
   holds by its slots' size (jig's and temper's byte bounds that add
   `size_of` of a row, a record or a box to its owned bytes) holds more
@@ -369,13 +369,13 @@ running (decided 2026-11-03).
 - **The address,** and the crate's name `temper-playground`: the site's
   design decides the address; the name is provisional.
 - **The frame's mockup,** the user's.
-- **A hidden tab:** paused (skein's `ui-web.md`, 18), the default.
+- **A hidden tab:** paused (skein's `ui/web/README.md`, 15), the default.
 
 ## 12. Later
 
 - **Pull the plug:** a button that kills the service or cuts the power
   at a chosen moment, then shows temper recover on the fake disk: the
-  one-process world's kill and power loss (skein's `world.md`, 3).
+  one-process world's kill and power loss (skein's `testing/world.md`, 3).
 - **Saving across a reload,** in IndexedDB.
 - **The playground forge's pages:** a pull request's diff in the page,
   shared with the box's playground.

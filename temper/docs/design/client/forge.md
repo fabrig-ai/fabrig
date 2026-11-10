@@ -414,9 +414,9 @@ What temper can reach:
 
 | The forge | Listed |
 |---|---|
-| GitHub | one accepted installation's repositories of temper's App (GitHub's `GET /installation/repositories`, on a token the setup's host mints for the page and drops), the installation shown by its account's login and asked for by its id, which the picker's request carries, the installations as the deployment's page reads them (5.4), marked "selected repositories" where its installation has chosen repositories and "suspended" where GitHub suspended it; read by the setup's host's `Reachable { forge, installation, page }` plan (skein's `forge-setup.md`, 4.8) |
+| GitHub | one accepted installation's repositories of temper's App (GitHub's `GET /installation/repositories`, on a token the setup's host mints for the page and drops), the installation shown by its account's login and asked for by its id, which the picker's request carries, the installations as the deployment's page reads them (5.4), marked "selected repositories" where its installation has chosen repositories and "suspended" where GitHub suspended it; read by the setup's host's `Reachable { forge, installation, page }` plan (skein's `forge/setup/forgejo.md`, 1.8) |
 | Forgejo, connected | the repositories its API token can push to, read by the same plan, with no installation |
-| Forgejo, managed or owned | every repository the site admin can see, read by the setup's host's `Reachable { forge, installation?, page }` plan on the admin's token (skein's `forge-setup.md`, 4.8), by id ascending, its `reachable` rows given from `picker.page`, since adopting one grants the bot its access (`../protocol/forge.md`, the setup's host's `Reachable` and `Adopt`); the admin's token stays the setup's host's, and the picker gets the rows alone. The plan runs beside the forge's one writing run; a second read of the picker while one runs is refused busy, and so is one past `setup.runs`, which counts both. Its own refusals are the admin's token's, as the reconcile's first step has them (`forge-setup.md`, 4.3): "the admin's token is missing" and "NAME is not a site admin" |
+| Forgejo, managed or owned | every repository the site admin can see, read by the setup's host's `Reachable { forge, installation?, page }` plan on the admin's token (skein's `forge/setup/forgejo.md`, 1.8), by id ascending, its `reachable` rows given from `picker.page`, since adopting one grants the bot its access (`../protocol/forge.md`, the setup's host's `Reachable` and `Adopt`); the admin's token stays the setup's host's, and the picker gets the rows alone. The plan runs beside the forge's one writing run; a second read of the picker while one runs is refused busy, and so is one past `setup.runs`, which counts both. Its own refusals are the admin's token's, as the reconcile's first step has them (`skein/docs/design/forge/setup/forgejo.md`, 1.3): "the admin's token is missing" and "NAME is not a site admin" |
 
 A forge not connected offers none: the picker says "Forge F is not
 connected." and links to the deployment's page (5.4), and the "Adopt"
@@ -1347,7 +1347,7 @@ manifest from it (`../protocol/forge.md`, the setup's host).
   `create`), to the manifest's `redirect_url?code=C&state=S`, which a
   test follows as a person clicks GitHub's form (a link, not a
   redirect, so the page's `form-action` is not crossed), and its install
-  page answers `302` to the `setup_url` (skein's `fake-forge.md`, 10.1);
+  page answers `302` to the `setup_url` (skein's `testing/fakes/github.md`, 1.1);
   so the three steps run as plain requests on the clients' listener.
   The routes' tests are `temper-service`'s own, requests through
   `fixtures::http::Peer`; the bytes through the fake's GitHub layer are

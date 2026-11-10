@@ -1,4 +1,4 @@
-//! Neutral compact JSON admission (llm.md, section 2; json.md, sections 5.1–5.2).
+//! Neutral compact JSON admission (llm/README.md, section 2; data/json.md, sections 5.1–5.2).
 //! The value owns one text buffer and fixed records. Admission checks grammar,
 //! counts and measured writing; indexed ranges borrow only during the current
 //! step and retain no references in machine state. Provider meaning stays in
@@ -31,7 +31,7 @@ enum Frame {
 }
 
 impl Json {
-    /// Parses and admits a complete bounded value (skein/docs/design/json.md, 5.3).
+    /// Parses and admits a complete bounded value (skein/docs/design/data/json.md, 5.3).
     pub fn from_bytes(input: &[u8], limits: &Limits) -> Result<Json, DecodeError> {
         if input.len() > usize_of(limits.bytes) {
             return Err(DecodeError::limit(crate::Cap::Retained, limits.bytes));

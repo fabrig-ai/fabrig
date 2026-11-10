@@ -1,4 +1,4 @@
-//! Bounded PEM admission shared by conversion and paste (forge-setup.md, 5.2 and 5.8).
+//! Bounded PEM admission shared by conversion and paste (forge/setup/github.md, 1.2 and 1.8).
 use crate::item;
 use skein_lib::{
     Secret, Writer,
@@ -7,7 +7,7 @@ use skein_lib::{
 };
 
 /// One RSA PRIVATE KEY block, within Pasted's input bound and DER's key bound
-/// (forge-setup.md, 5.2 and 6.4). The host proves the RSA structure by signing.
+/// (forge/setup/github.md, 1.2, and forge/setup/README.md, 4.4). The host proves the RSA structure by signing.
 pub(super) fn pem(pem: &Secret, key_bytes: u32) -> Option<Secret> {
     if len_u64(pem.len()) > u64::from(key_bytes).checked_mul(2)? {
         return None;

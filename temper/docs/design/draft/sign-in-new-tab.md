@@ -37,7 +37,7 @@ stay as they are (section 6).
   A browser that opens the tab and hides it is served by "Open it again".
 - **A mechanism of skein's:** the web platform opens a tab with a line of
   words, points it at an address under the navigation's own target rule
-  (`skein/docs/design/ui-web.md`, section 10), closes it, and reports a
+  (`skein/docs/design/ui/web/README.md`, section 8), closes it, and reports a
   tab refused.
 - **The terminal** prints the address, as today.
 
@@ -52,7 +52,7 @@ stay as they are (section 6).
   welcome as on `ConnectModel`, or to the ending's words and acts, as a
   page come back does today.
 - **A hidden tab lets its stream go** after a minute (the same section of
-  `skein/docs/design/ui-web.md`), so a slow sign-in moves on when the
+  `skein/docs/design/ui/web/README.md`), so a slow sign-in moves on when the
   person returns, its stream opened again. The page says nothing of this.
 - **A reload while it waits** draws the same page: the page's address
   names the sign-in's source once it is answered (`../client/browser.md`,
@@ -63,8 +63,8 @@ stay as they are (section 6).
 - **The listener's fixed page,** with no return given, says "Sign-in
   received. You can close this tab."
 - **Not "Signed in":** the listener answers before the exchange ends, and
-  answers a provider's refusal just the same (`skein/docs/design/oauth.md`,
-  6.5). The page in temper's tab says how it ended.
+  answers a provider's refusal just the same (`skein/docs/design/oauth/accounts.md`,
+  5). The page in temper's tab says how it ended.
 - **A browser on another computer** shows the provider's address that
   can't be reached in the new tab, which stays there for the copying, and
   temper's disclosure asks for it.

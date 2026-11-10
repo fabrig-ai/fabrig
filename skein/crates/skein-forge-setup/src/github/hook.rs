@@ -1,4 +1,4 @@
-//! Read and repair the App's URL-only hook (forge-setup.md, 5.5, 5.6 and 5.8).
+//! Read and repair the App's URL-only hook (forge/setup/github.md, 1.5, 1.6 and 1.8).
 use super::app::Kept;
 use crate::github::{Reply, reply};
 use crate::plan::{self, Event, Need, Stage, Why};
@@ -26,7 +26,7 @@ pub(crate) enum Progress {
 }
 
 /// One bounded hook check; only the read phase retains the App's credential
-/// for a possible patch (forge-setup.md, 5.5, 5.6, step 3, and 5.8, step 4).
+/// for a possible patch (forge/setup/github.md, 1.5, 1.6, step 3, and 5.8, step 4).
 #[derive(Debug)]
 pub(crate) struct Hook {
     forge: u16,
@@ -67,7 +67,7 @@ fn config(event: Event) -> Result<Config, Why> {
 
 /// Consumes one event and emits its next need; the parent forwards its one
 /// pending need. Completion and failure release credentials, and ended children
-/// stay silent (forge-setup.md, 5.6 and 5.8). No hook secret is read or sent.
+/// stay silent (forge/setup/github.md, 1.6 and 1.8). No hook secret is read or sent.
 pub(crate) fn step(machine: &mut Hook, event: Event, out: &mut Queue<Progress>) {
     let state = core::mem::replace(&mut machine.state, State::Ended);
     let progress = match state {

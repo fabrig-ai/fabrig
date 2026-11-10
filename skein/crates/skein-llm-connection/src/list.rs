@@ -1,4 +1,4 @@
-//! One list request on an endpoint (skein/docs/design/llm-connection.md, 4.3). Keeps one link
+//! One list request on an endpoint (skein/docs/design/llm/connection.md, 4.3). Keeps one link
 //! and one bounded body; it never knows who asked. `start`, `up` and `fire` drive it;
 //! `answer` gives its one answer after its socket has settled.
 

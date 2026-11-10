@@ -1,4 +1,4 @@
-//! Schema refusals and their nearest passing neighbours (codec.md, 8.3).
+//! Schema refusals and their nearest passing neighbours (data/codec/README.md, 8.3).
 
 #![expect(clippy::disallowed_types, reason = "ceiling fixtures are assembled with ordinary Rust test containers")]
 #![expect(clippy::disallowed_macros, reason = "numbered declarations and variants are formatted test input")]

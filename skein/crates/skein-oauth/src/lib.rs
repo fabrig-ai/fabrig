@@ -1,4 +1,4 @@
-//! Bounded OAuth documents and durable token metadata (oauth.md §§2–5).
+//! Bounded OAuth documents and durable token metadata (oauth/README.md §§2–5).
 //! All clocks and bounds are injected; this crate performs no I/O and owns no
 //! provider policy or domain credentials. Its server codecs serve the fake peer.
 #![cfg_attr(not(test), no_std)]
@@ -45,7 +45,7 @@ pub const OWNER: &str = "skein";
 pub const FAMILY: &str = "skein-oauth";
 /// The declaration a kept record is.
 pub const ROOT: &str = "SavedToken";
-/// The family's layout fingerprint (codec.md, 9), checked by the drift test.
+/// The family's layout fingerprint (data/codec/README.md, 9), checked by the drift test.
 pub const FINGERPRINT: [u8; 32] = [
     41, 62, 146, 237, 7, 170, 232, 22, 146, 49, 19, 74, 222, 68, 228, 174, 213, 32, 183, 205, 88, 142, 62, 177, 6, 115,
     197, 141, 117, 122, 254, 62,

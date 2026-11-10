@@ -1,7 +1,7 @@
-//! A string's text, decoded as it arrives (RFC 8259, section 7; json.md,
+//! A string's text, decoded as it arrives (RFC 8259, section 7; data/json.md,
 //! 3): escapes undone, every byte checked as UTF-8, a control character
 //! refused, and the result held under the string limit.
-//! A plain run is taken whole (json.md, 3.4).
+//! A plain run is taken whole (data/json.md, 3.4).
 //!
 //! The tokenizer scans to the next quote, so a piece ends at a quote or at
 //! the scan's maximum, anywhere in a character or an escape: the state
@@ -15,9 +15,9 @@ use skein_lib::{Intake, bytes};
 use crate::tokenizer::Error;
 use crate::utf8::Utf8;
 
-/// What follows the plain bytes at the head of `bytes` (json.md, 3.4): ASCII
+/// What follows the plain bytes at the head of `bytes` (data/json.md, 3.4): ASCII
 /// a string holds as it is, which needs no escape and no state of UTF-8. A
-/// slice pattern and a match make no call per byte (json.md, 7).
+/// slice pattern and a match make no call per byte (data/json.md, 7).
 pub(crate) fn after_plain(bytes: &[u8]) -> &[u8] {
     let mut rest = bytes;
     while let [byte, ref after @ ..] = *rest {
@@ -29,7 +29,7 @@ pub(crate) fn after_plain(bytes: &[u8]) -> &[u8] {
     rest
 }
 
-/// Retention chosen by the pending demand (json.md, 3.1).
+/// Retention chosen by the pending demand (data/json.md, 3.1).
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Retention {
     Strict(u32),
@@ -40,7 +40,7 @@ pub(crate) enum Retention {
 /// The reusable text buffer and the decoded length, including discarded text.
 #[derive(Debug)]
 pub(crate) struct Buffer {
-    /// The text kept: an `Intake` for its `append`, which takes a run in one call (json.md, 7).
+    /// The text kept: an `Intake` for its `append`, which takes a run in one call (data/json.md, 7).
     pub(crate) bytes: Intake,
     pub(crate) length: u64,
     pub(crate) retention: Retention,
@@ -90,7 +90,7 @@ impl Buffer {
         self.bytes.meet(Read::Fill(len)).expect("the text is buffered")
     }
 
-    /// A run of plain bytes (json.md, 3.4), the first at offset `first`. It
+    /// A run of plain bytes (data/json.md, 3.4), the first at offset `first`. It
     /// leaves what those bytes one at a time would.
     fn run(&mut self, run: &[u8], first: u32) -> Result<(), Error> {
         let count = u32::try_from(run.len()).expect("a scan's length fits u32");

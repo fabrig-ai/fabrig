@@ -2,7 +2,7 @@
 
 2026-11-08. Where smith's code lags or departs from its design, from
 the status files below. Containment waits on skein's contained trees
-(skein's `io.md`, 6.2 to 6.4): the agent and its commands run as
+(skein's `runtime/io/processes.md`, 2 to 4): the agent and its commands run as
 plain children in process groups, so the view, the writable scope
 and `containment: trees` are not built (`domain/README.md`,
 `domain/host.md`, `domain/tools.md`, `protocol/README.md`,

@@ -1,17 +1,17 @@
-//! Forge component boundary (forge-connection.md, sections 2, 3.5, 7 and 8).
+//! Forge component boundary (forge/connection.md, sections 2, 3.5, 7 and 8).
 use crate::Access;
 use alloc::boxed::Box;
 use skein_forge::api;
 use skein_lib::{Secret, Token, Wall};
 
-/// An installation account at the connection boundary (forge-connection.md, 2.1).
+/// An installation account at the connection boundary (forge/connection.md, 2.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Account {
     pub id: u64,
     pub login: Box<[u8]>,
 }
 
-/// An installation lifecycle change (forge-connection.md, 4.4).
+/// An installation lifecycle change (forge/connection.md, 4.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Change {
     Created,
@@ -22,7 +22,7 @@ pub enum Change {
     /// A retained installation's repository selection changed (4.4).
     Repositories,
 }
-/// A diagnostic for the owner's log (forge-connection.md, 4.4).
+/// A diagnostic for the owner's log (forge/connection.md, 4.4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Fact {
     /// An unconfigured job log origin, once per remembered origin per connect.
@@ -49,7 +49,7 @@ pub struct Answered {
     /// its rate does not count them. Zero until a call's read takes a validator.
     pub free: u32,
     /// The latest window reported by an answer of the call, per installation on
-    /// GitHub. None when no answer reported one (forge-connection.md, 4.1).
+    /// GitHub. None when no answer reported one (forge/connection.md, 4.1).
     pub rate: Option<api::Rate>,
     pub result: Result<api::Answer, api::Error>,
 }
@@ -57,17 +57,17 @@ pub struct Answered {
 /// From the routing.
 #[derive(Debug)]
 pub enum Request {
-    /// Takes a forge at runtime (skein/docs/design/forge-connection.md, 3.1).
+    /// Takes a forge at runtime (skein/docs/design/forge/connection.md, 3.1).
     /// An existing number or an addition past `Limits::forges` is ignored.
     Add(crate::settings::Forge),
-    /// Drops a forge and ends its calls `Unavailable` (skein/docs/design/forge-connection.md, 3.1).
+    /// Drops a forge and ends its calls `Unavailable` (skein/docs/design/forge/connection.md, 3.1).
     Remove { forge: u16 },
-    /// Hands or replaces a forge's access (forge-connection.md, 3.5): at most one
+    /// Hands or replaces a forge's access (forge/connection.md, 3.5): at most one
     /// Connected and at most one Stopped per generation, including refusal after Ready.
     /// A replacement suppresses the old generation's remaining events.
     /// A forge not configured, or a Request after Close, is ignored.
     Connect { forge: u16, access: Access },
-    /// Replaces the bounded set of accepted installations (forge-connection.md, 4.4).
+    /// Replaces the bounded set of accepted installations (forge/connection.md, 4.4).
     Installations { forge: u16, accepted: Box<[u64]> },
     /// The root's `Request::Forge`: one `Event::Answered`; while ending, `Unavailable` at no cost.
     Call { call: Token, repository: api::Repository, op: api::Op },
@@ -77,7 +77,7 @@ pub enum Request {
     /// A verified hint refused by root admission, held until the next offer.
     RefusedHint(crate::hooks::Hinted),
     /// An answer the root returned undecided in its drain (`Request::Busy`): kept until
-    /// `Close`, never offered again (forge-connection.md, 2).
+    /// `Close`, never offered again (forge/connection.md, 2).
     Returned(Answered),
     /// The root admits again: held answers awaiting an offer go up again.
     Offer,
@@ -100,7 +100,7 @@ pub enum Event {
     Installation { forge: u16, installation: u64, account: Option<Account>, change: Change },
     /// A bounded diagnostic for the owner's log.
     Fact { forge: u16, fact: Fact },
-    /// Git's Contents token, handed to the owner once (forge-connection.md, 5.3).
+    /// Git's Contents token, handed to the owner once (forge/connection.md, 5.3).
     GitToken { forge: u16, installation: u64, account: Account, token: Secret, expires: Wall },
     /// A verified webhook after its response, or a delivery read from the log.
     Hint(crate::hooks::Hinted),
@@ -117,7 +117,7 @@ pub enum Event {
     Closed,
 }
 
-/// Why a forge's access was refused (forge-connection.md, 3.5 and 8.3).
+/// Why a forge's access was refused (forge/connection.md, 3.5 and 8.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Stopped {
     /// A connect's access refused before any io, naming the value.
@@ -147,7 +147,7 @@ pub enum StartRead {
     Viewer,
 }
 
-/// The value of an access a connect's check refused (forge-connection.md, 3.5).
+/// The value of an access a connect's check refused (forge/connection.md, 3.5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Value {
     /// A credential of the other dialect's kind: an App's on Forgejo, a token on GitHub.

@@ -437,7 +437,7 @@ Under `docs/design/client/journeys/`:
   reprint leave as they find them; and a page for each mark, `01.html`
   onwards, in the marks' order, replaced whole at each print.
 - **Beside the journeys:** `skein-ui.css`, skein-ui-bundle's own
-  (`skein_ui_bundle::STYLESHEET`, skein's `ui-web.md`, section 12), and
+  (`skein_ui_bundle::STYLESHEET`, skein's `ui/web/README.md`, section 10), and
   `journey.js`, the program's, both written at each print; and
   `overlay.css`, the person's, made empty when missing and never written
   otherwise.
@@ -537,7 +537,7 @@ python3 -m http.server 8766
 - **`again`'s browser half has no story of its own,** as the recorder's
   keys have none: its first run, a journey recorded again, proves it,
   and skein's browser tier proves the kit's letter with Alt and its
-  downloads (skein's `browser.md`, section 9). No default test starts a
+  downloads (skein's `testing/browser.md`, section 9). No default test starts a
   browser or a box.
 - **The recording bundle stays built:** the gate's browser-target
   check builds the shell with `loopback-navigation` and `record` too.
@@ -668,7 +668,7 @@ over skein's harness.
   its printed sign-in link opened.
 - **Headless Chromium, as the browser tier drives it** (`browser.md`,
   4): skein's browser kit through the fake person's browser face and
-  harness (skein's `ui-web.md`, 14.2), Chromium from
+  harness (skein's `ui/web/testing.md`, 2), Chromium from
   `SKEIN_TEST_CHROMIUM`, the person's downloads into the scratch
   directory.
 - **The client first:** a page's load comes before the client in it
@@ -686,7 +686,7 @@ over skein's harness.
     its control by its role, its accessible name and its order,
     from 0, among the page's controls with both, and the face finds that
     control on the live page (the fake person's n-th match, skein's
-    `ui.md` 17.1) and acts on it as a person: a press, a submit, a
+    `ui/README.md` 14.1) and acts on it as a person: a press, a submit, a
     toggle, or the field's value selected and the act's value typed;
   - **a key's mark:** Alt+Shift+M; its two saves are three seconds apart, since a fake box's set up pauses for over a second;
   - **the end:** the still save is the new recording.
@@ -744,7 +744,7 @@ fields, each after one space, a word bare, bytes in double quotes.
   naming its line and what it sought; a `mark`'s text not shown within 30
   seconds stops it, naming the mark.
 - **A longer run than a test's:** `again` sets the harness's horizon (skein's
-  `ui-web.md`, 14.2) to ten minutes, since each of its steps has its own bound
+  `ui/web/testing.md`, 2) to ten minutes, since each of its steps has its own bound
   and a walk like `chat-draft`'s holds more than forty seconds of saves. It
   is a person's command and in no tier; every test keeps the harness's forty.
 - **No secret:** a setup is committed as it stands, and `add`'s scan doesn't
@@ -767,7 +767,7 @@ through `04.html` and its README are not journeys to reprint or land
 (section 7). Its document pane and modes are shared with `chat-draft`;
 Ask temper's proposal states, Start over and the rail strip are also
 drawn by the gallery (`browser.md`, 7.2). Its drawing and figure are a flow
-(`skein/docs/design/ui.md`, 10.1), drawn in the client; the gallery measures
+(`skein/docs/design/ui/markdown.md`, 1), drawn in the client; the gallery measures
 no box, so a print shows its fallback.
 The `configure-temper-own-way` request's hand-made `configure-own-way/`
 pages are not journeys to reprint or land either; what they draw, the
@@ -958,7 +958,7 @@ temper/ui compares the three requests with main after landing
   differs from the last only where the client does.
 - **A tab in a setup** (8.2): `project-landing`'s setup presses "Continue with
   ChatGPT", and the tab it opens stays beside the page. The next step's find
-  brings the page to the front (skein's `browser.md`, section 6), so a tab
+  brings the page to the front (skein's `testing/browser.md`, section 6), so a tab
   takes no step of its own; a record for one joins 8.2's table only if one
   needs a step. Default: none.
 - **Later, if wanted:** the one-tag-per-line print as skein-ui-web's,

@@ -5,7 +5,7 @@
 //! - **The side below** is the client's stream: its bytes arrive in pieces
 //!   cut at random, late, into an intake under its cap, and meet each read
 //!   exactly; room is granted late, and each `Send` is held to it as io
-//!   holds it (io.md, 3.3). The client pipelines its requests, or is
+//!   holds it (runtime/io/sockets.md, 3). The client pipelines its requests, or is
 //!   patient and sends each once the last exchange is over; one that asks
 //!   for a 100 (Continue) holds its body until the 100 comes, or a final
 //!   response, after which it sends no more, or until it tires of waiting.
@@ -76,11 +76,11 @@ pub struct Settings {
     pub withdraw_reply: u32,
     /// Per mille, per piece of the body: how likely the side above had
     /// withdrawn its demand before the piece reached it, so that the two
-    /// cross (lib.md, 7). Drawn only for neighbours that withdraw.
+    /// cross (runtime/lib.md, 7). Drawn only for neighbours that withdraw.
     pub cross: u32,
     /// Per mille, per grant for a reply in chunks: how likely the side
     /// above finishes in place of the one Send the grant allows, which the
-    /// contract lets it (lib.md, 7).
+    /// contract lets it (runtime/lib.md, 7).
     pub finish_early: u32,
     /// Whether the client sends each request only once the last exchange is
     /// over, rather than pipelining them.
@@ -628,15 +628,15 @@ struct Below<'a> {
     /// The server's demand outstanding: its read, and its room.
     demand: Option<(Read, u32)>,
     /// The room the server holds: what the last `Room` granted, less what
-    /// it sent since (io.md, 3.3).
+    /// it sent since (runtime/io/sockets.md, 3).
     granted: u32,
     /// The `Send`s since the last `Room`.
     sends: u32,
     /// Whether the server holds a grant it has not sent within: it sends,
-    /// or finishes, before it demands room again (lib.md, 7).
+    /// or finishes, before it demands room again (runtime/lib.md, 7).
     held: bool,
     /// Whether the read outstanding crossed the end: it stays outstanding
-    /// until the server withdraws it (lib.md, 7), so the server demands
+    /// until the server withdraws it (runtime/lib.md, 7), so the server demands
     /// nothing over it.
     crossed: bool,
     life: Life,

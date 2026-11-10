@@ -6,11 +6,11 @@ use skein_codec::patch::{Build, Halt, Old, Site};
 use skein_codec::value::Node;
 
 mod context {
-    /// The owner's per-record inputs to written patch functions (skein/docs/design/codec.md, 11.5).
+    /// The owner's per-record inputs to written patch functions (skein/docs/design/data/codec/patches.md, 5).
     #[derive(Debug)]
     pub struct Context {}
 
-    // Default by contract (skein/docs/design/codec.md, 11.5; smith/docs/design/protocol/transcript.md, 12), and empty: no
+    // Default by contract (skein/docs/design/data/codec/patches.md, 5; smith/docs/design/protocol/transcript.md, 12), and empty: no
     // live state. Written out, since crates/clippy.toml refuses the derive and
     // clippy reports a derive's disallowed macro at the crate alone, where an
     // expectation would cover every item.

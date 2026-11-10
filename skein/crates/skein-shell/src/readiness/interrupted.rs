@@ -1,4 +1,4 @@
-//! Interrupted calls at the readiness backend's seam (shell.md, 7.4), each
+//! Interrupted calls at the readiness backend's seam (runtime/readiness.md, 4), each
 //! answered as the kernel would, without interrupting a real call.
 
 use super::{Config, Done, Error, Family, Fd, Op, OpenHow, Queue, Readiness, Submit, Token};

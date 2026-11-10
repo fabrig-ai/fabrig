@@ -1,4 +1,4 @@
-//! A clipboard write in the act's event (skein/docs/design/ui-web.md, 14.3).
+//! A clipboard write in the act's event (skein/docs/design/ui/web/testing.md, 3).
 use skein_lib::{Queue, Token};
 use skein_ui::{Act, Binding, Builder, NodeId, Owner, Role, Run, View};
 use skein_ui_web::{

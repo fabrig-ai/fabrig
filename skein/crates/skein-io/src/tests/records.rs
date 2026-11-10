@@ -1,4 +1,4 @@
-//! Event routing and terminals (skein/docs/design/io.md, 2 and 3.1).
+//! Event routing and terminals (skein/docs/design/runtime/io/README.md, 2, and skein/docs/design/runtime/io/sockets.md, 1).
 
 use super::addr;
 use crate::kernel::{Exit, ServiceSignal};

@@ -1,4 +1,4 @@
-//! Redirect admission from the owner's paste and the listener (oauth.md, 6.5).
+//! Redirect admission from the owner's paste and the listener (oauth/accounts.md, 5).
 use super::private::Owner;
 use super::*;
 use skein_lib::Token;
@@ -96,7 +96,7 @@ fn signs_in(owner: &mut Owner) {
     assert!(owner.io.is_empty() && owner.above.is_empty(), "one code exchange");
 }
 
-// Synthetic issuer answers and browser navigation (oauth.md, sections 6.5–6.8).
+// Synthetic issuer answers and browser navigation (oauth/accounts.md, sections 5–8).
 pub(super) fn synthetic(prefix: &[u8], length: usize) -> Box<[u8]> {
     const ALPHABET: &[u8] = b"0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_";
     let mut output = skein_lib::Writer::new(length);

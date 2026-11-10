@@ -1,4 +1,4 @@
-//! The answer head read beside GitHub's documents (forge-github.md, section 2).
+//! The answer head read beside GitHub's documents (forge/github.md, section 2).
 use super::limits::Limits;
 use crate::{api, time};
 use alloc::boxed::Box;

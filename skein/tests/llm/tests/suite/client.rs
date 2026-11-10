@@ -644,7 +644,7 @@ fn lower_eof_with_a_buffered_provider_terminal_closes_without_another_next() {
     );
     assert!(
         world.seen.iter().any(|e| matches!(e, client::Event::Failed { failure: Failure::Unavailable, .. })),
-        "truncation is terminal without another Next, and a cut exchange (llm.md, section 2.5)"
+        "truncation is terminal without another Next, and a cut exchange (llm/README.md, section 2.5)"
     );
     world.settle();
     world.assert_once();

@@ -1,4 +1,4 @@
-//! GitHub's issue documents in the neutral vocabulary (forge.md, 5.3).
+//! GitHub's issue documents in the neutral vocabulary (forge/forgejo.md, 1.3).
 use crate::{api, github::document, text::Body};
 use alloc::boxed::Box;
 use skein_lib::{Time, Wall};
@@ -105,7 +105,7 @@ pub(super) fn status(value: document::Context) -> api::Status {
     }
 }
 
-/// GitHub submitted reviews are Original when their body was kept (forge-github.md, 6).
+/// GitHub submitted reviews are Original when their body was kept (forge/github.md, 6).
 pub(super) fn review(word: &[u8], value: document::Review) -> Result<Option<api::Review>, api::Error> {
     let (Some(verdict), Some(at)) = (value.verdict, value.submitted) else {
         return Ok(None);

@@ -1,4 +1,4 @@
-//! Memory at every iteration (simulator.md, 5; testing-strategy.md, 6).
+//! Memory at every iteration (testing/simulator.md, 5; testing-strategy.md, 6).
 //!
 //! The harness meters each hosted process's heap and checks it against the
 //! scenario's ceiling when one is named. One thread, one heap: a process's
@@ -25,7 +25,7 @@ use core::hint;
 use skein_heap::{Grown, Span};
 
 /// Whether a world checks memory: only a test binary that declares the
-/// counting allocator its global allocator can (testing.md, 6).
+/// counting allocator its global allocator can (testing/README.md, 6).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Memory {
     /// Checked at every iteration: what each process holds, its release on

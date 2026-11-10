@@ -1,4 +1,4 @@
-//! Seeded agreement of generic and generated decoders (codec.md, 8.3).
+//! Seeded agreement of generic and generated decoders (data/codec/README.md, 8.3).
 
 extern crate alloc;
 
@@ -103,7 +103,7 @@ mod tests {
                         cases = cases.checked_add(1).expect("case count");
                     }
                 }
-                // Eight replay seeds at every cut and each boundary byte (codec.md, 8.3).
+                // Eight replay seeds at every cut and each boundary byte (data/codec/README.md, 8.3).
                 for seed in 0..8 {
                     let bytes = generated::draw(&drawn_schema, root.name, &mut Rng::new(seed));
                     for cut in 0..bytes.len() {

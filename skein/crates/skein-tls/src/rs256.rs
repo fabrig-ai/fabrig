@@ -1,4 +1,4 @@
-//! RS256 through the TLS ring provider: OAuth's check (oauth.md, 2.2) and a GitHub App's signature (tls.md, 4).
+//! RS256 through the TLS ring provider: OAuth's check (oauth/README.md, 2.2) and a GitHub App's signature (net/tls.md, 4).
 
 use alloc::boxed::Box;
 
@@ -30,7 +30,7 @@ pub fn sign_rs256(key: &[u8], message: &[u8]) -> Option<[u8; 256]> {
 fn app_key(key: &[u8]) -> Option<ring::sign::RsaSigningKey> {
     if cfg!(all(target_arch = "wasm32", target_os = "unknown")) {
         // TLS is not available on the portable target: a world runs in plaintext
-        // (testing.md, 10).
+        // (testing/README.md, 10).
         return None;
     }
     if key.len() > RS256_KEY_BYTES {
@@ -42,7 +42,7 @@ fn app_key(key: &[u8]) -> Option<ring::sign::RsaSigningKey> {
 }
 
 /// The public half of a key [`sign_rs256`] takes: PKCS#1 DER of a 2048-bit
-/// key, within [`RS256_KEY_BYTES`], that ring accepts (tls.md, 4). It parses
+/// key, within [`RS256_KEY_BYTES`], that ring accepts (net/tls.md, 4). It parses
 /// as a signing does and never signs, so a key ring refuses only when it
 /// signs has a public half.
 #[must_use]
@@ -62,7 +62,7 @@ pub fn rs256_public_pkcs1(key: &[u8]) -> Option<Rs256Public> {
 /// `AlgorithmIdentifier` (15), and OCTET STRING header (4): 2379 bytes.
 pub const RS256_PKCS8_KEY_BYTES: usize = 2379;
 
-/// An issuer's unsigned RSA public components (tls.md, 4).
+/// An issuer's unsigned RSA public components (net/tls.md, 4).
 #[derive(Debug)]
 pub struct Rs256Public {
     pub modulus: Box<[u8]>,
@@ -75,7 +75,7 @@ pub struct Rs256Public {
 pub fn sign_rs256_pkcs8(key: &[u8], message: &[u8]) -> Option<Box<[u8]>> {
     if cfg!(all(target_arch = "wasm32", target_os = "unknown")) {
         // TLS is not available on the portable target: a world runs in plaintext
-        // (testing.md, 10).
+        // (testing/README.md, 10).
         return None;
     }
     let parsed = issuer_key(key)?;
@@ -85,7 +85,7 @@ pub fn sign_rs256_pkcs8(key: &[u8], message: &[u8]) -> Option<Box<[u8]>> {
 }
 
 /// Reads a key only after ring accepts it; never accepts another key
-/// form or size than `sign_rs256_pkcs8` (tls.md, 4).
+/// form or size than `sign_rs256_pkcs8` (net/tls.md, 4).
 #[must_use]
 pub fn rs256_public(key: &[u8]) -> Option<Rs256Public> {
     let _parsed = issuer_key(key)?;

@@ -1,4 +1,4 @@
-//! A head prints lengths, never its target or values (skein/docs/design/http.md, 2).
+//! A head prints lengths, never its target or values (skein/docs/design/net/http/README.md, 2).
 
 use alloc::boxed::Box;
 use alloc::fmt::format;

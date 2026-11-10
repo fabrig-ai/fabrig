@@ -1,4 +1,4 @@
-//! Read the bot's identity on an installation token (forge-github.md, 8.4).
+//! Read the bot's identity on an installation token (forge/github.md, 8.4).
 use super::{Event, State, Step, api, document, plan};
 use crate::github::{plans::Heard, request::Request};
 

@@ -1,4 +1,4 @@
-//! The owner's final stop fence (forge-client.md, 7.8).
+//! The owner's final stop fence (forge/client.md, 7.8).
 use super::fixtures::keep::{Harness as Kept, branch, watch};
 use super::fixtures::outbox::{Harness, comment, pull};
 use super::{LIMITS, at, configured};

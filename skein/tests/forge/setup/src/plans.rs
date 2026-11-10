@@ -1,4 +1,4 @@
-//! Plan stories run through the host component (skein/docs/design/forge-setup.md, 6.3 and 7).
+//! Plan stories run through the host component (skein/docs/design/forge/setup/README.md, 4.3 and 5).
 use super::{Heard, HostWorld};
 use crate::fixtures;
 use skein_fake_forge_forgejo::{self as fake, Service};

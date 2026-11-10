@@ -1,4 +1,4 @@
-//! Conditional whole-file store transitions (io.md, section 5).
+//! Conditional whole-file store transitions (runtime/io/files.md).
 
 use alloc::boxed::Box;
 

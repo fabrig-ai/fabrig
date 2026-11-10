@@ -1,4 +1,4 @@
-//! Author-owned written functions and context (codec.md, 12.3).
+//! Author-owned written functions and context (data/codec/command.md, 3).
 
 use core::fmt::Write;
 
@@ -8,11 +8,11 @@ use super::{
     text::{Line, PatchText},
 };
 
-pub(crate) const CONTEXT: &str = "//! The owner's per-record inputs to written patch functions (codec.md, 11.5): the command wrote it once; it is the owner's.\n\n#[derive(Debug)]\npub struct Context {}\n\n// Default by contract (codec.md, 11.5), and empty: no live state. Written\n// out, since production clippy.toml refuses the derive and clippy reports a\n// derive's disallowed macro at the crate alone, where an expectation would\n// cover every item.\n#[expect(clippy::derivable_impls, reason = \"the derive is refused crate-wide; see above\")]\nimpl Default for Context {\n    fn default() -> Self {\n        Self {}\n    }\n}\n";
+pub(crate) const CONTEXT: &str = "//! The owner's per-record inputs to written patch functions (data/codec/patches.md, 5): the command wrote it once; it is the owner's.\n\n#[derive(Debug)]\npub struct Context {}\n\n// Default by contract (data/codec/patches.md, 5), and empty: no live state. Written\n// out, since production clippy.toml refuses the derive and clippy reports a\n// derive's disallowed macro at the crate alone, where an expectation would\n// cover every item.\n#[expect(clippy::derivable_impls, reason = \"the derive is refused crate-wide; see above\")]\nimpl Default for Context {\n    fn default() -> Self {\n        Self {}\n    }\n}\n";
 
 pub(crate) fn skeleton_text(number: u32, patch: &PatchText, existing: Option<&str>) -> Result<String, Error> {
     let names = function_names(patch)?;
-    let mut out = existing.map_or_else(|| format!("//! Patch {number:04}: the command wrote the skeleton; its functions are the author's (codec.md, 11.5).\n"), str::to_owned);
+    let mut out = existing.map_or_else(|| format!("//! Patch {number:04}: the command wrote the skeleton; its functions are the author's (data/codec/patches.md, 5).\n"), str::to_owned);
     if existing.is_none() && !names.is_empty() {
         out.push_str(
             "\nuse super::Context;\nuse skein_codec::patch::{Build, Halt, Old, Site};\nuse skein_codec::value::Node;\n",
@@ -51,7 +51,7 @@ mod tests {
     use super::{CONTEXT, skeleton_text};
     use crate::patch::text::PatchText;
     const PATCH: &str = "patch 1\nowner sample 1\n\nfamily a-b 1 to 2\ndrop Shape.dot\nwritten Shape\nrefuses no_dot \"no dot\"\nretype Every.score u8 u16\nwritten Every.score\nrefuses no_score \"no score\"\n";
-    const SKELETON: &str = r#"//! Patch 0001: the command wrote the skeleton; its functions are the author's (codec.md, 11.5).
+    const SKELETON: &str = r#"//! Patch 0001: the command wrote the skeleton; its functions are the author's (data/codec/patches.md, 5).
 
 use super::Context;
 use skein_codec::patch::{Build, Halt, Old, Site};
@@ -79,7 +79,7 @@ pub fn every_score(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -
         assert_eq!(skeleton_text(1, &PatchText::read(PATCH).expect("patch"), None).expect("skeleton"), SKELETON);
         assert_eq!(
             CONTEXT,
-            "//! The owner's per-record inputs to written patch functions (codec.md, 11.5): the command wrote it once; it is the owner's.\n\n#[derive(Debug)]\npub struct Context {}\n\n// Default by contract (codec.md, 11.5), and empty: no live state. Written\n// out, since production clippy.toml refuses the derive and clippy reports a\n// derive's disallowed macro at the crate alone, where an expectation would\n// cover every item.\n#[expect(clippy::derivable_impls, reason = \"the derive is refused crate-wide; see above\")]\nimpl Default for Context {\n    fn default() -> Self {\n        Self {}\n    }\n}\n"
+            "//! The owner's per-record inputs to written patch functions (data/codec/patches.md, 5): the command wrote it once; it is the owner's.\n\n#[derive(Debug)]\npub struct Context {}\n\n// Default by contract (data/codec/patches.md, 5), and empty: no live state. Written\n// out, since production clippy.toml refuses the derive and clippy reports a\n// derive's disallowed macro at the crate alone, where an expectation would\n// cover every item.\n#[expect(clippy::derivable_impls, reason = \"the derive is refused crate-wide; see above\")]\nimpl Default for Context {\n    fn default() -> Self {\n        Self {}\n    }\n}\n"
         );
     }
 

@@ -1,5 +1,5 @@
 //! The text shell's every-role tree, rebuilt with the UI builder
-//! (skein/docs/design/ui-screen.md, section 9).
+//! (skein/docs/design/ui/screen.md, section 9).
 
 use super::{binding, leaf};
 use skein_lib::{Queue, Token};

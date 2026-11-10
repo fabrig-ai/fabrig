@@ -166,7 +166,7 @@ pub fn configuration(document: &Document, key: &[u8], seed: u64) -> Configuratio
         limits: document.limits(),
     }
 }
-/// A plan's model rows, escaped by the JSON writer (skein/docs/design/fake-llm.md, 3.2).
+/// A plan's model rows, escaped by the JSON writer (skein/docs/design/testing/fakes/llm.md, 3.2).
 pub(crate) fn list(models: &[Model]) -> Box<[u8]> {
     let limits = skein_json::writer::Limits { depth: 3, length: crate::DOCUMENT_BYTES };
     let mut out = skein_json::writer::Encoder::measure(&limits);

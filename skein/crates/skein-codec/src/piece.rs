@@ -1,4 +1,4 @@
-//! Items in one byte-bounded piece (codec.md, section 3).
+//! Items in one byte-bounded piece (data/codec/README.md, section 3).
 
 use alloc::boxed::Box;
 use skein_lib::{Overflow, Reader, Writer, len_u64};

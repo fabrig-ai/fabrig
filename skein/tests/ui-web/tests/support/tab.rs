@@ -1,4 +1,4 @@
-//! A tab through the page's press and inbox (skein/docs/design/ui-web.md, 14.3).
+//! A tab through the page's press and inbox (skein/docs/design/ui/web/testing.md, 3).
 use skein_fake_person::{Doing, Face, Find, Found, Next, Step, Why};
 use skein_fake_person_browser::{BrowserFace, Outcome, Script, harness};
 use skein_lib::Time;

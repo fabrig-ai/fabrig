@@ -1,4 +1,4 @@
-//! Joined closes and aborts across moves under small intakes (io.md, 8).
+//! Joined closes and aborts across moves under small intakes (runtime/io/README.md, 5).
 use skein_io_world::joined::random;
 use skein_sim::Config;
 

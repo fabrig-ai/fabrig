@@ -1,4 +1,4 @@
-//! RFC 4648 vectors and canonical refusals (lib.md, 6.1).
+//! RFC 4648 vectors and canonical refusals (runtime/lib.md, 6.1).
 use crate::{
     Overflow, Writer,
     base64::{self, Alphabet, Decoder, Error},

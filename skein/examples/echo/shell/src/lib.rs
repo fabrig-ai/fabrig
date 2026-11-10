@@ -1,4 +1,4 @@
-//! The shipped echo adapter (examples.md, sections 4 and 6; shell.md, 12).
+//! The shipped echo adapter (examples.md, sections 4 and 6; runtime/shell.md, 11).
 //! It keeps the service, limits and which diagnostics were said, and knows
 //! no peer state beyond the service's public observations.
 #![forbid(unsafe_code)]

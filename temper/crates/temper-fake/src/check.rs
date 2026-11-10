@@ -10,7 +10,7 @@ use temper_engine_domain_forge as d;
 use temper_protocol_store::records;
 
 /// The judge's capacity: repository slots and each slot's item, comment,
-/// branch, key, label and evidence tables (skein's fake-forge.md, 2.5).
+/// branch, key, label and evidence tables (skein's testing/fakes/forge.md, 2.5).
 /// The judge reserves them all at once, so memory grows with OBJECTS squared.
 /// Sized for the runs the check judges (a first run or the QA loop: one
 /// repository and tens of items, comments, branches and keys), not the fake's

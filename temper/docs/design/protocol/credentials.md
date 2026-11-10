@@ -186,7 +186,7 @@ setup.md's (`setup.md`, section 9). What is open is listed in `credentials.md`, 
   answer as with it, and tokens of another user stop the run
   `OtherUser`, the forge as it was (setup.md, section 4). A forge's
   writer is its user (section 5), which skein's client never changes
-  under a writer (skein's `forge-client.md`, 7.1): another user's
+  under a writer (skein's `forge/client.md`, 7.1): another user's
   tokens are another forge, connected anew once this one is removed.
 - **An unreadable row** (an unknown version, bytes skein's decoder
   refuses): that forge is not connected, named, "its records are
@@ -211,7 +211,7 @@ setup.md's (`setup.md`, section 9). What is open is listed in `credentials.md`, 
 - **The main store** keeps no credential. It keeps each forge's
   record, its kind, mode, place and bot (forge.md, 2.1), and its writer,
   neither secret: the writer given at runtime (section 5), kept by
-  skein's forge client as its own record (skein's `forge-client.md`,
+  skein's forge client as its own record (skein's `forge/client.md`,
   7.1), `Stored::Writer` under `Key::Writer(forge)`, temper's small
   store's tag 16. It is restored at start, so effects
   restored with it never meet `Forbidden`.
@@ -260,7 +260,7 @@ setup.md's (`setup.md`, section 9). What is open is listed in `credentials.md`, 
 - **The value:** temper's bundle, the `Pasted` record of the family
   `temper-secrets` (`temper-protocol-records`,
   `schema/secrets-v1.schema`), versioned as `Stored` is: a list of
-  items in the codec's own form (skein's `codec.md`), at most three,
+  items in the codec's own form (skein's `data/codec/README.md`), at most three,
   each one of 2.1's items or `Pasted` (code 11, a pasted App key's PEM)
   and each at most once, in any order; at most 4 KiB in all, jig's
   bound on a carried value, and at most `records.value_bytes`. A pasted
@@ -284,7 +284,7 @@ setup.md's (`setup.md`, section 9). What is open is listed in `credentials.md`, 
   forge's rows. When the run ends, done or failed, the core decides the
   row's erase, which the routing carries out; on done, the items the run
   wrote, and each pasted item but `Pasted` (the tokens and the secret
-  the plan was given, which it keeps: skein's `forge-setup.md`, 4.6),
+  the plan was given, which it keeps: skein's `forge/setup/forgejo.md`, 1.6),
   are kept under the forge's family-1 numbers first, after the run's
   writes.
 - **A restart** drops runs, whose states are in memory: the core decides
@@ -339,7 +339,7 @@ sources in its holder's order. temper configures the LLM providers
     from the client. The engine binds a loopback listener for each
     sign-in, on an ephemeral port unless the LLM provider's
     configuration fixes one (jig's `protocol/llm.md`, section 5; skein's
-    `oauth.md`, 6.5), so the browser that approves returns there: on
+    `oauth/accounts.md`, 5), so the browser that approves returns there: on
     the engine's machine, through a tunnel to it, or by the address it
     was sent to, pasted (below). A browser's page goes to the address in its own
     tab, and the listener sends it back to that page; the terminal
@@ -418,7 +418,7 @@ sources in its holder's order. temper configures the LLM providers
     `protocol/agent.md`, section 4); a programs directory, or a
     `<directory>/NAME`, that exists and is not a directory of the
     user's own with no group or other bits, or is a link at its name
-    (skein's `io.md`, 5.3). Linked parent directories are accepted.
+    (skein's `runtime/io/files.md`, 3). Linked parent directories are accepted.
   - It makes the programs directory and `<directory>/NAME`, each
     `0o700`, when missing, then replaces itself with the program's own
     sign-in, `claude auth login`, at the configured path. The
@@ -436,7 +436,7 @@ sources in its holder's order. temper configures the LLM providers
     `temper program-login:`. Smith's configuration reader may precede it with
     its own secret-free `smith: ` diagnostics, as under the other commands
     that read a smith configuration; of its trust roots it says nothing
-    unless a block is malformed (skein's `shell.md`, 6.2). Temper redirects
+    unless a block is malformed (skein's `runtime/shell.md`, 6.2). Temper redirects
     and suppresses none of them.
   - It reads nothing of the login. The host's half checks it (smith's
     `protocol/programs.md`, section 3; smith's `protocol/host.md`,
@@ -493,7 +493,7 @@ sources in its holder's order. temper configures the LLM providers
   installation. The component mints each token with the App's key, for
   contents alone, for every accepted installation that is present and
   not suspended, and again `renew_before` ahead of its expiry (skein's
-  `forge-connection.md`). The login is `x-access-token`; the author
+  `forge/connection.md`). The login is `x-access-token`; the author
   defaults to the App's bot, `<slug>[bot]` with
   `<id>+<slug>[bot]@users.noreply.github.com`, `<slug>` the `AppSlug`
   record's and `<id>` the `User` record's. The value's validity is the
@@ -506,7 +506,7 @@ sources in its holder's order. temper configures the LLM providers
   no longer accepted, takes its entry out, when it has one. A forge that
   stops (its access refused, whatever the `why`: section 5) takes all
   its entries out at once, in one change, as skein's stopped component
-  holds no access (`forge-connection.md`, 8.3): temper routes no git
+  holds no access (`skein/docs/design/forge/connection.md`, 8.3): temper routes no git
   request with a token it can no longer vouch for. Its accepted
   installations stay as they are; a forge connected again puts its
   entries back as its new tokens come.
@@ -601,7 +601,7 @@ sources in its holder's order. temper configures the LLM providers
     App's own requests, and by which the component mints a token for
     each installation the `Accepted` record names, expiring within the
     hour and minted again `renew_before` ahead of its expiry (skein's
-    `forge-connection.md`); the `User` record's id, the App's bot's; no
+    `forge/connection.md`); the `User` record's id, the App's bot's; no
     webhooks' secret. The App's hook points at `https://<slug>.invalid/`,
     and the component reads changes from the App's delivery log (forge.md,
     a GitHub App's delivery log).
@@ -621,10 +621,10 @@ sources in its holder's order. temper configures the LLM providers
   GitHub be a key of the same App (setup.md, the setup host's plans).
   A connected Forgejo's login is its record's bot's, kept by its
   connector at each `Check` (forge.md, 2.2). The forge component's first exchange with each forge
-  checks its access answers as that user (skein's `forge-connection.md`,
+  checks its access answers as that user (skein's `forge/connection.md`,
   section 3): until it passes, the forge's calls wait in the component,
   and a check that goes unanswered is made again (skein's
-  `forge-connection.md`, 3.3).
+  `forge/connection.md`, 3.3).
 - **A forge that refuses its access stops that forge, never the
   engine.** A `401`, a `403` for the credential, or an answer as another
   user, ends in `Stopped { forge, why }` from the forge component; the
@@ -650,7 +650,7 @@ sources in its holder's order. temper configures the LLM providers
   component's. The setup host holds a managed or owned Forgejo's while a
   plan runs (reconcile at each start and at a managed connect; access at
   an adoption; the picker's reads, a `Reachable` plan, skein's
-  `forge-setup.md`, 4.8), from its record, and drops it when the plan ends (setup.md, the
+  `forge/setup/forgejo.md`, 1.8), from its record, and drops it when the plan ends (setup.md, the
   setup host in the engine; forge.md, the setup's host). The picker's
   page holds repositories only, never the token (`../domain/forge.md`,
   the picker). `Forget` erases the record: the forge is then connected,

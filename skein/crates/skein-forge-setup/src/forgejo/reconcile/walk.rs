@@ -1,4 +1,4 @@
-//! Adopted repositories walked in the order given (forge-setup.md, 4.3, step 6).
+//! Adopted repositories walked in the order given (forge/setup/forgejo.md, 1.3, step 6).
 use super::{Reconcile, State};
 use crate::plan::{Event, Need, Stage};
 use crate::{

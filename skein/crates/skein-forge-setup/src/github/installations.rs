@@ -1,4 +1,4 @@
-//! Prune complete listings and uninstall strays when permitted (forge-setup.md, 5.6, step 4).
+//! Prune complete listings and uninstall strays when permitted (forge/setup/github.md, 1.6, step 4).
 use super::{app::Kept, given::Given};
 use crate::github::{Reply, reply};
 use crate::{

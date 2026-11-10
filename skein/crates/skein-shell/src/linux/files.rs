@@ -1,4 +1,4 @@
-//! File calls for the readiness backend (shell.md, 7.3).
+//! File calls for the readiness backend (runtime/readiness.md, 3).
 //!
 //! # The `unsafe`, and why it is sound
 //!
@@ -17,7 +17,7 @@ use super::{count, retry, status};
 use skein_io::kernel::{Fd, OpenHow};
 use std::{mem, ptr};
 
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn open(root: Fd, path: &[u8], how: OpenHow) -> Result<i32, i32> {
     let path = sync::c_path(path);
     let fields = super::opens::fields(how);
@@ -49,20 +49,20 @@ pub(crate) fn write(fd: Fd, bytes: &[u8], at: u64) -> Result<u32, i32> {
     })
 }
 
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn truncate(fd: Fd, length: u64) -> Result<(), i32> {
     let length = libc::off_t::try_from(length).expect("a valid Truncate's length fits off_t");
     // SAFETY: ftruncate takes only a descriptor and integer length.
     status(unsafe { libc::ftruncate(fd.raw(), length) })
 }
 
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn sync(fd: Fd) -> Result<(), i32> {
     // SAFETY: fsync takes only a descriptor.
     status(unsafe { libc::fsync(fd.raw()) })
 }
 
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn stat(fd: Fd) -> Result<skein_io::kernel::Stat, i32> {
     // SAFETY: statx is a plain integer C record, valid when zeroed.
     let mut raw: libc::statx = unsafe { mem::zeroed() };
@@ -74,7 +74,7 @@ pub(crate) fn stat(fd: Fd) -> Result<skein_io::kernel::Stat, i32> {
     Ok(sync::stat(&raw))
 }
 
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn rename(from_dir: Fd, from: &[u8], to_dir: Fd, to: &[u8], no_replace: bool) -> Result<(), i32> {
     let from = sync::c_path(from);
     let to = sync::c_path(to);
@@ -83,7 +83,7 @@ pub(crate) fn rename(from_dir: Fd, from: &[u8], to_dir: Fd, to: &[u8], no_replac
     status(unsafe { libc::renameat2(from_dir.raw(), from.as_ptr().cast(), to_dir.raw(), to.as_ptr().cast(), flags) })
 }
 
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn remove(dir: Fd, name: &[u8], directory: bool) -> Result<(), i32> {
     let name = sync::c_path(name);
     let flags = if directory { libc::AT_REMOVEDIR } else { 0 };
@@ -91,7 +91,7 @@ pub(crate) fn remove(dir: Fd, name: &[u8], directory: bool) -> Result<(), i32> {
     status(unsafe { libc::unlinkat(dir.raw(), name.as_ptr().cast(), flags) })
 }
 
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn mkdir(dir: Fd, name: &[u8], mode: u32) -> Result<(), i32> {
     let name = sync::c_path(name);
     // SAFETY: name is NUL-terminated and remains live throughout mkdirat.

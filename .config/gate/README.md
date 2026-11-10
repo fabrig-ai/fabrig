@@ -8,7 +8,7 @@ build command.
 ## The gate
 
 A landing check checks the branch merged onto main: every check below, with
-nothing slower than the fuzzy suite (`skein/docs/design/testing.md`, 6;
+nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
 `skein/docs/foundation/testing-strategy.md`, 8).
 
 1. **Format:** `cargo fmt --all --check`. Rule: the root `rustfmt.toml`.
@@ -19,7 +19,7 @@ nothing slower than the fuzzy suite (`skein/docs/design/testing.md`, 6;
    `tests/clippy.toml` and `AGENTS.md`, 2 (a lint exception is a scoped `#[expect]`).
 3. **The wasm32 clippy:** `cargo clippy --target wasm32-unknown-unknown -p PKG ... -- -D warnings`,
    with a `-p` for each package in `.config/gate/wasm32.txt`.
-   Rule: `skein/docs/design/testing.md`, 10, “Checked in the gate”.
+   Rule: `skein/docs/design/testing/README.md`, 10, “Checked in the gate”.
 4. **The gate's nextest profiles:** `cargo nextest run --profile default` (focused)
    and `cargo nextest run --profile fuzzy`, defined by `.config/nextest.toml`.
    Rules: `skein/docs/foundation/testing-strategy.md`, 8 and 8.1: each tree's CPU
@@ -65,7 +65,7 @@ Each list has one entry per line; `#` starts a comment line.
 - **`.config/gate/wasm32.txt`:** package names for item 3. The branch making a
   package's wasm32 clippy pass with warnings denied adds it; the trees' status
   files name portable packages still left out. Adding a line adds that package to
-  item 3's command (`skein/docs/design/testing.md`, 10).
+  item 3's command (`skein/docs/design/testing/README.md`, 10).
 
 ## After landing
 

@@ -1,4 +1,4 @@
-//! How lib's growing containers grow (lib.md, 5 and 10): a queue, a list, a
+//! How lib's growing containers grow (runtime/lib.md, 5 and 10): a queue, a list, a
 //! stack, a slab and an intake allocate as they fill, doubling from a small
 //! floor, and never past their cap.
 

@@ -1,5 +1,5 @@
 //! Application frame admission against direction, peer terms and queue room
-//! (channel.md, section 7). The owner measures a frame; this module judges
+//! (net/channel.md, section 7). The owner measures a frame; this module judges
 //! the complete frame before ownership moves into the channel's queue.
 use skein_lib::List;
 

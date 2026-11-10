@@ -1,4 +1,4 @@
-//! The scenarios of io's worlds (io.md, 8), each a world built from a seed
+//! The scenarios of io's worlds (runtime/io/README.md, 5), each a world built from a seed
 //! and a simulator's configuration, under tiny limits: slabs of two or three
 //! sockets, intakes and outputs of a few dozen bytes. A calm configuration
 //! holds each scenario to everything it expects; under faults, a stream may
@@ -240,7 +240,7 @@ pub fn descriptors(seed: u64, config: Config) -> World {
 
 /// Two listeners under a batch of one accept an iteration: their listens
 /// complete together, and the second's first accept waits an iteration
-/// (io.md, 3.2).
+/// (runtime/io/sockets.md, 2).
 #[must_use]
 pub fn batch(seed: u64, config: Config) -> World {
     let mut rng = Rng::new(seed ^ 0xba7c);
@@ -384,7 +384,7 @@ pub fn backpressure(seed: u64, config: Config) -> World {
 
 /// A refusal in the middle of an upload: the server reads the first line,
 /// answers, and closes gracefully while the client is still sending. The
-/// answer reaches the client, not lost to a reset (io.md, 3).
+/// answer reaches the client, not lost to a reset (runtime/io/sockets.md).
 #[must_use]
 pub fn refusal_mid_upload(seed: u64, config: Config) -> World {
     let mut rng = Rng::new(seed ^ 0x9e7);

@@ -1,4 +1,4 @@
-//! Existing file opens and cuts (io.md, 5).
+//! Existing file opens and cuts (runtime/io/files.md).
 use super::{FileIo, Pending, Work, issue, terminal_failure};
 use crate::file::Event;
 use crate::kernel::{Error, Fd, Op, OpenHow, Submit};

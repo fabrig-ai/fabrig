@@ -701,7 +701,7 @@ pub mod github_stories {
     }
 }
 
-/// Copy-plan scenarios (skein/docs/design/forge-setup.md, 4.10).
+/// Copy-plan scenarios (skein/docs/design/forge/setup/forgejo.md, 1.10).
 pub mod copy_stories {
     use super::{Duration, config, host_settings};
     use skein_fake_forge_domain::{self as domain, api};

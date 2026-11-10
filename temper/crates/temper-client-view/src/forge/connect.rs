@@ -645,7 +645,7 @@ fn your_forgejo(root: &Domain, choice: Option<Choice>) -> bool {
         None | Some(Choice::Owned | Choice::Managed | Choice::GitHub | Choice::Elsewhere) => false,
     }
 }
-// Each way owns its controls' identity (skein/docs/design/ui.md, 3.4).
+// Each way owns its controls' identity (skein/docs/design/ui/README.md, 3.4).
 fn panel(b: &mut Builder, w: &Words, way: forge::admin::Way, number: Option<u16>) {
     b.open(Role::Slot);
     let way = match way {

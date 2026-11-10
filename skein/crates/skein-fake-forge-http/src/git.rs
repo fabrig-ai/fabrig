@@ -1,4 +1,4 @@
-//! The private, two-sided git vocabulary (fake-forge.md, sections 3–4).
+//! The private, two-sided git vocabulary (testing/fakes/forge.md, sections 3–4).
 use alloc::boxed::Box;
 use skein_fake_forge_domain::{self as domain, api};
 use skein_lib::List;
@@ -8,7 +8,7 @@ pub mod server;
 pub mod store;
 pub(crate) mod write;
 
-/// What the route reads (fake-forge.md, section 12).
+/// What the route reads (testing/fakes/github.md, section 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     pub http: skein_http::server::Limits,
@@ -21,7 +21,7 @@ pub enum Unrouted {
     NotFound,
 }
 
-/// A domain error's status on the route (fake-forge.md, section 12).
+/// A domain error's status on the route (testing/fakes/github.md, section 3).
 #[must_use]
 pub fn status(error: api::Error, name: Name) -> u16 {
     match error {

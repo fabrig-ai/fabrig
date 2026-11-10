@@ -114,7 +114,7 @@ fn locking(subject: Option<Box<[u8]>>) -> (Owner, skein_lib::Token) {
 }
 #[test]
 fn a_finished_sign_in_holding_the_lock_keeps_its_account_until_its_sockets_settle() {
-    // `Unlock` names only the account, so the next exchange waits for it (oauth.md, 6.4).
+    // `Unlock` names only the account, so the next exchange waits for it (oauth/accounts.md, 4).
     let (mut owner, identity) = locking(None);
     assert_event(owner.above.pop(), Event::Lock { account: ACCOUNT });
     answer(&mut owner, shared_record(READ_GENERATION));

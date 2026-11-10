@@ -1,11 +1,11 @@
-//! Opening an existing file to write, and setting its length (kernel.md, 6.1).
+//! Opening an existing file to write, and setting its length (runtime/kernel.md, 6.1).
 use crate::files::rule;
 use crate::run::Run;
 use crate::{Backend, Check, Item};
 use alloc::vec::Vec;
 use skein_io::kernel::{Error, Fd, OpenHow};
 
-/// What `Write` opens found and what `Truncate`s left (kernel.md, 6.1).
+/// What `Write` opens found and what `Truncate`s left (runtime/kernel.md, 6.1).
 #[derive(Debug)]
 pub struct Cutting {
     pub missing: Result<Fd, Error>,

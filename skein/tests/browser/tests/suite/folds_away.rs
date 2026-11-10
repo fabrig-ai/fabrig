@@ -1,4 +1,4 @@
-//! Panel folding through the page part in real Chromium (skein/docs/design/ui-web.md, 7).
+//! Panel folding through the page part in real Chromium (skein/docs/design/ui/web/README.md, 5).
 use skein_browser::boundary::Key;
 use skein_fake_person_browser::{
     Outcome, Script, Setup, harness,
@@ -24,7 +24,7 @@ fn check(selector: &[u8]) -> harness::Step {
     }
 }
 /// A go ends at the page's load, and the loader starts the module after it
-/// (skein/docs/design/ui-web.md, 4.3 and 14.2), so each story sees the
+/// (skein/docs/design/ui/web/bundle.md, 3, and skein/docs/design/ui/web/testing.md, 2), so each story sees the
 /// fixture's first apply before it acts or reads.
 fn arrive(steps: impl IntoIterator<Item = harness::Step>) -> Script {
     let arrived = [

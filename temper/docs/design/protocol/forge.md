@@ -3,18 +3,18 @@
 Provisional, 2026-10-03, revised 2026-11-02. How the engine reaches a
 forge, on skein's forge kit: what temper's forge component, its setup's
 host and its forge connector do with it, and what the kit leaves to
-temper. The kit is skein's (`forge.md`, `forge-connection.md`,
-`forge-client.md`, `forge-setup.md`, `forge-github.md`,
-`fake-forge.md`): Forgejo's API and GitHub's over HTTP and JSON, the
+temper. The kit is skein's (`forge/README.md`, `skein/docs/design/forge/connection.md`,
+`skein/docs/design/forge/client.md`, `skein/docs/design/forge/setup/README.md`, `skein/docs/design/forge/github.md`,
+`skein/docs/design/testing/fakes/forge.md`): Forgejo's API and GitHub's over HTTP and JSON, the
 keys' markers written at the head of what the engine creates, the
 webhooks Forgejo sends back to a listener on loopback and the deliveries
 a GitHub App's log keeps, the client, the component, the setup and the
 fake forge. A forge's credentials are records in jig's secrets' store,
 loaded at start and handed over at runtime (section 2; credentials.md,
 the forges' records). The overview is README.md (sections 5 and 6); the
-vocabulary carried is skein's (`forge.md`, section 3), and the forge
+vocabulary carried is skein's (`forge/README.md`, section 3), and the forge
 client's use of it is `../domain/forge.md`'s (sections 5 and 6); the
-machines are skein's (skein's `http.md`, `json.md`, `tls.md`). What
+machines are skein's (skein's `http.md`, `skein/docs/design/data/json.md`, `skein/docs/design/net/tls.md`). What
 others owe this layer is in section 12, what temper relies on of each
 forge in section 13, and what is open in section 14.
 
@@ -27,14 +27,14 @@ forge in section 13, and what is open in section 14.
   temper's forge connector (`temper-engine-domain-forge`). Each
   dialect's documents and call plans, Forgejo's and GitHub's, the keys'
   markers, the deliveries, the setup's plans and the fakes are skein's
-  too (skein's `forge.md`, section 2; `forge-github.md`). This document
+  too (skein's `forge/README.md`, section 2; `skein/docs/design/forge/github.md`). This document
   holds what the kit leaves to its owner.
 - **Translation only, and no retries.** Each call of the forge client (a
   `Read` or a `Write`) is answered by exactly one `Answer` or `Error`,
   made of one or a few HTTP exchanges on one connection. A call goes out
   once. Its answer says how many requests it cost, so the client's
   budget charges what the forge actually served (skein's
-  `forge-connection.md`, section 1; `forge-client.md`, section 6).
+  `forge/connection.md`, section 1; `skein/docs/design/forge/client.md`, section 6).
 - **temper's routing hands the component every value** (section 2): the
   component reads no file. The values are each forge's records', in
   temper's store and in jig's secrets' store, and the configuration's
@@ -47,14 +47,14 @@ forge in section 13, and what is open in section 14.
   served, its access dropped, its secrets erased, and the box asked to
   remove its group (2.8).
 - **Repositories by the forge's own id; paged, bounded, and decoded as
-  it streams.** Forgejo's conventions are skein's (`forge.md`, section
-  5); the paths and the users the component keeps are
-  `forge-connection.md`'s (section 4). Adoption first locates a
-  repository by its owner and name (skein's `forge.md`, 5.2).
+  it streams.** Forgejo's conventions are skein's (`forge/forgejo.md`, section
+  1); the paths and the users the component keeps are
+  `skein/docs/design/forge/connection.md`'s (`skein/docs/design/forge/connection.md`, section 4). Adoption first locates a
+  repository by its owner and name (skein's `forge/forgejo.md`, 1.2).
 - **The engine's marks are keys' markers only** (section 4). A creation
   carries its key at the head of its body. The word is `temper`, and the
   key holds the deployment's id as its namespace. The marker's form is
-  skein's (`forge.md`, section 6). Nothing else of the engine's is
+  skein's (`forge/README.md`, section 5). Nothing else of the engine's is
   written into the forge.
 - **A forge starts connected or not, and stops alone.** Its access (an
   API token, or a GitHub App's id and key, and the user it must stand
@@ -65,7 +65,7 @@ forge in section 13, and what is open in section 14.
   other forge run on; a forge removed is ended (2.3). The credential is the component's alone:
   never granted to a worker, never in the main store, and the first
   exchange with the forge checks that it stands for the forge's user
-  (skein's `forge-connection.md`, section 3; credentials.md, the forges'
+  (skein's `forge/connection.md`, section 3; credentials.md, the forges'
   records).
 - **GitHub's installations and git's tokens come up as events** (2.4,
   2.5): the routing keeps the accepted installations in the forge's
@@ -75,8 +75,8 @@ forge in section 13, and what is open in section 14.
 - **Webhooks for latency, polling for liveness** (section 5). Forgejo's
   deliveries reach a listener of the component's own, on loopback, at
   `application.webhooks`'s address: verified as they stream, answered
-  first, each hint naming what caused it (skein's `forge.md`, section 7;
-  `forge-connection.md`, section 6). Polling stands as it is and finds
+  first, each hint naming what caused it (skein's `forge/README.md`, section 6;
+  `skein/docs/design/forge/connection.md`, section 6). Polling stands as it is and finds
   what a delivery lost, refused or never sent told of; a forge on
   another host polls alone, since deliveries over TLS need skein's TLS
   server side (setup.md, section 15). A GitHub forge's deliveries are
@@ -89,15 +89,15 @@ forge in section 13, and what is open in section 14.
 - **The load rules' values are temper's** (section 6): the rules are
   kept in skein's crates, and `../domain/forge.md` holds the values.
 - **The fake forge, the throwaway and the conformance are skein's**
-  (`fake-forge.md`). temper's worlds run temper's stories over them and
+  (`skein/docs/design/testing/fakes/forge.md`). temper's worlds run temper's stories over them and
   count its costs (section 10).
 - **What temper relies on of each forge is recorded.** Forgejo's by
   skein's conformance against a real Forgejo v17.0, each behaviour a
-  named fact (skein's `forge.md`, section 9). temper requires that
-  release: one patch release of it is pinned (skein's `forge.md`, 4.3),
-  and no other version is served. GitHub's are skein's `forge-github.md`
-  facts, which temper's tests run against skein's fake alone (section
-  13).
+  named fact (skein's `forge/forgejo.md`, section 2). temper requires that
+  release: one patch release of it is pinned (skein's `forge/README.md`, 4.3),
+  and no other version is served. GitHub's are skein's `forge/github.md`
+  facts, which temper's tests run against skein's fake alone (`forge.md`, section 13
+  ).
 
 ## 2. In the engine
 
@@ -120,7 +120,7 @@ skein-tls (client, for a forge whose transport is TLS; later, a server for webho
 skein-io socket
 ```
 
-- **The kit's crates** are skein's (`forge.md`, section 2). `skein-forge`
+- **The kit's crates** are skein's (`forge/README.md`, section 2). `skein-forge`
   depends on skein-lib and skein-json and holds nothing of temper's
   domains; `skein-forge-client` depends on skein-lib and `skein-forge`'s
   vocabulary; `skein-forge-connection` depends on the crates below it in
@@ -134,13 +134,13 @@ skein-io socket
   carries what passes between it, io and the root, and decides nothing
   (README.md, sections 5 and 6; jig's `protocol/service.md`, section 2).
   One component serves every kept forge. What it holds is skein's
-  (`forge-connection.md`, sections 3 to 7): the calls in flight, the
+  (`forge/connection.md`, sections 3 to 7): the calls in flight, the
   forges' connections, each forge's start, the repositories' paths and
   the users, a GitHub App's installations and tokens, the translation
   between the forge client's vocabulary and the documents, the webhooks'
   listener and a GitHub App's delivery log.
 - **What the routing hands the component.** The component reads no file
-  (skein's `forge-connection.md`, section 3), and no forge's credential
+  (skein's `forge/connection.md`, section 3), and no forge's credential
   is a file: each is a record in jig's secrets' store, which the
   routing, `temper-service`, loads (2.1). For each forge kept in the
   store (2.1), a `Forge { number, kind, address, transport, access,
@@ -179,7 +179,7 @@ skein-io socket
   routing tells the root as it changes: connected and as whom, stopped
   and why, and a GitHub installation's changes (2.2 to 2.4).
 - **Room, and the drain,** as the component keeps them (skein's
-  `forge-connection.md`, section 2) and as jig's components keep them
+  `forge/connection.md`, section 2) and as jig's components keep them
   (jig's `protocol/service.md`, section 2; jig's `domain/engine/restart.md`,
   1): an answer or a hint the root cannot take yet is held and offered
   again, at most one per call and one per webhook connection, and
@@ -191,13 +191,13 @@ skein-io socket
   returns during its drain is dropped. The root's view of them is not
   kept, so the next process's root starts from what a fresh start
   publishes: each connection afresh, and the installations by the
-  baseline listing (skein's `forge-connection.md`, section 4.4). The
+  baseline listing (skein's `forge/connection.md`, section 4.4). The
   routing closes the component after the root's drain (jig's
   `protocol/service.md`, section 5); calls in flight end with their
   connections, and no answer goes up once the root has stopped.
 - **A start that fails for good stops that forge only** (2.3): a user
   other than the forge's own, a credential refused, or a `4xx` that
-  asking again would not mend (skein's `forge-connection.md`, sections 3
+  asking again would not mend (skein's `forge/connection.md`, sections 3
   and 8). The engine and every other forge run on.
 
 ### 2.1 A forge's records, and its access at start
@@ -270,14 +270,14 @@ skein-io socket
   bit clear, below 2^63, where jig numbers carried values under
   temper's tag itself (2.6).
 - **Each item's bytes** are as skein's setup host writes them, pinned by
-  skein's `forge-setup.md`, 6.4: tokens and secrets as text; `User` and
+  skein's `forge/setup/README.md`, 4.4: tokens and secrets as text; `User` and
   `AppId` a `u64` little-endian, never 0; `AppSlug` text; `AppKey`
   PKCS#1 DER; `Accepted` the installations' ids, each a `u64`
   little-endian, ascending and distinct. `Origin` is temper's, the
   forge's kind and `api` address the records were made for, written at
   each connect. They are decoded with skein's item decoders only where
   they build an access.
-- **The access** (skein's `forge-connection.md`, 3.5):
+- **The access** (skein's `forge/connection.md`, 3.5):
   - Forgejo: `Access { credential: Token(ApiToken), user: User,
     webhook_secret: WebhookSecret }`, the secret only when its row is
     there and `application.webhooks` is configured (section 5);
@@ -360,7 +360,7 @@ skein-io socket
   the act's run or the box's group connects it.
 - **`Request::Connect { forge, access }`** hands a running forge its
   access: a first connect, a replacement and a reconnect after a stop
-  alike (skein's `forge-connection.md`, 3.5). The routing sends it after
+  alike (skein's `forge/connection.md`, 3.5). The routing sends it after
   a setup's run is done and its writes are kept (2.6): a managed or
   owned Forgejo's `Reconcile`, at start or after the box's `started`, a
   connected Forgejo's `Check`, GitHub's `Convert` and `Paste`, and each
@@ -374,7 +374,7 @@ skein-io socket
   deployment's page says as whom (client/forge.md, the deployment's
   page). The connector then gives the forge client its writer, which the
   forge client keeps as its own record and restores at start (skein's
-  `forge-client.md`, 7.1; `../domain/forge.md`, 4.1). A GitHub forge's
+  `forge/client.md`, 7.1; `../domain/forge.md`, 4.1). A GitHub forge's
   `Reconcile { forge }` runs next, once the forge's writing run is free
   (2.6); it ends in no connect.
 - **The box's pipe** (setup.md, 7.1), under the box alone, through the
@@ -407,7 +407,7 @@ skein-io socket
   user its tokens answer as with the kept `User`, on a forge connected
   again as on a `Replace`: tokens of another user stop the run
   `OtherUser`, nothing kept and the forge as it was. A forge's writer is
-  its user (skein's `forge-client.md`, 7.1; credentials.md, 2.1), so
+  its user (skein's `forge/client.md`, 7.1; credentials.md, 2.1), so
   another user's tokens connect a new forge, once this one is removed.
 - **`Replace`** runs `Check` on a connected Forgejo, its pasted tokens
   read before the forge's rows, so that a token not pasted is the kept
@@ -423,7 +423,7 @@ skein-io socket
 - **`Event::Stopped { forge, why }`** stops that forge only: its key or
   token refused, a user other than its own, an access the component
   finds invalid, or a `4xx` that asking again would not mend (skein's
-  `forge-connection.md`, 3.3 and 3.5). Its calls are answered
+  `forge/connection.md`, 3.3 and 3.5). Its calls are answered
   `NotConnected` until its next connect.
 - **Named to the root,** which shows the forge and why on its row, with
   Replace (client/forge.md, the deployment's page). The engine and every
@@ -475,13 +475,13 @@ skein-io socket
   The routing hands the list over with `Request::Installations { forge,
   accepted }` at start, after an `Accept`'s `Done` and after a deletion;
   the component reads the installations and mints a token for each one
-  accepted (skein's `forge-connection.md`, 4.4 and 5.1).
+  accepted (skein's `forge/connection.md`, 4.4 and 5.1).
 - **`Event::Installation { forge, installation, account, change }`,**
   an `account` being its id and login:
   - `Created`: nothing, unless accepted, at the setup URL or by the
     owner's accept. One never accepted is a stray: shown on the
     deployment's page, and uninstalled by reconcile after
-    `setup.state_life_ms` (skein's `forge-setup.md`), unless the App is
+    `setup.state_life_ms` (skein's `forge/setup/README.md`), unless the App is
     read-only (`setup.md`, 17.7).
   - `Deleted`: the `Accepted` row is rewritten without it and kept, then
     `Request::Installations`. The git identity's value loses that
@@ -500,7 +500,7 @@ skein-io socket
     its adoptions are marked until then.
 - **`Event::Fact { forge, fact }`** decides nothing: it is the
   component's diagnostic for the owner's log (skein's
-  `forge-connection.md`, 2.1). `Fact::Unkept`, an installation's change
+  `forge/connection.md`, 2.1). `Fact::Unkept`, an installation's change
   the component had no room for, and `Fact::Gap` (5.1) are logged only.
   `Fact::Origin` (3.6) is kept as well, per forge in memory.
 - **A call on an account no accepted installation covers** is answered
@@ -522,7 +522,7 @@ and on GitHub the App's (below), and its value the forge's.
 - **GitHub's value** is a list of `(account id, account login, token,
   expires)`, one per accepted installation, built from `Event::GitToken
   { forge, installation, account, token, expires }` and held in memory
-  only (skein's `forge-connection.md`, 5.3). Its login is
+  only (skein's `forge/connection.md`, 5.3). Its login is
   `x-access-token`; its author defaults to the bot's, `<slug>[bot]` and
   `<id>+<slug>[bot]@users.noreply.github.com`, `<id>` the `User`
   record's.
@@ -555,7 +555,7 @@ and on GitHub the App's (below), and its value the forge's.
 
 ### 2.6 The setup's host
 
-skein's in-process host component (`forge-setup.md`, its host), a child
+skein's in-process host component (`skein/docs/design/forge/setup/README.md`, its host), a child
 of the engine's protocol layer beside the forge component. The routing
 carries what passes between it, the root and the records.
 
@@ -563,22 +563,22 @@ The engine builds the setup host once at start, checking the host's
 entrance limits and settings before it builds it, with room for
 `forge.forges`; each kept forge joins it as its record is handed over
 (2.1, 2.2) and leaves it at its removal (2.3). A full host answers `Why::Busy` at a Run's start, and the page shows it as busy, try again (skein's
-`forge-setup.md`, 6.5).
+`forge/setup/README.md`, 4.5).
 
 - **Down,** `Run { run, plan }` and `Answer { run, answer }`; **up,**
   `Need { run, need }`, `Done { run, outcome }` and `Stop { run,
   failure }`. It holds an admin's token and a GitHub App's key only
   while a plan runs. temper has no use for skein's one-shot host
-  (`forge-setup.md`, 6.2): `temper forge prepare` and `run` drive no
+  (`skein/docs/design/forge/setup/README.md`, 4.2): `temper forge prepare` and `run` drive no
   plan (setup.md, section 5).
-- **The plans the routing runs** (skein's `forge-setup.md`; setup.md):
+- **The plans the routing runs** (skein's `forge/setup/README.md`; setup.md):
 
 | Plan | When | What it does |
 |---|---|---|
 | `Reconcile { forge, adopted }` | each start of a managed or owned Forgejo; a managed connect; the box's `started`, after its `TakeOver` (2.2) | converges the forge on what the deployment needs (setup.md, section 5), then the forge connects |
 | `TakeOver { forge, admin_token }` | an owned or fake forge's start, or the box's `started`, whenever the handover file is present, even with a kept `AdminToken` (setup.md, 6.5) | keeps the handover's admin token; only after its `Done` and the record kept is the file removed, before reconcile |
 | `Adopt { forge, repository }` | a managed or owned forge's adoption, before its reads | gives the bot access to the repository (`../domain/forge.md`, 4.2) |
-| `Create { forge, org, repository, files }` | an owned or managed forge's first repository, at its set up (setup.md, 6.7) | the repository made in its organization, the bot given access, the owner's files put on its main (skein's `forge-setup.md`, 4.9) |
+| `Create { forge, org, repository, files }` | an owned or managed forge's first repository, at its set up (setup.md, 6.7) | the repository made in its organization, the bot given access, the owner's files put on its main (skein's `forge/setup/forgejo.md`, 1.9) |
 | `Check { forge }` | a connected Forgejo's `Connect` with its pasted tokens, and each `Replace` of them | both tokens answer as one user, not a site admin, and as the kept `User` when there is one, else it writes `User`; it ends `Done(Identity { id, login })`, the login kept as the record's bot's (2.2) |
 | `Manifest { forge, target }` | GitHub's Connect, always for `Personal`: the App is the person's, public, and installs on any account GitHub offers them (setup.md, 17.2) | a fresh state, the form's target and the manifest; it ends `Done(Manifest { state, target, manifest })`, from which temper renders the manifest's page (client/forge.md, 9.1) |
 | `Convert { forge, code, state }` | GitHub's redirect back | the code exchanged for the App's id, slug and key, the conversion's webhook secret and OAuth pair never kept; the bot user found; it writes `AppId`, `AppSlug`, `AppKey` and `User` |
@@ -588,14 +588,14 @@ entrance limits and settings before it builds it, with room for
 | `Reconcile { forge }` | after each GitHub `Connected` | the App's permissions, events, installations and key checked; it repairs only its hook's address (5.1) |
 | `Reachable { forge, installation?, page }` | the picker, on every kind | the repositories the picker lists, paged by number from 1, at most `reachable` rows (temper's `picker.page`), `more` set when the page is full: on GitHub one accepted installation's, `installation` its id; on a connected Forgejo what the API token can push to; on a managed or owned Forgejo every repository the admin's token sees, by id ascending, refused `Missing` or `NotAdmin` as reconcile's first step; an `installation` not in `Accepted` stops `Installation` (`Missing`), and one given for a Forgejo stops `Installation` (`Unexpected`); it ends `Done(Reachable { rows, more })`, each row the repository's id, its owner's `{ id, login }`, its name and whether it is private; it writes nothing (`../domain/forge.md`, 4.3) |
 
-- **`Reachable`** is skein's (`forge-setup.md`, 4.8). On a managed or
+- **`Reachable`** is skein's (`forge/setup/forgejo.md`, 1.8). On a managed or
   owned Forgejo it runs on the admin's token, which stays the setup
   host's; on a connected Forgejo, on the API token (skein's
-  `forge-setup.md`, 4.6); on GitHub, on a token minted for the page and
+  `forge/setup/forgejo.md`, 1.6); on GitHub, on a token minted for the page and
   dropped. Since it writes nothing, it runs beside the forge's one
   writing plan.
 - **Outcomes.** A run ends `Stop` with its failure, or `Done`, which
-  carries what temper serves or shows (skein's `forge-setup.md`, 4.2):
+  carries what temper serves or shows (skein's `forge/setup/forgejo.md`, 1.2):
   `Reachable`'s page for that plan; `Manifest { state, target,
   manifest }`, the state, the form's target and the manifest's JSON,
   from which temper renders the manifest's page (client/forge.md, 9.1),
@@ -655,11 +655,11 @@ entrance limits and settings before it builds it, with room for
 - **One writing run per forge at once,** and one `Reachable` beside it;
   a second of either is refused "busy", never queued, and so is a
   request past `setup.runs`, which counts both (skein's
-  `forge-setup.md`, 6.3).
+  `forge/setup/README.md`, 4.3).
 
 ### 2.7 What the vocabulary adds
 
-skein's (`forge.md`, section 3; `forge-connection.md`, 4.1), as the
+skein's (`forge/README.md`, section 3; `skein/docs/design/forge/connection.md`, 4.1), as the
 routing carries it to the root, and the domain reads it
 (`../domain/forge.md`, sections 4 and 5):
 
@@ -672,10 +672,10 @@ routing carries it to the root, and the domain reads it
   not select (GitHub answers `404`), and **`Error::Forbidden`** for a
   suspended installation's calls and the calls a replacement ended.
 - **`Error::RateLimited { after }`:** Forgejo's `429` and GitHub's
-  pauses alike, `after` as skein's `forge-github.md` gives it (GitHub's
+  pauses alike, `after` as skein's `forge/github.md` gives it (GitHub's
   `Retry-After`; else the window's reset when nothing remains; else
   60 s). Nothing retries in the component; the client's budget holds
-  every class until then (skein's `forge-client.md`, section 6).
+  every class until then (skein's `forge/client.md`, section 6).
 - **`api::Rate { limit, remaining, reset_at }`,** beside an answer's
   cost: the window the forge reported on the call's last answer, per
   installation on GitHub. The client's budget keeps the least it hears.
@@ -782,44 +782,44 @@ service's io.
 
 ## 3. Forgejo's API as temper uses it
 
-Held by skein's `forge.md`, section 5, and `forge-connection.md`,
-sections 3 to 5.
+Held by skein's `forge/forgejo.md`, section 1, and `skein/docs/design/forge/connection.md`, sections 3 to 5
+.
 
 ### 3.1 Conventions
 
-Held by skein's `forge.md`, section 5.1.
+Held by skein's `forge/forgejo.md`, section 1.1.
 
 ### 3.2 Each operation
 
-Held by skein's `forge.md`, section 5.2.
+Held by skein's `forge/forgejo.md`, section 1.2.
 
 ### 3.3 Decoding answers
 
-Held by skein's `forge.md`, section 5.3.
+Held by skein's `forge/forgejo.md`, section 1.3.
 
 ### 3.4 Failures
 
-Held by skein's `forge.md`, section 5.4.
+Held by skein's `forge/forgejo.md`, section 1.4.
 
 ### 3.5 What the protocol layer keeps
 
-Held by skein's `forge-connection.md`: each forge's start and its access
-in skein's `forge-connection.md`, section 3, the repositories, the users and a GitHub App's
-installations in skein's `forge-connection.md`, section 4, the credentials and the installation tokens
-in skein's `forge-connection.md`, section 5, and a GitHub App's delivery log in skein's `forge-connection.md`, 6.5. What temper keeps
+Held by skein's `forge/connection.md`: each forge's start and its access
+in skein's `forge/connection.md`, section 3, the repositories, the users and a GitHub App's
+installations in skein's `forge/connection.md`, section 4, the credentials and the installation tokens
+in skein's `forge/connection.md`, section 5, and a GitHub App's delivery log in skein's `forge/connection.md`, 6.5. What temper keeps
 of a forge is its records (2.1), never the component's state.
 
 ### 3.6 GitHub's API as temper uses it
 
-Held by skein's `forge-github.md`: the dialect's paths, headers, paging,
-validators, pauses and failures, each a named fact (skein's `forge-github.md`, section 13). Of it,
+Held by skein's `forge/github.md`: the dialect's paths, headers, paging,
+validators, pauses and failures, each a named fact (skein's `forge/github.md`, section 13). Of it,
 temper sets one thing, where a job log may be read from:
 
 - **A job log's redirect** is followed only to an origin its forge's
   kind names, resolved at start: at most `forges.log_origins` entries,
   each an origin, `https`, or `http` to a loopback host alone, matched
   as skein's component matches a redirect's (scheme, host in ASCII
-  case, port; skein's `forge-connection.md`, 4.5). GitHub's names the
+  case, port; skein's `forge/connection.md`, 4.5). GitHub's names the
   twenty results hosts `productionresultssa0.blob.core.windows.net`
   through `productionresultssa19.blob.core.windows.net`, over TLS on
   port 443, when the machine names no GitHub of its own; a GitHub the
@@ -848,17 +848,17 @@ temper sets one thing, where a job log may be read from:
 
 What the engine writes inside what it creates: keys' markers, and
 nothing else. No record, outcome or page of the engine's is written into
-the forge, and no call of skein's `forge.md`, 5.2 writes a label: labels
+the forge, and no call of skein's `forge/forgejo.md`, 1.2 writes a label: labels
 are for display only, and no decision reads one (`../domain/forge.md`,
 section 4).
 
 - **A creation's key,** at the head of an issue's body, a comment or a
   review, is a marker: its form, its decoding and its bounds are
-  skein's (`forge.md`, section 6). temper's word is `temper`, so a
+  skein's (`forge/README.md`, section 5). temper's word is `temper`, so a
   marker reads `<!-- temper:key <the key in lowercase hexadecimal> -->`
   and a line feed, then the text. An HTML comment, which Forgejo's
   rendering hides.
-- **The key is the client's** (`effect_key`, skein's `forge-client.md`,
+- **The key is the client's** (`effect_key`, skein's `forge/client.md`,
   section 7): version 1, the namespace's length as two bytes
   big-endian, the namespace, then the effect's identity, opaque bytes
   to the client. temper's namespace is the one the root derives from the
@@ -868,15 +868,15 @@ section 4).
   a repository tell their creations apart (jig's `domain/connectors.md`,
   4.4). The key's first byte is its version; the marker has none of its
   own.
-- **Decoded** as skein's `forge.md`, section 6 says; a body whose marker
+- **Decoded** as skein's `forge/README.md`, section 5 says; a body whose marker
   carries another word has no key. Whether to believe a key is the
   client's: its version, its namespace, and whether its author is the
-  forge's writer (skein's `forge-client.md`, section 7). A person who
+  forge's writer (skein's `forge/client.md`, section 7). A person who
   copies a marker into their own comment gives it no provenance.
 - **Bounded.** The key is within the client's `op_bytes`, the marker
   twice its length and 21 bytes more (the word's 6 and 15), and the body
   sent the marker and the text, which `body_bytes` holds (skein's
-  `forge-connection.md`, section 7).
+  `forge/connection.md`, section 7).
 - **The worlds** write the same marker (the forge connector world's
   translation, `tests/engine/forge/client/src/translate.rs`); the
   protocol world (section 10) runs the component's own encoder and
@@ -895,10 +895,10 @@ alone (setup.md, section 15).
 - **A delivery's signature, its events and its hints** are skein's:
   how Forgejo signs a body, the events a hook subscribes to, the hint
   each makes, who caused it, and the bounds on a delivery (skein's
-  `forge.md`, section 7).
+  `forge/README.md`, section 6).
 - **The listener,** its connections, the verification as a body streams,
   the answer first, each refusal and the bounds are skein's (skein's
-  `forge-connection.md`, section 6).
+  `forge/connection.md`, section 6).
 - **The webhooks' listener's address,** `application.webhooks`,
   `{"listener": address}` (configuration.md, section 3): a socket
   address on loopback (in `127.0.0.0/8`, or `::1`), apart from the
@@ -913,11 +913,11 @@ alone (setup.md, section 15).
   and again when a plan draws it on a connected forge (setup.md, 5.4); a
   forge with a secret and no listener is
   handed none, polls alone, and is named once in the log. A forge with
-  no secret has no path (skein's `forge-connection.md`, 6.1).
+  no secret has no path (skein's `forge/connection.md`, 6.1).
   `WebhookSecret` is Forgejo's alone: a GitHub forge has none (5.1).
 - **What the domain does with a hint.** It drops its own writes'
   echoes: a creation's key for an item, the pusher for a push
-  (`../domain/forge.md`, 5.2; skein's `forge-client.md`, section 4). A
+  (`../domain/forge.md`, 5.2; skein's `forge/client.md`, section 4). A
   hint for a repository the deployment has not adopted goes up all the
   same; the domain drops it.
 - **What has no delivery** is found by polling alone
@@ -933,21 +933,21 @@ alone (setup.md, section 15).
   whatever starts `temper serve` again (the box, a service manager)
   starts it with a listener again.
 - **Not sent again.** Forgejo does not resend a failed delivery (skein's
-  `forge.md`, section 7): one lost while `temper serve` is down, refused
+  `forge/README.md`, section 6): one lost while `temper serve` is down, refused
   for its size or its signature, or never sent is found by polling. A
   hint that arrives before the engine's domain is ready is dropped, and
   the keep's first listing finds what it told of.
 - **Hooks are set up by reconcile, or by the person,** at
   `http://<listener>/hooks/<number>`, with the forge's secret, the
-  events of skein's `forge.md`, section 7, JSON and active (setup.md,
-  sections 4, 5 and 10; skein's `forge-setup.md`, section 4.3, step 6).
+  events of skein's `forge/README.md`, section 6, JSON and active (setup.md,
+  sections 4, 5 and 10; skein's `forge/setup/forgejo.md`, section 1.3, step 6).
   A repository with no hook polls (`../domain/forge.md`, section 4).
 
 ### 5.1 A GitHub App's delivery log
 
 GitHub's deliveries are read, not received: the component's puller
-reads the App's log (skein's `forge-connection.md`, 6.5;
-`forge-github.md`). The engine takes no delivery from GitHub, and needs
+reads the App's log (skein's `forge/connection.md`, 6.5;
+`skein/docs/design/forge/github.md`). The engine takes no delivery from GitHub, and needs
 no address GitHub can reach.
 
 - **The App's hook** points at no listener: its address is
@@ -960,13 +960,13 @@ no address GitHub can reach.
   conversion's webhook secret is never kept, `Paste` draws none, and
   the routing hands the access `webhook_secret: None`. The forge has no
   path on the webhooks' listener, and the log's reads are vouched for by
-  TLS and the App's JWT (skein's `forge-connection.md`, 3.5 and 6.1;
-  `forge-setup.md`, the conversion).
+  TLS and the App's JWT (skein's `forge/connection.md`, 3.5 and 6.1;
+  `skein/docs/design/forge/setup/README.md`, the conversion).
 - **Each `log_poll`** (5 s in the profile `small`), while the forge is
   connected, the puller reads the log's first page conditionally, with
   the validator the last first page answered: a `304` is free (2.7) and
   ends the poll. Otherwise it reads back, newest first, to the newest
-  delivery it read, within `log_pages` (skein's `forge-connection.md`,
+  delivery it read, within `log_pages` (skein's `forge/connection.md`,
   6.5). The reads are counted in no call's cost.
 - **No guid is kept across process starts.** The newest delivery's
   guid is the component's, in memory: keeping it would write the store
@@ -974,11 +974,11 @@ no address GitHub can reach.
   start of a forge, the component's first poll keeps the newest guid
   and reads nothing back. What changed while temper was down is read by
   the forge client at its restart, which reads each adopted repository
-  afresh (`ReadAfresh`; skein's `forge-connection.md`, 6.5, and
-  `forge-client.md`, section 8; `../domain/forge.md`, section 16).
+  afresh (`ReadAfresh`; skein's `forge/connection.md`, 6.5, and
+  `skein/docs/design/forge/client.md`, section 8; `../domain/forge.md`, section 16).
 - **A later start of the forge within one process,** a connect after a
   stop, reads back to the guid the component kept, as far as
-  `log_catch_up` and `log_pages` allow (skein's `forge-connection.md`,
+  `log_catch_up` and `log_pages` allow (skein's `forge/connection.md`,
   6.5).
 - **A gap,** a poll ending on `log_catch_up` or `log_pages` before it
   meets the guid kept, is said once as `Fact::Gap`, which the routing
@@ -999,23 +999,23 @@ values are temper's: `../domain/forge.md`, 5.2 and 5.4.
 
 | Rule | Kept by |
 |---|---|
-| No listing without a filter on a periodic path; no history | the client's one keep-up listing per repository, always `since` (skein's `forge-client.md`, section 4; the listing, skein's `forge.md`, 5.2); the slow pass reads live resources one at a time (`forge-client.md`, section 4) |
-| Calls per pass do not grow with history | one listing per pass, nothing listed by label (skein's `forge-client.md`, section 4); checked by temper's cost checks (10) |
-| Cache by change token | comments and reviews by revision (skein's `forge.md`, 5.3); repositories' paths and users cached (`forge-connection.md`, section 4); a pull request read on a backoff (`forge-client.md`, section 4); a read given a validator is conditional, and its `304` is free (2.7), as each poll of a GitHub App's log (5.1) |
-| One path to CI; never a closed pull request's | statuses of the head only (skein's `forge.md`, 5.2); a closed item leaves the working set when its owner stops naming it (`forge-client.md`, section 3; temper's top, `../domain/forge.md`, 5.1) |
-| API only; `page` and `limit` always; the forge's cap | skein's `forge.md`, 5.1 |
-| Contents only when a decision reads them | a pull request's files and a comparison, read for a brief or an overlap, each file's reads charged (skein's `forge.md`, 5.2; `forge-client.md`, section 6) |
-| Webhooks: hints, answered first, merged, targeted, echoes dropped | skein's `forge.md`, section 7 and `forge-connection.md`, section 6; the client merges hints into one earlier pass (`forge-client.md`, section 4); temper's domain drops its own echoes, by key and by pusher (`../domain/forge.md`, 5.2); a GitHub App's log read every `log_poll`, conditionally (5.1) |
-| Closed items by deltas, not sweeps | the keep-up listing's `since`: a closed item is listed only when it changes, and its owner stops naming it (skein's `forge-client.md`, sections 3 and 4) |
-| Backoff and jitter; honour the rate; no blind retries of writes | the client's backoff and budget (skein's `forge-client.md`, sections 4 and 6); `RateLimited { after }`, Forgejo's `429` and GitHub's pauses alike, and no retry in the component (skein's `forge.md`, 5.4, and `forge-github.md`); each answer's `rate`, the least of which the budget keeps (2.7); keyed creations found again after a `Timeout` (`forge-client.md`, section 7) |
-| Slow cadences; webhooks for latency, polling for liveness | the client's `poll`, `hinted` and `slow`, unchanged by webhooks (skein's `forge-client.md`, section 4); a forge with no hook, or on another host, polls alone (section 5); a GitHub forge polls as a Forgejo one does, its log's hints only cutting the latency (5.1) |
+| No listing without a filter on a periodic path; no history | the client's one keep-up listing per repository, always `since` (skein's `forge/client.md`, section 4; the listing, skein's `forge/forgejo.md`, 1.2); the slow pass reads live resources one at a time (`skein/docs/design/forge/client.md`, section 4) |
+| Calls per pass do not grow with history | one listing per pass, nothing listed by label (skein's `forge/client.md`, section 4); checked by temper's cost checks (10) |
+| Cache by change token | comments and reviews by revision (skein's `forge/forgejo.md`, 1.3); repositories' paths and users cached (`skein/docs/design/forge/connection.md`, section 4); a pull request read on a backoff (`skein/docs/design/forge/client.md`, section 4); a read given a validator is conditional, and its `304` is free (2.7), as each poll of a GitHub App's log (5.1) |
+| One path to CI; never a closed pull request's | statuses of the head only (skein's `forge/forgejo.md`, 1.2); a closed item leaves the working set when its owner stops naming it (`skein/docs/design/forge/client.md`, section 3; temper's top, `../domain/forge.md`, 5.1) |
+| API only; `page` and `limit` always; the forge's cap | skein's `forge/forgejo.md`, 1.1 |
+| Contents only when a decision reads them | a pull request's files and a comparison, read for a brief or an overlap, each file's reads charged (skein's `forge/forgejo.md`, 1.2; `skein/docs/design/forge/client.md`, section 6) |
+| Webhooks: hints, answered first, merged, targeted, echoes dropped | skein's `forge/README.md`, section 6 and `skein/docs/design/forge/connection.md`, section 6; the client merges hints into one earlier pass (`skein/docs/design/forge/client.md`, section 4); temper's domain drops its own echoes, by key and by pusher (`../domain/forge.md`, 5.2); a GitHub App's log read every `log_poll`, conditionally (5.1) |
+| Closed items by deltas, not sweeps | the keep-up listing's `since`: a closed item is listed only when it changes, and its owner stops naming it (skein's `forge/client.md`, sections 3 and 4) |
+| Backoff and jitter; honour the rate; no blind retries of writes | the client's backoff and budget (skein's `forge/client.md`, sections 4 and 6); `RateLimited { after }`, Forgejo's `429` and GitHub's pauses alike, and no retry in the component (skein's `forge/forgejo.md`, 1.4, and `skein/docs/design/forge/github.md`); each answer's `rate`, the least of which the budget keeps (2.7); keyed creations found again after a `Timeout` (`skein/docs/design/forge/client.md`, section 7) |
+| Slow cadences; webhooks for latency, polling for liveness | the client's `poll`, `hinted` and `slow`, unchanged by webhooks (skein's `forge/client.md`, section 4); a forge with no hook, or on another host, polls alone (section 5); a GitHub forge polls as a Forgejo one does, its log's hints only cutting the latency (5.1) |
 
 Nothing the engine writes changes often: it writes the forge only to
 make an effect (`../domain/forge.md`, section 6), never as a heartbeat.
 
 ## 7. Entities and entrance limits
 
-Held by skein's `forge-connection.md`, section 7. temper's values are
+Held by skein's `forge/connection.md`, section 7. temper's values are
 its `limits` member (configuration.md, section 7), set in
 `temper-service`'s profile `small`. By name, those this layer adds:
 
@@ -1034,7 +1034,7 @@ its `limits` member (configuration.md, section 7), set in
   `forges.installations`, the installations a GitHub forge accepts, at
   most the component's `installations` (2.4); `forges.log_origins`, at
   most 32 hosts per forge, default 20 (3.6).
-- **The component's, for GitHub** (skein's `forge-connection.md`, 7.2):
+- **The component's, for GitHub** (skein's `forge/connection.md`, 7.2):
   `installations`, `log_origins`, `key_bytes`, `renew_before` (10 min;
   2.5), `log_poll` (5 s), `log_catch_up` (24 h), `log_pages` (10) and
   `delivery_bytes` (5.1). The component has no defaults: each is
@@ -1063,9 +1063,9 @@ constrain admission.
 
 ## 8. State machines
 
-Held by skein's `forge-connection.md`, section 8: a forge connection
+Held by skein's `forge/connection.md`, section 8: a forge connection
 (8.1), an installation's tokens (8.6) and the delivery log's puller
-(8.7) among them; the setup's runs are skein's `forge-setup.md`'s.
+(8.7) among them; the setup's runs are skein's `forge/setup/README.md`'s.
 
 ### 8.1 A forge's connection, as the routing tells the root
 
@@ -1098,14 +1098,14 @@ each start from the records and the events (`../domain/forge.md`,
 
 ## 9. The fake forge's protocol layer
 
-Held by skein's `fake-forge.md`, section 4, for Forgejo's dialect, and
-skein's `fake-forge.md`, section 10, its GitHub layer, for GitHub's (with skein's
-`forge-github.md`): its App, installations, installation tokens, merge
+Held by skein's `testing/fakes/forge.md`, section 4, for Forgejo's dialect, and
+skein's `testing/fakes/github.md`, section 1, its GitHub layer, for GitHub's (with skein's
+`forge/github.md`): its App, installations, installation tokens, merge
 queue, delivery log, job log redirect, rate windows and pauses, its
 fixed test keys, and its two browser pages answered as redirects, so
 the setup's routes run end to end with no browser.
 
-temper-fake-git's counted ids use skein's `fake-forge.md`, section 3's
+temper-fake-git's counted ids use skein's `testing/fakes/forge.md`, section 3's
 shared 20-byte form: `mix(count)` big-endian (the SplitMix64 finalizer),
 the count big-endian, then four zero bytes, written as forty lowercase
 hex digits. Its encoder is `skein-fake-forge-domain::object_bytes`; its
@@ -1120,9 +1120,9 @@ The tiers, the fakes and the layout are `../domain/testing.md`'s (sections 2,
 4.2 and 7). The kit's own tests are skein's. The forge's, in temper:
 
 - **Step tests** of the documents, the encoders and decoders, the call
-  plans and the marker: skein's `forge.md`, section 11.
+  plans and the marker: skein's `forge/README.md`, section 9.
 - **The machine world** and the protocol world of the component and the
-  fake forge: skein's `forge-connection.md`, section 10.
+  fake forge: skein's `forge/connection.md`, section 10.
 - **temper's protocol world,** `tests/engine/protocol-forge`: temper's
   forge component, which is `skein-forge-connection` handed temper's
   values, and the fake forge's protocol layer, skein's, joined by
@@ -1212,7 +1212,7 @@ The tiers, the fakes and the layout are `../domain/testing.md`'s (sections 2,
   landing on each dialect, are `../domain/testing.md`'s (2.4).
 - **No test calls github.com.** GitHub's dialect runs against skein's
   fake alone. An App's key is one of the fake GitHub layer's fixed test
-  keys (skein's `fake-forge.md`, section 10.1: 2048-bit, made for the
+  keys (skein's `testing/fakes/github.md`, section 1.1: 2048-bit, made for the
   fake and public), the same the real loop's first story seeds, since
   generating one per test is slow; every other credential a test draws
   is a token of random bytes. No test uses a real credential.
@@ -1232,8 +1232,8 @@ The tiers, the fakes and the layout are `../domain/testing.md`'s (sections 2,
     reads aside.
 - **The real Forgejo check,** its transcripts, its facts and the
   throwaway Forgejo it runs against (`../domain/testing.md`, 2.6): skein's
-  `fake-forge.md`, sections 6 and 7.
-- **The pin** is skein's (skein's `forge.md`, 4.3): one patch release of Forgejo
+  `testing/fakes/forge.md`, sections 6 and 7.
+- **The pin** is skein's (skein's `forge/README.md`, 4.3): one patch release of Forgejo
   v17.0 and one of forgejo-runner v13.2, constants the throwaway
   Forgejo, the conformance and owned mode share (setup.md, 6.1); a
   binary of another release is refused, naming it. A later patch changes
@@ -1246,13 +1246,13 @@ The tiers, the fakes and the layout are `../domain/testing.md`'s (sections 2,
 
 The boundary, the configuration and the setup's hooks are sections 2
 and 5's. What an owner owes the component is skein's
-(`forge-connection.md`, section 9). The forge client
+(`forge/connection.md`, section 9). The forge client
 (`skein-forge-client`, owned by temper's forge connector,
 `../domain/forge.md`, section 4) owes the component:
 
 - **`Read::Locate { owner, name }`,** answered `Answer::Located {
   repository }`, addressed with the forge's number and repository 0
-  (skein's `forge.md`, 5.2); its answer's shape checked as every other's,
+  (skein's `forge/forgejo.md`, 1.2); its answer's shape checked as every other's,
   a located id never 0, and its owner and name counted in the call's
   bytes.
 - **Costs,** as the boundary carries them: `Event::Answered { call,
@@ -1261,21 +1261,21 @@ and 5's. What an owner owes the component is skein's
   (`NotConnected`, `NotInstalled`); `free` its `304`s; `rate` the
   window the forge last reported, if any. The budget charges `cost` less
   `free`, and keeps the least `rate` (`../domain/forge.md`, 5.4; skein's
-  `forge-client.md`, section 6).
+  `forge/client.md`, section 6).
 - **The writer,** given by the connector at each `Connected`, since a
   forge's writer is its connect's user (2.2).
   The forge client keeps it as its own record, `writer(d, env, Writer {
   forge, author }, out)`: `Stored::Writer` under `Key::Writer(forge)`,
   in temper's small store under its tag 16, restored
   at start, so a restored effect never meets `Forbidden` (skein's
-  `forge-client.md`, 7.1).
+  `forge/client.md`, 7.1).
 - **Hints,** as the vocabulary has them: `Hint { repository, change, key
   }`, with the pusher on `Change::BranchMoved`, so the domain drops its
-  own echoes (section 5; skein's `forge.md`, section 7).
+  own echoes (section 5; skein's `forge/README.md`, section 6).
 - **Shared limits:** the client's `calls`, `rows`, `answer_bytes`,
   `op_bytes` and `lifetime`, and the forge's `repositories` and
   `name_bytes`, are given to the component too, which sets and checks
-  its own by them (skein's `forge-connection.md`, section 7).
+  its own by them (skein's `forge/connection.md`, section 7).
 
 jig owes the routing its secrets' store under temper's tag (`Keep`,
 `Erase`, `Get` and `Load`, each `Keep` answered once durable), and the
@@ -1288,11 +1288,11 @@ forwards to jig's clients' component to erase.
 
 ## 13. What temper relies on
 
-Held by skein's `forge.md`, section 9: what the component and the forge
-connector rely on of Forgejo, on the pinned release (section 10), each
+Held by skein's `forge/forgejo.md`, section 2: what the component and the forge
+connector rely on of Forgejo, on the pinned release (`forge.md`, section 10), each
 named by its fact in the conformance's `facts.txt` (skein's
-`fake-forge.md`, section 7). What no fact records yet is open: the kit's
-in skein's `forge.md`, sections 9 and 12, temper's own in section 14.
+`testing/fakes/forge.md`, section 7). What no fact records yet is open: the kit's
+in skein's `forge/forgejo.md`, section 2, and `forge/README.md`, section 10, temper's own in `forge.md`, section 14.
 temper's part:
 
 - **What it settles after it delivers.** temper relies on neither order
@@ -1300,11 +1300,11 @@ temper's part:
   `settle` of the move, 30 s in the profile `small`
   (`../domain/forge.md`, 5.2).
 - **The setup's, and git's.** What the setup relies on is skein's
-  (`forge-setup.md`, section 8; setup.md, 13.3); what git relies on of
+  (`forge/setup/forgejo.md`, section 2; setup.md, 13.3); what git relies on of
   Forgejo (a renamed repository's redirect, a protected branch's refusal
-  of a push) is git.md's (section 3 and 4.8), named in
+  of a push) is git.md's (`git.md`, section 3 and 4.8), named in
   `tools/git-transcripts/facts.txt`.
-- **GitHub's,** each a named fact of skein's `forge-github.md`, which
+- **GitHub's,** each a named fact of skein's `forge/github.md`, which
   temper's tests run against skein's fake alone (section 10): the App's
   installations and their tokens' hour, the delivery log and its
   validators, a job log's redirect, the rate windows and their pauses,
@@ -1320,7 +1320,7 @@ temper's part:
   alone identifies no person. Default: adoption's seeds there
   (`setup.md`, section 15; `../draft/forge-identity.md`, section 12).
 - **The kit's own** are skein's: `forge.md`, sections 9 and 12;
-  `forge-connection.md`, section 11; `forge-client.md`, section 11. They
+  `skein/docs/design/forge/connection.md`, section 11; `skein/docs/design/forge/client.md`, section 11. They
   hold every question and every unrecorded fact about the vocabulary, a
   dialect or the component, among them how long threads are read, a
   dismissed review, contents on demand, a file too large, bodies past
@@ -1337,7 +1337,7 @@ temper's part:
     merge itself conditional on its base (`../domain/forge.md`, section
     6).
 - **GitHub's dialect and setup's open questions** are skein's
-  (`forge-github.md`; `forge-setup.md`, GitHub's plans). temper's:
+  (`forge/github.md`; `skein/docs/design/forge/setup/README.md`, GitHub's plans). temper's:
   - **A job log's origin learned at runtime.** Default: the kind's
     list; an origin outside it is named by `Fact::Origin`, and its log
     is not fetched (3.6). A member naming more origins, later. DNS

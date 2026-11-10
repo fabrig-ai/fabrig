@@ -1,4 +1,4 @@
-//! Read refusals, transport failures and table invalidation (forge-github.md, 7).
+//! Read refusals, transport failures and table invalidation (forge/github.md, 7).
 use super::tables::Tables;
 pub use crate::plan::transport;
 use crate::{

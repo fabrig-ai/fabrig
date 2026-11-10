@@ -1,13 +1,13 @@
-//! Owner-provided values and admission (forge-setup.md, 5.1 and 6.3).
+//! Owner-provided values and admission (forge/setup/github.md, 1.1, and forge/setup/README.md, 4.3).
 use super::limits::{self, Limits};
 use alloc::boxed::Box;
 /// Owner's inputs; the checked machine copies these for one run.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Given {
     pub forge: u16,
-    /// Repair the App's hook URL (forge-setup.md, 5.10).
+    /// Repair the App's hook URL (forge/setup/github.md, 1.10).
     pub repair_hook: bool,
-    /// Uninstall unaccepted installations past `state_life` (forge-setup.md, 5.10).
+    /// Uninstall unaccepted installations past `state_life` (forge/setup/github.md, 1.10).
     pub uninstall_strays: bool,
     /// Names the App: `<word>-<six hex>`.
     pub word: Box<[u8]>,

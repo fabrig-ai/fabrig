@@ -1,4 +1,4 @@
-//! Exact GitHub ids (forge-github.md, section 3).
+//! Exact GitHub ids (forge/github.md, section 3).
 use crate::api;
 use skein_lib::bytes;
 /// Reads 40 lowercase hexadecimal digits, zero-padded to 32 bytes.

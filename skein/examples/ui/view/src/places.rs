@@ -1,4 +1,4 @@
-//! Total, bounded paths (ui-web.md, 9).
+//! Total, bounded paths (ui/web/README.md, 7).
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Writer};
 

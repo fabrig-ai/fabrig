@@ -19,7 +19,7 @@ departures and open decisions below keep this draft.
     `../client/README.md`, 3.5, *The `Models` tab*.
 - **Design departs:**
   - 5, *Who reads*: smith's `protocol/agent.md`, 6.1: the agent makes the one request in a process of its own, `--list`, where smith's host half runs it as it runs a program's status, and no run channel carries it, since a run's channel, domain and lifecycle hold nothing a read needs. The worker's channel carries the request and answer (jig's `protocol/channel/records.md`, 1 and 2): decided by the cut of `model-catalogue-3`, 2026-11-07.
-  - 5: skein's `llm.md`, 4.9 reads one page, at most 256 rows by default,
+  - 5: skein's `llm/README.md`, 4.9 reads one page, at most 256 rows by default,
     rather than every page of a provider's list. The cut of
     `model-catalogue-3`, 2026-11-07 chose one bounded request; later pages
     remain jig's `domain/engine/README.md`, section 10's deferred work.

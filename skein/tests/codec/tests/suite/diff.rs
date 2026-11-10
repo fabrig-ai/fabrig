@@ -1,4 +1,4 @@
-//! Kept/current fixture stories (codec.md, 10.6).
+//! Kept/current fixture stories (data/codec/diff.md, 6).
 //! Set `SKEIN_DIFF_WRITE=1` to rewrite `diff/<case>/diff.txt` from the schema pairs.
 
 #[cfg(test)]

@@ -1,4 +1,4 @@
-//! Synthetic provider errors exercise llm.md, sections 4.7 and 4.8's code-first classes.
+//! Synthetic provider errors exercise llm/README.md, sections 4.7 and 4.8's code-first classes.
 use skein_lib::{Duration, Wall};
 use skein_llm::{Call, Failure, Report, client};
 use skein_llm_world::{World, anthropic_call, call, limits_for, response};

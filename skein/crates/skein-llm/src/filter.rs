@@ -1,4 +1,4 @@
-//! Named receive caps and the collector stack (llm.md, section 4.4).
+//! Named receive caps and the collector stack (llm/README.md, section 4.4).
 //! The dialects own static paths; this module supplies their runtime bounds.
 use crate::client;
 use skein_json::{collector, tokenizer};

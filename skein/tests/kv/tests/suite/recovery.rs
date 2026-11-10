@@ -1,4 +1,4 @@
-//! Recovery holds a read and one frame or snapshot chunk (skein/docs/design/kv.md, 3, 7 and 9).
+//! Recovery holds a read and one frame or snapshot chunk (skein/docs/design/data/kv.md, 3, 7 and 9).
 
 use skein_fake_machine::Item;
 use skein_heap::Span;

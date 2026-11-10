@@ -14,12 +14,12 @@
   first two bytes are the core family's version; its `transcript` is
   smith's turn, versioned on its own (smith's `protocol/transcript.md`,
   section 6), so its first two bytes are smith-transcript's version, and
-  the core's schema says so (skein's `codec.md`, section 3):
+  the core's schema says so (skein's `data/codec/README.md`, section 3):
   `transcript: bytes 33554432 holds smith-transcript Turn`, its ceiling
   smith's largest turn (smith's `protocol/limits.md`, 4). No frame is
   rewritten: one behind the binary's versions is patched each time it is
   read (6). The word is core-v6's: it is part of the family's layout
-  and moves no byte (skein's `codec.md`, section 9).
+  and moves no byte (skein's `data/codec/README.md`, section 9).
 - **The map keeps each transcript's places,** in the component's own
   family: its committed length and the offset of its current window's
   first turn, one row per task with a transcript; and each attempt's
@@ -196,7 +196,7 @@ nothing is written.
   already read. A patched record past its machine's bytes or nodes
   halts (`Room`).
 - **A halt is an unread frame.** A frame the machines refuse (any
-  `Halt` of skein's `codec.md`, 11.4, a site's `NoSite` among them) is
+  `Halt` of skein's `data/codec/patches.md`, 4, a site's `NoSite` among them) is
   read as one that fails its checksum (3), in every read kind.
 - **A written site goes up,** as patching's do (`opening.md`, 3): at
   `Step::Written` the component answers `Site` to the read's own token,
@@ -207,7 +207,7 @@ nothing is written.
   site at once, by its owner's generated `written`, with a `Default`
   `Context`, its key set: reads come in any order and a frame is patched
   at each, so a frame's patch reads that frame alone (skein's
-  `codec.md`, 11.5). The component's routing of `Request::Site` follows
+  `data/codec/patches.md`, 5). The component's routing of `Request::Site` follows
   its phase: a walk's while patching, and the read waiting at a site
   while serving, its token the read's; any other is refused, as a site
   no walk waits for is. A shell that hands sets answers `Site` while
@@ -229,8 +229,8 @@ nothing is written.
   do not bound its nodes (a list of empty records takes none), so
   smith's real turn, 4 messages of 128 blocks, takes 1,054,764 nodes,
   and its machine is priced at that capacity from the baseline on, about
-  249 MB with what its tables hold while they grow (skein's `codec.md`,
-  11.7); a machine holds only what the largest record it has met needed
+  249 MB with what its tables hold while they grow (skein's `data/codec/patches.md`,
+  7); a machine holds only what the largest record it has met needed
   (`README.md`, section 11).
 - **Windows across a mark.** A patched turn is the same conversation in
   current bytes, as smith's patch makes it; one of smith's patches may

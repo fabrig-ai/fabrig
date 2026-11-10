@@ -63,7 +63,7 @@ draft carries what the look cannot.
   still open is bold; a list's or a heading's marker still being written
   ("4.", "##") waits for its words; a code fence still open is code.
   skein's reader shows a delimiter never closed as text
-  (`skein/docs/design/ui.md`, section 10), so it takes the growing case
+  (`skein/docs/design/ui/markdown.md`), so it takes the growing case
   as an argument.
 - **Its end:** a small block after the last word, in place of today's
   "Writing...".

@@ -1,7 +1,7 @@
 use super::*;
 use crate::translate::{Undecodable, documents, live};
 use skein_lib::length::len_u64;
-// Two empty rows carry two u32 lengths (skein/docs/design/codec.md, 3).
+// Two empty rows carry two u32 lengths (skein/docs/design/data/codec/README.md, 3).
 #[test]
 fn piece_lengths_share_the_document_byte_bound() {
     const PIECE_BYTES: usize = 8;

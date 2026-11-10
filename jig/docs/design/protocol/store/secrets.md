@@ -1,7 +1,7 @@
 # Secrets
 
 - **A second skein-kv store,** in `secrets/`, opened as a private
-  directory (skein's `io.md`, 5.3): the directory `0o700`, its files
+  directory (skein's `runtime/io/files.md`, 3): the directory `0o700`, its files
   `0o600`, owned by the engine's user. The store, its snapshots and its
   logs hold no secret.
 - **What it keeps,** each under its owner's tag and the number the domain
@@ -14,7 +14,7 @@
   - each signed-in source's record, by the source's number: its tokens,
     the client id the provider issued, the scopes granted and the ID
     token, as skein's accounts driver hands it to keep (skein's
-    `oauth.md`, 6.4; `../llm.md`, 5.1), or as a moved record brought it
+    `oauth/accounts.md`, 4; `../llm.md`, 5.1), or as a moved record brought it
     (`../llm.md`, 5.6);
   - each LLM key, by its source's number, adopted from the value its
     request carried (`../client/README.md`, section 3);
@@ -41,7 +41,7 @@
     and a service's (`[1, 1]`), an expiry of `u64::MAX` for a service's;
   - `Source`, a source's row (`[3, 0]`): a versioned record whose one
     field is an enum of records, `Record { record: secret N holds
-    skein-oauth SavedToken }` (skein's `oauth.md`, 6.4) or `Key { key:
+    skein-oauth SavedToken }` (skein's `oauth/accounts.md`, 4) or `Key { key:
     secret N }`, so a row says which it holds, never guessed from its
     bytes; written and restored by the accounts component, which knows
     which it keeps;
@@ -91,7 +91,7 @@
   (`../README.md`, section 8). A crash between leaves a sign-in no client
   holds a credential for, which expires with its time.
 - **A record kept before lent.** skein's driver takes this store as its
-  keeper (skein's `oauth.md`, 6.4): each new record goes out as a keep,
+  keeper (skein's `oauth/accounts.md`, 4): each new record goes out as a keep,
   which the routing writes here under its source's number, stating the
   digest of the record it replaces, and answers `kept` once it is
   durable; the driver lends the record's token only then. A crash

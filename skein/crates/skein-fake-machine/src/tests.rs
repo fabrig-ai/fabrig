@@ -2,7 +2,7 @@
 //! what it keeps while open and frees once closed, handles issued once,
 //! the most links one resolution follows, where a listing resumes, and a
 //! moved directory's `..`. What it answers, case by case, the suite holds
-//! to the real kernel (kernel.md, 8).
+//! to the real kernel (runtime/kernel.md, 8).
 
 use alloc::vec::Vec;
 

@@ -1,4 +1,4 @@
-//! Startup paths beneath one fake root (skein/docs/design/testing.md, 4).
+//! Startup paths beneath one fake root (skein/docs/design/testing/README.md, 4).
 
 use crate::{How, Machine, Opened, kernel_error};
 use skein_io::kernel::Error;

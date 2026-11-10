@@ -1,5 +1,5 @@
 //! A cut or malformed HTTP exchange, as the failure a caller retries or not
-//! (llm.md, section 2.5).
+//! (llm/README.md, section 2.5).
 #![expect(clippy::wildcard_enum_match_arm, reason = "ordinary tests make focused partial-variant assertions")]
 #![expect(clippy::disallowed_types, reason = "ordinary test code collects the events in Vec")]
 #![expect(clippy::disallowed_methods, reason = "tests slice and search the bytes they deliver")]

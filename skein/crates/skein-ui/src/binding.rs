@@ -1,4 +1,4 @@
-//! Bindings and acts (skein's ui.md, section 6).
+//! Bindings and acts (skein's ui/README.md, section 6).
 
 use crate::Role;
 use alloc::boxed::Box;
@@ -28,7 +28,7 @@ pub enum Act {
     Near { edge: LogEdge },
 }
 
-/// A log's edges; a list reports only its foot (ui.md, section 6).
+/// A log's edges; a list reports only its foot (ui/README.md, section 6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum LogEdge {
     Head,
@@ -42,7 +42,7 @@ pub struct BoundAct {
     pub act: Act,
 }
 
-/// Whether a bound role takes this act (ui.md, section 6).
+/// Whether a bound role takes this act (ui/README.md, section 6).
 #[must_use]
 pub fn takes(role: Role, submits_on_enter: bool, act: &Act) -> bool {
     match role {

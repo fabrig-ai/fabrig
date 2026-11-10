@@ -44,7 +44,7 @@ pub(super) struct Clients {
     public_names: Option<()>,
 }
 
-// Hide printed sign-in links because they carry secrets (skein/docs/design/lib.md, 6).
+// Hide printed sign-in links because they carry secrets (skein/docs/design/runtime/lib.md, 6).
 impl ::core::fmt::Debug for Clients {
     fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
         f.debug_struct("Clients")

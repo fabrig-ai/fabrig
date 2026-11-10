@@ -1,4 +1,4 @@
-//! A sign-in's bounded GETs, retries and move to its visit (oauth.md, section 3).
+//! A sign-in's bounded GETs, retries and move to its visit (oauth/README.md, section 3).
 use super::{
     Awaits, Client, ClientLimits, Exchange, Failure, HttpEvidence, HttpRequest, HttpResponse, Method, Phase,
     Registration, Request,

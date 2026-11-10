@@ -1,4 +1,4 @@
-//! Runtime forge membership (skein/docs/design/forge-connection.md, 3.1).
+//! Runtime forge membership (skein/docs/design/forge/connection.md, 3.1).
 use super::{Component, Event, ForgeEntry, Limits, find};
 use crate::settings::Forge;
 use skein_forge::api;

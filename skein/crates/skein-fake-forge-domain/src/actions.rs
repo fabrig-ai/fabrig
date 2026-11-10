@@ -1,4 +1,4 @@
-//! Actions runs and jobs retained separately for commit CI and dispatches (fake-forge.md, 2.3).
+//! Actions runs and jobs retained separately for commit CI and dispatches (testing/fakes/forge.md, 2.3).
 use crate::api::{Answer, Check, Cue, Error, JobRef, What};
 use crate::domain::{self, Config, Domain};
 use crate::store::Repository;
@@ -22,7 +22,7 @@ pub enum Conclusion {
     Failure,
 }
 
-/// A run's identity and current outcome (forge.md, 5.2).
+/// A run's identity and current outcome (forge/forgejo.md, 1.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Run {
     pub id: u64,

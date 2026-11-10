@@ -1,4 +1,4 @@
-//! Account admission and removal through owner entrances (oauth.md, section 6.3).
+//! Account admission and removal through owner entrances (oauth/accounts.md, section 3).
 
 use super::*;
 use private::{Owner, private_keeper};
@@ -12,7 +12,7 @@ struct Sent {
 
 const ADDED: u32 = 7;
 const PATH_BOUND: usize = 4096; // Private paths must be shorter than io's bound.
-const NAME_BYTES: usize = 8; // oauth.md, 6.2: a tag and a u32, including wanted.
+const NAME_BYTES: usize = 8; // oauth/accounts.md, 2: a tag and a u32, including wanted.
 const STATE_BYTES: usize = 192; // The 176-byte record state plus a 16-byte earliest Time.
 const ROOMY_ACCOUNTS: u32 = 3; // One configured account and two added places.
 const ADDRESS: core::net::SocketAddr =

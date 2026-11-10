@@ -1,4 +1,4 @@
-//! Fail-stop restarts, outside the application's small store (ui-web.md, 5).
+//! Fail-stop restarts, outside the application's small store (ui/web/README.md, 4).
 use skein_lib::{Duration, Wall};
 
 #[cfg(target_arch = "wasm32")]

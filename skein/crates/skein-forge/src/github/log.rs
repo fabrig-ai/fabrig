@@ -1,4 +1,4 @@
-//! The App's delivery log values (forge-github.md, 9.3).
+//! The App's delivery log values (forge/github.md, 9.3).
 use crate::api;
 use alloc::boxed::Box;
 use skein_lib::Wall;

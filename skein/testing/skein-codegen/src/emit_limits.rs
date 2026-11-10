@@ -1,6 +1,6 @@
 #![expect(clippy::format_push_string, reason = "generator assembles reviewed source fragments")]
 
-//! Limits and typed field paths for codec.md, section 4.
+//! Limits and typed field paths for data/codec/README.md, section 4.
 
 use crate::{Declaration, analysis::Context};
 

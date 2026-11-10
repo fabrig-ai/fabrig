@@ -44,7 +44,7 @@ error
 - **In a JSON string or key,** a fault of what is written, which skein's
   tokenizer finds (`Escape`, `Surrogate`, `Utf8`, `Control`,
   `StringTooLong`), is where the tokenizer places it: the first byte of
-  the character or the escape at fault (skein/docs/design/json.md, 3.6). A fault
+  the character or the escape at fault (skein/docs/design/data/json.md, 3.6). A fault
   of the text decoded, which hearth finds once the tokenizer has read
   the string (U+0000, a name out of form, an expression's syntax), is
   at its opening quote: a decoded string keeps no escapes, so its bytes

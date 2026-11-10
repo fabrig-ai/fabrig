@@ -1,7 +1,7 @@
-// The ring adapter's own (shell.md, 9).
+// The ring adapter's own (runtime/shell.md, 8).
 #![cfg(target_os = "linux")]
 
-//! The ring adapter's own tests (shell.md, 9), against the real kernel on
+//! The ring adapter's own tests (runtime/shell.md, 8), against the real kernel on
 //! loopback: [`World`], a kernel driven by hand, whose records go down one
 //! at a time and whose completions are checked against the contract of
 //! `skein_io::kernel` as they come up. The tests are `tests/ring.rs`.

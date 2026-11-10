@@ -1,11 +1,11 @@
 //! The byte vocabulary every stream boundary shares (programming-model.md,
-//! 4.3; lib.md, 7): reading is a demand, writing is a move.
+//! 4.3; runtime/lib.md, 7): reading is a demand, writing is a move.
 //!
 //! The side above says what it needs with a [`Down::Demand`] and moves its
 //! output down in [`Down::Send`]; the side below answers with [`Up`]. The side
 //! below holds the bytes received but not yet demanded, in an
 //! [`Intake`](crate::Intake). Every side below meets the contract of a stream
-//! (lib.md, 7), which the comments here sum up.
+//! (runtime/lib.md, 7), which the comments here sum up.
 //! [`Held`] and [`Slice`] serve complete buffers through that same contract.
 
 use alloc::boxed::Box;
@@ -42,7 +42,7 @@ pub enum Read {
     Line { max: u32 },
     /// What has arrived: everything held once a byte is held, at most
     /// `max`. The maximum is positive, asserted below, and may exceed the
-    /// side below's capacity: it never waits to fill it (lib.md, 7).
+    /// side below's capacity: it never waits to fill it (runtime/lib.md, 7).
     Arrived { max: u32 },
 }
 

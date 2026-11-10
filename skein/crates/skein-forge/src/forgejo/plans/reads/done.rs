@@ -1,4 +1,4 @@
-//! Terminal documents and the next exchange of a JSON read (skein/docs/design/forge.md, 5.2).
+//! Terminal documents and the next exchange of a JSON read (skein/docs/design/forge/forgejo.md, 1.2).
 use super::{
     Bounds, Plan, Request, Roster, State, Step, Tables, Whose, api, bytes, d, keep_document, reading, size, terminal,
 };
@@ -51,7 +51,7 @@ impl Plan {
         }
     }
     #[expect(clippy::too_many_lines, reason = "each read state consumes its exchange's terminal document")]
-    #[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
+    #[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2")]
     fn done(
         &mut self,
         state: State,
@@ -252,28 +252,28 @@ impl Plan {
 fn ended(answer: api::Answer, bounds: Bounds) -> Result<(State, Option<Step>), api::Error> {
     Ok((State::Ended, Some(terminal(answer, bounds)?)))
 }
-#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
+#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2")]
 fn repository(document: d::Document) -> Result<d::Repository, api::Error> {
     match document {
         d::Document::Repository(repository) => Ok(repository),
         _ => Err(api::Error::InvalidAnswer),
     }
 }
-#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
+#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2")]
 fn pull(document: d::Document) -> Result<d::PullRequest, api::Error> {
     match document {
         d::Document::Pull(pull) => Ok(pull),
         _ => Err(api::Error::InvalidAnswer),
     }
 }
-#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
+#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2")]
 fn listed(document: d::Document) -> Result<u32, api::Error> {
     match document {
         d::Document::Listed { skipped } => Ok(skipped),
         _ => Err(api::Error::InvalidAnswer),
     }
 }
-#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
+#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2")]
 fn check_repository(state: &State, document: &d::Document, expected: u32) -> Result<(), api::Error> {
     let id = match document {
         d::Document::Repository(repository) => u32::try_from(repository.id),

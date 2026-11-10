@@ -1,4 +1,4 @@
-//! Written shelf weight (codec.md 11.5).
+//! Written shelf weight (skein/docs/design/data/codec/patches.md 5).
 use super::Context;
 use super::kept::fixture_shelf::p0002::old;
 use super::refusal::p0002::EMPTY;

@@ -1,4 +1,4 @@
-//! JSON lines for the promises judge (fake-forge.md, section 2.4).
+//! JSON lines for the promises judge (testing/fakes/forge.md, section 2.4).
 use skein_fake_forge_domain::promises::Recorded;
 use skein_fake_forge_domain::{Observation, Operation, api as a};
 use skein_json::writer::{Encoder, Limits as WriteLimits};

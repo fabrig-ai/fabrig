@@ -127,12 +127,12 @@ pub enum Request {
         name: Box<[u8]>,
         private: bool,
     },
-    /// Copies a public repository by migration (skein/docs/design/forge-setup.md, 4.3).
+    /// Copies a public repository by migration (skein/docs/design/forge/setup/forgejo.md, 1.3).
     Migrate {
         at: Repo,
         from: Box<[u8]>,
     },
-    /// Deletes a repository without a document (skein/docs/design/forge-setup.md, 4.3).
+    /// Deletes a repository without a document (skein/docs/design/forge/setup/forgejo.md, 1.3).
     DeleteRepository {
         at: Repo,
     },

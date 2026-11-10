@@ -28,7 +28,7 @@ struct RequestLine {
     version: Version,
 }
 
-// skein/docs/design/http.md, 2: a request line prints its target's length.
+// skein/docs/design/net/http/README.md, 2: a request line prints its target's length.
 impl core::fmt::Debug for RequestLine {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("RequestLine")

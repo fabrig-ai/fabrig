@@ -72,7 +72,7 @@ pub(super) fn limits() -> fake::Limits {
         git_records: 16,
     }
 }
-/// Scenario tables over the shared defaults (skein/docs/design/fake-forge.md, 10.6).
+/// Scenario tables over the shared defaults (skein/docs/design/testing/fakes/github.md, 1.6).
 pub(super) fn config() -> fake::Config {
     let mut repositories = List::with_capacity(1);
     repositories

@@ -1,4 +1,4 @@
-//! Files through the machine seam (simulator.md, 3): the calls the
+//! Files through the machine seam (testing/simulator.md, 3): the calls the
 //! simulator passes to the minimal fake machine and the completions it
 //! makes of the answers, each broken invariant of the operations on files,
 //! the seam's own checks, and each fault the simulator draws for files.
@@ -115,7 +115,7 @@ fn opens_in_flight_hold_their_descriptors_against_the_limit() {
 }
 
 /// Each fault the simulator draws for files falls where the contract allows
-/// it, the operation doing nothing (simulator.md, 4).
+/// it, the operation doing nothing (testing/simulator.md, 4).
 #[test]
 fn each_failure_falls_on_the_operations_that_may_answer_it() {
     let every = Faults { no_space: 1000, ..Faults::NONE };

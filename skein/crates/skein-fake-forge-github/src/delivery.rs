@@ -1,4 +1,4 @@
-//! GitHub deliveries and their bounded log (fake-forge.md, 10.3).
+//! GitHub deliveries and their bounded log (testing/fakes/github.md, 1.3).
 use crate::{
     answers,
     service::{ContentType, Problem, Response},

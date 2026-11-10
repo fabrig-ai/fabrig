@@ -132,7 +132,7 @@ pub fn to_bot(run: &mut Run) {
     run.step(Event::Read(Some(secret(ADMIN))));
     run.step(Event::Reply(Reply::Document(Document::User(admin()))));
 }
-// Shared profile and small page sizes from forge-setup.md, 4.3 and 4.4.
+// Shared profile and small page sizes from forge/setup/forgejo.md, 1.3 and 1.4.
 pub const PROFILE_REACHABLE: u32 = 4;
 pub const PROFILE_ORGS: u32 = 8;
 pub const PROFILE_REPOSITORIES: u32 = 8;

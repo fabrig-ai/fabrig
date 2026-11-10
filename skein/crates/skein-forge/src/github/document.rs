@@ -1,12 +1,12 @@
-//! Fields kept from GitHub's first documents (forge-github.md, section 6).
+//! Fields kept from GitHub's first documents (forge/github.md, section 6).
 use crate::api;
 use alloc::boxed::Box;
 use skein_lib::{Secret, Wall};
-/// The identity document sent on an installation token (forge-github.md, 4.3).
+/// The identity document sent on an installation token (forge/github.md, 4.3).
 pub const VIEWER: &[u8] = b"query { viewer { login databaseId } }";
-/// Pull identity, landed commit and merge queue facts (forge-github.md, 4.3).
+/// Pull identity, landed commit and merge queue facts (forge/github.md, 4.3).
 pub const PULL: &[u8] = b"query($owner: String!, $name: String!, $number: Int!) { repository(owner: $owner, name: $name) { pullRequest(number: $number) { id mergeCommit { oid } mergeQueueEntry { position } timelineItems(last: 1, itemTypes: [REMOVED_FROM_MERGE_QUEUE_EVENT]) { nodes { ... on RemovedFromMergeQueueEvent { reason } } } } } }";
-/// Expected-head queue admission (forge-github.md, 4.3).
+/// Expected-head queue admission (forge/github.md, 4.3).
 pub const ENQUEUE: &[u8] = b"mutation($id: ID!, $head: GitObjectID!) { enqueuePullRequest(input: {pullRequestId: $id, expectedHeadOid: $head}) { mergeQueueEntry { position } } }";
 /// The document a decoder expects.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -180,7 +180,7 @@ pub struct Installation {
     pub suspended: bool,
 }
 
-/// Installation access levels kept from a full token mint (forge-github.md, 8.2).
+/// Installation access levels kept from a full token mint (forge/github.md, 8.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Level {
     None,
@@ -307,7 +307,7 @@ pub struct Permission {
     pub access: Access,
 }
 
-/// The account that owns an App (forge-github.md, section 11).
+/// The account that owns an App (forge/github.md, section 11).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct AppOwner {
     pub id: u64,
@@ -315,7 +315,7 @@ pub struct AppOwner {
     pub kind: Account,
 }
 
-/// The App identity, account and grants (forge-github.md, section 11).
+/// The App identity, account and grants (forge/github.md, section 11).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct App {
     pub id: u64,
@@ -508,7 +508,7 @@ pub struct PullGraphql {
     pub dequeued: Option<Box<[u8]>>,
 }
 
-/// Rules kept from either GitHub protection source (forge-github.md, 5.3).
+/// Rules kept from either GitHub protection source (forge/github.md, 5.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent protection facts")]
 pub struct Protection {

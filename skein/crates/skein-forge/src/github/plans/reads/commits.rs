@@ -1,4 +1,4 @@
-//! A single oldest-first commit range page (forge-github.md, 4.5).
+//! A single oldest-first commit range page (forge/github.md, 4.5).
 use super::{Bounds, Plan, Read, Request, Response, Stage, Step, api, document, size};
 use crate::github::plans::plan::{Comparison, Exchange};
 use skein_lib::{List, len_u64, usize_of};

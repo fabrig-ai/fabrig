@@ -1,4 +1,4 @@
-//! The conformance suite against the simulator (kernel.md, 8): every
+//! The conformance suite against the simulator (runtime/kernel.md, 8): every
 //! scenario of `skein_conformance`, over seeds, in a calm world and with the
 //! faults loopback can show. The same scenarios run against the ring in
 //! `tests/conformance/real`.
@@ -70,7 +70,7 @@ impl Backend for Simulated {
     }
 
     /// Submits, then has the machine answer what the simulator asked of
-    /// it, as a world does after each submit (simulator.md, 3.1).
+    /// it, as a world does after each submit (testing/simulator.md, 3.1).
     fn submit(&mut self, process: Pid, records: &mut Queue<Submit>) {
         self.sim.submit(process, records);
         serve(&mut self.machine, &mut self.sim);

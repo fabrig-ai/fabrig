@@ -7,7 +7,7 @@ beside the programming model, for every tree. Where a tree doesn't
 follow it yet, a check's exception says so, and its exceptions only
 shrink (section 9). The reasons are the user's, of 2026-11-08
 (`temper/docs/design/draft/notes.md`, 13). skein's mechanism for it is
-`skein-shell`'s table (`../design/shell.md`, 15).
+`skein-shell`'s table (`../design/runtime/shell.md`, 14).
 
 ## 1. In one page
 
@@ -133,7 +133,7 @@ shrink (section 9). The reasons are the user's, of 2026-11-08
   Each entry has its name, its set, its form, one line, what holds when
   it's absent, and notes.
 - **The table's types and their rendering are skein's,** in
-  `skein-shell` beside its settings (`../design/shell.md`, 6.5 and 15),
+  `skein-shell` beside its settings (`../design/runtime/shell.md`, 6.5 and 14),
   so every tree's binaries share one format. A tree's rows are its own.
 - **Code reads the process's arguments and environment once,** in the
   binary's crate, through the table.

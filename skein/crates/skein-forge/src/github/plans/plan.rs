@@ -1,4 +1,4 @@
-//! One call's exchanges and its single terminal answer (forge.md, 3.2).
+//! One call's exchanges and its single terminal answer (forge/README.md, 3.2).
 use super::{Heard, reads, tables::Tables, writes};
 use crate::{api, github::request};
 use alloc::boxed::Box;

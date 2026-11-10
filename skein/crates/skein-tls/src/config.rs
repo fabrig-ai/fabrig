@@ -1,11 +1,11 @@
-//! What a service hands the TLS client as data (tls.md, 3.4; shell.md, 6):
+//! What a service hands the TLS client as data (net/tls.md, 3.4; runtime/shell.md, 6):
 //! the roots it trusts and the protocols it offers by ALPN, made once at
 //! startup into a [`Config`] every connection shares, and each connection's
 //! server name, a [`Name`].
 
 #![expect(
     clippy::disallowed_types,
-    reason = "rustls takes its configuration in an Arc that every connection shares, its time from a provider behind one, and its protocols in Vecs (tls.md, 4)"
+    reason = "rustls takes its configuration in an Arc that every connection shares, its time from a provider behind one, and its protocols in Vecs (net/tls.md, 4)"
 )]
 
 use alloc::boxed::Box;
@@ -27,7 +27,7 @@ use skein_lib::Wall;
 pub const ALPN: usize = 256;
 
 /// What every connection of a service shares, made at startup from its
-/// configuration (shell.md, 6): the roots it trusts, the protocols it offers
+/// configuration (runtime/shell.md, 6): the roots it trusts, the protocols it offers
 /// by ALPN, and rustls's configuration built from them, with ring for its
 /// cryptography.
 ///
@@ -50,7 +50,7 @@ pub enum Refusal {
     /// of them take more than [`ALPN`] bytes.
     Alpn,
     /// The crypto provider has no suite of TLS 1.2 or 1.3: ring's has both.
-    /// Also refuses the portable target, where a world runs in plaintext (testing.md, 10).
+    /// Also refuses the portable target, where a world runs in plaintext (testing/README.md, 10).
     Provider,
 }
 
@@ -63,13 +63,13 @@ pub struct Parsed {
 
 impl Config {
     /// Trusts the DER roots rustls parses with supported key algorithms,
-    /// offering `alpn`; counts the rest as skipped (tls.md, 3.4).
+    /// offering `alpn`; counts the rest as skipped (net/tls.md, 3.4).
     /// Refuses `Roots` when none were taken, and keeps the ALPN refusals.
     /// The shell bounds the input count to `u32`; a larger slice is a bug.
     pub fn from_der(roots: &[Box<[u8]>], alpn: &[&[u8]]) -> Result<(Config, Parsed), Refusal> {
         if cfg!(all(target_arch = "wasm32", target_os = "unknown")) {
             // TLS is not available on the portable target: a world runs in plaintext
-            // (testing.md, 10).
+            // (testing/README.md, 10).
             return Err(Refusal::Provider);
         }
         let count = u32::try_from(roots.len()).expect("startup roots have a u32 count bound");
@@ -96,7 +96,7 @@ impl Config {
     pub fn new(roots: RootCertStore, alpn: &[&[u8]]) -> Result<Config, Refusal> {
         if cfg!(all(target_arch = "wasm32", target_os = "unknown")) {
             // TLS is not available on the portable target: a world runs in plaintext
-            // (testing.md, 10).
+            // (testing/README.md, 10).
             return Err(Refusal::Provider);
         }
         Config::with_provider(roots, alpn, ring::default_provider())
@@ -104,12 +104,12 @@ impl Config {
 
     /// As [`Config::new`], with `provider` for the cryptography in place of
     /// ring's own: for a test that changes a suite, as its keys' limit. Not
-    /// for a service, whose exception is ring (tls.md, 4).
+    /// for a service, whose exception is ring (net/tls.md, 4).
     #[doc(hidden)]
     pub fn with_provider(roots: RootCertStore, alpn: &[&[u8]], provider: CryptoProvider) -> Result<Config, Refusal> {
         if cfg!(all(target_arch = "wasm32", target_os = "unknown")) {
             // TLS is not available on the portable target: a world runs in plaintext
-            // (testing.md, 10).
+            // (testing/README.md, 10).
             return Err(Refusal::Provider);
         }
         if roots.is_empty() {
@@ -201,7 +201,7 @@ impl Name {
         }
     }
 
-    /// Reads this name without allocating (tls.md, 3.4).
+    /// Reads this name without allocating (net/tls.md, 3.4).
     #[must_use]
     pub fn server(&self) -> Server<'_> {
         match &self.0 {

@@ -1,4 +1,4 @@
-//! The checks and accessors on both sides of their bounds (codec.md, 8.3).
+//! The checks and accessors on both sides of their bounds (data/codec/README.md, 8.3).
 
 #![expect(clippy::disallowed_types, reason = "value boundary fixtures assemble schemas and bytes")]
 #![expect(clippy::disallowed_macros, reason = "tests format Debug to check that content is redacted")]
@@ -310,7 +310,7 @@ fn text_checks_noncanonical_utf8_and_accepts_multibyte_at_bound() {
 
 #[test]
 fn enumeration_accepts_the_last_of_all_256_tags() {
-    const TAGS: u32 = 256; // codec.md, 7.2: every one-byte tag.
+    const TAGS: u32 = 256; // data/codec/README.md, 7.2: every one-byte tag.
     let mut text = String::from("family f 1 enum E {");
     for index in 0..TAGS {
         write!(text, "v{index} ").expect("String write");

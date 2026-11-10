@@ -1,4 +1,4 @@
-//! The App's signed token cache (forge-connection.md, 5.2).
+//! The App's signed token cache (forge/connection.md, 5.2).
 
 use skein_forge::github::jwt;
 use skein_lib::{Duration, Secret, Wall};

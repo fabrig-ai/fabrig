@@ -1,4 +1,4 @@
-//! Poll tab reads until the script's deadline (skein/docs/design/ui-web.md, 14.2).
+//! Poll tab reads until the script's deadline (skein/docs/design/ui/web/testing.md, 2).
 use super::TabSeen;
 use crate::BrowserFace;
 use skein_browser::boundary::Tab;

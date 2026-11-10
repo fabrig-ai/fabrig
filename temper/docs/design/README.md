@@ -175,7 +175,7 @@ forge, temper adds:
   the binary, the configuration, the credentials, temper's parts on the
   workers' channel, its families in the store, the host tools and LLM
   accounts, the forge's protocol on skein's forge kit (skein's
-  `forge.md`), git, and the forge's setup. Its `README.md` gives the
+  `forge/README.md`), git, and the forge's setup. Its `README.md` gives the
   reading order and the names.
 - **`client/`:** temper's client on `jig-client`. Its `README.md` is the
   client: its client root and pages, the forge's client family, its view,
@@ -219,7 +219,7 @@ forge, temper adds:
 - **smith's documents** likewise: smith's `domain/run.md`. skein's
   foundation documents by their own names: `programming-model.md`,
   `testing-strategy.md`, `notes.md`; skein's design documents with
-  skein's name: skein's `lib.md`.
+  skein's name: skein's `runtime/lib.md`.
 - **Each document** says in one page what it is, then its structure, its
   parts, what it owes and is owed below the domain, its world, and what
   is open. It states the contract; where the code lags or departs is its

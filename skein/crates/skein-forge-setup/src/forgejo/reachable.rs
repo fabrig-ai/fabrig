@@ -1,4 +1,4 @@
-//! One page of a forge's repositories for the picker (forge-setup.md, 4.8).
+//! One page of a forge's repositories for the picker (forge/setup/forgejo.md, 1.8).
 use crate::forgejo::admin::{self, Admin};
 use crate::forgejo::{Reply, reply, unexpected};
 use crate::{
@@ -14,7 +14,7 @@ use skein_forge::forgejo::{
 };
 use skein_lib::{Decimal, List, Queue, Secret, bytes, usize_of};
 
-/// One repository of a picker's page (forge-setup.md, 4.8, step 4).
+/// One repository of a picker's page (forge/setup/forgejo.md, 1.8, step 4).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Reached {
     pub id: u64,
@@ -35,7 +35,7 @@ enum State {
     Ended,
 }
 
-/// Whose token reads the page (forge-setup.md, 4.8, step 1).
+/// Whose token reads the page (forge/setup/forgejo.md, 1.8, step 1).
 #[derive(Debug)]
 enum Token {
     Admin,

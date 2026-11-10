@@ -8,7 +8,7 @@ user that day, whose turns shaped it: the records before the formats on
 disk, and a patch landed with each change, as an application migrates
 its database. It crosses skein, smith, jig and temper on purpose; an
 owner splits it. Nothing here is adopted, and nothing changes today's
-development: the baseline is the first release (skein's `codec.md`,
+development: the baseline is the first release (skein's `data/codec/README.md`,
 section 5), and until then the rules of section 4.1 hold. Commands'
 spellings are placeholders.
 
@@ -35,7 +35,7 @@ spellings are placeholders.
 - **Any store from the baseline on upgrades to any later `main`,** so a
   deployment may follow `main`. The baseline is the first release;
   until it, versions stay fixed and schemas change in place (4.1;
-  skein's `codec.md`, section 5).
+  skein's `data/codec/README.md`, section 5).
 - **A copy is patched, never the store in use** (section 6): a start
   copies the records' and the secrets' maps into a new generation,
   patches the copy, opens it as any start does, and switches to it by
@@ -144,7 +144,7 @@ transcripts, the forge or the programs' logins. Online backups stay open
 
 ### 4.1 Before the baseline
 
-The baseline is the first release (skein's `codec.md`, section 5).
+The baseline is the first release (skein's `data/codec/README.md`, section 5).
 Until it, each encoding keeps its current version: changes a reader
 would notice change the schema, generated code and one set of golden
 bytes in place (`../protocol/README.md`, section 9). A reader still
@@ -168,7 +168,7 @@ release, not at a landing; `first-release.md` proposes v0.1.0.
   by the patching's last commit.
 - **Versions move at a release,** so a released version names one
   layout. Before the baseline, schema changes keep the current number
-  (`../protocol/README.md`, section 9; skein's `codec.md`, section 5).
+  (`../protocol/README.md`, section 9; skein's `data/codec/README.md`, section 5).
 - **A landed patch never changes.** Until it lands, its author edits it
   with the schema; once on `main`, deployments may have run it. Two
   branches that each add jig's patch 41 meet at `land`, whose rebase and
@@ -181,13 +181,13 @@ in its owner's crate beside the schemas. By kind:
 
 - **None needed:** a change every old value survives byte for byte. A
   field or variant renamed, a variant appended, a bound widened, a
-  variant marked `boxed` (skein's `codec.md`, section 3). The family
+  variant marked `boxed` (skein's `data/codec/README.md`, section 3). The family
   keeps its version and no level moves, while its kept text is not
   frozen. Once a landed patch names the family's version, its kept text
   is frozen: an appended variant, a widened bound or an added
   declaration also takes a patch the command writes, and a version move.
   A rename or a dropped declaration stays none needed. This is the
-  user's rule (skein's `codec.md`, 12.2 step 3), and it applies from
+  user's rule (skein's `data/codec/command.md`, 2 step 3), and it applies from
   the first release on, since no version moves before then (4.1).
 - **Derived:** a field added, with the value every old record takes; a
   field dropped; an integer widened; a type wrapped in `option`;
@@ -217,7 +217,7 @@ What every patch keeps:
 ### 4.4 Values nested in another owner's
 
 - **Opaque bytes, said what they hold.** A record of another family is a
-  `bytes N` field, decoded by its own family's code (skein's `codec.md`,
+  `bytes N` field, decoded by its own family's code (skein's `data/codec/README.md`,
   section 3): temper keeps jig's refusals as `refusal: bytes 517`. Its
   schema says what such a field holds, another family's type or pieces of
   a type of its own, so a patch of that type reaches it wherever it is
@@ -251,7 +251,7 @@ What every patch keeps:
 
 - **Kept as text.** Each family's schema at every version from the
   baseline on is kept as its text in its owner's crate; only the current
-  one is generated into code, as today (skein's `codec.md`, section 4).
+  one is generated into code, as today (skein's `data/codec/README.md`, section 4).
 - **Generic values.** skein-codec reads a schema and decodes bytes of it
   into a tree of generic values (records, variants, integers, bytes,
   lists, options), and encodes a tree back, with the generated code's
@@ -269,7 +269,7 @@ What every patch keeps:
   operations (`programming-model.md`, 6.3).
 - **Small:** about 1,750 lines of jig's store schemas and 190 of
   temper's at 2026-10-23, in a language of a handful of types (skein's
-  `codec.md`, section 3).
+  `data/codec/README.md`, section 3).
 
 ## 6. Patching a copy
 
@@ -307,7 +307,7 @@ What every patch keeps:
 5. **Open** the copy as any start does (6.4).
 6. **Switch:** `active` replaced by io's replacement sequence: written
    beside, synced, renamed over, the directory synced (skein's
-   `io.md`). One rename, never two standing for one.
+   `runtime/io/README.md`). One rename, never two standing for one.
 7. **Drop** the generation before the previous one.
 
 - **A crash before the switch** leaves the old generation active and
@@ -320,7 +320,7 @@ What every patch keeps:
 ### 6.2 skein-kv as it is
 
 - **The copy opens as any store does:** skein-kv recovers its snapshot
-  and the log's longest valid prefix (skein's `kv.md`, section 3), and
+  and the log's longest valid prefix (skein's `data/kv.md`, section 3), and
   jig's store checks its format row and the deployment's header (jig's
   `protocol/store/opening.md`).
 - **Patches are ordinary commits** through jig's store, each within
@@ -592,7 +592,7 @@ upgrade, then the engine alone.
 ## 15. Open questions
 
 - **When the first release is.** Its date is open; it is the baseline
-  (skein's `codec.md`, section 5). Until then, section 4.1.
+  (skein's `data/codec/README.md`, section 5). Until then, section 4.1.
 - **A bug in a landed patch,** found after deployments ran it. Default:
   fixed in place for those yet to run it, its fix declared to the gate;
   a later patch repairs those that ran it, where the old evidence allows.

@@ -1,6 +1,6 @@
 //! Owned payload caps checked at admission.
 //!
-//! Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, sections 4.4 and 6.3.
+//! Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, sections 4.4 and 6.3.
 
 use alloc::boxed::Box;
 use core::mem::size_of;
@@ -139,7 +139,7 @@ pub(crate) fn answer(answer: &Answer) -> Option<u64> {
 
 /// The bytes of a scripted answer before any payload is copied.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 pub(crate) fn scripted_answer(turn: &Turn) -> Option<u64> {
     let mut total = len_u64(turn.lines.len()).checked_mul(u64::try_from(size_of::<Part>()).ok()?)?;
     for line in &turn.lines {

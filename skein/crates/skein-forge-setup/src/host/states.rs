@@ -1,4 +1,4 @@
-//! Bounded one-time authority for setup callbacks (forge-setup.md, 5.7).
+//! Bounded one-time authority for setup callbacks (forge/setup/github.md, 1.7).
 use crate::reconcile::{Failure, Stage, Why};
 use alloc::boxed::Box;
 use skein_lib::{Duration, Queue, Time, bytes::hex_digit};
@@ -90,7 +90,7 @@ impl States {
     pub(super) fn clear(&mut self) {
         self.entries.clear();
     }
-    /// Removal forgets all callback authority for this forge (skein/docs/design/forge-setup.md, 6.3).
+    /// Removal forgets all callback authority for this forge (skein/docs/design/forge/setup/README.md, 4.3).
     pub(super) fn remove(&mut self, forge: u16) {
         for _ in 0..self.entries.len() {
             let entry = self.entries.pop().expect("bounded traversal");

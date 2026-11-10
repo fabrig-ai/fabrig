@@ -150,7 +150,7 @@ def full_limits(source, name, tree, repository):
     Braces inside field expressions do not end the literal; nested ranges
     and nested struct updates do not count as an update of the outer Limits.
     Declarations, impl bodies, function bodies and destructuring are skipped.
-    A `file_layer::Limits` is skipped: skein/docs/design/io.md, 5, has each reader
+    A `file_layer::Limits` is skipped: skein/docs/design/runtime/io/files.md, has each reader
     write its bounds out and keep them, so that literal is the new form.
     """
     tokens = RUST_TOKEN.findall(source)

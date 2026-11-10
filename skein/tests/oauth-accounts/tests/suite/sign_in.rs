@@ -222,7 +222,7 @@ fn a_private_return_sends_the_browser_back_with_303() {
     drop(sign_in::run_private_return(91));
 }
 
-// oauth.md, 6.5 bounds owner pastes refused for state.
+// oauth/accounts.md, 5 bounds owner pastes refused for state.
 const STATE_REFUSAL_BOUND: u32 = 4;
 
 const PASTED_AND_GRANTED: &[sign_in::Fact] = &[

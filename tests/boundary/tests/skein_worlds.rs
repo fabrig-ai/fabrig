@@ -1,4 +1,4 @@
-//! A world's library is its own (skein/docs/design/testing.md, 6): no package
+//! A world's library is its own (skein/docs/design/testing/README.md, 6): no package
 //! depends on a package under skein/tests/, and no #[path] leaves its package.
 
 use std::fs;
@@ -88,7 +88,7 @@ fn world_edges(packages: &[Package]) -> Vec<String> {
     failures
 }
 
-/// The seam's one world (skein/docs/design/forge-connection.md, 10).
+/// The seam's one world (skein/docs/design/forge/connection.md, 10).
 fn seam_edges(packages: &[Package]) -> Vec<String> {
     let mut failures = Vec::new();
     for package in packages {
@@ -267,7 +267,7 @@ fn skein_worlds_are_private_to_their_packages() {
     failures.extend(path_crossings(&root));
     assert!(
         failures.is_empty(),
-        "A world's library is its own (skein/docs/design/testing.md, 6):\n{}",
+        "A world's library is its own (skein/docs/design/testing/README.md, 6):\n{}",
         failures.join("\n")
     );
 }

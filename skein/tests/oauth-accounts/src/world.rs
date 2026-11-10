@@ -1,5 +1,5 @@
 //! Accounts and independent fake issuer processes, joined through shared world
-//! scheduling, replay, heap and io contracts (oauth.md, section 6.8).
+//! scheduling, replay, heap and io contracts (oauth/accounts.md, section 8).
 
 use skein_fake_oauth as fake;
 use skein_fake_peers::{Transport, oauth as peer};
@@ -1064,7 +1064,7 @@ pub(crate) fn protocol_client(seed: u64, client: Client) -> (Client, Trace) {
     (client, trace)
 }
 
-/// The close observed at the socket and TLS peer (skein/docs/design/link.md, 4).
+/// The close observed at the socket and TLS peer (skein/docs/design/net/link.md, 4).
 #[derive(Debug, Default)]
 pub struct TlsClose {
     pub peer_closed: bool,

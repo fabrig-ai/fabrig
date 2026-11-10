@@ -87,7 +87,7 @@ counts, or backpressures through its stream, by its declared policy.
 
 What it gives up: while a sink that backpressures is slow, its facts
 wait in memory, and a stalled one would keep them for good, so a stream
-that can stall has a deadline that abandons it (io.md, 5.1), and the
+that can stall has a deadline that abandons it (../design/runtime/io/files.md, 1), and the
 sink records that it was abandoned.
 
 ## Why limits at the edges and owned bytes

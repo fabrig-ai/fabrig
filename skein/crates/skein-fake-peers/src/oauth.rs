@@ -1,4 +1,4 @@
-//! Hosted issuer HTTP face (oauth.md, section 5). The independent issuer
+//! Hosted issuer HTTP face (oauth/README.md, section 5). The independent issuer
 //! checks registration, PKCE, code reuse and refresh rotation. This face
 //! owns bounded HTTP connections and redirects, never a client's state or
 //! credential durability. `new` listens; `queue` installs bounded response

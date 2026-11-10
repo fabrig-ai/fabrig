@@ -1,4 +1,4 @@
-//! Layout changes, typed values and retained run tables (codec.md, 11.2–11.3).
+//! Layout changes, typed values and retained run tables (data/codec/patches.md, 2–3).
 
 #![expect(clippy::disallowed_types, reason = "small schema and patch fixtures use ordinary Rust test containers")]
 #![expect(clippy::disallowed_macros, reason = "table rows assemble schema and patch fixtures")]

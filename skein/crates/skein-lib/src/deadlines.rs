@@ -95,7 +95,7 @@ impl<K: Ord + Copy> Deadlines<K> {
     }
 }
 
-// lib.md, 5.1: hash held state, never capacity or storage layout.
+// runtime/lib.md, 5.1: hash held state, never capacity or storage layout.
 impl<K: Hash> Hash for Deadlines<K> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.by_time.hash(state);

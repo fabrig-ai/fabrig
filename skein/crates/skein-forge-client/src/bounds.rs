@@ -1,4 +1,4 @@
-//! Admission validation and payload caps (forge-client.md, section 2.3).
+//! Admission validation and payload caps (forge/client.md, section 2.3).
 use crate::Limits;
 use skein_forge::api::{Answer, Op, Read, Write};
 use skein_lib::{len_u64, usize_of};

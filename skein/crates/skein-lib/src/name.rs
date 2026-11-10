@@ -1,4 +1,4 @@
-//! Inline names checked at their entrance (skein/docs/design/lib.md, 4).
+//! Inline names checked at their entrance (skein/docs/design/runtime/lib.md, 4).
 
 /// The spelling a name's maker admits.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

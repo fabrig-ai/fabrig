@@ -1,4 +1,4 @@
-//! Puller work shares the forge's own connection (forge-connection.md, 6.5).
+//! Puller work shares the forge's own connection (forge/connection.md, 6.5).
 use super::{Base, Common, GitHubForge, OwnPlan};
 use crate::{
     Account, Change, Event, Fact, Limits, Stopped,

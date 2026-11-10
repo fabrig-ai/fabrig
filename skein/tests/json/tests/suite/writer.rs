@@ -1,4 +1,4 @@
-//! The writer against the tokenizer (json.md, 6): what one writes, the
+//! The writer against the tokenizer (data/json.md, 6): what one writes, the
 //! other reads back the same, through the machine world. The sweep over
 //! many seeds is in `fuzzy_writer.rs`.
 

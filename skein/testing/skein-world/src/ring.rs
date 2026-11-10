@@ -47,7 +47,7 @@ impl Ring {
         Ok(Self::with_kernel(operations, limits, kernel))
     }
 
-    /// Opens the shared kernel on the backend a test forces (shell.md, 7.1).
+    /// Opens the shared kernel on the backend a test forces (runtime/readiness.md, 1).
     pub fn new_on(operations: u32, limits: Vec<u32>, backend: Backend) -> Result<Self, OpenError> {
         let kernel = Kernel::open_on(Config { operations }, backend)?;
         Ok(Self::with_kernel(operations, limits, kernel))

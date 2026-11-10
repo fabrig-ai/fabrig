@@ -5,7 +5,7 @@ use skein_world::Figures;
 
 #[test]
 fn the_horizon_reserves_the_same_close_window() {
-    // ui-web.md, 14.2: the default, a person's ten-minute run, and the close window's bound.
+    // ui/web/testing.md, 2: the default, a person's ten-minute run, and the close window's bound.
     for (horizon, close, deadline) in
         [(DEFAULT_HORIZON, 36, 40), (Duration::from_secs(600), 596, 600), (Duration::from_secs(4), 0, 4)]
     {

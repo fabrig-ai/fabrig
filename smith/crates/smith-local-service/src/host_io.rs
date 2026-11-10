@@ -42,7 +42,7 @@ pub struct ProcessLimits {
 
 const PROGRAM_TAG: u8 = 1;
 
-/// The one close `HostIo` itself submits, on its own tag (skein/docs/design/lib.md, 4).
+/// The one close `HostIo` itself submits, on its own tag (skein/docs/design/runtime/lib.md, 4).
 fn program_root() -> Token {
     Token::tagged(PROGRAM_TAG, 0).expect("program root fits namespace")
 }
@@ -371,7 +371,7 @@ impl HostIo {
         self.failed
     }
 
-    // A completion's token names its lane (skein/docs/design/io.md, 5).
+    // A completion's token names its lane (skein/docs/design/runtime/io/files.md).
     fn split(&mut self, complete: kernel::Complete) {
         self.signals.completed(complete.op);
         self.in_flight = self.in_flight.checked_sub(1).expect("one completion per submitted operation");

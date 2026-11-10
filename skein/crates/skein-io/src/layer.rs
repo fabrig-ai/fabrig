@@ -1,6 +1,6 @@
-//! io's state and its entry points (io.md, 2): the slab of sockets, the
+//! io's state and its entry points (runtime/io/README.md, 2): the slab of sockets, the
 //! operations in flight, the close deadlines, the ready list and the
-//! refusals and one independent process usage flight (io.md, section 6.1).
+//! refusals and one independent process usage flight (runtime/io/processes.md, section 1).
 //! `resume`, `up`, `fire` and `down` run in that order within an iteration,
 //! and `Io::reclaim` runs at its end. The layer never interprets CPU use.
 
@@ -28,7 +28,7 @@ pub struct Io {
     pub(crate) tables: Tables,
 }
 
-/// A socket of either kind (io.md, 3.1): one slab, one namespace of tokens.
+/// A socket of either kind (runtime/io/sockets.md, 1): one slab, one namespace of tokens.
 #[derive(Debug)]
 pub(crate) enum Entity {
     Listener(Listener),
@@ -58,7 +58,7 @@ pub(crate) struct Tables {
     usage: Option<Id<Flight>>,
     window: Option<Id<Flight>>,
     /// The owner of a `Window` on a stream gone or closing, until `resume`
-    /// tells it `Gone` (io.md, section 7).
+    /// tells it `Gone` (runtime/io/README.md, section 4).
     gone: Option<Token>,
     /// Unclaimed listening sockets, keyed by their exact bound address.
     pub(crate) held: Map<kernel::Addr, Id<Entity>>,
@@ -101,9 +101,9 @@ pub(crate) enum Purpose {
     Cancel(Id<Flight>),
 }
 
-/// What an entity's deadline is for: a close or output write (io.md, 3 and 5.1), or
-/// a retry of what found the kernel out of buffers or descriptors (io.md,
-/// 3.2 and 3.3). An entity has at most one of each.
+/// What an entity's deadline is for: a close or output write (runtime/io/sockets.md and runtime/io/files.md, 1), or
+/// a retry of what found the kernel out of buffers or descriptors (runtime/io/sockets.md,
+/// 2 and 3). An entity has at most one of each.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(crate) enum Timer {
     Close,
@@ -162,7 +162,7 @@ impl Io {
     }
 
     /// Takes a listening socket opened before the loop, holding it without
-    /// accepting until a Listen claims its exact address (io.md, 3.2).
+    /// accepting until a Listen claims its exact address (runtime/io/sockets.md, 2).
     /// Its token owns its Closed until claimed. A full slab or an address
     /// already held returns the descriptor to the caller.
     pub fn adopt_listener(&mut self, fd: Fd, addr: kernel::Addr) -> Result<Token, Fd> {
@@ -179,7 +179,7 @@ impl Io {
 
     /// Takes an inherited readable pipe descriptor at startup, returning its
     /// stream token. From then on the descriptor belongs to io and its
-    /// `Stream`/`Close`/`Abort` vocabulary (io.md, sections 3 and 6). If the
+    /// `Stream`/`Close`/`Abort` vocabulary (runtime/io/sockets.md and runtime/io/processes.md). If the
     /// entity slab is full, the caller retains the descriptor.
     pub fn adopt_read_pipe(&mut self, fd: Fd) -> Result<Token, Fd> {
         self.adopt_pipe(fd, Way::Out, None)
@@ -187,7 +187,7 @@ impl Io {
 
     /// Takes an inherited writable pipe descriptor at startup, with the same
     /// stream and ownership contract as [`Io::adopt_read_pipe`].
-    /// Each write has the owner's optional `write_timeout` (io.md, 5.1);
+    /// Each write has the owner's optional `write_timeout` (runtime/io/files.md, 1);
     /// without one it waits on its reader. With one, Close replaces it with
     /// io's close timeout.
     pub fn adopt_write_pipe(&mut self, fd: Fd, write_timeout: Option<Duration>) -> Result<Token, Fd> {
@@ -195,7 +195,7 @@ impl Io {
     }
 
     /// Takes an output-only append file at startup. Each Append has the owner's
-    /// `write_timeout`; Close instead flushes under io's close timeout (io.md, 5.1).
+    /// `write_timeout`; Close instead flushes under io's close timeout (runtime/io/files.md, 1).
     /// A full slab returns the descriptor to its caller without closing it.
     pub fn adopt_append(&mut self, fd: Fd, write_timeout: Duration) -> Result<Token, Fd> {
         match self.entities.insert(Entity::Pipe(Pipe::append(fd, write_timeout))) {
@@ -218,7 +218,7 @@ impl Io {
     }
 
     /// Takes the signalfd opened after blocking termination signals at
-    /// startup (shell.md, section 6). Each read becomes `Event::Shutdown` or `Event::Resized`;
+    /// startup (runtime/shell.md, section 6). Each read becomes `Event::Shutdown` or `Event::Resized`;
     /// `Close` or `Abort` on the returned token settles the read and closes
     /// the descriptor. On a full slab the caller retains the descriptor.
     pub fn adopt_signals(&mut self, fd: Fd) -> Result<Token, Fd> {
@@ -247,7 +247,7 @@ impl Io {
     /// Whether io can take another request: it holds a refusal for each
     /// `Listen` or `Connect` it refuses, until the next up pass. The loop
     /// hands io a request only while it can, as it reserves room in the
-    /// submissions (io.md, 2).
+    /// submissions (runtime/io/README.md, 2).
     #[must_use]
     pub fn takes(&self) -> bool {
         self.tables.refused.room() > 0
@@ -466,7 +466,7 @@ pub fn up(io: &mut Io, env: &Env<Limits>, complete: Complete, up: &mut Queue<Eve
                     | Done::Exit(_)
                     | Done::Signalled(_)
                     | Done::Window(_),
-                ) => unreachable!("Usage answers its record (kernel.md, section 6.3)"),
+                ) => unreachable!("Usage answers its record (runtime/kernel.md, section 6.3)"),
                 Err(
                     kernel::Error::Refused
                     | kernel::Error::Reset
@@ -494,7 +494,7 @@ pub fn up(io: &mut Io, env: &Env<Limits>, complete: Complete, up: &mut Queue<Eve
                     | kernel::Error::Escape
                     | kernel::Error::Busy
                     | kernel::Error::NotAFile,
-                ) => unreachable!("Usage fails only Other (kernel.md, section 6.3)"),
+                ) => unreachable!("Usage fails only Other (runtime/kernel.md, section 6.3)"),
             };
             up.push(Event::Usage { owner, usage });
             return;
@@ -619,7 +619,7 @@ pub fn down(io: &mut Io, env: &Env<Limits>, request: Request, subs: &mut Queue<S
             subs.push(Submit { op: flight.token(), kind: Op::Window { fd } });
         }
         Request::Usage { owner } => {
-            assert!(io.tables.usage.is_none(), "one Usage request in flight (io.md, section 6.1)");
+            assert!(io.tables.usage.is_none(), "one Usage request in flight (runtime/io/processes.md, section 1)");
             let flight = io
                 .tables
                 .flights

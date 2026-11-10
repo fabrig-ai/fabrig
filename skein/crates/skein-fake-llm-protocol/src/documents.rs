@@ -1,7 +1,7 @@
 //! Both provider document sides translated to the fake's neutral vocabulary.
 //! This adapter has no agent dependency and decodes the actual request grammar.
 //!
-//! Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, sections 4.4 and 6.3.
+//! Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, sections 4.4 and 6.3.
 
 use alloc::boxed::Box;
 use skein_fake_llm_domain::api;
@@ -13,16 +13,16 @@ use skein_llm::openai;
 
 /// Selected provider dialect for the fake's request and answer document codecs.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Provider {
     /// Anthropic document and stream dialect.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     Anthropic,
     /// `OpenAI` Responses document and stream dialect.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     OpenAi,
 }
 
@@ -78,36 +78,36 @@ impl Options {
 
 /// Immutable ownership and document caps supplied by the caller to every entry point.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
     /// Bounds for the Anthropic dialect's documents and stream.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub anthropic: anthropic::Limits,
     /// Bounds for the `OpenAI` dialect's documents and stream.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub openai: openai::Limits,
     /// Responses subscription requests have no wire token limit. The fake
     /// uses an explicit configured model ceiling, never invents a wire field.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub model_ceiling: u32,
 }
 
 /// Typed refusal or terminal failure of the fake peer, independent of the agent's policy.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Error {
     /// Input has invalid syntax or violates the codec's structural contract.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     Malformed,
     /// A configured ownership, count or encoded-byte cap would be exceeded.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     TooLarge,
     /// A top-level field refused by the public Responses route.
     Refused(&'static [u8]),
@@ -115,7 +115,7 @@ pub enum Error {
 
 /// Decodes the selected provider's bounded request body into the neutral fake query, without interpreting agent policy.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 pub fn request(provider: Provider, data: &[u8], limits: &Limits) -> Result<api::Query, Error> {
     match provider {
         Provider::Anthropic => anthropic_request(data, &limits.anthropic),
@@ -125,7 +125,7 @@ pub fn request(provider: Provider, data: &[u8], limits: &Limits) -> Result<api::
 
 /// Decodes the route's request, naming fields refused by public Responses.
 ///
-/// Contract: docs/design/fake-llm.md, section 3.1; llm.md, section 4.8.
+/// Contract: docs/design/testing/fakes/llm.md, section 3.1; llm/README.md, section 4.8.
 pub fn request_on(route: skein_llm::Provider, data: &[u8], limits: &Limits) -> Result<api::Query, Error> {
     match route {
         skein_llm::Provider::Anthropic => anthropic_request(data, &limits.anthropic),
@@ -279,7 +279,7 @@ fn openai_request(data: &[u8], limits: &Limits, public: bool) -> Result<api::Que
 /// Measures one next event, rather than retaining an encoded response tape.
 /// The server keeps its neutral Answer and one writer event at a time.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 pub fn event(
     provider: Provider,
     answer: &api::Answer,

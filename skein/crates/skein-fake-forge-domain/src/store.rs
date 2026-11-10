@@ -1,4 +1,4 @@
-//! The store: repositories and what they hold (skein/docs/design/fake-forge.md, 2.2).
+//! The store: repositories and what they hold (skein/docs/design/testing/fakes/forge.md, 2.2).
 //!
 //! A repository has its users' permissions, its labels, its items (issues and
 //! pull requests, numbered together from one), its branches and the commits
@@ -162,7 +162,7 @@ impl Repository {
         repository
     }
 
-    /// An empty destination with no branches or commits (fake-forge.md, 2.6).
+    /// An empty destination with no branches or commits (testing/fakes/forge.md, 2.6).
     pub(crate) fn empty(
         limits: &Limits,
         name: Box<[u8]>,

@@ -1,4 +1,4 @@
-//! A TLS 1.2 peer whose directional keys are taken out (tls.md, 3.6).
+//! A TLS 1.2 peer whose directional keys are taken out (net/tls.md, 3.6).
 //! It seals `HelloRequest`, which rustls's server never sends, and authenticates
 //! the client's alert and application records with its receive key.
 
@@ -52,7 +52,7 @@ impl Tls12 {
 
     /// Seal the one admitted `HelloRequest` with the peer's current key;
     /// native rustls decides and emits its own refusal (RFC5246 7.4.1.1;
-    /// skein/docs/design/tls.md, 3.6). This method invents no below Room, alert or output terminal.
+    /// skein/docs/design/net/tls.md, 3.6). This method invents no below Room, alert or output terminal.
     pub fn hello_request(&mut self) {
         self.outgoing.extend(self.sealer.seal(ContentType::Handshake, &[0, 0, 0, 0]));
     }

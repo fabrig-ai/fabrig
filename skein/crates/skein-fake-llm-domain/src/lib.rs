@@ -20,8 +20,8 @@
 //! alarms, never agent state, credential secrets, tool authority, checkout
 //! effects or live network behavior. [`step`] accepts calls and [`fire`]
 //! settles due work under injected time; callers use uncapped output
-//! queues and receive one reply per accepted call (docs/design/fake-llm.md,
-//! sections 2–5; programming-model.md,
+//! queues and receive one reply per accepted call (docs/design/testing/fakes/llm.md, sections 2–5
+//! ; programming-model.md,
 //! sections 4.4, 5.3 and 7; testing-strategy.md, section 4).
 
 #![cfg_attr(not(test), no_std)]

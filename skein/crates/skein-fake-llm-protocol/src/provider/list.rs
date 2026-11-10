@@ -1,4 +1,4 @@
-//! World-supplied model-list replies, independent of scripts (fake-llm.md, 3.2).
+//! World-supplied model-list replies, independent of scripts (testing/fakes/llm.md, 3.2).
 use super::{Limits, Server, Service, State};
 use alloc::boxed::Box;
 use skein_http::{Header, server as http};

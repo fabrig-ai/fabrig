@@ -1,4 +1,4 @@
-//! The four durable identity items shared by conversion and paste (forge-setup.md, 5.2, 5.8, 6.4).
+//! The four durable identity items shared by conversion and paste (forge/setup/github.md, 1.2, 1.8, forge/setup/README.md, 4.4).
 use crate::{
     item::Item,
     plan::{Event, Need, Why},
@@ -15,7 +15,7 @@ enum State {
     User,
     Ended,
 }
-/// Concrete identity progression: one whole item per acknowledgment (forge-setup.md, 5.8).
+/// Concrete identity progression: one whole item per acknowledgment (forge/setup/github.md, 1.8).
 #[derive(Debug)]
 pub(super) struct Write {
     state: State,

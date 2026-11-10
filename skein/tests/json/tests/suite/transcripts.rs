@@ -1,4 +1,4 @@
-//! The transcripts (testing-strategy.md, 4.1; json.md, 6): documents in
+//! The transcripts (testing-strategy.md, 4.1; data/json.md, 6): documents in
 //! the shape of an LLM provider's answers and a forge's API responses, and
 //! hostile ones, each decoding to its expectation in `transcripts/`.
 

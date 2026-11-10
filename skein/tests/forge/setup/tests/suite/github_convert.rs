@@ -279,7 +279,7 @@ fn the_host_keeps_conversion_items_before_answering_the_browser() {
     .into_iter()
     .enumerate()
     {
-        assert_eq!(world.heard().len(), 1, "browser response waits for Done (forge-setup.md, 5.2)");
+        assert_eq!(world.heard().len(), 1, "browser response waits for Done (forge/setup/github.md, 1.2)");
         assert_eq!(world.needs().len(), index + 1, "one outstanding write");
         assert_eq!(world.needs().last(), Some(&Need::Write { item, bytes: fixtures::secret(value) }));
         assert!(world.file(item).is_none(), "write not yet durable");

@@ -4,7 +4,7 @@
 //! many random cases from a seed. lib's step tests run them short.
 //!
 //! Beside them, `tests/memory.rs` checks each container's `price`
-//! against the counting allocator (lib.md, 10), a binary of its own that
+//! against the counting allocator (runtime/lib.md, 10), a binary of its own that
 //! declares it.
 
 pub mod intake;

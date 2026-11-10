@@ -608,7 +608,7 @@ hearth-protocol-builder          the builder's protocol layer: routes its machin
 - **The machines depend on lib only** (`skein/docs/foundation/programming-model.md`, 4), but
   for `hearth-protocol-config`, which composes skein's JSON tokenizer and
   depends on `skein-json` too, as skein's `skein-llm` does (
-  `skein/docs/design/llm.md`). `hearth-protocol-config` cannot call the template machine,
+  `skein/docs/design/llm/README.md`). `hearth-protocol-config` cannot call the template machine,
   so it hands up a declaration's expression strings as text with their
   positions, and `hearth-protocol-builder` passes each through
   `hearth-protocol-template` before translating the whole declaration

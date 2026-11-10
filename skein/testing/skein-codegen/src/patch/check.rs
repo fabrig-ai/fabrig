@@ -1,4 +1,4 @@
-//! The read-only findings of codec.md 12.7.
+//! The read-only findings of data/codec/command.md 7.
 
 use alloc::collections::{BTreeMap, BTreeSet};
 use skein_codec::patch::{Capacity, KeepError, PatchError, PatchWrong, Patcher};
@@ -11,7 +11,7 @@ use super::text::{Block, PatchText};
 use super::{Error, Finding, Landed, derive};
 use crate::diff::Version;
 
-/// Finds every change or refusal without writing a file (codec.md 12.7); a
+/// Finds every change or refusal without writing a file (data/codec/command.md 7); a
 /// crate it cannot read is its error, as the run's.
 pub fn check(owner: &Path, landed: &Landed) -> Result<Vec<Finding>, Error> {
     let tree = Crate::read(owner)?;

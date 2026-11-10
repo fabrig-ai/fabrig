@@ -1,5 +1,5 @@
 //! Patches applied in place, with the host deciding each document operation.
-//! Log measurements and view keeping follow skein/docs/design/ui-web.md, 7.
+//! Log measurements and view keeping follow skein/docs/design/ui/web/README.md, 5.
 
 use std::collections::BTreeMap;
 
@@ -30,7 +30,7 @@ use crate::{
     target_pointer_width = "64",
     expect(
         clippy::large_enum_variant,
-        reason = "component operations carry a whole node without a separate allocation (ui-web.md, 6.1)"
+        reason = "component operations carry a whole node without a separate allocation (ui/web/elements.md, 1)"
     )
 )]
 pub enum Op {
@@ -133,7 +133,7 @@ impl<'a> Page<'a> {
 
     #[expect(
         clippy::too_many_lines,
-        reason = "patch ordering keeps log state changes before the final measurements (ui-web.md, 7)"
+        reason = "patch ordering keeps log state changes before the final measurements (ui/web/README.md, 5)"
     )]
     pub fn apply(&mut self, patches: &[Patch], ops: &mut Vec<Op>) {
         if !patches.is_empty() {
@@ -693,7 +693,7 @@ impl Page<'_> {
         Some((node, act))
     }
 
-    /// A pointer's press on this node leaves the focus where it was (ui-web.md, 7).
+    /// A pointer's press on this node leaves the focus where it was (ui/web/README.md, 5).
     #[must_use]
     pub fn press_keeps_focus(&self, node: NodeId) -> bool {
         let node = self.pressed(node);
@@ -821,7 +821,7 @@ impl Page<'_> {
         }
     }
 
-    // A measure and a person's scroll share the same rules (ui-web.md, 7).
+    // A measure and a person's scroll share the same rules (ui/web/README.md, 5).
     fn scrolled(
         &mut self,
         node: NodeId,

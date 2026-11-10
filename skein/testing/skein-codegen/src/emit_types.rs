@@ -1,6 +1,6 @@
 #![expect(clippy::format_push_string, reason = "generator assembles reviewed source fragments")]
 
-//! Sealed record and enum values for codec.md, section 4.
+//! Sealed record and enum values for data/codec/README.md, section 4.
 
 use crate::emit_functions::{self, Method, Statement};
 use crate::{Declaration, Enumeration, Field, Record, Type, analysis::Context, emit_limits};

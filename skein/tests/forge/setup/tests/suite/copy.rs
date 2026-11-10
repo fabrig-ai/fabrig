@@ -1,4 +1,4 @@
-//! Both sides of a copy meet through HTTP (skein/docs/design/forge-setup.md, 4.10).
+//! Both sides of a copy meet through HTTP (skein/docs/design/forge/setup/forgejo.md, 1.10).
 use core::num::{NonZeroU32, NonZeroU64};
 use skein_fake_forge_domain::api::Fill;
 use skein_fake_forge_forgejo::{Config, Repository, Route};

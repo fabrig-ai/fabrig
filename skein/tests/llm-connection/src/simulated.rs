@@ -1,6 +1,6 @@
 //! A real connection client and independent fake LLM process hosted by
-//! Skein's world kit on simulated loopback (llm-connection.md, section 8;
-//! fake-llm.md, section 3). The referee sees only owner events and peer
+//! Skein's world kit on simulated loopback (llm/connection.md, section 8;
+//! testing/fakes/llm.md, section 3). The referee sees only owner events and peer
 //! observations. Plaintext scenarios replay; TLS controls share this io
 //! composition and the test trust chain without claiming replay.
 

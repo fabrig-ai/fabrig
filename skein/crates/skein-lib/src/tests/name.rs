@@ -1,4 +1,4 @@
-//! Names at the length and grammar boundaries (skein/docs/design/lib.md, 4).
+//! Names at the length and grammar boundaries (skein/docs/design/runtime/lib.md, 4).
 
 use crate::{Grammar, Name};
 

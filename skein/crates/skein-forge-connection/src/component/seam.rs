@@ -1,4 +1,4 @@
-//! Machine-world state access (skein/docs/design/forge-connection.md, 10).
+//! Machine-world state access (skein/docs/design/forge/connection.md, 10).
 use super::{Component, Connection, Dialect, Event, ForgeEntry, GitHubForge, Limits, Side, Start};
 use skein_lib::{Env, Queue};
 

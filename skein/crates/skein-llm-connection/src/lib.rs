@@ -1,5 +1,5 @@
-//! Bounded LLM calls owned by a service's protocol layer (llm-connection.md,
-//! sections 1 to 7). This component holds configured endpoints, physical
+//! Bounded LLM calls owned by a service's protocol layer (llm/connection.md, sections 1 to 7
+//! ). This component holds configured endpoints, physical
 //! connections, live calls and bounded routing work. It never knows the
 //! service's domain, credential store or retry policy. [`Component::down`]
 //! takes calls, Close and Abort; [`Component::up`] takes io events by the component's token;

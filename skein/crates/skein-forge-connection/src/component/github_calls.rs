@@ -1,4 +1,4 @@
-//! Installation account routing and bounded repository discovery (forge-connection.md, 4).
+//! Installation account routing and bounded repository discovery (forge/connection.md, 4).
 use super::{Base, Common, GitHubCall, GitHubForge, Waiting, calls};
 use crate::{Event, Limits, connection::Phase, installations::Selected};
 use alloc::boxed::Box;

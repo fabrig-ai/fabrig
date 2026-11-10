@@ -1,4 +1,4 @@
-//! A command's settings, their sources, help and refusals (shell.md, 6.5).
+//! A command's settings, their sources, help and refusals (runtime/shell.md, 6.5).
 
 use crate::{HOME, Set, table::lookup};
 use std::fmt;
@@ -7,7 +7,7 @@ use std::os::unix::ffi::OsStrExt;
 
 type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 
-/// A command's settings (shell.md, 6.5): its tool's name and its table.
+/// A command's settings (runtime/shell.md, 6.5): its tool's name and its table.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Settings {
     /// The tool's name, lowercase ASCII letters, digits and `-`: `temper`, `skein-echo`.
@@ -17,7 +17,7 @@ pub struct Settings {
     pub table: &'static [Setting],
 }
 
-/// One setting: its flag `--name VALUE`, set, declared twin and default (shell.md, 6.5).
+/// One setting: its flag `--name VALUE`, set, declared twin and default (runtime/shell.md, 6.5).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Setting {
     /// The flag's name without its dashes, lowercase ASCII letters, digits and `-`: `config`.
@@ -163,12 +163,12 @@ impl fmt::Display for Refusal {
     }
 }
 
-/// Resolves a command's settings (shell.md, 6.5) from the arguments after
+/// Resolves a command's settings (runtime/shell.md, 6.5) from the arguments after
 /// the binary's own command words, and the process's environment.
-#[expect(clippy::type_complexity, reason = "shell.md, 6.5 takes byte environment pairs without a wrapper type")]
+#[expect(clippy::type_complexity, reason = "runtime/shell.md, 6.5 takes byte environment pairs without a wrapper type")]
 #[cfg_attr(
     target_pointer_width = "64",
-    expect(clippy::result_large_err, reason = "shell.md, 6.5 returns the refused setting with its documentation")
+    expect(clippy::result_large_err, reason = "runtime/shell.md, 6.5 returns the refused setting with its documentation")
 )]
 pub fn resolve(
     settings: &Settings,
@@ -285,7 +285,7 @@ pub fn arguments() -> Box<[Box<[u8]>]> {
 
 /// The process's environment, as bytes, in the kernel's order.
 #[must_use]
-#[expect(clippy::type_complexity, reason = "shell.md, 6.5 returns byte environment pairs without a wrapper type")]
+#[expect(clippy::type_complexity, reason = "runtime/shell.md, 6.5 returns byte environment pairs without a wrapper type")]
 #[cfg(unix)]
 #[expect(
     clippy::disallowed_methods,

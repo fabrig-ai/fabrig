@@ -450,7 +450,7 @@ change set digest = H("changes", parent tree digest, child tree digest, list [ c
    in a published layer under a record that claims its tree digest.
    `syncfs` is one call for the whole layer. It is synchronous and can
    take seconds, so it runs in the helper, whose loop has nothing else
-   to do meanwhile, never on the builder's (skein/docs/design/kernel.md, 6.5).
+   to do meanwhile, never on the builder's (skein/docs/design/runtime/kernel.md, 6.5).
 5. **Record:** the tree file renamed into place, then the record, which
    names the tree file's SHA-256 and the uuids (`records.md`, 8).
 6. **Publish:** a rename within `layers/` (2.3). A layer is published
@@ -686,7 +686,7 @@ work (hearth/docs/design/domain/steward.md, 4.2), so what a crash, a kill or a p
 settled before the first job of every pass.
 
 1. **The lock:** an exclusive `flock` on the store's root directory,
-   taken without waiting (`skein/docs/design/io.md`, 5: `Lock`) and held until the
+   taken without waiting (`skein/docs/design/runtime/io/files.md`: `Lock`) and held until the
    builder exits. A second builder over the same store, a daemon's or a
    client's in-process on a developer's store, waits for it
    (hearth/docs/design/domain/steward.md, 3.4): while the lock is busy it asks again every 200 ms,
@@ -711,7 +711,7 @@ settled before the first job of every pass.
    layer) is refused, and the layer deleted. A store without layers runs
    this step for its resolutions and its cache alone (2.4). `cache/`,
    `resolutions/` and `layers/` are listed page by page (
-   `skein/docs/design/io.md`, 5: `ListPage`), 1,024 entries a page, so a directory of any
+   `skein/docs/design/runtime/io/files.md`: `ListPage`), 1,024 entries a page, so a directory of any
    size is scanned in bounded memory. Resolutions count against their
    limit (6.1) as they come. `cache/` is listed twice: its records
    first, counted against the cache limit as they come, then its files,

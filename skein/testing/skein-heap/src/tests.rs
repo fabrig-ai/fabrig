@@ -1,4 +1,4 @@
-//! Shared counters preserve a step's highs, handoff and signed release (testing.md, 5).
+//! Shared counters preserve a step's highs, handoff and signed release (testing/README.md, 5).
 
 use core::hint::black_box;
 

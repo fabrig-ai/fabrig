@@ -1,4 +1,4 @@
-//! File lengths become durable with the file's sync (simulator.md, 3.3).
+//! File lengths become durable with the file's sync (testing/simulator.md, 3.3).
 use super::{Body, LARGEST_FILE, Machine, Opened, Refusal, fail};
 
 impl Machine {

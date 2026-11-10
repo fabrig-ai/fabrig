@@ -1,4 +1,4 @@
-//! An index over canonical bytes at a schema's ceilings (codec.md, section 8).
+//! An index over canonical bytes at a schema's ceilings (data/codec/README.md, section 8).
 
 use alloc::boxed::Box;
 use skein_lib::{List, Reader, Secret, usize_of};
@@ -142,7 +142,7 @@ impl Value {
     }
 
     // A builder cannot borrow the old index mutably. Its empty replacement
-    // waits here until start can move it into the old half (codec.md, 11.7).
+    // waits here until start can move it into the old half (data/codec/patches.md, 7).
     pub(crate) fn reserve(&mut self, need: u32, occupied: u32) {
         if need <= occupied || need <= self.room() {
             return;

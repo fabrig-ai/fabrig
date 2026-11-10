@@ -1,4 +1,4 @@
-//! The terminal startup, drive and restoration path (shell.md, section 6.3).
+//! The terminal startup, drive and restoration path (runtime/shell.md, section 6.3).
 use skein_io::kernel::{Complete, Fd, Submit};
 use skein_io::{Event, Io, Limits, Request, Window};
 use skein_lib::stream::{Down, Read, Up};

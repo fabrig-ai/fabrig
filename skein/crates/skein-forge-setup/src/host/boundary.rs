@@ -1,4 +1,4 @@
-//! The owner's plans, answers and retained items (forge-setup.md, 6.3).
+//! The owner's plans, answers and retained items (forge/setup/README.md, 4.3).
 use crate::{
     github::manifest::Target,
     item::Item,
@@ -7,13 +7,13 @@ use crate::{
 use alloc::boxed::Box;
 use core::num::{NonZeroU32, NonZeroU64};
 use skein_lib::{Secret, Token};
-/// An owner-provided file placed only when absent (forge-setup.md, 4.9).
+/// An owner-provided file placed only when absent (forge/setup/forgejo.md, 1.9).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct File {
     pub path: Box<[u8]>,
     pub content: Box<[u8]>,
 }
-/// The repository a plan gives the bot access to (forge-setup.md, 4.5).
+/// The repository a plan gives the bot access to (forge/setup/forgejo.md, 1.5).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Repository {
     Id(NonZeroU64),
@@ -122,7 +122,7 @@ pub(super) enum Dialect {
     GitHub,
     Both,
 }
-/// Runtime forge membership (skein/docs/design/forge-setup.md, 6.3).
+/// Runtime forge membership (skein/docs/design/forge/setup/README.md, 4.3).
 #[derive(Clone, Debug)]
 #[cfg_attr(
     not(target_arch = "wasm32"),

@@ -1,4 +1,4 @@
-//! Closing the connection and handling failure (tls.md, 3.3).
+//! Closing the connection and handling failure (net/tls.md, 3.3).
 use super::below::ended;
 use super::{Buffers, Demand, Error, Event, Handshake, Open, Reading, Room, State, Writing};
 use crate::held::Held;

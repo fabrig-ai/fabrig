@@ -1,4 +1,4 @@
-//! GitHub's typed start plans on the forge's reserved connection (forge-connection.md, 3.4).
+//! GitHub's typed start plans on the forge's reserved connection (forge/connection.md, 3.4).
 use super::{Base, Common, GitHubForge, OwnPlan, backoff};
 use crate::{
     Event, Limits, StartRead, Stopped, Value,
@@ -21,7 +21,7 @@ use skein_forge::{
 };
 use skein_lib::{Duration, Env, Lifecycle, Queue, usize_of};
 
-/// What a GitHub forge's own connection is working on (skein/docs/design/forge-connection.md, 3.4 and 8.3).
+/// What a GitHub forge's own connection is working on (skein/docs/design/forge/connection.md, 3.4 and 8.3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Active {
     Listing { next: Duration },

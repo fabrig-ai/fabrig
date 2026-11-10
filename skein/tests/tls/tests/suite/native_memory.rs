@@ -1,4 +1,4 @@
-//! Native TLS heap steps under scenario ceilings (tls.md, 3.6 and 5;
+//! Native TLS heap steps under scenario ceilings (net/tls.md, 3.6 and 5;
 //! skein/docs/foundation/testing-strategy.md, 6). The real peer runs between steps. All emitted
 //! boxes are copied into reserved harness buffers and dropped before checking;
 //! caller plaintext is charged separately. A complete sealed box dropped by

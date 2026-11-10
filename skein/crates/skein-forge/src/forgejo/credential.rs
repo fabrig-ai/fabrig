@@ -1,4 +1,4 @@
-//! Forgejo's authorization field (forge.md, sections 5.1 and 8).
+//! Forgejo's authorization field (forge/forgejo.md, section 1.1, and forge/README.md, section 7).
 use crate::credential::Credential;
 use skein_lib::{Secret, Writer};
 

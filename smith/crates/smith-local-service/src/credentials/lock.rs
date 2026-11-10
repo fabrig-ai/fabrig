@@ -1,4 +1,4 @@
-//! Record directory locks for shared writes (shell/credentials.md, 3; oauth.md, 6.4).
+//! Record directory locks for shared writes (shell/credentials.md, 3; skein/docs/design/oauth/accounts.md, 4).
 //! Each successful lock answer owns one root until Unlock closes it.
 use super::Accounts;
 use alloc::boxed::Box;

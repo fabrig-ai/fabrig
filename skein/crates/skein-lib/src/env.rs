@@ -2,7 +2,7 @@ use crate::{Time, Wall};
 
 /// What a step reads besides its own state: the times of the current
 /// iteration and its layer's limits. A step receives it behind a shared
-/// borrow, so it is read-only (skein/docs/design/lib.md, 9).
+/// borrow, so it is read-only (skein/docs/design/runtime/lib.md, 9).
 #[derive(Hash, Debug)]
 pub struct Env<L> {
     /// Read once per iteration by the shell (or the simulator), and the same

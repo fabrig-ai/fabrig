@@ -1,4 +1,4 @@
-//! Sign-out revokes once, then forgets the record (oauth.md, sections 2.3 and 6.3).
+//! Sign-out revokes once, then forgets the record (oauth/README.md, section 2.3, and oauth/accounts.md, section 3).
 
 use super::{Component, Lending, State, failed, held, set_held};
 use crate::accounts::{Source, copy_registration};

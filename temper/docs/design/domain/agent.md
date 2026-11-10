@@ -365,7 +365,7 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
   `job`, `attempt` and `max_bytes`, exactly as `read_checks` and
   `read_statuses` name each Actions job: the job attempt skein resolved
   from the check's link (its run, the forge's own job id, its attempt:
-  skein's `forge.md`, 9), never the link's index of the job in its run,
+  skein's `forge/forgejo.md`, 2), never the link's index of the job in its run,
   which the answer may show beside it but no read takes; `read_items` `since`, `page` and
   `item_kind` (`issue` or `pull`); `read_item` `number` and `after`;
   `read_protection` `branch`; `read_settings` none;
@@ -376,7 +376,7 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
   out; `max_bytes`, the read's limit when left out.
 - **`read_permission` names the person:** its answer is the permission,
   the forge user's id and the login the forge names them by, as
-  `Write; forge user 3, login ada` (skein's `forge.md`, 3.3), so that a
+  `Write; forge user 3, login ada` (skein's `forge/README.md`, 3.3), so that a
   run can match a name to an id; with no login from the forge, the same
   without it. `read_collaborators` lists ids, for `read_permission` to
   name.
@@ -384,7 +384,7 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
 - **A compare is whole, with no pages.** Its files and commits each fit
   `forge.client.rows`, and its decoded answer, both whole sides of every
   changed file, fits `forge.client.answer_bytes` (skein's
-  `forge-client.md`, 2.3, and `forge.md`, 5.2 and 5.3), so an ordinary
+  `forge/client.md`, 2.3, and `forge.md`, 5.2 and 5.3), so an ordinary
   change passes them: nine files, nine commits, or a line changed in a
   long file. A `read_compare` size refusal names both
   limits with their configured figures, without claiming which was exceeded.
@@ -429,8 +429,8 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
   for the guidance, the refusal itself is cut to fit.
 - **A refused branch read says what to read instead.** Both refusals
   are right: `read_branches` takes a nonempty prefix, an empty one
-  ending as `Error::Empty` before any request (skein's `forge.md`,
-  section 9), and `read_branch` of a name the forge lacks is
+  ending as `Error::Empty` before any request (skein's `forge/forgejo.md`,
+  section 2), and `read_branch` of a name the forge lacks is
   `Error::Missing`. That is so for a goal's own branch where its goal
   holds none (a chat's `goal` names none, 4.3.2), and for a run branch
   before its first push (`forge.md`, section 11). `read_branches`'s
@@ -1450,7 +1450,7 @@ and not its name.
   it read; it never rewrites it whole past a few KB, builds a long document in
   parts, and continues a line past one call with `join`. It says in a sentence
   what changed and doesn't repeat it. Where a sequence says more drawn, it writes a
-  flow, and its words name the subset (`skein/docs/design/ui.md`, 10.1): the same
+  flow, and its words name the subset (`skein/docs/design/ui/markdown.md`, 1): the same
   block reads in a repository, where a forge renders Mermaid.
 - **Ask temper's,** `ask.txt` (8.4): the same, through `document` (8.4.3), its
   title "How this project works", kept once the person's way of working is

@@ -36,7 +36,7 @@ impl State {
         self.depth != 0
     }
     pub(super) fn start(&mut self, token: Token) -> Result<Request, Malformed> {
-        // forge-github.md, 9.3: "trusted by its channel". The re-encoded
+        // forge/github.md, 9.3: "trusted by its channel". The re-encoded
         // payload is decoded without checking an HMAC signature.
         self.payload = match delivery::decoder(&self.row.event, &self.limits) {
             Some(decoder) => Some(Box::new(decoder)),

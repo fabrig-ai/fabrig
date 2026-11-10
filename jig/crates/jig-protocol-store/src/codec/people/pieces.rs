@@ -1,4 +1,4 @@
-//! Byte-summed collections, framed without multiplying nested lists (codec.md, 3).
+//! Byte-summed collections, framed without multiplying nested lists (skein/docs/design/data/codec/README.md, 3).
 use super::{
     Box, List, Reader, Writer, count, decode_executor, decode_grant, decode_parameter, decode_permission_role,
     decode_requirement, decode_resource_scope, domain, encode_executor, encode_grant, encode_parameter,

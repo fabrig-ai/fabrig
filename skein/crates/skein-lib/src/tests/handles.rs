@@ -1,4 +1,4 @@
-//! Handles and slabs (lib.md, 3): a handle's round trip through a token, a
+//! Handles and slabs (runtime/lib.md, 3): a handle's round trip through a token, a
 //! full slab, a retired entity reachable until it is reclaimed, its handle
 //! stale after, and the slab walked in slot order; and a component's
 //! lifecycle (programming-model.md, 5.2).

@@ -1,4 +1,4 @@
-//! The site's server Host (skein/docs/design/http.md, 5; playground.md, 8).
+//! The site's server Host (skein/docs/design/net/http/server.md; playground.md, 8).
 use super::{Body, Config, Route};
 use skein_http::{Header, server as http};
 use skein_io::{self as io, kernel};

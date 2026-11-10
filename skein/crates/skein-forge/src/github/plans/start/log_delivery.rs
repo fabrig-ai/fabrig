@@ -1,4 +1,4 @@
-//! One trusted delivery, through the pushed-payload decoder (forge-github.md, 9.3).
+//! One trusted delivery, through the pushed-payload decoder (forge/github.md, 9.3).
 use super::{Event, State, Step, api, document, plan};
 use crate::github::{log::Logged, plans::Heard, request::Request};
 use alloc::boxed::Box;

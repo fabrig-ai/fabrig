@@ -1,4 +1,4 @@
-//! Independent literals for channel.md, sections 3–5.1.
+//! Independent literals for net/channel.md, sections 3 and 5.1.
 #![expect(clippy::disallowed_types, reason = "test harnesses use ordinary Rust collections")]
 use alloc::boxed::Box;
 use alloc::collections::VecDeque;

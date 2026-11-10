@@ -1,4 +1,4 @@
-//! A merge held by the forge's queue (forge-client.md, 7.7).
+//! A merge held by the forge's queue (forge/client.md, 7.7).
 use super::{Domain, Env, Error, Limits, Outcome, Phase, Queue, Request, State, Time, api};
 
 /// When the next look at a queued pull request is due (7.7).

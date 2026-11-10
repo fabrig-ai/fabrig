@@ -1,4 +1,4 @@
-//! Generic channel's opening machine (channel.md, sections 5, 6 and 9).
+//! Generic channel's opening machine (net/channel.md, sections 5, 6 and 9).
 //! It keeps the checked schema, opening phase, one partly filled frame, peer
 //! terms, a bounded output queue and one independent output right. It never
 //! knows credential policy, body meaning, deadlines or transport type.
@@ -144,7 +144,7 @@ enum ReadState {
     Idle,
 }
 
-// skein/docs/design/channel.md, 3 and 6: a body being read prints its length and progress.
+// skein/docs/design/net/channel.md, 3 and 6: a body being read prints its length and progress.
 impl core::fmt::Debug for ReadState {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
@@ -479,7 +479,7 @@ impl Machine {
         self.maybe_terminal(above);
     }
 
-    /// Active to closing (channel.md, 8.3), preserving an input end already seen.
+    /// Active to closing (net/channel.md, 8.3), preserving an input end already seen.
     fn closing(&mut self, why: Closed, output: OutputFate) {
         self.phase = Phase::Closing { why };
         if self.read != ReadState::Ended {

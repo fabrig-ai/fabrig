@@ -26,7 +26,7 @@ impl World {
     }
 
     /// An update's idempotent class rests on no lifetime: a copy may land
-    /// after another attempt (skein/docs/design/forge-client.md, 7.3).
+    /// after another attempt (skein/docs/design/forge/client.md, 7.3).
     pub fn land_writes_past_lifetime(&mut self, after: Duration) {
         self.forge_env.limits.landing = 1000;
         self.forge_env.limits.land_min = after;

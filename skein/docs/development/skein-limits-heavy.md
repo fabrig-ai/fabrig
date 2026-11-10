@@ -400,9 +400,9 @@ process figures follow the quantified causes.
   protocol change retaining every clock observation.
 - **Forge hand RSA:** two signings cost 22,621,385 Ir, 73.17% of the
   largest sample after. `limits::access` no longer signs: it parses
-  (`skein/docs/design/tls.md`, 4), so the remaining signing is `Jwt::bearer`'s.
+  (`skein/docs/design/net/tls.md`, 4), so the remaining signing is `Jwt::bearer`'s.
   Retaining a parsed key would depart from
-  the parse-at-each-signing contract (`skein/docs/design/tls.md`, 4).
+  the parse-at-each-signing contract (`skein/docs/design/net/tls.md`, 4).
 - **Forge listener/fixtures:** listener settlement is 15,287,984 baseline
   Ir, about 0.0022 CPU s; `locate_script` 1,106,458 and `deadline_rows`
   55,232. None reaches 0.05 s. A further harness change would have to

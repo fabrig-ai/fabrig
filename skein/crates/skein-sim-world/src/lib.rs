@@ -1,4 +1,4 @@
-//! A simulated world run a step at a time by its caller (world.md).
+//! A simulated world run a step at a time by its caller (testing/world.md).
 extern crate alloc;
 
 mod meter;
@@ -24,7 +24,7 @@ pub struct Step {
     pub ran: bool,
 }
 
-/// What a loop does inside a step beside the world's operations (world.md, 3).
+/// What a loop does inside a step beside the world's operations (testing/world.md, 3).
 pub trait Turns<P> {
     /// Faults from this batch onward, or `None` to keep the simulator's.
     fn faults(

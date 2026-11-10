@@ -1,5 +1,5 @@
 //! The box's descendants that outlive it, named for the live log (the plan ui-box-children).
-//! Process groups and exits follow skein/docs/design/io.md, 6.
+//! Process groups and exits follow skein/docs/design/runtime/io/processes.md.
 
 use std::fmt::Write;
 

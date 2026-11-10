@@ -1,4 +1,4 @@
-//! Copies a public repository with the shared creation steps (skein/docs/design/forge-setup.md, 4.10).
+//! Copies a public repository with the shared creation steps (skein/docs/design/forge/setup/forgejo.md, 1.10).
 use crate::{
     create::{self, Create},
     given::{Given, Refused},

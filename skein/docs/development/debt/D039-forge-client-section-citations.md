@@ -7,7 +7,7 @@
 - **Value:** low
 - **Size:** S
 - **Status:** open
-- **Paid when:** each forge-client module's header cites the section of `skein/docs/design/forge-client.md` that designs it.
+- **Paid when:** each forge-client module's header cites the section of `skein/docs/design/forge/client.md` that designs it.
 
 ## What
 

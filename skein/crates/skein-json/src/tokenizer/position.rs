@@ -1,6 +1,6 @@
-//! Byte positions on the line being read (json.md, 3.6).
+//! Byte positions on the line being read (data/json.md, 3.6).
 
-/// Where the tokenizer's last answer is in the document (json.md, 3.6).
+/// Where the tokenizer's last answer is in the document (data/json.md, 3.6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Position {
     /// The bytes delivered before it, from 0.

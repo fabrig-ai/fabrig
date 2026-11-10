@@ -1,5 +1,5 @@
 //! Forge client for live reads, resource keeping, and effect execution
-//! (forge-client.md, sections 2–9).
+//! (forge/client.md, sections 2–9).
 //!
 //! Its state is the bounded working set, request budget, and in-flight write
 //! lanes. It never knows task policy, grants, subscribers, or the top's durable

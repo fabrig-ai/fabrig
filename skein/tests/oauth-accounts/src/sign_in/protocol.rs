@@ -1,4 +1,4 @@
-//! Sign-in's visit script, paste and callback streams (skein/docs/design/oauth.md, 6.8).
+//! Sign-in's visit script, paste and callback streams (skein/docs/design/oauth/accounts.md, 8).
 use super::browser::url_parts;
 use super::{Fact, Story, confidential, registration};
 use crate::streams::{self, Rig};

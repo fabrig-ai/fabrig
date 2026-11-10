@@ -1,5 +1,5 @@
 //! The browser half of recording again, over the native walk (client/journeys.md, 8.1–8.2).
-//! Like skein's harness (ui-web.md, 14.2), this is ordinary Rust: the clock is
+//! Like skein's harness (skein/docs/design/ui/web/testing.md, 2), this is ordinary Rust: the clock is
 //! supplied by the harness, and only completed downloads are read here.
 use crate::Refusal;
 use skein_browser::boundary::Key;

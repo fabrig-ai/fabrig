@@ -1,4 +1,4 @@
-//! Full-screen keys, drawing and terminal (skein/docs/design/ui-screen.md, 6 to 8).
+//! Full-screen keys, drawing and terminal (skein/docs/design/ui/screen.md, 6 to 8).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;

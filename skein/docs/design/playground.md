@@ -6,8 +6,8 @@ no server: the world in a Web Worker, stepped in slices paced by the
 browser's clock; the application's browser shell on the page, its
 transport carried to the world over a bridge; a visitor in the world
 speaking HTTP to the application's listener; and a session log that
-replays a visit natively. The world is world.md's; the page's parts are
-ui-web.md's, the worker's platform among them (section 18). temper's
+replays a visit natively. The world is testing/world.md's; the page's parts are
+ui/web/README.md's, the worker's platform among them (`ui/web/README.md`, section 15). temper's
 playground is the first user (temper's `docs/design/playground.md`).
 
 ## 1. In one page
@@ -24,7 +24,7 @@ playground is the first user (temper's `docs/design/playground.md`).
   stream opened, read on and closed, abandons; their answers, the
   stream's pieces and end; the lines the world prints; and the world's
   clock with each message (section 5). On the page it is a `Platform`,
-  the worker's (ui-web.md, 18), so an application's shell changes the
+  the worker's (ui/web/README.md, 15), so an application's shell changes the
   type of its platform and nothing else.
 - **The visitor is a program of the world:** for each exchange, and for
   the stream, it opens a simulated connection to the application's
@@ -38,7 +38,7 @@ playground is the first user (temper's `docs/design/playground.md`).
   instant or the next message (section 3).
 - **One clock:** the page's platform gives the application the world's
   clock, never back, and moving between the world's reports only while
-  the world waits idle (ui-web.md, 18).
+  the world waits idle (ui/web/README.md, 15).
 - **Reproducible:** each input enters the world between steps, stamped
   with its step and its instant; the page keeps the session's log, and
   the harness replays a log natively as a test (section 6).
@@ -53,11 +53,11 @@ playground is the first user (temper's `docs/design/playground.md`).
 | Crate | Where | Holds |
 |---|---|---|
 | `skein-playground` | `crates/` | the visitor, the slices' loop over a world, the session log's replay feed; on wasm32, the worker's parts: its messages in, its timer and its posts |
-| `skein-ui-web` | `crates/` | gains the bridge's messages and the session log's format and keeping, portable, and the worker's platform for the page (ui-web.md, 18) |
+| `skein-ui-web` | `crates/` | gains the bridge's messages and the session log's format and keeping, portable, and the worker's platform for the page (ui/web/README.md, 15) |
 | `skein-ui-bundle` | `crates/` | gains a bundle's worker module (section 7) |
 
 - **`skein-playground` depends on** lib, io, http, the simulated world
-  (world.md) and `skein-ui-web`'s portable half for the bridge's
+  (testing/world.md) and `skein-ui-web`'s portable half for the bridge's
   messages; on wasm32, the glue. It is ordinary Rust, as a shell is
   (programming-model.md, 10.2), and builds natively, where the harness
   replays a log, and for wasm32, where a worker runs it.
@@ -68,7 +68,7 @@ playground is the first user (temper's `docs/design/playground.md`).
 
 ## 3. The slices
 
-The worker's loop, `skein-playground`'s, over a world (world.md) whose
+The worker's loop, `skein-playground`'s, over a world (testing/world.md) whose
 processes include the visitor:
 
 ```
@@ -80,7 +80,7 @@ on the timer, or after a message:
   while the world is busy and the slice's budget lasts: a step
   idle: target ← the clock + browser time since the last slice × speed
     the next due instant at or before the target: the clock moved to it, then steps
-    otherwise: the clock moved to the target, alone (world.md, 4)
+    otherwise: the clock moved to the target, alone (testing/world.md, 4)
   the visitor's outputs and the lines printed, posted, each with the clock
   the timer: busy, at once, whatever the speed; idle, the browser instant
     at which the next due instant comes at this speed, and none while
@@ -96,9 +96,9 @@ on the timer, or after a message:
 - **Paused, it is still:** speed 0 moves no clock, but a busy world
   still steps, and inputs still enter and are answered at the paused
   instant, so a paused world still answers what does not wait on time.
-- **The pace changes when, never what** (world.md, 4): a world moved in
+- **The pace changes when, never what** (testing/world.md, 4): a world moved in
   pieces is the world moved at once, so the log ignores the pace.
-- **No verdicts:** no step cap and no idle failure (world.md, 6). A world
+- **No verdicts:** no step cap and no idle failure (testing/world.md, 6). A world
   that settles, every process ended, has nothing more to step, and the
   page says the world stopped.
 
@@ -106,9 +106,9 @@ on the timer, or after a message:
 
 - **A `Host` of the world,** a step machine over skein's HTTP client on
   io's sockets, which an application's composition hosts as one of its
-  processes. Its inputs come from the loop between steps (world.md, 5);
+  processes. Its inputs come from the loop between steps (testing/world.md, 5);
   its outputs go back to the loop after each slice.
-- **Its inputs** are fetch's (ui-web.md, section 10): an exchange (its
+- **Its inputs** are fetch's (ui/web/README.md, section 8): an exchange (its
   id, a path, the method, headers and body, a bound on its answer's
   body); an abandon of one; the stream opened (a path, its headers, a
   bound on a piece), read on, or closed.
@@ -135,7 +135,7 @@ on the timer, or after a message:
   (programming-model.md, 6).
 - **Fetch's reports by construction:** the visitor keeps its exchanges
   and its stream in `skein-ui-web`'s fetch bookkeeping, the pure half
-  the browser's fetch keeps (ui-web.md, 10), so a refusal past the
+  the browser's fetch keeps (ui/web/README.md, 8), so a refusal past the
   bound in flight, a body past its bound, an abandon and the stream's
   pieces are reported as a browser's are: the first piece as it comes,
   each further one after a read-on.
@@ -212,7 +212,7 @@ session log's versioned text (decided 2026-11-03).
 
 - **The world is a function of** its build, its seed, its start (the
   wall at its start) and each input with its stamp, its step and its
-  instant (world.md, 5). The page draws the seed and reads the wall at
+  instant (testing/world.md, 5). The page draws the seed and reads the wall at
   a visit's start and gives both to the worker in the start message.
 - **The page keeps the log,** in its memory, not the worker's, so a
   worker's panic leaves it whole: each input it sent, with the stamp the
@@ -235,12 +235,12 @@ session log's versioned text (decided 2026-11-03).
   version, the bundle's digest, the seed and the start; then a line per
   input, its stamp, the input, and the digest of what the world said
   since the one before, each input in a text form of its own (its
-  fields; bodies in base64, lib.md, 6.1), never the bridge's unversioned
+  fields; bodies in base64, runtime/lib.md, 6.1), never the bridge's unversioned
   encoding, so the stored format stands alone. A log of another format
   version is refused, naming it. The build it names is the bundle's,
   which a native replay has not: a replay of another build goes on, the
   digests deciding, and a failure names the build the log came from.
-- **Replayed natively,** a test: the harness's run's steps (world.md,
+- **Replayed natively,** a test: the harness's run's steps (testing/world.md,
   3), in skein-playground's loop (6.2), over the application's
   composition built from the same documents, the
   log's seed and start, each input entering at its stamp, and each
@@ -273,7 +273,7 @@ what was said through that clock, give its end (decided 2026-11-03).
 
 Lines of printable ASCII, each ending in a newline; fields apart by one
 space, in the order given, `name=value`; numbers in decimal with no
-leading zero; bytes in base64 (lib.md, 6.1), the standard alphabet with
+leading zero; bytes in base64 (runtime/lib.md, 6.1), the standard alphabet with
 padding, the empty bytes as nothing; a digest as 64 lowercase hex
 digits. Anything else refuses the log, naming its line.
 
@@ -316,7 +316,7 @@ end step=<u64> instant=<ns> said=<digest>       or: cut
 ### 6.2 The replay's loop
 
 - **skein-playground's, the harness's run's steps without its
-  verdicts:** a product crate names no harness (world.md, 2), and the
+  verdicts:** a product crate names no harness (testing/world.md, 2), and the
   harness's run ends only on a settled world, which a visit's never
   is. The replay steps the world as the slices do, stepping while it
   is busy and once at each due instant the clock is moved to, so its
@@ -355,7 +355,7 @@ end step=<u64> instant=<ns> said=<digest>       or: cut
   (`new Worker(…, {type: "module"})`). The page's policy adds
   `worker-src 'self'`, and nothing is fetched after the load: the
   documents the world needs are in its module.
-- **The worker's files,** beside the page's (ui-web.md, 4.2): its
+- **The worker's files,** beside the page's (ui/web/bundle.md, 2): its
   starter `boot-worker.js`, two statements, `import init from
   "./<worker>.js"; init();`, as the page's starter is; its glue
   `<worker>.js` and its module `<worker>_bg.wasm`, `<worker>` the name
@@ -364,12 +364,12 @@ end step=<u64> instant=<ns> said=<digest>       or: cut
   path with the same bytes kept once. A worker named as the page's
   module, or a snippet at a path the page's holds with other bytes,
   refuses the bundle, naming it. The page finds the worker's starter in
-  the digest directory, as the parts find the directory (ui-web.md,
-  4.3).
+  the digest directory, as the parts find the directory (ui/web/bundle.md,
+  3).
 - **A panic is fail-stop:** the worker's hook posts its words before the
   module traps; the page's hook stops both. The page then says the
   playground failed, offers the log and a start over, and never reloads
-  by itself, as skein's restart part would (ui-web.md, 5): a new visit
+  by itself, as skein's restart part would (ui/web/README.md, 4): a new visit
   is a new world, and the log is the evidence.
 - **A reload, a reset or a new story** ends the worker and starts a
   fresh one: nothing is saved.
@@ -397,7 +397,7 @@ end step=<u64> instant=<ns> said=<digest>       or: cut
   `docs/design/playground.md`, 9); skein's own example in a playground
   waits (section 9).
 - **For the portable target:** clippy over `skein-playground` for
-  wasm32 in the gate (testing.md, 10).
+  wasm32 in the gate (testing/README.md, 10).
 
 ## 9. Open questions
 

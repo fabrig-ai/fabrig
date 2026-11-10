@@ -1,4 +1,4 @@
-//! A changed viewport reaches CSS layout (skein/docs/design/browser.md, 5).
+//! A changed viewport reaches CSS layout (skein/docs/design/testing/browser.md, 5).
 use super::{Event, FIND, PAGE, Request, Rig, Stage, query};
 impl Rig {
     pub(super) fn viewport_event(&mut self, event: Event) -> Result<(), Event> {

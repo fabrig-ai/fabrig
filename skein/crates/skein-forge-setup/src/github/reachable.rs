@@ -1,4 +1,4 @@
-//! One page of an accepted installation's repositories (forge-setup.md, 5.9).
+//! One page of an accepted installation's repositories (forge/setup/github.md, 1.9).
 use super::{
     app,
     given::{self, Given, Place, Refused},

@@ -20,7 +20,7 @@ pub struct Duration(u64);
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Wall(u64);
 
-/// A date of the proleptic Gregorian calendar, in UTC (skein/docs/design/lib.md, 8).
+/// A date of the proleptic Gregorian calendar, in UTC (skein/docs/design/runtime/lib.md, 8).
 /// Public fields may describe no date.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Civil {
@@ -218,7 +218,7 @@ impl Duration {
         self.0
     }
 
-    /// Whole milliseconds, discarding submillisecond nanoseconds (skein/docs/design/lib.md, 8).
+    /// Whole milliseconds, discarding submillisecond nanoseconds (skein/docs/design/runtime/lib.md, 8).
     #[must_use]
     pub const fn as_millis(self) -> u64 {
         self.0.div_euclid(1_000_000)

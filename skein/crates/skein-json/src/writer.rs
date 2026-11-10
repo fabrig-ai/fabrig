@@ -1,4 +1,4 @@
-//! The writer (json.md, 4): a document encoded from the caller's own calls,
+//! The writer (data/json.md, 4): a document encoded from the caller's own calls,
 //! made twice, first to measure it, then to write it, escaped, into
 //! `Writer::new(len)` (programming-model.md, 8).
 //!
@@ -32,7 +32,7 @@
 //! The writing pass measures nothing and checks no string's text: it writes
 //! what it is given. Text that differs between the passes at the same length
 //! is a bug of the caller's code that nothing asserts; it is written as it
-//! is, UTF-8 or not (json.md, 4).
+//! is, UTF-8 or not (data/json.md, 4).
 //!
 //! The document is compact, including borrowed `json_text` values. A string escapes `"`, `\`
 //! and the control characters, the common ones in their short forms and the
@@ -262,7 +262,7 @@ impl Encoder {
 
     /// Grammar was checked without retention. Replay its spelling through
     /// the same string decoder and escapes as the compact document writer
-    /// (llm.md, section 4.2); no value or decoded string is constructed.
+    /// (llm/README.md, section 4.2); no value or decoded string is constructed.
     fn put_json_spelling(&mut self, text: &[u8]) {
         let mut state = Spelling::Outside;
         for &byte in text {
@@ -382,7 +382,7 @@ impl Encoder {
         }
     }
 
-    /// Writes the compact document's records in order (json.md, section 4).
+    /// Writes the compact document's records in order (data/json.md, section 4).
     /// A `Long` retains no text and is the caller's bug, asserted.
     pub fn document(&mut self, document: &Document) {
         for index in 0..document.len() {

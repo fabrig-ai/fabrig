@@ -519,7 +519,7 @@ impl Child {
     fn read(&self, i: usize, delimiter: u8, out: &mut Outputs) {
         if let Some(token) = self.pipes.get(i).copied().flatten() {
             // max=1 delivers an unterminated final fragment before End, which
-            // a larger scan can hide under skein's lib.md section 7's contract.
+            // a larger scan can hide under skein's runtime/lib.md section 7's contract.
             let read = if i == 1 {
                 stream::Read::Scan { until: stream::Delimiter::new(&[delimiter]).expect("one-byte delimiter"), max: 1 }
             } else {

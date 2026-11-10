@@ -1,4 +1,4 @@
-//! Contracts at the owner's boundary (forge-client.md, sections 2 and 7).
+//! Contracts at the owner's boundary (forge/client.md, sections 2 and 7).
 use super::{LIMITS, configured};
 use crate::{Domain, Limits};
 

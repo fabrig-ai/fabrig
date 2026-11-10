@@ -57,7 +57,7 @@ impl Referee<Binary> for Judge {
 }
 
 /// The containments a supervised case runs under: the walk (`Containment::Walk`)
-/// is Linux's, its subreaper and pidfds (shell.md, 9); macOS has the group alone.
+/// is Linux's, its subreaper and pidfds (runtime/shell.md, 8); macOS has the group alone.
 const WALKS: &[bool] = if cfg!(target_os = "linux") { &[true, false] } else { &[false] };
 
 #[test]

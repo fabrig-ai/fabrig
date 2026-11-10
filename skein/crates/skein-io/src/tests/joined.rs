@@ -1,4 +1,4 @@
-//! Named admission and connector ownership (io.md, 3.5).
+//! Named admission and connector ownership (runtime/io/sockets.md, 5).
 use super::{Rig, limits, name, owner};
 use crate::{Error, Event, Limits, Name, Request};
 use alloc::boxed::Box;

@@ -2,7 +2,7 @@
 
 Provisional, 2026-10-07, revised 2026-10-19. The channel between a run and
 its host is smith's application protocol on skein's framed channel
-(skein's `channel.md`). This document covers:
+(skein's `net/channel.md`). This document covers:
 
 - its opening;
 - its kinds and their records;
@@ -93,7 +93,7 @@ of domain/host.md, section 2.
   agents' configuration then finds out at the first opening, not in the
   middle of a run.
 - **smith's refusal reasons,** from the application's range (skein's
-  `channel.md`, 5.1):
+  `net/channel.md`, 5.1):
   - **rules:** the peer broke the channel's rules (section 5);
   - **busy:** a connected agent is serving another run;
   - **unauthorized:** a connected agent did not accept the credential.
@@ -127,7 +127,7 @@ of domain/host.md, section 2.
   they were told, from the last turn whose record had `opens_window`
   (section 4; transcript.md, section 3). Earlier windows are never sent.
   It is one piece: each turn's bytes after their length, a `u32`, as the
-  codec writes a field of bytes (skein's `codec.md`, section 3). The
+  codec writes a field of bytes (skein's `data/codec/README.md`, section 3). The
   piece is bounded at the resume limit's bytes, and the agent counts its
   turns against the resume limit's turns as it splits it, so a window of
   many small turns travels as one of a few large ones does
@@ -269,11 +269,11 @@ last one with `opens_window` (domain/host.md, section 6).
   (charter.md, section 2);
 - **the reset,** in limited: how long until the account may be used
   again, an optional `duration`. It is absent when its provider did not
-  say, and zero when it said zero (skein's `llm.md`, 2.5);
+  say, and zero when it said zero (skein's `llm/README.md`, 2.5);
 - **the code,** in refused: the provider's error code, else its error
   type, as text within its bound. It is empty when the provider gave
   none, or one past the bound, which is left out, never clipped (skein's
-  `llm.md`, 2.5 and 7);
+  `llm/README.md`, 2.5 and 7);
 - **the reason,** in refused: the failure's detail, the provider's text,
   within its bound, cut at a character's boundary.
 
@@ -487,8 +487,8 @@ a trace is kept is the agent's configuration (agent.md).
   - **durations** turned into deadlines on their own clocks;
   - **grants** reduced to names.
 - **skein owes:**
-  - the framed channel (skein's `channel.md`);
-  - codecs generated from `smith-channel`'s schema (skein's `codec.md`);
+  - the framed channel (skein's `net/channel.md`);
+  - codecs generated from `smith-channel`'s schema (skein's `data/codec/README.md`);
   - streams: pipes and sockets from io, and TLS.
 
 ## 10. The world

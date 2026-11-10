@@ -1,4 +1,4 @@
-//! The committed codecs and golden bytes against their schemas (skein's codec.md, 6).
+//! The committed codecs and golden bytes against their schemas (skein's data/codec/README.md, 6).
 use std::{fmt::Write as _, fs, path::PathBuf};
 #[path = "../../../codec-families.rs"]
 mod families;

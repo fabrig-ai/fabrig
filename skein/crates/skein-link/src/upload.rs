@@ -1,4 +1,4 @@
-//! A whole body within each room grant (skein/docs/design/link.md, 3.4).
+//! A whole body within each room grant (skein/docs/design/net/link.md, 3.4).
 use alloc::boxed::Box;
 use core::fmt;
 use skein_lib::stream::{Down, Read};

@@ -96,7 +96,7 @@ pub fn text(rng: &mut Rng, longest: u32) -> Box<[u8]> {
     text.into_bytes().into_boxed_slice()
 }
 
-/// Text in runs (json.md, 6): `pieces` times, a run of up to `longest` plain
+/// Text in runs (data/json.md, 6): `pieces` times, a run of up to `longest` plain
 /// bytes and then one of `breaks`; then a last run.
 #[must_use]
 pub fn runs(rng: &mut Rng, breaks: &[&[u8]], pieces: u32, longest: u32) -> Vec<u8> {

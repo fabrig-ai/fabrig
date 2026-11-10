@@ -1,4 +1,4 @@
-//! Sign-out admission, revocation and forgetting (oauth.md, section 6.3).
+//! Sign-out admission, revocation and forgetting (oauth/accounts.md, section 3).
 use super::*;
 use private::Owner;
 use skein_io::{file, kernel};

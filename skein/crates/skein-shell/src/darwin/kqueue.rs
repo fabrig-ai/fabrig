@@ -1,4 +1,4 @@
-//! Level-triggered descriptor readiness (shell.md, 7.2 and 7.5).
+//! Level-triggered descriptor readiness (runtime/readiness.md, 2 and 5).
 //!
 //! # The `unsafe`, and why it is sound
 //!

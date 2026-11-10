@@ -6,8 +6,8 @@ use skein_ui::{Builder, DrawingKind, Owner, Role, Run, State, View};
 use skein_lib::{Queue, Token};
 
 // Keep each scenario's fresh fixture and assertions, while sharing the test
-// process startup cost within the kits' serial budget (skein's ui.md,
-// section 17.1).
+// process startup cost within the kits' serial budget (skein's ui/README.md,
+// section 14.1).
 #[test]
 fn tree_queries_find_regions_words_and_drawing_fallbacks() {
     finds_nested_regions_and_does_not_escape_their_subtrees();

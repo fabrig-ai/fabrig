@@ -1,4 +1,4 @@
-//! Capacity limits and representability checks (forge-client.md, section 5).
+//! Capacity limits and representability checks (forge/client.md, section 5).
 //!
 //! The limits bound retained calls, live rows and in-flight writes. This
 //! module retains no state and knows no task policy. `valid` rejects

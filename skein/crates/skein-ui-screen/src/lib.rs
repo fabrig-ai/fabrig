@@ -1,4 +1,4 @@
-//! The full-screen shell's theme, frame and focus (skein/docs/design/ui-screen.md, sections 3 to 5).
+//! The full-screen shell's theme, frame and focus (skein/docs/design/ui/screen.md, sections 3 to 5).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 #![expect(

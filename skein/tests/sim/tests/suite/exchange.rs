@@ -1,4 +1,4 @@
-//! A client and a server exchanging bytes (simulator.md, 6): every byte
+//! A client and a server exchanging bytes (testing/simulator.md, 6): every byte
 //! both ways in a calm world, and a seed that replays. The sweep under
 //! chaos is in `fuzzy_exchange.rs`.
 

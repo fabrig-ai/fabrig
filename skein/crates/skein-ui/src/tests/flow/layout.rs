@@ -1,4 +1,4 @@
-//! Tests for laying a flow out as a scene (skein/docs/design/ui.md, 11.5).
+//! Tests for laying a flow out as a scene (skein/docs/design/ui/scenes.md, 5).
 
 use crate::flow::{self, Direction, Node};
 use crate::scene::{Mark, Point, Scene};
@@ -14,7 +14,7 @@ fn data(direction: Direction, nodes: &[Node<'_>]) -> skein_lib::List<u8> {
 
 #[test]
 fn an_unsupported_flow_leaves_the_scene_untouched() {
-    // 1,100 rows at 62 pixels each exceed a u16 figure height (ui.md, 11.5).
+    // 1,100 rows at 62 pixels each exceed a u16 figure height (ui/scenes.md, 5).
     const TALL_NODES: u32 = 1_100;
     let lr = data(Direction::LeftToRight, &[PLAIN]);
     let td = data(Direction::TopToBottom, &[PLAIN]);

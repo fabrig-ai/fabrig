@@ -1,4 +1,4 @@
-//! Delivery-log documents use the pushed payload encoder (forge-github.md, 9.3).
+//! Delivery-log documents use the pushed payload encoder (forge/github.md, 9.3).
 use super::{delivery, output_limits};
 use crate::{
     github::{

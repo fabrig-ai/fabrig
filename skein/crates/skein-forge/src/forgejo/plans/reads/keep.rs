@@ -9,7 +9,7 @@ pub(super) fn keep_pull(pull: &d::PullRequest, forge: u16, tables: &mut Tables) 
         keep_user(user, forge, tables);
     }
 }
-#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
+#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2")]
 pub(super) fn keep_row(row: &d::Row, forge: u16, tables: &mut Tables) {
     match row {
         d::Row::User(user) => keep_user(user, forge, tables),
@@ -26,7 +26,7 @@ pub(super) fn keep_row(row: &d::Row, forge: u16, tables: &mut Tables) {
         _ => {}
     }
 }
-#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
+#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2")]
 pub(crate) fn keep_document(document: &d::Document, forge: u16, tables: &mut Tables) {
     match document {
         d::Document::User(user) => keep_user(user, forge, tables),
@@ -125,7 +125,7 @@ pub(super) fn page_bound(request: &Request) -> Option<u32> {
     }
 }
 #[must_use]
-#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
+#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2")]
 pub fn long(heard: &Heard) -> bool {
     match heard {
         Heard::Row(row) => match row {

@@ -1,7 +1,7 @@
-//! The stream's cells (io.md, 3.3): connecting; the intake meeting demands
+//! The stream's cells (runtime/io/sockets.md, 3): connecting; the intake meeting demands
 //! of every kind; room; short sends continued from their offset; finish; a
 //! failure told once; a graceful close and its deadline; aborts, and every
-//! outcome a cancel may have (kernel.md, 5).
+//! outcome a cancel may have (runtime/kernel.md, 5).
 
 use alloc::boxed::Box;
 
@@ -19,7 +19,7 @@ fn ask(rig: &mut Rig, socket: Token, read: Read, room: u32) -> Out {
 }
 
 /// Sends `bytes` as an owner must: within room asked for and granted
-/// (lib.md, 7), unless there are none.
+/// (runtime/lib.md, 7), unless there are none.
 fn give(rig: &mut Rig, socket: Token, bytes: &[u8]) -> Out {
     if !bytes.is_empty() {
         let room = u32::try_from(bytes.len()).unwrap();
@@ -533,14 +533,14 @@ fn race(target: Result<Done, Kernel>) -> Race {
 }
 
 /// A cancel too late, whose target the kernel interrupted anyway: the target
-/// completes `Cancelled` all the same (kernel.md, 5).
+/// completes `Cancelled` all the same (runtime/kernel.md, 5).
 const INTERRUPTED: Race = (Err(Kernel::Cancelled), Err(Kernel::TooLate));
 
 /// What a target completes with, and what its cancel answers.
 type Race = (Result<Done, Kernel>, Result<Done, Kernel>);
 
 /// An abort with a receive and a send in flight, then their completions and
-/// their cancels' in `order`: each outcome a cancel may have (kernel.md, 5).
+/// their cancels' in `order`: each outcome a cancel may have (runtime/kernel.md, 5).
 fn abort_in_order(order: [usize; 4], (recv_result, cancel_recv_result): Race, (send_result, cancel_send_result): Race) {
     let mut rig = Rig::new(limits());
     let (socket, recv) = connected(&mut rig, owner(1), FD);

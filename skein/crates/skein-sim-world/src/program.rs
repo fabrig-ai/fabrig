@@ -1,5 +1,5 @@
 //! Program selection shared by simulated and real worlds (examples.md,
-//! section 6; simulator.md, section 3). A registry keeps factories and their
+//! section 6; testing/simulator.md, section 3). A registry keeps factories and their
 //! admission limits, never service state. Factories receive a spawn's exact
 //! arguments and environment, inherited pipes, independently opened startup
 //! roots and a signal source.
@@ -90,13 +90,13 @@ pub fn check_roots(roots: &[StartupRoot]) {
 
 /// Machine calls a simulated world forwards when no hosted program matches.
 pub trait Machine {
-    /// A digest of the fake's own state for replay (testing.md, 5).
+    /// A digest of the fake's own state for replay (testing/README.md, 5).
     fn state_digest(&self) -> Option<[u8; 32]> {
         None
     }
 
     /// Settles the cut's handles; power loss applies the machine's seeded
-    /// crash model (simulator.md, 3.3). A cutting world implements this.
+    /// crash model (testing/simulator.md, 3.3). A cutting world implements this.
     fn cut(&mut self, _cut: crate::Cut, _held: &[skein_sim::Handle], _seed: u64) {
         crate::fail("a world with cuts implements its machine's cut settlement");
     }

@@ -1,5 +1,5 @@
-//! A shell diagnostic writer bound to a hosted pipe (shell.md, section 12;
-//! examples.md, section 6; simulator.md, section 3). It keeps a bounded byte
+//! A shell diagnostic writer bound to a hosted pipe (runtime/shell.md, section 11;
+//! examples.md, section 6; testing/simulator.md, section 3). It keeps a bounded byte
 //! capture and translates host tokens beside its own writes. It knows no
 //! service policy. `PipeWriter::new` supplies a `Write` sink at startup;
 //! `PipeCapture::host` sends those bytes through the host's pipe and

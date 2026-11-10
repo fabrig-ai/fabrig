@@ -672,7 +672,7 @@ pub fn locate_name(op: &client::Op) -> Option<Box<[u8]>> {
     }
 }
 
-/// Map a fake hook as the component maps a Forgejo delivery (forge-client.md 4).
+/// Map a fake hook as the component maps a Forgejo delivery (forge/client.md 4).
 #[must_use]
 pub fn hint(repository: client::Repository, request: &skein_fake_forge_domain::Request) -> Option<client::Hint> {
     let skein_fake_forge_domain::Request::Hook { change, number, branch, commit: head, by, body, ended, .. } = request
@@ -756,7 +756,7 @@ fn run(run: forge::Run) -> client::Run {
         jobs: Box::new([]),
     }
 }
-/// A run read also asks for its jobs, as the dialect does (forge.md, 5.2).
+/// A run read also asks for its jobs, as the dialect does (forge/forgejo.md, 1.2).
 #[must_use]
 pub fn run_jobs(jobs: Box<[forge::Job]>) -> Box<[client::RunJob]> {
     jobs.into_iter()

@@ -1,4 +1,4 @@
-//! Bounded keeping-up of live forge resources (forge-client.md, section 5).
+//! Bounded keeping-up of live forge resources (forge/client.md, section 5).
 //!
 //! The working set holds live rows, scan positions, inbox delivery stamps,
 //! and observed heads. It never discovers resources from labels or reads

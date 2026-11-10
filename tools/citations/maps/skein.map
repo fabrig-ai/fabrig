@@ -1,0 +1,112 @@
+skein/docs/design/lib.md -> skein/docs/design/runtime/lib.md
+skein/docs/design/kernel.md -> skein/docs/design/runtime/kernel.md
+title skein/docs/design/runtime/readiness.md: The readiness backend
+skein/docs/design/shell.md 7 -> skein/docs/design/runtime/readiness.md
+skein/docs/design/shell.md -> skein/docs/design/runtime/shell.md
+title skein/docs/design/runtime/io/sockets.md: Sockets and pipes
+skein/docs/design/io.md 3 -> skein/docs/design/runtime/io/sockets.md
+title skein/docs/design/runtime/io/files.md: Files
+skein/docs/design/io.md 5 -> skein/docs/design/runtime/io/files.md
+title skein/docs/design/runtime/io/processes.md: Processes
+skein/docs/design/io.md 6 -> skein/docs/design/runtime/io/processes.md
+skein/docs/design/io.md -> skein/docs/design/runtime/io/README.md
+skein/docs/design/json.md -> skein/docs/design/data/json.md
+skein/docs/design/kv.md -> skein/docs/design/data/kv.md
+title skein/docs/design/data/codec/diff.md: The diff
+skein/docs/design/codec.md 10 -> skein/docs/design/data/codec/diff.md
+title skein/docs/design/data/codec/patches.md: Patches
+skein/docs/design/codec.md 11 -> skein/docs/design/data/codec/patches.md
+title skein/docs/design/data/codec/command.md: The command and its check
+skein/docs/design/codec.md 12 -> skein/docs/design/data/codec/command.md
+skein/docs/design/codec.md -> skein/docs/design/data/codec/README.md
+skein/docs/design/channel.md -> skein/docs/design/net/channel.md
+skein/docs/design/link.md -> skein/docs/design/net/link.md
+skein/docs/design/tls.md -> skein/docs/design/net/tls.md
+title skein/docs/design/net/http/client.md: The HTTP/1.1 client
+skein/docs/design/http.md 3 -> skein/docs/design/net/http/client.md
+title skein/docs/design/net/http/sse.md: Server-sent events
+skein/docs/design/http.md 4 -> skein/docs/design/net/http/sse.md
+title skein/docs/design/net/http/server.md: The HTTP/1.1 server
+skein/docs/design/http.md 5 -> skein/docs/design/net/http/server.md
+title skein/docs/design/net/http/testing.md: Testing HTTP
+skein/docs/design/http.md 6 -> skein/docs/design/net/http/testing.md
+skein/docs/design/http.md -> skein/docs/design/net/http/README.md
+title skein/docs/design/forge/forgejo.md: Forgejo, as the kit uses it
+skein/docs/design/forge.md 5 -> skein/docs/design/forge/forgejo.md 1
+skein/docs/design/forge.md 9 -> skein/docs/design/forge/forgejo.md 2
+skein/docs/design/forge.md -> skein/docs/design/forge/README.md
+skein/docs/design/forge-github.md -> skein/docs/design/forge/github.md
+skein/docs/design/forge-client.md -> skein/docs/design/forge/client.md
+skein/docs/design/forge-connection.md -> skein/docs/design/forge/connection.md
+title skein/docs/design/forge/setup/forgejo.md: Setting up Forgejo
+skein/docs/design/forge-setup.md 4 -> skein/docs/design/forge/setup/forgejo.md 1
+skein/docs/design/forge-setup.md 8 -> skein/docs/design/forge/setup/forgejo.md 2
+title skein/docs/design/forge/setup/github.md: Setting up GitHub
+skein/docs/design/forge-setup.md 5 -> skein/docs/design/forge/setup/github.md 1
+skein/docs/design/forge-setup.md 10 -> skein/docs/design/forge/setup/github.md 2
+skein/docs/design/forge-setup.md -> skein/docs/design/forge/setup/README.md
+skein/docs/design/llm.md -> skein/docs/design/llm/README.md
+skein/docs/design/llm-connection.md -> skein/docs/design/llm/connection.md
+title skein/docs/design/oauth/accounts.md: The accounts driver
+skein/docs/design/oauth.md 6 -> skein/docs/design/oauth/accounts.md
+skein/docs/design/oauth.md -> skein/docs/design/oauth/README.md
+skein/docs/design/oauth-issuer.md -> skein/docs/design/oauth/issuer.md
+title skein/docs/design/ui/markdown.md: Markdown
+skein/docs/design/ui.md 10 -> skein/docs/design/ui/markdown.md
+title skein/docs/design/ui/scenes.md: Scenes
+skein/docs/design/ui.md 11 -> skein/docs/design/ui/scenes.md
+title skein/docs/design/ui/shells.md: Shells and platforms
+skein/docs/design/ui.md 16 -> skein/docs/design/ui/shells.md
+skein/docs/design/ui.md -> skein/docs/design/ui/README.md
+skein/docs/design/ui-text.md -> skein/docs/design/ui/text.md
+skein/docs/design/ui-screen.md -> skein/docs/design/ui/screen.md
+title skein/docs/design/ui/web/bundle.md: The toolchain and the bundle
+skein/docs/design/ui-web.md 4 -> skein/docs/design/ui/web/bundle.md
+title skein/docs/design/ui/web/elements.md: The tree as elements
+skein/docs/design/ui-web.md 6 -> skein/docs/design/ui/web/elements.md
+title skein/docs/design/ui/web/testing.md: Testing the web shell
+skein/docs/design/ui-web.md 14 -> skein/docs/design/ui/web/testing.md
+skein/docs/design/ui-web.md -> skein/docs/design/ui/web/README.md
+skein/docs/design/testing.md -> skein/docs/design/testing/README.md
+skein/docs/design/simulator.md -> skein/docs/design/testing/simulator.md
+skein/docs/design/world.md -> skein/docs/design/testing/world.md
+skein/docs/design/browser.md -> skein/docs/design/testing/browser.md
+skein/docs/design/fake-checkout.md -> skein/docs/design/testing/fakes/checkout.md
+title skein/docs/design/testing/fakes/github.md: The fake GitHub
+skein/docs/design/fake-forge.md 10 -> skein/docs/design/testing/fakes/github.md 1
+skein/docs/design/fake-forge.md 11 -> skein/docs/design/testing/fakes/github.md 2
+skein/docs/design/fake-forge.md 12 -> skein/docs/design/testing/fakes/github.md 3
+skein/docs/design/fake-forge.md -> skein/docs/design/testing/fakes/forge.md
+skein/docs/design/fake-llm.md -> skein/docs/design/testing/fakes/llm.md
+renumber skein/docs/design/shell.md
+renumber skein/docs/design/io.md
+renumber skein/docs/design/codec.md
+renumber skein/docs/design/http.md
+renumber skein/docs/design/forge.md
+renumber skein/docs/design/forge-setup.md
+renumber skein/docs/design/oauth.md
+renumber skein/docs/design/ui.md
+renumber skein/docs/design/ui-web.md
+renumber skein/docs/design/fake-forge.md
+renumber skein/docs/design/runtime/readiness.md
+renumber skein/docs/design/runtime/io/sockets.md
+renumber skein/docs/design/runtime/io/files.md
+renumber skein/docs/design/runtime/io/processes.md
+renumber skein/docs/design/data/codec/diff.md
+renumber skein/docs/design/data/codec/patches.md
+renumber skein/docs/design/data/codec/command.md
+renumber skein/docs/design/net/http/client.md
+renumber skein/docs/design/net/http/sse.md
+renumber skein/docs/design/net/http/server.md
+renumber skein/docs/design/net/http/testing.md
+renumber skein/docs/design/forge/forgejo.md
+renumber skein/docs/design/forge/setup/forgejo.md
+renumber skein/docs/design/forge/setup/github.md
+renumber skein/docs/design/oauth/accounts.md
+renumber skein/docs/design/ui/markdown.md
+renumber skein/docs/design/ui/scenes.md
+renumber skein/docs/design/ui/shells.md
+renumber skein/docs/design/ui/web/bundle.md
+renumber skein/docs/design/ui/web/elements.md
+renumber skein/docs/design/ui/web/testing.md
+renumber skein/docs/design/testing/fakes/github.md

@@ -1,4 +1,4 @@
-//! The bundle's closed list of extensions (ui-web.md, 4.4).
+//! The bundle's closed list of extensions (ui/web/bundle.md, 4).
 use std::path::Path;
 
 /// The content type for a bundle file, or `None` outside the closed list.
@@ -20,7 +20,7 @@ pub fn of(path: &Path) -> Option<&'static str> {
     }
 }
 
-/// Whether a file has a compressed form (skein/docs/design/ui-web.md, 4.2).
+/// Whether a file has a compressed form (skein/docs/design/ui/web/bundle.md, 2).
 #[must_use]
 pub fn gzipped(path: &Path) -> bool {
     matches!(path.extension().and_then(|extension| extension.to_str()), Some("wasm" | "js" | "css" | "svg"))

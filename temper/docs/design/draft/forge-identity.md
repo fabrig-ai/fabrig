@@ -88,13 +88,13 @@ set-up's admin token (`../protocol/setup.md`, 5.2). It's also given the owned fo
 person's login, reads `GET /users/<login>`, and answers its `id`; a fake forge is given
 none. The connector keeps the link. The same id again changes nothing. A different id
 replaces it, as a person may remake their account; an account gone leaves it, and
-that's logged. This changes skein's plan and its `Done` (skein's `forge-setup.md`, 4.1
-and 4.3), with no system named there, so a plan of its own goes first.
+that's logged. This changes skein's plan and its `Done` (skein's `forge/setup/forgejo.md`, 1.1
+and 1.3), with no system named there, so a plan of its own goes first.
 
 ### 4.2 GitHub
 
 `GET /app`, on the App's JWT, runs in `Convert` and in `Reconcile` (skein's
-`forge-setup.md`, 5.2 and 5.6), and each checks the App's id. GitHub's documentation
+`forge/setup/github.md`, 1.2 and 1.6), and each checks the App's id. GitHub's documentation
 lists `owner` as required on it, with `id`, `login` and `type`; skein answers these
 to its caller, and the live conformance checks them on `GET /app` itself.
 The by-slug read `GET /apps/<slug>` answered the same for the probe App on
@@ -104,7 +104,7 @@ use it.
 - **Made by the manifest flow alone,** whose `target` is always `Personal`
   (`../protocol/setup.md`, 17.2). Manifest and pasted forges end in the same records,
   so `Convert` first writes a new secret item, `AppMade`, whose bytes are the App's id,
-  as `Copying` is written first (skein's `forge-setup.md`, 6.4). It's kept in jig's
+  as `Copying` is written first (skein's `forge/setup/README.md`, 4.4). It's kept in jig's
   secrets' store with `AppId`, as no write spans that store and the forge's record.
 - **Each `GET /app` sets the link from there:** when `AppMade` equals `AppId` and
   `owner.type` is `User`, the link is `owner.id`. So a restart before the link was kept

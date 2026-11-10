@@ -1,6 +1,6 @@
 //! The certificates the worlds use, kept in `fixtures/` and made by
 //! `fixtures/make.sh`, and the configurations made of them: the client's,
-//! which trusts the test root, and the server's, which presents a chain (tls.md, 5).
+//! which trusts the test root, and the server's, which presents a chain (net/tls.md, 5).
 //!
 //! Every certificate is valid from 2026-01-01 to 2036-01-01. A world checks
 //! them at the wall time it chooses: [`VALID`], [`EXPIRED`] or [`EARLY`].

@@ -1,5 +1,5 @@
 //! The UTC proleptic Gregorian calendar shared by views and phrases
-//! (skein/docs/design/ui.md, 9).
+//! (skein/docs/design/ui/README.md, 9).
 
 use skein_lib::Wall;
 

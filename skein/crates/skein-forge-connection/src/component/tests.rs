@@ -1,7 +1,7 @@
 use super::*;
 use crate::tests::fixtures;
 
-// forge-connection.md 6.1 reserves the listener's owner prefix.
+// forge/connection.md 6.1 reserves the listener's owner prefix.
 const LISTENER_OWNER: u64 = 1_u64 << 59_u32;
 const LAST_API_OWNER: u64 = LISTENER_OWNER - 1;
 fn token_fixture() -> (Component, Env<Limits>, Queue<skein_io::Request>) {

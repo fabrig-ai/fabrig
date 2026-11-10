@@ -179,7 +179,7 @@ queue's update in the cards, "catch up" on a goal's branch, each stop
 made only when needed marked so and drawn outlined, a repair saying
 what it answers, and an agent's "Can" ending "never merge"; who acts by
 mark alone, an agent's star and its rises in ink; each rise a fade,
-skein's linear fade of a mark's stroke (skein's `ui.md`, 11.2); the
+skein's linear fade of a mark's stroke (skein's `ui/scenes.md`, 2); the
 open card's place at 1000 px and on a phone, and four tabs two by two
 at 760 px and under; and CI's card naming the repository's workflows,
 which the forge reads at the landing branch's tip and keeps on its
@@ -500,7 +500,7 @@ goal's branch; a goal's landing whose update conflicts takes it, but
 no story runs that (`domain/forge.md`). A head behind its base takes it
 however far behind, any listed commit or a range too large to list
 proving it lacks the base's tip, and Forgejo answers a long range's
-oldest page (`domain/forge.md`; skein's `forge.md`). Lost updates and prepares recover
+oldest page (`domain/forge.md`; skein's `forge/README.md`). Lost updates and prepares recover
 in the worlds, with a reason at their retry bound; the three-thread
 real-process restart proof awaits its after-landing trial
 (`domain/forge.md`, `domain/landing.md`). The prepare and key kinds

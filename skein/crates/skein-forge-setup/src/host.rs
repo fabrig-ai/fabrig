@@ -1,5 +1,5 @@
-//! The host component: the plans run inside a service (skein/docs/design/forge-setup.md, 6.3).
-//! Runtime membership follows skein/docs/design/forge-setup.md, 6.3.
+//! The host component: the plans run inside a service (skein/docs/design/forge/setup/README.md, 4.3).
+//! Runtime membership follows skein/docs/design/forge/setup/README.md, 4.3.
 mod boundary;
 pub(crate) mod connection;
 #[cfg(test)]
@@ -175,7 +175,7 @@ impl Host {
             }
         }
     }
-    /// Removes only this forge's work and callback authority (skein/docs/design/forge-setup.md, 6.3).
+    /// Removes only this forge's work and callback authority (skein/docs/design/forge/setup/README.md, 4.3).
     fn remove(&mut self, forge: u16, up: &mut Queue<Event>) {
         for _ in 0..self.runs.len() {
             let mut next = None;

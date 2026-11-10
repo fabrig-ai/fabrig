@@ -248,7 +248,7 @@ A crate that exists for the client is named
   socket's mode is 0666: who may do what is decided by peer
   credentials, never by the file's mode.
 - **skein's channel over it,** with the magic `hrtc`, the client as
-  initiator and an empty credential (`skein/docs/design/channel.md`, section 5).
+  initiator and an empty credential (`skein/docs/design/net/channel.md`, section 5).
   The client and the steward come from the same release, so the version
   range is one version wide; the opening still refuses a stale client
   cleanly.

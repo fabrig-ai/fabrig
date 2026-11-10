@@ -1,4 +1,4 @@
-//! Declaration and bound metadata computed once for a generation (codec.md, 6).
+//! Declaration and bound metadata computed once for a generation (data/codec/README.md, 6).
 
 use alloc::collections::BTreeMap;
 

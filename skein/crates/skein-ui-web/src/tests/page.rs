@@ -69,7 +69,7 @@ fn an_insert_builds_the_golden_page() {
 
 #[test]
 fn a_markdown_table_builds_the_golden_page() {
-    const READER_LEVELS: u32 = 5; // ui.md, 10: table, row, cell, link, text.
+    const READER_LEVELS: u32 = 5; // ui/markdown.md: table, row, cell, link, text.
     assert_eq!(
         markdown_page(include_bytes!("../../../skein-ui/src/tests/markdown/13.md"), 1, READER_LEVELS),
         include_str!("golden/markdown-table.html").trim_end()
@@ -78,7 +78,7 @@ fn a_markdown_table_builds_the_golden_page() {
 
 #[test]
 fn numbered_markdown_builds_the_golden_page() {
-    const READER_LEVELS: u32 = 6; // ui.md, 10: two list/item pairs, link, text.
+    const READER_LEVELS: u32 = 6; // ui/markdown.md: two list/item pairs, link, text.
     assert_eq!(
         markdown_page(include_bytes!("../../../skein-ui/src/tests/markdown/17.md"), 2, READER_LEVELS),
         include_str!("golden/markdown-numbered.html").trim_end()
@@ -91,10 +91,10 @@ fn markdown_page(input: &[u8], nesting: u32, reader_levels: u32) -> String {
     let nodes = skein_ui::markdown::max_nodes(bytes).expect("fixture markdown node bound fits") + PARENTS;
     let limits = skein_ui::Limits {
         nodes,
-        depth: reader_levels + PARENTS, // ui.md, 10: caller reserves the reader's levels.
+        depth: reader_levels + PARENTS, // ui/markdown.md: caller reserves the reader's levels.
         text_per_node: skein_ui::markdown::max_text_bytes(bytes).expect("fixture markdown text bound fits"),
         text_bytes: skein_ui::markdown::max_text_bytes(bytes).expect("fixture markdown text bound fits"),
-        patches: nodes * 4, // ui.md, 7: at most four patches per node.
+        patches: nodes * 4, // ui/README.md, 7: at most four patches per node.
         markdown_depth: nesting,
         ..LIMITS
     };

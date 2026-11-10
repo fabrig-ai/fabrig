@@ -1,4 +1,4 @@
-//! Bounded protocol tables checked before use (channel.md, section 4).
+//! Bounded protocol tables checked before use (net/channel.md, section 4).
 //! These tables keep wire numbers and size limits, but never body semantics.
 use skein_lib::List;
 
@@ -65,7 +65,7 @@ pub enum SchemaError {
 }
 
 impl Schema {
-    /// Checks the whole table and this role's sent frames (channel.md, section 4).
+    /// Checks the whole table and this role's sent frames (net/channel.md, section 4).
     pub fn check(&self, role: Role, limits: &Limits) -> Result<(), SchemaError> {
         if limits.chunk == 0
             || limits.output_frames == 0
@@ -103,7 +103,7 @@ impl Schema {
                     return Err(SchemaError::Kind);
                 }
                 // Received bodies are admitted by their own terms/input bound,
-                // never by this role's output queue (channel.md, section 4).
+                // never by this role's output queue (net/channel.md, section 4).
                 if kind.direction == sent {
                     let length = kind.largest.checked_add(8).ok_or(SchemaError::Kind)?;
                     if length > limits.output_bytes {

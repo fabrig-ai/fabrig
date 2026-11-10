@@ -1,4 +1,4 @@
-//! Public test fixture, never a secret (oauth.md, 5).
+//! Public test fixture, never a secret (oauth/README.md, 5).
 //! Generated once with:
 //! ```text
 //! openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out test-key.pem

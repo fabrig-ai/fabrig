@@ -1,4 +1,4 @@
-//! Startup and keeper process calls (shell.md, 7.5).
+//! Startup and keeper process calls (runtime/readiness.md, 5).
 
 #[cfg(target_os = "linux")]
 use std::path::Path;
@@ -49,7 +49,7 @@ fn parent_death_exec_is_unsupported() {
 }
 
 /// Opens the service's termination signal source for io
-/// to adopt before the loop starts (shell.md, section 6; io.md, section 7).
+/// to adopt before the loop starts (runtime/shell.md, section 6; runtime/io/README.md, section 4).
 pub fn open_termination_signals() -> Result<Fd, i32> {
     system::process::open_signals(crate::Watch::Termination)
 }
@@ -84,7 +84,7 @@ pub fn signal_kept_child(
     system::process::signal_child(pidfd, signal, to).map(|_| ())
 }
 
-/// Closes a descriptor opened at startup and never given to io (shell.md, 7.5).
+/// Closes a descriptor opened at startup and never given to io (runtime/readiness.md, 5).
 pub fn close_startup_fd(descriptor: Fd) {
     system::process::close_keeper_fd(descriptor);
 }
@@ -98,7 +98,7 @@ pub fn close_keeper_fd(descriptor: Fd) {
 /// end-to-end settlement uses the kernel (testing-strategy.md, section 2.9).
 /// Every descriptor must be quiescent: an observer with outstanding records
 /// cancels and drains them before closure, or leaves their descriptors open
-/// in its emergency destructor (kernel.md, section 7).
+/// in its emergency destructor (runtime/kernel.md, section 7).
 pub fn abandon_binary(pidfd: Option<Fd>, descriptors: &[Fd]) {
     system::process::abandon_binary(pidfd, descriptors);
 }
@@ -113,14 +113,14 @@ pub fn open_signal_pipe() -> Result<(Fd, Fd), Error> {
     system::process::signal_pipe()
 }
 
-/// Sends to this thread's termination signal source (io.md, section 7).
+/// Sends to this thread's termination signal source (runtime/io/README.md, section 4).
 /// Call only after `open_termination_signals` on the same thread. On macOS
-/// it signals the process, which every signal kqueue in it hears (shell.md, 7.5).
+/// it signals the process, which every signal kqueue in it hears (runtime/readiness.md, 5).
 pub fn signal_current_thread(signal: ServiceSignal) -> Result<(), Error> {
     system::process::signal_current_thread(signal)
 }
 
-// Linux's own (shell.md, 7.5)
+// Linux's own (runtime/readiness.md, 5)
 
 /// Starts the binary in an already-open delegated cgroup, before its exec.
 #[cfg(target_os = "linux")]

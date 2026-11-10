@@ -1,4 +1,4 @@
-//! Single-attempt writes and read prerequisites (forge-github.md, 4.2 and 7).
+//! Single-attempt writes and read prerequisites (forge/github.md, 4.2 and 7).
 use super::{
     Body, Failure, Heard, failure as read_failure,
     plan::{Bounds, Exchange, Step},

@@ -1,4 +1,4 @@
-//! Full screen and Escape held by the browser (skein/docs/design/ui-web.md, section 11).
+//! Full screen and Escape held by the browser (skein/docs/design/ui/web/README.md, section 9).
 use super::{Report, changed};
 use crate::inbox::Inbox;
 use std::{cell::Cell, rc::Rc};

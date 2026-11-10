@@ -3,7 +3,7 @@
 1. **The shell opens the deployment's directory,** and the component
    finds the active generation (1) and opens both its stores;
    skein-kv recovers each: the snapshot, then the log's longest valid
-   prefix (skein's `kv.md`, section 3). A store behind the binary's
+   prefix (skein's `data/kv.md`, section 3). A store behind the binary's
    patch levels is patched in a copy, and the open goes on over the
    copy, pending, which becomes the active generation once the root has
    restored from it (2).
@@ -37,7 +37,7 @@ Before a map opens, the component reads the deployment's directory
 opened and nothing refuses. The shell seeds each of the store's file
 drivers before the open, through `seed`, whose `Seeded` witness
 `on_directory` takes: io names a `Store`'s temporaries from a driver's
-randomness (skein's `io.md`, 5), and an unseeded driver refuses every
+randomness (skein's `runtime/io/files.md`), and an unseeded driver refuses every
 `Store`, a first start's write of `active` among them, so a shell that
 seeds none does not build. The witness proves that three drivers were
 seeded, not that they are the three the shell serves the store with.
@@ -45,7 +45,7 @@ seeded, not that they are the three the shell serves the store with.
 ### 1.1 The lock
 
 io's `Lock` on the deployment's root, held as long as the process
-(skein's `io.md`, 5). `Busy` refuses, `Generations::Busy`: another
+(skein's `runtime/io/files.md`). `Busy` refuses, `Generations::Busy`: another
 process has the deployment open, and two starts never copy, remove or
 switch beside each other.
 
@@ -70,7 +70,7 @@ deployment's header are read and checked (step 2, `records.md`, 3). Every refusa
 the levels, versions, layouts and deployment comes here, and nothing has
 been written but skein-kv's recovery of the active generation's maps
 (its next segment, a leftover snapshot's removal, and the snapshot a torn
-tail or a replay past its bound starts; skein's `kv.md`, sections 3 and
+tail or a replay past its bound starts; skein's `data/kv.md`, sections 3 and
 5).
 
 ### 1.5 The strays removed
@@ -310,7 +310,7 @@ Event::Switched { owner: Token }   // or `OpenRefused`, or `Failed` with the ren
   switch's rename, `A` stays active and unchanged,
   and the next start removes `A + 1` and begins again from a fresh
   copy. A switch answered `Failed` with its rename made (`committed`:
-  skein's `io.md`, 5.2) may leave `A + 1` active, whole and checked,
+  skein's `runtime/io/files.md`, 2) may leave `A + 1` active, whole and checked,
   which the next start opens.
 - **Room.** On disk, the maps twice (temper's `draft/upgrades.md`,
   6.1): `A` and `A + 1`, never the transcripts; `A + 1` is `A`'s maps and,
@@ -333,7 +333,7 @@ Event::Switched { owner: Token }   // or `OpenRefused`, or `Failed` with the ren
 
 - **Patch sets are data,** handed to the component's open by its shell
   beside the limits: for each owner whose records it keeps, the
-  generated module's constants (skein's `codec.md`, 12.3), no function:
+  generated module's constants (skein's `data/codec/command.md`, 3), no function:
 
 ```rust
 // jig_protocol_store
@@ -370,7 +370,7 @@ impl PatchSets {
   A family's records are its `map`'s, walked and committed there
   (`secrets.md`). A family's ranges hold records of different declarations (the
   core's tasks beside their turns), and a machine starts each record at a
-  declaration (skein's `codec.md`, 11.4: `start(plan, root, record)`), so
+  declaration (skein's `data/codec/patches.md`, 4: `start(plan, root, record)`), so
   each range names its records' own. Keys' bytes: the application's are
   its own keys, relative to its tag, as its rows are (`README.md`, 4.2: the component
   adds the tag), and in the secrets' map relative to its secrets' prefix
@@ -428,7 +428,7 @@ impl PatchSets {
   texts in the crate that keeps their current schema, and every patch
   of any of them in the store crate's sequence, so the owner has one
   level. The other crates' `patches/` stay empty.
-- **The plan** reads each patch's header (skein's `codec.md`, 11.6:
+- **The plan** reads each patch's header (skein's `data/codec/patches.md`, 6:
   `header`, `level`, `after`): a patch's owner must be its set's `name`
   and its number its place there, or the set is refused, naming it.
   The manifest counts every kept family by its name (`README.md`, section 2), so the
@@ -448,7 +448,7 @@ impl PatchSets {
   (`README.md`, section 11). The plan is a list of (owner, patch), its length the
   patches' count, made by a loop bounded by it.
 - **The fresh mark** is a set's word (`PatchSet::fresh`), its owner's to
-  spell and to mean: smith's `fresh-windows` (skein's `codec.md`, 11.1;
+  spell and to mean: smith's `fresh-windows` (skein's `data/codec/patches.md`, 1;
   smith's `protocol/transcript.md`, section 12), handed in by the shell
   as data, so the component names no owner's constant. The plan reads
   it with each pending patch's header (`Header::marked`): a set's
@@ -480,22 +480,22 @@ impl PatchSets {
   step 5). Every stop settles first, so the ranges are empty after one
   that settled, and the refusal meets a crash or a stop past its bound.
   A set with no such range never refuses.
-- **One machine per kept family,** a `Patcher` (skein's `codec.md`,
-  11.4 and 11.6), made at the plan, on the patch path alone, with its
+- **One machine per kept family,** a `Patcher` (skein's `data/codec/patches.md`,
+  4 and 6), made at the plan, on the patch path alone, with its
   capacity from the family's limits and texts, each kept text kept and
   each of its owner's patches planned. In a patch's walk a record is
   one block behind; a held value `k` versions behind runs `k` plans
   to the version its family has after the patch, `next_pass` after the
   first. In a patch's walk, its families' records run its plan,
   and a family the patch leaves alone whose records hold one it moves runs
-  its identity plan (skein/docs/design/codec.md 11.3), which reaches the held fields alone.
+  its identity plan (skein/docs/design/data/codec/patches.md 3), which reaches the held fields alone.
   The frames' machines are others, made at each open that serves
   (`transcripts.md`, 6).
-- **A written site goes up.** Step code holds no function (skein/docs/design/codec.md,
-  11.4; skein/docs/foundation/programming-model.md, 10.3), so at `Step::Written` the
+- **A written site goes up.** Step code holds no function (skein/docs/design/data/codec/patches.md,
+  4; skein/docs/foundation/programming-model.md, 10.3), so at `Step::Written` the
   component answers `Site` with the owner, the record's key, the site,
   the node and the family's `Patcher` itself, moved, never shared. The
-  shell sets the key in that owner's `Context` (skein/docs/design/codec.md, 11.5), which
+  shell sets the key in that owner's `Context` (skein/docs/design/data/codec/patches.md, 5), which
   it keeps for the whole patching (`Default` at its start), runs the
   owner's generated `written` over `parts()`, and hands the `Patcher`
   back in a `Site` request with the result; the component then calls
@@ -528,7 +528,7 @@ pub struct Counts { pub records: u64, pub commits: u64 }
   so that the copy, the walk and the switch run, and it reads the
   patched proofs back through the component. Its fixture sets write no
   site, and both shells would answer one `Halt::NoSite` (skein's
-  `codec.md`, 11.4: a site its caller has no function for), as their
+  `data/codec/patches.md`, 4: a site its caller has no function for), as their
   routes already do for any token.
 - **A shell with no sets.** The component holds `PatchSets::NONE`
   until a shell hands it sets, by a setter beside the constructors
@@ -546,7 +546,7 @@ pub struct Counts { pub records: u64, pub commits: u64 }
   walk that meets one still halts `Order`, refused as a patch's halt
   (2).
 - **Keys do not move** by patch: a key is its owner's code (`README.md`, 4.1), and a
-  patch's text has no line that moves one (skein's `codec.md`, 11.1). A
+  patch's text has no line that moves one (skein's `data/codec/patches.md`, 1). A
   moved key would need its function's answer up and back, and a check
   that it lands on no record its walk has yet to meet. A family whose
   keys change waits for that (`README.md`, section 11); before the baseline none
