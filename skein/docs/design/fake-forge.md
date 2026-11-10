@@ -1218,8 +1218,8 @@ payloads to exercise consumers' oversize refusal.
   entry is added, so a first page asked with it unchanged is `304`.
   `GET /app/hook/deliveries/<id>` answers the delivery whole: the
   request's headers and the payload, re-encoded, and the response. An
-  entry is listed `log_min..=log_max` after its change (default 1.5 to
-  2.2 seconds, as on github.com), and kept for `log_keep` (default three
+  entry is listed `log_min..=log_max` after its change (default `1.5` to
+  `2.2` seconds, as on github.com), and kept for `log_keep` (default three
   days) or until `log_entries` is full, oldest first out.
 - **No installation, no repository** in the list for `ping`,
   `installation` and `installation_repositories`, as on github.com.
