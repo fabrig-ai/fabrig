@@ -249,13 +249,15 @@ fn landing_preflight_checks_rules_and_live_room() {
 fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
     use skein_forge::api::{Answer, Op, Read};
     use temper_engine_domain_forge_change::Status;
-    for (result, status) in fixtures::ancestry_cases() {
+    for (result, mut status) in fixtures::ancestry_cases() {
         let mut d = landing_fixture();
+        let mut env = env();
+        env.limits.client.read_attempts = 1;
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         outputs(&mut d, Event::ReadAfresh);
         outputs(&mut d, Event::SettleOutbox);
         d.changes.get_mut(&fixtures::CHANGE).expect("change").change.state =
-            temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+            temper_engine_domain_forge_change::State::Ready { head: fixtures::HEAD, ready_since: env.wall };
         member_landing(&mut d);
         outputs(
             &mut d,
@@ -269,9 +271,21 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
         let (call, op) = fixtures::next_call(&mut d);
         assert_eq!(op, Op::Read(Read::Commits { before: fixtures::HEAD, after: fixtures::BASE, page: 1 }));
-        fixtures::answer_once(&mut d, call, result);
-        fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));
-        let requests = fixtures::answer_next(&mut d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
+        let unavailable = result == Err(skein_forge::api::Error::Unavailable);
+        let requests = fixtures::answer_at(&mut d, &env, call, result);
+        if unavailable {
+            assert!(requests.is_empty(), "an outage produces no landing decision");
+            fixtures::advance(&mut d, &mut env, CLIENT.backoff);
+            let (again, retried) = fixtures::next_at(&mut d, &env);
+            assert_eq!(retried, op, "retry the same ancestry proof");
+            fixtures::answer_at(&mut d, &env, again, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+            status = Status::Passed;
+        }
+        let (call, _) = fixtures::next_at(&mut d, &env);
+        fixtures::answer_at(&mut d, &env, call, Ok(Answer::Pull(fixtures::open_pull())));
+        let (call, _) = fixtures::next_at(&mut d, &env);
+        let requests =
+            fixtures::answer_at(&mut d, &env, call, Ok(Answer::Reviews { reviews: Box::new([]), more: false }));
         let mut decision = None;
         for request in &requests {
             if let Request::LandingDecision { decision: found, .. } = request {

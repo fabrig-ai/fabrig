@@ -544,7 +544,12 @@ const FORGE_LIMITS: forge::Limits = forge::Limits {
 const RESTORE_PASSES: u32 = 20;
 
 pub fn root() -> (engine::Domain, Env<engine::Limits>) {
-    root_with_config(config(7))
+    let (mut root, env) = root_with_config(config(7));
+    // Settle the startup placement probe before tests measure empty runtime resumes.
+    let mut out = skein_lib::Queue::uncapped();
+    fleet::resume(&mut root.core.fleet, &env.with(env.limits.fleet), &mut out);
+    assert!(out.is_empty(), "the fixture restores no claims or workers");
+    (root, env)
 }
 pub fn root_with_config(config: engine::Config) -> (engine::Domain, Env<engine::Limits>) {
     root_with_config_and_limits(config, &limits())

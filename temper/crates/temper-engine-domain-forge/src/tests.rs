@@ -1361,8 +1361,10 @@ fn a_lost_writers_read_refused_for_room_is_asked_again_when_room_frees() {
 fn a_lost_writer_uses_reverse_ancestry_for_its_reread() {
     use skein_forge::api::{Answer, Op, Read};
     use temper_engine_domain_forge_change::Status;
-    for (result, status) in fixtures::ancestry_cases() {
+    for (result, mut status) in fixtures::ancestry_cases() {
         let mut d = domain();
+        let mut env = env();
+        env.limits.client.read_attempts = 1;
         let name = run_branch(b"7");
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
         outputs(
@@ -1380,7 +1382,18 @@ fn a_lost_writer_uses_reverse_ancestry_for_its_reread() {
         fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
         let (call, op) = fixtures::next_call(&mut d);
         assert_eq!(op, Op::Read(Read::Commits { before: fixtures::HEAD, after: fixtures::BASE, page: 1 }));
-        let requests = fixtures::answer_once(&mut d, call, result);
+        let unavailable = result == Err(skein_forge::api::Error::Unavailable);
+        let mut requests = fixtures::answer_at(&mut d, &env, call, result);
+        if unavailable {
+            assert!(requests.is_empty(), "an outage produces no lost-read terminal");
+            assert_eq!(d.hold(&name).expect("hold").writer, Some(Writer::Lost { task: 9, attempt: 1 }));
+            fixtures::advance(&mut d, &mut env, CLIENT.backoff);
+            let (again, retried) = fixtures::next_at(&mut d, &env);
+            assert_eq!(retried, op, "retry the same ancestry proof");
+            requests =
+                fixtures::answer_at(&mut d, &env, again, Ok(Answer::Commits { commits: Box::new([]), more: false }));
+            status = Status::Passed;
+        }
         let hold = d.hold(&name).expect("hold");
         let unknown = status == Status::Unknown;
         assert_eq!(hold.writer, if unknown { Some(Writer::Lost { task: 9, attempt: 1 }) } else { None });
