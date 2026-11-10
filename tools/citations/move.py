@@ -1053,7 +1053,10 @@ class Plan:
                         continue
                     if shadowed and cite.numbers and cite.how in ("suffix", "suffix-ambiguous") and not cite.owner:
                         home = c.tree_of(cite.target)
-                        if home and home != c.tree_of(source):
+                        offset = sum(len(line) for line in text.splitlines(True)[:cite.start.line - 1]) + cite.start.column - 1
+                        single_quoted = (cite.start in extra_starts and path.endswith(c.CODE_EXT)
+                                         and any(a <= offset < b and text[a - 1] == "'" for a, b in literals(path, text)))
+                        if home and home != c.tree_of(source) and not single_quoted:
                             qualify_owner = home
                     affected |= resolved != cite.target
                 if not affected:
