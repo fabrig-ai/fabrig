@@ -1331,7 +1331,7 @@ Each within jig's suites' budgets.
   parts, its bundler, and its face and harness for the browser tier
   (skein's `ui-web.md`, 5.1, 4.2 and 14.2), over its browser kit
   (skein's `browser.md`, sections 5 and 6); a client compiled to
-  WebAssembly in its model (`programming-model.md`, 2.1). Its HTTP
+  WebAssembly in its model (`skein/docs/foundation/programming-model.md`, 2.1). Its HTTP
   server and client serve as they are. Between hosts, TLS's server side
   (`README.md`, section 10).
 

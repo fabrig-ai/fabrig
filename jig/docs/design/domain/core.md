@@ -66,7 +66,7 @@ gives the order and the names). The mechanics are those of skein's
   with the work in progress, never with history. Every entity has a
   limit, refused at the entrance. A world of domains and fakes runs
   everything the core does, with no protocol and no io
-  (programming-model.md, section 4).
+  (skein/docs/foundation/programming-model.md, section 4).
 
 ## 2. The system
 
@@ -253,7 +253,7 @@ tasks, inboxes and authority know none of them.
 ## 5. The owner keeps the value
 
 The core and the application's connectors are siblings under the root,
-and siblings share no types (programming-model.md, 4.5). So:
+and siblings share no types (skein/docs/foundation/programming-model.md, 4.5). So:
 
 - **The core holds what it acts on,** in its own vocabulary: tasks,
   inboxes, authority, budgets, holds, transcripts as bytes it never reads
@@ -273,7 +273,7 @@ and siblings share no types (programming-model.md, 4.5). So:
   into the vocabulary of whoever owns them: an agent's call for a
   connector's read reaches the root already as that connector's request.
 
-This is skein's binding rule (programming-model.md, 4.2: bindings are
+This is skein's binding rule (skein/docs/foundation/programming-model.md, 4.2: bindings are
 echoed tokens) applied between siblings: the core echoes what it does
 not own.
 

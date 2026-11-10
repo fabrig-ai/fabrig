@@ -350,7 +350,7 @@ fn a_live_credential_keeps_the_sign_in_without_minting_and_spends_the_link() {
 #[test]
 fn a_held_credential_answered_with_another_sign_in_draws_a_token() {
     const NEW_SIGN_IN: u64 = fixtures::FIRST_SIGN_IN + 1;
-    // A credential carries an eight-byte sign-in number and 32 drawn bytes (client.md, 8).
+    // A credential carries an eight-byte sign-in number and 32 drawn bytes (protocol/client.md, 8).
     const TOKEN_BYTES: usize = 40;
     let mut peer = peer();
     let bearer = fixtures::signed_in(&mut peer);

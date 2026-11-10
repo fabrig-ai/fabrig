@@ -550,10 +550,10 @@ pub struct ArchivedTurn {
     pub turn: TurnRead,
 }
 /// What a line weighs in a window: its bytes, and this for it and for each
-/// message, block, object and part it holds (client.md, section 10).
+/// message, block, object and part it holds (client/domain/client.md, section 10).
 pub const LINE_ROOM: u32 = 64;
 impl DecodedActivityLine {
-    /// Retained payload bytes and structural room (client.md, section 10).
+    /// Retained payload bytes and structural room (client/domain/client.md, section 10).
     #[must_use]
     pub fn weight(&self) -> u64 {
         let mut weight = u64::from(LINE_ROOM).saturating_add(activity_weight(&self.source.line));

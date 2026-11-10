@@ -159,7 +159,7 @@ said in words, never by a state (section 9). What of the tree is jig's:
 - **skein-ui's rules** (skein's `ui.md`, section 14) hold every tree,
   whoever arranged it; the referee runs `skein_ui::outline::check` on
   every tree a person sees, in jig's worlds and in each application's on
-  skein's UI kit (testing.md, 6.3).
+  skein's UI kit (jig/docs/design/client/domain/testing.md, 6.3).
 - **jig adds none.** An application places jig's frame's parts and
   `after_page`'s parts where it likes, or omits them; what a person
   loses when one is omitted is said in pages.md, section 2 and 12.1.
@@ -697,7 +697,7 @@ its act (testing.md, section 4).
 What of the reference UI is not a tree: where the person is, what the
 page holds, the requests it sent, what the person is in the middle of,
 and its notices. It is step code under the subset, as the client is
-(programming-model.md, section 3), with its own limits, worst case and
+(skein/docs/foundation/programming-model.md, section 3), with its own limits, worst case and
 stories (18.9, 18.10). It keeps no copy of a watch's document: it reads
 each from the client, by its handles, when the client reports it
 changed. A read's page, which the client hands over once, in the read's
@@ -1012,7 +1012,7 @@ read by the application: ui.sections(), ui.shown()
   what is shown, so the view builds again.
 - **Deadlines are the reference UI's:** a card's linger, a notice's
   life, the coalescing of drafts' saves, on the monotonic clock
-  (programming-model.md, section 9). Backoffs and heartbeats are the
+  (skein/docs/foundation/programming-model.md, section 9). Backoffs and heartbeats are the
   client's (client.md, section 8).
 - **Notices** are short-lived, for what has no card: a request answered
   for an object not shown, a refusal with nothing to show it on, a
