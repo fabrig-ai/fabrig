@@ -628,23 +628,32 @@ pub fn digest(bytes: &[u8]) -> u64 {
 }
 
 fn job_answer(asked: &client::Op, job: &forge::Job, steps: &[forge::Step]) -> client::Answer {
-    let client::Op::Read(client::Read::Job { attempt, max_bytes, .. }) = asked else {
+    let client::Op::Read(client::Read::Job { attempt, max_bytes, part }) = asked else {
         panic!("Job answer requires a job read")
     };
     assert_eq!(job.attempt, attempt.attempt, "Worlds read the pinned attempt");
     let mut failed = None;
     let mut content = Vec::new();
     for step in steps {
-        if step.status == forge::StepStatus::Failure {
+        if step.status == forge::StepStatus::Failure && failed.is_none() {
             failed = Some(client::Step { number: step.number, name: step.name.clone() });
-            content = step.log.to_vec();
-            break;
+            match part {
+                client::LogPart::Start => {}
+                client::LogPart::End => {
+                    content = step.log.to_vec();
+                    break;
+                }
+            }
         }
         content.extend_from_slice(&step.log);
     }
     let cap = usize::try_from(*max_bytes).expect("world maximum fits usize");
-    let start = content.len().saturating_sub(cap);
-    client::Answer::Job { attempt: *attempt, step: failed, log: Box::from(&content[start..]), truncated: start > 0 }
+    let truncated = content.len() > cap;
+    let log = match part {
+        client::LogPart::Start => Box::from(&content[..content.len().min(cap)]),
+        client::LogPart::End => Box::from(&content[content.len().saturating_sub(cap)..]),
+    };
+    client::Answer::Job { attempt: *attempt, step: failed, log, truncated }
 }
 
 fn byte_answer(asked: &client::Op, content: &[u8]) -> client::Answer {
