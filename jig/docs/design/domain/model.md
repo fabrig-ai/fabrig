@@ -714,7 +714,7 @@ Where these stop, above the API, the application holds:
 - **keeping a credential from use across sites,** as keeping it out of
   its logs is: its server's, with jig's default HTTP mapping's example
   guards and attack stories to use where they suit
-  (`../protocol/browser.md`, 12.2 and section 15).
+  (`../protocol/browser/README.md`, 12.2 and `../protocol/browser/testing.md`).
 
 ## 12. Open questions
 

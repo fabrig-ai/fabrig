@@ -1,0 +1,6 @@
+# After jig.map and temper.map: jig's browser protocol, at 65,894 bytes, splits out its testing.
+title jig/docs/design/protocol/browser/testing.md: Testing the browser layer
+jig/docs/design/protocol/browser.md 15 -> jig/docs/design/protocol/browser/testing.md
+jig/docs/design/protocol/browser.md -> jig/docs/design/protocol/browser/README.md
+renumber jig/docs/design/protocol/browser.md
+renumber jig/docs/design/protocol/browser/testing.md

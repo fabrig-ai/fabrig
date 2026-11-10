@@ -8,8 +8,8 @@ application's worlds run; and the reference UI, tested as any
 presentation on skein's UI kit is, with skein's fake person on its tree.
 It applies `testing-strategy.md` as `../../domain/testing.md` does for
 the engine; the tiers below the client are the client's protocol's
-(`../../protocol/client/README.md`, section 11; `../../protocol/browser.md`,
-section 15). What is still open is listed in section 10.
+(`../../protocol/client/README.md`, section 11; `../../protocol/browser/testing.md`
+). What is still open is listed in `testing.md`, section 10.
 
 ## 1. In one page
 
@@ -45,7 +45,7 @@ section 15). What is still open is listed in section 10.
   the server an application writes (a cross-site request, a rebound
   Host, a framed page) are jig's, in `jig-client-fake-person-browser`,
   which an application's browser tier may run against its own
-  (`../../protocol/browser.md`, section 15).
+  (`../../protocol/browser/testing.md`).
 - **Every world with a tree builds and diffs every page,** and applies
   the patches to a model of the last tree, which must then equal the new
   one.
@@ -92,14 +92,14 @@ its own, wherever a presentation builds on skein's UI kit.
   arrangement of the same sections.
 - **The browser tier's stories,** skein's for a browser shell, and
   jig's for a browser shell and its attack stories in
-  `jig-client-fake-person-browser`, are `../../protocol/browser.md`'s,
-  section 15.
+  `jig-client-fake-person-browser`, are `../../protocol/browser/testing.md`
+  .
 
   An application's browser shell runs its own loop over skein's parts
   and jig's, so both kits' stories check its wiring: the order its loop
   keeps, and, where it drives fetch and the small store without skein's
   transport, the rule it then takes on itself (skein's `ui/web/README.md`, 4.3;
-  `../../protocol/browser.md`, 5.3).
+  `../../protocol/browser/README.md`, 5.3).
 
 ## 4. The client's world
 
@@ -149,7 +149,7 @@ its own, wherever a presentation builds on skein's UI kit.
   scenes and an act, with an ordinary node beside it doing the same
   (view.md, section 17). Its browser shell, `jig-client-test-shell-web`,
   jig's reference shell, and its server take, once each, the steps past
-  the reference that `../../protocol/browser.md`, section 15, lists.
+  the reference that `../../protocol/browser/testing.md`, lists.
 - **Its stories:** the client's (client/README.md, section 14), through the
   scripted application; the reference UI's (view-state.md, 10) and
   pages.md's, section 10, each written once in a person's terms, through
@@ -405,9 +405,9 @@ Drawn from the seed:
   and face: skein's stories for a browser shell and jig's, called with
   its own binary and bundle (section 3), and its pages, its drawings,
   its elements and components, its signing in
-  (`../../protocol/browser.md`, section 15);
+  (`../../protocol/browser/testing.md`);
 - jig's attack stories, run against its own server, if it runs them
-  (`../../protocol/browser.md`, section 15);
+  (`../../protocol/browser/testing.md`);
 - its own shells' tiers, if it writes shells.
 
 ## 9. Budgets
@@ -419,7 +419,7 @@ people and random applications' events over random stories. At the text
 shell, the focused suite runs each story once, on one seed: in jig's
 client world, two stories, starting a chat and a held chat released; in
 an application's, those its terminal client names. The browser tier's
-suite and budget are `../../protocol/browser.md`'s, section 15.
+suite and budget are `../../protocol/browser/testing.md`.
 
 ## 10. Open questions
 

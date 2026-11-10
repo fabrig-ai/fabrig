@@ -420,7 +420,7 @@ shows, it reads through the public client.
   the client's adapter over fetch, and the credential in the cookie its
   server sets. Its paths are its own: the reference UI's places at the
   root, by the reference UI's codec, and incidents' and environments' by
-  its own (`protocol/browser.md`, sections 3 and 9). It is `ops`
+  its own (`protocol/browser/README.md`, sections 3 and 9). It is `ops`
   standalone's too (9.1), whose server serves its page and bundle.
 
 ## 9. Its systems
@@ -492,13 +492,13 @@ shows, it reads through the public client.
   under `/jig`, with jig's default HTTP mapping and its example guards
   as they are, and serves its browser's page and bundle at its other
   paths, under the reference page policy, which jig's test application's
-  server sends too (`protocol/browser.md`, 12.1). Its startup prints the
+  server sends too (`protocol/browser/README.md`, 12.1). Its startup prints the
   printed link's URL, `/jig/v1/sign-in/link?secret=…` on that address,
   by which a person signs in, in a browser or at its terminal (section
   8). A browser's `GET` of it spends nothing: `ops`'s server answers it
   with its page, with `Referrer-Policy: no-referrer`, and its browser
   shell `POST`s the secret, as its terminal does (`protocol/client/default-http.md`,
-  1; `protocol/browser.md`, section 11).
+  1; `protocol/browser/README.md`, section 11).
 
 ## 10. Its worlds
 

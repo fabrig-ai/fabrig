@@ -78,7 +78,7 @@ its heartbeat (jig's `protocol/client/default-http.md`, 2).
 `application.clients.public`: `null`, or the HTTPS origin the people's
 browsers use (`configuration/engine.md`). With one:
 
-- **The Host allow-list** (jig's `protocol/browser.md`, 12.2) holds its
+- **The Host allow-list** (jig's `protocol/browser/README.md`, 12.2) holds its
   host, with its port where it is not 443, beside the listener's own
   address: jig's `Settings { prefix: "/jig", public: Some(host) }`. With
   none, `public: None`, the listener's address alone.

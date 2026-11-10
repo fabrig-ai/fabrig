@@ -407,7 +407,7 @@ The machinery is skein-ui's (skein's `ui/README.md`, section 9). What is jig's:
   client holds (client/README.md, section 13).
 - **A shell's own words.** The words jig's look gives the browser's
   parts (a credential shown once, the application failed) are jig's
-  phrases, in the person's language (`../../protocol/browser.md`, 3.3
+  phrases, in the person's language (`../../protocol/browser/README.md`, 3.3
   and section 5). The text shell's markers and refusals are skein's
   (skein's `ui/text.md`, sections 5 and 6).
 
@@ -481,7 +481,7 @@ What a shell is, and each platform's, is skein's (skein's `ui/shells.md`
 - **The order that protects requests** is the client's and its
   transport's: a request is kept in the client's small store before it
   is sent, whatever the loop (client/README.md, section 8;
-  `../../protocol/browser.md`, 5.3). The application's loop gives the
+  `../../protocol/browser/README.md`, 5.3). The application's loop gives the
   reference UI's records to be written with the client's, in the same
   step's writes (`view-state.md`, 8), shows the place the reference UI asked for, and,
   once no report waits, builds and applies the patches.
@@ -496,11 +496,11 @@ What a shell is, and each platform's, is skein's (skein's `ui/shells.md`
     transport and small store through the default HTTP mapping; the
     printed link's sign-in; and jig's look (`jig.css`, jig's palette,
     its pictures, its phrases for the parts' words)
-    (`../../protocol/browser.md`, sections 3 and 5). An application's
+    (`../../protocol/browser/README.md`, sections 3 and 5). An application's
     browser shell on the reference UI is copied from jig's reference,
     `jig-client-test-shell-web`; its page and its bundle are served by
     the application's server, under its page's policy
-    (`../../protocol/browser.md`, section 12);
+    (`../../protocol/browser/README.md`, section 12);
   - *the native one* (`jig-client-shell-native`): skein's HTTP client
     and its server-sent events reader with `jig-client-protocol-http`,
     for Linux and for the worlds that make bytes real; it carries the
@@ -553,7 +553,7 @@ Style tokens are presentation hints, and no style is a fact (skein's
   jig's stylesheet, which styles jig's tokens, places jig's regions and
   gives a palette of series colours an application's stylesheet uses,
   then the application's, which styles its own and may restyle jig's
-  (`../../protocol/browser.md`, section 13); a native shell's theme.
+  (`../../protocol/browser/README.md`, section 13); a native shell's theme.
 
 ## 14. Open questions
 

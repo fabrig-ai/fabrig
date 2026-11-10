@@ -801,7 +801,7 @@ designs (`../../../protocol/client/README.md`):
   by `jig-protocol-transcript` in the client's link.
 - **What the application's server keeps:** a credential from being used
   across sites, with jig's example guards and attack stories, as it
-  keeps it out of its logs (`../../../protocol/browser.md`); its own pages
+  keeps it out of its logs (`../../../protocol/browser/README.md`); its own pages
   and bundle, which jig never serves (`../../../protocol/service.md`).
 
 ## 9. Open questions

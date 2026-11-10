@@ -9,7 +9,7 @@ it is tested. jig as a whole is `../../README.md` (section 10 is the
 client in one page); the engine's domain is `../../domain/`; jig's
 messages, the clients' component and jig's default HTTP mapping are the
 client's protocol's (`../../protocol/client/README.md`,
-`../../protocol/browser.md`). The mechanics are those of skein's
+`../../protocol/browser/README.md`). The mechanics are those of skein's
 `programming-model.md`, as for every part of jig.
 
 ## 1. Reading order
@@ -65,15 +65,15 @@ an application's client
 the transport, the application's, with jig's defaults, to use or leave
 jig-client-protocol-http             the default HTTP mapping's client end, for the host and wasm32 (../../protocol/client/default-http.md, 4)
 jig-client-shell-native              a native shell over skein's HTTP client (../../protocol/client/README.md, section 9)
-jig-client-shell-web                 jig's browser parts: the client's adapter, the printed link's sign-in, jig's look (../../protocol/browser.md, 5.1)
+jig-client-shell-web                 jig's browser parts: the client's adapter, the printed link's sign-in, jig's look (../../protocol/browser/README.md, 5.1)
 skein-ui, skein-ui-text, skein-ui-web, skein-ui-bundle   skein's UI kit (skein's ui/README.md, section 2)
 
 for tests
 jig-client-test-domain, jig-client-test-view   jig's test application's client root and view root, the reference (root.md, section 12)
-jig-client-test-shell-web            jig's test application's browser shell (../../protocol/browser.md, 3.1)
+jig-client-test-shell-web            jig's test application's browser shell (../../protocol/browser/README.md, 3.1)
 jig-client-test-kit, jig-client-test-records, jig-client-test-protocol-wire   the client's test kits (testing.md)
 jig-client-scripted-engine           the engine as the client's worlds play it (testing.md, section 4)
-jig-client-fake-person-browser       jig's stories for a browser shell, and its attack stories (../../protocol/browser.md, section 15)
+jig-client-fake-person-browser       jig's stories for a browser shell, and its attack stories (../../protocol/browser/testing.md)
 skein-fake-person, skein-fake-person-browser   skein's person, its browser face and harness (testing.md, section 3)
 jig-client-kit, jig-client-protocol-kit   what the client's worlds share: the harness, fronts and stories; the protocol client (../../domain/testing.md, section 7)
 jig-client-world, jig-client-protocol-world, jig-client-wire-world   the client's worlds (testing.md, section 4; ../../protocol/client/README.md, section 11)
@@ -95,7 +95,7 @@ jig-client-world, jig-client-protocol-world, jig-client-wire-world   the client'
 - **The wire, the link, the transport and the shells** are the client's
   protocol's (`../../protocol/client/README.md`, the default HTTP mapping in its
   section 17; jig's browser parts,
-  `../../protocol/browser.md`), beside
+  `../../protocol/browser/README.md`), beside
   the engine's, and skein's UI kit's (skein's `ui/text.md` and
   `skein/docs/design/ui/web/README.md`). This design says what they owe the client, and no more,
   but for jig's settings of skein's text shell (view.md, section 15). A
@@ -151,7 +151,7 @@ jig-client-world, jig-client-protocol-world, jig-client-wire-world   the client'
 | credential | what a sign-in leaves, which jig mints, verifies, expires and revokes; held by the client, or carried by the transport unseen (client/README.md, section 9) |
 | transport | the application's carrier of jig's messages between the client and the clients' component: jig's default HTTP mapping, a socket, or in-process (client/README.md, section 13) |
 | clients' component | `jig-protocol-engine-clients`, the engine's side: jig's messages with their credentials in, answers and the stream out; transport-agnostic (`../../protocol/client/wire.md`, 2.2) |
-| default HTTP mapping | jig's optional mapping of the component's messages onto HTTP, at both ends, with example guards (`../../protocol/client/default-http.md`; `../../protocol/browser.md`, 12.2) |
+| default HTTP mapping | jig's optional mapping of the component's messages onto HTTP, at both ends, with example guards (`../../protocol/client/default-http.md`; `../../protocol/browser/README.md`, 12.2) |
 | mode | how a host runs the client: long-lived, a service, or one-shot (client/README.md, section 16) |
 | view root | the application's top-level view on skein's UI kit: its tree, from the reference UI's primitives and its own nodes (view.md, section 4) |
 | shell | the platform's code, the only impure part of a client (view.md, section 11) |
@@ -180,8 +180,8 @@ jig-client-world, jig-client-protocol-world, jig-client-wire-world   the client'
 | shortcut | a key a bound node answers to, as a press (view.md, section 5) |
 | scene | a drawing as its owner's drawing code draws it: a bounded list of marks in whole pixels, which each shell that draws maps onto its platform (skein's `ui/scenes.md`; view.md, section 17) |
 | component, a shell's | a shell's native implementation of a node, chosen from the look by the node's role and one of its owner's style tokens, or by a drawing's kind (skein's `ui/README.md`, section 10). Not a protocol layer's component (`../../protocol/README.md`, section 3) |
-| client host | an application's client root, its presentation and its transport's client end, stepped as one machine and shared by its shells (`../../protocol/browser.md`, 3.2) |
-| browser shell | an application's crate, `<application>-client-shell-web`: its start and its loop over skein's browser parts, the reference UI's and its client host, copied from jig's test application's, `jig-client-test-shell-web` (`../../protocol/browser.md`, 3.1) |
+| client host | an application's client root, its presentation and its transport's client end, stepped as one machine and shared by its shells (`../../protocol/browser/README.md`, 3.2) |
+| browser shell | an application's crate, `<application>-client-shell-web`: its start and its loop over skein's browser parts, the reference UI's and its client host, copied from jig's test application's, `jig-client-test-shell-web` (`../../protocol/browser/README.md`, 3.1) |
 | text shell | skein's shell for a terminal or a pipe, `skein-ui-text`: the tree printed as lines, a typed line read as an act; the reference UI gives it jig's settings (skein's `ui/text.md`; view.md, section 15) |
 | document | a typed value the engine gives a client about one subject, its owner's alone (contract/documents.md) |
 | revision | the state of one thing a party decides about (a hold, a task's spec, a person task, a note), which the decision names (contract/documents.md, 2) |
@@ -318,7 +318,7 @@ where each is answered.
 - **Guards are the server's.** jig ships example guard code in its
   default HTTP mapping, and attack stories in its test kit, to use if
   they suit (`../../protocol/client/default-http.md`;
-  `../../protocol/browser.md`, 12.2).
+  `../../protocol/browser/README.md`, 12.2).
 - **jig owns credentials; the application owns sign-in flows,** beyond
   the printed link and a service's credential. The client signs in by
   `SignIn { with }`, and holds a credential only where its transport
@@ -381,7 +381,7 @@ where each is answered.
   test application's, runs its own loop over the parts and its client
   host; its server serves its page and bundle
   (skein's `ui/web/bundle.md`) and mounts jig's clients' component
-  under a prefix of its choosing (`../../protocol/browser.md`, 3.1 and
+  under a prefix of its choosing (`../../protocol/browser/README.md`, 3.1 and
   section 12).
 - **Layout as semantics.** Every tree keeps skein-ui's outline of
   landmarks (skein's `ui/README.md`, section 12), to which jig adds no rule, and

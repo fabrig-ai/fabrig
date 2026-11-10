@@ -1,5 +1,5 @@
 //! A forged chat over jig's `tests/client-browser/src/forgery.rs`, with the chat template's task
-//! (client/web/testing.md, 1 story 5; jig's protocol/browser.md, 15).
+//! (client/web/testing.md, 1 story 5; jig's protocol/browser/testing.md).
 use jig_client::contract as c;
 use jig_client_protocol_wire::v19 as w;
 use skein_lib::{List, Writer};
