@@ -14,7 +14,7 @@ section 7.
 ## 1. In one page
 
 - **temper's engine makes no LLM call.** Its runs are on workers, jig's
-  third shape (jig's `domain/hosts.md`, section 3), each in an agent
+  third shape (jig's `domain/hosts/README.md`, section 3), each in an agent
   process: `temper internal agent`, smith's agent shell over skein's LLM
   client (section 2).
 - **LLM providers, endpoints and models are configuration,** jig's `llm`
@@ -38,7 +38,7 @@ section 7.
   task (section 5).
 - **One translation.** The engine's protocol layer is the only place where
   temper's charter, tools and messages become smith's, and smith's calls
-  become the engine's (`../domain/agent.md`, section 1).
+  become the engine's (`../domain/agent/README.md`, section 1).
 - **jig's charter translation, temper's host tools.** `temper-engine-smith`
   uses `jig-protocol-charter` for the charter, and keeps the root's own
   `Tool` vocabulary rather than `jig-protocol-tools` (sections 4, 5 and 7).
@@ -55,12 +55,12 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
 
 - **The agent process** is the worker's agent's program, the box's
   `temper internal agent AGENT.json` or a deployment's `temper-agent
-  AGENT.json` (README.md, 4.3), spawned by the worker's protocol layer for
+  AGENT.json` (binaries.md, 3), spawned by the worker's protocol layer for
   each run
-  (configuration.md, section 5; jig's `protocol/service.md`, section 6).
+  (configuration/README.md, section 4; jig's `protocol/service.md`, section 6).
   It reads smith's agent configuration, dials the endpoints it declares,
   and takes its run's grants from smith's host half (smith's
-  `protocol/hosts.md`, section 2).
+  `protocol/host.md`, section 2).
 - **What a call does is smith's:** its session retries a failed
   completion, and its run holds the budget (jig's `protocol/llm.md`,
   sections 1 and 3).
@@ -89,31 +89,31 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   accounts driver's with an LLM provider's sign-in, token and
   revocation endpoints (credentials.md, section 3).
 - **On the worker, smith's agent configuration** (smith's
-  `protocol/agent.md`, section 4; configuration.md, section 5): the
+  `protocol/agent.md`, section 4; configuration/README.md, section 4): the
   endpoints the agents dial, the models they serve, and the programs
   they may run, each with its programs directory. The worker's routing
   decodes each charter against these endpoints (jig's
-  `protocol/channel.md`, 6.1).
+  `protocol/channel/README.md`, 5.1).
 - **The same names on both.** `temper serve` refuses a start whose
   engine names an endpoint, a model or a program the agent's
-  configuration does not declare the same way (configuration.md, section
-  5), so no run's charter fails for a name.
+  configuration does not declare the same way (configuration/README.md, section
+  4), so no run's charter fails for a name.
 - **Which LLM providers:** OpenAI, with keys and ChatGPT's sign-in, in
-  the owned example (setup.md, 8.1), Anthropic, and any other smith's dialects speak over skein's LLM
+  the owned example (setup/init.md, 1), Anthropic, and any other smith's dialects speak over skein's LLM
   client, such as a local model's server, whose source is *none*. Claude
   Code is the one program, through smith's program backend. temper
   keeps no provider's dialect, no program's adapter and no fake provider
   of its own: the tiers use skein's fake LLM peer and smith's fake
-  `claude`, and the live tier a real model (`../domain/testing.md`, 2.6 and
-  2.7).
+  `claude`, and the live tier a real model (`../testing/process-tier.md` and `../testing/live-tier.md`
+  ).
 
 ## 4. Host tools
 
 - **The vocabulary is the root's `Tool`:** the core's tools and the
-  forge's, as `../domain/agent.md`, 4.3 lists them. `temper-engine-smith`'s
+  forge's, as `../domain/agent/tools.md` lists them. `temper-engine-smith`'s
   `tools` declares each with its JSON Schema, its description, its
   effect (a read or a write) and the charter's call timeout, and the
-  charter carries the declarations (section 5). Each of the forge's reads
+  charter carries the declarations (`llm.md`, section 5). Each of the forge's reads
   is a tool of its own (`read_items` to `read_permission`), decoded as
   `Tool::ReadForge`, naming the read.
 - **A forge subscription selects an adoption in the task's project.**
@@ -122,7 +122,7 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   project's sole readable adoption, as the read tools do; no adoption or
   an ambiguous choice returns the readable names to choose from. A
   numeric pair must also be readable in that project. A task's packed
-  resource tag is not a repository ID (`../domain/forge.md`, section 4).
+  resource tag is not a repository ID (`../domain/forge/adoption.md`).
 - **Subscription admission names the failed check.** Refusals identify
   the task, repository pair and topic: an unadopted or unreadable pair,
   a duplicate topic (with its existing subscription number), malformed
@@ -131,15 +131,15 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   refusal names the bound and limit. A duplicate keeps the existing
   interest; changing it requires unsubscribing its number first. These
   checks precede a backend subscription. Settled named calls retain
-  their rendered feedback for replay (`../domain/root.md`, 5.2).
+  their rendered feedback for replay (`../domain/routing.md`, 2).
 - **A task read refused as unknown says what to read instead.** jig
   refuses `read_task` as `unknown` for a task it has no row of, an offset
   outside the text, and a `result` no ended task kept, a running one's
-  among them (jig's `domain/engine.md`, 7.3). The words say each, that a
+  among them (jig's `domain/engine/executors.md`, 3). The words say each, that a
   task's result reaches its requester as a `result` message when it
   ends, and that its specification, `field` left out, shows a running
   task's state, holds and questions. The other refusals keep their words.
-- **Decoded in the routing** (jig's `protocol/channel.md`, 6.3), in the
+- **Decoded in the routing** (jig's `protocol/channel/README.md`, 5.3), in the
   step that routes the call, keeping no state:
   1. the fleet fences the call, and the root hands it out as
      `HostRequest::Decode { to, task, attempt, call }`;
@@ -155,7 +155,7 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   unknown tool), and decides nothing: the routing renders the error as
   smith's text and hands it to the root as `WorkerInput::RenderedHostCall
   { to, answer }`, with the answer marked an error, and the root relays
-  it to the run with no commit and no record (`../domain/root.md`, 5.2);
+  it to the run with no commit and no record (`../domain/routing.md`, 2);
   the run may ask again with a corrected input under a new name.
 - **Answered in the routing:** once a decided call's commit is durable,
   the root hands its answer out (`HostDelivery::Render`); the routing
@@ -174,7 +174,7 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
 
 - **The charter.** As the routing encodes an assignment,
   `temper_engine_smith::charter` writes smith's charter from the root's
-  `Assignment` (`../domain/agent.md`, section 4: the instructions, the
+  `Assignment` (`../domain/agent/charter.md`: the instructions, the
   brief's sections, the conventions, the host tools, the result contract,
   the budget and its reserve, the models and their prices), and smith's
   codec encodes it (`smith_protocol_channel::encode_charter`) against the
@@ -185,11 +185,11 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   LLM provider it uses (jig's `protocol/llm.md`, section 6). It crosses
   as smith's charter bytes in jig's assignment, and the worker's
   routing decodes it against the agent's configuration as the agent
-  starts (jig's `protocol/channel.md`, 6.1). A resumed run's charter
+  starts (jig's `protocol/channel/README.md`, 5.1). A resumed run's charter
   resumes when its policy allows and the task has kept turns.
 - **Turns** cross and are kept as smith's bytes, encoded on the worker;
   the core reads only what jig's records carry beside them (jig's
-  `protocol/channel.md`, 6.1).
+  `protocol/channel/README.md`, 5.1).
 - **A run's result.** The worker's routing encodes smith's result before
   the hub keeps the answer. Once the fleet has fenced an ended answer,
   the root hands its result out as `WorkerRequest::ReadResult { payload,
@@ -200,20 +200,20 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   resource comes from what the worker and the forge settled, never from
   the LLM's fields, and a change with none is invalid. A result that
   does not decode or translate fails its attempt as invalid (jig's
-  `protocol/channel.md`, 6.1).
+  `protocol/channel/README.md`, 5.1).
 - **Charter policy is jig's.** `temper-engine-smith` supplies the rendered
   brief and host-tool declarations to `jig-protocol-charter::assignment`,
   sets the conventions and workspace delivery fact, then calls its
-  `charter` translation (jig's `domain/hosts.md`, section 8). A repository's
+  `charter` translation (jig's `domain/hosts/charters.md`). A repository's
   delivery fact is set only after its push destination survives the root's
-  authority and hold checks (`../domain/forge.md`, 11.1). This grants a
+  authority and hold checks (`../domain/forge/branches.md`, 1). This grants a
   Finite report's delivery with the policy's `modify`, without changing its
   result contract. The tool vocabulary and result translation remain
   temper's.
 
 ## 6. Testing
 
-Within the suites' budgets (`../domain/testing.md`, section 2):
+Within the suites' budgets (`../testing/README.md`, section 2):
 
 - **Step tests of `temper-engine-smith`:** each tool's least input
   decoded and a wrong shape refused; each `Problem`; each answer rendered
@@ -228,8 +228,8 @@ Within the suites' budgets (`../domain/testing.md`, section 2):
   once, with no commit and no record.
 - **Through bytes:** smith's agent processes over skein's fake LLM,
   calling host tools through bytes, in the one-process world
-  (`../domain/testing.md`, 2.5); the process and live tiers
-  (`../domain/testing.md`, 2.6 and 2.7).
+  (`../testing/README.md`, 2.5); the process and live tiers
+  (`../testing/process-tier.md` and `../testing/live-tier.md`).
 - **The program backend,** in the real loop: a run on a program's source
   through smith's fake `claude`, calling host tools that the engine
   decides as a direct run's, its result read the same way; a chat, an
@@ -238,11 +238,11 @@ Within the suites' budgets (`../domain/testing.md`, section 2):
   the real loop's charters park at once; two replies on one process are
   smith's agent-process world's to show (smith's
   `protocol/programs.md`, 5.9 and 8); and a limit the fake program
-  reports making the source limited (`../domain/testing.md`, 2.4).
+  reports making the source limited (`../testing/real-loop.md`).
 - **Notices:** a limited, refused and unauthorized notice from a run,
   each scripted on skein's fake LLM peer, reaching the accounts child
   fenced by its attempt, and one of a fenced attempt dropped
-  (`../domain/testing.md`, 2.4).
+  (`../testing/real-loop.md`).
 - **No token across a domain boundary** (credentials.md, section 7).
 
 ## 7. Open questions
@@ -254,7 +254,7 @@ Within the suites' budgets (`../domain/testing.md`, section 2):
 - **A run's live text** on a conversation's page: smith's channel
   carries it at the host's ask, but jig's assignment carries no ask and
   its workers' facts no content, so agent processes give no text until
-  jig's transport is built (jig's `protocol/channel.md`, 6.4) and
+  jig's transport is built (jig's `protocol/channel/README.md`, 5.4) and
   temper's assignment then asks for it and its worker passes the pieces
   on. Default: a run is shown by its activity, and its words as each
   turn commits.

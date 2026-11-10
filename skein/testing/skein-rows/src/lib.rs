@@ -1,4 +1,4 @@
-//! One table test's rows (skein/docs/design/testing.md, 6): cases of one
+//! One table test's rows (skein/docs/design/testing/README.md, 6): cases of one
 //! behaviour share a process (skein/docs/foundation/testing-strategy.md,
 //! 8), and every row still runs and names itself when it fails.
 //!

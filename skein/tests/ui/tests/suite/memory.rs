@@ -90,7 +90,7 @@ fn a_full_page_fills_its_node_text_and_style_limits() {
 
 #[test]
 fn a_full_patch_queue_holds_at_most_four_words_a_patch() {
-    // Four words cover every patch variant (ui.md, 7).
+    // Four words cover every patch variant (ui/README.md, 7).
     const WORDS: u64 = 4;
     let bound = u64::from(LIMITS.patches) * WORDS * u64::try_from(size_of::<usize>()).expect("word size fits");
     let meter = Meter::new();

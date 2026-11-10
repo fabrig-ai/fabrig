@@ -1,4 +1,4 @@
-//! The items of the tree file, batched into writes (hearth/docs/design/domain/store.md, 5.4).
+//! The items of the tree file, batched into writes (hearth/docs/design/domain/store/tree-helper.md, 4).
 use crate::{
     After, Tree, Wait,
     limits::{self, Limits},

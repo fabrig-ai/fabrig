@@ -1,4 +1,4 @@
-//! Account names and numbers (protocol/hosts.md, 5.2; shell.md, 5.2 and 7.4).
+//! Account names and numbers (protocol/host.md, 5.2; shell/settings.md, 1.2, and shell/credentials.md, 4).
 //! Keeps no state; `check` checks every declared name before selection.
 use super::super::{Layer, Origin, Refusal, Settings};
 use std::collections::BTreeMap;

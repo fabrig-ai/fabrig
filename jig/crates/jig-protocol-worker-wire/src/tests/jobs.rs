@@ -1,4 +1,4 @@
-//! Jobs retain their own records (jig/docs/design/protocol/channel.md, 5.4).
+//! Jobs retain their own records (jig/docs/design/protocol/channel/records.md, 4).
 use super::{fixtures, records::through_bytes};
 use crate::{self as wire, v9};
 use skein_lib::{Duration, List};
@@ -65,7 +65,7 @@ fn endings() -> [wire::JobEnding; 3] {
     [wire::JobEnding::Finished(finished), wire::JobEnding::Failed(failed), wire::JobEnding::Refused(refused)]
 }
 
-/// The spec holds at its byte bound (jig/docs/design/protocol/channel.md, 5.4).
+/// The spec holds at its byte bound (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn a_job_at_its_spec_bound_round_trips() {
     let job = wire::Job::new(&fixtures::LIMITS, job_parts(&[b's'; SPEC_BYTES])).expect("spec at bound");
@@ -73,14 +73,14 @@ fn a_job_at_its_spec_bound_round_trips() {
     assert_eq!(decoded, job);
 }
 
-/// One byte past the spec bound is refused (jig/docs/design/protocol/channel.md, 5.4).
+/// One byte past the spec bound is refused (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn a_job_one_byte_past_its_spec_bound_is_refused() {
     let problem = wire::Job::new(&fixtures::LIMITS, job_parts(&[b's'; SPEC_BYTES + 1])).expect_err("spec past bound");
     assert_eq!(problem, v9::Problem { path: v9::Path::JobSpec, reason: skein_codec::Reason::Bound });
 }
 
-/// Finished, failed and refused answers keep their payloads (jig/docs/design/protocol/channel.md, 5.4).
+/// Finished, failed and refused answers keep their payloads (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn job_answers_keep_their_endings_through_bytes() {
     for ending in endings() {
@@ -107,7 +107,7 @@ fn hello_parts(kinds: &[u32]) -> wire::HelloParts {
     parts
 }
 
-/// Two declared kinds hold at the list bound (jig/docs/design/protocol/channel.md, 4.3 and 5.4).
+/// Two declared kinds hold at the list bound (jig/docs/design/protocol/channel/README.md, 4.3, and jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn a_hello_with_two_job_kinds_round_trips() {
     let hello = wire::Hello::new(&fixtures::LIMITS, hello_parts(&[FIRST_KIND, SECOND_KIND])).expect("two job kinds");
@@ -115,7 +115,7 @@ fn a_hello_with_two_job_kinds_round_trips() {
     assert_eq!(decoded, hello);
 }
 
-/// A third kind exceeds the fixture's list bound (jig/docs/design/protocol/channel.md, 5.4).
+/// A third kind exceeds the fixture's list bound (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn a_hello_one_job_kind_past_its_bound_is_refused() {
     const THIRD_KIND: u32 = 19;

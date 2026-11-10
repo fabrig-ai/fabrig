@@ -1,4 +1,4 @@
-//! Bounds for notes (jig's domain/engine.md, sections 10 and 13).
+//! Bounds for notes (jig's domain/engine/briefs.md, section 2, and domain/engine/README.md, section 7).
 
 /// The parent's fixed bounds for notes and store pages.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -7,7 +7,7 @@ pub struct Limits {
     pub scopes: u32,
     /// Entries admitted in one scope.
     pub entries_per_scope: u32,
-    /// Entries admitted in one party's scope (domain/engine.md, 10.1).
+    /// Entries admitted in one party's scope (domain/engine/briefs.md, 2.1).
     pub party_entries: u32,
     /// Largest description of an entry in a party's scope, in bytes.
     pub party_bytes: u32,

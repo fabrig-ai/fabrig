@@ -1,5 +1,5 @@
 //! A kept message at a bounded inbox, through the real clients component
-//! (temper/docs/design/client/tools.md, 8.2 and 12).
+//! (temper/docs/design/client/ctl/README.md, 6.2 and 9).
 use jig_client::{self as client, Progress};
 use jig_client_kit::harness::{ClientId, Front};
 use skein_lib::{Duration, Env, List, Queue, RequestRecord, Time, Wall};

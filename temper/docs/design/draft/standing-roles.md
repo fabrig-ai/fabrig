@@ -11,9 +11,9 @@ alone (that draft's head and status record it). It widens
 `../domain/findings.md`, section 6's one triager per project to an owner per
 area. It revises `stock-ways.md`, section 2, where a way sets how work starts
 and lands and nothing else: a way may now bring standing roles (section 10).
-It departs from jig's `domain/tasks.md`, 8.6,
+It departs from jig's `domain/tasks/messages.md`, 6,
 where a charter whose runs resume holds no parts, and from jig's
-`domain/engine.md`, 7.4, where the charter alone says whether a run resumes.
+`domain/engine/executors.md`, 4, where the charter alone says whether a run resumes.
 It wins where they differ until its plans fold it in. temper/migration carries
 out the engine's parts, jig's included, the routing and the sessions; temper/ui
 the Team page and a standing role's card (`surfaces.md`, section 6);
@@ -56,25 +56,25 @@ role of the project's people.
 
 ## 2. What a standing role is
 
-- **Its rules:** a charter, as every agent has (`../protocol/configuration.md`,
-  13.4): instructions for its area's work, in parts by why a run runs
+- **Its rules:** a charter, as every agent has (`../protocol/configuration/stock.md`
+  ): instructions for its area's work, in parts by why a run runs
   (`per-wake.md`, section 3), its models and efforts, its tools and its
-  documents (jig's `domain/engine.md`, 17.9). They change by a proposal of
-  settings, as every setting does (jig's `domain/engine.md`, 17.6).
+  documents (jig's `domain/engine/settings.md`, 9). They change by a proposal of
+  settings, as every setting does (jig's `domain/engine/settings.md`, 6).
 - **Its area:** what it covers, in words, section 4.
 - **Its person:** the person who handed it its area requests it, a party
-  (jig's `domain/tasks.md`, section 3). So jig's routes carry its questions,
+  (jig's `domain/tasks/README.md`, section 3). So jig's routes carry its questions,
   escalations and proposals to that person, and the decisions it takes in
   their place are their Decided rows (`what-reaches-you.md`, section 4). When
   that person leaves the project, the project's owners take it over: the
   standing role moves to an owner as its requester, its open questions with
-  it (jig's `domain/tasks.md`, section 7).
+  it (jig's `domain/tasks/changes.md`).
 - **Its Now:** its working notes (jig's `draft/notes-memory.md`, section 4)
   under one name, written by its runs and read whole in every brief. A page at
   most: where things stand, what it waits for and why, what it does next and
   when, what it asked and what it decided.
-- **Its wakes:** a wake policy and subscriptions (jig's `domain/tasks.md`, 8.3
-  and 8.4) over what concerns its area: landings that touch paths it names, reds
+- **Its wakes:** a wake policy and subscriptions (jig's `domain/tasks/messages.md`, 3
+  and 4) over what concerns its area: landings that touch paths it names, reds
   of its tiers, findings with its labels, its own work's questions and results, a
   person's words, and timers. Porter, the pilot's owner of vsr-rs
   (`whole-story.md`, 5.2), wakes at once on a landing on vsr's main that
@@ -82,7 +82,7 @@ role of the project's people.
   findings labelled `port`, and on Mondays at 06:00 for its report.
 - **A budget per period:** an amount a week, carved again each period from
   the project's spend, as a recurring task's is (jig's `domain/authority.md`,
-  section 7; jig's `domain/tasks.md`, section 10). What it has left shows on
+  section 7; jig's `domain/tasks/README.md`, section 5). What it has left shows on
   Team. Past it, the standing role is held for money and its person is asked,
   since money always waits for a person (`what-reaches-you.md`, section 2).
 - **Its report:** its Now at all times, and a report each week (section 7).
@@ -100,7 +100,7 @@ role of the project's people.
 - **A session is a stretch of work,** from the wake that opens it to the end
   code decides. Within it, each wake resumes the session's transcript while its
   cache is warm, as a conversation's charter resumes today (jig's
-  `domain/engine.md`, 7.4, *Woken again*).
+  `domain/engine/executors.md`, 4, *Woken again*).
 - **Code ends it,** at the first of four:
   - **a quiet span:** no wake for longer than its cache keeps. The span is
     the cache life of its account's provider and model, a little under it:
@@ -128,11 +128,11 @@ role of the project's people.
 - **The next wake starts fresh.** Its brief carries its rules with the parts
   for why it runs (`per-wake.md`, section 3), its Now whole, what woke it and
   its area's state. It carries no transcript: the Now takes the place of a
-  transcript's tail (jig's `domain/engine.md`, section 9).
+  transcript's tail (jig's `domain/engine/briefs.md`, section 1).
 - **Parts and resuming together.** The session's first run reads the parts its
   reasons choose. Later runs in the session resume, and keep the instructions
-  the session began with, which keeps the cache (jig's `domain/tasks.md`,
-  8.6). They are offered what those parts were for. Any other message keeps
+  the session began with, which keeps the cache (jig's `domain/tasks/messages.md`,
+  6). They are offered what those parts were for. Any other message keeps
   its place: if it wakes the task, it ends the session (above), and the next
   run reads the parts for it, as `per-wake.md`, section 4 keeps what a run
   isn't offered; if it doesn't, it waits for the next session.
@@ -167,10 +167,10 @@ role of the project's people.
     project's triager is told, as today, and hands it on.
   - **Feedback:** a person's word through Tell temper is a finding, its area
     judged as it is filed (`whole-story.md`, section 2).
-  - **Questions** follow the tree, as ever (jig's `domain/tasks.md`, section
-    9): a standing role is the requester of what it starts, so its own
+  - **Questions** follow the tree, as ever (jig's `domain/tasks/proposals.md`
+    ): a standing role is the requester of what it starts, so its own
     work's questions reach it, and what it can't settle goes on up to its
-    person (section 2). Where `what-reaches-you.md`, section 4 lets an agent decide in a
+    person (`standing-roles.md`, section 2). Where `what-reaches-you.md`, section 4 lets an agent decide in a
     person's place, the area's owner is that agent for its area.
 - **A person owner** gets what is routed to them in Needs you, as a person
   triager is notified today (`../domain/findings.md`, section 6).
@@ -191,10 +191,10 @@ role of the project's people.
   - triage the findings and reds routed to it;
   - write its Now and its report;
   - propose changes to its own rules, its wakes, its area's words or its
-    budget, as a proposal of settings (jig's `domain/engine.md`, 17.6).
+    budget, as a proposal of settings (jig's `domain/engine/settings.md`, 6).
 - **It may not:**
-  - accept its own proposal: an owner decides it (jig's `domain/engine.md`,
-    17.6);
+  - accept its own proposal: an owner decides it (jig's `domain/engine/settings.md`,
+    6);
   - change files outside its area. Its changes land under the project's
     rules by path (`what-reaches-you.md`, section 7): one touching paths a
     rule guards waits for that rule's sign-offs, as any change does, and
@@ -211,7 +211,7 @@ role of the project's people.
 - **A person opens a conversation with it:** `/talk` in the terminal
   (`surfaces.md`, 11.3), "Talk to it" on Team (`surfaces.md`, section 6). The
   person's words wake it and always reach a live run (jig's
-  `domain/tasks.md`, 8.3).
+  `domain/tasks/messages.md`, 3).
 - **The talk is a session** (section 3). The person sees its Now at the top,
   and its brief holds its rules, its Now and its area. It resumes while the
   person is there.
@@ -223,7 +223,7 @@ role of the project's people.
   goal, a setting.
 - **Leaving ends the session.** The person leaves, the standing role writes
   its Now, and the conversation stays as its activity (jig's
-  `domain/engine.md`, 7.2), read on Team, never resumed.
+  `domain/engine/executors.md`, 2), read on Team, never resumed.
 - **Not a chat.** A chat is the person's own and delegates for them. A standing
   role's conversation is its own: its words join its activity, and what it
   starts is its own.
@@ -239,7 +239,7 @@ role of the project's people.
 - **What Home's brief reads.** A standing role's Now is what Home's brief
   reads of its area. The brief itself, its agent and its page are
   `surfaces.md`, section 3's, carried out by temper/ui; this draft changes
-  nothing of `../domain/forge.md`, 5.7.
+  nothing of `../domain/forge/attention.md`, 3.
 
 ## 8. Parties outside temper
 
@@ -247,7 +247,7 @@ role of the project's people.
   the care of its logins, a later lab that proves the code continuously. Each
   sometimes finds something wrong, or needs a person.
 - **They file through `temper ctl`,** each a party with a sign-in of its own
-  (`../client/tools.md`, section 9):
+  (`../client/ctl/README.md`, section 7):
   - **a finding,** with its kind, its paths or label and its reproduction,
     routed by area like any (section 4);
   - **a need,** a question for a person with its choices and why, sent to
@@ -260,26 +260,26 @@ role of the project's people.
 Each is a design lag, by its status file.
 
 - **A task that stands** (jig). An agent task made standing is never told
-  that nothing is awaited (jig's `domain/tasks.md`, 5.2; jig's
-  `domain/engine.md`, 7.4), and ends only when cancelled, as a recurring task
-  does (jig's `domain/tasks.md`, section 10). A run of it that answers
-  finished is committed as parked (section 3). Two more of jig's rules for
+  that nothing is awaited (jig's `domain/tasks/lifecycle.md`, 2; jig's
+  `domain/engine/executors.md`, 4), and ends only when cancelled, as a recurring task
+  does (jig's `domain/tasks/README.md`, section 5). A run of it that answers
+  finished is committed as parked (`standing-roles.md`, section 3). Two more of jig's rules for
   finite tasks don't hold it: idle with delegates still live, it is not held
   past the stall's bound, since a goal it started may run for days (jig's
-  `domain/tasks.md`, 5.5 and section 11); and its tries per class of failure
+  `domain/tasks/lifecycle.md`, 6, and `domain/tasks/README.md`, 6); and its tries per class of failure
   count within a session and start again with the next, not over its life
-  (jig's `domain/tasks.md`, 5.5).
+  (jig's `domain/tasks/lifecycle.md`, 6).
 - **Its person as its requester** (jig and temper). Its requester is a party,
   its person (section 2), so jig's routes for questions, escalations and
   proposals reach a person as they are. Moving it to an owner when its
   person leaves the project is jig's move to a new requester (jig's
-  `domain/tasks.md`, section 7), which temper makes when a member leaves.
+  `domain/tasks/changes.md`), which temper makes when a member leaves.
 - **A budget refilled each period** (jig): carved again from the project's
   spend each period, as a recurring task's is, its unspent rest returning to
   the period that funded it (jig's `domain/authority.md`, section 7).
 - **Sessions** (jig): resuming within a session and starting fresh across
   them, by section 3's rule; a charter that both resumes and has parts (jig's
-  `domain/tasks.md`, 8.6; jig's `domain/engine.md`, 7.4); the quiet span from
+  `domain/tasks/messages.md`, 6; jig's `domain/engine/executors.md`, 4); the quiet span from
   the account's and model's cache life; a session ended by a waking message
   its parts don't offer; a Now written before every park.
 - **The Now kept with the task** (jig): a task's working notes, from jig's
@@ -291,12 +291,12 @@ Each is a design lag, by its status file.
   (`../domain/findings.md`, sections 2 and 6; `../domain/after-landing.md`,
   section 7).
 - **A standing role in the stock** (temper): its charter and its template
-  (`../protocol/configuration.md`, 13.4), and its row among the agents temper
-  runs (`../domain/agent.md`, section 8).
+  (`../protocol/configuration/stock.md`), and its row among the agents temper
+  runs (`../domain/agent/agents.md`).
 - **Its pages and acts** (temper's client): Team and a standing role's card,
   and talking with a standing role, on the web and in the terminal
-  (`../client/README.md`, 5.3 and section 6); in `temper ctl`
-  (`../client/tools.md`, 5.3), `role list`, `role show`, `role talk` (a
+  (`../client/view.md`, 3 and `../client/line.md`); in `temper ctl`
+  (`../client/ctl/tools.md`, 3), `role list`, `role show`, `role talk` (a
   person's words to a standing role, which open or continue its session, its
   answer printed), `finding file` and `need ask`. A rule it proposes is
   decided with `proposal show` and `proposal decide`, as any proposal
@@ -316,7 +316,7 @@ Each is a design lag, by its status file.
   budget: a proposal an owner accepts. Whoever hands it the area is its
   person (section 2).
 - **The stock's standing roles' rules are temper's to write,** as the
-  coordinator's are (`../protocol/configuration.md`, 13.4, charter 5): the
+  coordinator's are (`../protocol/configuration/stock.md`, charter 5): the
   triager first, then the ones the pilot needs, a prover for tests and a
   porter for a follow (`follows.md`, section 2).
 
@@ -353,8 +353,8 @@ each landing.
   owner at any time;
   random wake times, where no run resumes past a quiet span and every fresh
   run follows a written Now or the session's recorded end.
-- **A world story,** with a fake model's script (`../domain/testing.md`, 2.1
-  and 2.4): on the playground's repository, a standing role owns the tests. A red of its
+- **A world story,** with a fake model's script (`../testing/README.md`, 2.1 and `../testing/real-loop.md`
+  ): on the playground's repository, a standing role owns the tests. A red of its
   tier reaches the triager, which hands it to the role; it triages it, makes the repair change, and the change
   lands. It writes its Now. A wake an hour later starts fresh, its brief
   holding that Now and no transcript. A person talks with it, and an

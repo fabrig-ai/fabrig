@@ -62,7 +62,7 @@ pub use start_refusal::refused_start;
 mod tools;
 pub use temper_engine_domain::loads::{Failure as LoadFailure, Kind as RestoreRangeKind};
 pub use tools::{render_for_task, settings_note};
-/// How the service ended (protocol/README.md, 6).
+/// How the service ended (protocol/README.md, 4).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum End {
     Drained,
@@ -86,12 +86,12 @@ pub enum Stop {
         number: u64,
     },
     Start(Problems),
-    /// jig's start refused a fit at `phase` (jig engine.md 6).
+    /// jig's start refused a fit at `phase` (jig jig/docs/design/domain/engine/restart.md).
     StartRefused {
         phase: Option<jig_domain_core::start::Phase>,
         failure: jig_domain_core::start::Failure,
     },
-    /// A restored charter leaves too little brief room (temper/docs/design/domain/agent.md, 4.3).
+    /// A restored charter leaves too little brief room (temper/docs/design/domain/agent/tools.md).
     Room(temper_engine_domain::room::Short),
     /// A startup page could not be read: the root's range kind, and the store's
     /// typed cause where the store gave one (jig-protocol-store `restore::Failure`).
@@ -106,7 +106,7 @@ pub enum Stop {
     },
     /// The deployment's namespace binding was refused.
     Binding,
-    /// The store refuses this start (jig's protocol/store.md, 5.3 and 10).
+    /// The store refuses this start (jig's protocol/store/records.md, 3 and protocol/store/opening.md).
     StoreOpen {
         why: jig_protocol_store::OpenRefusal,
     },
@@ -166,24 +166,24 @@ pub struct SetupStep {
     pub why: skein_forge_setup::reconcile::Why,
 }
 
-/// Operator diagnostics taken by the shell (protocol/forge.md, 2.3).
+/// Operator diagnostics taken by the shell (protocol/forge/engine.md, 3).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Note {
-    /// A configured charter may differ from the store's settings (protocol/configuration.md, 4).
+    /// A configured charter may differ from the store's settings (protocol/configuration/README.md, 3).
     StartupWarning {
         line: Box<[u8]>,
     },
-    /// The gate has kept a party's input for at least 1 s (protocol/README.md, 8.2).
+    /// The gate has kept a party's input for at least 1 s (protocol/README.md, 6.2).
     CoreWaiting {
         why: CoreWait,
     },
     CoreAnswers,
-    /// A forge's link changed or was refused (temper/docs/design/domain/forge.md, 4.6).
+    /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption.md, 6).
     ForgeLink {
         forge: u16,
         note: temper_engine_domain_forge::LinkNote,
     },
-    /// The engine's hello refusal, suppressed until its words change (protocol/README.md, 15.3).
+    /// The engine's hello refusal, suppressed until its words change (protocol/cluster.md, 3).
     HelloRefused {
         channel: u64,
         text: Box<[u8]>,
@@ -213,14 +213,14 @@ pub enum Note {
         findings: Box<[jig_domain_authority::Finding]>,
         error: Option<skein_forge::api::Error>,
     },
-    /// A brief section's forge read failed (temper/docs/design/domain/forge.md, 8.4).
+    /// A brief section's forge read failed (temper/docs/design/domain/forge/change/repairs.md).
     BriefReadRefused {
         task: u64,
         section: &'static [u8],
         stage: &'static str,
         error: Option<skein_forge::api::Error>,
     },
-    /// A whole brief failed with its count and fixed reason (jig/docs/design/domain/engine.md, 9.1).
+    /// A whole brief failed with its count and fixed reason (jig/docs/design/domain/engine/briefs.md, 1.1).
     BriefFailed {
         task: u64,
         counts: &'static str,
@@ -234,17 +234,17 @@ pub enum Note {
         layer: &'static str,
         reason: &'static str,
     },
-    /// One patch finished before the store opened (jig's protocol/store.md, 10.2).
+    /// One patch finished before the store opened (jig's protocol/store/opening.md, 2).
     Patched {
         of: jig_protocol_store::Owner,
         patch: u32,
         counts: jig_protocol_store::Counts,
     },
-    /// A bounded reset diagnostic (temper/docs/design/protocol/setup.md, 8.4).
+    /// A bounded reset diagnostic (temper/docs/design/protocol/setup/playground.md).
     Playground {
         line: Box<[u8]>,
     },
-    /// A listener bound its address (protocol/README.md, 15.3).
+    /// A listener bound its address (protocol/cluster.md, 3).
     Listening {
         listener: Listening,
         addr: core::net::SocketAddr,
@@ -253,30 +253,30 @@ pub enum Note {
         worker: Box<[u8]>,
         address: Box<core::net::SocketAddr>,
     },
-    /// Once per linked link lost (protocol/README.md, 15.3).
+    /// Once per linked link lost (protocol/cluster.md, 3).
     Lost {
         worker: Box<[u8]>,
         address: Box<core::net::SocketAddr>,
         why: WorkerLoss,
     },
-    /// A channel that said hello ended (protocol/README.md, 15.3).
+    /// A channel that said hello ended (protocol/cluster.md, 3).
     WorkerLost {
         worker: Option<Box<[u8]>>,
         channel: skein_lib::Token,
         why: EngineWorkerLoss,
     },
-    /// A record the engine's link did not send (protocol/README.md, 15.3).
+    /// A record the engine's link did not send (protocol/cluster.md, 3).
     WorkerUnsent {
         worker: Box<[u8]>,
         channel: skein_lib::Token,
         unsent: jig_protocol_engine_workers::Unsent,
     },
-    /// An opening ended, suppressed by name and reason until hello (protocol/README.md, 15.3).
+    /// An opening ended, suppressed by name and reason until hello (protocol/cluster.md, 3).
     WorkerOpeningEnded {
         worker: Option<Box<[u8]>>,
         why: EngineWorkerLoss,
     },
-    /// A workers' listener failed, reported at once (protocol/README.md, 15.3).
+    /// A workers' listener failed, reported at once (protocol/cluster.md, 3).
     WorkerListenerFailed {
         address: Option<skein_io::Addr>,
         error: Option<skein_io::Error>,
@@ -290,12 +290,12 @@ pub enum Note {
         number: u16,
         names: Box<[u8]>,
     },
-    /// A set-up ask refused by admission or the box link (protocol/forge.md, 2.8).
+    /// A set-up ask refused by admission or the box link (protocol/forge/engine.md, 8).
     SetUpRefused {
         number: u16,
         why: temper_engine_domain_forge::SetUpRefusal,
     },
-    /// A diagnostic from the box link (protocol/forge.md, 2.8).
+    /// A diagnostic from the box link (protocol/forge/engine.md, 8).
     BoxLink {
         line: Box<[u8]>,
     },
@@ -311,13 +311,13 @@ pub enum Note {
         number: u16,
         why: NotConnected,
     },
-    /// An entry newly unable to serve a forge sign-in meta (protocol/sign-in.md, 9.7).
+    /// An entry newly unable to serve a forge sign-in meta (protocol/openid-provider.md, 7).
     ForgeSignIn {
         number: u16,
         client: Box<[u8]>,
         why: clients::forge_sign_in::Unserved,
     },
-    /// A refused job-log redirect, with no signed path or query (protocol/forge.md, 3.6).
+    /// A refused job-log redirect, with no signed path or query (protocol/forge/README.md, 2.6).
     ForgeOrigin {
         number: u16,
         origin: skein_forge::github::redirect::Origin,
@@ -328,7 +328,7 @@ pub enum Note {
     },
 }
 
-/// The engine's listeners (protocol/README.md, 15.3).
+/// The engine's listeners (protocol/cluster.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Listening {
     /// The clients' HTTP server.
@@ -355,7 +355,7 @@ pub use skein_channel::Closed as WorkerClosed;
 pub use temper_engine_domain::Unsettled;
 
 impl Service {
-    /// Machine inputs loaded once by the shell (temper/docs/design/protocol/configuration.md, 3).
+    /// Machine inputs loaded once by the shell (temper/docs/design/protocol/configuration/engine.md).
     pub fn configure_forge_runtime(&mut self, github: ForgeRuntime, roots: skein_tls::Config) {
         if let Some(engine) = &mut self.engine {
             assert!(engine.forge.serving.is_none(), "machine inputs precede serving");
@@ -364,7 +364,7 @@ impl Service {
         }
     }
 
-    /// Kept names awaiting the shell's startup resolution (temper/docs/design/protocol/forge.md, 2.2).
+    /// Kept names awaiting the shell's startup resolution (temper/docs/design/protocol/forge/engine.md, 2).
     #[must_use]
     #[expect(clippy::type_complexity, reason = "the startup resolution contract returns numbered host and port tuples")]
     pub fn unresolved(&self) -> Box<[(u16, Box<[u8]>, u16)]> {
@@ -383,7 +383,7 @@ impl Service {
         names.into_boxed()
     }
 
-    /// Re-add a kept forge with the shell's answer before serving (temper/docs/design/protocol/forge.md, 2.2).
+    /// Re-add a kept forge with the shell's answer before serving (temper/docs/design/protocol/forge/engine.md, 2).
     pub fn resolved(&mut self, forge: u16, address: Option<core::net::SocketAddr>) {
         let Some(engine) = &mut self.engine else { return };
         if engine.forge.serving.is_some() || engine.forge.unreachable(forge).is_none() {

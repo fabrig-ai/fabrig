@@ -1,4 +1,4 @@
-//! Present each supplied text loss fact (client/domain/contract.md, 5.2; view.md, 10).
+//! Present each supplied text loss fact (client/domain/contract/documents.md, 2; view.md, 10).
 use crate::words::{Words, phrases::jig::JigPhrase};
 use skein_ui::{Builder, Run};
 

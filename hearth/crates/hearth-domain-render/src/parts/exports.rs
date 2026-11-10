@@ -1,4 +1,4 @@
-//! Canonical exports, with integers as decimal text (hearth/docs/design/domain/render.md, 4.4, 4.6).
+//! Canonical exports, with integers as decimal text (hearth/docs/design/domain/render/spec.md, 1.4, 1.6).
 use crate::{
     evaluate::{Entry, Value},
     exports::Exported,
@@ -125,7 +125,7 @@ fn ordered(entries: &[Entry]) -> Box<[Named<'_>]> {
     }
     names.into_boxed()
 }
-/// The one iterative value record walk, also used by equality (hearth/docs/design/domain/render.md, 4.6).
+/// The one iterative value record walk, also used by equality (hearth/docs/design/domain/render/spec.md, 1.6).
 #[must_use]
 pub fn value_items(value: &Value) -> Box<[Item]> {
     let mut record = List::uncapped();

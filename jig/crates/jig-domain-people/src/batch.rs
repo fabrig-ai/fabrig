@@ -1,4 +1,4 @@
-//! A party's batch (domain/tasks.md, sections 3 and 4).
+//! A party's batch (domain/tasks/README.md, sections 3 and 4).
 use crate::{Authority, Grant, Parameter, PersonAddress, WakePolicy};
 use alloc::boxed::Box;
 use skein_lib::length::len_u64;
@@ -52,12 +52,12 @@ pub struct Member {
     pub dependencies: Box<[Dependency]>,
     pub named: Box<[Grant]>,
     /// Connectors' symbols this member holds, each resolved by its connector once the task has its number
-    /// (domain/tasks.md, 6.2).
+    /// (domain/tasks/holds.md, 2).
     pub symbols: Box<[Symbol]>,
     pub tracked: Option<u32>,
     pub label: u32,
     pub flags: Flags,
-    /// The agent task's LLM choice; `None` takes its charter's default (domain/tasks.md, 3).
+    /// The agent task's LLM choice; `None` takes its charter's default (domain/tasks/README.md, 3).
     pub llm: Option<crate::LlmChoice>,
 }
 /// Who carries out a member.
@@ -186,23 +186,23 @@ pub(crate) fn valid(limits: &crate::Limits, batch: &[Member]) -> bool {
     true
 }
 
-/// The immutable authority that may end a task (domain/tasks.md, 5.8).
+/// The immutable authority that may end a task (domain/tasks/lifecycle.md, 9).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum EndedBy {
     Result,
     Requester,
-    /// A named procedure closes an agent task (jig/docs/design/domain/tasks.md, 5.10).
+    /// A named procedure closes an agent task (jig/docs/design/domain/tasks/lifecycle.md, 11).
     Closer(Closer),
 }
 
-/// The procedure named to close a task (jig/docs/design/domain/tasks.md, 5.10).
+/// The procedure named to close a task (jig/docs/design/domain/tasks/lifecycle.md, 11).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Closer {
     pub connector: u16,
     pub code: u32,
 }
 
-/// Ending authority fits its executor and conversation (jig/docs/design/domain/tasks.md, 5.8 and 5.10).
+/// Ending authority fits its executor and conversation (jig/docs/design/domain/tasks/lifecycle.md, 9 and 11).
 #[must_use]
 pub fn shaped(member: &Member) -> bool {
     if member.flags.ended_by == EndedBy::Result {

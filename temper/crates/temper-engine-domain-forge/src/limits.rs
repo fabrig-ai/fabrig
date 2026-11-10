@@ -1,12 +1,12 @@
-//! Bounded connector top state (domain/root.md, section 10;
-//! protocol/configuration.md, section 7).
+//! Bounded connector top state (domain/root.md, section 9;
+//! protocol/configuration/limits.md).
 
 /// GitHub App slugs become bot logins with this suffix (setup/lifecycle.rs).
 pub const BOT_LOGIN_SUFFIX: &[u8] = b"[bot]";
 /// Bounds `stopped_text`'s Debug: skein `connection::Stopped` is fixed-shape (boundary.rs:109–151).
 pub const STOPPED_TEXT_BYTES: u64 = 128;
 
-/// Last connect diagnostics are at most 256 UTF-8 bytes (client/forge.md, 5.4).
+/// Last connect diagnostics are at most 256 UTF-8 bytes (client/forge/deployment.md).
 pub const CONNECT_WHY_BYTES: usize = 256;
 
 /// Admin connects carry names checked at the wire ceiling, independently of the engine's setup name limit.
@@ -15,7 +15,7 @@ pub const FIRST_NAME_BYTES: u32 = 1024;
 /// Capacity of each durable top table and its child.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
-    /// Forges kept at most (temper/docs/design/protocol/forge.md, 7).
+    /// Forges kept at most (temper/docs/design/protocol/forge/README.md, 6).
     pub forges: u32,
     pub repositories: u32,
     pub tasks: u32,
@@ -34,7 +34,7 @@ pub struct Limits {
     pub output: u32,
     pub facts: u32,
     pub adoptions: u32,
-    /// Repositories being made or failed (temper/docs/design/domain/forge.md, 4.5).
+    /// Repositories being made or failed (temper/docs/design/domain/forge/adoption.md, 5).
     pub makings: u32,
     pub applications: u32,
     /// Durable member address bindings (protocol/sign-in.md, 5).
@@ -45,7 +45,7 @@ pub struct Limits {
     pub landing_members: u32,
     /// Retained landings per repository (domain/after-landing.md, 10).
     pub landings_kept: u32,
-    /// Queued rows and recent landed changes in the changes document (client/README.md, 4.6).
+    /// Queued rows and recent landed changes in the changes document (client/forge/records.md).
     pub changes_rows: u32,
     pub changes_landed: u32,
     pub gates: u32,
@@ -57,11 +57,11 @@ pub struct Limits {
     pub tiers: TierLimits,
     /// Project judge tables retained beside committed policy.
     pub judge_projects: u32,
-    /// Retained decided and asked rows per project (temper/docs/design/domain/forge.md, 5.9).
+    /// Retained decided and asked rows per project (temper/docs/design/domain/forge/attention.md, 5).
     pub decided_per_project: u32,
     /// Criteria in each deployment or project judge table.
     pub judge_criteria: u32,
-    /// Rules per scope, configured by `forge.landing_rules` (protocol/configuration.md, 13.2).
+    /// Rules per scope, configured by `forge.landing_rules` (protocol/configuration/settings.md, 2).
     pub landing_rules: u32,
     /// Roles supplied from jig's `authority.roles`.
     pub roles: u32,
@@ -76,18 +76,18 @@ pub struct Limits {
     pub issue_policy: temper_engine_domain_forge_issues::Limits,
     pub change_policy: temper_engine_domain_forge_change::Limits,
     pub queue_window: skein_lib::Duration,
-    /// Gap between sittings (temper/docs/design/domain/forge.md, 5.6).
+    /// Gap between sittings (temper/docs/design/domain/forge/attention.md, 2).
     pub sitting: skein_lib::Duration,
     pub client: skein_forge_client::Limits,
 }
 
 impl Limits {
-    /// Retained decided and asked rows in the family (temper/docs/design/domain/forge.md, 5.9).
+    /// Retained decided and asked rows in the family (temper/docs/design/domain/forge/attention.md, 5).
     #[must_use]
     pub const fn decided(&self) -> u32 {
         self.judge_projects.saturating_mul(self.decided_per_project)
     }
-    /// Eight times members times projects, saturating (temper/docs/design/domain/forge.md, 5.5).
+    /// Eight times members times projects, saturating (temper/docs/design/domain/forge/attention.md, 1).
     #[must_use]
     pub const fn dismissed(&self) -> u32 {
         self.bindings.saturating_mul(self.judge_projects).saturating_mul(8)
@@ -105,7 +105,7 @@ pub struct TierLimits {
 /// Whether entrance limits are coherent and retained row counts fit their types.
 /// Names and gates fit the panel; client admissions cover the top's rows.
 /// Reconciliation and landing capacities must be representable
-/// (temper/docs/design/domain/forge.md, sections 4, 8 and 16).
+/// (temper/docs/design/domain/forge/adoption.md and temper/docs/design/domain/forge/change/README.md and temper/docs/design/domain/forge/README.md, section 9).
 /// Internal output envelopes and retained heap sums do not constrain admission.
 #[must_use]
 pub fn valid(l: &Limits) -> bool {

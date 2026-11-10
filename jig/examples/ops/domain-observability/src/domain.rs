@@ -18,7 +18,7 @@ struct Question {
 pub struct Domain {
     pub(crate) client_subjects: Map<Token, crate::ClientSubject>,
     restart: Option<crate::RestartStage>,
-    /// Restores are passive until the scripted read-afresh step (engine.md, 6).
+    /// Restores are passive until the scripted read-afresh step (domain/engine/restart.md).
     restoring: bool,
     pub(crate) templates: Map<u16, Box<[u8]>>,
     pub(crate) lead_templates: Map<u16, Box<[u8]>>,

@@ -1,4 +1,4 @@
-//! Repository paths and user logins, evicted by least recent use (forge.md, 4.2).
+//! Repository paths and user logins, evicted by least recent use (forge/README.md, 4.2).
 use crate::api;
 use crate::forgejo::{
     document::MergeStyle,

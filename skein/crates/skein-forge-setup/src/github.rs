@@ -1,4 +1,4 @@
-//! GitHub's owner-provided values and plans (forge-setup.md, 5).
+//! GitHub's owner-provided values and plans (forge/setup/github.md, 1).
 pub mod accept;
 pub(crate) mod app;
 pub mod checks;
@@ -21,7 +21,7 @@ use crate::plan::{self, Event, Why};
 use alloc::boxed::Box;
 use skein_forge::github::document::{Document, Row};
 
-/// The answers this dialect's plans read (forge-setup.md, 4.2).
+/// The answers this dialect's plans read (forge/setup/forgejo.md, 1.2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub(crate) enum Reply {
     Document(Document),

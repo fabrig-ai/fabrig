@@ -86,6 +86,6 @@ fn end_to_end_build() {
     assert_eq!(
         fixtures::lines_starting(&rendered.stdout, &["keys "]),
         "keys         packages d018a0eea488   software f60610453970   config 8c9bf06f6262\n",
-        "hearth/docs/design/domain/store.md, 3.3: render's keys are the build's"
+        "hearth/docs/design/domain/store/README.md, 3.3: render's keys are the build's"
     );
 }

@@ -1,4 +1,4 @@
-//! Routing facts from retained outcomes (client/domain/contract.md, 4).
+//! Routing facts from retained outcomes (client/domain/contract/README.md, 3).
 //! Classification never rewrites the whole durable answer or joins missing facts.
 use jig_client::contract::{DocumentOutcome, Made, Outcome};
 

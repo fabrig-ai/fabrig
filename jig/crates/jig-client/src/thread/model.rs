@@ -1,4 +1,4 @@
-//! Public thread inputs and chronological borrowed lines (client.md, 10).
+//! Public thread inputs and chronological borrowed lines (client/domain/client/conversations.md).
 use super::{Thread, Words, extend_live, later, live_turn};
 use crate::{
     Key,
@@ -44,7 +44,7 @@ impl Thread {
         if run.task != self.task {
             return;
         }
-        // A run's end takes no line away: `end_run` does, once the committed activity has been read (client.md, 10).
+        // A run's end takes no line away: `end_run` does, once the committed activity has been read (client/domain/client/conversations.md).
         if run.attempt.is_none() {
             return;
         }

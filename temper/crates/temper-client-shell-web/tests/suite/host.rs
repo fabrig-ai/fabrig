@@ -1,5 +1,5 @@
 //! The host's world: the platform's reports given by the test, through the seam
-//! (client/journeys.md, 2 and 6).
+//! (client/web/journeys.md, 2 and 6).
 use jig_client_shell_web::adapter::Asked;
 use skein_lib::{Time, Wall};
 use skein_ui_web::mapping::Primary;

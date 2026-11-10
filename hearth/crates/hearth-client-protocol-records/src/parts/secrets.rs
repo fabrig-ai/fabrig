@@ -1,4 +1,4 @@
-//! Secret names and places (hearth/docs/design/protocol/format.md, 9.4).
+//! Secret names and places (hearth/docs/design/protocol/format/README.md, 7.4).
 use crate::form::text::{Lines, octal};
 use alloc::boxed::Box;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

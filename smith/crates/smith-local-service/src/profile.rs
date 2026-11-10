@@ -1,6 +1,6 @@
 //! The standard host profile keeps the spawned-agent and delivery bounds.
 //! It never knows a chat or an agent's charter. `host_limits` grants a window
-//! large enough for the agent's largest turn. Contract: shell.md, section 2.1;
+//! large enough for the agent's largest turn. Contract: shell/README.md, section 2.1;
 //! protocol/limits.md, sections 3.6 and 3.8.
 
 mod effective;

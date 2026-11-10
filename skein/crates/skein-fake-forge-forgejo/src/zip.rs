@@ -1,4 +1,4 @@
-//! One-file report ZIPs as served by Forgejo (skein/docs/design/forge.md, 5.2).
+//! One-file report ZIPs as served by Forgejo (skein/docs/design/forge/forgejo.md, 1.2).
 use alloc::boxed::Box;
 use skein_fake_forge_domain::api::Error;
 use skein_lib::{bytes::copy_of, usize_of};

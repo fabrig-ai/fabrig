@@ -1,4 +1,4 @@
-//! Printer admission limits (hearth/docs/design/domain/render.md, 10).
+//! Printer admission limits (hearth/docs/design/domain/render/README.md, 7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     /// The most bytes one record prints, including line endings.

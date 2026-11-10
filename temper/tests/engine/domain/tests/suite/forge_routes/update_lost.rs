@@ -1,5 +1,5 @@
 //! Lost updates hold only at their bound, with the last write's account
-//! (temper/docs/design/domain/forge.md, 10).
+//! (temper/docs/design/domain/forge/README.md, 6).
 use super::early_start::{make, observe_push, push, stop};
 use super::light_rules::change_row;
 use super::reviews::next_assignment;

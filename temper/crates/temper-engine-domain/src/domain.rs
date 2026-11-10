@@ -16,12 +16,12 @@ use skein_lib::{Env, Id, List, Map, Queue, ReplyTo, Slab, Time, Token, Wall};
 use temper_engine_domain_calendar as calendar;
 use temper_engine_domain_forge as forge;
 
-/// Why a start stopped before decisions opened (temper/docs/design/domain/root.md, 9.1).
+/// Why a start stopped before decisions opened (temper/docs/design/domain/root.md, 8.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum StartStop {
-    /// jig's start refused a fit at this phase (jig/docs/design/domain/engine.md, 6).
+    /// jig's start refused a fit at this phase (jig/docs/design/domain/engine/restart.md).
     Core { phase: Option<jig_domain_core::start::Phase>, failure: jig_domain_core::start::Failure },
-    /// A current charter leaves too little brief room (temper/docs/design/domain/agent.md, 4.3).
+    /// A current charter leaves too little brief room (temper/docs/design/domain/agent/tools.md).
     Room(crate::room::Short),
     /// A startup page could not be read.
     Load(loads::RestoreFailure),
@@ -197,7 +197,7 @@ impl Domain {
     }
 
     /// The task project's readable repositories, as its inventory names them;
-    /// empty for a task with no project (temper/docs/design/domain/agent.md, 8.1 and 8.4.2).
+    /// empty for a task with no project (temper/docs/design/domain/agent/agents.md, 1, and temper/docs/design/domain/agent/ask-temper.md, 2).
     #[must_use]
     pub fn repository_identities(&self, task: u64) -> Box<[crate::RepositoryIdentity]> {
         let Some(context) = self.core.tasks.delegation(task) else { return Box::new([]) };
@@ -215,7 +215,7 @@ impl Domain {
         identities.into_boxed()
     }
 
-    /// Whole current model settings (jig/docs/design/domain/engine.md, 17.11).
+    /// Whole current model settings (jig/docs/design/domain/engine/settings.md, 11).
     #[must_use]
     pub fn catalogue(&self) -> Box<[jig_domain_core::settings::CatalogueModel]> {
         let mut rows = List::with_capacity(jig_domain_tasks::MODELS);
@@ -230,7 +230,7 @@ impl Domain {
     }
 
     /// The reply bound of the agent running `key`'s attempt
-    /// (temper/docs/design/domain/root.md, 5.2): the one its worker's hello
+    /// (temper/docs/design/domain/routing.md, 2): the one its worker's hello
     /// names, else the local agent's; `None` where neither names one.
     #[must_use]
     pub fn reply_bound(&self, key: CallKey) -> Option<u32> {
@@ -289,7 +289,7 @@ impl Domain {
     pub fn forges(&self) -> forge::Forges {
         self.forge.forges()
     }
-    /// The playground row as the service reads it (temper/docs/design/protocol/setup.md, 8.4).
+    /// The playground row as the service reads it (temper/docs/design/protocol/setup/playground.md).
     #[must_use]
     pub fn playground(&self) -> Option<&forge::Playground> {
         self.forge.playground()
@@ -473,7 +473,7 @@ impl Domain {
             tasks::KeptStart { connector: forge_connector, code: forge_route::GOAL_CLOSER_CODE },
         ]);
         let mut core = Core::new(config.core, &core_limits(limits))?;
-        // temper/docs/design/domain/agent.md, 8.2: the person answers in their inbox.
+        // temper/docs/design/domain/agent/agents.md, 2: the person answers in their inbox.
         core.person_answers();
         let mut configured = Queue::uncapped();
         tasks::step(
@@ -631,7 +631,7 @@ impl Domain {
         backlog(self)
     }
 
-    /// Decisions open and the journal is not stopped (temper/docs/design/domain/root.md, 9.1).
+    /// Decisions open and the journal is not stopped (temper/docs/design/domain/root.md, 8.1).
     #[must_use]
     pub fn ready(&self) -> bool {
         self.opened && self.start_stop().is_none() && !self.journal.stopped()
@@ -655,7 +655,7 @@ impl Domain {
     }
 
     /// Check the effective settings after `LoadCore` has restored their changes
-    /// (temper/docs/design/domain/agent.md, 4.3).
+    /// (temper/docs/design/domain/agent/tools.md).
     pub(crate) fn check_room(&self) -> Result<(), crate::room::Short> {
         let Some(host) = self.host_part else { return Ok(()) };
         for setting in self.core.current.offered().into_boxed() {
@@ -769,7 +769,7 @@ impl Domain {
     }
 
     /// Live pieces dropped for an unkept kind or an offset beyond the views' u32
-    /// (jig's `domain/hosts.md`, 6.5; `domain/engine.md`, 11).
+    /// (jig's `domain/hosts/hub.md`, 5; `jig/docs/design/domain/engine/views.md`).
     #[must_use]
     pub const fn pieces_dropped(&self) -> u64 {
         self.hub_link.pieces_dropped()
@@ -1077,7 +1077,7 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
     }
     // From the stop on, nothing that would make a commit is taken: connector
     // work stays with the connector and no run is placed (jig's
-    // `domain/engine.md`, 6.1).
+    // `domain/engine/restart.md`, 1).
     if domain.core.stopping() {
         if domain.core.finish_owed() {
             domain.settled = None;
@@ -1250,7 +1250,7 @@ fn released_into(
                     None,
                 );
             }
-            // jig's domain/engine.md, "a project made": the root hears it after commit.
+            // jig's domain/engine/README.md, "a project made": the root hears it after commit.
             // The forge holds optional project rules; deployment rules cover new projects.
             // Repositories and homes arise on adoption, panels on watching.
             // None needs an empty-project row.
@@ -1311,7 +1311,7 @@ fn released_into(
 }
 
 /// Configuration `Domain::new` asserts against (or, for `Workers`, returns),
-/// refused at start before the root is made (domain/root.md, 6), each naming
+/// refused at start before the root is made (domain/root.md, 5), each naming
 /// the part that breaks it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Refused {

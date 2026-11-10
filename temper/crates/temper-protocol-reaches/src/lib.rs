@@ -1,4 +1,4 @@
-//! What reaches a person (temper/docs/design/domain/forge.md, 5.10).
+//! What reaches a person (temper/docs/design/domain/forge/attention.md, 6).
 #![no_std]
 #![forbid(unsafe_code)]
 #![expect(clippy::disallowed_macros, reason = "the contract gives the empty classes table a Default")]

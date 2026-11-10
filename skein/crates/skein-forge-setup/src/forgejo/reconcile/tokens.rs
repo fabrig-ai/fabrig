@@ -1,4 +1,4 @@
-//! The two token files are checked before the bot's id (forge-setup.md, 4.3).
+//! The two token files are checked before the bot's id (forge/setup/forgejo.md, 1.3).
 use super::{Reconcile, State};
 use crate::call::Auth;
 use crate::forgejo::{Reply, reply, unexpected};

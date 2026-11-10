@@ -1,4 +1,4 @@
-//! Adoption outcomes shared by their callers (temper/docs/design/client/README.md, 4.7).
+//! Adoption outcomes shared by their callers (temper/docs/design/client/forge/family.md, 6).
 use super::words;
 use crate::words::Words;
 use alloc::boxed::Box;

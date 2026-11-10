@@ -191,7 +191,7 @@ mod tests {
         }
         (root, task_watch, tree_watch, after)
     }
-    // A signed-in client also watches the deployment's forges (client/forge.md); the
+    // A signed-in client also watches the deployment's forges (client/forge/README.md); the
     // change panel's watch is the family open whose record is a change watch.
     fn change_open(request: &jig_client::Down) -> Option<Token> {
         let jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } } = request else {
@@ -317,7 +317,7 @@ mod tests {
         }
     }
 
-    // client/README.md 5.10: "Queued · Nth", including the full English ordinal;
+    // client/pages/task.md 3: "Queued · Nth", including the full English ordinal;
     // the line is "Nth in the queue for LANDING" with the same ordinal.
     #[test]
     fn queue_ordinals_are_rendered_in_the_steps_and_the_line() {
@@ -349,7 +349,7 @@ mod tests {
         assert!(page.contains("Queued · 1st"), "first bar: {page}");
     }
 
-    // client/README.md 4.6 / 5.10: at most 64 named tasks ahead, all supplied
+    // client/forge/records.md / 5.10: at most 64 named tasks ahead, all supplied
     // names shown as links; the remainder must not overflow at u32::MAX.
     #[test]
     fn queue_at_both_wire_bounds_keeps_every_named_task_link() {
@@ -367,7 +367,7 @@ mod tests {
         }
     }
 
-    // client/README.md 5.10: "Repairs N of M · resolutions N of M · updates N
+    // client/pages/task.md 3: "Repairs N of M · resolutions N of M · updates N
     // of M", each supplied number unchanged, including exhausted and over-limit values.
     #[test]
     fn bounds_show_zero_below_at_past_and_the_largest_wire_numbers() {
@@ -395,7 +395,7 @@ mod tests {
         }
     }
 
-    // client/README.md 5.10: "The forge knows no change for this task."
+    // client/pages/task.md 3: "The forge knows no change for this task."
     // when the forge answers unknown, including a previously shown panel.
     #[test]
     fn unknown_after_a_shown_panel_removes_its_old_facts() {
@@ -405,7 +405,7 @@ mod tests {
     }
 
     // jig-client-domain watches.rs maps a non-own WatchEnd::Closed to Why::SubjectEnded;
-    // forge::panel::watched maps that to State::Unknown (client/README.md 5.10:
+    // forge::panel::watched maps that to State::Unknown (client/pages/task.md 3:
     // "one whose subject left the engine"). Old steps cannot masquerade as current facts.
     #[test]
     fn a_closed_panel_watch_removes_its_old_facts() {
@@ -414,7 +414,7 @@ mod tests {
         assert_unavailable(&root, "The forge knows no change for this task.");
     }
 
-    // client/README.md 5.10 / jig client/domain/root.md 6: "a part its owner
+    // client/pages/task.md 3 / jig client/domain/root.md 6: "a part its owner
     // cannot show says so; neither breaks the page", including access loss while open.
     #[test]
     fn access_failure_of_the_panel_watch_keeps_tasks_and_says_cannot_show() {
@@ -469,7 +469,7 @@ mod tests {
         )));
     }
 
-    // client/README.md 5.10: until the read answers, "No live tasks."; after
+    // client/pages/task.md 3: until the read answers, "No live tasks."; after
     // an empty answer, "None yet." while the task lives and "None." once ended.
     #[test]
     fn an_empty_tasks_region_distinguishes_unread_live_and_ended() {
@@ -523,7 +523,7 @@ mod tests {
         }
     }
 
-    // client/README.md 5.10: "Its ended ones are 5.8's ended rows, read once from
+    // client/pages/task.md 3: "Its ended ones are 5.8's ended rows, read once from
     // the engine"; "When the read's page holds less than all of them", the last line
     // is "More ... are not shown."
     #[test]
@@ -569,8 +569,8 @@ mod tests {
         );
     }
 
-    // client/README.md 5.10: the change's words are the forge table's;
-    // browser.md 2.4 / README 6: both supported shells show the same panel facts.
+    // client/pages/task.md 3: the change's words are the forge table's;
+    // client/web/README.md 2.4 / README 6: both supported shells show the same panel facts.
     #[test]
     fn terminal_and_browser_words_show_the_panel_at_the_domain_text_bound() {
         let (root, _) = show(panel_parts(w::Step::Gating));
@@ -589,7 +589,7 @@ mod tests {
         }
     }
 
-    // client/README.md 5.10: Goal and Task G follow the project in the
+    // client/pages/task.md 3: Goal and Task G follow the project in the
     // header, only when the goal is another task; a tracked task serves itself.
     #[test]
     fn header_goal_slot_links_only_to_another_goal() {
@@ -627,7 +627,7 @@ mod tests {
         }
     }
 
-    // client/README.md 4.6 / 5.10: address accepts 2048 bytes and the page
+    // client/forge/records.md / 5.10: address accepts 2048 bytes and the page
     // links to the supplied address, not a client reconstruction of the forge URL.
     #[test]
     fn address_exactly_at_the_wire_bound_is_not_cut() {
@@ -654,7 +654,7 @@ mod tests {
         assert!(text(view.tree().nodes()).contains("PR #18446744073709551615"), "largest pull number is whole");
     }
 
-    // client/README.md 5.10: "Its ended ones are 5.8's ended rows, read once from
+    // client/pages/task.md 3: "Its ended ones are 5.8's ended rows, read once from
     // the engine"; an ended procedure can have no live tree and still has these rows.
     #[test]
     fn an_ended_procedure_without_a_live_tree_still_lists_ended_children() {
@@ -673,7 +673,7 @@ mod tests {
         task_row_link(&mut view, 101);
     }
 
-    // client/README.md 5.10: the shown change's card holds "Its tasks",
+    // client/pages/task.md 3: the shown change's card holds "Its tasks",
     // live and ended, including a landed change with no surviving live tree.
     #[test]
     fn a_landed_panel_without_a_live_tree_keeps_its_ended_child_rows() {
@@ -704,7 +704,7 @@ mod tests {
         task_row_link(&mut view, 101);
     }
 
-    // client/README.md 5.10: "Until its panel is shown ... the page is the
+    // client/pages/task.md 3: "Until its panel is shown ... the page is the
     // bar, the header and Its tasks"; an unread live tree cannot hide ended rows.
     #[test]
     fn a_live_procedure_with_a_tree_still_loading_shows_its_ended_children() {

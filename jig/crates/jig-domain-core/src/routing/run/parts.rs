@@ -1,5 +1,5 @@
-//! Instructions and offered kinds chosen by run reasons (jig/docs/design/domain/tasks.md, 8.6;
-//! jig/docs/design/domain/engine.md, 7.1).
+//! Instructions and offered kinds chosen by run reasons (jig/docs/design/domain/tasks/messages.md, 6;
+//! jig/docs/design/domain/engine/executors.md, 1).
 use crate::{Charter, Core};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;

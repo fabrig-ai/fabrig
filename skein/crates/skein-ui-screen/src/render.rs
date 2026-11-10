@@ -1,4 +1,4 @@
-//! Bands, bounded row buffers and the preorder walk (skein/docs/design/ui-screen.md, section 5).
+//! Bands, bounded row buffers and the preorder walk (skein/docs/design/ui/screen.md, section 5).
 
 mod canvas;
 mod roles;
@@ -214,7 +214,7 @@ fn focus_requests(tree: &Tree, focus: &mut Focus) {
 }
 
 /// Lays the tree into the frame, honours focus requests and keeps the focus visible
-/// (skein/docs/design/ui-screen.md, section 5).
+/// (skein/docs/design/ui/screen.md, section 5).
 pub fn render(tree: &Tree, theme: &crate::Theme, size: Size, focus: &mut Focus, frame: &mut Frame) {
     focus_requests(tree, focus);
     focus.active = match crate::options::menu(tree, focus.node) {

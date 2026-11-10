@@ -1,4 +1,4 @@
-//! Shared landing configuration and scripted turns (domain/testing.md, 2.4).
+//! Shared landing configuration and scripted turns (testing/real-loop.md).
 use serde_json::{Value, json};
 use std::net::SocketAddr;
 

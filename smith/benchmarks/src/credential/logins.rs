@@ -1,4 +1,4 @@
-//! Harness login layout and existence-only admission (benchmarks.md, section 10).
+//! Harness login layout and existence-only admission (../../../docs/design/benchmarks/README.md, section 10).
 //! The developer creates these paths; the harness never writes them.
 
 use crate::{Fault, FaultKind, credential};

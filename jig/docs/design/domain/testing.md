@@ -18,7 +18,7 @@ section 8. What is still open is listed in section 10.
   connectors, against jig's fakes for the store, the hosts and the
   parties and the application's fakes for its systems; it crashes the
   engine at every commit, holds and fails commits, loses hosts; and
-  jig's referee checks, from outside, every promise of core.md,
+  jig's referee checks, from outside, every promise of model.md,
   section 11.
 - **Generic in the world, concrete in the domain.** Worlds are ordinary
   Rust (programming-model.md, 10.2), so the conformance world is generic
@@ -50,8 +50,8 @@ referee in the loop, the heap counted at every iteration
   proposals; a task's label, flags and last activity, cancels with a
   grace across a restart, goals per project, the ended indexes saved as
   tasks end, what parties and agents ask alike, and each task's
-  revision, its moves and its charter version's models (tasks.md,
-  section 12).
+  revision, its moves and its charter version's models (tasks/README.md,
+  section 7).
 - **authority:** step tests only, as a decision over data; one batch
   under a task and under a party answering alike, and `AsAllowed`
   resolved over generated pools, roles and caps (authority.md,
@@ -59,24 +59,24 @@ referee in the loop, the heap counted at every iteration
 - **people:** sign-ins and credentials minted, roles, requests,
   inboxes; operations alone and in compound requests, made whole or not
   at all; read positions over conversations, live and ended, across a
-  restart (people.md, section 11). Its request step tests and its world
+  restart (people/README.md, section 10). Its request step tests and its world
   fill completed-answer capacity: a `Seen` progresses without saving an
   `Answer` on success or any routed refusal, while a new ordinary key is
   busy. Ordinary reservations exclude `Seen` flights exactly, and the
   pending, flight and waiter bounds apply. Duplicate waiters each get one
   terminal; pending conflicts, retained replay and conflicts, and
   reprocessing to a maximum watermark are checked in the step and world
-  tiers (people.md, 5.1 and section 6).
+  tiers (people/acts.md, 1, and people/README.md, 5).
 - **fleet:** hosts of both kinds, placement, fencing, graces, adoption;
   host needs per charter version, a run of an older version placed on a
-  host its version allows and the newest's does not (engine.md, 17.3).
+  host its version allows and the newest's does not (engine/settings.md, 3).
 - **brief:** sections planned, gathered, cut by size, a required one
   missing; connectors' sections as sizes and tokens only.
 - **views:** watches of jig's subjects marked by generated commits: a
   task query by the tasks it matches before a decision or after it, `me`
   and an inbox by their party's changes; changes coalesced, one delivery
   in flight per watch, and the watches' limits refused at the entrance
-  (engine.md, section 11).
+  (engine/views.md).
 - **notes:** its own concern.
 - **accounts:** its world checks source deadline creation,
   merge and restore with injected monotonic/wall clock pairs: later,
@@ -89,9 +89,9 @@ referee in the loop, the heap counted at every iteration
   fake LLM;
   and, as the in-process kind, `smith-inline-agent`'s runs over skein's
   fake LLM; with turns that open windows, and messages refused and left
-  unread: hosts.md, section 11.
+  unread: hosts/README.md, section 9.
 
-Each child's world plays its parent and the store as engine.md, 5.6
+Each child's world plays its parent and the store as engine/README.md, 5.6
 says: it keeps saved records, commits at the end of each step, and
 restarts by restoring them, so restart is tested in each child before the
 core exists.
@@ -112,7 +112,7 @@ testing, against fakes that share none of its types:
 - **restarts,** cold, at drawn moments or at one a scenario chooses, from
   the store's last durable commit.
 
-Its stories are engine.md, section 15's; its referee is section 6's.
+Its stories are engine/README.md, section 9's; its referee is section 6's.
 Beside the referee, the documents the core delivers are held to a
 reference made from outside: a task query's rows against every task the
 scenario made, filtered and ordered as the query asks, its ended part
@@ -123,7 +123,7 @@ The `joint_clock` and documents fixtures compare a source's
 deadline in task waits, accounts and deployment documents and in its
 stored reset. Different injected clock pairs between reads leave those
 wall facts exactly equal, including after restore: literal equality,
-never a real-clock sample or tolerance (accounts.md, 3.5; engine.md, 5.4).
+never a real-clock sample or tolerance (accounts.md, 3.5; engine/README.md, 5.4).
 
 The charters and templates stories check `me`'s
 `resolved_default` with catalogue and charter orders opposed, explicit
@@ -131,25 +131,25 @@ and omitted intent, a chosen executor, no eligible model, and account,
 policy, membership and effective-executor changes that refresh the
 preview, and each project's offer: a provider with no usable account gives
 no model, and an account's change changes it. The rule is a run's check's
-(accounts.md, 4.3), and the payer the current receiving party (engine.md, 11.1).
+(accounts.md, 4.3), and the payer the current receiving party (engine/views.md, 1).
 
-Settings (engine.md, section 17) are tested where each part lives, most
+Settings (engine/settings.md) are tested where each part lives, most
 of it below this world: the current settings from defaults and changes,
 the check, a charter's version for a revision, the held revisions'
 accounting and the bounds' arithmetic as step tests of the core's
 settings functions, pure and fast; the records' round trip and
-goldens in the store's tests (`../protocol/store.md`, section 14); the
+goldens in the store's tests (`../protocol/store/README.md`, section 9); the
 document's members read as defaults, and the settings' limits, in the
 configuration's tests; the change's and the move's records in the
 client wire's. This world holds what needs the decision and the
-children together: the stories of engine.md, section 15. None needs a
+children together: the stories of engine/README.md, section 9. None needs a
 process: the world's cold restart shows what a restart keeps.
 
 First-start and restart stories use people roster capacities equal to
 and above the actual configured project count; they seed the whole set
 and keep it across restart. Invalid programmatic configuration is
 `Core::new`'s precondition, never an invalid world constructor or a
-catch-panic scenario (engine.md, section 14).
+catch-panic scenario (engine/README.md, section 8).
 
 The inbox and ended-mark fixtures control the current subject,
 role and requester and the interleaving of ended-record and position
@@ -158,7 +158,7 @@ after mark and forget answers `Unknown`, writes nothing and never
 recreates history; lost authority can answer `Role`. Holding the journal
 commit proves no external success leaves early. Crashing and restoring
 recovers only committed read positions or committed absence, with the
-mark and any consequent forget atomic (people.md, section 6). These
+mark and any consequent forget atomic (people/README.md, section 5). These
 proofs are in the step and world tiers, within their budgets.
 
 ## 5. The conformance world
@@ -256,7 +256,7 @@ commit; a missing feed or a bulk mutation rebuilds the projection whole.
 
 jig's referee watches from outside (testing-strategy.md, section 7): what
 the fakes saw, what the store made durable, and the facts the domain
-emits, never a domain's state. Each promise of core.md, section 11
+emits, never a domain's state. Each promise of model.md, section 11
 becomes observations:
 
 - **Authority holds:** every effect a fake system saw is covered by the
@@ -291,7 +291,7 @@ becomes observations:
   requester, every person's words to reach their task or the task to end,
   every proposal to be decided, withdrawn, or waiting where a holder sees
   it; no turn a party has seen comes back unread, across its task's end
-  and restarts (people.md, section 6).
+  and restarts (people/README.md, section 5).
 - **Nothing written over:** no effect on an owned object that the
   application did not make it, but as a participant or through its
   connector's mechanics; no amendment or release made against a
@@ -317,9 +317,9 @@ more than one world needs them (testing-strategy.md, section 4):
 - **the store:** jig's store component over skein-kv's in-memory mode,
   with an in-memory stand-in for transcripts' files, the world holding
   commits, failing one, and serving pages slowly
-  (`../protocol/store.md`, section 14);
+  (`../protocol/store/README.md`, section 9);
 - **scripted workers:** each a host that speaks the contract of
-  hosts.md, section 2, playing a run's script, keeping turns and answers
+  hosts/README.md, section 2, playing a run's script, keeping turns and answers
   until acknowledged, refusing messages and leaving them unread, losing
   its channel and coming back, or vanishing;
 - **`smith-inline-agent`'s runs:** smith's real domain over skein's fake
@@ -356,7 +356,7 @@ missing in skein's world harness goes into skein first.
 reads its kit through its library, which re-exports it.
 `jig/tests/boundary/src/tests/kits.rs` holds this. Two packages named as worlds
 are kits by design: skein's world harness, `skein-world`
-(`skein/docs/design/testing.md`, 6), and smith's `smith-agent-process-world`.
+(`skein/docs/design/testing/README.md`, 6), and smith's `smith-agent-process-world`.
 
 ## 8. What an application adds
 
@@ -413,7 +413,7 @@ starvation verdict (testing-strategy.md, 2.10). Offline live-configuration
 and refused-plan diagnostics run in focused; real live stories remain
 opt-in.
 
-Settings' tests are priced so (engine.md, section 17). Their step tests
+Settings' tests are priced so (engine/settings.md). Their step tests
 are pure functions over a few settings, each well under a millisecond.
 The core's world gains about a dozen focused scenarios (half with the
 change, half with revisions and moves), the tasks child's and the

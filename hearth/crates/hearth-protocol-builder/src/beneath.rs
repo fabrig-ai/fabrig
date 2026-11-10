@@ -8,7 +8,7 @@ pub enum Asked {
     File(io::file::Request),
     Beneath(Beneath),
 }
-/// File operations whose directory is an io-owned token (skein/docs/design/io.md, 9).
+/// File operations whose directory is an io-owned token (skein/docs/design/runtime/io/README.md, 6).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Beneath {
     OpenDirectory { owner: Token, root: Token, name: Box<[u8]>, no_follow: bool },

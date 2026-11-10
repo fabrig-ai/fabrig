@@ -164,7 +164,7 @@ fn leaving(
     Left { outcomes, kept: buffer.take(), length: buffer.length, begun: buffer.begun }
 }
 
-/// The byte-at-a-time reading through next, room and put (json.md, 3.4).
+/// The byte-at-a-time reading through next, room and put (data/json.md, 3.4).
 fn byte_piece(mut text: Text, piece: &[u8], first: u32, out: &mut Buffer) -> Result<Piece, Error> {
     for (at, &byte) in piece.iter().enumerate() {
         if text == Text::Plain {

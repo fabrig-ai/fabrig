@@ -10,7 +10,7 @@ fn region(b: &mut skein_ui::Builder, name: &[u8]) {
     b.name(name);
     text(b, Role::Heading { level: 2 }, name);
 }
-/// A goal's header, needs, report, side and composer (client/README.md, 5.8).
+/// A goal's header, needs, report, side and composer (client/pages/goal.md, 2).
 pub fn page() -> skein_ui::Tree {
     use temper_client_view::look;
     let mut b = skein_ui::Builder::new(&tree_limits());
@@ -126,7 +126,7 @@ fn goal_tasks(b: &mut skein_ui::Builder) {
     b.close();
 }
 
-/// A live delegate's brief and conversation (client/README.md, 5.9).
+/// A live delegate's brief and conversation (client/pages/task.md, 2).
 #[expect(clippy::too_many_lines, reason = "one synthetic page keeps the terminal agent layout together")]
 pub fn agent_task_page() -> skein_ui::Tree {
     use temper_client_view::look;

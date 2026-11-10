@@ -1,4 +1,4 @@
-//! Version, bounds and total outcome round trips (client/README.md, 4.6).
+//! Version, bounds and total outcome round trips (client/forge/records.md).
 mod fixtures;
 mod source;
 use crate::v1;
@@ -58,7 +58,7 @@ fn each_outcome_round_trips_unchanged() {
 #[test]
 #[expect(clippy::too_many_lines, reason = "one expected literal pins every wire bound to its source")]
 fn limits_take_each_bound_from_its_source_field() {
-    // A table full at every bound (temper/docs/design/protocol/configuration.md, 13.2).
+    // A table full at every bound (temper/docs/design/protocol/configuration/settings.md, 2).
     const ITEMS: u32 = 20;
     const SETS: u8 = 6;
     const WORDS_BYTES: usize = 120;
@@ -802,7 +802,7 @@ fn connect_outcomes_round_trip() {
     }
 }
 
-// client/README.md, 4.6: at most 64 installations and a 256-byte end.
+// client/forge/records.md: at most 64 installations and a 256-byte end.
 const INSTALLATIONS: u32 = 64;
 const CONNECT_WHY: usize = 256;
 fn installation_row(count: u32, why_bytes: usize) -> v1::ForgeRowParts {
@@ -1592,7 +1592,7 @@ const COPY_ADDRESS_BYTES: usize = 512;
 #[test]
 fn dismiss_and_dismissals_round_trip() {
     let limits = fixtures::limits();
-    assert_eq!(crate::DISMISSED, 8192, "client/README.md, 4.6: a party's fact bound");
+    assert_eq!(crate::DISMISSED, 8192, "client/forge/records.md: a party's fact bound");
     for what in [
         v1::PersonFact::KeepAsking(
             v1::KeepAsking::new(

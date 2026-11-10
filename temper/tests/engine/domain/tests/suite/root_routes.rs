@@ -1959,7 +1959,7 @@ fn a_person_deletes_a_note_only_in_its_authorized_scope_and_after_commit() {
 }
 
 // A call past the named-answer room is answered busy by the hub's relay, as
-// the root's hub calls are (jig's `domain/hosts.md`, 6.4).
+// the root's hub calls are (jig's `domain/hosts/hub.md`, 4).
 #[test]
 fn a_pending_note_reserves_its_named_answer_until_the_store_returns() {
     let mut bound = limits();
@@ -1985,7 +1985,7 @@ fn a_pending_note_reserves_its_named_answer_until_the_store_returns() {
     driver.call(Token::new(7), assignment.task, assignment.attempt, 3121, unavailable);
     driver.settle();
     // A call waiting for a call record is answered busy, to ask again
-    // (jig's `domain/engine.md`, 5.1).
+    // (jig's `domain/engine/README.md`, 5.1).
     assert!(downs(&driver).into_iter().any(|down| matches!(down,
         host::LinkDown::Relayed { call, answer: host::Relayed::Busy, .. } if call.as_ref() == 3121_u64.to_be_bytes()
     )));
@@ -2062,7 +2062,7 @@ fn proposal_waits_at(driver: &Driver, task: u64, holder: tasks::ProposalHolder) 
 /// A run's amendment of a delegate's words or authority, with its reason.
 
 // A pending proposal is a virtual inbox entry that reaches the live run as
-// the hub's message, named by its proposal (jig's `domain/hosts.md`, 2).
+// the hub's message, named by its proposal (jig's `domain/hosts/README.md`, 2).
 #[test]
 fn a_proposal_reaches_its_covering_task_and_is_accepted() {
     let (mut driver, parent) = batch_fixture_with(3, 2);
@@ -3071,7 +3071,7 @@ fn a_call_asked_twice_across_a_restart_is_decided_once() {
         Some(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Call(record)))) if record.part == jig_domain_core::CallPart::Unavailable
     ));
     // A call is the hub's relay now: its decision and its settled answer
-    // each take a call number (D15; jig's `domain/hosts.md`, 6.4).
+    // each take a call number (D15; jig's `domain/hosts/hub.md`, 4).
     assert_eq!(driver.store.header().calls, 2);
     assert_eq!(driver.answered(71), Some(&engine::CallAnswer::Unavailable));
     assert!(driver.delivered.iter().any(|delivery| matches!(delivery,
@@ -3528,7 +3528,7 @@ fn restored_waiting_keeps_its_committed_holder_despite_current_membership() {
     let mut changed = held_driver(store);
     changed.settle();
     assert!(!changed.stopped);
-    // A restart preserves the committed holder, entry and routing time (jig tasks.md, 12).
+    // A restart preserves the committed holder, entry and routing time (jig's domain/tasks/README.md, 7).
     let original = held_waiting_store();
     for (key, row) in &original.rows {
         if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(_))) = row {
@@ -4756,7 +4756,7 @@ fn placements(driver: &Driver) -> Vec<(Token, u64, u64)> {
         .collect()
 }
 
-// protocol/README.md, 15.4 and 15.6: the cluster's placement and fencing.
+// protocol/cluster.md, 4 and 6: the cluster's placement and fencing.
 #[test]
 fn a_lost_workers_run_is_placed_on_the_other_worker_past_its_grace() {
     const LOST_CHANNEL: Token = Token::new(7);

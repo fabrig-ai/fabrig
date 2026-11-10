@@ -1,5 +1,5 @@
-//! Deployment facts and store fill (client/domain/pages.md, 7; protocol/store.md, 11.2).
-//! Closed at once (jig/docs/design/domain/people.md, 5.2).
+//! Deployment facts and store fill (client/domain/pages.md, 7; protocol/store/README.md, 6.2).
+//! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 use crate::{
     Core, Limits,
     documents::{Chip, Missing, TaskLink, Window, inbox_deployment::line_bound},
@@ -11,7 +11,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, List, Time, Wall};
 
-/// Store map bytes at the last commit answer and its admission mark (store.md, 11.2).
+/// Store map bytes at the last commit answer and its admission mark (protocol/store/README.md, 6.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct StoreFill {
     pub bytes: u64,

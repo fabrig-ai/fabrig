@@ -212,7 +212,7 @@ fn the_agent_runs_as_temper_agent_with_no_credential_in_its_environment() {
     assert!(launched.env.is_empty(), "no credential reaches an agent");
 }
 
-// jig/docs/design/domain/hosts.md, 5.1: one read, endpoint and account, without a run slot.
+// jig/docs/design/domain/hosts/README.md, 5.1: one read, endpoint and account, without a run slot.
 const LIST_READ: u64 = 71;
 const LIST_ENDPOINT: u32 = 0;
 const LIST_ACCOUNT: u32 = 1;

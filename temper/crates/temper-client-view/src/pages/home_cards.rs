@@ -1,4 +1,4 @@
-//! Home's first three needs (temper/docs/design/client/README.md, 3.5, Home, The cards).
+//! Home's first three needs (temper/docs/design/client/pages/README.md, Home, The cards).
 use super::ask;
 use crate::{
     frame::Bindings,
@@ -181,7 +181,7 @@ fn from(
     b.close();
 }
 
-/// Both wide Homes close with the same question field (client/README.md, 3.5).
+/// Both wide Homes close with the same question field (client/pages/README.md).
 pub(crate) fn ask_line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
     if w.shell == Shell::Terminal {
         return;

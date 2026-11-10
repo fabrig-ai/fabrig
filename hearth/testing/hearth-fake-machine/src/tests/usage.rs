@@ -1,4 +1,4 @@
-//! Derived bookkeeping agrees with nodes (hearth/docs/design/domain/testing.md, 9.1).
+//! Derived bookkeeping agrees with nodes (hearth/docs/design/testing/README.md, 4.1).
 use crate::linux::{At, Handle, How, Ids, Item, Machine, Op, Pid, Refusal, Reply, Sizes};
 
 fn checked(machine: &mut Machine, pid: Pid, op: Op) -> Result<Reply, Refusal> {

@@ -1,4 +1,4 @@
-//! client/README.md, 8 and 10; domain/forge.md, 8.2–8.8.
+//! client/engine.md and client/testing.md; domain/forge/change/README.md, 2 and domain/forge/change/gates.md, 1 and domain/forge/change/repairs.md and domain/forge/change/README.md, 3–4 and domain/forge/change/gates.md, 2 and domain/forge/change/README.md, 5.
 //! A task page watches the whole change through CI, its gate and landing.
 use jig_client::contract as c;
 use jig_client_kit::harness::{ClientId, Until, World};
@@ -86,7 +86,7 @@ fn keep_panel(world: &World<Temper, Joint>, person: ClientId, panels: &mut Vec<w
     }
 }
 
-// client/forge.md, 2.1 and 9.2: the successful handed-branch path.
+// client/forge/README.md, 2.1, and client/forge/served.md, 2: the successful handed-branch path.
 fn order(step: &w::Step) -> u8 {
     match step {
         w::Step::Producing => 0,
@@ -735,7 +735,7 @@ fn silent_ci_world() -> (World<Temper, Joint>, u64, u64) {
     (world, chat, change)
 }
 
-// temper/docs/design/domain/forge.md, 8.4; temper/docs/design/client/forge.md, 2.4–2.5.
+// temper/docs/design/domain/forge/change/repairs.md; temper/docs/design/client/forge/README.md, 2.4–2.5.
 #[test]
 fn silent_ci_notifies_the_chat_and_shows_a_stall_with_a_release_action() {
     use skein_lib::{Duration, Time};

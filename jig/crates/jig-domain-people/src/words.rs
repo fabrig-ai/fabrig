@@ -1,4 +1,4 @@
-//! Party words are UTF-8 at request admission (client/domain/contract.md, 5.3).
+//! Party words are UTF-8 at request admission (client/domain/contract/documents.md, 3).
 use crate::{Ask, EscalationDecision, NoteChange, PersonResult, ProposalDecision};
 use skein_lib::bytes::is_utf8;
 

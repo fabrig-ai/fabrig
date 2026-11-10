@@ -241,7 +241,7 @@ fn restored(ask: &jig_client::Ask, limits: forge::Limits) -> Option<forge::Adopt
         checks: a.checks.into_boxed(),
     })
 }
-/// Whether an adoption's text says its protection went unread (temper/docs/design/client/tools.md, 5.5).
+/// Whether an adoption's text says its protection went unread (temper/docs/design/client/ctl/areas.md).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Unread {
     Said,
@@ -648,7 +648,7 @@ pub(crate) fn change(kind: u16, resource: &c::Part, words: &c::DocumentText, out
     if let Some(commit) = temper_client_domain::pages::delegation::merge_commit(words.bytes()) {
         out.put(b" \xc2\xb7 ");
         // A core Change result names its settled pull by number. Resource paths,
-        // when supplied, additionally name its repository and host (client/README.md, 4.1).
+        // when supplied, additionally name its repository and host (client/forge/family.md, 1).
         if kind == 1
             && let c::PartKey::Number(number) = resource.key
         {
@@ -694,7 +694,7 @@ fn verification_room(evidence: &[u8]) -> usize {
         0
     }
 }
-/// The pull line supplies its address and trailing evidence (domain/forge.md, 8.2).
+/// The pull line supplies its address and trailing evidence (domain/forge/change/README.md, 2).
 /// A following newline proves that line whole even when later evidence was cut.
 pub(crate) fn landing_lines(words: &[u8], cut: bool) -> (Option<&[u8]>, &[u8]) {
     let Some(start) = skein_lib::bytes::find(words, b"\n") else { return (None, b"") };

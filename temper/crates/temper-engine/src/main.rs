@@ -1,4 +1,4 @@
-//! The engine's entry point (temper/docs/design/protocol/README.md, 4.2).
+//! The engine's entry point (temper/docs/design/protocol/binaries.md, 2).
 mod commands;
 
 use commands::ENGINE;
@@ -100,7 +100,7 @@ fn refuse_document(row: &Row, directories: &Directories) -> Result<(), String> {
     Err(format!("{} {}: temper.json holds {why}\n", ENGINE.binary, row.words.join(" ")))
 }
 
-/// The store's patch levels and versions, then its worker wires (4.2; jig's protocol/store.md, 5.3).
+/// The store's patch levels and versions, then its worker wires (4.2; jig's protocol/store/records.md, 3).
 fn versions() {
     let levels = jig_protocol_store::levels(&jig_protocol_store::PatchSets::NONE);
     for (owner, level) in

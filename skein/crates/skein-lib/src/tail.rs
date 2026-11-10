@@ -1,4 +1,4 @@
-//! Bounded last bytes of a stream (skein/docs/design/lib.md, 6).
+//! Bounded last bytes of a stream (skein/docs/design/runtime/lib.md, 6).
 
 use crate::{List, Writer};
 use alloc::boxed::Box;

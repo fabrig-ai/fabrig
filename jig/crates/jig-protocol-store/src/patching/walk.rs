@@ -1,4 +1,4 @@
-//! One record's stopped conversion, including held records (protocol/store.md 10.3).
+//! One record's stopped conversion, including held records (protocol/store/opening.md 3).
 use super::machines::{FamilyIx, Machines};
 use super::plan::Planned;
 use alloc::boxed::Box;

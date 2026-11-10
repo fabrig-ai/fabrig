@@ -1,4 +1,4 @@
-//! A send's dialect and credential (forge-setup.md, 4.2).
+//! A send's dialect and credential (forge/setup/forgejo.md, 1.2).
 use skein_forge::{forgejo, github};
 use skein_lib::Secret;
 

@@ -9,7 +9,7 @@ use crate::{Core, translate};
 
 impl Core {
     /// An address supplied from outside the core names a held identity
-    /// (jig/docs/design/domain/engine.md, 5.1).
+    /// (jig/docs/design/domain/engine/README.md, 5.1).
     pub(crate) fn amendment_person(&self, amendment: &tasks::Amendment) -> Result<(), tasks::Refusal> {
         if let Some(tasks::AddressChange { address: tasks::PersonAddress::Person(person), .. }) = amendment.addressed
             && self.people.identity(person).is_none()

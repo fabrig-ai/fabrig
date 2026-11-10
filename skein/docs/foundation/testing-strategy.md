@@ -356,7 +356,7 @@ state machines, with a face for whichever layer sits just above it:
 skein's own tests use a minimal fake machine: a few files beneath a root,
 a program that echoes its input, one that exits with a given status, and
 one that never exits. It also supplies shared generic file/git mechanics
-in `skein-fake-checkout` (fake-checkout.md). These kits know no service's
+in `skein-fake-checkout` (../design/testing/fakes/checkout.md). These kits know no service's
 policy or delivery lifecycle. A service's fake machine, its adapters and
 scenarios remain the service's.
 
@@ -399,13 +399,13 @@ The harness checks, in every world and in the simulator:
   pipes read to the end, every answer taken once; and ownership is a
   tree, with no orphans. A child its owner ended, which ended by a
   signal, may leave output unread: closing a child kills its group, and
-  an abort closes a pipe at once, leaving what it had not read (io.md,
-  3 and 6). A child that exited with its own status has its output read
+  an abort closes a pipe at once, leaving what it had not read (../design/runtime/io/sockets.md and ../design/runtime/io/processes.md
+  ). A child that exited with its own status has its output read
   to the end.
 - **The teardown invariant:** a world that ends by itself ends with no
   deadline firing after the last word other than io's own: its close and
-  retry deadlines, and the stall deadlines owners state for files (io.md,
-  5 and 5.1; programming-model.md, 5.2).
+  retry deadlines, and the stall deadlines owners state for files (../design/runtime/io/files.md
+  ; programming-model.md, 5.2).
   - **The last word** is the point the scenario names: by default, its
     referee's last expectation met. A scenario about a keep or idle time
     names its last word after the time it is about.
@@ -413,7 +413,7 @@ The harness checks, in every world and in the simulator:
     nothing injected after the last word. One that ends on a shutdown the
     referee injects has its last word after the shutdown has arrived.
   - **How it is checked.** Each process tells the harness its earliest
-    deadline outside io's own (shell.md, 12). After
+    deadline outside io's own (../design/runtime/shell.md, 11). After
     the last word, the harness fails the world, naming the process and
     its deadline, when time has to reach that deadline before the world
     settles: when the replaying tiers move the clock to it, or when the

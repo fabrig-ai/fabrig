@@ -1,4 +1,4 @@
-//! Ordered intervals for domain loads (protocol/store.md, 4.3, 7.1 and 7.2).
+//! Ordered intervals for domain loads (protocol/store/README.md, 4.3, and protocol/store/loads.md, 1 and 2).
 use crate::keys;
 use alloc::boxed::Box;
 use jig_domain_core::{self as core, RestoreRange};
@@ -6,7 +6,7 @@ use jig_domain_notes as notes;
 use skein_kv::{KeyWriter, Range};
 use skein_lib::List;
 
-/// Concatenate a restart request's intervals in the order walked (store.md, 7.2).
+/// Concatenate a restart request's intervals in the order walked (protocol/store/loads.md, 2).
 #[must_use]
 pub fn intervals(ranges: &[RestoreRange]) -> Option<Box<[Range]>> {
     let mut count = 0_u32;
@@ -22,7 +22,7 @@ pub fn intervals(ranges: &[RestoreRange]) -> Option<Box<[Range]>> {
     Some(all.into_boxed())
 }
 
-/// A key's place in the restart walk, from the walk's own intervals (store.md, 7.2).
+/// A key's place in the restart walk, from the walk's own intervals (protocol/store/loads.md, 2).
 /// A key outside the requested intervals has no cursor.
 #[must_use]
 pub fn cursor(ranges: &[RestoreRange], key: &[u8]) -> Option<crate::Cursor> {
@@ -259,7 +259,7 @@ fn numbered_prefix(prefix: &[u8], number: u64) -> Range {
     Range::prefix(&bytes)
 }
 
-/// Direct delegate edges used to collect one bounded subtree (protocol/store.md, 7.3).
+/// Direct delegate edges used to collect one bounded subtree (protocol/store/loads.md, 3).
 #[must_use]
 pub fn delegates(requester: u64) -> Range {
     numbered_prefix(&[keys::JIG, 1, 18], requester)

@@ -1,4 +1,4 @@
-//! Generate the agent's existing configuration values (shell.md, 5.4).
+//! Generate the agent's existing configuration values (shell/settings.md, 1.4).
 //! Profile, environment and endpoint values are built without opening credentials.
 use super::super::{Refusal, Settings};
 use super::{input, models::Model};

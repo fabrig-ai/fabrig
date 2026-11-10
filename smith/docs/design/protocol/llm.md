@@ -8,7 +8,7 @@ vocabulary to skein's LLM client and back:
 - the completion, the failure or the cancellation that answers it.
 
 skein's LLM connection component carries each call: connecting, TLS and
-deadlines (skein's `llm-connection.md`). This component writes tools'
+deadlines (skein's `llm/connection.md`). This component writes tools'
 schemas, decodes what the LLM calls, and renders what the tools return.
 
 ## 1. In one page
@@ -61,7 +61,7 @@ A completion's prompt is built from what the domain gives:
   completion's tool choice;
 - **the model, and the prompt's output cap,** the charter's `output` for
   that model (charter.md, section 2): a dialect that takes an output cap
-  sends it, Anthropic's as `max_tokens` (skein's `llm.md`, section 4);
+  sends it, Anthropic's as `max_tokens` (skein's `llm/README.md`, section 4);
 - **the endpoint's options,** from its configuration, and the reasoning
   effort the conversation's LLM asks for in its charter (charter.md,
   section 2);
@@ -76,7 +76,7 @@ A completion's prompt is built from what the domain gives:
   being 0. The session puts the affinity unchanged into every prompt of
   the conversation (domain/session.md, section 2). This component passes
   it on and never makes one.
-- **Each dialect renders it** (skein's `llm.md`):
+- **Each dialect renders it** (skein's `llm/README.md`):
   - OpenAI: the key as the body's `prompt_cache_key` and as the
     `session_id` header, which keeps the run's calls on their cached
     prefix;
@@ -110,7 +110,7 @@ A completion's prompt is built from what the domain gives:
     cached prefix, the request reads the cached prefix;
   - on the Anthropic dialect a changed choice keeps the cache of the
     tools and the system text and loses that of the messages (skein's
-    `llm.md`, 4.7), so the compaction writes its window's messages to
+    `llm/README.md`, 4.7), so the compaction writes its window's messages to
     the cache again. The design accepts that cost, once per window.
 - **Byte-deterministic.** The same prompt becomes the same bytes:
   translation here, rendering (section 5) and skein's dialect encoding
@@ -122,7 +122,7 @@ A completion's prompt is built from what the domain gives:
 - **Anthropic's breakpoints are skein's.** The Anthropic dialect puts
   `cache_control` on the last system block and on the prompt's tail,
   never more than four, with the dialect's default lifetime (skein's
-  `llm.md`). Where they go is a function of the prompt's shape, so smith
+  `llm/README.md`). Where they go is a function of the prompt's shape, so smith
   places none.
 - **OpenAI** caches a prefix on its own, routed by the affinity (2.1).
 
@@ -218,8 +218,8 @@ A completion's prompt is built from what the domain gives:
   offered the same definitions for its life. Which of them a completion
   may call is skein's neutral `ToolChoice`: `Auto`; `None`, for a child's
   final turn and for a compaction (2.2); or `Only(names)`, for a
-  wind-down's `finish` and, when granted, `deliver` (domain/run.md,
-  section 9). A dialect that cannot express `Only` renders `Auto`, and
+  wind-down's `finish` and, when granted, `deliver` (../domain/budget.md
+  ). A dialect that cannot express `Only` renders `Auto`, and
   the session answers a call outside the set as not run.
 - **`finish`'s schema is generated from the contract** (charter.md, 2.1).
   It has:
@@ -267,7 +267,7 @@ A completion's prompt is built from what the domain gives:
   result in its place, so the history stays replayable
   (domain/session.md, section 4).
 - **Neither goes back as it came.** skein refuses a history that holds
-  an oversize or a cut block (skein's `llm.md`, 2.4), so this component
+  an oversize or a cut block (skein's `llm/README.md`, 2.4), so this component
   replaces each when it builds a prompt from history: a call with its
   provider id and its tool's name, and an empty object as its input,
   followed by its error result, which says what was wrong and how to
@@ -369,7 +369,7 @@ A completion's prompt is built from what the domain gives:
   calls, oversized and cut calls, dropped reasoning, replay. The completion follows, with the stop
   reason (the LLM ended, called tools, ran out of tokens, or refused) and
   the usage: input, cache read, cache write, output and reasoning tokens,
-  each one reported or not (skein's `llm.md`).
+  each one reported or not (skein's `llm/README.md`).
 - **Text in flight** is counted for the run's facts, never carried to
   the domain (channel.md, section 8). The deltas go beside the domain,
   to the service, which hands them to two consumers, each by its own
@@ -442,7 +442,7 @@ A completion's prompt is built from what the domain gives:
   a tool's form. It names the field, raises no notice, and is never
   retried unchanged (domain/session.md, section 4).
 - **Deadlines measure progress.** The connection component arms them
-  (skein's `llm-connection.md`):
+  (skein's `llm/connection.md`):
   - connecting and the handshake;
   - the head, until the response's first byte, and idleness, the largest
     gap between events, each declared per provider and model (limits.md);
@@ -469,13 +469,13 @@ A completion's prompt is built from what the domain gives:
   starts, the component reads the grant's value from the table.
 - **A call of an LLM with no account names no grant** (charter.md,
   section 2; channel.md, section 6). It starts with no credential, and
-  its request carries no credential field (skein's `llm-connection.md`,
+  its request carries no credential field (skein's `llm/connection.md`,
   section 4.2). It never reads the table, so it never fails as a grant
   missing.
 - **A credential's scheme says how it is sent, and whether its host may
   renew it** (channel.md, section 6). A bearer goes as an
   authorization bearer and a key as its provider's key, as the
-  endpoint's dialect sends that scheme (skein's `llm.md`, 2.6). A scheme the
+  endpoint's dialect sends that scheme (skein's `llm/README.md`, 2.6). A scheme the
   dialect does not take is a value the agent cannot install (a bearer on
   `anthropic`, which takes a key alone) (channel.md, section 6).
 - **A program source is never read here.** Its run makes no call through
@@ -491,7 +491,7 @@ A completion's prompt is built from what the domain gives:
   skein's `Limits::derive` gives the LLM path's byte limits with checked
   arithmetic: the request, the answer, one call's input, strings,
   reasoning, retained tokens, skip caps, the tools, history items and
-  output items (skein's `llm.md`). smith derives the rest of this
+  output items (skein's `llm/README.md`). smith derives the rest of this
   component's the same way:
   - the tools' schemas' bytes;
   - one rendered result's;
@@ -521,19 +521,19 @@ A completion's prompt is built from what the domain gives:
   - rendered outcomes;
   - no retries and no timers of its own.
 - **skein owes:**
-  - its LLM client and dialects (skein's `llm.md`): the affinity and its
+  - its LLM client and dialects (skein's `llm/README.md`): the affinity and its
     per-call headers, `ToolChoice`, an oversized call as a block of its
     own, typed limits and HTTP statuses, Anthropic's cache markers, and
     `Limits::derive`;
-  - the public OpenAI Responses dialect (skein's `llm.md`, 4.8) and
+  - the public OpenAI Responses dialect (skein's `llm/README.md`, 4.8) and
     Anthropic's Messages with a key (4.7), the credential's scheme
     (2.6), and the failure classes exhausted, with its reset only where
     the provider gives one, refused and unsupported, naming its field,
     with the provider's error code and request id as evidence (2.5);
-  - its JSON tokenizer and writer (skein's `json.md`);
-  - the LLM connection component (skein's `llm-connection.md`): deadlines
+  - its JSON tokenizer and writer (skein's `data/json.md`);
+  - the LLM connection component (skein's `llm/connection.md`): deadlines
     by phase, waiting at a full pool, and closing for its owner;
-  - the fake LLM peer (skein's `fake-llm.md`).
+  - the fake LLM peer (skein's `testing/fakes/llm.md`).
 
 ## 10. The world
 
@@ -609,7 +609,7 @@ component and skein's client against scripted byte peers, in each dialect.
     for byte;
   - one exception, Anthropic's tail marker. skein moves that cache
     marker to the newest message's last eligible block on every request
-    (skein's `llm.md`, 4.7), and the provider's cache does not hash the
+    (skein's `llm/README.md`, 4.7), and the provider's cache does not hash the
     marker. So the referee:
     - removes from each request's messages the one marker the dialect
       placed there, exactly the bytes the dialect writes. Since a quote
@@ -640,7 +640,7 @@ All run in virtual time, in milliseconds each, within the focused suite.
   mid-conversation, whether appended guidance goes there.
 - **Anthropic's cache lifetime:** a parent idle while its child runs past
   the lifetime loses its tail's entry; the lifetime is measured again
-  with the `cache-reuse/idle-gap` variant (benchmarks.md; skein's `llm.md`).
+  with the `cache-reuse/idle-gap` variant (../benchmarks/README.md; skein's `llm/README.md`).
 - **A replaced call and preserved thinking:** Anthropic's current models
   check that thinking sent back belongs to an unedited history. A cut or
   oversized call sent back with an empty input changes its turn as the

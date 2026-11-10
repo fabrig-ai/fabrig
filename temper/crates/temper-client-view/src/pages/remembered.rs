@@ -1,4 +1,4 @@
-//! The person's own preferences (temper/docs/design/client/README.md, 5.17).
+//! The person's own preferences (temper/docs/design/client/pages/remembered.md).
 use super::settings;
 use crate::{
     frame::Bindings,
@@ -15,7 +15,7 @@ use temper_client_domain::{
     },
 };
 
-// Both deployment profiles admit twelve party lines (client/README.md, 5.17).
+// Both deployment profiles admit twelve party lines (client/pages/remembered.md).
 const PARTY_ENTRIES: u32 = 12;
 
 pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, times: &mut Times) {

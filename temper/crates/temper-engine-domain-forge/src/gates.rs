@@ -1,4 +1,4 @@
-//! Forge landing patterns and gate selection (temper/docs/design/domain/forge.md, 8.7).
+//! Forge landing patterns and gate selection (temper/docs/design/domain/forge/change/gates.md, 2).
 use crate::{Limits, Repository};
 use alloc::boxed::Box;
 use skein_lib::List;
@@ -22,7 +22,7 @@ pub struct GateCandidate {
     pub project_scope: bool,
     pub freshness: change::Freshness,
 }
-/// The procedure's waits from landing rules (temper/docs/design/domain/forge.md, 8.7).
+/// The procedure's waits from landing rules (temper/docs/design/domain/forge/change/gates.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Requires {
     pub ci: bool,
@@ -51,7 +51,7 @@ pub(crate) fn covers(pattern: &GatePattern, name: &[Box<[u8]>]) -> bool {
 }
 /// Whether `pattern` covers `branch` of `repository`: a pattern beginning at
 /// `branch` is judged against the branch's resource path past its
-/// repository's four segments (temper/docs/design/protocol/configuration.md, 13.2).
+/// repository's four segments (temper/docs/design/protocol/configuration/settings.md, 2).
 #[must_use]
 pub fn covers_branch(pattern: &GatePattern, repository: &Repository, branch: &[u8]) -> bool {
     match crate::domain::branch_resource_name(repository, branch) {

@@ -2,7 +2,7 @@
 
 Provisional, 2026-10-07, revised 2026-10-19. The channel between a run and
 its host is smith's application protocol on skein's framed channel
-(skein's `channel.md`). This document covers:
+(skein's `net/channel.md`). This document covers:
 
 - its opening;
 - its kinds and their records;
@@ -93,7 +93,7 @@ of domain/host.md, section 2.
   agents' configuration then finds out at the first opening, not in the
   middle of a run.
 - **smith's refusal reasons,** from the application's range (skein's
-  `channel.md`, 5.1):
+  `net/channel.md`, 5.1):
   - **rules:** the peer broke the channel's rules (section 5);
   - **busy:** a connected agent is serving another run;
   - **unauthorized:** a connected agent did not accept the credential.
@@ -127,7 +127,7 @@ of domain/host.md, section 2.
   they were told, from the last turn whose record had `opens_window`
   (section 4; transcript.md, section 3). Earlier windows are never sent.
   It is one piece: each turn's bytes after their length, a `u32`, as the
-  codec writes a field of bytes (skein's `codec.md`, section 3). The
+  codec writes a field of bytes (skein's `data/codec/README.md`, section 3). The
   piece is bounded at the resume limit's bytes, and the agent counts its
   turns against the resume limit's turns as it splits it, so a window of
   many small turns travels as one of a few large ones does
@@ -269,18 +269,18 @@ last one with `opens_window` (domain/host.md, section 6).
   (charter.md, section 2);
 - **the reset,** in limited: how long until the account may be used
   again, an optional `duration`. It is absent when its provider did not
-  say, and zero when it said zero (skein's `llm.md`, 2.5);
+  say, and zero when it said zero (skein's `llm/README.md`, 2.5);
 - **the code,** in refused: the provider's error code, else its error
   type, as text within its bound. It is empty when the provider gave
   none, or one past the bound, which is left out, never clipped (skein's
-  `llm.md`, 2.5 and 7);
+  `llm/README.md`, 2.5 and 7);
 - **the reason,** in refused: the failure's detail, the provider's text,
   within its bound, cut at a character's boundary.
 
 The code and the reason are each text within its bound, which
 limits.md, 2.4, gives.
 
-**How a run ended** (domain/run.md, section 10):
+**How a run ended** (domain/run.md, section 9):
 
 - **accepted,** with its result, as bytes (charter.md);
 - **parked;**
@@ -443,12 +443,12 @@ edge is independent of the channel's own flow control (section 7).
   So a domain that keeps its own bounds is never refused by its channel.
 - **Progress.** Every record the host's half reads counts as progress for
   its watchdog. A connected agent's channel adds skein's keepalive, with
-  silence and stall deadlines (hosts.md). Over pipes, the process's end is
+  silence and stall deadlines (host.md). Over pipes, the process's end is
   the channel's end.
 
 ## 8. Facts
 
-A fact is content-free (domain/run.md, section 11): what happened, and
+A fact is content-free (domain/run.md, section 10): what happened, and
 when, as a duration since the run's start. The time is taken when the
 fact is emitted, never when it is projected, so a fact that waited in a
 queue still says when it happened. The kinds the channel projects, for
@@ -460,7 +460,7 @@ liveness:
 - text arriving from the LLM, counted, never carried. The count is the
   fact's: the text itself crosses only as live content (section 4).
 
-The run's other facts (domain/run.md, section 11) reach the event stream
+The run's other facts (domain/run.md, section 10) reach the event stream
 only.
 
 The local service measures received turns within the host's
@@ -475,7 +475,7 @@ separate sink of the same facts with content as its capture policy
 allows, under its own delivery policy and its own count of loss
 (events.md), and never crosses the channel. Content crosses the channel
 only as live content, at the host's ask, in pieces that are never
-facts: the run's domain never holds it (domain/run.md, section 11). Where
+facts: the run's domain never holds it (domain/run.md, section 10). Where
 a trace is kept is the agent's configuration (agent.md).
 
 ## 9. What the domains are owed, and what skein owes
@@ -487,8 +487,8 @@ a trace is kept is the agent's configuration (agent.md).
   - **durations** turned into deadlines on their own clocks;
   - **grants** reduced to names.
 - **skein owes:**
-  - the framed channel (skein's `channel.md`);
-  - codecs generated from `smith-channel`'s schema (skein's `codec.md`);
+  - the framed channel (skein's `net/channel.md`);
+  - codecs generated from `smith-channel`'s schema (skein's `data/codec/README.md`);
   - streams: pipes and sockets from io, and TLS.
 
 ## 10. The world

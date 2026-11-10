@@ -24,12 +24,12 @@ own after this one (section 6).
   place, with no version kept for an older side (the user, 2026-11-04).
 - **The look in parallel:** a look request draws the target meanwhile,
   a percentage written in by hand beside the moving bar
-  (`../client/journeys.md`, 7); this draft makes it true.
+  (`../client/web/journeys.md`, 7); this draft makes it true.
 
 ## 2. The fetch
 
 - **Per binary, in order:** Forgejo, then its runner, as
-  `../protocol/setup.md`, 6.6, fetches them.
+  `../protocol/setup/owned.md`, 6, fetches them.
 - **The size is the answer's `Content-Length`:** a body longer than it
   is refused, as one past `setup.fetch_bytes` is. An answer without one
   has no size, and its progress is its bytes alone.
@@ -46,7 +46,7 @@ own after this one (section 6).
 - **A fetch line becomes a pipe line** to serve, for the asked forge's
   fetch step alone: `fetched FORGE BINARY DONE TOTAL`, within
   `box.line_bytes`, between that forge's `step FORGE fetch` and its next
-  step (`../protocol/setup.md`, 7.1).
+  step (`../protocol/setup/box.md`, 1).
 - **Its terminal shows none of them:** the step's log keeps them, as it
   keeps the step's other lines.
 - **A line it cannot read,** or one for no asked forge, is named on its
@@ -56,7 +56,7 @@ own after this one (section 6).
 
 - **The box's link keeps the latest** `fetched` line of the forge
   setting up, in memory alone, as it keeps the ask's answer
-  (`../protocol/forge.md`, 2.8): a restart of serve forgets it, and the
+  (`../protocol/forge/engine.md`, 8): a restart of serve forgets it, and the
   next line brings it back.
 - **The forge's row carries it:** its setting up gains the binary, the
   bytes and the size, present while the step is the fetch and a line
@@ -70,17 +70,17 @@ own after this one (section 6).
   "Setting up: fetching its runner · 80%"; with no size, "Setting up:
   fetching Forgejo · 41 MB". The set up's step list says the same on
   its first step, "Fetching Forgejo and its runner · 42%"
-  (`../client/forge.md`, 5.4).
+  (`../client/forge/deployment.md`).
 - **Both shells, one domain:** the words are the view's from the
   domain's row, so the terminal says what the browser does.
 - **The look** is the look requests' (the forge's pane beside the Model
   step, its moving bar, and the percentage beside it), landed as
-  `../client/journeys.md`, 7, says.
+  `../client/web/journeys.md`, 7, says.
 
 ## 6. The bar that fills: skein's
 
 skein-ui's progress node carries text alone: "how far a piece of work
-has gone, its text saying it" (`skein/docs/design/ui.md`, 3.1). A bar that fills with the percentage needs a value it maps to
+has gone, its text saying it" (`skein/docs/design/ui/README.md`, 3.1). A bar that fills with the percentage needs a value it maps to
 the platform's (`aria-valuenow` on the web) and a width the stylesheet
 can draw. That is skein's, in a draft of its own, after this one. Until
 it lands, the bar stays the moving one, and the percentage says how
@@ -100,7 +100,7 @@ far.
 ## 8. Later
 
 - **One percentage for both binaries,** from sizes pinned beside their
-  digests (`skein/docs/design/forge.md`, 4.3), known before the first
+  digests (`skein/docs/design/forge/README.md`, 4.3), known before the first
   byte, so that the bar does not start again for the runner.
 - **The other steps' progress:** preparing and starting take seconds,
   and keep the moving bar.

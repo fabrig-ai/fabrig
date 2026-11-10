@@ -5,77 +5,7 @@ agents, and a standard agent built from it. It is built on skein and
 follows skein's foundation documents. Nothing here depends on its hosts:
 jig and temper are named only as examples.
 
-## 1. In one page
-
-- **A kit and an agent.** smith covers what a flexible LLM agent does,
-  whatever it is for: conversations with any provider, tools (its own on
-  a workspace, its host's, MCP servers'), sub-agents, budgets, results
-  judged against a contract, changes checked and handed over, transcripts
-  to resume from. The same crates build `smith`, an agent with standard
-  features that runs on its own or under any host that speaks its
-  protocol.
-- **Not only a coding agent.** A chat assistant, a researcher, a triager,
-  a reviewer, an operator acting through its host's tools, a coordinator
-  of other agents, and a producer of code changes are all runs of the
-  same agent, told apart by their charters. Nothing in smith assumes code,
-  repositories or a workspace at all.
-- **One vocabulary, two kinds of agent.** An agent runs one run at a
-  time: as a process its host spawns, talking to it over one channel
-  whose vocabulary is defined here (host.md) and whose bytes are the
-  protocol design's (`docs/design/protocol/`); or inline, as smith's
-  domains in its host's process, speaking the same vocabulary as
-  entities (host.md, section 9). A host (temper's worker, smith's local
-  host, a test's world) starts runs, serves what they ask of it and
-  hears how each ends.
-- **skein's layering** (`programming-model.md`): every part is a domain,
-  a protocol layer and io, so a project built on smith imports it at the
-  layer it needs: the domains in its worlds, the protocol crates to talk
-  to an agent or read its transcripts, the shells and binaries to run
-  one, or everything in one process (section 4).
-- **The domain is complete** (programming-model.md, section 4). A world
-  of domains and fakes runs everything an agent does, with no protocol and
-  no io.
-- **Policy is data.** A host shapes a run entirely by its charter and its
-  answers: instructions, a brief, the tools it may call and those the host
-  serves, what counts as done, where to look for checks and guides, a
-  budget. smith interprets no workflow vocabulary: no roles, task kinds,
-  verdict names, message kinds, forges, branches or pull requests
-  (section 5).
-- **A workspace is optional, and generic.** A run may be given
-  directories to work in, some writable; one that is a git working tree
-  gets git's protections and may start from a merge in progress. A run
-  without one works through its host's tools, MCP servers and its
-  messages. A change is what the writable directories hold, checked; what
-  making it durable means (files kept, a commit, a push, a pull request)
-  is the host's: smith asks for a delivery and tells the LLM how it
-  went.
-- **Any model, any provider.** The conversation vocabulary is
-  provider-neutral; each provider's API is skein's shared LLM client's.
-  A run starts on the model its charter names and may give its sub-agents
-  others.
-- **Failures are visible.** The LLM sees what went wrong, bounded in size:
-  a failing check's output, an edit that matched nothing, a result that
-  broke its contract, a host's refusal in the host's own words. So does
-  the operator: a run's failure, an agent's and a host's reach the person
-  or the operator typed and are shown in words, with bounded detail,
-  whichever kind of agent runs, and never in what the LLM is told. A
-  failure is never replaced by a fixed message, for either.
-
-## 2. Reading order
-
-1. **README.md:** this page: what smith is, its parts, how it stays
-   generic.
-2. **run.md:** one activation: the charter, the tools a run serves and
-   relays, messages and waiting, results and their contracts, delivering
-   a change, the budget, the answer.
-3. **session.md:** one conversation with an LLM: turns, transcripts,
-   providers, prices, sub-agents.
-4. **tools.md:** what a session does to the workspace.
-5. **host.md:** the other side: what a host owes a run and is owed, the
-   channel, supervising agent processes, the local host, and one process
-   through the inline agent.
-
-## 3. Names
+## 1. Names
 
 | Name | What it is |
 |---|---|
@@ -105,14 +35,14 @@ jig and temper are named only as examples.
 | result, result contract | what a run declares to finish; what counts as done (run.md, section 7) |
 | delivery | the host making a checked change durable (run.md, section 8) |
 | stale | a run whose deliveries can no longer land, as its host says |
-| spend, unit, prices | what completions cost, in the host's unit, at each model's prices (run.md, section 9) |
-| reserve | the part of a run's budget, in turns and time with a derived spend, kept for main's last word; sub-agents and ordinary work draw on what is above it, and when that is spent the run winds down on it (run.md, 9.1) |
+| spend, unit, prices | what completions cost, in the host's unit, at each model's prices (budget.md) |
+| reserve | the part of a run's budget, in turns and time with a derived spend, kept for main's last word; sub-agents and ordinary work draw on what is above it, and when that is spent the run winds down on it (budget.md, 1) |
 | endpoint | a provider and its credentials, configured in the agent; a charter names it |
 | credential grant | a credential a host lends a run, refreshed over the channel (host.md, section 7) |
-| fact | what happened, content-free, and when: lossless inside the process; the event stream keeps every one by default, and the channel's projection for a host's liveness drops what does not fit, counting it as not projected (run.md, section 11) |
-| answer | how a run ends: accepted, parked or failed (run.md, section 10) |
+| fact | what happened, content-free, and when: lossless inside the process; the event stream keeps every one by default, and the channel's projection for a host's liveness drops what does not fit, counting it as not projected (run.md, section 10) |
+| answer | how a run ends: accepted, parked or failed (run.md, section 9) |
 
-## 4. Structure
+## 2. Structure
 
 `crates/` holds libraries only. Binaries are glue in the root package,
 `smith`, under its `src/`: each parses its arguments, opens what its
@@ -191,7 +121,7 @@ as its agent.
 | protocol | `smith-local-protocol` | the local host's protocol layer: the terminal, transcripts in files, signing in, committing in place |
 | protocol | `smith-channel`, `smith-charter`, `smith-transcript`, `smith-events` | codecs: the channel's records; the charter and the result; turns, for a host that keeps or shows them; the event vocabulary, as JSON lines (`protocol/events.md`) |
 | service | `smith-agent-service`, `smith-local-service` | each process's `iterate`, with the profiles of declared limits it ships, the `standard` profile among them; the local service composes the local domain, which owns its agent as a child, with the effects: the LLM, the machine, the store and the terminal |
-| shell | `smith-agent-shell`, `smith-local-shell` | libraries in ordinary Rust: the agent process a host spawns, with its configuration, the one adapter its binary and the worlds both run; the local host's settings, composition, front ends and commands (`docs/design/shell.md`) |
+| shell | `smith-agent-shell`, `smith-local-shell` | libraries in ordinary Rust: the agent process a host spawns, with its configuration, the one adapter its binary and the worlds both run; the local host's settings, composition, front ends and commands (`../shell/README.md`) |
 | skein | `skein-llm` | providers' APIs, behind one shared client |
 | protocol | `smith-mcp`, later | MCP servers as a tool source |
 | testing | skein's fake LLM, a scripted agent, a scripted host | fakes for its own worlds |
@@ -229,7 +159,7 @@ otherwise keep goes there, as generic kit:
 What is about conversations, tools or runs stays in smith; providers'
 APIs are skein's; what is about tasks, authority or connectors is jig's.
 
-## 5. How smith stays generic
+## 3. How smith stays generic
 
 smith decides the mechanics of an agent; its host decides everything
 that is policy. The line between them:
@@ -272,9 +202,9 @@ What varies between agents, and between hosts, arrives as data:
 So a host needs no code built into the agent: temper's workers run
 smith's stock agent binary. A project that wants an action inside the agent's
 own process, beside the workspace's tools, offers it as an MCP server
-first (run.md, 5.1); tools compiled in are an open question (section 8).
+first (run.md, 5.1); tools compiled in are an open question (section 5).
 
-## 6. Conventions
+## 4. Conventions
 
 - **A bare file name** names a document of this directory: `run.md` is
   smith's run.
@@ -286,7 +216,7 @@ first (run.md, 5.1); tools compiled in are an open question (section 8).
 - **Each document** says in one page what it is, then its parts, what it
   owes and is owed below the domain, its world, and what is open.
 
-## 8. Open questions
+## 5. Open questions
 
 - **Tools compiled in:** whether a project may add owned tools at build
   time, as a child domain the run composes, or only through MCP servers.

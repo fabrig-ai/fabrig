@@ -1,5 +1,5 @@
-//! The run's finishing phase and deferred wind-down effects (smith/docs/design/domain/run.md,
-//! sections 6 and 9.1). This keeps the cause, final requests made,
+//! The run's finishing phase and deferred wind-down effects (smith/docs/design/domain/run.md, section 6, and smith/docs/design/domain/budget.md, section 1
+//! ). This keeps the cause, final requests made,
 //! and bounded ready runs. It never knows provider syntax or child results.
 
 use skein_lib::{Id, Set};

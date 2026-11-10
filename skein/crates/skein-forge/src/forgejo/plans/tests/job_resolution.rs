@@ -1,4 +1,4 @@
-//! Status job resolution (skein/docs/design/forge.md, 5.2 and 9).
+//! Status job resolution (skein/docs/design/forge/forgejo.md, 1.2 and 2).
 use crate::api::{self, Answer, Error, Op, Read};
 use crate::forgejo::plans::plan::Step;
 use crate::forgejo::tests::fixtures::{self, HEAD, REPO, Run};

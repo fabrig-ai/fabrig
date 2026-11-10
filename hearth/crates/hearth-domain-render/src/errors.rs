@@ -1,4 +1,4 @@
-//! Decode errors retain their revision places (hearth/docs/design/domain/render.md, 7.1).
+//! Decode errors retain their revision places (hearth/docs/design/domain/render/errors.md, 1).
 use crate::revision::{self, Oid, Position};
 pub use crate::vocabulary::Class;
 use alloc::boxed::Box;
@@ -129,7 +129,7 @@ struct Order {
     position: (u32, u32),
     target: Option<Box<[u8]>>,
 }
-/// The longest ordered prefix within both of hearth/docs/design/domain/render.md, 7.1's bounds.
+/// The longest ordered prefix within both of hearth/docs/design/domain/render/errors.md, 1's bounds.
 #[derive(Debug, Hash)]
 pub struct Collector {
     kept: skein_lib::List<Error>,
@@ -219,7 +219,7 @@ pub(crate) fn push(errors: &mut Collector, error: Error) {
     errors.push(error);
 }
 
-/// Why a decoded task.json is no declaration (hearth/docs/design/protocol/format.md, 5.1).
+/// Why a decoded task.json is no declaration (hearth/docs/design/protocol/format/tasks.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Declared {
     Unknown { of: Object },
@@ -399,7 +399,7 @@ fn copy_task(task: Option<&[u8]>) -> Option<Box<[u8]>> {
     Some(skein_lib::bytes::copy_of(task?))
 }
 
-/// A store failure in an answer (hearth/docs/design/domain/render.md, 7.2).
+/// A store failure in an answer (hearth/docs/design/domain/render/errors.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct StoreError {
     pub store: Box<[u8]>,
@@ -447,14 +447,14 @@ pub enum Host {
     Container,
 }
 
-/// A false guard's name and message (hearth/docs/design/protocol/format.md, 5.9).
+/// A false guard's name and message (hearth/docs/design/protocol/format/tasks.md, 9).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Guard {
     pub name: Box<[u8]>,
     pub message: Box<[u8]>,
 }
 
-/// A key produced twice by one task's expanded maps (hearth/docs/design/protocol/format.md, 5.2).
+/// A key produced twice by one task's expanded maps (hearth/docs/design/protocol/format/tasks.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Collision {
     Key { key: Box<[u8]> },
@@ -465,7 +465,7 @@ pub enum Collision {
     Overlap { subject: Subject, first: Box<[u8]>, second: Box<[u8]> },
 }
 
-/// The namespace of a collision (hearth/docs/design/domain/render.md, 3.7).
+/// The namespace of a collision (hearth/docs/design/domain/render/README.md, 3.7).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Subject {
     Tree,
@@ -482,14 +482,14 @@ pub enum Subject {
     Parameter,
     Range,
 }
-/// The account id namespace (hearth/docs/design/protocol/format.md, 5.6).
+/// The account id namespace (hearth/docs/design/protocol/format/tasks.md, 6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Id {
     Uid,
     Gid,
 }
 
-/// Reference roots restricted to literal names (hearth/docs/design/protocol/format.md, 6.4).
+/// Reference roots restricted to literal names (hearth/docs/design/protocol/format/README.md, 5.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Root {
     Debian,
@@ -503,7 +503,7 @@ pub enum ExportFault {
     Root { root: Root },
 }
 
-/// Another target's exports failed (hearth/docs/design/domain/render.md, 3.4).
+/// Another target's exports failed (hearth/docs/design/domain/render/README.md, 3.4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Exported {
     pub exporter: Box<[u8]>,
@@ -519,7 +519,7 @@ pub enum Cause {
     Evaluation(crate::evaluate::FaultKind),
 }
 
-/// Apt's configuration verdict and the bounded closure (hearth/docs/design/domain/render.md, 5.5, 7.2).
+/// Apt's configuration verdict and the bounded closure (hearth/docs/design/domain/render/spec.md, 2.5, hearth/docs/design/domain/render/errors.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Resolution {
     TooLarge { max: u64 },
@@ -532,7 +532,7 @@ pub enum Resolution {
     TooMany { max: u32 },
 }
 
-/// A fixed id is missing for an entry's owner (hearth/docs/design/domain/render.md, 7.2).
+/// A fixed id is missing for an entry's owner (hearth/docs/design/domain/render/errors.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Ids {
     pub owner: Box<[u8]>,

@@ -414,7 +414,7 @@ fn compound(world: &mut World, operations: Vec<TaskOperation>, seen: &mut BTreeS
                 assert!(!members.is_empty(), "circle names at least one member");
                 seen.insert(Reached::Circle);
             } else if problem.why == Refusal::Unknown {
-                // A compound carries no loaded places (tasks.md 7): an earlier
+                // A compound carries no loaded places (domain/tasks/changes.md): an earlier
                 // operation's dropped dependency re-added once it has ended is unknown.
                 let dependency = problem.task.expect("unknown dependency is named");
                 assert!(!live(world).contains(&dependency), "only an ended dependency is unknown: {problem:?}");

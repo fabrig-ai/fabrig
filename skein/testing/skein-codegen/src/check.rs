@@ -1,4 +1,4 @@
-//! Names required by generated Rust (codec.md, section 7).
+//! Names required by generated Rust (data/codec/README.md, section 7).
 
 use alloc::collections::BTreeSet;
 

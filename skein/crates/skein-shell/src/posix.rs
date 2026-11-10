@@ -1,4 +1,4 @@
-//! Calls shared by Linux and Darwin (shell.md, 7.5).
+//! Calls shared by Linux and Darwin (runtime/readiness.md, 5).
 //!
 //! # The `unsafe`, and why it is sound
 //!
@@ -7,7 +7,10 @@
 //! Poll borrows one initialized, exclusive pollfd until return, retains no
 //! pointer and takes no descriptor ownership.
 
-#![expect(unsafe_code, reason = "POSIX calls take integers or borrow storage only until return (shell.md, 7.5)")]
+#![expect(
+    unsafe_code,
+    reason = "POSIX calls take integers or borrow storage only until return (runtime/readiness.md, 5)"
+)]
 
 pub(crate) mod files;
 pub(crate) mod group;
@@ -54,14 +57,14 @@ pub(crate) fn close(fd: Fd) -> Result<(), i32> {
     status(unsafe { libc::close(fd.raw()) })
 }
 
-/// The process effective user, read once by startup for io's private files (shell.md, section 6).
+/// The process effective user, read once by startup for io's private files (runtime/shell.md, section 6).
 #[must_use]
 pub fn effective_user() -> u32 {
     // SAFETY: geteuid takes no pointers and has no preconditions.
     unsafe { libc::geteuid() }
 }
 
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn shutdown(fd: Fd) -> Result<(), i32> {
     // SAFETY: shutdown takes only integers.
     status(unsafe { libc::shutdown(fd.raw(), libc::SHUT_WR) })

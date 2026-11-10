@@ -275,7 +275,7 @@ pub struct Observer {
     settled_calls: BTreeSet<(u64, u64, u64)>,
     claims: BTreeSet<(u64, u64)>,
     // Durable fresh marks fence these attempts: their traffic is acknowledged
-    // and discarded without a turn or terminal row (engine.md, 7.2 and 8).
+    // and discarded without a turn or terminal row (domain/engine/executors.md, 2 and domain/engine/fleet.md).
     crossed: BTreeSet<(u64, u64)>,
     cancelled: BTreeSet<(u64, u64)>,
     discarded: BTreeSet<(u64, u64)>,

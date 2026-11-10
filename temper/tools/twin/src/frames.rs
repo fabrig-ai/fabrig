@@ -19,7 +19,7 @@ fn limits() -> codec::View {
 }
 
 pub(crate) fn read(data: &Path, task: u64) -> Result<Vec<smith::Turn>, Refusal> {
-    // Jig's protocol/store.md, 8.1; transcripts::path is private to the store.
+    // Jig's protocol/store/transcripts.md, 1; transcripts::path is private to the store.
     let path = data.join("transcripts").join(format!("{:016x}", task >> 12)).join(format!("{task:016x}"));
     let Ok(mut file) = File::open(&path) else {
         return Err(Refusal::Read { path });

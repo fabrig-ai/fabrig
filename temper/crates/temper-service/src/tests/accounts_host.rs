@@ -17,7 +17,7 @@ use skein_lib::{Duration, List, Secret, bytes};
 use skein_oauth as oauth;
 use skein_oauth_accounts as driver;
 
-// temper/docs/design/protocol/credentials.md, 3; skein/docs/design/oauth.md, 6.5.
+// temper/docs/design/protocol/credentials.md, 3; skein/docs/design/oauth/accounts.md, 5.
 // The host runs over scripted streams; the independent issuer checks OAuth.
 struct SignInWorld {
     store: crate::store::Store,

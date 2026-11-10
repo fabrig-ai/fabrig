@@ -3,7 +3,7 @@
 //! Full Debug payloads are bounded test encodings, not production codecs.
 //! The EOF control stops driving the simulated root after process exit:
 //! it proves retained parent ownership, never a post-EOF receipt or root Turn.
-//! Contract: smith/docs/design/domain/run.md, sections 8.2, 10 and 13; smith/docs/design/domain/host.md, sections 2,
+//! Contract: smith/docs/design/domain/run.md, sections 8.2, 9 and 12; smith/docs/design/domain/host.md, sections 2,
 //! 4, 6 and 9; skein/docs/foundation/testing-strategy.md, sections 2.3, 6 and 7.
 
 use skein_lib::{Duration, Token};

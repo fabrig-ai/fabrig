@@ -1,5 +1,5 @@
 //! A cut setup starts over; a cut removal ends whole at startup.
-//! temper/docs/design/domain/forge.md, 4.1; temper/docs/design/protocol/setup.md, 6.7 and 13.4.
+//! temper/docs/design/domain/forge/adoption.md, 1; temper/docs/design/protocol/setup/owned.md, 7, and temper/docs/design/protocol/setup/testing.md, 4.
 use super::support::{
     self,
     boxed::{self, BOX_DEADLINE, CtlOutcome},
@@ -108,7 +108,7 @@ fn owned_setup_cuts_start_over_and_a_removal_cut_finishes_on_restart() {
     scratch.remove();
 }
 
-/// Init's document with no `openssl` (protocol/sign-in.md, 9.9): the group has no source
+/// Init's document with no `openssl` (protocol/openid-provider.md, 9): the group has no source
 /// step, which needs the engine this cut holds.
 fn without_sign_in(config: &Path) -> Vec<u8> {
     let path = config.join("temper.json");

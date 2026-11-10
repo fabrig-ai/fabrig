@@ -1,5 +1,5 @@
 //! Bounded references to connector explanations (`client/domain/objects.md`, 5) and the circles
-//! of waits that hold a task (domain/tasks.md, 6.7).
+//! of waits that hold a task (domain/tasks/holds.md, 7).
 use crate::{Circle, Hold, HoldSource, Limits};
 /// Maximum retained connector account, independently of inbox message bounds.
 pub const ACCOUNT_BYTES: u32 = 512;

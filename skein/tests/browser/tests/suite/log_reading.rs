@@ -1,4 +1,4 @@
-//! Measured reading through the page part in Chromium (skein/docs/design/ui-web.md, 7).
+//! Measured reading through the page part in Chromium (skein/docs/design/ui/web/README.md, 5).
 use skein_browser::boundary::Key;
 use skein_fake_person_browser::{
     Outcome, Script, Setup, harness,

@@ -1,4 +1,4 @@
-/// The ask the core sets for a run: text for a conversation's own task (engine.md, 7.1).
+/// The ask the core sets for a run: text for a conversation's own task (domain/engine/executors.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct LiveAsk {
     pub text: bool,

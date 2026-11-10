@@ -1,4 +1,4 @@
-//! Stable names for requests (jig's client/domain/contract.md, 3.1): the same
+//! Stable names for requests (jig's client/domain/contract/requests.md, 1): the same
 //! derivation as `temper-client-tools`' `jig::key`, which stays jig's own; a
 //! ctl test pins the first repository's keys to the same bytes.
 use alloc::boxed::Box;
@@ -41,5 +41,5 @@ pub fn named(salt: &[u8], name: &Name) -> RequestKey {
     key
 }
 
-/// Salt shared with named ctl requests (client/tools.md, 7).
+/// Salt shared with named ctl requests (client/ctl/README.md, 5).
 pub const TOOLS: &[u8] = b"temper-tools";

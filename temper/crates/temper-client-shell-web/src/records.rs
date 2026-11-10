@@ -1,7 +1,7 @@
-//! The small store’s client records and the kept look (temper/docs/design/client/README.md, 7 and 3.5).
+//! The small store’s client records and the kept look (temper/docs/design/client/README.md, 4 and temper/docs/design/client/pages/README.md).
 use temper_client_domain::pages::terminal::{Font, Look, Theme};
 
-/// The kept store’s look record (client/README.md, 3.5): four bytes, `0` or `1`.
+/// The kept store’s look record (client/pages/README.md): four bytes, `0` or `1`.
 pub const LOOK_KEY: &[u8] = b"look";
 #[must_use]
 pub fn encode_look(look: Look) -> [u8; 4] {

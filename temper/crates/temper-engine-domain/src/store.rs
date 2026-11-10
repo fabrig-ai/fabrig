@@ -1,4 +1,4 @@
-//! The root's typed durable store vocabulary (domain/root.md, 8).
+//! The root's typed durable store vocabulary (domain/root.md, 7).
 //! It wraps core and forge records and keys. The root gathers owner-produced
 //! writes into atomic decisions; the store
 //! protocol encodes versions and supplies ordered, bounded pages.
@@ -14,7 +14,7 @@ pub use jig_domain_core::{
     TurnRecord,
 };
 
-/// Fields named by a decoded amendment (domain/agent.md, 4.3).
+/// Fields named by a decoded amendment (domain/agent/tools.md).
 /// Joined at the host flight; the core retains only its revision reply.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Changed {
@@ -52,7 +52,7 @@ impl Changed {
 /// Typed call feedback; amendment details are joined from the decoded tool.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CallAnswer {
-    /// The named decision keeps the taken option, or asks the person (domain/forge.md, 5.9).
+    /// The named decision keeps the taken option, or asks the person (domain/forge/attention.md, 5).
     Decided { took: Option<Box<[u8]>>, reach: Option<temper_protocol_reaches::Reach> },
     /// A fresh task read; it never becomes a durable call part.
     TaskRead(Box<Result<jig_domain_core::reads::run_task::TaskRead, jig_domain_tasks::Refusal>>),
@@ -132,24 +132,24 @@ pub enum CallAnswer {
     ChangeRefused { problem: Box<jig_domain_tasks::Problem>, named: Option<Box<[u8]>>, repositories: Box<[Box<[u8]>]> },
     /// A note write's durable name and revision.
     NoteWritten { name: u64, revision: u32, lines: u32, added: u32, removed: u32, first: u32 },
-    /// A scoped note deleted by the run (jig domain/engine.md, 10.1).
+    /// A scoped note deleted by the run (jig jig/docs/design/domain/engine/briefs.md, 2.1).
     NoteDeleted { name: u64 },
     /// One bounded notes recall page.
     NoteRecalled { entries: Box<[jig_domain_notes::Entry]>, more: bool },
     /// A note request changed nothing.
     NoteRefused(jig_domain_notes::Refusal),
-    /// The document call joined with its note write (domain/agent.md, 8.4.3).
+    /// The document call joined with its note write (domain/agent/ask-temper.md, 3).
     Document(Box<Documented>),
-    /// The root's joined memory answer (domain/agent.md, 8.4.4).
+    /// The root's joined memory answer (domain/agent/ask-temper.md, 4).
     Remember(Box<Remembered>),
-    /// A settings part or refusal, answered without a record (domain/agent.md, 8.4.2).
+    /// A settings part or refusal, answered without a record (domain/agent/ask-temper.md, 2).
     Parts(Box<PartsAnswer>),
     /// The named tool is deferred to a later engine route.
     Unavailable,
 }
 
 /// A proposal's held parts or refusal before jig decides it
-/// (temper/docs/design/domain/agent.md, 8.4.2). Nothing is recorded.
+/// (temper/docs/design/domain/agent/ask-temper.md, 2). Nothing is recorded.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum PartsAnswer {
     Holding { count: u32, total: u32, against: u32, dropped: Option<(u32, u32)> },
@@ -161,7 +161,7 @@ pub enum PartsAnswer {
     Approvals { why: Box<[u8]> },
 }
 
-/// A document call's answer joined at its host flight (temper/docs/design/domain/agent.md, 8.4.3).
+/// A document call's answer joined at its host flight (temper/docs/design/domain/agent/ask-temper.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Documented {
     pub action: crate::DocumentAction,
@@ -169,7 +169,7 @@ pub struct Documented {
     pub outcome: DocumentOutcome,
 }
 
-/// The root's answer to a `remember` call (domain/agent.md, 8.4.4).
+/// The root's answer to a `remember` call (domain/agent/ask-temper.md, 4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Remembered {
     Done { did: RememberDid, line: u32, lines: skein_lib::List<Box<[u8]>>, bound: u32 },
@@ -432,7 +432,7 @@ pub struct CallRecord {
 
 /// Ordered address of a durable row. Root and child identities keep their own
 /// variants; a scoped note index includes its bounded resource pattern
-/// (jig's domain/engine.md, 5.3–5.6).
+/// (jig's domain/engine/README.md, 5.3–5.6).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Key {
     Wires,
@@ -440,10 +440,10 @@ pub enum Key {
     Forge(temper_engine_domain_forge::Key),
 }
 
-/// Root-owned page ranges (domain/root.md, section 8).
+/// Root-owned page ranges (domain/root.md, section 7).
 /// The root asks the store for strictly ordered rows from one range; child
 /// records already have concrete task/people wrappers. These values issue no
-/// request on their own and promise no cross-page snapshot (domain/root.md, 8).
+/// request on their own and promise no cross-page snapshot (domain/root.md, 7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum CoreRange {
     /// One chat activity record while locating its person's newest whole words.
@@ -506,7 +506,7 @@ pub enum Range {
     Core(CoreRange),
     /// Ended owners and unanswered question activity in jig's census walk
     /// order, with repeats. The cursor is the last index key walked, rather
-    /// than an owner row's key (jig's protocol/store.md, 7.2).
+    /// than an owner row's key (jig's protocol/store/loads.md, 2).
     Census(jig_domain_core::Census),
     Forge,
 }
@@ -543,7 +543,7 @@ impl Range {
 
 impl CoreRange {
     /// Translate a root restore request into jig's ranges. Interval placement
-    /// remains jig's (jig's protocol/store.md, 7.2); historical loads use their
+    /// remains jig's (jig's protocol/store/loads.md, 2); historical loads use their
     /// own protocol requests instead of the restart walk.
     #[must_use]
     pub const fn restore_ranges(&self) -> &'static [jig_domain_core::RestoreRange] {
@@ -684,7 +684,7 @@ fn notes_contains(range: &jig_domain_notes::Range, child: &jig_domain_notes::Key
 
 /// Owned typed row sent root to store in a commit or returned store to root in
 /// a bounded page. The transaction/page, not each row, has the store terminal
-/// (domain/root.md, 8).
+/// (domain/root.md, 7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "jig's core records move whole through the store's pages")]
 pub enum Record {
@@ -706,10 +706,10 @@ impl Record {
 
 /// Root to store: one unique-key operation within an atomic commit. Child
 /// saves/erases acquire no separate terminal; the ordered commit answers once
-/// (domain/root.md, 8).
+/// (domain/root.md, 7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Write {
-    /// Whole-task transcript erasure (jig/docs/design/domain/people.md, 5.2; temper/docs/design/domain/forge.md, 4.1; jig/docs/design/protocol/store.md, 8.5, 11.1).
+    /// Whole-task transcript erasure (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption.md, 1; jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/README.md, 6.1).
     DropTranscript { task: u64 },
     /// Persist the shell-supplied wire versions in the start’s mark.
     Wires,

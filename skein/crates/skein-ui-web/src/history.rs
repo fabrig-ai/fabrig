@@ -1,4 +1,4 @@
-//! Paths and entry scroll, independent of the application's codec (ui-web.md, 9).
+//! Paths and entry scroll, independent of the application's codec (ui/web/README.md, 7).
 #[cfg(target_arch = "wasm32")]
 pub mod web;
 

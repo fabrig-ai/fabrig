@@ -123,7 +123,7 @@ fn a_chat_past_the_resume_limit_starts_fresh() {
 
 // The reference root asks resume_bytes (256), below the store page bound.
 const WINDOW_ROOM: usize = 256;
-// Fixed turn metadata with read=None, plus the 12-byte frame wrapper (store.md, 8.6).
+// Fixed turn metadata with read=None, plus the 12-byte frame wrapper (protocol/store/transcripts.md, 6).
 const WINDOW_FRAME_FIELDS: usize = 56;
 // A protocol rendering need not retain opaque replay bytes; ten text bytes per turn
 // leaves both neighbours and the cut marker within the fixture's 128-byte tail.

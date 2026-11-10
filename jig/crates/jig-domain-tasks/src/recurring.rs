@@ -1,4 +1,4 @@
-//! Core recurring procedure and its durable period cursor (domain/tasks.md, section 10).
+//! Core recurring procedure and its durable period cursor (domain/tasks/README.md, section 5).
 //! A period trigger considers only its newest due period. The template and overlap choice live in
 //! the task row; root supplies fresh task numbers, while this child owns the period allotment and
 //! admits the whole batch with its cursor in one decision. It knows no wall clock or connector.

@@ -1,11 +1,11 @@
 //! A charter's brief room, by its host part's costs
-//! (temper/docs/design/domain/agent.md, 4.3).
+//! (temper/docs/design/domain/agent/tools.md).
 
 use alloc::boxed::Box;
 use jig_domain_core::{RunPolicy, ToolFamilies};
 use skein_lib::{Decimal, Writer};
 
-/// A run's least brief room (temper/docs/design/domain/agent.md, 4.3).
+/// A run's least brief room (temper/docs/design/domain/agent/tools.md).
 pub const BRIEF_ROOM: u64 = 2_048;
 
 /// A charter's non-brief host part in smith's bytes, built by temper-engine-smith.
@@ -149,7 +149,7 @@ pub(crate) fn trial_rows(limits: &crate::Limits) -> u32 {
     limits.accounts.accounts.min(64).min(room)
 }
 
-/// Approvals fit the wire and one whole delivery at the largest row (domain/forge.md, 8.12).
+/// Approvals fit the wire and one whole delivery at the largest row (domain/forge/change/questions.md, 2).
 pub(crate) fn approval_rows(limits: &crate::Limits) -> u32 {
     let row = u32::try_from(size_of::<crate::ApprovalRow>())
         .expect("approval row size fits u32")

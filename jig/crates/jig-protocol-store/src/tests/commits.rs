@@ -1,4 +1,4 @@
-//! Commits answered only after the same skein-kv number (protocol/store.md, 6).
+//! Commits answered only after the same skein-kv number (protocol/store/README.md, 5).
 use super::fixtures;
 use crate::{Event, Phase, Request, Store, Write, codec, keys};
 use alloc::boxed::Box;

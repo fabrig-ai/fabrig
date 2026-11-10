@@ -310,7 +310,7 @@ impl<'a> World<'a> {
     }
 
     /// The stream ends. A read outstanding is never met, and stays
-    /// outstanding until the client withdraws it, as io keeps it (lib.md,
+    /// outstanding until the client withdraws it, as io keeps it (runtime/lib.md,
     /// 7); its room may still be granted.
     fn end(&mut self) {
         self.below.life = Life::Ended;
@@ -658,7 +658,7 @@ impl<'a> World<'a> {
                 assert!(room <= self.settings.output, "no room past the output cap");
                 assert!(room == 0 || !below.finished, "no room after Finish");
                 // A grant not sent within (the side above sent nothing in it)
-                // gives way to the next, as io's does (io.md, 3.3).
+                // gives way to the next, as io's does (runtime/io/sockets.md, 3).
                 if room > 0 {
                     below.granted = None;
                 }

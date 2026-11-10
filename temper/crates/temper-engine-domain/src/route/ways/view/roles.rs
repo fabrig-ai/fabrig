@@ -1,4 +1,4 @@
-//! The project's agents, once per charter (temper/docs/design/domain/forge.md, 8.13).
+//! The project's agents, once per charter (temper/docs/design/domain/forge/change/branch-path.md).
 use super::super::super::forge_route::{ASKING_TEMPLATE, FOREMAN_CHARTER, STATUS_CHARTER};
 use crate::{Domain, ways};
 use jig_domain_people::TemplateExecutor;

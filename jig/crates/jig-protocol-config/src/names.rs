@@ -1,6 +1,6 @@
-//! Named override limits (jig/docs/design/protocol/configuration.md, 6).
+//! Named override limits (jig/docs/design/protocol/limits.md).
 
-/// What a named limit counts (protocol/configuration.md, 6).
+/// What a named limit counts (protocol/limits.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Unit {
     Count,

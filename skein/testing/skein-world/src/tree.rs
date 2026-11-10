@@ -8,7 +8,7 @@
 //! The last Linux keeper restores the observer's prior subreaper setting, so later
 //! fixture descendants are not adopted on that binary's behalf.
 //! Supervised scenarios keep identities before adoption, survey live members,
-//! and choose their own TERM and KILL deadlines (benchmarks.md, section 10).
+//! and choose their own TERM and KILL deadlines (smith/docs/design/benchmarks/README.md, section 10).
 
 #[cfg(target_os = "linux")]
 use alloc::collections::{BTreeMap, BTreeSet};
@@ -250,7 +250,7 @@ impl Tree {
         }
     }
 
-    // Cgroups are Linux's (shell.md, 7.5).
+    // Cgroups are Linux's (runtime/readiness.md, 5).
     #[cfg(target_os = "linux")]
     pub(crate) fn cgroup(&self) -> Option<Fd> {
         match self {

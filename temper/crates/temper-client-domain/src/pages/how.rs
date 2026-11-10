@@ -1,5 +1,5 @@
 //! How work runs' parts and What reaches you's columns
-//! (temper/docs/design/client/README.md, 5.13, *Its parts* and *What reaches you*).
+//! (temper/docs/design/client/pages/settings.md, 2, *Its parts* and *What reaches you*).
 use alloc::boxed::Box;
 use jig_client::contract as c;
 use skein_lib::List;
@@ -59,7 +59,7 @@ pub enum Budget {
     UpTo(u64),
 }
 
-/// What How work runs draws (README.md, 5.13, *Its parts*).
+/// What How work runs draws (client/pages/settings.md, 2, *Its parts*).
 #[expect(clippy::struct_excessive_bools, reason = "each independent part has its own visibility rule")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Parts {
@@ -166,7 +166,7 @@ pub struct Line {
     pub class: Class,
 }
 
-/// What reaches you's three columns (README.md, 5.13, *What reaches you*).
+/// What reaches you's three columns (client/pages/settings.md, 2, *What reaches you*).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Reaches {
     /// "Agents decide, then tell you": the lines at `Decide`, in the settings order.

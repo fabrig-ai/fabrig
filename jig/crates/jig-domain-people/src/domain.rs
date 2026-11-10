@@ -1,5 +1,5 @@
 //! Bounded people state, task-derived inbox counts, request admission and restoration
-//! (domain/people.md, sections 3–6). `step` handles root events; `fire` expires sign-ins.
+//! (domain/people/README.md, sections 3–4 and domain/people/acts.md and domain/people/README.md, section 5). `step` handles root events; `fire` expires sign-ins.
 //! The child keeps identities, roles, sign-ins and keyed outcomes, routes each
 //! admitted flight once and waits for `Decided`. Its bounded volatile need references
 //! count every live task projection independently of the entry cache. Root owns policy, task creation
@@ -43,7 +43,7 @@ enum Start {
 
 /// Bounded secret-free identities, sign-ins/deadlines, project holdings, completed keys and
 /// volatile flights and task-derived inbox references; knows no task content.
-/// (domain/people.md, sections 2–6).
+/// (domain/people/README.md, sections 2–4 and domain/people/acts.md and domain/people/README.md, section 5).
 #[derive(Hash, Debug)]
 pub struct Domain {
     deletions: Map<u32, crate::KeptDeletion>,
@@ -89,7 +89,7 @@ pub struct Domain {
 }
 
 impl Domain {
-    /// Kept deletions, restored at start (jig/docs/design/domain/people.md, 5.2).
+    /// Kept deletions, restored at start (jig/docs/design/domain/people/acts.md, 2).
     #[must_use]
     pub fn deletions(&self) -> &Map<u32, crate::KeptDeletion> {
         &self.deletions
@@ -216,7 +216,7 @@ impl Domain {
     }
 
     /// Earliest saved wall expiry; translate beside the original monotonic
-    /// deadline at the caller's current injected clocks (people.md, section 3).
+    /// deadline at the caller's current injected clocks (domain/people/README.md, section 3).
     #[must_use]
     pub fn next_wall_expiry(&self) -> Option<Wall> {
         let (expires, _) = self.expiries.first()?;
@@ -259,7 +259,7 @@ impl Domain {
         self.lost
     }
 
-    /// The next retained Answer outcome in key order for Link (jig/docs/design/domain/engine.md, 6).
+    /// The next retained Answer outcome in key order for Link (jig/docs/design/domain/engine/restart.md).
     #[must_use]
     pub fn next_answer(&self, after: Option<RequestKey>) -> Option<(RequestKey, &Outcome)> {
         let next = match after {
@@ -342,7 +342,7 @@ impl Domain {
     }
 
     /// Ordinary project roles of a retained party, bounded by the role table; no admission changes.
-    /// The deployment’s roster is read separately through `role` (people.md, 3).
+    /// The deployment’s roster is read separately through `role` (domain/people/README.md, 3).
     #[must_use]
     pub fn project_roles(&self, party: u64) -> Option<List<ProjectRole>> {
         self.identity(party)?;
@@ -374,7 +374,7 @@ impl Domain {
 
     /// The party holding `owner` on the deployment's roster when no other party
     /// holds it; `None` with no owner, with several, or when the roster can't be
-    /// read (people.md, 4). Allocates and changes nothing.
+    /// read (domain/people/README.md, 4). Allocates and changes nothing.
     #[must_use]
     pub fn sole_owner(&self) -> Option<u64> {
         let mut owner = None;

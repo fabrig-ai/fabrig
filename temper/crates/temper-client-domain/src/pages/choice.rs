@@ -1,4 +1,4 @@
-//! Next-run drafts take their models and account preferences from the offer (client/README.md, 3.5).
+//! Next-run drafts take their models and account preferences from the offer (client/pages/README.md).
 use super::{Pages, Request, accounts};
 use crate::Address;
 use crate::owner::Owner;

@@ -1,5 +1,5 @@
 //! Core-owned held-recipient selection and restore validation
-//! (domain/engine.md, sections 3 and 4.4).
+//! (domain/engine/README.md, sections 3 and 4.4).
 
 use jig_domain_authority as authority;
 use jig_domain_people as people;
@@ -73,7 +73,7 @@ fn recipient(
 }
 
 /// A job's requesting procedure hears its hold through its next step
-/// (jig/docs/design/domain/engine.md, 7.5).
+/// (jig/docs/design/domain/engine/executors.md, 5).
 fn job_requester(core: &Core, context: &tasks::EscalationContext, parent: u64) -> bool {
     let Some(job) = core.tasks.task(context.task) else { return false };
     match job.executor {

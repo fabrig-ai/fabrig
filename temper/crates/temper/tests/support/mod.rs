@@ -46,7 +46,7 @@ use std::{fs, net::SocketAddr, os::unix::fs::PermissionsExt, path::Path};
 
 /// `N` distinct loopback addresses that no listener holds now, none of them
 /// in `taken`, which a story may let go of and listen on again
-/// (temper/docs/design/domain/testing.md, 2.6). Two equal listeners fail
+/// (temper/docs/design/testing/process-tier.md). Two equal listeners fail
 /// temper-forge-setup's `check.rs:112`.
 #[must_use]
 pub fn free_addresses<const N: usize>(taken: &[SocketAddr]) -> [SocketAddr; N] {
@@ -247,7 +247,7 @@ fn is_printed_link(line: &[u8]) -> bool {
         && line.split_once("/jig/v1/sign-in/link?secret=").is_some_and(|(_, secret)| !secret.is_empty())
         && !line.bytes().any(|byte| byte.is_ascii_whitespace())
 }
-/// A box's stdout holds its links alone, one to a line (temper/docs/design/domain/testing.md, 2.6).
+/// A box's stdout holds its links alone, one to a line (temper/docs/design/testing/process-tier.md).
 #[must_use]
 pub fn printed_links(stdout: &[u8]) -> usize {
     stdout.split_inclusive(|byte| *byte == b'\n').filter(|line| is_printed_link(line)).count()
@@ -683,13 +683,13 @@ pub fn run(directory: &Path, script: person::Script, peer: Option<llm::Listening
 pub fn run_box(directory: &Path, script: person::Script, deadline: Duration) -> Seen {
     run_story(directory, script, None, deadline, None, Ending::Box)
 }
-/// domain/testing.md 2.6 bounds each landing story at 360 seconds.
+/// testing/process-tier.md bounds each landing story at 360 seconds.
 pub const LANDING: Duration = Duration::from_secs(360);
 /// Past `LANDING`: poll, `poll_max` and slow ship at 5, 30 and 40 s; stall ships at 30 min.
 /// This sets the paces and stall to 600 s: above `LANDING`, but below the shipped 1800 s stall.
 pub const RAISED_MS: u64 = 600_000;
 const _: () = assert!(Duration::from_millis(RAISED_MS).as_nanos() > LANDING.as_nanos());
-// The hinted job's 5 s sleep outlasts settle (protocol/setup.md 10, 13.4).
+// The hinted job's 5 s sleep outlasts settle (protocol/setup/README.md, 6, protocol/setup/testing.md, 4).
 const HINTED_SETTLE_MS: u64 = 3000;
 
 /// Raises the three keep paces, lowers the change's stall to 600 s, and shortens the hinted story's settle.

@@ -1,4 +1,4 @@
-//! I/O routing for one source request (protocol/hosts.md, section 2).
+//! I/O routing for one source request (protocol/host.md, section 2).
 use super::ROOT_CLOSE;
 use skein_io::{self as io, kernel};
 use skein_lib::{Env, Queue, Time, Wall};

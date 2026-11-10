@@ -1,5 +1,5 @@
 //! A complete oversized-for-one-rustls-read HTTP upload through the hosted
-//! fake TLS face (fake-llm.md, section 3; testing-strategy.md, section 4.1).
+//! fake TLS face (testing/fakes/llm.md, section 3; testing-strategy.md, section 4.1).
 
 use std::net::{Ipv4Addr, SocketAddr};
 

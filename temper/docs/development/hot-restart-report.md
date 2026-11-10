@@ -12,7 +12,7 @@ primary checkouts' `main` named below; its citations are
 
 I inspected the clean local `main` checkouts: temper `20d88b6bb`, jig `f758ea6f`, smith `a89126e1`, skein `9ab88f69`. No edits, branches, worktrees, or builds. Graph findings were checked with `rg` and source reads; several index entries lagged the source.
 
-One material distinction: **temper’s docs are ahead of its implementation here.** They describe forge credentials loaded from the secrets store; this checkout still reads configured token files and accepts only Forgejo. The assessment below follows the code. Compare `temper/docs/design/protocol/configuration.md:677` with `temper/crates/temper-service/src/startup/application.rs:264` and `temper/crates/temper-service/src/startup/application.rs:630`.
+One material distinction: **temper’s docs are ahead of its implementation here.** They describe forge credentials loaded from the secrets store; this checkout still reads configured token files and accepts only Forgejo. The assessment below follows the code. Compare `temper/docs/design/protocol/configuration/README.md:677` with `temper/crates/temper-service/src/startup/application.rs:264` and `temper/crates/temper-service/src/startup/application.rs:630`.
 
 **1. A start today**
 
@@ -46,18 +46,18 @@ These are **proposed rules**, based on the ownership above—not existing reload
 | Timers | **Rebuild domain timers** from persisted wall times; retain transport, heartbeat and worker-supervision timers with their owners. Do not restart the process clock. |
 | Bundle, charters, trust/secret files | Reread and validate; replace immutable values where supported, otherwise rebuild the owning component. |
 
-The important coupling is visible in client exchange/stream maps, worker channel state and account queues. `jig/crates/jig-protocol-engine-clients/src/component.rs:29`, `jig/crates/jig-protocol-engine-workers/src/connection.rs:20`, `temper/crates/temper-service/src/accounts.rs:44`. Persisted deadlines use wall time and are translated to monotonic deadlines. `jig/docs/design/domain/engine.md:346`
+The important coupling is visible in client exchange/stream maps, worker channel state and account queues. `jig/crates/jig-protocol-engine-clients/src/component.rs:29`, `jig/crates/jig-protocol-engine-workers/src/connection.rs:20`, `temper/crates/temper-service/src/accounts.rs:44`. Persisted deadlines use wall time and are translated to monotonic deadlines. `jig/docs/design/domain/engine/README.md:346`
 
 **3. In-flight work**
 
-**“No tasks exist” is unnecessary.** Cold recovery already restores live tasks, attempts, committed calls and connector outboxes. It reconciles uncertain effects and resumes from durable progress; this does not promise preservation of every partially executing operation. `jig/docs/design/domain/engine.md:395`
+**“No tasks exist” is unnecessary.** Cold recovery already restores live tasks, attempts, committed calls and connector outboxes. It reconciles uncertain effects and resumes from durable progress; this does not promise preservation of every partially executing operation. `jig/docs/design/domain/engine/README.md:395`
 
 The major hot-restart obstacle is **surviving workers**: `Core::adopt` deliberately treats in-process workers as engine-hosted; fleet restoration immediately reports their attempts lost/not-started. Keeping the worker alive while running that logic unchanged is incorrect. Hot recovery needs a distinct survival rule and a fresh inventory/hello delivered into the new fleet. `jig/crates/jig-domain-core/src/sibling_routes.rs:163`, `jig/crates/jig-domain-fleet/src/domain.rs:339`
 
 Memory-only state requiring preservation, draining or explicit retry includes:
 
 - Journal decisions, outstanding commits and held outputs; root load, effect, assignment and host-call correlations. `skein/crates/skein-lib/src/journal.rs:108`, `temper/crates/temper-engine-domain/src/domain.rs:31`
-- Watches, pending deliveries and provisional text. Watches are explicitly not stored; the protocol’s `Watch` also lacks the full subject needed to reconstruct the domain subscription. `jig/docs/design/domain/engine.md:898`, `jig/crates/jig-protocol-engine-clients/src/stream.rs:8`
+- Watches, pending deliveries and provisional text. Watches are explicitly not stored; the protocol’s `Watch` also lacks the full subject needed to reconstruct the domain subscription. `jig/docs/design/domain/engine/README.md:898`, `jig/crates/jig-protocol-engine-clients/src/stream.rs:8`
 - Worker/agent calls, unacknowledged turns, queued messages, process supervision and current generation progress. Keeping the whole worker preserves these; dropping it requires cold-start loss/retry semantics. `smith/crates/smith-host-domain/src/domain.rs:88`
 
 A useful starting predicate already exists: `Domain::quiescent()` permits sessions, assigned workers awaiting external answers and future timers, while requiring immediate handoffs and store operations to settle. **It is not sufficient alone**: protocol queues and session rebinding also matter. `temper/crates/temper-engine-domain/src/domain.rs:293`
@@ -68,7 +68,7 @@ The structural seam is already present: `Service` owns shared IO and the worker;
 
 **Proposal:** split checked startup configuration from runtime construction; add an explicit pause/drain/recover/rebind lifecycle around the domain. Keep driving IO and protocol heartbeats, return bounded “not ready” responses during recovery, and fence old domain replies using an incarnation identifier or fully drained correlation tables.
 
-Restart now goes through `Core::start_begin(pending, at)` (`jig/docs/design/domain/engine.md`, section 6).
+Restart now goes through `Core::start_begin(pending, at)` (`jig/docs/design/domain/engine/restart.md`).
 
 **Jig should own** the lifecycle guarantees, surviving-host adoption, client/watch rebinding and reference implementation/tests. **Temper should own** configuration diffing, forge-specific reconciliation and its service wiring. Skein’s loop already knows nothing about domain state, so a generic shell redesign appears unnecessary. `skein/crates/skein-shell/src/drive.rs:1`
 

@@ -1,6 +1,6 @@
 #![expect(clippy::format_push_string, reason = "generator assembles reviewed source fragments")]
 
-//! Checked wire and heap bounds for codec.md, section 4.
+//! Checked wire and heap bounds for data/codec/README.md, section 4.
 
 use crate::{Declaration, Enumeration, Record, Type, analysis::Context, emit_limits, emit_types::rust_type};
 

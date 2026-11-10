@@ -1,4 +1,4 @@
-//! Whole project owner facts; client/domain/contract.md, 5.1 and 5.3.
+//! Whole project owner facts; client/domain/contract/documents.md, 1 and 3.
 //! Lists retain their source order and allocated capacities. Neither a name,
 //! a period nor permission mappings are inferred from these values.
 use super::{

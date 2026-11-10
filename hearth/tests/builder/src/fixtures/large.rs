@@ -1,4 +1,4 @@
-//! The large render: what "the defaults fit a modest machine" means (hearth/docs/design/domain/render.md, 8.4).
+//! The large render: what "the defaults fit a modest machine" means (hearth/docs/design/domain/render/README.md, 5.4).
 use super::{File, Scenario};
 use skein_io::kernel::Done;
 use skein_sim::{Entry, Event, Summary};

@@ -1,4 +1,4 @@
-//! Checks the admin once for Forgejo's plans (skein/docs/design/forge-setup.md, 4.2 and 4.3).
+//! Checks the admin once for Forgejo's plans (skein/docs/design/forge/setup/forgejo.md, 1.2 and 1.3).
 use crate::forgejo::reconcile;
 use crate::plan::{Event, Why};
 use skein_forge::forgejo::document::User;

@@ -1,4 +1,4 @@
-//! Durable task values translated exhaustively (protocol/store.md, 5.1).
+//! Durable task values translated exhaustively (protocol/store/records.md, 1).
 use super::phase;
 use crate::tasks_v9 as wire;
 use alloc::boxed::Box;

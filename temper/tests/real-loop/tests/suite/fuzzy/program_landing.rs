@@ -1,4 +1,4 @@
-//! The landing path on Claude Code, past the focused guide (domain/testing.md, 2.4).
+//! The landing path on Claude Code, past the focused guide (testing/real-loop.md).
 //! As `fuzzy_landing` does, use the system allocator for the shared-forge hosts.
 use smith_fake_claude::{Seen, Selection};
 use temper_real_loop_world::{

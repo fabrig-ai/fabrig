@@ -1,4 +1,4 @@
-//! The root's bounded paged-load ownership seam (domain/root.md, 8).
+//! The root's bounded paged-load ownership seam (domain/root.md, 7).
 //! [`Loads`] keeps waiter identities, requested ranges/cursors and generational
 //! IO slots. It never keeps page rows, store encodings or journal durability;
 //! the caller dispatches each load only after its prerequisite commits answer.
@@ -7,12 +7,12 @@
 //! owner through [`loaded`] or [`unloaded`], each emitting at most one terminal
 //! to the live root waiter. [`abandon`] suppresses waiter delivery without
 //! freeing issued IO. A window's pages keep their load slot: [`next`] re-arms
-//! an answered transcript page in the same pass (temper/docs/design/domain/root.md, 8).
+//! an answered transcript page in the same pass (temper/docs/design/domain/root.md, 7).
 //! [`reclaim`] frees retired slots and pages not continued at iteration end. Every
 //! emitting entry point requires one reserved output slot. Whole-page row
 //! and deep-byte checks precede any kept prefix. Ordinary reads also check
 //! membership, order and cursor agreement; startup asserts transport progress
-//! (temper/docs/design/domain/root.md, 9.1).
+//! (temper/docs/design/domain/root.md, 8.1).
 //! Byte cuts carry exact omitted rows/bytes and a potentially nonprogressing
 //! continuation; the walking root stops rather than restoring a cut page.
 use crate::{Key, Range, Record};
@@ -20,7 +20,7 @@ use alloc::boxed::Box;
 use core::mem::size_of;
 use skein_lib::{Id, List, Queue, Slab, Token};
 
-/// Startup bounds for paged store reads (domain/root.md, section 8).
+/// Startup bounds for paged store reads (domain/root.md, section 7).
 /// The root supplies them; the protocol enforces the same decoded-page bound.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
@@ -40,7 +40,7 @@ pub struct Limits {
     pub transcript_bytes: u32,
 }
 
-/// Explicit omission from a validated page (domain/root.md, section 8).
+/// Explicit omission from a validated page (domain/root.md, section 7).
 /// A load waiter receives this with the kept prefix; it must handle zero progress.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Cut {
@@ -50,7 +50,7 @@ pub struct Cut {
     pub bytes: u64,
 }
 
-/// Terminal load failure delivered to its root waiter (domain/root.md, 8).
+/// Terminal load failure delivered to its root waiter (domain/root.md, 7).
 /// A malformed page is rejected whole before allocating any kept prefix.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Failure {
@@ -123,7 +123,7 @@ pub(crate) fn kind(range: &Range) -> Kind {
     }
 }
 
-/// Store IO and root-waiter handoffs (domain/root.md, section 8).
+/// Store IO and root-waiter handoffs (domain/root.md, section 7).
 /// Every issued load ends once; abandonment retains IO ownership until then.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
@@ -177,7 +177,7 @@ enum Phase {
     Closed,
 }
 
-/// Root-owned bounded in-flight page slots (domain/root.md, section 8).
+/// Root-owned bounded in-flight page slots (domain/root.md, section 7).
 /// It keeps waiter/range fences, never store rows or journal durability state.
 /// Issued loads remain counted through abandonment, terminal and reclaim.
 #[derive(Hash, Debug)]
@@ -581,7 +581,7 @@ fn valid_range(range: &Range) -> bool {
 }
 
 /// Whether paged-read entrance limits are usable
-/// (temper/docs/design/domain/root.md, section 8).
+/// (temper/docs/design/domain/root.md, section 7).
 /// Read bytes, load slots and page rows must be nonzero. The decoded reply
 /// covers the kept prefix, whose byte bound fits at least one record slot.
 #[must_use]

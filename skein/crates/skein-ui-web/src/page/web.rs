@@ -1,5 +1,5 @@
 //! The browser half replays operations and copies events into the pure half.
-//! Patches preserve mounted controls (skein/docs/design/ui-web.md, 7).
+//! Patches preserve mounted controls (skein/docs/design/ui/web/README.md, 5).
 
 use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 
@@ -31,7 +31,7 @@ pub struct Dom {
 }
 
 impl Dom {
-    #[expect(clippy::too_many_lines, reason = "The listeners share one event dispatch path (ui-web.md, 7).")]
+    #[expect(clippy::too_many_lines, reason = "The listeners share one event dispatch path (ui/web/README.md, 5).")]
     pub fn new<R: 'static>(
         mount: Element,
         page: &Rc<RefCell<Page<'static>>>,
@@ -235,7 +235,7 @@ impl Mounted {
         self.apply(&ops);
     }
 
-    // The page owns panel folding, without an application report (ui-web.md, 7).
+    // The page owns panel folding, without an application report (ui/web/README.md, 5).
     // A target is an outside press; no target is Escape, with focus restored inside.
     fn fold_away(&self, target: Option<&Element>) -> bool {
         let details = self.mount.query_selector_all("details[open][data-folds-away]").expect("panel selector");
@@ -593,7 +593,7 @@ impl Mounted {
             })
     }
 
-    // A wheel's movement and follow decision share one turn, as a page key's do (ui-web.md, 7).
+    // A wheel's movement and follow decision share one turn, as a page key's do (ui/web/README.md, 5).
     fn wheel(&self, element: &Element, event: &WheelEvent) {
         if !event.cancelable()
             || event.default_prevented()
@@ -647,7 +647,7 @@ impl Mounted {
         self.measure(node);
     }
 
-    // Four deepest entries reaching the screen bound the notes per log (ui-web.md, 7).
+    // Four deepest entries reaching the screen bound the notes per log (ui/web/README.md, 5).
     fn hold_view(&self, node: NodeId) {
         let element = self.group(node).element;
         let bounds = element.get_bounding_client_rect();
@@ -1050,7 +1050,7 @@ impl Mounted {
     }
 }
 
-// Own state words and descriptions follow all semantic children (ui-web.md, 6).
+// Own state words and descriptions follow all semantic children (ui/web/elements.md).
 fn trailing_own(element: &Element) -> Option<Node> {
     let id = element.get_attribute("data-node")?;
     let state = format!("skein-ui-state-{id}");

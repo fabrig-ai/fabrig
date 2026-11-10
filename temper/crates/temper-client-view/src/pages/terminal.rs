@@ -1,5 +1,5 @@
-//! A chat's pages as a terminal (temper/docs/design/client/README.md, 3.5, A chat's terminal;
-//! temper/docs/design/client/browser.md, 2.5, A chat's terminal).
+//! A chat's pages as a terminal (temper/docs/design/client/pages/README.md, A chat's terminal;
+//! temper/docs/design/client/web/look.md, A chat's terminal).
 pub(crate) mod commands;
 mod question;
 pub(crate) mod words;
@@ -225,7 +225,7 @@ pub(crate) fn enter(b: &mut Builder, w: &Words, bindings: &mut Bindings) {
 pub(crate) fn chat_running(b: &mut Builder, root: &Domain, w: &Words) {
     running(b, crate::shared::running(root, w).as_deref());
 }
-/// The running line (temper/docs/design/client/README.md, 3.5, A chat's terminal).
+/// The running line (temper/docs/design/client/pages/README.md, A chat's terminal).
 pub(crate) fn running_words(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
     let chat = root.pages().chat()?;
     let task = chat.task(root.client())?;

@@ -1,5 +1,5 @@
 //! A chat's terminal: the look a person chose, the same on every chat the browser opens
-//! (temper/docs/design/client/README.md, 3.5, A chat's terminal).
+//! (temper/docs/design/client/pages/README.md, A chat's terminal).
 
 use alloc::boxed::Box;
 
@@ -117,7 +117,7 @@ impl Default for Font {
     }
 }
 
-/// Commands in the design's table's order (client/README.md, 3.5, Commands).
+/// Commands in the design's table's order (client/pages/README.md, Commands).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Command {
     Model,
@@ -179,14 +179,14 @@ impl Command {
         None
     }
 }
-/// A command's open list under the box (client/README.md, 3.5).
+/// A command's open list under the box (client/pages/README.md).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Listing {
     Model,
     Effort,
     Chats,
 }
-/// The page's notes after the conversation, never sent (client/README.md, 3.5).
+/// The page's notes after the conversation, never sent (client/pages/README.md).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Note {
     Help,

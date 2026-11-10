@@ -1,4 +1,4 @@
-//! Whole borrowed inputs under the tokenizer's requests (json.md, 5.3).
+//! Whole borrowed inputs under the tokenizer's requests (data/json.md, 5.3).
 
 use alloc::vec::Vec;
 

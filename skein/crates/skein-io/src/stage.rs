@@ -1,4 +1,4 @@
-//! io's stages of the loop's two passes (io.md, 2; programming-model.md, 2),
+//! io's stages of the loop's two passes (runtime/io/README.md, 2; programming-model.md, 2),
 //! for a service's loop to call in place of driving the four entry points by
 //! hand.
 //!

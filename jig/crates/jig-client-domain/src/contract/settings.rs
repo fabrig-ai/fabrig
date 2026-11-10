@@ -1,4 +1,4 @@
-//! Whole settings values and retained revision facts (client/domain/contract.md, 3–7; domain/engine.md, 17).
+//! Whole settings values and retained revision facts (client/domain/contract/requests.md and client/domain/contract/README.md, 3 and client/domain/contract/documents.md and client/domain/contract/README.md, 4–5; domain/engine/settings.md).
 use super::{
     Authority, DocumentText, Grant, KindImplication, PolicyEditRole, PolicyPermission, PolicyRequirement, ProposalKey,
     Proposer, Template, TemplateOverride, Text, WakePolicy,
@@ -21,7 +21,7 @@ pub enum Setting {
         scope: u32,
         number: u32,
     },
-    /// A project's own policy, an item of its scope (domain/engine.md, 17.2).
+    /// A project's own policy, an item of its scope (domain/engine/settings.md, 2).
     ProjectPolicy {
         project: u32,
     },
@@ -49,7 +49,7 @@ pub enum SettingHosts {
     Engine,
     Both,
 }
-/// A charter's document (jig/docs/design/domain/engine.md, 17.9).
+/// A charter's document (jig/docs/design/domain/engine/settings.md, 9).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CharterDocument {
     pub connector: u16,
@@ -58,13 +58,13 @@ pub struct CharterDocument {
     pub heading: Option<Box<[u8]>>,
 }
 /// A charter's instructions for runs whose reasons meet `on`
-/// (jig/docs/design/client/domain/contract.md, 3.2).
+/// (jig/docs/design/client/domain/contract/requests.md, 2).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CharterPart {
     pub on: u32,
     pub instructions: Text,
 }
-/// The reasons in bit order (jig/docs/design/client/domain/contract.md, 3.2).
+/// The reasons in bit order (jig/docs/design/client/domain/contract/requests.md, 2).
 pub const REASON_NAMES: [&str; 14] = [
     "first",
     "question",
@@ -81,7 +81,7 @@ pub const REASON_NAMES: [&str; 14] = [
     "timer",
     "words",
 ];
-/// A charter whole (jig/docs/design/client/domain/contract.md, 3.2).
+/// A charter whole (jig/docs/design/client/domain/contract/requests.md, 2).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[expect(clippy::struct_excessive_bools, reason = "the whole charter carries independent tool grants and resume")]
 pub struct Charter {
@@ -296,7 +296,7 @@ pub enum RevisionEdit {
     Removed,
     Reset,
 }
-/// What a revision item replaced (jig/docs/design/domain/engine.md, 17.10).
+/// What a revision item replaced (jig/docs/design/domain/engine/settings.md, 10).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum RevisionReplaced {
     Value(SettingSet),
@@ -413,7 +413,7 @@ pub struct RetainedActionSettings {
     pub made: Option<u32>,
 }
 
-/// An owner's move of live agent tasks (engine.md, 17.4; contract.md, 3.2).
+/// An owner's move of live agent tasks (domain/engine/settings.md, 4; client/domain/contract/requests.md, 2).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct MoveToNewest {
     pub revision: u32,
@@ -425,7 +425,7 @@ pub struct OutcomeMovedToNewest {
     pub stayed: u32,
 }
 
-/// The charter member rejected by the settings check (jig/docs/design/domain/engine.md, 17.9).
+/// The charter member rejected by the settings check (jig/docs/design/domain/engine/settings.md, 9).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SettingMember {
     /// The charter's document count.
@@ -470,7 +470,7 @@ pub struct SettingDetail {
     pub bound: u32,
 }
 
-/// A whole model setting (jig/docs/design/domain/engine.md, 17.11).
+/// A whole model setting (jig/docs/design/domain/engine/settings.md, 11).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CatalogueEntry {
     pub number: u32,
@@ -489,7 +489,7 @@ pub enum ModelSource {
     Person,
 }
 
-/// A model act uses the newest catalogue (jig/docs/design/domain/engine.md, 17.11).
+/// A model act uses the newest catalogue (jig/docs/design/domain/engine/settings.md, 11).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ModelAct {
     Picker { number: u32, on: bool },

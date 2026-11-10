@@ -687,7 +687,7 @@ fn exports_resolve_the_holder_without_selecting_a_source() {
 }
 #[test]
 fn imports_carry_the_whole_record_once_as_own_at_the_bound() {
-    const RECORD: &[u8] = &[b'r'; 131_072]; // client/tools.md, 12.
+    const RECORD: &[u8] = &[b'r'; 131_072]; // client/ctl/README.md, 9.
     let mut root = f::account_root(false);
     let call =
         root.submit_value(&["account", "import", "record", "--key", "move-in"], Some(Secret::new(RECORD.into())));
@@ -704,7 +704,7 @@ fn imports_carry_the_whole_record_once_as_own_at_the_bound() {
 }
 #[test]
 fn imports_refuse_empty_or_oversized_values_before_sending() {
-    const TOO_LARGE: &[u8] = &[b'r'; 131_073]; // One beyond client/tools.md, 12.
+    const TOO_LARGE: &[u8] = &[b'r'; 131_073]; // One beyond client/ctl/README.md, 9.
     for bytes in [b"".as_slice(), TOO_LARGE] {
         let mut root = f::account_root(false);
         let call =

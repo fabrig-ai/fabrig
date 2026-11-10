@@ -1,4 +1,4 @@
-//! Closed at once (jig/docs/design/domain/people.md, 5.2).
+//! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 use crate::tests::*;
 use jig_domain_people::ApplicationScope;
 

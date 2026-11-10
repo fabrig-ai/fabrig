@@ -1,9 +1,9 @@
-//! Typed, bounded turns, decoded below the domain; client/domain/client.md, 10.
+//! Typed, bounded turns, decoded below the domain; client/domain/client/conversations.md.
 //! No transcript library or wire bytes enter the domain. Calls retain the tool and
 //! input as written; the outcome is a summary and optional jig object references.
 use super::{ApplicationPart, ObjectKey, Text};
 use skein_lib::List;
-/// The most bytes in an admitted tool name (client/domain/client.md, 14).
+/// The most bytes in an admitted tool name (client/domain/client/README.md, 11).
 pub const CALL_NAME: u32 = 64;
 /// The client view of one committed model turn.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -15,11 +15,11 @@ pub struct Turn {
     /// Some messages, blocks or text did not fit the receiving limits.
     pub cut: bool,
     /// The model its completion was made with and the effort it asked for
-    /// (client/domain/client.md, 10); none where the turn names no model.
+    /// (client/domain/client/conversations.md); none where the turn names no model.
     pub llm: Option<super::ModelEffort>,
 }
 
-/// The outcome of reading a committed turn (client/domain/client.md, 10).
+/// The outcome of reading a committed turn (client/domain/client/conversations.md).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum TurnRead {
     Decoded(Turn),

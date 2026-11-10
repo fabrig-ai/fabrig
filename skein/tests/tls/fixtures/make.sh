@@ -1,5 +1,5 @@
 #!/bin/sh
-# Makes the certificates the TLS worlds use (tls.md, 5), with OpenSSL 3.4 or
+# Makes the certificates the TLS worlds use (net/tls.md, 5), with OpenSSL 3.4 or
 # later. They are kept as DER, and made again only when one must change.
 #
 # - root.der: the root the client trusts, "skein test root".
@@ -14,9 +14,9 @@
 # - client.der: the same key, for skein.test, signed by the intermediate,
 #   for client authentication only.
 # - rsa-1024.der, rsa-3072.der: RSA keys, PKCS #1 DER, that RS256 signing
-#   refuses (tls.md, 4): too small, too large.
+#   refuses (net/tls.md, 4): too small, too large.
 # - rsa-2050.der: a PKCS #1 RSA key within RS256_KEY_BYTES, yet too large
-#   to sign (tls.md, 4).
+#   to sign (net/tls.md, 4).
 #
 # Every certificate is valid from 2026-01-01 to 2036-01-01: a world checks
 # them at the wall time it chooses (env.wall), never the clock.

@@ -7,14 +7,14 @@ what is built, "to avoid round trips like 'I actually wanted this to
 look different'". Nothing here is adopted, and no plan takes it up
 until the user does. Its first consumer is temper's configuring chat,
 whose document draws how work reaches main (the look request
-`configure-chat-draft`, `temper/docs/design/client/journeys.md`, 7).
+`configure-chat-draft`, `temper/docs/design/client/web/journeys.md`, 7).
 
 ## 1. In one page
 
 - **A flow is a fenced block,** `mermaid` its info string, in a subset
   of Mermaid's flowchart syntax, which models already write and a
   forge already renders in a repository (section 2).
-- **skein-ui's Markdown reader makes it a drawing** (`../ui.md`, 3.5)
+- **skein-ui's Markdown reader makes it a drawing** (`../ui/README.md`, 3.5)
   of skein-ui's own kind, the flow, its data the boxes and arrows read,
   its fallback the same in words; a block past the subset stays fenced
   code, as today (section 3).
@@ -22,9 +22,9 @@ whose document draws how work reaches main (the look request
   right where it fits and top to bottom otherwise, by fixed rules, so
   that the same block at the same width always makes the same scene
   (section 4).
-- **The look is tokens,** as every scene's (`../ui.md`, 11.2):
+- **The look is tokens,** as every scene's (`../ui/scenes.md`, 2):
   skein-ui.css gives a plain default, and an owner's stylesheet its own
-  (section 5).
+  (`diagrams.md`, section 5).
 - **Its acceptance cases** sit beside this draft, `diagrams/`: each a
   block and the scene it must print, byte for byte, at given widths
   (section 8).
@@ -57,7 +57,7 @@ whose document draws how work reaches main (the look request
 
 - **A drawing of skein-ui's,** kind the flow, owner skein-ui, which the
   application's `draw` routes to skein-ui's drawing code as it routes
-  any owner's (`../ui.md`, 11.1).
+  any owner's (`../ui/scenes.md`, 1).
 - **Its data,** within the limit on a drawing's bytes: the direction,
   then each node in the path's order, its name, its caption or none,
   whether it is strong, and who acts at it, or none.
@@ -67,12 +67,12 @@ whose document draws how work reaches main (the look request
   "Design draft, you write it; then Goal, you start it; …". The words
   are the block's, not a phrasebook's: "then" is the one word the
   reader adds, as a table's reading adds none.
-- **Bounded** by the reader's limits (`../ui.md`, section 15): a block
+- **Bounded** by the reader's limits (`../ui/README.md`, section 13): a block
   whose data passes the drawing's bound stays fenced code.
 
 ## 4. The layout
 
-The drawing code (`../ui.md`, 11.1) has the data and the box's width
+The drawing code (`../ui/scenes.md`, 1) has the data and the box's width
 `W`, in whole pixels. It measures no text: a character is counted as
 7.5 pixels in a name and 6.5 in a caption, a name's or a caption's
 width the count rounded up, `n` the nodes; a character is a scalar
@@ -102,7 +102,7 @@ value. Centred is at a box's left plus half its width, rounded down.
     next, its head 6 back and 5 either side;
   - the scene `n × 40 + (n − 1) × 22 + 2` high.
 - **Neither fits:** the drawing code returns false, and the fallback
-  shows (`../ui.md`, 11.1).
+  shows (`../ui/scenes.md`, 1).
 - **Its height is the scene's:** in a document, no stylesheet knows a
   flow's height, so the layout reads the width alone and the scene says
   its height, 74 or 46 left to right, the figure above top to bottom.
@@ -126,21 +126,21 @@ value. Centred is at a box's left plus half its width, rounded down.
 - **An owner's:** temper's, as `configure-chat-draft` draws it (pale
   boxes on a grey line, a strong box ink, IBM Plex at 13 and 12 pixels),
   is `diagrams/preview.html`'s.
-- **What a person must read is in the fallback** (`../ui.md`, 11.2):
+- **What a person must read is in the fallback** (`../ui/scenes.md`, 2):
   the scene repeats it for sight.
 
 ## 6. The text shell and the phones
 
 - **The text shell** reads the fallback, as it reads every drawing's
-  (`../ui-text.md`, section 5).
+  (`../ui/text.md`, section 5).
 - **A phone's shells** draw the scene on their canvases from the same
-  marks (`../ui.md`, 11.4).
+  marks (`../ui/scenes.md`, 4).
 
 ## 7. What agents write
 
 - **An agent illustrates with a flow** where a sequence says more
   drawn: the owner's instructions say so, and name the subset (temper's
-  configuring agent's: `temper/docs/design/domain/agent.md`, 8.1).
+  configuring agent's: `temper/docs/design/domain/agent/agents.md`, 1).
 - **Who acts at each node:** temper's Ask temper marks each node by who
   acts at it (section 2; `temper/docs/design/draft/ask-temper.md`, 6.3).
 - **The same block reads in a repository:** a forge that renders
@@ -151,7 +151,7 @@ value. Centred is at a box's left plus half its width, rounded down.
 
 - **The acceptance cases,** `diagrams/` (its `README.md` says what each
   file is): each case's block, the scene the web mapping prints for it
-  at given widths, byte for byte (`../ui-web.md`, section 8), its name
+  at given widths, byte for byte (`../ui/web/README.md`, section 6), its name
   and its fallback's words; a case with who acts at each node; a case that
   stays code. The tests read
   them, and a change of the look is a change of a case, made with the
@@ -175,11 +175,11 @@ value. Centred is at a box's left plus half its width, rounded down.
 - **When:** the user's; this draft keeps the idea and its cases, and
   no plan takes it up until then (2026-11-04).
 - **skein-ui as an owner** of a drawing kind: owners today are an
-  application's (`../ui.md`, 3.3); the flow is skein-ui's own, routed
+  application's (`../ui/README.md`, 3.3); the flow is skein-ui's own, routed
   as any.
 - **A scene that says its height** (section 4): a scene is its box's
   size today, and skein-ui.css places its SVG at the figure's top left
-  (`../ui.md`, 11.2; `../ui-web.md`, section 8). A flow needs a scene
+  (`../ui/scenes.md`, 2; `../ui/web/README.md`, section 6). A flow needs a scene
   that may say its height and an SVG in the figure's flow; the other
   way, an owner's stylesheet giving each flow's figure a height, cannot
   know it.

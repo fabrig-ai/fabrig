@@ -1,5 +1,5 @@
-//! Adversarial scenarios: client/forge.md 5.4; client/README.md
-//! 3.5, 4.6, 4.8, 5.1–5.3, 5.6; client/browser.md 2.3.
+//! Adversarial scenarios: client/forge/deployment.md; client/pages/README.md and client/forge/records.md and client/forge/family.md, 7 and client/view.md, 1–3 and client/pages/welcome.md, 2
+//! ; client/web/README.md 2.3.
 use super::model::press;
 use jig_client_kit::harness::{ClientId, Fault, Until, World};
 use skein_fake_person::{Find, Step as PersonStep};
@@ -102,7 +102,7 @@ fn configured_accounts(owner: bool, under_box: bool, rows: &[forge::Configured],
             .collect();
         store.seed(Box::new([]), accounts);
     }
-    // temper/docs/design/client/forge.md, 5.4: kept records supply the fixture's forges.
+    // temper/docs/design/client/forge/deployment.md: kept records supply the fixture's forges.
     let forges = store
         .rows
         .iter()
@@ -333,7 +333,7 @@ fn malformed_first_forge_does_not_shadow_a_readable_repeat() {
         } else {
             at(OWNED)
         };
-        assert_eq!(address::parse(path.as_bytes()), Place::Address(expected), "browser.md 2.3: {path}");
+        assert_eq!(address::parse(path.as_bytes()), Place::Address(expected), "client/web/README.md 2.3: {path}");
     }
 }
 
@@ -360,7 +360,7 @@ fn choose_orders_owned_github_and_elsewhere_and_omits_fakes() {
         .collect::<Vec<_>>();
     let github = names.iter().position(|name| *name == b"GitHub").expect("GitHub card");
     let owned = names.iter().position(|name| *name == b"Forgejo").expect("owned card");
-    assert!(owned < github, "forge.md 5.4: {names:?}");
+    assert!(owned < github, "forge/deployment.md: {names:?}");
 }
 
 #[test]
@@ -574,7 +574,7 @@ fn elsewhere_welcome_after_restart_connects_retries_and_leaves_the_repository_un
         .filter_map(|n| n.name.as_deref())
         .collect::<Vec<_>>();
     assert!(!names.contains(&b"Forgejo at https://git.example.org".as_slice()));
-    // Enter by address: the welcome draws no admin card (client/forge.md, 5.4).
+    // Enter by address: the welcome draws no admin card (client/forge/deployment.md).
     follow(
         &mut world,
         client,
@@ -631,8 +631,8 @@ fn elsewhere_welcome_after_restart_connects_retries_and_leaves_the_repository_un
         why: None,
         stop: None,
     })));
-    // Connection advances welcome to Model (client/README.md, 3.5); the durable
-    // runner label belongs to this forge's Ready (client/forge.md, 5.4).
+    // Connection advances welcome to Model (client/pages/README.md); the durable
+    // runner label belongs to this forge's Ready (client/forge/deployment.md).
     follow(
         &mut world,
         client,
@@ -1116,7 +1116,7 @@ fn accounts_banner_stays_visible_without_the_setup_strip() {
         let banner = nodes.iter().position(|node| {
             node.text.as_slice().iter().any(|run| run.text.as_ref() == b"Agents need an LLM account to run.")
         });
-        assert!(banner.is_some(), "README.md 5.1 requires the accounts banner: {}", text(&world, client));
+        assert!(banner.is_some(), "client/view.md 1 requires the accounts banner: {}", text(&world, client));
         let strip = nodes.iter().position(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Setup"));
         assert!(strip.is_none(), "the setup strip is absent");
         if let Some(strip) = strip {

@@ -117,7 +117,7 @@ fn the_start_passes_each_ask_and_omits_an_empty_one() {
 #[test]
 fn a_resolution_past_its_workers_charter_allowance_starts_cut() {
     // Standard hub, smith's floor, and the reference agent
-    // (temper/docs/design/domain/agent.md, 4.3; temper/docs/design/protocol/configuration.md, 13.8).
+    // (temper/docs/design/domain/agent/tools.md; temper/docs/design/protocol/configuration/settings.md, 7).
     // The smaller hub proves its bound still holds.
     const STANDARD: u64 = 262_144;
     const FLOOR: u64 = 65_536;

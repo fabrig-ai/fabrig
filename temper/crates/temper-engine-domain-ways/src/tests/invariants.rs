@@ -1,4 +1,4 @@
-//! Path bounds (temper/docs/design/domain/forge.md, 8.13).
+//! Path bounds (temper/docs/design/domain/forge/change/branch-path.md).
 use super::*;
 pub(crate) fn bounds(path: &Path) {
     assert!(path.stops.len() <= STOPS, "stop bound");

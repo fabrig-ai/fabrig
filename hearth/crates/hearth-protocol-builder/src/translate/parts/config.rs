@@ -1,4 +1,4 @@
-//! Static trees translated without interpreting them (hearth/docs/design/domain/render.md, 4.2).
+//! Static trees translated without interpreting them (hearth/docs/design/domain/render/spec.md, 1.2).
 use crate::{records::parts::config as target, render::parts::config as source};
 #[must_use]
 pub fn config(config: source::Config) -> target::Config {

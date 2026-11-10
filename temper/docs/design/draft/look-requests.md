@@ -3,11 +3,11 @@
 Draft, 2026-11-04, from a session with the user that day, who asked
 for every detail of a look request's round trip to be written down, so
 that whoever lands one knows what to do and misses nothing. It keeps
-`../client/journeys.md`, section 7, as it stands (the requests on the
+`../client/web/journeys.md`, section 7, as it stands (the requests on the
 person's `look-requests` branch, `scripts/look-refresh.sh`, nothing of
 a request's own landed) and makes its "Done" a thing that can be
 checked. Its design document is to be a client document of its own,
-beside `../client/journeys.md`, whose section 7 then cites it.
+beside `../client/web/journeys.md`, whose section 7 then cites it.
 
 ## 1. In one page
 
@@ -39,7 +39,7 @@ beside `../client/journeys.md`, whose section 7 then cites it.
   so that the reprint can equal the request's pages.
 - **One commit, one change,** subject `Look request (temporary): ...`,
   the `Look-request: NAME` trailer directly above the other trailers
-  (`../client/journeys.md`, 7). "Temporary" is the commit's, never the
+  (`../client/web/journeys.md`, 7). "Temporary" is the commit's, never the
   change's: each request on the branch is to land, unless it is held.
 - **Held, at the top.** A request the person is still weighing carries
   a `Look-hold: WHY` trailer beside its `Look-request`, and sits above
@@ -87,10 +87,10 @@ user, 2026-11-06):
    removes is checked in the terminal's prints, which keep their
    meaning: a heading the browser drops by style stays a heading.
 6. **Reprint** every journey whose pages change, and record one again
-   where it has gone stale (`../client/journeys.md`, 8).
+   where it has gone stale (`../client/web/journeys.md`, 8).
 7. **Account** (section 5), and bring the design text in line: the
-   client's `README.md` and `browser.md`, the journeys' `README.md`
-   files, `../client/journeys.md`, 9, and the mockups'
+   client's `README.md` and `../client/web/README.md`, the journeys' `README.md`
+   files, `../client/web/journeys.md`, 9, and the mockups'
    `mockups/STATUS.md`.
 
 Each commit of the landing carries the request's trailer, a later fix

@@ -1,5 +1,5 @@
 //! The core and client composed through their shipping protocol components
-//! in memory (client/domain/testing.md, 5; protocol/client.md, 2).
+//! in memory (client/domain/testing.md, 5; protocol/client/README.md, 2).
 mod component;
 pub mod engine;
 mod fixture;

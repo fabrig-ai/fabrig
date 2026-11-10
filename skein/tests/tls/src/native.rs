@@ -1,4 +1,4 @@
-//! The native TLS face over io's sockets on the simulator (tls.md, 3.6).
+//! The native TLS face over io's sockets on the simulator (net/tls.md, 3.6).
 //! A rustls server receives ciphertext emitted by the client. Each resource
 //! and output right settles before the conversation ends.
 

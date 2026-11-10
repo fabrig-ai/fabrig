@@ -1,5 +1,5 @@
 //! Configuration's first-start project seed and the deployment's roles
-//! (protocol/configuration.md, 3 and 8; domain/people.md, 3).
+//! (protocol/configuration.md, 3 and 7; domain/people/README.md, 3).
 
 use alloc::boxed::Box;
 use jig_domain_authority as authority;

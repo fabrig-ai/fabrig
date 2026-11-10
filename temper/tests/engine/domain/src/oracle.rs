@@ -1,5 +1,5 @@
-//! Cold restart/readback (jig/docs/design/domain/engine.md, 15;
-//! temper/docs/design/domain/testing.md, 2).
+//! Cold restart/readback (jig/docs/design/domain/engine/README.md, 9;
+//! temper/docs/design/testing/README.md, 2).
 pub(crate) enum Fixture {
     Checked,
     Closed,
@@ -93,7 +93,7 @@ impl Snapshot {
             if let Answer::Document(document) = answer
                 && let core::documents::Document::Task(task) = document.as_mut()
             {
-                // contract.md 5.1: an omitted choice derives from current accounts and hosts.
+                // jig/docs/design/client/domain/contract/documents.md 1: an omitted choice derives from current accounts and hosts.
                 // compare_rows still compares the stored choice, including every named one.
                 task.llm = None;
             }
@@ -135,7 +135,7 @@ fn retained<'a>(key: &Key, row: &'a Record, wall: skein_lib::Wall) -> Option<Cow
 }
 
 impl Driver {
-    /// The restart oracle (jig engine.md 15; temper testing.md 2): settle, snapshot,
+    /// The restart oracle (jig jig/docs/design/domain/engine/README.md 9; temper testing/README.md 2): settle, snapshot,
     /// restart cold over the same store, read back, compare through `durable`.
     /// Panics naming the first difference (document or row, field, key).
     pub fn close(&mut self) {

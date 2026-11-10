@@ -6,7 +6,7 @@ Section 3 has no known gap in the asking family, bit 2,048, or
 `ToolKind::Ask` admission. A call without that family is beyond authority.
 Section 3's *Notes* has no known gap in a party's scope: no authority's
 note scopes name it, and the asking family reaches it for the task's
-requester alone (`engine.status.md`, 10.1).
+requester alone (`engine/briefs.status.md`, 2.1).
 
 Section 3's model bits retain the catalogue setting numbers. Section 8.3's
 host evidence uses endpoint window and output bounds, without a model list.
@@ -23,8 +23,8 @@ one account.
 
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs
-  design coverage reconciliation against `jig/docs/design/domain/engine.md`,
-  7.3; this is a design gap, not an absent implementation.
+  design coverage reconciliation against `jig/docs/design/domain/engine/executors.md`,
+  3; this is a design gap, not an absent implementation.
 
 - **Not yet:** 7: a widening funded by whoever gives it
   (the task's existing funder is charged).

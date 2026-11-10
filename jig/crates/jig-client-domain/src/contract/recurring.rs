@@ -1,4 +1,4 @@
-//! Recurring template overlap facts (domain/tasks.md, section 10).
+//! Recurring template overlap facts (domain/tasks/README.md, section 5).
 //! The engine supplies this policy; the client does not schedule batches.
 
 /// What the template does when the preceding batch is still live.

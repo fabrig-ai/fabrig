@@ -1,4 +1,4 @@
-//! Public HTTP step tests (jig/docs/design/protocol/client.md, 17.5 and 19).
+//! Public HTTP step tests (jig/docs/design/protocol/client/default-http.md, 5 and jig/docs/design/protocol/client/public-reads.md).
 use super::{fixtures as f, *};
 const PATH: &[u8] = b"/jig/v1/public/0/1/1";
 fn mount() -> Mount {

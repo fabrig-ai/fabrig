@@ -1,5 +1,5 @@
 //! Startup's check document with value origins; credential values are redacted
-//! (shell.md, sections 4.4, 5.3 and 7). It starts no run or sign-in.
+//! (shell/commands.md, section 4 and shell/settings.md, section 1.3 and shell/credentials.md). It starts no run or sign-in.
 use crate::{
     command::{self, Command},
     settings::{self, Origin, Problem, Refusal, Settings},

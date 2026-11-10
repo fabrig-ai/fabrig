@@ -4,8 +4,8 @@
 
 - **Design lags:**
   - 2: no design document holds a follow as a project's setting, beside
-    the landing rules as settings (`../domain/forge.md`, 8.9), nor its kind
-    in `../protocol/configuration.md`; `../domain/forge.md`, 8.1's
+    the landing rules as settings (`../domain/forge/change/gates.md`, 3), nor its kind
+    in `../protocol/configuration/README.md`; `../domain/forge/change/README.md`, 1's
     parameters have no list of the source landings a follow change
     follows, as `repairs` names a red landing
     (`../domain/after-landing.md`, section 7).
@@ -13,8 +13,8 @@
     queue is kept across a restart (`../protocol/store.md`); jig's standing
     procedure (`domain/connectors.md`, 6.6) is the nearest shape. The owner's
     merge, hold and skip have no tool or act of their own
-    (`../domain/agent.md`, 4.3). jig holds a change whose dependency is
-    cancelled until an amendment removes it (jig's `domain/tasks.md`, 5.5):
+    (`../domain/agent/tools.md`). jig holds a change whose dependency is
+    cancelled until an amendment removes it (jig's `domain/tasks/lifecycle.md`, 6):
     no design amends the next follow change's dependency in the same
     decision as a merge or a skip.
   - 4: a gate's dispatch (`../domain/landing.md`, 7.1) has no input for
@@ -23,9 +23,9 @@
     work runs are `surfaces.md`'s, and lag with them.
   - 6: the forge follows the landing branches of a project's owned
     repositories; a context repository's branch named by a follow is
-    not followed (`../domain/forge.md`, section 4 and 5.2).
+    not followed (`../domain/forge/adoption.md` and `../domain/forge/keeping-up.md`, section 2).
   - 7: no design document holds a project's dependency on another.
-  - 9: `../domain/testing.md` has no world with a follow, and
+  - 9: `../testing/README.md` has no world with a follow, and
     `../../development/acceptance.md` no follow story.
 - **Open:**
   - 3 and 10: a follow's owner asks its person in the target's project;

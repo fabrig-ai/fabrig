@@ -1,5 +1,5 @@
 //! Orders at the client's application, transport and store boundaries
-//! (jig/docs/design/client/domain/client.md, 3, 6, 7 and 11;
+//! (jig/docs/design/client/domain/client/README.md, 3 and jig/docs/design/client/domain/client/requests.md and jig/docs/design/client/domain/client/README.md, 6 and 8;
 //! jig/docs/design/client/domain/root.md, 3 and 5).
 mod world;
 

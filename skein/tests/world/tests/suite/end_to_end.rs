@@ -17,7 +17,7 @@ fn is_open(fd: skein_io::kernel::Fd) -> bool {
     skein_shell::keeper::wait_readable(fd, Duration::ZERO) != Err(9)
 }
 
-// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; shell.md, 9).
+// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; runtime/shell.md, 8).
 #[cfg(target_os = "linux")]
 const ALL: [Containment; 3] = [Containment::Walk, Containment::Best, Containment::Group];
 #[cfg(not(target_os = "linux"))]
@@ -119,7 +119,7 @@ fn observations(outcome: &real::Outcome<Process>) -> (&Binary, &Script) {
 // to /private/tmp, and the child's shell names its directory without links.
 
 /// The containments a supervised case runs under: the walk (`Containment::Walk`)
-/// is Linux's, its subreaper and pidfds (shell.md, 9); macOS has the group alone.
+/// is Linux's, its subreaper and pidfds (runtime/shell.md, 8); macOS has the group alone.
 const WALKS: &[bool] = if cfg!(target_os = "linux") { &[true, false] } else { &[false] };
 
 #[test]
@@ -332,11 +332,11 @@ fn a_descendant_left_in_the_group_is_ended_and_counted() {
     }
 }
 
-// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; shell.md, 9).
+// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; runtime/shell.md, 8).
 #[cfg(target_os = "linux")]
 #[test]
 fn a_descendant_that_leaves_its_group_and_session_is_still_settled() {
-    // A group cannot see a descendant that leaves it (examples.md, 6; shell.md, 9).
+    // A group cannot see a descendant that leaves it (examples.md, 6; runtime/shell.md, 8).
     for containment in [Containment::Walk, Containment::Best] {
         let outcome = tree_run("escape-exit", containment, skein_world::end_to_end::Expectation::Measure);
         let child = tree_child(&outcome);
@@ -349,13 +349,13 @@ fn a_descendant_that_leaves_its_group_and_session_is_still_settled() {
     }
 }
 
-// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; shell.md, 9).
+// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; runtime/shell.md, 8).
 #[cfg(target_os = "linux")]
 #[test]
 fn an_already_exited_descendant_that_left_its_session_is_still_reaped() {
     use skein_world::end_to_end::Expectation;
 
-    // A group cannot see a descendant that leaves it (examples.md, 6; shell.md, 9).
+    // A group cannot see a descendant that leaves it (examples.md, 6; runtime/shell.md, 8).
     for containment in [Containment::Walk, Containment::Best] {
         let binary = Binary::start_contained(
             fixture("escape-zombie-exit"),
@@ -647,7 +647,7 @@ fn emergency_drop_leaves_outstanding_descriptors_and_the_waited_leader_owned() {
     }
 }
 
-// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; shell.md, 9).
+// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; runtime/shell.md, 8).
 #[cfg(target_os = "linux")]
 #[test]
 fn a_walk_keeps_an_existing_parts_child_untouched() {
@@ -659,7 +659,7 @@ fn a_walk_keeps_an_existing_parts_child_untouched() {
     other.wait().expect("the other part reaps its child");
 }
 
-// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; shell.md, 9).
+// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; runtime/shell.md, 8).
 #[cfg(target_os = "linux")]
 #[test]
 fn a_walk_refuses_another_observer_during_its_accounting_interval() {
@@ -684,7 +684,7 @@ fn a_walk_refuses_another_observer_during_its_accounting_interval() {
     assert_tree_counted(tree_child(&outcome), Containment::Walk);
 }
 
-// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; shell.md, 9).
+// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; runtime/shell.md, 8).
 #[cfg(target_os = "linux")]
 #[test]
 fn delegated_cgroups_keep_two_binaries_separate_until_both_are_removed() {
@@ -709,7 +709,7 @@ fn delegated_cgroups_keep_two_binaries_separate_until_both_are_removed() {
     assert_tree_counted(tree_child(&outcome), Containment::Best);
 }
 
-// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; shell.md, 9).
+// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; runtime/shell.md, 8).
 #[cfg(target_os = "linux")]
 #[test]
 fn the_last_observer_restores_the_original_subreaper_setting() {
@@ -740,7 +740,7 @@ fn the_last_observer_restores_the_original_subreaper_setting() {
     skein_shell::keeper::set_subreaper(original).expect("the test restores its initial adoption policy");
 }
 
-// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; shell.md, 9).
+// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; runtime/shell.md, 8).
 #[cfg(target_os = "linux")]
 #[test]
 fn concurrent_observers_keep_adoption_enabled_until_the_last_one_ends() {
@@ -769,7 +769,7 @@ fn concurrent_observers_keep_adoption_enabled_until_the_last_one_ends() {
     skein_shell::keeper::set_subreaper(original).expect("the test restores its initial policy");
 }
 
-// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; shell.md, 9).
+// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; runtime/shell.md, 8).
 #[cfg(target_os = "linux")]
 #[test]
 fn a_failed_binary_start_restores_the_original_subreaper_setting() {
@@ -782,13 +782,13 @@ fn a_failed_binary_start_restores_the_original_subreaper_setting() {
 
 #[derive(Clone, Copy, Debug)]
 enum SupervisedTrigger {
-    // The detached-descendant cases use Linux's tree keeper (shell.md, 9).
+    // The detached-descendant cases use Linux's tree keeper (runtime/shell.md, 8).
     #[cfg(target_os = "linux")]
     Ready,
-    // The detached-descendant case uses Linux's tree keeper (shell.md, 9).
+    // The detached-descendant case uses Linux's tree keeper (runtime/shell.md, 8).
     #[cfg(target_os = "linux")]
     StderrOverflow,
-    // The detached-descendant cases use Linux's tree keeper (shell.md, 9).
+    // The detached-descendant cases use Linux's tree keeper (runtime/shell.md, 8).
     #[cfg(target_os = "linux")]
     LeaderExit,
     Bound,
@@ -1008,7 +1008,7 @@ fn supervised_run_with_grace(
 fn a_supervised_natural_tree_settles_without_cleanup() {
     use skein_world::end_to_end::Cleanup;
     for containment in ALL {
-        // A group cannot see escaped descendants (examples.md, 6; shell.md, 9).
+        // A group cannot see escaped descendants (examples.md, 6; runtime/shell.md, 8).
         let modes: &[&str] =
             if containment == Containment::Group { &["exit"] } else { &["exit", "escape-zombie-exit"] };
         for mode in modes {
@@ -1022,7 +1022,7 @@ fn a_supervised_natural_tree_settles_without_cleanup() {
     }
 }
 
-// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; shell.md, 9).
+// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; runtime/shell.md, 8).
 #[cfg(target_os = "linux")]
 #[test]
 fn a_supervised_tree_retains_detached_descendants_after_natural_leader_exit() {
@@ -1040,7 +1040,7 @@ fn a_supervised_tree_retains_detached_descendants_after_natural_leader_exit() {
     }
 }
 
-// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; shell.md, 9).
+// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; runtime/shell.md, 8).
 #[cfg(target_os = "linux")]
 #[test]
 fn whole_tree_term_reaches_detached_descendants_before_the_leader_exits() {
@@ -1067,7 +1067,7 @@ fn whole_tree_term_reaches_detached_descendants_before_the_leader_exits() {
     }
 }
 
-// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; shell.md, 9).
+// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; runtime/shell.md, 8).
 #[cfg(target_os = "linux")]
 #[test]
 fn a_supervised_tree_honors_grace_after_leader_exit_then_reports_forced_kill() {
@@ -1103,7 +1103,7 @@ fn a_supervised_never_ending_leader_receives_the_referees_term_bound() {
     }
 }
 
-// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; shell.md, 9).
+// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; runtime/shell.md, 8).
 #[cfg(target_os = "linux")]
 #[test]
 fn supervised_tree_signals_leave_an_existing_unrelated_child_running() {
@@ -1126,7 +1126,7 @@ fn supervised_tree_signals_leave_an_existing_unrelated_child_running() {
     }
 }
 
-// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; shell.md, 9).
+// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; runtime/shell.md, 8).
 #[cfg(target_os = "linux")]
 #[test]
 fn supervised_tree_signals_stay_inside_their_own_delegated_cgroup() {
@@ -1218,7 +1218,7 @@ fn supervised_stderr_overflow_keeps_a_bounded_prefix_and_drains_a_natural_tree()
     }
 }
 
-// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; shell.md, 9).
+// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; runtime/shell.md, 8).
 #[cfg(target_os = "linux")]
 #[test]
 fn supervised_stderr_overflow_is_observed_before_the_referees_term_grace_and_whole_tree_kill() {
@@ -1344,7 +1344,7 @@ fn a_size_change_is_heard() {
     assert_eq!(child.exit_status(), Some(Exit::Code(0)));
 }
 
-// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; shell.md, 9).
+// A cgroup, the subreaper and `/proc` are Linux's (examples.md, 6; runtime/shell.md, 8).
 #[cfg(target_os = "linux")]
 #[test]
 fn a_group_refuses_beside_a_subreaper() {

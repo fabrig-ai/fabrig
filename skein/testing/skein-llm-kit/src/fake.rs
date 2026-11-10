@@ -4,7 +4,7 @@
 //! knows neither application tool policy nor live IO. Preparation adopts one
 //! Client, `observe` selects optional fixed observation caps before progress,
 //! and start/tick/request/settle drive the lower chronology.
-//! Contract: docs/design/fake-llm.md, sections 2–5;
+//! Contract: docs/design/testing/fakes/llm.md, sections 2–5;
 //! programming-model.md, sections 4.4 and 6.3.
 
 use skein_fake_llm_domain::{self as fake, api};
@@ -20,8 +20,8 @@ use skein_llm::{Call, Credential, Endpoint, Provider, client};
 /// handed-off storage separately. Buffers remaining in Exchange retain their
 /// configured capacities; the next entry reserves a taken buffer again.
 /// Exhaustion asserts before a copy or append, without a fabricated terminal.
-/// Contract: docs/design/fake-llm.md,
-/// sections 2–5; programming-model.md, section 6.3.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5
+/// ; programming-model.md, section 6.3.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct ObservationLimits {
     /// Maximum actual request heads retained beside query observations.
@@ -29,32 +29,32 @@ pub struct ObservationLimits {
     /// Maximum owned header wrappers, names and values in each retained head.
     pub head_bytes: u64,
     /// Maximum currently retained Client event wrappers, supplied by the caller.
-    /// Contract: docs/design/fake-llm.md, sections 2–5.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5.
     pub events: u32,
 
     /// Maximum owned payload of each retained Client event, including replay
-    /// token arrays and bytes. Contract: docs/design/fake-llm.md, sections 2–5.
+    /// token arrays and bytes. Contract: docs/design/testing/fakes/llm.md, sections 2–5.
     pub event_bytes: u64,
 
     /// Maximum currently retained independently decoded query copies.
-    /// Contract: docs/design/fake-llm.md, sections 2–5.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5.
     pub queries: u32,
 
     /// Maximum owned wrappers and bytes of each copied query, checked before
-    /// cloning. Contract: docs/design/fake-llm.md, sections 2–5.
+    /// cloning. Contract: docs/design/testing/fakes/llm.md, sections 2–5.
     pub query_bytes: u64,
 
     /// Maximum currently retained manual call records; zero admits no manual
     /// observation. Each query fits `query_bytes` before retention.
-    /// Contract: docs/design/fake-llm.md, sections 2–5.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5.
     pub pending: u32,
 
     /// Maximum retained actual client-to-peer HTTP bytes, checked before append.
-    /// Contract: docs/design/fake-llm.md, sections 2–5.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5.
     pub request: u32,
 
     /// Maximum retained actual peer-to-client HTTP bytes, checked before append.
-    /// Contract: docs/design/fake-llm.md, sections 2–5.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5.
     pub response_bytes: u32,
 }
 
@@ -507,7 +507,7 @@ impl Exchange {
     /// firing any component. The caller reserves these buffers once; draining
     /// with `mem::take` is supported and the next entry reserves replacements.
     /// Constructors keep their unconstrained observation behaviour until this
-    /// entrance is called. Contract: docs/design/fake-llm.md, sections 2–5;
+    /// entrance is called. Contract: docs/design/testing/fakes/llm.md, sections 2–5;
     /// programming-model.md, section 6.3.
     pub fn observe(&mut self, observations: ObservationLimits) {
         assert_eq!(self.machine.waiting(), client::Waiting::Start, "observation ownership precedes Start");

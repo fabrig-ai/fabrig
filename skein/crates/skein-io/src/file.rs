@@ -8,7 +8,7 @@ use crate::kernel::Fd;
 use alloc::boxed::Box;
 use skein_lib::Token;
 
-/// The target version a store's owner permits replacing (io.md, section 5.2).
+/// The target version a store's owner permits replacing (runtime/io/files.md, section 2).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Expect {
     /// The owner permits replacing any target, without reading its content.
@@ -41,7 +41,7 @@ pub enum Request {
         path: Box<[u8]>,
         mode: u32,
     },
-    /// Opens or makes a private root: `Opened`, `Refused` or `Failed` (io.md, 5.3).
+    /// Opens or makes a private root: `Opened`, `Refused` or `Failed` (runtime/io/files.md, 3).
     OpenPrivate {
         owner: Token,
         root: Token,
@@ -152,7 +152,7 @@ pub enum Request {
         owner: Token,
         root: Fd,
     },
-    /// Moves a name between open directories: `Renamed` or `Failed` (io.md, 5).
+    /// Moves a name between open directories: `Renamed` or `Failed` (runtime/io/files.md).
     Rename {
         owner: Token,
         from_root: Fd,
@@ -160,7 +160,7 @@ pub enum Request {
         to_root: Fd,
         to: Box<[u8]>,
     },
-    /// Removes one file or empty directory by name: `Removed` or `Failed` (io.md, 5).
+    /// Removes one file or empty directory by name: `Removed` or `Failed` (runtime/io/files.md).
     Remove {
         owner: Token,
         root: Fd,
@@ -172,7 +172,7 @@ pub enum Request {
         owner: Token,
         root: Fd,
     },
-    /// Lists at most `max` entries from the owner's open directory (io.md, 5).
+    /// Lists at most `max` entries from the owner's open directory (runtime/io/files.md).
     ListPage {
         owner: Token,
         directory: Token,
@@ -180,9 +180,12 @@ pub enum Request {
     },
 }
 
-// io.md, 5: a file's contents print as their length, never their bytes.
+// runtime/io/files.md: a file's contents print as their length, never their bytes.
 impl core::fmt::Debug for Request {
-    #[expect(clippy::too_many_lines, reason = "io.md, 5: exhaustively preserve every request variant and field")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "runtime/io/files.md: exhaustively preserve every request variant and field"
+    )]
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Request::Lock { owner, root } => f.debug_struct("Lock").field("owner", owner).field("root", root).finish(),
@@ -318,7 +321,7 @@ pub struct Entry {
     pub kind: crate::kernel::Kind,
 }
 
-/// The unsafe metadata io found before reading a private root or file (io.md, 5.3).
+/// The unsafe metadata io found before reading a private root or file (runtime/io/files.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Unsafe {
     /// The requested name or a parent is a symbolic link.
@@ -420,7 +423,7 @@ pub enum Event {
         owner: Token,
         error: crate::kernel::Error,
         /// A Store's rename succeeded before this failure. The new file is
-        /// present; its durability may be unknown (io.md, section 5.2).
+        /// present; its durability may be unknown (runtime/io/files.md, section 2).
         /// False for failures of other file requests.
         committed: bool,
         /// A temporary still beside the target after its removal failed.
@@ -432,7 +435,7 @@ pub enum Event {
     },
 }
 
-// io.md, 5: a file's contents print as their length, never their bytes.
+// runtime/io/files.md: a file's contents print as their length, never their bytes.
 impl core::fmt::Debug for Event {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {

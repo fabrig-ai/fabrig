@@ -1,4 +1,4 @@
-//! Checked values supplied by written functions (codec.md, 11.5).
+//! Checked values supplied by written functions (data/codec/patches.md, 5).
 
 use super::{
     Build, DeclIx, Expected, FieldIx, Frame, Halt, Held, Node, Old, Open, OpenKind, Part, Path, Reason, RefusalIx,

@@ -1,5 +1,5 @@
 //! The root keeps an omitted LLM choice omitted and a given one as given, and refuses a
-//! task whose authority allows none of its charter's models (domain/tasks.md, section 3).
+//! task whose authority allows none of its charter's models (domain/tasks/README.md, section 3).
 use crate::tests::*;
 
 const FUNDER: tasks::Funder = tasks::Funder::Period { project: 1, period: 1 };

@@ -1,4 +1,4 @@
-//! Session state for what needs the person (temper/docs/design/client/README.md, 3.5, 3.6).
+//! Session state for what needs the person (temper/docs/design/client/pages/README.md, temper/docs/design/client/README.md, 3.6).
 use super::{
     Pages, Request,
     inbox::{Card, Inbox},
@@ -19,7 +19,7 @@ pub const ANSWERED_ON_HOME: Duration = Duration::from_secs(120);
 const CAPACITY: u32 = 64;
 
 /// One open card of Needs you: jig's inbox's, or a change waiting on a review on the forge
-/// (temper/docs/design/client/README.md, 3.5).
+/// (temper/docs/design/client/pages/README.md).
 #[derive(Clone, Copy, Debug)]
 pub enum Need<'a> {
     Card(&'a Card),
@@ -35,7 +35,7 @@ impl Need<'_> {
         }
     }
 }
-/// Why a need reached the person (temper/docs/design/client/README.md, 3.5, Needs you, Why it reached you).
+/// Why a need reached the person (temper/docs/design/client/pages/README.md, Needs you, Why it reached you).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Why {
     Reach { project: u32, reach: temper_protocol_reaches::Reach },
@@ -155,7 +155,7 @@ pub struct Answered {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Toasted {
-    /// A way's act answered: its name and revision (client/README.md, 5.13).
+    /// A way's act answered: its name and revision (client/pages/settings.md, 2).
     Way {
         name: Box<[u8]>,
         revision: u32,

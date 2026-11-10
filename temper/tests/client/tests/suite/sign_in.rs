@@ -126,7 +126,7 @@ fn account_ending(root: &Root, expected: &str) {
     assert!(button(root, b"Continue with ChatGPT"), "each ending offers sign-in again");
 }
 
-// client/README.md 3.5: a way without a source does not adopt another client's sign-in.
+// client/pages/README.md: a way without a source does not adopt another client's sign-in.
 #[test]
 fn a_reload_without_source_offers_the_way_again() {
     let (mut front, mut root, _) = begin();
@@ -135,7 +135,7 @@ fn a_reload_without_source_offers_the_way_again() {
     assert_eq!(front.leaves.len(), NONE);
 }
 
-// client/README.md 3.5 and 10: the terminal prints a sign-in address and sends no Return.
+// client/pages/README.md and client/testing.md: the terminal prints a sign-in address and sends no Return.
 #[test]
 fn terminal_sign_in_never_requests_a_tab_departure() {
     let (mut front, mut root, source) = begin();
@@ -169,7 +169,7 @@ fn connect_ending(front: &mut Joint, root: &mut Root, source: u32, expected: &st
     assert!(button(root, b"Continue with ChatGPT"));
 }
 
-// client/README.md 3.5 Come back and 5.5 A sign-in: Made reaches Ready live and at the returned address.
+// client/pages/README.md Come back and 5.5 A sign-in: Made reaches Ready live and at the returned address.
 #[test]
 fn made_sign_in_reaches_ready_live_and_after_return() {
     let (mut front, mut root, source) = begin();
@@ -178,7 +178,7 @@ fn made_sign_in_reaches_ready_live_and_after_return() {
     added_ending(&mut front, &mut root, source);
 }
 
-// client/README.md 5.5 A sign-in: Renewed names the same account and offers sign-in again.
+// client/pages/accounts.md 2 A sign-in: Renewed names the same account and offers sign-in again.
 #[test]
 fn renewed_sign_in_lands_on_the_accounts_page() {
     let (mut front, mut root, _) = established();
@@ -189,7 +189,7 @@ fn renewed_sign_in_lands_on_the_accounts_page() {
     added_ending(&mut front, &mut root, source);
 }
 
-// client/README.md 5.5 A sign-in: Made with declined consent has the plan-declined words.
+// client/pages/accounts.md 2 A sign-in: Made with declined consent has the plan-declined words.
 #[test]
 fn made_without_plan_usage_offers_sign_in_and_a_key() {
     let (mut front, mut root, source) = begin();
@@ -199,7 +199,7 @@ fn made_without_plan_usage_offers_sign_in_and_a_key() {
     has(&root, "Use an API key");
 }
 
-// client/README.md 5.5 A sign-in: Renewed with declined consent uses plan-declined words too.
+// client/pages/accounts.md 2 A sign-in: Renewed with declined consent uses plan-declined words too.
 #[test]
 fn renewed_without_plan_usage_offers_sign_in_and_a_key() {
     let (mut front, mut root, _) = established();
@@ -211,7 +211,7 @@ fn renewed_without_plan_usage_offers_sign_in_and_a_key() {
     has(&root, "Use an API key");
 }
 
-// client/README.md 3.5 Come back: a later ending replaces an older source's ending.
+// client/pages/README.md Come back: a later ending replaces an older source's ending.
 #[test]
 fn superseded_return_source_offers_the_way_again() {
     let (mut front, mut root, old_source) = established();
@@ -225,7 +225,7 @@ fn superseded_return_source_offers_the_way_again() {
     assert!(!words(&root).contains("Signed in to ChatGPT"));
 }
 
-// client/README.md 5.5 A sign-in and Each state: Failed Misconfigured explains registration.
+// client/pages/accounts.md 2 A sign-in and Each state: Failed Misconfigured explains registration.
 #[test]
 fn misconfigured_sign_in_explains_registration_on_connect_model() {
     let (mut front, mut root, source) = begin();
@@ -239,7 +239,7 @@ fn misconfigured_sign_in_explains_registration_on_connect_model() {
     );
 }
 
-// client/README.md 5.5 A sign-in and Each state: Failed SignInAgain says signed out.
+// client/pages/accounts.md 2 A sign-in and Each state: Failed SignInAgain says signed out.
 #[test]
 #[ignore = "backlog: a sign-in ending SignInAgain reads \"Needs sign-in\", not 5.5's \"Signed out of ChatGPT.\"; off the happy path (m3 backlog 2)"]
 fn signed_out_sign_in_explains_the_ending_on_connect_model() {
@@ -249,7 +249,7 @@ fn signed_out_sign_in_explains_the_ending_on_connect_model() {
     connect_ending(&mut front, &mut root, source, "Signed out of ChatGPT.");
 }
 
-// client/README.md 5.5 A sign-in and Each state: Failed Unloaded names where and why.
+// client/pages/accounts.md 2 A sign-in and Each state: Failed Unloaded names where and why.
 #[test]
 #[ignore = "backlog: a sign-in ending Unloaded reads the load error, not 5.5's \"Can't be used on HOST: WHY.\"; off the happy path (m3 backlog 3)"]
 fn unloaded_sign_in_names_its_place_and_reason_on_connect_model() {
@@ -268,7 +268,7 @@ fn unloaded_sign_in_names_its_place_and_reason_on_connect_model() {
     has(&root, "Unreadable");
 }
 
-// client/README.md 3.5 Come back: a returned source observes the later Made ending.
+// client/pages/README.md Come back: a returned source observes the later Made ending.
 #[test]
 fn returned_sign_in_changes_to_ready_when_the_watch_ends() {
     let (mut front, mut root, source) = begin();
@@ -286,7 +286,7 @@ fn returned_sign_in_changes_to_ready_when_the_watch_ends() {
     assert_eq!(front.leaves.len(), NONE);
 }
 
-// client/README.md 3.5 Come back: a returned source observes the later Failed ending.
+// client/pages/README.md Come back: a returned source observes the later Failed ending.
 #[test]
 #[ignore = "backlog: a sign-in ending SignInAgain reads \"Needs sign-in\", not 5.5's \"Signed out of ChatGPT.\"; off the happy path (m3 backlog 2)"]
 fn returned_sign_in_changes_to_failure_when_the_watch_ends() {
@@ -299,7 +299,7 @@ fn returned_sign_in_changes_to_failure_when_the_watch_ends() {
     assert_eq!(front.leaves.len(), NONE);
 }
 
-// client/README.md 3.5 The welcome Ready: no model line precedes the accounts document.
+// client/pages/README.md The welcome Ready: no model line precedes the accounts document.
 #[test]
 fn welcome_ready_waits_for_accounts_before_drawing_a_model_line() {
     let (mut front, mut root) = h::plan_fixture(f::SEED);
@@ -309,7 +309,7 @@ fn welcome_ready_waits_for_accounts_before_drawing_a_model_line() {
     assert!(!words(&root).contains("Model:"), "{}", words(&root));
 }
 
-// client/README.md 3.5 The welcome Ready: an underway sign-in names its provider.
+// client/pages/README.md The welcome Ready: an underway sign-in names its provider.
 #[test]
 fn welcome_ready_names_the_sign_in_under_way() {
     let (mut front, mut root) = h::empty_plan_fixture(f::SEED);
@@ -321,7 +321,7 @@ fn welcome_ready_names_the_sign_in_under_way() {
     has(&root, "Model ChatGPT plan · signing in…");
 }
 
-// client/README.md 3.5 The welcome Ready: the made usable account names its model line.
+// client/pages/README.md The welcome Ready: the made usable account names its model line.
 #[test]
 fn welcome_ready_names_the_made_account() {
     let (mut front, mut root, source) = established();
@@ -339,7 +339,7 @@ fn welcome_ready_names_the_made_account() {
     has(&root, "ChatGPT plan");
 }
 
-// client/README.md 3.5 Accounts and 5.5 A sign-in: Made uses the signed-in words and acts.
+// client/pages/README.md Accounts and 5.5 A sign-in: Made uses the signed-in words and acts.
 #[test]
 fn accounts_made_sign_in_names_the_plan_and_offers_retry() {
     let (mut front, mut root, source) = row_sign_in();
@@ -357,7 +357,7 @@ fn accounts_made_sign_in_names_the_plan_and_offers_retry() {
     account_ending(&root, "Added your ChatGPT plan");
 }
 
-// client/README.md 3.5 Accounts and 5.5 A sign-in: Renewed explains adding another account.
+// client/pages/README.md Accounts and 5.5 A sign-in: Renewed explains adding another account.
 #[test]
 fn accounts_renewed_sign_in_keeps_the_same_added_line() {
     let (mut front, mut root, source) = row_sign_in();
@@ -365,7 +365,7 @@ fn accounts_renewed_sign_in_keeps_the_same_added_line() {
     has(&root, "Added your ChatGPT plan");
 }
 
-// client/README.md 5.5 A sign-in: a row's Made with declined consent offers sign-in and a key.
+// client/pages/accounts.md 2 A sign-in: a row's Made with declined consent offers sign-in and a key.
 #[test]
 fn accounts_made_without_plan_usage_offers_sign_in_and_key() {
     let (mut front, mut root, source) = row_sign_in();
@@ -384,7 +384,7 @@ fn accounts_made_without_plan_usage_offers_sign_in_and_key() {
     has(&root, "Use an API key");
 }
 
-// client/README.md 5.5 A sign-in: a row's Renewed with declined consent has the same words.
+// client/pages/accounts.md 2 A sign-in: a row's Renewed with declined consent has the same words.
 #[test]
 fn accounts_renewed_without_plan_usage_offers_sign_in_and_key() {
     let (mut front, mut root, source) = row_sign_in();
@@ -393,7 +393,7 @@ fn accounts_renewed_without_plan_usage_offers_sign_in_and_key() {
     has(&root, "Use an API key");
 }
 
-// client/README.md 5.5 Each state: a row's Failed Misconfigured explains registration.
+// client/pages/accounts.md 2 Each state: a row's Failed Misconfigured explains registration.
 #[test]
 fn accounts_misconfigured_sign_in_explains_registration() {
     let (mut front, mut root, source) = row_sign_in();
@@ -401,7 +401,7 @@ fn accounts_misconfigured_sign_in_explains_registration() {
     account_ending(&root, "OpenAI refused temper’s sign-in. Check the configuration’s registration.");
 }
 
-// client/README.md 5.5 Each state: a row's Failed SignInAgain names ChatGPT and sign-out.
+// client/pages/accounts.md 2 Each state: a row's Failed SignInAgain names ChatGPT and sign-out.
 #[test]
 #[ignore = "backlog: a sign-in ending SignInAgain reads \"Needs sign-in\", not 5.5's \"Signed out of ChatGPT.\"; off the happy path (m3 backlog 2)"]
 fn accounts_signed_out_sign_in_names_chatgpt() {
@@ -410,7 +410,7 @@ fn accounts_signed_out_sign_in_names_chatgpt() {
     account_ending(&root, "Signed out of ChatGPT.");
 }
 
-// client/README.md 5.5 Each state: a row's Failed Unloaded names where and why.
+// client/pages/accounts.md 2 Each state: a row's Failed Unloaded names where and why.
 #[test]
 #[ignore = "backlog: a sign-in ending Unloaded reads the load error, not 5.5's \"Can't be used on HOST: WHY.\"; off the happy path (m3 backlog 3)"]
 fn accounts_unloaded_sign_in_names_its_place_and_reason() {
@@ -428,7 +428,7 @@ fn accounts_unloaded_sign_in_names_its_place_and_reason() {
     has(&root, "Unreadable");
 }
 
-// client/README.md 5.5 A sign-in: every other Failed ending offers the way again.
+// client/pages/accounts.md 2 A sign-in: every other Failed ending offers the way again.
 #[test]
 fn other_failures_offer_retry_on_connect_model() {
     for failure in [
@@ -446,7 +446,7 @@ fn other_failures_offer_retry_on_connect_model() {
     }
 }
 
-// client/README.md 3.5 Accounts and 5.5 A sign-in: the row offers retry for other failures.
+// client/pages/README.md Accounts and 5.5 A sign-in: the row offers retry for other failures.
 #[test]
 fn accounts_other_failed_sign_ins_offer_retry() {
     for failure in [

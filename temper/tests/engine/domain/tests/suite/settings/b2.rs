@@ -1,5 +1,5 @@
 //! The stock funds a chat's advisor and a coordinator's change at init's default model prices
-//! (protocol/configuration.md, 13.4).
+//! (protocol/configuration/stock.md).
 use super::*;
 use jig_domain_tasks as tasks;
 use temper_engine_domain_forge as forge;
@@ -551,7 +551,7 @@ pub(super) fn story() {
 }
 
 /// A review task supplies its verdict and narrower authority; the charter supplies
-/// its workspace families (jig's domain/engine.md, 7.1).
+/// its workspace families (jig's domain/engine/executors.md, 1).
 pub(super) fn reviewer() {
     let (mut driver, chat) = chat();
     let mut review = delegate(&driver, chat.task, b"Review the named head", 0, K);

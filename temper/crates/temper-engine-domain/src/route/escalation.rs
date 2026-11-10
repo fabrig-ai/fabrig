@@ -1,5 +1,5 @@
 //! Root store translation for held-chat decisions that left live memory.
-//! Reading a held chat is the core's (jig's `client/domain/contract.md`, 6).
+//! Reading a held chat is the core's (jig's `client/domain/contract/README.md`, 4).
 
 use super::{Decision, Delivery, Domain, Env, Id, Limits, Read, Token, Work, emit, people};
 use crate::Record;

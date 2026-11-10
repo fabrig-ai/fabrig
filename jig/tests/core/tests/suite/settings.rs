@@ -1,4 +1,4 @@
-//! Settings travel through the real restart, store and commit barrier (engine.md, 17.7).
+//! Settings travel through the real restart, store and commit barrier (domain/engine/settings.md, 7).
 
 use jig_core_world::client_peer::ClientPeer;
 use jig_core_world::fixtures;
@@ -975,7 +975,7 @@ fn revision_loads_answer_busy_when_the_load_slab_is_full() {
     let mut parties = jig_core_world::reads::Parties::new(world.store.applied);
     parties.hold_loads = true;
     world.reads = Some(parties);
-    // The small profile has four load slots (configuration.md, section 6).
+    // The small profile has four load slots (protocol/limits.md).
     for number in 1..=5 {
         jig_core_world::reads::ask(&mut world, number, reads::Read::Revision { number: 1 });
     }

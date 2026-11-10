@@ -6,7 +6,7 @@ use temper_client_world::fixtures;
 fn the_web_app_form_masks_and_erases_a_rejected_paste() {
     let world = fixtures::world(fixtures::SEED);
     drop(world);
-    // client/forge.md 5.4: visit own App Details, fill App id and secret key;
+    // client/forge/deployment.md: visit own App Details, fill App id and secret key;
     // submit a refused paste; id stays, key is empty, no key in saved page state.
     panic!("gap: the joint world does not bridge App paste requests");
 }

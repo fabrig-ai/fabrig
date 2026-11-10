@@ -1,4 +1,4 @@
-//! Codec worlds (temper/docs/design/domain/testing.md, 2).
+//! Codec worlds (temper/docs/design/testing/README.md, 2).
 
 #[path = "../support/store.rs"]
 mod fixture;

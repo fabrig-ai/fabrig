@@ -1,4 +1,4 @@
-//! Declarations beside the core tool decoders (domain/hosts.md, section 8).
+//! Declarations beside the core tool decoders (domain/hosts/charters.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Declaration {
     pub name: &'static [u8],

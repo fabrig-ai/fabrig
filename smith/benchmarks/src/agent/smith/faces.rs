@@ -1,7 +1,7 @@
 //! Source ancestry selects the shipped product invocation and receiving bounds.
 //! The registry supports only binaries descended from the first product face.
 //! `face` reads only Git's ancestry, not an agent's private state
-//! (benchmarks.md, section 6.2; reliability-plan 00, Interface sketches).
+//! (../../../../docs/design/benchmarks/README.md, section 6.2; reliability-plan 00, Interface sketches).
 
 use crate::{Bound, Fault, format, input, refuse_if};
 use std::path::Path;

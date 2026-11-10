@@ -1,4 +1,4 @@
-//! A person's facts (temper/docs/design/client/README.md, 4.6).
+//! A person's facts (temper/docs/design/client/forge/records.md).
 use super::{Limits, Request, Side, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Ask, Family, Handle, Latest, Link, Told, Watchable, contract as c};
@@ -7,7 +7,7 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_protocol_reaches::{Subject, subject_from, subject_record};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-/// Facts the party keeps (temper/docs/design/client/README.md, 4.6).
+/// Facts the party keeps (temper/docs/design/client/forge/records.md).
 pub enum PersonFact {
     /// "Skip" on the project's "To begin".
     ToBegin { project: u32 },

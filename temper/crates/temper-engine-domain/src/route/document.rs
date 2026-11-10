@@ -1,4 +1,4 @@
-//! The asking family's document call (temper/docs/design/domain/agent.md, 8.4.3).
+//! The asking family's document call (temper/docs/design/domain/agent/ask-temper.md, 3).
 mod sections;
 pub(crate) use sections::{heading, made};
 

@@ -7,7 +7,7 @@ and their verification after landing. Code production is
 `notes.md` holds the reasons, cited by number (N1 to N24), and where
 each item of the landing model it drops goes (`notes.md`, section 6).
 
-Unqualified, `forge.md`, `landing.md`, `after-landing.md` and
+Unqualified, `../domain/forge/README.md`, `landing.md`, `after-landing.md` and
 `findings.md` are temper's `../domain/` documents; jig's are named as
 jig's.
 
@@ -20,7 +20,7 @@ jig's.
   fate) is written once L has landed, by the close-out, a change into
   main (N16, as `goal-as-designer.md`, section 2, moves it). Nothing is
   batched.
-- **By queue, as temper has it** (`forge.md`, 8.2, 9 and 10): checked at
+- **By queue, as temper has it** (`../domain/forge/change/README.md`, 2 and `../domain/forge/queues.md` and `../domain/forge/README.md`, 6): checked at
   its head, queued by its goal's priority, the first brought up to date
   with main if it lacks main's tip and checked again, merged at exactly
   that head. One change at a time owns main's queue.
@@ -30,7 +30,7 @@ jig's.
 - **L is an ordinary change.** It has no producing step, its branch
   being pushed already; its repairs, its update and its resolution write
   g as any change's write its branch, under the goal's hold (jig's
-  `domain/tasks.md`, 6.3). Past its bounds it is held, escalated to its
+  `domain/tasks/holds.md`, 3). Past its bounds it is held, escalated to its
   coordinator, which may still make changes into g: the goal reopens
   without a new mechanism.
 - **Verified after landing** (`after-landing.md`): the slow tiers follow
@@ -51,7 +51,7 @@ jig's.
 | the goal's landing, L | the coordinator, once the plan is done | g, `temper/<root>/g<root>`, its requester's held branch (N3) | main |
 | the close-out, X | the coordinator, once L has landed | its own, `temper/<root>/c<task>` | main |
 | a repair after landing | the coordinator, on a red | its own, `temper/<root>/c<task>` | main |
-| a chat's small fix | a chat, handing over the branch it pushed (`forge.md`, 8.1) | the branch it is handed | main |
+| a chat's small fix | a chat, handing over the branch it pushed (`../domain/forge/change/README.md`, 1) | the branch it is handed | main |
 
 Each is a change under the project's queue, by the same rules; only L is
 large. The changes into g are code production's
@@ -69,7 +69,7 @@ opening ─► checking ─► gating ─► queued ─► first ─► landing 
                                                     (a conflict)
 ```
 
-The change procedure's way (`forge.md`, 8.2), from opening:
+The change procedure's way (`../domain/forge/change/README.md`, 2), from opening:
 
 1. **Made** by the coordinator with g as its branch: no producing step,
    as for a branch handed over.
@@ -77,17 +77,17 @@ The change procedure's way (`forge.md`, 8.2), from opening:
    body naming the goal's issue and the draft.
 3. **Checking:** CI on its head, the project's full gate, its slowest
    suites included: the check of the whole goal. A failure is a repair
-   (`forge.md`, 8.4): an agent at g's tip given CI's failing steps and
+   (`../domain/forge/change/repairs.md`): an agent at g's tip given CI's failing steps and
    their logs' ends, pushing g under the goal's hold; the new head is
    checked again.
 4. **Gating:** what main's rules add. The reference adds none beyond CI;
    a design review of the whole at L's head is a gate a project may add
-   (`forge.md`, 8.3).
+   (`../domain/forge/change/gates.md`, 1).
 5. **Queued,** by its goal's priority, then by when it first became
-   ready, aging bounding the wait (`forge.md`, section 9).
+   ready, aging bounding the wait (`../domain/forge/queues.md`).
 6. **First,** it owns main's queue through what follows, so no change
    overtakes it and no CI run is wasted. If its head lacks main's tip it
-   is **updated** (`forge.md`, section 10), the forge merging main into g
+   is **updated** (`../domain/forge/README.md`, section 6), the forge merging main into g
    with no LLM, under the goal's hold: cleanly, and the new head is
    checked again; or in conflict, and it leaves the queue to be
    **resolved**: the merge job settles what the project's tooling knows
@@ -97,7 +97,7 @@ The change procedure's way (`forge.md`, 8.2), from opening:
    what landed in main.
 7. **Landing:** merged at exactly its head, as a merge commit, so g's
    history (each change's merge) stays readable on main. The merge is
-   refused while L is kept (`forge.md`, 8.2).
+   refused while L is kept (`../domain/forge/change/README.md`, 2).
 8. **Landed, then verifying,** until main's tiers clear it (section 6).
    Its result, given at cleared, wakes its coordinator.
 
@@ -106,12 +106,12 @@ resolution) and the forge's update it asked for, each taking g's writer
 slot as it writes; and the changes the coordinator makes into g, whose
 merges take it too. A move by the coordinator's other delegates is L's
 new head, checked again as after a repair, never drift (N3). A move by
-anyone else is drift (`forge.md`, 8.5).
+anyone else is drift (`../domain/forge/change/README.md`, 3).
 
-**Bounds** (`forge.md`, 8.4): repairs (three in the reference),
+**Bounds** (`../domain/forge/change/repairs.md`): repairs (three in the reference),
 resolutions, updates, and each wait's stall. Past one, L is held, saying
 why, and the hold escalates to its coordinator (jig's
-`domain/tasks.md`, section 9). The coordinator:
+`domain/tasks/proposals.md`). The coordinator:
 
 - releases it with an amendment: more repairs, a budget, words naming
   the cause;
@@ -125,17 +125,17 @@ why, and the hold escalates to its coordinator (jig's
 
 ## 4. Main's queue
 
-- **One queue, derived** from the ready changes into main (`forge.md`,
-  section 9): L and the small changes, ordered by priority, then by when
+- **One queue, derived** from the ready changes into main (`../domain/forge/queues.md`
+  ): L and the small changes, ordered by priority, then by when
   each became ready.
 - **One at a time is enough.** Few changes land into main, and most are
   large and checked whole. A batch would rarely carry a second change,
   and bisecting one would have nothing to do.
 - **Main's own CI red** pauses the queue and makes one repair, a change
-  into main, first in the queue (`forge.md`, section 9). Where tiers
+  into main, first in the queue (`../domain/forge/queues.md`). Where tiers
   judge main, they do instead, and the queue never pauses for them.
 - **A forge's own merge queue,** where main's rules require one, is
-  entered as `forge.md`, 9.1 says: temper's queue decides what enters and
+  entered as `../domain/forge/queues.md`, 1 says: temper's queue decides what enters and
   when.
 
 ## 5. Catching up
@@ -191,10 +191,10 @@ branches it follows (N5), and main's follow main alone.
 ## 7. A small change
 
 A repair after landing and a chat's small fix go the way every change
-into main goes (`forge.md`, 8.2): CI at their head, queued, updated if
+into main goes (`../domain/forge/change/README.md`, 2): CI at their head, queued, updated if
 they lack main's tip, merged at their head, verified. A repair after
 landing is first among equals only by its goal's priority; a repair of
-main's own CI is first in the queue (`forge.md`, section 9). A repair
+main's own CI is first in the queue (`../domain/forge/queues.md`). A repair
 after landing that should change what the close-out wrote (a status
 entry, a Later section) carries that edit itself.
 
@@ -233,8 +233,8 @@ landing routed to a repair. They are this reference's first stories:
 - A red after landing bisected within a goal's landing, over its
   changes' merges, to find the change that brought it.
 - Several repositories, one goal: a branch per repository, each held by
-  the goal, their landings ordered by their dependencies (`forge.md`,
-  8.1), skein's before temper's.
+  the goal, their landings ordered by their dependencies (`../domain/forge/change/README.md`,
+  1), skein's before temper's.
 
 ## 12. Open questions
 

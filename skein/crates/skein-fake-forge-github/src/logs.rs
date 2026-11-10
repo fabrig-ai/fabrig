@@ -1,4 +1,4 @@
-//! Signed job-log targets on the forge's clock (fake-forge.md, 10.1).
+//! Signed job-log targets on the forge's clock (testing/fakes/github.md, 1.1).
 use crate::{
     answers, reads,
     service::{ContentType, Limits, Outcome, Pending, PendingKind, Problem, Response, Service},

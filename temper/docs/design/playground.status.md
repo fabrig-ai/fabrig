@@ -21,7 +21,7 @@ doubling startup refuses, and `documents.text_bytes`,
 
 - **Not yet:**
   - 4: the reset without the box: its fake forge's removal waits for the
-    box (`domain/forge.md`, 4.1, and its status).
+    box (`domain/forge/adoption.md`, 1, and its status).
   - 6: the playground forge's links shown as text.
   - 7: released with temper: no release's build calls
     `scripts/bundle.sh --playground`, `scripts/release.sh` itself being
@@ -54,7 +54,7 @@ doubling startup refuses, and `documents.text_bytes`,
   - 9: story A's high water in the one-process world:
     `temper/tests/one-process/tests/memory.rs` remains ignored: the
     story walks, but a service world's observer has no way to keep its
-    storage outside the process's span (`skein/docs/design/testing.md`,
+    storage outside the process's span (`skein/docs/design/testing/README.md`,
     5), so process 0's exact release check fails
     (`temper/docs/development/playground-memory.md`).
   - 10: the bar: story A by hand on Firefox and Safari, of which nothing

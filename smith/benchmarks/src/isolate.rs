@@ -1,7 +1,7 @@
 //! Attempt preparation keeps private paths and an exact environment, no login.
 //! `prepare` verifies and copies the frozen seed before inference;
 //! `environment` gives commands only machine tools, private homes and explicit
-//! task variables (benchmarks.md, sections 6.1 and 10). Setup and measurement
+//! task variables (../../docs/design/benchmarks/README.md, sections 6.1 and 10). Setup and measurement
 //! belong to the runner; this module reads no clock or agent configuration.
 
 use crate::{Fault, FaultKind, Input, input, io, refuse_if};
@@ -267,7 +267,7 @@ pub fn copy_into(guard: &Guard, source: &Path, destination: &Path) -> Result<(),
 }
 
 /// Restore the machine PATH when a login shell reads this private home.
-/// No inherited profile or instruction file is copied (benchmarks.md, section 6.1).
+/// No inherited profile or instruction file is copied (../../docs/design/benchmarks/README.md, section 6.1).
 pub(crate) fn login_profile(guard: &Guard, machine: &Machine, private: &Private) -> Result<(), Fault> {
     let path = machine.path.as_bytes();
     refuse_if(path.contains(&0), Input, "machine PATH contains a NUL")?;

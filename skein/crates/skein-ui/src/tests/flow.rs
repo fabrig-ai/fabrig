@@ -57,7 +57,7 @@ fn data_encode_cannot_write_is_refused() {
 
 #[test]
 fn scene_bounds_refuse_overflow() {
-    // Four marks and 25 arrow bytes per node (ui.md, 11.5).
+    // Four marks and 25 arrow bytes per node (ui/scenes.md, 5).
     for (nodes, expected) in [(0, Some(0)), (4, Some(16)), (1_073_741_823, Some(4_294_967_292)), (1_073_741_824, None)]
     {
         assert_eq!(flow::marks(nodes), expected, "marks for {nodes}");

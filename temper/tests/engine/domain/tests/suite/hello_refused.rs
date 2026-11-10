@@ -1,4 +1,4 @@
-//! Hello refusals retain the live settings' shortfall (protocol/README.md, 15.3).
+//! Hello refusals retain the live settings' shortfall (protocol/cluster.md, 3).
 use jig_domain_core::settings as s;
 use jig_domain_fleet::{AgentShortfall, Figures, HelloRefusal, HelloRefused};
 use skein_lib::{ReplyTo, Token};

@@ -1,4 +1,4 @@
-//! The core owns the start's record families and child sequencing (domain/engine.md, 6).
+//! The core owns the start's record families and child sequencing (domain/engine/restart.md).
 use crate::{
     CoreRecord, Record, Restore, Write, accounts,
     tests::start::{

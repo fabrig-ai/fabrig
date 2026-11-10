@@ -1,4 +1,4 @@
-//! Exhaustive routing between the domain and link (client/domain/client.md, 3).
+//! Exhaustive routing between the domain and link (client/domain/client/README.md, 3).
 use crate::{
     Approval, ApprovalCode, Ask, Document, DomainLimits, Handle, Key, Limits, Link, Message, Pending, Readable, Record,
     Streamed, Taking, Told, Unusable, Watchable, With,
@@ -23,7 +23,7 @@ pub enum Event {
     Unwatch { handle: Handle },
     Read { handle: Handle, read: Readable },
     Send { key: Key, name: Option<skein_lib::RequestKey>, request: Ask },
-    // A value carried either way: sent once under its name, never kept (client.md, 6).
+    // A value carried either way: sent once under its name, never kept (client/domain/client/requests.md).
     Carry { key: Key, name: skein_lib::RequestKey, request: Ask, value: Option<Secret> },
     Reply { exchange: Token, message: Box<[u8]> },
     Lost { exchange: Token },
@@ -61,7 +61,7 @@ pub enum Request {
         credential: Secret,
     },
 }
-/// What an unlinked client asks of its host (client/domain/client.md, 4.4).
+/// What an unlinked client asks of its host (client/domain/client/README.md, 4.4).
 #[derive(Debug, PartialEq, Eq)]
 pub enum UnlinkedRequest {
     ApprovalAct(ApprovalAct),
@@ -71,7 +71,7 @@ pub enum UnlinkedRequest {
     Down { down: Down },
     SignOut,
 }
-/// Why the last sign-in installed no credential (jig/docs/design/client/domain/client.md, 12).
+/// Why the last sign-in installed no credential (jig/docs/design/client/domain/client/README.md, 9).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NotSignedIn {
     Approval(Taking),
@@ -142,7 +142,7 @@ pub struct Admission {
     pub deferred_reads: u32,
 }
 impl Client {
-    /// Receiving and retention bounds used by the client (client/domain/client.md, 14).
+    /// Receiving and retention bounds used by the client (client/domain/client/README.md, 11).
     #[must_use]
     pub const fn domain_limits(&self) -> &domain::Limits {
         &self.limits.domain
@@ -300,14 +300,14 @@ impl Client {
         }
         self.drain(&env, out);
     }
-    /// Step an unlinked client (client/domain/client.md, 4.4).
+    /// Step an unlinked client (client/domain/client/README.md, 4.4).
     pub fn step_unlinked(&mut self, now: Time, wall: Wall, event: Event, out: &mut Queue<UnlinkedRequest>) {
         assert!(self.link.is_none(), "a linked client steps with step");
         let env = Env { now, wall, limits: self.limits.domain };
         self.unlinked_event(&env, event, out);
         self.drain_unlinked(out);
     }
-    /// Fire an unlinked client's deadlines (client/domain/client.md, 4.4).
+    /// Fire an unlinked client's deadlines (client/domain/client/README.md, 4.4).
     pub fn fire_unlinked(&mut self, now: Time, wall: Wall, out: &mut Queue<UnlinkedRequest>) {
         assert!(self.link.is_none(), "a linked client steps with step");
         let env = Env { now, wall, limits: self.limits.domain };
@@ -704,10 +704,10 @@ fn down_event(down: Down) -> link::Event {
     }
 }
 
-/// The interval between approval takes answered waiting (jig/docs/design/client/domain/client.md, 12).
+/// The interval between approval takes answered waiting (jig/docs/design/client/domain/client/README.md, 9).
 pub const APPROVAL_AGAIN: Duration = Duration::from_secs(1);
 
-/// What an unlinked client's host carries for approval (jig/docs/design/client/domain/client.md, 4.4).
+/// What an unlinked client's host carries for approval (jig/docs/design/client/domain/client/README.md, 4.4).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ApprovalAct {
     Ask,
@@ -715,7 +715,7 @@ pub enum ApprovalAct {
     Decide { code: ApprovalCode, approve: bool },
 }
 
-// Replies can carry credentials (jig/docs/design/protocol/client.md, 8).
+// Replies can carry credentials (jig/docs/design/protocol/client/sign-in.md).
 impl core::fmt::Debug for Event {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {

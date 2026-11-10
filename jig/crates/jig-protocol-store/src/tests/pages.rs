@@ -1,4 +1,4 @@
-//! Child pages and exclusive continuation (protocol/store.md, 7.1).
+//! Child pages and exclusive continuation (protocol/store/loads.md, 1).
 use super::fixtures::{self, PROJECT};
 use crate::{Cursor, Event, Load, Phase, Request, Row, Store, Write, keys};
 use jig_domain_core::Record;

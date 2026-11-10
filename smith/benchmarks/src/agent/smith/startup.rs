@@ -1,5 +1,5 @@
 //! Explicit startup probes classify the refusal and empty native capture.
-//! Other empty streams remain errors; no record is synthesized (benchmarks.md 11.1).
+//! Other empty streams remain errors; no record is synthesized (benchmarks/catalogue.md 1).
 
 use crate::agent::smith::events;
 use crate::{End, EventCheck, Exit, Fault, Forced, OutcomeCheck, Task};

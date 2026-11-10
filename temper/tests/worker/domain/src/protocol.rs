@@ -1,5 +1,5 @@
 //! The protocol layer's routing as the worlds play it (jig's
-//! `domain/hosts.md`, 6.8): smith's payloads decoded and encoded by hand-out
+//! `domain/hosts/hub.md`, 8): smith's payloads decoded and encoded by hand-out
 //! with smith's codecs, keeping no state, as jig's worker worlds answer them
 //! (`jig-protocol-worker-agents`, `route`). And the typed values
 //! a scripted agent says, with the charter and transcript an engine gives.

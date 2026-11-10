@@ -1,4 +1,4 @@
-//! Per-call deadlines (llm-connection.md, section 6). This table stores the
+//! Per-call deadlines (llm/connection.md, section 6). This table stores the
 //! five absolute monotonic times, activity anchors and terminal measures.
 //! It never reads a clock: the owner supplies one `Env` snapshot to every
 //! entry point. `due` names a phase that must end through the LLM client;

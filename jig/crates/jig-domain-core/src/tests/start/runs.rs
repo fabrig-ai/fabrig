@@ -1,4 +1,4 @@
-//! Adoption fits and opening use the same state (domain/engine.md, 6, 8).
+//! Adoption fits and opening use the same state (domain/engine/restart.md, domain/engine/fleet.md).
 use crate::{
     CoreRecord, Event, RunProof, fleet, people,
     start::{Continuation, LiveSet},

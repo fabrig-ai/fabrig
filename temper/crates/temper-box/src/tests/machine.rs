@@ -210,7 +210,7 @@ fn a_long_step_refused_before_start_retries_and_continues_the_order() {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "protocol/setup.md 13.1 group behaviours share one transition table")]
+#[expect(clippy::too_many_lines, reason = "protocol/setup/testing.md 1 group behaviours share one transition table")]
 fn asked_groups_follow_their_chains_records_failures_and_stop() {
     use super::fixtures::step;
     use crate::layout::{self, Asked, Placed};
@@ -482,7 +482,7 @@ fn asked_groups_follow_their_chains_records_failures_and_stop() {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "protocol/setup.md 13.1 link behaviours share one transition table")]
+#[expect(clippy::too_many_lines, reason = "protocol/setup/testing.md 1 link behaviours share one transition table")]
 fn a_link_takes_the_first_line_once_across_restarts_and_stop() {
     use super::fixtures::step;
     use crate::{

@@ -1,5 +1,5 @@
 //! Cuts the actual private keeper's refresh through shared-world restart
-//! (oauth.md, section 6.4; simulator.md, section 3.3). Recovery only loads and
+//! (oauth/accounts.md, section 4; testing/simulator.md, section 3.3). Recovery only loads and
 //! lends the kept old or new record; it never runs another issuer exchange.
 
 use crate::private::FileSystem;

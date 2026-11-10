@@ -1,7 +1,7 @@
 //! Between the checkout's operations and the fakes, as the protocol layer
 //! and io would translate them: io names a workspace's directory by its token,
 //! and a repository's by the workspace's and the repository's name; a commit
-//! uses the fake forge's shared object spelling (skein's fake-forge.md, 3).
+//! uses the fake forge's shared object spelling (skein's testing/fakes/forge.md, 3).
 
 use skein_lib::Token;
 use temper_fake_checkout::Checkout;

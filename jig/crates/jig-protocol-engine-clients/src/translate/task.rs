@@ -1,4 +1,4 @@
-//! Whole owner facts encoded without clipping (protocol/client.md, 3).
+//! Whole owner facts encoded without clipping (protocol/client/wire.md, 1).
 use super::{chips, owner, refusals};
 use super::{pieces, problem, w};
 use alloc::boxed::Box;

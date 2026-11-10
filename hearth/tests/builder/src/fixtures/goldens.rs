@@ -122,7 +122,7 @@ fn check_output(golden: &golden::Golden, variant: &str, stdout: &str, code: Opti
     assert!(verdict.is_clean(), "{}: {}", golden.name, verdict.report());
 }
 
-/// hearth/docs/design/domain/render.md 7.2's repository-caused kinds plus the two builder-world kinds.
+/// hearth/docs/design/domain/render/errors.md 2's repository-caused kinds plus the two builder-world kinds.
 pub const ERROR_KINDS: &[&str] = &[
     "collision",
     "composition",

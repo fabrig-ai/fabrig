@@ -1,4 +1,4 @@
-//! temper's application parts (jig's `protocol/channel.md`, 6.2): what the
+//! temper's application parts (jig's `protocol/channel/README.md`, 5.2): what the
 //! engine gives a run's workspace, beside jig's assignment, and what a run
 //! left on the forge, beside jig's answer. In the domain they travel typed
 //! beside jig's records; on the channel they are temper's bytes.

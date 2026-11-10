@@ -4,7 +4,7 @@
 //! or combined memory proof. The separate malformed-call story drives original
 //! root discovery, byte peers, one corrected host effect and cancellation.
 //! Contract: domain/run.md, sections 5.2,
-//! 10 and 13; testing-strategy.md, sections 2.3, 2.4, 4.1 and 6.
+//! 9 and 12; testing-strategy.md, sections 2.3, 2.4, 4.1 and 6.
 
 use skein_fake_llm_domain::api::{Line, Part, Query, Script};
 use skein_lib::{Duration, Time, Token, Wall};
@@ -20,7 +20,7 @@ use smith_protocol_llm_world::{
 };
 
 // OpenAI retains known reasoning fields; unknown extensions are scanned and
-// skipped (skein/docs/design/llm.md, section 4.4). Anthropic thinking below stays whole.
+// skipped (skein/docs/design/llm/README.md, section 4.4). Anthropic thinking below stays whole.
 const OPENAI_REASONING: &[u8] = br#"{"id":"rs_c","type":"reasoning","encrypted_content":"exact-opaque","summary":[]}"#;
 const OPENAI_TEXT_REPLAY: &[u8] = br#"{"id":"msg_c","phase":"commentary"}"#;
 const OPENAI_REFUSAL_REPLAY: &[u8] = br#"{"id":"msg_r"}"#;

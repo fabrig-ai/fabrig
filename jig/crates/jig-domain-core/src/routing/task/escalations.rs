@@ -1,5 +1,5 @@
 //! Escalation choices and held-recipient routing
-//! (jig/docs/design/domain/engine.md, 4.4).
+//! (jig/docs/design/domain/engine/README.md, 4.4).
 
 use crate::{
     CallPart, Core, CoreRecord, EscalationDecisionRecord, Limits, Now, Record, Request, RoutedCall, Write,

@@ -1,4 +1,4 @@
-//! The records' rules (kernel.md, 3 to 5): each operation's one success
+//! The records' rules (runtime/kernel.md, 3 to 5): each operation's one success
 //! shape, what a completion may count, which errors answer which operation,
 //! and the buffer handed back whatever the result.
 
@@ -696,7 +696,7 @@ fn spawn_parent_slots_are_empty_until_a_successful_completion() {
             pipes: Box::new([Pipe { child: 1, way: Way::Out, parent: None }]),
         }),
     };
-    assert!(kind.is_valid(), "kernel.md, section 4: parent slots start empty");
+    assert!(kind.is_valid(), "runtime/kernel.md, section 4: parent slots start empty");
     let success = Done::Spawned { pidfd: NEW, sender: crate::kernel::Sender::new(1) };
     let mut complete = Complete { op: Token::new(1), kind, result: Ok(success) };
     assert!(!complete.is_valid(), "success must fill each requested parent end");
@@ -797,9 +797,9 @@ fn null_slots_never_carry_parent_descriptors_in_submissions_or_completions() {
 
 const ROUTE_OWNER: Token = Token::new(17);
 const ROUTE_CANCEL: Token = Token::new(18);
-const ROUTE_SLOT: u32 = 1; // One record at the shared queue's bound (kernel.md, 5).
+const ROUTE_SLOT: u32 = 1; // One record at the shared queue's bound (runtime/kernel.md, 5).
 fn routes(shared_room: u32) -> (Routes, Queue<Submit>, Queue<Submit>) {
-    let mut routes = Routes::new(2); // An operation and its cancel (kernel.md, 5).
+    let mut routes = Routes::new(2); // An operation and its cancel (runtime/kernel.md, 5).
     let mut source = Queue::with_capacity(ROUTE_SLOT);
     let mut target = Queue::with_capacity(shared_room);
     source.push(Submit { op: ROUTE_OWNER, kind: Op::Accept { fd: FD } });

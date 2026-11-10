@@ -12,11 +12,11 @@ use temper_protocol_worker_wire as wire;
 /// A worker's charter allowance where the engine doesn't know it: smith's
 /// `run_bytes` at its floor, which the stock agent's `tool_payload` doesn't
 /// raise (smith/docs/design/protocol/limits.md, 3.10;
-/// temper/docs/design/domain/agent.md, 4.3).
+/// temper/docs/design/domain/agent/tools.md).
 pub const WORKER_CHARTER_BYTES: u64 = 65_536;
 
 /// The bound a charter is fitted to: the hub's, and no more than its
-/// worker takes (temper/docs/design/domain/agent.md, 4.3).
+/// worker takes (temper/docs/design/domain/agent/tools.md).
 #[must_use]
 pub fn charter_bound(hub: u64, agent: Option<u64>) -> u64 {
     hub.min(agent.unwrap_or(WORKER_CHARTER_BYTES))
@@ -341,7 +341,7 @@ mod tests {
     #[test]
     fn a_starting_run_hears_its_met_dependency_by_name() {
         // A run resumed by its last dependency's end hears the Met notice that woke it (jig's
-        // domain/tasks.md, section 8.1), as a live run does.
+        // domain/tasks/messages.md, section 1), as a live run does.
         let met = tasks::Word {
             number: 2,
             from: tasks::Party::Task(2),

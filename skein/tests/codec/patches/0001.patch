@@ -2,7 +2,7 @@ patch 1
 owner skein 1
 
 # every 1 to 2: every derived change, a written declaration (Shape) and a
-# written field (Every.score), for codec.md 11.8's story.
+# written field (Every.score), for data/codec/patches.md 8's story.
 family every 1 to 2
 versioned Blank
 rename Numbers.wait pause

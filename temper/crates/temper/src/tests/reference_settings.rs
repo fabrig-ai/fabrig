@@ -1,4 +1,4 @@
-//! The reference's settings file (temper/docs/design/protocol/configuration.md, 13.9).
+//! The reference's settings file (temper/docs/design/protocol/configuration/reference.md).
 use settings_form::view::{
     CharterDocument, ResultsWake, Setting, SettingEdit, SettingItem, SettingNumber, SettingValue, Symbol,
     TaskContractDocument, TemplateExecutor, WakePolicy, WakeRule,

@@ -325,19 +325,19 @@ fn unreadable_message(name: &str, unreadable: &journey::Unreadable) -> String {
 }
 
 // A failed proof may hold bytes the redaction missed: only record kinds leave
-// the recording (client/journeys.md, 4.3). Reprint keeps the full message below.
+// the recording (client/web/journeys.md, 4.3). Reprint keeps the full message below.
 fn stale_refusal_message(name: &str, stale: &journey::Stale) -> String {
     let recorded = stale.recorded.split_whitespace().next().unwrap_or("");
     let asked = stale.asked.split_whitespace().next().unwrap_or("");
     format!(
-        "{name} is stale at turn {}, line {}: recorded {recorded}, asked {asked}; record it again (client/journeys.md, 8)",
+        "{name} is stale at turn {}, line {}: recorded {recorded}, asked {asked}; record it again (client/web/journeys.md, 8)",
         stale.turn, stale.line
     )
 }
 
 fn stale_message(name: &str, stale: &journey::Stale) -> String {
     format!(
-        "{name} is stale at turn {}, line {}: recorded {}, asked {}; record it again (client/journeys.md, 8)",
+        "{name} is stale at turn {}, line {}: recorded {}, asked {}; record it again (client/web/journeys.md, 8)",
         stale.turn, stale.line, stale.recorded, stale.asked
     )
 }

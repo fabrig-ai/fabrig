@@ -1,5 +1,5 @@
 //! Content-free domain observations become channel fact kinds
-//! (protocol/channel.md, section 8; domain/run.md, section 11).
+//! (protocol/channel.md, section 8; domain/run.md, section 10).
 //!
 //! This projection keeps no state, text or credential values. The component
 //! owns elapsed time, output room and the count of facts it drops.

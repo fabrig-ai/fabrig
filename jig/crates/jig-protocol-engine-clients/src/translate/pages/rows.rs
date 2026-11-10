@@ -1,4 +1,4 @@
-//! Bounded owner page pieces (protocol/client.md, 3).
+//! Bounded owner page pieces (protocol/client/wire.md, 1).
 use super::super::{owner, pieces, task, w};
 use alloc::boxed::Box;
 use jig_domain_core::documents as d;

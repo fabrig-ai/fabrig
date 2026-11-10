@@ -1,5 +1,5 @@
 //! Agent obligations on an explicit scripted
-//! host (smith/docs/design/domain/run.md, section 13; smith/docs/design/domain/host.md, section 2).
+//! host (smith/docs/design/domain/run.md, section 12; smith/docs/design/domain/host.md, section 2).
 //! The host snapshots landed bytes, not forge commits or engine decisions.
 
 use skein_lib::Duration;

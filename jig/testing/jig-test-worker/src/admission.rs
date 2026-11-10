@@ -1,5 +1,5 @@
 //! Worker admission and its dependency predicates (skein/docs/foundation/programming-model.md, 7.1–7.2;
-//! jig/docs/design/domain/hosts.md, 4).
+//! jig/docs/design/domain/hosts/README.md, 4).
 use crate::{Domain, Event};
 use jig_domain_host::LinkDown;
 use skein_lib::Token;

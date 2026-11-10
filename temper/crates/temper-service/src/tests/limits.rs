@@ -593,7 +593,7 @@ fn github_component_checks_key_deadline_and_renewal() {
 
 #[test]
 fn installation_capacity_fits_the_client_row_at_64_and_refuses_65() {
-    // client/README.md, 4.6: the row carries at most 64 installations.
+    // client/forge/records.md: the row carries at most 64 installations.
     const ROW_INSTALLATIONS: u32 = 64;
     let jig = fixtures::engine().jig;
     for (installations, accepted) in [(ROW_INSTALLATIONS, true), (ROW_INSTALLATIONS + 1, false)] {
@@ -787,7 +787,7 @@ fn configured_public_index_bounds_reach_the_core() {
     assert_eq!(temper_engine_domain::core_limits(&configured).public, config.jig.limits.core.public);
 }
 
-// jig/docs/design/domain/engine.md, 10: recall loads a document's whole stored row.
+// jig/docs/design/domain/engine/briefs.md, 2: recall loads a document's whole stored row.
 #[test]
 #[expect(clippy::disallowed_macros, reason = "ordinary test builds note text at each configured bound")]
 fn the_standard_archive_load_holds_a_whole_note_row() {

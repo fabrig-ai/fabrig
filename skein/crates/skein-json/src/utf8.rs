@@ -1,10 +1,10 @@
 //! UTF-8's state machine, a byte at a time (RFC 3629, section 4), for every
-//! byte but a plain run's (json.md, 3.4).
+//! byte but a plain run's (data/json.md, 3.4).
 //!
 //! The tokenizer meets a string's text in pieces cut anywhere, so a
 //! character may span two of them; the writer checks the text it is given.
 //! Both check it here rather than with `core::str::from_utf8`, which the
-//! subset keeps out of step code (json.md, 7).
+//! subset keeps out of step code (data/json.md, 7).
 
 /// Where a check of UTF-8 is: between characters, or within one.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

@@ -1,4 +1,4 @@
-//! Owner-run GitHub relay: bounded HTTP, skein TLS, one guard and ledger (domain/testing.md, 2.7).
+//! Owner-run GitHub relay: bounded HTTP, skein TLS, one guard and ledger (testing/live-tier.md).
 use super::socket::Socket;
 use skein_lib::Duration;
 use std::{

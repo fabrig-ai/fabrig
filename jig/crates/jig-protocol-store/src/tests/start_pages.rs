@@ -1,4 +1,4 @@
-//! Start pages through the request protocol (protocol/store.md, 7.1, 7.2 and 9).
+//! Start pages through the request protocol (protocol/store/loads.md, 1 and 2 and protocol/store/secrets.md).
 use super::fixtures::{self, ALICE, ENDED, LIVE};
 use crate::restore::{Cause, DecodeFailure, Failure, Item};
 use crate::{Cursor, Event, Family, Phase, Request, Restore, Row, SecretOwner, SecretValue, Store, Write, keys};

@@ -1,4 +1,4 @@
-//! The side below and its records (tls.md, 3.2).
+//! The side below and its records (net/tls.md, 3.2).
 use super::close::fail;
 use super::{
     Buffers, Error, Event, HEADER, Handshake, MAX_PLAINTEXT, Open, Peer, Reading, State, Wanted, Writing, processed,
@@ -10,7 +10,7 @@ use skein_lib::stream::{Down, Read, Up};
 #[derive(Debug)]
 pub(super) struct Below {
     /// The demand outstanding, if any: stated only when none is, and
-    /// answered at most once (lib.md, 7).
+    /// answered at most once (runtime/lib.md, 7).
     pub(super) demand: Option<Demand>,
     /// Room granted for the side above, which it has not sent within yet;
     /// or, once it withdrew or finished, which TLS may send within.
@@ -157,7 +157,7 @@ pub(super) fn wanted(open: &Open, buffers: &Buffers) -> Result<Option<Demand>, E
 
 /// The demand outstanding below once the stream ended. A read outstanding
 /// crosses the end and is never met, but stays outstanding, as io keeps it
-/// (lib.md, 7; io.md, 3.3): TLS reads no more after the end, so it
+/// (runtime/lib.md, 7; runtime/io/sockets.md, 3): TLS reads no more after the end, so it
 /// withdraws a demand that only reads, which leaves it free to demand room.
 /// One with room keeps it, as room may still be granted.
 pub(super) fn ended(demand: Option<Demand>, below: &mut Queue<Down>) -> Option<Demand> {

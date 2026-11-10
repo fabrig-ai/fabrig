@@ -1,6 +1,6 @@
 //! Startup source descriptors and the product's exact credential notice names.
 //! Driver sources are handed in once; key and program values stay in memory
-//! for repeated shell lends (shell.md, section 7.1). Locations contain no values.
+//! for repeated shell lends (shell/credentials.md, section 1). Locations contain no values.
 use super::{Credential, Refusal, Source, environment, inspect, source};
 use crate::settings::resolve::Resolved;
 use skein_lib::{Duration, List, Map, Wall};
@@ -114,7 +114,7 @@ fn warnings(resolved: &Resolved, wall: Wall, programs: &super::program_check::Pr
     Ok(())
 }
 
-/// Read only a saved record's generation for a refresh observation (shell.md, 7.3).
+/// Read only a saved record's generation for a refresh observation (shell/credentials.md, 3).
 pub fn record_generation(file: &std::path::Path) -> Result<Option<u64>, String> {
     super::sign_in::record(file)
         .map(|record| record.map(|record| record.generation))
@@ -180,7 +180,7 @@ pub fn client_limits() -> skein_oauth::ClientLimits {
     }
 }
 
-/// Account words in both chat fronts (shell.md, section 4.1), without secrets.
+/// Account words in both chat fronts (shell/commands.md, section 1), without secrets.
 pub(crate) fn status_words(source: &Source, openai: bool) -> &'static str {
     match source {
         Source::Program { .. } => "through Claude Code",

@@ -1,4 +1,4 @@
-//! Scope refusals happen before setup mutates its tables (forge-setup.md, 8).
+//! Scope refusals happen before setup mutates its tables (forge/setup/forgejo.md, 2).
 use super::fixtures::{self, Harness, boxed};
 use skein_forge::forgejo::{
     client,

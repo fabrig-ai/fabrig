@@ -1,4 +1,4 @@
-//! Keys' bytes against the order Rust derives (protocol/store.md, 4.1, 14).
+//! Keys' bytes against the order Rust derives (protocol/store/README.md, 4.1, 9).
 use super::fixtures;
 use crate::keys;
 use jig_domain_core::{CoreKey, Key};

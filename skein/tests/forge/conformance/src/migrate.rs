@@ -1,4 +1,4 @@
-//! Isolated copies and deletion, measured at the pin (forge-setup.md, 8, “A copy”).
+//! Isolated copies and deletion, measured at the pin (forge/setup/forgejo.md, 2, “A copy”).
 use crate::{
     Result,
     cases::Recorder,

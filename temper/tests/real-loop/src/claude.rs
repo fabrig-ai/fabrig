@@ -1,4 +1,4 @@
-//! Smith's fake Claude Code and shipped MCP relay (domain/testing.md, 2.4, 4.1).
+//! Smith's fake Claude Code and shipped MCP relay (testing/real-loop.md, testing/fakes.md, 1).
 use crate::world::{Kind, Proc};
 use skein_io::kernel::Spawn;
 use skein_world::{HostedProgram, Inherited};

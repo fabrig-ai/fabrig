@@ -1,4 +1,4 @@
-//! Goal issue projection (domain/forge.md, section 12).
+//! Goal issue projection (domain/forge/issues.md).
 //!
 //! The top stores `Projected` and commits each returned record with its keyed
 //! effect. This child knows goal text and accepted milestones, never forge

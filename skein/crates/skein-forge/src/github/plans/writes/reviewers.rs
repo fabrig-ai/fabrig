@@ -1,4 +1,4 @@
-//! Both differences and every login are retained before the first mutation (forge-github.md, 4.2).
+//! Both differences and every login are retained before the first mutation (forge/github.md, 4.2).
 use super::{Bounds, Plan, Request, Stage, Step, Tables, api};
 use crate::api::Excess;
 use crate::github::{document, request};

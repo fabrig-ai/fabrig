@@ -1,4 +1,4 @@
-//! Static sets, owner ordering and record stops (store.md 10.3).
+//! Static sets, owner ordering and record stops (protocol/store/opening.md 3).
 use crate::patching::machines::{FamilyIx, Machines, Room, Rooms};
 use crate::patching::plan::{Levels, Planned, Unplanned};
 use crate::patching::walk::Stop;

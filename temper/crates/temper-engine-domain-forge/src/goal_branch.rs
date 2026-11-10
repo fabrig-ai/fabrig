@@ -1,6 +1,6 @@
 //! A held goal branch is made across restarts and releases of a failed making.
 //! Closing deletes it once a change landed it, and keeps it otherwise
-//! (temper/docs/design/domain/forge.md, 2, 11.1 and 16).
+//! (temper/docs/design/domain/forge/README.md, 2, and temper/docs/design/domain/forge/branches.md, 1, and temper/docs/design/domain/forge/README.md, 9).
 use super::{
     BranchHead, Domain, Env, Limits, LostReadState, Name, Request, Role, Stored, Writer, child, emit, keep_entry,
     save_hold, to_client,
@@ -114,7 +114,7 @@ pub(super) fn base_wait(d: &Domain, repository: skein_forge::api::Repository, ba
     false
 }
 
-/// A released drift is read before the goal can write design again (forge.md, 11.3).
+/// A released drift is read before the goal can write design again (domain/forge/branches.md, 3).
 pub(super) fn accept_release(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
     let mut names = List::with_capacity(env.limits.holds);
     for (name, hold) in &d.holds {
@@ -501,7 +501,7 @@ pub(super) fn restart(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
     let mut names = List::with_capacity(env.limits.holds);
     for (name, hold) in &d.holds {
         // A design writer's confirmed branch keeps its drift baseline until
-        // that attempt's fresh read (domain/forge.md, 11.3).
+        // that attempt's fresh read (domain/forge/branches.md, 3).
         if is_goal(d, name) && hold.design_writers.is_empty() {
             names.push(name.clone()).expect("bounded holds");
         }

@@ -1,4 +1,4 @@
-//! Bounded typed amendment fields; no authority judgment (view.md, 18.5).
+//! Bounded typed amendment fields; no authority judgment (client/domain/view-state.md, 5).
 use crate::state::clock::deadline;
 use crate::tree::cards::proposal;
 use crate::tree::fragments::proposed_task;

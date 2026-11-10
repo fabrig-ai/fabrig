@@ -1,4 +1,4 @@
-//! Bounded reads and resumable changes (forge-connection.md, 4.4 and 5.3).
+//! Bounded reads and resumable changes (forge/connection.md, 4.4 and 5.3).
 use crate::{Account, Change, Event, Fact, app::Jwt};
 use alloc::boxed::Box;
 use skein_forge::{

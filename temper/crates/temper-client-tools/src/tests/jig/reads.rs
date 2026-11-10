@@ -1157,7 +1157,10 @@ fn no_account_keeps_its_run_wait_and_names_its_account_wait_in_json() {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "one table keeps every wait cause and its commands; client/tools.md, 6.1")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one table keeps every wait cause and its commands; client/ctl/results.md, 1"
+)]
 fn task_waits_explain_the_next_act_after_the_code_line() {
     use jig_client::contract::{self as c, TaskRunWait as W, TaskSourceState as S, TaskWaitWhy as R};
     let rows: &[(W, &str, &[&str])] = &[

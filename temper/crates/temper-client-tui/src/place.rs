@@ -1,4 +1,4 @@
-//! The engine's place (temper/docs/design/client/README.md, 6.12 and 6.14).
+//! The engine's place (temper/docs/design/client/tui/README.md, 2 and temper/docs/design/client/tui/pages.md).
 use alloc::boxed::Box;
 use skein_lib::{Writer, bytes::copy_of};
 

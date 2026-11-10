@@ -1,4 +1,4 @@
-//! Anonymous page reading and freshness (temper/docs/design/client/browser.md, 8.2).
+//! Anonymous page reading and freshness (temper/docs/design/client/web/public.md, 2).
 use crate::address::Public;
 use alloc::boxed::Box;
 use jig_client_protocol_wire::public_v1 as jig;

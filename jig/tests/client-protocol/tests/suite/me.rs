@@ -1,4 +1,4 @@
-//! The signed-in party's bounds through the engine and native bytes (contract.md, 5.1).
+//! The signed-in party's bounds through the engine and native bytes (client/domain/contract/documents.md, 1).
 use jig_client::{Asker, Handle, Latest, Watchable, contract};
 use jig_client_protocol_world::{client::Story, fixtures};
 

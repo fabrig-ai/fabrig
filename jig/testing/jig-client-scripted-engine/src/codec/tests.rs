@@ -155,7 +155,7 @@ fn committed_call_outcomes_survive_with_or_without_an_explicit_result_block() {
     }
 }
 
-/// Both job executor forms round-trip through the link (jig/docs/design/client/domain/contract.md, 5.7).
+/// Both job executor forms round-trip through the link (jig/docs/design/client/domain/contract/documents.md, 7).
 #[test]
 fn a_job_chip_round_trips_wire_to_domain_to_wire() {
     let limits = front::limits(&Bounds::default()).expect("valid limits");
@@ -174,7 +174,7 @@ fn a_job_chip_round_trips_wire_to_domain_to_wire() {
     assert_eq!(facts::chip(&restored, limits.wire()), Ok(wire));
 }
 
-/// jig/docs/design/protocol/channel.md, 4.3: scripted engines carry the fleet's reason.
+/// jig/docs/design/protocol/channel/README.md, 4.3: scripted engines carry the fleet's reason.
 #[test]
 fn job_kinds_hello_refusal_round_trips() {
     let record = values::wire_hello_refusal(&c::HelloRefusal::JobKinds, &w::CEILINGS).expect("unit refusal");

@@ -1,4 +1,4 @@
-//! Kept forge removal (temper/docs/design/domain/forge.md, 4.1).
+//! Kept forge removal (temper/docs/design/domain/forge/adoption.md, 1).
 #![expect(
     clippy::disallowed_methods,
     clippy::match_like_matches_macro,

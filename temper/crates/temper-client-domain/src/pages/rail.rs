@@ -1,5 +1,5 @@
-//! The rail's parts and the phone's tabs (temper/docs/design/client/README.md,
-//! 5.3, The rail's parts and On a phone).
+//! The rail's parts and the phone's tabs (temper/docs/design/client/view.md,
+//! 3, The rail's parts and On a phone).
 use crate::{Address, Domain};
 use skein_lib::Wall;
 
@@ -72,7 +72,7 @@ pub fn parts(facts: &Facts) -> Parts {
 }
 
 /// The phone's tab bar, one pure function over the rail's parts
-/// (temper/docs/design/client/README.md, 5.3, On a phone). "Home" always
+/// (temper/docs/design/client/view.md, 3, On a phone). "Home" always
 /// shows, first; the others in this order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[expect(clippy::struct_excessive_bools, reason = "one switch per tab")]

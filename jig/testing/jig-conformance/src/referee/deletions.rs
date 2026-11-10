@@ -1,4 +1,4 @@
-//! Project deletion ends whole (jig/docs/design/domain/people.md, 5.2 and 8).
+//! Project deletion ends whole (jig/docs/design/domain/people/acts.md, 2, and jig/docs/design/domain/people/README.md, 7).
 use super::{Promise, Receipt, Snapshot, Violation, require};
 use std::collections::{BTreeMap, BTreeSet};
 

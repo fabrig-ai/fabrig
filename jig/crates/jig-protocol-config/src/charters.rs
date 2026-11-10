@@ -1,4 +1,4 @@
-//! Offered run policies and their reserve admission (configuration.md, 3 and 6).
+//! Offered run policies and their reserve admission (protocol/configuration.md, 3 and protocol/limits.md).
 use crate::{Directories, Directory, Limits, Llm, Path, Problems, Segment, What, check, read};
 use alloc::boxed::Box;
 use jig_domain_core::{Charter, CharterPart, Model, RunPolicy};
@@ -170,7 +170,7 @@ fn charter(
             shell: shell?,
             agents: agents?,
             call_timeout: call_timeout?,
-            // Its format carries no mask yet: every family (jig/docs/design/domain/engine.md, 7.1).
+            // Its format carries no mask yet: every family (jig/docs/design/domain/engine/executors.md, 1).
             tools: RunPolicy::EVERY_FAMILY,
         },
     };

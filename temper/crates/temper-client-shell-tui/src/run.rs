@@ -1,4 +1,4 @@
-//! The TUI on one kernel and clock (temper/docs/design/client/README.md, 6.16).
+//! The TUI on one kernel and clock (temper/docs/design/client/tui/README.md, 4).
 #[cfg(any(test, feature = "record"))]
 use crate::journey;
 use crate::{
@@ -39,7 +39,7 @@ pub struct Settings {
     pub front: Option<Front>,
 }
 
-/// The box's inputs (temper/docs/design/client/README.md, 6.17).
+/// The box's inputs (temper/docs/design/client/tui/box.md).
 pub struct Front {
     /// The local link's URL the box handed on fd 3.
     pub link: skein_lib::Secret,
@@ -783,7 +783,7 @@ impl Recording {
     }
 }
 
-// Each private writer owns its file lane (skein/docs/design/io.md, 5).
+// Each private writer owns its file lane (skein/docs/design/runtime/io/files.md).
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SaveStage {
     Ready,
@@ -795,7 +795,7 @@ enum SaveStage {
 }
 
 /// A private replace, serialized with later saves and drained before LEAVE.
-/// temper/docs/design/client/tui/journeys.md, 3.1; skein/docs/design/io.md, 5.3.
+/// temper/docs/design/client/tui/journeys.md, 3.1; skein/docs/design/runtime/io/files.md, 3.
 struct FileSave {
     io: io::file_layer::FileIo,
     env: Env<io::file_layer::Limits>,
@@ -952,7 +952,7 @@ enum LocalStage {
 }
 
 /// A bounded private read on the loop, with the checks of skein-shell's
-/// `read_private_file` (temper/docs/design/client/README.md, 6.12).
+/// `read_private_file` (temper/docs/design/client/tui/README.md, 2).
 struct LocalFile {
     io: io::file_layer::FileIo,
     env: Env<io::file_layer::Limits>,

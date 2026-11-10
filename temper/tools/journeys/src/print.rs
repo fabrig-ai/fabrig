@@ -1,10 +1,10 @@
-//! Static pages and the files beside them (client/journeys.md, 5.2 and 5.3).
+//! Static pages and the files beside them (client/web/journeys.md, 5.2 and 5.3).
 
 use skein_ui::NodeId;
 use std::{fmt::Write, fs, io, path::Path};
 pub use temper_client_shell_web::journey::Lead;
 
-/// A page as the person saw it, at one mark (client/journeys.md, 3.4).
+/// A page as the person saw it, at one mark (client/web/journeys.md, 3.4).
 pub struct Mark {
     pub html: String,
     pub heading: Vec<u8>,
@@ -83,7 +83,7 @@ fn lines(html: &str) -> String {
     format!("<!doctype html>\n{}\n", html.replace('>', "\n>"))
 }
 
-/// The files beside the journeys, written at each print (client/journeys.md, 5.2):
+/// The files beside the journeys, written at each print (client/web/journeys.md, 5.2):
 /// `skein-ui.css`, `journey.js`, and `overlay.css` made empty when missing and never written otherwise.
 /// # Errors
 /// Returns a filesystem error when the stylesheet, script or a missing overlay cannot be written.

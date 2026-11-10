@@ -1,5 +1,5 @@
-//! Landing defaults at the root boundary (temper/docs/design/domain/root.md, 6;
-//! temper/docs/design/protocol/configuration.md, 13.3).
+//! Landing defaults at the root boundary (temper/docs/design/domain/root.md, 5;
+//! temper/docs/design/protocol/configuration/settings.md, 3).
 use super::{Freshness, LandingRule, authority, forge};
 use alloc::boxed::Box;
 use forge::settings;

@@ -1,5 +1,5 @@
 //! A sample host service supervising the real Smith agent service over Skein's
-//! simulated child pipes (protocol/hosts.md, sections 3 and 7). The parent
+//! simulated child pipes (protocol/host.md, sections 3 and 7). The parent
 //! keeps domain and process state; Skein's harness owns scheduling and child
 //! lifetime, beside the scenario's fake machine and independent LLM peer. The host routing below is the part another host copies.
 

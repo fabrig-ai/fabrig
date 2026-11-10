@@ -1,6 +1,6 @@
 //! Keeps bounded scalar joins and endpoint names; never learns credentials.
 //! `fact` precedes `request`; the service supplies its exact `answer`.
-//! Contracts: smith/docs/design/protocol/events.md, sections 3–5; smith/docs/design/domain/run.md, section 11.
+//! Contracts: smith/docs/design/protocol/events.md, sections 3–5; smith/docs/design/domain/run.md, section 10.
 
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Time, Token};

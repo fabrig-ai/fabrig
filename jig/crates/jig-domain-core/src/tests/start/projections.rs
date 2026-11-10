@@ -1,4 +1,4 @@
-//! Stored projection fits and links (jig/docs/design/domain/engine.md, 6).
+//! Stored projection fits and links (jig/docs/design/domain/engine/restart.md).
 #![expect(clippy::disallowed_macros, reason = "dynamic stored-row fixtures exercise byte bounds")]
 use crate::{
     CoreKey, CoreRecord, Limits, MilestoneId, ProjectionGoal, ProjectionMilestone, ProjectionRecord, ProjectionTask,

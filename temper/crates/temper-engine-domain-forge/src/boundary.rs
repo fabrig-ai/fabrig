@@ -20,7 +20,7 @@ pub struct BriefItem {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct BriefCommit(pub [u8; 32]);
 
-/// A charter's document to gather (temper/docs/design/protocol/configuration.md, 13.7).
+/// A charter's document to gather (temper/docs/design/protocol/configuration/settings.md, 6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct BriefDocument {
     pub host: Box<[u8]>,
@@ -41,7 +41,7 @@ pub enum BriefSource {
     Ci { item: BriefItem, head: BriefCommit },
     /// Reviews and remarks on a pinned head.
     Reviews { item: BriefItem, head: BriefCommit },
-    /// A person's request at the reviewed head, pinned to the change's head (domain/forge.md, 8.4).
+    /// A person's request at the reviewed head, pinned to the change's head (domain/forge/change/repairs.md).
     Request { item: BriefItem, head: BriefCommit, reviewed: BriefCommit },
     /// A pull request against its base at a pinned head.
     Pull { item: BriefItem, head: BriefCommit },
@@ -58,7 +58,7 @@ pub enum BriefRead {
     Failed(crate::BriefUnread),
 }
 
-/// A resource of one configured forge repository (domain/forge.md, section 2).
+/// A resource of one configured forge repository (domain/forge/README.md, section 2).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Name {
     pub forge: u16,
@@ -103,10 +103,10 @@ pub struct Kinds {
     pub issue: bool,
     pub branch: bool,
 }
-/// Forge read grants (domain/forge.md, section 2).
+/// Forge read grants (domain/forge/README.md, section 2).
 pub const READ_KINDS: [u16; 1] = [1];
 
-/// Forge grants needed by the change procedure (domain/forge.md, sections 6 and 8).
+/// Forge grants needed by the change procedure (domain/forge/README.md, section 4 and domain/forge/change/README.md).
 pub const CHANGE_KINDS: [u16; 6] = [2, 3, 4, 10, 11, 12];
 
 /// One adopted repository, with provider name and project ownership.
@@ -128,7 +128,7 @@ pub struct Repository {
     pub kinds: Kinds,
     pub protection: Protection,
     pub settings: skein_forge::api::Settings,
-    /// CI workflow file names (temper/docs/design/domain/forge.md, 4.7).
+    /// CI workflow file names (temper/docs/design/domain/forge/adoption.md, 7).
     pub workflows: Box<[Box<[u8]>]>,
 }
 /// The git identity a forge's repositories are pushed and fetched with: an
@@ -165,7 +165,7 @@ pub struct Adoption {
     pub ci: bool,
     pub checks: Box<[u32]>,
 }
-/// A FORGE request admitted by the core (client/README.md, 8).
+/// A FORGE request admitted by the core (client/engine.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Ask {
     DismissMaking {
@@ -208,12 +208,12 @@ pub enum Ask {
         installation: Option<u64>,
         page: u32,
     },
-    /// A GitHub App's new key or a connected Forgejo's new tokens, carried (client/README.md, 4.6).
+    /// A GitHub App's new key or a connected Forgejo's new tokens, carried (client/forge/records.md).
     Replace {
         forge: u16,
     },
 }
-/// The first repository requested when connecting a Forgejo (client/README.md, 8).
+/// The first repository requested when connecting a Forgejo (client/engine.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct FirstAsk {
     pub org: Box<[u8]>,
@@ -233,10 +233,10 @@ pub enum How {
     GitHubManifest {
         back: Option<Box<[u8]>>,
     },
-    /// A connected Forgejo's bot's tokens, carried (protocol/setup.md, section 4).
+    /// A connected Forgejo's bot's tokens, carried (protocol/setup/README.md, section 4).
     ForgejoTokens,
 }
-/// The App records' provenance since this engine started (client/README.md, 4.6).
+/// The App records' provenance since this engine started (client/forge/records.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum AppWay {
     Manifest,
@@ -260,13 +260,13 @@ pub enum Answered {
     SetAway(crate::SetAwayAnswer),
     Overturn(crate::OverturnAnswer),
 }
-/// Making admission (temper/docs/design/domain/forge.md, 4.5).
+/// Making admission (temper/docs/design/domain/forge/adoption.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum MakeAnswer {
     Kept,
     Refused(crate::MakeRefusal),
 }
-/// Public forge admission refusals (client/README.md, 8).
+/// Public forge admission refusals (client/engine.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeRefusal {
     Role,
@@ -277,7 +277,7 @@ pub enum ForgeRefusal {
     Busy,
     NoKey,
     /// A first repository's organization named as the bot's login: Forgejo's users and organizations
-    /// share names (protocol/setup.md, 5.5).
+    /// share names (protocol/setup/reconcile.md, 5).
     FirstIsBot,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -320,7 +320,7 @@ pub struct Reached {
     pub private: bool,
 }
 /// The start is answered once both are done, *running*, or at the first that
-/// fails, *start failed*, naming why (protocol/setup.md, 8.4).
+/// fails, *start failed*, naming why (protocol/setup/playground.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum StartAnswer {
     Running,
@@ -334,13 +334,13 @@ pub enum StartFailure {
     Adoption,
     NotConnected,
 }
-/// The playground's scripted provider and start deadline (temper/docs/design/protocol/setup.md, 8.4).
+/// The playground's scripted provider and start deadline (temper/docs/design/protocol/setup/playground.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PlaygroundConfig {
     pub provider: u32,
     pub deadline: skein_lib::Duration,
 }
-/// The reset's acts (temper/docs/design/protocol/setup.md, 8.4).
+/// The reset's acts (temper/docs/design/protocol/setup/playground.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ResetAct {
     RemoveProject { project: u32 },
@@ -352,7 +352,7 @@ pub enum SetUpAnswer {
     SettingUp,
     Refused(SetUpRefusal),
 }
-/// The configured forge provider (domain/forge.md, 4.1).
+/// The configured forge provider (domain/forge/adoption.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Kind {
     Forgejo,
@@ -366,7 +366,7 @@ pub enum Mode {
     Owned,
     Fake,
 }
-/// Public owned-forge startup details (protocol/setup.md, 6.5).
+/// Public owned-forge startup details (protocol/setup/owned.md, 5).
 /// The password field is an absolute file path, never the password itself.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Owned {
@@ -392,21 +392,21 @@ pub struct Configured {
     /// The configuration's `start: asked`; false is the ordinary automatic start.
     pub asked: bool,
 }
-/// Where a forge's API is reached (temper/docs/design/protocol/forge.md, 2.1).
+/// Where a forge's API is reached (temper/docs/design/protocol/forge/engine.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Address {
     pub host: Box<[u8]>,
     pub port: u16,
     pub tls: Option<Box<[u8]>>,
 }
-/// A forge's API, remote base and pages (temper/docs/design/protocol/forge.md, 2.1).
+/// A forge's API, remote base and pages (temper/docs/design/protocol/forge/engine.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Place {
     pub api: Address,
     pub git: Box<[u8]>,
     pub web: Option<Box<[u8]>>,
 }
-/// The machine's places (temper/docs/design/protocol/configuration.md, 3).
+/// The machine's places (temper/docs/design/protocol/configuration/engine.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Machine {
     /// `application.machine.owned.person`'s login; empty with no owned machine.
@@ -416,14 +416,14 @@ pub struct Machine {
     pub github: Place,
     pub github_git_program: Option<Box<[u8]>>,
 }
-/// The bot's login and commit author (temper/docs/design/protocol/forge.md, 2.1).
+/// The bot's login and commit author (temper/docs/design/protocol/forge/engine.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Bot {
     pub login: Box<[u8]>,
     pub name: Box<[u8]>,
     pub email: Box<[u8]>,
 }
-/// The first repository's intent (temper/docs/design/protocol/forge.md, 2.1).
+/// The first repository's intent (temper/docs/design/protocol/forge/engine.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct EmptyIntent {
     pub playground: bool,
@@ -431,21 +431,21 @@ pub struct EmptyIntent {
     pub repository: Box<[u8]>,
     pub label: Box<[u8]>,
 }
-/// The set up's durable choice (temper/docs/design/protocol/setup.md, 6.7).
+/// The set up's durable choice (temper/docs/design/protocol/setup/owned.md, 7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum FirstIntent {
     Empty(EmptyIntent),
     Copies { addresses: Box<[Box<[u8]>]> },
     Nothing,
 }
-/// The set up's admitted input (temper/docs/design/client/README.md, 4.6).
+/// The set up's admitted input (temper/docs/design/client/forge/records.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum SetUpFirst {
     Empty { org: Box<[u8]>, repository: Box<[u8]>, playground: bool },
     Copies { addresses: Box<[Box<[u8]>]> },
     Nothing,
 }
-/// The row's first-repository choice (temper/docs/design/protocol/setup.md, 6.7).
+/// The row's first-repository choice (temper/docs/design/protocol/setup/owned.md, 7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum StartsWith {
     Repository,
@@ -453,7 +453,7 @@ pub enum StartsWith {
     Nothing,
 }
 /// A forge's link to a box's one person: on this forge, that party is that user
-/// (temper/docs/design/protocol/forge.md, 2.1; temper/docs/design/domain/forge.md, 4.6).
+/// (temper/docs/design/protocol/forge/engine.md, 1; temper/docs/design/domain/forge/adoption.md, 6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Link {
     /// The forge's user, never 0.
@@ -462,7 +462,7 @@ pub struct Link {
     pub person: u64,
 }
 
-/// What setup read of the forge's person (temper/docs/design/domain/forge.md, 4.6).
+/// What setup read of the forge's person (temper/docs/design/domain/forge/adoption.md, 6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum PersonAnswer {
     /// The person's user: a Forgejo `Reconcile`'s `Person` id or a manifest-made App's `User` account.
@@ -473,7 +473,7 @@ pub enum PersonAnswer {
     NotTheirs,
 }
 
-/// What happened to the forge's link (temper/docs/design/domain/forge.md, 4.6).
+/// What happened to the forge's link (temper/docs/design/domain/forge/adoption.md, 6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum LinkNote {
     Gone,
@@ -482,7 +482,7 @@ pub enum LinkNote {
     Cleared,
 }
 
-/// A forge kept in the connector's store (temper/docs/design/protocol/forge.md, 2.1).
+/// A forge kept in the connector's store (temper/docs/design/protocol/forge/engine.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ForgeRecord {
     pub number: u16,
@@ -493,25 +493,25 @@ pub struct ForgeRecord {
     pub git_program: Option<Box<[u8]>>,
     pub read_only: bool,
     pub bot: Bot,
-    /// The setup entry's `start: asked` (protocol/setup.md, 8).
+    /// The setup entry's `start: asked` (protocol/setup/init.md).
     pub asked: bool,
     pub first: Option<FirstIntent>,
-    /// The forge's link to a box's person, or none (temper/docs/design/protocol/forge.md, 2.1).
+    /// The forge's link to a box's person, or none (temper/docs/design/protocol/forge/engine.md, 1).
     pub person: Option<Link>,
 }
-/// Kept, or ended with removal's answers (temper/docs/design/domain/forge.md, 4.1).
+/// Kept, or ended with removal's answers (temper/docs/design/domain/forge/adoption.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeState {
     Kept,
     Ended { secrets_erased: bool, box_removed: bool },
 }
-/// A kept forge or a new one numbered next (temper/docs/design/protocol/forge.md, 2.1).
+/// A kept forge or a new one numbered next (temper/docs/design/protocol/forge/engine.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Making {
     Kept(u16),
     New(ForgeAsk),
 }
-/// A new forge's input, completed by the machine's places (temper/docs/design/protocol/configuration.md, 3).
+/// A new forge's input, completed by the machine's places (temper/docs/design/protocol/configuration/engine.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeAsk {
     GitHub,
@@ -520,19 +520,19 @@ pub enum ForgeAsk {
         place: Place,
         git_program: Option<Box<[u8]>>,
     },
-    /// A Forgejo of the person's connected with its bot's tokens (protocol/setup.md, section 4).
+    /// A Forgejo of the person's connected with its bot's tokens (protocol/setup/README.md, section 4).
     Connected {
         place: Place,
         git_program: Option<Box<[u8]>>,
     },
 }
-/// The box group's kind (temper/docs/design/protocol/setup.md, 7.1).
+/// The box group's kind (temper/docs/design/protocol/setup/box.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum BoxKind {
     Owned,
     Fake,
 }
-/// The playground's row; no row is none (temper/docs/design/protocol/setup.md, 8.4).
+/// The playground's row; no row is none (temper/docs/design/protocol/setup/playground.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Playground {
     pub state: PlaygroundState,
@@ -540,34 +540,34 @@ pub struct Playground {
     pub project: Option<u32>,
     pub account: Option<u32>,
 }
-/// The playground's progress (temper/docs/design/protocol/setup.md, 8.4).
+/// The playground's progress (temper/docs/design/protocol/setup/playground.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum PlaygroundState {
     Starting,
     Running,
     Resetting(ResetStep),
 }
-/// The reset's ordered acts (temper/docs/design/protocol/setup.md, 8.4).
+/// The reset's ordered acts (temper/docs/design/protocol/setup/playground.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ResetStep {
     Project,
     Forge,
     Account,
 }
-/// Removal's answer (temper/docs/design/domain/forge.md, 4.1).
+/// Removal's answer (temper/docs/design/domain/forge/adoption.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RemoveAnswer {
     Removed,
     Refused(ForgeRefusal),
 }
-/// Reset's answer (temper/docs/design/protocol/setup.md, 8.4).
+/// Reset's answer (temper/docs/design/protocol/setup/playground.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum EndAnswer {
     Reset,
     NotOffered,
 }
 
-/// The row's setup offer, also used to admit `SetUp` (domain/forge.md, 4.1).
+/// The row's setup offer, also used to admit `SetUp` (domain/forge/adoption.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Offer {
     NotOffered,
@@ -615,7 +615,7 @@ pub struct First {
     pub label: Box<[u8]>,
 }
 
-/// A repository already adopted on this forge (client/README.md, 4.6).
+/// A repository already adopted on this forge (client/forge/records.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct AdoptedRow {
     pub owner: Box<[u8]>,
@@ -648,7 +648,7 @@ pub struct Row {
     pub admin: bool,
     pub ended_stop: Option<AdminStop>,
 }
-/// The deployment's forges, ordered by number (domain/forge.md, 4.1).
+/// The deployment's forges, ordered by number (domain/forge/adoption.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Forges {
     pub rows: Box<[Row]>,
@@ -668,7 +668,7 @@ pub enum ApplicationOutcome {
     MakeKept,
     MakeRefused(crate::MakeRefusal),
 }
-/// The repository facts shown by the adoption's terminal (client/README.md, 4.6).
+/// The repository facts shown by the adoption's terminal (client/forge/records.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct AdoptedRepository {
     pub repository: skein_forge::api::Repository,
@@ -679,7 +679,7 @@ pub struct AdoptedRepository {
     pub kinds: Kinds,
     pub protection: Protection,
 }
-/// A forge refusal stated in the adoption form's vocabulary (client/README.md, 8).
+/// A forge refusal stated in the adoption form's vocabulary (client/engine.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum AdoptionRefusal {
     NoSuchForge,
@@ -726,7 +726,7 @@ pub struct Hold {
     pub name: Name,
     pub task: u64,
     pub writer: Option<Writer>,
-    /// Runs writing design beside the slot (domain/forge.md, 11.3).
+    /// Runs writing design beside the slot (domain/forge/branches.md, 3).
     pub design_writers: Box<[DesignWriter]>,
     /// Last outside change requiring a person to release this hold.
     pub drift: Option<Drift>,
@@ -776,7 +776,7 @@ pub struct Pushed {
     pub tag: u64,
     pub commit: skein_forge::api::Commit,
 }
-/// A goal's design-writing attempt, retained with its hold (domain/forge.md, 11.3).
+/// A goal's design-writing attempt, retained with its hold (domain/forge/branches.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct DesignWriter {
     pub task: u64,
@@ -795,7 +795,7 @@ pub enum Writer {
     /// An outbox entry making a change to the resource.
     Entry(u64),
 }
-/// A subject published by the forge (domain/forge.md, section 7).
+/// A subject published by the forge (domain/forge/README.md, section 5).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Topic {
     /// A branch's tip moved.
@@ -893,7 +893,7 @@ pub struct EffectAccount {
     pub entry: u64,
     pub words: Box<[u8]>,
 }
-/// A change's terminal account (temper/docs/design/domain/forge.md, 11.2).
+/// A change's terminal account (temper/docs/design/domain/forge/branches.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Ending {
     Landed,
@@ -901,7 +901,7 @@ pub enum Ending {
     Cancelled,
     Failed { line: Box<[u8]> },
 }
-/// A change task's parameters and progress (temper/docs/design/domain/forge.md, 8.1 and 11.2).
+/// A change task's parameters and progress (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/branches.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeRow {
     /// The tracked goal served at admission.
@@ -922,7 +922,7 @@ pub struct ChangeRow {
     pub body: Box<[u8]>,
     pub priority: i32,
     pub change: change::Change,
-    /// Last exact-head CI observation retained when the change lands or ends (domain/forge.md, 8.8).
+    /// Last exact-head CI observation retained when the change lands or ends (domain/forge/change/README.md, 5).
     pub ci: Option<change::Ci>,
     pub pull: Option<u64>,
     pub pending: Option<u64>,
@@ -941,28 +941,28 @@ pub struct ChangeRow {
     pub queue_repair: Option<u64>,
     /// Repairs attempted for this landing queue while this change owned it.
     pub queue_repairs: u32,
-    /// Charter numbers captured when the change is made (protocol/configuration.md, 13.6).
+    /// Charter numbers captured when the change is made (protocol/configuration/settings.md, 5).
     pub producing_charter: u32,
     pub review_charter: u32,
-    /// The LLM choices by role it was made with (domain/forge.md, 8.1 and 8.9).
+    /// The LLM choices by role it was made with (domain/forge/change/README.md, 1, and domain/forge/change/gates.md, 3).
     pub producing_llm: Option<jig_domain_tasks::LlmChoice>,
     pub review_llm: Option<jig_domain_tasks::LlmChoice>,
-    /// The foreman's charter captured when made (domain/forge.md, 8.11).
+    /// The foreman's charter captured when made (domain/forge/change/questions.md, 1).
     pub foreman_charter: u32,
     pub effect_account: Option<EffectAccount>,
-    /// Words of the hold its delegate's end made, within the hold account bound (domain/forge.md, 8.4).
+    /// Words of the hold its delegate's end made, within the hold account bound (domain/forge/change/repairs.md).
     pub producer_failure: Option<Box<[u8]>>,
-    /// Its producing task's last successful result words (domain/forge.md, 8.2 step 7)
+    /// Its producing task's last successful result words (domain/forge/change/README.md, 2 step 7)
     pub report: Box<[u8]>,
-    /// Its agents' questions and their relay (domain/forge.md, 8.11).
+    /// Its agents' questions and their relay (domain/forge/change/questions.md, 1).
     pub questions: change::Questions,
-    /// The red landing this change repairs (temper/docs/design/domain/agent.md, 4.3.1).
+    /// The red landing this change repairs (temper/docs/design/domain/agent/tools.md, 1).
     pub repairs: Option<skein_forge::api::Commit>,
-    /// The commit this catch-up merges (temper/docs/design/domain/forge.md, 8.2).
+    /// The commit this catch-up merges (temper/docs/design/domain/forge/change/README.md, 2).
     pub catch_up: Option<skein_forge::api::Commit>,
-    /// The close request (temper/docs/design/domain/forge.md, 8.1).
+    /// The close request (temper/docs/design/domain/forge/change/README.md, 1).
     pub close: Option<Box<[u8]>>,
-    /// The last merge job's result, at most 512 bytes (temper/docs/design/domain/forge.md, 8.4).
+    /// The last merge job's result, at most 512 bytes (temper/docs/design/domain/forge/change/repairs.md).
     pub merge_result: Option<Box<[u8]>>,
 }
 impl ChangeRow {
@@ -1000,7 +1000,7 @@ pub struct RepositoryGates {
     pub gates: Box<[landing::Gate]>,
     pub tiers: Box<[Tier]>,
 }
-/// A tier description's byte bound (temper/docs/design/protocol/configuration.md, 3).
+/// A tier description's byte bound (temper/docs/design/protocol/configuration/engine.md).
 pub const DESCRIPTION_BYTES: usize = 120;
 
 /// A repository's tier and followed branch (temper/docs/design/domain/after-landing.md, 2).
@@ -1155,7 +1155,7 @@ pub enum Stored {
     Repository(Repository),
     /// One held resource.
     Hold(Hold),
-    /// A live task's resources, or a kept task's repositories (temper/docs/design/domain/forge.md, 4.1).
+    /// A live task's resources, or a kept task's repositories (temper/docs/design/domain/forge/adoption.md, 1).
     Names {
         task: u64,
         resources: Box<[Name]>,
@@ -1174,7 +1174,7 @@ pub enum Stored {
     },
     /// An unsettled outbox entry. A held one is out of the client's outbox,
     /// keeping its room until a person makes it again or it is settled not
-    /// made (domain/forge.md, 6; jig's `domain/connectors.md`, 4.3).
+    /// made (domain/forge/README.md, 4; jig's `domain/connectors.md`, 4.3).
     Entry {
         entry: skein_forge_client::Entry,
         held: bool,
@@ -1194,16 +1194,16 @@ pub enum Stored {
         until: skein_lib::Wall,
         outcome: ApplicationOutcome,
     },
-    /// A forge's writer, kept before any restored effect (domain/forge.md, 4.1).
+    /// A forge's writer, kept before any restored effect (domain/forge/adoption.md, 1).
     Writer(skein_forge_client::Writer),
     /// First Google subject for a member address (protocol/sign-in.md, 5).
     Binding {
         address: Box<[u8]>,
         subject: Box<[u8]>,
     },
-    /// The forge's kinds (temper/docs/design/protocol/store.md, 2; temper/docs/design/domain/forge.md, 8.9).
+    /// The forge's kinds (temper/docs/design/protocol/store.md, 2; temper/docs/design/domain/forge/change/gates.md, 3).
     Setting(crate::settings::SettingRow),
-    /// A sent write not yet settled (domain/forge.md, 6; protocol/store.md, 2).
+    /// A sent write not yet settled (domain/forge/README.md, 4; protocol/store.md, 2).
     Flight {
         task: u64,
         entry: u64,
@@ -1213,19 +1213,19 @@ pub enum Stored {
         key: ReceiptKey,
         receipt: Receipt,
     },
-    /// A forge's durable setup and removal state (temper/docs/design/protocol/forge.md, 2.1; temper/docs/design/domain/forge.md, 4.1).
+    /// A forge's durable setup and removal state (temper/docs/design/protocol/forge/engine.md, 1; temper/docs/design/domain/forge/adoption.md, 1).
     Forge(ForgeRecord),
-    /// The last forge number given (temper/docs/design/protocol/forge.md, 2.1).
+    /// The last forge number given (temper/docs/design/protocol/forge/engine.md, 1).
     ForgeNumber {
         last: u16,
     },
-    /// The playground's durable progress (temper/docs/design/protocol/setup.md, 8.4).
+    /// The playground's durable progress (temper/docs/design/protocol/setup/playground.md).
     Playground(Playground),
     Tier(TierRow),
     Verification(Verification),
     LandingLog(LandingLog),
     Making(crate::RepositoryMaking),
-    /// A person's dismissals (temper/docs/design/domain/forge.md, 5.5).
+    /// A person's dismissals (temper/docs/design/domain/forge/attention.md, 1).
     Dismissed {
         party: u64,
         what: crate::PersonFact,
@@ -1244,7 +1244,7 @@ pub struct ProposedEffect {
 }
 
 /// Stable store key of a connector record.
-/// The settings family is temper/docs/design/protocol/store.md, 2; temper/docs/design/domain/forge.md, 8.9.
+/// The settings family is temper/docs/design/protocol/store.md, 2; temper/docs/design/domain/forge/change/gates.md, 3.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Key {
     Call(NamedCall),
@@ -1293,17 +1293,17 @@ pub enum RestartStage {
     /// Every uncertain restored entry has been looked for.
     Settled,
 }
-/// Volatile connection information, rebuilt from routing at every start (domain/forge.md, 4.1).
+/// Volatile connection information, rebuilt from routing at every start (domain/forge/adoption.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Connection {
     NotConnected,
-    /// An owned forge the box starts when asked, its files absent (protocol/forge.md, 8.1).
+    /// An owned forge the box starts when asked, its files absent (protocol/forge/README.md, 7.1).
     NotSetUp,
-    /// The box runs the forge's group, at the step it last named (protocol/forge.md, 2.8).
+    /// The box runs the forge's group, at the step it last named (protocol/forge/engine.md, 8).
     SettingUp {
         step: Option<SetUpStep>,
     },
-    /// The box's `failed`, or its pipe closed during the ask, with why (protocol/forge.md, 2.8).
+    /// The box's `failed`, or its pipe closed during the ask, with why (protocol/forge/engine.md, 8).
     SetUpFailed {
         why: Box<[u8]>,
     },
@@ -1316,7 +1316,7 @@ pub enum Connection {
         reason: Box<[u8]>,
     },
 }
-/// The box's word for the step it runs (protocol/setup.md, 7.1).
+/// The box's word for the step it runs (protocol/setup/box.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SetUpStep {
     Fetch,
@@ -1324,20 +1324,20 @@ pub enum SetUpStep {
     Run,
     Source,
 }
-/// The binary named by the box's fetch line (protocol/forge.md, 2.8).
+/// The binary named by the box's fetch line (protocol/forge/engine.md, 8).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SetUpBinary {
     Forgejo,
     Runner,
 }
-/// The latest fetch line, kept in memory alone (protocol/forge.md, 2.8).
+/// The latest fetch line, kept in memory alone (protocol/forge/engine.md, 8).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct SetUpFetched {
     pub binary: SetUpBinary,
     pub done: u64,
     pub total: Option<u64>,
 }
-/// The held connection's step when setup failed (domain/forge.md, 4.1).
+/// The held connection's step when setup failed (domain/forge/adoption.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum FailedStep {
     Fetch,
@@ -1345,7 +1345,7 @@ pub enum FailedStep {
     Run,
     Connect,
 }
-/// Why a `SetUp` is refused (protocol/forge.md, 2.8; domain/forge.md, 4.1).
+/// Why a `SetUp` is refused (protocol/forge/engine.md, 8; domain/forge/adoption.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SetUpRefusal {
     NotOffered,
@@ -1353,7 +1353,7 @@ pub enum SetUpRefusal {
     Busy,
     Invalid,
 }
-/// Installation information for the deployment's page (protocol/forge.md, 2.4).
+/// Installation information for the deployment's page (protocol/forge/engine.md, 4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Installation {
     pub account: Option<(u64, Box<[u8]>)>,
@@ -1361,7 +1361,7 @@ pub struct Installation {
     pub suspended: bool,
 }
 /// Pending task dependencies supplied by the root, never retained by the connector
-/// (jig's domain/tasks.md, 5.7; domain/landing.md, 4.1).
+/// (jig's domain/tasks/lifecycle.md, 8; domain/landing.md, 4.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ChangeDependencies {
     pub change: u64,
@@ -1463,12 +1463,12 @@ pub enum Event {
         entry: u64,
     },
     /// Release adoptions after the project's tasks are erased
-    /// (jig/docs/design/domain/people.md, 5.2; temper/docs/design/domain/forge.md, 4.1).
+    /// (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption.md, 1).
     ReleaseProject {
         project: u32,
         request: Token,
     },
-    /// Removal completions (temper/docs/design/domain/forge.md, 4.1).
+    /// Removal completions (temper/docs/design/domain/forge/adoption.md, 1).
     SecretsErased {
         forge: u16,
     },
@@ -1496,7 +1496,7 @@ pub enum Event {
         entry: u64,
         heard: LandingHeard,
     },
-    /// The engine stops: finish sent entries without starting another write (domain/forge.md, 6).
+    /// The engine stops: finish sent entries without starting another write (domain/forge/README.md, 4).
     Settle,
     /// A successful conversion kept its App records.
     AppRecorded {
@@ -1520,7 +1520,7 @@ pub enum Event {
         key: [u8; 16],
         keep: bool,
     },
-    /// The box ended its pipe (domain/forge.md, 4.1).
+    /// The box ended its pipe (domain/forge/adoption.md, 1).
     BoxClosed,
     /// The routing's answer to a core-admitted connect request.
     ConnectAnswered {
@@ -1599,7 +1599,7 @@ pub enum Event {
         party: u64,
         project: u32,
     },
-    /// A core-admitted dismissal (temper/docs/design/domain/forge.md, 5.5).
+    /// A core-admitted dismissal (temper/docs/design/domain/forge/attention.md, 1).
     Dismiss {
         request: Token,
         token: Token,
@@ -1750,7 +1750,7 @@ pub enum Event {
     Change {
         row: ChangeRow,
     },
-    /// A change's goal's priority moved (domain/forge.md, 9).
+    /// A change's goal's priority moved (domain/forge/queues.md).
     Priority {
         task: u64,
         priority: i32,
@@ -1807,20 +1807,20 @@ pub enum Event {
         questions: change::Questions,
         words: Box<[u8]>,
     },
-    /// The live producer's preparation could not merge a dependency head (domain/forge.md, 8.11).
+    /// The live producer's preparation could not merge a dependency head (domain/forge/change/questions.md, 1).
     StartConflicted {
         child: u64,
         tag: u64,
         head: skein_forge::api::Commit,
     },
-    /// A counted person's request refused the change's merge (domain/forge.md, 8.3).
+    /// A counted person's request refused the change's merge (domain/forge/change/gates.md, 1).
     ReviewRequested {
         task: u64,
         head: skein_forge::api::Commit,
     },
     /// Gather fresh forge facts and step one registered change.
     StepChange {
-        /// The change's current authority delegates to the merge kind (domain/forge.md, 8.4).
+        /// The change's current authority delegates to the merge kind (domain/forge/change/repairs.md).
         merge_job: bool,
         task: u64,
         entry: u64,
@@ -1856,7 +1856,7 @@ pub enum Event {
     ReleaseChange {
         task: u64,
     },
-    /// A held goal is active again after its drift was released (forge.md, 11.3).
+    /// A held goal is active again after its drift was released (domain/forge/branches.md, 3).
     GoalReleased {
         task: u64,
     },
@@ -1867,7 +1867,7 @@ pub enum Event {
         ending: ReleaseEnding,
     },
     /// A closing task's saved work: each branch becomes its hold before the
-    /// release that follows (domain/forge.md, section 11).
+    /// release that follows (domain/forge/branches.md).
     SavedWork {
         task: u64,
         branches: Box<[Name]>,
@@ -1885,7 +1885,7 @@ pub enum Event {
         task: u64,
         entry: u64,
     },
-    /// Supply a fresh entry for a missing goal branch (domain/forge.md, 11.1).
+    /// Supply a fresh entry for a missing goal branch (domain/forge/branches.md, 1).
     ContinueGoalBranch {
         task: u64,
         entry: u64,
@@ -1903,7 +1903,7 @@ pub enum Event {
         entry: u64,
     },
     /// A person settled a held entry: make it again, or record it not made
-    /// (domain/forge.md, 6; jig's `domain/connectors.md`, 4.3).
+    /// (domain/forge/README.md, 4; jig's `domain/connectors.md`, 4.3).
     Resolve {
         entry: u64,
         again: bool,
@@ -1946,23 +1946,23 @@ pub enum Event {
     /// Look for each restored uncertain entry before procedures step.
     SettleOutbox,
     /// A connected Forgejo's Check found the user its tokens answer as: the connector keeps its
-    /// login as the record's bot (protocol/forge.md, 2.2).
+    /// login as the record's bot (protocol/forge/engine.md, 2).
     BotLogin {
         forge: u16,
         login: Box<[u8]>,
     },
-    /// The deployment's sole owner, handed by the root at each start (temper/docs/design/domain/root.md, 9.1).
+    /// The deployment's sole owner, handed by the root at each start (temper/docs/design/domain/root.md, 8.1).
     Owner {
         party: Option<u64>,
     },
-    /// What a setup run read of the forge's person (temper/docs/design/domain/forge.md, 4.6).
+    /// What a setup run read of the forge's person (temper/docs/design/domain/forge/adoption.md, 6).
     PersonOf {
         forge: u16,
         answer: PersonAnswer,
     },
 }
 /// The owner of the root's fresh read `serial`: bit 61 alone of the top five
-/// bits, the serial below 2^59; `None` past that (forge.md, 5.3).
+/// bits, the serial below 2^59; `None` past that (temper/docs/design/domain/forge/keeping-up.md, 3).
 #[must_use]
 pub fn root_read(serial: u64) -> Option<Token> {
     if serial < 1_u64.checked_shl(59).expect("read serial bound fits u64") {
@@ -1973,7 +1973,7 @@ pub fn root_read(serial: u64) -> Option<Token> {
 }
 
 /// Whether a client owner is in the root's read range: bits 63 to 59 are
-/// 0, 0, 1, 0, 0 (forge.md, 5.3).
+/// 0, 0, 1, 0, 0 (temper/docs/design/domain/forge/keeping-up.md, 3).
 #[must_use]
 pub fn is_root_read(owner: Token) -> bool {
     owner.raw().checked_shr(59).expect("read range shift fits u64") == 0b0_0100
@@ -1997,7 +1997,7 @@ pub enum Request {
         adoption: Adoption,
         repository: skein_forge::api::Repository,
     },
-    /// Make Home's brief task (temper/docs/design/domain/forge.md, 5.7).
+    /// Make Home's brief task (temper/docs/design/domain/forge/attention.md, 3).
     StatusRun {
         project: u32,
         words: Box<[u8]>,
@@ -2020,19 +2020,19 @@ pub enum Request {
     ProjectReleased {
         request: Token,
     },
-    /// Make or refresh the runtime (temper/docs/design/protocol/forge.md, 2.2).
+    /// Make or refresh the runtime (temper/docs/design/protocol/forge/engine.md, 2).
     ForgeKept(ForgeRecord),
-    /// Drop the runtime and erase secrets (temper/docs/design/protocol/forge.md, 2.3).
+    /// Drop the runtime and erase secrets (temper/docs/design/protocol/forge/engine.md, 3).
     ForgeGone {
         forge: u16,
     },
-    /// Start a box group by kind (temper/docs/design/protocol/setup.md, 7.1).
+    /// Start a box group by kind (temper/docs/design/protocol/setup/box.md, 1).
     BoxGroup {
         forge: u16,
         kind: BoxKind,
         request: Token,
     },
-    /// Remove the box group (temper/docs/design/protocol/setup.md, 7.1).
+    /// Remove the box group (temper/docs/design/protocol/setup/box.md, 1).
     BoxRemove {
         forge: u16,
     },
@@ -2051,17 +2051,17 @@ pub enum Request {
         request: Token,
         answer: BindAnswer,
     },
-    /// Make the playground's ordinary records (temper/docs/design/protocol/setup.md, 8.4).
+    /// Make the playground's ordinary records (temper/docs/design/protocol/setup/playground.md).
     PlaygroundActs {
         request: Token,
         forge: u16,
     },
-    /// Send the reset's kept act (temper/docs/design/protocol/setup.md, 8.4).
+    /// Send the reset's kept act (temper/docs/design/protocol/setup/playground.md).
     ResetAct {
         key: [u8; 16],
         act: ResetAct,
     },
-    /// Ask the box link to set up the forge (protocol/forge.md, 2.8).
+    /// Ask the box link to set up the forge (protocol/forge/engine.md, 8).
     SetUp {
         forge: u16,
         request: Token,
@@ -2108,7 +2108,7 @@ pub enum Request {
     },
     /// The deployment's forges document changed.
     MarkedForges,
-    /// Changed panel subjects, bounded by `MARKED` (domain/root.md, 10).
+    /// Changed panel subjects, bounded by `MARKED` (domain/root.md, 9).
     Marked {
         tasks: Box<[u64]>,
     },
@@ -2125,7 +2125,7 @@ pub enum Request {
         request: Token,
         why: jig_domain_people::Again,
     },
-    /// A pushed or first-read change head can enable its dependents (domain/forge.md, 8.11).
+    /// A pushed or first-read change head can enable its dependents (domain/forge/change/questions.md, 1).
     StepDependents {
         task: u64,
     },
@@ -2145,7 +2145,7 @@ pub enum Request {
         hold: crate::resources::HoldKind,
     },
 
-    /// Drop a goal's core CI subscription at restart (domain/forge.md, 7.2).
+    /// Drop a goal's core CI subscription at restart (domain/forge/README.md, 5.2).
     GoalUntopic {
         goal: u64,
         topic: Topic,
@@ -2164,7 +2164,7 @@ pub enum Request {
         section: Token,
         size: Result<u32, crate::BriefUnread>,
     },
-    /// A section read failed, whether or not its paired brief goes on (domain/forge.md, 8.4).
+    /// A section read failed, whether or not its paired brief goes on (domain/forge/change/repairs.md).
     BriefReadRefused {
         section: Token,
         stage: &'static str,
@@ -2208,7 +2208,7 @@ pub enum Request {
         resource: Option<Name>,
         cause: crate::RefusalCause,
     },
-    /// A goal's own branch could not be made (domain/forge.md, 11.1).
+    /// A goal's own branch could not be made (domain/forge/branches.md, 1).
     MakeFailed {
         task: u64,
         resource: Name,
@@ -2243,7 +2243,7 @@ pub enum Request {
     ContinueRelease {
         task: u64,
     },
-    /// A missing goal branch needs a fresh outbox number (domain/forge.md, 11.1).
+    /// A missing goal branch needs a fresh outbox number (domain/forge/branches.md, 1).
     ContinueGoalBranch {
         task: u64,
     },
@@ -2321,13 +2321,13 @@ pub enum Request {
         stage: RestartStage,
     },
     /// Run a Replace: Check on a connected Forgejo, Paste with the kept App id on GitHub
-    /// (protocol/forge.md, 2.2).
+    /// (protocol/forge/engine.md, 2).
     Replace {
         forge: u16,
         request: Token,
         carried: jig_domain_core::Carried,
     },
-    /// A forge's link changed or was refused (temper/docs/design/domain/forge.md, 4.6).
+    /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption.md, 6).
     LinkNoted {
         forge: u16,
         note: LinkNote,
@@ -2454,7 +2454,7 @@ pub struct TierVerdict {
     pub blame: temper_engine_domain_forge_tiers::Blame,
 }
 
-/// The run that passed a landing's blamed failures (client/forge.md, 2.1).
+/// The run that passed a landing's blamed failures (client/forge/README.md, 2.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct TierRepair {
     pub run: u64,

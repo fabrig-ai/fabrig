@@ -25,11 +25,11 @@ pub struct Limits {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Error {
     /// The world supplied unusable limits, configuration or a non-loopback address,
-    /// or requested TLS on the portable target (testing.md, 10).
+    /// or requested TLS on the portable target (testing/README.md, 10).
     Limits,
 }
 
-/// One listening host's io passes and queues (skein/docs/design/testing.md, 5).
+/// One listening host's io passes and queues (skein/docs/design/testing/README.md, 5).
 /// The host routes events, retains its listener and address, and closes admission.
 pub struct Face {
     pub io: io::Io,

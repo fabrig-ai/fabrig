@@ -1,4 +1,4 @@
-//! A platform tree changed only by patches (skein's ui.md, 7).
+//! A platform tree changed only by patches (skein's ui/README.md, 7).
 use skein_ui::{Made, NodeId, Patch, Tree};
 #[derive(Debug)]
 struct Entry {

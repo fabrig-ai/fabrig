@@ -1,4 +1,4 @@
-//! Strict lookups, with only marked missing links yielding undefined (hearth/docs/design/protocol/format.md, 7.6).
+//! Strict lookups, with only marked missing links yielding undefined (hearth/docs/design/protocol/format/templates.md, 6).
 use super::{
     FaultKind, Missing,
     value::{Entry, Operand, Value},

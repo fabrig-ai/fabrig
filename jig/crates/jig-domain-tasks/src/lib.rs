@@ -1,5 +1,5 @@
 //! The tasks child: bounded live lifecycle, immutable dependencies and authentic
-//! finite funding (programming-model.md, section 4.5; domain/tasks.md, sections 2–5 and 10). It keeps live task rows and name indices, retry timers,
+//! finite funding (programming-model.md, section 4.5; domain/tasks/README.md, sections 2–4 and domain/tasks/lifecycle.md and domain/tasks/README.md, section 5). It keeps live task rows and name indices, retry timers,
 //! configured agent charters, period/pool ledgers and optional diagnostic facts.
 //! It keeps bounded pointers to ended results named by live work. It never knows protocol bytes, worker channels, connector internals, people
 //! authentication or the authority child's policy tables. Root supplies those
@@ -30,13 +30,13 @@
 //! `Ended`, the retained task row, and original-source
 //! posting share one atomic decision. The current root exposes person result notices and
 //! delays outward replies/effects until durability; retained result reads
-//! remain the root's route (domain/tasks.md, section 5.6; domain/engine.md, sections 5.6, 7.1 and 9).
+//! remain the root's route (domain/tasks/lifecycle.md, section 7; domain/engine/README.md, section 5.6, and domain/engine/executors.md, section 1, and domain/engine/briefs.md, section 1).
 //!
 //! `fire` expires at most one projected retry timer per call and advances bounded
 //! cascades into an uncapped output queue. `valid` checks edge and retained-count
 //! representability. `stored_bytes` measures existing row heap
 //! without cloning; `Domain::funding` borrows authentic finite accounting without
-//! creating a mutable root shadow (domain/tasks.md, section 10).
+//! creating a mutable root shadow (domain/tasks/README.md, section 5).
 //! Current chat construction supplies a report contract and empty parameters.
 //! A held person chat owns one bounded semantic escalation revision/recipient
 //! or rejected reason. Root authenticates its read/decision route, resolves
@@ -44,7 +44,7 @@
 //! passes only the authorized hold revision. A hold revision changes when the
 //! task is held anew or its reason changes; passing changes only its recipient.
 //! Task spec and person revisions are kept in live and ended rows separately
-//! from history (client/domain/contract.md, section 5.2).
+//! from history (client/domain/contract/documents.md, section 2).
 //!
 //! | Kept state | Event | Next state | Emits |
 //! |---|---|---|---|
@@ -180,7 +180,7 @@ pub use run::run_attempt;
 /// Maximum bytes in a connector's retained hold account.
 pub use hold_origin::ACCOUNT_BYTES as HOLD_ACCOUNT_BYTES;
 
-/// What the core's settings hold, which this child sizes by (domain/engine.md, 17.8).
+/// What the core's settings hold, which this child sizes by (domain/engine/settings.md, 8).
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 pub struct Kept {
     pub revisions: u32,

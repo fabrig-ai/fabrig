@@ -1,4 +1,4 @@
-//! GitHub's requests and their exact targets (forge-github.md, section 4.1).
+//! GitHub's requests and their exact targets (forge/github.md, section 4.1).
 use super::{id, limits::Limits};
 use crate::api;
 use alloc::boxed::Box;

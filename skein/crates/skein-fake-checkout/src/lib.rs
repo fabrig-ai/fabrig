@@ -1,5 +1,5 @@
 //! Deterministic files, scripted commands and local git mechanics for domain
-//! worlds (testing-strategy.md, section 4.3; fake-checkout.md, section 1).
+//! worlds (testing-strategy.md, section 4.3; testing/fakes/checkout.md, section 1).
 //! Extracted from temper's dependency-free fake checkout at commit `246164f`
 //! for a second service to share the same mechanics, with behavior preserved.
 //!
@@ -14,7 +14,7 @@
 //! is the world's responsibility to apply a process's effects at the right cut.
 //! Root-relative operations follow relative links up to 40, refuse escapes and
 //! make stores and file removals conditional on versions. This is a small model, without inode,
-//! permissions or full POSIX semantics (fake-checkout.md, sections 2 and 3).
+//! permissions or full POSIX semantics (testing/fakes/checkout.md, sections 2 and 3).
 //!
 //! Ordinary Rust test machinery (programming-model.md, section 10.2): ordered
 //! maps and caller-owned fixture sizes, with no production heap bound. `git`
@@ -22,7 +22,7 @@
 //! remote policy and transport faults remain outside the kit (section 4).
 
 /// Local working-tree and commit-graph operations, with the remote supplied
-/// by the world (fake-checkout.md, section 4).
+/// by the world (testing/fakes/checkout.md, section 4).
 pub mod git;
 
 use std::collections::{BTreeMap, VecDeque};
@@ -33,7 +33,7 @@ const LINKS: u32 = 40;
 
 /// In-memory byte-path nodes, roots, monotonically issued file versions and
 /// command scripts. Fixtures and world adapters share this state; operations
-/// are synchronous and never access the host (fake-checkout.md, sections 1–3).
+/// are synchronous and never access the host (testing/fakes/checkout.md, sections 1–3).
 /// Fixture size and the number of roots/writes are caller-owned.
 #[derive(Debug, Default)]
 pub struct Checkout {
@@ -50,77 +50,77 @@ pub struct Checkout {
 /// A world-supplied command script, cloned when spawned. Duration and output
 /// are values for the world to schedule; no time elapses in this kit. Changes
 /// use global fixture paths, with `None` deleting a subtree when `finish` is
-/// applied (fake-checkout.md, section 3). All sizes are fixture-owned.
+/// applied (testing/fakes/checkout.md, section 3). All sizes are fixture-owned.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Program {
-    /// Scripted elapsed time for the world; no clock is consulted (fake-checkout.md, section 3).
+    /// Scripted elapsed time for the world; no clock is consulted (testing/fakes/checkout.md, section 3).
     pub duration: Duration,
 
-    /// Complete scripted output; adapters own delivery and truncation (fake-checkout.md, section 3).
+    /// Complete scripted output; adapters own delivery and truncation (testing/fakes/checkout.md, section 3).
     pub output: Vec<u8>,
 
-    /// Scripted final status, interpreted by the world (fake-checkout.md, section 3).
+    /// Scripted final status, interpreted by the world (testing/fakes/checkout.md, section 3).
     pub exit: Exit,
 
     /// Ordered global-path writes or removals, filtered by `finish` against
-    /// writable roots and git protection (fake-checkout.md, section 3).
+    /// writable roots and git protection (testing/fakes/checkout.md, section 3).
     pub changes: Vec<(Vec<u8>, Option<Vec<u8>>)>,
 }
 
 /// Synchronous search result: retained matching lines and an exact count of
-/// omitted matches under the requested bounds (fake-checkout.md, section 2).
+/// omitted matches under the requested bounds (testing/fakes/checkout.md, section 2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Found {
     /// Path relative to the searched path, one-based line number and retained
     /// text, in path/line order; bounded by the requested hit and aggregate
-    /// path/text byte budgets (fake-checkout.md, section 2).
+    /// path/text byte budgets (testing/fakes/checkout.md, section 2).
     pub hits: Vec<(Vec<u8>, usize, Vec<u8>)>,
 
     /// Matches omitted after a hit/byte budget ran out; a retained text prefix
-    /// is still one retained hit (fake-checkout.md, section 2).
+    /// is still one retained hit (testing/fakes/checkout.md, section 2).
     pub more: u64,
 }
 
-/// Synchronous search refusal, before any file mutation (fake-checkout.md, section 2).
+/// Synchronous search refusal, before any file mutation (testing/fakes/checkout.md, section 2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Searched {
-    /// Unsupported pattern with the fixed diagnostic (fake-checkout.md, section 2).
+    /// Unsupported pattern with the fixed diagnostic (testing/fakes/checkout.md, section 2).
     Unreadable(
-        /// Diagnostic bytes for the world’s error channel (fake-checkout.md, section 2).
+        /// Diagnostic bytes for the world’s error channel (testing/fakes/checkout.md, section 2).
         Vec<u8>,
     ),
 
-    /// Underlying root/path/file refusal (fake-checkout.md, section 2).
+    /// Underlying root/path/file refusal (testing/fakes/checkout.md, section 2).
     Failed(
-        /// The exact file refusal (fake-checkout.md, section 2).
+        /// The exact file refusal (testing/fakes/checkout.md, section 2).
         Failure,
     ),
 }
 
 /// Final status supplied by a script; delivery and terminal uniqueness are
-/// the world’s responsibility (fake-checkout.md, section 3).
+/// the world’s responsibility (testing/fakes/checkout.md, section 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Exit {
-    /// Ordinary exit status (fake-checkout.md, section 3).
+    /// Ordinary exit status (testing/fakes/checkout.md, section 3).
     Code(
-        /// Status byte supplied by the fixture (fake-checkout.md, section 3).
+        /// Status byte supplied by the fixture (testing/fakes/checkout.md, section 3).
         u8,
     ),
 
-    /// Scripted signal termination (fake-checkout.md, section 3).
+    /// Scripted signal termination (testing/fakes/checkout.md, section 3).
     Signal(
-        /// Signal number supplied by the fixture (fake-checkout.md, section 3).
+        /// Signal number supplied by the fixture (testing/fakes/checkout.md, section 3).
         u8,
     ),
 }
 
 /// Spawned script plus captured root paths and write permissions. It contains
 /// no running host process or terminal ledger; the world owns its lifecycle
-/// (fake-checkout.md, section 3).
+/// (testing/fakes/checkout.md, section 3).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Process {
     /// Script snapshot selected by `spawn`, exposed for world scheduling and
-    /// completion translation (fake-checkout.md, section 3).
+    /// completion translation (testing/fakes/checkout.md, section 3).
     pub program: Program,
     roots: Vec<(Vec<u8>, bool)>,
 }
@@ -134,56 +134,56 @@ enum Node {
 }
 
 /// Immediate directory-entry kind, reported without following the entry’s
-/// link (fake-checkout.md, section 2).
+/// link (testing/fakes/checkout.md, section 2).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Kind {
-    /// Regular file (fake-checkout.md, section 2).
+    /// Regular file (testing/fakes/checkout.md, section 2).
     File,
 
-    /// Directory (fake-checkout.md, section 2).
+    /// Directory (testing/fakes/checkout.md, section 2).
     Directory,
 
-    /// Symbolic link, target not inspected (fake-checkout.md, section 2).
+    /// Symbolic link, target not inspected (testing/fakes/checkout.md, section 2).
     Link,
 
-    /// Opaque special node (fake-checkout.md, section 2).
+    /// Opaque special node (testing/fakes/checkout.md, section 2).
     Special,
 }
 
 /// Synchronous file-operation refusal; refused operations do not change
-/// files or issue versions (fake-checkout.md, section 2).
+/// files or issue versions (testing/fakes/checkout.md, section 2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Failure {
-    /// Path or required ancestor is absent (fake-checkout.md, section 2).
+    /// Path or required ancestor is absent (testing/fakes/checkout.md, section 2).
     Missing,
 
-    /// Target is not a regular file (fake-checkout.md, section 2).
+    /// Target is not a regular file (testing/fakes/checkout.md, section 2).
     NotFile,
 
-    /// Required directory is another node kind (fake-checkout.md, section 2).
+    /// Required directory is another node kind (testing/fakes/checkout.md, section 2).
     NotDirectory,
 
-    /// Removal target is a directory with at least one node beneath it (fake-checkout.md, section 2).
+    /// Removal target is a directory with at least one node beneath it (testing/fakes/checkout.md, section 2).
     NotEmpty,
 
-    /// Load target exceeds the requested content cap (fake-checkout.md, section 2).
+    /// Load target exceeds the requested content cap (testing/fakes/checkout.md, section 2).
     TooLarge {
-        /// Actual content length in bytes (fake-checkout.md, section 2).
+        /// Actual content length in bytes (testing/fakes/checkout.md, section 2).
         size: u64,
     },
 
-    /// Parent traversal or absolute link target escapes the registered root (fake-checkout.md, section 2).
+    /// Parent traversal or absolute link target escapes the registered root (testing/fakes/checkout.md, section 2).
     Escapes,
 
-    /// Store or removal encountered a symbolic link component (fake-checkout.md, section 2).
+    /// Store or removal encountered a symbolic link component (testing/fakes/checkout.md, section 2).
     Linked,
 
-    /// Resolution required more than 40 links (fake-checkout.md, section 2).
+    /// Resolution required more than 40 links (testing/fakes/checkout.md, section 2).
     Loop,
 
-    /// Store or removal condition differs from the actual regular-file version (fake-checkout.md, section 2).
+    /// Store or removal condition differs from the actual regular-file version (testing/fakes/checkout.md, section 2).
     Conflict {
-        /// Current regular-file version, or `None` if absent (fake-checkout.md, section 2).
+        /// Current regular-file version, or `None` if absent (testing/fakes/checkout.md, section 2).
         now: Option<u64>,
     },
 }
@@ -195,26 +195,26 @@ enum Resolve {
 }
 
 /// Caller’s store or removal condition; failure reports the actual regular
-/// file version without mutation (fake-checkout.md, section 2).
+/// file version without mutation (testing/fakes/checkout.md, section 2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Expect {
-    /// Create only if the target is absent (fake-checkout.md, section 2).
+    /// Create only if the target is absent (testing/fakes/checkout.md, section 2).
     Absent,
 
-    /// Replace or remove only the specified regular-file version (fake-checkout.md, section 2).
+    /// Replace or remove only the specified regular-file version (testing/fakes/checkout.md, section 2).
     Is(
-        /// Version previously observed by the caller (fake-checkout.md, section 2).
+        /// Version previously observed by the caller (testing/fakes/checkout.md, section 2).
         u64,
     ),
 }
 
 /// Bounded sorted immediate entries and the exact count omitted. Each entry
-/// is its byte name and kind; no recursive enumeration (fake-checkout.md, section 2).
+/// is its byte name and kind; no recursive enumeration (testing/fakes/checkout.md, section 2).
 pub type Listing = (Vec<(Vec<u8>, Kind)>, u64);
 
 impl Checkout {
     /// Empty checkout with no roots, files or scripts; equivalent to `default`
-    /// (fake-checkout.md, section 1).
+    /// (testing/fakes/checkout.md, section 1).
     #[must_use]
     pub fn new() -> Checkout {
         Checkout::default()
@@ -222,7 +222,7 @@ impl Checkout {
 
     /// Fixture registers `at` as a root after making its directories and returns
     /// a new numeric name. Roots are never closed; invalid fixture paths assert
-    /// (fake-checkout.md, section 2).
+    /// (testing/fakes/checkout.md, section 2).
     pub fn root(&mut self, at: &[u8]) -> u64 {
         self.mkdir(at);
         let root = u64::try_from(self.roots.len()).expect("few roots") + 1;
@@ -231,14 +231,14 @@ impl Checkout {
     }
 
     /// Pure borrowed lookup of a root previously returned by `root`; an unknown
-    /// root is a client assertion (fake-checkout.md, section 2).
+    /// root is a client assertion (testing/fakes/checkout.md, section 2).
     #[must_use]
     pub fn root_path(&self, root: u64) -> &[u8] {
         self.roots.get(&root).expect("a root the checkout named")
     }
 
     /// Fixture replaces the script selected by these exact command bytes.
-    /// Previously spawned processes retain their snapshots (fake-checkout.md, section 3).
+    /// Previously spawned processes retain their snapshots (testing/fakes/checkout.md, section 3).
     pub fn program(&mut self, command: &[u8], program: Program) {
         self.programs.insert(command.to_vec(), program);
     }
@@ -247,7 +247,7 @@ impl Checkout {
     /// directory, then clones a script and captures the supplied roots’ paths and
     /// writability. `env` prints exactly the given entries; an unknown command
     /// returns a script exiting 127. No changes or time advancement occur.
-    /// Unknown root names assert (fake-checkout.md, section 3).
+    /// Unknown root names assert (testing/fakes/checkout.md, section 3).
     pub fn spawn(
         &self,
         root: u64,
@@ -283,7 +283,7 @@ impl Checkout {
     /// writable root, excluding `.git` components in any ASCII case. Repeated
     /// calls reapply changes; scheduling, cancellation and exactly-once effects
     /// are world-owned. Invalid fixture node replacements assert
-    /// (fake-checkout.md, section 3).
+    /// (testing/fakes/checkout.md, section 3).
     pub fn finish(&mut self, process: &Process) {
         for (path, content) in &process.program.changes {
             let deepest = process
@@ -312,7 +312,7 @@ impl Checkout {
     /// name suffix with an optional leading `*`, not general glob syntax. At most
     /// the supplied hits and aggregate path/text bytes are retained, with the last
     /// text cut to fit. An unclosed `(` produces the fixed pattern diagnostic.
-    /// No mutation; unknown roots assert (fake-checkout.md, section 2).
+    /// No mutation; unknown roots assert (testing/fakes/checkout.md, section 2).
     pub fn search(
         &self,
         root: u64,
@@ -379,7 +379,7 @@ impl Checkout {
 
     /// Fixture makes `at` and its ancestors directories. A conflicting node
     /// asserts; fixture paths are global bytes without a leading slash
-    /// (fake-checkout.md, section 2).
+    /// (testing/fakes/checkout.md, section 2).
     pub fn mkdir(&mut self, at: &[u8]) {
         for end in boundaries(at) {
             match self.nodes.get(&at[..end]) {
@@ -392,7 +392,7 @@ impl Checkout {
 
     /// Fixture makes/replaces a regular file and creates missing parents, issuing
     /// a fresh version even for identical bytes. Replacing other node kinds
-    /// asserts; no content bound is imposed (fake-checkout.md, section 2).
+    /// asserts; no content bound is imposed (testing/fakes/checkout.md, section 2).
     pub fn write(&mut self, at: &[u8], content: &[u8]) -> u64 {
         self.parents(at);
         let version = self.next_version();
@@ -404,14 +404,14 @@ impl Checkout {
     }
 
     /// Fixture installs a symbolic link, creating missing parents and replacing
-    /// any existing node at that path (fake-checkout.md, section 2).
+    /// any existing node at that path (testing/fakes/checkout.md, section 2).
     pub fn link(&mut self, at: &[u8], target: &[u8]) {
         self.parents(at);
         self.nodes.insert(at.to_vec(), Node::Link { target: target.to_vec() });
     }
 
     /// Fixture installs an opaque special node, creating missing parents and
-    /// replacing any existing node at that path (fake-checkout.md, section 2).
+    /// replacing any existing node at that path (testing/fakes/checkout.md, section 2).
     pub fn special(&mut self, at: &[u8]) {
         self.parents(at);
         self.nodes.insert(at.to_vec(), Node::Special);
@@ -419,21 +419,21 @@ impl Checkout {
 
     /// Fixture removes the exact global path and its subtree, including local
     /// git objects. Missing paths do nothing; root registrations remain
-    /// (fake-checkout.md, section 2).
+    /// (testing/fakes/checkout.md, section 2).
     pub fn remove(&mut self, at: &[u8]) {
         let beneath = [at, b"/"].concat();
         self.nodes.retain(|path, _| path != at && !path.starts_with(&beneath));
     }
 
     /// Pure exact-global-path existence query; does not follow links
-    /// (fake-checkout.md, section 2).
+    /// (testing/fakes/checkout.md, section 2).
     #[must_use]
     pub fn exists(&self, at: &[u8]) -> bool {
         self.nodes.contains_key(at)
     }
 
     /// Pure borrowed regular-file bytes at the exact global path, or `None` for
-    /// missing/nonregular nodes; does not follow links (fake-checkout.md, section 2).
+    /// missing/nonregular nodes; does not follow links (testing/fakes/checkout.md, section 2).
     #[must_use]
     pub fn content(&self, at: &[u8]) -> Option<&[u8]> {
         match self.nodes.get(at)? {
@@ -443,7 +443,7 @@ impl Checkout {
     }
 
     /// Pure regular-file version at the exact global path, or `None` for missing
-    /// or nonregular nodes; does not follow links (fake-checkout.md, section 2).
+    /// or nonregular nodes; does not follow links (testing/fakes/checkout.md, section 2).
     #[must_use]
     pub fn version(&self, at: &[u8]) -> Option<u64> {
         match self.nodes.get(at)? {
@@ -453,7 +453,7 @@ impl Checkout {
     }
 
     /// Pure snapshot of every regular file, including git metadata, in global
-    /// path order. Borrows bytes; does not follow links (fake-checkout.md, section 2).
+    /// path order. Borrows bytes; does not follow links (testing/fakes/checkout.md, section 2).
     #[must_use]
     pub fn files(&self) -> BTreeMap<&[u8], &[u8]> {
         let mut files = BTreeMap::new();
@@ -468,7 +468,7 @@ impl Checkout {
 
     /// Pure owned snapshot of regular files strictly beneath `at`, keyed by
     /// relative path, including git metadata. Does not follow links or require
-    /// `at` to exist (fake-checkout.md, section 2).
+    /// `at` to exist (testing/fakes/checkout.md, section 2).
     #[must_use]
     pub fn tree(&self, at: &[u8]) -> BTreeMap<Vec<u8>, Vec<u8>> {
         let beneath = [at, b"/"].concat();
@@ -488,7 +488,7 @@ impl Checkout {
     /// Fixture replaces descendants of `at` with the supplied regular-file tree,
     /// preserving git nodes at all depths and their ancestors. Supplied entries
     /// are written with fresh versions; callers supply valid relative paths
-    /// (fake-checkout.md, section 2).
+    /// (testing/fakes/checkout.md, section 2).
     pub fn replace_tree(&mut self, at: &[u8], tree: &BTreeMap<Vec<u8>, Vec<u8>>) {
         let beneath = [at, b"/"].concat();
         let kept: Vec<Vec<u8>> = self
@@ -513,7 +513,7 @@ impl Checkout {
 
     /// World adapter follows relative links beneath a registered root and returns
     /// owned content plus version only when content length is at most `max`.
-    /// No mutation; unknown roots assert (fake-checkout.md, section 2).
+    /// No mutation; unknown roots assert (testing/fakes/checkout.md, section 2).
     pub fn load(&self, root: u64, path: &[u8], max: u64) -> Result<(Vec<u8>, u64), Failure> {
         let (at, _) = self.resolve(root, path, Resolve::Follow)?;
         match self.nodes.get(&at) {
@@ -533,7 +533,7 @@ impl Checkout {
     /// World adapter resolves a directory beneath a registered root and returns
     /// at most `max` immediate entries in byte-name order, plus the omitted count.
     /// Entry links are classified, not followed; unknown roots assert
-    /// (fake-checkout.md, section 2).
+    /// (testing/fakes/checkout.md, section 2).
     pub fn scan(&self, root: u64, path: &[u8], max: usize) -> Result<Listing, Failure> {
         let (at, _) = self.resolve(root, path, Resolve::Follow)?;
         match self.nodes.get(&at) {
@@ -562,7 +562,7 @@ impl Checkout {
     /// World adapter conditionally writes beneath a registered root, following
     /// no link component. Only after the version condition succeeds are missing
     /// parents created and a fresh version issued. Refusal leaves all nodes and
-    /// versions unchanged; unknown roots assert (fake-checkout.md, section 2).
+    /// versions unchanged; unknown roots assert (testing/fakes/checkout.md, section 2).
     pub fn store(&mut self, root: u64, path: &[u8], content: &[u8], expect: Expect) -> Result<u64, Failure> {
         let (at, missing) = self.resolve(root, path, Resolve::Store)?;
         let now = match self.nodes.get(&at) {
@@ -588,7 +588,7 @@ impl Checkout {
 
     /// Remove one regular file at its expected version, or one empty directory,
     /// beneath a root, following no link and changing nothing on refusal; a
-    /// workspace's removal, not the fixture's `remove` (fake-checkout.md, section 2).
+    /// workspace's removal, not the fixture's `remove` (testing/fakes/checkout.md, section 2).
     pub fn remove_current(&mut self, root: u64, path: &[u8], expect: Expect) -> Result<(), Failure> {
         let (at, missing) = self.resolve(root, path, Resolve::Store)?;
         if !missing.is_empty() {
@@ -695,7 +695,7 @@ fn kind(node: &Node) -> Kind {
 }
 
 /// Pure byte-path predicate for a `.git` component in any ASCII case;
-/// used by scripted writes and local git snapshots (fake-checkout.md, sections 2–4).
+/// used by scripted writes and local git snapshots (testing/fakes/checkout.md, sections 2–4).
 #[must_use]
 pub fn in_git(path: &[u8]) -> bool {
     path.split(|byte| *byte == b'/').any(|name| name.eq_ignore_ascii_case(b".git"))

@@ -1,4 +1,4 @@
-//! The fake's GitHub routes and answer documents (forge-github.md, section 2).
+//! The fake's GitHub routes and answer documents (forge/github.md, section 2).
 use super::{
     document, id,
     limits::{DEPTH, Limits},

@@ -1,4 +1,4 @@
-//! The engine's store component (protocol/store.md, sections 2 and 3).
+//! The engine's store component (protocol/store/README.md, sections 2 and 3).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
@@ -29,23 +29,23 @@ use alloc::boxed::Box;
 use skein_lib::{Env, Queue, Time, Wall};
 
 /// The binary's patch level of each owner, `None` before its first patch
-/// (jig/docs/design/protocol/store.md, 10.5 and 5.3).
+/// (jig/docs/design/protocol/store/opening.md, 5, and jig/docs/design/protocol/store/records.md, 3).
 #[must_use]
 pub fn levels(sets: &PatchSets) -> codec::component::Levels {
     patching::plan::binary(sets)
 }
 
-/// The store component's bounds (protocol/store.md, section 13).
+/// The store component's bounds (protocol/store/README.md, section 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
     pub core: jig_domain_core::Limits,
     pub store: skein_kv::Limits,
     pub secrets: skein_kv::Limits,
-    /// The clients component's carried values at once (store.md, section 9).
+    /// The clients component's carried values at once (protocol/store/secrets.md).
     pub held: u32,
-    /// The store's commit edge (protocol/store.md, 5.4).
+    /// The store's commit edge (protocol/store/records.md, 4).
     pub commits: sizes::Commits,
-    /// Point gets available to a party page's joins (store.md, 13).
+    /// Point gets available to a party page's joins (protocol/store/README.md, 8).
     pub joins: u32,
     pub queue: u32,
     pub files: u32,
@@ -54,21 +54,21 @@ pub struct Limits {
 }
 
 impl Limits {
-    /// The generated families' bounds, derived from the component's source (store.md, 13).
+    /// The generated families' bounds, derived from the component's source (protocol/store/README.md, 8).
     #[must_use]
     pub fn codec_view(&self) -> Option<codec::View> {
         codec::limits(&self.core)
     }
 }
 
-/// Stores made by the caller, kept across a world's crash (store.md, 14).
+/// Stores made by the caller, kept across a world's crash (protocol/store/README.md, 9).
 #[derive(Debug)]
 pub struct Stores {
     pub store: skein_kv::Store,
     pub secrets: skein_kv::Store,
 }
 
-/// The component's open and stopped states (store.md, 6 and 10).
+/// The component's open and stopped states (protocol/store/README.md, 5 and protocol/store/opening.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Phase {
     Closed,
@@ -89,12 +89,12 @@ pub struct Store {
     directory: directory::Directory,
     secret_state: secrets::State,
     transcripts: transcripts::State,
-    /// The installation's identifier (store.md 4.4): drawn by the shell and
+    /// The installation's identifier (protocol/store/README.md 4.4): drawn by the shell and
     /// kept by an empty store's first commit, or restored from the store.
     installation: [u8; 16],
     patch_sets: PatchSets,
     wires: &'static [Wire],
-    /// This start's first Wires commit, and its durability (store.md 5.3).
+    /// This start's first Wires commit, and its durability (protocol/store/records.md 3).
     mark: Mark,
     start_open_failure: Option<restore::OpenFailure>,
 }
@@ -123,7 +123,7 @@ impl Mark {
     }
 }
 
-/// A worker wire's name and version (protocol/store.md, 5.3).
+/// A worker wire's name and version (protocol/store/records.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Wire {
     pub name: &'static str,
@@ -131,7 +131,7 @@ pub struct Wire {
 }
 
 /// Proof that the store's three file drivers were seeded: io's `Store` names
-/// its temporaries from a driver's randomness and refuses unseeded (store.md 10.1).
+/// its temporaries from a driver's randomness and refuses unseeded (protocol/store/opening.md 1).
 /// It proves three drivers were seeded, not that they are the three the shell
 /// serves the store with.
 #[derive(Clone, Copy, Debug)]
@@ -192,12 +192,12 @@ impl Store {
         store
     }
 
-    /// Today's models, before a commit that holds them (domain/engine.md, 17.11).
+    /// Today's models, before a commit that holds them (domain/engine/settings.md, 11).
     pub fn catalogue(&mut self, names: Box<[jig_domain_core::settings::ModelName]>) {
         self.names = names;
     }
 
-    /// The first open failure, with no stored values (store.md, 9).
+    /// The first open failure, with no stored values (protocol/store/secrets.md).
     #[must_use]
     pub fn start_open_failure(&self) -> Option<&restore::OpenFailure> {
         self.start_open_failure.as_ref()
@@ -209,12 +209,12 @@ impl Store {
         }
     }
 
-    /// Supplies the owners' static patch data (store.md 10.3).
+    /// Supplies the owners' static patch data (protocol/store/opening.md 3).
     pub fn patch_sets(&mut self, sets: PatchSets) {
         self.patch_sets = sets;
     }
 
-    /// The start's wires (store.md 5.3), at most 16 with names of at most
+    /// The start's wires (protocol/store/records.md 3), at most 16 with names of at most
     /// 32 bytes. Refused input is not retained. No wires means an empty row.
     #[must_use]
     pub fn wires(&mut self, wires: &'static [Wire]) -> bool {
@@ -239,7 +239,7 @@ impl Store {
         }
     }
 
-    /// Whether this start's first Wires commit is durable (store.md 5.3).
+    /// Whether this start's first Wires commit is durable (protocol/store/records.md 3).
     #[must_use]
     pub fn mark_durable(&self) -> bool {
         match self.mark {
@@ -261,7 +261,7 @@ pub fn valid(limits: &Limits) -> bool {
     checked_codec(limits).is_some()
 }
 
-// Validate and retain one family mapping for both admission and the live store (store.md, 13).
+// Validate and retain one family mapping for both admission and the live store (protocol/store/README.md, 8).
 fn checked_codec(limits: &Limits) -> Option<codec::View> {
     let codec = limits.codec_view()?;
     if valid_with_codec(limits, &codec) { Some(codec) } else { None }
@@ -303,7 +303,7 @@ fn decoded_records_bound(limits: &Limits, codec: &codec::View) -> Option<u64> {
         .checked_mul(2)
 }
 
-/// The memory component's requests (store.md, section 10).
+/// The memory component's requests (protocol/store/opening.md).
 pub fn down(store: &mut Store, env: &Env<Limits>, request: Request, above: &mut Queue<Event>, below: &mut Below) {
     if store.phase == Phase::Stopped {
         return;

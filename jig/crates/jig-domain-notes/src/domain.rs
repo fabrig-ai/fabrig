@@ -1,4 +1,4 @@
-//! Notes' machine (jig's domain/engine.md, sections 5.3, 5.6 and 10).
+//! Notes' machine (jig's domain/engine/README.md, sections 5.3 and 5.6, and domain/engine/briefs.md, section 2).
 //! It holds one pending operation and the recently used scope indexes, never
 //! entry bodies beyond the pending operation. [`step`] is its entry point;
 //! the parent echoes each store load token and commits emitted writes.

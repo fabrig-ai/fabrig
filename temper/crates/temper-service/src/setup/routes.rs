@@ -1,4 +1,4 @@
-//! GitHub's setup visit, after jig's claim (client/forge.md, 9.1).
+//! GitHub's setup visit, after jig's claim (client/forge/served.md, 1).
 use crate::engine::Engine;
 use alloc::boxed::Box;
 use core::num::NonZeroU64;

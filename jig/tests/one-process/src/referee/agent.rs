@@ -1,5 +1,5 @@
 //! The worker's actual agent pipe bytes, decoded independently of its root.
-//! Agent ACKs attest hub retention, not engine durability (domain/hosts.md, 6.4).
+//! Agent ACKs attest hub retention, not engine durability (domain/hosts/hub.md, 4).
 use jig_conformance::referee::Observed;
 use skein_io::kernel::{Complete, Done, Op};
 use skein_lib::Reader;

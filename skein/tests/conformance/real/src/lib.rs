@@ -1,5 +1,5 @@
 //! The conformance suite against both backends on the real kernel, on loopback
-//! and in scratch directories (kernel.md, 8): [`Real`], the chosen kernel as the
+//! and in scratch directories (runtime/kernel.md, 8): [`Real`], the chosen kernel as the
 //! suite's backend, each process of a scenario a `Kernel` of its own, each
 //! root a scratch directory of its own. The tests are
 //! `tests/conformance.rs`.

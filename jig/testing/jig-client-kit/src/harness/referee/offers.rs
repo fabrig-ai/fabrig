@@ -212,7 +212,7 @@ impl Offers {
         match (offer, outcome) {
             (Fall::Within, DraftOutcome::Made) => {}
             // AsAllowed is resolved against the live pool, not its delivered snapshot
-            // (jig/docs/design/client/domain/contract.md, 3.2 and 5.3).
+            // (jig/docs/design/client/domain/contract/requests.md, 2, and jig/docs/design/client/domain/contract/documents.md, 3).
             (Fall::Within, DraftOutcome::NoBudget) if as_allowed => {}
             (Fall::Proposable(to), DraftOutcome::Proposed(proposal)) => {
                 if let Some(recipient) = self.recipients.get(&proposal) {

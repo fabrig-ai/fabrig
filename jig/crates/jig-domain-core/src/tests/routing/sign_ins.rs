@@ -1,4 +1,4 @@
-//! A sign-in is named only by its own reply (`domain/people.md`, section 3).
+//! A sign-in is named only by its own reply (`domain/people/README.md`, section 3).
 use crate::tests::{routing::engine_timers::timer_core, *};
 
 fn newcomer() -> people::Identity {

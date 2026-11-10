@@ -1,4 +1,4 @@
-//! A box's person on its forges (temper/docs/design/domain/forge.md, 4.6).
+//! A box's person on its forges (temper/docs/design/domain/forge/adoption.md, 6).
 use crate::{Domain, ForgeState, Kind, Link, LinkNote, Mode, PersonAnswer, Request, forges};
 use skein_lib::{List, Queue};
 

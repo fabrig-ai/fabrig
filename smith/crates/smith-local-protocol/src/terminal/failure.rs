@@ -1,5 +1,5 @@
 //! Typed local failures rendered only for the person and operator
-//! (domain/host.md, section 8; shell.md, section 4.3).
+//! (domain/host.md, section 8; shell/commands.md, section 3).
 use super::{Shown, append, decimal};
 use smith_events::{AnswerClass, AnswerFailure, CompletionFailure, Evidence, FailureClass, clip, words};
 use smith_host_domain as host;

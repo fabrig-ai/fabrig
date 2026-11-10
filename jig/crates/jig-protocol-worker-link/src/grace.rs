@@ -1,5 +1,5 @@
 //! One grace from the first loss, stopped by an admitted hello
-//! (jig/docs/design/protocol/channel.md, 10.1).
+//! (jig/docs/design/protocol/channel/README.md, 9.1).
 use skein_lib::{Duration, Time};
 #[derive(Debug)]
 pub(crate) struct Grace {

@@ -1,5 +1,5 @@
-//! Welcome scenarios from client/README.md, 3.5, 4.8, 5.1, 5.6,
-//! and client/browser.md, 2.3–2.4. Only the world's public surface is used.
+//! Welcome scenarios from client/pages/README.md, client/forge/family.md, 7, client/view.md, 1, client/pages/welcome.md, 2,
+//! and client/web/README.md, 2.3–2.4. Only the world's public surface is used.
 use jig_client_kit::harness::{ClientId, Until, World};
 use skein_fake_person::{Find, Step as PersonStep};
 use skein_ui::Role;
@@ -28,7 +28,7 @@ fn follow(world: &mut Pages, client: ClientId, steps: Vec<PersonStep<Address>>) 
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
 }
 
-// Welcome deliberately has no link-state node (client/README.md, 3.5).
+// Welcome deliberately has no link-state node (client/pages/README.md).
 // Establish the world's visible Online expectation at Chats before navigating.
 fn open_from_chats(world: &mut Pages, step: Step) -> ClientId {
     let client = world.client(f::PARTY, Address::Chats { filter: ChatsFilter::All });
@@ -57,7 +57,7 @@ fn unknown_and_unrelated_fields_drop_from_welcome() {
 
 #[test]
 fn repeated_step_keeps_first_readable_value() {
-    // browser.md, 2.3: as the inbox query, repeats after the first that read are dropped.
+    // client/web/README.md, 2.3: as the inbox query, repeats after the first that read are dropped.
     for (path, step) in [
         ("/welcome?at=forge&at=model", Step::Forge { forge: None }),
         ("/welcome?at=model&at=ready", Step::Model { way: None }),

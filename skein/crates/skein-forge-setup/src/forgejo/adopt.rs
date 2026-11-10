@@ -1,4 +1,4 @@
-//! Gives the bot access before its owner's first call (forge-setup.md, 4.5, steps 1 to 4).
+//! Gives the bot access before its owner's first call (forge/setup/forgejo.md, 1.5, steps 1 to 4).
 use crate::forgejo::admin::{self, Admin};
 use crate::{
     call::Auth,

@@ -1,4 +1,4 @@
-//! Files under chaos, over many seeds (simulator.md, 6): a workload of
+//! Files under chaos, over many seeds (testing/simulator.md, 6): a workload of
 //! every operation on files through the machine seam, every completion
 //! checked by the simulator, each process settled at the end, and every
 //! fault of files fell.

@@ -1,6 +1,6 @@
 //! Assemble outputs in the decision that owns them. A copying application
 //! replaces its tools and connector results; charter conversion stays shared
-//! (domain/root.md, 7; domain/hosts.md, 8).
+//! (domain/root.md, 7; domain/hosts/charters.md).
 use crate::domain::Work;
 use crate::{Domain, Limits};
 use alloc::boxed::Box;

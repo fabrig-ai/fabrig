@@ -1,4 +1,4 @@
-//! Shared scenario values (skein/docs/design/fake-forge.md, 10.6).
+//! Shared scenario values (skein/docs/design/testing/fakes/github.md, 1.6).
 use crate::{
     app::App,
     installations::{self, Kind, Reach},

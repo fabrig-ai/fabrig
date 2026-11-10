@@ -1,4 +1,4 @@
-//! Whole-story deliveries (temper/docs/design/client/browser.md, 7.2; client/README.md, 3.5).
+//! Whole-story deliveries (temper/docs/design/client/web/gallery.md, 2; client/pages/README.md).
 use super::{Then, World, base_task, doc, offers};
 use crate::driver::{down, limits};
 use jig_client::{Down, Readable, Readout, Up, Watchable, contract as c};

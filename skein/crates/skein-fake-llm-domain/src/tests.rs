@@ -62,7 +62,7 @@ use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall};
 
 const CALL: Token = Token::new(7);
 const OTHER_CALL: Token = Token::new(8);
-const MAX_HOLD_BYTES: usize = 64; // fake-llm.md 2.2: admitted hold names.
+const MAX_HOLD_BYTES: usize = 64; // testing/fakes/llm.md 2.2: admitted hold names.
 const PAST_HOLD_BYTES: usize = MAX_HOLD_BYTES + 1;
 const INVALID_SCRIPT_CASES: usize = 5; // Placement, count, text, empty hold and long hold.
 const LATENCY: Duration = Duration::from_secs(1);

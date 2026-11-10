@@ -5,7 +5,7 @@ use jig_domain_core as core;
 use jig_test_domain as root;
 
 /// Shared instructions and one part for each activation in the per-wake story
-/// (`jig/docs/design/domain/tasks.md`, 8.6).
+/// (`jig/docs/design/domain/tasks/messages.md`, 6).
 #[must_use]
 pub fn per_wake_charter() -> core::Charter {
     use jig_domain_tasks::Reasons;

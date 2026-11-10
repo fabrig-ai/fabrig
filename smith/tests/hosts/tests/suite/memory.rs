@@ -1,4 +1,4 @@
-//! Hosted processes are metered through teardown (protocol/hosts.md, section 3;
+//! Hosted processes are metered through teardown (protocol/host.md, section 3;
 //! programming-model.md, section 6.3).
 
 #[cfg(test)]

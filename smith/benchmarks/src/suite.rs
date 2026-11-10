@@ -1,7 +1,7 @@
 //! Suites retain task selections, pins and budgets, never live attempt state.
 //! `validate_suite` resolves references; `choose_guards` selects affordable
 //! guarded tasks from estimates until summaries supply medians
-//! (benchmarks.md, sections 4.2 and 5.3).
+//! (../../docs/design/benchmarks/README.md, sections 4.2 and 5.3).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -70,14 +70,14 @@ pub struct Suite {
     pub design: Design,
     #[serde(default)]
     pub reference: Option<String>,
-    /// Compare two smith builds supplied at invocation (benchmarks.md, 16.6).
+    /// Compare two smith builds supplied at invocation (benchmarks/codex-parity.md, 6).
     #[serde(default)]
     pub change: bool,
     pub repetitions: u32,
     /// An invocation may replace every task's attempts per arm.
     #[serde(default)]
     pub attempts: Option<u32>,
-    /// Suite-authored counts for exact task and variant names (benchmarks.md, 5.3).
+    /// Suite-authored counts for exact task and variant names (../../docs/design/benchmarks/README.md, 5.3).
     #[serde(default)]
     pub repetitions_by_task: BTreeMap<String, u32>,
     /// Zero or one rerun after a failed attempt.
@@ -86,7 +86,7 @@ pub struct Suite {
     pub max_tokens: u64,
     #[serde(default)]
     pub tasks: Vec<String>,
-    /// Tasks that run only when a run names them with `--include` (benchmarks.md, 5.3).
+    /// Tasks that run only when a run names them with `--include` (../../docs/design/benchmarks/README.md, 5.3).
     #[serde(default)]
     pub when_asked: Vec<String>,
     #[serde(default)]

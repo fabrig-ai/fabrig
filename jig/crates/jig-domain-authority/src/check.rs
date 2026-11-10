@@ -571,7 +571,7 @@ pub fn check_run(domain: &Domain, ask: &RunAsk, why: &mut Queue<Finding>) -> cra
     }
 }
 
-/// A job's claim check (jig/docs/design/domain/engine.md, 7.5;
+/// A job's claim check (jig/docs/design/domain/engine/executors.md, 5;
 /// jig/docs/design/domain/authority.md, 8.3): its deadline, credentials and
 /// workspace writes, without an account, budget, reserve or model.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -1099,7 +1099,7 @@ mod job_tests {
     use crate::tests_fixtures::{authority, domain, domain_with, numbers};
 
     /// A job checks the same writes and deadlines as a run, with no spend or
-    /// account evidence (jig/docs/design/domain/engine.md, 7.5).
+    /// account evidence (jig/docs/design/domain/engine/executors.md, 5).
     #[test]
     #[expect(clippy::too_many_lines, reason = "the check's independent inputs share one comparison fixture")]
     fn a_jobs_writes_are_checked_as_a_runs_without_an_account_or_budget() {

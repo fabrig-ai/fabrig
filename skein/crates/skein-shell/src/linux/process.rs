@@ -91,7 +91,7 @@ pub(crate) fn open_signals(watch: crate::Watch) -> Result<Fd, i32> {
         if unsafe { libc::sigaction(libc::SIGHUP, ptr::null(), ptr::from_mut(&mut disposition)) } != 0 {
             return Err(super::last_errno());
         }
-        // Blocked signals reach signalfd even when ignored (shell.md, 6.3).
+        // Blocked signals reach signalfd even when ignored (runtime/shell.md, 6.3).
         if disposition.sa_sigaction != libc::SIG_IGN {
             // SAFETY: set remains initialized and writable.
             if unsafe { libc::sigaddset(ptr::from_mut(&mut set), libc::SIGHUP) } != 0 {
@@ -299,7 +299,7 @@ fn spawn_prepared(command: &mut Spawn, terminal: Option<&CString>, cgroup: Optio
                 i32::from(libc::POSIX_SPAWN_SETSID)
             } else {
                 // SAFETY: the initialized attributes receive zero, requesting
-                // a new process group whose leader is the child (io.md, 6).
+                // a new process group whose leader is the child (runtime/io/processes.md).
                 action(unsafe { libc::posix_spawnattr_setpgroup(ptr::from_mut(&mut attributes), 0) })?;
                 libc::POSIX_SPAWN_SETPGROUP
             };
@@ -526,7 +526,7 @@ pub(crate) fn abandon_binary(pidfd: Option<Fd>, descriptors: &[Fd]) {
     }
     for descriptor in descriptors {
         // SAFETY: the observer owns these quiescent descriptors: no record
-        // remains outstanding on them (kernel.md, section 7).
+        // remains outstanding on them (runtime/kernel.md, section 7).
         let _closed = unsafe { libc::close(descriptor.raw()) };
     }
 }
@@ -623,7 +623,7 @@ pub(crate) fn open_cgroup(path: &std::path::Path) -> Result<Fd, Error> {
 }
 
 /// Polls a known pidfd without blocking or taking another owner's child.
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn poll_child(pidfd: Fd, reap: bool) -> Result<Option<skein_io::kernel::Exit>, Error> {
     // SAFETY: siginfo_t is initialized for waitid to fill.
     let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };

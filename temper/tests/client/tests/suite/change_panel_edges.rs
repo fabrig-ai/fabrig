@@ -30,7 +30,7 @@ fn tick(world: &mut ClientWorld) {
 fn panel(world: &ClientWorld, client: ClientId) -> &wire::ChangePanel {
     let state = &world.root(client).person().forge().panel().as_ref().expect("task page's panel slot").state;
     let State::Shown(panel) = state else {
-        panic!("design client/forge.md 9.2 promises the known change's panel, got {state:?}")
+        panic!("design client/forge/served.md 2 promises the known change's panel, got {state:?}")
     };
     panel
 }
@@ -51,7 +51,7 @@ fn review(world: &mut ClientWorld, client: ClientId) -> u64 {
     );
 }
 
-// client/forge.md, 9.2: a change ended before its page opens keeps its last panel.
+// client/forge/served.md, 2: a change ended before its page opens keeps its last panel.
 #[test]
 fn late_open_landed_change_keeps_its_final_panel() {
     let (mut world, task) = change_world();
@@ -96,7 +96,9 @@ fn late_open_landed_change_keeps_its_final_panel() {
     }
     let value = panel(&world, client);
     let wire::Step::Landed(landed) = value.step() else {
-        panic!("design client/forge.md 9.2: a page first opened after landing must receive its final panel: {value:?}");
+        panic!(
+            "design client/forge/served.md 2: a page first opened after landing must receive its final panel: {value:?}"
+        );
     };
     let merge = *landed.merge();
     let number = value.pull().as_ref().expect("retained pull").number();
@@ -109,7 +111,7 @@ fn late_open_landed_change_keeps_its_final_panel() {
     assert_eq!(
         pull.merged,
         Some(merge),
-        "design client/forge.md 9.2: a late-open panel must retain the forge's merge commit"
+        "design client/forge/served.md 2: a late-open panel must retain the forge's merge commit"
     );
     assert!(world.front().watching_change(client, task));
 }
@@ -126,7 +128,7 @@ fn finish_review(world: &mut ClientWorld, task: u64, result: jig_domain_tasks::T
     );
 }
 
-// client/forge.md, 9.2 and domain/forge.md, 8.5: a closed pull holds at its current step.
+// client/forge/served.md, 2 and domain/forge/change/README.md, 3: a closed pull holds at its current step.
 #[test]
 fn externally_closed_pull_holds_the_panel_at_gating() {
     let (mut world, task) = change_world();
@@ -149,17 +151,17 @@ fn externally_closed_pull_holds_the_panel_at_gating() {
     assert_eq!(
         value.hold(),
         &Some(wire::Hold::Closed),
-        "design client/forge.md 9.2: an externally closed pull's hold must be delivered, got {value:?}"
+        "design client/forge/served.md 2: an externally closed pull's hold must be delivered, got {value:?}"
     );
     assert_eq!(
         value.step(),
         &wire::Step::Gating,
-        "design client/forge.md 9.2: a held panel retains the step it was held at"
+        "design client/forge/served.md 2: a held panel retains the step it was held at"
     );
     assert_eq!(value.ci(), &wire::Ci::Passed);
 }
 
-// client/forge.md, 9.2 and domain/forge.md, 8.4: a blocking rejection names its gate as repair reason.
+// client/forge/served.md, 2 and domain/forge/change/repairs.md: a blocking rejection names its gate as repair reason.
 #[test]
 fn rejected_review_panel_names_the_gate_repair_reason() {
     let (mut world, task) = change_world();
@@ -180,10 +182,10 @@ fn rejected_review_panel_names_the_gate_repair_reason() {
     }
     let value = panel(&world, client);
     let wire::Step::Repairing(repair) = value.step() else {
-        panic!("design domain/forge.md 8.4: blocking review changes require a repair, got {value:?}");
+        panic!("design domain/forge/change/repairs.md: blocking review changes require a repair, got {value:?}");
     };
     let wire::Reason::Gate(reason) = repair.reason() else {
-        panic!("design client/forge.md 9.2: a gate repair must carry that gate's number, got {repair:?}");
+        panic!("design client/forge/served.md 2: a gate repair must carry that gate's number, got {repair:?}");
     };
     assert_eq!(reason.gate(), gate);
     assert_eq!(value.repairs().used(), 1);
@@ -191,7 +193,7 @@ fn rejected_review_panel_names_the_gate_repair_reason() {
     assert_eq!(value.gates().as_slice()[0].verdict(), &wire::Verdict::Changes);
 }
 
-// client/forge.md, 9.2: a cancelled change still has its panel when first opened afterwards.
+// client/forge/served.md, 2: a cancelled change still has its panel when first opened afterwards.
 #[test]
 #[ignore = "needs: client landing fixture with an admitted Cancel action on a procedure task"]
 fn late_open_cancelled_change_keeps_its_last_panel() {
@@ -228,11 +230,11 @@ fn late_open_cancelled_change_keeps_its_last_panel() {
     assert_eq!(
         panel(&world, late),
         &expected,
-        "design client/forge.md 9.2: a cancelled change's retained panel must be delivered when its page opens"
+        "design client/forge/served.md 2: a cancelled change's retained panel must be delivered when its page opens"
     );
 }
 
-// client/forge.md, 9.2: leaving the task page closes its panel's watch, even during a gate.
+// client/forge/served.md, 2: leaving the task page closes its panel's watch, even during a gate.
 #[test]
 fn leaving_a_live_change_page_releases_its_watch() {
     let (mut world, task) = change_world();
@@ -245,7 +247,7 @@ fn leaving_a_live_change_page_releases_its_watch() {
     }
     assert!(
         !world.front().watching_change(client, task),
-        "design client/forge.md 9.2: a panel is watched while its task page is open"
+        "design client/forge/served.md 2: a panel is watched while its task page is open"
     );
     assert!(world.root(client).person().forge().panel().is_none());
     world.go(client, fixtures::task_page(task));
@@ -254,7 +256,7 @@ fn leaving_a_live_change_page_releases_its_watch() {
     assert_eq!(panel(&world, client).step(), &wire::Step::Gating);
 }
 
-// domain/forge.md, 8.8 and 5.3: CI changes only when a step reads it, and failed CI names its repair.
+// domain/forge/change/README.md, 5, and domain/forge/keeping-up.md, 3: CI changes only when a step reads it, and failed CI names its repair.
 #[test]
 fn ci_failure_is_read_into_the_panel_and_names_its_repair() {
     let (mut world, task) = change_world();
@@ -279,7 +281,7 @@ fn ci_failure_is_read_into_the_panel_and_names_its_repair() {
     assert_eq!(
         panel(&world, client).ci(),
         &wire::Ci::Passed,
-        "design domain/forge.md 8.8: the panel keeps the last step's CI, until another step reads it"
+        "design domain/forge/change/README.md 5: the panel keeps the last step's CI, until another step reads it"
     );
     // The running review owns the remaining spend. End it so jig can fund
     // the repair when the next step reads the failed CI.
@@ -295,12 +297,16 @@ fn ci_failure_is_read_into_the_panel_and_names_its_repair() {
     assert_eq!(
         value.ci(),
         &wire::Ci::Failed,
-        "design domain/forge.md 8.8: the next step's changed CI verdict must reach the watched panel: {value:?}"
+        "design domain/forge/change/README.md 5: the next step's changed CI verdict must reach the watched panel: {value:?}"
     );
     let wire::Step::Repairing(repair) = value.step() else {
-        panic!("design domain/forge.md 8.4: failed CI must enter repair: {value:?}");
+        panic!("design domain/forge/change/repairs.md: failed CI must enter repair: {value:?}");
     };
-    assert_eq!(repair.reason(), &wire::Reason::Ci, "design client/forge.md 9.2: a CI repair must retain its CI reason");
+    assert_eq!(
+        repair.reason(),
+        &wire::Reason::Ci,
+        "design client/forge/served.md 2: a CI repair must retain its CI reason"
+    );
     assert_eq!(value.repairs().used(), 1);
     assert!(value.runs().is_some(), "the named repair has an admitted delegate: {value:?}");
 }

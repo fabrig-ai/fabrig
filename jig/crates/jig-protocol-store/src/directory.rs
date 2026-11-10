@@ -1,4 +1,4 @@
-//! Deployment generations and independent stores (protocol/store.md, 2 and 10.1).
+//! Deployment generations and independent stores (protocol/store/README.md, 2, and protocol/store/opening.md, 1).
 use crate::generations::{self, Active, Manifesting, Map, PAGE, Progress, Removing};
 use crate::patching::phase::{self, Patching, Pending};
 use crate::{Arrived, Below, Event, Generations, Io, Limits, Older, OpenRefusal, Phase, Root, Store, open, secrets};
@@ -324,7 +324,7 @@ fn survey_page(store: &mut Store, kind: Survey, root: Root, entries: Box<[file::
         list(root, &mut below.store);
     }
 }
-/// The one file a cut first start can leave beside its empty maps (store.md 2).
+/// The one file a cut first start can leave beside its empty maps (protocol/store/README.md 2).
 fn first_manifest(name: &[u8]) -> bool {
     if name == b"manifest" {
         return true;

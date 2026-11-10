@@ -1,6 +1,6 @@
 //! Independent role-administration obligations over submitted transactions and
 //! durable replies. The observer owns the outside roster/holder expectations;
-//! it never reads root or child state (jig's domain/people.md, section 5.1).
+//! it never reads root or child state (jig's domain/people/acts.md, section 1).
 
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -9,11 +9,11 @@ use std::collections::{BTreeMap, BTreeSet};
 use temper_engine_domain::{Key, Record, Write};
 
 /// One independently expected successful roster replacement, including the
-/// exact task rows permitted to change (jig's domain/engine.md, section 5.1).
+/// exact task rows permitted to change (jig's domain/engine/README.md, section 5.1).
 #[derive(Clone, Hash, Debug)]
 pub struct Replacement {
     /// Complete project roster supplied by the outside owner (jig's
-    /// domain/people.md, section 4).
+    /// domain/people/README.md, section 4).
     pub holdings: Box<[people::Holding]>,
 
     /// Exact expected Waiting rows; every other task field remains byte-for-byte
@@ -39,7 +39,7 @@ pub struct Referee {
     asks: BTreeMap<Token, Obligation>,
     terminals: BTreeSet<Token>,
     /// Number of successful atomic role replacements observed
-    /// (jig's domain/people.md, section 5.1).
+    /// (jig's domain/people/acts.md, section 1).
     pub replacements: u32,
 }
 
@@ -51,7 +51,7 @@ impl Referee {
     }
 
     /// Register one authenticated outside call before dispatch; duplicate keys
-    /// may have distinct reply rights (jig's domain/people.md, section 5.1).
+    /// may have distinct reply rights (jig's domain/people/acts.md, section 1).
     pub fn ask(
         &mut self,
         to: Token,
@@ -72,14 +72,14 @@ impl Referee {
     /// # Errors
     /// Names missing cohort members, unauthorized changes, duplicate writes,
     /// altered funding, or a task field differing from the scripted expectation
-    /// (jig's domain/engine.md, section 5.1).
+    /// (jig's domain/engine/README.md, section 5.1).
     #[expect(
         clippy::too_many_lines,
         reason = "one independent atomic-cohort check names each specific violated contract"
     )]
     pub fn commit(&mut self, writes: &[Write]) -> Result<(), &'static str> {
         if writes.contains(&Write::Wires) {
-            // domain/root.md 9.1: exactly the deployment header and Wires.
+            // domain/root.md 8.1: exactly the deployment header and Wires.
             if writes.len() != 2 {
                 return Err("startup mark contains other writes");
             }
@@ -395,7 +395,7 @@ impl Referee {
     /// # Errors
     /// Rejects unsolicited/duplicate replies, wrong wrappers/outcomes, replies
     /// before durability, or admission refusals that replaced an existing key
-    /// (jig's domain/people.md, section 5.1; jig's domain/engine.md, section 5.2).
+    /// (jig's domain/people/acts.md, section 1; jig's domain/engine/README.md, section 5.2).
     pub fn replied(
         &mut self,
         rows: &BTreeMap<Key, Record>,
@@ -439,7 +439,7 @@ impl Referee {
     }
 
     /// All registered terminal rights were consumed exactly once
-    /// (jig's domain/people.md, section 5.1).
+    /// (jig's domain/people/acts.md, section 1).
     #[must_use]
     pub fn done(&self) -> bool {
         self.asks.is_empty()

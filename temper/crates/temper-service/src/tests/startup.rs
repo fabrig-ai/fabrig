@@ -776,7 +776,7 @@ fn a_setup_or_box_override_is_handed_on_with_its_value() {
     }
 }
 
-// protocol/sign-in.md, 9: a configured provider is admitted, and startup reads its key and
+// protocol/openid-provider.md: a configured provider is admitted, and startup reads its key and
 // client secret as private files, refusing either one missing by its path.
 #[test]
 fn a_clients_provider_key_and_secret_are_private_files_named_by_path() {
@@ -1388,7 +1388,7 @@ fn landing_configuration_reads_tiers_and_project_settings_by_queue_and_turn() {
     }
 }
 
-/// A project's merge command is optional (temper/docs/design/protocol/configuration.md, 3).
+/// A project's merge command is optional (temper/docs/design/protocol/configuration/engine.md).
 #[test]
 fn landing_configuration_reads_a_projects_merge_job() {
     let longest = "a".repeat(4_096);
@@ -1408,7 +1408,7 @@ fn landing_configuration_reads_a_projects_merge_job() {
     }
 }
 
-/// Invalid merge commands refuse their member (temper/docs/design/protocol/configuration.md, 3).
+/// Invalid merge commands refuse their member (temper/docs/design/protocol/configuration/engine.md).
 #[test]
 fn a_merge_job_path_out_of_bounds_refuses_the_start_at_its_member() {
     let longest = "a".repeat(4_097);
@@ -1445,7 +1445,7 @@ fn a_merge_job_path_out_of_bounds_refuses_the_start_at_its_member() {
     }
 }
 
-/// A project's close command is optional (temper/docs/design/protocol/configuration.md, 3).
+/// A project's close command is optional (temper/docs/design/protocol/configuration/engine.md).
 #[test]
 fn landing_configuration_reads_a_projects_close_job() {
     let longest = "a".repeat(4_096);
@@ -1465,7 +1465,7 @@ fn landing_configuration_reads_a_projects_close_job() {
     }
 }
 
-/// Invalid close commands refuse their member (temper/docs/design/protocol/configuration.md, 3).
+/// Invalid close commands refuse their member (temper/docs/design/protocol/configuration/engine.md).
 #[test]
 fn a_close_job_path_out_of_bounds_refuses_the_start_at_its_member() {
     let longest = "a".repeat(4_097);

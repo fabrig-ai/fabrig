@@ -1,24 +1,24 @@
-//! TLS for a connection's stack of protocol machines (tls.md): the client,
+//! TLS for a connection's stack of protocol machines (net/tls.md): the client,
 //! over rustls's unbuffered connection.
 //!
 //! - [`client`] is a step machine (programming-model.md, 4) between two
-//!   streams (lib.md, 7): the ciphertext below, a socket's or a pipe's, and
+//!   streams (runtime/lib.md, 7): the ciphertext below, a socket's or a pipe's, and
 //!   the plaintext above, which the machine stacked on it cannot tell from a
 //!   socket.
 //! - [`client::native`]: the client with independent output on both sides
-//!   (tls.md, 3.6; lib.md, 7.1).
+//!   (net/tls.md, 3.6; runtime/lib.md, 7.1).
 //! - [`Config`] is what every connection shares, made at startup from the
 //!   roots a service trusts and the protocols it offers by ALPN; [`Name`]
 //!   is each connection's server.
 //! - [`verify_rs256`] and [`sign_rs256`]: RS256 by ring, kept behind this
-//!   crate (tls.md, 4).
+//!   crate (net/tls.md, 4).
 //!
 //! It is the one exception of programming-model.md, section 3: the only
 //! step code that depends on a crate from outside skein and the service,
 //! rustls with ring beneath it, and the only step code that is not
 //! deterministic, as rustls draws its randoms and keys from the kernel
 //! through ring. It reads no clock: certificates are checked against
-//! `env.wall`. It is the client side (tls.md, section 1).
+//! `env.wall`. It is the client side (net/tls.md, section 1).
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]

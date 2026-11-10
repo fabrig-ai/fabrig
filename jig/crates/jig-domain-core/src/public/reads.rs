@@ -1,4 +1,4 @@
-//! Index-only public reads and their completion (jig/docs/design/domain/people.md, 13.9–13.10).
+//! Index-only public reads and their completion (jig/docs/design/domain/people/public-reading.md, 9–10).
 //!
 //! | State | Event | Next | Output |
 //! | --- | --- | --- | --- |
@@ -133,7 +133,7 @@ pub(crate) fn durable(core: &mut Core, env: &Env<Limits>, read: Token) -> Queue<
             let latest = core.counters.deployment().commits;
             if *after != latest {
                 // The callback covered an older commit; ask the journal to cover
-                // every commit now preceding the completing step (people.md, 13.10).
+                // every commit now preceding the completing step (domain/people/public-reading.md, 10).
                 *after = latest;
                 let mut out = Queue::uncapped();
                 out.push(Request::Held(Box::new(Held::PublicWait { read })));

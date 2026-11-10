@@ -1,4 +1,4 @@
-//! Shared fixture values and durable rows (temper/docs/design/domain/testing.md, 6.1).
+//! Shared fixture values and durable rows (temper/docs/design/testing/checks.md, 1).
 use super::*;
 
 #[test]

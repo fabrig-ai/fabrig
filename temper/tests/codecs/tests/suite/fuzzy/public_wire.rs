@@ -1,4 +1,4 @@
-//! Seeded visitor record decoding (temper/docs/design/client/forge.md, 11.4).
+//! Seeded visitor record decoding (temper/docs/design/client/forge/README.md, 9.4).
 use skein_lib::{List, Reader, Rng, Writer};
 use std::panic::catch_unwind;
 use temper_client_protocol_wire::public_v1 as w;

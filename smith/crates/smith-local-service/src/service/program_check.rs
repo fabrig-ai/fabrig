@@ -1,4 +1,4 @@
-//! Per-request program checks (domain/host.md, section 8; protocol/hosts.md,
+//! Per-request program checks (domain/host.md, section 8; protocol/host.md,
 //! section 2). Keeps startup coverage, one child and an arrival-ordered queue;
 //! knows no login contents. Requests, I/O, deadlines and cancellation settle
 //! through the host IO before a credential is lent or refused.

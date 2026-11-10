@@ -1,4 +1,4 @@
-//! Live run and restart correlation held by the core (domain/engine.md, 3 and 7.2).
+//! Live run and restart correlation held by the core (domain/engine/README.md, 3, and domain/engine/executors.md, 2).
 
 use crate::{CallKey, Core, RunChoice, TurnRecord};
 use alloc::boxed::Box;
@@ -22,13 +22,13 @@ pub enum RunAdmission {
 
 /// Bounded recent opaque conversation while a due task's store pages are read.
 /// Each retained turn counts its four-byte length beside its opaque body
-/// (domain/engine.md, 7.2).
+/// (domain/engine/executors.md, 2).
 #[derive(Hash, Debug)]
 pub struct Transcript {
     pub window: Option<(u64, u32)>,
     /// An upgrade closed the loaded window or crossed its claim.
     pub closed: bool,
-    /// A loaded turn was past its store page room (domain/engine.md, 7.2).
+    /// A loaded turn was past its store page room (domain/engine/executors.md, 2).
     pub cut: bool,
     /// The preparation has received its final store page.
     pub loaded: bool,
@@ -172,7 +172,7 @@ impl Core {
     }
 
     /// Whether a due agent's admission for no writes is anything but a wait
-    /// (domain/engine.md, 7.1), asking the cheaper checks first.
+    /// (domain/engine/executors.md, 1), asking the cheaper checks first.
     pub(crate) fn agent_ready(&self, task: u64) -> bool {
         let Some(row) = self.tasks.task(task) else { return false };
         let current = (task, row.project, &row.authority, row.numbers);
@@ -212,7 +212,7 @@ impl Core {
         }
     }
 
-    /// Only unusable window history closes a window (jig/docs/design/domain/engine.md, 7.2).
+    /// Only unusable window history closes a window (jig/docs/design/domain/engine/executors.md, 2).
     pub(crate) fn close_window(&mut self, task: u64) {
         if let Some(proof) = self.proofs.get_mut(&task)
             && let Some(window) = &mut proof.window
@@ -275,7 +275,7 @@ impl Core {
     }
 
     /// Admit a window turn's fields and length without its body, retaining its
-    /// fixed text in the tail and preventing resume (domain/engine.md, 7.2).
+    /// fixed text in the tail and preventing resume (domain/engine/executors.md, 2).
     #[must_use]
     pub fn append_cut_transcript(&mut self, task: u64, turn: TurnRecord, bytes: u64) -> bool {
         self.append_loaded_transcript(task, turn, Some(Box::from(crate::CUT_TURN_TEXT)), bytes, true)
@@ -382,7 +382,7 @@ pub struct RestoringProof {
     pub last_answer: Option<u64>,
 }
 
-/// One configured model and its deployment-unit prices (domain/agent.md, 4.6).
+/// One configured model and its deployment-unit prices (domain/agent/charter.md, 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Model {
     pub provider: u32,
@@ -402,17 +402,17 @@ pub struct Model {
     pub output_price: u64,
     pub price_unit: u32,
     /// The efforts the model declares, by name in its order; a task's LLM choice names one by
-    /// index, and none for a model that declares none (domain/tasks.md, 3).
+    /// index, and none for a model that declares none (domain/tasks/README.md, 3).
     pub efforts: Box<[Box<[u8]>]>,
     /// On a configured model and a charter's, the default a task given no LLM choice takes,
     /// one of `efforts` by name, or `None` for its first (configuration.md, 3).
-    /// On a run's charter, its task's choice's (domain/engine.md, 7.1), or `None` for the LLM
+    /// On a run's charter, its task's choice's (domain/engine/executors.md, 1), or `None` for the LLM
     /// provider's default when the model declares no efforts.
     pub effort: Option<Box<[u8]>>,
 }
 
 impl Model {
-    /// An unoccupied catalogue position (domain/engine.md, 17.11).
+    /// An unoccupied catalogue position (domain/engine/settings.md, 11).
     #[must_use]
     pub fn hole() -> Self {
         Self {
@@ -437,7 +437,7 @@ impl Model {
         self.name.is_empty()
     }
 
-    /// The default effort a task given no LLM choice takes (domain/tasks.md, 3).
+    /// The default effort a task given no LLM choice takes (domain/tasks/README.md, 3).
     #[must_use]
     pub fn default_effort(&self) -> Option<&[u8]> {
         match &self.effort {
@@ -455,7 +455,7 @@ pub const EFFORTS: u32 = 16;
 /// The most bytes in an effort's name: the bound smith's charter holds an effort to
 /// (smith's protocol/charter.md, sections 2 and 6).
 pub const EFFORT_BYTES: u32 = 32;
-/// Byte bounds on a configured model's name and description (configuration.md, 6).
+/// Byte bounds on a configured model's name and description (protocol/limits.md).
 pub use jig_domain_people::{MODEL_DESCRIPTION_BYTES, MODEL_NAME_BYTES};
 
 /// Root-owned charter policy, independent of Smith's run vocabulary.
@@ -480,7 +480,7 @@ pub struct RunPolicy {
     pub call_timeout: skein_lib::Duration,
     /// The host families its runs are offered, a mask of the configured `ToolFamilies` as a
     /// task's authority's tools are; a family it or the task's authority leaves out is not
-    /// offered (domain/engine.md, 7.1).
+    /// offered (domain/engine/executors.md, 1).
     pub tools: jig_domain_tasks::Tools,
 }
 
@@ -492,7 +492,7 @@ impl RunPolicy {
 
 /// The root's complete task-specific charter, kept behind one bounded
 /// assignment cell so delivery queues carry a small fixed-size value. Its settings
-/// revision is fixed when preparation begins (domain/engine.md, 17.3).
+/// revision is fixed when preparation begins (domain/engine/settings.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RunCharter {
     /// The settings revision recorded as this run began preparation.

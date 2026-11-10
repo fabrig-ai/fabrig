@@ -1,5 +1,5 @@
 //! temper's kind declarations
-//! (temper/docs/design/protocol/configuration.md, 13.2, 13.4 and 13.6).
+//! (temper/docs/design/protocol/configuration/settings.md, 2 and temper/docs/design/protocol/configuration/stock.md and temper/docs/design/protocol/configuration/settings.md, 5).
 use alloc::boxed::Box;
 use jig_domain_core::settings::{Kind, KindScope};
 use skein_lib::{List, bytes};

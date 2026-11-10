@@ -1,6 +1,6 @@
 //! Serial prepared suite dispatch; every attempt gets a fresh harness process.
 //! An adapter owns request preparation, not this dispatcher. The shared kit owns
-//! the child tree and the suite wall bound (benchmarks.md, sections 5.3 and 10).
+//! the child tree and the suite wall bound (../../docs/design/benchmarks/README.md, sections 5.3 and 10).
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fs;

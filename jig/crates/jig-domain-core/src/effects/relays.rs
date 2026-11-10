@@ -1,4 +1,4 @@
-//! Committed offers bound the run's unread inbox (tasks.md, 8.2; engine.md, 7.4).
+//! Committed offers bound the run's unread inbox (domain/tasks/messages.md, 2; domain/engine/executors.md, 4).
 use crate::{Core, Held, PendingRelay};
 
 pub(crate) fn room(core: &Core, task: u64, most: u32) -> bool {

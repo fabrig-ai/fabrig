@@ -1,4 +1,4 @@
-//! Project numbers fit the public u32 space without spending a refused number (core.md, 6.1).
+//! Project numbers fit the public u32 space without spending a refused number (domain/model.md, 6.1).
 use crate::tests::*;
 const POLICY: u32 = 1;
 const MAKER: u64 = 1;

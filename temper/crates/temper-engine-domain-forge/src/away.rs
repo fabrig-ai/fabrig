@@ -1,4 +1,4 @@
-//! Away spells and decisions (temper/docs/design/domain/forge.md, 5.8, 5.9).
+//! Away spells and decisions (temper/docs/design/domain/forge/attention.md, 4, 5).
 use crate::{Answered, Domain, Key, Limits, NamedCall, Request, Stored};
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, ReplyTo, Token, Wall};

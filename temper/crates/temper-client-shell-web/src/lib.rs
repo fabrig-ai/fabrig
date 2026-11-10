@@ -182,7 +182,7 @@ fn start_signed_in() {
     inbox.start(Box::new(move |inbox| shell.turn(inbox)));
     inbox.raise(Report::Start);
 }
-/// The page follows the domain's look even when keeping it is refused (client/README.md, 3.5).
+/// The page follows the domain's look even when keeping it is refused (client/pages/README.md).
 #[cfg(target_arch = "wasm32")]
 fn night(document: &web_sys::Document, on: bool) {
     let html = document.document_element().expect("document html");
@@ -289,7 +289,7 @@ impl<P: ShellPlatform> Shell<P> {
     /// Carries one report's requests, navigation, store writes and stream read; returns whether a new page shows.
     fn carry(&mut self, inbox: &Inbox<Report>, duties: host::Duties, read_on: bool) -> bool {
         // Keep the person's gesture: tabs precede transport in this turn
-        // (skein/docs/design/ui-web.md, section 11).
+        // (skein/docs/design/ui/web/README.md, section 9).
         for tab in &duties.tab {
             match tab {
                 host::TabAct::Open { words } => {
@@ -308,7 +308,7 @@ impl<P: ShellPlatform> Shell<P> {
                 self.screen.leave();
             }
         }
-        // Keep the person's gesture (skein/docs/design/ui-web.md, section 11).
+        // Keep the person's gesture (skein/docs/design/ui/web/README.md, section 9).
         if let Some((token, words)) = &duties.copy {
             self.clipboard.write(*token, words);
         }

@@ -1,4 +1,4 @@
-//! The first paint's inputs (client/browser.md, 2.5).
+//! The first paint's inputs (client/web/look.md).
 use std::{fs, path::Path};
 
 fn input(name: &str) -> String {

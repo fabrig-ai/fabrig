@@ -8,23 +8,23 @@ application's worlds run; and the reference UI, tested as any
 presentation on skein's UI kit is, with skein's fake person on its tree.
 It applies `testing-strategy.md` as `../../domain/testing.md` does for
 the engine; the tiers below the client are the client's protocol's
-(`../../protocol/client.md`, section 14; `../../protocol/browser.md`,
-section 15). What is still open is listed in section 10.
+(`../../protocol/client/README.md`, section 11; `../../protocol/browser/testing.md`
+). What is still open is listed in `testing.md`, section 10.
 
 ## 1. In one page
 
 - **The client is tested through its surface.** Its worlds give
   `jig-client` the events an application gives it and read the requests
-  it makes, as an application does (client.md, section 4). A story of
+  it makes, as an application does (client/README.md, section 4). A story of
   the client is written in those terms, and needs no tree and no person.
 - **Trees and the fake person are skein's and the applications'.** A
   presentation on skein's UI kit is tested as skein says, by skein's
-  fake person acting on its tree (skein's `ui.md`, section 17). The
+  fake person acting on its tree (skein's `ui/README.md`, section 14). The
   reference UI is one: its stories run in jig's worlds, with jig's test
   application in front of the client (section 4). An application's
   presentation runs in its own worlds, on jig's.
 - **The client's world comes first.** The real client, a scripted engine
-  that keeps the contract (contract.md), the transport played by the
+  that keeps the contract (contract/README.md), the transport played by the
   world, and every fault of section 7. Most of the client's tests live
   there.
 - **The joint world is the check.** The same stories in front of the
@@ -45,7 +45,7 @@ section 15). What is still open is listed in section 10.
   the server an application writes (a cross-site request, a rebound
   Host, a framed page) are jig's, in `jig-client-fake-person-browser`,
   which an application's browser tier may run against its own
-  (`../../protocol/browser.md`, section 15).
+  (`../../protocol/browser/testing.md`).
 - **Every world with a tree builds and diffs every page,** and applies
   the patches to a model of the last tree, which must then equal the new
   one.
@@ -57,7 +57,7 @@ section 15). What is still open is listed in section 10.
 | step tests | `jig-client`'s step and fire, by its events and its requests; its helpers, `shapes`, `facts`, `thread` and `words`; the reference UI's step and each of its view functions; its default arrangement's banner and `after_page`'s parts last, on each of jig's pages (pages.md, 12.3); jig's check; the reference UI's pages printed by skein's text shell, by golden text (view.md, 15.6); its test family's drawing code, by golden scenes (view.md, 17.5) | their events, by hand |
 | the client's world | `jig-client`, driven through its surface by a scripted application; or jig's test application, the reference UI and its view root in front of it, with the person | the engine, scripted; the transport, played by the world; the person |
 | the joint world | the same, in front of the engine's domain, root and all | the store, hosts and systems, as the engine's worlds fake them; the transport; the person |
-| the protocol world, the real loop | with the client's protocol layer and shells (`jig-client-protocol-http`, `jig-client-shell-native`), and the engine's clients' component with the default HTTP mapping's engine end; skein's text shell's terminal in front of the native one, on skein's simulated machine (`../../protocol/client.md`, section 14) | |
+| the protocol world, the real loop | with the client's protocol layer and shells (`jig-client-protocol-http`, `jig-client-shell-native`), and the engine's clients' component with the default HTTP mapping's engine end; skein's text shell's terminal in front of the native one, on skein's simulated machine (`../../protocol/client/README.md`, section 11) | |
 | the browser tier | the application's binary and its bundle in Chromium, the person through skein's browser face and harness (section 3) | what the binary's configuration fakes |
 
 Every world runs on skein's world harness: one loop, one seed, the
@@ -69,20 +69,20 @@ harness's one loop (section 3).
 What every application on skein-ui shares is tested in skein, by its
 crates' step tests: the tree, the diff, the Markdown reader, words'
 machinery, the outline's rules, scenes by golden scenes, and the text
-shell's renderer and command reader by golden text (skein's `ui.md`,
-section 17; skein's `ui-text.md`, section 8). jig's tests test what is
+shell's renderer and command reader by golden text (skein's `ui/README.md`,
+section 14; skein's `ui/text.md`, section 8). jig's tests test what is
 jig's on them.
 
 ## 3. The person
 
-The person is skein's, `skein-fake-person` (skein's `ui.md`, 17.1):
+The person is skein's, `skein-fake-person` (skein's `ui/README.md`, 14.1):
 ordinary Rust, shaped as a step machine so that the browser tier's loop
 runs it too. It acts on a tree, and the client has none: it plays the
 reference UI's stories in jig's worlds, and an application's stories in
 its own, wherever a presentation builds on skein's UI kit.
 
 - **Its queries, acts, reports, tree face, random person and browser
-  face are skein's** (skein's `ui.md`, 17.1; skein's `ui-web.md`, 14.2),
+  face are skein's** (skein's `ui/README.md`, 14.1; skein's `ui/web/testing.md`, 2),
   and so is the browser tier's harness, in `skein-fake-person-browser`.
 - **jig's stories find a target as a person would:** by role, name and
   text, within regions named outermost first ("the button named Accept,
@@ -92,14 +92,14 @@ its own, wherever a presentation builds on skein's UI kit.
   arrangement of the same sections.
 - **The browser tier's stories,** skein's for a browser shell, and
   jig's for a browser shell and its attack stories in
-  `jig-client-fake-person-browser`, are `../../protocol/browser.md`'s,
-  section 15.
+  `jig-client-fake-person-browser`, are `../../protocol/browser/testing.md`
+  .
 
   An application's browser shell runs its own loop over skein's parts
   and jig's, so both kits' stories check its wiring: the order its loop
   keeps, and, where it drives fetch and the small store without skein's
-  transport, the rule it then takes on itself (skein's `ui-web.md`, 5.3;
-  `../../protocol/browser.md`, 5.3).
+  transport, the rule it then takes on itself (skein's `ui/web/README.md`, 4.3;
+  `../../protocol/browser/README.md`, 5.3).
 
 ## 4. The client's world
 
@@ -113,7 +113,7 @@ its own, wherever a presentation builds on skein's UI kit.
   was kept, a sign-in, watches and reads by handle, operations,
   compound requests and a family's requests as bytes), carries out what
   the client asks of the application, and records each report, which the
-  referee reads. The client's stories (client.md, section 17) are
+  referee reads. The client's stories (client/README.md, section 14) are
   written in its terms. A random one, for the fuzzy suite, draws its
   events from the seed, so a sweep reaches what no script names.
 - **The scripted engine** (`jig-client-scripted-engine`) keeps the
@@ -144,14 +144,14 @@ its own, wherever a presentation builds on skein's UI kit.
   `facts` gives, with a confirmation of its own, so jig's check holds an
   application's own presentation in jig's world (6.2). It takes jig's
   default arrangement of every page, but in the story of a task's page
-  arranged with every section (view.md, 18.10), whose arrangement names
+  arranged with every section (view-state.md, 10), whose arrangement names
   every `TaskSection`. Its test family's drawing has drawing code, golden
   scenes and an act, with an ordinary node beside it doing the same
   (view.md, section 17). Its browser shell, `jig-client-test-shell-web`,
   jig's reference shell, and its server take, once each, the steps past
-  the reference that `../../protocol/browser.md`, section 15, lists.
-- **Its stories:** the client's (client.md, section 17), through the
-  scripted application; the reference UI's (view.md, 18.10) and
+  the reference that `../../protocol/browser/testing.md`, lists.
+- **Its stories:** the client's (client/README.md, section 14), through the
+  scripted application; the reference UI's (view-state.md, 10) and
   pages.md's, section 10, each written once in a person's terms, through
   jig's test application.
 - **Read cancellation at credential boundaries** uses client-domain
@@ -162,16 +162,16 @@ its own, wherever a presentation builds on skein's UI kit.
   visibly once, no read is replayed, and refusal, loss or not-ready
   without installation leaves old reads eligible. Late `Reply` and
   `Lost`, same-handle replacement, and full independent read room check
-  token fencing and bounded event fan-out (client.md, sections 7, 12 and
-  14).
+  token fencing and bounded event fan-out (client/README.md, sections 6, 9 and
+  11).
   The protocol world is used only for an ordering the lower fixture
-  cannot express (`../../protocol/client.md`, section 14).
+  cannot express (`../../protocol/client/README.md`, section 11).
 - **Internal orders under load** are checked by composed client and
   link step tests: link outputs precede the next domain request across
   a credential boundary with occupied exchanges, and held exchanges
   leave in FIFO order after durability. Each step settles its domain
   and link outputs; deferred reads alone may wait on exchange credit
-  (client.md, sections 3 and 11; programming-model.md, 7.2).
+  (client/README.md, sections 3 and 8; programming-model.md, 7.2).
 - **Shapes** preserve a template's omitted LLM intent even when its
   `resolved_default` preview names a model; the shapes step tests check
   that the preview never enters `Create`.
@@ -242,30 +242,30 @@ In every world, whatever stands in front of the client:
   engine, whatever the faults: drops, restarts, a request sent twice
   under one key, reloads. `Seen` retains no completed engine answer:
   a retry after completion checks current subject and authority and
-  advances the durable watermark only forward (contract.md, 3.1).
+  advances the durable watermark only forward (contract/requests.md, 1).
 - **Kept work survives restart:** every kept request is answered,
   reported unknown past the engine's retention, or restored and reported
   kept; every word sent and reported answered is in its task's activity,
   or its task ended. An unanswered `Seen` is silently lost on closing,
   reload or crash, and the next opening checks and sends the watermark
   again. While the client lives it keeps the same pending lifecycle and
-  one answer. A request carrying a value follows client.md, section 6.
+  one answer. A request carrying a value follows client/requests.md.
 - **Kept requests stored before sent, for their party:** no kept request
   is sent before its record is stored, and no request is sent for a
   party `me` has not confirmed. `Seen` has no save of its own but still
-  waits behind writes already given (client.md, sections 6 and 11).
+  waits behind writes already given (client/requests.md and client/README.md, section 8).
 - **Documents of what was committed:** every document the client
   delivered for a handle reflects only commits the engine made durable,
   and none after a newer one of the same subject reflects an older
   state.
 - **A delivery taken is told:** whenever the engine has no input left
   to take, each delivery a client took has reached the engine's core as
-  taken (`../../protocol/client.md`, section 7), whatever ended the
+  taken (`../../protocol/client/README.md`, section 5), whatever ended the
   delivery's watch meanwhile. Only the engine's restart in between
   excuses it: the restarted core holds no watch to tell.
 - **No watch left on the engine:** whenever the engine has no input left
   to take, each watch it holds for a client is one that client has open,
-  for its application's handles or for `me` (client.md, 8.1): none it
+  for its application's handles or for `me` (client/watches.md, 1): none it
   closed, none of a stream it dropped, none whose opening it lost.
 - **Bounded:** the client within its limits, the heap within its worst
   case.
@@ -299,7 +299,7 @@ run it is not held to it.
   received is a fault, whatever the engine answered.
 - **A decision was seen,** on a tree: every deciding act a person made
   was made on a tree that showed its decision's facts (what `facts`
-  gives from the object's document: client.md, section 19), in the open
+  gives from the object's document: client/helpers.md), in the open
   confirmation or within the acted node's nearest named region. It runs
   on every tree a person acted on, the reference UI's or an
   application's on skein's UI kit, so an application that presents
@@ -322,12 +322,12 @@ application's on skein's UI kit:
 - **Nothing sent lost, as the person saw it:** every word a person sent
   and was told was sent is in its task's activity, or its task ended.
 - **What they saw is what they decided:** every act that names a
-  revision (contract.md, 5.2) names the one the card the person acted on
+  revision (contract/documents.md, 2) names the one the card the person acted on
   showed, or the application's presentation of the object.
 - **Offers kept:** a draft within the bounds its act was offered with is
   made, and one beyond them is proposed or refused as the offer said,
   unless a newer document of the object shows its facts moved in between
-  (contract.md, 5.3).
+  (contract/documents.md, 3).
 - **A card leaves for a reason:** a card leaves only when its request was
   answered or its object stopped waiting, and says which. A person's own
   display acts (a filter, a fold, reading more in a window, going to
@@ -341,12 +341,12 @@ application's on skein's UI kit:
   unreachable past a heartbeat, the person was shown offline. A tab's
   page that starts, on a reload too, is judged afresh from then, whatever
   an earlier page owed: its stream has only its own heartbeat until a
-  hello (client.md, section 8), so it tells the link, live or offline,
+  hello (client/watches.md), so it tells the link, live or offline,
   within the bound of a link coming back. An application that shows
   neither is not held to it, and the person is not told (pages.md,
   section 2).
 - **A sign-out told:** a sign-out the engine did not receive is never
-  shown done (view.md, 18.6). After a person asks to sign out, the
+  shown done (view-state.md, 6). After a person asks to sign out, the
   sign-in page is a fault while the engine still holds the sign-in they
   asked to end. Once the engine has ended it, by that sign-out or by an
   end of its own (an expiry, a revocation, another client's sign-out of
@@ -355,7 +355,7 @@ application's on skein's UI kit:
   engine makes it, as it observes its commits, never from a client's
   link.
 - **The page's outline:** every tree a person saw keeps skein-ui's
-  outline (skein's `ui.md`, section 14). The referee runs `skein_ui::outline::check` on it, so an application's
+  outline (skein's `ui/README.md`, section 12). The referee runs `skein_ui::outline::check` on it, so an application's
   tree is held to it as jig's is. jig adds no rule: that jig's default
   arrangement keeps its banner and `after_page`'s parts last is the
   reference UI's step tests' to check (section 2).
@@ -405,9 +405,9 @@ Drawn from the seed:
   and face: skein's stories for a browser shell and jig's, called with
   its own binary and bundle (section 3), and its pages, its drawings,
   its elements and components, its signing in
-  (`../../protocol/browser.md`, section 15);
+  (`../../protocol/browser/testing.md`);
 - jig's attack stories, run against its own server, if it runs them
-  (`../../protocol/browser.md`, section 15);
+  (`../../protocol/browser/testing.md`);
 - its own shells' tiers, if it writes shells.
 
 ## 9. Budgets
@@ -419,7 +419,7 @@ people and random applications' events over random stories. At the text
 shell, the focused suite runs each story once, on one seed: in jig's
 client world, two stories, starting a chat and a held chat released; in
 an application's, those its terminal client names. The browser tier's
-suite and budget are `../../protocol/browser.md`'s, section 15.
+suite and budget are `../../protocol/browser/testing.md`.
 
 ## 10. Open questions
 

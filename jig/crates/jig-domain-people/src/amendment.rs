@@ -1,4 +1,4 @@
-//! Person amendment payloads (domain/people.md, 5.1; domain/tasks.md, 7).
+//! Person amendment payloads (domain/people/acts.md, 1; domain/tasks/changes.md).
 //! People retains these only with keyed requests. The root translates them to
 //! tasks and checks current policy; this child never sees task records.
 use alloc::boxed::Box;
@@ -18,7 +18,7 @@ pub struct Amendment {
     pub wake: Option<WakePolicy>,
     pub dependencies: Option<Box<[u64]>>,
     pub authority: Option<Authority>,
-    /// Replace the agent task's LLM choice from its next run (domain/tasks.md, 3).
+    /// Replace the agent task's LLM choice from its next run (domain/tasks/README.md, 3).
     pub llm: Option<crate::LlmChoice>,
     pub reason: Box<[u8]>,
 }
@@ -86,7 +86,7 @@ pub enum WakeRule {
         count: u32,
         age: Duration,
     },
-    /// At most once in `span` from the task's last run's start (domain/tasks.md, 8.3).
+    /// At most once in `span` from the task's last run's start (domain/tasks/messages.md, 3).
     Paced {
         span: Duration,
     },

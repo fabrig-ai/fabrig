@@ -1,4 +1,4 @@
-//! Owned files under one absolute, private forge directory (protocol/setup.md, 3).
+//! Owned files under one absolute, private forge directory (protocol/setup/README.md, 3).
 use crate::check::joined;
 use alloc::boxed::Box;
 /// Where a forge lives, and the user that runs its processes.

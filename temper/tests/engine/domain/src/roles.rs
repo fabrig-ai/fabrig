@@ -1,7 +1,7 @@
 //! Actual authenticated role asks on the real root and children, restored from
 //! genuine held-chat transactions through the shared ordered fake store. The
 //! world retains only outside session/request scripts and durable evidence;
-//! no worker claim is invented (jig's domain/people.md, section 5.1).
+//! no worker claim is invented (jig's domain/people/acts.md, section 1).
 
 use crate::escalation;
 use crate::escalation_referee::Story;
@@ -43,7 +43,7 @@ pub struct Settings {
     pub base: Base,
 
     /// Lose one successful role commit completion after atomic application
-    /// (jig's domain/engine.md, section 5.1).
+    /// (jig's domain/engine/README.md, section 5.1).
     pub cut: bool,
 
     /// Delay each atomic store application by this many passes
@@ -56,11 +56,11 @@ pub struct Settings {
     pub facts: bool,
 
     /// Current owner's policy permits Policy as well as Create/Accept
-    /// (jig's domain/people.md, section 5.2).
+    /// (jig's domain/people/acts.md, section 2).
     pub policy: bool,
 
     /// Start beyond both saved session expiry clocks
-    /// (jig's domain/people.md, section 3).
+    /// (jig's domain/people/README.md, section 3).
     pub expired: bool,
 }
 
@@ -95,11 +95,11 @@ pub struct World {
     recovering: bool,
     next_right: u64,
     /// Saved actual sign-in identifiers, including deliberately expired ones
-    /// (jig's domain/people.md, section 3).
+    /// (jig's domain/people/README.md, section 3).
     pub sessions: [u64; 2],
 
     /// Deployment people created by genuine authenticated sign-ins
-    /// (jig's domain/people.md, section 3).
+    /// (jig's domain/people/README.md, section 3).
     pub people: [u64; 2],
 
     /// Genuine held-chat identity.
@@ -335,7 +335,7 @@ impl World {
     /// Register one outside keyed ask and its exact expected wrapper. `reroute`
     /// names the scenario's independently expected requester-to-final-role move;
     /// unchanged/final/rejected rows are expected to emit no task writes
-    /// (jig's domain/people.md, section 5.1).
+    /// (jig's domain/people/acts.md, section 1).
     pub fn ask(&mut self, owner: usize, key: u8, ask: people::Ask, reply: people::Reply, reroute: bool) {
         let replacement = if matches!(reply, people::Reply::Outcome(people::Outcome::RolesSet { .. })) {
             let people::Ask::SetRoles { holdings, .. } = &ask else {
@@ -349,7 +349,7 @@ impl World {
                 else {
                     panic!("scripted reroute starts at actual requester Waiting");
                 };
-                // Rerouting keeps the hold's revision (jig's domain/people.md, 5.1).
+                // Rerouting keeps the hold's revision (jig's domain/people/acts.md, 1).
                 record.escalation = tasks::Escalation::Waiting {
                     revision,
                     holder: tasks::EscalationHolder::Role { project: 1, role: 0 },

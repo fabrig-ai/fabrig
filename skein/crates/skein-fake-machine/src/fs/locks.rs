@@ -1,4 +1,4 @@
-//! Exclusive locks belong to open handles (simulator.md, 3.1).
+//! Exclusive locks belong to open handles (testing/simulator.md, 3.1).
 use super::{How, Machine, Opened, Refusal};
 
 impl Machine {

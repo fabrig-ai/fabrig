@@ -1,4 +1,4 @@
-//! A run's whole hand-over and messages (jig/docs/design/domain/hosts.md, 8–9).
+//! A run's whole hand-over and messages (jig/docs/design/domain/hosts/charters.md and jig/docs/design/domain/hosts/README.md, 7).
 use crate::Section;
 use alloc::boxed::Box;
 use jig_domain_brief as brief;
@@ -7,7 +7,7 @@ use jig_domain_host as host;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Token};
 
-/// A root's own part of a run's hand-over (domain/hosts.md, 8).
+/// A root's own part of a run's hand-over (domain/hosts/charters.md).
 #[derive(Debug)]
 pub struct RootParts<'a> {
     pub tools: Box<[crate::Tool]>,
@@ -75,7 +75,7 @@ pub fn hosted(assignment: &core::Assignment, parts: RootParts<'_>) -> Option<hos
     })
 }
 
-/// A task's message, as the host carries it (domain/hosts.md, 9).
+/// A task's message, as the host carries it (domain/hosts/README.md, 7).
 #[must_use]
 pub fn message(run: Token, attempt: Token, word: &tasks::Word) -> host::LinkDown {
     let host::StartMessage { name, sender, finish_requested, words } = start_message(word);

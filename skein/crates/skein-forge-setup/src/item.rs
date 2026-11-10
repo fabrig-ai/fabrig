@@ -1,4 +1,4 @@
-//! Values retained by the owner, and their decoders (forge-setup.md, 4.2 and 6.4).
+//! Values retained by the owner, and their decoders (forge/setup/forgejo.md, 1.2, and forge/setup/README.md, 4.4).
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
 use skein_lib::{List, Secret, Writer, len_u64};
@@ -21,9 +21,9 @@ pub enum Item {
     Accepted,
     /// A pasted PEM, read once and never written.
     Pasted,
-    /// The one-byte mark kept with a copy (forge-setup.md, 4.10 and 6.4).
+    /// The one-byte mark kept with a copy (forge/setup/forgejo.md, 1.10, and forge/setup/README.md, 4.4).
     Copying,
-    /// The id of the App made by a conversion (forge-setup.md, 6.4).
+    /// The id of the App made by a conversion (forge/setup/README.md, 4.4).
     AppMade,
 }
 
@@ -41,7 +41,7 @@ pub struct Bounds {
 pub fn user(bytes: &[u8]) -> Option<NonZeroU64> {
     NonZeroU64::new(u64::from_le_bytes(bytes.try_into().ok()?))
 }
-/// Whether the bytes are the copy's retained mark (forge-setup.md, 6.4).
+/// Whether the bytes are the copy's retained mark (forge/setup/README.md, 4.4).
 #[must_use]
 pub fn copying(bytes: &[u8]) -> bool {
     bytes == [1]

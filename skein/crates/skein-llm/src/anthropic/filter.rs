@@ -1,4 +1,4 @@
-//! Messages event projections (llm.md, section 4.4). Known content and
+//! Messages event projections (llm/README.md, section 4.4). Known content and
 //! delta kinds keep their decoder's fields. Thinking and unknown native
 //! blocks retain their whole object, including provider extensions.
 use crate::filter::{REASONING, STRINGS, field};

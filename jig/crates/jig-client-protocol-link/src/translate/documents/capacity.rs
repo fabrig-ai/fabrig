@@ -1,4 +1,4 @@
-//! Field-for-field document values (client/domain/contract.md, 5–7).
+//! Field-for-field document values (client/domain/contract/documents.md and client/domain/contract/README.md, 4–5).
 use super::{Wall, c, w};
 
 pub(crate) fn capacity_fields(value: &w::Capacity) -> c::Capacity {

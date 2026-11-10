@@ -1,4 +1,4 @@
-//! Bounded, non-redirecting source probes (temper/docs/design/protocol/sign-in.md, 9.9).
+//! Bounded, non-redirecting source probes (temper/docs/design/protocol/openid-provider.md, 9).
 //! The box's version barrier is private and reads only a status; these probes
 //! also need Location and the public issuer's TLS, on skein's HTTP client.
 use skein_http::client as http;

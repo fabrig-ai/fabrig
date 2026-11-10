@@ -507,7 +507,7 @@ fn adding_a_real_model_keeps_the_playground_running() {
     super::accounts::deliver(&mut root, accounts_watch, doc);
     assert_eq!(d::pages::welcome::model_usable(&root), Some(true));
     assert!(root.forge().playground_running());
-    // Outside the chats pane the frame's "Set up temper" says it runs (client/README.md, 5.1).
+    // Outside the chats pane the frame's "Set up temper" says it runs (client/view.md, 1).
     assert!(words(&root).contains("Set up temper"));
     assert!(!words(&root).contains("This is the playground"));
     assert!(!words(&root).contains("stepped aside"));

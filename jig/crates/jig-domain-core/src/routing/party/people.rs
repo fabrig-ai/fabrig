@@ -1,5 +1,5 @@
 //! People-child outputs translated to durable replies and one exhaustive party
-//! request dispatcher (`domain/people.md`, section 5.1). `party/decisions`
+//! request dispatcher (`domain/people/acts.md`, section 1). `party/decisions`
 //! selects person-origin goals before live task proposals before ended records;
 //! current escalation revisions before ended records. Other families select
 //! disjoint variants.

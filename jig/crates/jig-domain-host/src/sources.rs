@@ -1,4 +1,4 @@
-//! Local source checks and sign-outs, independent of run slots (hosts.md, 5.1).
+//! Local source checks and sign-outs, independent of run slots (domain/hosts/README.md, 5.1).
 //! Commands are serialized, including across list replacement and reconnect.
 use crate::{Limits, LinkUp, Login, LoginState, Request, SignOutResult, SourceFailure, SourceName};
 use alloc::boxed::Box;

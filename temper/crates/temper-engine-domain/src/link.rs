@@ -1,9 +1,9 @@
-//! Worker channels in the hub's link vocabulary (jig's `domain/hosts.md`, 2,
-//! 6.4 and 6.5; `domain/engine.md`, 11; `testing/jig-test-domain/src/link.rs`).
+//! Worker channels in the hub's link vocabulary (jig's `domain/hosts/README.md`, 2, and `domain/hosts/hub.md`, 4 and 5
+//! ; `jig/docs/design/domain/engine/views.md`; `testing/jig-test-domain/src/link.rs`).
 //! Payloads stay owned here until the fleet asks for or drops them. The
 //! protocol layer alone reads an ended answer's outcome and encodes typed
 //! assignments.
-//! Review run failures follow temper/docs/design/domain/forge.md, 8.3.
+//! Review run failures follow temper/docs/design/domain/forge/change/gates.md, 1.
 use crate::boundary::{Link, Parts, Payload, Request, Work, WorkerInput, WorkerRequest};
 use crate::domain::Domain;
 use alloc::boxed::Box;
@@ -39,7 +39,7 @@ pub(crate) fn settled_resource(heads: &[(forge::Name, skein_forge::api::Commit)]
 }
 
 /// Translate one channel input into the core's vocabulary. Unkept live pieces
-/// are dropped and counted (jig's `domain/engine.md`, 11). Other records return
+/// are dropped and counted (jig's `domain/engine/views.md`). Other records return
 /// `None` when the root has no room for their bytes, which admission
 /// ([`crate::try_step`]) hands back first, and their host sends again.
 pub(crate) fn receive(domain: &mut Domain, channel: Token, link: Link) -> Option<core::Event> {
@@ -110,7 +110,7 @@ pub(crate) fn room(domain: &Domain) -> bool {
 }
 
 /// temper's parts within their bounds: the heads a run pushed and the
-/// resources it saved (domain/forge.md). Beyond them the answer is invalid.
+/// resources it saved (domain/forge/README.md). Beyond them the answer is invalid.
 fn parts_within(parts: &Parts, limits: &crate::Limits) -> bool {
     let saved = match &parts.saved {
         Some(tags) => tags.len() <= skein_lib::usize_of(limits.tasks.saved_resources),
@@ -209,7 +209,7 @@ pub(crate) fn route(domain: &mut Domain, event: hub::Event) {
     }
 }
 
-// A run that cannot judge supplies no verdict (temper/docs/design/domain/forge.md, 8.3).
+// A run that cannot judge supplies no verdict (temper/docs/design/domain/forge/change/gates.md, 1).
 fn fail_review(domain: &Domain, event: &mut core::Event) {
     let core::Event::AnswerPayload { run, attempt, payload, end, .. } = event else { return };
     if !domain.core.current_proof(run.raw(), attempt.raw()) || !current_review(domain, run.raw()) {
@@ -307,7 +307,7 @@ pub(crate) fn delivery(domain: &mut Domain, event: hub::Event) -> crate::Deliver
 }
 
 /// The answer's task terminal, with temper's saved work translated and what
-/// it left on the forge kept for a lost run (domain/forge.md).
+/// it left on the forge kept for a lost run (domain/forge/README.md).
 pub(crate) fn result_event(domain: &mut Domain, payload: Token, end: tasks::End) -> Option<core::Event> {
     let mut event = hub::result_event(&domain.hub_link, payload, end)?;
     decorate_answer(domain, &mut event);
@@ -494,7 +494,7 @@ pub fn inbox_words(task: u64, word: &tasks::Word) -> Box<[u8]> {
 
 const RESULT_TASK_LABEL: &[u8] = b"Result from task ";
 /// A landing result's live message adds its label, separator and sender
-/// (temper/docs/design/domain/agent.md, 4.4). Both numbers can be `u64::MAX`.
+/// (temper/docs/design/domain/agent/charter.md, 3). Both numbers can be `u64::MAX`.
 pub(crate) const CHANGE_RESULT_ENVELOPE_BYTES: usize = RESULT_TASK_LABEL
     .len()
     .saturating_add(b"18446744073709551615".len())
@@ -591,7 +591,7 @@ fn met_words(dependency: u64, removed: bool, words: &[u8]) -> Box<[u8]> {
 }
 
 /// The sender label and question reference that smith prefixes to the words.
-/// Shared by live delivery and the inbox carried at start (domain/agent.md, 5).
+/// Shared by live delivery and the inbox carried at start (domain/agent/README.md, 4).
 #[must_use]
 pub fn inbox_sender(word: &tasks::Word) -> Box<[u8]> {
     let label = word.from.sender();

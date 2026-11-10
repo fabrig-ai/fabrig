@@ -1,4 +1,4 @@
-//! A scratch repository of the test `IaC` and a run of the built binary (hearth/docs/design/domain/testing.md, 2.9).
+//! A scratch repository of the test `IaC` and a run of the built binary (hearth/docs/design/testing/README.md, 2.9).
 use skein_scratch::Scratch;
 use std::{
     ffi::OsStr,

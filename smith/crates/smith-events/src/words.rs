@@ -1,5 +1,5 @@
 //! Operator failure words, never channel or prompt content (protocol/agent.md,
-//! section 6; shell.md, section 4.3). No process state or credential is known.
+//! section 6; shell/commands.md, section 3). No process state or credential is known.
 use crate::{AccountState, AnswerClass, AnswerFailure, FailureClass};
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Wall};

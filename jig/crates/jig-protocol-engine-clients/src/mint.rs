@@ -1,4 +1,4 @@
-//! Application-verified identities mint credentials only after durability (client.md, 8).
+//! Application-verified identities mint credentials only after durability (protocol/client/sign-in.md).
 use super::{
     Box, Component, Env, Kept, Limits, Queue, ReplyTo, Request, SecretOwner, SecretsRequest, Token, Waiting, closing,
     core, people, routes, sign_in, w,

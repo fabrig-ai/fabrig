@@ -1,5 +1,5 @@
-//! Facts read from delivered documents (client/domain/client.md, 19;
-//! contract.md, 5.3–5.4).
+//! Facts read from delivered documents (client/domain/client/helpers.md;
+//! client/domain/contract/documents.md, 3–4).
 use crate::contract::{
     ActKind, Admission, Chip, ChipDetails, ChipPhase, ChipPhaseFacts, ChipWork, Effect, HeldRole, HoldCategory, Me,
     Offered, RetryNotice, RunStage, TaskRunWait, TaskSourceState, TaskWaitWhy, WaitedFor, WaitsOn, Whom,
@@ -7,7 +7,7 @@ use crate::contract::{
 use alloc::boxed::Box;
 use skein_lib::Wall;
 
-/// What a run that can't start waits for (client/domain/client.md, 19.1).
+/// What a run that can't start waits for (client/domain/client/helpers.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RunWaitKind {
     Account,
@@ -15,7 +15,7 @@ pub enum RunWaitKind {
     Host,
 }
 
-/// A chat's status, in the precedence of client/domain/client.md, 19.
+/// A chat's status, in the precedence of client/domain/client/helpers.md.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ChatStatus {
     Starting,
@@ -171,7 +171,7 @@ pub fn offer(offers: &[Offered], act: ActKind) -> Option<&Admission> {
     }
     None
 }
-/// Dangerous acts, which a presentation that confirms marks so (client/domain/client.md, 19).
+/// Dangerous acts, which a presentation that confirms marks so (client/domain/client/helpers.md).
 #[must_use]
 pub const fn dangerous(act: ActKind) -> bool {
     match act {

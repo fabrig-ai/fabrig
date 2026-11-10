@@ -1,4 +1,4 @@
-//! Bounded source reads for task documents' asked words (client/tools.md, 6.4).
+//! Bounded source reads for task documents' asked words (client/ctl/results.md, 4).
 use super::reads::Reading;
 use crate::jig::{Limits, render};
 use alloc::boxed::Box;

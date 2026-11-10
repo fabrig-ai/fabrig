@@ -1,5 +1,5 @@
-//! The agent capability at the worker root (jig's `domain/hosts.md`, sections
-//! 4, 5.1 and 6.8): the hub's requests to smith's parent face, smith's notices
+//! The agent capability at the worker root (jig's `domain/hosts/README.md`, sections 4 and 5.1, and `domain/hosts/hub.md`, section 8
+//! ): the hub's requests to smith's parent face, smith's notices
 //! to the hub, and smith's payloads by hand-out. A start goes out to be
 //! decoded, and comes back as smith's, which the root completes with where
 //! the repositories sit; a turn, a call's name and a run's last word go out
@@ -66,7 +66,7 @@ pub(crate) fn to_agent(domain: &mut Domain, env: &Env<Limits>, request: host::To
         host::ToAgent::Cancel { agent } => smith::parent::Event::Stop { agent },
         // The hub hands its agent only the LLM accounts' grants, and keeps
         // the application credentials, the git identities, to itself (jig's
-        // domain/hosts.md, 6.2): the table needs no reading.
+        // domain/hosts/hub.md, 2): the table needs no reading.
         host::ToAgent::Grant { agent, grant } => smith::parent::Event::Grant {
             agent,
             grant: translate::grant(grant).expect("the hub forwards only account grants"),
@@ -254,7 +254,7 @@ pub(crate) fn decoded(
     let event = match start {
         Ok(mut start) => {
             // Earlier answers cross the same agent channel as live replies
-            // (`domain/agent.md`, 4.3), after the protocol decodes the start.
+            // (`domain/agent/tools.md`), after the protocol decodes the start.
             for call in &mut start.answered {
                 if let smith::SavedReply::Host { body, .. } = &call.reply
                     && body.len() > skein_lib::usize_of(env.limits.reply_bytes)

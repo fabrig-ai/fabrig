@@ -1,4 +1,4 @@
-//! Scoped ordering and examined continuations (protocol/store.md, 7.3).
+//! Scoped ordering and examined continuations (protocol/store/loads.md, 3).
 
 #[cfg(test)]
 mod tests;

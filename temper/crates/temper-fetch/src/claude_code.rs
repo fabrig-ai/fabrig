@@ -1,4 +1,4 @@
-//! Claude Code's pinned native builds (protocol/setup.md, 6.6).
+//! Claude Code's pinned native builds (protocol/setup/owned.md, 6).
 use crate::{
     Origin,
     fetch::{Failure, Named, Pin},
@@ -113,7 +113,7 @@ pub fn pin(cache: &[u8], origin: Origin, build: &Build) -> Pin {
     }
 }
 
-/// Claude Code is fetched when its program is first needed (protocol/setup.md, 6.6).
+/// Claude Code is fetched when its program is first needed (protocol/setup/owned.md, 6).
 pub const FETCHED: &[u8] = b"fetched";
 
 #[cfg(test)]

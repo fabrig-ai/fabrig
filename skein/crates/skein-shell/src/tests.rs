@@ -61,7 +61,7 @@ fn a_name_that_fits_in_no_names_is_too_long_and_stays_next() {
 
 /// Every `Open` goes down without blocking, so that a FIFO opens to be
 /// refused; a file it opened is blocking again, so that io_uring sends a
-/// read it cannot do at once to its worker (kernel.md, 6.1).
+/// read it cannot do at once to its worker (runtime/kernel.md, 6.1).
 #[test]
 fn a_file_opened_blocks_again() {
     let scratch = Scratch::new("shell");

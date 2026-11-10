@@ -1,4 +1,4 @@
-//! Browser approval across the client roots and engine (temper/docs/design/domain/testing.md, 6.3).
+//! Browser approval across the client roots and engine (temper/docs/design/testing/checks.md, 3).
 use jig_client_kit::harness::{App, ClientId, Duty, Front};
 use skein_lib::{Duration, Env, Queue, Time, Wall};
 use temper_client_domain::{self as client, Action, Place, approve};
@@ -13,7 +13,7 @@ const BROWSER: ClientId = ClientId(1);
 const OTHER: ClientId = ClientId(2);
 // The chat world's two-client pump settles within 24 rounds.
 const ROUNDS: usize = 24;
-// The approval's span (jig/docs/design/protocol/client.md, 8).
+// The approval's span (jig/docs/design/protocol/client/sign-in.md).
 const SPAN: Duration = Duration::from_secs(600);
 
 struct Probe {

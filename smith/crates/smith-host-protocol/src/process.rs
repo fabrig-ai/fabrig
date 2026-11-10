@@ -1,4 +1,4 @@
-//! A spawned agent's pipes and child lifetime (protocol/hosts.md, section 3;
+//! A spawned agent's pipes and child lifetime (protocol/host.md, section 3;
 //! domain/host.md, section 4). The component keeps a bounded standard-error
 //! tail, the opening deadline, and the child's three pipe tokens. It never
 //! knows host policy or credential values. `spawn`, `from_io`, `fire` and

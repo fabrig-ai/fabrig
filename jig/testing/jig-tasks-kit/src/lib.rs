@@ -1,5 +1,5 @@
 //! Tasks with scripted executors and an atomic durable parent at the retained
-//! production boundary (domain/tasks.md, 11; domain/engine.md, 7).
+//! production boundary (domain/tasks/README.md, 6; domain/engine/executors.md).
 use jig_domain_tasks::{Event, Party, ProcedureDecision, Refusal};
 use skein_lib::ReplyTo;
 
@@ -26,7 +26,7 @@ pub const PERSON_PARTY: Party = Party::Person(PERSON);
 pub const OWNER: u64 = 1;
 pub const MEMBER: u64 = 2;
 
-/// Send a request and read its terminal reply (jig/docs/design/domain/tasks.md, 7).
+/// Send a request and read its terminal reply (jig/docs/design/domain/tasks/changes.md).
 pub fn response(world: &mut World, event: impl FnOnce(ReplyTo) -> Event) -> Reply {
     let to = world.to();
     let call = to.into_token();
@@ -34,14 +34,14 @@ pub fn response(world: &mut World, event: impl FnOnce(ReplyTo) -> Event) -> Repl
     world.replies[&call.raw()].clone()
 }
 
-/// Finish an agent task and settle its effects (jig/docs/design/domain/tasks.md, 5.1).
+/// Finish an agent task and settle its effects (jig/docs/design/domain/tasks/lifecycle.md, 1).
 pub fn done(world: &mut World, number: u64) {
     world.claim_fresh(number);
     world.finish(number);
     world.settle(number);
 }
 
-/// Check the task, cause and dependencies of a refusal (jig/docs/design/domain/tasks.md, 7).
+/// Check the task, cause and dependencies of a refusal (jig/docs/design/domain/tasks/changes.md).
 pub fn refused(reply: Reply, task: u64, why: Refusal, blocked: &[u64]) {
     let Reply::Refused(problem) = reply else { panic!("expected refusal, got {reply:?}") };
     assert_eq!(problem.task, Some(task));
@@ -49,7 +49,7 @@ pub fn refused(reply: Reply, task: u64, why: Refusal, blocked: &[u64]) {
     assert_eq!(problem.blocked_by.as_deref(), Some(blocked));
 }
 
-/// Step a procedure with its current inbox (jig/docs/design/domain/tasks.md, 5.3).
+/// Step a procedure with its current inbox (jig/docs/design/domain/tasks/lifecycle.md, 3).
 pub fn step(world: &mut World, task: u64, decision: ProcedureDecision) -> Reply {
     let step = world.record(task).attempt + 1;
     let read = world.contexts[&task].inbox.last().map(|word| word.number);

@@ -1,4 +1,4 @@
-//! Native TLS against a rustls server in memory (tls.md, 3.6).
+//! Native TLS against a rustls server in memory (net/tls.md, 3.6).
 //! The proxy tracks independent reads and output rights. io's socket capacity
 //! and lifecycle are checked by native.rs.
 use crate::{native_peer::Tls12, pki, records, server::Server};

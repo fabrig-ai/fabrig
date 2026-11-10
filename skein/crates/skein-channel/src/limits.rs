@@ -1,5 +1,5 @@
 //! Schema and role validity, including representable frame and queue capacities
-//! (channel.md, section 10).
+//! (net/channel.md, section 10).
 
 use crate::{Limits, Role, Schema};
 

@@ -664,7 +664,7 @@ fn explicit_instructions_replace_the_shells_default_task_role() {
 
 #[test]
 fn an_openai_endpoint_is_written_with_its_number() {
-    // shell.md 6.2 gives OpenAI the 300-second idle bound and dialect 3.
+    // shell/settings.md 2.2 gives OpenAI the 300-second idle bound and dialect 3.
     const IDLE_MILLIS: u64 = 300_000;
     #[derive(Debug, PartialEq)]
     struct WrittenEndpoint<'a> {

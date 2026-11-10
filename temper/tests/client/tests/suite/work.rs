@@ -1,6 +1,6 @@
 //! Work keeps one project's lists across its filters, then releases them for another
-//! (temper/docs/design/client/README.md, 3.5 and 5.3;
-//! temper/docs/design/domain/testing.md, 6.3).
+//! (temper/docs/design/client/pages/README.md and temper/docs/design/client/view.md, 3;
+//! temper/docs/design/testing/checks.md, 3).
 use jig_client::{Handle, Latest};
 use jig_client_kit::harness::{ClientId, Settings, Until, World};
 use jig_domain_authority as authority;

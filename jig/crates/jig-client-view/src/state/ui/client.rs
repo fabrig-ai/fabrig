@@ -1,4 +1,4 @@
-//! The UI reads the application-held client through its lent reference (view.md, 18.1).
+//! The UI reads the application-held client through its lent reference (client/domain/view-state.md, 1).
 use crate::{Config, Request, Ui, state::intents};
 use jig_client::{Client, Progress, Readout, Told, contract};
 pub(crate) mod outcome;

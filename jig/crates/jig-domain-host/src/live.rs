@@ -1,11 +1,11 @@
-//! Live content, fenced at admission and at drain (hosts.md, section 6.5).
+//! Live content, fenced at admission and at drain (domain/hosts/hub.md, section 5).
 use alloc::boxed::Box;
 use skein_lib::{Env, Id, Token};
 
 use crate::hosted::Hosted;
 use crate::{Hub, Limits, LinkUp};
 
-/// The ask for live content: one boolean per kind (hosts.md, section 2).
+/// The ask for live content: one boolean per kind (domain/hosts/README.md, section 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct LiveAsk {
     pub text: bool,
@@ -16,7 +16,7 @@ impl LiveAsk {
     pub const NONE: LiveAsk = LiveAsk { text: false, reasoning: false, input: false };
 }
 
-/// A piece's kind (hosts.md, 6.5); input names its call by the provider's id.
+/// A piece's kind (domain/hosts/hub.md, 5); input names its call by the provider's id.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum LiveKind {
     Text,
@@ -24,7 +24,7 @@ pub enum LiveKind {
     Input { call: Box<[u8]>, tool: Box<[u8]> },
 }
 
-/// A piece of a run's live content, with the agent's numbers (hosts.md, 6.5).
+/// A piece of a run's live content, with the agent's numbers (domain/hosts/hub.md, 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Piece {
     pub turn: u32,

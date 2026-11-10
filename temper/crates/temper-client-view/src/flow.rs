@@ -1,4 +1,4 @@
-//! Parts shared by `ConnectForge`, `ConnectModel` and the welcome (client/README.md, 5.2).
+//! Parts shared by `ConnectForge`, `ConnectModel` and the welcome (client/view.md, 2).
 use crate::{
     look,
     words::{Word, Words},
@@ -129,7 +129,7 @@ fn control_in(b: &mut Builder, action: Control<'_>, style: skein_ui::Style) {
 }
 
 /// A command and its Copy share the model panel's clipboard action and feedback
-/// (temper/docs/design/client/README.md, 3.5).
+/// (temper/docs/design/client/pages/README.md).
 pub(crate) fn command(
     b: &mut Builder,
     root: &temper_client_domain::Domain,

@@ -1,5 +1,5 @@
 //! Connector vocabulary crossing the application's root in jig's terms.
-//! Closed at once (jig/docs/design/domain/people.md, 5.2).
+//! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 //! The root translates numbered connectors' own types to these values;
 //! connector-owned payloads remain with their owner (domain/connectors.md, 2).
 
@@ -125,7 +125,7 @@ pub enum EffectRefusal {
 }
 
 /// A default a connector stored that the application no longer gives
-/// (jig/docs/design/domain/engine.md, 17.5; jig/docs/design/domain/connectors.md, section 17).
+/// (jig/docs/design/domain/engine/settings.md, 5; jig/docs/design/domain/connectors.md, section 17).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct DroppedDefault {
     pub kind: u32,
@@ -134,11 +134,11 @@ pub struct DroppedDefault {
 }
 
 /// A connector's answer in jig's vocabulary, after root translation.
-/// Application settings: jig/docs/design/domain/engine.md, 17.5;
+/// Application settings: jig/docs/design/domain/engine/settings.md, 5;
 /// jig/docs/design/domain/connectors.md, section 17.
 #[derive(Hash, Debug)]
 pub enum Event {
-    /// A restore's judged items (jig/docs/design/domain/engine.md, 17.10; jig/docs/design/domain/connectors.md, 17).
+    /// A restore's judged items (jig/docs/design/domain/engine/settings.md, 10; jig/docs/design/domain/connectors.md, 17).
     SettingsRestored {
         owner: Token,
         judged: Box<[Judged]>,
@@ -256,7 +256,7 @@ pub enum RestartStage {
     Settled,
 }
 
-/// A project's durable adoption role (domain/core.md, 6.1; domain/connectors.md, 12).
+/// A project's durable adoption role (domain/model.md, 6.1; domain/connectors.md, 12).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum AdoptionRole {
     Owned,
@@ -272,7 +272,7 @@ pub struct AdoptedParty {
     pub role: people::Role,
 }
 
-/// A connector's judgment of one item (jig/docs/design/domain/engine.md, 17.5;
+/// A connector's judgment of one item (jig/docs/design/domain/engine/settings.md, 5;
 /// jig/docs/design/domain/connectors.md, section 17).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Judged {
@@ -281,7 +281,7 @@ pub enum Judged {
     Refuse { why: Box<[u8]> },
 }
 
-/// A connector's default metadata (jig/docs/design/domain/engine.md, 17.5;
+/// A connector's default metadata (jig/docs/design/domain/engine/settings.md, 5;
 /// jig/docs/design/domain/connectors.md, section 17).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct DefaultState {
@@ -294,15 +294,15 @@ pub struct DefaultState {
 }
 
 /// What the core asks a numbered connector to do.
-/// Application settings: jig/docs/design/domain/engine.md, 17.5;
+/// Application settings: jig/docs/design/domain/engine/settings.md, 5;
 /// jig/docs/design/domain/connectors.md, section 17.
 #[derive(Hash, Debug)]
 pub enum Ask {
-    /// Erase replaced values below the history cutoff (jig/docs/design/domain/engine.md, 17.10; jig/docs/design/domain/connectors.md, 17).
+    /// Erase replaced values below the history cutoff (jig/docs/design/domain/engine/settings.md, 10; jig/docs/design/domain/connectors.md, 17).
     ForgetReplaced {
         before: u64,
     },
-    /// Keep restored values as proposal items (jig/docs/design/domain/engine.md, 17.10; jig/docs/design/domain/connectors.md, 17).
+    /// Keep restored values as proposal items (jig/docs/design/domain/engine/settings.md, 10; jig/docs/design/domain/connectors.md, 17).
     RestoreSettings {
         owner: Token,
         proposal: u64,

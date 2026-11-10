@@ -1,4 +1,4 @@
-//! The QA loop's two documents and their seeds (protocol/setup.md, 8.4).
+//! The QA loop's two documents and their seeds (protocol/setup/playground.md).
 //! Files and processes belong to the binary; these checks and plans do no io.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]

@@ -1,6 +1,6 @@
 //! Pure, typed translation from the engine's owned run and call vocabulary
-//! into Smith's generic agent boundary (jig's domain/hosts.md, sections 5 and 8;
-//! jig's domain/engine.md, section 7; smith's domain/run.md, sections 3, 5 and 10).
+//! into Smith's generic agent boundary (jig's domain/hosts/README.md, section 5 and domain/hosts/charters.md;
+//! jig's domain/engine/executors.md; smith's domain/run.md, sections 3, 5 and 9).
 //!
 //! Jig's core keeps task policy and numbered calls; the root wraps records and
 //! orders their commits. This crate keeps no state and performs no IO. Its `start` takes
@@ -14,13 +14,13 @@
 extern crate alloc;
 use alloc::boxed::Box;
 
-/// The requester's preferences section title (domain/agent.md, 8.4.4).
+/// The requester's preferences section title (domain/agent/ask-temper.md, 4).
 pub const PREFERENCES_TITLE: &[u8] = b"Kept about this person";
 
-/// The tools whose calls are the person's alone (domain/agent.md, 8.4.4).
+/// The tools whose calls are the person's alone (domain/agent/ask-temper.md, 4).
 pub const PRIVATE_TOOLS: [&[u8]; 1] = [b"remember"];
 
-/// The turn parts shown to its person alone (domain/agent.md, 8.4.4).
+/// The turn parts shown to its person alone (domain/agent/ask-temper.md, 4).
 #[must_use]
 pub fn private() -> jig_protocol_transcript::Private {
     let mut tools = skein_lib::List::with_capacity(1);
@@ -99,17 +99,17 @@ pub enum Problem {
     Malformed,
     TooLarge,
     Missing(&'static [u8]),
-    /// A setting's kind that needs a member its read left out (domain/agent.md, 8.1).
+    /// A setting's kind that needs a member its read left out (domain/agent/agents.md, 1).
     Needs {
         kind: &'static [u8],
         member: &'static [u8],
     },
     Type(&'static [u8]),
     Range(&'static [u8]),
-    /// A member beside `changes` belongs in each change (domain/agent.md, 4.3.1).
+    /// A member beside `changes` belongs in each change (domain/agent/tools.md, 1).
     Beside(&'static [u8]),
     UnknownTool,
-    /// A forge read's answer has a kind no agent read asks for (domain/agent.md, 8).
+    /// A forge read's answer has a kind no agent read asks for (domain/agent/agents.md).
     Unasked(&'static str),
 }
 

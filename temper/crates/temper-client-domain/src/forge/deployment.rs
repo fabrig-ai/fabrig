@@ -1,4 +1,4 @@
-//! Deployment facts (temper/docs/design/client/README.md, 3.5 and 4.6).
+//! Deployment facts (temper/docs/design/client/pages/README.md and temper/docs/design/client/forge/records.md).
 use super::{Limits, Request, Side, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Handle, Link, Readable, Readout, Told, contract as c};

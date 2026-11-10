@@ -1,8 +1,8 @@
-//! Checked store admission bounds (protocol/store.md, 5.4, 6 and 13).
+//! Checked store admission bounds (protocol/store/records.md, 4, and protocol/store/README.md, 5 and 8).
 use crate::{accounts_v2, codec, component_v3, core_v6, notes_v1, people_v14, tasks_v9};
 use jig_domain_core as core;
 
-/// Decoded byte allowance for a two-row restart page (protocol/store.md, 7.2).
+/// Decoded byte allowance for a two-row restart page (protocol/store/loads.md, 2).
 /// Application rows count untagged keys and values; jig rows and joined
 /// census owners count their encoded values, each within this row bound.
 #[must_use]
@@ -11,7 +11,7 @@ pub fn restore_bytes(limits: &crate::Limits) -> Option<u64> {
 }
 
 /// Largest current full turn frame for the admitted transcript byte bound,
-/// including metadata and framing (protocol/store.md, 8.1 and 8.6).
+/// including metadata and framing (protocol/store/transcripts.md, 1 and 6).
 /// Reject an out-of-codec bound or arithmetic overflow; never clamp it.
 #[must_use]
 pub fn frame(domain: &core::Limits, transcript_bytes: u32) -> Option<u32> {
@@ -25,7 +25,7 @@ pub fn frame(domain: &core::Limits, transcript_bytes: u32) -> Option<u32> {
 }
 
 /// Largest whole manifest: 88 fixed bytes, plus a length and two counts
-/// beside each family's name (protocol/store.md, 2, 10.3 and 13).
+/// beside each family's name (protocol/store/README.md, 2, and protocol/store/opening.md, 3, and protocol/store/README.md, 8).
 pub const MANIFEST_BYTES: u32 = {
     let family = 20_u32.checked_add(component_v3::CEILINGS.count_family).expect("manifest family fits u32");
     let counts = component_v3::CEILINGS.manifest_counts.checked_mul(family).expect("manifest counts fit u32");
@@ -48,7 +48,7 @@ pub struct Sizes {
     pub commit: u32,
 }
 
-/// What the KV limits take from checked sizes (store.md, 5.4); the page's bytes are the owner's.
+/// What the KV limits take from checked sizes (protocol/store/records.md, 4); the page's bytes are the owner's.
 #[must_use]
 pub fn fill(kv: &mut skein_kv::Limits, sizes: &Sizes) -> Option<()> {
     kv.key = sizes.key;
@@ -62,7 +62,7 @@ pub fn fill(kv: &mut skein_kv::Limits, sizes: &Sizes) -> Option<()> {
     Some(())
 }
 
-/// The store's commit edge (protocol/store.md, 5.4): commits it queues at
+/// The store's commit edge (protocol/store/records.md, 4): commits it queues at
 /// once and writes in one commit.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Commits {
@@ -84,7 +84,7 @@ pub enum SizeRefusal {
 }
 
 /// Refuse a file driver's whole-file bound below the manifest's worst case
-/// (protocol/store.md, 13). The shell uses this bound to make its drivers.
+/// (protocol/store/README.md, 8). The shell uses this bound to make its drivers.
 pub fn whole(bound: u32) -> Result<(), SizeRefusal> {
     if bound < MANIFEST_BYTES {
         return Err(SizeRefusal::Whole { needs: MANIFEST_BYTES, has: bound });
@@ -93,7 +93,7 @@ pub fn whole(bound: u32) -> Result<(), SizeRefusal> {
 }
 
 /// Whether patch planning or patching owns the current step's retained state
-/// (protocol/store.md, 10.2 and 13). Observers sample both sides of a call
+/// (protocol/store/opening.md, 2, and protocol/store/README.md, 8). Observers sample both sides of a call
 /// so its entry and exit transitions are priced as patching too.
 #[must_use]
 pub fn is_patching(store: &crate::Store) -> bool {
@@ -148,7 +148,7 @@ fn largest(
     // The largest fixed key is a tasks update: tags plus five widened numbers.
     let key = domain.notes.pattern_bytes.checked_mul(5)?.checked_add(32)?.max(44).max(application.key.checked_add(1)?);
     // Tasks price additions and kept lines at dependencies, circle holds at circle;
-    // people prices the same refusal names through codec::limits (store.md, 5.1).
+    // people prices the same refusal names through codec::limits (protocol/store/records.md, 1).
     // Transcript bodies are frames in files; this sizes map values only.
     let mut map_core = limits.core;
     map_core.turn_record_transcript = 0;

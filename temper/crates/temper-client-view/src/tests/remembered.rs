@@ -1,4 +1,4 @@
-//! Remembered page states (temper/docs/design/client/README.md, 5.17).
+//! Remembered page states (temper/docs/design/client/pages/remembered.md).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,
@@ -20,7 +20,7 @@ const EMPTY: &str =
     "Ask temper keeps a line here when you ask it to remember something, such as how you like its answers.";
 const MOVED: &str = "This line changed meanwhile; it shows as it is now.";
 const LONG: &str = "A line is at most 120 bytes.";
-// client/README.md, 5.17: twelve entries, each up to 120 bytes.
+// client/pages/remembered.md: twelve entries, each up to 120 bytes.
 const ENTRIES: u64 = 12;
 const BYTES: usize = 120;
 fn drive(root: &mut d::Domain, event: d::Event) -> Queue<d::Request> {

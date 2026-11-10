@@ -1,5 +1,5 @@
 //! Whole-file owners over the shared world, with a filesystem observer and
-//! a referee beside them (io.md, 5.2 and section 8).
+//! a referee beside them (runtime/io/files.md, 2, and runtime/io/README.md, 5).
 
 use skein_fake_machine::{How, Item, Machine as Files, Opened};
 use skein_io::digest::digest;

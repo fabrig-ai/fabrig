@@ -14,7 +14,7 @@ pub struct ChangeSettings {
     pub items: List<SettingItem>,
     pub running: Running,
 }
-/// A charter and its parts (temper/docs/design/client/tools.md, 5.3).
+/// A charter and its parts (temper/docs/design/client/ctl/tools.md, 3).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Charter {
     pub rest: bool,
@@ -37,7 +37,7 @@ pub struct Charter {
     pub documents: List<CharterDocument>,
     pub parts: List<CharterPart>,
 }
-/// The store names in bit order (temper/docs/design/client/tools.md, 5.3).
+/// The store names in bit order (temper/docs/design/client/ctl/tools.md, 3).
 pub const REASON_NAMES: [&[u8]; 14] = [
     b"first",
     b"question",
@@ -54,7 +54,7 @@ pub const REASON_NAMES: [&[u8]; 14] = [
     b"timer",
     b"words",
 ];
-/// The kinds every run is offered, which choose no part (temper/docs/design/client/tools.md, 5.3).
+/// The kinds every run is offered, which choose no part (temper/docs/design/client/ctl/tools.md, 3).
 pub const ALWAYS_OFFERED_NAMES: [&[u8]; 7] = [
     b"answer",
     b"proposal_decision",
@@ -64,14 +64,14 @@ pub const ALWAYS_OFFERED_NAMES: [&[u8]; 7] = [
     b"amendment",
     b"finish_requested",
 ];
-/// A charter's part (temper/docs/design/client/tools.md, 5.3).
+/// A charter's part (temper/docs/design/client/ctl/tools.md, 3).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CharterPart {
     /// Bits of `REASON_NAMES`, as jig's client `CharterPart.on`.
     pub on: u32,
     pub instructions: Text,
 }
-/// A charter document (temper/docs/design/protocol/configuration.md, 13.7).
+/// A charter document (temper/docs/design/protocol/configuration/settings.md, 6).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CharterDocument {
     pub connector: u16,
@@ -90,11 +90,11 @@ pub enum EndedBy {
     Result,
     /// Only its requester ends it; a run's raw finish parks it (5.8).
     Requester,
-    /// A named procedure closes an agent task (jig/docs/design/domain/tasks.md, 5.10).
+    /// A named procedure closes an agent task (jig/docs/design/domain/tasks/lifecycle.md, 11).
     Closer(Closer),
 }
 
-/// The procedure named to close a task (jig/docs/design/domain/tasks.md, 5.10).
+/// The procedure named to close a task (jig/docs/design/domain/tasks/lifecycle.md, 11).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Closer {
     pub connector: u16,
@@ -110,7 +110,7 @@ pub struct HeldRevision {
     pub head: RevisionHead,
     pub holders: u32,
 }
-/// A template's model choice (temper/docs/design/client/tools.md, 5.3).
+/// A template's model choice (temper/docs/design/client/ctl/tools.md, 3).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LlmChoice {
     /// Creator preference, separate from the task's last successfully claimed account.
@@ -119,7 +119,7 @@ pub struct LlmChoice {
     pub subagents: List<ModelEffort>,
     pub later: Option<LlmLater>,
 }
-/// The choice after a task's first activation (temper/docs/design/client/tools.md, 5.3).
+/// The choice after a task's first activation (temper/docs/design/client/ctl/tools.md, 3).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LlmLater {
     pub main: ModelEffort,
@@ -300,7 +300,7 @@ pub struct RevisionItem {
     pub edit: RevisionEdit,
     pub replaced: RevisionReplaced,
 }
-/// The state before an item changed it (jig/docs/design/domain/engine.md, 17.10).
+/// The state before an item changed it (jig/docs/design/domain/engine/settings.md, 10).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum RevisionReplaced {
     Value(SettingSet),
@@ -363,7 +363,7 @@ pub enum Setting {
     Template(SettingNumber),
     Policy(SettingNumber),
     Rules,
-    /// A project's own policy (jig/docs/design/domain/engine.md, 17.2).
+    /// A project's own policy (jig/docs/design/domain/engine/settings.md, 2).
     ProjectPolicy {
         project: u32,
     },
@@ -619,7 +619,7 @@ impl Charter {
     }
 }
 
-/// A charter's default activation policy (jig/docs/design/domain/tasks.md, 8.3).
+/// A charter's default activation policy (jig/docs/design/domain/tasks/messages.md, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct WakePolicy {
     pub words: WakeRule,
@@ -674,7 +674,7 @@ pub enum SizedEdit {
     Reset,
 }
 
-/// The charter member rejected by the settings check (jig/docs/design/domain/engine.md, 17.9).
+/// The charter member rejected by the settings check (jig/docs/design/domain/engine/settings.md, 9).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum SettingMember {
     /// The charter's document count.

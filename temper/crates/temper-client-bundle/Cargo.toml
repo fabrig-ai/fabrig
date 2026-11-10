@@ -1,6 +1,6 @@
 [package]
 name = "temper-client-bundle"
-description = "The browser's bundle, built and embedded at temper's build (client/browser.md, 2.6)"
+description = "The browser's bundle, built and embedded at temper's build (client/web/README.md, 2.6)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -12,7 +12,7 @@ build = "build/main.rs"
 test = false
 doctest = false
 
-# No build dependencies: the script runs cargo for the module and the bundler (client/browser.md, 2.6).
+# No build dependencies: the script runs cargo for the module and the bundler (client/web/README.md, 2.6).
 
 [lints.rust] # binary: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

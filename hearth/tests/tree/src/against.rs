@@ -1,6 +1,6 @@
 //! A walk against a parent, checked against the oracle: the child's tree digest and change set
-//! meet the oracle's over the two trees, whichever entries the walk read (hearth/docs/design/domain/store.md, 3.5,
-//! 4.3 and 5.4).
+//! meet the oracle's over the two trees, whichever entries the walk read (hearth/docs/design/domain/store/README.md, 3.5 and 4.3, and hearth/docs/design/domain/store/tree-helper.md, 4
+//! ).
 use crate::{
     check, expected,
     fs::Fs,

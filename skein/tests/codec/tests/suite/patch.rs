@@ -1,4 +1,4 @@
-//! The every fixture's patch story (codec.md, 11.8).
+//! The every fixture's patch story (data/codec/patches.md, 8).
 
 extern crate alloc;
 

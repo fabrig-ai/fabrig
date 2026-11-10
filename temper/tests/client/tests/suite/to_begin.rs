@@ -1,5 +1,5 @@
-//! Home's Skip crosses the client and engine (temper/docs/design/client/README.md,
-//! 3.5, To begin, and 10; temper/docs/design/domain/testing.md, 2.1).
+//! Home's Skip crosses the client and engine (temper/docs/design/client/pages/README.md
+//! , To begin, and 10; temper/docs/design/testing/README.md, 2.1).
 use jig_client_kit::harness::{App, ClientId, Settings, Until, World};
 use skein_lib::Duration;
 use skein_world::domain::Verdict;

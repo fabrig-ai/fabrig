@@ -16,7 +16,7 @@ const SEED: u64 = 940;
 // The frame's task key (10 bytes) followed by its offset (8).
 const FRAME_KEY_BYTES: u32 = 18;
 const TOKENS: u32 = 6 + FRAME_KEY_BYTES; // six replay bytes and the frame name.
-// store.md 10.2, step 4: one final commit seals the copy.
+// protocol/store/opening.md 2, step 4: one final commit seals the copy.
 const SEAL_COMMITS: u64 = 1;
 
 type Files = std::collections::BTreeMap<Vec<u8>, Option<Vec<u8>>>;

@@ -1,4 +1,4 @@
-//! Oracle controls (jig/docs/design/domain/engine.md, 15).
+//! Oracle controls (jig/docs/design/domain/engine/README.md, 9).
 use temper_engine_domain::Key;
 use temper_engine_domain_world::{direct::Driver, store::Store};
 

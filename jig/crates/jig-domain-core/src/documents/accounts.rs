@@ -1,5 +1,5 @@
-//! The party's accounts (`client/domain/contract.md`, 5.1; `domain/accounts.md`, sections 3 and 5).
-//! Closed at once (jig/docs/design/domain/people.md, 5.2).
+//! The party's accounts (`client/domain/contract/documents.md`, 1; `domain/accounts.md`, sections 3 and 5).
+//! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 use crate::{
     Core, Limits,
     documents::{
@@ -71,7 +71,7 @@ pub struct Accounts {
     pub readiness_cut: bool,
 }
 
-/// An account's facts as this reader may see them (client/domain/contract.md, 5.1).
+/// An account's facts as this reader may see them (client/domain/contract/documents.md, 1).
 pub(super) fn fact_lines(core: &Core, account: u32, holder_reads: bool) -> List<accounts::AccountFact> {
     let mut facts = List::with_capacity(accounts::FACTS);
     for fact in core.accounts.account_facts(account) {
@@ -320,7 +320,7 @@ pub(super) fn manage_usage(core: &Core, account: &accounts::Account) -> Option<B
     core.settings.llm_providers.get(account.provider())?.manage_usage.clone()
 }
 
-/// Public list history (jig/docs/design/client/domain/contract.md, 5.1).
+/// Public list history (jig/docs/design/client/domain/contract/documents.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct AccountList {
     pub read: Option<Wall>,

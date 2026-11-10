@@ -1,5 +1,5 @@
 //! Team: a project's people and what waits on each
-//! (temper/docs/design/client/README.md, 3.5, Team).
+//! (temper/docs/design/client/pages/README.md, Team).
 use super::Request;
 use crate::{Address, Limits, owner::Owner};
 use alloc::boxed::Box;
@@ -65,7 +65,7 @@ pub struct Facts {
     pub standing_roles: Option<u32>,
 }
 
-/// What Team draws (README.md, 3.5, Team, Its parts). A person's line is
+/// What Team draws (client/pages/README.md, Team, Its parts). A person's line is
 /// drawn while their `waits` is `Some`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Parts {
@@ -135,7 +135,7 @@ pub fn gather(project: &c::Project, you: u64, yours: Option<Waits>, others: &[(u
     Facts { people, cut: project.cut, triager: None, standing_roles: None }
 }
 
-/// Team's open project and its bounded reads (client/README.md, 3.5, Team, Its reads).
+/// Team's open project and its bounded reads (client/pages/README.md, Team, Its reads).
 #[derive(Debug)]
 pub struct Team {
     project: Option<u32>,

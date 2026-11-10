@@ -1,4 +1,4 @@
-//! Per-chat layout marker (domain/host.md, section 8; protocol/hosts.md, 5.3).
+//! Per-chat layout marker (domain/host.md, section 8; protocol/host.md, 5.3).
 //! No state or runtime schema parser is retained. `layouts`, `file` and `check`
 //! return the committed layouts, their generated record and its refusal.
 use crate::{File, local_store_v1 as wire};

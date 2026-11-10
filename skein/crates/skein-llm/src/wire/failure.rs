@@ -6,7 +6,7 @@ use skein_lib::{Duration, Wall, bytes};
 
 /// A bounded document entrance refused its grammar, shape or receiving limits.
 /// These errors can arise during local admission or an active response decode.
-/// See `docs/design/llm.md`, Vocabulary and ownership.
+/// See `docs/design/llm/README.md`, Vocabulary and ownership.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum DecodeError {
     /// Tokens, bytes or required framing do not form the admitted grammar.
@@ -72,7 +72,7 @@ impl RateLimit {
         None
     }
 }
-/// A route's named error decides before its HTTP status (llm.md, sections 4.7 and 4.8).
+/// A route's named error decides before its HTTP status (llm/README.md, sections 4.7 and 4.8).
 #[must_use]
 pub fn classify(
     provider: Provider,

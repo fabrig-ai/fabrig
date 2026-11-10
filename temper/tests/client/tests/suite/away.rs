@@ -1,5 +1,5 @@
-//! The switch and decisions cross both roots (temper/docs/design/client/README.md,
-//! 3.5, Away, 4.6 and 5.13; temper/docs/design/domain/forge.md, 5.8 and 5.9).
+//! The switch and decisions cross both roots (temper/docs/design/client/pages/README.md
+//! , Away, 4.6 and 5.13; temper/docs/design/domain/forge/attention.md, 4 and 5).
 use jig_client_kit::harness::{App, ClientId, Duty, Front};
 use skein_lib::{Duration, Env, Queue, RequestEnvelope, Time, Wall};
 use skein_ui::{Role, State};

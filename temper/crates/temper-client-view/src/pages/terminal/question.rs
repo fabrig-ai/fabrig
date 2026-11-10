@@ -1,4 +1,4 @@
-//! A waiting chat shares Needs you's question and answer (temper/docs/design/client/README.md, 3.5).
+//! A waiting chat shares Needs you's question and answer (temper/docs/design/client/pages/README.md).
 use super::{Act, Bindings, Builder, Domain, Role, Run, State, Words, look};
 use crate::words::Word;
 use temper_client_domain::pages::needs;

@@ -1,12 +1,12 @@
 //! Seeded address lines in the two-project person world
-//! (temper/docs/design/domain/agent.md, 8.4.1; skein/docs/foundation/testing-strategy.md, 8).
+//! (temper/docs/design/domain/agent/ask-temper.md, 1; skein/docs/foundation/testing-strategy.md, 8).
 
 use crate::configuring::asking_person::{self, PersonWorld};
 use serde_json::json;
 use skein_lib::Rng;
 use temper_engine_domain_world::host_tool::host_tool;
 
-// The grammar and next-address lines are the oracle from agent.md, 8.4.1's table.
+// The grammar and next-address lines are the oracle from domain/agent/ask-temper.md, 1's table.
 // N and A.T are filled from the world's tasks and real or made-up turn pairs.
 const FORMS: &[(&str, &str)] = &[
     ("me", "inbox · project · goals · tasks"),

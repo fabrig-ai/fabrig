@@ -1,5 +1,5 @@
 //! Compact exact lifecycle; whole metadata is expanded on the task page.
-//! See client/domain/objects.md, 3, and domain/tasks.md, 5.
+//! See client/domain/objects.md, 3, and domain/tasks/lifecycle.md.
 use crate::words::Words;
 use crate::words::phrases::jig::JigPhrase;
 use jig_client::contract::Phase;

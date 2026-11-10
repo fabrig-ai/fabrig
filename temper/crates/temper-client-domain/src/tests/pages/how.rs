@@ -1,4 +1,4 @@
-//! How work runs' shared parts (temper/docs/design/client/README.md, 5.13).
+//! How work runs' shared parts (temper/docs/design/client/pages/settings.md, 2).
 use super::fixtures as f;
 use crate::{
     Address, Domain, Event, Place, Request,

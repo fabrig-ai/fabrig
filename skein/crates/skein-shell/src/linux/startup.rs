@@ -1,4 +1,4 @@
-//! Startup's synchronous bounded regular-file reads (shell.md, 6.1).
+//! Startup's synchronous bounded regular-file reads (runtime/shell.md, 6.1).
 //! Every descriptor stays here and is closed before returning bytes or a
 //! refusal. No service or ring state is kept.
 //!

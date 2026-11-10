@@ -1,15 +1,15 @@
-//! Application-owned settings (jig/docs/design/domain/engine.md, 17.5).
+//! Application-owned settings (jig/docs/design/domain/engine/settings.md, 5).
 
 use alloc::boxed::Box;
 
-/// Where a kind's values are kept (jig/docs/design/domain/engine.md, 17.5).
+/// Where a kind's values are kept (jig/docs/design/domain/engine/settings.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum KindScope {
     Deployment,
     Project,
 }
 
-/// A declared application kind and its bounds (jig/docs/design/domain/engine.md, 17.5).
+/// A declared application kind and its bounds (jig/docs/design/domain/engine/settings.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Kind {
     pub number: u32,
@@ -20,7 +20,7 @@ pub struct Kind {
     pub charters: u8,
 }
 
-/// An edit whose value stays with its connector (jig/docs/design/domain/engine.md, 17.5).
+/// An edit whose value stays with its connector (jig/docs/design/domain/engine/settings.md, 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Edit {
     Set(Box<[u8]>),
@@ -28,7 +28,7 @@ pub enum Edit {
     Reset,
 }
 
-/// One application setting handed to its connector (jig/docs/design/domain/engine.md, 17.5).
+/// One application setting handed to its connector (jig/docs/design/domain/engine/settings.md, 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Item {
     pub kind: u32,
@@ -65,7 +65,7 @@ pub struct Recorded {
     pub number: u32,
     pub edit: SizedEdit,
 }
-/// The state and size an application item replaced (jig/docs/design/domain/engine.md, 17.10).
+/// The state and size an application item replaced (jig/docs/design/domain/engine/settings.md, 10).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Replaced {
     Changed { size: u32 },
@@ -73,7 +73,7 @@ pub enum Replaced {
     Removed,
     NotOffered,
 }
-/// A revision's application item (jig/docs/design/domain/engine.md, 17.10).
+/// A revision's application item (jig/docs/design/domain/engine/settings.md, 10).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RevisionRecorded {
     pub kind: u32,
@@ -82,7 +82,7 @@ pub struct RevisionRecorded {
     pub edit: SizedEdit,
     pub replaced: Replaced,
 }
-/// An application item a restore proposes (jig/docs/design/domain/engine.md, 17.10; jig/docs/design/domain/connectors.md, 17).
+/// An application item a restore proposes (jig/docs/design/domain/engine/settings.md, 10; jig/docs/design/domain/connectors.md, 17).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Restored {
     pub kind: u32,
@@ -90,7 +90,7 @@ pub struct Restored {
     pub number: u32,
     pub edit: RestoredEdit,
 }
-/// Where a restore takes an application's value (jig/docs/design/domain/engine.md, 17.10; jig/docs/design/domain/connectors.md, 17).
+/// Where a restore takes an application's value (jig/docs/design/domain/engine/settings.md, 10; jig/docs/design/domain/connectors.md, 17).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum RestoredEdit {
     Set { revision: u64 },
@@ -771,7 +771,7 @@ pub(crate) struct StartDefaults {
     dropped: Box<[connector::DroppedDefault]>,
 }
 
-/// Replies may precede settings restore; preparation waits for every owner (engine.md, 17.5–17.7).
+/// Replies may precede settings restore; preparation waits for every owner (domain/engine/settings.md, 5–7).
 #[derive(Hash, Debug)]
 pub(crate) enum Starting {
     Waiting { replies: Map<u16, StartDefaults> },

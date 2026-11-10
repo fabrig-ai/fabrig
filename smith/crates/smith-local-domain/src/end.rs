@@ -1,5 +1,5 @@
 //! The first cause of a run's unanswering end (protocol/events.md, section 3.10;
-//! shell.md, section 4.3). Local policy keeps the cause through settlement;
+//! shell/commands.md, section 3). Local policy keeps the cause through settlement;
 //! process exit evidence is not known until the host kit supplies it.
 
 use crate::{ExitStatus, StoreFailure};

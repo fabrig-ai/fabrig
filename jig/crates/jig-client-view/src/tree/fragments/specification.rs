@@ -1,4 +1,4 @@
-//! Whole specification presentation (client/domain/contract.md, 5.2; view.md, 10).
+//! Whole specification presentation (client/domain/contract/documents.md, 2; view.md, 10).
 use crate::words::Words;
 use crate::words::phrases::jig::JigPhrase;
 use skein_ui::phrases::Hole;

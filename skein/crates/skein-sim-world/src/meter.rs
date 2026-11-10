@@ -1,4 +1,4 @@
-//! The loop's measurement around each process's own calls (world.md, 2).
+//! The loop's measurement around each process's own calls (testing/world.md, 2).
 
 /// What a loop measures: making a process, its iterate and drain, and dropping it.
 /// The harness meters heap; a playground's loop measures nothing.

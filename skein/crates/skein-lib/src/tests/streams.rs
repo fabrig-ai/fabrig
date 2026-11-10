@@ -1,4 +1,4 @@
-//! Streams (lib.md, 7): delimiters, and the intake meeting fills and scans
+//! Streams (runtime/lib.md, 7): delimiters, and the intake meeting fills and scans
 //! under every split of its input, against a plain reference.
 
 #![expect(clippy::disallowed_types, reason = "the reference and the model are Vecs, grown as a test goes")]

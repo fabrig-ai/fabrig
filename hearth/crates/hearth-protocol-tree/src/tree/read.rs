@@ -1,5 +1,5 @@
 //! A pull reader of a tree file: the caller feeds the bytes at the next item,
-//! and the file is never held whole (hearth/docs/design/domain/store.md, 6.3).
+//! and the file is never held whole (hearth/docs/design/domain/store/records.md, 3).
 
 use super::{
     CHANGE, END, ENTRY, End, Entry, Item, Kernel, Local, MODE, OWNER, Op, Payload, TARGET, VALUE, VERSION, XATTRS,
@@ -36,7 +36,7 @@ enum Phase {
 
 /// A tree file's reader: its state is the last path it saw, and the bytes
 /// it has taken. The decoder is bounded by the tree kind's map key
-/// (hearth/docs/design/domain/store.md, 6.1).
+/// (hearth/docs/design/domain/store/records.md, 1).
 #[derive(Debug)]
 pub struct Reader {
     limits: Limits,

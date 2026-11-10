@@ -1,17 +1,17 @@
-//! The connector's whole change document (domain/forge.md, 8.8; client/forge.md, 2.1).
+//! The connector's whole change document (domain/forge/change/README.md, 5; client/forge/README.md, 2.1).
 use crate::{ChangeRow, Domain, Limits};
 use alloc::boxed::Box;
 use jig_domain_people::ApplicationScope;
 use skein_lib::{List, Wall};
 use temper_engine_domain_forge_change as change;
 
-/// Tasks ahead of a queued change (client/README.md, 4.6).
+/// Tasks ahead of a queued change (client/forge/records.md).
 pub const PANEL_AHEAD: u32 = 64;
-/// Gates in a change document (client/README.md, 4.6).
+/// Gates in a change document (client/forge/records.md).
 pub const PANEL_GATES: u32 = 64;
-/// Bytes in each repository or branch name (client/README.md, 4.6).
+/// Bytes in each repository or branch name (client/forge/records.md).
 pub const PANEL_NAME_BYTES: u32 = 1024;
-/// Subjects marked together (domain/root.md, section 10).
+/// Subjects marked together (domain/root.md, section 9).
 pub const MARKED: u32 = 32;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -48,7 +48,7 @@ pub struct PanelUsed {
     pub used: u32,
     pub limit: u32,
 }
-/// A change's questions (domain/forge.md, 8.11; client/README.md, 4.6).
+/// A change's questions (domain/forge/change/questions.md, 1; client/forge/records.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PanelQuestions {
     pub route: change::Route,
@@ -69,7 +69,7 @@ pub enum PanelStands {
     Asked,
     Held,
 }
-/// Last judged reviews, unsaved and bound to the merge head (domain/forge.md, 8.7).
+/// Last judged reviews, unsaved and bound to the merge head (domain/forge/change/gates.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ReviewFacts {
     pub head: Option<[u8; 32]>,

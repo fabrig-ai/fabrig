@@ -1,4 +1,4 @@
-//! Dotted overrides and their reference rows (temper/docs/design/protocol/configuration.md, 7;
+//! Dotted overrides and their reference rows (temper/docs/design/protocol/configuration/limits.md;
 //! temper/docs/design/protocol/documentation.md, 8).
 use super::{Limits, Refused};
 use skein_lib::Duration;
@@ -307,7 +307,7 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
     Ok(())
 }
 
-/// What a named limit counts (temper/docs/design/protocol/configuration.md, 7).
+/// What a named limit counts (temper/docs/design/protocol/configuration/limits.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Unit {
     Count,

@@ -1,4 +1,4 @@
-//! The binary's three directories (protocol/configuration.md, 12).
+//! The binary's three directories (protocol/configuration/directories.md).
 use skein_io::kernel::Error;
 use skein_shell::{self as settings, Base, Fallback, Origin, Setting, Settings};
 use std::{
@@ -63,7 +63,10 @@ impl fmt::Display for Refusal {
 }
 pub type Argument = Box<[u8]>;
 pub type EnvironmentEntry = (Argument, Argument);
-#[expect(clippy::result_large_err, reason = "shell.md, 6.5 preserves the refused setting and its documentation")]
+#[expect(
+    clippy::result_large_err,
+    reason = "skein/docs/design/runtime/shell.md, 6.5 preserves the refused setting and its documentation"
+)]
 pub fn resolve(
     arguments: &[Argument],
     environment: &[EnvironmentEntry],

@@ -1,4 +1,4 @@
-//! Files synced before turns become durable (protocol/store.md, 8.1 and 8.2).
+//! Files synced before turns become durable (protocol/store/transcripts.md, 1 and 2).
 use super::fixtures::{self, Answer, LIVE};
 use crate::{Arrived, Below, Event, Io, Phase, Store};
 use alloc::boxed::Box;

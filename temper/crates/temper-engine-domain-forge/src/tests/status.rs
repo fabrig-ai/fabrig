@@ -1,4 +1,4 @@
-//! Project landings, sittings and briefs (temper/docs/design/domain/forge.md, 5.6, 5.7).
+//! Project landings, sittings and briefs (temper/docs/design/domain/forge/attention.md, 2, 3).
 use super::*;
 use jig_domain_people::ApplicationScope;
 

@@ -1,5 +1,5 @@
-//! The layers of the world's store, and the tree helper's fake over them (hearth/docs/design/domain/store.md, 5.3 and
-//! 11): a layer is a directory beneath `layers/`, a snapshot is the fake's copy of one, and a freeze
+//! The layers of the world's store, and the tree helper's fake over them (hearth/docs/design/domain/store/tree-helper.md, 3, and hearth/docs/design/domain/store/README.md, 9
+//! ): a layer is a directory beneath `layers/`, a snapshot is the fake's copy of one, and a freeze
 //! is the sync. The fake's digests are stand-ins for the walk's (h05): deterministic from the files.
 use crate::{
     files::Files,
@@ -149,7 +149,7 @@ fn done(result: Result<(), Error>) -> Event {
 fn layer(key: Digest, suffix: &str) -> String {
     format!("layers/{}{suffix}", hex_digest(key.0))
 }
-/// `layers/` is made with the first layer (hearth/docs/design/domain/store.md, 2.4).
+/// `layers/` is made with the first layer (hearth/docs/design/domain/store/README.md, 2.4).
 fn ensure(files: &Files) -> Result<(), Error> {
     match files.call(Ask::MakeDirectory { dir: files.store_root(), name: b"layers".as_slice().into(), mode: 0o700 }) {
         Ok(_) | Err(Error::Exists) => Ok(()),

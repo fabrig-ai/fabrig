@@ -1,5 +1,5 @@
 //! Expectations for the agent on its scripted host (smith/docs/design/domain/run.md,
-//! section 13; skein/docs/foundation/testing-strategy.md, section 7). This module retains
+//! section 12; skein/docs/foundation/testing-strategy.md, section 7). This module retains
 //! observed starts, provider queries and usage, check results, push snapshots
 //! and answers. It cannot inspect agent state or source fixtures.
 //! The shared referee owns deadlines and reports the first broken expectation.

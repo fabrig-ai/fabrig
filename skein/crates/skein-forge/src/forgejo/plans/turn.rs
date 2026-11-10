@@ -1,4 +1,4 @@
-//! Actions runs and nonrecursive trees (forge.md, 5.2).
+//! Actions runs and nonrecursive trees (forge/forgejo.md, 1.2).
 use super::{
     Body, Heard,
     plan::{Bounds, Step},
@@ -125,7 +125,7 @@ impl Plan {
             d::Row::Run(run) => match source {
                 State::Runs { workflow, commit, page, mut runs, count } => {
                     let value = run_value(run, self.row.object_format)?;
-                    // Forgejo filters head_sha but ignores workflow (forge.md, 9).
+                    // Forgejo filters head_sha but ignores workflow (forge/forgejo.md, 2).
                     if value.workflow.as_ref() == workflow.as_ref() && value.commit == commit {
                         let size = crate::measure::run(&value)
                             .ok_or(api::Error::TooLarge(api::Excess::unnamed()))?
@@ -256,7 +256,10 @@ impl Plan {
         ))))?;
         Ok(State::Jobs { run, jobs })
     }
-    #[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+    )]
     fn done(&mut self, document: d::Document, bounds: Bounds) -> Result<Option<Step>, api::Error> {
         let source = core::mem::replace(&mut self.state, State::Ended);
         let step;

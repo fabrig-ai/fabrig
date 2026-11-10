@@ -1,4 +1,4 @@
-//! Diagnostic hooks and bounded history (temper/docs/design/domain/testing.md, 2.4).
+//! Diagnostic hooks and bounded history (temper/docs/design/testing/real-loop.md).
 use super::terminals::Terminals;
 use super::{Operation, Operations, ROWS, Rows, Summary, Task, Tasks};
 use crate::world::{Kind, Proc};

@@ -1,4 +1,4 @@
-//! Pages filled to their configured text and node limits (ui.md, 17).
+//! Pages filled to their configured text and node limits (ui/README.md, 14).
 use skein_ui::{Builder, Limits, Owner, Role, Run, Style};
 
 /// Build every node with its full text capacity; the tree consumes all nodes.

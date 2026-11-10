@@ -1,4 +1,4 @@
-//! Deployment settings, defaults and revisions (domain/engine.md, section 17).
+//! Deployment settings, defaults and revisions (domain/engine/settings.md).
 
 pub mod application;
 pub mod catalogue;
@@ -30,7 +30,7 @@ pub use restart::revision_writes;
 pub use revisions::history_copy;
 
 pub use people::{Running, Setting, SettingFault as Fault};
-/// A party's setting value (jig/docs/design/domain/engine.md, 17.1, 17.5).
+/// A party's setting value (jig/docs/design/domain/engine/settings.md, 1, 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Value {
     Charter(Box<Charter>),
@@ -96,7 +96,7 @@ pub enum Edit {
     Removed,
     Reset,
 }
-/// What an item replaced (jig/docs/design/domain/engine.md, 17.10).
+/// What an item replaced (jig/docs/design/domain/engine/settings.md, 10).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Replaced {
     Value(Value),
@@ -104,7 +104,7 @@ pub enum Replaced {
     Removed,
     NotOffered,
 }
-/// A revision's item and what it replaced (jig/docs/design/domain/engine.md, 17.10).
+/// A revision's item and what it replaced (jig/docs/design/domain/engine/settings.md, 10).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RevisionItem {
     pub setting: Setting,
@@ -116,7 +116,7 @@ pub struct Item {
     pub setting: Setting,
     pub edit: Edit,
 }
-/// Projects named by a proposal's items (jig/docs/design/domain/engine.md, 17.6).
+/// Projects named by a proposal's items (jig/docs/design/domain/engine/settings.md, 6).
 pub const PROPOSAL_PROJECTS: u32 = 32;
 #[must_use]
 pub fn touched_projects(items: &[Item]) -> List<u32> {
@@ -200,14 +200,14 @@ pub fn model_names(models: &[crate::Model]) -> Box<[ModelName]> {
     }
     names.into_boxed()
 }
-/// A revision and the state each item replaced (jig/docs/design/domain/engine.md, 17.10).
+/// A revision and the state each item replaced (jig/docs/design/domain/engine/settings.md, 10).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Revision {
     pub head: Head,
     pub items: Box<[RevisionItem]>,
     pub applications: Box<[application::RevisionRecorded]>,
 }
-/// A failed setting check, retaining bounded document facts when applicable (engine.md, 17.9).
+/// A failed setting check, retaining bounded document facts when applicable (domain/engine/settings.md, 9).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Failure {
     pub setting: Setting,
@@ -342,7 +342,7 @@ impl Current {
             },
         }
     }
-    /// The state before an edit (jig/docs/design/domain/engine.md, 17.10).
+    /// The state before an edit (jig/docs/design/domain/engine/settings.md, 10).
     #[must_use]
     pub fn replaced(&self, setting: Setting) -> Replaced {
         match self.lookup(setting) {
@@ -536,7 +536,7 @@ pub fn set_bound(limits: &crate::Limits) -> Option<u64> {
         .checked_add(u64::try_from(size_of::<authority::Rules>()).ok()?)?
         .checked_add(u64::from(jig_domain_tasks::MODELS).checked_mul(catalogue::bound()?)?)
 }
-/// Current settings own two set overlays and one resolved charter set (engine.md, 17.8).
+/// Current settings own two set overlays and one resolved charter set (domain/engine/settings.md, 8).
 #[must_use]
 pub fn current_bound(limits: &crate::Limits) -> Option<u64> {
     let resolved = Map::<u32, Charter>::price(limits.tasks.charters)?.checked_add(
@@ -561,7 +561,7 @@ pub fn current_bound(limits: &crate::Limits) -> Option<u64> {
 }
 
 /// One record's items and a whole set of replaced values, priced independently of the held heads
-/// (jig/docs/design/domain/engine.md, 17.10).
+/// (jig/docs/design/domain/engine/settings.md, 10).
 #[must_use]
 pub fn revision_bound(limits: &crate::Limits) -> Option<u64> {
     set_bound(limits)?
@@ -609,7 +609,7 @@ impl Current {
 }
 
 /// The first start or a revision's largest write set, including its deployment
-/// header, one steady-state history erase and a list's account record (engine.md, 17.7, 17.12).
+/// header, one steady-state history erase and a list's account record (domain/engine/settings.md, 7, 12).
 #[must_use]
 pub fn writes_bound(limits: &crate::Limits) -> Option<u32> {
     let count = capacity(limits)?;
@@ -667,7 +667,7 @@ pub(crate) fn move_writes(limits: &crate::Limits) -> Option<u32> {
     limits.tasks.tasks.checked_mul(3)?.checked_add(release_writes(limits)?)
 }
 
-/// A project's own policy is never retained among current settings (engine.md, 17.2).
+/// A project's own policy is never retained among current settings (domain/engine/settings.md, 2).
 pub(crate) fn is_project_policy(setting: Setting) -> bool {
     match setting {
         Setting::ProjectPolicy { .. } => true,
@@ -680,7 +680,7 @@ pub(crate) fn is_project_policy(setting: Setting) -> bool {
     }
 }
 
-/// One paged restore and its connector continuations (jig/docs/design/domain/engine.md, 17.10).
+/// One paged restore and its connector continuations (jig/docs/design/domain/engine/settings.md, 10).
 #[derive(Hash, Debug)]
 pub(crate) struct Restoring {
     pub(crate) pending: Option<Restoration>,

@@ -1,7 +1,7 @@
 //! The world: one thread, one loop (testing-strategy.md, 1), driving each
 //! process's io and its scripted owner over the simulator, iteration by
 //! iteration, as a service's loop drives its layers (programming-model.md,
-//! section 2; simulator.md, 3), and checking as it goes:
+//! section 2; testing/simulator.md, 3), and checking as it goes:
 //!
 //! - **contracts:** each entry point within its `MAX_OUT`; io's contract with
 //!   the owner, in the [`Ledger`];
@@ -95,7 +95,7 @@ impl Proc {
         if !self.io.takes() && !self.requests.is_empty() {
             self.held_back += 1;
         }
-        // The accept batch (io.md, 3.2): no more accepts armed in an
+        // The accept batch (runtime/io/sockets.md, 2): no more accepts armed in an
         // iteration than it allows, over every listener.
         let mut accepts = 0;
         for submit in &self.subs {
@@ -118,7 +118,7 @@ impl Proc {
     }
 }
 
-/// A process with the world's directory visible within each turn (io.md, 8).
+/// A process with the world's directory visible within each turn (runtime/io/README.md, 5).
 pub(crate) struct Hosted {
     pub proc: Proc,
     pub directory: Rc<RefCell<Directory>>,

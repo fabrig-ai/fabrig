@@ -1387,7 +1387,7 @@ impl Check for DescriptorLimit {
     }
 }
 
-/// A size read on a non-terminal descriptor (kernel.md, section 6.3).
+/// A size read on a non-terminal descriptor (runtime/kernel.md, section 6.3).
 #[derive(Debug)]
 pub struct Window {
     result: Result<Done, Error>,

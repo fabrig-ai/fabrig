@@ -1,4 +1,4 @@
-//! A table's reference documents (skein/docs/design/shell.md, 15.3).
+//! A table's reference documents (skein/docs/design/runtime/shell.md, 14.3).
 
 use std::collections::BTreeSet;
 
@@ -98,7 +98,7 @@ impl TestTable {
 
 fn document(name: &str, kind: &str, source: &str) -> String {
     format!(
-        "# {name}: {kind}\n\nGenerated from {source} (`skein/docs/design/shell.md`, 15.3): \
+        "# {name}: {kind}\n\nGenerated from {source} (`skein/docs/design/runtime/shell.md`, 14.3): \
          a test checks it byte for byte, and the tree's rewrite switch rewrites it.\n"
     )
 }

@@ -2,8 +2,11 @@
 */docs/design/cli/*-env.md
 temper/docs/help/**
 temper/docs/design/draft/reference-code-production.md
+temper/docs/design/protocol/setup/owned.md
 temper/docs/examples/reference/README.md
-jig/docs/design/protocol/store.md
+jig/docs/design/protocol/store/README.md
+jig/docs/design/protocol/store/records.md
+jig/docs/design/protocol/store/opening.md
 smith/docs/design/**
 smith/crates/smith-agent-shell/README.md
 smith/benchmarks/README.md
@@ -11,7 +14,7 @@ smith/benchmarks/tasks/**
 smith/benchmarks/tests/fixtures/**
 smith/benchmarks/tests/recorded/**
 skein/crates/skein-ui/src/tests/markdown/**
-skein/docs/design/forge-github.md
+skein/docs/design/forge/github.md
 skein/docs/design/draft/diagrams/**
 temper/docs/design/client/journeys/**
 temper/docs/design/client/tui/journeys/**

@@ -1,4 +1,4 @@
-//! Repositories being made (temper/docs/design/domain/forge.md, 4.5).
+//! Repositories being made (temper/docs/design/domain/forge/adoption.md, 5).
 use crate::{Adoption, ApplicationOutcome, Ask, Domain, Key, Limits, Request, Stored};
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, List, Queue, Token, Wall};

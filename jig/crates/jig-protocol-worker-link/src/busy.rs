@@ -1,4 +1,4 @@
-//! Busy turns name the hub's retained copy (protocol/channel.md, 5.2).
+//! Busy turns name the hub's retained copy (protocol/channel/records.md, 2).
 use crate::Limits;
 use skein_lib::{Deadlines, Duration, Map, Rng, Time, Token};
 type Key = (Token, Token, u32);

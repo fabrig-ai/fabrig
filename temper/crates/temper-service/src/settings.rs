@@ -2,7 +2,7 @@
 use alloc::boxed::Box;
 use skein_lib::{List, Secret};
 
-/// The scripted provider and its key file (temper/docs/design/protocol/setup.md, 8.4).
+/// The scripted provider and its key file (temper/docs/design/protocol/setup/playground.md).
 #[derive(Debug)]
 pub struct Demo {
     pub provider: u32,
@@ -13,11 +13,11 @@ pub struct Demo {
     pub key_file: Box<[u8]>,
 }
 
-/// A runtime forge row made from its kept record (temper/docs/design/protocol/forge.md, 2.1).
+/// A runtime forge row made from its kept record (temper/docs/design/protocol/forge/engine.md, 1).
 #[derive(Clone, Debug)]
 pub struct Forge {
     /// Resolved configured job-log origins; none uses the kind's runtime defaults
-    /// (temper/docs/design/protocol/configuration.md, 3).
+    /// (temper/docs/design/protocol/configuration/engine.md).
     pub log_origins: Option<List<skein_forge_connection::settings::LogOrigin>>,
     pub mode: temper_engine_domain_forge::Mode,
     pub number: u16,
@@ -54,7 +54,7 @@ pub enum Transport {
     Tls { server_name: Box<[u8]>, trust: Option<Box<[u8]>> },
 }
 
-/// A runtime git identity made from its kept forge (temper/docs/design/protocol/forge.md, 2.1).
+/// A runtime git identity made from its kept forge (temper/docs/design/protocol/forge/engine.md, 1).
 #[derive(Clone, Debug)]
 pub struct Identity {
     pub number: u32,
@@ -79,16 +79,16 @@ pub struct Seeds {
     pub deployment: [u8; 16],
     pub seed: u64,
     pub crypto: Secret,
-    /// The first link's secret supplied by the box (temper/docs/design/protocol/setup.md, 7.1).
+    /// The first link's secret supplied by the box (temper/docs/design/protocol/setup/box.md, 1).
     pub link_secret: Option<Secret>,
-    /// The local link's first secret supplied by the box (temper/docs/design/protocol/setup.md, 7.1).
+    /// The local link's first secret supplied by the box (temper/docs/design/protocol/setup/box.md, 1).
     pub local_secret: Option<Secret>,
     /// The installation's identifier drawn for a first start; a later start
-    /// sends the one its store keeps (jig's configuration.md, 8).
+    /// sends the one its store keeps (jig's configuration.md, 7).
     pub installation: [u8; 16],
 }
 
-/// One setup fixture entry and its handover (protocol/setup.md, 8.4).
+/// One setup fixture entry and its handover (protocol/setup/playground.md).
 #[cfg(test)]
 #[derive(Clone, Debug)]
 pub struct Setup {
@@ -98,14 +98,14 @@ pub struct Setup {
 }
 
 /// The engine's settings: jig's part, typed by jig-protocol-config, and
-/// temper's members (protocol/configuration.md, sections 2 and 3).
+/// temper's members (protocol/configuration/README.md, section 2 and protocol/configuration/engine.md).
 #[derive(Debug)]
 pub struct Engine {
     /// Checked receiving agent reply allowance; none when no local agent is configured.
     pub host_reply_bytes: Option<u32>,
     /// The local agent's charter allowance, smith's `run_bytes`; none when no local agent is configured.
     pub agent_charter_bytes: Option<u64>,
-    /// Charter brief-room costs of the configured agent (temper/docs/design/domain/agent.md, 4.3).
+    /// Charter brief-room costs of the configured agent (temper/docs/design/domain/agent/tools.md).
     pub host_part: Option<temper_engine_domain::room::HostPart>,
     pub machine: temper_forge_setup::machine::Machine,
     pub directories: jig_protocol_config::Directories,
@@ -150,8 +150,8 @@ pub use crate::unbuilt::Agent;
 #[cfg(feature = "worker")]
 pub use crate::worker_settings::Agent;
 
-/// A worker's settings: jig's part and temper's (protocol/configuration.md,
-/// section 4); 09 builds the worker from it.
+/// A worker's settings: jig's part and temper's (protocol/configuration/README.md,
+/// section 3); 09 builds the worker from it.
 #[derive(Debug)]
 pub struct Worker {
     pub jig: jig_protocol_config::Worker,

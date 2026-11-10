@@ -70,7 +70,7 @@ pub enum Unusable {
     /// A kernel queue too small for one io entrance.
     Queue,
     /// The protocol layer's largest read is past io's intake, so it could
-    /// never be met (io.md, 2).
+    /// never be met (runtime/io/README.md, 2).
     Read { largest: u32, intake: u32 },
     /// The protocol layer's largest room is past io's output cap.
     Room { largest: u32, output: u32 },
@@ -88,7 +88,7 @@ impl Limits {
 
     /// Whether the service can run under these limits: each layer's usable,
     /// kernel queues that hold io's submissions, and io's caps no smaller than
-    /// the protocol layer's largest demands (io.md, 2).
+    /// the protocol layer's largest demands (runtime/io/README.md, 2).
     pub fn check(&self) -> Result<(), Unusable> {
         if !skein_io::valid(&self.io) {
             return Err(Unusable::Io);
@@ -115,7 +115,7 @@ const fn larger(left: u32, right: u32) -> u32 {
 }
 
 /// The most operations the service has in flight at once: the size of its
-/// ring (shell.md, 3), or `None` past a `u32`.
+/// ring (runtime/shell.md, 3), or `None` past a `u32`.
 #[must_use]
 pub fn operations(limits: &Limits) -> Option<u32> {
     io::operations(&limits.io)
@@ -147,7 +147,7 @@ pub struct Service {
 }
 
 impl Service {
-    /// The domain state a world digests (lib.md, 5.1).
+    /// The domain state a world digests (runtime/lib.md, 5.1).
     #[must_use]
     pub const fn domain(&self) -> &Domain {
         &self.domain
@@ -177,8 +177,8 @@ impl Service {
         }
     }
 
-    /// Adopts the shell's blocked termination signalfd at startup (io.md,
-    /// section 7), retaining ownership until every connection settles. If
+    /// Adopts the shell's blocked termination signalfd at startup (runtime/io/README.md,
+    /// section 4), retaining ownership until every connection settles. If
     /// there is no io slot or a source was already adopted, the caller keeps it.
     pub fn adopt_signals(&mut self, descriptor: Fd) -> Result<(), Fd> {
         if self.signals.is_some() {
@@ -243,7 +243,7 @@ impl Service {
     /// Shuts the service down: the domain is told `Shutdown` in the next
     /// iteration, admits no one more and stops the listener; the connections
     /// it has run to their end. Lower-tier worlds use this entry point; the
-    /// binary receives io's real `Shutdown` event (io.md, section 7).
+    /// binary receives io's real `Shutdown` event (runtime/io/README.md, section 4).
     pub fn shutdown(&mut self) {
         self.protocol.shutdown();
     }

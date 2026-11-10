@@ -15,7 +15,7 @@ fn a_changed_file_prints_its_hunks_as_render_md_shows() {
     assert_eq!(
         printed.as_deref(),
         Ok(fixtures::WG0_TEXT.as_bytes()),
-        "hearth/docs/design/domain/render.md, 6.3, three lines of context"
+        "hearth/docs/design/domain/render/README.md, 4.3, three lines of context"
     );
 }
 const NOTHING: &str = "west-prod                                           nothing to build\n";

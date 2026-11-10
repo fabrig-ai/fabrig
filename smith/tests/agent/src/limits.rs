@@ -1,4 +1,4 @@
-//! Process limits for the scripted agent world (smith/docs/design/domain/run.md, section 13).
+//! Process limits for the scripted agent world (smith/docs/design/domain/run.md, section 12).
 //! The world supplies immutable caps; none is inferred from domain state.
 
 use skein_lib::Duration;

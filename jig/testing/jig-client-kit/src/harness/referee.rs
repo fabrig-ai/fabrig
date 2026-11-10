@@ -174,7 +174,7 @@ impl Rules {
         }
     }
     /// A tab's page starts, first or on a reload: its stream has only its own
-    /// heartbeat until a hello (client.md, section 8), so it tells the link
+    /// heartbeat until a hello (protocol/client/sign-in.md), so it tells the link
     /// within the bound of a link coming back, whatever an earlier page owed.
     fn started(&mut self, client: ClientId, judge: &mut JudgeOf) {
         judge.withdraw(&Deadline::Online(client));
@@ -335,7 +335,7 @@ impl Rules {
                         self.promised.insert((task, message), words);
                     }
                 }
-                Seen::Outline { .. } => judge.check(false, "the page's outline: a tree broke skein's ui.md, 14"),
+                Seen::Outline { .. } => judge.check(false, "the page's outline: a tree broke skein's ui/README.md, 12"),
                 Seen::SignedOut => {
                     let allowed = !self.sign_out_asked.contains(&client) || self.sign_in_ended.contains(&client);
                     judge.check(allowed, "a sign-out told: the engine did not receive sign-out");

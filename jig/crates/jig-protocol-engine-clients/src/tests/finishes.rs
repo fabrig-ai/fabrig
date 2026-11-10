@@ -1,4 +1,4 @@
-//! A pasted address is held, bounded and erased once (store.md, section 9).
+//! A pasted address is held, bounded and erased once (protocol/store/secrets.md).
 use super::fixtures::{self as f, Exchange};
 use crate::{Event, Message, Request, SecretOwner, SecretsAnswer, SecretsRequest};
 use jig_client_protocol_wire::v19 as w;

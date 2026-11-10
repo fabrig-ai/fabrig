@@ -1,4 +1,4 @@
-//! Static owner data handed in by the shell (protocol/store.md 5.3 and 10.3).
+//! Static owner data handed in by the shell (protocol/store/records.md, 3, and protocol/store/opening.md, 3).
 
 /// Whose patch levels the format row keeps, upstream first.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -19,7 +19,7 @@ pub struct PatchSet {
     /// The owner's mark across which windows start fresh.
     pub fresh: Option<&'static str>,
 }
-/// Which of the deployment's two maps a kept family's records live in (store.md 9, 10.3).
+/// Which of the deployment's two maps a kept family's records live in (protocol/store/secrets.md, protocol/store/opening.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum KeptMap {
     Store,
@@ -36,7 +36,7 @@ pub struct KeptFamily {
     /// The declaration used as a transcript frame root.
     pub frames: Option<&'static str>,
     /// Ranges whose every record is an effect in flight, its key naming
-    /// it (store.md 10.3), in `Keys`' form. Empty: none.
+    /// it (protocol/store/opening.md 3), in `Keys`' form. Empty: none.
     pub flights: &'static [Keys],
 }
 #[derive(Clone, Copy, Debug)]
@@ -57,7 +57,7 @@ impl PatchSets {
     pub const NONE: PatchSets = PatchSets { sets: &[] };
 }
 
-/// jig's secrets rows, excluding the application's own rows (store.md 9, 10.3).
+/// jig's secrets rows, excluding the application's own rows (protocol/store/secrets.md, protocol/store/opening.md, 3).
 pub const JIG: PatchSet = PatchSet {
     owner: Owner::Jig,
     name: "jig",

@@ -45,7 +45,7 @@ draft carries what the look cannot.
 - **Opened:** a row a call: the tool, its argument in a few words, and
   its outcome's first line, cut to the row. Never a result's body.
 - **What stays apart:** a call with a card of its own (a delegate, a
-  change, a goal, a proposal; `../client/README.md`, 5.7) keeps its card,
+  change, a goal, a proposal; `../client/view.md`, 5) keeps its card,
   and a document's write keeps its line and "Show". Neither counts in a
   run.
 - **The terminal** prints the line and, opened, its rows.
@@ -63,7 +63,7 @@ draft carries what the look cannot.
   still open is bold; a list's or a heading's marker still being written
   ("4.", "##") waits for its words; a code fence still open is code.
   skein's reader shows a delimiter never closed as text
-  (`skein/docs/design/ui.md`, section 10), so it takes the growing case
+  (`skein/docs/design/ui/markdown.md`), so it takes the growing case
   as an argument.
 - **Its end:** a small block after the last word, in place of today's
   "Writing...".
@@ -78,7 +78,7 @@ draft carries what the look cannot.
 
 Today's `turn_text` (2048 bytes) is shared by the turn's texts, its calls'
 names, inputs and outcomes, and its results' summaries, an outcome taken
-before its input (jig's `client/domain/client.md`, section 14). A few
+before its input (jig's `client/domain/client/README.md`, section 11). A few
 results use it up, and the later calls arrive with no names: "read_docs ×2
 · ". The answer in the user's recording, 1978 bytes, was cut by it.
 
@@ -116,7 +116,7 @@ results use it up, and the later calls arrive with no names: "read_docs ×2
 - **The newest are never lost:** past the bound, the lines furthest from
   where the person reads go, at either end, whole, and come back when
   scrolled to, through the thread's `newer` as through its `older` (jig's
-  `client/domain/client.md`, section 10). Nothing says how many left.
+  `client/domain/client/conversations.md`). Nothing says how many left.
 - **"Latest ↓":** a small pill over the pane's foot while the end is out
   of view. Pressed, or on the person sending, the view goes to the end,
   read again if the window let it go.

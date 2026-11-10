@@ -1,4 +1,4 @@
-//! Spawned program invocation derivation (shell.md, sections 4.4 and 9).
+//! Spawned program invocation derivation (shell/commands.md, section 4, and shell/README.md, section 5).
 use super::*;
 
 #[test]

@@ -1,4 +1,4 @@
-//! Shared keys favor number boundaries and common prefixes (protocol/store.md, 4.1).
+//! Shared keys favor number boundaries and common prefixes (protocol/store/README.md, 4.1).
 use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_domain_people as people;

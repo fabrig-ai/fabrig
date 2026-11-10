@@ -1,4 +1,4 @@
-//! A size-bounded window fits the derived page bounds (client/README.md, 5.4).
+//! A size-bounded window fits the derived page bounds (client/view.md, 4).
 use super::fixtures as f;
 use jig_client::{contract as c, thread::Thread};
 use skein_lib::{List, Writer};

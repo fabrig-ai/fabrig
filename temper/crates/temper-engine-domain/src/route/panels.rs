@@ -1,4 +1,4 @@
-//! Make the forge's whole document in the decision that asked (domain/root.md, 5.1).
+//! Make the forge's whole document in the decision that asked (domain/routing.md, 1).
 use super::{Decision, Delivery, Domain, Env, Limits, Queue, Token, core, emit, environment_core};
 use alloc::boxed::Box;
 use jig_domain_people::ApplicationScope;

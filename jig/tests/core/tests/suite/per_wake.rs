@@ -1,4 +1,4 @@
-//! A run reads the instructions for why it runs (`jig/docs/design/domain/tasks.md`, 8.6).
+//! A run reads the instructions for why it runs (`jig/docs/design/domain/tasks/messages.md`, 6).
 use jig_core_world::{fixtures, world::World};
 use jig_core_world::{fixtures::live_row, stories::per_wake as story};
 use jig_domain_people as people;

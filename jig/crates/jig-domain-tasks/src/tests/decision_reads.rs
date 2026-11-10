@@ -1,5 +1,5 @@
 //! A decision can commit before the turn carrying its entry's first read fence
-//! (domain/engine.md, 7.2; domain/hosts.md, section 9).
+//! (domain/engine/executors.md, 2; domain/hosts/README.md, section 7).
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,

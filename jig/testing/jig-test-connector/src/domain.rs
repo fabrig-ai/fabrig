@@ -633,7 +633,7 @@ fn report_adoption(domain: &Domain, project: u32, resource: &Path, out: &mut Que
     out.push(Request::Resource { project, resource: Named { path: resource.clone(), role, hold: spec.hold } });
 }
 
-/// Release the connector's project rows (jig/docs/design/domain/people.md, 5.2).
+/// Release the connector's project rows (jig/docs/design/domain/people/acts.md, 2).
 fn release_project(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
     crate::settings::release_project(domain, project, out);
     // At most the configured adoption capacity is visited and erased.

@@ -1,4 +1,4 @@
-//! A turn's token count reads its replay and the frame's own key (codec.md 11.5).
+//! A turn's token count reads its replay and the frame's own key (skein/docs/design/data/codec/patches.md 5).
 use super::{Context, kept::fixture_turn::p0001::old, refusal::p0001::EMPTY};
 use skein_codec::{
     patch::{Build, Halt, Old},

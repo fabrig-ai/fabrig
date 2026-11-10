@@ -1,7 +1,7 @@
 //! Task validation, isolated attempts, event observation and evidence summaries.
 //! Adapters collect public agent outputs; the harness keeps frozen inputs and
 //! measured results, never an agent's internal state. `check_task` validates
-//! inputs and `run::attempt` executes them (benchmarks.md, sections 5.2 and 14).
+//! inputs and `run::attempt` executes them (../../docs/design/benchmarks/README.md, sections 5.2 and 13).
 
 #![forbid(unsafe_code)]
 

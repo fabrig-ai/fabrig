@@ -1,4 +1,4 @@
-//! Exhaustive settings and history translations (protocol/client.md, 3).
+//! Exhaustive settings and history translations (protocol/client/wire.md, 1).
 use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;

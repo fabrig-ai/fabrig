@@ -1,5 +1,5 @@
 //! Forge writes, with validation before resolution and no retry
-//! (forge.md, 3.2–3.4, 5.2, 5.4).
+//! (forge/README.md, 3.2–3.4, and forge/forgejo.md, 1.2 and 1.4).
 use crate::api;
 use crate::forgejo::plans::{
     Body, Heard,
@@ -158,7 +158,10 @@ impl Plan {
             State::Writing { written, .. } => written.exchange().1,
         }
     }
-    #[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+    )]
     pub fn heard(
         &mut self,
         heard: Heard,
@@ -261,7 +264,10 @@ impl Plan {
             State::Ended => unreachable!("ended write has no conflict"),
         }
     }
-    #[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+    )]
     fn check_repository(&self, document: Option<&d::Document>) -> Result<(), api::Error> {
         match &self.state {
             State::Resolving { .. } => {}
@@ -294,7 +300,10 @@ impl Plan {
             _ => Err(self.error(api::Error::Timeout)),
         }
     }
-    #[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+    )]
     fn check_pull_ids(&self, document: Option<&d::Document>) -> Result<(), api::Error> {
         let Some(document) = document else { return Ok(()) };
         match document {
@@ -429,7 +438,10 @@ fn writing(write: &api::Write) -> Option<Written> {
         api::Write::SetReviewers { .. } => return None,
     })
 }
-#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+)]
 fn next(
     state: State,
     document: Option<d::Document>,
@@ -489,7 +501,10 @@ fn next(
         State::New { .. } | State::Ended => unreachable!("write answer needs an exchange"),
     }
 }
-#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+)]
 fn compared(row: Repository, open: Open, document: Option<d::Document>) -> Result<(State, Step), api::Error> {
     match document.ok_or(api::Error::InvalidAnswer)? {
         d::Document::Compare(compare) => {
@@ -503,7 +518,10 @@ fn compared(row: Repository, open: Open, document: Option<d::Document>) -> Resul
         _ => Err(api::Error::InvalidAnswer),
     }
 }
-#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+)]
 fn branch(row: &Repository, document: Option<d::Document>) -> Result<ObjectId, api::Error> {
     match document.ok_or(api::Error::InvalidAnswer)? {
         d::Document::Branch(branch) => {
@@ -571,7 +589,10 @@ fn remove_reviewers(row: Repository, number: u64, remove: List<Box<[u8]>>) -> (S
     let request = Request::RemoveReviewers { at: row.at(), number, reviewers: remove.into_boxed() };
     (State::Removing { row }, Step::send(request))
 }
-#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+)]
 fn written(row: Repository, written: Written, document: Option<d::Document>) -> Result<(State, Step), api::Error> {
     let answer = match written {
         Written::Issue => match document.ok_or(api::Error::Timeout)? {

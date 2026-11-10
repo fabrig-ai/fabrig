@@ -1,4 +1,4 @@
-//! Seeded worlds for the canonical store record decoders (hearth/docs/design/domain/render.md, 9.4).
+//! Seeded worlds for the canonical store record decoders (hearth/docs/design/domain/render/README.md, 6.4).
 pub mod against;
 pub mod check;
 pub mod edits;

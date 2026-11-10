@@ -1,4 +1,4 @@
-//! The printed sign-in URL is part of the mapping (protocol/client.md, 8).
+//! The printed sign-in URL is part of the mapping (protocol/client/sign-in.md).
 use crate::Mapping;
 use alloc::boxed::Box;
 use skein_lib::{

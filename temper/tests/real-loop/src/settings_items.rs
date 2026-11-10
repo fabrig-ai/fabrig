@@ -1,4 +1,4 @@
-//! Forge defaults in a process owner's settings file (temper/docs/design/protocol/configuration.md, 13.5).
+//! Forge defaults in a process owner's settings file (temper/docs/design/protocol/configuration/settings.md, 4).
 use serde_json::{Value, json};
 /// Render the world's forge defaults for the owner's settings transaction.
 #[must_use]

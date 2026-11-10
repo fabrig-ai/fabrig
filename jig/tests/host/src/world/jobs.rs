@@ -1,4 +1,4 @@
-//! Job observations in the shared world (jig/docs/design/domain/hosts.md, 6.9).
+//! Job observations in the shared world (jig/docs/design/domain/hosts/hub.md, 9).
 use super::{Event, Hosted, Launch, LinkUp, Request, Token, World, host};
 
 impl World {

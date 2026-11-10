@@ -1,4 +1,4 @@
-//! The deployment and document forms' files and peer loop (protocol/setup.md, 8.4).
+//! The deployment and document forms' files and peer loop (protocol/setup/playground.md).
 use crate::directories::jig_directories;
 pub(crate) mod check;
 mod control;
@@ -231,7 +231,7 @@ pub(crate) fn configure(
         .filter(|text| !text.is_empty() && text.bytes().all(|b| b.is_ascii_digit()))
         .and_then(|text| text.parse::<u64>().ok())
         .ok_or_else(|| "--seed N (TEMPER_SEED): expected a decimal u64".to_string())?;
-    // shell.md 6.5 has no absent setting; Default alone means absent.
+    // skein/docs/design/runtime/shell.md 6.5 has no absent setting; Default alone means absent.
     // In particular --ready "" is a present, empty prefix.
     let ready = if resolved.value(1).origin == Origin::Default { None } else { Some(resolved.value(1).bytes.clone()) };
     let observations = if kind == Kind::Oauth || resolved.value(3).origin == Origin::Default {
@@ -369,7 +369,7 @@ impl Created {
 fn read_document(path: &Path, bound: u32) -> Result<Box<[u8]>, String> {
     skein_shell::read_file(path, bound).map_err(|why| format!("{}: {}", path.display(), super::unread(why)))
 }
-/// The box's group selects its machine kind (temper/docs/design/protocol/setup.md, 7.1).
+/// The box's group selects its machine kind (temper/docs/design/protocol/setup/box.md, 1).
 fn forge_entry(
     bytes: &[u8],
     directories: &super::Directories,

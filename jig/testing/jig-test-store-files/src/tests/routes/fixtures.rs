@@ -1,4 +1,4 @@
-//! Component fixtures over the real store and the fake files (protocol/store.md, 14).
+//! Component fixtures over the real store and the fake files (protocol/store/README.md, 9).
 use jig_test_connector as d;
 use skein_lib::{Token, Wall};
 pub const FIRST: u16 = 1;

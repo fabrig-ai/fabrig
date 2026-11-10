@@ -1,6 +1,6 @@
-//! The link's shared values and fixed worker membership (jig/docs/design/domain/root.md, 2; hosts.md, 6.1).
+//! The link's shared values and fixed worker membership (jig/docs/design/domain/root.md, 2; domain/hosts/hub.md, 1).
 //! The fleet, hub and accounts share these values; the crate holds no domain state.
-//! Account lists follow jig/docs/design/protocol/channel.md, 5.1.
+//! Account lists follow jig/docs/design/protocol/channel/records.md, 1.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -35,7 +35,7 @@ impl SourceName {
     pub fn new(value: &[u8]) -> Option<Self> {
         Some(Self(skein_lib::Name::new(value, skein_lib::Grammar::LowercaseDigitsHyphen)?))
     }
-    /// Reconstruct stored bytes without judging their spelling (engine.md, 6).
+    /// Reconstruct stored bytes without judging their spelling (domain/engine/restart.md).
     #[must_use]
     pub fn from_stored(value: &[u8]) -> Option<Self> {
         Some(Self(skein_lib::Name::from_checked(value)?))
@@ -126,7 +126,7 @@ impl Membership {
 #[path = "tests.rs"]
 mod membership_tests;
 
-/// Maximum endpoint identities admitted in one host hello (hosts.md, 8.1).
+/// Maximum endpoint identities admitted in one host hello (domain/hosts/charters.md, 1).
 /// Independent of the number of model declarations.
 pub const PROGRAM_ENDPOINTS: u32 = 64;
 
@@ -219,7 +219,7 @@ pub struct Bounds {
     pub inbox: u32,
     pub unacknowledged: u32,
     /// The longest host answer the agent takes, in bytes, if the application names it
-    /// (jig/docs/design/domain/hosts.md, section 2).
+    /// (jig/docs/design/domain/hosts/README.md, section 2).
     pub reply_bytes: Option<u32>,
 }
 
@@ -231,7 +231,7 @@ pub struct Grant {
     pub valid: Duration,
 }
 
-/// The form in which a grant lends its value (protocol/channel.md, section 8).
+/// The form in which a grant lends its value (protocol/channel/README.md, section 7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Form {
     /// A credential with the scheme its provider takes.
@@ -242,7 +242,7 @@ pub enum Form {
     Program(SourceName),
 }
 
-/// A credential's scheme (protocol/channel.md, section 8).
+/// A credential's scheme (protocol/channel/README.md, section 7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Scheme {
     /// A bearer credential.
@@ -263,7 +263,7 @@ impl Form {
     }
 }
 
-/// The protocol layer's table that holds a credential (channel.md, section 8).
+/// The protocol layer's table that holds a credential (protocol/channel/README.md, section 7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum GrantTable {
     Accounts,
@@ -272,10 +272,10 @@ pub enum GrantTable {
     Name,
 }
 
-/// What a worker says first on every channel (domain/engine.md, section 8).
+/// What a worker says first on every channel (domain/engine/fleet.md).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct Hello {
-    /// Job kinds this host runs, ascending and unique (jig/docs/design/domain/hosts.md, 6.9).
+    /// Job kinds this host runs, ascending and unique (jig/docs/design/domain/hosts/hub.md, 9).
     pub jobs: Box<[JobBound]>,
     pub bounds: Bounds,
     /// The worker's longest stop time after losing contact. It must be
@@ -296,8 +296,8 @@ pub struct Hosting {
     pub phase: Phase,
 }
 
-/// Where a hosted run is in its lifecycle (jig/docs/design/domain/hosts.md,
-/// 6.2), as a hello says.
+/// Where a hosted run is in its lifecycle (jig/docs/design/domain/hosts/hub.md,
+/// 2), as a hello says.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Phase {
     Preparing,
@@ -382,11 +382,11 @@ mod grammar_tests {
     }
 }
 
-/// An application's job kind (jig/docs/design/domain/hosts.md, 6.9).
+/// An application's job kind (jig/docs/design/domain/hosts/hub.md, 9).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct JobKind(pub u32);
 
-/// The bounds of a declared job kind (jig/docs/design/domain/hosts.md, 6.9).
+/// The bounds of a declared job kind (jig/docs/design/domain/hosts/hub.md, 9).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct JobBound {
     pub kind: JobKind,
@@ -395,7 +395,7 @@ pub struct JobBound {
     pub deadline: Duration,
 }
 
-/// Account list bounds and values (jig/docs/design/protocol/channel.md, 5.1).
+/// Account list bounds and values (jig/docs/design/protocol/channel/records.md, 1).
 pub const LIST_ROWS: u32 = 256;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

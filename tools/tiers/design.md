@@ -1056,7 +1056,7 @@ What nextest gives a test today, resolved per binary from the listing and
   `libdir`, then the inherited value;
 - `NEXTEST_PROFILE`, the profile, which tests read for a profile's patience;
   never `NEXTEST` itself, by which a starved pass would exit the process
-  (`skein/docs/design/testing.md`, 5);
+  (`skein/docs/design/testing/README.md`, 5);
 - `TIERS_ONE_PROCESS=1`, the mode's own: under it a starved pass ends only its
   test.
 
@@ -1071,7 +1071,7 @@ announcement's arrival to its result's. Its outcome is one of:
 - **passed:** `ok`, not starved;
 - **starved:** the last line of its output, the result word aside, begins with
   `skein-world: starved:`, whatever libtest's result: a starved pass unwound
-  (`skein/docs/design/testing.md`, 5). A warning, never failed and never
+  (`skein/docs/design/testing/README.md`, 5). A warning, never failed and never
   passed. Output after the line leaves the test as libtest reported it;
 - **failed:** `failed`, not starved;
 - **crashed:** the process ended with no result for the test it had

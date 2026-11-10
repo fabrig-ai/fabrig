@@ -1,5 +1,5 @@
 //! A deployment binary's dependency closure holds its boundary
-//! (temper/docs/design/protocol/README.md, 4.1).
+//! (temper/docs/design/protocol/binaries.md, 1).
 
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -124,7 +124,7 @@ fn deployment_binaries_hold_their_closures() {
     }
     assert!(
         failures.is_empty(),
-        "Deployment binaries' dependency boundaries (temper/docs/design/protocol/README.md, 4.1):\n{}",
+        "Deployment binaries' dependency boundaries (temper/docs/design/protocol/binaries.md, 1):\n{}",
         failures.join("\n"),
     );
 }

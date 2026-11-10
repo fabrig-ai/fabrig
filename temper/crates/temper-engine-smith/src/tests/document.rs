@@ -1,4 +1,4 @@
-//! Exact document answers (temper/docs/design/domain/agent.md, 8.4.3).
+//! Exact document answers (temper/docs/design/domain/agent/ask-temper.md, 3).
 use temper_engine_domain::{
     CallAnswer, DocumentAction as A, DocumentOutcome as O, DocumentRefusal as R, Documented, NoteFamily,
 };

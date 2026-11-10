@@ -1,4 +1,4 @@
-//! Kept forge records and their setup (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5).
+//! Kept forge records and their setup (temper/docs/design/client/forge/deployment.md; temper/docs/design/client/pages/README.md).
 use super::making::Making;
 use super::{family, wire_limits};
 use alloc::boxed::Box;
@@ -127,7 +127,7 @@ pub struct Adoption {
     pub name: Box<[u8]>,
     pub project: u32,
 }
-/// Public owned-forge versions and first-password file path (client/forge.md, 5.4).
+/// Public owned-forge versions and first-password file path (client/forge/deployment.md).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Owned {
     pub forgejo: Box<[u8]>,
@@ -158,14 +158,14 @@ pub struct Row {
     pub admin: bool,
     pub ended_stop: Option<AdminStop>,
 }
-/// What the forge starts with (temper/docs/design/protocol/setup.md, 6.7).
+/// What the forge starts with (temper/docs/design/protocol/setup/owned.md, 7).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum StartsWith {
     Repository,
     Copies { addresses: Box<[Box<[u8]>]> },
     Nothing,
 }
-/// The setup request's first-repository choice (temper/docs/design/client/README.md, 4.6).
+/// The setup request's first-repository choice (temper/docs/design/client/forge/records.md).
 pub use wire::v1::SetUpFirst;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SetUpOutcome {
@@ -232,7 +232,7 @@ fn decoded(record: &Family, limits: super::Limits) -> Option<(Box<[Row]>, bool)>
     family::forges_document(&record.bytes, &wire_limits(&limits)?)
 }
 
-/// The session keeps an ended watch until the next sign-in (client/README.md, 4.6).
+/// The session keeps an ended watch until the next sign-in (client/forge/records.md).
 #[derive(Debug)]
 pub enum State {
     Unknown,
@@ -240,14 +240,14 @@ pub enum State {
     Ended,
 }
 /// What Forgejo on this machine starts with, chosen in the welcome's sheet
-/// (client/README.md, 3.5): only an empty repository is made yet.
+/// (client/pages/README.md): only an empty repository is made yet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Start {
     Empty,
     Copies,
     Nothing,
 }
-/// The set up's editable fields (client/forge.md, 5.4).
+/// The set up's editable fields (client/forge/deployment.md).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SetupField {
     Organization,
@@ -345,7 +345,7 @@ pub enum RemovalEffect {
     GitHubAppStays,
     Playground,
 }
-/// Where a removed unfinished forge returns (client/README.md, 3.5, The flows' paths).
+/// Where a removed unfinished forge returns (client/pages/README.md, The flows' paths).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum StartOverEnd {
     Welcome,
@@ -796,7 +796,7 @@ pub(crate) fn set_up(
     send_setup(side, limits, forge, values, out);
 }
 /// The welcome's set up under the box sends these, none of them asked
-/// (client/README.md, 3.5).
+/// (client/pages/README.md).
 pub const AT_ONCE_ORG: &[u8] = b"work";
 pub const AT_ONCE_REPOSITORY: &[u8] = b"hello";
 
@@ -1006,7 +1006,7 @@ fn delivered(
         end(side, out);
     }
 }
-/// Only two delivered documents can reveal a gained or lost fake row (client/README.md, 4.8).
+/// Only two delivered documents can reveal a gained or lost fake row (client/forge/family.md, 7).
 fn fake_row(state: &State) -> Option<bool> {
     match state {
         State::Unknown | State::Ended => None,
@@ -1084,7 +1084,7 @@ pub(crate) fn trimmed_app_key(mut pem: &[u8]) -> &[u8] {
     pem
 }
 
-/// Stable names and words for forge connection refusals (client/README.md, 4.6).
+/// Stable names and words for forge connection refusals (client/forge/records.md).
 #[must_use]
 pub fn connect_refusal(why: &temper_client_protocol_wire::v1::ForgeRefusal) -> (&'static [u8], &'static [u8]) {
     match why {

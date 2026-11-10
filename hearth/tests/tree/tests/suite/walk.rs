@@ -1,5 +1,5 @@
 //! The walk against a parent: the child's tree digest and change set meet the oracle's over the
-//! two trees, whichever entries the walk read (hearth/docs/design/domain/store.md, 3.5, 4.3 and 5.4).
+//! two trees, whichever entries the walk read (hearth/docs/design/domain/store/README.md, 3.5 and 4.3, and hearth/docs/design/domain/store/tree-helper.md, 4).
 use hearth_domain_tree::{
     limits::{Limits, SHIPPED},
     vocabulary::{Answer, Cause, Fault, Kind, Request},

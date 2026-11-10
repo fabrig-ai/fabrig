@@ -150,9 +150,9 @@ impl Session {
         self.card_offers = Some(BTreeMap::new());
     }
 
-    /// Supply the protocol stream's comment interval (protocol/client.md, 4).
+    /// Supply the protocol stream's comment interval (protocol/client/wire.md, 2).
     /// Its two-span tolerance must fit the client's configured silence timeout
-    /// (client/domain/client.md, 8.1); neither configured duration is changed.
+    /// (client/domain/client/watches.md, 1); neither configured duration is changed.
     pub fn stream_heartbeat(&mut self, span: Duration) {
         assert!(span != Duration::ZERO && span.as_nanos() <= self.limits.client.domain.heartbeat.as_nanos() / 2);
         self.stream_heartbeat = Some(span);
@@ -193,7 +193,7 @@ impl Session {
 
     /// Bind a client whose protocol has no authenticated secret. Identity is
     /// retained for the provider exchange; it does not create a core session
-    /// (protocol/client.md, sections 7–8).
+    /// (protocol/client/README.md, section 5 and protocol/client/sign-in.md).
     pub fn bind_unsigned(&mut self, client: ClientId, party: u64, identity: people::Identity, now: Time, wall: Wall) {
         self.stopping().expect("whole original stopped routes");
         if self.driver.transport.is_bound(client) {

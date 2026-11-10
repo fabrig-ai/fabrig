@@ -1,10 +1,10 @@
-//! A simple reference parser (json.md, 6): recursive descent over a whole
+//! A simple reference parser (data/json.md, 6): recursive descent over a whole
 //! document held in memory, which the tokenizer is checked against.
 //!
 //! It shares no code with the tokenizer. The standard library judges UTF-8
 //! (`str::from_utf8`) and surrogate pairs (`char::decode_utf16`), and a
 //! number is judged by a plain reading of the grammar. What it mirrors is
-//! only what the tokenizer is promised to do (json.md, 3):
+//! only what the tokenizer is promised to do (data/json.md, 3):
 //!
 //! - **what it sees of a string:** scans to the next quote of at most
 //!   `chunk` bytes, so the bytes of a scan that the end of the document

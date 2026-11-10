@@ -1,4 +1,4 @@
-//! Disclosures fold when the path or query moves between applies (ui-web.md, 7).
+//! Disclosures fold when the path or query moves between applies (ui/web/README.md, 5).
 
 #[derive(Default)]
 pub(crate) struct Fold {

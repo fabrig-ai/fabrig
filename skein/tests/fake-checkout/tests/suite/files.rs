@@ -1,5 +1,5 @@
 //! File/process contracts from consuming domain-world stories, independently
-//! checked at the kit boundary (fake-checkout.md, sections 2 and 3).
+//! checked at the kit boundary (testing/fakes/checkout.md, sections 2 and 3).
 
 use std::collections::BTreeMap;
 use std::time::Duration;

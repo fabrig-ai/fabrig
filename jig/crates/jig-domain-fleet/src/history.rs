@@ -1,5 +1,5 @@
 //! Bounded deployment facts read independently of the diagnostic drain
-//! (client/domain/pages.md, section 7; domain/engine.md, section 8).
+//! (client/domain/pages.md, section 7; domain/engine/fleet.md).
 
 use skein_lib::{Duration, Time, Token, Wall};
 
@@ -20,7 +20,7 @@ pub enum HelloRefusal {
     StopBound { grace: Duration },
 }
 
-/// What each side holds of an agent's shortfall (domain/engine.md, section 8):
+/// What each side holds of an agent's shortfall (domain/engine/fleet.md):
 /// in the bound's own unit, a duration in milliseconds.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Figures {
@@ -28,7 +28,7 @@ pub struct Figures {
     pub offered: u64,
 }
 
-/// Why the fleet refuses a hello, for the refusal's text (protocol/channel.md, 4.3).
+/// Why the fleet refuses a hello, for the refusal's text (protocol/channel/README.md, 4.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct HelloRefused {
     pub why: HelloRefusal,
@@ -47,7 +47,7 @@ pub struct HelloRefusalRecord {
     pub figures: Option<Figures>,
 }
 
-/// Every admitted host of an allowed kind falls short (domain/engine.md, section 8).
+/// Every admitted host of an allowed kind falls short (domain/engine/fleet.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct BoundsRefusal {
     pub kind: crate::HostKind,

@@ -1,5 +1,5 @@
 //! Record boundaries through the fake's real buffered cryptography, without
-//! host IO (fake-llm.md, section 3; testing-strategy.md, section 2.1).
+//! host IO (testing/fakes/llm.md, section 3; testing-strategy.md, section 2.1).
 
 use std::io::{Read as _, Write as _};
 use std::sync::Arc;

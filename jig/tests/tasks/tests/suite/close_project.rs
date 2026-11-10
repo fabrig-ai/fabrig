@@ -1,4 +1,4 @@
-//! Project deletion retains financial history (jig/docs/design/domain/tasks.md, 7).
+//! Project deletion retains financial history (jig/docs/design/domain/tasks/changes.md).
 use jig_domain_tasks::{
     self as tasks, Cause, Event, Funder, Key, Mode, Owner, Party, PlacedHold, RecurringOverlap, Scope, Stored,
 };

@@ -4,17 +4,17 @@ Provisional, 2026-10-04, revised 2026-10-29. What temper's worker does,
 as a domain layer: its root, which composes jig's hub with smith's host
 domain and temper's checkout; the items an assignment gives a run's
 workspace; and the checkout, which is temper's own. The worker hosts the
-runs of agent tasks (jig's `domain/engine.md`, section 7). Its hub, a
+runs of agent tasks (jig's `domain/engine/executors.md`). Its hub, a
 hosted run's lifecycle, its failures, turns, facts and losing contact
-are jig's (jig's `domain/hosts.md`); the agent it starts is smith's, as
-agent.md says, and the worker is smith's host (smith's `domain/host.md`).
+are jig's (jig's `domain/hosts/README.md`); the agent it starts is smith's, as
+agent/README.md says, and the worker is smith's host (smith's `domain/host.md`).
 The mechanics are those of skein's `programming-model.md`. What is still
-open is listed in section 12.
+open is listed in `worker.md`, section 12.
 
 ## 1. In one page
 
 - **A worker is an execution host,** jig's third shape: agents on
-  workers (jig's `domain/hosts.md`, section 3). The engine decides what
+  workers (jig's `domain/hosts/README.md`, section 3). The engine decides what
   work exists and keeps it in its store; the agent does the LLM work. The
   worker prepares workspaces, starts agent processes and keeps them in
   bounds, pushes the changes they make, and relays everything else
@@ -26,7 +26,7 @@ open is listed in section 12.
 - **It hosts runs, not jobs.** A run may finish once, or wait for
   messages, take them and park (smith's `domain/run.md`, section 6): it
   starts fresh or from its transcript, takes messages, makes calls, sends
-  turns, and parks or ends (jig's `domain/hosts.md`, 6.2).
+  turns, and parks or ends (jig's `domain/hosts/hub.md`, 2).
 - **Policy is data.** The worker interprets no workflow vocabulary: no
   task, role, verdict or tool names. An assignment says which
   repositories to check out and how, what to save, and the charter to
@@ -41,7 +41,7 @@ open is listed in section 12.
   credentials on disk.
 - **The rest is jig's and smith's:** admission, fenced attempts, turns
   and answers kept until the engine acknowledges them, losing contact and
-  shutting down are the hub's (jig's `domain/hosts.md`, section 6); the
+  shutting down are the hub's (jig's `domain/hosts/hub.md`); the
   agent process, its channel, its watchdog and cancel then kill are
   smith's host domain's (smith's `domain/host.md`, section 4).
 - **The domain is complete** (programming-model.md, section 4). A world of
@@ -56,60 +56,60 @@ worker   jig's hub: workspaces, agent processes, pushing their changes; relays t
 agent    smith: LLM work, one run per agent process, reporting to the worker
 ```
 
-- **The contract is jig's** (jig's `domain/hosts.md`, section 2). The
+- **The contract is jig's** (jig's `domain/hosts/README.md`, section 2). The
   worker dials the engine and keeps one channel open, through jig's
-  worker link in its protocol layer (jig's `protocol/channel.md`,
-  section 10); it says its hello first; the engine holds the claim and
+  worker link in its protocol layer (jig's `protocol/channel/README.md`,
+  section 9); it says its hello first; the engine holds the claim and
   fences attempts; the worker keeps turns and answers until the engine
-  acknowledges them, once committed (jig's `domain/hosts.md`, 6.1 and
-  6.4). temper adds its parts beside jig's records: the workspace items
+  acknowledges them, once committed (jig's `domain/hosts/hub.md`, 1 and
+  4). temper adds its parts beside jig's records: the workspace items
   down, what a run left on the forge up (4.1; `../protocol/channel.md`,
   sections 4 and 5).
 - **The engine never reads a repository.** It works from what the forge
   connector reads; what a checkout holds (a repository's checks, its
-  `AGENTS.md`) is for the run to find (agent.md, section 2).
-- **The stop bound** the hello states is jig's (jig's `domain/hosts.md`,
-  6.6), with temper's push as the delivery and temper's save as the save:
+  `AGENTS.md`) is for the run to find (agent/README.md, section 2).
+- **The stop bound** the hello states is jig's (jig's `domain/hosts/hub.md`,
+  6), with temper's push as the delivery and temper's save as the save:
   the time the link takes to notice the loss, then the grace, then the
   longer of the time smith's agent may take to be gone after a stop and a
   push's deadline, then a save's commit and push. The worker's
-  configuration derives it (`../protocol/configuration.md`, section 4);
+  configuration derives it (`../protocol/configuration/README.md`, section 3);
   the domain takes it whole.
 - **Losing contact and shutting down** are the hub's (jig's
-  `domain/hosts.md`, 6.6 and 6.7). Past the grace the worker cancels its
+  `domain/hosts/hub.md`, 6 and 7). Past the grace the worker cancels its
   runs itself, saving their work first. Shutting down, it still says its
   slots and refuses every assignment as busy; it gives up the turns and
   answers it keeps, counted, only once no run is left and the engine is
   still out of reach past the grace.
 - **An engine's restart costs a run nothing.** The grace is the
   engine-away bound, `graces.grace_ms` in the worker's configuration
-  (`../protocol/configuration.md`, section 4), sized to outlast an
+  (`../protocol/configuration/README.md`, section 3), sized to outlast an
   engine's restart. While it runs, the worker keeps hosting every run,
   keeps what they send, and redials no further apart than a quarter of
   the grace; it stops only once the engine admits a hello (jig's
-  `protocol/channel.md`, 10.1). The restarted engine holds that hello
+  `protocol/channel/README.md`, 9.1). The restarted engine holds that hello
   until its stored settings are restored, so its check is the store's
-  (jig's `domain/engine.md`, section 8), then adopts each attempt the
+  (jig's `domain/engine/fleet.md`), then adopts each attempt the
   worker lists that its store holds as claimed: the run goes on in the
   same attempt, its kept turns and answers committed as they arrive, and
   its relayed calls answered on the new channel (jig's
-  `domain/hosts.md`, 6.6). Nothing is cancelled and nothing starts
+  `domain/hosts/hub.md`, 6). Nothing is cancelled and nothing starts
   again.
 - **Past the bound, an interruption.** A run cancelled for lost contact
   saves its work first and answers `Cancelled(Contact)`; the engine ends
   the attempt interrupted, with no try spent, and the next attempt, on
-  any worker, resumes from its transcript (jig's `domain/engine.md`,
-  7.2) and starts its checkout from the work it saved (section 5).
+  any worker, resumes from its transcript (jig's `domain/engine/executors.md`,
+  2) and starts its checkout from the work it saved (`worker.md`, section 5).
 - **A worker's restart loses no work.** Stopped, it cancels each run for
   shutdown, saving its work first, and answers `Cancelled(Shutdown)`, an
   interruption as above, before it gives up its link (jig's
-  `domain/hosts.md`, 6.7). Killed, it saves nothing more: the engine
+  `domain/hosts/hub.md`, 7). Killed, it saves nothing more: the engine
   holds its runs for its grace, then ends them lost, and each next
   attempt resumes from its committed transcript and its last saved work
-  (section 5). Either way the next attempt may be on this worker once it
+  (`worker.md`, section 5). Either way the next attempt may be on this worker once it
   is back, or on another. A run's start messages leave its task's inbox
-  only through a committed turn's read fence (jig's `domain/tasks.md`,
-  8.2), so a run lost before its first turn hands them all to the next.
+  only through a committed turn's read fence (jig's `domain/tasks/messages.md`,
+  2), so a run lost before its first turn hands them all to the next.
 
 ## 3. Structure
 
@@ -120,7 +120,7 @@ temper-worker-domain                 the worker's root: faces the protocol layer
 └── smith-host-domain                the agent: processes, spawn, channel, watchdog, cancel then kill
 ```
 
-The tree is jig's worker root (jig's `domain/hosts.md`, section 4), with
+The tree is jig's worker root (jig's `domain/hosts/README.md`, section 4), with
 temper's checkout as its workspace capability and smith's agent
 processes as its agent capability. The root owns its children's state
 and routes between them. The three share no types, so the root
@@ -128,7 +128,7 @@ translates between them through small total functions, keeping for each
 workspace what each side names it by, and temper's own parts: the
 workspace items down, what a run left on the forge up. smith's payloads
 are handed out to the protocol layer to decode and encode (jig's
-`domain/hosts.md`, 6.8); the root links no codec of smith's. A hand-off
+`domain/hosts/hub.md`, 8); the root links no codec of smith's. A hand-off
 goes from a capability to the hub, from the hub to a capability, and at
 most once more back and forth, so each entry point completes them before
 it returns, with no ready list.
@@ -147,7 +147,7 @@ uncapped and no route reserves room. The held entrance is the link's
 capped edge; a host's channel and the kernel's queues stay capped.
 
 - **The link is read and fired on every pass,** whatever the entrance
-  holds (jig's `protocol/channel.md`, 9, *Reading never waits for the
+  holds (jig's `protocol/channel/README.md`, 8, *Reading never waits for the
   root*): its pings come and go under any load, and the engine's records
   wait in the entrance, never unread in the socket. A socket left unread
   starves the pings both ways, and the engine loses a healthy link at
@@ -201,7 +201,7 @@ capped edge; a host's channel and the kernel's queues stay capped.
 ### 4.1 The assignment
 
 What the engine gives the worker for one run is jig's assignment (jig's
-`domain/hosts.md`, section 2; jig's `domain/engine.md`, 7.1), with
+`domain/hosts/README.md`, section 2; jig's `domain/engine/executors.md`, 1), with
 temper's workspace items beside it:
 
 - **Run and attempt.** The engine's names for the run (its task's number
@@ -209,7 +209,7 @@ temper's workspace items beside it:
   carries both.
 - **Workspace.** A workstream, which names the checkout so later runs of
   the same work find it cached: the number of the task that holds what is
-  written (jig's `domain/engine.md`, 7.1), by which the checkout keys its
+  written (jig's `domain/engine/executors.md`, 1), by which the checkout keys its
   cache. And the repositories, each with:
   - its deployment tag, by which what the run left names it;
   - its name, the directory it sits in and what the agent calls it, one
@@ -227,7 +227,7 @@ temper's workspace items beside it:
     of its base to merge into it, or **a base with heads merged in**: a
     base branch, and the commits to merge into its tip, one by one in
     their order, each by its full object id (a change's early start:
-    `forge.md`, 8.11) (section 5);
+    `forge/change/questions.md`, 1) (`worker.md`, section 5);
   - whether it may be written, and if so the branch a change is pushed
     to, and the head that branch must still be at, if the assignment
     names one (section 5);
@@ -240,7 +240,7 @@ temper's workspace items beside it:
     push's expected head; and on a merge in progress it marks a producer's
     start, as a goal's later run's does (section 5);
   - the identity for every git operation on it: one of temper's
-    application credentials (jig's `domain/engine.md`, 12.1), granted
+    application credentials (jig's `domain/engine/README.md`, 6.1), granted
     with the assignment, which the protocol layer maps to a token and a
     commit author; and on GitHub the account whose entry of that
     identity's value authenticates git on it (`../protocol/channel.md`,
@@ -248,26 +248,26 @@ temper's workspace items beside it:
     that reaches the forge, which the domain copies and never reads.
 - **Saving.** The assignment's typed resume policy requests saving
   unfinished work from the first attempt, before a transcript exists
-  (a chat's, a coding agent's: agent.md, section 4). Each writable
+  (a chat's, a coding agent's: agent/charter.md). Each writable
   repository has its own optional saved-work destination, belonging to
-  the running task (forge.md, section 11), and the next
+  the running task (forge/branches.md), and the next
   attempt starts from the saved work: the tree follows the transcript,
   so a retry that remembers a write finds the file it wrote, and a run
   that starts fresh from its brief starts from a clean checkout. A run
   that ended with its change landed saves nothing, and one holding a merge
   in progress saves it as a merge commit only once its conflicts are resolved
   (step 7).
-- **Charter.** smith's, as the engine wrote it (agent.md, section 4),
+- **Charter.** smith's, as the engine wrote it (agent/charter.md),
   carried as bytes. The worker gives it to the agent with the workspace
   it prepared: where the repositories sit, which may be written, and for
   a merge in progress the files in conflict (smith's `domain/run.md`,
   3.2).
 - **Transcript,** for a run that resumes: its current window, and the
-  calls committed after its last turn (jig's `domain/engine.md`, 7.2;
-  jig's `domain/hosts.md`, 6.4). Across the link, those calls' answers
+  calls committed after its last turn (jig's `domain/engine/executors.md`, 2;
+  jig's `domain/hosts/hub.md`, 4). Across the link, those calls' answers
   fit its room: the newest whole, each older host answer cut to words
   saying the call ran and how many bytes its answer had (jig's
-  `protocol/channel.md`, 9, *A resumed start fits its room first*), so a
+  `protocol/channel/README.md`, 8, *A resumed start fits its room first*), so a
   producer whose program worked an hour since its last turn resumes,
   told of every call it made. A delivery among those calls comes with
   its evidence, smith's record of the push's terminal, which must decode
@@ -281,15 +281,15 @@ temper's workspace items beside it:
 
 Its sizes and names are checked at the entrance against the worker's
 limits, and so is a repository named twice: what is beyond them is
-refused as an invalid start that names it (jig's `domain/hosts.md`, 6.3).
+refused as an invalid start that names it (jig's `domain/hosts/hub.md`, 3).
 A run with no repository needs no workspace: the worker prepares nothing
-and starts smith with none (jig's `domain/hosts.md`, section 7). A chat
+and starts smith with none (jig's `domain/hosts/README.md`, section 6). A chat
 that names no repository runs so.
 
 ### 4.2 Lifecycle
 
 A hosted run's lifecycle is the hub's, in nine steps (jig's
-`domain/hosts.md`, 6.2). What the worker puts in them:
+`domain/hosts/hub.md`, 2). What the worker puts in them:
 
 - **Step 2, prepare:** the checkout prepares the workspace from the items
   (section 5).
@@ -297,7 +297,7 @@ A hosted run's lifecycle is the hub's, in nine steps (jig's
   and the transcript decoded by hand-out, and the workspace as the
   checkout prepared it.
 - **Step 4, relay:** smith's `deliver` is a push, which the checkout
-  serves, one at a time (section 5; agent.md, section 6); every host tool
+  serves, one at a time (section 5; agent/README.md, section 5); every host tool
   goes to the engine, and its answer comes back.
 - **Step 6, stop:** a push in flight goes on to its end, and what it
   lands counts (section 5).
@@ -324,23 +324,23 @@ wall time, and the grace of cancel, then kill.
 
 ### 4.3 Failures
 
-jig's types (jig's `domain/hosts.md`, 6.3), with temper's detail:
+jig's types (jig's `domain/hosts/hub.md`, 3), with temper's detail:
 
 - **Refused** at the entrance: busy, or invalid, saying what is beyond
   the limits or which item the workspace cannot take. Once prepared, a
   start smith refuses, or whose charter, transcript, call names or
   delivery evidence do not decode or agree, is refused as invalid too,
-  which the engine counts as permanent (jig's `domain/tasks.md`, 5.5). A
+  which the engine counts as permanent (jig's `domain/tasks/lifecycle.md`, 6). A
   start smith refuses as busy, an agent or a run it has no room for, is
-  refused busy, as at the entrance (jig's `domain/hosts.md`, section 8).
+  refused busy, as at the entrance (jig's `domain/hosts/charters.md`).
 - **A start the link cannot carry** never reaches the worker. An
   assignment or job whose frame is past the room the engine's stream
   grants at once, `io.largest_room` (its `io.output`), is answered on the
   engine's side by jig's workers' component, refused as an invalid start
   whose words name the record, its frame's bytes and the room (jig's
-  `protocol/channel.md`, 5.2 and 9). The run fails as any invalid start
+  `protocol/channel/records.md`, 2, and `protocol/channel/README.md`, 8). The run fails as any invalid start
   does, with serve's operator line below, and serve writes the link's
-  `worker unsent` line too (`../protocol/README.md`, 15.3). The link, its
+  `worker unsent` line too (`../protocol/cluster.md`, 3). The link, its
   pings and the worker's other runs go on; nothing waits for an answer
   the worker was never sent. A resumed start's committed calls are cut
   to the room first (4.1, *Transcript*), so a start fails so only when
@@ -351,7 +351,7 @@ jig's types (jig's `domain/hosts.md`, 6.3), with temper's detail:
   Limits under which even the smallest resumed start, every call
   `core.call_records` admits cut beside an assignment's fixed fields,
   passes the engine's room are refused at start, naming the bound
-  (`../protocol/configuration.md`, section 7).
+  (`../protocol/configuration/limits.md`).
 - **An answer past the agent's reply bound** (`Limits::reply_bytes`,
   smith's `host_reply_bytes`) is given to smith as its `TooLarge`,
   never as a body its host codec would refuse: such a send would
@@ -367,7 +367,7 @@ jig's types (jig's `domain/hosts.md`, 6.3), with temper's detail:
 
 When the hub accepts a run's failed or refused answer, serve writes one operator line
 on stderr, which the box keeps in `<data>/box/logs/serve.log`
-(`../protocol/setup.md`, 7.2). The line names the task, run, attempt and
+(`../protocol/setup/box.md`, 2). The line names the task, run, attempt and
 failure class or typed refusal reason. A refusal distinguishes a busy host,
 an oversized charter, transcript, grants or messages, and an invalid start;
 the invalid start names its cause and carries its decoding words. The line
@@ -406,8 +406,8 @@ it a unit the tag does not identify.
 - **The included bounds name the call's allowance.** The answer's
   reasoning, metadata, items and bytes, and the request's tools, history,
   window and declared output ceiling become `Exceeded`. The tasks child
-  holds the run at once without counting a try (jig's `domain/tasks.md`,
-  5.5). The classification does not infer a measured size from the
+  holds the run at once without counting a try (jig's `domain/tasks/lifecycle.md`,
+  6). The classification does not infer a measured size from the
   failure or require proof that every provider response will repeat.
 - **Other limits stay `Model`.** `Cap::Request` stays `Model` rather than
   being identified with a retained-history or model-window bound.
@@ -425,7 +425,7 @@ it a unit the tag does not identify.
 
 ### 4.4 Jobs
 
-Jobs are jig's (jig's `domain/hosts.md`, 6.9). The worker's root
+Jobs are jig's (jig's `domain/hosts/hub.md`, 9). The worker's root
 composes a job capability, `temper-worker-domain-tooling`, beside
 smith's agent processes, and declares in its hello the kinds it runs:
 
@@ -433,8 +433,8 @@ smith's agent processes, and declares in its hello the kinds it runs:
 |---|---|---|---|
 | 1, prepare | a landing's candidate for one repository (`landing.md`, 5.3): the project's prepare command, or temper's own rebase of a stack when the project names none | the repository, its main's tip, its members' heads in order, the upstream candidates and the pins between them, the command and the home's revision | the candidate's commit, or the conflict's member and files; each gate's key, when the project's key command is named |
 | 2, key | a gate's key at a candidate, by the project's key command (`landing.md`, 6.1) | the repository, the candidate, the gate, the command and the home's revision | the key |
-| 3, merge | a merge of a base into a head, the conflicts the project's merge command knows settled (`forge.md`, 8.4) | the command, the head and the base | the files settled, and those left |
-| 4, close | what a goal leaves in its branch settled by the project's close command, before its landing (`forge.md`, 11.2) | the command and the close request | the files settled |
+| 3, merge | a merge of a base into a head, the conflicts the project's merge command knows settled (`forge/change/repairs.md`) | the command, the head and the base | the files settled, and those left |
+| 4, close | what a goal leaves in its branch settled by the project's close command, before its landing (`forge/branches.md`, 2) | the command and the close request | the files settled |
 
 - **Its kinds are entries** the root gives the capability: each a
   kind's number, the command's verb (its second argument,
@@ -469,10 +469,10 @@ smith's agent processes, and declares in its hello the kinds it runs:
   may not be a fast-forward, made only for a prepare job's candidate;
   a lease refused fails the job as permanent until the branch is read
   afresh, and the landing prepares again. The rewrite is the change's,
-  not drift (`forge.md`, 8.5). A key job delivers nothing. A delivering
+  not drift (`forge/change/README.md`, 3). A key job delivers nothing. A delivering
   kind other than prepare delivers, on exit 0, the head of the repository
   its items name as writable, as a fast-forward onto that branch through
-  the checkout's push (section 5), as a run's delivery is; a push refused
+  the checkout's push (`worker.md`, section 5), as a run's delivery is; a push refused
   fails the job as undelivered.
 - **The worker's limits** bound a job's spec, its result, its output
   files and its processes, and a job beyond them is refused as invalid.
@@ -487,8 +487,8 @@ smith's agent processes, and declares in its hello the kinds it runs:
   onto the branch the item names as writable, a resolution's push; a
   file still unmerged or marked refuses it, and the job fails as
   undelivered. On exit 3 nothing is delivered. The engine learns which
-  from the branch, not the result: its head moved, or not (`forge.md`,
-  8.4). Its bounds, the engine's declaration and the worker's alike:
+  from the branch, not the result: its head moved, or not (`forge/change/repairs.md`
+  ). Its bounds, the engine's declaration and the worker's alike:
   a spec of 4,096 bytes and a result of 512, within jig's
   `tasks.spec_bytes` and `tasks.result_bytes` in the small profile,
   which the core holds every declared kind to, and a deadline of 10
@@ -515,7 +515,7 @@ smith's agent processes, and declares in its hello the kinds it runs:
 - **The spec is written by the engine's root** as it makes the job, in
   the worker wire's `JobSpec` record, since jig takes a job's spec as
   the application's bytes when the job is made (jig's
-  `domain/tasks.md`, 5.3.1) and only the root makes it: the one record
+  `domain/tasks/lifecycle.md`, 3.1) and only the root makes it: the one record
   of a protocol crate the root encodes, a pure function of the
   command's path and the request's two commits. The domain reads no
   job's result: the change acts on its branch, read afresh, and carries
@@ -540,7 +540,7 @@ too (2026-11-09):
   VERB failed CLASS: WHY`, or `refused REASON: WHY`. RUN and ATTEMPT are
   the assignment's, KIND and VERB the kind's entry, CLASS the job's
   failure as jig types it (`Unprepared(Transient)`, `Failed`,
-  `Undelivered(Failed)` and the rest; jig's `domain/hosts.md`, 6.9).
+  `Undelivered(Failed)` and the rest; jig's `domain/hosts/hub.md`, 9).
 - **The why** is what the worker saw. A preparation that failed names its
   step (clone, fetch, the base's fetch, check out, merge) and git's
   fault, then the end of git's error output where the operation kept it.
@@ -567,14 +567,14 @@ too (2026-11-09):
   cut to its last 4,096 bytes, as 4.3's is. The lines are operator output:
   no fact or turn holds them. A failed job's answer carries its cause;
   jig keeps the last `REASON_BYTES` (128 bytes) as UTF-8 on the retry notice
-  and, past its allowance, the hold (jig's `domain/tasks.md`, 5.5).
+  and, past its allowance, the hold (jig's `domain/tasks/lifecycle.md`, 6).
   The change's held merge delegate therefore says why it failed, alongside
   its failure class and the way out.
 
 ## 5. Checkouts
 
 The checkout child domain is the worker's workspace capability (jig's
-`domain/hosts.md`, section 7): it owns the workspaces on the worker's
+`domain/hosts/README.md`, section 6): it owns the workspaces on the worker's
 disk. Its vocabulary is typed git and file operations (make a workspace,
 clone, fetch, check out, merge, commit, push), which the protocol layer
 runs as contained processes and whose output it parses.
@@ -603,8 +603,8 @@ runs as contained processes and whose output it parses.
   starting point. A branch or base that does not exist is a preparation
   failure, permanent until something changes on the forge: the worker
   creates no branch but by pushing a run's change, and branches temper
-  needs before then are made by the engine, as effects (forge.md,
-  section 11).
+  needs before then are made by the engine, as effects (forge/branches.md
+  ).
 - **The landing pin.** A repository whose item names a landing branch
   (4.1) has it fetched once per hold, during prepare, after its start is
   fetched, on the same remote, into
@@ -634,7 +634,7 @@ runs as contained processes and whose output it parses.
   head that does not merge cleanly fails the preparation as a conflict,
   naming the head, permanent for this assignment: nothing of the
   merges is kept, and nothing is pushed. The change it was for then
-  waits for its dependencies to land (`forge.md`, 8.11).
+  waits for its dependencies to land (`forge/change/questions.md`, 1).
 - **A merge in progress** fetches the branch and the base commit, checks
   out the branch, and merges the base into it as git does, leaving the
   files in conflict with their markers and the merge's state in the
@@ -647,7 +647,7 @@ runs as contained processes and whose output it parses.
   checkout's `conflicts` still make a merge in progress: each stays
   marked, and the start names the first `conflicts` of them, in git's
   order (`../protocol/git.md`, 4.6). A producer's start, the one naming its
-  landing branch (`forge.md`, 8.11), first asks whether its branch already
+  landing branch (`forge/change/questions.md`, 1), first asks whether its branch already
   contains the base: if so there is nothing to merge, and it goes on as a
   start from that branch or saved work does, with no merge state and no
   second parent. A resolution's or a merge job's names no landing branch and
@@ -661,7 +661,7 @@ runs as contained processes and whose output it parses.
   saves the merge commit, and its first push carries the merge, even with
   nothing new. A producer's conflict stays in progress as above, and its start
   names the files in conflict (smith's `domain/run.md`, 8.3).
-- **A goal's later run** (`forge.md`, 11.3) starts at g's tip; where its
+- **A goal's later run** (`forge/branches.md`, 3) starts at g's tip; where its
   run branch holds a head g lacks, it starts as a producer does, on a merge
   in progress naming its landing branch: the branch is g, the commit merged
   into it is that head. A clean merge is committed at once, and a conflict
@@ -690,7 +690,7 @@ runs as contained processes and whose output it parses.
   a rewind of the branch to an ancestor goes unseen (section 12).
 - **A design delivery.** A repository whose item names one branch as both
   its push branch and its landing branch is a goal's design delivery
-  (`forge.md`, 11.3). Its delivery commits the checked tree as any delivery
+  (`forge/branches.md`, 3). Its delivery commits the checked tree as any delivery
   does, then fetches the branch's tip. Where that tip is not in the commit,
   the worker merges the tip into it: a clean merge is committed at once,
   with two parents (the delivery's commit and the tip), the repository's
@@ -706,8 +706,8 @@ runs as contained processes and whose output it parses.
   branch kept moving. A design delivery is never stale: its refusals leave
   the run going. A `save` there pushes nothing and is refused. Its receipt
   is a delivery's, and says when it merged the tip first.
-- **A save pushes unchecked.** A run's `save` (`agent.md`, 4.3 and
-  section 6) is a push to the same branch, with no check run before it;
+- **A save pushes unchecked.** A run's `save` (`agent/tools.md` and `agent/README.md`, 5
+  ) is a push to the same branch, with no check run before it;
   new commits are titled as unchecked; its landing is this hold's last push as a
   delivery's is. The hold records that its last push was a save while its
   head is that commit: the next commit of the hold, a checked delivery's or
@@ -777,7 +777,7 @@ ID (2026-11-04).
 
 The agent child is smith's host domain, `smith-host-domain` (smith's
 `domain/host.md`, section 4): jig's agent processes (jig's
-`domain/hosts.md`, 5.1). One process per run, whose process tree is the
+`domain/hosts/README.md`, 5.1). One process per run, whose process tree is the
 run's containment boundary (section 9); one channel over its pipes,
 whose rules smith's host domain enforces; a watchdog on progress and a
 bound on wall time; cancel, then kill; the slot back only once the
@@ -785,11 +785,11 @@ process has exited and its tree is empty. temper's choices:
 
 - **Agent processes, always.** Every run is a process of its own, also
   when the engine and the worker share a process
-  (`../protocol/README.md`, section 8); `smith-inline-agent` is not used
+  (`../protocol/README.md`, section 6); `smith-inline-agent` is not used
   (`../protocol/llm.md`, section 7).
 - **temper's binary is the agent:** the box's `temper internal agent`,
-  or a deployment's `temper-agent` (`../protocol/README.md`, 4.3 and
-  section 7), smith's agent shell. temper builds no code into it.
+  or a deployment's `temper-agent` (`../protocol/binaries.md`, 3, and `../protocol/README.md`, 5
+  ), smith's agent shell. temper builds no code into it.
 - **No credentials in its environment.** The tokens its LLM calls use
   come as grants on its channel (`../protocol/credentials.md`,
   section 3); git's never reach it.
@@ -797,8 +797,8 @@ process has exited and its tree is empty. temper's choices:
   the watchdog stretches to their span: a two-hour test suite is not a
   hang.
 - **Its limits** are smith's host limits, and the bounds the hello
-  states, from the agent's configuration (`../protocol/configuration.md`,
-  section 5). The one number that isn't the agent's is how many agents
+  states, from the agent's configuration (`../protocol/configuration/README.md`,
+  section 4). The one number that isn't the agent's is how many agents
   the host holds at once: a run is one agent process, so that number is
   the worker's slots, set where the worker composes its limits, and
   nothing in the agent's configuration raises it. Each of the host's
@@ -808,8 +808,8 @@ process has exited and its tree is empty. temper's choices:
   `host_reply_text`, its `agent.json` `profile.declared.tool_payload`,
   the same figure as the worker's `Limits::reply_bytes` (4.3), so that
   the engine sizes a task read and renders an answer for this worker's
-  runs within what its agent takes (`root.md`, 5.2; jig's
-  `domain/hosts.md`, section 2). Every temper worker names it, the
+  runs within what its agent takes (`routing.md`, 2; jig's
+  `domain/hosts/README.md`, section 2). Every temper worker names it, the
   engine's in-process local agent among them.
 - **What rises with its slots:** the worker's `hub.slots`, the engine's
   `fleet.slots` and the checkout's `checkout.workspaces` are each at
@@ -817,23 +817,23 @@ process has exited and its tree is empty. temper's choices:
   workspaces. A start refuses a worker past any of them it can see,
   naming the limit to raise. An engine alone can't see a worker's slots:
   it uses them up to `fleet.slots` and turns away a hello listing more
-  runs than that (jig's `domain/engine.md`, section 8).
+  runs than that (jig's `domain/engine/fleet.md`).
 - **Its program endpoints,** in the hello's bounds: the endpoint numbers
   the agent's configuration serves by a program, its `program_endpoints`,
   as jig's reference launcher declares them (jig's
-  `domain/hosts.md`, 8.1). temper's stock agent serves none, an empty
+  `domain/hosts/charters.md`, 1). temper's stock agent serves none, an empty
   list that proves no endpoint is a program; a chat whose ordinary
   source is one is refused before it starts, `HostRefused` in its
-  status (`agent.md`, 4.6).
+  status (`agent/charter.md`, 5).
 
 ## 7. Facts
 
 - **A run's facts** go up to the engine as jig's activity, through the
-  hub (jig's `domain/hosts.md`, 6.5): smith's channel facts, decoded by
+  hub (jig's `domain/hosts/hub.md`, 5): smith's channel facts, decoded by
   hand-out, which also feed the watchdog. A run's live text goes up
   beside them when its assignment asks for it: smith's pieces, handed
-  from its channel to the hub as jig's pieces (jig's `domain/hosts.md`,
-  6.5), each also progress for the watchdog, and best effort as facts
+  from its channel to the hub as jig's pieces (jig's `domain/hosts/hub.md`,
+  5), each also progress for the watchdog, and best effort as facts
   are.
 - **The worker's own facts:** each child domain's, content-free (tokens,
   kinds and counts, never a name, a branch or a message), gathered after
@@ -846,7 +846,7 @@ no fact holds a slot.
 
 ## 8. Turns
 
-Turns are the hub's, as jig's `domain/hosts.md`, 6.4 says: smith's
+Turns are the hub's, as jig's `domain/hosts/hub.md`, 4 says: smith's
 bytes, of which the worker reads only what comes beside them, kept until
 the engine acknowledges them, and lost with the run when the worker
 dies, so the task's next run starts from the last committed turn.
@@ -854,11 +854,11 @@ dies, so the task's next run starts from the last committed turn.
 ## 9. Below the domain
 
 What the protocol and io layers owe the domain. The worker's protocol
-layer is the worker's service (`../protocol/README.md`, section 7): jig's
+layer is the worker's service (`../protocol/README.md`, section 5): jig's
 worker link, smith's host half and agent processes, temper's identities'
 table and the git component.
 
-- **The engine:** jig's channel (jig's `protocol/channel.md`), dialled by
+- **The engine:** jig's channel (jig's `protocol/channel/README.md`), dialled by
   the worker and authenticated, carrying the hub's link vocabulary, with
   temper's parts as temper's bytes under temper's payload version
   (`../protocol/channel.md`). The run's facts go after what the domain
@@ -867,7 +867,7 @@ table and the git component.
   repository by its tag, and the engine's protocol layer, which keeps no
   state, needs nothing else to read them. In one process the link joins
   the engine by an in-process address (`../protocol/README.md`,
-  section 8).
+  section 6).
 - **Agents:** spawning the agent within a deadline, in a contained
   process tree, with proof that the tree is empty after it stops; where
   skein gives no contained trees (jig's `protocol/README.md`,
@@ -875,7 +875,7 @@ table and the git component.
   signals whole. smith's channel over its pipes (smith's host half); an
   environment without forge credentials. smith's payloads (the charter,
   the transcript, turns, facts) are decoded and encoded by hand-out (jig's
-  `domain/hosts.md`, 6.8). The root completes the decoded start with
+  `domain/hosts/hub.md`, 8). The root completes the decoded start with
   where the repositories sit, as the checkout prepared them, and, for a
   merge in progress, which files are in conflict.
 - **Git:** each typed operation is a fixed sequence of git invocations
@@ -890,14 +890,14 @@ table and the git component.
   in git's environment only, never in an argument, a URL or a file
   (`../protocol/git.md`, section 5).
 - **Files:** workspace directories under the worker's `root`
-  (`../protocol/configuration.md`, section 4). Making one empties it
+  (`../protocol/configuration/README.md`, section 3). Making one empties it
   first, so what the cache evicted, or a worker left behind before a
   restart, cannot fail a prepare.
 
 ## 10. The world
 
 The worker's worlds run the domain against neighbours that share none of
-its types (testing-strategy.md, section 4). `testing.md` places them
+its types (testing-strategy.md, section 4). `../testing/README.md` places them
 among temper's tiers and keeps their fakes.
 
 - **The checkout's world** (`tests/worker/checkout`): the checkout, the
@@ -927,8 +927,8 @@ among temper's tiers and keeps their fakes.
   started from saved work; turns surviving busy, reconnects and crossed
   acknowledgements; a worker shutting down past the grace giving up what
   it keeps, and a channel reopened in time getting every turn. Its
-  runtime world's referee checks the whole boundary (`testing.md`,
-  6.2).
+  runtime world's referee checks the whole boundary (`../testing/checks.md`,
+  2).
 - **The system world** (`tests/system`): the engine's and the worker's
   roots, smith's real agent domain over skein's fake LLM, jig's fake
   store and parties, and the fake forge, which the engine and the
@@ -942,7 +942,7 @@ among temper's tiers and keeps their fakes.
   delivery; a withheld commit holding the assignment.
 - **The one-process world** (`tests/one-process`): temper's services on
   skein's simulator, the worker's agents smith's processes over skein's
-  fake LLM (`testing.md`, 2.5).
+  fake LLM (`temper/docs/design/testing/README.md`, 2.5).
 
 Across them, each world checks what is its: that the engine commits each
 attempt's turns and answer once and acknowledges them in time; that each
@@ -957,7 +957,7 @@ for; and that nothing is live once it settles.
 - **A goal's saved start overtaken by its change's repair** (section 5):
   starting from saved work preserves its edits, but a repair or resolution
   may have moved r since that save. Reconciliation is the forge's open
-  question (`forge.md`, section 20). Default: resume the saved tree; a
+  question (`forge/README.md`, section 11). Default: resume the saved tree; a
   moved delivery branch ends the run stale.
 - **A park with markers left.** A save refuses a tree whose merge still holds
   a conflict marker, so a run that parks so keeps none of that run's edits,
@@ -975,7 +975,7 @@ for; and that nothing is live once it settles.
   party rewound to an ancestor since the run started still takes a push
   that restores what that party removed. With branches held by one task
   (jig's `domain/connectors.md`, 3.3), such a rewind is drift the forge
-  looks for after the push (forge.md, 8.5). Naming the head prepare saw
+  looks for after the push (forge/change/README.md, 3). Naming the head prepare saw
   needs a decision for a branch that did not exist then.
 - **Several workers in one world:** the whole worker's world runs one;
   placement across several is exercised with scripted workers in the
@@ -983,7 +983,7 @@ for; and that nothing is live once it settles.
 - **Checks without an LLM:** validating an exact head needs a checkout
   and the repository's checks but no conversation. It could be a run
   whose outcome is its checks' result, for repositories without CI
-  (forge.md, section 20).
+  (forge/README.md, section 11).
 - **Code graph:** indexing a checkout for codebase-memory-mcp as part of
   preparing it, and keeping that index with the cache.
 - **A workspace's repositories in parallel:** a checkout runs one
@@ -1000,13 +1000,13 @@ for; and that nothing is live once it settles.
   clone another workstream wanted can be made again, wasteful and never wrong.
 - **A worker past what no document raises.** A standalone start counts its
   slots and git operations against the process's sockets, a constant
-  (`../protocol/configuration.md`, section 7), and the link's caps are `u32`s
+  (`../protocol/configuration/limits.md`), and the link's caps are `u32`s
   that grow with the slots, so past them a start's refusal names a limit no
   one can raise, or none. A refusal saying what to lower, a key for the
   sockets or wider caps would close it. Default: as they stand, until a
   deployment asks for more than they hold. The user's to decide.
 - **jig's:** saving periodically, and a worker's failed dials before its
-  first channel (jig's `domain/hosts.md`, section 12).
+  first channel (jig's `domain/hosts/README.md`, section 10).
 - **A hold naming an agent run's last failure.** An agent task held
   `out of tries: run failures` names no failure: the reason is 4.3's
   operator line alone. Job failures carry their bounded cause into the
@@ -1030,8 +1030,8 @@ for; and that nothing is live once it settles.
   committed calls are cut to the room (4.1, *Transcript*), but
   `standard` admits a start past its 1,048,576-byte room by a full run
   inbox alone, 82 messages of up to 262,144 bytes (4.3). Making such a
-  start run takes a figure or a form (jig's `protocol/channel.md`,
-  section 14). temper/migration answered on 2026-11-09 that a later plan
+  start run takes a figure or a form (jig's `protocol/channel/README.md`,
+  section 13). temper/migration answered on 2026-11-09 that a later plan
   chooses from the deployment's refusal line: a start near the room
   sizes `io.output` from the configured room, and one far past it bounds
   what the start carries, as the committed calls' cut does. Default: it

@@ -39,7 +39,7 @@ What is still open is listed in section 11.
   layers and routes between them (section 6). It writes no codec of
   smith's records, none of the channel's rules and none of the agent's LLM
   calls. Its policy is what smith leaves to hosts (domain/README.md,
-  section 5).
+  section 3).
 - **No host vocabulary on the wire.** What belongs to a host travels as
   data smith does not interpret:
   - host tools' schemas and inputs;
@@ -65,7 +65,7 @@ What is still open is listed in section 11.
 - **Limits are declared, then derived.** A deployment declares a few
   quantities; every limit is derived from them, and every relationship
   between limits is checked at startup, by name (limits.md).
-- **Facts have a policy per sink** (domain/run.md, section 11). Inside
+- **Facts have a policy per sink** (domain/run.md, section 10). Inside
   the process none is lost. The channel projects them for liveness,
   dropping and counting what does not fit, and never holds anything
   back. The event stream, a trace file or a headless run's output, is
@@ -93,7 +93,7 @@ What is still open is listed in section 11.
 8. **limits.md:** declared quantities, the limits derived from them, the
    relationships checked at startup, memory, and what a limit does to one
    call.
-9. **hosts.md:** the host's side of a channel, whether the host spawns the
+9. **host.md:** the host's side of a channel, whether the host spawns the
    agent or connects to it, and the local host's protocol layer.
 10. **programs.md:** programs as backends: a run on Claude Code, signed in
     by the program's own flow, its tools under smith's policy, its stream
@@ -136,7 +136,7 @@ host would be another.
 - **A spawned agent** is how temper's worker runs smith. The local host
   spawns one for a run on a program backend, which the inline agent
   cannot run, and offers it for every run later, with contained trees
-  (hosts.md, section 5.6; programs.md, section 2). The process tree is
+  (host.md, section 5.6; programs.md, section 2). The process tree is
   the run's containment (domain/host.md, section 4).
 - **A connected agent** waits on the domain (section 11). The components
   allow it, but admission, cancellation, a lost connection and the
@@ -174,12 +174,12 @@ host would be another.
 | `smith-protocol-program` | component | a run on a program backend: the program's status, command, settings and stream, and the agent's MCP server with its permission prompt, through skein's io, translated to and from `smith-domain` (programs.md) |
 | `smith-protocol-events` | component | the event sink: the domain's facts and the layers' measurements projected into the event stream's records, with each destination's delivery state (events.md, sections 3 to 5) |
 | `smith-protocol-translate` | component | the translations between the channel's, the charter's and the transcript's records and the domains' values, shared by both halves and the local host's store (channel.md, charter.md, transcript.md) |
-| `smith-host-protocol` | component | the host's half: skein's channel and smith's codecs on the streams it is given, translated to and from `smith-host-domain` (hosts.md) |
-| `smith-local-protocol` | protocol layer | the local host's: the terminal, transcripts in files, signing in and committing in place (hosts.md) |
+| `smith-host-protocol` | component | the host's half: skein's channel and smith's codecs on the streams it is given, translated to and from `smith-host-domain` (host.md) |
+| `smith-local-protocol` | protocol layer | the local host's: the terminal, transcripts in files, signing in and committing in place (host.md) |
 | `smith-inline-agent` | domain | an agent capability in its host's process: one composed `smith-domain` per run, speaking `smith-host-domain`'s vocabulary (domain/host.md, section 9) |
 | `smith-agent-service`, `smith-local-service` | service | the agent process's and the product's `iterate`; each holds its profiles as step code, the `standard` profile among them, derives its limits and checks them (limits.md), and owns its event sink (events.md) |
 | `smith-agent-shell` | shell | the agent process, as a library: its configuration, its startup, and the one adapter that its binary and the worlds both run (agent.md) |
-| `smith-local-shell` | shell | the product, as a library: its commands, settings, credentials, composition and front ends (`docs/design/shell.md`) |
+| `smith-local-shell` | shell | the product, as a library: its commands, settings, credentials, composition and front ends (`../shell/README.md`) |
 | `smith` | binaries | the root package: `smith`, the product, and `smith-agent`, the agent process a host spawns, each glue in `src/` over its shell crate |
 | `smith-mcp`, later | component | MCP servers as a tool source |
 
@@ -206,7 +206,7 @@ These are the roles of programming-model.md, section 4:
   io (agent.md, section 5).
 - **Shells are libraries** in ordinary Rust, under skein's shell rules
   (programming-model.md, 2.1). `crates/` holds libraries only; the
-  binaries are glue in the root package (`docs/design/shell.md`).
+  binaries are glue in the root package (`../shell/README.md`).
 
 The agent process:
 
@@ -214,7 +214,7 @@ The agent process:
 smith-agent                        the binary: glue in the root package
 └── smith-agent-shell              the shell: configuration, startup, the loop's adapter
     └── smith-agent-service        its iterate, profiles and limits
-        ├── smith-domain           the agent (domain/README.md, section 4)
+        ├── smith-domain           the agent (domain/README.md, section 2)
         └── its protocol layer
             ├── smith-protocol-channel     to its host, on the streams it is given
             ├── smith-protocol-llm         to providers, through skein's LLM client
@@ -285,7 +285,7 @@ a host (temper's worker, smith's local host, ...)
   - for a spawned agent, `smith-agent` started with skein's contained
     processes;
   - for a connected agent, a connection, with TLS when it is remote, and
-    the credential its opening carries (hosts.md).
+    the credential its opening carries (host.md).
 - **Its worlds,** with smith's fakes:
   - a scripted agent, for its host domain;
   - smith's agent with skein's fake LLM provider, in its system worlds
@@ -300,10 +300,10 @@ a host (temper's worker, smith's local host, ...)
   - skein's foundation documents as their file names (`programming-model.md`,
     `testing-strategy.md`, `notes.md`);
   - smith's other design documents by their path, as
-    `docs/design/shell.md`, the product's shell, and
+    `../shell/README.md`, the product's shell, and
     `docs/design/testing.md`;
   - skein's and temper's design documents with their project's name, as
-    skein's `channel.md`. temper's are examples, never relied on.
+    skein's `net/channel.md`. temper's are examples, never relied on.
 - **Byte layouts are the schemas'.** These documents name records, their
   fields and their bounds; the schemas, in the crates, give the bytes. The
   event stream's lines are JSON, and events.md gives them field by
@@ -351,9 +351,9 @@ to an older reader or writer. Each has one version at a time.
   2); the charter and its result, version 4 (charter.md, section 5); turns
   and transcripts, version 6 (transcript.md, section 6); the event
   stream, version 4 (events.md, section 6); and the local host's store,
-  version 1 (hosts.md, section 5.3).
+  version 1 (host.md, section 5.3).
 - **A build says which it speaks.** `smith check` prints each format's
-  version (`docs/design/shell.md`), and the event stream's header carries
+  version (`../shell/README.md`), and the event stream's header carries
   them (events.md, section 3.2), so a mismatch shows before a run.
 
 ## 9. What smith needs from skein
@@ -373,7 +373,7 @@ it.
   - a last word;
   - keepalive frames, scheduled by its owner.
 
-  Designed in skein's `channel.md`.
+  Designed in skein's `net/channel.md`.
 - **Codecs generated from schemas:**
   - bounded records with versions;
   - measured encoding;
@@ -381,9 +381,9 @@ it.
   - each record's encoded and decoded bounds;
   - golden bytes.
 
-  Designed in skein's `codec.md`.
+  Designed in skein's `data/codec/README.md`.
 - **Owners that close, and a process that ends** (programming-model.md,
-  section 5.2; skein's `shell.md`, section 13):
+  section 5.2; skein's `runtime/shell.md`, section 12):
   - a component that keeps entities beyond the requests that made them
     takes its owner's close, refuses new work, drains what it keeps and
     reports closed;
@@ -396,29 +396,29 @@ it.
     queue (notes.md).
 - **Process groups, and contained trees:**
   - each child io spawns leads a process group of its own, which a
-    deadline or a stop signals whole (skein's `io.md`, section 6);
+    deadline or a stop signals whole (skein's `runtime/io/processes.md`);
   - contained trees: spawned within a deadline, with an environment given
     whole and a view of the file system in which only named directories
     are writable, stopped politely, then terminated, then killed, and
     proved empty (domain/tools.md, section 5; domain/host.md, section 4).
-    Designed in skein's `io.md`, 6.2–6.4. Resource limits and write
+    Designed in skein's `runtime/io/processes.md`, 2–4. Resource limits and write
     scopes per tree come with them.
 - **Connections for LLM calls,** as a component: connecting, TLS, and the
   deadlines skein's LLM client leaves to its owner (skein's
-  `llm-connection.md`), with:
+  `llm/connection.md`), with:
   - its owner's close, draining: idle connections closed at once, busy
     ones when their call ends, then closed reported;
   - deadlines by phase, and the expired phase in `TimedOut`;
   - a call that finds the pool full waiting for a connection, within its
     deadline, and a pool sized from its owner's concurrency.
-- **The LLM client** (skein's `llm.md`):
+- **The LLM client** (skein's `llm/README.md`):
   - a run's affinity, a key and a thread, rendered per dialect with
     per-call headers, and the affinity's header names reserved;
   - Anthropic's cache breakpoints;
   - `Usage` with each count optional, cache writes and reasoning tokens
     included;
   - `ToolChoice`: `Auto`, `None` or `Only`;
-  - the public OpenAI Responses dialect (skein's `llm.md`, 4.8) and
+  - the public OpenAI Responses dialect (skein's `llm/README.md`, 4.8) and
     Anthropic's Messages with a key (4.7); a credential's scheme, a
     bearer or a key (2.6); and the failure classes exhausted, with its
     reset only where the provider gives one, refused and unsupported,
@@ -431,22 +431,22 @@ it.
     apart from replay's metadata (limits.md, section 3.1).
 - **JSON and HTTP:** provider events decoded as they stream and
   selectively, by a general collector, and tokens kept compactly
-  (skein's `json.md` and `http.md`).
-- **io and the shell** (skein's `io.md` and `shell.md`):
+  (skein's `data/json.md` and `http.md`).
+- **io and the shell** (skein's `runtime/io/README.md` and `../shell/README.md`):
   - an append stream on a file, and standard output adopted as a stream,
-    for the event stream (`io.md`, 5.1);
+    for the event stream (`skein/docs/design/runtime/io/files.md`, 1);
   - durable replacement of a whole file, and private files for secrets
-    (`io.md`, 5.2 and 5.3);
+    (`skein/docs/design/runtime/io/files.md`, 2 and 3);
   - a lock on a directory, taken without waiting, for the credentials
-    directory's records (`io.md`, section 5);
+    directory's records (`skein/docs/design/runtime/io/files.md`);
   - the loop's host interface and its drive, out of the testing crates
-    (skein's `shell.md`, section 12);
-  - trust roots loaded from the machine or a file (skein's `shell.md`,
+    (skein's `runtime/shell.md`, section 11);
+  - trust roots loaded from the machine or a file (skein's `runtime/shell.md`,
     6.2);
   - the kernel's resource usage of the process and its children.
 - **Sockets and TLS** for a connected agent.
-- **OAuth** for the local host's sign-in (skein's `oauth.md`, section
-  6): the client's issued client id, ID token and revocation (2.1, 2.2
+- **OAuth** for the local host's sign-in (skein's `oauth/accounts.md`
+  ): the client's issued client id, ID token and revocation (2.1, 2.2
   and 2.3); the driver, taking a provider's registration (6.2), its
   requests and events (6.3), a record kept privately and shared across
   processes, read again under its owner's lock before each write (6.4),
@@ -456,7 +456,7 @@ it.
   - a scripted peer on a channel;
   - skein's fake LLM provider, taking the affinity and cache markers,
     several credentials each with its scheme, and each failure class
-    scripted (skein's `fake-llm.md`, 2.1, 2.3 and 3), and its fake
+    scripted (skein's `testing/fakes/llm.md`, 2.1, 2.3 and 3), and its fake
     checkout;
   - protocol worlds that join two ends with streams cut at random
     (testing-strategy.md, 2.5).
@@ -468,7 +468,7 @@ it.
 - **After pre-release:** which formats, if any, take on obligations to
   older readers and writers once smith has outside users, and how a
   charter's writer then learns which versions its agents read
-  (domain/README.md, section 8).
+  (domain/README.md, section 5).
 - **A connected agent in the domain:**
   - several runs in one agent process (domain/host.md, section 12);
   - the channel's rules apart from supervising a process
@@ -481,6 +481,6 @@ it.
     no workspace.
 - **Named calls in skein:** whether calls answered once by name, withdrawn
   and asked again, are generic enough for skein's channel, as jig's channel
-  (jig's `protocol/channel.md`) would show if it has the same shape.
+  (jig's `protocol/channel/README.md`) would show if it has the same shape.
 - **MCP:** a component for MCP servers, over a process's pipes or HTTP, and
   how much of JSON-RPC is skein's.

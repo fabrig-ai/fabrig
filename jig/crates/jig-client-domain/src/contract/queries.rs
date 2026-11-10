@@ -1,4 +1,4 @@
-//! The fixed task query and the single task line (contract.md, 5.1 and 6.1).
+//! The fixed task query and the single task line (client/domain/contract/documents.md, 1, and client/domain/contract/README.md, 4.1).
 use super::{Budget, Chip, Count, Cursor, PhaseCounts, Requester, TaskFlags};
 use skein_lib::Wall;
 /// A query's order; ties go by task number.
@@ -21,7 +21,7 @@ pub enum PhaseClass {
 }
 /// The selected executor kind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-/// Job tasks: jig/docs/design/client/domain/contract.md, 5.7.
+/// Job tasks: jig/docs/design/client/domain/contract/documents.md, 7.
 pub enum ExecutorKind {
     Agent,
     Procedure,
@@ -85,7 +85,7 @@ pub struct TaskLine {
     pub budget: Budget,
     pub waits_on: WaitsOn,
     pub phases: PhaseCounts,
-    /// Direct delegates ended done (jig/docs/design/client/domain/contract.md, 5.1).
+    /// Direct delegates ended done (jig/docs/design/client/domain/contract/documents.md, 1).
     pub delegates_done: u32,
     /// Direct delegates live or ended, cancelled ones left out.
     pub delegates_total: u32,

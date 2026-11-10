@@ -1,5 +1,5 @@
 #!/bin/sh
-# The browser tier (protocol/browser.md, 15), outside the gate: jig's test
+# The browser tier (protocol/browser/testing.md), outside the gate: jig's test
 # application's bundle and jig-test, then the browser suite. Its arguments
 # go to nextest, so that one test runs alone:
 # scripts/browser.sh -E 'test(=NAME)'.

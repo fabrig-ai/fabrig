@@ -1,4 +1,4 @@
-//! The ring adapter (shell.md, 3): io's kernel records
+//! The ring adapter (runtime/shell.md, 3): io's kernel records
 //! (`skein_io::kernel`, whose module documentation is the contract kept
 //! here) on io_uring. It maps each record onto one submission entry, keeps
 //! the record in its in-flight table, and when the entry completes decodes
@@ -48,11 +48,11 @@
 //! every slot has at most one entry in the kernel (single-shot operations
 //! only, each cancel in a slot of its own), so it cannot overflow. An
 //! `Open` that a `..` race failed with `EAGAIN`, or an uncancelled transfer
-//! interrupted by `EINTR` (shell.md, 7.4), is pushed again from its slot,
+//! interrupted by `EINTR` (runtime/readiness.md, 4), is pushed again from its slot,
 //! under the same `user_data`, once its first entry has completed: still
 //! one entry a slot.
 
-#![expect(unsafe_code, reason = "the ring adapter keeps submitted memory live until completion (shell.md, 3)")]
+#![expect(unsafe_code, reason = "the ring adapter keeps submitted memory live until completion (runtime/shell.md, 3)")]
 
 use std::cell::UnsafeCell;
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -209,7 +209,7 @@ fn open(how: OpenHow) -> types::OpenHow {
 
 impl Ring {
     /// Sets up the ring for this thread alone: one issuer, and completions
-    /// processed only when the loop enters the ring (shell.md, 3).
+    /// processed only when the loop enters the ring (runtime/shell.md, 3).
     /// Probes the ring for every operation it uses, and refuses to open below
     /// the floor.
     pub fn open(config: Config) -> Result<Ring, OpenError> {
@@ -506,7 +506,7 @@ impl Table {
             return Reaped::Again(index);
         }
         // EINTR reports no progress: retry the same transfer, preserving its
-        // buffers, offsets and token (shell.md, 7.4). A requested cancel
+        // buffers, offsets and token (runtime/readiness.md, 4). A requested cancel
         // instead reaches the decoder, which completes it Cancelled.
         if let Op::Recv { .. }
         | Op::Send { .. }
@@ -793,8 +793,8 @@ fn slot_index(index: u32) -> usize {
 }
 
 // The synchronous calls: what is not a ring operation, done when the record
-// is submitted or completed (kernel.md), and the clock and the
-// seed (shell.md, 5).
+// is submitted or completed (runtime/kernel.md), and the clock and the
+// seed (runtime/shell.md, 5).
 
 #[cfg(test)]
 mod tests {

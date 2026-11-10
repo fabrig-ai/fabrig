@@ -17,7 +17,7 @@ pub struct Limits {
     pub backoff_base: Duration,
     pub backoff_max: Duration,
     pub retry: Duration,
-    /// How long a move out waits for Written after its answer (configuration.md, section 6).
+    /// How long a move out waits for Written after its answer (protocol/limits.md).
     pub move_deadline: Duration,
     pub spent_attention: Duration,
     pub facts: u32,

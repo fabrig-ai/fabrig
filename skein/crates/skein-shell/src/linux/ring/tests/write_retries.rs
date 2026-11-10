@@ -1,4 +1,4 @@
-//! Interrupted transfers at the adapter's seam (shell.md, 7.4), without a ring.
+//! Interrupted transfers at the adapter's seam (runtime/readiness.md, 4), without a ring.
 
 use io_uring::{opcode, squeue};
 use skein_io::kernel::{Complete, Done, Error, Fd, Op, ServiceSignal, Signalled};
@@ -18,7 +18,7 @@ const REMAINING_COUNT: u32 = 4; // Six fixture bytes after the two-byte prefix.
 const AT: u64 = 987;
 // Two bytes is a short count for both the full buffer and its remaining suffix.
 const COUNT: i32 = 2;
-// Cross the Open/EAGAIN bound to check that EINTR has no such bound (shell.md, 7.4).
+// Cross the Open/EAGAIN bound to check that EINTR has no such bound (runtime/readiness.md, 4).
 const INTERRUPTIONS: u32 = 17;
 
 /// The Linux SQE prefix through `user_data`, including transfer buffer and offset.

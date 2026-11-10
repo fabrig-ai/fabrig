@@ -1,4 +1,4 @@
-//! Claimed tasks' files are cut before the root starts (store.md, 8.4 and 10).
+//! Claimed tasks' files are cut before the root starts (protocol/store/transcripts.md, 4 and protocol/store/opening.md).
 use crate::{Arrived, Below, Event, OpenRefusal, Store, codec, keys, open, pages};
 use alloc::boxed::Box;
 use jig_domain_core::{CoreRecord, Record};

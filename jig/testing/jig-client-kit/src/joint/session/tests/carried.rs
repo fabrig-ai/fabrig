@@ -1,5 +1,5 @@
-//! A request carrying a value through the real root (protocol/client.md, 5;
-//! store.md, 9): kept before the core sees it, named to the core by number and
+//! A request carrying a value through the real root (protocol/client/README.md, 3;
+//! protocol/store/secrets.md): kept before the core sees it, named to the core by number and
 //! digest alone, and erased once the core leaves it unused.
 use super::*;
 use jig_test_connector as connector;

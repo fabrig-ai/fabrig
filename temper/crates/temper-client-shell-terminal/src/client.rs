@@ -1,4 +1,4 @@
-//! Root, view, link and native transport as one host (client/README.md, 6.2).
+//! Root, view, link and native transport as one host (client/line.md, 2).
 use crate::{
     limits,
     route::{self, Down, Duty},
@@ -416,7 +416,7 @@ impl NativeClient {
                     self.shell.down(request);
                 }
                 Down::Unlinked(_) => {
-                    unreachable!("a linked root asks no unlinked request (jig's client.md, 4.4)")
+                    unreachable!("a linked root asks no unlinked request (jig's client/domain/client/README.md, 4.4)")
                 }
                 Down::Notice(notice) => self.notices.push(Shown::Notice(notice)),
                 Down::Duty(duty) => match duty {

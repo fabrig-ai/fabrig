@@ -1,4 +1,4 @@
-//! Away's acts and answered toast; the project's classes decide what Away may decide (temper/docs/design/client/README.md, 3.5, Away).
+//! Away's acts and answered toast; the project's classes decide what Away may decide (temper/docs/design/client/pages/README.md, Away).
 use super::{Pages, needs::Toasted};
 use crate::{
     Address, Domain, Limits, Request,
@@ -24,7 +24,7 @@ pub(super) struct Pending {
     on: bool,
     until: Option<Wall>,
 }
-/// Session ownership keeps the message alive across page navigation (client/README.md, 3.5, Overturn).
+/// Session ownership keeps the message alive across page navigation (client/pages/README.md, Overturn).
 #[derive(Debug)]
 pub(super) struct Overturns {
     pending: Option<Overturn>,

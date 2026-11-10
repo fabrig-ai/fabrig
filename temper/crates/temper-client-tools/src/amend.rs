@@ -1,4 +1,4 @@
-//! Draft task controls through the client domain's amendment editor (client/tools.md, 5.5).
+//! Draft task controls through the client domain's amendment editor (client/ctl/areas.md).
 use crate::jig::{
     Limits,
     call::{Call, Value, number, value},

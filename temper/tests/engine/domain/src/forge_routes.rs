@@ -45,7 +45,7 @@ const STOCK_FORGE_WRITES: u32 = 9_754;
 // rounded up to two significant digits (skein/docs/foundation/testing-strategy.md, 6).
 const STOCK_RUN_BYTES: u32 = 11_000;
 
-/// The settings family's tools run on a world's charter (temper/docs/design/domain/testing.md, 6.4).
+/// The settings family's tools run on a world's charter (temper/docs/design/testing/checks.md, 4).
 pub fn add_settings_charter(defaults: &mut jig_domain_core::settings::Defaults) {
     const SETTINGS_CHARTER: u32 = 13;
     const SETTINGS_TEMPLATE: u32 = 12;
@@ -308,7 +308,7 @@ impl World {
     }
 
     /// Charter documents through the core's plan, root binding and forge gather
-    /// (temper/docs/design/domain/testing.md, 6.4).
+    /// (temper/docs/design/testing/checks.md, 4).
     #[must_use]
     pub fn configured_documents(documents: &[jig_domain_core::Document]) -> Self {
         Self::configured_settings(
@@ -841,7 +841,7 @@ impl World {
             }
             if !charter_documents.is_empty() {
                 // Core sections and the two documents admitted by these stories
-                // (jig/docs/design/domain/engine.md, 17.9).
+                // (jig/docs/design/domain/engine/settings.md, 9).
                 const CHARTER_DOCUMENTS: u32 = 2;
                 const DOCUMENT_SECTIONS: u32 = jig_domain_core::CORE_SECTIONS + CHARTER_DOCUMENTS;
                 limits.brief.sections = DOCUMENT_SECTIONS;
@@ -1115,7 +1115,7 @@ impl World {
         self
     }
 
-    /// An owned forge on a box, before bootstrap (temper/docs/design/domain/testing.md, 6.4).
+    /// An owned forge on a box, before bootstrap (temper/docs/design/testing/checks.md, 4).
     #[must_use]
     pub fn with_box_setup(mut self) -> Self {
         assert_eq!(self.env.now, Time::ZERO, "box setup precedes startup");
@@ -1205,7 +1205,7 @@ impl World {
     }
 
     /// Size a goal's question story for its changes and their foremen before startup
-    /// (temper/docs/design/domain/forge.md, 8.11 and 11.1).
+    /// (temper/docs/design/domain/forge/change/questions.md, 1, and temper/docs/design/domain/forge/branches.md, 1).
     #[must_use]
     pub fn with_goal_question_capacity(mut self, tasks: u32, inbox_bytes: u32) -> Self {
         assert_eq!(self.env.now, Time::ZERO, "question capacity precedes startup");
@@ -2096,7 +2096,7 @@ impl World {
             let period = engine::PartyInput::Period { project: 1, period: 1, budget: self.period_budget, next: None };
             self.send(engine::Event::Party(period));
             // The repository's git identity, an application credential from
-            // temper's own source (domain/root.md, 7.1).
+            // temper's own source (domain/root.md, 6.1).
             self.send(engine::Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) });
         }
         if self.fake.is_due(self.fake_env.now) {

@@ -313,7 +313,7 @@ fn make_pair(inherited: &Inherited) -> Owner {
     owner
 }
 
-/// Two independently opened roots contend until the first root closes (skein/docs/design/io.md, 5).
+/// Two independently opened roots contend until the first root closes (skein/docs/design/runtime/io/files.md).
 #[must_use]
 pub fn pair_world(seed: u64) -> World<Owner, Judge, FileSystem> {
     let mut files = Files::new();

@@ -1,4 +1,4 @@
-//! Frame capacities measured independently of the maps (store.md 8.6, 13).
+//! Frame capacities measured independently of the maps (protocol/store/transcripts.md, 6, protocol/store/README.md, 8).
 #![expect(
     clippy::disallowed_macros,
     clippy::print_stderr,

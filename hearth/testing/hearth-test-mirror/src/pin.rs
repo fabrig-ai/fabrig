@@ -1,7 +1,7 @@
 use skein_scratch::paths;
 use std::{collections::BTreeMap, fs};
 
-/// `testing/mirror/pin`, read (hearth/docs/design/domain/testing.md, 6.2); a bump is a commit of it.
+/// `testing/mirror/pin`, read (hearth/docs/design/testing/real-builds.md, 2); a bump is a commit of it.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Pin {
     pub archive: Box<str>,

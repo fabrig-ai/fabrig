@@ -1,4 +1,4 @@
-//! Home's looks through the joined roots (temper/docs/design/domain/testing.md, 2.1).
+//! Home's looks through the joined roots (temper/docs/design/testing/README.md, 2.1).
 use super::{Joint, client, engine_limits, fixtures, walking};
 use jig_client_kit::harness::ClientId;
 use skein_lib::Duration;
@@ -103,7 +103,7 @@ impl Joint {
 
 impl Joint {
     /// Stock funding and delegation beside the landing stand; the person adds their plan by sign-in
-    /// (temper/docs/design/domain/forge.md, 5.7; temper/docs/design/protocol/configuration.md, 13.4).
+    /// (temper/docs/design/domain/forge/attention.md, 3; temper/docs/design/protocol/configuration/stock.md).
     #[must_use]
     pub fn with_plan_status(seed: u64, limits: client::Limits) -> Self {
         let mut bounds = temper_engine_domain_world::forge_routes::box_limits();

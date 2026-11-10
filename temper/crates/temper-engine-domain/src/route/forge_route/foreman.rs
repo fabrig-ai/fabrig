@@ -1,4 +1,4 @@
-//! A question's read-only delegate and its brief (temper/docs/design/domain/forge.md, 8.11).
+//! A question's read-only delegate and its brief (temper/docs/design/domain/forge/change/questions.md, 1).
 use super::{Box, Domain, Env, Limits, List, append, forge_change as change, tasks};
 
 pub(super) fn is_task(questions: &change::Questions, task: u64) -> bool {

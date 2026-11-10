@@ -1,4 +1,4 @@
-//! Verified delivery fields mapped to the forge client's hints (forge.md, 5).
+//! Verified delivery fields mapped to the forge client's hints (forge/forgejo.md, 1).
 use crate::api;
 use crate::forgejo::{delivery::Delivery, document::Body};
 use crate::marker;

@@ -1,4 +1,4 @@
-//! Validated account metadata, without credential values (shell.md, 5.2 and 7.1).
+//! Validated account metadata, without credential values (shell/settings.md, 1.2, and shell/credentials.md, 1).
 //! The shared catalog groups settings once; each account retains typed source
 //! and provider choices beside the fields used by registration and diagnostics.
 use super::{Settings, Sourced};

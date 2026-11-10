@@ -1,5 +1,5 @@
-//! The browser's bundle, read whole at start, and its closed list of types (client/browser.md, 2.2; skein's
-//! ui-web.md, 4.3 and 4.4), composing jig's bundle helpers (jig/docs/design/protocol/service.md, 11.4).
+//! The browser's bundle, read whole at start, and its closed list of types (client/web/README.md, 2.2; skein's
+//! ui/web/bundle.md, 3 and 4), composing jig's bundle helpers (jig/docs/design/protocol/service.md, 11.4).
 use super::{Clients, policy};
 use alloc::boxed::Box;
 use jig_protocol_engine_clients_http::bundle::{self, field, target};
@@ -7,13 +7,13 @@ pub use jig_protocol_engine_clients_http::bundle::{File, compressed_of, kind};
 use skein_http::{Method, server as http};
 use skein_lib::{List, Map, Token, bytes, stream::Up};
 
-/// Temper's fixed explanation when configuration names no browser bundle (client/browser.md, 2.2).
+/// Temper's fixed explanation when configuration names no browser bundle (client/web/README.md, 2.2).
 #[expect(clippy::disallowed_macros, reason = "a fixed page compiled in, not data read at run time")]
 pub const NO_BUNDLE_PAGE: &[u8] = include_bytes!("no-bundle.html");
 
 /// A bundle path's bound (jig's testing/jig-test/src/bundle.rs).
 pub const NAME_BYTES: u32 = 1024;
-/// The bundle and its kept forges' metas (client/browser.md, 2.2; protocol/sign-in.md, 9.7).
+/// The bundle and its kept forges' metas (client/web/README.md, 2.2; protocol/openid-provider.md, 7).
 #[derive(Debug)]
 pub struct Bundle {
     pub page: Box<[u8]>,
@@ -23,7 +23,7 @@ pub struct Bundle {
     pub digest: Box<[u8]>,
     pub files: Map<Box<[u8]>, File>,
 }
-/// How the clients' listener answers a call the mapping does not claim (client/browser.md, 2.2).
+/// How the clients' listener answers a call the mapping does not claim (client/web/README.md, 2.2).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Answer {
     File,
@@ -252,7 +252,7 @@ impl Bundle {
         let at = bytes::find(&self.page, b"</head>")?;
         self.replace_metas(at, at, meta)
     }
-    /// Set the page's forge metas and entity tag (protocol/sign-in.md, 9.7).
+    /// Set the page's forge metas and entity tag (protocol/openid-provider.md, 7).
     pub(crate) fn set_forge_metas(&mut self, metas: &[u8]) -> Option<()> {
         let end = bytes::find(&self.page, b"</head>")?;
         let at = end.checked_sub(self.forge_meta_bytes)?;

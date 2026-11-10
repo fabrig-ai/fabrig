@@ -1,4 +1,4 @@
-//! Native lowest-tier ownership controls (tls.md, 3.6; testing-strategy.md, 2.1).
+//! Native lowest-tier ownership controls (net/tls.md, 3.6; testing-strategy.md, 2.1).
 
 use super::{Client, Event, LowerEvent, LowerOutput, LowerRequest, Request, State, UpperOutput};
 use crate::Name;
@@ -101,7 +101,7 @@ fn a_transport_closing_client_waits_for_its_close() {
 
 #[test]
 fn native_room_counts_records_and_the_owed_prefix() {
-    // 29 per record, 54 slack, and 2048 owed bytes (tls.md, 3.5, 3.6).
+    // 29 per record, 54 slack, and 2048 owed bytes (net/tls.md, 3.5, 3.6).
     for (plaintext, room) in [(1, 2_132), (16, 2_147), (16_384, 18_515), (16_385, 18_545), (40_000, 42_189)] {
         assert_eq!(super::room_for(plaintext), Some(room));
     }

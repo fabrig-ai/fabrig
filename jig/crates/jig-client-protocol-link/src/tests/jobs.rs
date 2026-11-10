@@ -1,8 +1,8 @@
-//! Job task values at the client boundary (jig/docs/design/client/domain/contract.md, 5.7).
+//! Job task values at the client boundary (jig/docs/design/client/domain/contract/documents.md, 7).
 use super::*;
 use skein_lib::Writer;
 
-/// A job's kind survives restoring and encoding a client Create (jig/docs/design/client/domain/contract.md, 5.7).
+/// A job's kind survives restoring and encoding a client Create (jig/docs/design/client/domain/contract/documents.md, 7).
 #[test]
 fn a_job_executor_round_trips() {
     let limits = fixtures::limits();
@@ -22,7 +22,7 @@ fn a_job_executor_round_trips() {
     assert_eq!(translate::asks::ask(&restored, limits.wire()), Ok(record));
 }
 
-/// Delegation names the same job kind both ways (jig/docs/design/client/domain/contract.md, 5.7).
+/// Delegation names the same job kind both ways (jig/docs/design/client/domain/contract/documents.md, 7).
 #[test]
 fn a_job_delegation_kind_round_trips() {
     let limits = fixtures::limits();
@@ -34,7 +34,7 @@ fn a_job_delegation_kind_round_trips() {
     assert_eq!(translate::asks::wire_owner_authority_executor(kind, limits.wire()), Ok(wire));
 }
 
-/// Both chip projections preserve a job kind (jig/docs/design/client/domain/contract.md, 5.7).
+/// Both chip projections preserve a job kind (jig/docs/design/client/domain/contract/documents.md, 7).
 #[test]
 fn a_job_chip_keeps_its_kind_in_documents_and_refusals() {
     let limits = fixtures::limits();
@@ -65,7 +65,7 @@ fn a_job_chip_keeps_its_kind_in_documents_and_refusals() {
     assert_eq!(task.chip.executor, c::ChipExecutor::Job { kind: 7 });
 }
 
-/// A job executor filter crosses the generated codec (jig/docs/design/client/domain/contract.md, 5.7).
+/// A job executor filter crosses the generated codec (jig/docs/design/client/domain/contract/documents.md, 7).
 #[test]
 fn a_job_executor_filter_round_trips_the_wire() {
     let limits = fixtures::limits();
@@ -91,7 +91,7 @@ fn a_job_executor_filter_round_trips_the_wire() {
     assert_eq!(value.query().executor(), &Some(w::ExecutorKind::Job));
 }
 
-/// A job's result bound crosses both translations (jig/docs/design/client/domain/contract.md, 5.7).
+/// A job's result bound crosses both translations (jig/docs/design/client/domain/contract/documents.md, 7).
 #[test]
 fn a_job_contract_round_trips() {
     let limits = fixtures::limits();

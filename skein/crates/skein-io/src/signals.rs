@@ -1,4 +1,4 @@
-//! Signal intake and descriptor lifecycle (io.md, 7; programming-model.md,
+//! Signal intake and descriptor lifecycle (runtime/io/README.md, 4; programming-model.md,
 //! 5.3 and 5.4). The owner decides what a `Shutdown` means.
 //!
 //! | State | Event | Next state and output |
@@ -76,7 +76,7 @@ pub(crate) fn landed(
         Purpose::Cancel(target) => match state {
             State::Settling { fd, read, mut cancels } => {
                 cancels = cancels.checked_sub(1).expect("one signal cancel in flight");
-                // Retry an unsubmitted cancel only while its read waits (kernel.md, 5).
+                // Retry an unsubmitted cancel only while its read waits (runtime/kernel.md, 5).
                 if crate::layer::unsubmitted(landed.result) && read == Some(target) {
                     tables.cancel(subs, id, target);
                     cancels = cancels.checked_add(1).expect("one signal cancel per target");

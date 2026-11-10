@@ -1,4 +1,4 @@
-//! Browser-shell stories parameterized by the application's pages (ui-web.md, 14.2).
+//! Browser-shell stories parameterized by the application's pages (ui/web/testing.md, 2).
 use crate::{BrowserFace, Harness, Outcome, Play, Script, Setup, Step};
 use skein_fake_person::Next;
 use skein_fake_person::{Find, Step as PersonStep};

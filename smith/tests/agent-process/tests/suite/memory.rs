@@ -123,7 +123,7 @@ fn full_pool() -> (List<skein_llm_connection::Endpoint>, skein_llm_connection::L
     let measured = skein_llm::client::measure(&call.prompt, call.credential.as_ref(), &client.llm, &client.limits)
         .expect("fixture fits");
     // A gzip body is compressed only while it and its room fit the request
-    // bound (skein/docs/design/llm.md, 4.8), so the bound holds both.
+    // bound (skein/docs/design/llm/README.md, 4.8), so the bound holds both.
     client.limits.request = measured.body + measured.compressed;
     let reservation = skein_llm::client::reservation(measured, &client.limits).expect("reservation");
     let mut pool = configured.limits.llm.connection;

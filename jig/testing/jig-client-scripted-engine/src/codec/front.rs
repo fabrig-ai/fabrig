@@ -1,4 +1,4 @@
-//! The same receiving admission as the client's link (protocol/client.md, 3 and 13).
+//! The same receiving admission as the client's link (protocol/client/wire.md, 1, and protocol/client/README.md, 10).
 use super::{c, encoded, values, w};
 use crate::{Bounds, Invalid};
 use jig_client_protocol_link::{Limits, translate};

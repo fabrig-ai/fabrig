@@ -1,4 +1,4 @@
-//! Only you (temper/docs/design/client/README.md, 3.5, Only you).
+//! Only you (temper/docs/design/client/pages/README.md, Only you).
 use jig_client::contract::{AccountHolder, AccountKind, AccountLine, AccountState, Accounts};
 use skein_lib::List;
 

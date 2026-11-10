@@ -1,4 +1,4 @@
-//! The scripted workers (domain/hosts.md, sections 2 and 4, as the fleet
+//! The scripted workers (domain/hosts/README.md, sections 2 and 4, as the fleet
 //! meets them): each dials in, says hello with its slots, the workstreams its
 //! workspaces hold, the runs it hosts and the answers it keeps, then sends
 //! those answers again; hosts what it is assigned, refusing as busy beyond its

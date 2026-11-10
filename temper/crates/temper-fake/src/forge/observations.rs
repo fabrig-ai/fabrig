@@ -1,4 +1,4 @@
-//! GitHub additions to the forge's JSON lines (domain/testing.md, 4.2).
+//! GitHub additions to the forge's JSON lines (testing/fakes.md, 2).
 use crate::{Refusal, read};
 use jig_protocol_config::Path;
 use skein_fake_forge_github::{GitCall, Minted};

@@ -1,4 +1,4 @@
-//! Load, link and sweep before durable opening (jig/docs/design/domain/engine.md, 6).
+//! Load, link and sweep before durable opening (jig/docs/design/domain/engine/restart.md).
 
 mod census;
 mod cursor;
@@ -70,14 +70,14 @@ pub enum Failure {
     LlmChoice {
         key: Key,
     },
-    /// A record names a link the start cannot make (engine.md, 6).
+    /// A record names a link the start cannot make (domain/engine/restart.md).
     Link {
         record: Key,
         linked: Linked,
     },
 }
 
-/// What a record links to that the start could not find (engine.md, 6).
+/// What a record links to that the start could not find (domain/engine/restart.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Linked {
     Record(Key),
@@ -96,7 +96,7 @@ pub enum Linked {
     Holder(tasks::Name),
 }
 
-/// A setting cannot be held under its application's declared kind (engine.md, 17.5).
+/// A setting cannot be held under its application's declared kind (domain/engine/settings.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ApplicationWhy {
     Undeclared,
@@ -142,7 +142,7 @@ pub enum SweepInput {
     Finished,
 }
 
-/// The held settings bound that prevents a cold start (engine.md, 17.7–17.8).
+/// The held settings bound that prevents a cold start (domain/engine/settings.md, 7–8).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum HeldLimit {
     Revisions,
@@ -267,7 +267,7 @@ impl Core {
     }
 }
 
-/// Ordered live ranges of the cold start (protocol/store.md, 4.3 and 7.2).
+/// Ordered live ranges of the cold start (protocol/store/README.md, 4.3, and protocol/store/loads.md, 2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum RestoreRange {
     /// The deployment header, first.
@@ -291,7 +291,7 @@ impl RestoreRange {
     pub const LIVE: [Self; 6] =
         [Self::Deployment, Self::Settings, Self::Accounts, Self::People, Self::Tasks, Self::Core];
 
-    /// Predicate checked against the store's intervals (protocol/store.md, 4.3).
+    /// Predicate checked against the store's intervals (protocol/store/README.md, 4.3).
     #[must_use]
     pub fn admits(&self, key: &Key) -> bool {
         match self {

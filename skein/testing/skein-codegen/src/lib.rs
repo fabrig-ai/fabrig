@@ -1,4 +1,4 @@
-//! A schema parser and generator for bounded codecs (codec.md, sections 3-6).
+//! A schema parser and generator for bounded codecs (data/codec/README.md, sections 3-6).
 //! The schema and declaration tree are author-owned; this crate has no peer
 //! input or running machine state. [`parse`] validates a schema before code
 //! generation.

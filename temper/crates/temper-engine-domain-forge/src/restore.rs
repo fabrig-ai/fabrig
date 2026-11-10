@@ -1,4 +1,4 @@
-//! Configured restoration fit before linking (temper/docs/design/domain/forge.md, 16).
+//! Configured restoration fit before linking (temper/docs/design/domain/forge/README.md, 9).
 use super::Domain;
 use crate::{CallPayload, Limits, RecordKind, Stored, What};
 use alloc::boxed::Box;
@@ -97,7 +97,7 @@ pub(super) fn named_payload(l: &Limits, answer: &CallPayload) -> Result<(), Rest
     Ok(())
 }
 // The largest row-bounded list, including nested lists. Branch names are
-// bounded by bytes alone (skein/docs/design/forge.md, 3.7).
+// bounded by bytes alone (skein/docs/design/forge/README.md, 3.7).
 fn answer_rows(answer: &skein_forge::api::Answer) -> u64 {
     use skein_forge::api::Answer;
     match answer {

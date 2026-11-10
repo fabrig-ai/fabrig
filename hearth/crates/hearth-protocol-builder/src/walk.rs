@@ -1,4 +1,4 @@
-//! Empty staging through directory tokens, without following links (hearth/docs/design/domain/store.md, 4.4).
+//! Empty staging through directory tokens, without following links (hearth/docs/design/domain/store/README.md, 4.4).
 use crate::{Asked, Beneath, builder::store::vocabulary::Event, limits::Walk, store::OWNER};
 use alloc::boxed::Box;
 use skein_io::{

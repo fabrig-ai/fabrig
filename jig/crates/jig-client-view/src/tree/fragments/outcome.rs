@@ -1,4 +1,4 @@
-//! Presentation of committed owner results (client/domain/contract.md, 4;
+//! Presentation of committed owner results (client/domain/contract/README.md, 3;
 //! client/domain/view.md, 7). Reads supplied facts only: no request, current
 //! object, name lookup or explanation is used to fill a missing fact.
 use crate::words::Words;

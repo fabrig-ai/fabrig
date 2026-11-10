@@ -1,4 +1,4 @@
-//! Public paths come only from me (client/browser.md, 8.1).
+//! Public paths come only from me (client/web/public.md, 1).
 use super::{Text, outcome::newline};
 use crate::jig::{
     digest::Digest,
@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use jig_client::contract as c;
 use skein_json::writer::{Encoder, Limits};
 
-/// What making a project public says, word for word (jig's domain/people.md, 13.3).
+/// What making a project public says, word for word (jig's domain/people/public-reading.md, 3).
 const MAY_SHOW: &[u8] = b"Anything said in this project's chats may show on its public pages, in the titles of its goals and tasks. On a public repository, a change's pull request shows what its agent wrote too.";
 
 pub(super) fn page(identifier: u64) -> [u8; 33] {

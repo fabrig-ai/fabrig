@@ -206,7 +206,7 @@ h3 { font-size: 14px; line-height: 1.35; letter-spacing: -.015em; margin-bottom:
 .task-card .step { font-size: 10px; }
 .terminal-ended { color: #8b8378; }
 
-/* The deployment's forges (client forge.md, 5.4). */
+/* The deployment's forges (client/forge/deployment.md). */
 .forge-card h2 small { font-weight: 400; color: var(--muted); font-size: 11px; margin-left: 6px; }
 .forge-card .repo-lines { margin-top: 10px; }
 .forge-acts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; margin-top: 4px; }
@@ -317,7 +317,7 @@ h3 { font-size: 14px; line-height: 1.35; letter-spacing: -.015em; margin-bottom:
 }
 
 /* The stock front page, signed out, and its sign-in's endings (protocol/
-   sign-in.md, sections 4 and 9). */
+   protocol/sign-in.md, section 4 and protocol/openid-provider.md). */
 .sign-in-page { width: min(500px, calc(100% - 32px)); margin: 0 auto; padding: 56px 0 70px; }
 .sign-in-card { padding: 26px 28px 22px; }
 .sign-in-brand { display: flex; align-items: center; gap: 7px; margin: 0 0 22px; font-weight: 700; }

@@ -1,5 +1,5 @@
 //! A task's next-run wait, separate from its creator preference and its committed account
-//! (client/domain/contract.md, 5.1; accounts.md, 4.3).
+//! (client/domain/contract/documents.md, 1; accounts.md, 4.3).
 use crate::{Core, RunWait};
 use jig_domain_accounts as accounts;
 use jig_domain_tasks as tasks;
@@ -12,7 +12,7 @@ pub enum TaskRunWait {
     Host,
     Refused(TaskWaitRefused),
 }
-/// A derived explanation, never a durable task state (domain/engine.md, section 8).
+/// A derived explanation, never a durable task state (domain/engine/fleet.md).
 /// Hello keeps the fleet's observed receipt time and cause until admission or restart.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum TaskWaitRefused {

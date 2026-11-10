@@ -1,6 +1,6 @@
 //! Kinds through the party entrance and the root's real store
-//! (temper/docs/design/domain/root.md, 5.6 and 9.1;
-//! temper/docs/design/protocol/configuration.md, 13.2 to 13.4).
+//! (temper/docs/design/domain/routing.md, 6, and temper/docs/design/domain/root.md, 8.1;
+//! temper/docs/design/protocol/configuration/settings.md, 2 to 3 and temper/docs/design/protocol/configuration/stock.md).
 use jig_domain_core::settings as s;
 use skein_lib::{ReplyTo, Token};
 use temper_engine_domain::{self as engine, Key, Record};
@@ -267,7 +267,7 @@ pub fn restart_after_rule_commit(world: &mut crate::forge_routes::World, key: u8
 }
 
 /// Restore through the same party entrance as a settings proposal
-/// (jig/docs/design/domain/engine.md, 17.10).
+/// (jig/docs/design/domain/engine/settings.md, 10).
 #[must_use]
 pub fn restore(sign_in: u64, revision: u32, key: u8) -> engine::Event {
     engine::Event::Party(engine::PartyInput::Ask {

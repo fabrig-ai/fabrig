@@ -1,4 +1,4 @@
-//! The clock (shell.md, 5; programming-model.md, section 9).
+//! The clock (runtime/shell.md, 5; programming-model.md, section 9).
 
 use skein_lib::{Env, Time, Wall};
 

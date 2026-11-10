@@ -1,8 +1,8 @@
-//! Bounded least-recently-used tables (lib.md, 5 and 5.1).
+//! Bounded least-recently-used tables (runtime/lib.md, 5 and 5.1).
 use crate::{Map, Set};
 use core::hash::{Hash, Hasher};
 
-/// A bounded table that drops the entry used longest ago (lib.md, 5).
+/// A bounded table that drops the entry used longest ago (runtime/lib.md, 5).
 #[derive(Debug)]
 pub struct Lru<K, V> {
     by_use: Set<(u64, K)>,
@@ -35,7 +35,7 @@ impl<K: Ord + Copy, V> Lru<K, V> {
         assert!(self.by_use.insert((*used, key)).is_ok(), "removing the old use makes room");
         Some(value)
     }
-    /// Keeps `value`, most recently used; hands back what left (lib.md, 5).
+    /// Keeps `value`, most recently used; hands back what left (runtime/lib.md, 5).
     pub fn insert(&mut self, key: K, value: V) -> Option<(K, V)> {
         if self.by_key.capacity() == 0 {
             return Some((key, value));

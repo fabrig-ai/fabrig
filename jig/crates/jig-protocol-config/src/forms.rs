@@ -1,4 +1,4 @@
-//! Private-file byte forms (configuration.md, 10); startup owns reading them.
+//! Private-file byte forms (configuration.md, 9); startup owns reading them.
 use crate::What;
 use alloc::boxed::Box;
 use skein_io::digest::Digest;

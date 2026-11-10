@@ -1,4 +1,4 @@
-//! Seeded arbitrary and mutated kept records (codec.md, 6).
+//! Seeded arbitrary and mutated kept records (data/codec/README.md, 6).
 
 use skein_lib::{Rng, Wall};
 use skein_oauth::{SavedToken, decode_record, encode_record};

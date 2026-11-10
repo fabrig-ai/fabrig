@@ -12,7 +12,7 @@ The owner's decision (2026-11-09). Coding agents run no build or test command. T
 2. **Inherited reds don't block.** A failure the base already has is reported as inherited, with its test name, and doesn't refuse the delivery. Only what this delivery broke refuses it. The refusal's output names each failing check and test with its log's tail, within the host's bounded tail (8.1).
 3. **Work in progress before a question.** An agent that delivers to ask a question (the charter's "On a doubt, stop: deliver the work you have") must not be refused for unfinished work. Choose between a delivery check that the agent can mark as work in progress, recorded and never merged until a full check passes, and saving work without a delivery. Say which, and why.
 4. **It stays fast on a warm checkout.** No `cargo clean`, no whole-workspace run. The tree-hash cache that skips a tree already passed (`.temper/pre-pr`'s `pre-pr-passed`) keeps working. Report what the checks took on a typical change in this repository, and the longest you saw.
-5. **The design says so:** `temper/docs/design/protocol/configuration.md`, 13.9, and `temper/docs/design/domain/agent.md`, 4.5, with their status files: what a delivery checks, that a goal branch's pull request runs no CI, and that the landing's CI is the guard. An agent can change what a check runs (8.1, not a security boundary).
+5. **The design says so:** `temper/docs/design/protocol/configuration/reference.md`, and `temper/docs/design/domain/agent/charter.md`, 4, with their status files: what a delivery checks, that a goal branch's pull request runs no CI, and that the landing's CI is the guard. An agent can change what a check runs (8.1, not a security boundary).
 
 ## Not in this plan
 

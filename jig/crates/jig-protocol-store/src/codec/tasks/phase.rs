@@ -1,4 +1,4 @@
-//! Task lifecycle values and bounded creation templates (protocol/store.md, 5.1).
+//! Task lifecycle values and bounded creation templates (protocol/store/records.md, 1).
 use super::value;
 use crate::tasks_v9 as wire;
 use alloc::boxed::Box;

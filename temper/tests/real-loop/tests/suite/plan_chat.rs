@@ -1,4 +1,4 @@
-//! Chat turn ordering and committed replies (jig's domain/tasks.md, 5.5, 5.8; domain/testing.md, 2.1, 2.6; client/tools.md, 5.2).
+//! Chat turn ordering and committed replies (jig's domain/tasks/lifecycle.md, 6, 9; testing/README.md, 2.1, testing/process-tier.md; client/ctl/tools.md, 2).
 use skein_fake_llm_domain::api;
 use temper_real_loop_world::{
     calls::{self, Argv, Dir},

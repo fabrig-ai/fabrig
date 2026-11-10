@@ -1,4 +1,4 @@
-//! Goal creation from offered templates (temper/docs/design/client/tools.md, 5.5).
+//! Goal creation from offered templates (temper/docs/design/client/ctl/areas.md).
 use crate::tests::fixtures as f;
 use jig_client::contract as c;
 use skein_lib::List;

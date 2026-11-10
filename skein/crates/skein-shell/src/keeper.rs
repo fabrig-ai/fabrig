@@ -1,4 +1,4 @@
-//! What a test harness alone needs of the processes it keeps (shell.md, 7.5).
+//! What a test harness alone needs of the processes it keeps (runtime/readiness.md, 5).
 //! A service has no use for this module: its calls are at the crate's root.
 
 pub use crate::group::{child_id, group_has_other_members, group_live, process_live, signal_group};

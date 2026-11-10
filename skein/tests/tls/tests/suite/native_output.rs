@@ -1,4 +1,4 @@
-//! Native TLS over io and against a peer in memory (tls.md, 3.6).
+//! Native TLS over io and against a peer in memory (net/tls.md, 3.6).
 
 use rustls::ContentType;
 use skein_lib::{

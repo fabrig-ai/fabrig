@@ -1,5 +1,5 @@
-//! The TLS client (tls.md): a step machine that wraps rustls's unbuffered
-//! client connection between two streams (lib.md, 7).
+//! The TLS client (net/tls.md): a step machine that wraps rustls's unbuffered
+//! client connection between two streams (runtime/lib.md, 7).
 //!
 //! # Its two sides
 //!
@@ -17,7 +17,7 @@
 //! - **`Handshake` starts the connection,** first and once. `Ready`
 //!   answers it, with what was agreed, or `Failed`. The plaintext stream
 //!   may be demanded before `Ready`: its demands wait for the handshake.
-//! - **The plaintext stream** keeps the contract of a stream (lib.md, 7):
+//! - **The plaintext stream** keeps the contract of a stream (runtime/lib.md, 7):
 //!   each demand answered at most once, exactly; `End` once the server's
 //!   `close_notify` is read and nothing held meets a demand; `Finish` sends
 //!   `close_notify`, then finishes the stream below.
@@ -43,7 +43,7 @@
 //! between steps. [`LARGEST_READ`] and [`largest_room`] are what whoever stacks
 //! it checks against the caps of the stream below at startup.
 
-/// The client with independent output on both sides (tls.md, 3.6; lib.md, 7.1).
+/// The client with independent output on both sides (net/tls.md, 3.6; runtime/lib.md, 7.1).
 pub mod native;
 
 mod above;
@@ -78,7 +78,7 @@ use crate::{Config, Name};
 pub enum Request {
     /// Starts the handshake, first and once. `Ready` or `Failed` answers it.
     Handshake,
-    /// The plaintext stream (lib.md, 7), once the handshake is asked for: a
+    /// The plaintext stream (runtime/lib.md, 7), once the handshake is asked for: a
     /// demand of at most [`Limits::read`] and [`Limits::send`], waiting for
     /// the handshake if it is not done; a `Send` within the room granted,
     /// one a grant, empty or not; `Finish`, with no demand outstanding,
@@ -156,7 +156,7 @@ pub struct Client {
 /// What a client holds whatever its state, allocated with it.
 #[derive(Debug)]
 struct Buffers {
-    /// The plaintext the side above has not demanded yet (lib.md, 7).
+    /// The plaintext the side above has not demanded yet (runtime/lib.md, 7).
     intake: Intake,
     /// The ciphertext received, which rustls has not discarded.
     records: Held,
@@ -236,7 +236,7 @@ pub fn up(client: &mut Client, _env: &Env<Limits>, ev: Up, above: &mut Queue<Eve
         State::Open(open) => open_up(open, buffers, ev, above, below),
         State::Failed(demand) => State::Failed(failed_up(demand, ev)),
         State::Closing(closing) => closing_up(closing, &mut buffers.owed, ev, above, below),
-        // An answer to the demand the close withdrew, on its way (lib.md, 7);
+        // An answer to the demand the close withdrew, on its way (runtime/lib.md, 7);
         // an end or a failure, which change nothing now.
         State::Closed => State::Closed,
     };
@@ -374,7 +374,7 @@ fn start(
 
 /// An event below before the handshake: only the stream's end or failure,
 /// as nothing is demanded. A failure after the end says only that the
-/// stream cannot send (lib.md, 7), which fails the handshake all the same.
+/// stream cannot send (runtime/lib.md, 7), which fails the handshake all the same.
 fn fresh_up(mut fresh: Fresh, ev: Up) -> Fresh {
     fresh.line = match ev {
         Up::End => match fresh.line {

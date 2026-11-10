@@ -1,5 +1,5 @@
 //! Activation reasons and the messages an attempt is offered
-//! (jig/docs/design/domain/tasks.md, 8.2, 8.3, 8.6 and 9).
+//! (jig/docs/design/domain/tasks/messages.md, 2, 3 and 6 and jig/docs/design/domain/tasks/proposals.md).
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,

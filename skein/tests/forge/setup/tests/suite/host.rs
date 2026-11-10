@@ -253,7 +253,7 @@ fn missing_adoption_targets_report_their_supplied_repository_identifier() {
     );
 }
 
-// forge-setup.md, 4.8: the fixture's picker page holds four repositories.
+// forge/setup/forgejo.md, 1.8: the fixture's picker page holds four repositories.
 const PICKER_PAGE: u32 = 4;
 const ADMIN_READ: Need = Need::Read(Item::AdminToken);
 fn reachable(page: u32) -> Plan {

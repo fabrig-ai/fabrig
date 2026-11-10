@@ -1,4 +1,4 @@
-//! An engine's address or sign-in link (temper/docs/design/client/README.md, 6.1 and 6.11).
+//! An engine's address or sign-in link (temper/docs/design/client/line.md, 1, and temper/docs/design/client/tui/README.md, 1).
 use skein_lib::{
     Secret,
     base64::{self, Alphabet},

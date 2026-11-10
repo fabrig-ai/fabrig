@@ -1,4 +1,4 @@
-//! A task's immutable identity and retention (domain/tasks.md, sections 3 and 7).
+//! A task's immutable identity and retention (domain/tasks/README.md, section 3 and domain/tasks/changes.md).
 /// The flags a task is made with; amendments never change them.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Flags {
@@ -16,7 +16,7 @@ impl Flags {
     pub const PLAIN: Flags =
         Flags { ended_by: EndedBy::Result, conversation: false, listed: false, retention: Retention::Kept };
 }
-/// How long an ended task is retained (domain/people.md, section 6; protocol/store.md, section 11.1).
+/// How long an ended task is retained (domain/people/README.md, section 5; protocol/store/README.md, section 6.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Retention {
     /// Kept to the deployment's retention horizon.
@@ -25,25 +25,25 @@ pub enum Retention {
     ForgottenOnceRead,
 }
 
-/// The immutable authority that may end a task (domain/tasks.md, 5.8).
+/// The immutable authority that may end a task (domain/tasks/lifecycle.md, 9).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum EndedBy {
     /// Its run's judged result ends it.
     Result,
     /// Only its requester ends it; a run's raw finish parks it (5.8).
     Requester,
-    /// A named procedure closes an agent task (jig/docs/design/domain/tasks.md, 5.10).
+    /// A named procedure closes an agent task (jig/docs/design/domain/tasks/lifecycle.md, 11).
     Closer(Closer),
 }
 
-/// The procedure named to close a task (jig/docs/design/domain/tasks.md, 5.10).
+/// The procedure named to close a task (jig/docs/design/domain/tasks/lifecycle.md, 11).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Closer {
     pub connector: u16,
     pub code: u32,
 }
 
-/// Ending authority fits its executor and conversation (jig/docs/design/domain/tasks.md, 5.8 and 5.10).
+/// Ending authority fits its executor and conversation (jig/docs/design/domain/tasks/lifecycle.md, 9 and 11).
 #[must_use]
 pub fn shaped(flags: Flags, executor: crate::Executor) -> bool {
     if crate::batch::matches_job(executor) {

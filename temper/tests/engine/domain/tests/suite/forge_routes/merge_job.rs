@@ -1,4 +1,4 @@
-//! Merge jobs precede resolutions (temper/docs/design/domain/forge.md, 8.4).
+//! Merge jobs precede resolutions (temper/docs/design/domain/forge/change/repairs.md).
 use super::light_rules::{change_row, pushed_change_in};
 use super::*;
 use jig_domain_link::JobKind;
@@ -163,7 +163,7 @@ fn landed(world: &mut World, task: u64, head: u64) {
     assert!(world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Merge { head: merged, .. } if *merged == translate::commit(head))));
 }
 
-/// temper/docs/design/domain/forge.md, 8.4: a goal branch's conflict can be settled by its merge job alone.
+/// temper/docs/design/domain/forge/change/repairs.md: a goal branch's conflict can be settled by its merge job alone.
 #[test]
 fn a_conflict_into_a_goal_branch_is_settled_by_the_merge_job_and_merges() {
     let (mut world, task, head, base) = pushed_change_in(world(false, true, true).with_merge_job(COMMAND), true, GOAL);
@@ -183,7 +183,7 @@ fn a_conflict_into_a_goal_branch_is_settled_by_the_merge_job_and_merges() {
     world.close();
 }
 
-/// temper/docs/design/domain/forge.md, 8.4: a job leaving conflicts supplies the following resolution's account.
+/// temper/docs/design/domain/forge/change/repairs.md: a job leaving conflicts supplies the following resolution's account.
 #[test]
 fn a_conflict_the_merge_job_leaves_goes_to_a_resolution() {
     const LEFT: &[u8] = b"{\"left\":[\"file\"]}";
@@ -246,7 +246,7 @@ fn finish_resolution(world: &mut World, resolution: &engine::Assignment) {
     world.send(event);
 }
 
-/// temper/docs/design/domain/forge.md, 8.4: an update's conflict tries the merge job before asking an agent.
+/// temper/docs/design/domain/forge/change/repairs.md: an update's conflict tries the merge job before asking an agent.
 #[test]
 fn an_update_conflict_goes_to_the_merge_job_before_a_resolution() {
     let (mut world, task, head, base) =
@@ -265,7 +265,7 @@ fn an_update_conflict_goes_to_the_merge_job_before_a_resolution() {
     world.close();
 }
 
-/// temper/docs/design/domain/forge.md, 8.4: a conflict without a project command goes straight to a resolution.
+/// temper/docs/design/domain/forge/change/repairs.md: a conflict without a project command goes straight to a resolution.
 #[test]
 fn without_a_merge_job_a_conflict_goes_to_a_resolution() {
     let (mut world, task, head, base) = pushed_change_in(world(false, true, true), true, GOAL);
@@ -290,7 +290,7 @@ fn next_resolution(world: &mut World, task: u64) -> engine::Assignment {
     panic!("resolution was not assigned: {:?}", change_row(world, task));
 }
 
-/// temper/docs/design/domain/forge.md, 8.4: command, declared kind, spec room and authority all gate merge jobs.
+/// temper/docs/design/domain/forge/change/repairs.md: command, declared kind, spec room and authority all gate merge jobs.
 #[test]
 fn a_merge_job_needs_its_declared_kind_authority_and_spec_room() {
     for (kind, authority, command) in [(false, true, COMMAND), (true, false, COMMAND), (true, true, &[b'x'; 4096][..])]
@@ -307,7 +307,7 @@ fn a_merge_job_needs_its_declared_kind_authority_and_spec_room() {
     }
 }
 
-/// jig/docs/design/domain/engine.md, 7.5: transport failures exhaust retries and hold the job.
+/// jig/docs/design/domain/engine/executors.md, 5: transport failures exhaust retries and hold the job.
 #[test]
 fn a_failed_merge_job_is_held_after_its_retries() {
     let (mut world, task, head, base) = pushed_change_in(world(false, true, true).with_merge_job(COMMAND), true, GOAL);

@@ -1,6 +1,6 @@
-# The user's budgets, director/decisions/0028 (10-30): x1.5 of the cold measurement of 10-30 (main 44230b8fc), process-temper at its design aim (temper/docs/design/domain/testing.md 2.6), red until its repair; re-measure after a week. Changing a figure is the user's. browser-skein's 217.5, browser-temper's 127.5 and process-temper's 540 CPU seconds are 145, 85 and 360 raised by half by the user's word of 11-08, for now, to be revisited.
+# The user's budgets, director/decisions/0028 (10-30): x1.5 of the cold measurement of 10-30 (main 44230b8fc), process-temper at its design aim (temper/docs/design/testing/process-tier.md), red until its repair; re-measure after a week. Changing a figure is the user's. browser-skein's 217.5, browser-temper's 127.5 and process-temper's 540 CPU seconds are 145, 85 and 360 raised by half by the user's word of 11-08, for now, to be revisited.
 # Live pairs and other default/fuzzy suites have no entry yet: the user has not set their CPU budgets here.
-# Hearth's focused suite: the user's 11-04 ruling (hearth/docs/design/domain/testing.md, 9.1).
+# Hearth's focused suite: the user's 11-04 ruling (hearth/docs/design/testing/README.md, 4.1).
 # Hearth's fuzzy suite: 120 CPU seconds, the strategy's section 8, by the user's word of 11-07.
 # Smith's focused and fuzzy suites: 30 and 120 CPU seconds, the strategy's section 8, by the user's word of 11-07.
 # Skein's focused suite: 40 CPU seconds, by the user's word of 11-08; its fuzzy suite: 120 CPU seconds, the strategy's section 8, by the user's word of 11-07.

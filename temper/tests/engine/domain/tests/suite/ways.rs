@@ -1,5 +1,5 @@
 //! The root makes each reader's ways through the core's watch and commit barrier
-//! (temper/docs/design/domain/forge.md, 8.13; temper/docs/design/client/README.md, 4.6).
+//! (temper/docs/design/domain/forge/change/branch-path.md; temper/docs/design/client/forge/records.md).
 use jig_domain_core::{
     documents::{Watched, Window},
     settings as core_settings,
@@ -13,7 +13,7 @@ use temper_engine_domain_world::{direct::Driver, fixtures, forge_stand::ForgeSta
 const PROJECT: u32 = 1;
 const FORGE: u16 = 1;
 const WATCHER: Token = Token::new(700);
-// The stock has three ways (configuration.md, 13.10).
+// The stock has three ways (protocol/configuration/settings.md, 8).
 const STOCK_WAYS: usize = 3;
 // The direct driver's eight passes reach an unacknowledged journal commit.
 const HELD_PASSES: usize = 8;

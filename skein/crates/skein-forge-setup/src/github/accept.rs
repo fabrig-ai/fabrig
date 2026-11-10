@@ -1,4 +1,4 @@
-//! Verify one installation before retaining its id (forge-setup.md, 5.4).
+//! Verify one installation before retaining its id (forge/setup/github.md, 1.4).
 use super::{
     app,
     given::{self, Given, Refused},

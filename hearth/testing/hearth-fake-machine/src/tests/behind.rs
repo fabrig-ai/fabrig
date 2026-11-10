@@ -87,7 +87,7 @@ fn a_spawn_of_an_unclaimed_file_exits_127() {
     assert_eq!(
         answer(&mut behind, fixtures::seam_spawn(root, b"/usr/bin/unclaimed")),
         Ok(Reply::Program(Program::Exit(127))),
-        "hearth/docs/design/domain/testing.md, 3.5"
+        "hearth/docs/design/testing/fake-machine.md, 5"
     );
 }
 #[test]
@@ -97,7 +97,7 @@ fn a_spawn_of_a_missing_file_is_not_found() {
     assert_eq!(
         answer(&mut behind, fixtures::seam_spawn(root, b"/usr/bin/missing")),
         Err(Error::NotFound),
-        "hearth/docs/design/domain/testing.md, 3.5"
+        "hearth/docs/design/testing/fake-machine.md, 5"
     );
 }
 #[test]
@@ -133,7 +133,7 @@ fn a_lock_is_busy_through_a_second_handle_until_the_first_closes() {
     assert_eq!(
         answer(&mut behind, Ask::Lock { file: first }),
         Ok(Reply::Done),
-        "skein/docs/design/kernel.md, 6.1: taken"
+        "skein/docs/design/runtime/kernel.md, 6.1: taken"
     );
     assert_eq!(answer(&mut behind, Ask::Lock { file: second }), Err(Error::Busy), "another open holds it");
     assert_eq!(answer(&mut behind, Ask::Close { file: first }), Ok(Reply::Done), "closed");

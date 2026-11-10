@@ -1,4 +1,4 @@
-//! A bounded Markdown subset (skein's ui.md, section 10).
+//! A bounded Markdown subset (skein's ui/markdown.md).
 //! Each line is visited once. Inline links and delimiter pairs are found by
 //! bounded scans, then emitted without recursion. A fence retains only input
 //! offsets until it closes; `read` copies an unclosed fence as literal text,
@@ -56,13 +56,13 @@ pub fn read(input: &[u8], heading_base: u8, builder: &mut Builder) {
     close_lists(&mut blocks, builder);
 }
 
-/// A text that may yet grow (ui.md, section 10). `end` runs once, if the text
+/// A text that may yet grow (ui/markdown.md). `end` runs once, if the text
 /// holds a word, inside its last word's block, after its runs. Its caller
 /// counts `end`'s nodes.
 #[expect(
     clippy::impl_trait_in_params,
     clippy::disallowed_types,
-    reason = "ui.md, 10 specifies a caller-owned FnOnce for the end nodes"
+    reason = "ui/markdown.md specifies a caller-owned FnOnce for the end nodes"
 )]
 pub fn read_growing(input: &[u8], heading_base: u8, end: impl FnOnce(&mut Builder), builder: &mut Builder) {
     let first = builder.tree.len();
@@ -87,7 +87,7 @@ pub fn read_growing(input: &[u8], heading_base: u8, end: impl FnOnce(&mut Builde
 }
 
 // Locate the final block without retaining its lines. Only that block gets
-// growing inline rules; a blank line inside a fence cannot commit it (ui.md, 10).
+// growing inline rules; a blank line inside a fence cannot commit it (ui/markdown.md).
 fn growing_start(input: &[u8]) -> usize {
     let mut start = 0_usize;
     let mut growing = 0_usize;
@@ -236,7 +236,7 @@ fn waiting_line(raw: &[u8], unfinished: bool, candidate: bool, depth: u32) -> bo
 }
 
 // A last line whose runs have no words is still a marker. Probe with the same
-// token tables as emission, releasing them before that line is read (ui.md, 10).
+// token tables as emission, releasing them before that line is read (ui/markdown.md).
 fn waiting_words(raw: &[u8], depth: u32) -> bool {
     if raw.starts_with(b"```") || raw.contains(&b'<') || raw.contains(&b'|') {
         return false;
@@ -299,7 +299,10 @@ fn inline_words(line: &[u8], depth: u32) -> bool {
     false
 }
 
-#[expect(clippy::too_many_lines, reason = "the closing fence joins the existing Markdown line machine (ui.md, 10.1)")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the closing fence joins the existing Markdown line machine (ui/markdown.md, 1)"
+)]
 fn line(input: &[u8], start: usize, end: usize, next: usize, base: u8, blocks: &mut Blocks, builder: &mut Builder) {
     let raw = input.get(start..end).expect("line is in input");
     let raw = raw.strip_suffix(b"\r").unwrap_or(raw);
@@ -438,7 +441,7 @@ fn table_header(line: &[u8], following: &[u8]) -> bool {
     unescaped_pipe(following) && cell_count(line, false) == cell_count(following, true)
 }
 
-// Tables keep only their open block and scan each line's cells (ui.md, 10).
+// Tables keep only their open block and scan each line's cells (ui/markdown.md).
 fn close_table(blocks: &mut Blocks, builder: &mut Builder) {
     if blocks.table {
         close_block(blocks, builder);
@@ -475,7 +478,7 @@ fn trim(line: &[u8]) -> &[u8] {
 fn cells(line: &[u8]) -> &[u8] {
     let line = trim(line);
     let line = line.strip_prefix(b"|").unwrap_or(line);
-    // A final pipe has no closing backtick after it, so is outside a pair (ui.md, 10).
+    // A final pipe has no closing backtick after it, so is outside a pair (ui/markdown.md).
     if line.last() == Some(&b'|') && line.get(line.len().saturating_sub(2)) != Some(&b'\\') {
         line.strip_suffix(b"|").expect("final pipe exists")
     } else {
@@ -972,7 +975,7 @@ fn inline(line: &[u8], cell: bool, growing: bool, builder: &mut Builder) {
 fn flush(line: &[u8], start: usize, end: usize, run: Run, cell: bool, builder: &mut Builder) {
     let mut plain = start;
     if cell {
-        // A cell drops the backslash at emission, without copying it (ui.md, 10).
+        // A cell drops the backslash at emission, without copying it (ui/markdown.md).
         for index in start..end {
             let next = index.checked_add(1).expect("text offset fits");
             if line.get(index) == Some(&b'\\') && next < end && line.get(next) == Some(&b'|') {

@@ -1,11 +1,11 @@
-//! The box's steps and kind slots (temper/docs/design/protocol/setup.md, 7.1).
+//! The box's steps and kind slots (temper/docs/design/protocol/setup/box.md, 1).
 use crate::directories::jig_directories;
 use skein_io::kernel::{Exit, Fd};
 use skein_shell::{Clock, Config, Host, Kernel};
 use std::{fmt::Write, os::unix::ffi::OsStrExt};
 use temper_box::host::{Echo, FirstLink, Front, Service, Settings};
 
-/// How the box's stdout takes a sign-in link (temper/docs/design/protocol/setup.md, 7.2).
+/// How the box's stdout takes a sign-in link (temper/docs/design/protocol/setup/box.md, 2).
 pub(crate) fn link_form(
     stdout: &impl std::io::IsTerminal,
     environment: &[Box<[u8]>],
@@ -58,7 +58,7 @@ pub fn run(directories: &super::Directories, echo: Echo, no_tui: bool) -> Result
     run_configuration(directories, &bytes, held, Box::new([]), echo, no_tui, opening)
 }
 
-/// Lines opening the box log and following its sign-in block (protocol/setup.md, 7.2).
+/// Lines opening the box log and following its sign-in block (protocol/setup/box.md, 2).
 pub(crate) struct Opening {
     pub log_lines: Box<[Box<[u8]>]>,
     pub after_block: Box<[u8]>,
@@ -163,12 +163,12 @@ pub(crate) fn run_configuration(
     Ok(exit)
 }
 
-/// The binary's front condition (temper/docs/design/protocol/setup.md, 7.6).
+/// The binary's front condition (temper/docs/design/protocol/setup/box.md, 6).
 pub(crate) fn front_wanted(no_tui: bool, echo: Echo, terminals: bool, first_link: bool) -> bool {
     !no_tui && echo == Echo::None && terminals && first_link
 }
 
-/// The front signs in locally, at its own address (temper/docs/design/protocol/setup.md, 7.6).
+/// The front signs in locally, at its own address (temper/docs/design/protocol/setup/box.md, 6).
 pub(crate) fn front(named: &temper_service::startup::Named, first: &mut FirstLink) -> Result<Front, String> {
     let secret = skein_shell::crypto_seed().map_err(|errno| format!("first link: system randomness: errno {errno}"))?;
     let listener = super::address(&named.clients)?;
@@ -189,7 +189,7 @@ pub(crate) fn front(named: &temper_service::startup::Named, first: &mut FirstLin
     })
 }
 
-/// Return the terminal between iteration and submission (temper/docs/design/protocol/setup.md, 7.6).
+/// Return the terminal between iteration and submission (temper/docs/design/protocol/setup/box.md, 6).
 struct Fronted<'a> {
     service: &'a mut Service,
     terminal: Option<Fd>,
@@ -247,7 +247,7 @@ pub(super) fn held_listeners(held: Vec<(Fd, std::num::NonZeroU16)>) -> Result<Ve
         .map_err(super::held_refusal)
 }
 
-/// The first link, where the box prints one (temper/docs/design/protocol/setup.md, 7.2).
+/// The first link, where the box prints one (temper/docs/design/protocol/setup/box.md, 2).
 pub(super) fn first_link(
     named: &temper_service::startup::Named,
     steps: &temper_forge_setup::Steps,
@@ -325,7 +325,7 @@ fn open_listeners(
             listeners.push((fd, *addr));
         }
     }
-    // Forgejo's port must be free for Forgejo to bind (M3a, protocol/setup.md 7.1).
+    // Forgejo's port must be free for Forgejo to bind (M3a, protocol/setup/box.md 1).
     for (fd, _) in held {
         if !listeners.iter().any(|(listener, _)| *listener == fd) {
             super::close(vec![fd]);
@@ -383,7 +383,7 @@ pub fn configuration(directories: &super::Directories) -> Result<Configuration, 
     }
 }
 
-/// Reads the machine separately from the deployment's forge records (temper/docs/design/protocol/configuration.md, 3).
+/// Reads the machine separately from the deployment's forge records (temper/docs/design/protocol/configuration/engine.md).
 #[cfg(test)]
 pub(crate) fn machine(
     bytes: &[u8],

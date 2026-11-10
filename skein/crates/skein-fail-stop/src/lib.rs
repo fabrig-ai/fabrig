@@ -7,7 +7,7 @@
 //! `panicked at` line with the panic's location, its message, and a forced
 //! backtrace once, whatever `RUST_BACKTRACE` says. The report closes with
 //! that line and message again, so a supervisor keeping the last bytes
-//! retains them after a long backtrace (skein/docs/design/shell.md, 6).
+//! retains them after a long backtrace (skein/docs/design/runtime/shell.md, 6).
 //! The process then aborts before anything unwinds. The header follows the default
 //! hook's without the thread id: std's OS thread id is private, and a new
 //! platform call is not worth a log line when the backtrace says where the
@@ -15,7 +15,7 @@
 //! ends on `SIGABRT`, as under `panic = "abort"`. Each repository's gate
 //! checks that every binary calls it first.
 //! An optional restoration runs once before the report so it reaches the
-//! person's own screen (shell.md, 6.3).
+//! person's own screen (runtime/shell.md, 6.3).
 //!
 //! This is ordinary Rust (programming-model.md, 10.2).
 #![forbid(unsafe_code)]

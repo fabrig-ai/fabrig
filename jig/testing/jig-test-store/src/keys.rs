@@ -1,4 +1,4 @@
-//! Application keys preserve the connector's derived order (protocol/store.md, 4.1).
+//! Application keys preserve the connector's derived order (protocol/store/README.md, 4.1).
 use alloc::boxed::Box;
 use jig_test_connector::{self as d, RecordKey};
 use skein_kv::{KeyReader, KeyWriter};

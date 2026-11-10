@@ -1,5 +1,5 @@
 //! Landing evidence from conversation words and detailed committed activity.
-//! See temper/docs/design/client/tools.md, 5.2 and 6.2.
+//! See temper/docs/design/client/ctl/tools.md, 2, and temper/docs/design/client/ctl/results.md, 2.
 use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet};
 

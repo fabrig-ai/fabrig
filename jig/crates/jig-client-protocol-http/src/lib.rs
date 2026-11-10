@@ -1,4 +1,4 @@
-//! HTTP calls and printed links (protocol/client.md, 17.1, 17.3 and 17.4).
+//! HTTP calls and printed links (protocol/client/default-http.md, 1, 3 and 4).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;

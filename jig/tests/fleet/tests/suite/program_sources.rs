@@ -3,7 +3,7 @@ use jig_domain_link::{
     Hello, Login, LoginMethod, LoginState, Membership, SignOutResult, SourceFailure, SourceName, Worker,
 };
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
-// jig/docs/design/protocol/channel.md, 5.1 bounds a login email in bytes.
+// jig/docs/design/protocol/channel/records.md, 1 bounds a login email in bytes.
 const EMAIL_BYTES: usize = 255;
 
 const CHANNEL: Token = Token::new(101);

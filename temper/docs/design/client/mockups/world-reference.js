@@ -1,5 +1,5 @@
 // The retired first edition's world: its state at hour 0, and the steps that
-// move it on (domain/testing.md, 5.3). Times are minutes from hour 0,
+// move it on (testing/reference-case.md). Times are minutes from hour 0,
 // which is Thursday 22 October, 08:00 UTC.
 //
 // A world holds facts as the engine keeps them (a phase, what a task
@@ -47,7 +47,7 @@
         },
       },
 
-      // One forge, GitHub, through temper's App (client forge.md, 5.4).
+      // One forge, GitHub, through temper's App (client/forge/deployment.md).
       forges: [
         { n: 1, kind: 'GitHub', web: 'https://github.com', mode: 'connected', state: 'connected', login: 'temper-acme[bot]', id: 190244117,
           app: { slug: 'temper-acme', installs: [{ account: 'acme', id: 55120934, all: false, names: ['kit', 'app'] }] },
@@ -274,7 +274,7 @@
       },
 
       // Notes, each an entry: a one-line description, a body, a scope and
-      // its writer (jig's domain/engine.md, section 10).
+      // its writer (jig's domain/engine/briefs.md, section 2).
       notes: [
         { scope: 'project', by: 'T1', at: -50, name: 'priorities', text: 'T12 Harness: the fake server, then the flakes, then the build path.' },
         { scope: 'project', by: 'T1', at: -1300, name: 'standing rules', text: '- Claude for taste; implementers, surveys and investigations on Codex.\n- Budgets are Pat’s: ask before raising one.\n- Credentials are never copied between machines.\n- Owners check shared version numbers before each landing.' },
@@ -360,7 +360,7 @@
 
   MOCKUPS.worlds.reference = {
     name: 'Reference case',
-    about: 'the retired first edition (docs/design/domain/testing.md, 5.3): a director, owners on two machines, pools, findings, an ops application, moved on step by step',
+    about: 'the retired first edition (docs/design/testing/reference-case.md): a director, owners on two machines, pools, findings, an ops application, moved on step by step',
     HOUR0: Date.UTC(2026, 9, 22, 8, 0),
     initial, steps, upcoming, acts,
   };

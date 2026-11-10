@@ -81,7 +81,7 @@ fn watch(driver: &mut Driver, sign_in: u64, project: u32, task: u64, watcher: u6
     )).unwrap_or_else(|| panic!("panel watch must be answered: {:?}", driver.delivered))
 }
 
-// domain/forge.md, 8.8: a producing change has a whole panel before its branch is pushed.
+// domain/forge/change/README.md, 5: a producing change has a whole panel before its branch is pushed.
 #[test]
 fn producing_change_panel_has_no_head_or_pull() {
     let (mut driver, sign_in) = driver();
@@ -93,7 +93,7 @@ fn producing_change_panel_has_no_head_or_pull() {
     assert!(matches!(panel.step, forge::PanelStep::Producing));
 }
 
-// domain/forge.md, 8.8: the same change watched in a different project's scope is unknown.
+// domain/forge/change/README.md, 5: the same change watched in a different project's scope is unknown.
 #[test]
 fn another_projects_change_is_unknown() {
     let (mut driver, sign_in) = driver();
@@ -121,7 +121,7 @@ fn another_projects_change_is_unknown() {
     let answer = watch(&mut driver, sign_in, 1, 51, 903);
     assert!(
         matches!(answer, engine::Delivery::WatchEnded { .. }),
-        "design domain/forge.md 8.8: an admitted watch in the wrong project must answer unknown: {answer:?}"
+        "design domain/forge/change/README.md 5: an admitted watch in the wrong project must answer unknown: {answer:?}"
     );
 }
 
@@ -138,7 +138,7 @@ fn queued(task: u64, priority: i32, ready: u64) -> forge::ChangeRow {
     row
 }
 
-// domain/forge.md, 8.8 and 9: equal-priority queue order is readiness order, ahead nearest first.
+// domain/forge/change/README.md, 5 and domain/forge/queues.md: equal-priority queue order is readiness order, ahead nearest first.
 #[test]
 fn queued_panel_lists_the_nearest_tasks_first() {
     let (mut driver, sign_in) = driver();
@@ -148,13 +148,13 @@ fn queued_panel_lists_the_nearest_tasks_first() {
     driver.settle();
     let engine::Delivery::Panel { panel, .. } = watch(&mut driver, sign_in, 1, 55, 904) else { unreachable!() };
     let forge::PanelStep::Queued { place, ahead } = &panel.step else {
-        panic!("design domain/forge.md 8.8: queued change must have its place: {panel:?}");
+        panic!("design domain/forge/change/README.md 5: queued change must have its place: {panel:?}");
     };
-    assert_eq!(*place, 5, "design domain/forge.md 9: earlier ready changes go first");
-    assert_eq!(ahead.as_ref(), &[54, 53, 52, 51], "design domain/forge.md 8.8: ahead is nearest first");
+    assert_eq!(*place, 5, "design domain/forge/queues.md: earlier ready changes go first");
+    assert_eq!(ahead.as_ref(), &[54, 53, 52, 51], "design domain/forge/change/README.md 5: ahead is nearest first");
 }
 
-// domain/forge.md, 8.8: changing another change's priority marks the watched changes behind it.
+// domain/forge/change/README.md, 5: changing another change's priority marks the watched changes behind it.
 #[test]
 fn priority_moving_ahead_marks_the_waiting_panel() {
     let (mut driver, sign_in) = driver();
@@ -192,7 +192,7 @@ fn priority_moving_ahead_marks_the_waiting_panel() {
         driver.delivered.iter().any(|delivery| matches!(delivery,
             engine::Delivery::Panel { watcher, .. } if *watcher == Token::new(905)
         )),
-        "design domain/forge.md 8.8: a change moving ahead must mark the waiting panel; durable change rows={persisted}: {:?}",
+        "design domain/forge/change/README.md 5: a change moving ahead must mark the waiting panel; durable change rows={persisted}: {:?}",
         driver.delivered
     );
 }
@@ -211,7 +211,7 @@ fn reviewed_row(freshness: temper_engine_domain_forge_change::Freshness) -> forg
     row
 }
 
-// domain/forge.md, 8.8 and 8.3: a clean gate counts at a head reached by temper's clean update.
+// domain/forge/change/README.md, 5, and domain/forge/change/gates.md, 1: a clean gate counts at a head reached by temper's clean update.
 #[test]
 fn clean_update_carries_the_gate_verdict_to_the_current_head() {
     use temper_engine_domain_forge_change as change;
@@ -225,11 +225,11 @@ fn clean_update_carries_the_gate_verdict_to_the_current_head() {
     assert_eq!(
         panel.gates[0].verdict,
         change::Status::Passed,
-        "design domain/forge.md 8.8: the gate at the current head must include its clean carry: {panel:?}"
+        "design domain/forge/change/README.md 5: the gate at the current head must include its clean carry: {panel:?}"
     );
 }
 
-// domain/forge.md, 8.8: restart forgets CI until the change's next step reads it.
+// domain/forge/change/README.md, 5: restart forgets CI until the change's next step reads it.
 #[test]
 fn restart_forgets_ci_until_the_next_step_reads_it() {
     use temper_engine_domain_forge_change as change;
@@ -299,7 +299,7 @@ fn restart_forgets_ci_until_the_next_step_reads_it() {
     assert_eq!(
         panel.ci,
         change::Status::Unknown,
-        "design domain/forge.md 8.8: a restarted panel must forget CI until a step reads it: {panel:?}"
+        "design domain/forge/change/README.md 5: a restarted panel must forget CI until a step reads it: {panel:?}"
     );
     restored.send(engine::Event::Forge(Box::new(forge::Event::StepChange {
         merge_job: false,
@@ -327,11 +327,11 @@ fn restart_forgets_ci_until_the_next_step_reads_it() {
     assert_eq!(
         panel.ci,
         change::Status::Passed,
-        "design domain/forge.md 8.8: the next change step must make its freshly read CI visible again: {panel:?}"
+        "design domain/forge/change/README.md 5: the next change step must make its freshly read CI visible again: {panel:?}"
     );
 }
 
-// domain/root.md, 10 and domain/forge.md, 8.8: 32 marks bound notification, while each new document computes the current place.
+// domain/root.md, 9 and domain/forge/change/README.md, 5: 32 marks bound notification, while each new document computes the current place.
 #[test]
 fn queue_entry_obeys_the_mark_bound_and_a_reopen_reads_the_new_place() {
     let mut limits = fixtures::forge_limits();
@@ -358,41 +358,44 @@ fn queue_entry_obeys_the_mark_bound_and_a_reopen_reads_the_new_place() {
         driver.delivered.iter().any(|delivery| matches!(delivery,
             engine::Delivery::Panel { watcher, .. } if *watcher == Token::new(910)
         )),
-        "design domain/forge.md 8.8: a nearby queued panel must be marked when another enters ahead: {:?}",
+        "design domain/forge/change/README.md 5: a nearby queued panel must be marked when another enters ahead: {:?}",
         driver.delivered
     );
     assert!(
         driver.delivered.iter().any(|delivery| matches!(delivery,
             engine::Delivery::Panel { watcher, .. } if *watcher == Token::new(916)
         )),
-        "design domain/root.md 10: 28 followers, the changed, changes, status and approvals subjects fit 32 marks"
+        "design domain/root.md 9: 28 followers, the changed, changes, status and approvals subjects fit 32 marks"
     );
     assert!(
         !driver.delivered.iter().any(|delivery| matches!(delivery,
             engine::Delivery::Panel { watcher, .. } if *watcher == Token::new(917)
         )),
-        "design domain/root.md 10: 29 followers, the changed, changes, status and approvals subjects exceed 32 marks"
+        "design domain/root.md 9: 29 followers, the changed, changes, status and approvals subjects exceed 32 marks"
     );
     assert!(
         driver.delivered.iter().any(|delivery| matches!(delivery,
             engine::Delivery::ForgeDocument { watcher, document }
                 if *watcher == Token::new(918) && matches!(document.as_ref(), forge::Document::Changes(_))
         )),
-        "design client/forge.md 3: queue entry must mark the project's changes document"
+        "design client/forge/README.md 3: queue entry must mark the project's changes document"
     );
     assert!(
         !driver.delivered.iter().any(|delivery| matches!(delivery,
             engine::Delivery::Panel { watcher, .. } if *watcher == Token::new(911)
         )),
-        "design domain/root.md 10: a panel beyond the 32-subject bound must await its own mark"
+        "design domain/root.md 9: a panel beyond the 32-subject bound must await its own mark"
     );
     let engine::Delivery::Panel { panel, .. } = watch(&mut driver, sign_in, 1, 85, 921) else { unreachable!() };
     let forge::PanelStep::Queued { place, ahead } = &panel.step else { panic!("still queued: {panel:?}") };
-    assert_eq!(*place, 36, "design domain/forge.md 8.8: a newly opened panel must compute the queue's new place");
+    assert_eq!(
+        *place, 36,
+        "design domain/forge/change/README.md 5: a newly opened panel must compute the queue's new place"
+    );
     assert_eq!(ahead.len(), 35);
 }
 
-// domain/forge.md, 9: aging moves an older ready change ahead regardless of its priority.
+// domain/forge/queues.md: aging moves an older ready change ahead regardless of its priority.
 #[test]
 fn aging_moves_an_older_ready_change_ahead_of_a_lower_priority_number() {
     let (mut driver, sign_in) = driver();
@@ -404,18 +407,18 @@ fn aging_moves_an_older_ready_change_ahead_of_a_lower_priority_number() {
     let engine::Delivery::Panel { panel, .. } = watch(&mut driver, sign_in, 1, 51, 912) else { unreachable!() };
     assert!(
         matches!(panel.step, forge::PanelStep::Queued { place: 2, .. }),
-        "design domain/forge.md 9 and domain/agent.md 4.3: lower-numbered goal priority must go first before aging: {panel:?}"
+        "design domain/forge/queues.md and domain/agent/tools.md: lower-numbered goal priority must go first before aging: {panel:?}"
     );
     driver.fire_at(skein_lib::Duration::from_secs(31));
     driver.settle();
     let engine::Delivery::Panel { panel, .. } = watch(&mut driver, sign_in, 1, 51, 913) else { unreachable!() };
     assert!(
         matches!(panel.step, forge::PanelStep::Queued { place: 1, .. }),
-        "design domain/forge.md 9: a ready change past the aging window goes ahead of later ready changes: {panel:?}"
+        "design domain/forge/queues.md: a ready change past the aging window goes ahead of later ready changes: {panel:?}"
     );
 }
 
-// domain/forge.md, 8.8 and 9: leaving the queue marks the changes behind; reentry keeps readiness order.
+// domain/forge/change/README.md, 5 and domain/forge/queues.md: leaving the queue marks the changes behind; reentry keeps readiness order.
 #[test]
 fn queue_exit_and_reentry_refresh_the_panel_behind() {
     let (mut driver, sign_in) = driver();
@@ -445,7 +448,7 @@ fn queue_exit_and_reentry_refresh_the_panel_behind() {
                 None
             }
         })
-        .expect("design domain/forge.md 8.8: a queue exit must mark the change behind");
+        .expect("design domain/forge/change/README.md 5: a queue exit must mark the change behind");
     assert!(
         matches!(panel.step, forge::PanelStep::Queued { place: 2, .. }),
         "queue exit must update the place: {panel:?}"
@@ -467,14 +470,14 @@ fn queue_exit_and_reentry_refresh_the_panel_behind() {
                 None
             }
         })
-        .expect("design domain/forge.md 8.8: reentry ahead must mark the change behind");
+        .expect("design domain/forge/change/README.md 5: reentry ahead must mark the change behind");
     assert!(
         matches!(panel.step, forge::PanelStep::Queued { place: 3, .. }),
-        "design domain/forge.md 9: reentry keeps the first ready time and restores the previous place: {panel:?}"
+        "design domain/forge/queues.md: reentry keeps the first ready time and restores the previous place: {panel:?}"
     );
 }
 
-// domain/forge.md, 8.3 and 8.8: exact gates are not carried through even a clean update.
+// domain/forge/change/gates.md, 1, and domain/forge/change/README.md, 5: exact gates are not carried through even a clean update.
 #[test]
 fn clean_update_does_not_carry_an_exact_gate_verdict() {
     use temper_engine_domain_forge_change as change;
@@ -485,11 +488,11 @@ fn clean_update_does_not_carry_an_exact_gate_verdict() {
     assert_eq!(
         panel.gates[0].verdict,
         change::Status::Unknown,
-        "design domain/forge.md 8.3: an exact gate at an older head must not count at the cleanly updated head: {panel:?}"
+        "design domain/forge/change/gates.md 1: an exact gate at an older head must not count at the cleanly updated head: {panel:?}"
     );
 }
 
-// domain/forge.md, 8.8: saving the change's own record marks its watched panel.
+// domain/forge/change/README.md, 5: saving the change's own record marks its watched panel.
 #[test]
 fn own_record_change_refreshes_a_watched_panel() {
     let (mut driver, sign_in) = driver();
@@ -529,11 +532,11 @@ fn own_record_change_refreshes_a_watched_panel() {
                 None
             }
         })
-        .expect("design domain/forge.md 8.8: saving the change's own record must mark its watched panel");
+        .expect("design domain/forge/change/README.md 5: saving the change's own record must mark its watched panel");
     assert_eq!(panel.questions.taken.used, questions.taken, "the delivery must be the whole new panel");
 }
 
-// client/forge.md, 9.2: the watch's window is unused, and never slices a whole panel.
+// client/forge/served.md, 2: the watch's window is unused, and never slices a whole panel.
 #[test]
 fn a_watch_window_does_not_slice_the_queue_panel() {
     let (mut driver, sign_in) = driver();
@@ -573,11 +576,11 @@ fn a_watch_window_does_not_slice_the_queue_panel() {
     assert_eq!(
         ahead.as_ref(),
         &[54, 53, 52, 51],
-        "design client/forge.md 9.2: a window of one row after a cursor must still deliver the whole panel"
+        "design client/forge/served.md 2: a window of one row after a cursor must still deliver the whole panel"
     );
 }
 
-// domain/forge.md, 8.7–8.8: an enforced approval wait reaches the requester.
+// domain/forge/change/gates.md, 2, and domain/forge/change/README.md, 5: an enforced approval wait reaches the requester.
 #[test]
 fn landing_rule_approval_wait_is_visible_to_requester() {
     super::forge_routes::approval_identity::approval_wait_story();

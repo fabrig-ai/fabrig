@@ -1,4 +1,4 @@
-//! SHA-256 content versions for conditional whole-file stores (io.md, section 5).
+//! SHA-256 content versions for conditional whole-file stores (runtime/io/files.md).
 
 use skein_lib::sha256;
 

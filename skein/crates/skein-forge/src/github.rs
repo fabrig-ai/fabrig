@@ -1,4 +1,4 @@
-//! GitHub's documents at its pin (forge-github.md).
+//! GitHub's documents at its pin (forge/github.md).
 pub mod credential;
 pub mod decode;
 pub mod delivery;

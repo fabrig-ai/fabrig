@@ -198,7 +198,7 @@ pub const fn room_for_sign_in(limits: &Limits, under_way: u32) -> Result<(), Ref
     Ok(())
 }
 
-/// Why a finish was refused (client/domain/contract.md, section 4).
+/// Why a finish was refused (client/domain/contract/README.md, section 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SignInRedirectWhy {
     /// No sign-in of this party's waits for its redirect under that number.

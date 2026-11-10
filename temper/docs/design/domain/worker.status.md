@@ -19,19 +19,19 @@ checks that replacement and its HEAD update.
 Section 4.3's failed and refused answer diagnostics reach serve's stderr and the box's
 `serve.log`; that operator-output path has no gap. A failed-run hold's
 `way out:` points to that log, and `temper help hold` names its location
-under both `box` and `serve` (`../client/tools.md`, 6.1).
-Section 4.3's busy start has no known gap: smith's busy, an agent with
+under both `box` and `serve` (`../client/ctl/results.md`, 1).
+`worker.md`, section 4.3's busy start has no known gap: smith's busy, an agent with
 no room or a run it has no room for, reaches the hub as
 `FromAgent::StartBusy` (`temper-worker-domain`'s `agents.rs`, `ended`,
 and `hand_out.rs`, `Finish::of`), and spends no try.
-Sections 4.1's *Transcript* and 4.3's start the link cannot carry have
+`worker.md`, section 4.1's *Transcript* and 4.3's start the link cannot carry have
 no known gap. The engine's
 link takes its `io.largest_room` and the worker's its own
 (`temper-service/src/workers.rs`, `limits`;
 `worker_settings.rs`, `link_limits`); jig's engine link fits a resumed
 start's committed calls to that room, the newest answers whole and the
 older cut to words naming their bytes (jig's
-`protocol/channel.status.md`); a start still past the room fails as an
+`protocol/channel/README.status.md`); a start still past the room fails as an
 invalid start naming its bytes and the room, serve writes its refused-run
 line and `worker unsent`, and the link, its pings and a later run go on.
 On each stock profile, `link_room.rs`'s
@@ -44,11 +44,11 @@ the fit gives; everything at once crosses on `small`, and on `standard`
 it and the largest inbox fail with their numbers, every answer cut
 first; one byte past a part is refused
 before the link, `assignment cannot encode`, but a brief section, which
-the charter's fitting omits (`agent.md`, 4.3). Its
+the charter's fitting omits (`agent/tools.md`). Its
 `stock_profiles_make_both_links_and_fit_every_nonstart_frame` and
 `workers.rs`'s `refused_answer_reason_reaches_operator_once` hold the
 rest. Limits whose smallest resumed start passes the engine's room are
-refused at start (`../protocol/configuration.status.md`, 7). The
+refused at start (`../protocol/configuration/limits.status.md`). The
 deployment's start the request `worker-link-quiet` of 2026-11-09 saw
 silence its link is, by reading, a resumed producer's committed calls
 past the room, which the request `resume-fits-room` of the same day
@@ -86,7 +86,7 @@ Sections 4.4 and 5 have no known gap in a merge past the checkout's
 marked and unmerged, and names the first `conflicts`
 (`../protocol/git.status.md`), and the composed system world's
 `suite::merge_job` runs a merge job that settles `conflicts + 1` files and
-delivers (`testing.status.md`, 2.1). That story's rows also hold the
+delivers (`../testing/README.status.md`, 2.1). That story's rows also hold the
 request's other candidates, on fake git and a fake forge: the hello's
 kind, the command's path and request, the spec's and result's bounds,
 and a base fetched by its id into a cached clone that never fetched its
@@ -101,7 +101,7 @@ world's three goal stories cover r already contained in g, a clean merge
 committed before the run and a conflict retained for the run to settle;
 each delivery fast-forwards r and leaves g unchanged. They use fake git
 and disk, and do not settle the deployment replay gaps below. A goal's
-saved start overtaken by a repair remains deferred (`forge.md`, section 20).
+saved start overtaken by a repair remains deferred (`forge/README.md`, section 11).
 
 Section 3.1 has no known gap in reading the link: the worker reads it
 and fires its deadlines on every pass, whatever the entrance holds, and
@@ -120,7 +120,7 @@ record has run since.
 Section 6's agent program is the worker's named program: the box's
 `temper internal agent AGENT.json` or a deployment's `temper-agent
 AGENT.json`, with the same program used for a model list
-(`../protocol/README.status.md`, 7). Every temper worker names its agent's
+(`../protocol/README.status.md`, 5). Every temper worker names its agent's
 `host_reply_text` as the hello's reply bound, the in-process worker among
 them (`temper-worker-shell/src/agent.rs`). The service gives the worker's
 `Limits::reply_bytes` the same figure (`temper-service/src/worker_settings.rs`).
@@ -235,4 +235,3 @@ them (`temper-worker-shell/src/agent.rs`). The service gives the worker's
   (`../draft/dogfood-hacks.md`, 2.13). It carries no credential. No test
   runs the variable from a worker through a real agent process to a file, as
   the request of 2026-11-05 leaves that to the next comparison's run.
-

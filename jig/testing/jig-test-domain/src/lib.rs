@@ -53,7 +53,7 @@ impl Record {
 /// One mutation in an atomic decision.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Write {
-    /// Drop a task transcript whole (jig/docs/design/domain/people.md, 5.2; jig/docs/design/protocol/store.md, 8.5, 11.1).
+    /// Drop a task transcript whole (jig/docs/design/domain/people/acts.md, 2; jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/README.md, 6.1).
     DropTranscript { task: u64 },
     /// Copy the old settings revision into history atomically.
     CopySettingsRevision(u32),
@@ -123,9 +123,9 @@ pub use jig_domain_hub_link::Assignment;
 /// What the root asks its surrounding world to do.
 #[derive(Debug)]
 pub enum Request {
-    /// The store's names, replaced before the catalogue decision commits (domain/engine.md, 17.11).
+    /// The store's names, replaced before the catalogue decision commits (domain/engine/settings.md, 11).
     StoreCatalogue { names: Box<[core::settings::ModelName]> },
-    /// The clients' catalogue, after the store's replacement (domain/engine.md, 17.11).
+    /// The clients' catalogue, after the store's replacement (domain/engine/settings.md, 11).
     ClientsCatalogue { models: Box<[core::settings::CatalogueModel]> },
     /// Read a fenced opaque terminal in the protocol routing.
     ReadResult { payload: Token, outcome: Box<[u8]> },
@@ -175,7 +175,7 @@ pub enum Event {
     },
     /// A protocol-decoded application value with its independently computed
     /// digest, and the number and digest of a value it carried, already kept
-    /// in the secrets' store (`protocol/client.md`, section 5).
+    /// in the secrets' store (`protocol/client/README.md`, section 3).
     Application {
         reply_to: ReplyTo,
         sign_in: u64,
@@ -191,7 +191,7 @@ pub enum Event {
     /// A numbered connector's independent retry deadline elapsed.
     ConnectorTimer { number: u16 },
     /// The generation is active; commit the start’s mark.
-    /// Begin jig's start (engine.md 6) at this event's wall time.
+    /// Begin jig's start (domain/engine/restart.md) at this event's wall time.
     StartBegin { pending: bool },
     /// The host finished the requested phase, with pages handed in through
     /// `start_record`/`start_missing`, or the store switched at `Switch`.
@@ -378,7 +378,7 @@ impl Domain {
         &self.core
     }
 
-    /// Let a world supply connector release answers (jig/docs/design/domain/people.md, 5.2).
+    /// Let a world supply connector release answers (jig/docs/design/domain/people/acts.md, 2).
     pub fn script_project_releases(&mut self) {
         if self.scripted_project_releases.is_none() {
             self.scripted_project_releases = Some(Queue::uncapped());
@@ -482,7 +482,7 @@ impl Domain {
         );
         assert!(out.is_empty(), "fixed hold vocabulary has no effects");
     }
-    /// Pieces whose kind or offset the core cannot keep (engine.md, 11).
+    /// Pieces whose kind or offset the core cannot keep (domain/engine/views.md).
     #[must_use]
     pub fn pieces_dropped(&self) -> u64 {
         self.hub_link.pieces_dropped()
@@ -842,7 +842,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
     }
 }
 
-/// Inputs routed inside the root's decision (jig/docs/design/domain/engine.md, 6).
+/// Inputs routed inside the root's decision (jig/docs/design/domain/engine/restart.md).
 #[derive(Debug)]
 enum StartInput {
     Begin { pending: bool },

@@ -1,4 +1,4 @@
-//! Drivers for activation-specific runs (`jig/docs/design/domain/tasks.md`, 8.6 and 9).
+//! Drivers for activation-specific runs (`jig/docs/design/domain/tasks/messages.md`, 6 and `jig/docs/design/domain/tasks/proposals.md`).
 use crate::{
     fixtures,
     world::{Setup, World},

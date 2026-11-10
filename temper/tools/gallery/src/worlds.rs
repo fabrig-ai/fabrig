@@ -1,5 +1,5 @@
 //! Mockup documents, answered through the same windows as the engine.
-//! First-run records follow temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5 and 4.8.
+//! First-run records follow temper/docs/design/client/forge/deployment.md; temper/docs/design/client/pages/README.md and temper/docs/design/client/forge/family.md, 7.
 use temper_fixtures::client_documents as documents;
 mod chat_work;
 mod team;
@@ -299,7 +299,7 @@ pub(super) fn world(w: World, address: Address, then: Then) -> (Domain, Option<T
         Reference | Solo | FirstRun { .. } | World::Bare => world_in_layout(w, address, then, false, None, None, false),
     }
 }
-/// Approval cards reached through the root's events (client/browser.md, 7.2).
+/// Approval cards reached through the root's events (client/web/gallery.md, 2).
 pub(super) fn approve_world(name: &str) -> Domain {
     use jig_client::{Approval, ApprovalCode, ApprovalState, Decided};
     use temper_client_domain::{Action, Place, approve::Act};
@@ -406,7 +406,7 @@ pub(super) fn linked_chat_world(w: World, address: Address) -> Domain {
     )
     .0
 }
-/// First-run Ask leaves only the way of working unfinished (client/browser.md, 7.2).
+/// First-run Ask leaves only the way of working unfinished (client/web/gallery.md, 2).
 pub(super) fn to_begin_world(w: World, address: Address, then: Then) -> Domain {
     world_in_layout(w, address, then, false, None, Some("ask-first-run"), false).0
 }
@@ -416,7 +416,7 @@ pub(super) fn asking_world(w: World, address: Address, then: Then) -> (Domain, O
 pub(super) fn goals_world(w: World, address: Address, name: &str) -> Domain {
     world_in_layout(w, address, Then::Shown, false, Some(name), None, false).0
 }
-/// Remembered states use the person's party documents and public acts (client/README.md, 5.17).
+/// Remembered states use the person's party documents and public acts (client/pages/remembered.md).
 pub(super) fn remembered_world(name: &str) -> Domain {
     use temper_client_domain::pages::{Act, remembered::Act as R};
     let mut root = world_in_layout(Reference, Address::Remembered, Then::Shown, false, Some(name), None, false).0;
@@ -1974,7 +1974,7 @@ fn tools_line(calls: &[(&str, u32)], made: &[u64], proposes: bool, number: u32) 
     turn_line(&blocks, number, None, false)
 }
 // BEGIN WORLD DATA
-/// Goals' owner facts and report headlines (temper/docs/design/client/browser.md, 7.2).
+/// Goals' owner facts and report headlines (temper/docs/design/client/web/gallery.md, 2).
 struct GoalFacts {
     number: u64,
     title: &'static str,
@@ -2370,7 +2370,7 @@ fn goal_inbox(
     c::InboxPage { rows, selection: Some(selection), before: None, after: None, cut: false }
 }
 
-/// The goal page's mock records (temper/docs/design/client/browser.md, 7.2).
+/// The goal page's mock records (temper/docs/design/client/web/gallery.md, 2).
 struct GoalPage {
     facts: GoalFacts,
     brief: &'static str,
@@ -3609,7 +3609,7 @@ fn activity(w: World, task: u64) -> c::ActivityPage {
             events.push(tools_line(&[("read", 4), ("shell", 1)], &[], false, 1)).expect("world activity");
             events.push(agent_line("Errors carry their line now, and an embedded newline moves it on. The column next: counted from the start of its line, quotes included.", 2, None)).expect("world activity");
             events.push(tools_line(&[("edit", 3), ("shell", 2)], &[], false, 3)).expect("world activity");
-            // Its last mockup turn is live; static gallery states show committed turns only (browser.md, 7.1).
+            // Its last mockup turn is live; static gallery states show committed turns only (client/web/gallery.md, 1).
         }
         (Solo, 10) => {
             events.push(agent_line("That changes `report`'s output and its tests, and lands into main, so I've proposed it as a goal of yours, with a budget of its own.", 2, Some(1))).expect("world activity");
@@ -4509,7 +4509,7 @@ fn plan_tree(w: World, task: u64, window: u32, then: Then) -> c::Delivery {
         for number in facts(w, parent).children {
             let f = facts(w, *number);
             // The owner tree contains live tasks; T5's retained result is
-            // not a plan row (client/README.md, 5.8).
+            // not a plan row (client/pages/goal.md, 2).
             if f.phase != c::Phase::Done && f.phase != c::Phase::Ended {
                 descendants.push((*number, parent, depth + 1));
                 pending.push((*number, depth + 1));
@@ -4580,7 +4580,7 @@ fn deployment(w: World) -> c::Deployment {
     }
 }
 
-/// Mockup world clocks, without reading the host's clock (client/browser.md, 7.2).
+/// Mockup world clocks, without reading the host's clock (client/web/gallery.md, 2).
 pub(super) fn now(w: World) -> Wall {
     let minutes = match w {
         FirstRun { step } => match step {
@@ -4671,7 +4671,7 @@ fn adopt_owned_sample(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
     forges_watched(root, FirstRun { step: 7 }, watch, out);
 }
 
-/// Sample clocks keep the mock’s dates and relative ages (client/browser.md, 7.2).
+/// Sample clocks keep the mock’s dates and relative ages (client/web/gallery.md, 2).
 pub(super) fn sample_now(world: World, name: &str) -> Wall {
     match name {
         name if name.starts_with("all-home") || name == "night-all-home" || name.starts_with("home-step-") => {
@@ -4695,7 +4695,7 @@ pub(super) fn sample_now(world: World, name: &str) -> Wall {
     }
 }
 
-/// The changes subject is supplied by the sample, independently of the engine (client/README.md, 4.6).
+/// The changes subject is supplied by the sample, independently of the engine (client/forge/records.md).
 pub(super) fn changes_world(name: &str) -> Domain {
     use jig_client::{Down, Readable, Up, Watchable};
     use temper_client_protocol_wire::{self as wire, v1 as v};
@@ -4934,7 +4934,7 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
     .expect("changes panel")
 }
 
-/// Home's computed facts (client/README.md, 3.5), delivered by its status watch.
+/// Home's computed facts (client/pages/README.md), delivered by its status watch.
 pub(super) fn home_status(name: &str) -> Option<temper_client_protocol_wire::v1::ProjectStatus> {
     use temper_client_protocol_wire::v1 as w;
     let (landed, seen, queued, red, previous, last) = match name {
@@ -4974,7 +4974,7 @@ pub(super) fn home_status(name: &str) -> Option<temper_client_protocol_wire::v1:
     )
 }
 
-/// Settings' delivered kinds 6, 7 and 8 (temper/docs/design/client/browser.md, 7.2).
+/// Settings' delivered kinds 6, 7 and 8 (temper/docs/design/client/web/gallery.md, 2).
 fn settings_bytes(name: &str, kind: u32) -> Box<[u8]> {
     use temper_client_protocol_wire::v1 as v;
     if kind == 8 {
@@ -5261,7 +5261,7 @@ fn settings_chat_frame(me: &mut c::Me) {
     templates.push(way).expect("default way");
     member.templates = templates;
 }
-/// The Builders sample's three supplied connection states (client/browser.md, 7.2).
+/// The Builders sample's three supplied connection states (client/web/gallery.md, 2).
 fn builders() -> List<c::Host> {
     let mut rows = List::with_capacity(3);
     for (channel, name, connected, draining) in
@@ -5289,7 +5289,7 @@ fn builders() -> List<c::Host> {
     rows
 }
 
-/// Home's copies share Ready's intent; the watch supplies progress and adoptions (client/README.md, 3.5).
+/// Home's copies share Ready's intent; the watch supplies progress and adoptions (client/pages/README.md).
 pub(super) fn home_copies(
     mut row: temper_client_protocol_wire::v1::ForgeRowParts,
     state: &str,
@@ -5366,7 +5366,7 @@ pub(super) fn home_copies(
     row
 }
 
-/// Home’s Add sheet is page state reached through its own button (client/README.md, 3.5).
+/// Home’s Add sheet is page state reached through its own button (client/pages/README.md).
 pub(super) fn home_add_sheet(root: &mut Domain, copies: bool) {
     step(
         root,
@@ -5465,7 +5465,7 @@ fn chat_activity() -> c::ActivityPage {
     c::ActivityPage { rows, before: None, after: None, cut: false }
 }
 
-/// Away's watch supplies the row, while the request's answer supplies its toast (client/browser.md, 7.2).
+/// Away's watch supplies the row, while the request's answer supplies its toast (client/web/gallery.md, 2).
 pub(super) fn away_record(on: bool) -> Box<[u8]> {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let wall = sample_now(FirstRun { step: 7 }, "rail-away-on");
@@ -5522,7 +5522,7 @@ pub(super) fn rail_away_toggle(root: &mut Domain, watch: Token, on: bool) {
     );
 }
 
-/// Away's hand-made Home deliveries (client/browser.md, 7.2).
+/// Away's hand-made Home deliveries (client/web/gallery.md, 2).
 pub(super) fn home_away_record(name: &str) -> Box<[u8]> {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let now = sample_now(FirstRun { step: 7 }, name).as_nanos();
@@ -5744,7 +5744,7 @@ pub(super) fn home_away_deliveries(root: &mut Domain, watch: Token, name: &str, 
     assert!(out.is_empty(), "Home decisions settle");
 }
 
-/// The Models samples use only the accounts' supplied offer (client/README.md, 3.5, The `Models` tab).
+/// The Models samples use only the accounts' supplied offer (client/pages/README.md, The `Models` tab).
 fn models_frame(me: &mut c::Me, one_account: bool, state: super::samples::ModelState) {
     use super::samples::ModelState;
     if state == ModelState::Member {

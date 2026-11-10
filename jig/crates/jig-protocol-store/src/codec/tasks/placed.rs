@@ -1,4 +1,4 @@
-//! Placed holds retain their own identity and revision (domain/tasks.md, 5.9).
+//! Placed holds retain their own identity and revision (domain/tasks/lifecycle.md, 10).
 use crate::tasks_v9 as wire;
 use jig_domain_tasks as domain;
 use skein_lib::List;

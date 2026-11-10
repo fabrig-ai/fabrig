@@ -1,6 +1,6 @@
 //! Stock funding and lifetime capacity under init's effective limits
-//! (`temper/docs/design/protocol/configuration.md`, 13.4;
-//! `temper/docs/design/domain/testing.md`, 1).
+//! (`temper/docs/design/protocol/configuration/stock.md`;
+//! `temper/docs/design/testing/README.md`, 1).
 use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_link::EndpointBound;
@@ -17,12 +17,12 @@ const PROJECT: u32 = 1;
 const CHAT: u32 = 1;
 const GOAL: u32 = 2;
 const STEPS: u32 = 200; // The forge world's durable round-trip bound.
-const CHATS: u8 = 80; // configuration.md, 13.4: eighty simultaneous 24K allotments.
+const CHATS: u8 = 80; // protocol/configuration/stock.md: eighty simultaneous 24K allotments.
 const K: u64 = 8_720; // Sol: C = ceil((1,048,576 × 2,000 + 8,192 × 10,000) / 1,000,000), K = 4C.
 const CHAT_SPEND: u64 = 24 * K;
 const POOL_SPEND: u64 = CHATS as u64 * CHAT_SPEND;
 const WORKER: Token = Token::new(7);
-const TREE_TASKS: u32 = 384; // configuration.md, 13.4: lifetime tasks, including the goal.
+const TREE_TASKS: u32 = 384; // protocol/configuration/stock.md: lifetime tasks, including the goal.
 const LEAVES: [u32; 4] = [95, 95, 95, 94]; // Goal + four coordinators + 379 reports = 384.
 
 fn stock_world() -> (World, core::settings::Defaults) {

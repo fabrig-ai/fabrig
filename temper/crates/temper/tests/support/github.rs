@@ -1,4 +1,4 @@
-//! A person connects their App, pushes once and restarts (domain/testing.md, 2.6).
+//! A person connects their App, pushes once and restarts (testing/process-tier.md).
 use super::{
     Scratch, WITHIN, cluster, ctl,
     story_socket::{Scope, Socket},
@@ -653,7 +653,7 @@ pub fn stopped_members_details_include_exits_and_bounded_stderr() {
     assert!(details.ends_with("stderr tail:\n�\n"), "invalid stderr bytes remain printable");
 }
 
-/// The live observations prefix through its last complete checkpoint (protocol/setup.md, 8.4).
+/// The live observations prefix through its last complete checkpoint (protocol/setup/playground.md).
 fn certified_prefix(bytes: &[u8]) -> &[u8] {
     let mut end = bytes.len();
     for line in bytes.split_inclusive(|byte| *byte == b'\n').rev() {

@@ -1,5 +1,5 @@
 //! Load bounded live rows, refuse missing links, then rebuild derived state
-//! (jig/docs/design/domain/engine.md, 6; jig/docs/design/domain/tasks.md, 12).
+//! (jig/docs/design/domain/engine/restart.md; jig/docs/design/domain/tasks/README.md, 7).
 //! Retained rows stay in root storage. A fit refusal remains sticky.
 use crate::domain::{Domain, Startup, Task, activate, publish, record, snapshot, task_mut};
 use crate::{
@@ -169,7 +169,7 @@ fn links(domain: &Domain, task: &TaskRecord) -> Result<(), crate::RestoreCause> 
         retained_link(domain, *target)?;
     }
     // Completed dependencies and retained inputs are store-read identities;
-    // only waiting_on consumes a live dependency here (domain/tasks.md, 5.7).
+    // only waiting_on consumes a live dependency here (domain/tasks/lifecycle.md, 8).
 
     if let Some(proposal) = &task.proposal {
         match proposal.state {

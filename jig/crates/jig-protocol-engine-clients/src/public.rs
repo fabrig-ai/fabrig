@@ -1,4 +1,4 @@
-//! Public reading's identifiers and declared kinds (jig/docs/design/protocol/client.md, 19).
+//! Public reading's identifiers and declared kinds (jig/docs/design/protocol/client/public-reads.md).
 mod names;
 use jig_client_protocol_wire::{PUBLIC_BOARD, PUBLIC_CARD, PUBLIC_PROJECTS, PUBLIC_VERSION, PublicIndexBounds};
 pub use names::{Names, Of};

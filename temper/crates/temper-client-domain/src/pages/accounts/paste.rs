@@ -1,4 +1,4 @@
-//! A sign-in's browser address, pasted and sent once (client/README.md, 3.5, The paste).
+//! A sign-in's browser address, pasted and sent once (client/pages/README.md, The paste).
 use super::{Pending, SignInState, document, request::Request};
 use crate::{owner::Owner, pages::Request as Output};
 use alloc::boxed::Box;

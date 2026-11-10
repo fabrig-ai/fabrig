@@ -1,7 +1,7 @@
 family every 1
 
 # Every type of the language, with list and option nesting, for the
-# generic decoder's tests against the generated code (codec.md, 8.3).
+# generic decoder's tests against the generated code (data/codec/README.md, 8.3).
 
 record Blank {}
 
@@ -56,8 +56,8 @@ versioned record Every {
     stamp: Stamp
     nest: Nest
     empty: Blank
-    # Holds Thing of every-other (codec.md 3).
+    # Holds Thing of every-other (data/codec/README.md 3).
     held: bytes 8 holds every-other Thing
-    # Holds pieces of Numbers (codec.md 3).
+    # Holds pieces of Numbers (data/codec/README.md 3).
     items: bytes 64 pieces Numbers
 }

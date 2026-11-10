@@ -3,7 +3,7 @@ use super::model::*;
 use skein_ui::{Role, State};
 const DEPLOYMENT_ROW: &[u8] = "Scripted API key · held by the deployment".as_bytes();
 
-// client/README.md 3.5 Accounts: empty own accounts still offer Connect a model.
+// client/pages/README.md Accounts: empty own accounts still offer Connect a model.
 #[test]
 fn empty_own_accounts_offer_a_model_connection() {
     let mut world = world();
@@ -19,7 +19,7 @@ fn empty_own_accounts_offer_a_model_connection() {
     );
 }
 
-// client/README.md 3.5 Accounts and 5.2: deployment accounts start folded.
+// client/pages/README.md Accounts and 5.2: deployment accounts start folded.
 #[test]
 fn deployment_accounts_start_folded() {
     let mut world = world();
@@ -37,7 +37,7 @@ fn deployment_accounts_start_folded() {
     }
 }
 
-// client/README.md 3.5 Accounts and 5.1: the fake person finds a folded row's content whole.
+// client/pages/README.md Accounts and 5.1: the fake person finds a folded row's content whole.
 #[test]
 fn account_rows_expose_their_account_and_source_acts() {
     let mut world = world();
@@ -45,7 +45,7 @@ fn account_rows_expose_their_account_and_source_acts() {
     follow(&mut world, client, vec![see(Role::Button, b"Remove account"), see(Role::Button, b"Replace")]);
 }
 
-// client/README.md 3.5 Accounts: Remove account asks to confirm before changing anything.
+// client/pages/README.md Accounts: Remove account asks to confirm before changing anything.
 #[test]
 fn removing_an_account_waits_for_confirmation() {
     let mut world = world();
@@ -60,7 +60,7 @@ fn removing_an_account_waits_for_confirmation() {
     );
 }
 
-// client/README.md 3.5 Accounts: Connect a model reaches the flow's Choose.
+// client/pages/README.md Accounts: Connect a model reaches the flow's Choose.
 #[test]
 fn accounts_connect_link_opens_choose() {
     let mut world = world();
@@ -76,7 +76,7 @@ fn accounts_connect_link_opens_choose() {
     );
 }
 
-// client/README.md 5.3: Deployment opens its current Accounts tab.
+// client/view.md 3: Deployment opens its current Accounts tab.
 #[test]
 fn accounts_navigation_from_connect_model_walks_deployment() {
     let mut world = world();
@@ -108,7 +108,7 @@ fn accounts_navigation_from_connect_model_walks_deployment() {
     );
 }
 
-// client/README.md 3.5 Accounts: the person's accounts come before the deployment's.
+// client/pages/README.md Accounts: the person's accounts come before the deployment's.
 #[test]
 fn connected_own_account_precedes_the_deployment_section() {
     let mut world = world();

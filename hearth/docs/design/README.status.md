@@ -25,29 +25,29 @@
   `hearth/crates/hearth-client-protocol-records/src/errors/reserved.rs` and
   `hearth/crates/hearth-client-protocol-records/src/errors/repository.rs`,
   and the tests and design quotations that expect them, name documents
-  without the repository-root prefix, as in `protocol/format.md, 9.1`.
+  without the repository-root prefix, as in `protocol/format/README.md, 7.1`.
   Task JSON's `doc` strings and their copies in design examples keep the
   same form. A printed error and a digest's input are hearth's behaviour,
   so these strings keep their bytes rather than follow the citation
   convention.
 - **Departs:** 6: the `reason` strings of hearth's `clippy.toml` files cite
-  `io.md, 6` and "skein's programming-model.md, 10.2" without the
+  `skein/docs/design/runtime/io/processes.md`` and "skein's programming-model.md, 10.2" without the
   repository-root prefix, because each file is a copy of
   `tools/lints/clippy/*.toml`, which `tools/lints/lints.py` holds equal.
-- **Not yet:** 8.1: a full stat by name without following links, readlink
+- **Not yet:** 7.1: a full stat by name without following links, readlink
   and extended attributes; metadata writes for symlinks, hard links,
   chmod, chown and extended attributes. Skein's stat reports only kind,
   size, permission bits, owner and link count; mkdir and truncate exist.
-- **Not yet:** 8.1: spawning as another user with supplementary groups;
+- **Not yet:** 7.1: spawning as another user with supplementary groups;
   contained process trees with id maps, a composed root and namespaces;
   the closed list of btrfs ioctls; `statfs`'s filesystem type; `syncfs`.
   Process-group signalling exists. Cgroup v2 subtree creation, delegation,
   movement and `cgroup.kill` are absent; the shell can spawn a binary into
   an already-open delegated cgroup, but the step boundary cannot.
-- **Not yet:** 8.1: Unix sockets with peer credentials; redialling and
+- **Not yet:** 7.1: Unix sockets with peer credentials; redialling and
   identity on the channel's TLS client; `utimensat`; `RESOLVE_NO_XDEV` and
   `FICLONE` (the no-follow opens already use `RESOLVE_BENEATH` and
   `RESOLVE_NO_SYMLINKS`); the new mount API and detached-mount walks,
   `umount2` with `MNT_DETACH`, whiteouts through `mknodat`, and `setns`.
-- **Not yet:** 8.1: in-process Ed25519 and X25519 key generation; HTTP
+- **Not yet:** 7.1: in-process Ed25519 and X25519 key generation; HTTP
   ranges and file-backed bodies.

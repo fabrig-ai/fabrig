@@ -1,5 +1,5 @@
 //! Pending person work and shown results (client/domain/objects.md, 7;
-//! contract.md, 5–6). Optional facts and source order stay independent.
+//! client/domain/contract/documents.md and client/domain/contract/README.md, 4). Optional facts and source order stay independent.
 use super::{
     Chip, Offered, PersonAddress, Requester, Result, Revision, SpecificationDocument, TaskContractDocument, TaskLink,
 };

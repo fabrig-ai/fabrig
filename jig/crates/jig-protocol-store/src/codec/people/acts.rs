@@ -1,4 +1,4 @@
-//! The connector's act, secret-free, kept with its outcome (people.md, 5.3).
+//! The connector's act, secret-free, kept with its outcome (domain/people/acts.md, 3).
 use super::{asks, compound, domain, wire};
 
 pub(super) fn encode(act: &domain::Act, limits: &wire::Limits) -> Result<wire::Act, wire::Problem> {

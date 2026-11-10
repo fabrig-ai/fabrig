@@ -1,4 +1,4 @@
-//! The browser closes, its child exits, then its server is ended (browser.md, 3).
+//! The browser closes, its child exits, then its server is ended (testing/browser.md, 3).
 use super::{BROWSER, PROCESS, SERVER};
 use skein_browser::boundary::Request;
 use skein_io::{

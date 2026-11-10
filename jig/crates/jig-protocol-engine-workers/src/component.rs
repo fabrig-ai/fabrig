@@ -1,4 +1,4 @@
-//! Routing (protocol/channel.md, sections 4 and 10.2); Debug (jig/docs/design/protocol/service.md, 11.3).
+//! Routing (protocol/channel/README.md, sections 4 and 9.2); Debug (jig/docs/design/protocol/service.md, 11.3).
 use crate::{
     Bound, Event, Limits, Loss, Request, Unsent, Worker,
     connection::{Connection, Ending, Phase},
@@ -277,7 +277,7 @@ impl Component {
             return;
         };
         // Fit the translated record before encoding the frame the room measures
-        // (jig/docs/design/protocol/channel.md, 9 and 11).
+        // (jig/docs/design/protocol/channel/README.md, 8 and 10).
         let (record, past) = match record {
             crate::translate::Down::Assign(record) => {
                 let (record, fitted) = jig_protocol_worker_wire::fit::fit(record, &self.codec, self.limits.room);
@@ -708,7 +708,7 @@ fn terminate(connection: Token, state: &mut Connection, out: &mut Queue<Request>
     out.push(Request::Abort { connection });
 }
 
-/// ASCII diagnostics for an unsent start (jig/docs/design/protocol/channel.md, 5.2 and 9).
+/// ASCII diagnostics for an unsent start (jig/docs/design/protocol/channel/records.md, 2, and jig/docs/design/protocol/channel/README.md, 8).
 fn unsent_words(name: &[u8], bytes: u32, bound: Bound) -> Box<[u8]> {
     let count = Decimal::of(u64::from(bytes));
     let room = match bound {

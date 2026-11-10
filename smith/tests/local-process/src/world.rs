@@ -661,7 +661,7 @@ impl World {
                 .count();
             let mut scripts = change_scripts();
             // System-cued scripts count saved assistant messages too
-            // (skein/docs/design/fake-llm.md, 2.4). The skipped prefix keeps
+            // (skein/docs/design/testing/fakes/llm.md, 2.4). The skipped prefix keeps
             // the write as the first answer to this invocation.
             let mut turns = vec![scripts[0].turns[0].clone(); assistant_messages];
             turns.extend_from_slice(&scripts[0].turns);

@@ -1,4 +1,4 @@
-//! Status's project-scoped watch, request and delivered record (client/README.md, 4.6).
+//! Status's project-scoped watch, request and delivered record (client/forge/records.md).
 use super::fixtures as f;
 use crate::forge::status::{self, Answer};
 use jig_client::{Ask, Family, Outcome, Watchable, contract as c};

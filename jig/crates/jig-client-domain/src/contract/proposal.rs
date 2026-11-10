@@ -1,5 +1,5 @@
 //! Exact pending proposal facts (client/domain/objects.md, 2 and 4;
-//! contract.md, 3.2 and 5). Ended routing and terminal decisions are
+//! client/domain/contract/requests.md, 2 and client/domain/contract/documents.md). Ended routing and terminal decisions are
 //! separate documents; missing funding observations remain absent.
 use super::{
     AddressChange, AmendmentState, AuthorityDocument, ChipHold, DocumentText, Funder, HistoryHolder, Offered, Part,

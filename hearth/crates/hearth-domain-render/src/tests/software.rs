@@ -18,7 +18,7 @@ fn the_url_stays_outside_the_digest() {
     assert_eq!(
         software::digest(&fixtures::mirrored(b"https://a.example/rg")),
         software::digest(&fixtures::mirrored(b"https://b.example/rg")),
-        "hearth/docs/design/domain/render.md, 4.2: a mirror rebuilds nothing"
+        "hearth/docs/design/domain/render/spec.md, 1.2: a mirror rebuilds nothing"
     );
 }
 #[test]

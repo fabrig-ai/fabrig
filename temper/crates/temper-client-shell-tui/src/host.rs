@@ -1,4 +1,4 @@
-//! Reports in and duties out (temper/docs/design/client/README.md, 6.13).
+//! Reports in and duties out (temper/docs/design/client/tui/README.md, 3).
 use crate::limits::{self, Limits};
 use jig_client::{Link, Message, With};
 use skein_lib::{Duration, Env, List, Queue, Secret, Set, Time, Token, Wall};

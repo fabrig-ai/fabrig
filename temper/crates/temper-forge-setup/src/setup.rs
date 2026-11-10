@@ -1,4 +1,4 @@
-//! Runtime setup entries (temper/docs/design/protocol/forge.md, 2.6).
+//! Runtime setup entries (temper/docs/design/protocol/forge/engine.md, 6).
 use alloc::boxed::Box;
 use core::net::SocketAddr;
 /// A Forgejo account temper names.
@@ -25,7 +25,7 @@ pub struct Owned {
     pub listen: SocketAddr,
     pub person: Account,
 }
-/// Which pinned binaries the fetch supplies (protocol/setup.md, 6.6).
+/// Which pinned binaries the fetch supplies (protocol/setup/owned.md, 6).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Fetch {
     pub forgejo: bool,
@@ -45,7 +45,7 @@ pub struct Repository {
     pub name: Box<[u8]>,
     pub landing: Box<[u8]>,
 }
-/// The demo's fake forge, which temper runs (protocol/setup.md, 8.4).
+/// The demo's fake forge, which temper runs (protocol/setup/playground.md).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Fake {
     pub listen: SocketAddr,

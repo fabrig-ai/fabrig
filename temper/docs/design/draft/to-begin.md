@@ -7,7 +7,7 @@ first-run steps, made small, with "Skip". What shows is computed from
 the project's state, so a refresh, another device or a restart shows
 the same; "Skip" is the one thing kept, by the engine, for the person.
 The look is tuned on the person's `look-requests` branch
-(`../client/journeys.md`, 7), as the request `project-home-onboarding`
+(`../client/web/journeys.md`, 7), as the request `project-home-onboarding`
 draws it, and landed apart from this draft.
 
 ## 1. In one page
@@ -77,7 +77,7 @@ draws it, and landed apart from this draft.
 | Step | Done once | Left: its line and act | Done: its line |
 |---|---|---|---|
 | 1. "Tell temper how you work" | a configuring chat (`configuring.md`, 5.1) runs or ran in the project, or a setting the project reads holds a change (`configuring.md`, 3.2) | "temper runs its default way of working until you change it.", "Start", filled: the configuring chat, as the chats page's offer starts it (`first-run-projects.md`, section 6) | its title alone |
-| 2. the repository | the project has a home repository (jig's `domain/people.md`, 5.2) | "Adopt a repository", "Adopt", to the adoption form into the project (`first-run-projects.md`, section 5) | "ORG/NAME is in PROJECT", "temper can change its code now; checked changes land on main through temper's merge queue.", one line on a laptop |
+| 2. the repository | the project has a home repository (jig's `domain/people/acts.md`, 2) | "Adopt a repository", "Adopt", to the adoption form into the project (`first-run-projects.md`, section 5) | "ORG/NAME is in PROJECT", "temper can change its code now; checked changes land on main through temper's merge queue.", one line on a laptop |
 | 3. "Start a chat" | the project holds a chat other than a configuring one | "Ask a question or ask for a change.", "New chat" | its title alone |
 
 - **A new project runs on temper's defaults,** its stock policy and
@@ -86,7 +86,7 @@ draws it, and landed apart from this draft.
 - **The second step names how changes land,** the project's own
   landing setting (`../domain/landing.md`, section 13) and its home's
   checks as the adoption set them. By queue, the default, it says
-  temper's merge queue (`../domain/forge.md`, 8.2): checked at its
+  temper's merge queue (`../domain/forge/change/README.md`, 2): checked at its
   head, brought up to date with main and checked again if main moved,
   merged at exactly that head. That queue, and its checks, are what a
   project of many changes lands through, more than a forge's own
@@ -125,8 +125,8 @@ draws it, and landed apart from this draft.
 - **Kept by the engine,** never in the browser alone, so a phone does
   not show again what the laptop skipped (the user, 2026-11-04). A
   person's state kept by the engine has a precedent in jig's inbox,
-  whose read positions are a party's own (jig's `domain/people.md`,
-  section 6).
+  whose read positions are a party's own (jig's `domain/people/README.md`,
+  section 5).
 - **A family of temper's,** `Dismissed`, at the store's next free byte
   (`../protocol/store.md`, section 2), keyed by the party, then what
   was dismissed: `ToBegin(project)`, the one kind for now; its row
@@ -134,7 +134,7 @@ draws it, and landed apart from this draft.
   is people's, as `Binding` is. Written by the person's request,
   erased with its project or its party; bounded by the members times
   the projects.
-- **A FORGE request, `Dismiss { what }`** (`../client/README.md`, 4.6),
+- **A FORGE request, `Dismiss { what }`** (`../client/forge/records.md`),
   "Skip" in the view, from any party with a role in the project; a
   second is answered as the first. The client reads the person's
   dismissals, live, so another device's Home drops "To begin" when the
@@ -146,7 +146,7 @@ draws it, and landed apart from this draft.
   in the rail. A skip is never undone, and needs no undoing.
 - **One mechanism for later dismissals:** the plan's first use, a card
   that waits to be dismissed, is the client's open question
-  (`../client/README.md`, section 11); if it is chosen, it is another
+  (`../client/README.md`, section 5); if it is chosen, it is another
   kind of `Dismissed`, keyed by its account.
 
 ## 6. Its order

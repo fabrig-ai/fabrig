@@ -1,4 +1,4 @@
-//! Checks before a memory restart (protocol/store.md, 5.3, 6 and 10).
+//! Checks before a memory restart (protocol/store/records.md, 3 and protocol/store/README.md, 5 and protocol/store/opening.md).
 mod levels;
 use super::fixtures;
 use crate::{Event, Family, Older, OpenRefusal, Phase, Request, Store, Stores, codec, keys};
@@ -414,7 +414,7 @@ fn older_build_refusals_leave_every_row_and_commit_unchanged() {
 
 #[test]
 fn a_build_before_held_turns_and_closed_windows_is_refused() {
-    // core-v6 at ae4ec55e0, before the two in-place words of store.md 8.6.
+    // core-v6 at ae4ec55e0, before the two in-place words of protocol/store/transcripts.md 6.
     const BEFORE: [u8; 32] = [
         0xd3, 0xe9, 0x3c, 0xe9, 0x13, 0xdd, 0x3c, 0x94, 0x90, 0x47, 0x43, 0xea, 0xe3, 0xf0, 0x87, 0x70, 0x07, 0x52,
         0xbe, 0x24, 0x99, 0xc3, 0xff, 0xfb, 0x3b, 0x82, 0x65, 0x31, 0x2e, 0xe5, 0xd5, 0x40,

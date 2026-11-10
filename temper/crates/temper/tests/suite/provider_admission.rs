@@ -1,4 +1,4 @@
-//! Startup refusals promised by temper/docs/design/protocol/sign-in.md, 9.2 and 9.7.
+//! Startup refusals promised by temper/docs/design/protocol/openid-provider.md, 2 and 7.
 use crate::support;
 
 use std::{

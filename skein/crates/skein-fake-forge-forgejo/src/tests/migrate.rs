@@ -239,7 +239,7 @@ fn a_slow_source_is_slow() {
 fn a_cut_source_answers_504_or_as_a_timed_out_write_does() {
     let mut h = harness(Fill::Cut);
     h.send(&migrate());
-    assert_eq!(h.status(), 500, "fake-forge.md, 4: a timed-out write answers 500");
+    assert_eq!(h.status(), 500, "testing/fakes/forge.md, 4: a timed-out write answers 500");
     assert!(h.domain.branch(DESTINATION, b"trunk").is_none());
     h.send(&Request::Repository { at: at() });
     assert_eq!(h.status(), 200, "the timed-out copy remains readable");

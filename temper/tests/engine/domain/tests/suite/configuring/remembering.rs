@@ -1,5 +1,5 @@
 //! Remembered preferences across chats, person reads and private turns
-//! (temper/docs/design/domain/agent.md, 8.4.4; jig/docs/design/domain/engine.md, 10.1).
+//! (temper/docs/design/domain/agent/ask-temper.md, 4; jig/docs/design/domain/engine/briefs.md, 2.1).
 use super::*;
 use jig_client::contract as c;
 use jig_domain_core::reads;

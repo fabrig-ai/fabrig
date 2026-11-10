@@ -1,5 +1,5 @@
 //! The forge connector's top (jig's domain/connectors.md, sections 2–8;
-//! domain/forge.md, sections 3–12). It keeps adopted repositories, resource
+//! domain/forge/README.md, section 3 and domain/forge/adoption.md and domain/forge/keeping-up.md and domain/forge/README.md, sections 4–5 and domain/forge/change/README.md and domain/forge/queues.md and domain/forge/README.md, section 6 and domain/forge/branches.md and domain/forge/issues.md). It keeps adopted repositories, resource
 //! holds, writer slots, subscriptions, procedure and projection rows, and
 //! outbox entries. The client alone executes API calls; change and issues
 //! decide policy without retained state.
@@ -9,7 +9,7 @@
 //! reaches the client. `resume` and `fire` drive the client after earlier
 //! saves have crossed that barrier. The top never knows tasks beyond numbers,
 //! authorization grants. Its public projections encode the visitor records
-//! (temper/docs/design/client/forge.md, 11).
+//! (temper/docs/design/client/forge/README.md, 9).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 #![expect(clippy::disallowed_macros, reason = "kind 11 requires Default: both flags false with none")]
@@ -152,7 +152,7 @@ pub enum Recovery {
 
 /// Effect form and recovery class declared by the forge connector.
 ///
-/// The kinds follow domain/forge.md, section 6, one kind per row:
+/// The kinds follow domain/forge/README.md, section 4, one kind per row:
 /// 3 opens pulls, 10 edits their title/body, 11 updates from the base,
 /// 4 merges, 12 closes/reopens, 5 posts reviews, 7 posts comments,
 /// 6 sets statuses, 8 creates issues, 13 edits/closes/reopens issues,
@@ -172,7 +172,7 @@ pub const fn effect_shape(kind: u16) -> Option<(EffectForm, Recovery)> {
     }
 }
 
-/// A kept change's landing waits for dependencies (domain/forge.md, 8.2 item 7).
+/// A kept change's landing waits for dependencies (domain/forge/change/README.md, 2 item 7).
 #[must_use]
 pub const fn waits_for_dependencies(kind: u16) -> bool {
     kind == 4

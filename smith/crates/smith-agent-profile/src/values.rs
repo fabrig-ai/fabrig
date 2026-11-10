@@ -1,4 +1,4 @@
-//! Configuration values without run state (smith/docs/design/shell.md, sections 2.1 and 2.6).
+//! Configuration values without run state (smith/docs/design/shell/README.md, sections 2.1 and 2.6).
 
 use crate::ProgramBackend;
 use skein_channel::StreamMode;

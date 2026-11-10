@@ -1,5 +1,5 @@
 //! Proposal terminals and recipient changes
-//! (jig/docs/design/domain/engine.md, 4.4).
+//! (jig/docs/design/domain/engine/README.md, 4.4).
 
 use crate::{
     CallPart, Core, Limits, Request, RoutedCall,

@@ -1,5 +1,5 @@
 //! Independent upgrade contract checks through the public store world.
-//! jig/docs/design/protocol/store.md 8.3, 8.6 and 10.2.
+//! jig/docs/design/protocol/store/transcripts.md, 3 and 6, and jig/docs/design/protocol/store/opening.md, 2.
 use jig_protocol_store::{Event, PatchSets, Request, TranscriptRead};
 use jig_store_world::{
     World, patches,

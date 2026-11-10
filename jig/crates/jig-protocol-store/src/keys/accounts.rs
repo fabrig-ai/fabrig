@@ -1,4 +1,4 @@
-//! The accounts child's keys (protocol/store.md, 4.4 item 9): the counter's one
+//! The accounts child's keys (protocol/store/README.md, 4.4 item 9): the counter's one
 //! row, an account by its number, a source by its account's and its own,
 //! and a lifetime name reservation by its original source number.
 //! Tag 3 is the installation's identifier, which no domain key names.

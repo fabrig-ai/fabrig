@@ -1,5 +1,5 @@
 //! Reading `application.clients.bundle`'s directory whole at start, within `clients.bundle_files` and
-//! `clients.bundle_bytes` (client/browser.md, 2.2). Copied from jig's testing/jig-test/src/bundle.rs, with
+//! `clients.bundle_bytes` (client/web/README.md, 2.2). Copied from jig's testing/jig-test/src/bundle.rs, with
 //! temper's bounds: the page counts among the files, each file is read at the bytes left, and a directory is
 //! read in name order.
 use skein_lib::Map;
@@ -14,7 +14,7 @@ use temper_service::{
     limits::Clients,
 };
 
-/// The digest of the bundle this binary holds (client/browser.md, 2.6); `None` built with `TEMPER_BUNDLE=none`.
+/// The digest of the bundle this binary holds (client/web/README.md, 2.6); `None` built with `TEMPER_BUNDLE=none`.
 pub const OWN: Option<&str> = temper_client_bundle::DIGEST;
 
 fn refusal(shown: &Path, why: impl std::fmt::Display) -> String {
@@ -183,7 +183,7 @@ fn file_kind(shown: &Path, name: &[u8]) -> Result<&'static [u8], String> {
     kind(name).ok_or_else(|| refusal(shown, "file type is not on the closed list"))
 }
 
-/// Read the binary's files through the directory read's checks (client/browser.md, 2.6).
+/// Read the binary's files through the directory read's checks (client/web/README.md, 2.6).
 pub fn embedded(files: &[(&str, &[u8])], limits: Clients) -> Result<Bundle, String> {
     embedded_read(files, limits).map_err(|why| {
         let rest = why.strip_prefix("application.clients.bundle: bundle").expect("embedded refusal root");
@@ -229,7 +229,7 @@ fn embedded_read(files: &[(&str, &[u8])], limits: Clients) -> Result<Bundle, Str
     Ok(finish(page, digest, contents))
 }
 
-/// The binary's own bundle, absent when built without its browser (client/browser.md, 2.6).
+/// The binary's own bundle, absent when built without its browser (client/web/README.md, 2.6).
 pub fn own(limits: Clients) -> Result<Option<Bundle>, String> {
     if temper_client_bundle::FILES.is_empty() {
         Ok(None)

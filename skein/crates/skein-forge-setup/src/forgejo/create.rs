@@ -1,4 +1,4 @@
-//! Makes or copies a repository, sharing org, access and file steps (skein/docs/design/forge-setup.md, 4.9 and 4.10).
+//! Makes or copies a repository, sharing org, access and file steps (skein/docs/design/forge/setup/forgejo.md, 1.9 and 1.10).
 use crate::forgejo::admin::{self, Admin};
 use crate::forgejo::{Reply, reply, unexpected};
 use crate::{

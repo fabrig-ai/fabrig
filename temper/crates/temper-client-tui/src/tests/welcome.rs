@@ -1,4 +1,4 @@
-//! The welcome's states and hand-written frames (temper/docs/design/client/README.md, 6.17).
+//! The welcome's states and hand-written frames (temper/docs/design/client/tui/box.md).
 use super::{fixtures as f, goldens};
 use crate::{BoxLine, Local, Scheme, Told, Tui, look};
 use jig_client::{Up, contract as c};

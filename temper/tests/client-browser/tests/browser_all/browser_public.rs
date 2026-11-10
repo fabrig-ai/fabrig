@@ -1,4 +1,4 @@
-//! The public walk in Chromium (temper/docs/design/client/browser.md, 8.4): the
+//! The public walk in Chromium (temper/docs/design/client/web/public.md, 4): the
 //! signed-out page with no stream, its public reads, and a 404 under the page's policy.
 use skein_fake_person::{Face, Find, Found, Next, Step as PersonStep, Target};
 use skein_fake_person_browser::harness::Output;
@@ -12,7 +12,7 @@ const TITLE: &[u8] = b"Export widget's table as CSV";
 const CHAT: &[u8] = b"Add CSV export to widget";
 const UNKNOWN: &[u8] = b"Not public, or not here.";
 const PROJECT: &[u8] = b"Demo";
-// Public identifiers have sixteen hexadecimal digits (jig/docs/design/domain/people.md, 13.8).
+// Public identifiers have sixteen hexadecimal digits (jig/docs/design/domain/people/public-reading.md, 8).
 const ID_DIGITS: usize = 16;
 
 fn see(find: Find) -> Step {
@@ -218,7 +218,7 @@ impl Walk {
             assert!(text.contains(std::str::from_utf8(TITLE).expect("title")), "card shows the goal's title: {text}");
         }
         if matches!(self.page, Page::Landings) {
-            // The demo lands by the stock queue (temper/docs/design/client/browser.md, 8.4).
+            // The demo lands by the stock queue (temper/docs/design/client/web/public.md, 4).
             let shown = self.text.join("");
             assert!(Tier::public_landings_reads(&shown), "public landings page: {shown}");
         }
@@ -309,7 +309,7 @@ fn identifier(id: &str) {
 }
 
 impl Play for Walk {
-    /// Revoked public reads answer 404 (jig/docs/design/protocol/client.md, 17.5).
+    /// Revoked public reads answer 404 (jig/docs/design/protocol/client/default-http.md, 5).
     fn expected(&self) -> Vec<Box<[u8]>> {
         vec![
             Box::from(b"Failed to load resource: the server responded with a status of 404 (Not Found)".as_slice()),

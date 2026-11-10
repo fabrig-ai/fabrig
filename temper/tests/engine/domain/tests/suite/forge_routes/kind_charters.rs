@@ -1,4 +1,4 @@
-//! A change keeps the forge's charters from its start (temper/docs/design/domain/forge.md, 8.9).
+//! A change keeps the forge's charters from its start (temper/docs/design/domain/forge/change/gates.md, 3).
 use super::*;
 use jig_domain_core::settings as s;
 use temper_engine_domain_forge::settings;

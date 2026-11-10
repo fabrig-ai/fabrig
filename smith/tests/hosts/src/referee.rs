@@ -1,5 +1,5 @@
 //! Independent host-process obligations from boundary observations
-//! (protocol/hosts.md, section 7; domain/host.md, section 4).
+//! (protocol/host.md, section 7; domain/host.md, section 4).
 //! Skein owns the judgment, deadlines and replay machinery.
 
 extern crate alloc;

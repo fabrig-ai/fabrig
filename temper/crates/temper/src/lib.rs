@@ -1,4 +1,4 @@
-//! Startup for temper's standalone binary (protocol/configuration.md, section 2).
+//! Startup for temper's standalone binary (protocol/configuration/README.md, section 2).
 // tests::configuration includes the shared integration fixture, which names temper::directories.
 extern crate self as temper;
 use skein_io::kernel::Exit;
@@ -300,7 +300,7 @@ pub fn operations_in_with(
 ) -> Result<u32, String> {
     serve::operations_in_with("temper", Some(&worker_half::Half), directories, config, given)
 }
-/// The effective user's login (protocol/setup.md, 8.2); macOS users need not appear in passwd.
+/// The effective user's login (protocol/setup/init.md, 2); macOS users need not appear in passwd.
 pub(crate) fn login(user: u32) -> Result<Box<[u8]>, String> {
     if cfg!(target_os = "macos") { forge_exec::login_id() } else { login_passwd(user) }
 }

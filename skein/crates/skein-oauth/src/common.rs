@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 use skein_json::{tokenizer, writer};
 use skein_lib::{Duration, bytes, usize_of};
 
-/// Bounds for one token exchange and its saved record (oauth.md §5).
+/// Bounds for one token exchange and its saved record (oauth/README.md §5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     pub document_bytes: u32,
@@ -42,7 +42,7 @@ pub enum DecodeError {
     TooLarge,
     Version,
 }
-/// The ID-token check that failed (oauth.md, section 4).
+/// The ID-token check that failed (oauth/README.md, section 4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Check {
     /// The issuer's keys could not be fetched, read or selected.

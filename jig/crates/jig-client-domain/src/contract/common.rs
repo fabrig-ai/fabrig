@@ -1,6 +1,6 @@
 //! Owned facts, identities and bounded text shared within the client vocabulary.
 //! No engine or application type crosses here. Text is checked before ownership
-//! moves in; list owners choose capacities from limits. See client/domain/contract.md, 5.
+//! moves in; list owners choose capacities from limits. See client/domain/contract/documents.md.
 use super::PhaseClass;
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
@@ -69,7 +69,7 @@ pub struct Revision {
     pub value: u64,
 }
 
-/// The actual maker of a proposal (client/domain/contract.md, 3.2).
+/// The actual maker of a proposal (client/domain/contract/requests.md, 2).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Proposer {
     /// A task's proposal store.
@@ -136,7 +136,7 @@ pub enum Actor {
 
 /// The kind of executor carrying out a task.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-/// Job tasks: jig/docs/design/client/domain/contract.md, 5.7.
+/// Job tasks: jig/docs/design/client/domain/contract/documents.md, 7.
 pub enum ChipExecutor {
     /// An agent and its charter.
     Agent {
@@ -254,7 +254,7 @@ pub enum NoteScope {
     Task { project: u32, task: u64 },
     /// Read-only list of a project's goal-scoped notes, without bodies.
     Tasks { project: u32 },
-    /// A person's own preferences, in no project (domain/engine.md, 10.1).
+    /// A person's own preferences, in no project (domain/engine/briefs.md, 2.1).
     Party { party: u64 },
 }
 
@@ -306,7 +306,7 @@ pub struct Count {
     pub limited: bool,
 }
 
-/// The owner-supplied scope of a part's application document (contract.md, 7.1).
+/// The owner-supplied scope of a part's application document (client/domain/contract/README.md, 5.1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum PartScope {
     Project(u32),

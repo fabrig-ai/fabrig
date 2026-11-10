@@ -6,7 +6,7 @@
 //! settlement with [`closed`]. The caller owns deadlines and retry policy.
 //! The client keeps its measured request, bounded response and observed status;
 //! it knows no socket, credential store or reason to retry. Admission and
-//! receiving failures retain their configured cap (llm.md, section 2.5).
+//! receiving failures retain their configured cap (llm/README.md, section 2.5).
 
 use self::State::{Closed, Closing, Draining, ErrorBody, Head, Idle, Prepared, Streaming};
 
@@ -23,7 +23,7 @@ use crate::{
     anthropic, dialect, filter, openai, translate,
 };
 
-/// Maximum retained bytes of each provider report value (llm.md, section 4.2).
+/// Maximum retained bytes of each provider report value (llm/README.md, section 4.2).
 pub const REPORT_BYTES: u32 = 128;
 
 /// Startup bounds, unchanged for a client's lifetime and reuse.
@@ -116,10 +116,10 @@ pub fn largest_event_demand(limits: &Limits) -> u32 {
 }
 
 /// Measure the largest request head from endpoint configuration and owner bounds
-/// (llm-connection.md, section 3), without copying a credential or body.
+/// (llm/connection.md, section 3), without copying a credential or body.
 pub fn request_head(endpoint: &Endpoint, credential: &CredentialLimits, limits: &Limits) -> Result<u32, Error> {
     // The native Messages grammar admits nonzero u32 max_tokens; Responses does
-    // not send this route field (llm.md, sections 4.3 and 4.5).
+    // not send this route field (llm/README.md, sections 4.3 and 4.5).
     match endpoint.provider {
         Provider::OpenAi => {}
         Provider::Anthropic => {
@@ -135,7 +135,7 @@ pub fn request_head(endpoint: &Endpoint, credential: &CredentialLimits, limits: 
         Provider::OpenAi => Scheme::Bearer,
         Provider::Anthropic => Scheme::Key,
     };
-    // Every Responses call may carry its affinity's session field (llm.md, 4.8).
+    // Every Responses call may carry its affinity's session field (llm/README.md, 4.8).
     let session = [b'-'; 36];
     let fields = route_fields(endpoint, (endpoint.provider == Provider::OpenAi).then_some(&session));
     let fixed = match endpoint.encoding {
@@ -239,7 +239,7 @@ pub enum Waiting {
     Nothing,
 }
 
-// The prepared HTTP call owns the credential header (llm.md, section 3).
+// The prepared HTTP call owns the credential header (llm/README.md, section 3).
 enum State {
     Prepared { call: http::Call, receiving: Receiving },
     Head { receiving: Receiving },
@@ -343,7 +343,7 @@ pub struct MeasuredRequest {
 }
 
 impl MeasuredRequest {
-    /// Keeps the rendered body until taken (skein/docs/design/llm.status.md).
+    /// Keeps the rendered body until taken (skein/docs/design/llm/README.status.md).
     pub fn keep_body(&mut self) {
         self.keep_body = true;
     }
@@ -387,7 +387,7 @@ pub fn measure(
     Ok(Measured { head, body, compressed })
 }
 
-/// Bytes one call holds from the grant until its terminal (llm-connection.md, 7).
+/// Bytes one call holds from the grant until its terminal (llm/connection.md, 7).
 #[must_use]
 pub fn reservation(measured: Measured, limits: &Limits) -> Option<u64> {
     u64::from(measured.head)
@@ -398,7 +398,7 @@ pub fn reservation(measured: Measured, limits: &Limits) -> Option<u64> {
 
 /// The pool must hold one request at its endpoint's largest declared bounds.
 /// A gzip endpoint compresses a body only while the body and its compressed
-/// copy's room together stay within `request` (llm.md, section 4.8), so no
+/// copy's room together stay within `request` (llm/README.md, section 4.8), so no
 /// call's body and room pass `request`, whatever the endpoint's encoding.
 #[must_use]
 pub fn largest_reservation(limits: &Limits) -> Option<u64> {
@@ -407,7 +407,7 @@ pub fn largest_reservation(limits: &Limits) -> Option<u64> {
 
 /// The room the endpoint's compressed copy of a body takes beside it: on a
 /// gzip endpoint the body's bound while the two fit within `request`, and
-/// zero otherwise, when the body is sent as rendered (llm.md, section 4.8).
+/// zero otherwise, when the body is sent as rendered (llm/README.md, section 4.8).
 fn compressed(endpoint: &Endpoint, body: u32, limits: &Limits) -> u32 {
     let room = match endpoint.encoding {
         Encoding::Identity => return 0,
@@ -479,7 +479,7 @@ impl Client {
         }
     }
 
-    /// Takes the body before compression, once (skein/docs/design/llm.status.md).
+    /// Takes the body before compression, once (skein/docs/design/llm/README.status.md).
     pub fn take_kept_body(&mut self) -> Option<Box<[u8]>> {
         self.kept_body.take()
     }
@@ -604,7 +604,7 @@ impl Client {
     }
 
     /// The bytes this request takes on the wire: its head and its body as
-    /// encoded, compressed on a gzip endpoint (llm-connection.md, section 4).
+    /// encoded, compressed on a gzip endpoint (llm/connection.md, section 4).
     #[must_use]
     pub fn request_bytes(&self) -> u64 {
         sent_bytes(self.measured, u64::try_from(self.upload_end).expect("a body length fits u64"))
@@ -993,7 +993,7 @@ fn queued_http_failure(client: &Client) -> Option<(Failure, Box<[u8]>)> {
 fn http_failure(error: http::Error, limits: &Limits) -> Failure {
     match error {
         http::Error::Refused(_) => Failure::Invalid,
-        // A cut exchange is no answer of the provider's (llm.md, section 2.5).
+        // A cut exchange is no answer of the provider's (llm/README.md, section 2.5).
         http::Error::Closed(_) | http::Error::Truncated { .. } | http::Error::Stream(_) => Failure::Unavailable,
         http::Error::Status
         | http::Error::Version
@@ -1055,7 +1055,7 @@ fn response_head(
         Some(bytes::copy_of(b"unsupported content encoding"))
     } else if success {
         // Public Responses can omit Content-Type on valid SSE.
-        // The event decoder still requires a terminal event (llm.md, 4.8).
+        // The event decoder still requires a terminal event (llm/README.md, 4.8).
         let media = media_type(&response.headers);
         let accepted = match media {
             Ok(Some(value)) => value.eq_ignore_ascii_case(b"text/event-stream"),
@@ -1594,7 +1594,7 @@ pub fn valid(limits: &Limits) -> bool {
 
 /// Bounds request encoding workspace.
 /// One borrowed request's fixed encoder/grammar scratch, excluding its reserved bytes.
-/// Neither document density nor request counts grow it (llm.md, section 4.2).
+/// Neither document density nor request counts grow it (llm/README.md, section 4.2).
 #[must_use]
 pub fn encoder_bound(limits: &Limits) -> Option<u64> {
     openai::encoder_bound(&limits.native())
@@ -1691,7 +1691,7 @@ fn headers(
 }
 
 /// The route's version and credential fields, shared by calls and model-list reads
-/// (skein/docs/design/llm.md, 2.6 and 4.9). No endpoint extra fields are copied.
+/// (skein/docs/design/llm/README.md, 2.6 and 4.9). No endpoint extra fields are copied.
 pub fn credential_headers(endpoint: &Endpoint, credential: Option<&Credential>) -> Result<Box<[Header]>, Error> {
     let fields = provider_headers(endpoint);
     let mut headers = List::with_capacity(2);
@@ -1784,7 +1784,7 @@ fn head_length(
 }
 
 /// The field that keeps a conversation's Responses calls on the provider's
-/// cached prefix (llm.md, 4.8). Model-list reads carry none.
+/// cached prefix (llm/README.md, 4.8). Model-list reads carry none.
 const SESSION: &[u8] = b"session_id";
 
 /// The affinity key as a UUID, sent on Responses calls only.
@@ -1921,7 +1921,7 @@ fn stream_type_detail(media: Result<Option<&[u8]>, ()>) -> Box<[u8]> {
 
 fn block_size(block: &Block) -> u64 {
     // Replay owns exactly its retained text and records. Its completion's
-    // total belongs to the receiving reservation (llm.md, section 4.2).
+    // total belongs to the receiving reservation (llm/README.md, section 4.2).
     let mut bytes = 0_u64;
     let replay = match block {
         Block::Text { text, replay } | Block::Refusal { text, replay } => {

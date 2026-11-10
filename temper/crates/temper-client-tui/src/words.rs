@@ -1,4 +1,4 @@
-//! The TUI's phrases beside the view's (temper/docs/design/client/README.md, 6.14, 6.17 and 7.1).
+//! The TUI's phrases beside the view's (temper/docs/design/client/tui/pages.md and temper/docs/design/client/tui/box.md and temper/docs/design/client/README.md, 4.1).
 use crate::look;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};

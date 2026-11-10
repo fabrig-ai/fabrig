@@ -1,5 +1,5 @@
 //! Decisions on a chat's settings card use its proposal's project
-//! (temper/docs/design/client/README.md, 5.13 and 3.6).
+//! (temper/docs/design/client/pages/settings.md, 2, and temper/docs/design/client/README.md, 3.6).
 use jig_client::contract as c;
 use jig_client_kit::harness::{ClientId, Until, World};
 use skein_fake_person::{Find, Step, Target};

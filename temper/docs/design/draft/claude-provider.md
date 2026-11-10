@@ -5,8 +5,8 @@ own `temper box` offered no Claude on the welcome's Model step: `temper
 init` writes Claude Code's program path and directory into
 `agent.json` when it finds `claude` on `PATH`, but ships no Anthropic
 provider, so no document offers Claude's way. Only the fake backends'
-rewrite adds one, for the fake box (`../protocol/configuration.md`,
-12.1). Wanted: every deployment offers a Claude subscription through
+rewrite adds one, for the fake box (`../protocol/configuration/directories.md`,
+1). Wanted: every deployment offers a Claude subscription through
 Claude Code beside the ChatGPT plan, whether or not `claude` is on
 `PATH`; temper fetches Claude Code when it is not (the user,
 2026-11-04).
@@ -34,14 +34,14 @@ Claude Code beside the ChatGPT plan, whether or not `claude` is on
 ## 2. What init writes
 
 - **The provider,** in `temper.json`, as the fake backends' rewrite
-  writes it (`../protocol/configuration.md`, 12.1): `anthropic`, the
+  writes it (`../protocol/configuration/directories.md`, 1): `anthropic`, the
   number init leaves free for it between OpenAI's and demo's,
   `signed_in_plan` false, `manage_usage` at Claude's usage settings,
   its models, and Claude Code's program as its one source.
 - **The program,** in `agent.json`: its path, the `claude` init found
   on `PATH`, or `"fetched"` for temper's pinned build in the cache,
-  as an owned Forgejo's binaries are named (`../protocol/setup.md`,
-  6.6); its programs directory, as today; an Anthropic-dialect endpoint
+  as an owned Forgejo's binaries are named (`../protocol/setup/owned.md`,
+  6); its programs directory, as today; an Anthropic-dialect endpoint
   for it, and its model with a window, an output and prices, as the
   shipped OpenAI model has them.
 - **`documents.lines` at least 3,** so that the Model step's offer holds
@@ -62,7 +62,7 @@ Claude Code beside the ChatGPT plan, whether or not `claude` is on
   pinned in temper and checked byte for byte, streamed into a private
   part file and renamed, within the fetch's bounds, at most once at a
   time; into the cache, kept across boxes, never in the forge's or the
-  programs' directories (`../protocol/setup.md`, 6.6).
+  programs' directories (`../protocol/setup/owned.md`, 6).
 - **From Anthropic's native builds:** the file Anthropic's own installer
   fetches, `https://downloads.claude.ai/claude-code-releases/VERSION/PLATFORM/claude`,
   at version `2.1.311`, the stable channel on 2026-11-05, its digests

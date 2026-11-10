@@ -30,7 +30,7 @@ pub fn listed(ids: &[u32]) -> Reach {
     }
     Reach::Listed(rows)
 }
-/// Shared step scenario (skein/docs/design/fake-forge.md, 10.6).
+/// Shared step scenario (skein/docs/design/testing/fakes/github.md, 1.6).
 pub fn config() -> Config {
     fixture::config(fixture::repositories())
 }

@@ -1,4 +1,4 @@
-//! Preorder conversion and checked written values (codec.md, 11.4–11.7).
+//! Preorder conversion and checked written values (data/codec/patches.md, 4–7).
 
 use super::{Capacity, Patcher, PlanIx, RefusalIx, Site, Tables, add, plan, spelled};
 use crate::Reason;
@@ -24,7 +24,7 @@ pub enum Step {
     Done,
 }
 
-/// A record's terminal refusal (codec.md, 11.4).
+/// A record's terminal refusal (data/codec/patches.md, 4).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Halt {
     /// The old record does not decode.
@@ -250,7 +250,10 @@ impl Patcher {
         Ok(())
     }
     /// Walks at most `3 * capacity.nodes + 1` frames, stopping for one value.
-    #[expect(clippy::should_implement_trait, reason = "codec.md, 11.6 names this stopped machine entry point next")]
+    #[expect(
+        clippy::should_implement_trait,
+        reason = "data/codec/patches.md, 6 names this stopped machine entry point next"
+    )]
     pub fn next(&mut self) -> Result<Step, Halt> {
         let result = self.build.advance(&self.old);
         if result.is_err() {

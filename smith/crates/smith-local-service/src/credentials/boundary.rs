@@ -1,4 +1,4 @@
-//! Native account driver outputs (protocol/hosts.md, section 5.4).
+//! Native account driver outputs (protocol/host.md, section 5.4).
 use alloc::boxed::Box;
 use smith_local_domain::{self as local, CredentialFailure};
 

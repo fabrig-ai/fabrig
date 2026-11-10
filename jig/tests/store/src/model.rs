@@ -1,4 +1,4 @@
-//! Independent whole-commit prefixes (protocol/store.md, 14).
+//! Independent whole-commit prefixes (protocol/store/README.md, 9).
 use jig_domain_core as core;
 use jig_protocol_store::Write;
 use std::collections::BTreeMap;
@@ -73,7 +73,7 @@ impl Model {
         self.acknowledged = number;
     }
 
-    /// A patched open's commits are the store's own (store.md 10.2): the
+    /// A patched open's commits are the store's own (protocol/store/opening.md 2): the
     /// acknowledged prefix moves to its last as the root wrote it, and the
     /// fixtures' model, not this one, checks the records' patched bytes.
     pub fn patched(&mut self, last: u64) {

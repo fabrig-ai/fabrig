@@ -242,7 +242,7 @@ fn a_repository_id_past_u32_hints_nothing() {
 
 #[test]
 fn signature_shape_is_refused_at_the_head() {
-    // SHA-256 signatures have 64 lowercase hex digits (forge-connection.md 6.2).
+    // SHA-256 signatures have 64 lowercase hex digits (forge/connection.md 6.2).
     const DIGITS: usize = 64;
     let correct = fixtures::hook_signature(fixtures::PULL_PAYLOAD);
     let mut upper = correct;

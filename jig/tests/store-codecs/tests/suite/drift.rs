@@ -1,4 +1,4 @@
-//! The committed codecs and golden bytes against their schemas (skein's codec.md, 6).
+//! The committed codecs and golden bytes against their schemas (skein's data/codec/README.md, 6).
 use std::{fmt::Write as _, fs, path::PathBuf};
 #[path = "../../../codec-families.rs"]
 mod families;
@@ -12,10 +12,10 @@ fn codec_families_match_their_schemas_and_goldens() {
     families::check();
 }
 
-/// The layouts' fingerprints the store keeps (store.md 5.3), from the schemas.
+/// The layouts' fingerprints the store keeps (protocol/store/records.md 3), from the schemas.
 fn layouts() -> String {
     let mut code = String::from(
-        "//! Each kept family's layout fingerprint in this build's schemas (store.md 5.3).\n\
+        "//! Each kept family's layout fingerprint in this build's schemas (protocol/store/records.md 3).\n\
          //! Written and checked by `SKEIN_CODEGEN_WRITE=1 cargo nextest run -p jig-store-codecs-world --test drift`.\n\
          use crate::codec::component::Layouts;\n\
          \n\

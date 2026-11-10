@@ -1,4 +1,4 @@
-//! Strict product layers and each value's source (shell.md, sections 5.1–5.3).
+//! Strict product layers and each value's source (shell/settings.md, sections 1.1–1.3).
 //! Startup retains only decoded settings and origins; it reads no credentials.
 //! `read` merges bounded files, ordered overrides and flags before resolution.
 use serde::Serialize;
@@ -31,7 +31,7 @@ pub fn from_sources(
     merge(shared, workspace, sources)
 }
 
-/// Startup's supplied path environment (protocol/hosts.md, section 5.2).
+/// Startup's supplied path environment (protocol/host.md, section 5.2).
 #[derive(Clone, Default)]
 pub struct Paths {
     pub home: Option<std::ffi::OsString>,

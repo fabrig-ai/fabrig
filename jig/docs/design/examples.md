@@ -121,7 +121,7 @@ production's own binary, `jig-ops-production`.
   remediates it, so two incidents never restart it at once.
 - **Scarce resources:** a pool's environments are a quota. A task that
   asks for a slot when the pool is full waits for one, rather than being
-  refused (`domain/tasks.md`, section 6).
+  refused (`domain/tasks/holds.md`).
 - **Procedures:**
   - **remediate:** make the effect, then wait until the service is
     healthy or a deadline passes;
@@ -164,8 +164,8 @@ jig-ops-domain                    the engine's root
 ├── observability                 jig-ops-domain-observability
 ├── infrastructure                jig-ops-domain-infrastructure
 ├── calendar                      the deployment's funding periods (protocol/configuration.md, section 5)
-├── host                          jig-domain-host: hosted runs on the engine's slots (domain/hosts.md, section 6)
-└── agent                         smith-inline-agent: smith's domains, one per run in flight (domain/hosts.md, 5.2)
+├── host                          jig-domain-host: hosted runs on the engine's slots (domain/hosts/hub.md)
+└── agent                         smith-inline-agent: smith's domains, one per run in flight (domain/hosts/README.md, 5.2)
 ```
 
 - **It has the one shape** of `README.md`, 6.3. Every write and every
@@ -217,7 +217,7 @@ jig-ops-domain                    the engine's root
     templates (`protocol/configuration.md`, 3.1);
   - infrastructure's **remediate, provision and tear down** (3.2);
   - the core's **recurring** tasks, each making its recurring batch at
-    each period (`domain/tasks.md`, section 10).
+    each period (`domain/tasks/README.md`, section 5).
 - **People:**
   - the person on call, who approves effects beyond policy and answers
     questions during an incident;
@@ -228,7 +228,7 @@ jig-ops-domain                    the engine's root
 - **Staging:** agents' tasks may restart and scale.
 - **Production:** every effect is beyond any agent's authority, and so
   beyond its delegates': the task that wants one proposes it, for the
-  person on call to accept (`domain/tasks.md`, section 9).
+  person on call to accept (`domain/tasks/proposals.md`).
 - **Money:** each team has a budget per month, spent by environments,
   and a person's pool within it.
 
@@ -257,7 +257,7 @@ P, the person on call
 - **Alert 12** is triaged as an incident. T2 finishes with that verdict
   and the incident's fields (alert 12, checkout, its severity), and
   makes nothing itself. W hears T2's result, as a requester hears its
-  delegate's (`domain/tasks.md`, 8.1), and steps on it: it opens the
+  delegate's (`domain/tasks/messages.md`, 1), and steps on it: it opens the
   incident from the verdict's fields and makes I, a tracked task, from
   the lead's batch, in that step, keeping in its state which incident
   the step's task will lead. The core tells observability, in the same
@@ -315,11 +315,11 @@ Q, a developer
   held and the client says why. Nothing is recreated without a decision.
 - **A chat closed with its environment:** once E's environment is torn
   down, infrastructure closes C in the deployment's name, granted the
-  deployment's `close` by `ops`'s configuration (`domain/people.md`,
-  5.3): C is asked to finish within the grace that configuration gives
+  deployment's `close` by `ops`'s configuration (`domain/people/acts.md`,
+  3): C is asked to finish within the grace that configuration gives
   the close, as it gives its reason, and cancelled if it outlives it.
   The grace is the close's own, within the tasks child's bound, whichever
-  template made C: a task keeps no template (`domain/engine.md`, 11.1).
+  template made C: a task keeps no template (`domain/engine/views.md`, 1).
   Infrastructure keeps the act's key with E's record
   until it hears the answer, so an engine restarted between the act's
   commit and its answer sends it again and is answered once, C closed
@@ -356,7 +356,7 @@ shows, it reads through the public client.
 
 - **Its client crates,** written to be copied, as its root is:
   - `jig-ops-client-domain`, its client's domain: `jig_client::Client`,
-    held as a component (`client/domain/client.md`), and its two
+    held as a component (`client/domain/client/README.md`), and its two
     families on it, incidents and environments, with their documents and
     their requests, which ride the same client and the same request table
     as bytes under their owners' numbers;
@@ -364,7 +364,7 @@ shows, it reads through the public client.
     and its engine both read: observability's and infrastructure's
     subjects and documents (incidents, alerts, environments, panels), and
     infrastructure's environment requests and their outcomes; an
-    application's wire as `protocol/client.md`, section 11 has it;
+    application's wire as `protocol/client/README.md`, section 8 has it;
   - `jig-ops-client-view`, its presentation: the reference UI,
     `jig-client-view`, with its families' pages, cards and parts, on
     skein's UI kit (`client/domain/view.md`).
@@ -393,8 +393,8 @@ shows, it reads through the public client.
   kinds in words (`client/domain/pages.md`, section 9).
 - **Its drawing:** an incident's error rate, on the incident's page, a
   drawing of observability's with its fallback in words. Its drawing
-  code, in `jig-ops-client-view`, draws it as a scene (skein's `ui.md`,
-  section 11; `client/domain/view.md`, section 17), tested by golden
+  code, in `jig-ops-client-view`, draws it as a scene (skein's `ui/scenes.md`
+  ; `client/domain/view.md`, section 17), tested by golden
   scenes.
 - **A person in the worlds** is skein's fake person, reading the tree:
   P accepting a restart from an incident's page
@@ -405,7 +405,7 @@ shows, it reads through the public client.
   People sign in by the printed link; `ops` has no sign-in of its own.
 - **Its terminal** is a presentation of the same client, on skein's text
   shell, with jig's settings: its client and its presentation, printed
-  by `skein-ui-text` at most once a second (skein's `ui-text.md`;
+  by `skein-ui-text` at most once a second (skein's `ui/text.md`;
   `client/domain/view.md`, section 15), over the native shell,
   `jig-client-shell-native`, and the default mapping's client end,
   holding its credential as a bearer token. Its client world plays it
@@ -420,7 +420,7 @@ shows, it reads through the public client.
   the client's adapter over fetch, and the credential in the cookie its
   server sets. Its paths are its own: the reference UI's places at the
   root, by the reference UI's codec, and incidents' and environments' by
-  its own (`protocol/browser.md`, sections 3 and 9). It is `ops`
+  its own (`protocol/browser/README.md`, sections 3 and 9). It is `ops`
   standalone's too (9.1), whose server serves its page and bundle.
 
 ## 9. Its systems
@@ -475,7 +475,7 @@ shows, it reads through the public client.
   application's are.
 - **Its service,** `jig-ops-service`, is the reference for an
   application with agents in the engine and no workers, the second of
-  `domain/hosts.md`'s shapes: its `iterate` and protocol layer, with the
+  `domain/hosts/README.md`'s shapes: its `iterate` and protocol layer, with the
   store, the accounts', smith's LLM component for its
   `smith-inline-agent`'s runs, the host tools' translation
   (`jig-protocol-tools`, and its connectors' own), its server with the
@@ -492,13 +492,13 @@ shows, it reads through the public client.
   under `/jig`, with jig's default HTTP mapping and its example guards
   as they are, and serves its browser's page and bundle at its other
   paths, under the reference page policy, which jig's test application's
-  server sends too (`protocol/browser.md`, 12.1). Its startup prints the
+  server sends too (`protocol/browser/README.md`, 12.1). Its startup prints the
   printed link's URL, `/jig/v1/sign-in/link?secret=…` on that address,
   by which a person signs in, in a browser or at its terminal (section
   8). A browser's `GET` of it spends nothing: `ops`'s server answers it
   with its page, with `Referrer-Policy: no-referrer`, and its browser
-  shell `POST`s the secret, as its terminal does (`protocol/client.md`,
-  17.1; `protocol/browser.md`, section 11).
+  shell `POST`s the secret, as its terminal does (`protocol/client/default-http.md`,
+  1; `protocol/browser/README.md`, section 11).
 
 ## 10. Its worlds
 
@@ -521,8 +521,8 @@ shows, it reads through the public client.
   with a wake policy batching what it lets through, is enough before a
   cheap model triages.
 - **A chat's own template's grace:** no close honours it, since a task
-  keeps no template (`domain/engine.md`, 11.1): the deployment's close
+  keeps no template (`domain/engine/views.md`, 1): the deployment's close
   gives the grace `ops` configures (7.3), and a person's gives that of
-  the chat template `me` offers now (`client/domain/client.md`, 19).
+  the chat template `me` offers now (`client/domain/client/helpers.md`).
   Whether a task keeps its grace as a value, which would honour it at
   the price of a stored format. Default: as said.

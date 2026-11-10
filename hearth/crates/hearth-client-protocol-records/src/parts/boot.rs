@@ -1,4 +1,4 @@
-//! Boot record forms (hearth/docs/design/domain/render.md, 4.3).
+//! Boot record forms (hearth/docs/design/domain/render/spec.md, 1.3).
 use alloc::boxed::Box;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Change {

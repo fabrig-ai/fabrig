@@ -3,7 +3,7 @@
 Provisional, 2026-11-07. One short real task, once a model's account is usable, through the path a chat
 takes: the worker, smith and the model. Written from `../draft/model-check.md`. This document holds what
 runs, who pays, what ends it and what crosses to the client. What the person reads, Model's line and its
-words, is `../client/README.md`, 3.5, *The try*.
+words, is `../client/pages/README.md`, *The try*.
 
 ## 1. In one page
 
@@ -18,13 +18,13 @@ words, is `../client/README.md`, 3.5, *The try*.
 
 ## 2. The task
 
-- **Its charter:** charter 10, `TRIAL_CHARTER` (`../protocol/configuration.md`, 13.4): no tools, one working
+- **Its charter:** charter 10, `TRIAL_CHARTER` (`../protocol/configuration/stock.md`): no tools, one working
   turn, charter 1's models and hosts.
 - **What it asks:** the words `Say one word.`, its contract a report of at most 64 bytes, no job, parameters or
   inputs.
 - **The first usable account's names no `llm`,** so that it selects as a new chat does (jig's `domain/accounts.md`,
   4.3): a trial that named its model could pass while chats still hung. It is first when the person's offer in project
-  0 (jig's `domain/engine.md`, 11.1), within the deployment ceiling's models, holds no account but the one tried.
+  0 (jig's `domain/engine/views.md`, 1), within the deployment ceiling's models, holds no account but the one tried.
   Those are the models a person's seed allows (jig's `domain/authority.md`, 6.1); the offer is not narrowed to
   the trial's charter for this decision. Then what a new chat takes is that account.
 - **A later account's names it.** Where that offer holds any other account, the person's own or the deployment's, the
@@ -38,7 +38,7 @@ words, is `../client/README.md`, 3.5, *The try*.
 - **In no project:** the welcome's Model step has none yet, so its task is jig's person's task (jig's
   `domain/authority.md`, 6.1), its payer the person. So no list holds it: it is not in Chats, Needs you or Home's
   counts, and it writes nothing to a project's document.
-- **No workspace:** a run with no repository, as the status agent's (`forge.md`, 5.7).
+- **No workspace:** a run with no repository, as the status agent's (`forge/attention.md`, 3).
 - **Who pays and what:** the person, as for a chat. On a plan that is its included usage; on a key one short turn
   at the key's price. It spends only when something starts it (1): once as an account first becomes usable on those
   pages, and at each "Try again".
@@ -92,7 +92,7 @@ Every change asks `Changed { person }`. An event for a task no row holds is noth
 - **A committed turn is the first committed text:** a trial's run has no tools to call. The root reads turns, not
   their bytes.
 - **A failed run ends it.** jig would try again, past 1 to 30 s, and each try may spend: the trial's first ending
-  is its end (jig's `domain/engine.md`, 7).
+  is its end (jig's `domain/engine/executors.md`).
 
 ## 4. The root
 
@@ -141,7 +141,7 @@ versioned record Trials { rows: list 64 TrialRow }    # Watch::trials
   tabs ask twice, and the row stands for both. A reload in the gap asks nothing, and the line stays ticked.
 - **From the ask to its row** the line is `Running`: nothing goes ticked in between.
 - **Why it waits** is the Task document's `run_wait`, which the person who pays may watch (jig's
-  `domain/authority.md`, 6.1), in the words a chat's wait has (`../client/README.md`, 5.5). A wait
+  `domain/authority.md`, 6.1), in the words a chat's wait has (`../client/pages/accounts.md`, 2). A wait
   that a moment settles, a source `Asking`, `Refreshing`, `Granted` or `Moving`, isn't a stop; any other says so at
   once, on a row still running, and goes if the wait ends. Its row's `Waited` keeps those words where the client saw
   them, and otherwise says only that it had no answer in a minute.
@@ -149,7 +149,7 @@ versioned record Trials { rows: list 64 TrialRow }    # Watch::trials
 ### 6.1 Model's line
 
 `temper-client-view`'s `pages/model_check.rs`, `trial` and `line`, is the one place a row becomes words
-(`../client/README.md`, 3.5, *The try*). Which state it draws, in this order:
+(`../client/pages/README.md`, *The try*). Which state it draws, in this order:
 
 1. **The host's check out:** Running at the first step. **Settled not usable:** Stopped at it, in the host's check's
    words; "Try again" checks the host again.
@@ -197,7 +197,7 @@ sign-in or a program's; otherwise "All ways" on the welcome and nothing on an ac
 
 Nothing of the account: a source's own state is the host's check's (jig's `domain/accounts.md`, 3.4). Ready's
 heading and act count an account just declared as usable until its host's check says otherwise
-(`../client/README.md`, 3.5, *Ready*); the trial changes neither. A failed trial is a line in
+(`../client/pages/README.md`, *Ready*); the trial changes neither. A failed trial is a line in
 the pane, on the account's row and on Home, and "Try again".
 
 ## 8. Later

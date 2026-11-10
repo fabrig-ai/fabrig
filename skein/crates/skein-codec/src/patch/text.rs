@@ -1,4 +1,4 @@
-//! Patch tokens and statement grammar (codec.md, 11.1).
+//! Patch tokens and statement grammar (data/codec/patches.md, 1).
 
 use super::{Expected, Header, LANGUAGE, Op, PatchError, PatchWrong, Span, add, error, spelled};
 use skein_lib::{List, usize_of};

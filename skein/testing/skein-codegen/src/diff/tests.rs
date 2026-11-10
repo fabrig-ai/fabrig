@@ -1,4 +1,4 @@
-//! Same-name rename pairings (codec.md, 10.1).
+//! Same-name rename pairings (data/codec/diff.md, 1).
 
 use super::{DiffError, Rename, diff};
 use skein_codec::schema;

@@ -1,4 +1,4 @@
-//! Run writes and deletions of party-scoped preferences (`jig/docs/design/domain/engine.md`, 10.1).
+//! Run writes and deletions of party-scoped preferences (`jig/docs/design/domain/engine/briefs.md`, 2.1).
 use crate::settings_support::{self as support, ask, run_configuration, settings_run_with_limits};
 use jig_core_world::{fixtures, world::World};
 use jig_domain_authority as authority;
@@ -10,7 +10,7 @@ use jig_test_domain as root;
 use skein_lib::{List, ReplyTo, Token};
 use std::collections::BTreeMap;
 
-// Preference bounds in domain/engine.md, 10.1, supplied by the settings fixture.
+// Preference bounds in domain/engine/briefs.md, 2.1, supplied by the settings fixture.
 const PARTY_BYTES: usize = 120;
 const PARTY_ENTRIES: u32 = 12;
 const OTHER_PERSON: u64 = support::OWNER + 1;

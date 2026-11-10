@@ -1,4 +1,4 @@
-//! A bound conversation reads at either edge; Latest returns to its end (client/README.md, 5.15).
+//! A bound conversation reads at either edge; Latest returns to its end (client/pages/chat/conversation.md, 2).
 use crate::{cards::P, look};
 use crate::{
     frame::Bindings,
@@ -182,7 +182,7 @@ pub(crate) fn main(
 /// A chat's heading is at most this many characters, its ellipsis included.
 pub(crate) const SHORT_TITLE: usize = 72;
 
-/// A chat's heading shows its title's short form (client/README.md, 3.5, A chat's heading is short).
+/// A chat's heading shows its title's short form (client/pages/README.md, A chat's heading is short).
 pub(crate) fn short_title(title: &[u8]) -> Box<[u8]> {
     let mut start = title.len();
     for (index, byte) in title.iter().enumerate() {
@@ -280,7 +280,7 @@ fn conversation_head(b: &mut Builder, root: &Domain, words: &Words) {
         b.close();
     }
 }
-/// The read's status at the conversation's head (client/README.md, 5.15).
+/// The read's status at the conversation's head (client/pages/chat/conversation.md, 2).
 pub(crate) fn older(b: &mut Builder, thread: &Thread, words: &Words) {
     use jig_client::thread::{Reading, window::End};
     let first_failed = thread.lines.rows.is_empty() && thread.read_failed == Some(End::Before);
@@ -300,7 +300,7 @@ pub(crate) fn older(b: &mut Builder, thread: &Thread, words: &Words) {
     b.text(Run::Plain, &words.say(status, &[]));
     b.close();
 }
-/// Latest returns to the log's end, reading it again where the window let it go (client/README.md, 5.15).
+/// Latest returns to the log's end, reading it again where the window let it go (client/pages/chat/conversation.md, 2).
 pub(crate) fn latest(b: &mut Builder, thread: &Thread, words: &Words, bindings: &mut Bindings) {
     if words.shell == Shell::Terminal {
         return;
@@ -362,7 +362,7 @@ fn conversation_tail(
     }
     act_status(b, root, chat, words);
 }
-/// The delivered chat's chip decides its path and current navigation entry (client/README.md, 3.5).
+/// The delivered chat's chip decides its path and current navigation entry (client/pages/README.md).
 pub(crate) fn asking(root: &Domain) -> bool {
     let Some(chat) = root.pages().chat() else { return false };
     let Some(task) = chat.task(root.client()) else { return false };
@@ -668,7 +668,7 @@ fn proposal_anchor(chat: &Chat, object: c::ObjectKey, rows: u32) -> Option<(c::T
     None
 }
 
-/// Where a card stands among the window's lines (client/README.md, 5.13, *Where a card stands*).
+/// Where a card stands among the window's lines (client/pages/settings.md, 2, *Where a card stands*).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Place {
     /// At the call that names it: `proposal_anchor`.
@@ -879,7 +879,7 @@ pub(crate) enum Drawn<'a> {
         request: Option<&'a c::SpecificationDocument>,
         delegations: Option<(&'a Chat, &'a jig_client::Client)>,
     },
-    /// An agent's page while a run is out (client/README.md, 5.9).
+    /// An agent's page while a run is out (client/pages/task.md, 2).
     AgentRun {
         current: Option<&'a c::CurrentCall>,
     },
@@ -929,7 +929,7 @@ fn drawing(drawn: Drawn<'_>) -> Drawing<'_> {
     }
 }
 
-/// Stable conversation identities, apart from inbox cards (client/README.md, 5.15).
+/// Stable conversation identities, apart from inbox cards (client/pages/chat/conversation.md, 2).
 pub(crate) fn line_key(line: &Line<'_>) -> Option<Key> {
     let (kind, a, b) = match line {
         Line::Turn { name, .. } | Line::Undecoded { name, .. } => (40, name.attempt, u64::from(name.number)),
@@ -1002,7 +1002,7 @@ pub(crate) fn conversation_with_times(
     b.close();
 }
 
-/// Opens the conversation's log, bound to read its edges (client/README.md, 5.15).
+/// Opens the conversation's log, bound to read its edges (client/pages/chat/conversation.md, 2).
 pub(crate) fn open_log(b: &mut Builder, thread: &Thread, words: &Words, bindings: &mut Bindings) {
     b.open(Role::Log);
     b.name(&words.say_card(P::ConversationLog, &[]));
@@ -1020,7 +1020,7 @@ pub(crate) fn open_log(b: &mut Builder, thread: &Thread, words: &Words, bindings
 }
 
 /// The log's lines, into a log its caller opened and closes.
-// Agent task pages keep their own treatment of moments (client/README.md, 5.12).
+// Agent task pages keep their own treatment of moments (client/view.md, 6).
 #[expect(clippy::too_many_lines, reason = "the conversation walk interleaves its run, text and card anchors")]
 pub(crate) fn conversation_lines(
     b: &mut Builder,
@@ -1200,7 +1200,7 @@ pub(crate) fn conversation_lines(
     let running_run = running && (!run.is_empty() || current.is_some());
     run.flush(b, current, running_run, words, terminal);
     start_fact(b, &mut started, None, words, bindings);
-    // The live delegates anchor follows the window's last line (client/README.md, 5.7).
+    // The live delegates anchor follows the window's last line (client/view.md, 5).
     live_delegates(b, &mut tasks, delegations, &mut shown, words, bindings, terminal);
     if let Some(root) = proposals {
         conversation_tail(b, root, words, bindings, rows, times.expect("chat page times"), &places);
@@ -1317,7 +1317,7 @@ fn turn_clock(b: &mut Builder, clock: Option<&[u8]>) {
         text(b, Role::Time, clock);
     }
 }
-/// A delegate's heard result anchors its card, as a result block does (client/README.md, 5.7).
+/// A delegate's heard result anchors its card, as a result block does (client/view.md, 5).
 fn heard_card(
     b: &mut Builder,
     line: &Line<'_>,
@@ -1958,7 +1958,7 @@ fn hidden(event: &c::DecodedActivityLine, projected: bool, delegations: Option<(
         None => false,
     }
 }
-// A later settings proposal in this chat replaces a withdrawn one (client/README.md, 5.13).
+// A later settings proposal in this chat replaces a withdrawn one (client/pages/settings.md, 2).
 fn settings_replaced(root: &Domain, object: c::ObjectKey) -> bool {
     let c::ObjectKey::Proposal(key) = object else { return false };
     let Some(chat) = root.pages().chat() else { return false };

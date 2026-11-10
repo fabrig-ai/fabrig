@@ -1,4 +1,4 @@
-//! Claude Code's launcher (temper/docs/design/protocol/setup.md, 6.6).
+//! Claude Code's launcher (temper/docs/design/protocol/setup/owned.md, 6).
 use std::{
     ffi::OsStr,
     fs,
@@ -67,7 +67,7 @@ fn launch(program: &OsStr, arguments: &[Box<[u8]>]) -> Result<(), String> {
     Err(format!("{}: {why}", path(&file).display()))
 }
 
-/// Write the launcher's links in `directory`: `claude` to the agent's program, `cache` to the cache (setup.md, 6.6).
+/// Write the launcher's links in `directory`: `claude` to the agent's program, `cache` to the cache (protocol/setup/owned.md, 6).
 pub fn place(directory: &Path, cache: &Path, program: &Path) -> Result<(), String> {
     let why = |why| format!("{}: {why}", directory.display());
     if !smith_agent_document::program::private_directory(directory).map_err(|error| error.to_string())? {
@@ -99,7 +99,7 @@ fn link(directory: &Path, name: &str, target: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// The launcher fetch's small io limits (temper/docs/design/protocol/setup.md, 6.6).
+/// The launcher fetch's small io limits (temper/docs/design/protocol/setup/owned.md, 6).
 pub const IO: skein_io::Limits = skein_io::Limits {
     sockets: 16,
     names: 8,
@@ -118,7 +118,7 @@ fn path(bytes: &[u8]) -> &Path {
     Path::new(OsStr::from_bytes(bytes))
 }
 
-/// Claude Code's launcher, beside its programs directory (temper/docs/design/protocol/setup.md, 6.6).
+/// Claude Code's launcher, beside its programs directory (temper/docs/design/protocol/setup/owned.md, 6).
 #[must_use]
 pub fn beside(directory: &Path) -> Option<PathBuf> {
     directory.parent().map(|parent| parent.join("claude-code/claude"))

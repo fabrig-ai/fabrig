@@ -1,4 +1,4 @@
-//! One socket and its optional TLS (skein/docs/design/link.md, 3).
+//! One socket and its optional TLS (skein/docs/design/net/link.md, 3).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 

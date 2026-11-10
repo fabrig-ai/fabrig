@@ -1,4 +1,4 @@
-//! Asks values retained by people (protocol/store.md, 5.1).
+//! Asks values retained by people (protocol/store/records.md, 1).
 mod account_changes;
 use super::{
     Box, decode_amendment, decode_holdings, decode_numbers, decode_pattern, decode_policy_change, decode_role,

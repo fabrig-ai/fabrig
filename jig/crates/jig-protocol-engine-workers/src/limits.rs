@@ -1,4 +1,4 @@
-//! Checked channel capacity (protocol/channel.md, section 11).
+//! Checked channel capacity (protocol/channel/README.md, section 10).
 use jig_protocol_worker_wire::{
     self as wire,
     sizes::{self, Sizes},
@@ -13,7 +13,7 @@ pub struct Limits {
     pub opening: u32,
     pub chunk: u32,
     /// The most bytes the stream below grants at once: io's
-    /// `largest_room` (protocol/channel.md, 9 and 11).
+    /// `largest_room` (protocol/channel/README.md, 8 and 10).
     pub room: u32,
     pub handshake: Duration,
     pub hello: Duration,

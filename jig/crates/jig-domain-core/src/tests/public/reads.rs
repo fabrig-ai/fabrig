@@ -1,4 +1,4 @@
-//! Whole-output public reads (jig/docs/design/domain/people.md, 13.6 and 13.10).
+//! Whole-output public reads (jig/docs/design/domain/people/public-reading.md, 6 and 10).
 #[path = "reads/fixtures.rs"]
 mod fixtures;
 #[path = "reads/races.rs"]

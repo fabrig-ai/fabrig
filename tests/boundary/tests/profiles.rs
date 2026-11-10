@@ -1,5 +1,5 @@
 //! A tree's scripts name nextest profiles the root configuration defines
-//! (skein/docs/design/ui-web.md, 14.1). The check reads `.config/nextest.toml`'s
+//! (skein/docs/design/ui/web/testing.md, 1). The check reads `.config/nextest.toml`'s
 //! `[profile.NAME]` headers and every `--profile NAME` in the listed trees' `*.sh`. A
 //! `--profile` with no name after it is a failure, never a skip.
 

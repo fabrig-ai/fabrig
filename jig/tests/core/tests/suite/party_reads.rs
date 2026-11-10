@@ -1,4 +1,4 @@
-//! Party reads and acts on their own preferences (`jig/docs/design/domain/engine.md`, 10.1).
+//! Party reads and acts on their own preferences (`jig/docs/design/domain/engine/briefs.md`, 2.1).
 use jig_core_world::{
     fixtures::{ask_as, second_party},
     reads::{Parties, ask as read, latest},

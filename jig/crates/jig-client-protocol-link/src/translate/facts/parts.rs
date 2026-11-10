@@ -1,4 +1,4 @@
-//! Field-for-field client contract translation (protocol/client.md, 3 and 5).
+//! Field-for-field client contract translation (protocol/client/wire.md, 1, and protocol/client/README.md, 3).
 use super::parties::proposer;
 use super::{person_address, requester};
 use crate::Limits;

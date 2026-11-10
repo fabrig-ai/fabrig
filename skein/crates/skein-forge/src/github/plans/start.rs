@@ -1,4 +1,4 @@
-//! The App's setup exchanges, without repository tables (forge-github.md, 8.1–8.4).
+//! The App's setup exchanges, without repository tables (forge/github.md, 8.1–8.4).
 use super::{Body, Heard, failure, plan};
 use crate::api::Excess;
 use crate::{

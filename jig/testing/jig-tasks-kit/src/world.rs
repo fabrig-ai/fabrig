@@ -1,5 +1,5 @@
 //! Durable parent and scripted executors at the retained tasks boundary
-//! (domain/tasks.md, 11; domain/engine.md, 7).
+//! (domain/tasks/README.md, 6; domain/engine/executors.md).
 mod compound;
 use crate::PERSON;
 use crate::referee::{Seen, Stimulus, Tasks};
@@ -82,7 +82,7 @@ pub fn authority() -> Authority {
 }
 
 /// The configured models' declared efforts, in configuration's order: model 0 declares two,
-/// model 1 none, model 2 one and model 3 none (domain/tasks.md, section 3).
+/// model 1 none, model 2 one and model 3 none (domain/tasks/README.md, section 3).
 pub const EFFORTS: [u8; 4] = [2, 0, 1, 0];
 
 /// The configured charters and their models: charter 1 lists models 0, 1 and 2, in that order,
@@ -136,27 +136,27 @@ pub enum Reply {
 }
 
 /// Complete frozen run evidence, including internal deterministic state and all
-/// parent/executor state; facts are diagnostic only (domain/tasks.md, 11).
+/// parent/executor state; facts are diagnostic only (domain/tasks/README.md, 6).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Frozen {
-    /// Durable parent rows (domain/tasks.md, 5).
+    /// Durable parent rows (domain/tasks/lifecycle.md).
     pub records: BTreeMap<Key, Stored>,
-    /// Committed call replies (domain/tasks.md, 5).
+    /// Committed call replies (domain/tasks/lifecycle.md).
     pub replies: BTreeMap<u64, Reply>,
-    /// Pending executor preparations (domain/engine.md, 7).
+    /// Pending executor preparations (domain/engine/executors.md).
     pub activations: BTreeSet<u64>,
     activation_counts: BTreeMap<u64, u32>,
-    /// Owned activation briefs (domain/engine.md, 9).
+    /// Owned activation briefs (domain/engine/briefs.md, 1).
     pub contexts: BTreeMap<u64, RunContext>,
-    /// Physical executor attempts (domain/engine.md, 7).
+    /// Physical executor attempts (domain/engine/executors.md).
     pub runs: BTreeMap<u64, u64>,
-    /// Requested stops awaiting terminal work (domain/tasks.md, 5.1).
+    /// Requested stops awaiting terminal work (domain/tasks/lifecycle.md, 1).
     pub stops: BTreeSet<(u64, u64)>,
-    /// Relayed words by task, attempt and message (domain/tasks.md, section 7).
+    /// Relayed words by task, attempt and message (domain/tasks/changes.md).
     pub relays: BTreeSet<(u64, u64, u64)>,
-    /// Effects settlement gates (domain/tasks.md, 5.1).
+    /// Effects settlement gates (domain/tasks/lifecycle.md, 1).
     pub closing: BTreeSet<u64>,
-    /// Committed requester outcomes (domain/tasks.md, 5.6).
+    /// Committed requester outcomes (domain/tasks/lifecycle.md, 7).
     pub results: BTreeMap<u64, Ending>,
     ended_topics: Vec<(u64, u64, u16)>,
     deadlines: BTreeMap<u64, (Wall, Time)>,
@@ -206,11 +206,11 @@ pub struct World {
     pub replies: BTreeMap<u64, Reply>,
     pub activations: BTreeSet<u64>,
     activation_counts: BTreeMap<u64, u32>,
-    /// Owned activation brief supplied by the child (domain/engine.md, 9).
+    /// Owned activation brief supplied by the child (domain/engine/briefs.md, 1).
     pub contexts: BTreeMap<u64, RunContext>,
     pub runs: BTreeMap<u64, u64>,
     pub stops: BTreeSet<(u64, u64)>,
-    /// Relayed words by task, attempt and message (domain/tasks.md, section 7).
+    /// Relayed words by task, attempt and message (domain/tasks/changes.md).
     pub relays: BTreeSet<(u64, u64, u64)>,
     pub closing: BTreeSet<u64>,
     pub results: BTreeMap<u64, Ending>,
@@ -280,7 +280,7 @@ impl World {
 
     #[must_use]
     /// Capture all retained domain, parent and executor state between steps
-    /// (domain/tasks.md, 11).
+    /// (domain/tasks/README.md, 6).
     pub fn frozen(self) -> Frozen {
         Frozen {
             records: self.records,
@@ -812,7 +812,7 @@ impl World {
     }
 
     /// Commit state and requester results together before executor delivery
-    /// (domain/tasks.md, 5; domain/engine.md, 7).
+    /// (domain/tasks/lifecycle.md; domain/engine/executors.md).
     pub fn durable(&mut self) {
         self.commit += 1;
         let mut terminals = Vec::new();
@@ -1116,7 +1116,7 @@ impl World {
         self.records.keys().filter(|key| matches!(key, Key::Live(_))).count()
     }
 
-    /// Current holder eligibility as the core reads it (domain/tasks.md, 5.7 and section 9).
+    /// Current holder eligibility as the core reads it (domain/tasks/lifecycle.md, 8 and domain/tasks/proposals.md).
     #[must_use]
     pub fn delegation(&self, number: u64) -> tasks::DelegationContext {
         self.domain.delegation(number).expect("live task's delegation context")
@@ -1257,7 +1257,7 @@ impl World {
         self.terminal_cause(task, end, Cause::Unpriced)
     }
 
-    /// Submit a priced or recovery terminal (domain/tasks.md, 5).
+    /// Submit a priced or recovery terminal (domain/tasks/lifecycle.md).
     pub fn terminal_cause(&mut self, task: u64, end: End, cause: Cause) -> Reply {
         let attempt = self.runs[&task];
         let reply_to = self.to();
@@ -1402,7 +1402,7 @@ impl World {
     }
 
     /// Complete the stopped descendants after an accepted delegate-cancelling
-    /// terminal (domain/tasks.md, 5.6).
+    /// terminal (domain/tasks/lifecycle.md, 7).
     pub fn complete_cancel(&mut self) {
         for (task, _) in self.stops.clone() {
             if self.runs.contains_key(&task) {
@@ -1416,7 +1416,7 @@ impl World {
         self.referee.assert_passed(self.seed);
     }
 
-    /// Report and retain the connector's latest named rule (domain/tasks.md, section 6).
+    /// Report and retain the connector's latest named rule (domain/tasks/holds.md).
     pub fn report_resource(&mut self, name: tasks::Name, hold: tasks::HoldKind) {
         self.send(Event::Resource { name, hold });
     }
@@ -1456,7 +1456,7 @@ fn result_notice(ending: Ending) -> (ResultKind, Box<[u8]>) {
 }
 
 /// Seeded dependency, priced work, retry, crash and delegate-close story
-/// (domain/tasks.md, 11). Replay includes complete frozen state.
+/// (domain/tasks/README.md, 6). Replay includes complete frozen state.
 #[must_use]
 pub fn run_story(seed: u64) -> (Trace, Frozen) {
     run_story_facts(seed, true)

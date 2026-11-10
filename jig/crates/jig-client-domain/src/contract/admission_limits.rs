@@ -1,4 +1,4 @@
-//! Structural engine limits, without fabricated amounts; client/domain/contract.md, 4.
+//! Structural engine limits, without fabricated amounts; client/domain/contract/README.md, 3.
 /// The exact category supplied by engine admission.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum AdmissionLimit {

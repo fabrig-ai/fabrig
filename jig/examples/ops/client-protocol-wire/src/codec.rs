@@ -1,4 +1,4 @@
-//! Whole, versioned records at both ends of the family wire (protocol/client.md, 11).
+//! Whole, versioned records at both ends of the family wire (protocol/client/README.md, 8).
 use crate::v1 as w;
 use alloc::boxed::Box;
 use skein_lib::{Reader, Writer};

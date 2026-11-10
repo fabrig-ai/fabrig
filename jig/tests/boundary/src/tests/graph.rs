@@ -77,7 +77,7 @@ fn hosts_and_translation_use_only_their_core_vocabularies_even_when_empty() {
                 .iter()
                 .filter(|name| {
                     CORE_FAMILY.contains(&name.as_str())
-                        // jig/docs/design/domain/hosts.md, 8: assignment translates the run charter and task contract.
+                        // jig/docs/design/domain/hosts/charters.md: assignment translates the run charter and task contract.
                         && !(manifest.name.as_deref() == Some("jig-protocol-charter")
                             && ["jig-domain-core", "jig-domain-tasks", "jig-domain-brief"].contains(&name.as_str()))
                 })
@@ -325,7 +325,7 @@ fn client_world_joins_only_the_client_and_test_roles() {
                 "jig-client-scripted-engine",
                 // The real joint world joins the core and pure test connector
                 // (client/domain/testing.md, 5); client step crates stay separate.
-                // Joint stories use shipped limits (jig/docs/design/protocol/configuration.md, 6).
+                // Joint stories use shipped limits (jig/docs/design/protocol/limits.md).
                 "jig-protocol-config",
                 "jig-domain-core",
                 "jig-domain-authority",

@@ -1,7 +1,7 @@
 //! Cache reuse joins adjacent requests only within an affinity/window.
 //! R sums reported cache reads over cacheable predecessors' disjoint prompt
 //! counts; eligibility, the threshold and full-miss rate follow
-//! benchmarks.md, section 11.1.
+//! benchmarks/catalogue.md, section 1.
 
 use std::collections::{BTreeMap, BTreeSet};
 

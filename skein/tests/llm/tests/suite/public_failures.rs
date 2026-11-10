@@ -1,4 +1,4 @@
-//! Synthetic public Responses failures, independently written from llm.md 4.8.
+//! Synthetic public Responses failures, independently written from llm/README.md 4.8.
 use skein_lib::{Duration, Wall};
 use skein_llm::{Call, Failure, Provider, Report, client};
 use skein_llm_world::{World, call, events, limits_for, public_call, response, run_call};

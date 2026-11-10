@@ -1,4 +1,4 @@
-//! The binary's table (protocol/README.md, section 4): each command a row,
+//! The binary's table (protocol/binaries.md): each command a row,
 //! whence the parser's words, `temper --help`, `temper COMMAND --help` and
 //! the reference page `commands`.
 use crate::{box_command, directories, fake};
@@ -7,7 +7,7 @@ use temper_shell::rows;
 
 use temper_engine_shell::forge::{FETCH, FORGE, FORGE_CHILD, PREPARE, REMOVE, RUN, SIGN_IN, SOURCE};
 
-/// Every row, in `temper --help`'s order: by `Who`, then as listed in protocol/README.md, section 4.
+/// Every row, in `temper --help`'s order: by `Who`, then as listed in protocol/binaries.md.
 pub const COMMANDS: [Row; 24] = [
     HELP,
     Row {

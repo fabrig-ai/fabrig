@@ -1,4 +1,4 @@
-//! The writer (json.md, 4): measured, then written into exactly that
+//! The writer (data/json.md, 4): measured, then written into exactly that
 //! length; escaping; refusals of what the caller's data gets wrong; and
 //! assertions on what its code gets wrong.
 

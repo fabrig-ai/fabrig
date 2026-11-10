@@ -1,4 +1,4 @@
-//! One decode step for every transcript read, including asynchronous sites (store.md 8.6).
+//! One decode step for every transcript read, including asynchronous sites (protocol/store/transcripts.md 6).
 use super::{Unread, WRAPPER_BYTES, body};
 use crate::patching::walk::held_root;
 use crate::transcripts::patches::{Machine, Machines};

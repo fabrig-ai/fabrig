@@ -1,4 +1,4 @@
-//! `ChaCha20` with the original 64-bit counter and nonce (lib.md, 8).
+//! `ChaCha20` with the original 64-bit counter and nonce (runtime/lib.md, 8).
 use core::hash::{Hash, Hasher};
 
 use crate::Secret;
@@ -88,14 +88,17 @@ fn quarter(words: &mut [u32; 16], a: usize, b: usize, c: usize, d: usize) {
     *words.get_mut(c).expect("round index") = c_word;
     *words.get_mut(d).expect("round index") = d_word;
 }
-#[expect(clippy::missing_fields_in_debug, reason = "lib.md, 8 forbids showing the key or buffered secret bytes")]
+#[expect(
+    clippy::missing_fields_in_debug,
+    reason = "runtime/lib.md, 8 forbids showing the key or buffered secret bytes"
+)]
 impl core::fmt::Debug for CryptoRng {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("CryptoRng").field("stream", &self.stream).finish()
     }
 }
 
-// lib.md, 5.1: hash held state, never capacity or storage layout.
+// runtime/lib.md, 5.1: hash held state, never capacity or storage layout.
 impl Hash for CryptoRng {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.stream.hash(state);

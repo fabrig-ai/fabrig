@@ -1,4 +1,4 @@
-//! Every schema's goldens agree with the generic decoder (codec.md, 8.3).
+//! Every schema's goldens agree with the generic decoder (data/codec/README.md, 8.3).
 
 extern crate alloc;
 

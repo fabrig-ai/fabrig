@@ -1,4 +1,4 @@
-//! A core-admitted keyed adoption and its retained terminal (domain/forge.md, 4).
+//! A core-admitted keyed adoption and its retained terminal (domain/forge/adoption.md).
 use crate::domain::{child, emit};
 use crate::{
     Adopted, AdoptedRepository, Adoption, AdoptionRefusal, ApplicationOutcome, Domain, Key, Kinds, Limits, Protection,
@@ -140,7 +140,7 @@ pub(crate) fn start(
     }
 }
 
-/// Access precedes the bot's first read (temper/docs/design/domain/forge.md, 4.2).
+/// Access precedes the bot's first read (temper/docs/design/domain/forge/adoption.md, 2).
 pub(crate) fn accessed(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -186,7 +186,7 @@ pub(crate) fn adopted(d: &mut Domain, out: &mut Queue<Request>, reply_to: Token,
         });
     }
     // An act has no pending party application. Its caller hears this result
-    // under jig's request token and later tells MakingActed (domain/forge.md, 4.5).
+    // under jig's request token and later tells MakingActed (domain/forge/adoption.md, 5).
     out.push(Request::Adopted { reply_to, result });
 }
 
@@ -576,7 +576,7 @@ fn finish_adoption(
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Repository(row.clone()) });
         crate::workflows::read(d, env, row.provider, None, out);
     }
-    // The forges row lists its adoptions (client/forge.md, 5.4).
+    // The forges row lists its adoptions (client/forge/deployment.md).
     emit(out, Request::MarkedForges);
     let collaborators = human_collaborators(d, row.provider.forge, pending.collaborators);
     adopted(d, out, owner, Ok(Adopted { repository: row, collaborators }));
@@ -610,7 +610,7 @@ fn locate_refused(d: &mut Domain, env: &Env<Limits>, request: Token, why: Adopti
 }
 
 /// Release adoptions after the core has erased the project's tasks
-/// (jig/docs/design/domain/people.md, 5.2; temper/docs/design/domain/forge.md, 4.1).
+/// (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption.md, 1).
 pub(crate) fn release(d: &mut Domain, project: u32, request: Token, out: &mut Queue<Request>) {
     let mut repositories = List::with_capacity(d.repositories.capacity());
     for (provider, row) in &d.repositories {
@@ -657,7 +657,7 @@ pub(crate) fn release(d: &mut Domain, project: u32, request: Token, out: &mut Qu
     emit(out, Request::ProjectReleased { request });
 }
 
-/// An act already names the made repository (domain/forge.md, 4.5).
+/// An act already names the made repository (domain/forge/adoption.md, 5).
 pub(crate) fn making_asked(
     d: &mut Domain,
     env: &Env<Limits>,

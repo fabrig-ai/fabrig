@@ -1,4 +1,4 @@
-//! Decode attested calls and render their terminals outside the root (channel.md, 6.3).
+//! Decode attested calls and render their terminals outside the root (protocol/channel/README.md, 5.3).
 use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_domain_fleet as fleet;

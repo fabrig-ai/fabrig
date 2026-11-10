@@ -1,4 +1,4 @@
-//! Open main lifecycle at the existing run entrance (smith/docs/design/domain/run.md, sections 3.1, 6 and 9.1).
+//! Open main lifecycle at the existing run entrance (smith/docs/design/domain/run.md, sections 3.1 and 6, and smith/docs/design/domain/budget.md, section 1).
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,

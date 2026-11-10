@@ -1,4 +1,4 @@
-//! One attempt's metadata, followed by its log redirect (forge-github.md, 10).
+//! One attempt's metadata, followed by its log redirect (forge/github.md, 10).
 use super::{Bounds, Plan, Read, Request, Response, Stage, Step, api, document};
 use crate::api::Excess;
 use crate::github::{header::Head, plans::plan::Retention, redirect};
@@ -43,7 +43,7 @@ impl Plan {
     pub(super) fn job_redirect(&mut self, head: &Head) -> Result<Option<Step>, api::Error> {
         let location = head.location.as_ref().ok_or(api::Error::InvalidAnswer)?;
         // The header reader has already bounded Location. Neither parsed field
-        // can exceed it (forge-github.md, 10).
+        // can exceed it (forge/github.md, 10).
         let length = u32::try_from(location.len()).or(Err(api::Error::InvalidAnswer))?;
         let redirect = redirect::parse(location, length, length)?;
         self.stage = Stage::Log;

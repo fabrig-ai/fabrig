@@ -1,4 +1,4 @@
-//! Stateless vocabulary translations; no payload codecs (hosts.md, 6.8).
+//! Stateless vocabulary translations; no payload codecs (domain/hosts/hub.md, 8).
 use jig_domain_host as host;
 use jig_domain_link::{Form, Grant, Operation, Scheme};
 use smith_host_domain as smith;

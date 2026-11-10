@@ -1,4 +1,4 @@
-//! Startup's inherited and held listeners (shell.md, 6.6).
+//! Startup's inherited and held listeners (runtime/shell.md, 6.6).
 
 use std::net::SocketAddr;
 use std::os::unix::ffi::OsStrExt;
@@ -12,7 +12,7 @@ use crate::system;
 /// exist; io's adoption separately enforces the service's socket capacity.
 pub const MAX_INHERITED_LISTENERS: u32 = 1024;
 
-/// The call of a listener's check that failed (shell.md, 6.6).
+/// The call of a listener's check that failed (runtime/shell.md, 6.6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ListenerCheck {
     Stat,
@@ -99,7 +99,7 @@ fn count(bytes: &[u8]) -> Result<u32, ListenersRefusal> {
 }
 
 /// Validates one listening IPv4 or IPv6 stream socket, leaving its flags
-/// and ownership as they are (shell.md, 6.6).
+/// and ownership as they are (runtime/shell.md, 6.6).
 pub fn listener_at(fd: Fd) -> Result<SocketAddr, ListenersRefusal> {
     system::listener_calls::listener_at(fd)
 }

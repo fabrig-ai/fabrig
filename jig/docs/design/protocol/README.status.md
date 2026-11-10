@@ -6,8 +6,8 @@
 
 Section 13's third built-in sign-in is present: the clients' component
 holds browser approvals and makes an ordinary sign-in only at the take.
-Its expiry departure is in `client.status.md`, section 8; approval between
-hosts and listing sign-ins remain `client.md`, section 15's later work.
+Its expiry departure is in `client/sign-in.status.md`; approval between
+hosts and listing sign-ins remain `client/README.md`, section 12's later work.
 
 Section 6's agent command and the agent modes beside it are present in
 the reference binary an application copies: `jig-test` dispatches

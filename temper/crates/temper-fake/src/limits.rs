@@ -1,4 +1,4 @@
-//! The QA peers' fixed admission and buffer sizes (protocol/setup.md, 8.4).
+//! The QA peers' fixed admission and buffer sizes (protocol/setup/playground.md).
 use skein_fake_peers::Limits;
 use skein_lib::Duration;
 

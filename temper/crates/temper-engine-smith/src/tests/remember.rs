@@ -1,8 +1,8 @@
-//! Exact memory answers (temper/docs/design/domain/agent.md, 8.4.4).
+//! Exact memory answers (temper/docs/design/domain/agent/ask-temper.md, 4).
 use skein_lib::List;
 use temper_engine_domain::{CallAnswer, RememberDid as D, RememberRefusal as R, Remembered};
 
-// The party scope holds at most twelve lines (domain/agent.md, 8.4.4).
+// The party scope holds at most twelve lines (domain/agent/ask-temper.md, 4).
 const BOUND: u32 = 12;
 
 fn full_list() -> List<Box<[u8]>> {

@@ -459,7 +459,7 @@ fn each_change_delegate_round_trips_unchanged() {
     }
 }
 
-/// The merge delegate and its retained fields survive storage (temper/docs/design/domain/forge.md, 8.4).
+/// The merge delegate and its retained fields survive storage (temper/docs/design/domain/forge/change/repairs.md).
 #[test]
 fn a_change_row_with_a_merge_delegate_and_a_catch_up_round_trips() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
@@ -1526,7 +1526,7 @@ fn a_producer_report_is_bounded_by_the_forge_operation_bytes() {
 fn questions_open_follows_the_change_bound() {
     use temper_engine_domain_forge_change::{Open, Stands, State};
     const ASKER: u64 = 7;
-    // domain/forge.md, 8.11: the policy's questions and the one that holds the change.
+    // domain/forge/change/questions.md, 1: the policy's questions and the one that holds the change.
     // The stock takes four, standard takes eighty; 126 leaves one past encodable at the ceiling.
     for (questions, open_bound) in [(0, 1), (4, 5), (80, 81), (126, 127)] {
         let mut limits = fixtures::LIMITS;
@@ -2000,7 +2000,7 @@ fn rows_refuse_invalid_options_and_keys() {
     }
 }
 
-/// temper/docs/design/domain/forge.md, 8.1: the request and producer survive restart.
+/// temper/docs/design/domain/forge/change/README.md, 1: the request and producer survive restart.
 #[test]
 fn a_change_row_with_a_close_request_round_trips() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");

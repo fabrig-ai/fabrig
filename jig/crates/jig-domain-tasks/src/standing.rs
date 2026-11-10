@@ -1,4 +1,4 @@
-//! Period renewal for subscribed top-level procedures (domain/tasks.md, section 10;
+//! Period renewal for subscribed top-level procedures (domain/tasks/README.md, section 5;
 //! domain/authority.md, section 7). Old delegates keep their old-period source.
 use crate::domain::{Domain, publish, record, task_mut};
 use crate::{Executor, Funder, FundingRecord, Limits, Numbers, Phase, Request};

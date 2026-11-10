@@ -1,4 +1,4 @@
-//! Accepted streams and the workers' component (jig/docs/design/protocol/channel.md, 10.2).
+//! Accepted streams and the workers' component (jig/docs/design/protocol/channel/README.md, 9.2).
 //! The owner's pull and listener lifecycle (jig/docs/design/protocol/service.md, 11.3).
 use crate::{Component, Event, Limits, Loss, Request, Worker};
 use alloc::boxed::Box;
@@ -10,7 +10,7 @@ use skein_channel::{Lower, LowerEvent};
 use skein_io as io;
 use skein_lib::{List, Map, Queue, Time, Token, stream};
 
-/// The owner's namespaces for this part's io (skein/docs/design/lib.md, 4).
+/// The owner's namespaces for this part's io (skein/docs/design/runtime/lib.md, 4).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Tokens {
     pub listeners: u8,

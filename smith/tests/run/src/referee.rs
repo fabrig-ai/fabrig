@@ -1,5 +1,5 @@
 //! Per-run grouping for the run world's independent oracles.
-//! Contract: smith/docs/design/domain/run.md, section 13.
+//! Contract: smith/docs/design/domain/run.md, section 12.
 
 use std::collections::BTreeMap;
 

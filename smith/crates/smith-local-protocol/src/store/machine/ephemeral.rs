@@ -1,4 +1,4 @@
-//! Private chat cleanup by this store's written names (shell.md, section 4.2).
+//! Private chat cleanup by this store's written names (shell/commands.md, section 2).
 //! No directory content is learned. A failed removal keeps the directory;
 //! closing the two roots reports the warning without changing the answer.
 use super::{Action, Box, Queue, State, Store, Time, Token, file, kernel};

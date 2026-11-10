@@ -1,7 +1,7 @@
 # A stopped run's twin
 
 `twin` turns the selected tasks' transcripts from a cleanly stopped deployment
-into a `temper fake llm --document` document (domain/testing.md, 4.1).
+into a `temper fake llm --document` document (testing/fakes.md, 1).
 It is a developer tool, never shipped or published.
 
 ```sh
@@ -50,7 +50,7 @@ Opaque blocks are dropped, keeping text and calls in order. Cut calls and
 compactions are refused with task and turn; bad or partial frames include
 task and byte offset. Versions must be those
 of this build's Jig and Smith codecs. There are no upgrades and the store is
-never opened. Jig's `protocol/store.md`, 8.1–8.4, owns frame layout and the
+never opened. Jig's `protocol/store/transcripts.md`, 1–4, owns frame layout and the
 clean-stop guarantee: a complete checksummed frame does not independently
 prove its commit. Supply only data from a successful drained stop, never a
 crash or failed commit. The reader detects incomplete or corrupt tails but

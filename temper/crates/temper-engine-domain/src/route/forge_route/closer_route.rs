@@ -1,4 +1,4 @@
-//! A goal's mechanical close, landing and report (temper/docs/design/domain/forge.md, 11.2).
+//! A goal's mechanical close, landing and report (temper/docs/design/domain/forge/branches.md, 2).
 use super::{Box, Domain, Env, Limits, List, ProcedureStep, StepEnd, Work, append, forge, tasks};
 use temper_engine_domain_forge_closer as c;
 

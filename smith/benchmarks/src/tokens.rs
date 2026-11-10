@@ -1,6 +1,6 @@
 //! Per-response usage retains its convention and conversation scope.
 //! `TokenLedger` deduplicates immutable response ids; `records` emits one record
-//! per scope and a total that names every gap (benchmarks.md, section 8.2).
+//! per scope and a total that names every gap (../../docs/design/benchmarks/README.md, section 8.2).
 //! Root-only usage never stands in for child, compaction or helper usage.
 
 use std::collections::BTreeMap;

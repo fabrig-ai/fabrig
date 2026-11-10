@@ -1,4 +1,4 @@
-//! Document sections at a branch head (temper/docs/design/protocol/configuration.md, 13.7).
+//! Document sections at a branch head (temper/docs/design/protocol/configuration/settings.md, 6).
 use super::*;
 use skein_forge::api::{Answer, Error, Read};
 

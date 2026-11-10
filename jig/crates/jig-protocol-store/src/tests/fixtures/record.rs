@@ -1,4 +1,4 @@
-//! Complete task rows for the codec fixtures (protocol/store.md, 5.1).
+//! Complete task rows for the codec fixtures (protocol/store/records.md, 1).
 use super::{task_creation, task_name, task_phase, task_proposal, task_template};
 
 pub fn task_word(number: u64) -> jig_domain_tasks::Word {

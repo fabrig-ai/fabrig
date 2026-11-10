@@ -1,4 +1,4 @@
-//! Service credentials and sign-in digests use separate owners (client.md, 8).
+//! Service credentials and sign-in digests use separate owners (protocol/client/sign-in.md).
 use super::{
     Box, Component, Env, Kept, Limits, Queue, ReplyTo, Request, SecretOwner, SecretsAnswer, SecretsRequest, Token,
     Waiting, core, people, routes, sign_in,

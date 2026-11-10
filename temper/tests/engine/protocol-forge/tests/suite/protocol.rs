@@ -309,7 +309,7 @@ fn a_merge_with_its_answer_lost_is_found_after_restart_without_merging_twice() {
     assert!(world.stored().get(&top::Key::Entry(1)).is_none());
 }
 
-// The story's reads resolve every check's job (skein/docs/design/forge.md, 5.2).
+// The story's reads resolve every check's job (skein/docs/design/forge/forgejo.md, 1.2).
 const CI_REPAIR_REQUEST_ALLOWANCE: u32 = 128;
 
 #[test]
@@ -1117,7 +1117,7 @@ fn a_sha1_pull_files_answer_matches_the_requested_head_and_fills_the_review_brie
 #[test]
 #[expect(clippy::too_many_lines, reason = "one landing story with its root scheduler, news and request referee")]
 fn a_landing_merges_on_its_own_wakes_before_any_resource_poll() {
-    // temper/docs/design/domain/forge.md, 5.2: procedure progress uses news and fresh reads.
+    // temper/docs/design/domain/forge/keeping-up.md, 2: procedure progress uses news and fresh reads.
     use skein_fake_forge_domain::api::Check;
     use skein_forge::api::{Change, Hint};
     use skein_forge_kit::joint;

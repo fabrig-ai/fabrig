@@ -275,7 +275,7 @@ fn drive(store: &mut Store, walking: &mut Walking, above: &mut Queue<Event>) -> 
     None
 }
 /// After the last Patched, cross every claim and close its window in the copy,
-/// without a patch event (protocol/store.md 10.2, step 4).
+/// without a patch event (protocol/store/opening.md 2, step 4).
 fn cross(store: &mut Store, walking: &mut Walking, turns: usize) -> Option<bool> {
     for _ in 0..turns {
         if !append(store, walking)? {

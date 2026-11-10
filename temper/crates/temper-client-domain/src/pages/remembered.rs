@@ -1,11 +1,11 @@
-//! The person's own preferences (temper/docs/design/client/README.md, 5.17).
+//! The person's own preferences (temper/docs/design/client/pages/remembered.md).
 use super::{Request, activity::Asking};
 use crate::owner::Owner;
 use alloc::boxed::Box;
 use jig_client::{Answered, Client, Handle, Key, Outcome, Told, contract as c};
 use skein_lib::{List, Queue, Time, Wall};
 
-/// The person's own preferences (client/README.md, 5.17).
+/// The person's own preferences (client/pages/remembered.md).
 #[derive(Debug)]
 pub struct Remembered {
     party: Option<u64>,
@@ -271,7 +271,7 @@ fn refusal_for(refusal: &c::Refusal) -> Refusal {
         return Refusal::TooLong { bound: *limit };
     }
     if let c::Refusal::Limit { which: c::Limit::Admission { which: c::AdmissionLimit::Words } } = refusal {
-        // jig/docs/design/domain/engine.md, 10.1: admission names no bound; notes.party_bytes defaults to 120.
+        // jig/docs/design/domain/engine/briefs.md, 2.1: admission names no bound; notes.party_bytes defaults to 120.
         return Refusal::TooLong { bound: 120 };
     }
     Refusal::Other(refusal.clone())

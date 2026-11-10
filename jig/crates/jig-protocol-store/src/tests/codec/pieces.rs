@@ -1,4 +1,4 @@
-//! Byte-summed pieces preserve the domain's admissions (codec.md, 3).
+//! Byte-summed pieces preserve the domain's admissions (skein/docs/design/data/codec/README.md, 3).
 use super::fixtures;
 use crate::codec::{people, tasks};
 use crate::{people_v14, tasks_v9};

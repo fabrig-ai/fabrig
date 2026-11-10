@@ -71,7 +71,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
                     domain.work.push(Work::Forge(forge::Event::DelegateAdmissionRefused { task, kind }));
                 }
                 // Jig's domain/connectors.md, 6.2: step again on refusal. A kept change waits
-                // without a deadline; its dependency's Met wakes it (jig's domain/tasks.md, 5.7).
+                // without a deadline; its dependency's Met wakes it (jig's domain/tasks/lifecycle.md, 8).
                 if !held
                     && connector == domain.config.forge_connector
                     && domain.core.tasks.waiting_effect_problem(task).as_ref() == Some(&problem)
@@ -544,7 +544,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
     }
 }
 
-/// A change keeps its roles' charters and choices (temper/docs/design/domain/forge.md, 8.9).
+/// A change keeps its roles' charters and choices (temper/docs/design/domain/forge/change/gates.md, 3).
 fn hold_changed_charter(
     domain: &mut Domain,
     task: u64,

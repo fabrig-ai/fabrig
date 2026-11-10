@@ -451,7 +451,7 @@ fn unsupported_record_versions_consistently_produce_the_version_error() {
     );
 }
 
-// Schema ceilings in oauth.md, 6.4; token_bytes also bounds refresh and metadata.
+// Schema ceilings in oauth/accounts.md, 4; token_bytes also bounds refresh and metadata.
 const TOKEN_CEILING: u32 = 65_536;
 const TEXT_CEILING: u32 = 4_096;
 fn ceiling_rows() -> [(&'static str, Limits); 5] {
@@ -798,7 +798,7 @@ fn with_profile(payload: &[u8], extra: &[u8]) -> Box<[u8]> {
 
 #[test]
 fn profile_claims_are_optional_bounded_and_only_read_when_asked() {
-    const TEXT_BOUND: usize = 255; // oauth.md, 2.2.
+    const TEXT_BOUND: usize = 255; // oauth/README.md, 2.2.
     const PROFILE_TOKENS: u32 = 8; // Object, claim, verification, duplicate claim, end.
     const BOTH: Profile = Profile { email: true, name: true };
     const EMAIL: &[u8] = b"you@example.com";

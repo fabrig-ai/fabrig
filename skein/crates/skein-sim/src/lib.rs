@@ -1,4 +1,4 @@
-//! The simulated kernel (simulator.md): a backend that
+//! The simulated kernel (testing/simulator.md): a backend that
 //! answers the records of `skein_io::kernel` as its contract allows, for
 //! every process of one world, with every choice drawn from one seed.
 //!
@@ -23,7 +23,7 @@
 //!   services moves time to the earlier of [`Sim::next_due`] and their
 //!   earliest deadline.
 //! - Files go to the embedder's fake machine, through the machine seam
-//!   (simulator.md, 3.1): after each submit, the world takes the [`Call`]s
+//!   (testing/simulator.md, 3.1): after each submit, the world takes the [`Call`]s
 //!   waiting ([`Sim::calls`]), has its machine answer each, and hands the
 //!   [`Answer`]s back ([`Sim::answer`]), which completes the operations. A
 //!   root the shell would open at startup is the machine's [`Handle`] of a
@@ -53,7 +53,7 @@
 //!
 //! # Conformance
 //!
-//! The conformance suite (`testing/skein-conformance`; kernel.md, 8;
+//! The conformance suite (`testing/skein-conformance`; runtime/kernel.md, 8;
 //! testing-strategy.md, 5) holds the simulator and the ring to the same
 //! contract: its scenarios run against the simulator in
 //! `tests/conformance/sim`, and against the ring in `tests/conformance/real`.

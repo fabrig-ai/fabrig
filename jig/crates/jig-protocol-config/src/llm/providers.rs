@@ -1,5 +1,5 @@
 //! LLM providers: each one's number, its name for showing, the configured models it serves and
-//! the sources it offers (configuration.md, 3 and 7; accounts.md, 3.4). No account, key or record.
+//! the sources it offers (configuration.md, 3 and 6; accounts.md, 3.4). No account, key or record.
 use crate::{Directories, Path, Problems, What, check, read};
 use alloc::boxed::Box;
 use jig_domain_core::settings::CatalogueModel;
@@ -341,7 +341,7 @@ fn sources(
 }
 
 /// A public registration: a client secret makes it confidential, which is refused
-/// (configuration.md, 7).
+/// (configuration.md, 6).
 fn registration(
     document: &Document,
     at: u32,

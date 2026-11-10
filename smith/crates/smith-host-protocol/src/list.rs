@@ -1,4 +1,4 @@
-//! Reading an endpoint's list through the agent (smith/docs/design/protocol/hosts.md, 2;
+//! Reading an endpoint's list through the agent (smith/docs/design/protocol/host.md, 2;
 //! smith/docs/design/protocol/agent.md, 6.1). Keeps one child command and a single answer
 //! right; holds the credential until it is written. `new`, `from_io` and `fire` drive
 //! the command, and `answer` translates its settled record into the host's vocabulary.

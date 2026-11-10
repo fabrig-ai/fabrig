@@ -36,7 +36,7 @@ pub fn enclosing(tree: &Tree, node: NodeId) -> Option<CardKey> {
 }
 pub fn seen(tree: &Tree) -> Vec<Seen> {
     let mut seen = Vec::new();
-    // A dependency line's items are links keyed by their task, not cards (client/README.md, 5.8).
+    // A dependency line's items are links keyed by their task, not cards (client/pages/goal.md, 2).
     let mut links_end = 0;
     for (index, node) in tree.nodes().iter().enumerate() {
         if node.styles.as_slice().contains(&temper_client_view::look::DEPENDENCIES)
@@ -44,7 +44,7 @@ pub fn seen(tree: &Tree) -> Vec<Seen> {
         {
             links_end = index.checked_add(usize::try_from(node.size).expect("link subtree fits")).expect("tree fits");
         }
-        // A taskbar or chat bar remains the release surface on an own pause (client/README.md, 3.5 and 5.11).
+        // A taskbar or chat bar remains the release surface on an own pause (client/pages/README.md and client/pages/task.md, 4).
         if node.styles.as_slice().contains(&temper_client_view::look::TASKBAR)
             || node.styles.as_slice().contains(&temper_client_view::look::SESSION_TOP)
         {
@@ -66,7 +66,7 @@ pub fn seen(tree: &Tree) -> Vec<Seen> {
             }
         }
         // The editor is the task's visible decision, named by its number, as
-        // "Hold revision N" names a card's revision (client/README.md, 5.11).
+        // "Hold revision N" names a card's revision (client/pages/task.md, 4).
         let amending = node.role == Role::Region
             && (node.styles.as_slice().contains(&temper_client_view::look::TASK_AMEND)
                 || node.styles.as_slice().contains(&temper_client_view::look::GOAL_FIELD));
@@ -115,7 +115,7 @@ pub fn seen(tree: &Tree) -> Vec<Seen> {
 /// The view's confirmation tests hold their titles, active counts, fates and retry rules.
 pub fn decision(ask: &jig_client::contract::Ask) -> Option<&jig_client::contract::Ask> {
     use jig_client::contract::{Ask, DecideOn, Decision, Operation};
-    // A short preference is deleted at once, without a deciding region (client/README.md, 5.17).
+    // A short preference is deleted at once, without a deciding region (client/pages/remembered.md).
     if matches!(ask, Ask::DeleteNote { project: 0, scope: jig_client::contract::NoteScope::Party { .. }, .. }) {
         return None;
     }

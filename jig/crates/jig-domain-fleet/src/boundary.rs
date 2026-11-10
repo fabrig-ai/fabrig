@@ -5,7 +5,7 @@
 //! The fleet has two faces, both through its parent:
 //!
 //! - The workers', which the parent routes to and from their channels
-//!   (domain/hosts.md, sections 2 and 4). A worker's channel is named by the
+//!   (domain/hosts/README.md, sections 2 and 4). A worker's channel is named by the
 //!   protocol's token for it, `channel`, and is in contact from its
 //!   [`Event::Hello`], the first thing said on it, until its
 //!   [`Event::Lost`]. [`Request::Assign`] is a call to the worker, answered
@@ -116,7 +116,7 @@ pub struct Message {
     pub words: Token,
 }
 
-/// A named host call (hosts.md, section 2). Its name and write flag are kept while
+/// A named host call (domain/hosts/README.md, section 2). Its name and write flag are kept while
 /// the parent decides it; its other fields are moved into the parent's request.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct Call {
@@ -134,7 +134,7 @@ pub struct Call {
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Event {
     /// The worker of `channel` drains: nothing more is placed on it
-    /// (engine.md, section 8).
+    /// (domain/engine/fleet.md).
     Draining {
         channel: Token,
     },
@@ -148,7 +148,7 @@ pub enum Event {
         read: u64,
         outcome: jig_domain_link::ListOutcome,
     },
-    /// Replace needs, retaining channels and their running attempts (engine.md, 17.2).
+    /// Replace needs, retaining channels and their running attempts (domain/engine/settings.md, 2).
     Needs(crate::Needs),
     /// Desired absence for issued names; names remain in Sources for reconnect checks.
     CleanupPrograms {
@@ -196,7 +196,7 @@ pub enum Event {
         grants: Box<[Grant]>,
     },
     /// Place or restore a job claim without agent placement requirements
-    /// (jig/docs/design/domain/engine.md, 7.5). Restored claims use the
+    /// (jig/docs/design/domain/engine/executors.md, 5). Restored claims use the
     /// same adoption grace and listings as `Adopt`, with no turn prefix.
     StartJob {
         reply_to: ReplyTo,
@@ -235,7 +235,7 @@ pub enum Event {
         grants: Box<[Grant]>,
     },
     /// From the parent, a claim restored after restart that an upgrade
-    /// across a fresh mark crossed, on a worker (domain/engine.md, 6 step 3
+    /// across a fresh mark crossed, on a worker (domain/engine/restart.md step 3
     /// and 7.2): never adopted. Its run is cancelled when a worker lists
     /// it. An answer or an already kept answer ends the call `Lost`. At the
     /// adrift grace it ends `Lost` if listed or worked, otherwise
@@ -255,7 +255,7 @@ pub enum Event {
         attempt: Token,
     },
     /// The engine stops and settles this attempt as interrupted: forget it,
-    /// telling its host nothing (jig/docs/design/domain/engine.md, 6.1).
+    /// telling its host nothing (jig/docs/design/domain/engine/restart.md, 1).
     Interrupt {
         run: Token,
         attempt: Token,
@@ -423,7 +423,7 @@ pub enum Request {
         activation: u64,
         assignment: Assignment,
     },
-    /// Place the job's attempt (jig/docs/design/domain/engine.md, 7.5).
+    /// Place the job's attempt (jig/docs/design/domain/engine/executors.md, 5).
     AssignJob {
         channel: Token,
         run: Token,
@@ -613,8 +613,8 @@ pub enum Request {
     },
 }
 
-/// How a run's attempt was answered (jig/docs/design/domain/hosts.md, section 2
-/// and 6.2): what the fleet acts on. The rest is the payload's.
+/// How a run's attempt was answered (jig/docs/design/domain/hosts/README.md, section 2, and jig/docs/design/domain/hosts/hub.md, section 2
+/// ): what the fleet acts on. The rest is the payload's.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Answer {
     /// It ended with its outcome.

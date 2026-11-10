@@ -366,7 +366,7 @@ fn priority(document: &Document, at: u32, path: &Path, problems: &mut Problems) 
 }
 
 /// A template's LLM choice: `null` for its charter's default, or a main model and the models its
-/// run's sub-agents may use, each named once (configuration.md, 3.1; domain/tasks.md, 3).
+/// run's sub-agents may use, each named once (configuration.md, 3.1; domain/tasks/README.md, 3).
 fn choice(
     document: &Document,
     at: u32,
@@ -437,7 +437,7 @@ fn choice_models(
     }
 }
 /// One model a template's choice names, with an effort it takes: `null` only for a model that
-/// declares none (configuration.md, 3.1 and 8).
+/// declares none (configuration.md, 3.1 and 7).
 fn model_effort(
     document: &Document,
     at: u32,

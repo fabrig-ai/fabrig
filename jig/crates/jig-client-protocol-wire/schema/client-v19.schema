@@ -19,23 +19,23 @@ family jig-client-wire 19
 # SettingsDocument.settings: jig_client_domain::Limits::document_bytes, capped at 256 settings.
 # Account/source/sign-in item counts: jig_client_domain::Limits::accounts; their pieces share document_bytes.
 # Recursive fact parents precede children; indexes share one ordered table whose first row names the root.
-# Reads keep the engine's cursor opaque (protocol/client.md, section 6).
+# Reads keep the engine's cursor opaque (protocol/client/README.md, section 4).
 # Unreachable is a local connection outcome; the engine sends no such record.
 # Nested collections are length-prefixed pieces; their owner splits and admits them.
-# Task and run documents (client/domain/contract.md, 5 and 7.3).
-# Keyed.value: a request's carried value, sent once, never stored (protocol/client.md, 5).
-# Dependencies replace the whole list: newly named tasks are added, omitted tasks removed (tasks.md, 7).
-# The description's 512 bytes are MODEL_DESCRIPTION_BYTES (configuration.md, 6).
+# Task and run documents (client/domain/contract/documents.md and client/domain/contract/README.md, 5.3).
+# Keyed.value: a request's carried value, sent once, never stored (protocol/client/README.md, 3).
+# Dependencies replace the whole list: newly named tasks are added, omitted tasks removed (domain/tasks/changes.md).
+# The description's 512 bytes are MODEL_DESCRIPTION_BYTES (protocol/limits.md).
 # The task's next-run wait, with source deadlines already translated to wall time.
 # Shared admission vocabulary precedes the task wait that reuses it.
-# Remaining documents and stream (protocol/client.md, 3 and 7).
+# Remaining documents and stream (protocol/client/wire.md, 1, and protocol/client/README.md, 5).
 # Account deadlines are optional wall times; absence supplies no deadline.
 # Account changes share the account documents' payer type and ACCOUNT_USES bound.
-# Small store (protocol/client.md, 10); TableEntry.request has Keyed.request's ceiling.
+# Small store (protocol/client/README.md, 7); TableEntry.request has Keyed.request's ceiling.
 # A read value preserves the contract variant as well as its existing document.
 # Chips.rows and Inbox.needs/updates/selection: jig_client_domain::Limits::document_bytes; each item is a length-prefixed piece.
 # A delivery preserves its contract variant and the whole document.
-# Settings and revision history (protocol/client.md, section 3).
+# Settings and revision history (protocol/client/wire.md, section 1).
 record Family { number: u16 }
 enum Owner { jig, family: Family }
 record Keyed { key: fixed 16 owner: Owner version: u32 request: bytes 1114240 value: option secret 131072 }
@@ -918,6 +918,6 @@ enum AccountKind { sign_in, key, program, none }
 enum AccountBound { accounts, holder_accounts, sources, sign_ins }
 enum AccountKeyFailure { too_long, not_stored }
 
-# Stream admission refusals precede the hello (protocol/client.md, 4 and 17.2).
+# Stream admission refusals precede the hello (protocol/client/wire.md, 2, and protocol/client/default-http.md, 2).
 enum StreamBound { component, transport }
 record StreamsFull { bound: StreamBound size: u32 }

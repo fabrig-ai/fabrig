@@ -1,4 +1,4 @@
-//! The welcome's Model shapes (temper/docs/design/client/README.md, 3.5).
+//! The welcome's Model shapes (temper/docs/design/client/pages/README.md).
 use super::{accounts, connect_model as model, sign_in_wait};
 use crate::{
     accounts::{Bindings, Meaning},

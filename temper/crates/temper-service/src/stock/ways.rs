@@ -1,4 +1,4 @@
-//! Stock ways given to the engine at each start (protocol/configuration.md, 13.10).
+//! Stock ways given to the engine at each start (protocol/configuration/settings.md, 8).
 use alloc::boxed::Box;
 use skein_lib::bytes;
 use temper_engine_domain_forge::{

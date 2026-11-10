@@ -1,4 +1,4 @@
-//! Home's status agent through the root and its durable document (temper/docs/design/domain/forge.md, 5.7).
+//! Home's status agent through the root and its durable document (temper/docs/design/domain/forge/attention.md, 3).
 use super::*;
 use skein_lib::Wall;
 

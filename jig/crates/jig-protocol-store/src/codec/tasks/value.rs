@@ -1,4 +1,4 @@
-//! Funding and resource values shared by tasks rows (protocol/store.md, 5.1).
+//! Funding and resource values shared by tasks rows (protocol/store/records.md, 1).
 use crate::tasks_v9 as wire;
 use alloc::boxed::Box;
 use jig_domain_tasks as domain;
@@ -651,7 +651,7 @@ pub fn read_authority(value: wire::Authority, limits: &wire::Limits) -> Result<d
     check_authority(&value, limits)?;
     Ok(value)
 }
-/// Translate an agent task's LLM choice, if any (domain/tasks.md, section 3).
+/// Translate an agent task's LLM choice, if any (domain/tasks/README.md, section 3).
 pub(super) fn llm(
     source: Option<&domain::LlmChoice>,
     limits: &wire::Limits,

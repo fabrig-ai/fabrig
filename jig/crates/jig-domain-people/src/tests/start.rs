@@ -1,4 +1,4 @@
-//! The start's fixed-time and phase controls (engine.md, 6).
+//! The start's fixed-time and phase controls (domain/engine/restart.md).
 use super::{LIMITS, fixtures};
 use crate::*;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};

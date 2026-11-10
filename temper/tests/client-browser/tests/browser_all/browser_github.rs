@@ -1,4 +1,4 @@
-//! Only Chromium proves that the manifest posts itself under its form-action policy (client/browser.md, 4.4).
+//! Only Chromium proves that the manifest posts itself under its form-action policy (client/web/testing.md, 4).
 use skein_fake_person::{Find, Step as PersonStep};
 use skein_fake_person_browser::{Harness, Lent, Outcome, Script, Sent, Step};
 use skein_ui::Role;
@@ -52,7 +52,7 @@ fn the_manifest_posts_once_and_history_waits_for_continue() {
     assert_eq!(manifest.url.as_ref(), origin.as_bytes());
     assert_eq!(manifest.redirect_url.as_ref(), format!("{origin}forges/1/github/redirect").as_bytes());
     assert_eq!(manifest.setup_url.as_deref(), Some(format!("{origin}forges/1/github/setup").as_bytes()));
-    // Public, so that GitHub offers the account's organizations too (skein forge-setup.md, section 5).
+    // Public, so that GitHub offers the account's organizations too (skein skein/docs/design/forge/setup/github.md, section 1).
     assert!(manifest.public);
     assert!(manifest.name.starts_with(b"temper-"));
     assert!(manifest.setup_on_update);

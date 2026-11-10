@@ -1,4 +1,4 @@
-//! The bounded grid and its golden print (skein/docs/design/ui-screen.md, section 4).
+//! The bounded grid and its golden print (skein/docs/design/ui/screen.md, section 4).
 
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Writer, usize_of};

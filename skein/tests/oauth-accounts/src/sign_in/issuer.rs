@@ -1,4 +1,4 @@
-//! Shared private sign-in issuer fixtures (oauth.md, 6.8).
+//! Shared private sign-in issuer fixtures (oauth/accounts.md, 8).
 use super::{Duration, Ipv4Addr, Process, ROOM, Story, Transport, bytes, fake, oauth, peer, registration};
 
 pub(super) fn issuer(story: Story, large: bool) -> Process {

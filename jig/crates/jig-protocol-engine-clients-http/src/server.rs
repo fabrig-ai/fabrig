@@ -15,7 +15,7 @@ pub struct Limits {
     pub connections: u32,
     pub http: http::Limits,
     pub stall: Duration,
-    /// What a peer's end does while a call is unfinished (protocol/client.md, 17.4).
+    /// What a peer's end does while a call is unfinished (protocol/client/default-http.md, 4).
     pub peer_end: PeerEnd,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

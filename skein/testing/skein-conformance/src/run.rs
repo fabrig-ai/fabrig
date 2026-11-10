@@ -1,6 +1,6 @@
 //! The driver the scenarios run on: records submitted one at a time to a
 //! [`Backend`], and every completion checked as it is reaped, as the
-//! simulator checks its own (simulator.md, 5): a valid completion of
+//! simulator checks its own (testing/simulator.md, 5): a valid completion of
 //! the operation's shape, one per submission, with the record handed back,
 //! each of its boxes the same `Box`, written only where the contract says.
 
@@ -971,11 +971,11 @@ fn handed_back<P>(flight: &Flight<P>, complete: &Complete) {
         for (before, after) in held.iter().zip(&spawn.pipes) {
             assert_eq!(before.child, after.child, "a Spawn keeps each requested child descriptor");
             assert_eq!(before.way, after.way, "a Spawn keeps each requested pipe direction");
-            assert!(before.parent.is_none(), "parent ends are empty on submission (kernel.md, section 4)");
+            assert!(before.parent.is_none(), "parent ends are empty on submission (runtime/kernel.md, section 4)");
             assert_eq!(
                 after.parent.is_some(),
                 complete.result.is_ok(),
-                "only a successful Spawn fills its parent end slots (kernel.md, section 4)"
+                "only a successful Spawn fills its parent end slots (runtime/kernel.md, section 4)"
             );
         }
     }

@@ -3,7 +3,7 @@ use crate::{Core, tasks};
 
 impl Core {
     /// The nearest goal's note scope, or a root conversation's own
-    /// (`jig/docs/design/domain/engine.md`, 10).
+    /// (`jig/docs/design/domain/engine/briefs.md`, 2).
     #[must_use]
     pub fn note_goal(&self, row: &tasks::TaskRecord) -> Option<u64> {
         if let Some(goal) = self.goal_of(row) {
@@ -19,7 +19,7 @@ impl Core {
     }
 
     /// The nearest tracked task at or above this task, itself included
-    /// (`domain/core.md`, 6.2).
+    /// (`domain/model.md`, 6.2).
     #[must_use]
     pub fn goal_of(&self, row: &tasks::TaskRecord) -> Option<u64> {
         let mut current = row;

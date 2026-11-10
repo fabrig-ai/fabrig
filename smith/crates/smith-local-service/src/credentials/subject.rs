@@ -1,6 +1,6 @@
 //! Guard a shared sign-in's write using its keeper's last locked read.
 //! Keeps only the subject per private root; no credential enters a diagnostic
-//! (shell.md, section 7.3; oauth.md, section 6.4).
+//! (shell/credentials.md, section 3; skein/docs/design/oauth/accounts.md, section 4).
 use super::{Accounts, Origin, oauth};
 use alloc::boxed::Box;
 use skein_io::file;

@@ -1,4 +1,4 @@
-//! The composer, quiet line and lists (temper/docs/design/client/README.md, 6.14 and 6.17, The foot).
+//! The composer, quiet line and lists (temper/docs/design/client/tui/pages.md and temper/docs/design/client/tui/box.md, The foot).
 use super::{Binds, chat as conversation, front, text};
 use crate::{
     Event, Local, Tui, look,

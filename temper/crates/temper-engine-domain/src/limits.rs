@@ -21,21 +21,21 @@ pub const FACTS: u32 = 32;
 pub const TRANSCRIPT_TAIL_BYTES: u32 = 2048;
 
 /// Root startup bounds, supplied by configuration and immutable at every step
-/// (domain/root.md, 10). `valid` checks child limits, edges and payload
+/// (domain/root.md, 9). `valid` checks child limits, edges and payload
 /// capacities.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     /// The most hand-offs one jig core decision routes, sibling continuations included:
     /// the bound of every drain within a step (skein/docs/foundation/programming-model.md, 3; 4.5).
     pub routes: u32,
-    /// The admitted `clients.streams`; both watch rooms follow them (protocol/configuration.md, 7).
+    /// The admitted `clients.streams`; both watch rooms follow them (protocol/configuration/limits.md).
     pub streams: u32,
     /// Admission watermark, in backlog entries (skein/docs/foundation/programming-model.md, 7.1).
     pub watermark: u32,
     /// Public admission bounds (jig/docs/design/domain/root.md, 10).
     pub public_watermark: u32,
     pub public_reads: u32,
-    /// Public index bounds copied into the core (jig/docs/design/domain/people.md, 13.9).
+    /// Public index bounds copied into the core (jig/docs/design/domain/people/public-reading.md, 9).
     pub public: jig_domain_core::PublicIndexLimits,
     /// The byte budget for transcripts and turns (domain/root.md, 4.1).
     /// Past it, a due task’s activation waits: pacing, as the watermark is in entries.
@@ -105,7 +105,7 @@ pub struct BriefBudgets {
     pub preferences: u32,
 }
 
-/// A task read's room (temper/docs/design/domain/root.md, 5.2): its worker's
+/// A task read's room (temper/docs/design/domain/routing.md, 2): its worker's
 /// reply bound, else the local agent's, within the core and journal bounds;
 /// the documents' window where neither names one.
 pub(crate) fn task_read_room(limits: &Limits, reply: Option<u32>) -> u32 {
@@ -126,14 +126,14 @@ pub(crate) fn environment_core(env: &Env<Limits>) -> Env<jig_domain_core::Limits
 
 /// The store map's bytes at or above which new party work is refused, as
 /// jig's `crates/jig-protocol-config/src/profile/small.rs` sets it until
-/// temper's configuration names its own (domain/root.md, 10).
+/// temper's configuration names its own (domain/root.md, 9).
 pub const FILL_MARK: u64 = 268_435_456;
 /// Streams use temper's client's own bound of 22, above jig's small
-/// profile's 4 (`small.rs`, clients; protocol/configuration.md, 7).
+/// profile's 4 (`small.rs`, clients; protocol/configuration/limits.md).
 pub const WATCHES_PER_STREAM: u32 = 22;
 /// Views for one admitted stream; `views_for` scales both watch rooms.
 /// The deployment and one party each hold `streams` times 22 watches, including
-/// four projects' decided watches (protocol/configuration.md, 7).
+/// four projects' decided watches (protocol/configuration/limits.md).
 /// Live runs and provisional text retain jig's small profile's limits.
 pub const VIEWS: views::Limits = views::Limits {
     runs: 4,
@@ -425,7 +425,7 @@ pub(crate) fn row_bound(limits: &Limits) -> Option<u64> {
 }
 
 /// Whether the root's entrance limits are representable, agree with its children
-/// and satisfy their validity predicates (temper/docs/design/domain/root.md, 10).
+/// and satisfy their validity predicates (temper/docs/design/domain/root.md, 9).
 /// Startup refuses limits it rejects.
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {

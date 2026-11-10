@@ -1,4 +1,4 @@
-//! The fake person over the browser kit (ui-web.md, 14.2).
+//! The fake person over the browser kit (ui/web/testing.md, 2).
 #![forbid(unsafe_code)]
 mod face;
 pub mod harness;

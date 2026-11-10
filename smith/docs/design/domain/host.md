@@ -73,7 +73,7 @@ Up, from the run:
 - **facts:** lossless inside the agent's process, where the event stream
   keeps them all by default; on the channel, projected for liveness, and
   dropped and counted as not projected when there is no room, never
-  holding the run (run.md, section 11);
+  holding the run (run.md, section 10);
 - **live content,** at the ask: pieces of what the run's main
   conversation streams before a turn commits, each with its turn, retry,
   kind and offset (protocol/channel.md, section 4). It is not a fact and
@@ -94,7 +94,7 @@ Up, from the run:
   limited, with how long until it may be used again when its provider
   said; or an account refused, with the provider's code (section 7);
 - **the answer,** its last word, with its turn count, its spend and the
-  last message read, the final fence (run.md, section 10).
+  last message read, the final fence (run.md, section 9).
 
 Messages:
 
@@ -160,7 +160,7 @@ not decode.
   encodes or decodes them, since a domain never parses (skein's
   `programming-model.md`, section 4). Bytes belong to protocol layers:
   `smith-host-protocol` encodes a spawned agent's start and decodes what
-  it tells (protocol/hosts.md, section 2), and a host's store encodes the
+  it tells (../protocol/host.md, section 2), and a host's store encodes the
   turns it keeps (`smith-transcript`). A host that prepared a charter
   elsewhere (temper's engine) decodes it in its own protocol layer as it
   reads it, like any input, and adds the workspace it prepared. Only a
@@ -207,7 +207,7 @@ policy.
   (protocol/limits.md, `watchdog-over-silence`). A separate bound covers
   wall time.
 - **Cancel, then kill.** A cancel goes down the channel first, and the
-  run winds down on its own (run.md, section 10); past a grace the
+  run winds down on its own (run.md, section 9); past a grace the
   process tree is terminated, then killed. Wall time ends the same polite
   way; a broken rule, no progress, or a channel hung up while the run is
   live terminate the tree at once.
@@ -215,8 +215,8 @@ policy.
   closes everything it owns and exits once each has settled; only io's
   close deadlines bound that, and they make its teardown bound
   (protocol/agent.md, section 6). The host's exit grace is derived from
-  that bound and exceeds it, as a supervisor's does (skein's `shell.md`,
-  section 13; protocol/limits.md, `grace-over-teardown`), so an agent
+  that bound and exceeds it, as a supervisor's does (skein's `runtime/shell.md`,
+  section 12; protocol/limits.md, `grace-over-teardown`), so an agent
   that keeps its contract is never signalled. Past the grace, its tree
   is terminated, then killed.
 - **How the agent ended** is evidence, not a guess: its end carries
@@ -239,7 +239,7 @@ policy.
   such as its error output's tail, never shown to an LLM; and its end,
   with the exit evidence. An agent that panics ends its error output
   with the panic's `panicked at` line and message, after the backtrace
-  (skein's `shell.md`, section 6), so the tail keeps them when that
+  (skein's `runtime/shell.md`, section 6), so the tail keeps them when that
   closing text fits its bound, however long the backtrace before them.
   A closing text larger than the bound is itself kept as a tail.
 
@@ -319,9 +319,9 @@ policy.
   a run to another account; which account its next run takes is the
   host's.
 - **The local host's sources.** Each account the local host lends has
-  the source its settings give it (`docs/design/shell.md`, 5.2):
+  the source its settings give it (`../shell/settings.md`, 1.2):
   - **its own sign-in** (`sign_in`): skein's OAuth driver with the
-    registration of the provider's preset (skein's `oauth.md`, 6.2), a
+    registration of the provider's preset (skein's `oauth/accounts.md`, 2), a
     redirect on a port drawn for each sign-in unless the settings fix
     one (6.5), and the subject from the ID token. The record is kept
     privately in the credentials directory, under its lock, and read
@@ -337,7 +337,7 @@ policy.
     (protocol/programs.md, section 4). The host keeps nothing of the
     login: it checks the source's status (protocol/programs.md,
     section 3), has the program's own sign-out run when the person asks
-    (protocol/hosts.md, section 2), and lends the source's name;
+    (../protocol/host.md, section 2), and lends the source's name;
   - **none** (`none`): for an endpoint that takes no credential, whose
     charter's LLM names no account (protocol/charter.md, section 2). It
     lends no grant, and that LLM's calls carry no credential
@@ -365,7 +365,7 @@ the inline agent it is the `smith` product:
     and needs input (run.md, 3.1). It edits the workspace in
     place and commits nothing, unless asked to deliver, which keeps the
     change contract.
-    The statuses' numbers are the shell's (`docs/design/shell.md`).
+    The statuses' numbers are the shell's (`../shell/README.md`).
 - **The person's lines:**
   - **A line starts a run** when none is live, carried in its start, so
     the run opens on it (run.md, 3.4). Lines entered while a run is live
@@ -407,7 +407,7 @@ the inline agent it is the `smith` product:
   a warning beside the answer's words, which it leaves as they are.
 - **Charters from configuration:** instructions, models, prices, a
   budget, conventions, and a result contract (a report, by default, or a
-  change), with the shell's presets as defaults (`docs/design/shell.md`).
+  change), with the shell's presets as defaults (`../shell/README.md`).
   A subscription's models carry notional prices, so spend still bounds a
   run; a budget that could not pay for one completion is refused before
   any run starts.
@@ -420,7 +420,7 @@ the inline agent it is the `smith` product:
   cache across activations and resumes.
 - **Transcripts in files,** in smith's state directory, so a chat resumes
   across invocations. The Store first checks its recorded layouts
-  (protocol/hosts.md, 5.3). It keeps one checked bit for the selected root,
+  (../protocol/host.md, 5.3). It keeps one checked bit for the selected root,
   never learns an older layout and never translates or wipes old records.
   An unrecorded chat, a different store layout or a different transcript
   layout is `StoreFailure::OlderBuild`, with the typed `Older` reason.
@@ -431,9 +431,9 @@ the inline agent it is the `smith` product:
   result's fields as its message, nothing pushed unless configured; a
   plain directory's files kept as they are, changed or not by a bounded
   snapshot, and a tree past its bounds counted as changed
-  (protocol/hosts.md, section 5.5).
+  (../protocol/host.md, section 5.5).
 - **Host tools:** none of its own. Tools from MCP servers it is
-  configured with are an open question (protocol/hosts.md, section 9).
+  configured with are an open question (../protocol/host.md, section 9).
 
 It runs its agent inline, in its own process (section 9), except a run
 whose account's source is a program, which the inline agent cannot run:
@@ -510,7 +510,7 @@ A child a host embeds, beside or instead of `smith-host-domain`:
 ### 9.2 Stopping: cancel, grace, drop
 
 1. **Cancel.** A stop is the run's cancel: the run winds down and
-   answers (run.md, section 10). Wall time ends a run the same way.
+   answers (run.md, section 9). Wall time ends a run the same way.
 2. **Grace.** The run has its host's cancel grace to answer.
 3. **Drop.** Past the grace, or at once when the host asks, the run is
    dropped: its domain hears nothing more, its relayed calls are
@@ -527,7 +527,7 @@ A child a host embeds, beside or instead of `smith-host-domain`:
   the run still held below it is cancelled, its relayed calls are
   withdrawn, and the agent is gone once each has settled.
 - **A drop is the host's to ask for.** The local host's second interrupt
-  asks for one (protocol/hosts.md, 5.1).
+  asks for one (../protocol/host.md, 5.1).
 - **A panic is fail-stop** for the host's whole process, as for any
   domain. A host that keeps its transcripts durably resumes from them.
 
@@ -566,7 +566,7 @@ A child a host embeds, beside or instead of `smith-host-domain`:
   `programming-model.md`, section 4).
 - **smith's own.** The typed face, the workspace routing and the stop
   ladder (9.2) are smith's design; jig's hosts compose
-  `smith-inline-agent` as it is (jig's `domain/hosts.md`, section 5.2).
+  `smith-inline-agent` as it is (jig's `domain/hosts/README.md`, section 5.2).
 - **A wall bound, and no progress watchdog** (9.1).
 
 ## 10. The world

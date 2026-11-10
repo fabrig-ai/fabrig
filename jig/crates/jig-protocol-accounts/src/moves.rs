@@ -1,5 +1,5 @@
 //! Moved records stay here until taken or adopted (protocol/llm.md, 5.6;
-//! protocol/store.md, 9). Owners route the steps without inspecting values.
+//! protocol/store/secrets.md). Owners route the steps without inspecting values.
 use crate::moved;
 use alloc::boxed::Box;
 use jig_domain_accounts as child;
@@ -66,7 +66,7 @@ impl Moves {
             restored: Map::with_capacity(room),
         }
     }
-    /// The owner's application name for the driver's listener page (skein/docs/design/oauth.md, 6.7).
+    /// The owner's application name for the driver's listener page (skein/docs/design/oauth/accounts.md, 7).
     #[must_use]
     pub fn application(&self) -> &[u8] {
         &self.application

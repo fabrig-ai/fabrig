@@ -2,7 +2,7 @@
 use super::{ChipHold, HoldCategory, Revision};
 use alloc::boxed::Box;
 
-/// Placed hold facts supplied by the engine (client/domain/contract.md, 5.6).
+/// Placed hold facts supplied by the engine (client/domain/contract/documents.md, 6).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PlacedHold {
     pub number: u64,

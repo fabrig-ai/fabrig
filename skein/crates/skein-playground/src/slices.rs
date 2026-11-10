@@ -10,7 +10,7 @@ use skein_ui_web::{bridge, fetch};
 pub struct Reach<P> {
     /// A process started by the world before any hosted child.
     pub at: usize,
-    /// Gives the visitor an input between steps (world.md, 5).
+    /// Gives the visitor an input between steps (testing/world.md, 5).
     pub enter: fn(&mut P, bridge::Input),
     /// Takes the visitor's reports in order.
     pub take: fn(&mut P, &mut Vec<fetch::Report>),

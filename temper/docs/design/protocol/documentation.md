@@ -5,7 +5,7 @@ for agents: pages in the repository, compiled into the binary, read at
 the command line by the agents that run and drive temper and by
 temper's own runs through a host tool. It builds `../draft/agent-docs.md`
 (the readers, the map, the kinds and the voice); this document is its
-contract for the pages and their machinery, and `../client/tools.md` for ctl's
+contract for the pages and their machinery, and `../client/ctl/README.md` for ctl's
 help. People read the site, which is outside temper's design.
 
 ## 1. In one page
@@ -73,8 +73,8 @@ help. People read the site, which is outside temper's design.
 
 - **A way** is read by a person as well as an agent: a person reads
   `how-temper-builds-temper` with `temper help`, and Ask temper with `see
-  help` (`../domain/agent.md`, 8.1); the client draws it nowhere
-  (`../client/README.md`, 3.5, *temper's own way*). Its summary is the
+  help` (`../domain/agent/agents.md`, 1); the client draws it nowhere
+  (`../client/pages/README.md`, *temper's own way*). Its summary is the
   line under its title, of up to two sentences.
 - **A walk's step** holds its commands, then a paragraph that starts
   `Expect:` with the output's first line verbatim, then one that starts
@@ -139,20 +139,20 @@ on.
   matched; none exits 1, printing `temper: nothing matches`.
 - It reads no directory and no configuration: it works before `temper
   init`. `temper --help` prints the binary's table, its rows by who runs
-  them (`README.md`, section 4); `temper ctl help` prints the
-  page `ctl`, then the tools (`../client/tools.md`, 11.5).
+  them (`binaries.md`); `temper ctl help` prints the
+  page `ctl`, then the tools (`../client/ctl/testing.md`, 5).
 
 ## 5. `read_docs`, for agents
 
 - **Declared in every charter but an asking charter (asking, with settings
-  at most; `../domain/agent.md`, 4.3),** whose
-  runs read the same pages through `see help` (`../domain/agent.md`, 4.3
-  and 8.4), by `temper-engine-smith`, beside the
-  forge's reads (`../domain/agent.md`, 4.3): `read_docs` with either
+  at most; `../domain/agent/tools.md`),** whose
+  runs read the same pages through `see help` (`../domain/agent/tools.md` and `../domain/agent/ask-temper.md`
+  ), by `temper-engine-smith`, beside the
+  forge's reads (`../domain/agent/tools.md`): `read_docs` with either
   `{"topic": NAME, "from": OFFSET}`, `from` 0 when absent, or
   `{"search": "WORDS"}`, never both. A topic is a page.
 - **Answered at decode.** The engine's protocol layer decodes every
-  admitted call (`../domain/root.md`, 5.2); a `read_docs` call it
+  admitted call (`../domain/routing.md`, 2); a `read_docs` call it
   decodes is answered there, from `temper-docs`, as an undecodable call
   is answered, but as a success: the root relays the answer with no
   commit, no record and no check of authority. Documentation is the
@@ -169,7 +169,7 @@ on.
   step test proves at the bounds. The start refuses a configuration
   whose `core.call_answer_bytes` or local agent's `tool_payload` is
   below `DOC_ANSWER`, naming it, as it refuses other answers that
-  cannot fit (`configuration.md`, section 7); every shipped profile's
+  cannot fit (`configuration/limits.md`); every shipped profile's
   are above it.
 - **A read,** which smith may run beside others (smith's
   `domain/run.md`, 5.2).
@@ -179,7 +179,7 @@ on.
 | Where | What |
 |---|---|
 | `temper-docs`' step tests | the table equals `docs/help/`'s files, in name, kind and bytes; each page's head within 2.1's bounds; each page within its kind's bound, its headings its kind's (2.2), a walk's steps each with `Expect:`; `index` names every concept, walk and recipe once; every `temper help NAME` in a page names a page; placeholders (2.1) and the voice's words (2.3) in written pages; `page` over a page's lines (a cut at a line end, a long line cut at a character, `from` past the end, `next`); `search` over a small fixture table (all words, case, order, the limit and more) |
-| `temper`'s step tests | every fenced line of every page that starts `temper ctl ` parses with ctl's argument parser to a tool, cut at its first shell operator (`|`, `>`, `<`, `;`, `&&`) and each placeholder replaced by a value of its kind (`PROPOSAL` by `t1/1`, a number's by `1`), and every one that starts `temper ` and names another command parses with the binary's; each reference page equals what its table renders (`settings-fields` first, from ctl's `FIELDS`, `../client/tools.md` 5.3), printing the page as it should be; every setting field a written page names in a code span as a path from its kind (`charter.model.name`) resolves to a row of `FIELDS`; a page that says a ctl group or tool does not exist (`no ctl group `NAME``, `NAME (no tool)`) fails when the table has it, so a tool's landing finds the pages that deny it; `temper help`, `help NAME`, an unknown name and `--search` print and exit as section 4 says |
+| `temper`'s step tests | every fenced line of every page that starts `temper ctl ` parses with ctl's argument parser to a tool, cut at its first shell operator (`|`, `>`, `<`, `;`, `&&`) and each placeholder replaced by a value of its kind (`PROPOSAL` by `t1/1`, a number's by `1`), and every one that starts `temper ` and names another command parses with the binary's; each reference page equals what its table renders (`settings-fields` first, from ctl's `FIELDS`, `../client/ctl/tools.md` 3), printing the page as it should be; every setting field a written page names in a code span as a path from its kind (`charter.model.name`) resolves to a row of `FIELDS`; a page that says a ctl group or tool does not exist (`no ctl group `NAME``, `NAME (no tool)`) fails when the table has it, so a tool's landing finds the pages that deny it; `temper help`, `help NAME`, an unknown name and `--search` print and exit as `documentation.md`, section 4 says |
 | `temper-engine-smith`'s step tests | `read_docs`' schema; a page's first and next cut; a search; an unknown page; both members, or neither, answered as an error naming what is wrong |
 | the engine's domain world | a run's `read_docs` call answered with no commit, no record, and the run going on (one story) |
 
@@ -205,13 +205,13 @@ in `../draft/agent-docs.md` 6's voice.
 
 | Page | Its table | A row |
 |---|---|---|
-| `commands` | the binary's commands (`crates/temper`; `README.md`, 4) | a command: its words, usage, line, arguments and notes |
-| `ctl-GROUP`, a page per group | ctl's tools (`temper-client-tools`; `../client/tools.md`, 5.1) | a tool: its usage, line, arguments, result line, keyedness and notes |
-| `settings-fields` | `FIELDS`, beside the settings form's decoder (`temper-settings-form`; `../client/tools.md`, 5.3) | a member of a shape |
-| `host-tools` | the host tools' declarations (`temper-engine-smith`; `../domain/agent.md`, 4.3) | a host tool: its name, its description, then each top-level member of its input's schema with its type, bound, whether it is required and its description (a nested member stays in the schema the run reads); in the one order the run's tool list has |
-| `see` | `see`'s addresses (`temper-engine-smith`; `../domain/agent.md`, 8.4.1) | an address: its form, each form the instructions' line brackets a row of its own (`settings charter N`, `task N tree`), a line on what it answers, and the addresses one level down, its `see:` line |
+| `commands` | the binary's commands (`crates/temper`; `binaries.md`) | a command: its words, usage, line, arguments and notes |
+| `ctl-GROUP`, a page per group | ctl's tools (`temper-client-tools`; `../client/ctl/tools.md`, 1) | a tool: its usage, line, arguments, result line, keyedness and notes |
+| `settings-fields` | `FIELDS`, beside the settings form's decoder (`temper-settings-form`; `../client/ctl/tools.md`, 3) | a member of a shape |
+| `host-tools` | the host tools' declarations (`temper-engine-smith`; `../domain/agent/tools.md`) | a host tool: its name, its description, then each top-level member of its input's schema with its type, bound, whether it is required and its description (a nested member stays in the schema the run reads); in the one order the run's tool list has |
+| `see` | `see`'s addresses (`temper-engine-smith`; `../domain/agent/ask-temper.md`, 1) | an address: its form, each form the instructions' line brackets a row of its own (`settings charter N`, `task N tree`), a line on what it answers, and the addresses one level down, its `see:` line |
 | `limits` and `limits-engine` | the limits' names: `limits` temper's, those `application.limits.overrides` takes (`temper-service`'s, the setup's `setup.*` and the box's `box.*`), and `limits-engine` jig's, those `engine.limits.overrides` and a worker's `limits.overrides` take (`jig-protocol-config`) | a named limit: its dotted name, its unit (a count, bytes, milliseconds), the small profile's value, a line |
-| `configuration` and `configuration-engine` | the configuration document's members by shape, beside each decoder: `configuration` temper's, the document's top level and `application`'s shapes, beside temper's decoders; `configuration-engine` jig's, `engine`'s and a worker's shapes, beside `jig-protocol-config`'s (`configuration.md`) | a member of a shape, the shape's section naming every path it is read at: its type and bound, whether it is required, what `temper init --box` writes, a line; the members that left the document for the store (`engine.charters`, `templates`, `policies` and `rules`; `application.charter` and `application.landing`'s rules: `configuration.md`, 13.5) are one row each, saying that a start refuses it and where it went, as the refusal says, and sending the reader to `settings` |
+| `configuration` and `configuration-engine` | the configuration document's members by shape, beside each decoder: `configuration` temper's, the document's top level and `application`'s shapes, beside temper's decoders; `configuration-engine` jig's, `engine`'s and a worker's shapes, beside `jig-protocol-config`'s (`configuration/README.md`) | a member of a shape, the shape's section naming every path it is read at: its type and bound, whether it is required, what `temper init --box` writes, a line; the members that left the document for the store (`engine.charters`, `templates`, `policies` and `rules`; `application.charter` and `application.landing`'s rules: `configuration/settings.md`, 4) are one row each, saying that a start refuses it and where it went, as the refusal says, and sending the reader to `settings` |
 
 - **`host-tools`' text is the run's:** the page renders the same
   description a run reads beside each tool, at most 160 bytes, and a

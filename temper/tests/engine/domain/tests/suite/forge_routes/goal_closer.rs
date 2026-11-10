@@ -1,4 +1,4 @@
-//! Goal closer procedure stories (temper/docs/design/domain/forge.md, 11.2).
+//! Goal closer procedure stories (temper/docs/design/domain/forge/branches.md, 2).
 use super::goal_branch::{branch_tip, forge_hold, goal_request};
 use super::goal_landing::{ended, finish_run, mine, row, status};
 use super::*;

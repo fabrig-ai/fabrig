@@ -1,4 +1,4 @@
-//! Party batch values (protocol/store.md, 5.1).
+//! Party batch values (protocol/store/records.md, 1).
 pub(crate) mod parts;
 use super::pieces::{decode_spec_parameters, encode_spec_parameters, shared_sum, split};
 use super::policy::{decode_authority, decode_wake_policy, encode_authority, encode_wake_policy};

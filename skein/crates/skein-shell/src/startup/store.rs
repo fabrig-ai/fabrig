@@ -1,4 +1,4 @@
-//! Startup's durable whole-file store (shell.md, 6.7).
+//! Startup's durable whole-file store (runtime/shell.md, 6.7).
 use crate::{Clock, Host, Kernel};
 use skein_io::file_layer::{FileIo, Limits, step};
 use skein_io::{file, kernel};
@@ -8,7 +8,7 @@ use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 pub const STORE_OPERATIONS: u32 = 8;
 const OWNER: Token = Token::new(1);
 
-/// The directory a startup store writes into (shell.md, 6.7).
+/// The directory a startup store writes into (runtime/shell.md, 6.7).
 #[derive(Clone, Copy, Debug)]
 pub enum StoreDirectory<'a> {
     /// The store's root itself.
@@ -46,7 +46,7 @@ pub enum Unstored {
     TooLarge,
 }
 
-/// Stores one file durably and closes the supplied root (shell.md, 6.7).
+/// Stores one file durably and closes the supplied root (runtime/shell.md, 6.7).
 pub fn store_file(kernel: &mut Kernel, clock: &Clock, store: StartupStore<'_>) -> Result<Stored, Unstored> {
     let maximum = u32::try_from(store.bytes.len());
     let failure = maximum.err().map(|_| Unstored::TooLarge);

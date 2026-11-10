@@ -1,4 +1,4 @@
-//! Read a private key from piped input (shell.md, 4.5, 7.2).
+//! Read a private key from piped input (shell/commands.md, 5, shell/credentials.md, 2).
 //! Values enter the private store only; every diagnostic names the account.
 use super::LoginOutcome;
 use std::{

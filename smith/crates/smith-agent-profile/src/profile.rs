@@ -1,7 +1,7 @@
 //! The agent profile keeps declared deployment quantities and policy ceilings and
 //! computes the service limits from them. It never knows endpoint destinations,
 //! credentials or a run's charter. `derive` returns typed refusals.
-//! Contract: smith/docs/design/shell.md, section 2.1; smith/docs/design/protocol/agent.md, section 4.
+//! Contract: smith/docs/design/shell/README.md, section 2.1; smith/docs/design/protocol/agent.md, section 4.
 
 use skein_io as io;
 use skein_lib::Duration;
@@ -237,7 +237,7 @@ fn transcript(
 }
 
 // Endpoint-derived request heads include both credential ceilings and fit one
-// native TLS plaintext piece (skein/docs/design/llm-connection.md, section 7).
+// native TLS plaintext piece (skein/docs/design/llm/connection.md, section 7).
 fn tls_limits() -> tls::client::Limits {
     tls::client::Limits { read: NATIVE_READ_BYTES, send: tls::client::MAX_PLAINTEXT, records: tls::client::MAX_RECORD }
 }

@@ -1,4 +1,4 @@
-//! Configured UI storage (skein's ui.md, section 15).
+//! Configured UI storage (skein's ui/README.md, section 13).
 //! The caller derives these capacities from the domain and its own fragments.
 
 /// Capacities checked before each builder allocation.
@@ -22,7 +22,7 @@ pub struct Limits {
 
 impl Limits {
     /// No capacity: an empty tree without scenes. A caller sets over it
-    /// the fields it means (ui.md, section 15).
+    /// the fields it means (ui/README.md, section 13).
     pub const EMPTY: Self = Self {
         nodes: 0,
         depth: 0,

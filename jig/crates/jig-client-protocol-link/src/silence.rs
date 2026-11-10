@@ -1,4 +1,4 @@
-//! A stream's name and silence deadline (protocol/client.md, 7).
+//! A stream's name and silence deadline (protocol/client/README.md, 5).
 use crate::Undecodable;
 use jig_client_protocol_wire::v19 as w;
 use skein_lib::{Duration, Time};

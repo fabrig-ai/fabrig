@@ -1,4 +1,4 @@
-/// Why a channel, or a dial, ended (protocol/channel.md, 9 and 10.1).
+/// Why a channel, or a dial, ended (protocol/channel/README.md, 8 and 9.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Loss {
     /// As skein's channel ended it: the stream, a framing error, a refusal

@@ -13,9 +13,9 @@ use temper_client_domain as client;
 pub const EXCHANGES: u32 = 8;
 /// Each exchange's deadline, including a quiet engine.
 pub const DEADLINE: Duration = Duration::from_secs(30);
-/// Field text and a person's conversation words (client/README.md, 5.4).
+/// Field text and a person's conversation words (client/view.md, 4).
 pub const CONVERSATION_TEXT: u32 = 512;
-/// Whole document bodies, goal words and committed or live turns (client/README.md, 5.4).
+/// Whole document bodies, goal words and committed or live turns (client/view.md, 4).
 pub const LONG_TEXT: u32 = 131_072;
 /// Root, native transport and io bounds.
 #[derive(Clone, Copy, Debug)]

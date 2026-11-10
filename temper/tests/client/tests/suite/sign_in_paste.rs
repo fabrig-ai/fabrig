@@ -121,7 +121,7 @@ fn callback() -> Vec<u8> {
     bytes
 }
 
-// client/README.md 3.5 From another computer: no Return or departure on
+// client/pages/README.md From another computer: no Return or departure on
 // Connect a model; the welcome's Model cards offer no separate entry.
 #[test]
 fn sign_in_keeps_connect_in_the_page_and_welcome_offers_no_separate_entry() {
@@ -142,7 +142,7 @@ fn sign_in_keeps_connect_in_the_page_and_welcome_offers_no_separate_entry() {
     assert!(disabled(&root), "an empty field cannot submit");
 }
 
-// client/README.md 3.5: every shell's root holds the sign-in and offers its paste.
+// client/pages/README.md: every shell's root holds the sign-in and offers its paste.
 #[test]
 fn a_sign_in_holds_its_page_and_offers_the_paste() {
     let (front, root, _) = begin(b"/accounts/connect");
@@ -150,7 +150,7 @@ fn a_sign_in_holds_its_page_and_offers_the_paste() {
     assert!(offered(&root, Role::TextField, FIELD));
 }
 
-// client/README.md 3.5 The paste: surrounding whitespace alone is empty.
+// client/pages/README.md The paste: surrounding whitespace alone is empty.
 #[test]
 fn whitespace_only_paste_stays_disabled_and_sends_nothing() {
     let (mut front, mut root, _) = begin(b"/accounts/connect");
@@ -162,7 +162,7 @@ fn whitespace_only_paste_stays_disabled_and_sends_nothing() {
     h::assert_no_carried(&front);
 }
 
-// client/README.md 3.5, 5.5: an oversized paste is refused locally,
+// client/pages/README.md, client/pages/accounts.md, 2: an oversized paste is refused locally,
 // but a later correctly sized paste can be sent.
 #[test]
 fn oversized_paste_is_local_and_editing_it_recovers() {
@@ -179,7 +179,7 @@ fn oversized_paste_is_local_and_editing_it_recovers() {
     assert!(!disabled(&root));
 }
 
-// client/README.md 3.5 and 3.6: the secret is absent from the semantic
+// client/pages/README.md and client/README.md, 3.6: the secret is absent from the semantic
 // tree and address, including before sending. Assertions never format it.
 #[test]
 fn typed_callback_never_appears_in_the_view_or_page_address() {
@@ -205,7 +205,7 @@ fn typed_callback_never_appears_in_the_view_or_page_address() {
     assert!(!disabled(&root));
 }
 
-// client/README.md 3.5 The paste: changing page or way drops the value.
+// client/pages/README.md The paste: changing page or way drops the value.
 #[test]
 fn leaving_the_page_or_way_drops_the_paste() {
     for destination in [b"/accounts".as_slice(), b"/accounts/connect?provider=17&way=key"] {
@@ -218,7 +218,7 @@ fn leaving_the_page_or_way_drops_the_paste() {
     }
 }
 
-// client/README.md 3.5 and 3.6: repeated submission while out joins
+// client/pages/README.md and client/README.md, 3.6: repeated submission while out joins
 // the pending finish, even when supplied under another name.
 #[test]
 fn duplicate_finish_sends_one_request_and_clears_the_field() {
@@ -232,7 +232,7 @@ fn duplicate_finish_sends_one_request_and_clears_the_field() {
     assert!(!has(&root, &callback()), "sending clears the secret");
 }
 
-// client/README.md 3.5 and 5.5: the accounts watch owns the final result,
+// client/pages/README.md and client/pages/accounts.md, 2: the accounts watch owns the final result,
 // including when a finish was already submitted.
 #[test]
 fn watch_success_replaces_a_pending_paste_with_ready() {
@@ -255,7 +255,7 @@ fn watch_success_replaces_a_pending_paste_with_ready() {
     assert!(offered(&root, Role::Link, b"Start a chat"));
 }
 
-// client/README.md 3.5: reloading retains no pasted draft.
+// client/pages/README.md: reloading retains no pasted draft.
 #[test]
 fn reload_of_the_waiting_source_drops_the_pasted_value() {
     let (mut front, mut root, source) = begin(b"/accounts/connect");
@@ -266,7 +266,7 @@ fn reload_of_the_waiting_source_drops_the_pasted_value() {
     assert!(front.leaves.is_empty());
 }
 
-// client/README.md 3.5 From another computer: sign-in offers the folded paste.
+// client/pages/README.md From another computer: sign-in offers the folded paste.
 #[test]
 fn sign_in_offers_the_paste_folded() {
     const DISCLOSURE: &[u8] = "Signed in, but the page couldn’t be reached?".as_bytes();
@@ -279,7 +279,7 @@ fn sign_in_offers_the_paste_folded() {
     assert!(!disclosure.expect("waiting paste disclosure").states.as_slice().contains(&State::Expanded));
 }
 
-// client/README.md 3.5 Accounts: the existing account's sign-in offers
+// client/pages/README.md Accounts: the existing account's sign-in offers
 // the same paste and finishes from the accounts watch.
 #[test]
 fn accounts_row_sign_in_offers_the_paste_and_observes_success() {

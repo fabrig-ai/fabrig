@@ -1,4 +1,4 @@
-//! Account English has its own phrase IDs (client/README.md, 5.5).
+//! Account English has its own phrase IDs (client/pages/accounts.md, 2).
 use crate::words::Words;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
@@ -676,7 +676,7 @@ fn literal_number(word: Word) -> u16 {
     unreachable!("closed account words")
 }
 
-/// The navigation reads only supplied own-account facts (client/README.md, 5.3).
+/// The navigation reads only supplied own-account facts (client/view.md, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Mark {
     Needs,
@@ -692,7 +692,7 @@ pub(crate) fn mark(root: &temper_client_domain::Domain) -> Option<Mark> {
         if account.holder != AccountHolder::Party(party) || (playground.is_some() && account.provider == playground) {
             continue;
         }
-        // The deciding source is the first supplied in order (client/README.md, 5.3).
+        // The deciding source is the first supplied in order (client/view.md, 3).
         // The accounts page also reads source.state directly; cuts add no inferred state.
         let Some(source) = account.sources.get(0) else { continue };
         if source.attention {

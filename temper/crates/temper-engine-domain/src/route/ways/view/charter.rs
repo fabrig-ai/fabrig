@@ -1,4 +1,4 @@
-//! A charter card reads its order and wake policy (temper/docs/design/client/README.md, 5.16).
+//! A charter card reads its order and wake policy (temper/docs/design/client/pages/chat/conversation.md, 3).
 use super::{fact, not_drawn};
 use crate::{Domain, ways};
 use alloc::boxed::Box;

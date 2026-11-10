@@ -1,5 +1,5 @@
 //! Total sibling translations into party answer facts
-//! (client/domain/contract.md, section 4; domain/people.md, section 5.1).
+//! (client/domain/contract/README.md, section 3; domain/people/acts.md, section 1).
 //! The core reads the current live record for an ending; no retained archive
 //! is retained here. Unknown names disclose no object. Retry answers are unsaved.
 use crate::{Core, Event, routing::Work};
@@ -72,7 +72,7 @@ fn task_answer(core: &Core, problem: tasks::Problem) -> people::Outcome {
         tasks::Refusal::Executor => {
             people::Refusal::Authority { proposable: None, lacking: people::Lack::TaskKind { executor: None } }
         }
-        // A refused model reaches the party by its index, which the client's engine names (tasks.md, 3).
+        // A refused model reaches the party by its index, which the client's engine names (domain/tasks/README.md, 3).
         tasks::Refusal::Llm { model, why } => people::Refusal::Llm { model, why: llm_why(why) },
         tasks::Refusal::Account { account, why } => people::Refusal::Account {
             account,

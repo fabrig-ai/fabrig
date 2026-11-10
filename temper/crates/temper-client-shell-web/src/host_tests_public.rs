@@ -1,4 +1,4 @@
-//! Public host at the fetch boundary (temper/docs/design/client/browser.md, 8.4).
+//! Public host at the fetch boundary (temper/docs/design/client/web/public.md, 4).
 use super::*;
 fn fixture(path: &[u8]) -> (PublicHost, Duties) {
     let mut host = PublicHost::new(Time::ZERO, Wall::EPOCH, Ways::NONE);

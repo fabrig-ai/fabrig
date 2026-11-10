@@ -1,6 +1,6 @@
 #![expect(clippy::format_push_string, reason = "generator assembles reviewed source fragments")]
 
-//! Fixed-rule golden values and generated round trips (codec.md, section 6).
+//! Fixed-rule golden values and generated round trips (data/codec/README.md, section 6).
 
 use crate::{Declaration, Enumeration, Golden, Record, Type, Variant, analysis::Context, emit_limits, emit_types};
 

@@ -1,4 +1,4 @@
-//! Startup limits and edge validation (llm-connection.md, section 7).
+//! Startup limits and edge validation (llm/connection.md, section 7).
 
 use skein_lib::{Duration, List};
 use skein_llm as llm;

@@ -1,6 +1,6 @@
-//! Steps, exits and timers in; process orders out (protocol/setup.md, 7.2).
-//! Kind slots and removal follow temper/docs/design/protocol/setup.md, 7.1.
-//! Source retries follow temper/docs/design/protocol/sign-in.md, 9.9.
+//! Steps, exits and timers in; process orders out (protocol/setup/box.md, 2).
+//! Kind slots and removal follow temper/docs/design/protocol/setup/box.md, 1.
+//! Source retries follow temper/docs/design/protocol/openid-provider.md, 9.
 use crate::layout::Placed;
 use crate::limits::{Limits, Unfit, check};
 use crate::terminal::Fact;
@@ -162,7 +162,7 @@ pub(crate) struct GroupState {
     chained: bool,
     status: Status,
 }
-/// What the box does with a fetch line of this step (protocol/setup.md, 7.2).
+/// What the box does with a fetch line of this step (protocol/setup/box.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Relay {
     Send,
@@ -1126,7 +1126,7 @@ impl Machine {
         }
         group.status = Status::Stopping;
         // A restart's preparation can still be live. Disarm its continuation
-        // and backoff along with the long steps (protocol/setup.md, 7.2).
+        // and backoff along with the long steps (protocol/setup/box.md, 2).
         group.chained = false;
         for step in group.first..group.end {
             let state = self.states.get_mut(step).expect("group step");
@@ -1162,7 +1162,7 @@ impl Machine {
         }
     }
     fn advance_group(&mut self, index: usize, next: Option<usize>, orders: &mut Queue<Order>) {
-        // The record means the whole group stands (setup.md, 6.6/7.1):
+        // The record means the whole group stands (protocol/setup/README.md, 6.6/7.1):
         // Forgejo answered and the remaining group steps completed.
         if let Some(step) = next {
             self.spawn(step, self.successor(step), orders);

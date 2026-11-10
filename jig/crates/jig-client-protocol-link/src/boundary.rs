@@ -1,4 +1,4 @@
-//! Owner routing and shell exchanges (protocol/client.md, 2 and 5).
+//! Owner routing and shell exchanges (protocol/client/README.md, 2 and 3).
 use alloc::boxed::Box;
 use jig_client_domain::{Answered, Ask, Family, Readable, Readout, Retry, Watchable, contract};
 pub use jig_client_domain::{StreamBound, StreamsFull};
@@ -48,7 +48,7 @@ pub enum Event {
         attempt: Token,
         key: RequestKey,
         ask: Ask,
-        /// A value the request carries once, put into `Keyed` and never kept (protocol/client.md, 5).
+        /// A value the request carries once, put into `Keyed` and never kept (protocol/client/README.md, 3).
         value: Option<Secret>,
     },
     Read {
@@ -156,7 +156,7 @@ pub enum Fact {
     UndecodableStore,
 }
 
-/// Authentication held by the link (client/domain/client.md, 12).
+/// Authentication held by the link (client/domain/client/README.md, 9).
 #[derive(Debug, PartialEq, Eq)]
 pub enum With {
     Service(Secret),
@@ -216,7 +216,7 @@ pub enum Streamed {
     SignedOut,
 }
 
-/// Authorization's terminal answer (protocol/client.md, 18).
+/// Authorization's terminal answer (protocol/client/openid.md).
 #[derive(Debug, PartialEq, Eq)]
 pub enum Authorized {
     Go { location: Box<[u8]> },
@@ -235,7 +235,7 @@ pub enum AuthorizeWhy {
     NotAPerson,
 }
 
-/// Why an approval take installed nothing (jig/docs/design/client/domain/client.md, 12).
+/// Why an approval take installed nothing (jig/docs/design/client/domain/client/README.md, 9).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Taking {
     Waiting,
@@ -245,7 +245,7 @@ pub enum Taking {
     Unknown,
 }
 
-/// An approval's single answer to its host (jig/docs/design/protocol/client.md, 8).
+/// An approval's single answer to its host (jig/docs/design/protocol/client/sign-in.md).
 #[derive(Debug, PartialEq, Eq)]
 pub enum Approval {
     Asked { secret: Secret, code: ApprovalCode, expires: Wall },
@@ -288,7 +288,7 @@ pub enum Decided {
     Lost,
 }
 
-// Encoded records can carry secrets and credentials (jig/docs/design/protocol/client.md, 8).
+// Encoded records can carry secrets and credentials (jig/docs/design/protocol/client/sign-in.md).
 impl core::fmt::Debug for Message {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
@@ -309,7 +309,7 @@ impl core::fmt::Debug for Message {
     }
 }
 
-// A reply may carry a credential (jig/docs/design/protocol/client.md, 8).
+// A reply may carry a credential (jig/docs/design/protocol/client/sign-in.md).
 impl core::fmt::Debug for Event {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
@@ -351,7 +351,7 @@ impl core::fmt::Debug for Event {
     }
 }
 
-// A reply may carry a credential (jig/docs/design/protocol/client.md, 8).
+// A reply may carry a credential (jig/docs/design/protocol/client/sign-in.md).
 impl core::fmt::Debug for Heard {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {

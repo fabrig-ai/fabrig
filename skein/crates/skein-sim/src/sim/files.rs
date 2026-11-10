@@ -1,6 +1,6 @@
 //! Files: the operations on files a process submits, each passed to the
 //! machine as a [`Call`] once the checks and the faults are done with it,
-//! and each [`Answer`] made into its completion (simulator.md, 3).
+//! and each [`Answer`] made into its completion (testing/simulator.md, 3).
 
 use alloc::boxed::Box;
 use alloc::collections::BTreeSet;
@@ -47,7 +47,7 @@ pub(super) struct Asked {
 }
 
 impl Sim {
-    /// A root the shell opened at startup (shell.md, 6), for `pid`: the
+    /// A root the shell opened at startup (runtime/shell.md, 6), for `pid`: the
     /// machine's `handle` of an open directory, which it issued to the
     /// world, given a descriptor as if opened with `OpenHow::Directory`.
     pub fn root(&mut self, pid: Pid, handle: Handle) -> Fd {
@@ -58,7 +58,7 @@ impl Sim {
         self.open_file(pid, File { handle, access: Access::Record(OpenHow::Directory), position: 0 })
     }
 
-    /// Adopts the machine's writable append handle opened at startup (shell.md, 6).
+    /// Adopts the machine's writable append handle opened at startup (runtime/shell.md, 6).
     pub fn append(&mut self, pid: Pid, handle: Handle) -> Fd {
         if self.fds_full(pid) {
             self.fail(pid, "an append descriptor past the descriptor limit");
@@ -170,7 +170,7 @@ impl Sim {
     }
 
     /// The failure drawn for `op` instead of it, if any: the faults of a
-    /// disk and a kernel beyond a healthy scratch directory (simulator.md,
+    /// disk and a kernel beyond a healthy scratch directory (testing/simulator.md,
     /// 4), each for the operations that may answer it.
     fn failure(&mut self, pid: Pid, op: &Op) -> Option<Error> {
         let (space, read_only, io) = match op {

@@ -1,4 +1,4 @@
-//! A pidfd-backed child, retained exit and ordered pipe tokens (io.md, section 6).
+//! A pidfd-backed child, retained exit and ordered pipe tokens (runtime/io/processes.md).
 //! It keeps an observing wait and at most one signal, never a numeric PID.
 //! `signal` targets the child or its group. `close` kills the group, or only a
 //! running child spawned alone. `release` reaps after the required kill, the

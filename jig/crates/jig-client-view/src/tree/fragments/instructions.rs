@@ -1,4 +1,4 @@
-//! Supplied instruction facts, without default substitution (objects.md, 11; tasks.md, 7).
+//! Supplied instruction facts, without default substitution (objects.md, 11; domain/tasks/changes.md).
 use crate::words::{Words, phrases::jig::JigPhrase};
 use skein_ui::Builder;
 

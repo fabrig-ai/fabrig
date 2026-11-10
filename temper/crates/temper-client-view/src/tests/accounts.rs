@@ -409,7 +409,7 @@ fn a_key_only_card_names_the_brand_and_holder_once() {
         "OpenAI API key · held by Pat".as_bytes()
     );
 }
-/// The key account's row controls are view reads (temper/docs/design/client/browser.md, 4.6).
+/// The key account's row controls are view reads (temper/docs/design/client/web/testing.md, 6).
 #[test]
 fn a_key_account_offers_replacement_and_removal() {
     let (mut root, watch) = fixtures::account_root();

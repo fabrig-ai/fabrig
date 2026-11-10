@@ -169,8 +169,8 @@ fn declaration(line: &str) -> &str {
     }
 }
 
-/// Whether an added field's type takes no value a patch can spell (codec.md,
-/// 11.2): a record, an enumeration whose every variant holds one, a secret,
+/// Whether an added field's type takes no value a patch can spell (data/codec/patches.md,
+/// 2): a record, an enumeration whose every variant holds one, a secret,
 /// a held record.
 fn takes_no_value(schema: &Schema, decl: &str, field: &str) -> bool {
     let Some(decl) = schema.find(decl.as_bytes()) else { return false };

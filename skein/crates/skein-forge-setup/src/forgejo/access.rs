@@ -1,4 +1,4 @@
-//! One repository's access for the bot (forge-setup.md, 4.5, steps 2 to 4).
+//! One repository's access for the bot (forge/setup/forgejo.md, 1.5, steps 2 to 4).
 use crate::forgejo::{Reply, reply, unexpected};
 use crate::{
     item::Item,
@@ -12,7 +12,7 @@ use skein_forge::forgejo::{
 };
 use skein_lib::{List, Secret, Writer, usize_of};
 
-/// What the repositories of one run share (forge-setup.md, 4.4 and 4.5).
+/// What the repositories of one run share (forge/setup/forgejo.md, 1.4 and 1.5).
 #[derive(Debug)]
 pub(crate) struct Shared {
     pub cap: Option<u32>,

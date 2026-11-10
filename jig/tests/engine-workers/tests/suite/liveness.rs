@@ -325,7 +325,7 @@ fn a_start_past_the_room_is_answered_and_the_link_lives() {
 }
 
 // The resumed start keeps every call across the engine's stream's room
-// (jig/docs/design/protocol/channel.md, 9, 11 and 12).
+// (jig/docs/design/protocol/channel/README.md, 8, 10 and 11).
 #[test]
 fn a_resumed_start_fits_the_room() {
     use jig_domain_host as host;

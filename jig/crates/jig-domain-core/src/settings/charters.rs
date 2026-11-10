@@ -1,4 +1,4 @@
-//! Configured charters and readiness (domain/engine.md, 7.1 and 8).
+//! Configured charters and readiness (domain/engine/executors.md, 1 and domain/engine/fleet.md).
 
 use alloc::boxed::Box;
 use jig_domain_fleet as fleet;
@@ -8,7 +8,7 @@ use skein_lib::{List, Queue};
 use super::{CatalogueModel, Current, Edit, Item, Setting, Value};
 use crate::{Core, Limits, RunPolicy, Settings};
 
-/// A charter's document (domain/engine.md, 17.9).
+/// A charter's document (domain/engine/settings.md, 9).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Document {
     pub connector: u16,
@@ -21,7 +21,7 @@ pub struct Document {
 }
 
 /// A charter's part: instructions for runs whose reasons meet `on`
-/// (jig/docs/design/domain/tasks.md, 8.6).
+/// (jig/docs/design/domain/tasks/messages.md, 6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct CharterPart {
     /// Nonempty, known bits (`tasks::Reasons::is_known`).
@@ -30,7 +30,7 @@ pub struct CharterPart {
 }
 
 /// One numbered charter offered by the deployment, with its documents
-/// (protocol/configuration.md, 3; domain/engine.md, 17.9).
+/// (protocol/configuration.md, 3; domain/engine/settings.md, 9).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Charter {
     pub rest: bool,
@@ -38,13 +38,13 @@ pub struct Charter {
     pub policy: RunPolicy,
     pub hosts: fleet::Kinds,
     pub spend: u64,
-    /// Its default wake policy, which a task made under it takes when its batch entry names none (domain/tasks.md, 8.3).
+    /// Its default wake policy, which a task made under it takes when its batch entry names none (domain/tasks/messages.md, 3).
     pub wake: tasks::WakePolicy,
     pub documents: Box<[Document]>,
     pub parts: Box<[CharterPart]>,
 }
 
-/// Resolve names against the current catalogue (domain/engine.md, 17.11).
+/// Resolve names against the current catalogue (domain/engine/settings.md, 11).
 #[must_use]
 pub fn resolved(charter: &Charter, models: &[CatalogueModel], limits: &Limits) -> Option<Charter> {
     resolution(charter, models, limits).0
@@ -238,7 +238,7 @@ pub(crate) fn assert_catalogue(settings: &Settings) {
 }
 
 /// Each charter's models as tasks checks an LLM choice against them: its main model, then its
-/// alternatives, each once, by its number's position in the catalogue (tasks.md, 3).
+/// alternatives, each once, by its number's position in the catalogue (domain/tasks/README.md, 3).
 pub(crate) fn models(current: &Current, settings: &Settings, limits: &Limits) -> Box<[tasks::CharterModels]> {
     let mut charters = List::with_capacity(
         limits
@@ -296,7 +296,7 @@ pub(crate) fn one_models_rows(charter: &Charter, revision: u32, rows: &[crate::M
     }
 }
 
-/// How many efforts each catalogue row declares, by number (tasks.md, 3).
+/// How many efforts each catalogue row declares, by number (domain/tasks/README.md, 3).
 pub(crate) fn efforts(settings: &Settings) -> Box<[u8]> {
     let mut efforts = List::with_capacity(u32::try_from(settings.models.len()).expect("model count"));
     for model in &settings.models {
@@ -305,7 +305,7 @@ pub(crate) fn efforts(settings: &Settings) -> Box<[u8]> {
     efforts.into_boxed()
 }
 
-/// Whether `model`'s effort, if any, is one it declares (domain/tasks.md, 3).
+/// Whether `model`'s effort, if any, is one it declares (domain/tasks/README.md, 3).
 fn declares(model: &crate::Model) -> bool {
     match &model.effort {
         Some(effort) => model.efforts.contains(effort),
@@ -363,7 +363,7 @@ impl Core {
         Some(fleet::Version { charter: key.charter, revision: key.revision })
     }
 
-    /// The newest charter, for work about to be made (engine.md, 17.3).
+    /// The newest charter, for work about to be made (domain/engine/settings.md, 3).
     #[must_use]
     pub fn charter(&self, number: u32) -> Option<&Charter> {
         self.current.resolved_charter(number)

@@ -1,4 +1,4 @@
-//! A requester's new LLM choice belongs to the next turn (domain/tasks.md, section 7).
+//! A requester's new LLM choice belongs to the next turn (domain/tasks/changes.md).
 use super::*;
 use jig_domain_tasks::{Change, LlmChoice, ModelEffort, Why};
 

@@ -1,4 +1,4 @@
-//! The segments in order (temper/docs/design/domain/forge.md, 8.13).
+//! The segments in order (temper/docs/design/domain/forge/change/branch-path.md).
 use super::{Actor, Inputs, Opens, STOPS, Start, Step, Stop};
 use super::{
     cards::{agent_card, append, card, coordinator_card, fact, number, stop, text},

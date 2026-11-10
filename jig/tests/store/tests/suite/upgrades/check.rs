@@ -1,4 +1,4 @@
-//! Independent checks for store.md 2, 9, 10.1–10.4 and 16.
+//! Independent checks for protocol/store/README.md, 2 and protocol/store/secrets.md and protocol/store/opening.md, 1–4 and protocol/store/README.md, 11.
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use jig_protocol_store::{Check, Event, KeptFamily, OpenRefusal, Owner, PatchSet, PatchSets, SecretOwner, Secrets};
@@ -9,7 +9,7 @@ use skein_lib::Secret;
 pub(crate) const SEED: u64 = 401;
 // fixture-token's schema bounds its payload at 64 bytes.
 const TOKEN_BOUND: usize = 64;
-// Manifest's family and name bounds (store.md 10.3).
+// Manifest's family and name bounds (protocol/store/opening.md 3).
 const FAMILY_BOUND: usize = 64;
 const NAME_BOUND: usize = 64;
 const CARRIED_FIRST: u64 = 1_u64 << 63;
@@ -93,7 +93,7 @@ fn tokens_at_bounds_keep_numbers_across_many_pages() {
         panic!("deployment header");
     };
     assert_eq!(header.commits, last);
-    // The start's wires follow the sealing commit (store.md 10.2, step 8).
+    // The start's wires follow the sealing commit (protocol/store/opening.md 2, step 8).
     assert_eq!(world.mark(), Some(last + 1));
     records.check(&mut world, 2, &"both token bounds and number bounds");
     world.crash(SEED);
@@ -270,7 +270,7 @@ fn token_past_schema_bound_refuses_without_switch() {
 
 #[test]
 fn secrets_record_one_byte_past_commit_room_refuses_large() {
-    // kv.md 3: frame 26 + put framing 9 + key 10 + Token before 78 = 123.
+    // skein/docs/design/data/kv.md 3: frame 26 + put framing 9 + key 10 + Token before 78 = 123.
     // The patch adds the absent-option tag, making this record alone cost 124.
     const BEFORE_COMMIT: u32 = 123;
     let mut records = empty();
@@ -370,7 +370,7 @@ fn store_record_one_byte_past_commit_room_refuses_large() {
 #[test]
 fn live_sets_past_arena_limits_switch_before_restart() {
     let records = empty();
-    // The check decodes each row, but does not enforce the child's live-set bound (store.md 16).
+    // The check decodes each row, but does not enforce the child's live-set bound (protocol/store/README.md 11).
     let rows = [root::live_task(root::LIVE), root::live_task(root::LIVE + 1), root::live_task(root::LIVE + 2)];
     let mut world = records.committed_with(SEED, patches::BASE, 1, patches::limits(), &rows);
     let before = patches::source(&mut world);
@@ -519,7 +519,7 @@ pub(crate) fn a_check_cut_recovers(records: &patches::Records, cut: u32) -> bool
         assert!(matches!(world.refusal(), Some(OpenRefusal::Ahead { .. })), "cut {cut}: {:?}", world.refusal());
     }
     patches::kept(&before, &patches::source(&mut world), &cut);
-    // Observe recovery before check commits the start's wires to serve secrets (store.md 5.3).
+    // Observe recovery before check commits the start's wires to serve secrets (protocol/store/records.md 3).
     if source_active {
         records.check(&mut world, 1, &cut);
     }

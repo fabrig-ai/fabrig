@@ -1,4 +1,4 @@
-//! The product's end, its close reports and shell handoff (shell.md, section 9).
+//! The product's end, its close reports and shell handoff (shell/README.md, section 5).
 //! The phase retains the last status and termination disposition. It knows no
 //! live run policy; its reports come from the components and the shell.
 

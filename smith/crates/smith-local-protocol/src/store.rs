@@ -1,5 +1,5 @@
 //! Generated local chat codecs and serial durable-file requests
-//! (domain/host.md, section 8; protocol/hosts.md, section 5.3).
+//! (domain/host.md, section 8; protocol/host.md, section 5.3).
 //! Store keeps its selected root, checked bit, versions and bounded loading
 //! buffers, never conversation policy or another build's record layout.
 //! `Store::request` and `from_io` drive IO; `save_state`, `save_turn` and

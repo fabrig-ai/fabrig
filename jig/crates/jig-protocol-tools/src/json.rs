@@ -1,4 +1,4 @@
-//! Tool argument reads over compact JSON documents (jig/docs/design/domain/engine.md, 7.3).
+//! Tool argument reads over compact JSON documents (jig/docs/design/domain/engine/executors.md, 3).
 //! The borrowed views live only while one call is decoded.
 
 use alloc::boxed::Box;

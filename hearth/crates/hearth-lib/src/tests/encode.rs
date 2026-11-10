@@ -8,7 +8,7 @@ fn a_list_of_texts_encodes_as_store_md_writes_it() {
     assert_eq!(
         encode(&value),
         expected,
-        "hearth/docs/design/domain/store.md, 3.2: encode(list [bytes hearth/1, bytes empty])"
+        "hearth/docs/design/domain/store/README.md, 3.2: encode(list [bytes hearth/1, bytes empty])"
     );
 }
 
@@ -18,7 +18,7 @@ fn a_map_key_is_encoded_as_a_whole_bytes_value() {
     assert_eq!(
         encode(&value),
         hex("07 0000000000000001 04 0000000000000001 61 03 0000000000000001"),
-        "hearth/docs/design/domain/store.md, 3.2: a key is bytes"
+        "hearth/docs/design/domain/store/README.md, 3.2: a key is bytes"
     );
 }
 

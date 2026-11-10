@@ -1,4 +1,4 @@
-//! Open resumes as Finite; only the next finish differs (domain/tasks.md, 5.5–5.8, 6.7 and 7–9).
+//! Open resumes as Finite; only the next finish differs (domain/tasks/lifecycle.md, 6–9 and domain/tasks/holds.md, 7 and domain/tasks/changes.md and domain/tasks/messages.md and domain/tasks/proposals.md).
 use super::*;
 use jig_domain_tasks::{self as tasks, Class, EscalationDecision, EscalationHolder, Operation, Release, ReplyHint};
 use skein_lib::{List, ReplyTo};

@@ -1,4 +1,4 @@
-//! Seeded draws below protocol machines (skein/docs/design/testing.md, 6).
+//! Seeded draws below protocol machines (skein/docs/design/testing/README.md, 6).
 
 use skein_lib::Rng;
 use skein_lib::stream::Fault;

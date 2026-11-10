@@ -1,5 +1,5 @@
 //! Translation of a core-owned charter into Smith's run vocabulary
-//! (domain/hosts.md, section 8). The application's root supplies its
+//! (domain/hosts/charters.md). The application's root supplies its
 //! tools, endpoints, deployment and bounds. This crate owns jig's contract text ceiling,
 //! required checks and the application of core-decided workspace tool grants.
 
@@ -31,7 +31,7 @@ pub use identity::run_identity;
 pub use result::{Field, RunResult, Unreadable, result};
 pub use smith_domain_run::Mode;
 
-/// The encoding ceilings already owned by this kit (protocol/channel.md, 6.1).
+/// The encoding ceilings already owned by this kit (protocol/channel/README.md, 5.1).
 #[must_use]
 pub const fn limits() -> smith_charter::v4::Limits {
     smith_charter::v4::CEILINGS

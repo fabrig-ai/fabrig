@@ -1,4 +1,4 @@
-//! Calls retained across channels (protocol/channel.md, 10.1).
+//! Calls retained across channels (protocol/channel/README.md, 9.1).
 use crate::Limits;
 use alloc::boxed::Box;
 use skein_channel::{Frame, frame_writer};

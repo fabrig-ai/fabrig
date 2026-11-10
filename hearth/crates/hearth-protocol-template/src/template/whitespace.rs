@@ -1,4 +1,4 @@
-//! Whitespace at delimiter edges (hearth/docs/design/protocol/format.md, 7.2).
+//! Whitespace at delimiter edges (hearth/docs/design/protocol/format/templates.md, 2).
 pub(crate) const WHITE_SPACE: &[&[u8]] = &[
     b"\t",
     b"\n",

@@ -1,4 +1,4 @@
-//! The test application's client records (protocol/client.md, 11).
+//! The test application's client records (protocol/client/README.md, 8).
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]

@@ -1,5 +1,5 @@
 //! Observed provider calls refuse nesting through main and child sessions.
-//! Contract: protocol/llm.md, section 4; domain/run.md, sections 5.3 and 13.
+//! Contract: protocol/llm.md, section 4; domain/run.md, sections 5.3 and 12.
 
 use skein_fake_llm_domain::api::{Line, Part};
 use smith_domain::{run, session::llm};

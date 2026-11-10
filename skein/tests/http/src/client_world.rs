@@ -65,7 +65,7 @@ pub struct Settings {
     pub discard: u32,
     /// Per mille, per answer on the body: how likely the side above had
     /// withdrawn its demand, or discarded the rest, before the answer
-    /// reached it, so that the two cross (lib.md, 7).
+    /// reached it, so that the two cross (runtime/lib.md, 7).
     pub cross: u32,
     /// Where the server's bytes stop, if before their end.
     pub cut: Option<usize>,

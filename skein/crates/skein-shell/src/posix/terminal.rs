@@ -1,4 +1,4 @@
-//! Terminal syscalls shared by Linux and Darwin (shell.md, sections 6.3 and 7.5).
+//! Terminal syscalls shared by Linux and Darwin (runtime/shell.md, section 6.3, and runtime/readiness.md, section 5).
 //!
 //! # The `unsafe`, and why it is sound
 //!
@@ -9,7 +9,7 @@
 //! Writes borrow a live byte slice only until the synchronous call returns.
 //! Open borrows a terminated path; signal masks are local initialized C
 //! storage. No call retains either pointer, and the prior mask is restored.
-#![expect(unsafe_code, reason = "terminal calls borrow local storage only until return (shell.md, 7.5)")]
+#![expect(unsafe_code, reason = "terminal calls borrow local storage only until return (runtime/readiness.md, 5)")]
 
 use crate::terminal::{Input, Kept, Keys, Modes};
 use skein_io::kernel::{Error, Fd, Size};

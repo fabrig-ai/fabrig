@@ -1,4 +1,4 @@
-//! Bounded page-owned forge facts (protocol/sign-in.md, 9.3).
+//! Bounded page-owned forge facts (protocol/openid-provider.md, 3).
 use crate::words::{Word, Words};
 use alloc::boxed::Box;
 use skein_lib::List;
@@ -187,13 +187,13 @@ impl Forge {
             words.say(Word::SignInForgeAt, &[Hole::Name(host(&self.root).expect("checked forge root").into())])
         }
     }
-    /// `ROOT/user/oauth2/temper?redirect_to=%2FOWNER%2FNAME` (client/forge.md, 5.4), or None past the URL's bound.
+    /// `ROOT/user/oauth2/temper?redirect_to=%2FOWNER%2FNAME` (client/forge/deployment.md), or None past the URL's bound.
     #[must_use]
     pub fn open_repository(&self, owner: &[u8], name: &[u8]) -> Option<Box<[u8]>> {
         let path = crate::forge::repository::web_address(b"", owner, name)?;
         self.open_path(&path)
     }
-    /// The encoded path as the sign-in redirect (client/forge.md, 4.1 and 5.4).
+    /// The encoded path as the sign-in redirect (client/forge/README.md, 4.1 and client/forge/deployment.md).
     #[must_use]
     pub fn open_path(&self, path: &[u8]) -> Option<Box<[u8]>> {
         let query = crate::forge::repository::encoded(path, false)?;

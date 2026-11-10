@@ -1,4 +1,4 @@
-//! Pending owner decisions and retained winners (protocol/client.md, 5).
+//! Pending owner decisions and retained winners (protocol/client/README.md, 3).
 use jig_client_domain::contract::{
     Ask, ChipPhase, ChipPhaseFacts, DecideOn, Decision, DocumentOutcome, DocumentText, Ended, EndedValue,
     EscalationChoice, EscalationDecision, EscalationDecisionRecord, ObjectKey, Phase, ProposalAction, ProposalChoice,

@@ -1,5 +1,5 @@
 //! The records that cross the boundary with the protocol layer (skein/docs/foundation/programming-model.md, section 4.4;
-//! smith/docs/design/domain/run.md, sections 2, 3, 5, 6, 8, 9, 10 and 13;
+//! smith/docs/design/domain/run.md, sections 2, 3, 5, 6 and 8 and smith/docs/design/domain/budget.md and smith/docs/design/domain/run.md, sections 9 and 12;
 //! smith/docs/design/domain/session.md, sections 3–6). The
 //! domain defines them; the protocol crate depends on it.
 //!
@@ -11,7 +11,7 @@
 //!   [`Event::Cancel`] can name it. A run's host call, [`Request::Deliver`], is
 //!   ended by exactly one [`Event::Delivered`]. After submission the
 //!   host operation is never abandoned; its deadline bounds the host terminal.
-//!   Duplicate or stale callback owners are inert (smith/docs/design/domain/run.md, sections 8 and 10).
+//!   Duplicate or stale callback owners are inert (smith/docs/design/domain/run.md, sections 8 and 9).
 //!   [`Request::Long`] and [`Request::LongDone`] bracket checks,
 //!   provider completions and commands, from issuance to their terminal.
 //! - LLM providers, for the sessions: a [`Lower::Complete`] is ended by one
@@ -96,7 +96,7 @@ pub struct Grant {
     pub renewable: bool,
 }
 
-/// Host activation input retained until admission (smith/docs/design/domain/run.md, section 13).
+/// Host activation input retained until admission (smith/docs/design/domain/run.md, section 12).
 #[derive(PartialEq, Eq, Debug)]
 pub struct Start {
     /// Single-use right to answer this call; exactly one terminal consumes it.

@@ -23,21 +23,21 @@ pub struct Limits {
     /// so that connections opened together do not all expire together.
     pub spread: Duration,
     /// How long the listener waits to listen again after io refused it for
-    /// want of resources (`Error::Busy`, io.md, 2). Never zero, or it would
+    /// want of resources (`Error::Busy`, runtime/io/README.md, 2). Never zero, or it would
     /// spin while the shortage lasts.
     pub retry: Duration,
 }
 
 impl Limits {
     /// The largest read the layer demands of io: a scan of `line` bytes.
-    /// Startup checks it against io's intake (io.md, 2).
+    /// Startup checks it against io's intake (runtime/io/README.md, 2).
     #[must_use]
     pub const fn largest_read(&self) -> u32 {
         self.line
     }
 
     /// The largest room the layer demands of io: `line` bytes, for any
-    /// answer. Startup checks it against io's output cap (io.md, 2).
+    /// answer. Startup checks it against io's output cap (runtime/io/README.md, 2).
     #[must_use]
     pub const fn largest_room(&self) -> u32 {
         self.line

@@ -1,5 +1,5 @@
 //! Executable calls beside serve, with every descriptor on one real ring.
-//! temper/docs/design/domain/testing.md, 2.6.
+//! temper/docs/design/testing/process-tier.md.
 mod member;
 use super::{Ended, Process, WITHIN, patience::Patience};
 use skein_io::kernel::{Complete, Done, Error, Exit, Fd, Op, Pipe, Signal, Spawn, Submit, Target, Way};
@@ -32,7 +32,7 @@ const PACE: Duration = Duration::from_millis(100);
 // The shared engine document gives the native person's project number one.
 pub const PROJECT: &str = "1";
 
-/// ctl's result keeps the full merge id after any pull request identity (client/tools.md, 6.1).
+/// ctl's result keeps the full merge id after any pull request identity (client/ctl/results.md, 1).
 #[must_use]
 pub fn landed_result(task: &str) -> (&str, &str) {
     let line = task.lines().find(|line| line.starts_with("result: Landed · ")).expect("landed result line");
@@ -73,7 +73,7 @@ impl Call {
         Self { program: Some(program.into()), directory: false, ..Self::new(arguments) }
     }
     /// Run the call by another binary's `ctl`, as the deployment's client runs it
-    /// (protocol/README.md, section 4).
+    /// (protocol/binaries.md).
     #[must_use]
     pub fn by(self, program: &Path) -> Self {
         Self { ctl_program: Some(program.into()), ..self }
@@ -1300,7 +1300,7 @@ pub fn charter_change_file(file: &Path, setting: &Ended, instructions: &str) {
     setting_change_file(file, setting, |value| value["instructions"] = instructions.into());
 }
 
-/// Pair the returned proposal number with its requesting party (jig/docs/design/protocol/client.md, 5).
+/// Pair the returned proposal number with its requesting party (jig/docs/design/protocol/client/README.md, 3).
 #[must_use]
 pub fn proposal_key(ended: &Ended, me: &Ended) -> String {
     let answer = json(ended);

@@ -1,4 +1,4 @@
-//! Signing in, cookies and reconnects share one browser and server (client/browser.md, 4.6, 1).
+//! Signing in, cookies and reconnects share one browser and server (client/web/testing.md, 6, client/web/README.md, 1).
 use skein_browser::boundary::Key;
 use skein_fake_person::{Find, Step as PersonStep};
 use skein_fake_person_browser::{Harness, Outcome, Script, Step};

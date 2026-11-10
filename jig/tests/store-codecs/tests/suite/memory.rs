@@ -1,4 +1,4 @@
-//! Full golden rows decode within their decoded bounds (skein's codec.md, 6).
+//! Full golden rows decode within their decoded bounds (skein's data/codec/README.md, 6).
 use jig_protocol_store::{accounts_v2, component_v3, core_v6, notes_v1, people_v14, secrets_v1, settings_v1, tasks_v9};
 use skein_heap::Meter;
 use skein_lib::Reader;

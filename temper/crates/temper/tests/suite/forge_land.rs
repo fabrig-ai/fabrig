@@ -472,7 +472,7 @@ fn stock_charters_choose_claude_before_the_demo_model() {
 }
 
 /// The Claude deployment's stock catalogue, endpoints, providers and charters 1 and 2
-/// on the joined client world's engine (temper/docs/design/domain/testing.md, 2.7 and 6.3).
+/// on the joined client world's engine (temper/docs/design/testing/live-tier.md and temper/docs/design/testing/checks.md, 3).
 fn live_claude_world() -> (
     support::Scratch,
     jig_client_kit::harness::World<temper_client_world::app::Temper, temper_client_world::front::Joint>,
@@ -885,7 +885,7 @@ fn the_launcher_runs_its_builds_through_the_wrapper_it_is_given() {
     scratch.remove();
 }
 
-/// domain/testing.md, 2.6: the offline driver proofs run in the process tier.
+/// testing/process-tier.md: the offline driver proofs run in the process tier.
 #[test]
 fn the_offline_rung_runs_its_proofs_in_the_process_profile() {
     use std::{fs, os::unix::fs::PermissionsExt};
@@ -1086,7 +1086,7 @@ esac
     }
 }
 
-/// domain/testing.md, 2.7: validation between boxes cannot strand an imported login.
+/// testing/live-tier.md: validation between boxes cannot strand an imported login.
 #[test]
 fn a_held_login_returns_when_validation_panics_between_boxes() {
     let mut boxes = HeldBox::new("held-between-boxes");
@@ -1284,7 +1284,7 @@ fn a_held_chatgpt_record_is_admitted_only_as_a_private_regular_file_never_named(
     scratch.remove();
 }
 
-/// domain/testing.md, 2.7: one `TEMPER_LIVE_STORE` holds a store per landing story.
+/// testing/live-tier.md: one `TEMPER_LIVE_STORE` holds a store per landing story.
 #[test]
 fn each_landing_story_takes_its_own_store_under_one_live_store() {
     use std::{fs, os::unix::fs::PermissionsExt, path::Path};
@@ -1309,7 +1309,7 @@ fn each_landing_story_takes_its_own_store_under_one_live_store() {
     scratch.remove();
 }
 
-/// domain/testing.md, 2.7: the held record's import and give-back name the sitting's
+/// testing/live-tier.md: the held record's import and give-back name the sitting's
 /// client directory, never the run's root.
 #[test]
 fn the_held_records_import_and_give_back_name_the_sittings_client_directory() {
@@ -1402,17 +1402,17 @@ fn an_imported_records_path_is_printed_as_file() {
     }
 }
 
-/// domain/testing.md, 2.7: the chat's delegate is a change or the story stops, naming it.
+/// testing/live-tier.md: the chat's delegate is a change or the story stops, naming it.
 #[test]
 fn the_chats_delegate_is_a_change_or_the_story_names_it() {
     use support::forge_land::change_delegate;
     for (executor, expected) in [
         (json!({"procedure": {"connector": 1, "kind": 2}}), Ok(3)),
-        (json!({"agent": {"charter": 1}}), Err("the chat's delegate task 3 is an agent's on charter 1, not a change: the shipped chat chooses change (testing.md 2.7)".to_owned())),
+        (json!({"agent": {"charter": 1}}), Err("the chat's delegate task 3 is an agent's on charter 1, not a change: the shipped chat chooses change (testing/live-tier.md)".to_owned())),
         (Value::Null, Err("delegate executor missing (chip.executor)".to_owned())),
-        (json!({"job": {"kind": 1}}), Err("the chat's delegate task 3 is a job's, not a change: the shipped chat chooses change (testing.md 2.7)".to_owned())),
-        (json!({"party": {"party": 1}}), Err("the chat's delegate task 3 is a party's, not a change: the shipped chat chooses change (testing.md 2.7)".to_owned())),
-        (json!({"role": {"project": 1, "role": 2}}), Err("the chat's delegate task 3 is a role's, not a change: the shipped chat chooses change (testing.md 2.7)".to_owned())),
+        (json!({"job": {"kind": 1}}), Err("the chat's delegate task 3 is a job's, not a change: the shipped chat chooses change (testing/live-tier.md)".to_owned())),
+        (json!({"party": {"party": 1}}), Err("the chat's delegate task 3 is a party's, not a change: the shipped chat chooses change (testing/live-tier.md)".to_owned())),
+        (json!({"role": {"project": 1, "role": 2}}), Err("the chat's delegate task 3 is a role's, not a change: the shipped chat chooses change (testing/live-tier.md)".to_owned())),
     ] {
         let row = json!({"chip": {"task": 3, "executor": executor}});
         assert_eq!(change_delegate(&row), expected, "{row}");
@@ -1430,7 +1430,7 @@ fn delegate_read(rows: &[u64], cut: bool, after: Option<&str>) -> Value {
     })
 }
 
-/// domain/testing.md, 2.7: the chat's and the change's ended delegates are read whole,
+/// testing/live-tier.md: the chat's and the change's ended delegates are read whole,
 /// a page at a time, by the cursor each page prints.
 #[test]
 fn ended_delegates_are_read_whole_by_their_cursor() {
@@ -1454,7 +1454,7 @@ fn ended_delegates_are_read_whole_by_their_cursor() {
     assert_eq!(ended.whole(), [vec![3, 5], vec![6, 7]]);
 }
 
-/// domain/testing.md, 2.7: what the story refuses of a delegate page, naming it.
+/// testing/live-tier.md: what the story refuses of a delegate page, naming it.
 #[test]
 fn an_ended_delegate_read_refuses_live_rows_a_cut_without_a_cursor_and_a_33rd_page() {
     use support::forge_land::EndedDelegates;

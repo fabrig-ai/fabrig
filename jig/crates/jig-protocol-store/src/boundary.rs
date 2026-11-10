@@ -1,4 +1,4 @@
-//! Store requests and terminals (protocol/store.md, sections 3, 7 to 10).
+//! Store requests and terminals (protocol/store/README.md, section 3 and protocol/store/loads.md and protocol/store/transcripts.md and protocol/store/secrets.md and protocol/store/opening.md).
 use alloc::boxed::Box;
 use jig_domain_core::{self as core, RestoreRange, reads};
 use jig_domain_notes as notes;
@@ -10,49 +10,49 @@ use skein_lib::{Queue, Secret, Token};
 /// `Commit` names its asker's token; each has one terminal event.
 #[derive(Debug)]
 pub enum Request {
-    /// Open both stores in the deployment's directory (store.md 10); the
+    /// Open both stores in the deployment's directory (protocol/store/opening.md); the
     /// component's own rows and the core's header are checked before
     /// `Opened`. In skein-kv's memory mode, the worlds' component needs none.
     /// `installation` is the identifier the shell drew for this start
-    /// (configuration.md 8): an empty store keeps it in its first commit; a
+    /// (configuration.md 7): an empty store keeps it in its first commit; a
     /// store that holds one answers its own instead.
     Open { owner: Token, root: Root, installation: [u8; 16] },
     /// Activate the copy opened pending, once every earlier commit is durable
-    /// (store.md 10.2, step 7). Once, after `Opened`; terminal `Switched` or `OpenRefused`.
+    /// (protocol/store/opening.md 2, step 7). Once, after `Opened`; terminal `Switched` or `OpenRefused`.
     Switch { owner: Token },
-    /// Commit `number` (store.md 6): its writes, in order, one skein-kv
+    /// Commit `number` (protocol/store/README.md 5): its writes, in order, one skein-kv
     /// commit with the same number. Terminal: `Committed`, `Failed` or
     /// `FrameTooLarge`; a refusal stops the engine.
     Commit { number: u64, writes: Box<[Write]> },
-    /// A page of one restart step's ranges (store.md 7.2), from `after`.
+    /// A page of one restart step's ranges (protocol/store/loads.md 2), from `after`.
     Restore { owner: Token, range: Restore, after: Option<Cursor>, rows: u32, bytes: u64 },
-    /// A page of a child's range (store.md 7.1), from `after`.
+    /// A page of a child's range (protocol/store/loads.md 1), from `after`.
     Load { owner: Token, range: Load, after: Option<Cursor>, rows: u32, bytes: u64 },
-    /// A party's read (store.md 7.3): its scope, position, direction and bounds.
+    /// A party's read (protocol/store/loads.md 3): its scope, position, direction and bounds.
     Read { owner: Token, range: reads::Range },
     /// One record by key.
     Get { owner: Token, key: Get },
-    /// A transcript's turns (store.md 8.3).
+    /// A transcript's turns (protocol/store/transcripts.md 3).
     Transcript { owner: Token, read: TranscriptRead, rows: u32, bytes: u64 },
-    /// The secrets' store (store.md 9).
+    /// The secrets' store (protocol/store/secrets.md).
     Secrets { owner: Token, request: Secrets },
-    /// A written site's answer (store.md 10.3), with its machine handed back.
+    /// A written site's answer (protocol/store/opening.md 3), with its machine handed back.
     Site { owner: Token, patcher: Box<skein_codec::patch::Patcher>, result: Result<(), skein_codec::patch::Halt> },
 }
 
-/// One write of a commit (store.md 6).
+/// One write of a commit (protocol/store/README.md 5).
 #[derive(Debug)]
 pub enum Write {
-    /// The start's component-owned wires row, from `Store::wires` (store.md 5.3).
+    /// The start's component-owned wires row, from `Store::wires` (protocol/store/records.md 3).
     Wires,
-    /// Copy the bytes the map holds under `from` to `to` in this commit (store.md 6).
+    /// Copy the bytes the map holds under `from` to `to` in this commit (protocol/store/README.md 5).
     Copy { from: core::Key, to: core::Key },
     /// jig's save: a put of its encoded key and record; a turn's save
     /// becomes a frame in its task's transcript and puts of its places.
     Save(core::Record),
     /// jig's erase.
     Erase(core::Key),
-    /// A task's transcript dropped whole (store.md 8.5): its places erased,
+    /// A task's transcript dropped whole (protocol/store/transcripts.md 5): its places erased,
     /// its file removed before the commit is submitted.
     DropTranscript { task: u64 },
     /// The application's put: its key's bytes (without the tag) and its value's.
@@ -89,7 +89,7 @@ pub enum Get {
     Application(Box<[u8]>),
 }
 
-/// A transcript read (store.md 8.3). Offsets are the component's, given
+/// A transcript read (protocol/store/transcripts.md 3). Offsets are the component's, given
 /// and taken back; none reads past what is committed.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum TranscriptRead {
@@ -103,7 +103,7 @@ pub enum TranscriptRead {
     Page { task: u64, backwards: bool, after: Option<u64> },
 }
 
-/// Whose secret (store.md 9).
+/// Whose secret (protocol/store/secrets.md).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum SecretOwner {
     /// A sign-in's digest, by the sign-in's number.
@@ -114,19 +114,19 @@ pub enum SecretOwner {
     Application,
     /// A signed-in source's record or an LLM key's value, by the source's number.
     Source,
-    /// The deployment's 32-byte public identifiers' key, at number 0 (store.md, section 9).
+    /// The deployment's 32-byte public identifiers' key, at number 0 (protocol/store/secrets.md).
     PublicNames,
 }
 
 /// The first number of the application's range that jig numbers itself,
-/// for the values clients' requests carry (store.md 9); the application
+/// for the values clients' requests carry (protocol/store/secrets.md); the application
 /// numbers its own values below it.
 pub const CARRIED: u64 = 1 << 63;
 
-/// The first number of values held in memory for this run alone (store.md, section 9).
+/// The first number of values held in memory for this run alone (protocol/store/secrets.md).
 pub const HELD: u64 = CARRIED + (1 << 62);
 
-/// What a secrets row holds, as its owner gives it and gets it back (store.md 9).
+/// What a secrets row holds, as its owner gives it and gets it back (protocol/store/secrets.md).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum SecretValue {
     /// A credential digest; a service's expiry is `u64::MAX`.
@@ -146,7 +146,7 @@ pub enum SecretValue {
     /// A value held for this run alone, never written.
     Held(Secret),
 }
-/// What a request's carried value is (store.md 9).
+/// What a request's carried value is (protocol/store/secrets.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum CarriedKind {
     Key,
@@ -154,7 +154,7 @@ pub enum CarriedKind {
     Moved,
 }
 
-/// A request to the secrets' store (store.md, section 9).
+/// A request to the secrets' store (protocol/store/secrets.md).
 #[derive(Debug)]
 pub enum Secrets {
     Keep {
@@ -180,7 +180,7 @@ pub enum Secrets {
         replaces: Option<[u8; 32]>,
     },
     /// Adopt a decoded value, conditional on both the carried file's digest
-    /// and the destination's digest. Both rows change in one commit (store.md 9).
+    /// and the destination's digest. Both rows change in one commit (protocol/store/secrets.md).
     AdoptValue {
         carried: u64,
         holds: [u8; 32],
@@ -189,13 +189,13 @@ pub enum Secrets {
         value: SecretValue,
         replaces: Option<[u8; 32]>,
     },
-    /// Hold in memory, never written, under the next number from HELD (store.md, 9).
+    /// Hold in memory, never written, under the next number from HELD (protocol/store/secrets.md).
     /// Carried at once, nothing committed; Stale at the held-values bound.
     Hold {
         value: Secret,
     },
     /// Keep a value a client's request carried, under the next number of
-    /// the application's carried range, from [`CARRIED`] up (store.md 9):
+    /// the application's carried range, from [`CARRIED`] up (protocol/store/secrets.md):
     /// `Carried` once durable, the next number moved in the same commit;
     /// `Stale`, nothing written, when that number already holds a value.
     Carry {
@@ -224,7 +224,7 @@ pub struct SecretRow {
 }
 
 /// Where a page stopped: the interval of the request's list, and the last
-/// key it returned (store.md 7.1: the next page starts just past it).
+/// key it returned (protocol/store/loads.md 1: the next page starts just past it).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Cursor {
     pub interval: u32,
@@ -247,7 +247,7 @@ pub enum Row {
     Application { key: Box<[u8]>, value: Box<[u8]> },
 }
 
-/// Whose stored version or layout disagrees with this build (store.md 5.3).
+/// Whose stored version or layout disagrees with this build (protocol/store/records.md 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Family {
     Settings,
@@ -263,7 +263,7 @@ pub enum Family {
     Application,
 }
 
-/// What the check before the switch found (store.md 10.2, step 5).
+/// What the check before the switch found (protocol/store/opening.md 2, step 5).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Check {
     /// A patched record too large for a commit alone, by its key as `Patch` gives it.
@@ -275,7 +275,7 @@ pub enum Check {
 }
 impl Check {
     /// Its refusal's words, in pieces with the deployment's directory between
-    /// them, as `OpenRefusal::words` gives every refusal's (store.md 10.1).
+    /// them, as `OpenRefusal::words` gives every refusal's (protocol/store/opening.md 1).
     fn words(&self) -> &'static [&'static str] {
         match self {
             Self::Large { .. } => &[
@@ -295,7 +295,7 @@ impl Check {
     }
 }
 
-/// Why a store refuses to open, saying which (store.md 5.3, 6, 10).
+/// Why a store refuses to open, saying which (protocol/store/records.md, 3, protocol/store/README.md, 5, protocol/store/opening.md).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum OpenRefusal {
     /// The format row names another version of `family`.
@@ -306,9 +306,9 @@ pub enum OpenRefusal {
     Numbers { store: u64, header: u64 },
     /// A file failed, or a store did not recover.
     Failed,
-    /// A store from an older build is left untouched (store.md 2 and 10.1).
+    /// A store from an older build is left untouched (protocol/store/README.md, 2, and protocol/store/opening.md, 1).
     OlderBuild { why: Older },
-    /// The deployment's generations refuse (store.md 10.1).
+    /// The deployment's generations refuse (protocol/store/opening.md 1).
     Generations { why: Generations },
     /// A level past the binary's (5.3); `found: None` for a component
     /// version past the binary's, its levels unread.
@@ -321,11 +321,11 @@ pub enum OpenRefusal {
     /// The check before the switch failed (10.2, step 5); the generation
     /// patched from stays active, unchanged.
     Check { why: Check },
-    /// Effects a pending patch reshapes (store.md 10.3): the first family
+    /// Effects a pending patch reshapes (protocol/store/opening.md 3): the first family
     /// in the plan's order, its count, and its first keys, at most 64.
     InFlight { owner: crate::Owner, family: &'static str, count: u32, keys: Box<[Box<[u8]>]> },
 }
-/// A refusal whose fix moves the generations (store.md 2), `why` saying
+/// A refusal whose fix moves the generations (protocol/store/README.md 2), `why` saying
 /// which version or build.
 macro_rules! older {
     ($why:literal) => {
@@ -389,7 +389,7 @@ impl Family {
 
 impl OpenRefusal {
     /// The refusal's text in pieces, in order: the deployment's directory goes
-    /// between each two consecutive pieces, wherever store.md has `<deployment>`.
+    /// between each two consecutive pieces, wherever protocol/store/README.md has `<deployment>`.
     /// No allocation, no formatting.
     #[must_use]
     pub fn words(&self) -> &'static [&'static str] {
@@ -473,19 +473,19 @@ impl OpenRefusal {
         }
     }
 }
-/// Which older build (store.md 5.3 and 10.1).
+/// Which older build (protocol/store/records.md, 3, and protocol/store/opening.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Older {
     /// A store before an owner's baseline, which records no patch level (5.3).
     Unleveled,
-    /// A store with no layouts row, made before they were recorded (store.md 5.3).
+    /// A store with no layouts row, made before they were recorded (protocol/store/records.md 3).
     Unrecorded,
-    /// A family's fingerprint is not this build's at its version (store.md 5.3).
+    /// A family's fingerprint is not this build's at its version (protocol/store/records.md 3).
     Layout(Family),
-    /// The layout before generations, with no active file (store.md 2).
+    /// The layout before generations, with no active file (protocol/store/README.md 2).
     Directory,
 }
-/// A refusal while finding the deployment's generation (store.md 10.1).
+/// A refusal while finding the deployment's generation (protocol/store/opening.md 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Generations {
     /// Another open holds the deployment lock.
@@ -502,7 +502,7 @@ pub enum Generations {
 #[derive(Debug)]
 pub enum Event {
     /// Both stores are open and checked; `last` is the last durable commit.
-    /// `installation` is the installation's identifier (store.md 4.4): the
+    /// `installation` is the installation's identifier (protocol/store/README.md 4.4): the
     /// kept one, or, in an empty store, the drawn one its first commit keeps.
     Opened {
         owner: Token,
@@ -524,19 +524,19 @@ pub enum Event {
         number: u64,
         fill: u64,
     },
-    /// Commit `number` failed or was refused; the engine stops (store.md 6).
+    /// Commit `number` failed or was refused; the engine stops (protocol/store/README.md 5).
     Failed {
         number: u64,
     },
     /// Commit refused before any of its data IO: this turn's complete encoded
-    /// frame exceeds the page byte bound (store.md 6 and 8.2). In-process only.
+    /// frame exceeds the page byte bound (protocol/store/README.md, 5, and protocol/store/transcripts.md, 2). In-process only.
     FrameTooLarge {
         number: u64,
         task: u64,
         bytes: u32,
         limit: u32,
     },
-    /// A start's page (store.md 7.1, 7.2): rows typed, an owner missing from the
+    /// A start's page (protocol/store/loads.md 1, 2): rows typed, an owner missing from the
     /// map handed up as a link to make; `next` is none once the step's ranges are done.
     Page {
         owner: Token,
@@ -564,23 +564,23 @@ pub enum Event {
         row: Option<Row>,
     },
     /// A transcript's turns; `next` is the offset to continue from after
-    /// a nonempty prefix. An empty page is terminal (store.md 8.3).
+    /// a nonempty prefix. An empty page is terminal (protocol/store/transcripts.md 3).
     Turns {
         owner: Token,
         turns: Box<[core::TurnRecord]>,
         next: Option<u64>,
-        /// A window's page whose one turn is past the read's room (store.md, 8.3):
+        /// A window's page whose one turn is past the read's room (protocol/store/transcripts.md, 3):
         /// `turns` holds that turn alone, its fields read and its `transcript`
         /// empty, and this is its transcript's length.
         cut: Option<u32>,
     },
     /// A transcript read failed: a frame's checksum, a window at another
     /// turn, a dropped transcript, or no complete turn fitting the direct
-    /// read's room while committed bytes remain (store.md 8.3, 8.5).
+    /// read's room while committed bytes remain (protocol/store/transcripts.md 3, 5).
     Unread {
         owner: Token,
     },
-    /// A secrets request refused until this start's mark is durable (store.md 5.3).
+    /// A secrets request refused until this start's mark is durable (protocol/store/records.md 3).
     SecretsNotReady {
         owner: Token,
     },
@@ -610,16 +610,16 @@ pub enum Event {
         next: Option<u64>,
     },
     /// A stored row did not decode: the request's terminal; the engine
-    /// stops (store.md 7.1).
+    /// stops (protocol/store/loads.md 1).
     Corrupt {
         owner: Token,
     },
     /// The shell sets this record's key in `of`'s Context, runs its generated
     /// written function over `patcher.parts()`, and answers `Request::Site`
-    /// (store.md 10.3). Application keys are relative to their tag; every
+    /// (protocol/store/opening.md 3). Application keys are relative to their tag; every
     /// other owner's keys are the map's whole keys. While serving, a frame's
     /// key is its task's places key followed by its eight-byte big-endian
-    /// file offset (store.md 8.6).
+    /// file offset (protocol/store/transcripts.md 6).
     Site {
         owner: Token,
         of: crate::Owner,
@@ -628,7 +628,7 @@ pub enum Event {
         at: skein_codec::value::Node,
         patcher: Box<skein_codec::patch::Patcher>,
     },
-    /// A patch's walk is done and committed (store.md 10.2, step 4).
+    /// A patch's walk is done and committed (protocol/store/opening.md 2, step 4).
     Patched {
         owner: Token,
         of: crate::Owner,
@@ -637,14 +637,14 @@ pub enum Event {
     },
 }
 
-/// A directory adopted by the service (io.md, section 9).
+/// A directory adopted by the service (skein/docs/design/runtime/io/README.md, section 6).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Root {
     pub token: Token,
     pub fd: Fd,
 }
 
-/// Independent file drivers (store.md, section 13).
+/// Independent file drivers (protocol/store/README.md, section 8).
 #[derive(Debug)]
 pub struct Below {
     pub store: Queue<file::Request>,

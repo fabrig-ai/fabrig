@@ -146,7 +146,7 @@ pub enum StoreFailure {
 }
 
 /// Why the configured account has no usable grant (domain/host.md, section 8;
-/// shell.md, section 4.3); sent by the service to a failed start or account notice.
+/// shell/commands.md, section 3); sent by the service to a failed start or account notice.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum CredentialFailure {
     /// The account has not been signed in.
@@ -257,7 +257,7 @@ pub enum Reading {
     Held,
 }
 
-/// A local host notice rendered by the terminal (protocol/hosts.md, section 5.1).
+/// A local host notice rendered by the terminal (protocol/host.md, section 5.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Notice {
     /// What the person reads of an accepted turn, in block order.

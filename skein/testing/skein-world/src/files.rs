@@ -1,8 +1,8 @@
-//! A `FileIo` child for a world's socket owner (io.md, sections 5.2 and 5.3).
+//! A `FileIo` child for a world's socket owner (runtime/io/files.md, sections 2 and 3).
 //! Queued requests keep their deadlines; descriptor cleanup remains admitted
 //! until it can close the descriptor. Cancellation is routed even while a
 //! different request runs. `FileIo`'s operation lane distinguishes its completions
-//! from the socket driver's (io.md, 5). The owner still routes file terminals
+//! from the socket driver's (runtime/io/files.md). The owner still routes file terminals
 //! and closes its startup root after its component has settled.
 
 use alloc::collections::VecDeque;

@@ -1,4 +1,4 @@
-//! Members' ordered one-shot reads (temper/docs/design/client/README.md, 3.5).
+//! Members' ordered one-shot reads (temper/docs/design/client/pages/README.md).
 #![expect(clippy::disallowed_methods, reason = "ordinary tests select reads and inspect outcomes")]
 use super::{
     accounts::{deliver, event},

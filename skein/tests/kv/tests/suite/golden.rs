@@ -1,4 +1,4 @@
-//! skein-kv's on-disk format's golden bytes (kv.md, 9): a snapshot and
+//! skein-kv's on-disk format's golden bytes (data/kv.md, 9): a snapshot and
 //! the segments from its start. This test never writes the kept files;
 //! a deliberate change copies the files its failure names over `golden/`.
 
@@ -81,9 +81,9 @@ fn model() -> BTreeMap<Box<[u8]>, Box<[u8]>> {
 
 fn format_name(name: &[u8]) -> &'static str {
     if name == b"snapshot" {
-        "skein-kv's snapshot format (kv.md 3 and 5)"
+        "skein-kv's snapshot format (data/kv.md 3 and 5)"
     } else {
-        "skein-kv's log frame format (kv.md 3)"
+        "skein-kv's log frame format (data/kv.md 3)"
     }
 }
 
@@ -130,7 +130,7 @@ fn assert_kept(made: &BTreeMap<Box<[u8]>, Box<[u8]>>) {
         std::fs::write(path.join(name), bytes).expect("write the files made for inspection");
     }
     panic!(
-        "{}\nfrom the first release a deployment's store holds these bytes: changing them needs an upgrade of the store's own, run before any records are patched (kv.md 9), and moves the format's version\nfiles made written to {}",
+        "{}\nfrom the first release a deployment's store holds these bytes: changing them needs an upgrade of the store's own, run before any records are patched (data/kv.md 9), and moves the format's version\nfiles made written to {}",
         differences.join("\n"),
         path.display()
     );

@@ -11,10 +11,10 @@ pub struct Limits {
     /// A `Listen`, `Connect` or `Spawn` without enough slots is refused
     /// (`Error::Busy`), and a listener accepts only while one is free.
     pub sockets: u32,
-    /// In-process names held by listeners (io.md, 3.5).
+    /// In-process names held by listeners (runtime/io/sockets.md, 5).
     pub names: u32,
     /// Refused `Listen`s, `Connect`s and `Spawn`s held until the next up pass tells
-    /// them (io.md, 2). The loop hands io a request only while it can hold one
+    /// them (runtime/io/README.md, 2). The loop hands io a request only while it can hold one
     /// more (`Io::takes`).
     pub refusals: u32,
     /// The cap on each stream's unparsed input, and so the largest read io can
@@ -29,7 +29,7 @@ pub struct Limits {
     /// The most `Send`s queued on a stream at once, beside the one in flight.
     /// Independent output reserves a free queued/direct-flight slot within
     /// this same envelope; it does not subtract the flight from this count
-    /// (lib.md, 7.1; io.md, 3.3).
+    /// (runtime/lib.md, 7.1; runtime/io/sockets.md, 3).
     pub sends: u32,
     /// The most accepts armed in one iteration, over every listener.
     pub accepts: u32,
@@ -39,12 +39,12 @@ pub struct Limits {
     pub close_timeout: Duration,
     /// How long io waits before it tries again what found the kernel out of
     /// buffers or descriptors: a receive, a send, a half-close, an accept
-    /// (io.md, 3.2 and 3.3). Never zero, or io would spin.
+    /// (runtime/io/sockets.md, 2 and 3). Never zero, or io would spin.
     pub retry: Duration,
 }
 
 impl Limits {
-    /// Small io limits for test worlds, overridable at each entrance (skein/docs/design/io.md, 8).
+    /// Small io limits for test worlds, overridable at each entrance (skein/docs/design/runtime/io/README.md, 5).
     pub const TEST: Self = Self {
         sockets: 2,
         names: 0,
@@ -61,8 +61,8 @@ impl Limits {
 
     /// The largest read demand io can meet: a fill or a scan of at most this
     /// many bytes, the intake's cap. Whoever stacks a machine on a stream
-    /// checks at startup that the machine's largest demand is no larger (io.md,
-    /// 2); io asserts it, as a larger one could never be met (lib.md, 7).
+    /// checks at startup that the machine's largest demand is no larger (runtime/io/README.md,
+    /// 2); io asserts it, as a larger one could never be met (runtime/lib.md, 7).
     #[must_use]
     pub const fn largest_read(&self) -> u32 {
         self.intake
@@ -92,12 +92,12 @@ impl Limits {
 
 /// The most operations an entity has in flight at once: a socket's `Recv`,
 /// `Send`, and a `Cancel` of each. A pipe has at most one read or write and
-/// its cancel; a child has a wait and one signal (io.md, 3.4 and 6).
+/// its cancel; a child has a wait and one signal (runtime/io/sockets.md, 4 and runtime/io/processes.md).
 /// Process usage and terminal size each have an independent slot, outside the entity slab.
 const PER_ENTITY: u32 = 4;
 
 /// The most operations io has in flight at once, cancels included, under
-/// `limits`: the size of the ring (kernel.md, 5), or `None` past a `u32`.
+/// `limits`: the size of the ring (runtime/kernel.md, 5), or `None` past a `u32`.
 #[must_use]
 pub fn operations(limits: &Limits) -> Option<u32> {
     limits.sockets.checked_mul(PER_ENTITY)?.checked_add(2)
@@ -111,13 +111,13 @@ pub(crate) fn timers(limits: &Limits) -> Option<u32> {
 /// The slots of the operation table: twice the most in flight, as an
 /// operation retired in an iteration keeps its slot until the reclaim point,
 /// and its entity may submit as many again before then. No slot reaches
-/// bit 27, so no operation token has `FileIo`'s bit 59 (io.md, 5).
+/// bit 27, so no operation token has `FileIo`'s bit 59 (runtime/io/files.md).
 pub(crate) fn flights(limits: &Limits) -> Option<u32> {
     let slots = operations(limits)?.checked_mul(2)?;
     if slots > MAX_FLIGHTS { None } else { Some(slots) }
 }
 
-/// The operation-table ceiling keeps Io's tokens below the file lane (io.md, 5).
+/// The operation-table ceiling keeps Io's tokens below the file lane (runtime/io/files.md).
 const MAX_FLIGHTS: u32 = 1 << 27;
 
 /// Whether these limits are representable: every edge bound they size is finite

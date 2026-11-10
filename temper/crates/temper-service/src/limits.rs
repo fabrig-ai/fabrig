@@ -1,4 +1,4 @@
-//! The small and standard profiles and checked field overrides (protocol/configuration.md, section 7).
+//! The small and standard profiles and checked field overrides (protocol/configuration/limits.md).
 mod names;
 mod reference;
 use alloc::boxed::Box;
@@ -8,7 +8,7 @@ pub use reference::{engine_reference, reference};
 use skein_lib::{Duration, List};
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
-/// The checkout's configured bounds (protocol/configuration.md, 7).
+/// The checkout's configured bounds (protocol/configuration/limits.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Checkout {
     /// Workspaces on the worker's disk: the cache's bound, and the most that
@@ -35,7 +35,7 @@ pub struct Checkout {
     /// and counted.
     pub facts: u32,
 }
-/// The git component's configured bounds (protocol/configuration.md, 7).
+/// The git component's configured bounds (protocol/configuration/limits.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct GitComponent {
     pub operations: u32,
@@ -58,7 +58,7 @@ pub struct Root {
     pub loads: engine::loads::Limits,
     pub brief: engine::BriefLimits,
 }
-/// The clients' listener's own limits: the browser's bundle (protocol/configuration.md, 7).
+/// The clients' listener's own limits: the browser's bundle (protocol/configuration/limits.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Clients {
     /// The bundle's files, its page and each compressed form among them.
@@ -77,7 +77,7 @@ pub struct SignIn {
     pub url_bytes: u32,
     pub secret_bytes: u32,
 }
-/// Repositories read in one picker page (protocol/configuration.md, 7).
+/// Repositories read in one picker page (protocol/configuration/limits.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Picker {
     pub page: u32,
@@ -98,19 +98,19 @@ pub struct Limits {
     pub sign_in: SignIn,
     pub picker: Picker,
 }
-/// Forge routes' query bound (protocol/configuration.md, 7).
+/// Forge routes' query bound (protocol/configuration/limits.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Routes {
     pub query_bytes: u32,
 }
-/// Routing bounds (protocol/configuration.md, 7).
+/// Routing bounds (protocol/configuration/limits.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Records {
     pub value_bytes: u32,
 }
 
 /// Admit a moved file on jig's wire; setup still checks temper's values against
-/// `records.value_bytes` (protocol/configuration.md, 7; jig's protocol/client.md, 5).
+/// `records.value_bytes` (protocol/configuration/limits.md; jig's protocol/client/README.md, 3).
 pub(crate) fn client_value_bytes(jig: &jig_protocol_config::Limits, own: &Limits) -> u32 {
     let value = u64::from(own.records.value_bytes).max(crate::clients::moved_bytes(jig));
     u32::try_from(u64::from(jig.clients.wire.keyed_value_some).min(value)).expect("bounded by the wire ceiling")
@@ -119,7 +119,7 @@ pub(crate) fn client_value_bytes(jig: &jig_protocol_config::Limits, own: &Limits
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Forges {
     pub installations: u32,
-    /// Maximum configured job-log origins per forge (protocol/configuration.md, 7).
+    /// Maximum configured job-log origins per forge (protocol/configuration/limits.md).
     pub log_origins: u32,
 }
 /// Refusal of an override; the caller retains its name.
@@ -168,7 +168,7 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     // Allowance for clock movement, from the engine forge world fixture.
     clock_margin: Duration::from_secs(1),
     // Three chat branches, six change names, two followed tier branches and
-    // four departing reads fit sixteen slots (domain/forge.md, 5.1).
+    // four departing reads fit sixteen slots (domain/forge/keeping-up.md, 1).
     resources: 16,
     // Repositories retained, from the engine forge world fixture.
     repositories: 2,
@@ -182,13 +182,13 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     slow: Duration::from_secs(40),
     // Bound Forgejo's settling of mergeability and hinted CI after a move.
     settle: Duration::from_secs(30),
-    // Fallback 0 stretches no pace (skein/docs/design/forge-client.md, 4.1).
+    // Fallback 0 stretches no pace (skein/docs/design/forge/client.md, 4.1).
     fallback: Duration::ZERO,
     // Facts awaiting drain, from the engine forge world fixture.
     facts: 16,
 };
 const FORGE: forge::Limits = forge::Limits {
-    // Forges kept at most (temper/docs/design/protocol/forge.md, 7).
+    // Forges kept at most (temper/docs/design/protocol/forge/README.md, 6).
     forges: 3,
     // Repositories retained, from the engine forge world fixture.
     repositories: 2,
@@ -280,7 +280,7 @@ const FORGE: forge::Limits = forge::Limits {
         questions: 4,
         // Small's producer, a review, and two repairs each followed by its review.
         tasks: 6,
-        // Outlast ordinary CI; report a silent forge within the same sitting (domain/forge.md, 8.4).
+        // Outlast ordinary CI; report a silent forge within the same sitting (domain/forge/change/repairs.md).
         stall: Duration::from_secs(30 * 60),
         // Gates retained by a change, from the engine forge world fixture.
         gates: 8,
@@ -291,7 +291,7 @@ const FORGE: forge::Limits = forge::Limits {
     queue_window: Duration::from_secs(30),
     sitting: temper_engine_domain_forge::SITTING,
 };
-// A project of fabrig's scale (temper/docs/design/protocol/configuration.md, 13.4).
+// A project of fabrig's scale (temper/docs/design/protocol/configuration/stock.md).
 const STANDARD_FORGE: forge::Limits = forge::Limits {
     // One gathered section shares the root task section's read bound.
     brief_bytes: STANDARD_BRIEF.budgets.task,
@@ -404,10 +404,10 @@ const ROOT: Root = Root {
             dependencies: 128,
             // CI section: a failed job's last lines, with five failed checks sharing.
             ci: 4096,
-            // Gate remarks share the task and pull sections' working room (domain/forge.md, 8.4).
+            // Gate remarks share the task and pull sections' working room (domain/forge/change/repairs.md).
             reviews: 4608,
             // A review receives a pull's title, body, files and diff, within the
-            // same read bound as the task section (domain/forge.md, 8.3).
+            // same read bound as the task section (domain/forge/change/gates.md, 1).
             pull: 4608,
             // Attempts section's bytes, from the root world.
             attempts: 128,
@@ -419,7 +419,7 @@ const ROOT: Root = Root {
         },
         // Whole task, pull and review sections, with 768 bytes for other context.
         brief_bytes: 14_592,
-        // Outlast sequential forge reads and a retry; bound a stuck connector (domain/root.md, 10).
+        // Outlast sequential forge reads and a retry; bound a stuck connector (domain/root.md, 9).
         gather: Duration::from_secs(30),
     },
 };
@@ -462,9 +462,9 @@ const STANDARD_ROOT: Root = Root {
     },
 };
 const CLIENTS: Clients = Clients {
-    // Files of a bundle, the page and both forms among them (client/browser.md, 2.2).
+    // Files of a bundle, the page and both forms among them (client/web/README.md, 2.2).
     bundle_files: 128,
-    // Bytes of both forms in all, read into memory at start (protocol/configuration.md, 7).
+    // Bytes of both forms in all, read into memory at start (protocol/configuration/limits.md).
     bundle_bytes: 32 << 20,
 };
 /// The standalone process's socket admission holds standard's owned example with both listeners and a sign-in.

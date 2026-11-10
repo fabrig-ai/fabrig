@@ -1,4 +1,4 @@
-//! The store's patch phase, between the open's checks and cuts (store.md 10.2).
+//! The store's patch phase, between the open's checks and cuts (protocol/store/opening.md 2).
 use super::check::{self, Checking, Counted};
 use crate::directory::{OWNER, Opening};
 use crate::generations::{Copying, Dropping, Map, Progress};
@@ -9,7 +9,7 @@ use skein_lib::{Env, List, Queue};
 mod walking;
 pub(crate) use walking::Walking;
 
-/// What open's checks leave for the phase (store.md 10.2, step 1).
+/// What open's checks leave for the phase (protocol/store/opening.md 2, step 1).
 #[derive(Debug)]
 pub(crate) struct Pending {
     pub plan: super::plan::Plan,
@@ -122,7 +122,7 @@ fn close_directories(store: &mut Store, below: &mut Below) {
     let private = store.directory.private_root.take().expect("secrets directory open until KV closes");
     below.store.push(file::Request::Close { owner: OWNER, file: public.token });
     below.secrets.push(file::Request::Close { owner: OWNER, file: private.token });
-    // Release A's in-memory maps before opening the copy (store.md 10.2, Room).
+    // Release A's in-memory maps before opening the copy (protocol/store/opening.md 2, Room).
     store.stores.store = skein_kv::Store::new(&store.limits.store);
     store.stores.secrets = skein_kv::Store::new(&store.limits.secrets);
 }

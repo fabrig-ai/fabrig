@@ -1,4 +1,4 @@
-//! The stream (io.md, 3.3): a socket connecting or accepted, then open, with
+//! The stream (runtime/io/sockets.md, 3): a socket connecting or accepted, then open, with
 //! one receive and one send in flight under its caps, then closing,
 //! gracefully or at once, settling what it has in flight before its close.
 
@@ -80,7 +80,7 @@ struct Open {
     intake: Intake,
     demand: Demand,
     /// The room the owner holds: what the last `Room` granted, less what it
-    /// sent since. Each `Send` fits within it (lib.md, 7).
+    /// sent since. Each `Send` fits within it (runtime/lib.md, 7).
     granted: u32,
     classic_grant: bool,
     independent: Reservation,
@@ -89,7 +89,7 @@ struct Open {
     output: Output,
 }
 
-/// What the owner's state needs (lib.md, 7): a read and output room, answered
+/// What the owner's state needs (runtime/lib.md, 7): a read and output room, answered
 /// once, by the bytes or the room, which ends both.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Demand {
@@ -179,7 +179,7 @@ struct Broken {
     write: Option<Writing>,
 }
 
-/// A graceful close (io.md, 3): the output flushed and half-closed, the input
+/// A graceful close (runtime/io/sockets.md): the output flushed and half-closed, the input
 /// discarded until the peer ends, under the close deadline.
 #[derive(Debug)]
 struct Closing {
@@ -427,7 +427,7 @@ fn state_answer(
     listener
 }
 
-/// A request in the stream vocabulary (lib.md, 7). Whatever it makes due up
+/// A request in the stream vocabulary (runtime/lib.md, 7). Whatever it makes due up
 /// is told by `resume`, from the ready list.
 fn state_request(
     stream: &mut State,
@@ -639,7 +639,7 @@ fn tidy(stream: &State, id: Id<Entity>, tables: &mut Tables) {
 }
 
 /// A side found no buffer: it is tried again once the retry deadline passes,
-/// rather than at once (io.md, 3.3).
+/// rather than at once (runtime/io/sockets.md, 3).
 fn stall(id: Id<Entity>, env: &Env<Limits>, tables: &mut Tables) {
     let at = env.now.saturating_add(env.limits.retry);
     tables.deadlines.arm((id, Timer::Retry), at).expect("a retry deadline for every socket");
@@ -796,7 +796,7 @@ fn counted(result: Result<Done, kernel::Error>) -> Result<u32, kernel::Error> {
     }
 }
 
-/// The transition table of io.md, 3.3, for completions.
+/// The transition table of runtime/io/sockets.md, 3, for completions.
 fn step(
     state: State,
     id: Id<Entity>,
@@ -939,9 +939,9 @@ fn open(
 }
 
 /// The owner's demand answered, if the stream can: by the bytes it reads,
-/// or else by the room it asks for, and either answer ends it (lib.md, 7).
+/// or else by the room it asks for, and either answer ends it (runtime/lib.md, 7).
 /// Then the end, once nothing held can meet a demand; and a receive armed
-/// again once the intake has room (io.md, 3.3).
+/// again once the intake has room (runtime/io/sockets.md, 3).
 fn deliver(
     open: &mut Open,
     id: Id<Entity>,
@@ -972,7 +972,7 @@ fn deliver(
     };
 }
 
-/// Demand delivery shared by kernel streams and joined ends (io.md, 3.5).
+/// Demand delivery shared by kernel streams and joined ends (runtime/io/sockets.md, 5).
 pub(crate) fn delivered(
     owner: Token,
     intake: &mut Intake,
@@ -1015,7 +1015,7 @@ pub(crate) fn delivered(
 }
 
 /// A `Demand`: stated once the last is answered, never in place of it, or
-/// withdrawing it (lib.md, 7); met, if it can be, from the ready list.
+/// withdrawing it (runtime/lib.md, 7); met, if it can be, from the ready list.
 fn demand(open: &mut Open, read: Read, room: u32, id: Id<Entity>, env: &Env<Limits>, tables: &mut Tables) {
     let cap = env.limits.intake;
     let withdrawal = match read {
@@ -1049,7 +1049,7 @@ fn demand(open: &mut Open, read: Read, room: u32, id: Id<Entity>, env: &Env<Limi
     };
     assert!(
         withdrawal || !outstanding,
-        "a demand is stated once the last is answered, never in place of it, or it withdraws it (lib.md, 7)"
+        "a demand is stated once the last is answered, never in place of it, or it withdraws it (runtime/lib.md, 7)"
     );
     assert!(room == 0 || open.independent.idle(), "classic room cannot overlap independent output");
     assert!(room <= env.limits.output, "room past the output cap could never be granted (Limits::largest_room)");
@@ -1076,7 +1076,7 @@ fn queue(
         return;
     }
     let len = u32::try_from(bytes.len()).expect("a Send within the room granted, under a u32 cap");
-    // Room granted is spent by what is sent within it (lib.md, 7).
+    // Room granted is spent by what is sent within it (runtime/lib.md, 7).
     open.granted = open.granted.checked_sub(len).expect("a Send within the room granted: no more than the last Room");
     let queued = open.output.bytes.checked_add(len).expect("a Send within the room granted, under a u32 cap");
     assert!(queued <= env.limits.output, "a Send within the room granted: no more than the output cap");
@@ -1141,7 +1141,7 @@ fn open_received(
         Err(error) => return broken(open, records::stream_fault(error), up),
     }
     // Freed before the next receive's is made, when the stream is delivered:
-    // one buffer per stream at once (io.md, 3.4).
+    // one buffer per stream at once (runtime/io/sockets.md, 4).
     drop(buf);
     State::Open(open)
 }
@@ -1314,7 +1314,7 @@ fn closing_received(
         Drain::Stalled | Drain::Done => unreachable!("a receive completes while one is in flight"),
     }
     // Freed before the next receive's is made: one buffer per stream at once
-    // (io.md, 3.4).
+    // (runtime/io/sockets.md, 4).
     drop(buf);
     let drain = match result {
         Ok(0) => Drain::Done,
@@ -1469,7 +1469,7 @@ fn settling_landed(
             }
         }
         // Made or not, a connect io stopped is followed by a close only; one
-        // that reached its peer ends there when it does (kernel.md, 5).
+        // that reached its peer ends there when it does (runtime/kernel.md, 5).
         Happened::Connected { flight, result: _ } => {
             assert!(settling.connect == Some(flight), "the connect that completed is the one in flight");
             settling.connect = None;
@@ -1489,7 +1489,7 @@ fn settling_landed(
         Happened::Cancelled { target, result } => {
             settling.cancels = settling.cancels.checked_sub(1).expect("a cancel in flight completed");
             // Not submitted: its target runs on, so it is asked again while
-            // the target still waits (kernel.md, 5).
+            // the target still waits (runtime/kernel.md, 5).
             let waiting = settling.connect == Some(target)
                 || settling.recv == Some(target)
                 || sending(settling.write) == Some(target);

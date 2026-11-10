@@ -1,5 +1,5 @@
 //! Notes learned by tasks and corrected by parties, in the store (jig's
-//! domain/engine.md, section 10). Entries are loaded on demand and every
+//! domain/engine/briefs.md, section 2). Entries are loaded on demand and every
 //! entry's scope has a durable index line. A write compares the recalled
 //! revision, then emits both records in one decision. The parent commits them
 //! together. Notes know neither a connector's system nor the parent's store

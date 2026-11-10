@@ -1,4 +1,4 @@
-//! The independent engine adapter and the differences listed by hearth/docs/design/domain/render.md, 9.5.
+//! The independent engine adapter and the differences listed by hearth/docs/design/domain/render/README.md, 6.5.
 use hearth_domain_render::{
     evaluate::{self, Operand, Value as HearthValue},
     limits,
@@ -31,7 +31,7 @@ pub const DIFFERENCES: &[Difference] = &[
         template: "{% set x = 7 %}{% for y in [1,2] %}{{ x }}{% set x = y %}{{ x }}{% endfor %}{{ x }}",
         hearth: Outcome::text("71727"),
         oracle: Outcome::text("71127"),
-        reason: "hearth/docs/design/protocol/format.md 7.3 scopes assignments to one loop iteration; the oracle retains them for the loop.",
+        reason: "hearth/docs/design/protocol/format/templates.md 3 scopes assignments to one loop iteration; the oracle retains them for the loop.",
     },
     Difference {
         id: "string sort",
@@ -45,7 +45,7 @@ pub const DIFFERENCES: &[Difference] = &[
         template: "{{ 'a' + 'b' }}",
         hearth: Outcome::Fails,
         oracle: Outcome::text("ab"),
-        reason: "Addition takes integers in hearth/docs/design/protocol/format.md 7.4.",
+        reason: "Addition takes integers in hearth/docs/design/protocol/format/templates.md 4.",
     },
     Difference {
         id: "boolean concatenation",
@@ -94,14 +94,14 @@ pub const DIFFERENCES: &[Difference] = &[
         template: "{{ \"<>&'\" | tojson }}",
         hearth: Outcome::text("\"<>&'\""),
         oracle: Outcome::text("\"\\u003c\\u003e\\u0026\\u0027\""),
-        reason: "hearth/docs/design/protocol/format.md 7.5 preserves these bytes in JSON.",
+        reason: "hearth/docs/design/protocol/format/templates.md 5 preserves these bytes in JSON.",
     },
     Difference {
         id: "concatenation precedence",
         template: "{{ 'v' ~ 1 + 1 }}",
         hearth: Outcome::text("v2"),
         oracle: Outcome::Fails,
-        reason: "hearth/docs/design/protocol/format.md 7.4 puts concatenation below addition.",
+        reason: "hearth/docs/design/protocol/format/templates.md 4 puts concatenation below addition.",
     },
     Difference {
         id: "defined precedence",

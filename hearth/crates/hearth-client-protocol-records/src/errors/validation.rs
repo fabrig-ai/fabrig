@@ -1,4 +1,4 @@
-//! Evaluation messages and undeclared-setting diagnostics (hearth/docs/design/domain/render.md, 7.3).
+//! Evaluation messages and undeclared-setting diagnostics (hearth/docs/design/domain/render/errors.md, 3).
 use super::{Encoder, Lines};
 use alloc::boxed::Box;
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

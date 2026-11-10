@@ -192,7 +192,7 @@ fn once(seen: &mut u32, bit: u32) -> Option<()> {
     *seen |= bit;
     Some(())
 }
-// Request subset from the documented repository-ruleset schema (fake-forge.md, 10.1).
+// Request subset from the documented repository-ruleset schema (testing/fakes/github.md, 1.1).
 fn protection(service: &Service, body: &[u8], missing: &mut Option<u32>) -> Option<a::Protection> {
     if !service.body_fits(body) {
         return None;

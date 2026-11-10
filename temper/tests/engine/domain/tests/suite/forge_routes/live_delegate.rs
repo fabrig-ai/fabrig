@@ -1,4 +1,4 @@
-//! A live delegate's wait and the result it delivers (temper/docs/design/domain/forge.md, 8.4).
+//! A live delegate's wait and the result it delivers (temper/docs/design/domain/forge/change/repairs.md).
 use super::early_start::{goal_world, make, observe_push, push, stop};
 use super::questions::{finish_producing, next_producer, row};
 use super::*;

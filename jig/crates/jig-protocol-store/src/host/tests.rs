@@ -1,4 +1,4 @@
-//! Drivers lifecycle over the simulator and crashing filesystem (store.md, 13).
+//! Drivers lifecycle over the simulator and crashing filesystem (protocol/store/README.md, 8).
 use super::{Drivers, Hosted, Lane, NotReady, Submission, check_read_page, max_read};
 use crate::{Event, Store, tests::fixtures};
 use skein_fake_machine::{How, Machine, serve};

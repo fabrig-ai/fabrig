@@ -1,7 +1,7 @@
 //! Author mounts resolve only within this attempt's frozen private seed.
 //! The first mount is the native working directory; write authority stays
 //! explicit. No user path or runtime filesystem fact is known here
-//! (benchmarks.md, section 10; domain/tools.md, section 2).
+//! (../../../../docs/design/benchmarks/README.md, section 10; domain/tools.md, section 2).
 
 use crate::{Fault, Input, format, input, io, refuse_if};
 use std::collections::BTreeSet;

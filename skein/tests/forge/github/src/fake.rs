@@ -104,7 +104,7 @@ impl World {
         Self::with_organization(true)
     }
     #[expect(clippy::too_many_lines, reason = "one declared fixture binds domain, service and peer limits")]
-    /// Scenario tables over the shared defaults (skein/docs/design/fake-forge.md, 10.6).
+    /// Scenario tables over the shared defaults (skein/docs/design/testing/fakes/github.md, 1.6).
     pub(crate) fn with_organization(organization: bool) -> Result<Self> {
         let config = config();
         let mut d = domain::Domain::new(&config, 23);

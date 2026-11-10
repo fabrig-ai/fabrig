@@ -1,4 +1,4 @@
-//! Darwin child creation, observation and harness calls (shell.md, 7.5).
+//! Darwin child creation, observation and harness calls (runtime/readiness.md, 5).
 //!
 //! # The `unsafe`, and why it is sound
 //!
@@ -47,7 +47,7 @@ struct Child {
 // cannot race a signal of a recycled pid, even with separately hosted loops.
 #[expect(
     clippy::disallowed_types,
-    reason = "process-wide child ownership serializes reaping and signalling across hosted loops (shell.md, 7.5)"
+    reason = "process-wide child ownership serializes reaping and signalling across hosted loops (runtime/readiness.md, 5)"
 )]
 static CHILDREN: Mutex<BTreeMap<Fd, Child>> = Mutex::new(BTreeMap::new());
 
@@ -365,12 +365,12 @@ pub(super) fn child_id(handle: Fd) -> Result<u32, Error> {
 }
 
 // Diagnostic Other values for macOS run 40003540284's stopped-child Wait.
-// Negative values cannot collide with Darwin errno numbers (shell.md, 7.5).
+// Negative values cannot collide with Darwin errno numbers (runtime/readiness.md, 5).
 const WAIT_REAPED: i32 = -10_001;
 const WAITID_NO_CHILD: i32 = -10_002;
 const WAIT_UNEXPECTED_STATUS: i32 = -10_003;
 
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn poll_child(handle: Fd, reap: bool) -> Result<Option<Exit>, Error> {
     let mut children = CHILDREN.lock().expect("child table is not poisoned");
     let child = children.get_mut(&handle).ok_or(Error::Other(libc::EBADF))?;

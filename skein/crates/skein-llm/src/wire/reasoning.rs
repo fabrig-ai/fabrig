@@ -1,4 +1,4 @@
-//! Ordered native replay items and the completion's reasoning share (llm.md, 2 and 4.2).
+//! Ordered native replay items and the completion's reasoning share (llm/README.md, 2 and 4.2).
 use super::{DecodeError, Json, Limits, json};
 use alloc::boxed::Box;
 use skein_json::{Document, Kind, writer::Encoder};

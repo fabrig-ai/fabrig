@@ -1,6 +1,6 @@
 //! Owned Forgejo signing in a Google member or its box owner through temper.
-//! temper/docs/design/protocol/sign-in.md, 9.9.
-//! temper/docs/design/domain/testing.md, 2.6.
+//! temper/docs/design/protocol/openid-provider.md, 9.
+//! temper/docs/design/testing/process-tier.md.
 use super::{
     configuration,
     forge_sign_in::{command, configure, success},
@@ -675,7 +675,7 @@ fn ctl(directory: &Path, arguments: &[&str]) -> std::process::Output {
 }
 
 fn owned_command(directory: &Path, printed_command: &str) -> String {
-    // temper/docs/design/protocol/setup.md, 6.8: sign-in instructions name no kept forge.
+    // temper/docs/design/protocol/setup/owned.md, 8: sign-in instructions name no kept forge.
     // Supply this disposable server's binary and work path around that generic command.
     let quote = |path: &Path| {
         use std::os::unix::ffi::OsStrExt;

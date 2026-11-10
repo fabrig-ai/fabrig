@@ -205,7 +205,7 @@ pub enum Moved {
 /// The reason a task is held, in the party's vocabulary.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum HoldReason {
-    /// A configured bound refused the run's model call (domain/hosts.md, 6.3).
+    /// A configured bound refused the run's model call (domain/hosts/hub.md, 3).
     Exceeded(Exceeded),
     /// A queue join would close a circle of waits.
     Circle,

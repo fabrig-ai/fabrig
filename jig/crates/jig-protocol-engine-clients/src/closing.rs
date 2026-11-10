@@ -1,4 +1,4 @@
-//! Signing out, mints, and component draining (protocol/client.md, 8).
+//! Signing out, mints, and component draining (protocol/client/sign-in.md).
 use super::{
     Box, Component, Env, Limits, Queue, ReplyTo, Request, SecretOwner, SecretsRequest, Token, Waiting, core, routes, w,
 };

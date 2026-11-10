@@ -1,4 +1,4 @@
-//! Drain before closing children, close the store last (protocol/README.md, 6, 8).
+//! Drain before closing children, close the store last (protocol/README.md, 4, 6).
 use crate::{End, Stop, engine::Engine};
 use jig_protocol_config::{Path, Problems, What};
 use temper_engine_domain as root;
@@ -11,7 +11,7 @@ pub(crate) struct Drain {
     pub(crate) unsettled: skein_lib::List<root::Unsettled>,
 }
 /// A second call aborts, ending at once with the reason a failure's drain
-/// carries (protocol/README.md, section 4).
+/// carries (protocol/binaries.md).
 pub(crate) fn shutdown(engine: &mut Engine) {
     if let Some(drain) = &mut engine.drain {
         engine.end = Some(match drain.stopped.take() {
@@ -111,7 +111,7 @@ pub(crate) fn unavailable(engine: &mut Engine, member: &[u8]) {
     engine.end = Some(End::Stopped(Stop::Start(problems)));
 }
 
-/// Losing the webhook listener drains the engine (protocol/forge.md, 2.3).
+/// Losing the webhook listener drains the engine (protocol/forge/engine.md, 3).
 pub(crate) fn hooks(engine: &mut Engine) {
     if engine.drain.is_none() {
         shutdown(engine);

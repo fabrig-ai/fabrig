@@ -1,4 +1,4 @@
-//! Refusal causes cross the in-process root boundary (temper/docs/design/domain/forge.md, 5.1).
+//! Refusal causes cross the in-process root boundary (temper/docs/design/domain/forge/keeping-up.md, 1).
 use alloc::boxed::Box;
 use skein_lib::List;
 
@@ -145,7 +145,7 @@ pub(crate) fn limit(
     });
 }
 
-/// A refused forge bound, in the words of domain/forge.md, 8.4.
+/// A refused forge bound, in the words of domain/forge/change/repairs.md.
 #[must_use]
 pub fn bound_words(excess: skein_forge::api::Excess) -> Box<[u8]> {
     use skein_forge::api::Bound;

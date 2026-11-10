@@ -1,4 +1,4 @@
-//! Connector-scoped deployment flights and retained outcomes (people.md, 5.3).
+//! Connector-scoped deployment flights and retained outcomes (domain/people/acts.md, 3).
 use super::{Domain, Pending, answer_expiry, answer_reservations, deadline};
 use crate::{Act, ActKey, ActKind, Again, Key, LimitKind, Limits, Outcome, OutcomeFamily, Refusal, Request, Stored};
 use alloc::boxed::Box;

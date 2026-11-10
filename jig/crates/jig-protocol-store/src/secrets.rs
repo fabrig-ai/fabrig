@@ -1,4 +1,4 @@
-//! Private values kept before their owners use them (store.md, section 9).
+//! Private values kept before their owners use them (protocol/store/secrets.md).
 use crate::{
     Below, CARRIED, CarriedKind, Event, HELD, Limits, Phase, SecretOwner, SecretRow, SecretValue, Secrets, Store,
     directory, keys, open,
@@ -79,7 +79,7 @@ pub(super) fn key(owner: SecretOwner, number: u64, limit: u32) -> Option<Box<[u8
     key.tag(tag).tag(owner).u64(number);
     key.finish()
 }
-/// Application ranges are relative to their secrets prefix (store.md 9, 10.3).
+/// Application ranges are relative to their secrets prefix (protocol/store/secrets.md, protocol/store/opening.md, 3).
 pub(crate) fn application(relative: &[u8], limit: u32) -> Option<Box<[u8]>> {
     let mut key = skein_kv::KeyWriter::new(limit);
     for byte in prefix(SecretOwner::Application) {
@@ -524,7 +524,7 @@ fn corrupt(store: &mut Store, owner: Token, above: &mut Queue<Event>) {
     above.push(Event::Corrupt { owner });
 }
 /// The row holding the next carried number, beside the application's
-/// values (store.md 9).
+/// values (protocol/store/secrets.md).
 fn counter_key(limit: u32) -> Option<Box<[u8]>> {
     let [tag, _] = prefix(SecretOwner::Application);
     let mut key = skein_kv::KeyWriter::new(limit);
@@ -670,7 +670,7 @@ pub(crate) fn sweep(store: &mut Store, env: &Env<Limits>, above: &mut Queue<Even
     }
 }
 
-/// A held value never enters the kv store or the pending commits (store.md, section 9).
+/// A held value never enters the kv store or the pending commits (protocol/store/secrets.md).
 fn hold(store: &mut Store, owner: Token, value: Secret, above: &mut Queue<Event>) {
     if too_large(store, &value) {
         store.phase = Phase::Stopped;

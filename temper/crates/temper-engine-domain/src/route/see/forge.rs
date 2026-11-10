@@ -1,4 +1,4 @@
-//! Forge address reads (temper/docs/design/domain/agent.md, 8.4.1).
+//! Forge address reads (temper/docs/design/domain/agent/ask-temper.md, 1).
 use super::{Decision, Domain, Env, FlightRender, Limits, ReplyTo, SeeAnswer, SeeFlight, SeeReading};
 use crate::{CallAnswer, CallKey, SeeLanding, SeeRepository};
 use alloc::boxed::Box;

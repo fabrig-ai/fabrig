@@ -1,5 +1,5 @@
 #!/bin/sh
-# Owner-run only, domain/testing.md 2.7. Implementers compile this tier offline.
+# Owner-run only, testing/live-tier.md. Implementers compile this tier offline.
 set -eu
 umask 077
 cd "$(dirname "$0")/.."

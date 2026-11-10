@@ -1,7 +1,7 @@
 //! Loads of durable rows outside the working set: what a run's preparation
 //! reads (its transcript and inputs), notes, and
-//! the core's historical queries (jig's `domain/engine.md`, 7.2).
-//! Window pages carry whole or cut turns (temper/docs/design/domain/root.md, 8).
+//! the core's historical queries (jig's `domain/engine/executors.md`, 2).
+//! Window pages carry whole or cut turns (temper/docs/design/domain/root.md, 7).
 
 use crate::boundary::{EndedRead, Read, Request, Work};
 use crate::domain::Domain;
@@ -303,7 +303,7 @@ pub(crate) fn transcript_failed(domain: &mut Domain, waiter: Token) {
 pub(crate) fn transcript_unread(domain: &mut Domain, waiter: Token) {
     let Some(Read::Transcript { task }) = take_read(domain, waiter) else { return };
     domain.archive_reads.retire(Id::from_token(waiter));
-    // The core owns the closed/open window policy (jig's `domain/engine.md`, 7.2).
+    // The core owns the closed/open window policy (jig's `domain/engine/executors.md`, 2).
     if domain.core.transcripts.contains_key(&task) {
         domain.work.push(Work::Core(jig_domain_core::Event::TranscriptLoaded {
             task,
@@ -357,7 +357,7 @@ pub(crate) fn transcript_loaded(
     domain.archive_reads.retire(Id::from_token(waiter));
 }
 
-/// Validate row/text pairing before handing a page to the core (temper/docs/design/domain/root.md, 8).
+/// Validate row/text pairing before handing a page to the core (temper/docs/design/domain/root.md, 7).
 fn transcript_page(
     rows: Box<[Record]>,
     texts: Option<crate::TranscriptTexts>,

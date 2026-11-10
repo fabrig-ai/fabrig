@@ -1,4 +1,4 @@
-//! Copies on the running service and a catalogue source (temper/docs/design/domain/forge.md, 4.5).
+//! Copies on the running service and a catalogue source (temper/docs/design/domain/forge/adoption.md, 5).
 use crate::{
     ctl::{Caller, Command},
     fixtures,

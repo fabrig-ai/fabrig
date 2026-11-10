@@ -1,5 +1,5 @@
 //! A restart names its live sources, then sweeps unnamed Source records once
-//! (domain/accounts.md, 3.4; protocol/store.md, 9). Application rows are untouched.
+//! (domain/accounts.md, 3.4; protocol/store/secrets.md). Application rows are untouched.
 use skein_lib::{Queue, Set};
 
 #[derive(Debug)]

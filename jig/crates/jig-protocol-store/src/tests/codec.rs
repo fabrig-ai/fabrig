@@ -1,4 +1,4 @@
-//! The notes family's translation both ways (protocol/store.md 5.1).
+//! The notes family's translation both ways (protocol/store/records.md 1).
 use super::fixtures;
 use crate::codec::{accounts, component, notes};
 use jig_domain_notes as domain;
@@ -1468,7 +1468,7 @@ fn retained_people_answers_keep_dependency_refusal_facts() {
 fn a_stored_project_name_is_bounded_and_utf8() {
     use crate::people_v14 as wire;
     use skein_lib::{Reader, Writer};
-    // store.md, 4.4: the name is UTF-8 text, at most 64 bytes.
+    // protocol/store/README.md, 4.4: the name is UTF-8 text, at most 64 bytes.
     const NAME_BOUND: usize = 64;
     let limits = people_limits();
     let at = "a".repeat(NAME_BOUND);
@@ -1656,7 +1656,7 @@ fn a_nothing_awaited_notice_survives_storage_with_small_caller_limits() {
     assert_eq!(crate::codec::tasks::decode(&bytes, &limits, &[]), Ok(row));
 }
 
-/// Application job values survive total store translations (jig/docs/design/protocol/store.md, 5.1).
+/// Application job values survive total store translations (jig/docs/design/protocol/store/records.md, 1).
 #[test]
 fn job_values_round_trip_with_opaque_bytes_and_deadlines() {
     use crate::{
@@ -1707,7 +1707,7 @@ fn job_values_round_trip_with_opaque_bytes_and_deadlines() {
     assert_eq!(activity::read_result_kind(encoded, &limits), Ok(t::ResultKind::Job));
 }
 
-/// The spec's application bytes obey their own bound (jig/docs/design/protocol/store.md, 5.1).
+/// The spec's application bytes obey their own bound (jig/docs/design/protocol/store/records.md, 1).
 #[test]
 fn job_spec_bytes_one_past_the_bound_are_refused() {
     use crate::{codec::tasks::value as translate, tasks_v9 as w};
@@ -1730,7 +1730,7 @@ fn job_spec_bytes_one_past_the_bound_are_refused() {
     );
 }
 
-/// People's delegations retain job kinds (jig/docs/design/protocol/store.md, 5.1).
+/// People's delegations retain job kinds (jig/docs/design/protocol/store/records.md, 1).
 #[test]
 fn job_delegation_kinds_round_trip_in_people() {
     let mut policy = fixtures::people_policy();
@@ -1801,7 +1801,7 @@ fn a_visibility_set_outcome_round_trips_as_kept() {
     }
 }
 
-/// The three choices bound later sub-agents by MODELS (jig/docs/design/protocol/store.md, 5).
+/// The three choices bound later sub-agents by MODELS (jig/docs/design/protocol/store/records.md).
 fn later_subagents_obey_the_models_bound_in_every_family() {
     use skein_lib::{Reader, Writer};
     // ModelEffort is one model byte and one absent-effort tag; a list adds a u32 count.

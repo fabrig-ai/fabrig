@@ -1,5 +1,5 @@
 //! The product's setting names and representable leaf bounds; relationships
-//! belong to resolution (shell.md, sections 5.2–5.3 and 7).
+//! belong to resolution (shell/settings.md, sections 1.2–1.3 and shell/credentials.md).
 use super::Problem;
 use toml::Value;
 
@@ -158,7 +158,7 @@ pub(super) fn field(kind: Kind, key: &str) -> Option<Kind> {
     }
 }
 
-/// Keys that reach beyond repository run content (shell.md, section 5.1).
+/// Keys that reach beyond repository run content (shell/settings.md, section 1.1).
 pub(super) fn authority(path: &[String]) -> bool {
     let parts: Vec<_> = path.iter().map(String::as_str).collect();
     matches!(

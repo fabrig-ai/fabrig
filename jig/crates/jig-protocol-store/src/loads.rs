@@ -1,4 +1,4 @@
-//! Same-step child pages under both bounds (protocol/store.md, 7.1 and 12).
+//! Same-step child pages under both bounds (protocol/store/loads.md, 1, and protocol/store/README.md, 7).
 use crate::{Cursor, Event, Load, Phase, Store, intervals, pages};
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, Token};

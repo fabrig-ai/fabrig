@@ -1,4 +1,4 @@
-//! Level-triggered interests and a single reusable event buffer (shell.md, 7.2).
+//! Level-triggered interests and a single reusable event buffer (runtime/readiness.md, 2).
 //!
 //! # The `unsafe`, and why it is sound
 //!

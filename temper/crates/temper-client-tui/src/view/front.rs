@@ -1,4 +1,4 @@
-//! The playground, quitting, the box's state and /log (temper/docs/design/client/README.md, 6.17).
+//! The playground, quitting, the box's state and /log (temper/docs/design/client/tui/box.md).
 use super::foot::{OptionItem, Options};
 use crate::{
     BoxState, Event, Tui, limits, look,

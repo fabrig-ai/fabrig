@@ -1,4 +1,4 @@
-//! Runtime membership (skein/docs/design/forge-connection.md, 3.1).
+//! Runtime membership (skein/docs/design/forge/connection.md, 3.1).
 use skein_forge::api::{self, Op, Read};
 use skein_forge_connection::{Request, Settings, settings::Forge, start::Start};
 use skein_forge_machine_world::hand as f;

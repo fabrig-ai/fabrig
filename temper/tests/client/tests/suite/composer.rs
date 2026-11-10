@@ -1,4 +1,4 @@
-//! Composers through the client link and engine (client/README.md, 5.4).
+//! Composers through the client link and engine (client/view.md, 4).
 use jig_client_kit::harness::{ClientId, Until, World};
 use skein_fake_person::{Find, Step};
 use skein_ui::{Role, State};

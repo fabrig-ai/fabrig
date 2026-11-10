@@ -11,13 +11,13 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Env, Map, ReplyTo};
 use temper_engine_domain_forge as forge;
 
-/// Startup configuration, supplied once by the shell (domain/root.md, 6):
+/// Startup configuration, supplied once by the shell (domain/root.md, 5):
 /// the core's whole, as jig's applications hold it, and temper's own.
 #[derive(Debug)]
 pub struct Config {
-    /// Charter brief-room costs, absent when no agent is configured (temper/docs/design/domain/agent.md, 4.3).
+    /// Charter brief-room costs, absent when no agent is configured (temper/docs/design/domain/agent/tools.md).
     pub host_part: Option<crate::room::HostPart>,
-    /// Deployment funding span (domain/root.md, 5.7).
+    /// Deployment funding span (domain/routing.md, 7).
     pub period_span: skein_lib::Duration,
     /// The core's rules, charters, owners and projects; its one connector is
     /// the forge's; whether the workers run in the engine's process is
@@ -26,16 +26,16 @@ pub struct Config {
     pub core: jig_domain_core::Config,
     /// Each project's landing way and repository checks.
     pub landings: Map<u32, ProjectLanding>,
-    /// The forge's kind defaults at this start (temper/docs/design/domain/root.md, 5.6).
+    /// The forge's kind defaults at this start (temper/docs/design/domain/routing.md, 6).
     pub kinds_stock: Box<[forge::settings::Stock]>,
-    /// The stock ways, in their order (temper/docs/design/protocol/configuration.md, 13.10).
+    /// The stock ways, in their order (temper/docs/design/protocol/configuration/settings.md, 8).
     pub ways_stock: Box<[temper_engine_domain_ways::StockWay]>,
     /// Forge writer identities and this deployment's branch namespace.
     pub forge: skein_forge_client::Config,
     /// Each forge's git identity, an application credential (D10;
     /// protocol/credentials.md, "each repository to a git identity").
     pub identities: Box<[forge::GitIdentity]>,
-    /// Machine places for new forge records (temper/docs/design/protocol/configuration.md, 3).
+    /// Machine places for new forge records (temper/docs/design/protocol/configuration/engine.md).
     pub machine: Option<forge::Machine>,
     pub forges: Box<[forge::Configured]>,
     pub under_box: bool,
@@ -52,14 +52,14 @@ pub(crate) struct RootConfig {
     pub(crate) landings: Map<u32, ProjectLanding>,
 }
 
-/// Landing rules for test worlds' builders alone (domain/root.md, 6).
+/// Landing rules for test worlds' builders alone (domain/root.md, 5).
 #[derive(Debug)]
 pub struct LandingRules {
     pub deployment: Box<[LandingRule]>,
     pub projects: Map<u32, Box<[LandingRule]>>,
 }
 
-/// A project's landing way and repository checks (protocol/configuration.md, 3).
+/// A project's landing way and repository checks (protocol/configuration/engine.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProjectLanding {
     pub by: Way,
@@ -98,7 +98,7 @@ pub struct TierCheck {
     pub span_ms: u64,
     pub description: Box<[u8]>,
 }
-/// A project's verification settings (protocol/configuration.md, 3).
+/// A project's verification settings (protocol/configuration/engine.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct AfterLandingCheck {
     pub tier_retries: u8,
@@ -635,7 +635,7 @@ pub(crate) fn is_core_read(tool: &Tool) -> bool {
     }
 }
 
-/// Translate test worlds' landing rules to forge stock (temper/docs/design/domain/root.md, 6).
+/// Translate test worlds' landing rules to forge stock (temper/docs/design/domain/root.md, 5).
 #[must_use]
 pub fn landing_stock(
     deployment: &[LandingRule],

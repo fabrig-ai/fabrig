@@ -1,6 +1,6 @@
 //! Party pools, task creation, adoption, service, policy and role requests
 //! routed through authority, people, tasks and connectors
-//! (`domain/people.md`, section 5.1). Controls and decisions are separate
+//! (`domain/people/acts.md`, section 1). Controls and decisions are separate
 //! families so each route file stays under 1,500 lines.
 
 use crate::{

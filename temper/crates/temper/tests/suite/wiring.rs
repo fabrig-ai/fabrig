@@ -1,4 +1,4 @@
-//! The short path through main on fakes (temper/docs/design/domain/testing.md, 2.6).
+//! The short path through main on fakes (temper/docs/design/testing/process-tier.md).
 use crate::support;
 
 #[test]

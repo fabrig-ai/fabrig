@@ -1,5 +1,5 @@
 //! Jig addresses as typed places, never platform address text.
-//! Navigation is owned by the client; see client/domain/client.md, 5.
+//! Navigation is owned by the client; see client/domain/client/README.md, 5.
 /// The section of a project at an address.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum ProjectSection {
@@ -79,7 +79,7 @@ impl Address {
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Writer};
 
-/// The application's path segments (protocol/browser.md, 9).
+/// The application's path segments (protocol/browser/README.md, 9).
 /// Each name is one nonempty segment of lowercase letters, digits and hyphens.
 #[derive(Debug)]
 pub struct Names<'a> {
@@ -94,7 +94,7 @@ pub struct Names<'a> {
     pub project_sections: [&'a [u8]; 9],
 }
 
-/// A path's prefix and segment names (protocol/browser.md, 9).
+/// A path's prefix and segment names (protocol/browser/README.md, 9).
 #[derive(Debug)]
 pub struct Codec<'a> {
     /// Empty at the root; otherwise starts with `/` and has no trailing `/`.

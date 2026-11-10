@@ -1,7 +1,7 @@
-//! temper's stock settings, the binary's defaults (protocol/configuration.md, 13.4 and 13.6).
+//! temper's stock settings, the binary's defaults (protocol/configuration/stock.md and protocol/configuration/settings.md, 5).
 #![expect(
     clippy::disallowed_macros,
-    reason = "stock instructions are held in the binary (protocol/configuration.md, 13.4)"
+    reason = "stock instructions are held in the binary (protocol/configuration/stock.md)"
 )]
 mod kinds;
 pub use kinds::kinds;
@@ -18,7 +18,7 @@ use jig_domain_people::{TemplateBudget, TemplateDeadline, TemplateExecutor};
 use jig_domain_tasks::{Contract, EndedBy, Flags, Reasons, ResultsWake, Retention, WakePolicy, WakeRule};
 use skein_lib::{Duration, List, Map, bytes};
 
-/// Settings defaults supplied at a start (protocol/configuration.md, 13.4).
+/// Settings defaults supplied at a start (protocol/configuration/stock.md).
 /// The binary uses Stock; an in-process test world may pass its own values.
 #[derive(Debug)]
 #[cfg_attr(
@@ -54,7 +54,7 @@ impl Given {
     }
 }
 
-/// The numbered defaults (temper/docs/design/protocol/configuration.md, 13.4).
+/// The numbered defaults (temper/docs/design/protocol/configuration/stock.md).
 struct StockModel {
     number: u32,
     provider: u32,
@@ -216,19 +216,19 @@ const FORGE: u16 = 1;
 const FIRST_CHOICES: &[&[u8]] = &[b"claude-opus-5-5", b"gpt-6.1-sol"];
 const ASK_FIRST_CHOICES: &[&[u8]] = &[b"claude-opus-5-5", b"gpt-6-astra", b"gpt-6.1-sol"];
 
-/// Each project's funding span, from its first period (protocol/configuration.md, 13.4).
+/// Each project's funding span, from its first period (protocol/configuration/stock.md).
 pub const PERIOD_SPAN: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 
 /// Delegate (`change` and `delegate`), Message (delegates' questions and answers)
-/// Control (a goal's `change` names its plan's members; temper/docs/design/domain/agent.md, 4.3.1),
-/// Note and Recall (a chat keeps its document, a goal writes its report; temper/docs/design/domain/agent.md, 8.3),
+/// Control (a goal's `change` names its plan's members; temper/docs/design/domain/agent/tools.md, 1),
+/// Note and Recall (a chat keeps its document, a goal writes its report; temper/docs/design/domain/agent/agents.md, 3),
 /// Read (the forge's reads), Settings (Ask temper proposes)
 /// and Ask (Ask temper reads by address), jig's families (jig's `domain/authority.md`);
-/// protocol/configuration.md, 13.4.
+/// protocol/configuration/stock.md.
 const CHAT_TOOLS: authority::Tools = authority::Tools(1 | 2 | 4 | 128 | 256 | 512 | 1024 | ToolFamilies::JIG.ask.0);
 
 const CHAT_CHARTER_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(1023);
-// A chat's families without delegate (temper/docs/design/protocol/configuration.md, 13.4).
+// A chat's families without delegate (temper/docs/design/protocol/configuration/stock.md).
 const DRAFTER_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(1022);
 const CODING_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(514);
 const ASK_TOOLS: jig_domain_tasks::Tools =
@@ -238,7 +238,7 @@ const FOREMAN_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(512);
 const STATUS_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(0);
 const TRIAL_TOOLS: jig_domain_tasks::Tools = jig_domain_tasks::Tools(0);
 
-/// One stock value past a limit the document set (protocol/configuration.md, 13.4).
+/// One stock value past a limit the document set (protocol/configuration/stock.md).
 /// `limit` is its override name under `engine.limits`; `setting` needs `needed`.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Floor {
@@ -345,7 +345,7 @@ pub fn defaults(llm: &jig_protocol_config::Llm, result_bytes: u32) -> Defaults {
 }
 
 /// Stock charters and budgets over an explicitly supplied world's catalogue.
-/// The caller passes these as `Given::Own` (protocol/configuration.md, 13.4).
+/// The caller passes these as `Given::Own` (protocol/configuration/stock.md).
 /// # Panics
 /// If the supplied catalogue is empty or its budgets overflow.
 #[must_use]
@@ -384,7 +384,7 @@ pub(crate) fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> 
     // Eighty chats or goals funded at once from one pool.
     let pool_spend = chat_spend.checked_mul(80)?;
     // One chat's more in the period, which no pool reserves, for what the deployment
-    // itself starts (protocol/configuration.md, 13.4).
+    // itself starts (protocol/configuration/stock.md).
     let period_spend = chat_spend.checked_mul(81)?;
     for charter in charters.iter_mut() {
         charter.spend = run;
@@ -438,7 +438,7 @@ fn project_policy(period_spend: u64, pool_spend: u64, task_spend: u64) -> Config
     }
 }
 
-/// A role delegates to its own role alone (domain/agent.md, 8.2).
+/// A role delegates to its own role alone (domain/agent/agents.md, 2).
 fn project_role(number: u32, period_spend: u64, spend: u64, requests: u16, decides: u8) -> authority::Role {
     let mut authority = ceiling(spend);
     if spend == 0 {
@@ -471,13 +471,13 @@ fn project_role(number: u32, period_spend: u64, spend: u64, requests: u16, decid
     }
 }
 
-// Chat, Ask temper and drafter charter rows (temper/docs/design/protocol/configuration.md, 13.4).
+// Chat, Ask temper and drafter charter rows (temper/docs/design/protocol/configuration/stock.md).
 const CHAT_TURNS: u32 = 64;
-// Chat, Ask temper and drafter charter rows: one hour (temper/docs/design/protocol/configuration.md, 13.4).
+// Chat, Ask temper and drafter charter rows: one hour (temper/docs/design/protocol/configuration/stock.md).
 const CHAT_TIME: Duration = Duration::from_secs(3_600);
-// Coding, reviewer and foreman rows (temper/docs/design/protocol/configuration.md, 13.4).
+// Coding, reviewer and foreman rows (temper/docs/design/protocol/configuration/stock.md).
 const WORK_TURNS: u32 = 800;
-// Coding, reviewer and foreman rows: eight hours (temper/docs/design/protocol/configuration.md, 13.4).
+// Coding, reviewer and foreman rows: eight hours (temper/docs/design/protocol/configuration/stock.md).
 const WORK_TIME: Duration = Duration::from_secs(28_800);
 
 fn charter(
@@ -556,8 +556,8 @@ fn ask_charter(models: &[CatalogueModel]) -> Charter {
     value.policy.agents = false;
     value
 }
-// The drafter's chat policy (temper/docs/design/protocol/configuration.md, 13.4;
-// temper/docs/design/domain/agent.md, 8.5).
+// The drafter's chat policy (temper/docs/design/protocol/configuration/stock.md;
+// temper/docs/design/domain/agent/agents.md, 4).
 fn drafter(models: &[CatalogueModel]) -> Charter {
     let mut value = charter(12, CHAT_TURNS, CHAT_TIME, include_bytes!("stock/drafter.txt"), models, FIRST_CHOICES);
     value.policy.inspect = false;
@@ -572,7 +572,7 @@ fn reviewer(models: &[CatalogueModel]) -> Charter {
     value.policy.agents = false;
     value
 }
-// temper/docs/design/protocol/configuration.md, 13.4; jig/docs/design/domain/tasks.md, 8.6.
+// temper/docs/design/protocol/configuration/stock.md; jig/docs/design/domain/tasks/messages.md, 6.
 const COORDINATOR_WAKE: WakePolicy = WakePolicy {
     words: WakeRule::Immediate,
     notices: WakeRule::Immediate,
@@ -706,7 +706,7 @@ fn chat(result_bytes: u32) -> Template {
 fn ask(result_bytes: u32) -> Template {
     Template { number: 5, name: bytes::copy_of(b"ask"), executor: TemplateExecutor::Charter(11), ..chat(result_bytes) }
 }
-// A design session is a chat (temper/docs/design/protocol/configuration.md, 13.4).
+// A design session is a chat (temper/docs/design/protocol/configuration/stock.md).
 fn design(result_bytes: u32) -> Template {
     Template {
         number: 6,
@@ -746,7 +746,7 @@ fn goal(result_bytes: u32) -> Template {
     }
 }
 
-/// The forge's defaults at each start (temper/docs/design/protocol/configuration.md, 13.4).
+/// The forge's defaults at each start (temper/docs/design/protocol/configuration/stock.md).
 #[must_use]
 pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domain_forge::settings::Stock]> {
     use temper_engine_domain_forge::settings;
@@ -756,7 +756,7 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
         (3, 1, settings::Value::Charter(2)),
         (3, 2, settings::Value::Charter(4)),
         (11, 4, settings::Value::Goal(settings::TemplateGoal { design: false, close_out: false })),
-        // Each stock charter's words (temper/docs/design/protocol/configuration.md, 13.4).
+        // Each stock charter's words (temper/docs/design/protocol/configuration/stock.md).
         (9, 1, settings::Value::CharterWords(bytes::copy_of(b"talks with you and asks for the changes"))),
         (
             9,
@@ -816,7 +816,7 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
     stock.into_boxed()
 }
 
-/// Kind 2's stock rule 1, also the Agents review way (protocol/configuration.md, 13.4 and 13.10).
+/// Kind 2's stock rule 1, also the Agents review way (protocol/configuration/stock.md and protocol/configuration/settings.md, 8).
 fn review_rule() -> temper_engine_domain_forge::settings::LandingRule {
     use temper_engine_domain_forge::{self as forge, settings};
     settings::LandingRule {

@@ -1,4 +1,4 @@
-//! Whole pages and single documents (protocol/client.md, 3 and 6).
+//! Whole pages and single documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
 use super::{Limits, List, Reader, Wall, c, cursor_fields, offered_piece, too_large, w};
 
 pub(crate) fn note_author_fields(value: &w::NoteAuthor) -> c::NoteAuthor {

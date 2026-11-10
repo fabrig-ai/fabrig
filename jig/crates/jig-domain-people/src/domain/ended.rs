@@ -1,4 +1,4 @@
-//! Ended positions are supplied for one decision, never retained (people.md, 6).
+//! Ended positions are supplied for one decision, never retained (domain/people/README.md, 5).
 use crate::domain::{Pending, answer_decided};
 use crate::{Ask, Domain, EntryKind, Key, Limits, Outcome, Request, Seen, Stored, Update};
 use skein_lib::{Env, Id, Queue, Token};

@@ -1,5 +1,5 @@
 //! A person's own preferences, read and kept without a project role
-//! (`jig/docs/design/domain/engine.md`, 10.1).
+//! (`jig/docs/design/domain/engine/briefs.md`, 2.1).
 
 use crate::Core;
 

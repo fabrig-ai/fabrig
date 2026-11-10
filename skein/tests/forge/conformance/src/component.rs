@@ -1,4 +1,4 @@
-//! The real component on io's ring against an isolated Forgejo (protocol/forge.md, 10).
+//! The real component on io's ring against an isolated Forgejo (temper/docs/design/protocol/forge/README.md, 9).
 pub(crate) mod hosted;
 mod reads;
 mod writes;

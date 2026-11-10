@@ -1,4 +1,4 @@
-//! Bounded provisional text assembled by offset (client/domain/client.md, 8.3).
+//! Bounded provisional text assembled by offset (client/domain/client/watches.md, 3).
 use crate::{
     Domain, Down, Handle, Latest,
     contract::{Delivery, RunText, Subject, Text},

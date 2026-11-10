@@ -1,5 +1,5 @@
 //! Routes the accounts component, its real domain child and the memory secrets
-//! store (jig/docs/design/protocol/llm.md, 5 and 8; protocol/store.md, 9).
+//! store (jig/docs/design/protocol/llm.md, 5 and 8; protocol/store/secrets.md).
 use crate::fixtures::{self, ACCOUNT_CHAT, ROOM};
 use crate::world::{Installation, Story};
 use jig_domain_accounts as child;
@@ -149,7 +149,7 @@ impl Owner {
             limits.accounts = 1;
         }
         if story == Story::SignInAgain {
-            // A cancelled listener counts until it settles (skein oauth.md 6.5): room beside the live sign-in.
+            // A cancelled listener counts until it settles (skein skein/docs/design/oauth/accounts.md 5): room beside the live sign-in.
             limits.listeners = 2;
             limits.io.sockets = 2 * limits.listeners + limits.exchanges;
         }

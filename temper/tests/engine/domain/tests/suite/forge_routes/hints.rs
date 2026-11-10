@@ -272,7 +272,7 @@ fn two_change_hint_request_profile() {
         );
         // Keep reads may interleave with the landing's fresh reads and merge.
         // Bound their total; their order is not the hint-wake contract
-        // (temper/docs/design/domain/forge.md, 5.2 and 5.3).
+        // (temper/docs/design/domain/forge/keeping-up.md, 2 and 3).
         let count = world.take_calls().len();
         assert!(
             count <= LANDING_REQUEST_BOUND,

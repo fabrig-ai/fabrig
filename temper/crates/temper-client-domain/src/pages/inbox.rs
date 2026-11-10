@@ -1,4 +1,4 @@
-//! The inbox keeps cards through refreshes (temper/docs/design/client/README.md, 3.5).
+//! The inbox keeps cards through refreshes (temper/docs/design/client/pages/README.md).
 pub mod whole;
 use super::Request;
 use crate::{
@@ -27,7 +27,7 @@ pub struct Card {
     pub key: Option<jig_client::Key>,
     pub outcome: Option<jig_client::Outcome>,
 }
-/// What a card's question reads (temper/docs/design/client/README.md, 3.5, Whole, Cut).
+/// What a card's question reads (temper/docs/design/client/pages/README.md, Whole, Cut).
 #[derive(Debug)]
 pub enum QuestionWords<'a> {
     Whole(&'a [u8]),
@@ -86,7 +86,7 @@ pub struct Inbox {
 fn client(out: &mut Queue<Request>, event: jig_client::Event) {
     out.push(Request::Client(event));
 }
-/// Inbox's sixteen cards share the read pool with Home's other facts (client/README.md, 3.5).
+/// Inbox's sixteen cards share the read pool with Home's other facts (client/pages/README.md).
 #[must_use]
 pub fn card_capacity(reads: u32) -> u32 {
     reads.min(16)
@@ -310,7 +310,7 @@ impl Inbox {
         card.whole = Some(Whole::start(task.task.task, handle, out));
     }
     /// Whether this section's read has answered with its value since the page opened
-    /// (temper/docs/design/client/README.md, 3.5).
+    /// (temper/docs/design/client/pages/README.md).
     #[must_use]
     pub const fn answered(&self, group: InboxReadGroup) -> bool {
         match group {
@@ -369,7 +369,7 @@ impl Inbox {
         }
         true
     }
-    /// The needs' groups in the inbox's order (temper/docs/design/client/README.md, 3.5, Home).
+    /// The needs' groups in the inbox's order (temper/docs/design/client/pages/README.md, Home).
     #[expect(clippy::disallowed_methods, reason = "Home's contract exposes a filtered iterator over the inbox's cards")]
     pub fn needs(&self) -> impl Iterator<Item = &Card> {
         self.cards.iter().filter(|card| match card.group {

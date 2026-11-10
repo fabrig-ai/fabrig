@@ -1,6 +1,6 @@
 //! The fake provider's state and its entry points.
 //!
-//! Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, sections 4.4 and 6.3.
+//! Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, sections 4.4 and 6.3.
 
 use alloc::boxed::Box;
 use core::mem;
@@ -12,89 +12,89 @@ use crate::{cache, limits, pieces, respond};
 
 /// How the fake behaves, handed to every step read-only.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Config {
     /// Calls held at once. A call beyond them is refused as overloaded.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub calls: u32,
     /// Owned query bytes, including message and part arrays.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub query_bytes: u32,
     /// Joint owned script, rule, reset-state and caller-menu bytes, including their arrays, held at startup.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub script_bytes: u32,
     /// Owned bytes in each answer held until its timer fires.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub answer_bytes: u32,
     /// The time to answer is drawn from `latency_min..=latency_max`.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub latency_min: Duration,
     /// Inclusive upper bound for the fake's seeded response latency.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub latency_max: Duration,
     /// The chance, per mille, that a call fails as overloaded.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub overloaded: u32,
     /// The chance, per mille, that a call fails as rate-limited.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub rate_limited: u32,
     /// What a rate-limit failure asks the client to wait.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub retry_after: Duration,
     /// The chances, per mille, that a call fails as unavailable, as too long
     /// for the context window, or as unauthorised.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub unavailable: u32,
     /// Chance per mille that the fake refuses the context window.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub too_long: u32,
     /// Chance per mille that the fake refuses credentials.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub unauthorized: u32,
     /// The chance, per mille, that an answer is refused by the content filter.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub refused: u32,
     /// The chance, per mille, that an answer says it calls tools and calls
     /// none.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub no_calls: u32,
     /// The most tokens a final answer takes: each takes between one and this
     /// many, and is cut short at the query's `max_tokens`.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub answer_tokens: u32,
     /// The most tool calls an answer makes: each that makes some makes
     /// between one and this many.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub calls_per_answer: u32,
     /// The chance, per mille, that a tool call uses an entry from the caller's
     /// configured invalid input/name menu. An empty invalid menu leaves the
     /// offered name and configured ordinary body unchanged.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub malformed: u32,
     /// Chance per mille of choosing an offered tool outside the query's choice.
     pub outside_choice: u32,
     /// Rounds of tool calls after each of the client's messages before the
     /// fake answers it.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub tool_rounds: u32,
     /// Lifetime from a prefix's write at injected monotonic time.
     pub cache_lifetime: Duration,
@@ -106,77 +106,77 @@ pub struct Config {
 
 /// protocol -> domain
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
     /// A call: answer `query`.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     Call {
         /// Single-use right to answer this call; exactly one terminal consumes it.
         ///
-        /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+        /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
         reply_to: ReplyTo,
         /// The protocol's stream token, echoed on pieces and holds.
         call: Token,
         /// Owned bounded neutral provider request, independent of agent vocabulary.
         ///
-        /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+        /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
         query: Query,
     },
     /// Releases every call waiting at this name; sends nothing.
     ///
-    /// Contract: docs/design/fake-llm.md, section 2.2.
+    /// Contract: docs/design/testing/fakes/llm.md, section 2.2.
     Release { name: Box<[u8]> },
 }
 
 /// domain -> protocol
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
     /// One text piece before its call's terminal reply.
     ///
-    /// Contract: docs/design/fake-llm.md, section 2.2.
+    /// Contract: docs/design/testing/fakes/llm.md, section 2.2.
     Piece { call: Token, usage: Usage, text: Box<[u8]> },
     /// The call waits for its owner to release a named hold.
     ///
-    /// Contract: docs/design/fake-llm.md, section 2.2.
+    /// Contract: docs/design/testing/fakes/llm.md, section 2.2.
     Hold { call: Token, usage: Usage },
     /// The answer to a `Call`: exactly one per call.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     Reply {
         /// Single-use reply right returned to the layer that issued it.
         ///
-        /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+        /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
         to: ReplyTo,
         /// The one terminal value for the enclosing call; ownership passes to its receiver.
         ///
-        /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+        /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
         result: Result<Answer, Failure>,
     },
 }
 
 /// The fake provider's state.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[derive(Debug)]
 pub struct Domain {
     calls: Slab<Call>,
     held: Set<Id<Call>>,
     /// When each call is answered.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     timers: Deadlines<Id<Call>>,
     rng: Rng,
     /// Tool call ids issued.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     minted: u64,
     /// The conversations it plays from a script.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     played: Played,
     rules: Rules,
     menu: crate::api::Menu,
@@ -278,7 +278,7 @@ fn valid_rules(group: &[Box<[Rule]>], scripts: &[Script]) -> bool {
 
 /// A call being answered.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 #[derive(Debug)]
 pub(crate) struct Call {
     state: State,
@@ -290,21 +290,21 @@ pub(crate) enum State {
     Held(pieces::Stream),
     /// The answer is decided, and goes out when the call's timer fires.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     Thinking {
         reply_to: ReplyTo,
         result: Result<Answer, Failure>,
     },
     /// Terminal: holds nothing.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     Closed,
 }
 
 impl Domain {
     /// Constructs empty bounded state under the supplied immutable limits; no IO or clocks are consulted.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     #[must_use]
     pub fn new(config: &Config, seed: u64) -> Domain {
         Domain::scripted(config, seed, Box::new([]))
@@ -313,7 +313,7 @@ impl Domain {
     /// A provider that plays the conversations `scripts` cue from them, and
     /// the others at random.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     #[must_use]
     pub fn scripted(config: &Config, seed: u64, scripts: Box<[Script]>) -> Domain {
         Domain::try_scripted(config, seed, scripts).expect("scripts fit the provider limits")
@@ -321,7 +321,7 @@ impl Domain {
 
     /// Refuses a script collection exceeding the configured owned-byte cap.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub fn try_scripted(config: &Config, seed: u64, scripts: Box<[Script]>) -> Result<Domain, Error> {
         Self::configured(config, seed, scripts, crate::api::Menu { arguments: Box::new([]), invalid: Box::new([]) })
     }
@@ -340,7 +340,7 @@ impl Domain {
     /// Admits system-cued scripts, request-cued scripts and fallback turns,
     /// together with the random menu under one byte cap.
     ///
-    /// Contract: docs/design/fake-llm.md, section 2.4.
+    /// Contract: docs/design/testing/fakes/llm.md, section 2.4.
     pub fn played(config: &Config, seed: u64, scripts: Scripts, menu: crate::api::Menu) -> Result<Domain, Error> {
         Self::played_by_input(config, seed, scripts, menu, Rules { cued: Box::new([]), asked: Box::new([]) })
     }
@@ -348,7 +348,7 @@ impl Domain {
     /// Admits scripts, menu and fresh-input rules under one byte cap.
     /// Missing or empty rule entries retain assistant-message counting.
     ///
-    /// Contract: docs/design/fake-llm.md, section 2.4.
+    /// Contract: docs/design/testing/fakes/llm.md, section 2.4.
     pub fn played_by_input(
         config: &Config,
         seed: u64,
@@ -378,7 +378,7 @@ impl Domain {
 
     /// Calls present, answered ones included until they are reclaimed.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     #[must_use]
     pub fn calls(&self) -> u32 {
         self.calls.len()
@@ -386,7 +386,7 @@ impl Domain {
 
     /// Earliest injected deadline still pending, or `None` when no timed work remains.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
         self.timers.next()
@@ -394,7 +394,7 @@ impl Domain {
 
     /// Whether injected now reaches the earliest pending deadline; no live clock is read.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     #[must_use]
     pub fn is_due(&self, now: Time) -> bool {
         match self.timers.next() {
@@ -405,7 +405,7 @@ impl Domain {
 
     /// Iteration-end reclamation of retired entries; it must follow delivery of owned outputs.
     ///
-    /// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+    /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
     pub fn reclaim(&mut self) {
         self.calls.reclaim();
     }
@@ -413,7 +413,7 @@ impl Domain {
 
 /// Handles one event, emitting requests into an uncapped queue.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 pub fn step(domain: &mut Domain, env: &Env<Config>, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::Call { reply_to, call: token, query } => call(domain, env, reply_to, token, &query, out),
@@ -423,7 +423,7 @@ pub fn step(domain: &mut Domain, env: &Env<Config>, event: Event, out: &mut Queu
 
 /// Answers the earliest call due at `env.now`, if there is one.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 pub fn fire(domain: &mut Domain, env: &Env<Config>, out: &mut Queue<Request>) {
     let Some(id) = domain.timers.expire(env.now) else {
         return;
@@ -518,7 +518,7 @@ fn call(
 
 /// Thinking, timer: the answer goes out.
 ///
-/// Contract: docs/design/fake-llm.md, sections 2–5; programming-model.md, section 4.4.
+/// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 fn answer(reply_to: ReplyTo, result: Result<Answer, Failure>, out: &mut Queue<Request>) -> State {
     out.push(Request::Reply { to: reply_to, result });
     State::Closed

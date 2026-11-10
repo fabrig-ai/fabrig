@@ -1,4 +1,4 @@
-//! Keyed requests, shared answer reservations and terminal replies (domain/people.md, 5.1).
+//! Keyed requests, shared answer reservations and terminal replies (domain/people/acts.md, 1).
 use super::{Domain, acts, admission, deadline, fact, invalid_ask, mark_seen, project, role, valid_ask};
 use crate::{
     Again, ApplicationScope, Ask, AskFamily, Fact, Key, Limits, Outcome, OutcomeFamily, Refusal, Reply, Request,
@@ -174,7 +174,7 @@ pub(super) fn admit_ask(
     }
     let written = written_place(domain, key.person, &ask);
     // A move is admitted whole; Written transfers its already reserved place.
-    // Seen still uses only pending room (protocol/llm.md, 5.6; people.md, 5.1).
+    // Seen still uses only pending room (protocol/llm.md, 5.6; domain/people/acts.md, 1).
     let occupied = domain.answers.len().saturating_add(domain.acted.len()).saturating_add(answer_reservations(domain));
     let credit = u32::from(written.is_some());
     if occupied.saturating_sub(credit).saturating_add(answer_places(&ask)) > env.limits.requests {

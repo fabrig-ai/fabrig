@@ -1,4 +1,4 @@
-//! Configuration and operational reports during restoration (jig/docs/design/domain/engine.md, 6).
+//! Configuration and operational reports during restoration (jig/docs/design/domain/engine/restart.md).
 use crate::{Domain, Event, HoldKind, Name, Party, Refusal, Request, ResourceAccess, step};
 use skein_lib::{Env, Queue, Time, Wall};
 

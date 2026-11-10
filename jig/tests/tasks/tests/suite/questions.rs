@@ -1,4 +1,4 @@
-//! Requester question keeps and task-batched exits (domain/tasks.md, 5.7 and 7).
+//! Requester question keeps and task-batched exits (domain/tasks/lifecycle.md, 8 and domain/tasks/changes.md).
 use jig_domain_tasks::{self as tasks, Cancel, *};
 use jig_tasks_world::{LIMITS, PERSON, PERSON_PARTY, Reply, World, task};
 use skein_lib::{Queue, ReplyTo, Token, Wall};

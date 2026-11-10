@@ -1,31 +1,31 @@
-//! People as parties (programming-model.md, 4.5; domain/people.md).
+//! People as parties (programming-model.md, 4.5; domain/people/README.md).
 //! Keeps identities, secret-free sign-ins, project roles, keyed answers,
 //! task-derived bounded inbox references and each person's result and reply read position.
 //! Knows tasks only by number; the parent checks authority and makes tasks.
 //! `Save`/`Erase` join the parent's decision; the parent holds replies until
-//! durable (domain/engine.md, 5.6).
+//! durable (domain/engine/README.md, 5.6).
 //!
 //! The boundary admits adoption and other owner requests by key, checks their
 //! shape, routes its current project role to the parent, and retains committed
 //! answers for replay after a restart
-//! (domain/people.md, section 5.1). This child never sees provider
+//! (domain/people/acts.md, section 1). This child never sees provider
 //! credentials, protocol bytes, task internals or authority policy state.
 //! The root supplies authenticated identities and authoritative role changes.
 //! It mints fresh deployment person candidates and sign-in numbers; the protocol
 //! keeps cookie secrets or their digests separately, named by the root-issued
-//! sign-in number (domain/people.md, section 3; domain/engine.md, sections 4 and 5.4).
+//! sign-in number (domain/people/README.md, section 3; domain/engine/README.md, sections 4 and 5.4).
 //!
 //! `Domain::new` starts restoring. `Domain::start_restore` begins load/fit/link before input, capturing one wall
 //! instant for both expiry walks. `start_link` leaves admission closed; the caller establishes all
 //! links, drives `start_sweep` and its borrowed rows, and releases sweep writes durably before
-//! `start_complete` projects live deadlines and opens admission (domain/engine.md, 6).
+//! `start_complete` projects live deadlines and opens admission (domain/engine/restart.md).
 //! Ready requests share person-scoped keys across sign-ins: identical pending
 //! copies join bounded waiters, saved copies replay the outcome, and conflicting
-//! payloads refuse (domain/people.md, sections 3 and 5.1).
+//! payloads refuse (domain/people/README.md, section 3, and domain/people/acts.md, section 1).
 //! Application requests carry only scope, connector and the supplied 32-byte
 //! digest. Their saved `Applied` result names the connector's outcome by token;
-//! the connector owns its value and revision checks (client/domain/contract.md,
-//! section 3.3). They share every key, waiter, pending and retention bound with
+//! the connector owns its value and revision checks (client/domain/contract/requests.md,
+//! section 3). They share every key, waiter, pending and retention bound with
 //! jig's requests. A role in their scope admits them, or the sign-in alone for
 //! the party's own; connector policy decides
 //! whether that role may make the request.
@@ -44,7 +44,7 @@
 //! save one keyed answer, while `Busy`/`NotReady` closes the flight without saving
 //! so its key can retry . `Save` and `Erase` are
 //! root decision outputs, not IO operations; task changes and keyed answers
-//! share one atomic commit (domain/people.md, section 5.1).
+//! share one atomic commit (domain/people/acts.md, section 1).
 //! `fire` expires at most one due sign-in per call. The caller supplies an uncapped
 //! output queue, accounts output bytes separately, and reclaims
 //! retired flights at the iteration boundary. `Domain::role` supplies current membership for root
@@ -52,7 +52,7 @@
 //! lookup; `Domain::person` is a pure sign-in lookup after restoration, checking
 //! both its projected monotonic deadline and saved wall expiry for root result
 //! routing, even before timer firing.
-//! Optional diagnostic facts do not affect behavior (domain/people.md, section 3).
+//! Optional diagnostic facts do not affect behavior (domain/people/README.md, section 3).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -121,5 +121,5 @@ pub use refusals::{
     NAMED_TASKS, Party, Refusal,
 };
 
-/// The deployment’s roster, not a project (people.md, 3: the deployment’s roles).
+/// The deployment’s roster, not a project (domain/people/README.md, 3: the deployment’s roles).
 pub const DEPLOYMENT: u32 = 0;

@@ -1,4 +1,4 @@
-//! Byte-summed pieces retain the domain's byte sum (codec.md, 3; store.md, 5.1).
+//! Byte-summed pieces retain the domain's byte sum (skein/docs/design/data/codec/README.md, 3; protocol/store/records.md, 1).
 use super::{Box, Reader, Writer, domain, wire};
 use skein_lib::List;
 fn admit(used: &mut usize, name: &[u8], extra: usize, limit: u32, path: wire::Path) -> Result<(), wire::Problem> {

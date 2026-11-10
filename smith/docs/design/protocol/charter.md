@@ -29,7 +29,7 @@ workers carry unread, and its version must be the one its agents read
   - the mode, Finite or Open.
 
   smith interprets no word of it, beyond the names it compares
-  (domain/README.md, section 5).
+  (domain/README.md, section 3).
 - **Endpoints by name.** A charter names the endpoints its LLMs run on, and
   the agent's configuration says what each name is (agent.md). A charter
   holds no address and no credential: it names each LLM's account, and
@@ -47,7 +47,7 @@ workers carry unread, and its version must be the one its agents read
 
 ## 2. The charter
 
-A versioned record (skein's `codec.md`, section 3):
+A versioned record (skein's `data/codec/README.md`, section 3):
 
 - **mode:** `finite` or `open` (domain/run.md, 3.1). Open requires `wait`
   and neither `deliver` nor `save`, or admission refuses MalformedCharter; its result
@@ -76,7 +76,7 @@ A versioned record (skein's `codec.md`, section 3):
 - **the result contract** (2.1);
 - **conventions,** if any: the relative paths of the guide and the checks;
   without them, smith's defaults apply (domain/run.md, 8.1);
-- **the budget** (domain/run.md, section 9):
+- **the budget** (../domain/budget.md):
   - turns, a generous loop guard;
   - spend, in the host's unit;
   - wall time, as a duration;
@@ -86,7 +86,7 @@ A versioned record (skein's `codec.md`, section 3):
     is derived from its turns at the main model's most costly completion,
     and is not a field. A writer that has no reason to choose gives the
     documented default, which is the product's presets'
-    (`docs/design/shell.md`);
+    (`../shell/README.md`);
 - **the LLMs:**
   - the main session's;
   - those sub-agents may use, each named by its model, once.
@@ -115,13 +115,13 @@ A versioned record (skein's `codec.md`, section 3):
     (domain/session.md, section 8);
   - **`output`:** the most output tokens a completion may have, thinking
     included. It is sent where the dialect takes it, its budget reserves
-    it before each completion (domain/run.md, section 9), and the window
+    it before each completion (../domain/budget.md), and the window
     above its threshold holds it (limits.md, 3.9);
   - its prices: positive integer amounts per a positive number of
     tokens, for input, cached input, output and, optionally, cache
     writes. Without a cache-write rate, cache writes are priced at the
     input rate (domain/session.md, section 6). A rate of zero is refused
-    at the entrance (domain/run.md, section 9).
+    at the entrance (../domain/budget.md).
 
   `window` and `output` are the effective values the host chose, at most
   what the agent's configuration declares for the endpoint (limits.md,
@@ -187,7 +187,7 @@ version at a time, and any change a reader would notice is a new one.
 - **The result is written in the charter's version,** so the charter's
   writer reads what it asked for.
 - **A writer writes the version of its release.** `smith check` prints the
-  version an agent reads (`docs/design/shell.md`), so a writer and its
+  version an agent reads (`../shell/README.md`), so a writer and its
   agents that differ find out before a run.
 - **Version 4 is current.** Both versioned records, Charter and
   RunResult, carry family version 4. Versions 1–3 are refused, with no
@@ -233,7 +233,7 @@ and a refusal names what was too large.
   entities by `smith-protocol-channel`, with each endpoint's name resolved
   through the agent's configuration, and a result translated back.
 - **skein owes** the codec generator and `skein-codec` (skein's
-  `codec.md`).
+  `data/codec/README.md`).
 
 ## 8. The world
 
@@ -256,11 +256,11 @@ and a refusal names what was too large.
   - a charter in a version the agent does not read.
 - **For a host:** a writer's own tests encode every charter it writes and
   check that smith's codec and entrance admit it, as temper's
-  `domain/agent.md`, section 9, plans.
+  `domain/agent/README.md`, section 7, plans.
 
 ## 10. Open questions
 
 - **Conventions' home:** in the charter, as here, or in the agent's
-  configuration with the charter overriding (domain/run.md, section 15).
+  configuration with the charter overriding (domain/run.md, section 13).
 - **A sub-agent's own contract,** if sub-agents get one (domain/run.md,
-  section 15).
+  section 13).

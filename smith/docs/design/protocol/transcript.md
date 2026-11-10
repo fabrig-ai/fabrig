@@ -227,7 +227,7 @@ jobs of every earlier window and activation.
 ## 6. Versions
 
 - **Version 7 is current** (`transcript-v7.schema`). The local host
-  records its layout in each chat's `format` (protocol/hosts.md, 5.3), so
+  records its layout in each chat's `format` (host.md, 5.3), so
   a local chat whose layout differs is refused as an older store.
 - **A resuming reader reads one version,** the current, like every format
   (README.md, section 8). Any other is the transcript refusal *another
@@ -285,9 +285,9 @@ jobs of every earlier window and activation.
   entities as they are told, and back on resume, with their kind and an
   opening turn's affinity, account and backend. Endpoint names are resolved through the agent's
   configuration both ways.
-- **skein owes** the codec generator (skein's `codec.md`), and providers'
+- **skein owes** the codec generator (skein's `data/codec/README.md`), and providers'
   replay as bounded bytes, tagged by dialect, with a call cut off at the
-  output limit marked as such (skein's `llm.md`).
+  output limit marked as such (skein's `llm/README.md`).
 
 ## 9. The world
 
@@ -322,12 +322,12 @@ jobs of every earlier window and activation.
   (domain/session.md, 8.2). Cutting it first, oldest turns first, waits
   on a host that needs it.
 - **A search's hits under a patch:** pieces are copied by a patch, not
-  opened (skein's `codec.md`, 11.3), so a patch that changes `Hit` is
+  opened (skein's `data/codec/patches.md`, 3), so a patch that changes `Hit` is
   refused until skein opens them (its section 13). Until then, from the
   baseline, a change of `Hit` waits for them.
 - **The channel's records a host keeps as bytes:** jig's store keeps a
   settled call's name and a delivery's evidence as the channel encodes
-  them (jig's `protocol/store.md`, section 16). The channel is versioned
+  them (jig's `protocol/store/README.md`, section 11). The channel is versioned
   whole, so its records carry no version of their own, and no host can
   learn from their bytes which code reads them. Either smith keeps them as
   a versioned family of their own, kept and patched as the turn is, or a
@@ -337,11 +337,11 @@ jobs of every earlier window and activation.
 
 A host keeps turns beyond a release: jig's store keeps each in its
 transcript's frames and reads them back after its engine is upgraded
-(jig's `protocol/store.md`, 8.6; temper's `draft/upgrades.md`, 7.2). From
+(jig's `protocol/store/transcripts.md`, 6; temper's `draft/upgrades.md`, 7.2). From
 the baseline, that host patches a turn of an older version to the
 current one as it reads it, by smith's patches, so a run resumes across
 a change of turns and people read old turns in the current version. Every
-other reader reads one version (section 6), and its host hands it no
+other reader reads one version (`transcript.md`, section 6), and its host hands it no
 other.
 
 - **The kept families** are the turn's and the local host's store's:
@@ -351,10 +351,10 @@ other.
   - **the local host's store,** `smith-local-store`
     (`smith-local-protocol`'s `local-store-v1.schema`: its state, its
     turns and its deliveries), read after an upgrade by smith's local
-    host alone (protocol/hosts.md, 5.3). It is kept like the turn from
+    host alone (host.md, 5.3). It is kept like the turn from
     the baseline, under an owner of its own, `smith-local`, since an
-    owner's patches and kept texts are one crate's (skein's `codec.md`,
-    12.1); its `Turn.body` already says `holds smith-transcript Turn`, so
+    owner's patches and kept texts are one crate's (skein's `data/codec/command.md`,
+    1); its `Turn.body` already says `holds smith-transcript Turn`, so
     a turn it keeps is patched by the turn's set, its own patches
     pinned after smith's where they need its turns. Its set takes this
     section's shape, written with the local host's reads at the
@@ -369,11 +369,11 @@ other.
     5), and is no host's store;
   - **the channel's records** a host keeps as bytes are open (section
     11).
-- **The words owed** (skein's `codec.md`, section 3): a turn's one field
+- **The words owed** (skein's `data/codec/README.md`, section 3): a turn's one field
   whose bytes are pieces says so, `hits: bytes 2097152 pieces Hit` in
   `Found`, in place in `transcript-v6.schema`, version 6 unmoved; the
   word moves the family's layout, no byte and no Rust. The local host
-  records that layout in each chat's `format` (protocol/hosts.md, 5.3),
+  records that layout in each chat's `format` (host.md, 5.3),
   so a local chat made before the word is refused as an older store,
   as every store before the baseline is. Every other
   `bytes` of a turn is opaque: a provider's replay and opaque blocks, a
@@ -389,7 +389,7 @@ other.
   - `patches::PATCHES`, the patches' texts in number order, and
     `patches::kept::smith_transcript::TEXTS`, the kept texts in version
     order, with the patches' `Context` and `written`, in the module
-    skein's command generates (skein's `codec.md`, 12.1 and 12.3);
+    skein's command generates (skein's `data/codec/command.md`, 1 and 3);
   - `FRESH_WINDOWS`, `"fresh-windows"`, the mark below.
 
   Before the baseline the module is written by hand (`src/patches.rs`)
@@ -397,13 +397,13 @@ other.
   `written` that answers every site `NoSite`. The baseline's run of the
   command (`--baseline`) keeps the current text as the first and
   generates `patches/mod.rs` in its place, under the same name. jig's store takes the constants into its `Smith` slot (jig's
-  `protocol/store.md`, 10.3), handed by the host's shell.
+  `protocol/store/opening.md`, 3), handed by the host's shell.
 - **The mark:** a smith patch whose change an agent would misread on a
   resume, such as a provider's replay it cannot carry or a call whose
   meaning moved, carries `mark fresh-windows` in its header (skein's
-  `codec.md`, 11.1). A host closes each live window across it, and the
+  `data/codec/patches.md`, 1). A host closes each live window across it, and the
   next run starts afresh from its brief with the transcript's tail (jig's
-  `domain/engine.md`, 7.2), never resumed from patched turns. A patch
+  `domain/engine/executors.md`, 2), never resumed from patched turns. A patch
   without it is resumed across. The word is `FRESH_WINDOWS` and its
   meaning smith's; a host reads it from the constant, as data. A patch
   may carry the mark and change no declaration.
@@ -411,15 +411,15 @@ other.
   `Default` `Context`: a host patches a turn each time it reads it, in any
   order, and keeps the bytes as they were written. A holder's own
   functions never read the turn it holds, so that the order of its
-  patches and smith's changes no byte (jig's `protocol/store.md`, 8.6).
+  patches and smith's changes no byte (jig's `protocol/store/transcripts.md`, 6).
 - **Frozen texts.** Once a landed patch names a version of
   `smith-transcript`, that version's kept text is frozen: a variant
   appended, a bound widened or a declaration added takes a patch the
   command writes and a version move, from the first release on (skein's
-  `codec.md`, 12.2, step 3; temper's `draft/upgrades.md`, 4.3). Before the
+  `data/codec/command.md`, 2, step 3; temper's `draft/upgrades.md`, 4.3). Before the
   baseline there is no kept text and no patch. Version 6 remains available
   to archival readers without system context; version 7 adds that context
-  and is the only resumable version (section 6).
+  and is the only resumable version (`transcript.md`, section 6).
 - **The tests** sit low, in the codec's world (`tests/codecs`), over a
   fixture family of their own (`tests/transcript-patches`): a fixture turn
   at version 1 and 2, made by skein's command, its first patch marked

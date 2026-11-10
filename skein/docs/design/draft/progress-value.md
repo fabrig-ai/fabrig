@@ -2,7 +2,7 @@
 
 Draft, 2026-11-04, from a session with the user that day. skein-ui's
 progress node says how far a piece of work has gone in words alone
-(`../ui.md`, 3.1). This draft gives it a value, done of total, which
+(`../ui/README.md`, 3.1). This draft gives it a value, done of total, which
 each shell maps to its platform's progress, and which a browser's
 stylesheet can draw as a bar that fills. Its first consumer is temper's
 fetch of Forgejo, whose percentage the clients say in words
@@ -32,30 +32,30 @@ fetch of Forgejo, whose percentage the clients say in words
 ## 2. The fraction
 
 - **`Fraction { done, total }`,** both `u64`, a property of the progress
-  role alone (`../ui.md`, 3.2): done at most total, total above zero.
+  role alone (`../ui/README.md`, 3.2): done at most total, total above zero.
   The builder asserts both, as it asserts an attribute off its roles
-  (`../ui.md`, section 5).
+  (`../ui/README.md`, section 5).
 - **Absent, indeterminate:** a progress node with no fraction is work
   whose end is not known, as today; a shell draws or says it so.
 - **The owner's numbers:** bytes, steps, items, as its domain counts
   them; skein-ui never divides them for the tree. A shell that needs a
   ratio makes it, checked, from the two (sections 4 and 6).
 - **Not a meter.** A meter, a value in a known range (a disk's use),
-  still waits (`../ui.md`, 4.2): progress is how far a piece of work
+  still waits (`../ui/README.md`, 4.2): progress is how far a piece of work
   has gone toward its end.
 
 ## 3. Words
 
 - **The node's text is the value's words,** as today: the owner writes
   the percentage, the bytes or the step, from its phrasebook
-  (`../ui.md`, section 9). A fraction with no text is the owner's bug:
+  (`../ui/README.md`, section 9). A fraction with no text is the owner's bug:
   the builder asserts a progress node with a fraction carries text.
-- **No style is a fact** (`../ui-web.md`, section 12): the bar's width
+- **No style is a fact** (`../ui/web/README.md`, section 10): the bar's width
   repeats what the words say, for sight.
 
 ## 4. The web
 
-The page part's mapping (`../ui-web.md`, section 6), for a progress node
+The page part's mapping (`../ui/web/elements.md`), for a progress node
 with a fraction, beside the `aria-valuetext` it writes today:
 
 - **`aria-valuemin="0"`, `aria-valuemax="TOTAL"`, `aria-valuenow="DONE"`,**
@@ -76,7 +76,7 @@ with a fraction, beside the `aria-valuetext` it writes today:
 
 ## 5. The text shell
 
-- **Unchanged:** `NAME: TEXT` (`../ui-text.md`, section 5). The text is
+- **Unchanged:** `NAME: TEXT` (`../ui/text.md`, section 5). The text is
   the figure the owner chose; the shell draws no bar of characters,
   which a screen reader would read as noise.
 
@@ -84,15 +84,15 @@ with a fraction, beside the `aria-valuetext` it writes today:
 
 - **iOS:** `UIProgressView.progress`, or SwiftUI's
   `ProgressView(value:total:)`, from done over total; the text as
-  `accessibilityValue` (`../ui.md`, 16.2).
+  `accessibilityValue` (`../ui/shells.md`, 2).
 - **Android:** `RangeInfo` of a float range, 0 to 1, from done over
   total, and `ProgressBar`'s own scaled to its integer range; the text
-  as its state description (`../ui.md`, 16.3).
+  as its state description (`../ui/shells.md`, 3).
 - **Absent,** each platform's indeterminate view, as today.
 
 ## 7. The diff
 
-- **The fraction is an attribute** (`../ui.md`, section 7): a change is
+- **The fraction is an attribute** (`../ui/README.md`, section 7): a change is
   an attribute patch, which keeps the node's id, so a screen reader
   that follows it hears the new words.
 - **The owner moves it at its own pace:** a view builds again when its
@@ -115,8 +115,8 @@ with a fraction, beside the `aria-valuetext` it writes today:
 
 ## 9. Its order
 
-1. **skein:** the property, its row in `../ui.md`, 3.2, and the rows of
-   section 16; the web mapping and `skein-ui.css`'s rules; the goldens.
+1. **skein:** the property, its row in `../ui/README.md`, 3.2, and the rows of
+   `../ui/shells.md`; the web mapping and `skein-ui.css`'s rules; the goldens.
    One change.
 2. **temper** (`temper/docs/design/draft/fetch-progress.md`, section 6):
    its view sets the fetch's fraction from the bytes written and the

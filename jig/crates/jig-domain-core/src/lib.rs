@@ -1,7 +1,7 @@
 //! The engine core composes the task hub, policy, parties, fleet, accounts,
 //! briefs, notes and views. It keeps work in jig's vocabulary and asks its
 //! application's root to route the store, hosts, parties and connectors.
-//! See `domain/engine.md`, sections 3 to 5.
+//! See `domain/engine/README.md`, sections 3 to 5.
 //!
 //! The core never holds a connector's value or a store encoding.
 
@@ -114,7 +114,7 @@ pub use crate::{
     },
 };
 
-/// Policy copied into a later project (configuration.md, 3; core.md, 6.1).
+/// Policy copied into a later project (configuration.md, 3; domain/model.md, 6.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ConfiguredPolicy {
     pub policy: authority::Policy,
@@ -122,7 +122,7 @@ pub struct ConfiguredPolicy {
     pub templates: Box<[people::TemplateOverride]>,
 }
 
-/// One first-start project seed (configuration.md, 3; core.md, 6.1).
+/// One first-start project seed (configuration.md, 3; domain/model.md, 6.1).
 #[derive(Hash, Debug)]
 pub struct SeedProject {
     pub number: u32,
@@ -131,7 +131,7 @@ pub struct SeedProject {
 }
 
 /// Application-supplied initial core state, in jig's vocabulary
-/// (`engine.md`, 6; `configuration.md`, 3).
+/// (`domain/engine/restart.md`; `configuration.md`, 3).
 #[derive(Debug)]
 pub struct Config {
     /// Configured worker names in authenticated protocol position order.
@@ -146,11 +146,11 @@ pub struct Config {
     pub hub_turns: u32,
     /// Initial authenticated owners.
     pub owners: Box<[people::InitialOwner]>,
-    /// Configured deployment acts for each connector (people.md, 5.3).
+    /// Configured deployment acts for each connector (domain/people/acts.md, 3).
     pub grants: Box<[people::ActGrant]>,
     /// Configured authority and policy.
     pub defaults: settings::Defaults,
-    /// An application's kinds of settings (domain/engine.md, 17.5).
+    /// An application's kinds of settings (domain/engine/settings.md, 5).
     pub kinds: Box<[settings::Kind]>,
     /// Deployment and run settings retained by the core.
     pub settings: Settings,
@@ -158,7 +158,7 @@ pub struct Config {
     pub seed_projects: Box<[SeedProject]>,
     /// Numbered connectors the application routes for task lifecycle handoffs.
     pub connectors: Box<[u16]>,
-    /// Application job kinds and their bounds (jig/docs/design/domain/engine.md, 7.5).
+    /// Application job kinds and their bounds (jig/docs/design/domain/engine/executors.md, 5).
     pub jobs: Box<[jig_domain_link::JobBound]>,
     /// Connectors' procedures that start kept (jig/docs/design/domain/connectors.md, 6.1).
     pub kept_starts: Box<[jig_domain_tasks::KeptStart]>,
@@ -171,7 +171,7 @@ pub struct Settings {
     /// Provider number for the application's services.
     pub deployment_provider: u16,
     /// The current catalogue by number: row `i` is setting `i + 1`, including holes
-    /// (domain/engine.md, 17.11; authority.md, 3; tasks.md, 3).
+    /// (domain/engine/settings.md, 11; authority.md, 3; domain/tasks/README.md, 3).
     pub models: Box<[Model]>,
     /// Maximum committed conversation bytes resumed whole.
     pub resume_bytes: u32,
@@ -179,7 +179,7 @@ pub struct Settings {
     pub tail_bytes: u32,
     /// Jig's one-bit authority family for each engine tool.
     pub tools: ToolFamilies,
-    /// Tool names whose calls belong to the task's requester alone (domain/engine.md, 10.1).
+    /// Tool names whose calls belong to the task's requester alone (domain/engine/briefs.md, 2.1).
     pub private_tools: Box<[Box<[u8]>]>,
     /// Configured LLM providers, for the accounts child (accounts.md, 3.1).
     pub llm_providers: accounts::Providers,
@@ -207,7 +207,7 @@ pub struct ToolFamilies {
     pub ask: authority::Tools,
 }
 
-/// Connector number reserved for the core's recurring procedure (tasks.md, 10).
+/// Connector number reserved for the core's recurring procedure (domain/tasks/README.md, 5).
 pub const RECURRING: u16 = u16::MAX;
 
 impl ToolFamilies {
@@ -254,7 +254,7 @@ impl ToolFamilies {
     };
 }
 
-/// The engine's children, routing and durable live state (domain/engine.md,
+/// The engine's children, routing and durable live state (domain/engine/README.md,
 /// section 3). Configuration limits stay immutable (programming-model.md,
 /// section 10.1); the hand-off bound also validates restored projection history.
 #[derive(Hash, Debug)]
@@ -272,7 +272,7 @@ pub struct Core {
     run_inbox: u32,
     pub(crate) run_now: skein_lib::Time,
     pub(crate) run_wall: Wall,
-    /// Last reported store map bytes (protocol/store.md, 11.2).
+    /// Last reported store map bytes (protocol/store/README.md, 6.2).
     pub fill: u64,
     pub(crate) workers_in_process: bool,
     pub(crate) stopping: bool,
@@ -322,7 +322,7 @@ pub struct Core {
     pub(crate) hub_turns: u32,
     pub(crate) settings_restore: settings::restart::Restore,
     pub(crate) restore_failure: Option<start::Failure>,
-    /// Names seeded or restored with the project policies (core.md, 6.1).
+    /// Names seeded or restored with the project policies (domain/model.md, 6.1).
     pub(crate) names: Map<u32, Box<str>>,
     visibility: admission::visibility::Visibility,
     public_index: public::Index,
@@ -404,7 +404,7 @@ fn assert_connector_registry(connectors: &[u16]) {
 }
 
 impl Core {
-    /// The kept project name for a root's read context (domain/core.md, 6.1).
+    /// The kept project name for a root's read context (domain/model.md, 6.1).
     #[must_use]
     pub fn project_name(&self, project: u32) -> Option<&str> {
         match self.names.get(&project) {
@@ -414,7 +414,7 @@ impl Core {
     }
 
     /// The templates `project` offers: the current ones under its overrides, as `me` delivers them
-    /// (jig/docs/design/domain/engine.md, 17.2).
+    /// (jig/docs/design/domain/engine/settings.md, 2).
     #[must_use]
     pub fn project_templates(&self, project: u32) -> Box<[Template]> {
         let overrides = match self.template_overrides.get(&project) {
@@ -426,7 +426,7 @@ impl Core {
 
     /// Templates the active settings decision would offer this project, including its policy
     /// overrides. `owner` is the token from `JudgeSettings`; accepted settings remain unchanged
-    /// until every judge accepts (jig/docs/design/domain/engine.md, 17.1–17.2).
+    /// until every judge accepts (jig/docs/design/domain/engine/settings.md, 1–2).
     #[must_use]
     pub fn settings_project_templates(&self, owner: skein_lib::Token, project: u32) -> Box<[Template]> {
         settings::application::project_templates(self, owner, project)
@@ -636,10 +636,10 @@ impl Core {
 
 pub use effects::connector::PersonSeed;
 
-/// Endpoint identity used to check model settings (domain/engine.md, 17.11).
+/// Endpoint identity used to check model settings (domain/engine/settings.md, 11).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct EndpointFacts {
-    /// Providers that name this endpoint for added models (engine.md, 17.11).
+    /// Providers that name this endpoint for added models (domain/engine/settings.md, 11).
     pub providers: Box<[u32]>,
     pub number: u32,
     pub dialect: u32,

@@ -31,7 +31,7 @@ fn every_task_phase_has_its_query_class() {
     }
 }
 
-/// A party cannot create a job (jig/docs/design/client/domain/contract.md, 5.7).
+/// A party cannot create a job (jig/docs/design/client/domain/contract/documents.md, 7).
 #[test]
 fn create_naming_a_job_is_refused_as_not_offered() {
     use crate::contract::{self as c, Admission, Executor, Refusal};

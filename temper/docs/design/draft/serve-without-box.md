@@ -32,12 +32,12 @@ Ready.
 ## 2. The document says
 
 - **The welcome's member:** `application.welcome`, `true` to show the
-  welcome; absent, none (`../protocol/configuration.md`, 3).
+  welcome; absent, none (`../protocol/configuration/engine.md`).
 - **The box's parts, one flag:** `temper-box init --box` writes them, and
   `temper box`'s first run passes it; a person may pass it too. They
   are the welcome's member; the owned Forgejo, its person and its
   port; and the playground, `application.demo` with its `demo/` files
-  and its two ports (`../protocol/setup.md`, 7.1, 8.2 and 8.4). The
+  and its two ports (`../protocol/setup/box.md`, 1 and `../protocol/setup/init.md`, 2 and `../protocol/setup/playground.md`). The
   document keeps them as three members, so that splitting the flag
   later changes no format.
 - **`temper-box init` alone** writes none of them, and its last line says
@@ -46,13 +46,13 @@ Ready.
 - **`temper-box serve` reads the document:** the welcome follows its
   member, whoever wrote it. It grows no flag, and the welcome does not
   follow `--box`, which only the box gives `temper internal serve`, for
-  the pipe its owned Forgejo runs by (`../protocol/setup.md`, 7.1). A systemd unit
+  the pipe its owned Forgejo runs by (`../protocol/setup/box.md`, 1). A systemd unit
   running `temper box` shows the welcome as any box does; one running
   `temper-box serve` on a hand-written document shows it only if that
-  document asks (`../protocol/setup.md`, 7.4).
+  document asks (`../protocol/setup/box.md`, 4).
 - **The playground is the welcome's:** offered only where the document
   shows the welcome and has `application.demo`
-  (`../protocol/setup.md`, 8.4). A server written from
+  (`../protocol/setup/playground.md`). A server written from
   `docs/examples/owned.json` (`../../help/server.md`) shows neither.
 - **No existing deployment is carried over:** there are none (the
   user, 2026-11-04).
@@ -75,17 +75,17 @@ Ready.
 - **On the wire, read by the domain:** a signed-in client learns
   whether the document shows the welcome from a record both shells read
   before the welcome decides; beside the playground's answer, which
-  the welcome already waits for (`../protocol/setup.md`, 8.4), is one
+  the welcome already waits for (`../protocol/setup/playground.md`), is one
   place for it. The browser's page carries nothing new.
 - **The browser's sign-in still lands on `/welcome`:** the welcome's
   decision sends the person of a deployment with no welcome on to the
   inbox, as it sends a whole first run's on to the chats page
-  (`../client/README.md`, 3.4 and 3.5).
+  (`../client/README.md`, 3.4 and `../client/pages/README.md`).
 - **The terminal,** which opens at the inbox, takes the same fact for
   the pages of section 3.
 - **Forgejo on this machine** is offered from the forges' rows: with
   no owned forge among them, none, rather than the box assumed
-  (`../client/README.md`, 3.5).
+  (`../client/pages/README.md`).
 
 ## 5. Its order
 

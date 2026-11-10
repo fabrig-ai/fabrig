@@ -1,4 +1,4 @@
-//! The TUI's look names (temper/docs/design/client/README.md, 6.15 and 6.17).
+//! The TUI's look names (temper/docs/design/client/tui/theme.md and temper/docs/design/client/tui/box.md).
 use skein_lib::Token;
 use skein_ui::{Owner, Region, Style, look::Names};
 

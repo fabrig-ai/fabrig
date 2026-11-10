@@ -1,4 +1,4 @@
-//! The in-process GitHub layer (fake-forge.md, section 10).
+//! The in-process GitHub layer (testing/fakes/github.md, section 1).
 use crate::{
     answers::{self, Body, Page},
     app::{self, App},
@@ -47,7 +47,7 @@ pub enum AppFacts {
     /// Keep only the first permission at read access, and the first event.
     Narrow,
 }
-/// How the scenario shows domain protection (fake-forge.md, 10.1).
+/// How the scenario shows domain protection (testing/fakes/github.md, 1.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Shown {
     Ruleset,

@@ -1,5 +1,5 @@
-//! One public sign-in's loopback listener and bounded request head (oauth.md,
-//! section 6.5). It knows the bound URI, no expected state or verifier. It hands a
+//! One public sign-in's loopback listener and bounded request head (oauth/accounts.md,
+//! section 5). It knows the bound URI, no expected state or verifier. It hands a
 //! decoded redirect to its component, answers its verdict, and settles at io.
 
 #![expect(
@@ -21,7 +21,7 @@ use skein_lib::{Env, Id, Queue, Token, bytes, usize_of};
 const PAGE: &[u8] = b"Sign-in received. You can close this tab.\n";
 const REFUSAL: &[u8] = b"This is not the registered redirect.\n";
 
-/// Built once from the owner's validated name (skein/docs/design/oauth.md, 6.5 and 6.7).
+/// Built once from the owner's validated name (skein/docs/design/oauth/accounts.md, 5 and 7).
 pub(crate) fn long_page(application: &[u8]) -> Box<[u8]> {
     let parts: [&[u8]; 5] = [
         b"This sign-in's answer is longer than ",
@@ -246,7 +246,7 @@ impl Listener {
         }
     }
 
-    /// Answers only the component's judgement (oauth.md, 6.5).
+    /// Answers only the component's judgement (oauth/accounts.md, 5).
     pub(crate) fn answer(&mut self, taken: bool) {
         let location = if taken { self.return_location.take() } else { None };
         if let Some(callback) = &mut self.callback
@@ -297,7 +297,7 @@ impl Listener {
         }
         self.end_listener(io);
         // A responding callback settles after its page, even when the sign-in's
-        // terminal closes its listener (skein/docs/design/oauth.md, 6.5).
+        // terminal closes its listener (skein/docs/design/oauth/accounts.md, 5).
         match &mut self.callback {
             Some(callback) if abort || callback.phase == Head::Reading || callback.phase == Head::Judging => {
                 callback.stop(env, abort, io);

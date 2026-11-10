@@ -1,5 +1,5 @@
 //! A host cut at a signal and started again, for the restart cuts of the
-//! private-file and sign-in stories (skein/docs/design/simulator.md, 3.3).
+//! private-file and sign-in stories (skein/docs/design/testing/simulator.md, 3.3).
 
 use skein_io::kernel::{Complete, Fd, Op, Submit};
 use skein_lib::{Queue, Time, Token, Wall};

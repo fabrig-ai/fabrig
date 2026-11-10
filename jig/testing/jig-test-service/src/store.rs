@@ -18,7 +18,7 @@ pub(super) struct Store {
     pub(super) opened: bool,
     pub(super) pending: bool,
     /// The installation's identifier: the drawn one until the store opens,
-    /// then the one it keeps (store.md 4.4).
+    /// then the one it keeps (protocol/store/README.md 4.4).
     pub(super) installation: [u8; 16],
     /// The configured models the component names a role's models by, for a test's memory store.
     #[cfg(test)]

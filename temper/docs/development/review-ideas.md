@@ -16,7 +16,7 @@ temper's design and what is open.
   person or an agent inspects before an explicit accept, reject or
   person's decision. temper's gates are that, held as facts rather than
   claims: a verdict at the change's exact head, its freshness, blocking
-  or advisory, a person's approval as a gate (`../design/domain/forge.md`, 8.3).
+  or advisory, a person's approval as a gate (`../design/domain/forge/change/gates.md`, 1).
   AQG asks an agent it does not control to write its own evidence;
   temper's procedures judge it from the forge.
 - **Reviewers from different model families** (section 2): a review's
@@ -44,8 +44,8 @@ from convergence on a shared phrase; how it does so is on its server,
 not public.
 
 In temper, a gate's review is a task for an agent with a lens
-(`../design/domain/forge.md`, 8.3), and a task makes its LLM choice among those
-its charter allows (`../design/domain/agent.md`, 4.6). Two shapes would fit:
+(`../design/domain/forge/change/gates.md`, 1), and a task makes its LLM choice among those
+its charter allows (`../design/domain/agent/charter.md`, 5). Two shapes would fit:
 
 - **Another family than the producer's.** A review gate asks for a
   model whose provider differs from the one that produced the head it
@@ -67,7 +67,7 @@ accepted, rejected with a reason, or needing a person's decision, in a
 table the next step reads.
 
 In temper, a blocking review that asks for changes becomes a repair
-given the gate's remarks (`../design/domain/forge.md`, 8.4), and the gate is asked
+given the gate's remarks (`../design/domain/forge/change/repairs.md`), and the gate is asked
 again at the repair's head. Nothing records what the repair did with
 each remark:
 
@@ -77,7 +77,7 @@ each remark:
   and repairs stop circling on a remark the producer will not take.
 - **A remark only a person can settle:** a review that cannot decide (a
   product choice, a trade-off beyond its lens) asks a person through a
-  person task (jig's `domain/people.md`, section 8), rather than
+  person task (jig's `domain/people/README.md`, section 7), rather than
   requesting changes a repair cannot make.
 
 Open: where the answers live (the pull request's thread, the change's
@@ -94,7 +94,7 @@ and tests that depend on sleeps, the wall clock, unseeded randomness or
 a live network.
 
 In temper, it is a review's lens like memory safety or performance
-(`../design/domain/forge.md`, 8.3), in a project's landing rules or added to one
+(`../design/domain/forge/change/gates.md`, 1), in a project's landing rules or added to one
 change by a coordinator. For temper's own repositories it would review
 against skein's `testing-strategy.md` (worlds, seeds, the simulated
 clock), so the lens's text is the project's, not a fixed list.
@@ -116,6 +116,6 @@ clock), so the lens's text is the project's, not a fixed list.
   annotates them, and the agent reads their intent from the edits
   rather than from text. People direct temper at the level of goals and
   plans (`../design/README.md`, section 1), and a goal's plan shows in
-  the client as a tree of its delegates (`../design/client/README.md`,
-  5.8): editing that tree by hand, sent back as the person's answer, is
+  the client as a tree of its delegates (`../design/client/pages/goal.md`,
+  2): editing that tree by hand, sent back as the person's answer, is
   a candidate for the client.

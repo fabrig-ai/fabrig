@@ -1,4 +1,4 @@
-//! Shipped schemas preserve fingerprints and diff through reprinting (codec.md, 10.6).
+//! Shipped schemas preserve fingerprints and diff through reprinting (data/codec/diff.md, 6).
 
 use crate::support::generated;
 use crate::support::reprint;
@@ -94,7 +94,7 @@ mod tests {
 
     #[test]
     fn every_schema_reprint_proposals_converge_on_its_renames() {
-        // At most one wave per declaration, then its parts and an empty round (codec.md, 10.1).
+        // At most one wave per declaration, then its parts and an empty round (data/codec/diff.md, 1).
         const PARTS_AND_EMPTY_ROUNDS: u32 = 2;
         for (name, text) in shipped_schemas() {
             let (schema, other) = reprinted_schemas(name, text);

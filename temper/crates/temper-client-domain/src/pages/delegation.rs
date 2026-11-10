@@ -1,4 +1,4 @@
-//! A chat's delegation: the task a delegate call made, watched as a card (client/README.md, 5.7).
+//! A chat's delegation: the task a delegate call made, watched as a card (client/view.md, 5).
 use crate::Limits;
 use alloc::boxed::Box;
 use jig_client::{Handle, contract as c};

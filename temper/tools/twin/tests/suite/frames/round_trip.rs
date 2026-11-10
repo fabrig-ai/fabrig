@@ -1,5 +1,5 @@
 //! Converter stability through the story's provider and transcript codecs
-//! (temper/docs/design/domain/testing.md, 4.1).
+//! (temper/docs/design/testing/fakes.md, 1).
 use super::{
     CHAT, CODER, CUES, REVIEWER, TASKS, WORK, call, completion, first, fixture, records, save, save_first, text,
 };

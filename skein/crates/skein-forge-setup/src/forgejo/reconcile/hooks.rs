@@ -1,4 +1,4 @@
-//! A listener's hook URL (forge-setup.md, 4.5).
+//! A listener's hook URL (forge/setup/forgejo.md, 1.5).
 use alloc::boxed::Box;
 use core::net::{IpAddr, SocketAddr};
 use skein_forge::forgejo::delivery::hook_target;

@@ -1,4 +1,4 @@
-//! The public world stories (jig/docs/design/domain/people.md, 13.6).
+//! The public world stories (jig/docs/design/domain/people/public-reading.md, 6).
 use jig_core_world::stories::public as story;
 use jig_domain_core::{self as core, PublicAnswer, PublicDocument};
 use jig_domain_people as people;
@@ -84,7 +84,7 @@ fn a_conversations_delegates_card_is_unknown() {
     assert_eq!(story::answer(&mut world, 500, story::read(3, Some(child))), PublicAnswer::Unknown);
 }
 
-/// Move beneath a task is not built (jig/docs/design/domain/people.status.md).
+/// Move beneath a task is not built (jig/docs/design/domain/people/README.status.md).
 #[test]
 fn a_delegate_moved_out_of_its_goals_tree_leaves_its_board_counts_and_card() {
     let mut world = story::world(story::SEEDS[0], false);

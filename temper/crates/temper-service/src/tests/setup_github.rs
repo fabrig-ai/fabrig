@@ -1,4 +1,4 @@
-//! GitHub service composition (temper/docs/design/protocol/setup.md, 17).
+//! GitHub service composition (temper/docs/design/protocol/setup/github.md).
 use super::*;
 use jig_domain_people as people;
 use jig_protocol_engine_clients as clients;
@@ -576,7 +576,7 @@ fn unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap() {
                 engine.domain.forge_connection(FORGE)
             )
         };
-        // Known gap (client/README.md, 4.7): NotInstalled projects to NoAccess on the family wire.
+        // Known gap (client/forge/family.md, 6): NotInstalled projects to NoAccess on the family wire.
         assert_eq!(refusal.reason(), &w::ForgeReason::NoAccess, "{name}");
         assert!(
             service.engine.as_ref().unwrap().domain.forges().rows[0].repositories.is_empty(),

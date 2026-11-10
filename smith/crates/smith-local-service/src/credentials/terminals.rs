@@ -1,4 +1,4 @@
-//! Driver terminals retain redacted state for hosts (protocol/hosts.md, 5.4).
+//! Driver terminals retain redacted state for hosts (protocol/host.md, 5.4).
 use super::{Accounts, CredentialRequest, Origin, Settled, oauth};
 use skein_lib::{Queue, Time};
 use smith_local_domain as local;

@@ -1,6 +1,6 @@
 //! Independent bounded OAuth issuer. No IO, clock reads, or provider policy.
-//! Credentials and carrier debug views follow skein/docs/design/oauth.md, 4
-//! and skein/docs/design/lib.md, 6.
+//! Credentials and carrier debug views follow skein/docs/design/oauth/README.md, 4
+//! and skein/docs/design/runtime/lib.md, 6.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -107,7 +107,7 @@ pub enum Error {
     Plan,
 }
 
-/// Who signs in at the fake's authorization (oauth.md, 5).
+/// Who signs in at the fake's authorization (oauth/README.md, 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Account {
     pub subject: Box<[u8]>,

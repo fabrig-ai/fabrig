@@ -1,5 +1,5 @@
-//! A request carrying a value, in front of the engine (protocol/client.md, 5
-//! and 14): sent once and never resent, kept by the engine before the core
+//! A request carrying a value, in front of the engine (protocol/client/README.md, 3
+//! and 11): sent once and never resent, kept by the engine before the core
 //! sees it, and never in the small store nor a root input (the referee's
 //! rules, checked on every exchange, save and input).
 
@@ -12,7 +12,7 @@ const NAME: RequestKey = [29; 16];
 /// The value it carries, and another.
 const VALUE: &[u8] = b"a value no store row holds";
 const OTHER_VALUE: &[u8] = b"another value under the name";
-/// The first number the engine draws for a carried value (store.md, 9).
+/// The first number the engine draws for a carried value (protocol/store/secrets.md).
 const FIRST: u64 = 1 << 63;
 
 fn change() -> Ask {

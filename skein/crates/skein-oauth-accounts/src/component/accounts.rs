@@ -1,4 +1,4 @@
-//! Account admission and removal (oauth.md, sections 6.2, 6.3 and 6.6).
+//! Account admission and removal (oauth/accounts.md, sections 2, 3 and 6).
 
 use super::{AccountEntry, Component, Lending, Lifecycle, Name, Rejection, State, Unusable, failed, held, set_held};
 use crate::accounts::Source;

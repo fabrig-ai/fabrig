@@ -1,5 +1,5 @@
 //! Browser-approved sign-ins across the real links, clients' component and core
-//! (jig/docs/design/protocol/client.md, 8; jig/docs/design/client/domain/testing.md, 5).
+//! (jig/docs/design/protocol/client/sign-in.md; jig/docs/design/client/domain/testing.md, 5).
 use jig_client::{Approval, ApprovalAct, ApprovalState, Client, Decided, Event, Link, Taking, UnlinkedRequest};
 use jig_client_protocol_link::Signing;
 use jig_client_world::{Front, Test, harness::ClientId, joint::Joint};

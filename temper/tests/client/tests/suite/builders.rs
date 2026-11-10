@@ -1,4 +1,4 @@
-//! Workers reads the joined engine's deployment (temper/docs/design/client/README.md, 3.5).
+//! Workers reads the joined engine's deployment (temper/docs/design/client/pages/README.md).
 use super::model::{follow, open, see};
 use skein_ui::Role;
 use temper_client_domain::pages::builders::Read;

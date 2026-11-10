@@ -1,5 +1,5 @@
 //! A client and a server exchanging bytes under chaos, over many seeds
-//! (simulator.md, 6): every invariant kept, and every fault fell.
+//! (testing/simulator.md, 6): every invariant kept, and every fault fell.
 
 use std::collections::BTreeMap;
 

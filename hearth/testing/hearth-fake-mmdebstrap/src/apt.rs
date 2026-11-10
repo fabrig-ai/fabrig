@@ -1,4 +1,4 @@
-//! What apt's pass answers from a mirror, over bytes already read (hearth/docs/design/domain/testing.md, 4.1).
+//! What apt's pass answers from a mirror, over bytes already read (hearth/docs/design/testing/tool-fakes.md, 1).
 use crate::{
     face::{self, Inst, Outcome, Simulate, Source},
     resolve::{self, Request, Selected, Variant},

@@ -1,4 +1,4 @@
-//! Arbitrary and mutated family bytes (protocol/store.md, sections 5.1 and 14).
+//! Arbitrary and mutated family bytes (protocol/store/records.md, section 1, and protocol/store/README.md, section 9).
 use jig_protocol_store::{accounts_v2, component_v3, notes_v1, people_v14};
 use skein_lib::{Reader, Rng, Writer, length::len_u64};
 use std::{fs, path::Path};

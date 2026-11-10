@@ -1,4 +1,4 @@
-//! GitHub's Bearer credential (forge-github.md, sections 2 and 3).
+//! GitHub's Bearer credential (forge/github.md, sections 2 and 3).
 use crate::credential::Credential;
 use skein_lib::{Secret, Writer};
 /// Renders a vocabulary credential, retaining its redaction.

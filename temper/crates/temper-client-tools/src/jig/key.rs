@@ -1,4 +1,4 @@
-//! Stable names for requests (contract.md, 3.1).
+//! Stable names for requests (jig/docs/design/client/domain/contract/requests.md, 1).
 use alloc::boxed::Box;
 use skein_lib::{RequestKey, sha256::Sha256};
 /// One to 64 lower-case letters, digits or hyphens.

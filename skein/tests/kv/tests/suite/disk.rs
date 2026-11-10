@@ -1,4 +1,4 @@
-//! Retained log follows the live map (skein/docs/design/kv.md, 5, 7 and 9).
+//! Retained log follows the live map (skein/docs/design/data/kv.md, 5, 7 and 9).
 
 use std::collections::BTreeMap;
 

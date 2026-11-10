@@ -1,5 +1,5 @@
 //! Two reference services joined by loopback, with independent parties and durable rows.
-//! Contract: protocol/channel.md, 12, on the real deployment store.
+//! Contract: protocol/channel/README.md, 11, on the real deployment store.
 use crate::{
     fixtures,
     processes::{self, Machine, Proc},
@@ -328,7 +328,7 @@ pub(crate) fn answer_store(
     }
 }
 
-// An ended attempt drops its refusal marks; its refused messages remain in the durable inbox (tasks.md, 8.2).
+// An ended attempt drops its refusal marks; its refused messages remain in the durable inbox (domain/tasks/messages.md, 2).
 fn answer_refusals(
     host: &processes::ServiceHost,
     store: &Store,

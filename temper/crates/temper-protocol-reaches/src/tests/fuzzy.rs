@@ -1,4 +1,4 @@
-//! Seeded judgements keep their rules (temper/docs/design/domain/forge.md, 5.10).
+//! Seeded judgements keep their rules (temper/docs/design/domain/forge/attention.md, 6).
 #![expect(clippy::disallowed_methods, reason = "ordinary random fixtures build and inspect bounded tables")]
 #![expect(clippy::disallowed_types, reason = "ordinary random fixtures collect bounded items and paths")]
 #![expect(clippy::disallowed_macros, reason = "ordinary random fixtures use bounded vectors")]

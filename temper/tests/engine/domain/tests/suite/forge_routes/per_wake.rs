@@ -1,5 +1,5 @@
 //! The reference goal reads its cut and then its questions part without an amendment
-//! (temper/docs/design/protocol/configuration.md, 13.9; jig/docs/design/domain/tasks.md, 3 and 8.6).
+//! (temper/docs/design/protocol/configuration/reference.md; jig/docs/design/domain/tasks/README.md, 3, and jig/docs/design/domain/tasks/messages.md, 6).
 use super::*;
 use jig_domain_core::settings;
 use jig_domain_link::EndpointBound;

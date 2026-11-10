@@ -1,4 +1,4 @@
-//! io's stages of the loop's passes (`skein_io::stage`; io.md, 2), driven by
+//! io's stages of the loop's passes (`skein_io::stage`; runtime/io/README.md, 2), driven by
 //! hand with the kernel's submission queue near full: each entry waits until
 //! what it may submit fits (testing-strategy.md, 6), and what waits stays in
 //! order for the next iteration.

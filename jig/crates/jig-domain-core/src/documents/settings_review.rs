@@ -1,4 +1,4 @@
-//! A pending proposal's values are reviewed against the newest settings (engine.md, 17.6).
+//! A pending proposal's values are reviewed against the newest settings (domain/engine/settings.md, 6).
 use crate::{Core, Limits, settings as s};
 use alloc::boxed::Box;
 use jig_domain_tasks as t;

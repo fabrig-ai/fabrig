@@ -1,11 +1,11 @@
 //! A goal holds its own branch through the root, core and independent forge
-//! (temper/docs/design/domain/forge.md, 2 and 11.1;
-//! jig/docs/design/domain/tasks.md, 6.1–6.3).
+//! (temper/docs/design/domain/forge/README.md, 2, and temper/docs/design/domain/forge/branches.md, 1;
+//! jig/docs/design/domain/tasks/holds.md, 1–3).
 use super::*;
 use jig_domain_link::EndpointBound;
 
 const FORGE_CONNECTOR: u16 = 0;
-const OWN_GOAL_BRANCH: u16 = 1; // forge.md, 2, Symbols.
+const OWN_GOAL_BRANCH: u16 = 1; // temper/docs/design/domain/forge/README.md, 2, Symbols.
 const GOAL_REQUEST: u8 = 92;
 const CHAT_REQUEST: u8 = 93;
 const CHANGE_CALL: u64 = 94;

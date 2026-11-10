@@ -1,4 +1,4 @@
-//! The agent's binary wiring (temper/docs/design/protocol/README.md, 4.3).
+//! The agent's binary wiring (temper/docs/design/protocol/binaries.md, 3).
 #![forbid(unsafe_code)]
 
 mod modes;

@@ -1,5 +1,5 @@
-//! The installation's identifier across crashes (store.md 4.4 item 9;
-//! configuration.md 8): an empty store's first commit keeps the identifier
+//! The installation's identifier across crashes (protocol/store/README.md 4.4 item 9;
+//! configuration.md 7): an empty store's first commit keeps the identifier
 //! the shell drew, and every later start restores it instead of its own draw.
 use jig_store_world::{World, root};
 

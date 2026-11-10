@@ -1,4 +1,4 @@
-//! Looking brings the page to the front (skein/docs/design/browser.md, 6).
+//! Looking brings the page to the front (skein/docs/design/testing/browser.md, 6).
 use crate::world::{Fault, World};
 use skein_browser::boundary::{Event, Expect, Match, Query, Refusal, Request};
 use skein_browser::wire::decode::Document;

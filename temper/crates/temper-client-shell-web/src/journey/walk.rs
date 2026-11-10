@@ -1,11 +1,11 @@
-//! The native decisions for recording a journey again (client/journeys.md, 8.1).
+//! The native decisions for recording a journey again (client/web/journeys.md, 8.1).
 use super::{Line, Unreadable, line::clone_act, replay::read};
 use jig_client_shell_web::adapter::Heard;
 use skein_lib::{Duration, Time};
 use skein_ui::Act;
 use std::collections::BTreeSet;
 
-/// One step of a recorded walk (client/journeys.md, 8.1).
+/// One step of a recorded walk (client/web/journeys.md, 8.1).
 #[derive(Debug, PartialEq, Eq)]
 pub enum Step {
     Act { act: Act, event: Box<[u8]> },
@@ -69,7 +69,7 @@ fn report(line: &Line) -> bool {
 }
 
 /// Whether the later save holds no new reports but dues, no exchange in flight,
-/// and no write awaiting carrying (client/journeys.md, 8.1).
+/// and no write awaiting carrying (client/web/journeys.md, 8.1).
 /// The caller measures the half second between the saves.
 /// # Errors
 /// Refuses an unreadable recording.

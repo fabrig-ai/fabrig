@@ -35,7 +35,7 @@ pub const LOOKED: u8 = 37;
 pub const AWAY: u8 = 38;
 /// Decisions for a person (temper/docs/design/protocol/store.md, 2).
 pub const DECIDED: u8 = 39;
-/// A goal closer (temper/docs/design/domain/forge.md, 11.2).
+/// A goal closer (temper/docs/design/domain/forge/branches.md, 2).
 pub const CLOSER: u8 = 40;
 
 fn write_name(writer: &mut KeyWriter, name: &forge::Name) {

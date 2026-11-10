@@ -260,7 +260,7 @@ mod tests {
     #[test]
     fn written_change_writes_its_skeleton_context_and_module_once() {
         const WRITTEN: &str = "family shelf 2\nrecord Book { id: bool }\nenum State { ready }\n";
-        const SKELETON: &str = r"//! Patch 0001: the command wrote the skeleton; its functions are the author's (codec.md, 11.5).
+        const SKELETON: &str = r"//! Patch 0001: the command wrote the skeleton; its functions are the author's (data/codec/patches.md, 5).
 
 use super::Context;
 use skein_codec::patch::{Build, Halt, Old, Site};
@@ -273,7 +273,7 @@ pub fn book(_old: &Old, _new: &mut Build, _at: Node, _cx: &mut Context) -> Resul
     Err(Halt::NoSite(Site::new(1, 0)))
 }
 ";
-        const CONTEXT: &str = "//! The owner's per-record inputs to written patch functions (codec.md, 11.5): the command wrote it once; it is the owner's.\n\n#[derive(Debug)]\npub struct Context {}\n\n// Default by contract (codec.md, 11.5), and empty: no live state. Written\n// out, since production clippy.toml refuses the derive and clippy reports a\n// derive's disallowed macro at the crate alone, where an expectation would\n// cover every item.\n#[expect(clippy::derivable_impls, reason = \"the derive is refused crate-wide; see above\")]\nimpl Default for Context {\n    fn default() -> Self {\n        Self {}\n    }\n}\n";
+        const CONTEXT: &str = "//! The owner's per-record inputs to written patch functions (data/codec/patches.md, 5): the command wrote it once; it is the owner's.\n\n#[derive(Debug)]\npub struct Context {}\n\n// Default by contract (data/codec/patches.md, 5), and empty: no live state. Written\n// out, since production clippy.toml refuses the derive and clippy reports a\n// derive's disallowed macro at the crate alone, where an expectation would\n// cover every item.\n#[expect(clippy::derivable_impls, reason = \"the derive is refused crate-wide; see above\")]\nimpl Default for Context {\n    fn default() -> Self {\n        Self {}\n    }\n}\n";
         let root =
             crate_files("generated", &[("schema/shelf-v2.schema", WRITTEN), ("schema/kept/shelf-v1.schema", V1)]);
         let base = landed(&[("schema/kept/shelf-v1.schema", V1)]);

@@ -44,7 +44,7 @@ fn work() -> wire::Work {
     wire::Work::new(&codec(), wire::WorkParts { left: Some(Box::from(&b"left"[..])), saved: None }).expect("work")
 }
 
-/// Jobs carry their workspace and application grants (jig/docs/design/protocol/channel.md, 5.4).
+/// Jobs carry their workspace and application grants (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn a_job_is_encoded_with_its_workspace_and_grants() {
     let mut world = World::new(&fixtures::limits(), &fixtures::workers(), 1);
@@ -65,7 +65,7 @@ fn a_job_is_encoded_with_its_workspace_and_grants() {
     assert_eq!(value.secret().expose(), fixtures::TOKEN_TWO);
 }
 
-/// All three job endings reach the fleet, with work as parts (jig/docs/design/protocol/channel.md, 5.4).
+/// All three job endings reach the fleet, with work as parts (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn a_job_answer_reaches_the_fleet_as_link_up() {
     let stale = wire::JobFailure::Undelivered(
@@ -127,7 +127,7 @@ fn a_job_answer_reaches_the_fleet_as_link_up() {
     }
 }
 
-/// The hello's declared kinds keep every bound (jig/docs/design/protocol/channel.md, 5.4).
+/// The hello's declared kinds keep every bound (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn a_hello_carries_its_job_kinds() {
     let mut fields = fixtures::hello_record().into_parts();
@@ -157,7 +157,7 @@ fn a_hello_carries_its_job_kinds() {
     );
 }
 
-/// Bounds and missing parts refuse jobs as assignments do (jig/docs/design/protocol/channel.md, 5.4).
+/// Bounds and missing parts refuse jobs as assignments do (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn a_job_past_its_bounds_or_missing_its_parts_is_dropped() {
     let mut world = World::new(&fixtures::limits(), &fixtures::workers(), 1);
@@ -180,7 +180,7 @@ fn a_job_past_its_bounds_or_missing_its_parts_is_dropped() {
     assert!(world.observed(connection).is_empty());
 }
 
-/// An oversized answer never reaches the fleet (jig/docs/design/protocol/channel.md, 5.4).
+/// An oversized answer never reaches the fleet (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn a_job_answer_past_its_bound_is_refused_as_framing() {
     let mut larger = codec();

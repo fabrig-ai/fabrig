@@ -1,4 +1,4 @@
-//! One HTTP server and its bounded request and response (protocol/client.md, 4).
+//! One HTTP server and its bounded request and response (protocol/client/wire.md, 2).
 use crate::{Limits, Request, dispatch::Route};
 use alloc::boxed::Box;
 use skein_http::server as http;
@@ -19,7 +19,7 @@ pub(crate) struct Call {
     pub body_kind: http::Body,
     pub credential: Option<skein_lib::Secret>,
     pub browser: bool,
-    /// Whether the credential came by the cookie (protocol/client.md, 17.3).
+    /// Whether the credential came by the cookie (protocol/client/default-http.md, 3).
     pub cookie: bool,
     pub via: crate::Via,
     pub body: Intake,

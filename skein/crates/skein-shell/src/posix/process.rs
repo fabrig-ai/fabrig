@@ -1,11 +1,11 @@
-//! Process helpers shared by Linux and Darwin (shell.md, 7.5).
+//! Process helpers shared by Linux and Darwin (runtime/readiness.md, 5).
 //!
 //! # The `unsafe`, and why it is sound
 //!
 //! Signal sets are local initialized C storage, borrowed only for each
 //! synchronous call. No borrowed memory is retained.
 
-#![expect(unsafe_code, reason = "signal calls borrow local storage only until return (shell.md, 7.5)")]
+#![expect(unsafe_code, reason = "signal calls borrow local storage only until return (runtime/readiness.md, 5)")]
 
 use crate::system::process::resources;
 use skein_io::kernel::{Error, Signal, Usage};
@@ -48,7 +48,7 @@ pub(crate) fn map_error(errno: i32) -> Error {
     }
 }
 
-/// Reads the process and its reaped children at one submission (kernel.md, section 6.3).
+/// Reads the process and its reaped children at one submission (runtime/kernel.md, section 6.3).
 pub(crate) fn usage() -> Result<Usage, Error> {
     Ok(Usage { own: resources(libc::RUSAGE_SELF)?, children: resources(libc::RUSAGE_CHILDREN)? })
 }

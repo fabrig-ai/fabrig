@@ -1,4 +1,4 @@
-//! Person reads in temper's words (temper/docs/design/domain/agent.md, 8.4.1).
+//! Person reads in temper's words (temper/docs/design/domain/agent/ask-temper.md, 1).
 
 mod changes;
 mod runs;

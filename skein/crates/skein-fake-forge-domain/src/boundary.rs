@@ -9,7 +9,7 @@
 //!   which consumes its `ReplyTo`: at once when the forge holds as many
 //!   calls as it may (as unavailable), and otherwise when the call's
 //!   latency is past. A copy creates its empty destination at arrival and
-//!   fills it at its alarm (fake-forge.md, 2.6); a timeout leaves it empty.
+//!   fills it at its alarm (testing/fakes/forge.md, 2.6); a timeout leaves it empty.
 //!   Other calls act when they arrive, before a possible timeout.
 //! - A [`Request::Hook`] has no terminal event: the forge sends it and hears
 //!   nothing back, as a real forge's webhook deliveries go. Hooks are best

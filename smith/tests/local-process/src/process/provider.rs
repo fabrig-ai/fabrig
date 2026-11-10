@@ -1,4 +1,4 @@
-//! Smith's own registration against the shared fake issuer (shell.md, 7.1).
+//! Smith's own registration against the shared fake issuer (shell/credentials.md, 1).
 use super::*;
 
 pub(super) fn issuer(port: u16, subject: &[u8], plan: bool, again: bool, revocation: Option<bool>) -> Issuer {

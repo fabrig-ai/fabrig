@@ -87,7 +87,7 @@ fn the_restart_asks_one_load_at_a_time() {
     fixtures::restart(&mut service);
 }
 /// Whether the store has answered the engine. The accounts' answers, as
-/// their handed-in record kept (jig's protocol/store.md, 9), are taken on
+/// their handed-in record kept (jig's protocol/store/secrets.md), are taken on
 /// the next turn.
 fn store_answered(service: &crate::Service) -> bool {
     for event in &service.engine.as_ref().expect("engine").store.host.above {

@@ -1,5 +1,5 @@
 //! The TLS client with independent output on both sides: for a side above
-//! that must write while its read waits (tls.md, 3.6; lib.md, 7.1).
+//! that must write while its read waits (net/tls.md, 3.6; runtime/lib.md, 7.1).
 //!
 //! It shares the classic client's session and buffers. Its four cells each
 //! hold at most one obligation: the read above, the output right above, the
@@ -191,7 +191,7 @@ impl Client {
     pub fn new(config: &Config, name: Name, limits: &Limits, lower: &LowerLimits) -> Option<Client> {
         if cfg!(all(target_arch = "wasm32", target_os = "unknown")) {
             // TLS is not available on the portable target: a world runs in plaintext
-            // (testing.md, 10).
+            // (testing/README.md, 10).
             return None;
         }
         if !valid(limits) {

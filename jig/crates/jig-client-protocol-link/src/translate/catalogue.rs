@@ -1,4 +1,4 @@
-//! Catalogue decoding owns no account selection (contract.md, 5.1 and 7.1).
+//! Catalogue decoding owns no account selection (client/domain/contract/documents.md, 1, and client/domain/contract/README.md, 5.1).
 use super::accounts::{charge, checked_manage_usage, piece_count};
 use super::{Limits, List, Reader, c, piece_problem, too_large, w};
 use skein_lib::length::len_u64;

@@ -1,4 +1,4 @@
-//! The box's lines (temper/docs/design/client/README.md, 6.17).
+//! The box's lines (temper/docs/design/client/tui/box.md).
 use crate::BoxLine;
 use skein_lib::{
     Secret,

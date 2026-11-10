@@ -1,4 +1,4 @@
-//! Completion obligations at the frozen stop boundary (domain/testing.md, 2.4).
+//! Completion obligations at the frozen stop boundary (testing/real-loop.md).
 use crate::service::ServiceHost;
 use crate::world::{Kind, Proc};
 use jig_domain_tasks::{Active, Phase, Was};

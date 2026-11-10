@@ -1,4 +1,4 @@
-//! One native output right and its bounded staged terminal (lib.md, 7.1).
+//! One native output right and its bounded staged terminal (runtime/lib.md, 7.1).
 
 use skein_lib::Token;
 use skein_lib::stream::{OutputOutcome, OutputUp};

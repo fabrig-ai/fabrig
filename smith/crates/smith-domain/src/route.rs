@@ -1,4 +1,4 @@
-//! Routing (skein/docs/foundation/programming-model.md, section 4.5; smith/docs/design/domain/run.md, sections 2, 3, 10 and 13;
+//! Routing (skein/docs/foundation/programming-model.md, section 4.5; smith/docs/design/domain/run.md, sections 2, 3, 9 and 12;
 //! smith/docs/design/domain/session.md, sections 3–6): each of the protocol's events to the child domain it is for,
 //! each child domain's requests to the protocol layer or, translated, to the
 //! other, and the hand-offs the ready list deferred.

@@ -1,4 +1,4 @@
-//! List answers returned by the host's half (smith/docs/design/protocol/hosts.md, 2).
+//! List answers returned by the host's half (smith/docs/design/protocol/host.md, 2).
 //! Keeps only model facts and typed failures; knows no credential or child I/O.
 
 use alloc::boxed::Box;

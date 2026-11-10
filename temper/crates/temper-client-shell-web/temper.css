@@ -531,7 +531,7 @@ section.temper-accounts button:hover { text-decoration: underline; }
 .temper-main:where(:has(> .temper-taskbar)) .temper-entry textarea { font-size: 15.17px; line-height: 24.5px; }
 .temper-main:where(:has(> .temper-taskbar)) .temper-entry button { border-radius: 5.83px / 7px 7px 8.17px 8.17px; background-color: var(--temper-accent); }
 .temper-main:where(:has(> .temper-taskbar)) .temper-entry button:hover { background-color: var(--temper-accent-hover); }
-/* Shared modal frame and reason fields (client/browser.md, 2.5). */
+/* Shared modal frame and reason fields (client/web/look.md). */
 dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: auto; width: min(490px, calc(100% - 37.33px)); max-height: calc(100% - 37.33px); overflow-y: auto; border: 1px solid var(--temper-dialog-line); border-radius: 10.5px; background: var(--temper-paper); color: var(--temper-ink); padding: 23.33px; box-shadow: 0 25.67px 81.67px var(--temper-dialog-shadow); }
 .temper-card textarea { margin-top: 9.33px; }
 .temper-card textarea, dialog textarea { display: block; width: 100%; min-height: 87.5px; border: 1px solid var(--temper-field-line); border-radius: 5.83px; padding: 9.33px; resize: vertical; font: inherit; }
@@ -896,7 +896,7 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 /* .proposal-items: the inbox keeps the mockup's compact labelled fact rows. */
 .temper-page .temper-proposal-facts { grid-template-columns: 74.67px minmax(0, 1fr); padding: 10.5px 14px; border-radius: 3.5px; background: var(--temper-details-ground); }
 
-/* The welcome's bare frame, four steps, choices and wizard foot (client/README.md, 5.6). */
+/* The welcome's bare frame, four steps, choices and wizard foot (client/pages/welcome.md, 2). */
 .temper-welcome { width: min(886.67px, calc(100% - 56px)); margin: 0 auto; padding: 35px 0 81.67px; }
 .temper-welcome h1 { margin: 0 0 11.67px; font: 700 16.33px/1.3 var(--temper-mono); letter-spacing: -.025em; }
 .temper-welcome h1.temper-welcome-intro { margin: 35px 0 9.33px; font-size: clamp(24.5px, 2.63vw, 30.33px); line-height: 1.25; }
@@ -937,7 +937,7 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
   .temper-welcome-foot { gap: 14px; }
 }
 
-/* Shared connection flows (client/README.md, 5.2). */
+/* Shared connection flows (client/view.md, 2). */
 .temper-flow-steps { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 11.67px; margin: 17.5px 0; list-style: none; padding: 0; }
 .temper-flow-step { border-top: 3.5px solid var(--temper-line); padding-top: 10.5px; font-size: 11.67px; color: var(--temper-muted); }
 .temper-flow-step[aria-current] { border-color: var(--temper-ink); color: var(--temper-ink); font-weight: 700; }
@@ -1020,12 +1020,12 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 @media (max-width: 760px) { .temper-flow-choices, .temper-model-choices { grid-template-columns: minmax(0, 1fr); } }
 
 
-/* T2: the Forges page, setup strip and navigation dot (client/forge.md, 5.4). */
+/* T2: the Forges page, setup strip and navigation dot (client/forge/deployment.md). */
 .temper-setup-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 20px; padding: 10px 24px; background: var(--temper-amber-pale); border-bottom: 1px solid var(--temper-line); font-size: 11px; }
 .temper-setup-strip > p { margin: 0; }
 .temper-setup-strip > a { color: var(--temper-accent-dark); font-weight: 700; }
 
-/* The first repository stays visible in a folded forge's summary (client/forge.md, 5.4). */
+/* The first repository stays visible in a folded forge's summary (client/forge/deployment.md). */
 /* Failure reasons repeat the mockup's red; shared account/sign-in rows keep their own styles. */
 :is(.temper-flow-details, .temper-model-key) > [role=alert] { color: var(--temper-red); font-size: 12.83px; margin: 0 0 11.67px; }
 /* Folded paste refusals keep the card's alert priority. */
@@ -1083,13 +1083,13 @@ dialog { position: fixed; inset: 0; z-index: 20; height: fit-content; margin: au
 
 .temper-kind-proposal > a { display: inline-flex; align-items: center; min-height: 35px; vertical-align: top; }
 
-/* Command containers retain the paragraphs' browser layout (client/README.md, 6.5). */
+/* Command containers retain the paragraphs' browser layout (client/line.md, 5). */
 .temper-change > .temper-change { margin: 1em 0; }
 .temper-page .temper-meta > .temper-meta { display: block; }
 
 /* The nested lineage is metadata too; its following wait keeps the old zero margin. */
 .temper-page .temper-meta > p.temper-wait { margin-top: 0; }
-/* The welcome's look (client/README.md, 3.5 and 5.6): IBM Plex, paper and ink, a top bar
+/* The welcome's look (client/pages/README.md and client/pages/welcome.md, 2): IBM Plex, paper and ink, a top bar
    of the brand, temper box's line and the steps, then one column of choices as cards.
    Scoped to the welcome's frame; the other pages keep theirs. */
 @font-face { font-family: 'IBM Plex Sans'; font-style: normal; font-weight: 400; font-display: swap; src: url(files/fonts/ibm-plex-sans-latin-400-normal.woff2) format('woff2'); }
@@ -1618,7 +1618,7 @@ a.temper-repository-link:hover { text-decoration: underline; }
 #app > :is(.temper-session, .temper-agent-page) button.temper-model-all { width: 100%; border: 0; border-top: 1px solid var(--gf-line); border-radius: 0; font-size: 13px; line-height: 1.6; background: transparent; text-align: left; }
 #app > .temper-agent-page .temper-model-menu { position: static; }
 
-/* A flow (client/browser.md, 2.5): diagrams/preview.html's look, and no margin, so its first measure is its width. */
+/* A flow (client/web/look.md): diagrams/preview.html's look, and no margin, so its first measure is its width. */
 :where(#app) figure:not([class]) { margin: 0; }
 [data-drawn] > svg .skein-ui-flow-box { fill: var(--gf-paper); stroke: var(--gf-line-2); }
 [data-drawn] > svg .skein-ui-flow-box.skein-ui-flow-strong { fill: var(--gf-ink); stroke: var(--gf-ink); }
@@ -2449,7 +2449,7 @@ body:has(#app > .temper-terminal) { overflow: hidden; }
   #app:has(> .temper-rail) .temper-goals-line { font-size: 15px; }
 }
 
-/* A goal and its start sheet (client/browser.md, 2.5). */
+/* A goal and its start sheet (client/web/look.md). */
 #app:has(> .temper-rail) .temper-goal { width: 100%; max-width: 1096px; margin: 0 auto; padding: 64px 48px 96px; display: flex; flex-direction: column; gap: 48px; font: 15px/1.6 var(--gf-sans); letter-spacing: normal; }
 #app:has(> .temper-rail) :is(.temper-goal, .temper-sheet) p { margin: 0; }
 #app:has(> .temper-rail) .temper-goal-byline { font-size: 12px; color: var(--gf-faint); }
@@ -2757,12 +2757,12 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 .temper-connect-failed > p { flex: 1 0 100%; margin: 2px 0 0; font-size: 13.5px; color: var(--gf-error); }
 .temper-connect-failed button.temper-connect-quiet { margin-left: 8px; font-size: 13.5px; }
 
-/* Tables in a chat's document (client/README.md, 3.5). */
+/* Tables in a chat's document (client/pages/README.md). */
 #app > .temper-session .temper-doc-inner td > strong,
 #app > .temper-session .temper-doc-inner td > span > strong { font-size: 14.5px; font-weight: 500; letter-spacing: normal; text-transform: none; color: var(--gf-ink); white-space: nowrap; }
 #app > .temper-session .temper-doc-inner td { color: var(--gf-ink-2); }
 
-/* The person's menu opens above the rail's foot (client/README.md, 5.3). */
+/* The person's menu opens above the rail's foot (client/view.md, 3). */
 #app > .temper-rail > .temper-rail-foot > .temper-rail-person { position: relative; }
 #app > .temper-rail > .temper-rail-foot > .temper-rail-person > [aria-haspopup] { width: 100%; padding: 6px 10px; border: 0; border-radius: 6px; background: none; color: var(--gf-muted); font: inherit; text-align: left; }
 #app > .temper-rail > .temper-rail-foot > .temper-rail-person > [aria-haspopup]:is(:hover, [aria-expanded=true]) { background: var(--gf-rail-hover); color: var(--gf-ink); }
@@ -2793,7 +2793,7 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 .temper-settings-proposal-state { margin: 0; font-size: 13.5px; color: var(--gf-faint); }
 .temper-settings-proposal-state.temper-settings-proposal-ok { color: var(--gf-good); }
 
-/* Flow paths use Configure's crumbs (client/README.md, 3.5, The flows' paths). */
+/* Flow paths use Configure's crumbs (client/pages/README.md, The flows' paths). */
 .temper-main .temper-settings-path { min-width: 0; font: 400 14px/1.6 var(--gf-sans); }
 .temper-settings-path .temper-crumbs { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 14px; color: var(--gf-muted); }
 .temper-settings-path .temper-crumbs > .temper-back { display: none; }
@@ -2884,7 +2884,7 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 .temper-settings-tabs .temper-nav-needs { background: var(--temper-red); }
 .temper-settings-tabs .temper-nav-limited { background: var(--temper-amber); }
 
-/* Folded forge and account rows (client/README.md, 3.5, The rows). */
+/* Folded forge and account rows (client/pages/README.md, The rows). */
 .temper-settings .temper-refusal { color: var(--gf-signal); font-size: 13.5px; overflow-wrap: anywhere; }
 .temper-settings-lines > details.temper-settings-row { padding: 14px 4px; border-bottom: 1px solid var(--gf-line); }
 .temper-settings-row { min-width: 0; overflow-wrap: anywhere; }
@@ -3040,7 +3040,7 @@ html:root[data-night] #app > .temper-settings .temper-ways-acts > .temper-ways-u
 }
 
 /* ==== ui: how ==== */
-/* How work runs (temper/docs/design/client/browser.md, 2.5). */
+/* How work runs (temper/docs/design/client/web/look.md). */
 #app > .temper-settings .temper-settings-col.temper-how-wide { width: 100%; min-width: 0; max-width: 1020px; }
 #app > .temper-settings .temper-how-wide .temper-settings-body > .temper-settings-section { gap: 14px; }
 #app > .temper-settings .temper-how-wide .temper-settings-section-head { flex-wrap: wrap; gap: 4px 12px; padding-bottom: 8px; border-bottom: 1px solid var(--gf-line); }

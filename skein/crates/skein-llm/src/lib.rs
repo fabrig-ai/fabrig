@@ -2,7 +2,7 @@
 //!
 //! Supports `OpenAI`'s public Responses route and Anthropic Messages.
 //! Socket/TLS ownership, OAuth sign-in and renewal, deadlines and retry
-//! policy belong to the caller. See `docs/design/llm.md` for the contract.
+//! policy belong to the caller. See `docs/design/llm/README.md` for the contract.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 
@@ -36,6 +36,6 @@ pub use types::{
 };
 /// Bounded document admission errors, independent of the configured wire dialect.
 /// Callers use `document_error` to retain limit versus invalid-input refusal.
-/// See `docs/design/llm.md`, Vocabulary and ownership.
+/// See `docs/design/llm/README.md`, Vocabulary and ownership.
 pub use wire::DecodeError as DocumentError;
 pub use wire::Json;

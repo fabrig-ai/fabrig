@@ -1,4 +1,4 @@
-//! The worker binary's table and dispatch (temper/docs/design/protocol/README.md, 4.5).
+//! The worker binary's table and dispatch (temper/docs/design/protocol/binaries.md, 5).
 use std::process::{Command, Stdio};
 
 const ENGINE: &str = r#"{"engine":{"hosts":{"listener":[{"socket":"127.0.0.1:0"}]}}}"#;

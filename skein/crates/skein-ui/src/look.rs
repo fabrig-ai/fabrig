@@ -1,4 +1,4 @@
-//! The look's names, borrowed from the application (ui.md, section 8).
+//! The look's names, borrowed from the application (ui/README.md, section 8).
 
 use crate::{Owner, Region, Style};
 

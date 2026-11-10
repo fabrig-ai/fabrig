@@ -102,7 +102,7 @@ fn a_chat_the_agent_closes_ends() {
 // The fixture forge has repository acme/shop as 7 on forge 1.
 const FORGE: u16 = 1;
 const REPOSITORY: u32 = 7;
-// A successful adoption is one admitted application, per protocol/forge.md.
+// A successful adoption is one admitted application, per protocol/forge/README.md.
 const ADOPTIONS: usize = 1;
 #[test]
 fn a_repository_the_agent_adopts_is_held_by_the_engine() {
@@ -302,7 +302,7 @@ fn chat_with_a_turn_in_flight() -> (World<Temper, Joint>, u64) {
     (world, task)
 }
 
-// temper/docs/design/client/tools.md, 4; client/README.md, 3.5–3.6.
+// temper/docs/design/client/ctl/README.md, 4; client/pages/README.md and client/README.md, 3.6.
 #[test]
 fn closing_during_a_turn_keeps_the_cancelled_conversation_readable() {
     use jig_domain_tasks as tasks;

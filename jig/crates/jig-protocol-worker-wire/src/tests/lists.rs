@@ -1,4 +1,4 @@
-//! Account list boundaries (jig/docs/design/protocol/channel.md, 5.1).
+//! Account list boundaries (jig/docs/design/protocol/channel/records.md, 1).
 use super::fixtures::repeated;
 use crate::{self as wire, v9};
 use skein_lib::{Reader, Writer};

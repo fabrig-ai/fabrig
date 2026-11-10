@@ -13,7 +13,7 @@ use temper_client_domain::{
     pages::{goals::State, report::Report},
 };
 
-// The mock's row has six landed tasks out of nine (client/README.md, 3.5).
+// The mock's row has six landed tasks out of nine (client/pages/README.md).
 const DONE: u32 = 6;
 const TOTAL: u32 = 9;
 const EMPTY: u32 = 0;

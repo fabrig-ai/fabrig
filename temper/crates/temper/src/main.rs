@@ -1,4 +1,4 @@
-//! Temper's standalone commands (protocol/README.md, section 4).
+//! Temper's standalone commands (protocol/binaries.md).
 use std::os::unix::ffi::OsStrExt;
 use std::{env, process::ExitCode};
 

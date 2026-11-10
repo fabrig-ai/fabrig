@@ -84,7 +84,7 @@ patch and drift tests check the generated `encoded_bound` and
 - **On skein's world harness** (skein's `examples.md`, section 6): each
   process's `iterate` over the simulator, one loop, the referee beside
   them. A spawn of the agent service starts it in the same world, joined
-  to its host by simulated pipes (skein's `simulator.md`, section 3).
+  to its host by simulated pipes (skein's `testing/simulator.md`, section 3).
 - **The machine sits behind the simulator** (3.2). The fake peers listen
   on the simulated network, in plaintext.
 - **Calm and faulted.** Every world runs its focused scenarios calm, and
@@ -92,15 +92,15 @@ patch and drift tests check the generated `encoded_bound` and
   asserting that each fault fell (testing-strategy.md, section 3).
 - **One shared agent adapter.** Wherever a world spawns an agent, the
   harness hosts `smith-agent-shell::Agent`, the adapter `smith-agent`
-  runs (shell.md, section 2.2). No world keeps a copy of it.
+  runs (shell/README.md, section 2.2). No world keeps a copy of it.
 - **The worlds:**
   - the machine component (protocol/agent.md, section 8);
   - the agent service with a scripted host on its channel and a fake
     provider (protocol/agent.md, section 8);
   - a sample host spawning the agent service: the routing another host
-    copies (protocol/hosts.md, section 7);
+    copies (protocol/host.md, section 7);
   - the local host with a scripted terminal, a browser, the fake issuer,
-    the fake provider and its checkout (protocol/hosts.md, section 7), in
+    the fake provider and its checkout (protocol/host.md, section 7), in
     both placements (2.6); and, for a run on a program, the agent it
     spawns with the fake program as its child.
 
@@ -117,7 +117,7 @@ patch and drift tests check the generated `encoded_bound` and
     listener;
   - the fake provider and the fake issuer, serving TLS on loopback with
     skein's test certificates, the issuer reached through a `sign_in`
-    account's moved addresses (shell.md, 7.1).
+    account's moved addresses (shell/credentials.md, 1).
 - **Outside the loop:** git, rg, sh, the checks and the fake program, as
   children in a scratch directory. The directory holds:
   - the settings;
@@ -140,7 +140,7 @@ patch and drift tests check the generated `encoded_bound` and
 ### 2.3 End to end
 
 - **smith as it ships** (testing-strategy.md, section 2.9): the root
-  package's binaries (shell.md, section 3), each a process with its own
+  package's binaries (shell/README.md, section 3), each a process with its own
   loop, started by the test by its program:
   - `smith`, the product in one process: interactive, `exec`, `check`,
     `login` and `logout`, and the agent it spawns for a run on a
@@ -177,7 +177,7 @@ patch and drift tests check the generated `encoded_bound` and
   - `smith` on a terminal: a first run that signs in and ends with a
     commit in place; a second invocation that resumes the chat from its
     files; an interrupt that cancels the run. The interrupt reaches the
-    process alone (skein's `io.md`, section 6);
+    process alone (skein's `runtime/io/processes.md`);
   - `smith login` and `smith logout` against the fake issuer and the
     browser: a first sign-in that registers, and one again; and on a
     `program` account, against the fake program;
@@ -188,7 +188,7 @@ patch and drift tests check the generated `encoded_bound` and
 - **Live,** the real backends replace the fakes:
   - the providers' endpoints, over TLS with the machine's roots: OpenAI's
     public Responses route and Anthropic's Messages;
-  - OpenAI's issuer, with smith's own registration (shell.md, 6.2);
+  - OpenAI's issuer, with smith's own registration (shell/settings.md, 2.2);
   - Claude Code, as its publisher ships it;
   - a git remote, for a configured push, when one is named.
 
@@ -200,7 +200,7 @@ patch and drift tests check the generated `encoded_bound` and
     developer signs in once per machine, which `$SMITH_LIVE` names. It is
     the suite's credentials directory and holds the suite's user layer
     of settings; its records are refreshed in place, under their locks
-    (shell.md, 7.3), and each test keeps its chats in its own scratch
+    (shell/credentials.md, 3), and each test keeps its chats in its own scratch
     directory:
 
     ```
@@ -262,9 +262,9 @@ patch and drift tests check the generated `encoded_bound` and
     refuses to write into a person's own tool directories, such as
     `~/.codex` and `~/.claude`, to copy a refresh token, or to copy a
     login, for the live tests and the benchmarks alike. Which crate holds
-    it is benchmarks.md, section 15's.
+    it is benchmarks/README.md, section 14's.
   - **The small tier by default.** The live tests run on each provider's
-    small-tier model unless the caller names another (benchmarks.md,
+    small-tier model unless the caller names another (benchmarks/README.md,
     section 7).
   - **Stories,** through `smith exec --json`:
     - a run ends with a commit in place (`--deliver`), on ChatGPT:
@@ -283,10 +283,10 @@ patch and drift tests check the generated `encoded_bound` and
       again, each run completing (domain/session.md, 8.2);
     - a run refreshes its grant when the issuer allows: the story
       raises the refresh lead, a policy value a test may set, to 400
-      days in the settings' seconds (shell.md, 6.5), past any access
+      days in the settings' seconds (shell/settings.md, 2.5), past any access
       token's life, so that only the issuer's earliest refresh time
       holds a refresh back: none is asked before it, whatever the lead
-      (skein's `oauth.md`, sections 2 and 6.3). OpenAI's issuer sets
+      (skein's `oauth/README.md`, section 2, and `oauth/accounts.md`, section 3). OpenAI's issuer sets
       one on every token it issues, a few minutes before the token
       expires. The story reads the record's refresh facts before its
       run, and checks the rule as the record stands:
@@ -375,7 +375,7 @@ patch and drift tests check the generated `encoded_bound` and
 - **Not a test tier.** Benchmarks run real agents (smith, Codex and
   Claude Code) on real models, and measure what a change does in the
   world: that a fix works, and keeps working. They are designed in
-  benchmarks.md.
+  benchmarks/README.md.
 - **Outside both suites and the gate.** Their offline part (the
   harness's parsers, task manifests and seeds) is ordinary tests in the
   focused suite.
@@ -412,7 +412,7 @@ process story proves operator words and exit 1.
   the derivation either refuses, naming the relationship, or yields
   limits that keep every relationship of protocol/limits.md; and the
   `standard` profile derives and passes its edge compatibility checks.
-  No test asserts a shipped value; shell.md, section 6 holds them.
+  No test asserts a shipped value; shell/settings.md, section 2 holds them.
 - **Profile tests live with the profile,** in the service crates.
 - **End to end is for paths through `main`** (2.3). Behaviour is shown in
   the domain worlds first. A test whose whole assertion has no lower
@@ -479,8 +479,8 @@ Every component's files and processes go through it:
   As a service on io, it listens on loopback for the simulated worlds and
   the real loop. Its recorded exchanges are skein's.
 - **The OAuth issuer:** skein's fake issuer, with the same three faces
-  (skein's `oauth.md`, section 5), reached through a `sign_in` account's
-  moved addresses (shell.md, 7.1), so that smith's own registration is
+  (skein's `oauth/README.md`, section 5), reached through a `sign_in` account's
+  moved addresses (shell/credentials.md, 1), so that smith's own registration is
   what the worlds exercise: the entry client, the issued client id, the
   scopes and the ID token.
 - **The program:** smith's own fake `claude` (protocol/programs.md,
@@ -605,7 +605,7 @@ Every world checks what the strategy lists (testing-strategy.md, section
   its host sends it no signal.
 - **Shipped times.** Keep and idle times, and every other time that
   decides how something ends, are the shipped values in every world,
-  never ones chosen for tests (shell.md, section 6). No world shortens
+  never ones chosen for tests (shell/settings.md, section 2). No world shortens
   the LLM connections' idle keep, or any other, so that it ends sooner:
   a world ends because its services close what they own after their
   last word, as the product does. Tiny limits are for counts and bytes.
@@ -615,7 +615,7 @@ Every world checks what the strategy lists (testing-strategy.md, section
   - nothing is left running: the agent finished, and every child was
     reaped, each job's process group included.
 - **Containment, with contained trees** (protocol/agent.md, sections
-  2 and 3; protocol/hosts.md, section 3), in the real loop:
+  2 and 3; protocol/host.md, section 3), in the real loop:
   - **writes stay in the view:** commands that try to write outside the
     writable directories, a git directory included, fail, and the
     scratch directory shows no such write;
@@ -642,7 +642,7 @@ The strategy's two suites (testing-strategy.md, section 8) make the gate:
   harness's offline tests;
 - **fuzzy tests:** each world's `tests/suite/fuzzy/`, sweeps over seeds
   under faults; the run's world also draws message timings, budgets and
-  shares (domain/run.md, section 13), the session's world its usage,
+  shares (domain/run.md, section 12), the session's world its usage,
   appended sizes, rendered sizes and their bytes-to-token ratios
   (domain/session.md, section 10), and the tools' world
   its jobs' polls, stops and ends among edits (domain/tools.md, section
@@ -697,7 +697,7 @@ benchmarks/                      smith-bench, the benchmark harness (benchmarks.
 ```
 
 - **The end-to-end and live tests are the package's `[[test]]`
-  targets** (shell.md, section 3.1). Cargo gives a package's own tests
+  targets** (shell/README.md, section 3.1). Cargo gives a package's own tests
   the paths of its binaries, and `tests/end-to-end/` holds no manifest,
   so it is not a package of its own. The real-program probes in
   `smith-agent-process-world::live` also belong to `live-smith`.
@@ -708,7 +708,7 @@ benchmarks/                      smith-bench, the benchmark harness (benchmarks.
 ## 8. Open questions
 
 - **The real loop in CI:** a kernel that allows `io_uring`, with git, rg and
-  sh installed (skein's `shell.md`, section 10).
+  sh installed (skein's `runtime/shell.md`, section 9).
 - **Containment in CI:** cgroup v2 delegation and user namespaces in the
   CI's containers.
 - **The sample host in the real loop:** whether a second host earns a

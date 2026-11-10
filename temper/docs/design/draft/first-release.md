@@ -65,7 +65,7 @@ file `../release.md`'s. Nothing here is adopted.
 
 - **Our own Forgejo, a systemd service,** owned or managed from temper's
   point of view. As designed, an owned Forgejo is one temper fetches and
-  starts itself (`../protocol/setup.md`); a Forgejo that systemd runs and
+  starts itself (`../protocol/setup/README.md`); a Forgejo that systemd runs and
   temper administers may be closer to managed. Which one it is is open
   (section 12).
 - **GitHub is a push mirror.** Its issues and pull requests are off, or
@@ -73,7 +73,7 @@ file `../release.md`'s. Nothing here is adopted.
 - **It is where code is read.** Casual visitors browse commits, diffs and
   pull requests there; dev.fabrig.ai links to them and shows no code.
 - **Its owned Forgejo's upgrades** already have a path: a dump before the
-  migration, pins that refuse a downgrade (`../protocol/setup.md`). Its
+  migration, pins that refuse a downgrade (`../protocol/setup/README.md`). Its
   backups cover the whole forge directory.
 - **Public issues are untrusted text.** Once they can reach agents, an
   agent acts on an issue only after a maintainer has accepted it.
@@ -102,11 +102,11 @@ file `../release.md`'s. Nothing here is adopted.
 The user's three asks: an anonymous person or role; a cap on the load
 anonymous requests put on temper; and nothing shown that an agent wrote,
 so that what may appear is predictable. jig has an observer role, "read
-and watch" (jig's `domain/people.md`, section 4), and leaves who may see
+and watch" (jig's `domain/people/README.md`, section 4), and leaves who may see
 what, and guests, open (section 12 there). Today every client signs in,
-holds a stream and its watches (jig's `protocol/client.md`, section 17),
+holds a stream and its watches (jig's `protocol/client/default-http.md`),
 and counts against the deployment's room for sign-ins (jig's
-`domain/people.md`), so one sign-in per visitor is the wrong shape. The
+`domain/people/README.md`), so one sign-in per visitor is the wrong shape. The
 direction:
 
 - **One anonymous party,** fixed in code, for every visitor. Its role
@@ -146,7 +146,7 @@ direction:
   public has projections. Whether people's names appear is open.
 - **jig holds the generic part:** the anonymous party, its admission and
   bounds, the public routes and per-project visibility, which answer
-  `domain/people.md`'s open questions. temper holds its projections (its
+  `jig/docs/design/domain/people/README.md`'s open questions. temper holds its projections (its
   forge's documents, its landings) and its pages' anonymous mode.
 - **The fallback is a mirror:** a separate process holding one observer
   credential and serving cached pages, if a security review finds the
@@ -181,4 +181,4 @@ throughout.
   Default: the store alone.
 - **People's names on public pages.** Default: hidden.
 - **When the upgrade policy starts.** At the first release, the baseline
-  (skein's `codec.md`, section 5), proposed as v0.1.0; its date is open.
+  (skein's `data/codec/README.md`, section 5), proposed as v0.1.0; its date is open.

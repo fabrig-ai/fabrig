@@ -1,4 +1,4 @@
-//! The engine's start for serve (temper/docs/design/protocol/README.md, 4.1, 4.2 and 5).
+//! The engine's start for serve (temper/docs/design/protocol/binaries.md, 1 and 2 and temper/docs/design/protocol/components.md).
 use crate::{address, path, prefixed, setup};
 use jig_protocol_config::{self as config, read};
 use skein_io::kernel::{Exit, Fd};
@@ -37,7 +37,7 @@ pub struct WorkerStart {
     pub runtime: service::WorkerRuntime,
     pub program_login: Option<Box<[u8]>>,
 }
-/// Words needed by program-login on this deployment (temper/docs/design/client/README.md, 4.6).
+/// Words needed by program-login on this deployment (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn program_environment(
     directories: &Directories,
@@ -45,7 +45,7 @@ pub fn program_environment(
     working: &[u8],
     word: &[u8],
 ) -> Box<[u8]> {
-    // temper/docs/design/client/README.md, 4.6: the answer's byte bound.
+    // temper/docs/design/client/forge/records.md: the answer's byte bound.
     const BOUND: usize = 49_216;
     let defaults: Vec<_> = environment
         .iter()
@@ -105,7 +105,7 @@ fn accounts(engine: &config::Engine) -> Result<service::AccountsRuntime, String>
     accounts_runtime::resolve(engine, |host, port| (host, port).to_socket_addrs().ok()?.next())
 }
 
-/// Resolve the machine's GitHub host once at start (temper/docs/design/protocol/configuration.md, 3).
+/// Resolve the machine's GitHub host once at start (temper/docs/design/protocol/configuration/engine.md).
 fn github_runtime(
     binary: &str,
     machine: Option<&temper_forge_setup::machine::GitHubMachine>,
@@ -245,7 +245,7 @@ fn prepare_with_limits(
     let mut deployment = [0_u8; 16];
     deployment.copy_from_slice(drawn.expose().get(..16).expect("32-byte seed"));
     // Drawn at every start; the service keeps it at the first and restores
-    // the kept one at every later start (jig's configuration.md 8).
+    // the kept one at every later start (jig's configuration.md 7).
     let drawn = skein_shell::crypto_seed().map_err(|errno| format!("installation id: errno {errno}"))?;
     let mut installation = [0_u8; 16];
     installation.copy_from_slice(drawn.expose().get(..16).expect("32-byte seed"));

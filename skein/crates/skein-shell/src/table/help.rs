@@ -1,4 +1,4 @@
-//! A table's help, command pages and version line (shell.md, 15.2).
+//! A table's help, command pages and version line (runtime/shell.md, 14.2).
 
 use super::{Command, HOME, Reach, Set, Table, Variable, Way};
 use crate::{Fallback, Setting};
@@ -50,7 +50,7 @@ fn words(out: &mut String, text: &str, indent: usize) {
 }
 
 impl Table {
-    /// The page `-h`, `--help` and `help` print (shell.md, 15.2).
+    /// The page `-h`, `--help` and `help` print (runtime/shell.md, 14.2).
     #[must_use]
     pub fn help(&self) -> String {
         let mut out = String::new();

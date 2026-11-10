@@ -1,4 +1,4 @@
-//! Linux's calls and ring adapter (shell.md, 7.5).
+//! Linux's calls and ring adapter (runtime/readiness.md, 5).
 //!
 //! # The `unsafe`, and why it is sound
 //!
@@ -19,7 +19,7 @@
 //!   writes one initialized local signalfd record, with its exact size passed.
 //! - Epoll's event pointers and ownership are documented in `epoll`.
 
-#![expect(unsafe_code, reason = "Linux calls borrow buffers only until they return (shell.md, 7.5)")]
+#![expect(unsafe_code, reason = "Linux calls borrow buffers only until they return (runtime/readiness.md, 5)")]
 
 pub(crate) mod epoll;
 pub(crate) mod files;
@@ -49,7 +49,7 @@ pub(crate) use sync::{
 pub(crate) use sync::{close as close_unchecked, local_addr as getsockname, set_option as setsockopt};
 pub use sync::{directory_access, open_append, open_root, prepare_output, process_id};
 
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn socket(family: Family) -> Result<Fd, i32> {
     // SAFETY: socket takes integer arguments and returns a new descriptor.
     let fd = unsafe {
@@ -58,7 +58,7 @@ pub(crate) fn socket(family: Family) -> Result<Fd, i32> {
     if fd < 0 { Err(last_errno()) } else { Ok(Fd::new(fd)) }
 }
 
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn bind(fd: Fd, addr: &Addr) -> Result<(), i32> {
     let mut storage = zeroed_storage();
     let len = encode(addr, &mut storage);
@@ -66,14 +66,14 @@ pub(crate) fn bind(fd: Fd, addr: &Addr) -> Result<(), i32> {
     status(unsafe { libc::bind(fd.raw(), ptr::from_ref(&storage).cast(), len) })
 }
 
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn listen(fd: Fd, backlog: u32) -> Result<(), i32> {
     let backlog = i32::try_from(backlog).unwrap_or(i32::MAX);
     // SAFETY: listen takes only integers.
     status(unsafe { libc::listen(fd.raw(), backlog) })
 }
 
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn accept(fd: Fd) -> Result<(Fd, Addr), i32> {
     let mut storage = zeroed_storage();
     let mut len = socklen_of::<libc::sockaddr_storage>();
@@ -93,7 +93,7 @@ pub(crate) fn accept(fd: Fd) -> Result<(Fd, Addr), i32> {
     Ok((Fd::new(accepted), peer))
 }
 
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn connect(fd: Fd, addr: &Addr) -> Result<(), i32> {
     let mut storage = zeroed_storage();
     let len = encode(addr, &mut storage);

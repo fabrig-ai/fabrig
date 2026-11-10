@@ -1,5 +1,5 @@
 //! Exact configured connector-kind inclusion rows (domain/authority.md, 4–5;
-//! client/domain/contract.md, 3.2). Equality is implicit. The receiving owner
+//! client/domain/contract/requests.md, 2). Equality is implicit. The receiving owner
 //! admits the complete list, preserving its order and duplicates, or refuses it.
 
 /// A grant of `kind` includes `implies` on this connector only.

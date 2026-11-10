@@ -86,7 +86,7 @@ fn the_current_call_is_the_runs_supplied_snapshot() {
 }
 #[test]
 fn touched_text_is_bounded_on_a_character_boundary() {
-    // The line admits 256 bytes of argument text (client/README.md, 3.5).
+    // The line admits 256 bytes of argument text (client/pages/README.md).
     const LIMIT: usize = 256;
     let prefix = [b'a'; LIMIT];
     for (ascii, expected, tail) in [(254_usize, 256_usize, "é".as_bytes()), (255, 255, b"a".as_slice())] {

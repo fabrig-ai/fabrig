@@ -1,4 +1,4 @@
-//! LLM account requests (client/domain/client.md, 6; domain/accounts.md, 5).
+//! LLM account requests (client/domain/client/requests.md; domain/accounts.md, 5).
 use crate::{
     Ask, Event, Key,
     contract::{AccountChange, AskAccountHolder},
@@ -65,7 +65,7 @@ pub fn check_program(key: Key, request: RequestKey, holder: AskAccountHolder, so
     account_change(key, request, holder, AccountChange::CheckProgram { source })
 }
 
-/// Move an account out once, returning its record (client/domain/client.md, 6).
+/// Move an account out once, returning its record (client/domain/client/requests.md).
 #[must_use]
 pub fn move_out(key: Key, name: RequestKey, holder: AskAccountHolder, account: u32) -> Event {
     Event::Carry {
@@ -78,12 +78,12 @@ pub fn move_out(key: Key, name: RequestKey, holder: AskAccountHolder, account: u
         value: None,
     }
 }
-/// Confirm a moved record was written (client/domain/client.md, 6).
+/// Confirm a moved record was written (client/domain/client/requests.md).
 #[must_use]
 pub fn written(key: Key, name: RequestKey, holder: AskAccountHolder, number: u32) -> Event {
     account_change(key, name, holder, AccountChange::Written { number })
 }
-/// Move a file's account in, carrying its bytes once (client/domain/client.md, 6).
+/// Move a file's account in, carrying its bytes once (client/domain/client/requests.md).
 #[must_use]
 pub fn move_in(key: Key, name: RequestKey, holder: AskAccountHolder, file: Secret) -> Event {
     let digest = skein_lib::sha256::digest(file.expose());

@@ -1,4 +1,4 @@
-//! The platform half; transport and same-origin fetch are skein's (protocol/browser.md, 5.1).
+//! The platform half; transport and same-origin fetch are skein's (../../../jig/docs/design/protocol/browser/README.md, 5.1).
 use crate::{
     look::Phrases,
     sign_in::{self, Route},

@@ -59,7 +59,7 @@ fn start_reads_the_key(request: w::Request, expected: temper_engine_domain_forge
     assert_ne!(carried.number, 0);
     assert_eq!(carried.digest, skein_lib::sha256::digest(b"test-key\n"));
     // The playground adds its key through accounts, whose store adoption
-    // accepts a carried Key alone (jig's protocol/store.md, 9).
+    // accepts a carried Key alone (jig's protocol/store/secrets.md).
     let _later = store.secrets(
         Token::new(PLAYGROUND_SOURCE),
         jig_protocol_store::Secrets::Adopt {

@@ -1,4 +1,4 @@
-//! Persistent directory declarations (hearth/docs/design/protocol/format.md, 5.7).
+//! Persistent directory declarations (hearth/docs/design/protocol/format/tasks.md, 7).
 use super::secrets::{fault, formed, mode, required, text};
 use crate::{
     entries::Located,

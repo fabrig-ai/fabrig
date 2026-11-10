@@ -1,4 +1,4 @@
-//! The playground's start answer (temper/docs/design/client/tools.md, 5.5).
+//! The playground's start answer (temper/docs/design/client/ctl/areas.md).
 use crate::{
     jig::{
         self,

@@ -1,4 +1,4 @@
-//! Checked wire and heap worst cases (codec.md, section 4).
+//! Checked wire and heap worst cases (data/codec/README.md, section 4).
 
 #[cfg(test)]
 mod tests {

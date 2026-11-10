@@ -1,5 +1,5 @@
 //! Keyed configuration-fit failures retained during restoration
-//! (jig/docs/design/domain/engine.md, 6).
+//! (jig/docs/design/domain/engine/restart.md).
 use crate::{Key, ModelEffort};
 
 /// The first live stored row that this configuration cannot retain.

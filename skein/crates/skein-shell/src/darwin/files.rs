@@ -1,4 +1,4 @@
-//! Darwin files and startup reads (shell.md, 7.5; kernel.md, 6.1).
+//! Darwin files and startup reads (runtime/readiness.md, 5; runtime/kernel.md, 6.1).
 //!
 //! # The `unsafe`, and why it is sound
 //!
@@ -31,7 +31,7 @@ fn path_name(path: &Path) -> Result<CString, i32> {
 fn escape(errno: i32) -> i32 {
     if errno == libc::ENOTCAPABLE { libc::EXDEV } else { errno }
 }
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn open(root: Fd, path: &[u8], how: OpenHow) -> Result<i32, i32> {
     let (flags, mode) = match how {
         OpenHow::PathNoFollow => (libc::O_SYMLINK | libc::O_EVTONLY | libc::O_NOFOLLOW_ANY, 0),
@@ -56,7 +56,7 @@ pub(crate) fn open(root: Fd, path: &[u8], how: OpenHow) -> Result<i32, i32> {
 pub(super) fn open_flags(root: Fd, path: &[u8], flags: i32, mode: u32) -> Result<i32, i32> {
     retry(|| open_once(root, path, flags, mode))
 }
-/// One `openat` beneath `root`: an `EINTR` is returned, not retried (shell.md, 7.4).
+/// One `openat` beneath `root`: an `EINTR` is returned, not retried (runtime/readiness.md, 4).
 fn open_once(root: Fd, path: &[u8], flags: i32, mode: u32) -> Result<i32, i32> {
     let path = c_path(path)?;
     let mode = libc::mode_t::try_from(mode).map_err(|_| libc::EINVAL)?;
@@ -78,13 +78,13 @@ pub(crate) fn write(fd: Fd, bytes: &[u8], at: u64) -> Result<u32, i32> {
         count(unsafe { libc::pwrite(fd.raw(), bytes.as_ptr().cast(), bytes.len(), at) })
     })
 }
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn truncate(fd: Fd, length: u64) -> Result<(), i32> {
     let length = libc::off_t::try_from(length).expect("io validates lengths");
     // SAFETY: ftruncate takes only a descriptor and integer length.
     status(unsafe { libc::ftruncate(fd.raw(), length) })
 }
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn sync(fd: Fd) -> Result<(), i32> {
     // SAFETY: F_FULLFSYNC takes only the live descriptor and integer command.
     status(unsafe { libc::fcntl(fd.raw(), libc::F_FULLFSYNC) })
@@ -92,7 +92,7 @@ pub(crate) fn sync(fd: Fd) -> Result<(), i32> {
 fn raw_stat(fd: i32) -> Result<libc::stat, i32> {
     retry(|| stat_once(fd))
 }
-/// One `fstat`: an `EINTR` is returned, not retried (shell.md, 7.4).
+/// One `fstat`: an `EINTR` is returned, not retried (runtime/readiness.md, 4).
 fn stat_once(fd: i32) -> Result<libc::stat, i32> {
     // SAFETY: stat contains only integers and timespecs, valid when zeroed.
     let mut raw: libc::stat = unsafe { mem::zeroed() };
@@ -101,7 +101,7 @@ fn stat_once(fd: i32) -> Result<libc::stat, i32> {
     Ok(raw)
 }
 
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn stat(fd: Fd) -> Result<Stat, i32> {
     let raw = stat_once(fd.raw())?;
     Ok(Stat {
@@ -130,7 +130,7 @@ pub(crate) fn opened(raw: i32) -> Result<Done, Error> {
         }
     }
 }
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn rename(from_dir: Fd, from: &[u8], to_dir: Fd, to: &[u8], no_replace: bool) -> Result<(), i32> {
     let from = c_path(from)?;
     let to = c_path(to)?;
@@ -144,7 +144,7 @@ pub(crate) fn rename(from_dir: Fd, from: &[u8], to_dir: Fd, to: &[u8], no_replac
         status(unsafe { libc::renameat(from_dir.raw(), from.as_ptr(), to_dir.raw(), to.as_ptr()) })
     }
 }
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn remove(dir: Fd, name: &[u8], directory: bool) -> Result<(), i32> {
     let name = c_path(name)?;
     // SAFETY: name is terminated and lives across unlinkat.
@@ -168,14 +168,14 @@ pub(crate) fn remove(dir: Fd, name: &[u8], directory: bool) -> Result<(), i32> {
     }
     result
 }
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn mkdir(dir: Fd, name: &[u8], mode: u32) -> Result<(), i32> {
     let name = c_path(name)?;
     let mode = libc::mode_t::try_from(mode).map_err(|_| libc::EINVAL)?;
     // SAFETY: name remains live and terminated throughout mkdirat.
     status(unsafe { libc::mkdirat(dir.raw(), name.as_ptr(), mode) })
 }
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn lock(fd: Fd) -> Result<(), i32> {
     // SAFETY: flock takes integers and LOCK_NB prevents waiting.
     status(unsafe { libc::flock(fd.raw(), libc::LOCK_EX | libc::LOCK_NB) })
@@ -324,7 +324,7 @@ pub(crate) fn read_file(path: &Path, max: u32) -> Result<Box<[u8]>, Unread> {
 }
 
 /// Makes absent directories along `path` durable, then opens it as a root
-/// (shell.md, 6). Existing directories keep their modes; errors are errno.
+/// (runtime/shell.md, 6). Existing directories keep their modes; errors are errno.
 pub fn make_root(path: &Path, mode: u32) -> Result<Fd, i32> {
     if mode & !PERMISSIONS != 0 {
         return Err(libc::EINVAL);

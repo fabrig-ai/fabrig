@@ -1,4 +1,4 @@
-//! The machine world's GitHub peer (skein/docs/design/fake-forge.md, 10.6).
+//! The machine world's GitHub peer (skein/docs/design/testing/fakes/github.md, 1.6).
 use skein_fake_forge_domain::{self as fake, api as a};
 use skein_fake_forge_github::{
     app::App,
@@ -33,14 +33,14 @@ pub struct Fake {
 impl Fake {
     /// Uses the GitHub fake's fixture App, accounts, repositories and installations.
     /// The App holds the grants setup asks for: its bot's permission is its
-    /// installation's (forge-github.md, 4.1, 8.2).
+    /// installation's (forge/github.md, 4.1, 8.2).
     #[must_use]
     pub fn new(seed: u64) -> Self {
         Self::scenario(seed, AppFacts::Complete, true, b"https://hook.test/start")
     }
 
     /// The fixture App without grants or events: setup's checks of a lacking App
-    /// (forge-setup.md, 5.6). Its bot's repository permission is none.
+    /// (forge/setup/github.md, 1.6). Its bot's repository permission is none.
     #[must_use]
     pub fn bare(seed: u64) -> Self {
         Self::scenario(seed, AppFacts::Complete, false, b"https://hook.test/start")

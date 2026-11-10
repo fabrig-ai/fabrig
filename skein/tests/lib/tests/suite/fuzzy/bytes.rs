@@ -1,5 +1,5 @@
-//! The byte search against a naive one (lib.md, 6), over many random
-//! haystacks and needles, and streaming SHA-256 across every cut (lib.md, 6.2).
+//! The byte search against a naive one (runtime/lib.md, 6), over many random
+//! haystacks and needles, and streaming SHA-256 across every cut (runtime/lib.md, 6.2).
 
 use skein_lib::Rng;
 use skein_lib::bytes::{count, find_from};

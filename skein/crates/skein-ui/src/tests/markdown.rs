@@ -135,7 +135,7 @@ fn paragraphs_blocks_runs_links_and_literal_fallbacks() {
 fn agent_reports_and_malformed_inputs_fit_the_byte_bound() {
     // Verbatim passages from the extraction, module move and
     // smith-protocol-layer coordination logs under ~/src/plans/ (01 to 12),
-    // and replies holding tables (13 to 16, ui.md, 10).
+    // and replies holding tables (13 to 16, ui/markdown.md).
     let reports: [&[u8]; 16] = [
         include_bytes!("markdown/01.md"),
         include_bytes!("markdown/02.md"),
@@ -375,7 +375,7 @@ fn escaped_and_code_pipes_keep_their_cells() {
 
 #[test]
 fn empty_table_rows_fit_the_declared_byte_bound() {
-    // ui.md, 10: the row of three empty cells is the worst table row.
+    // ui/markdown.md: the row of three empty cells is the worst table row.
     const ROWS: usize = 128;
     let input = format!("|||\n|-|-|\n{}", "||||\n".repeat(ROWS));
     let tree = read(input.as_bytes(), 0);

@@ -1,4 +1,4 @@
-//! Public clients retain the bindings of oauth-issuer.md, 5 and 9.
+//! Public clients retain the bindings of oauth/issuer.md, 5 and 9.
 use super::*;
 const TYPE: Option<&[u8]> = Some(b"application/x-www-form-urlencoded");
 fn mixed() -> Issuer {

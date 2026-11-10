@@ -1,4 +1,4 @@
-//! A parent and store for the notes child (domain/engine.md, section 10).
+//! A parent and store for the notes child (domain/engine/briefs.md, section 2).
 
 use std::collections::{BTreeMap, VecDeque};
 

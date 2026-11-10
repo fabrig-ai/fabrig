@@ -1,4 +1,4 @@
-//! View replies in an Ask temper chat (temper/docs/design/client/README.md, 5.16).
+//! View replies in an Ask temper chat (temper/docs/design/client/pages/chat/conversation.md, 3).
 use super::{Address, Domain, Event, List, Queue, Solo, Then, agent_line, base_task, c, doc, step, world_in_layout};
 use skein_lib::Token;
 use temper_client_protocol_wire::{self as wire, v1 as w};

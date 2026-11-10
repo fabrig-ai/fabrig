@@ -51,7 +51,7 @@ fn a_channel_cascade_settles_before_the_next_entrance() {
     assert!(matches!(world.root(), [Request::Ready, Request::Lost, Request::RelayCancelled { .. }, Request::Closed]));
 }
 
-/// Jobs mixed with runs keep their order under seeded fragmentation (jig/docs/design/protocol/channel.md, 5.4).
+/// Jobs mixed with runs keep their order under seeded fragmentation (jig/docs/design/protocol/channel/records.md, 4).
 #[test]
 fn jobs_mixed_with_runs_keep_their_order() {
     for seed in 0..8 {

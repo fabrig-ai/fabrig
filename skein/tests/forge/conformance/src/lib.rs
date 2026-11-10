@@ -1,4 +1,4 @@
-//! Records format-faithful exchanges against an isolated Forgejo (protocol/forge.md, 10).
+//! Records format-faithful exchanges against an isolated Forgejo (temper/docs/design/protocol/forge/README.md, 9).
 pub mod admin_scopes;
 mod cases;
 mod cli;

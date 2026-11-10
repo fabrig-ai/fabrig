@@ -1,4 +1,4 @@
-//! The walk's bounds (hearth/docs/design/domain/store.md, 5.6) and its storage bound.
+//! The walk's bounds (hearth/docs/design/domain/store/tree-helper.md, 6) and its storage bound.
 use crate::{
     Level,
     links::Link,

@@ -1,4 +1,4 @@
-//! Claims meet before templates run (hearth/docs/design/domain/render.md, 3.7).
+//! Claims meet before templates run (hearth/docs/design/domain/render/README.md, 3.7).
 mod claims;
 mod declarations;
 mod ids;

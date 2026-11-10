@@ -1,4 +1,4 @@
-//! The request's Ask temper page in both shells (temper/docs/design/client/README.md, 3.5).
+//! The request's Ask temper page in both shells (temper/docs/design/client/pages/README.md).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,

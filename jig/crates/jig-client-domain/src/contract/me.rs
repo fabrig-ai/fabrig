@@ -1,4 +1,4 @@
-//! The signed-in party document (contract.md, 5.1).
+//! The signed-in party document (client/domain/contract/documents.md, 1).
 use super::{
     Beyond, Count, DocumentText, HeldRole, Needs, PartyKind, PoolLedger, TaskContractDocument, TaskFlags,
     TemplateBudget, TemplateDeadline, TemplateExecutor,
@@ -38,7 +38,7 @@ pub struct MeParty {
     pub name: DocumentText,
 }
 
-/// Project membership, retained pool and public identifier (jig/docs/design/client/domain/contract.md, 5.1; jig/docs/design/domain/people.md, 13.8).
+/// Project membership, retained pool and public identifier (jig/docs/design/client/domain/contract/documents.md, 1; jig/docs/design/domain/people/public-reading.md, 8).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct MeProject {
     pub left_out: u32,
@@ -56,14 +56,14 @@ pub struct MeProject {
 }
 
 /// One actual procedure alternative supplied for the fixed goal form.
-/// See domain/people.md, 5.1, and client/domain/contract.md, 3.2.
+/// See domain/people/acts.md, 1, and client/domain/contract/requests.md, 2.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct CreateProcedure {
     pub connector: u16,
     pub code: u32,
 }
 
-/// The first creating bound and the project ceiling (contract.md, 5.3).
+/// The first creating bound and the project ceiling (client/domain/contract/documents.md, 3).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CreateBounds {
     pub authority: Box<super::AuthorityDocument>,
@@ -100,7 +100,7 @@ pub struct Template {
     pub llm: Option<super::LlmChoice>,
 }
 
-/// A template's preview, separate from its configured LLM intent (contract.md, 5.1).
+/// A template's preview, separate from its configured LLM intent (client/domain/contract/documents.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct MeDefault {
     pub template: u32,

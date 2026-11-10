@@ -1,11 +1,11 @@
 # redb over Skein's loop
 
 Draft, 2026-10-05. A possible single-threaded redb integration, not
-taken: skein's store is kv.md's, and this stays as the way past a dataset
-too large for memory (kv.md, section 12). Read it with
+taken: skein's store is ../data/kv.md's, and this stays as the way past a dataset
+too large for memory (../data/kv.md, section 12). Read it with
 [the programming model](../../foundation/programming-model.md),
 [the testing strategy](../../foundation/testing-strategy.md), and
-[the file design](../io.md).
+[the file design](../runtime/io/README.md).
 
 ## 1. The seam
 
@@ -146,7 +146,7 @@ The kernel records lack some operations in-place replay needs, such as
 opening an existing file read-write and changing its length. Adding
 them, with their ring and simulator implementations and the file machine
 above them, is part of this approach. The whole-image variant instead
-uses io's atomic replacement (io.md, section 5).
+uses io's atomic replacement (../runtime/io/files.md).
 
 ## 5. Failure and visibility
 

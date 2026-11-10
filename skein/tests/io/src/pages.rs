@@ -1,4 +1,4 @@
-//! The directory descriptor is the cursor between page requests (io.md, 5).
+//! The directory descriptor is the cursor between page requests (runtime/io/files.md).
 use skein_fake_machine::{Item, Machine as Files};
 use skein_io::{
     file::{Entry, Event, Request},

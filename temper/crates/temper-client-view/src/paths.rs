@@ -1,4 +1,4 @@
-//! A path's drawing and textual fallback (temper/docs/design/client/README.md, 5.16).
+//! A path's drawing and textual fallback (temper/docs/design/client/pages/chat/conversation.md, 3).
 
 use skein_lib::{List, Reader, Writer, usize_of};
 use skein_ui::{Binding, Builder, DrawingKind, Role, Run, State};
@@ -23,7 +23,7 @@ pub struct Stop<'a> {
     pub over: &'a [u8],
 }
 
-/// A path whose stops are pressed (temper/docs/design/client/README.md, 5.16).
+/// A path whose stops are pressed (temper/docs/design/client/pages/chat/conversation.md, 3).
 #[derive(Debug)]
 pub struct Pressed<'a> {
     /// Reports a drawing act whose data is the stop's index as one byte.

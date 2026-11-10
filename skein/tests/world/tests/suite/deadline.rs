@@ -1,4 +1,4 @@
-//! Real-clock harness deadlines (skein/docs/design/testing.md, 5).
+//! Real-clock harness deadlines (skein/docs/design/testing/README.md, 5).
 
 use skein_lib::Duration;
 use skein_shell::Clock;

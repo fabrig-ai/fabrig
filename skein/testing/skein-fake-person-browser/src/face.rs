@@ -176,7 +176,7 @@ impl<'a> BrowserFace<'a> {
             || self.keep.is_some()
             || matches!(self.command_state, CommandState::Pending)
     }
-    /// Advance bounded re-finds with the loop's clock (skein/docs/design/browser.md, 6).
+    /// Advance bounded re-finds with the loop's clock (skein/docs/design/testing/browser.md, 6).
     pub fn tick(&mut self, now: Time) {
         self.now = now;
         let Some(press) = &self.press else { return };

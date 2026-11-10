@@ -1,4 +1,4 @@
-//! Safe completion emulation over non-blocking calls and descriptor readiness (shell.md, 7).
+//! Safe completion emulation over non-blocking calls and descriptor readiness (runtime/readiness.md).
 //! Records move only between synchronous calls; the kernel keeps no pointer
 //! into a slot, so dropping this table frees every record even while waiting.
 
@@ -150,7 +150,7 @@ impl Readiness {
                     Some(deadline.as_nanos().saturating_sub(now))
                 }
                 Wait::Forever => {
-                    assert!(!self.waiters.is_empty(), "waiting forever requires a waiter (shell.md, 7.4)");
+                    assert!(!self.waiters.is_empty(), "waiting forever requires a waiter (runtime/readiness.md, 4)");
                     None
                 }
             }
@@ -293,7 +293,7 @@ impl Readiness {
         let result = loop {
             let result = call(kind, resumed, nonblocking, &mut self.listing);
             // Interrupted transfers are reissued; every other operation
-            // completes with its error (shell.md, 7.4).
+            // completes with its error (runtime/readiness.md, 4).
             if result == Err(Error::Other(libc::EINTR)) && retry_interrupted(kind) {
                 continue;
             }
@@ -357,7 +357,7 @@ impl Readiness {
     }
 }
 
-/// Whether to reissue an interrupted call (shell.md, 7.4).
+/// Whether to reissue an interrupted call (runtime/readiness.md, 4).
 fn retry_interrupted(kind: &Op) -> bool {
     match kind {
         Op::PipeWrite { .. }
@@ -647,7 +647,10 @@ mod tests {
     }
 
     #[test]
-    #[expect(clippy::disallowed_types, reason = "the inherited descriptor in this test is a std File (shell.md, 9)")]
+    #[expect(
+        clippy::disallowed_types,
+        reason = "the inherited descriptor in this test is a std File (runtime/shell.md, 8)"
+    )]
     fn a_regular_file_pipe_read_completes_without_interest() {
         use std::io::{Seek, SeekFrom, Write};
         use std::os::fd::AsRawFd;
@@ -724,7 +727,10 @@ mod tests {
     }
 
     #[test]
-    #[expect(clippy::disallowed_types, reason = "the isolated test inherits SIG_IGN from its shell (shell.md, 6.3)")]
+    #[expect(
+        clippy::disallowed_types,
+        reason = "the isolated test inherits SIG_IGN from its shell (runtime/shell.md, 6.3)"
+    )]
     #[expect(
         clippy::disallowed_methods,
         reason = "skein's round: reads the child marker for the isolated ignored-hangup test"
@@ -732,7 +738,7 @@ mod tests {
     fn a_hangup_ignored_at_startup_is_not_watched() {
         use skein_io::kernel::{ServiceSignal, Signalled};
         // Re-exec this one test with the shell's ignored disposition; no unsafe
-        // signal-disposition changes escape the system modules (shell.md, 7.5).
+        // signal-disposition changes escape the system modules (runtime/readiness.md, 5).
         const CHILD: &str = "SKEIN_TEST_IGNORED_HANGUP";
         if std::env::var_os(CHILD).is_none() {
             let status = std::process::Command::new("sh")

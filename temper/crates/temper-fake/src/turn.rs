@@ -1,4 +1,4 @@
-//! The two turn spellings, shared with the box's asked scripts (protocol/setup.md, 8.4).
+//! The two turn spellings, shared with the box's asked scripts (protocol/setup/playground.md).
 mod failure;
 use crate::{Refusal, read};
 use alloc::boxed::Box;

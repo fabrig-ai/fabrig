@@ -1,4 +1,4 @@
-//! Settings' Models tab (temper/docs/design/client/README.md, 3.5, The `Models` tab).
+//! Settings' Models tab (temper/docs/design/client/pages/README.md, The `Models` tab).
 use super::settings::{self, Tab};
 use crate::{
     accounts::words::{join, provider_words},

@@ -198,7 +198,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
             | temper_client_domain::Address::Adopt { .. } => {
                 // Outside Chats and NewChat the line shows only while the
                 // playground is leaving; while it runs, the frame's "Set up
-                // temper" is the way out (temper/docs/design/client/README.md, 5.1).
+                // temper" is the way out (temper/docs/design/client/view.md, 1).
                 if !reading && root.approval().is_none() && root.forge().leaving() {
                     crate::frame::playground_banner(&mut builder, root, &view.forge_words, &mut view.forge);
                 }
@@ -425,7 +425,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
 pub fn act(view: &mut View, node: NodeId, act: Act) -> Option<Action> {
     if let temper_client_domain::Event::Act { action } = act_event(view, node, act)? { Some(action) } else { None }
 }
-/// Decode an act being sent and remember its setting row for a refusal (client/README.md, 5.13).
+/// Decode an act being sent and remember its setting row for a refusal (client/pages/settings.md, 2).
 #[must_use]
 pub fn act_event(view: &mut View, node: NodeId, act: Act) -> Option<temper_client_domain::Event> {
     let event = event(view, node, act)?;
@@ -442,7 +442,7 @@ pub fn act_event(view: &mut View, node: NodeId, act: Act) -> Option<temper_clien
     }
     Some(event)
 }
-/// The line a sign-in's tab holds until its address comes (client/README.md, 3.5).
+/// The line a sign-in's tab holds until its address comes (client/pages/README.md).
 #[must_use]
 pub fn opening_tab(view: &View, root: &Domain, provider: u32) -> Box<[u8]> {
     let words = &view.forge_words;
@@ -460,7 +460,7 @@ pub fn opening_tab(view: &View, root: &Domain, provider: u32) -> Box<[u8]> {
 }
 
 /// The address a link node opens, which the browser shell gives as its href
-/// (client/browser.md, 2.3 and 7.1): its external address, or the page its press goes to.
+/// (client/web/README.md, 2.3, and client/web/gallery.md, 1): its external address, or the page its press goes to.
 #[must_use]
 pub fn href(view: &mut View, node: NodeId) -> Option<Box<[u8]>> {
     for shown in view.tree().nodes() {
@@ -485,7 +485,7 @@ pub fn href(view: &mut View, node: NodeId) -> Option<Box<[u8]>> {
         Action::Approve(_) | Action::Pages(_) | Action::Forge(_) | Action::Copy { .. } => None,
     }
 }
-/// Read the event an act gives, without changing the view (client/journeys.md, 3.3).
+/// Read the event an act gives, without changing the view (client/web/journeys.md, 3.3).
 /// Shell inputs can move a secret directly to the domain without a clonable action.
 #[must_use]
 pub fn event(view: &View, node: NodeId, act: Act) -> Option<temper_client_domain::Event> {

@@ -1,4 +1,4 @@
-//! One call's exchanges, and its single terminal answer (forge.md, 3.2).
+//! One call's exchanges, and its single terminal answer (forge/README.md, 3.2).
 use crate::api;
 use crate::forgejo::request;
 /// The bytes requested from a raw answer.

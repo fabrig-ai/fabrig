@@ -1,4 +1,4 @@
-//! The open and commit catalogue (jig/docs/design/protocol/store.md, 5).
+//! The open and commit catalogue (jig/docs/design/protocol/store/records.md).
 use super::{fixtures, model, policy, template};
 use crate::{Event, Request, Restore, Row, Store, Write, codec, keys};
 use jig_domain_authority::Models;
@@ -6,7 +6,7 @@ use jig_domain_core::{self as core, settings as s};
 use jig_domain_tasks::{MODELS, ModelEffort};
 use skein_lib::{List, Token};
 
-// A person's setting takes the highest free number (domain/engine.md, 17.11).
+// A person's setting takes the highest free number (domain/engine/settings.md, 11).
 const PERSON: u32 = MODELS;
 const PERSON_INDEX: u8 = 63;
 const PERSON_BIT: u64 = 1 << PERSON_INDEX;

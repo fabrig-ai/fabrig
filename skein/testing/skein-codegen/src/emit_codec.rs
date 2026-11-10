@@ -1,6 +1,6 @@
 #![expect(clippy::format_push_string, reason = "generator assembles reviewed source fragments")]
 
-//! Measured, canonical wire operations for codec.md, section 4.
+//! Measured, canonical wire operations for data/codec/README.md, section 4.
 
 use crate::emit_functions::{self, Member, Method, Statement, Tail};
 use crate::{Declaration, Enumeration, Record, Type, analysis::Context, emit_limits, emit_types};

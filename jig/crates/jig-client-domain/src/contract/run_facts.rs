@@ -1,5 +1,5 @@
 //! Owned activation facts, distinct from best-effort run observations.
-//! See client/domain/objects.md, 3, and domain/tasks.md, 5.1–5.2.
+//! See client/domain/objects.md, 3, and domain/tasks/lifecycle.md, 1–2.
 use super::{CallIdentity, Closing, DocumentText, FailureClass, HoldFailure, Text};
 use skein_lib::{Token, Wall};
 

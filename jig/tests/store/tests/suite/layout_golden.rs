@@ -1,4 +1,4 @@
-//! The deployment's layout's golden bytes (protocol/store.md 2 and 14).
+//! The deployment's layout's golden bytes (protocol/store/README.md 2 and 9).
 //! These tests only read the kept files. A deliberate layout change copies
 //! the output named by a failure over the kept file in its own commit.
 
@@ -24,7 +24,7 @@ fn patched_start() -> World {
     // transcripts' contents have their own framing golden.
     let mut world = patches::Records::story().committed(SEED, patches::BASE);
     world.patch_sets(patches::SETS);
-    // protocol/store.md, 10.2 steps 6 and 7: the manifest is written at the switch.
+    // protocol/store/opening.md, 2 steps 6 and 7: the manifest is written at the switch.
     // Step 8 keeps the opened copy: switching never reopens its stores.
     world.open_switched().expect("patched start opens and switches");
     world
@@ -61,7 +61,7 @@ fn assert_kept(start: &str, parts: &[(&str, &[u8], &[u8])]) {
     }
     assert!(
         differences.is_empty(),
-        "the deployment's layout changed (protocol/store.md 2 and 14): from the first release a later build reads this layout as it finds it; {}",
+        "the deployment's layout changed (protocol/store/README.md 2 and 9): from the first release a later build reads this layout as it finds it; {}",
         differences.join("; ")
     );
 }

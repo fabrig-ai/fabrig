@@ -1,4 +1,4 @@
-//! Team's plain facts and parts (temper/docs/design/client/README.md, 3.5, Team).
+//! Team's plain facts and parts (temper/docs/design/client/pages/README.md, Team).
 use crate::pages::team::{self, Facts, Parts, Person, Waits};
 use jig_client::contract as c;
 use skein_lib::List;

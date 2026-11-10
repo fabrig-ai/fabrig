@@ -1,4 +1,4 @@
-//! Public calls and cache freshness (jig/docs/design/protocol/client.md, 17.5).
+//! Public calls and cache freshness (jig/docs/design/protocol/client/default-http.md, 5).
 use crate::{Call, Mapping};
 use alloc::boxed::Box;
 #[expect(clippy::disallowed_types, reason = "the public HTTP boundary specifies kept headers as String pairs")]

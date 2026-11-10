@@ -1,4 +1,4 @@
-//! Ordered recursive fact tables (protocol/client.md, 3).
+//! Ordered recursive fact tables (protocol/client/wire.md, 1).
 use super::{c, pieces, problem, values, w};
 pub(super) struct Facts {
     rows: Vec<Option<w::Fact>>,

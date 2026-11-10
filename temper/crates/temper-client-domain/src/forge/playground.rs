@@ -1,4 +1,4 @@
-//! Playground lifecycle (temper/docs/design/client/README.md, 3.5 and 4.8).
+//! Playground lifecycle (temper/docs/design/client/pages/README.md and temper/docs/design/client/forge/family.md, 7).
 use super::{Limits, Request, Side, family, wire_limits};
 pub use super::{Playground, PlaygroundState};
 use alloc::boxed::Box;

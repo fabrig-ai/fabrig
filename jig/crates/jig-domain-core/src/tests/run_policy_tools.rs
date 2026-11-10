@@ -1,4 +1,4 @@
-//! A charter's host-family mask composes with task authority (domain/engine.md, 7.1).
+//! A charter's host-family mask composes with task authority (domain/engine/executors.md, 1).
 
 use crate::RunPolicy;
 

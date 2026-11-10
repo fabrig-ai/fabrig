@@ -1,4 +1,4 @@
-//! Simulate's argument vector and sources.list (hearth/docs/design/domain/render.md, 5.2).
+//! Simulate's argument vector and sources.list (hearth/docs/design/domain/render/spec.md, 2.2).
 use crate::limits::Limits;
 use alloc::boxed::Box;
 use skein_lib::{List, Writer, bytes};
@@ -27,7 +27,7 @@ impl Name {
         &self.0
     }
 }
-/// Snapshot timestamp, digits checked, not its date (hearth/docs/design/protocol/format.md, 5.3).
+/// Snapshot timestamp, digits checked, not its date (hearth/docs/design/protocol/format/tasks.md, 3).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Timestamp([u8; 16]);
 impl Timestamp {
@@ -65,7 +65,7 @@ impl Component {
         }
     }
 }
-/// The packages part's sources, field for field (hearth/docs/design/domain/render.md, 4.2).
+/// The packages part's sources, field for field (hearth/docs/design/domain/render/spec.md, 1.2).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Sources {
     pub suite: Name,
@@ -85,7 +85,7 @@ pub enum Variant {
 pub struct Apt {
     pub install_recommends: bool,
 }
-/// Resolution's key inputs (hearth/docs/design/domain/render.md, 5.1).
+/// Resolution's key inputs (hearth/docs/design/domain/render/spec.md, 2.1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Simulate {
     pub sources: Sources,
@@ -110,7 +110,7 @@ impl Proxy {
         Some(Proxy(bytes::copy_of(bytes)))
     }
 }
-/// A source line's archive URI, suite and ordered components (hearth/docs/design/domain/render.md, 5.4).
+/// A source line's archive URI, suite and ordered components (hearth/docs/design/domain/render/spec.md, 2.4).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Line {
     pub uri: Box<[u8]>,

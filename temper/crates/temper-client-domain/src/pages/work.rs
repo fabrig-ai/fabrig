@@ -1,4 +1,4 @@
-//! Work places each item by its own facts (temper/docs/design/client/README.md, 3.5).
+//! Work places each item by its own facts (temper/docs/design/client/pages/README.md).
 
 use skein_lib::{Duration, List, Set, Wall};
 
@@ -254,7 +254,7 @@ fn has_queued(changes: &List<Change>, owner: Belongs) -> bool {
     false
 }
 
-/// Kind 7's read Hidden switches override Work's filters (client/README.md, 3.5).
+/// Kind 7's read Hidden switches override Work's filters (client/pages/README.md).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Overrides {
     pub goals: bool,
@@ -297,7 +297,7 @@ pub fn overrides(root: &crate::Domain, project: u32) -> Overrides {
     }
 }
 
-/// Gather the three lists only once each has answered (client/README.md, 3.5, Work).
+/// Gather the three lists only once each has answered (client/pages/README.md, Work).
 #[must_use]
 pub fn facts(root: &crate::Domain, project: u32) -> Option<Facts> {
     use super::changes::State;

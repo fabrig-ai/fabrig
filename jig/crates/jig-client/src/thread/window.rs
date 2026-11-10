@@ -1,4 +1,4 @@
-//! Shared bounded activity windows (client/domain/client.md, 7).
+//! Shared bounded activity windows (client/domain/client/README.md, 6).
 use crate::contract::{Cursor, DecodedActivityLine};
 use skein_lib::List;
 /// An end of the list or an opaque continuation for more rows.

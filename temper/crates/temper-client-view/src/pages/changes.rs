@@ -1,4 +1,4 @@
-//! A project's queues and recent landings (temper/docs/design/client/README.md, 3.5, Changes).
+//! A project's queues and recent landings (temper/docs/design/client/pages/README.md, Changes).
 use crate::{
     frame::Bindings,
     look,
@@ -50,7 +50,7 @@ fn branch_words(panel: &w::ChangesPanel, words: &Words, fallback: Word) -> Box<[
         None => words.say(fallback, &[]),
     }
 }
-/// The facts shared by Home and Changes (client/README.md, 3.5).
+/// The facts shared by Home and Changes (client/pages/README.md).
 #[derive(Debug)]
 pub(crate) struct LandingFacts<'a> {
     pub queued: u64,

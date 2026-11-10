@@ -2,7 +2,7 @@ use super::*;
 use skein_json::writer::Encoder;
 use skein_lib::{Secret, Writer, base64, usize_of};
 
-const MIN_BITS: u32 = 2048; // oauth.md, section 2.2.
+const MIN_BITS: u32 = 2048; // oauth/README.md, section 2.2.
 const MAX_BITS: u32 = 4096; // limits().modulus_bits.
 const KEY_CAP: u32 = 4; // limits().keys.
 const METADATA: &[u8] = br#"{"issuer":"https://issuer.example","jwks_uri":"https://issuer.example/keys"}"#;

@@ -1,4 +1,4 @@
-//! Ended goals use their stored subtree census (protocol/store.md, 7.3).
+//! Ended goals use their stored subtree census (protocol/store/loads.md, 3).
 use super::PhaseCounts;
 impl PhaseCounts {
     #[must_use]

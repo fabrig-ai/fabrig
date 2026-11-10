@@ -1,6 +1,6 @@
 //! Scripted input waits for outside cues, never agent state or text heuristics.
 //! One ordered cue fires once; its bounded line is written before input closes
-//! (benchmarks.md, section 6; reliability-plan 00, Interface sketches).
+//! (../../../docs/design/benchmarks/README.md, section 6; reliability-plan 00, Interface sketches).
 
 use crate::{Fault, Input, bound, refuse_if};
 use std::collections::VecDeque;

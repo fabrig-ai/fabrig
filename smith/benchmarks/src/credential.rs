@@ -2,7 +2,7 @@
 //! The source login is read-only; no refresh field is deserialized or copied.
 //! `codex` writes a guarded private record; smith uses its own sign-in record.
 //! `Borrowed::finish` settles the credential and checks the source digest.
-//! Contracts: benchmarks.md, section 10; reliability-plan Credentials (95a9807).
+//! Contracts: ../../docs/design/benchmarks/README.md, section 10; reliability-plan Credentials (95a9807).
 
 use crate::{Bound, Credential, Fault, FaultKind, bound, credential as login, refuse_if};
 use std::fs::{File, OpenOptions};

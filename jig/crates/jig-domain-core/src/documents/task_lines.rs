@@ -13,7 +13,7 @@ pub struct ConversationRead {
     pub unread: Count,
 }
 
-/// One record for every task list (client/domain/contract.md, 5.1).
+/// One record for every task list (client/domain/contract/documents.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TaskLine {
     pub chip: Chip,
@@ -28,7 +28,7 @@ pub struct TaskLine {
     pub budget: BudgetLine,
     pub waits_on: WaitsOn,
     pub phases: PhaseCounts,
-    /// Direct delegates ended done (jig/docs/design/client/domain/contract.md, 5.1).
+    /// Direct delegates ended done (jig/docs/design/client/domain/contract/documents.md, 1).
     pub delegates_done: u32,
     /// Direct delegates live or ended, cancelled ones left out.
     pub delegates_total: u32,

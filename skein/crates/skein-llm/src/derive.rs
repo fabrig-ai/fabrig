@@ -1,4 +1,4 @@
-//! Endpoint declarations and checked derivation (llm.md, sections 4.1–4.3).
+//! Endpoint declarations and checked derivation (llm/README.md, sections 4.1–4.3).
 //! Values describe the owner's models and deployment; this module knows no
 //! model catalogue, transport pieces, credentials or per-call policy.
 use crate::{Provider, client};
@@ -38,7 +38,7 @@ pub struct Limits {
 }
 
 impl Limits {
-    /// Every rule of llm.md 4.2, checked before either endpoint can run.
+    /// Every rule of llm/README.md 4.2, checked before either endpoint can run.
     pub fn derive(declared: &Declared) -> Result<Limits, Violation> {
         Ok(Limits {
             openai: arithmetic::dialect(declared, &OPENAI)?,
@@ -108,10 +108,10 @@ mod tests;
 // All four archived response heads reach 1435 bytes and 31 fields.
 // message_start's kept fields reach 29 records and 202 decoded fixed bytes;
 // other block metadata is not replayed by this dialect. Thinking/unknown
-// envelopes belong to reasoning. Error/detail are policy (llm.md, 4.2 and 7).
+// envelopes belong to reasoning. Error/detail are policy (llm/README.md, 4.2 and 7).
 const ANTHROPIC: arithmetic::Constants = arithmetic::Constants {
     // Four times 1435 bytes / 31 fields falls below both policy floors
-    // (llm.md, sections 4.2 and 7); captures fit within a quarter.
+    // (llm/README.md, sections 4.2 and 7); captures fit within a quarter.
     response_head: 16 * 1024,
     response_fields: 128,
     error_bytes: 16 * 1024,
@@ -125,7 +125,7 @@ const ANTHROPIC: arithmetic::Constants = arithmetic::Constants {
 };
 
 // Decoder constants measured from captures of a Responses route. The public
-// response head uses the floor in llm.md, section 7; synthetic cases pin these
+// response head uses the floor in llm/README.md, section 7; synthetic cases pin these
 // values independently of provider recordings.
 const OPENAI: arithmetic::Constants = arithmetic::Constants {
     response_head: 16 * 1024,

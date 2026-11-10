@@ -1,4 +1,4 @@
-//! The session toast at the end of every page (client/README.md, 3.5).
+//! The session toast at the end of every page (client/pages/README.md).
 use super::fixtures as f;
 use crate::look;
 use jig_client::contract as c;

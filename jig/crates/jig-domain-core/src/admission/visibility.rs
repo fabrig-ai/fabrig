@@ -1,8 +1,8 @@
-//! Project visibility (jig/docs/design/domain/people.md, 13.2).
+//! Project visibility (jig/docs/design/domain/people/public-reading.md, 2).
 use crate::Core;
 use skein_lib::Map;
 
-/// Which projects are public (jig/docs/design/domain/people.md, 13.2).
+/// Which projects are public (jig/docs/design/domain/people/public-reading.md, 2).
 #[derive(Hash, Debug)]
 pub(crate) struct Visibility {
     pub(crate) public: Map<u32, ()>,

@@ -1,4 +1,4 @@
-//! Decisions change membership before their public readers (jig/docs/design/domain/people.md, 13.7).
+//! Decisions change membership before their public readers (jig/docs/design/domain/people/public-reading.md, 7).
 use super::*;
 
 #[test]

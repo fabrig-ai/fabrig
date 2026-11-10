@@ -1,4 +1,4 @@
-//! The demo and fake processes around forge-setup's commands (protocol/setup.md, 7.3).
+//! The demo and fake processes around forge-setup's commands (protocol/setup/box.md, 3).
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Writer, bytes};
 use temper_forge_setup::{
@@ -7,7 +7,7 @@ use temper_forge_setup::{
 };
 
 /// The fake kind's slot: the playground's fakes, bound to a forge by the box
-/// (temper/docs/design/protocol/setup.md, 7.1).
+/// (temper/docs/design/protocol/setup/box.md, 1).
 #[must_use]
 pub fn fake_slot(machine: &FakeMachine, llm: core::net::SocketAddr, flags: &[Box<[u8]>]) -> Group {
     let forge = Some(temper_forge_setup::step::FORGE_ARGUMENT);

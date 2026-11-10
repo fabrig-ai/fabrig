@@ -1,6 +1,6 @@
 //! Walking-story obligations derived from the scripted person and worker,
 //! checked against durable fake-store rows, never the root's private state
-//! (domain/root.md, section 12).
+//! (domain/root.md, section 11).
 
 use jig_domain_brief as brief;
 use jig_domain_people as people;
@@ -21,7 +21,7 @@ pub const TURNS: &[(u32, u64, &[u8])] = &[(1, 3, b"first"), (2, 8, b"second")];
 /// Terminal price includes expense after the last transcript turn.
 pub const FINAL_SPEND: u64 = 12;
 
-/// An outside observer of the complete walking story (domain/root.md, 12).
+/// An outside observer of the complete walking story (domain/root.md, 11).
 /// Prices, words and logical deliveries come from the script, not root facts.
 #[derive(Clone, Hash, Debug, Default)]
 pub struct WalkingReferee {
@@ -442,7 +442,7 @@ impl WalkingReferee {
 
     /// A story cut after its terminal commit: every effect but the person's
     /// live result notice, which the cut root never released; reading the
-    /// result afterwards is the core's (jig's `client/domain/contract.md`, 6).
+    /// result afterwards is the core's (jig's `client/domain/contract/README.md`, 4).
     #[must_use]
     pub fn done_after_cut(&self) -> bool {
         self.sign_in_replies == 1

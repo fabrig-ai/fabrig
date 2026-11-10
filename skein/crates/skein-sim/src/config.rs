@@ -1,12 +1,12 @@
 //! The world's knobs: sizes, limits, the wall clock's start, and the faults,
-//! each a probability drawn from the seed (simulator.md, 4).
+//! each a probability drawn from the seed (testing/simulator.md, 4).
 
 use skein_lib::{Duration, Wall};
 
-/// Whether the world keeps its trace (simulator.md, 3): whole, as every
+/// Whether the world keeps its trace (testing/simulator.md, 3): whole, as every
 /// world harness's run keeps it and replays from it, or off, for a world
 /// that runs as long as a page does and replays from a log of its
-/// inputs instead (world.md, 7).
+/// inputs instead (testing/world.md, 7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Trace {
     Whole,

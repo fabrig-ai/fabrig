@@ -2,12 +2,12 @@ use super::fixtures;
 #[test]
 fn no_file_under_jig_names_temper_or_an_item_outside_jig() {
     for (path, text) in &fixtures::sources() {
-        // The waiting line names the application's help page (client/tools.md, 6.1).
+        // The waiting line names the application's help page (client/ctl/results.md, 1).
         let names = text.to_ascii_lowercase();
         let names = if path == &std::path::PathBuf::from("src/jig/render/document/llm.rs") {
             names
                 .replace("see temper help settings for held revisions", "")
-                .replace("temper/docs/design/client/tools.md, 6.1", "")
+                .replace("temper/docs/design/client/ctl/results.md, 1", "")
         } else {
             names
         };

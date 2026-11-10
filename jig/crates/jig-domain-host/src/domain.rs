@@ -61,7 +61,7 @@ impl Hub {
         self.sources.settled()
     }
 
-    /// Grant names held by attempts, including those awaiting acknowledgement (channel.md, 8).
+    /// Grant names held by attempts, including those awaiting acknowledgement (protocol/channel/README.md, 7).
     #[must_use]
     pub fn holds_grant(&self, account: u32, generation: u64) -> bool {
         if self.sources.holds_grant(account, generation) {

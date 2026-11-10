@@ -1,5 +1,5 @@
 //! A procedure's whole panel, watched while its task page is open
-//! (client/forge.md, 9.2; client/README.md, 4.6).
+//! (client/forge/served.md, 2; client/forge/records.md).
 use super::{Limits, Request, Side, wire_limits};
 use crate::pages::delegation::State as DelegationState;
 use alloc::boxed::Box;
@@ -32,7 +32,7 @@ pub enum Watched {
     Delivered(Option<Box<w::ChangePanel>>),
     Ended(Why),
 }
-/// A later document can recover a live change, or its landed result (client/forge.md, 9.2).
+/// A later document can recover a live change, or its landed result (client/forge/served.md, 2).
 pub(crate) fn refreshable(task: &c::Task, forge: u16) -> bool {
     let procedure = match task.chip.executor {
         c::ChipExecutor::Procedure { connector, kind } => connector == forge && kind == 2,
@@ -104,7 +104,7 @@ pub(super) fn subject(side: &mut Side, limits: Limits, subject: Option<Subject>,
                 handle,
                 subject: Watchable::Family {
                     scope: c::Scope::Project(subject.project),
-                    // The window is unused: every delivery is the whole panel (client/forge.md, 9.2).
+                    // The window is unused: every delivery is the whole panel (client/forge/served.md, 2).
                     window: c::Window { rows: 0, after: None },
                     record: jig_client::Family {
                         family: wire::FORGE,
@@ -120,7 +120,7 @@ pub(super) fn subject(side: &mut Side, limits: Limits, subject: Option<Subject>,
 }
 pub(super) fn decode(client: &Client, handle: Handle, limits: Limits) -> Watched {
     let Some(document) = client.document(handle) else { return Watched::Delivered(None) };
-    // Changed also reports progress before the first record (jig's client/domain/client.md, 8.1).
+    // Changed also reports progress before the first record (jig's client/domain/client/watches.md, 1).
     let waiting = match document.state {
         jig_client::State::Opening | jig_client::State::Behind => document.latest.is_none(),
         jig_client::State::Live | jig_client::State::Ended => false,
@@ -153,7 +153,7 @@ pub(super) fn watched(side: &mut Side, handle: Handle, watched: Watched, out: &m
         Watched::Ended(why) => {
             panel.handle = None;
             out.push(Request::Client { asked: jig_client::Event::Unwatch { handle } });
-            // Only SubjectEnded may be refreshed by the root (client/forge.md, 9.2).
+            // Only SubjectEnded may be refreshed by the root (client/forge/served.md, 2).
             match why {
                 Why::SubjectEnded => (State::Unknown, true),
                 Why::Unknown => (State::Unknown, false),

@@ -1,5 +1,5 @@
-//! Cross-child required links before sweep (jig/docs/design/domain/engine.md, 6).
-//! Kept deletions own remaining project rows (jig/docs/design/domain/people.md, 5.2).
+//! Cross-child required links before sweep (jig/docs/design/domain/engine/restart.md).
+//! Kept deletions own remaining project rows (jig/docs/design/domain/people/acts.md, 2).
 use crate::{
     Core, CoreKey, Key, accounts, people,
     start::{Failure, Linked},
@@ -41,7 +41,7 @@ impl Core {
         true
     }
 
-    /// First live task or call whose required run proof is absent (engine.md, 6).
+    /// First live task or call whose required run proof is absent (domain/engine/restart.md).
     #[must_use]
     pub fn missing_proof_link(&self) -> Option<(Key, Key)> {
         for (task, _) in &self.restoring_proofs {
@@ -57,7 +57,7 @@ impl Core {
         None
     }
 
-    /// First live task whose charter is absent from its held settings (engine.md, 6).
+    /// First live task whose charter is absent from its held settings (domain/engine/restart.md).
     #[must_use]
     pub fn missing_charter_link(&self) -> Option<(Key, u32, u32)> {
         for view in self.tasks.view_tasks() {
@@ -444,7 +444,7 @@ impl Core {
     }
 
     fn link_allocated_task(&self, source: &Key, task: u64) -> Result<(), Failure> {
-        // Answer outcomes retain task identities after their live rows end (engine.md, 6).
+        // Answer outcomes retain task identities after their live rows end (domain/engine/restart.md).
         require_link(
             task != 0 && task <= self.counters.deployment().tasks,
             source,

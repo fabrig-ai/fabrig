@@ -37,11 +37,11 @@ Measured at 2 Mb/s, on a debug bundle of 11.5 MB, under temper's policy:
 - **Its body** holds `#app` and, beside it, the placeholder: the mark as inline
   paths, a native `progress`, two lines, a hidden "Try again" and the noscript's
   words. With no font fetched, nothing swaps.
-- **The policy doesn't change** (skein's `ui-web.md`, 4.4): nothing inline and no
+- **The policy doesn't change** (skein's `ui/web/bundle.md`, 4): nothing inline and no
   `style` attribute. A `progress`'s value and presentation attributes need
   neither.
 - **Whose it is:** the bundler writes the page and the script (skein's
-  `ui-web.md`, 4.3). It takes the placeholder's markup and stylesheet from the
+  `ui/web/bundle.md`, 3). It takes the placeholder's markup and stylesheet from the
   application, as it takes `--noscript`, and given none writes the page as
   today, so that skein names no application. The script's words are the
   markup's, as data attributes, since the phrasebook isn't there yet.
@@ -68,7 +68,7 @@ Measured at 2 Mb/s, on a debug bundle of 11.5 MB, under temper's policy:
 
 ## 4. Compression
 
-This takes up skein's `ui-web.md`, section 15, "the bundle served compressed", which
+This takes up skein's `ui/web/README.md`, section 12, "the bundle served compressed", which
 waits "for a bundle whose size over the network matters". It does:
 
 | File | Raw | Gzipped |
@@ -89,13 +89,13 @@ arithmetic and not measured. A release build's sizes are for the plan to read.
   don't offer Brotli. Brotli would save more, and can come later.
 - **A server** answers `NAME.gz` with `Content-Encoding: gzip`, `Vary:
   Accept-Encoding` and `NAME`'s type, where the request accepts gzip, and `NAME`
-  where not. The rest of skein's `ui-web.md`, 4.4 holds.
+  where not. The rest of skein's `ui/web/bundle.md`, 4 holds.
 - **The figure** says what travels: where the module's answer says gzip, the
   script scales its total by the compressed sizes the bundler also wrote. The
   fraction is the same either way.
 - **The bounds** grow to hold both forms: `clients.bundle_files` and
-  `clients.bundle_bytes` (`../protocol/configuration.md`, section 7) and what the
-  binary embeds (`../client/browser.md`, 2.6).
+  `clients.bundle_bytes` (`../protocol/configuration/limits.md`) and what the
+  binary embeds (`../client/web/README.md`, 2.6).
 
 ## 5. Why not Rust
 
@@ -119,4 +119,4 @@ the bundler, in Rust, writes what the browser runs.
   inflated for the rare client that refuses gzip.
 - **The playground:** it would take the same page. Compressing it is its host's.
 - **A box still starting:** a link opened before serve is ready gets no bytes
-  until it is, and that wait stays the browser's own (`../protocol/setup.md`, 7.1).
+  until it is, and that wait stays the browser's own (`../protocol/setup/box.md`, 1).

@@ -41,7 +41,7 @@ fn a_close_between_pieces_answers_closed_and_withdraws_its_demand() {
     }
 }
 
-/// A piece precedes the next read (hearth/docs/design/domain/render.md, 8.5).
+/// A piece precedes the next read (hearth/docs/design/domain/render/README.md, 5.5).
 #[test]
 fn the_next_read_waits_until_the_piece_before_it_is_taken() {
     let mut more_than_one_piece = false;
@@ -61,7 +61,7 @@ fn the_next_read_waits_until_the_piece_before_it_is_taken() {
     assert!(more_than_one_piece, "a body larger than a chunk needs more than one piece");
 }
 
-/// A held outcome answers the next request (hearth/docs/design/domain/render.md, 8.5).
+/// A held outcome answers the next request (hearth/docs/design/domain/render/README.md, 5.5).
 #[test]
 fn an_end_or_a_fault_behind_a_piece_answers_the_next_request() {
     use hearth_protocol_git::{

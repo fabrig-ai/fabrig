@@ -1,4 +1,4 @@
-//! An owner crate's files, read (codec.md, 12.1).
+//! An owner crate's files, read (data/codec/command.md, 1).
 
 use alloc::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -16,7 +16,7 @@ pub(crate) struct Text {
     pub source: String,
 }
 
-/// What a run and the check read of a crate (codec.md, 12.1).
+/// What a run and the check read of a crate (data/codec/command.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Crate {
     pub root: PathBuf,

@@ -1,11 +1,11 @@
-//! The originals of a recording (temper/docs/design/client/journeys.md, 3.3 and 3.6).
+//! The originals of a recording (temper/docs/design/client/web/journeys.md, 3.3 and 3.6).
 use super::Line;
 use jig_client_protocol_wire as w;
 use skein_lib::{Reader, sha256::digest};
 use skein_ui::Act;
 use std::{cmp::Reverse, fmt};
 
-/// How an event shows a secret's length (journeys.md, 3.3).
+/// How an event shows a secret's length (client/web/journeys.md, 3.3).
 pub const SECRET_EVENT: &[u8] = b"Secret { len: ";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -76,7 +76,7 @@ pub struct Originals {
     counted: Vec<(Kind, Box<[u8]>)>,
 }
 impl Originals {
-    /// Read the originals of a recording's lines and the given texts (journeys.md, 3.6).
+    /// Read the originals of a recording's lines and the given texts (client/web/journeys.md, 3.6).
     #[must_use]
     pub fn of(lines: &[Line], given: &[Box<[u8]>]) -> Self {
         let mut candidates = Vec::new();
@@ -135,7 +135,7 @@ impl Originals {
         }
         Self::new(candidates, given)
     }
-    /// The originals of the candidates given, then each given text (journeys.md, 3.6).
+    /// The originals of the candidates given, then each given text (client/web/journeys.md, 3.6).
     #[must_use]
     pub fn new(mut candidates: Vec<(Kind, Box<[u8]>)>, given: &[Box<[u8]>]) -> Self {
         candidates.extend(given.iter().map(|value| (Kind::Given, value.clone())));
@@ -282,7 +282,7 @@ fn percent(bytes: &[u8], lower: bool) -> Box<[u8]> {
     out.into()
 }
 
-// The four dom::print escapes (temper/docs/design/client/journeys.md, 5.3).
+// The four dom::print escapes (temper/docs/design/client/web/journeys.md, 5.3).
 fn html(bytes: &[u8]) -> Box<[u8]> {
     let mut out = Vec::new();
     for &byte in bytes {

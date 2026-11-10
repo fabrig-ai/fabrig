@@ -1,7 +1,7 @@
 //! Frozen local commits build in the harness's private clone, never a worktree.
 //! `build` keeps immutable arm binaries, their SHA-256s and toolchain identity;
 //! `resolve_commit` refuses dirty sources or unknown commits before any write
-//! (benchmarks.md, sections 3.2, 5.4 and 10). No login or agent is involved.
+//! (../../docs/design/benchmarks/README.md, sections 3.2, 5.4 and 10). No login or agent is involved.
 
 use crate::{Fault, Input, Mismatch, bound, format, input, io, mismatch, refuse_if};
 use std::fs::{self, OpenOptions};

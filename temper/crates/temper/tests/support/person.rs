@@ -145,7 +145,7 @@ pub fn signed_in_account(signing: &[u8], name: &[u8]) -> Script {
 }
 /// Read the state in the sign-in source's own Item, inside the account card
 /// whose heading holds these words.
-/// The source kind and state are separate nodes (client/README.md, 5.5).
+/// The source kind and state are separate nodes (client/pages/accounts.md, 2).
 #[must_use]
 pub fn chatgpt_source_ready(heading: &[u8]) -> Step<Address> {
     use skein_ui::Role;
@@ -231,9 +231,9 @@ pub fn demo_change() -> Script {
                 find: Find::text("CSV export is available from widget’s table. The change landed on Playground forge. This was a scripted change.".as_bytes()).within(conversation()),
                 within: DEMO_LANDS_WITHIN,
             },
-            // client/README.md, 5.4: the committed opening turn fits whole.
+            // client/view.md, 4: the committed opening turn fits whole.
             Step::Gone { find: Find::exactly_named(Role::Paragraph, b"delegate").within(conversation()), within: START_WITHIN },
-            // client/README.md, 5.7: the delegated change's card says it landed.
+            // client/view.md, 5: the delegated change's card says it landed.
             Step::See { find: Find::text("T2 · CHANGE".as_bytes()).within(card()), within: START_WITHIN },
             Step::See { find: Find::exactly_named(Role::Status, b"Landed").within(card()), within: START_WITHIN },
             Step::See { find: Find::text("CI passed. Landed · merge commit ".as_bytes()).within(card()), within: START_WITHIN },
@@ -245,7 +245,7 @@ pub fn demo_change() -> Script {
                 within: START_WITHIN,
             },
             // Completed, not held: a change that fails to land is held; the clone check reads the merge.
-            // client/README.md, 5.8: the header words an ended task by its owner's ending.
+            // client/pages/goal.md, 2: the header words an ended task by its owner's ending.
             Step::See { find: Find::exactly_named(Role::Status, b"Completed").within(details()), within: START_WITHIN },
         ]).collect(),
     }
@@ -263,7 +263,7 @@ fn playground_opening(conversation: impl Fn() -> Box<[Target; 1]>) -> [Step<Addr
         Step::Go { address: Address::NewChat { draft: false } },
         Step::Press { find: Find::exactly_named(Role::Button, b"Scripted model") },
         Step::Go { address: Address::Chats { filter: ChatsFilter::All } },
-        // client/README.md, 4.8: a suggested request starts and opens its chat.
+        // client/forge/family.md, 7: a suggested request starts and opens its chat.
         Step::See { find: Find::named(Role::Button, b"Add CSV export to widget"), within: START_WITHIN },
         Step::Press { find: Find::named(Role::Button, b"Add CSV export to widget") },
         Step::See { find: Find::exactly_named(Role::Paragraph, b"You").within(conversation()), within: START_WITHIN },
@@ -751,7 +751,7 @@ pub fn a_native_adoption_refusal_names_the_alert_without_a_wait() {
     assert_eq!(adoption_refusal(&builder.finish()).as_deref(), Some("Forge 1 did not answer; nothing was adopted."));
 }
 /// The switcher's button for a project `me` leaves unnamed, "Project N"
-/// (client/README.md, 5.3).
+/// (client/view.md, 3).
 fn an_unnamed_project(name: Option<&[u8]>) -> bool {
     let Some(number) = name.and_then(|name| name.strip_prefix(b"Project ".as_slice())) else { return false };
     !number.is_empty() && number.iter().all(u8::is_ascii_digit)

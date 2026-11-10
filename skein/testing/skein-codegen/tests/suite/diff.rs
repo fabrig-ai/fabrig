@@ -1,4 +1,4 @@
-//! Table-driven changes, spellings and refusals (codec.md, 10.6).
+//! Table-driven changes, spellings and refusals (data/codec/diff.md, 6).
 #[cfg(test)]
 mod tests {
     use skein_codec::schema;
@@ -33,7 +33,7 @@ mod tests {
         }
     }
     #[test]
-    #[expect(clippy::too_many_lines, reason = "codec.md 10.6 groups small table rows into one test process")]
+    #[expect(clippy::too_many_lines, reason = "data/codec/diff.md 6 groups small table rows into one test process")]
     fn declarations_match_before_layouts_are_compared() {
         check(&[
             Row {
@@ -186,7 +186,10 @@ mod tests {
         ]);
     }
     #[test]
-    #[expect(clippy::too_many_lines, reason = "codec.md 10.6 groups the type comparison table into one test process")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "data/codec/diff.md 6 groups the type comparison table into one test process"
+    )]
     fn fields_compare_types_and_preserve_current_order() {
         check(&[
             Row {

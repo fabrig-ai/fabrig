@@ -1,15 +1,15 @@
-//! The chat's waiting question (temper/docs/design/client/README.md, 6.14, The chat's question).
+//! The chat's waiting question (temper/docs/design/client/tui/pages.md, The chat's question).
 use crate::words::Words;
 use alloc::boxed::Box;
 use jig_client::contract as c;
 use temper_client_domain::{Domain, pages::inbox::Card};
-/// A parsed choice (temper/docs/design/client/README.md, 3.5, A goal's question).
+/// A parsed choice (temper/docs/design/client/pages/README.md, A goal's question).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct QuestionChoice {
     pub words: Box<[u8]>,
     pub recommended: bool,
 }
-/// The first answerable question (temper/docs/design/client/README.md, 6.14, The chat's question).
+/// The first answerable question (temper/docs/design/client/tui/pages.md, The chat's question).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Question {
     pub object: c::ObjectKey,
@@ -17,7 +17,7 @@ pub struct Question {
     pub choices: Box<[QuestionChoice]>,
     pub primary: Option<usize>,
 }
-/// The browser terminal's question, whatever the look (temper/docs/design/client/README.md, 6.14, The chat's question).
+/// The browser terminal's question, whatever the look (temper/docs/design/client/tui/pages.md, The chat's question).
 #[must_use]
 pub fn question(root: &Domain, w: &Words) -> Option<Question> {
     if root.pages().confirmation().is_some() {

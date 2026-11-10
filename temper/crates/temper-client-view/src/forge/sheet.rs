@@ -1,5 +1,5 @@
-//! Add repositories over Settings (temper/docs/design/client/README.md, 4.4;
-//! temper/docs/design/client/forge.md, 5.1).
+//! Add repositories over Settings (temper/docs/design/client/forge/family.md, 4;
+//! temper/docs/design/client/forge/repositories.md, 1).
 use super::{
     bindings::{Bindings, Meaning},
     words,

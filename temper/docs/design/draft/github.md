@@ -8,14 +8,14 @@ whenever a person likes. It records a design session with the user on
 crosses skein (the dialect, the component, the setup's plan, the fakes,
 the conformance), jig (credentials made at runtime) and temper
 (configuration, the connector, the setup, the client) on purpose; an
-owner splits it. It builds on skein's forge kit (skein's `forge.md`,
-`forge-connection.md`, `forge-client.md`, `forge-setup.md`,
-`fake-forge.md`), and fills the seams those documents
-keep for GitHub (skein's `forge.md`, section 10; `forge-setup.md`,
-section 5; `forge-connection.md`, 5.1). Nothing here is adopted. Part A
+owner splits it. It builds on skein's forge kit (skein's `forge/README.md`,
+`skein/docs/design/forge/connection.md`, `skein/docs/design/forge/client.md`, `skein/docs/design/forge/setup/README.md`,
+`skein/docs/design/testing/fakes/forge.md`), and fills the seams those documents
+keep for GitHub (skein's `forge/README.md`, section 8; `skein/docs/design/forge/setup/github.md`,
+section 1; `skein/docs/design/forge/connection.md`, 5.1). Nothing here is adopted. Part A
 is what both forges share, part B is GitHub, part C moves Forgejo onto
-part A. Where each piece goes is section 15, an order section 16, what
-is open section 19.
+part A. Where each piece goes is `github.md`, section 15, an order `github.md`, section 16, what
+is open `github.md`, section 19.
 
 ## 1. In one page
 
@@ -27,12 +27,12 @@ is open section 19.
   or later. Nothing is imported in bulk at configuration (section 2).
 - **Secrets in the store.** A forge's credentials are made from the
   client, or by temper while it connects, and kept in jig's secrets'
-  store under temper's tag (jig's `protocol/store.md`, section 9),
+  store under temper's tag (jig's `protocol/store/secrets.md`),
   never in a file temper reads at start: one way, in every forge and
   mode. An owned Forgejo's preparation, which runs before the engine,
   hands its admin's token over once, by a file the engine takes in and
   removes. This reverses credentials.md's "no temper secret in jig's
-  secrets' store" (section 3).
+  secrets' store" (`github.md`, section 3).
 - **A forge connected while temper runs.** skein's component takes a
   forge's credential at runtime, and again when it is replaced or
   renewed; git identities take new generations as they change
@@ -102,21 +102,21 @@ is open section 19.
     (section 12.2);
   - Forgejo owned: connected by its preparation, at start (section 13).
 - **What connecting ends with** is skein's access (skein's
-  `forge-setup.md`, section 2), kept in the store: who temper is there,
+  `forge/setup/README.md`, section 2), kept in the store: who temper is there,
   its credentials, and the webhook secret. The component then opens the
   forge and the client offers its repositories.
 - **Replaced from the client:** a new token, a new App key. The new
   credential is kept, handed to the component, and the old one erased.
   Disconnecting is later (section 18).
-- **`temper ctl`** offers the same, as tools (`../client/tools.md`), so
+- **`temper ctl`** offers the same, as tools (`../client/ctl/README.md`), so
   that QA's agents and tests connect a forge as a person would.
 
 ### 2.2 Adding repositories, any time
 
 - **No repository is named at configuration or at connecting.** A
   project's owner adds repositories to the project from the client,
-  whenever they like, through the adoption form (`../client/README.md`,
-  4.4; `../client/forge.md`, 5.1).
+  whenever they like, through the adoption form (`../client/forge/family.md`,
+  4; `../client/forge/repositories.md`, 1).
 - **The form becomes a picker.** It lists, per connected forge, the
   repositories temper can reach and the project does not hold, and
   takes an owner and a name for one not listed. What temper can reach:
@@ -133,16 +133,16 @@ is open section 19.
   forge says so, the repository is listed, without a restart.
 - **The rest of the form is as it is:** role, home, prefix, landing
   branch, CI or checks, and what temper found there before the person
-  confirms (`../client/forge.md`, 5.1), with GitHub's rules in words
-  (section 10.3).
+  confirms (`../client/forge/repositories.md`, 1), with GitHub's rules in words
+  (`github.md`, section 10.3).
 - **Forgejo too.** setup's configured `orgs` go: access is per
   repository, at adoption (section 12.2).
 
 ### 2.3 Landing on its own
 
 - **The project's landing rules decide** whether temper lands
-  unattended (`../protocol/configuration.md`, section 3, `landing`;
-  `../domain/forge.md`, 8.7). Landing waits for people only where those
+  unattended (`../protocol/configuration/engine.md`, `landing`;
+  `../domain/forge/change/gates.md`, 2). Landing waits for people only where those
   rules ask for their approval.
 - **temper lands the forge's way:** a merge at the head its decision saw;
   on GitHub, where the branch requires its merge queue, the pull request
@@ -156,7 +156,7 @@ is open section 19.
   P11); required signed commits, by temper's commits made through the
   API (section 18); a code owner's review, by a person. Until then, its
   landings wait for a person, which the change's panel says
-  (`../client/forge.md`, 2.5). temper never changes a repository's
+  (`../client/forge/README.md`, 2.5). temper never changes a repository's
   rules.
 - **An approval that is not the person's** is possible later: an App's
   approval counts toward a ruleset's required approvals (section 11,
@@ -172,7 +172,7 @@ is open section 19.
   preparation, which runs before the engine and cannot write the store
   (section 13).
 - **Where:** jig's secrets' store, a private skein-kv store of the
-  engine's (jig's `protocol/store.md`, section 9), which keeps "an
+  engine's (jig's `protocol/store/secrets.md`), which keeps "an
   application's own records, under its tag: its connectors'
   credentials, which it decodes itself". temper's records there:
   - GitHub: the App's id, slug and private key, and its webhook secret;
@@ -187,7 +187,7 @@ is open section 19.
   (section 13); a worker's secret and its digest, jig's files, which
   open the link before any store is reached; LLM accounts, already in
   the store as jig's.
-- **jig's rules hold** (jig's `protocol/store.md`, section 9): written
+- **jig's rules hold** (jig's `protocol/store/secrets.md`): written
   by components alone, through the protocol layer's routing; kept, and
   durable, before used; replaced stating the digest it replaces; erased
   when replaced or removed; a failed commit stops the engine. No root,
@@ -195,7 +195,7 @@ is open section 19.
 - **A pasted token** reaches the engine in a request the client sends
   once and never keeps, kept in the store before the core sees the
   request, as an LLM key is (jig's `domain/accounts.md`, section 5;
-  jig's `protocol/client.md`, section 5). This is jig's "request
+  jig's `protocol/client/README.md`, section 3). This is jig's "request
   carrying a value": Forgejo's connect and an App pasted (6.5) take it;
   the manifest flow does not, since GitHub hands the App's key to the
   engine's own exchange (section 6).
@@ -210,7 +210,7 @@ is open section 19.
 
 - **skein's component takes a forge's credential at runtime.** Today
   the owner hands each forge's credential and user id at start
-  (skein's `forge-connection.md`, 3.1). A forge may now start with
+  (skein's `forge/connection.md`, 3.1). A forge may now start with
   none: its calls are refused as not connected, at once, not waited on;
   the owner hands the credential later, as a message, and the forge's
   start (the identity read, the page cap read; 3.3) runs then. A
@@ -233,11 +233,11 @@ is open section 19.
   installations' tokens (GitHub, section 8). The engine announces
   `Event::Credential` with a new generation whenever the value changes,
   at runtime, where today it announces generation 1 at start alone
-  (jig's `domain/engine.md`, 12.1; credentials.md, section 4). The
+  (jig's `domain/engine/README.md`, 6.1; credentials.md, section 4). The
   worker keeps the two newest generations, so an operation in flight
   across a change finishes on the value it began with.
 - **The forge writer at runtime.** skein's forge client takes its
-  writers, one per forge, at construction (skein's `forge-client.md`,
+  writers, one per forge, at construction (skein's `forge/client.md`,
   7.1), and refuses every effect on a forge with none, `Forbidden`. It
   now takes a forge's writer later too, once, when the forge connects:
   temper's routing tells the root, which hands it on. At a start the
@@ -259,7 +259,7 @@ is open section 19.
   live with every deployment.
 - **Never the person.** GitHub refuses an author's approval of their own
   pull request, and temper tells its writes and their echoes from
-  others' by its user's id (`../domain/forge.md`, 5.2): acting as the
+  others' by its user's id (`../domain/forge/keeping-up.md`, 2): acting as the
   person would turn the person's own comments into echoes. The person's
   token is never asked for.
 - **Public, installed only through temper's link.** A private App can
@@ -273,7 +273,7 @@ is open section 19.
   github.com; installations are its runtime state, found and followed
   through the delivery log (section 7), never configured. skein's
   component holds one credential per forge today (skein's
-  `forge-connection.md`, section 5): for GitHub that credential is the
+  `forge/connection.md`, section 5): for GitHub that credential is the
   App, and the component mints, renews and chooses an installation's
   token by the repository a call names. A forge per account would have
   broken forks across accounts, and made adding an account a
@@ -304,7 +304,7 @@ is open section 19.
    engine answers an address on the clients' listener, with a one-time
    `state` tied to that request and the page's address to come back
    to, and the browser's tab goes there, as for a sign-in (the terminal
-   prints it and opens no browser; `../client/README.md`, 6.5).
+   prints it and opens no browser; `../client/line.md`, 5).
 2. **The manifest.** That address serves a page whose form posts the
    manifest to `https://github.com/settings/apps/new?state=<state>` as
    it loads: the App is always the person's own, and public, so it
@@ -342,8 +342,8 @@ is open section 19.
   `.invalid` never resolves), `active` true, so deliveries are recorded
   (section 7); or the deployment's public address, when it has one.
 - `default_permissions` and `default_events`, section 5.
-- **Built by skein's setup plan** for GitHub (skein's `forge-setup.md`,
-  section 5), a pure function of the given values, and served by
+- **Built by skein's setup plan** for GitHub (skein's `forge/setup/github.md`,
+  section 1), a pure function of the given values, and served by
   temper's server on the clients' listener: the page, the redirect and
   the setup route are temper's, its owner's.
 
@@ -372,7 +372,7 @@ repairs nothing on GitHub but its own hook's address:
 
 ### 6.5 Managed and connected, on GitHub
 
-skein's modes (skein's `forge-setup.md`, section 3) on GitHub, where no
+skein's modes (skein's `forge/setup/README.md`, section 3) on GitHub, where no
 token makes an App:
 
 - **Managed is the manifest flow:** temper drafts its App, and the
@@ -406,7 +406,7 @@ token makes an App:
   installation, and answers `304` when nothing was delivered. A change
   is in the log about two seconds after it is made (section 11, P7).
 - **A hint from each delivery,** as the listener makes one (skein's
-  `forge.md`, section 7): the event, the installation and the repository
+  `forge/README.md`, section 6): the event, the installation and the repository
   from the list; where the hint names more (a branch, a pull request, a
   commit), the delivery's payload, read whole within its bound and
   decoded by the same decoders as a pushed delivery's. Events whose
@@ -419,7 +419,7 @@ token makes an App:
 - **A delivery's id** is a 19-digit number, decoded exactly as a `u64`
   (a JSON decoder going through a float would lose it).
 - **The component's puller** sits beside its listener (skein's
-  `forge-connection.md`, section 6): it keeps the newest `guid` seen,
+  `forge/connection.md`, section 6): it keeps the newest `guid` seen,
   reads back to it at each poll (paging by cursor when more arrived),
   and at start reads back within `log_catch_up`, so deliveries made
   while temper was down still hint. Its reads run on the App's JWT,
@@ -429,15 +429,15 @@ token makes an App:
   which GitHub does not count against the rate (section 11, P6), so the
   client's keep can read a waited-on pull request's CI every few
   seconds at no cost. This is skein's validators addition (skein's
-  `forge.md`, section 10).
+  `forge/README.md`, section 8).
 - **Polling is unchanged:** the keep's paces and slow pass are the
-  backstop, as on Forgejo (skein's `forge-client.md`, section 4).
+  backstop, as on Forgejo (skein's `forge/client.md`, section 4).
 - **A public address,** later and optional: the person's proxy, or
   skein's TLS server side, named in configuration; reconcile sets the
   hook to it (6.4); pushed deliveries, checked by `X-Hub-Signature-256`,
   and the log's are told apart by `guid`, and each hints once.
 - **QA does not need it.** QA's boxes run an owned Forgejo, whose
-  webhooks are on loopback (`../protocol/setup.md`, section 10).
+  webhooks are on loopback (`../protocol/setup/README.md`, section 6).
 
 ## 8. Credentials that expire
 
@@ -446,7 +446,7 @@ token makes an App:
   its hook's configuration and delivery log, and minting tokens.
 - **An installation's token** is minted from it (`POST
   /app/installations/{id}/access_tokens`) and expires within the hour
-  (section 11, P1). skein's renewal (skein's `forge-connection.md`, 5.1)
+  (section 11, P1). skein's renewal (skein's `forge/connection.md`, 5.1)
   is built for it: the dialect's plan mints the next token `renew_before`
   its expiry; a call needing it meanwhile waits, within its deadline. A
   token may be minted narrower than the App, in permissions and
@@ -471,7 +471,7 @@ token makes an App:
 ## 9. The dialect
 
 - **In skein,** GitHub's documents and call plans beside Forgejo's
-  (skein's `forge.md`, sections 4 and 10): REST, pinned to API version
+  (skein's `forge/README.md`, sections 4 and 8): REST, pinned to API version
   `2026-03-10` (the `X-GitHub-Api-Version` header; requests without it
   get 2022-11-28, and a version stays supported 24 months after the next
   one), with GraphQL for what REST lacks: entering the merge queue
@@ -480,7 +480,7 @@ token makes an App:
 - **The pin** is the API version and the conformance's date. GitHub is a
   service, not a release a deployment runs: the conformance runs on a
   schedule, and a fact that changes is a finding (section 17).
-- **The vocabulary's additions** (skein's `forge.md`, section 10):
+- **The vocabulary's additions** (skein's `forge/README.md`, section 8):
   validators, whose `304` the budget counts at no cost; the rate's
   window from `x-ratelimit-*` on every answer, which the client's budget
   takes in place of its configured one; the secondary limits' refusals,
@@ -531,10 +531,10 @@ token makes an App:
   Forgejo. Just after a head moves, GitHub may answer `405` "Pull
   Request is not mergeable" in its place (section 11, P5): within
   `settle` of a move, a `405` is not known yet, and read again, as
-  Forgejo's not-mergeable-while-checking is (`../domain/forge.md`, 5.2).
+  Forgejo's not-mergeable-while-checking is (`../domain/forge/keeping-up.md`, 2).
 - **CI does not hold a merge** where no rule asks it to (P5). temper's
-  landing rules are its own enforcement (`../domain/forge.md`, section
-  4), so nothing changes.
+  landing rules are its own enforcement (`../domain/forge/adoption.md`
+  ), so nothing changes.
 - **The merge method** is the first the repository allows of merge,
   squash and rebase, unless the adoption names one (section 19).
 - **Updating from the base:** `PUT .../pulls/{n}/update-branch` with
@@ -553,7 +553,7 @@ token makes an App:
   is refused, and the change goes on as for a stale head. Its decision
   holds at the queue's door.
 - **GitHub's queue is then that branch's landing queue**
-  (`../domain/forge.md`, section 9): temper's own queue for the branch
+  (`../domain/forge/queues.md`): temper's own queue for the branch
   decides only what it enters and when. GitHub makes a merge group, a
   commit of its own on the base, runs CI on it (`merge_group`), and
   lands it.
@@ -566,9 +566,9 @@ token makes an App:
   and GitHub's others); `merge_group` `checks_requested` and `destroyed`
   (`merged`, `dequeued`). The change's panel says "in GitHub's merge
   queue" and its position, read from the entry
-  (`../client/forge.md`, 2.1).
+  (`../client/forge/README.md`, 2.1).
 - **Ejected,** a pull request dequeued for any reason but `MERGE` is a
-  repair, as a failed CI is (`../domain/forge.md`, 8.4). GitHub ejected
+  repair, as a failed CI is (`../domain/forge/change/repairs.md`). GitHub ejected
   a failed group about half a minute after its CI failed (P9).
 - **Merge queues exist** on org-owned public repositories, and private
   ones on GitHub Enterprise Cloud; elsewhere the branch merges directly.
@@ -607,10 +607,10 @@ token makes an App:
   CI off; naming checks makes those checks the gates in place of CI. This
   choice does not waive required checks or any other landing rule.
 - **Outside contributions** stay participating objects
-  (`../domain/forge.md`, section 13). A first-time contributor's CI
+  (`../domain/forge/README.md`, section 7). A first-time contributor's CI
   waits for a maintainer's approval on GitHub, which temper shows as a
   wait on a person. CI on GitHub's runners is GitHub's isolation:
-  setup.md's concern for CI's isolation is a self-hosted runner's.
+  ../protocol/setup/README.md's concern for CI's isolation is a self-hosted runner's.
 - **Context** reads any public repository on github.com, with no
   installation.
 
@@ -737,7 +737,7 @@ is cited by its probe's number across this document.
 
 ### 12.1 Connected
 
-- **What the person does on Forgejo** is setup.md's (section 4): a user
+- **What the person does on Forgejo** is ../protocol/setup/README.md's (`../protocol/setup/README.md`, section 4): a user
   for temper, not a site admin; its API token and its git token, with
   their scopes; its write access to each repository temper will adopt;
   optionally, hooks to temper's listener.
@@ -748,32 +748,32 @@ is cited by its probe's number across this document.
   /api/v1/user`), which becomes the forge's identity, shown to the
   person ("connected as temper, id 7"); the git token answering as the
   same user, which its `read:user` scope allows (skein's
-  `forge-setup.md`, 4.3, step 3). A mismatch is refused, naming which.
+  `forge/setup/forgejo.md`, 1.3, step 3). A mismatch is refused, naming which.
   `forges[].user` goes from configuration: the identity is the one the
   token answered when the person connected it, kept and checked at each
-  start (section 4).
+  start (`github.md`, section 4).
 - **Replaced** from the client: a token that must answer as the same
   user (section 4).
 
 ### 12.2 Managed
 
 - **"Connect Forgejo as its admin":** the person pastes a site admin's
-  token. The engine runs skein's reconcile (skein's `forge-setup.md`,
-  section 4) with it, as its host, and keeps what reconcile makes, the
+  token. The engine runs skein's reconcile (skein's `forge/setup/forgejo.md`,
+  section 1) with it, as its host, and keeps what reconcile makes, the
   bot's two tokens, its id and the hooks' secret, in the store. The
   forge then connects as 12.1's would.
 - **Reconcile's host is in the engine:** its protocol layer runs it at
   each start, and when the person connects, before the component opens
-  the forge; its items (skein's `forge-setup.md`, 4.1) are the store's
+  the forge; its items (skein's `forge/setup/forgejo.md`, 1.1) are the store's
   records. The forge waits, "connecting", meanwhile; the engine serves.
 - **Access per repository, at adoption,** in place of setup's `orgs`:
   adopting a repository on a managed forge first grants the bot write on
   it, as a collaborator (`PUT /api/v1/repos/{o}/{r}/collaborators/{bot}`),
   and makes its hook when the deployment has a webhooks' listener; then
-  the adoption reads as any other (`../domain/forge.md`, section 4).
+  the adoption reads as any other (`../domain/forge/adoption.md`).
   This is a plan of skein's setup beside reconcile, run by the same
   host with the admin's token. Reconcile's org steps narrow: step 5
-  makes an owned forge's orgs when missing (section 13), with no team,
+  makes an owned forge's orgs when missing (`github.md`, section 13), with no team,
   and step 6, each org's hook, goes. In their place, at each start, it
   checks and repairs each adopted repository's collaborator and hook.
 - **The picker** lists every repository the admin can see: all of the
@@ -792,14 +792,14 @@ is cited by its probe's number across this document.
   already connected keeps its user, since a forge's writer never changes
   (section 4). Reconcile is given the connected user's login, and takes
   it over when it carries temper's mark, `temper:bot`, in its full name;
-  an unmarked user stops it (`Unmarked`, skein's `forge-setup.md`, 4.3),
+  an unmarked user stops it (`Unmarked`, skein's `forge/setup/forgejo.md`, 1.3),
   and the client says to add the mark on Forgejo, so that no login
   written wrong takes over a person's account.
 
 ## 13. Owned
 
 - **Preparing and running stay commands,** with their files:
-  `temper forge prepare` and `temper forge run` (setup.md, section 6).
+  `temper forge prepare` and `temper forge run` (../protocol/setup/owned.md).
   Forgejo's own secrets (`app.ini`, `state`) and the runner's are
   Forgejo's and the runner's to read, from files, as now; and so is the
   person's first password, `person_password`.
@@ -811,12 +811,12 @@ is cited by its probe's number across this document.
   The engine's setup host takes it at its start, through the same
   connect as a pasted admin's token: kept in the store, the file
   removed, and temper's admin's other tokens deleted on Forgejo, by the
-  routes reconcile uses for the bot's (skein's `forge-setup.md`, 4.3,
+  routes reconcile uses for the bot's (skein's `forge/setup/forgejo.md`, 1.3,
   step 3). The file lives from the preparation to the engine's next
   start, and no credential is ever read from a file after.
 - **A new token at each preparation:** with the file gone once taken,
   each preparation makes the next, as it makes one now when the file is
-  missing (setup.md, 6.3, item 2). A box's every start so renews
+  missing (../protocol/setup/owned.md, 3, item 2). A box's every start so renews
   temper's admin's token, and one revoked on Forgejo is replaced at the
   next. `temper serve` started again alone, with no preparation before
   it, takes no file and runs on the store's token.
@@ -824,7 +824,7 @@ is cited by its probe's number across this document.
   and the hooks' secret. The forge's directory loses `api_token`,
   `git_token`, `user` and `webhook_secret`, and configuration's forge
   stops naming them (section 14).
-- **The box drops its reconcile steps** (setup.md, section 7): prepare,
+- **The box drops its reconcile steps** (../protocol/setup/box.md): prepare,
   Forgejo, its runner, `temper serve`. A token revoked under a running
   engine is made again by the engine's next reconcile, at its restart.
 - **The person's orgs:** `setup.orgs` goes. An owned setup keeps
@@ -845,7 +845,7 @@ is cited by its probe's number across this document.
   (12.2); its open question on short-lived git credentials answered
   (section 8); a GitHub App's key, and its installations' tokens, as
   rows.
-- **`../protocol/configuration.md`:** `forges[]` loses `api_token`,
+- **`../protocol/configuration/README.md`:** `forges[]` loses `api_token`,
   `user` and `webhook_secret`, and `kind` takes `"github"`, whose `api`,
   `transport` and `git` default to github.com's; `identities[]` loses
   `token`, and its `login` is the forge's (the Forgejo bot's,
@@ -853,24 +853,24 @@ is cited by its probe's number across this document.
   GitHub; `forge.writers` in the root's `Config` comes from the store
   (section 4); limits for the puller, the installations, the store's
   records and the manifest's routes.
-- **`../protocol/setup.md`:** the modes' table (who is given what, now
+- **`../protocol/setup/README.md`:** the modes' table (who is given what, now
   from the client); the layers' files (section 13), `admin_token` a
   handover the engine takes and removes, the only file `temper serve`
   reads of a setup; reconcile's host in the engine; `setup.orgs` gone,
-  `person.orgs` for owned; the box's steps; section 9's table, every
+  `person.orgs` for owned; the box's steps; `../protocol/setup/README.md`, section 5's table, every
   credential of the engine's in the store; GitHub (part B) in place of
   "Not here".
-- **`../protocol/forge.md`:** GitHub's dialect as temper uses it, the
+- **`../protocol/forge/README.md`:** GitHub's dialect as temper uses it, the
   delivery log as a hint feed, credentials at runtime.
-- **`../domain/forge.md`:** a forge connected or not (section 4); the
+- **`../domain/forge/README.md`:** a forge connected or not (`../domain/forge/adoption.md`); the
   writer at runtime; adoption's org paragraph replaced by access at
   adoption on managed and owned forges (12.2); GitHub's rules and its
   merge queue as a landing queue (section 10).
-- **`../client/`:** the deployment's page (`../client/forge.md`, 5.4)
+- **`../client/`:** the deployment's page (`../client/forge/deployment.md`)
   with each forge's connection and its Connect, Replace, "Install on
   another account" and "Forget the admin's token"; the adoption form
-  (`../client/README.md`, 4.4) as a picker, with "not listed" and its
-  words; `../client/tools.md`'s tools for each.
+  (`../client/forge/family.md`, 4) as a picker, with "not listed" and its
+  words; `../client/ctl/README.md`'s tools for each.
 - **`../../help/`:** connecting GitHub; connecting Forgejo, each mode.
 
 ## 15. Where each piece goes
@@ -882,7 +882,7 @@ is cited by its probe's number across this document.
   App's and its renewed installation token.
 - **skein, `skein-forge-connection`:** a forge's credential handed and
   replaced at runtime, and a forge with none (section 4); renewal
-  (skein's `forge-connection.md`, 5.1); the App's JWT, through `ring`;
+  (skein's `forge/connection.md`, 5.1); the App's JWT, through `ring`;
   an installation's token chosen per repository; the delivery log's
   puller (section 7); a job log's redirect followed to its host alone.
 - **skein, `skein-forge-client`:** a writer given at runtime; the
@@ -893,14 +893,14 @@ is cited by its probe's number across this document.
   reconcile without orgs' teams and hooks (12.2); its host, as an
   in-process one too.
 - **skein, the fakes:** a GitHub protocol layer over the fake forge's
-  domain (skein's `fake-forge.md`, section 4): the REST and GraphQL
+  domain (skein's `testing/fakes/forge.md`, section 4): the REST and GraphQL
   temper uses, the manifest's form and conversion, installations and
   their tokens with expiry on the fake's clock, the delivery log, the
   merge queue, rulesets; the forge peer serving it.
 - **skein, the conformance:** GitHub's, live, opt-in (section 17).
 - **jig:** application credentials whose value changes while the engine
-  runs, a generation each time (jig's `domain/engine.md`, 12.1); a
-  request carrying a value (jig's `protocol/client.md`), already
+  runs, a generation each time (jig's `domain/engine/README.md`, 6.1); a
+  request carrying a value (jig's `protocol/client/README.md`), already
   planned as LLM accounts' second part.
 - **temper:** configuration (section 14); the engine's store records
   and their codec under temper's tag; the routing that hands them to the
@@ -913,7 +913,7 @@ is cited by its probe's number across this document.
 ## 16. Order
 
 Each step lands working, and shows what it proved in the real loop
-(`../domain/testing.md`).
+(`../testing/README.md`).
 
 1. **The meeting point: temper lands on a GitHub-shaped fake.** GitHub's
    dialect for the calls temper makes, the fake's GitHub layer, the
@@ -955,7 +955,7 @@ Each step lands working, and shows what it proved in the real loop
   per repository and its repair.
 - **The fake against GitHub:** the conformance runs the same checks on
   the fake and, opt-in, on github.com, as skein's does for Forgejo
-  (skein's `fake-forge.md`, section 7), so the fake's quirks are
+  (skein's `testing/fakes/forge.md`, section 7), so the fake's quirks are
   GitHub's.
 - **Left to this work,** since part C reshapes what they test. Each
   lands in skein's kit worlds, on part C's footing:
@@ -985,7 +985,7 @@ Each step lands working, and shows what it proved in the real loop
   the hour. Three shapes: CI pending, heads pushed every five minutes,
   and main moving besides. Each states its total per hour and its
   requests by kind, and the base reads a shared read would save.
-- **The real loop** (`../domain/testing.md`, 2.4): GitHub connected
+- **The real loop** (`../testing/real-loop.md`): GitHub connected
   through the manifest flow, the browser's steps driven as requests;
   repositories added to a project later; a direct landing, and one
   through the merge queue with an ejection repaired; an approval rule
@@ -996,7 +996,7 @@ Each step lands working, and shows what it proved in the real loop
   fact, a record but the store's, a request or an answer
   (credentials.md, section 7).
 - **The browser's tier,** only for what is the browser's: the manifest
-  page's form posted to GitHub's address (`../client/browser.md`).
+  page's form posted to GitHub's address (`../client/web/README.md`).
 - **Live, outside every suite:** the conformance on github.com with the
   fixtures' App and repositories, credentials from the person's private
   directory, never the suites'. The person's part (rulesets, approvals,
@@ -1045,7 +1045,7 @@ Each step lands working, and shows what it proved in the real loop
 - **GitHub Enterprise Server:** the same dialect at another address, its
   own API versions.
 - **Forks:** temper's fork of an upstream on GitHub
-  (`../domain/forge.md`, section 14).
+  (`../domain/forge/README.md`, section 8).
 - **Signed commits:** temper's commits made through the API, which
   GitHub signs (P3, P10), for repositories that require them.
 - **The reviewer:** a second App of temper's whose approval counts
@@ -1070,7 +1070,7 @@ Each step lands working, and shows what it proved in the real loop
 Each with the default the draft takes.
 
 - **The dialect's home:** a module of `skein-forge` beside Forgejo's, or
-  a crate of its own. Default: a module, as skein's `forge.md` (2.1)
+  a crate of its own. Default: a module, as skein's `forge/README.md` (2.1)
   lays the dialects out.
 - **A public App, accepted by link:** any GitHub account may install a
   public App; temper accepts only installations that come back with its

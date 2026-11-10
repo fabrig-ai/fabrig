@@ -1,5 +1,5 @@
-//! A branch's path and stock ways (temper/docs/design/domain/forge.md, 8.13;
-//! temper/docs/design/protocol/configuration.md, 13.10).
+//! A branch's path and stock ways (temper/docs/design/domain/forge/change/branch-path.md;
+//! temper/docs/design/protocol/configuration/settings.md, 8).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 

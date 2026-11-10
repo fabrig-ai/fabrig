@@ -1,4 +1,4 @@
-//! Preorder runs over small schemas (codec.md, 11.4–11.7).
+//! Preorder runs over small schemas (data/codec/patches.md, 4–7).
 #![expect(clippy::disallowed_macros, reason = "schema and patch fixtures use formatting")]
 
 use crate::Reason;
@@ -1195,7 +1195,7 @@ fn run_held(patcher: &Patcher) -> u64 {
         .expect("held fits u64")
 }
 
-/// The rooms of the run's tables (codec.md, 11.7): what reuse keeps.
+/// The rooms of the run's tables (data/codec/patches.md, 7): what reuse keeps.
 #[derive(Debug, PartialEq, Eq)]
 struct Rooms {
     entries: [u32; 2], // The old value's and the reserve's, sorted.
@@ -1215,8 +1215,11 @@ fn rooms(patcher: &Patcher) -> Rooms {
     }
 }
 
-/// What `call` returns, and the allocations it made on this thread (testing.md, 5).
-#[expect(clippy::disallowed_types, reason = "the test measures a synchronous call's allocations (testing.md, 5)")]
+/// What `call` returns, and the allocations it made on this thread (testing/README.md, 5).
+#[expect(
+    clippy::disallowed_types,
+    reason = "the test measures a synchronous call's allocations (testing/README.md, 5)"
+)]
 fn counted<T>(call: impl FnOnce() -> T) -> (T, u64) {
     let span = skein_heap::Span::start();
     let result = call();
@@ -1455,7 +1458,7 @@ fn entry_and_output_room_grow_in_several_steps() {
     const TEXT: &str = "record D { f: list 1024 u8 }";
     // These item counts visit the small growth steps before either ceiling.
     const ITEMS: &[u32] = &[0, 1, 3, 7, 15, 23, 31, 63, 127, 255];
-    const MIN_STEPS: u32 = 3; // codec.md, 11.8's growth story.
+    const MIN_STEPS: u32 = 3; // data/codec/patches.md, 8's growth story.
     for capacity in [NODE_CEILING, BYTE_CEILING] {
         let (mut patcher, plan) = planned_at(capacity, TEXT, TEXT, "");
         let mut entries = 0;

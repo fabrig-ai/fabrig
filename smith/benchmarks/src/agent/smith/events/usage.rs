@@ -1,6 +1,6 @@
 //! Conversation scopes and immutable response ids feed the shared token ledger.
 //! Aggregated conversation, child-tool and run totals never charge a response.
-//! Contract: benchmarks.md, section8.2; protocol/events.md, sections3.5/3.10.
+//! Contract: ../../../../../docs/design/benchmarks/README.md, section8.2; protocol/events.md, sections3.5/3.10.
 
 use std::collections::{BTreeMap, BTreeSet};
 

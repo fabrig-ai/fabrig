@@ -1,10 +1,10 @@
-//! The App's public test keys (fake-forge.md, 10.1).
+//! The App's public test keys (testing/fakes/github.md, 1.1).
 use alloc::boxed::Box;
 use skein_lib::{Writer, base64};
 
 /// Fixed 2048-bit RSA PKCS#1 `RSAPrivateKey` DER, public and made for the
 /// fake. The conversion hands them out in turn.
-#[expect(clippy::disallowed_macros, reason = "fake-forge.md, 10.1 fixes these public test keys in the layer")]
+#[expect(clippy::disallowed_macros, reason = "testing/fakes/github.md, 1.1 fixes these public test keys in the layer")]
 pub const KEYS: [&[u8]; 3] =
     [include_bytes!("../keys/0.der"), include_bytes!("../keys/1.der"), include_bytes!("../keys/2.der")];
 

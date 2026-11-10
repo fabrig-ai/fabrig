@@ -1,4 +1,4 @@
-//! Field-for-field client contract translation (protocol/client.md, 3 and 5).
+//! Field-for-field client contract translation (protocol/client/wire.md, 1, and protocol/client/README.md, 3).
 use super::parties::escalation_holder;
 use super::{Child, active_run, document_text, part, party, prior_phase, take_closing, take_ending};
 use crate::Limits;
@@ -229,7 +229,7 @@ mod tests {
 
     #[test]
     fn retry_reasons_round_trip_through_wire_and_client_facts() {
-        const REASON_BYTES: usize = 128; // client-v19's retry reason bound (domain/engine.md, 9.1).
+        const REASON_BYTES: usize = 128; // client-v19's retry reason bound (domain/engine/briefs.md, 1.1).
         let limits = &w::CEILINGS;
         let reason = Some(bytes::copy_of(&[b'x'; REASON_BYTES]));
         let expected = Some(c::DocumentText::complete(

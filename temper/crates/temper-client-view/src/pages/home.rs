@@ -1,4 +1,4 @@
-//! A project's first page (temper/docs/design/client/README.md, 3.5).
+//! A project's first page (temper/docs/design/client/pages/README.md).
 //! A stopped try (temper/docs/design/domain/trial.md, 6.3).
 use crate::{
     frame::Bindings,
@@ -22,7 +22,7 @@ use temper_client_domain::{
     },
 };
 
-/// A project's first page (temper/docs/design/client/README.md, 3.5).
+/// A project's first page (temper/docs/design/client/pages/README.md).
 #[expect(
     clippy::too_many_arguments,
     reason = "Home draws page controls and a trial retry with their respective bindings"
@@ -952,7 +952,7 @@ fn missing(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, p
     b.close();
 }
 
-/// Home's need words (temper/docs/design/client/README.md, 3.5, Home, Needs you).
+/// Home's need words (temper/docs/design/client/pages/README.md, Home, Needs you).
 pub(crate) fn need_words(need: &needs::Need<'_>, w: &Words) -> (Box<[u8]>, Box<[u8]>, crate::shared::NeedKind) {
     match need {
         needs::Need::Card(card) => {

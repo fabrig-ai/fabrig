@@ -1,4 +1,4 @@
-//! The document's title follows the main heading (ui-web.md, 7).
+//! The document's title follows the main heading (ui/web/README.md, 5).
 #[cfg(target_arch = "wasm32")]
 pub mod web;
 #[must_use]

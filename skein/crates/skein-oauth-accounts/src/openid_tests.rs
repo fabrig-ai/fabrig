@@ -1,4 +1,4 @@
-//! `OpenID` driver routes and subject terminals (oauth.md, 6.2 and 6.3).
+//! `OpenID` driver routes and subject terminals (oauth/accounts.md, 2 and 3).
 use super::*;
 fn openid_owner() -> private::Owner {
     let mut profile = limits();

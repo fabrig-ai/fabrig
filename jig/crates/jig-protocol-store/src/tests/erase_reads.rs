@@ -1,5 +1,5 @@
-//! Whole-task erasure reads (jig/docs/design/protocol/store.md, 11.1;
-//! jig/docs/design/protocol/store.md, 4.3, 7.3 and 11.1).
+//! Whole-task erasure reads (jig/docs/design/protocol/store/README.md, 6.1;
+//! jig/docs/design/protocol/store/README.md, 4.3, and jig/docs/design/protocol/store/loads.md, 3, and jig/docs/design/protocol/store/README.md, 6.1).
 use super::fixtures;
 use crate::{Event, Request, Store, Write, codec, keys};
 use alloc::boxed::Box;

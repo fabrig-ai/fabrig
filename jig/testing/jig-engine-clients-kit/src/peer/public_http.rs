@@ -1,5 +1,5 @@
 //! HTTP bytes through the mapping and origin policy, with scripted component answers
-//! (jig/docs/design/protocol/client.md, 17.5 and 19).
+//! (jig/docs/design/protocol/client/default-http.md, 5 and jig/docs/design/protocol/client/public-reads.md).
 use super::{Exchange, ExchangeState, Peer, Token, fixtures, http, mapping};
 use jig_protocol_engine_clients::{FromTransport, ToTransport};
 use jig_test_service::server::Routed;

@@ -1,4 +1,4 @@
-//! Listed entries retain every field (hearth/docs/design/domain/render.md, 2.2).
+//! Listed entries retain every field (hearth/docs/design/domain/render/README.md, 2.2).
 use crate::{git_machine::listing, render::revision};
 use skein_lib::bytes;
 #[must_use]

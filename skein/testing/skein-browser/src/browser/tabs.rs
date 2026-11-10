@@ -1,4 +1,4 @@
-//! Other tabs read without attaching or evaluating (skein/docs/design/browser.md, 6).
+//! Other tabs read without attaching or evaluating (skein/docs/design/testing/browser.md, 6).
 use super::{Browser, field_array, field_text, protocol_detail};
 use crate::boundary::{Event, Refusal, Tab};
 use crate::{Limits, wire::decode::Value};

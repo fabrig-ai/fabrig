@@ -1,4 +1,4 @@
-//! Strict members and refusal paths shared by the two documents (protocol/setup.md, 8.4).
+//! Strict members and refusal paths shared by the two documents (protocol/setup/playground.md).
 use alloc::boxed::Box;
 use core::net::SocketAddr;
 use jig_protocol_config::{self as config, Path, Segment, What};

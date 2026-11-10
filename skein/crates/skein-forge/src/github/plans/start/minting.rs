@@ -1,4 +1,4 @@
-//! Mint an installation token on the App's JWT (forge-github.md, 8.2).
+//! Mint an installation token on the App's JWT (forge/github.md, 8.2).
 use super::{Event, State, Step, api, document, plan};
 use crate::github::{
     plans::Heard,

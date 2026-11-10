@@ -63,7 +63,7 @@ pub(super) fn steps() -> Vec<Act> {
             assert_eq!(seen.last().expect("separate program-login process").stdout, b"Signed in.\n");
             let [.., accounts, _forges, _login] = seen else { panic!("declared account before login") };
             let account = program_account(accounts).to_string();
-            // tools.md 5.5: verify asks the host to check a newly completed terminal login.
+            // client/ctl/areas.md: verify asks the host to check a newly completed terminal login.
             Call::new(&["account", "verify", &account, "--source", "program", "--json"])
         })),
         Act::Now(Call::new(&["account", "list", "--until", "usable", "--json"])),

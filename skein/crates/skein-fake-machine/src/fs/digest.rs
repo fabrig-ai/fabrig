@@ -1,7 +1,7 @@
 use super::Machine;
 
 impl Machine {
-    /// A digest of every field of the fake filesystem (testing.md, 5).
+    /// A digest of every field of the fake filesystem (testing/README.md, 5).
     #[must_use]
     pub fn state_digest(&self) -> [u8; 32] {
         skein_lib::state_digest(self)

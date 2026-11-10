@@ -1,5 +1,5 @@
 //! A batch names only people held by the core before any task child changes
-//! (jig/docs/design/domain/engine.md, 5.1).
+//! (jig/docs/design/domain/engine/README.md, 5.1).
 #![cfg_attr(
     not(target_arch = "wasm32"),
     expect(

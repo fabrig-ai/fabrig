@@ -1,5 +1,5 @@
 //! Independent configured policies selected by incoming makes, applied only
-//! when their durable answers name the made projects (people.md, 5.2–5.3).
+//! when their durable answers name the made projects (domain/people/acts.md, 2–3).
 use super::Store;
 use jig_domain_authority as authority;
 use jig_domain_core as core;

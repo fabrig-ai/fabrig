@@ -1,5 +1,5 @@
 //! Root rollout timestamps account for requests, calls and command overlap.
-//! First-byte and silent-gap measures are absent (benchmarks.md, section 8.1).
+//! First-byte and silent-gap measures are absent (../../../../../docs/design/benchmarks/README.md, section 8.1).
 
 use super::{ParseError, Rollouts, bad, required_string};
 use crate::time_record::Breakdown;

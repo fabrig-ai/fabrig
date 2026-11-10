@@ -1,6 +1,6 @@
 //! What a walk of a fake filesystem must produce, listed without the machine: the entries in
 //! tree order by recursion over the nodes, sorted names, the first path of each inode, the covered
-//! attributes in order, and the digests by the oracle (hearth/docs/design/domain/store.md, 3.4 and 3.5).
+//! attributes in order, and the digests by the oracle (hearth/docs/design/domain/store/README.md, 3.4 and 3.5).
 use crate::{fs::Fs, oracle};
 use hearth_domain_tree::vocabulary::Kind;
 use hearth_lib::encode::Digest;

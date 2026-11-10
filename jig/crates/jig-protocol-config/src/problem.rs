@@ -80,7 +80,7 @@ pub enum What {
         delegates: u32,
         goals: u32,
     },
-    /// A configured capacity requires a larger dependent capacity (configuration.md, 6).
+    /// A configured capacity requires a larger dependent capacity (protocol/limits.md).
     Capacity {
         member: &'static [u8],
         configured: u32,
@@ -90,7 +90,7 @@ pub enum What {
     Message,
     Silence,
     StopBound,
-    /// Policy bytes exceed the effective people codec envelope (configuration.md, 6).
+    /// Policy bytes exceed the effective people codec envelope (protocol/limits.md).
     PolicyEnvelope {
         value: u64,
         maximum: u64,
@@ -113,7 +113,7 @@ pub enum What {
     StoreCodec,
     Override,
     Unreadable,
-    /// A relative path that is empty or has a `..` component (configuration.md, 10).
+    /// A relative path that is empty or has a `..` component (configuration.md, 9).
     Relative,
 }
 #[derive(Clone, PartialEq, Eq, Debug)]

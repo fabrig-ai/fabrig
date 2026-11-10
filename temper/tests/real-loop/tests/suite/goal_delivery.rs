@@ -1,5 +1,5 @@
-//! A goal delivers its design straight to g (domain/agent.md,
-//! 4.3 and 6; domain/forge.md, 11.3).
+//! A goal delivers its design straight to g (domain/agent/tools.md and domain/agent/README.md, 5
+//! ; domain/forge/branches.md, 3).
 use serde_json::{Value, json};
 use skein_fake_forge_domain::api;
 use skein_fake_llm_domain::api::{Finish, Line, Part, Script, Turn};

@@ -1,4 +1,4 @@
-//! The files temper init writes, and the default document (protocol/setup.md, 8.2 and 8.3).
+//! The files temper init writes, and the default document (protocol/setup/init.md, 2 and 3).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -14,10 +14,10 @@ mod template;
 #[cfg(test)]
 mod tests;
 
-/// Claude Code is fetched when its program is first needed (protocol/setup.md, 6.6).
+/// Claude Code is fetched when its program is first needed (protocol/setup/owned.md, 6).
 pub use temper_fetch::claude_code::FETCHED;
 
-/// What the binary finds on the machine, each path absolute (setup.md, 8.2).
+/// What the binary finds on the machine, each path absolute (protocol/setup/init.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Facts<'a> {
     /// The running temper's own path: the worker's agent's program.
@@ -30,11 +30,11 @@ pub struct Facts<'a> {
     pub ports: Ports,
     /// The effective uid's name in /etc/passwd, or none.
     pub login: Option<&'a [u8]>,
-    /// Whether the host made or found the provider key (sign-in.md, 9.9).
+    /// Whether the host made or found the provider key (protocol/openid-provider.md, 9).
     pub sign_in: bool,
 }
 
-/// What a bare document needs, without the box's parts (setup.md, 8.3).
+/// What a bare document needs, without the box's parts (protocol/setup/init.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Bare<'a> {
     pub binary: &'a [u8],
@@ -53,7 +53,7 @@ pub struct Ports {
     pub webhooks: NonZeroU16,
 }
 
-/// The directories init writes into, each absolute (configuration.md, 12).
+/// The directories init writes into, each absolute (protocol/configuration/directories.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Directories<'a> {
     pub config: &'a [u8],
@@ -127,7 +127,7 @@ pub enum Reason {
     Bound,
 }
 
-/// The files of setup.md 8.2, in its table's order: `worker.secret`,
+/// The files of protocol/setup/init.md 2, in its table's order: `worker.secret`,
 /// `worker.digest`, `demo/llm.key` (data, private), `demo/bin/git`
 /// (data, a link), `agent.json`, `temper.json` (config), the
 /// document last.

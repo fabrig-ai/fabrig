@@ -1,5 +1,5 @@
 //! Typed host calls cross the protocol boundary before tool decisions and after
-//! their answers (jig's domain/engine.md, 7.3; jig's domain/hosts.md, 2).
+//! their answers (jig's domain/engine/executors.md, 3; jig's domain/hosts/README.md, 2).
 use super::{
     Call, CallAnswer, CallKey, Decision, Delivery, Domain, Env, Limits, Payload, Request, Work, emit, relay_payload,
 };
@@ -30,7 +30,7 @@ pub enum HostRequest {
 }
 
 /// An adopted repository's canonical resource identity for settings discovery
-/// (temper/docs/design/domain/agent.md, 8.1).
+/// (temper/docs/design/domain/agent/agents.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct RepositoryIdentity {
     /// The host in resource names, including any port.
@@ -42,7 +42,7 @@ pub struct RepositoryIdentity {
 }
 
 /// One person of the caller's project, for an authorized inventory
-/// (temper/docs/design/domain/agent.md, 8.1).
+/// (temper/docs/design/domain/agent/agents.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProjectPerson {
     pub person: u64,
@@ -50,12 +50,12 @@ pub struct ProjectPerson {
     /// Empty for someone adoption seeded who has not signed in.
     pub login: Box<[u8]>,
     /// Their account on each forge of the project's repositories, each forge once,
-    /// in the order the repositories first name it (domain/agent.md, 8.1).
+    /// in the order the repositories first name it (domain/agent/agents.md, 1).
     pub forges: Box<[PersonForge]>,
     /// The person this chat's task was requested by.
     pub you: bool,
 }
-/// What the lookup answers for one person on one forge (domain/agent.md, 8.1).
+/// What the lookup answers for one person on one forge (domain/agent/agents.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PersonForge {
     /// The forge's host, as the inventory's repository lines name it.
@@ -65,7 +65,7 @@ pub struct PersonForge {
     /// That user is temper's retained writer on this forge, who never counts as a person.
     pub writer: bool,
 }
-/// One model of the offer, for an authorized inventory (temper/docs/design/domain/agent.md, 8.1).
+/// One model of the offer, for an authorized inventory (temper/docs/design/domain/agent/agents.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct OfferedModel {
     pub name: Box<[u8]>,
@@ -83,7 +83,7 @@ pub struct ForgePerson {
 
 /// Root to protocol after the decision commits: render a decided call's
 /// answer, or carry a workspace delivery's settled answer to its host, which
-/// the hub's link names only as text (jig's `domain/hosts.md`, 2).
+/// the hub's link names only as text (jig's `domain/hosts/README.md`, 2).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum HostDelivery {
     /// Settings reads have no durable call part; inventories include project repositories and people.
@@ -98,7 +98,7 @@ pub enum HostDelivery {
         from: u32,
         requested: Option<u64>,
     },
-    /// A `see` read's answer (domain/agent.md, 8.4.1).
+    /// A `see` read's answer (domain/agent/ask-temper.md, 1).
     See {
         to: ReplyTo,
         line: Box<[u8]>,
@@ -167,7 +167,7 @@ impl FlightRender {
     }
 }
 
-/// The call's words join the note family's durable result (domain/agent.md, 8.4.3).
+/// The call's words join the note family's durable result (domain/agent/ask-temper.md, 3).
 #[derive(Hash, Debug)]
 pub(crate) struct DocumentFlight {
     pub action: crate::DocumentAction,
@@ -676,7 +676,7 @@ fn change_refusal(domain: &Domain, render: &FlightRender, key: CallKey, answer: 
     finish_refusal(words, body)
 }
 
-/// An answer made at decode decides nothing (domain/root.md, 5.2).
+/// An answer made at decode decides nothing (domain/routing.md, 2).
 fn answered_at_decode(domain: &mut Domain, to: ReplyTo, flight: Flight, answer: SettledAnswer) {
     let mut call = SettledCall { serial: 0, tool: flight.tool, answer };
     call.answer = if call.valid(&super::core_limits(&domain.limits)) {

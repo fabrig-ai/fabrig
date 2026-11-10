@@ -1,4 +1,4 @@
-//! The worker's checked construction bounds and payload sizes (protocol/README.md, 7).
+//! The worker's checked construction bounds and payload sizes (protocol/README.md, 5).
 pub(crate) use crate::values::{grant_bytes, token_credential_bytes as credential_bytes};
 use crate::{limits, settings};
 use alloc::boxed::Box;

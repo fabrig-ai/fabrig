@@ -1,8 +1,8 @@
-//! The forge family in domain words, independent of its wire (client/README.md, 4.6).
+//! The forge family in domain words, independent of its wire (client/forge/records.md).
 use alloc::boxed::Box;
 use jig_client::contract::{EntranceRefusal, Refusal};
-/// The forge's one address: the adoption page for a project (client/README.md,
-/// 4.5); reached from the navigation's link.
+/// The forge's one address: the adoption page for a project (client/forge/family.md,
+/// 5); reached from the navigation's link.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Address {
     Adopt { project: u32 },
@@ -79,7 +79,7 @@ pub struct Adopted {
     pub protection: Protection,
 }
 
-/// The forge connector's reasons (03.2's `ForgeReason`; client/README.md, 4.7).
+/// The forge connector's reasons (03.2's `ForgeReason`; client/forge/family.md, 6).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Reason {
     NoSuchForge,
@@ -126,7 +126,7 @@ pub const PLAYGROUND_WHY_BYTES: u32 =
 pub const OWNED_PASSWORD_BYTES: u32 =
     temper_client_protocol_wire::v1::CEILINGS.owned_forge_password.checked_mul(3).expect("password path text fits");
 
-/// The playground as the client reads it (temper/docs/design/client/README.md, 4.8).
+/// The playground as the client reads it (temper/docs/design/client/forge/family.md, 7).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Playground {
     pub state: PlaygroundState,

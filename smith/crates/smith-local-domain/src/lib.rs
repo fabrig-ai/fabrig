@@ -3,7 +3,7 @@
 //! credential names and turns awaiting a durable store terminal. It never
 //! knows terminal IO, file encoding, provider secrets or provider syntax.
 //! Uncertain writes retain their intent and inspect their stable delivery
-//! trailer before answering (protocol/hosts.md, section 5.5).
+//! trailer before answering (protocol/host.md, section 5.5).
 //!
 //! `step`, `fire` and `resume` take the injected clock and limits. The caller
 //! drains ordered outputs and settles each store, credential and agent IO

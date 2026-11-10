@@ -1,7 +1,7 @@
-//! Public reading's world (jig/docs/design/domain/people.md, 13.6–13.10).
+//! Public reading's world (jig/docs/design/domain/people/public-reading.md, 6–10).
 //!
 //! Core identifiers are internal; the clients' component replaces them at its boundary.
-//! Move under another task is not built (people.status.md); these stories only move out.
+//! Move under another task is not built (domain/people/README.status.md); these stories only move out.
 use crate::{
     fixtures,
     world::{Setup, World},

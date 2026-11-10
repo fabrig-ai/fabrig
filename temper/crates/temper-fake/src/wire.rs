@@ -1,4 +1,4 @@
-//! Typed wire limits for the configurations owned by temper-fake (protocol/setup.md, 8.4).
+//! Typed wire limits for the configurations owned by temper-fake (protocol/setup/playground.md).
 use crate::{limits as l, llm};
 use alloc::boxed::Box;
 use skein_fake_forge_forgejo as forgejo;
@@ -92,7 +92,7 @@ pub(crate) fn llm(
     if recording { Ok(peer) } else { Ok(peer.without_records()) }
 }
 
-/// The `OpenAI` route's advertised list (skein/docs/design/fake-llm.md, 3.2).
+/// The `OpenAI` route's advertised list (skein/docs/design/testing/fakes/llm.md, 3.2).
 pub(crate) fn llm_config(models: &[llm::Model]) -> provider::Config {
     provider::Config {
         list: Some(llm::list(models)),

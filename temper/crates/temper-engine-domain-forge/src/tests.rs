@@ -1153,7 +1153,7 @@ fn native_effect_rows_keep_the_clients_recovery_promises() {
 }
 
 /// An issue creation whose lifetime ran out unanswered: unrecoverable, it
-/// is held for a person (domain/forge.md, 6).
+/// is held for a person (domain/forge/README.md, 4).
 fn held_issue() -> skein_forge_client::Entry {
     skein_forge_client::Entry {
         queued: false,
@@ -1365,7 +1365,7 @@ fn branch_at(d: &mut Domain, call: u64, commit: u8) -> Box<[Request]> {
 }
 
 // A lost writer's slot is freed only once its branch is read afresh
-// (jig's domain/tasks.md, 6.3): a read refused for want of room in the
+// (jig's domain/tasks/holds.md, 3): a read refused for want of room in the
 // client waits, and is asked again once room frees, rather than given up.
 #[test]
 fn a_lost_writers_read_refused_for_room_is_asked_again_when_room_frees() {

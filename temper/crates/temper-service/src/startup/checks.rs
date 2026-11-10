@@ -21,7 +21,7 @@ fn charter_path(engine: &config::Engine, index: usize) -> Path {
     Path::root().member(&name.finish())
 }
 /// Each default charter leaves its brief room before the core admits work
-/// (temper/docs/design/domain/agent.md, 4.3).
+/// (temper/docs/design/domain/agent/tools.md).
 pub fn room(engine: &config::Engine, host: domain::room::HostPart, problems: &mut Problems) {
     for (index, charter) in engine.charters.iter().enumerate() {
         if let Err(short) = host.check(charter.number, &charter.policy) {
@@ -32,7 +32,7 @@ pub fn room(engine: &config::Engine, host: domain::room::HostPart, problems: &mu
 pub(super) fn own(name: &[u8]) -> Path {
     Path::root().member(b"application").member(b"limits").member(b"overrides").member(name)
 }
-/// The binary's stock fits before any listener opens (protocol/configuration.md, 13.4).
+/// The binary's stock fits before any listener opens (protocol/configuration/stock.md).
 /// The caller selects `Given::Stock`; worlds size their own defaults.
 pub(crate) fn stock(engine: &config::Engine, problems: &mut Problems) {
     if engine.defaults == config::Defaults::Passed
@@ -218,7 +218,7 @@ pub fn hub(engine: &config::Engine, problems: &mut Problems) {
         }
     }
 }
-/// The smallest resumed start within the engine's room (temper/docs/design/protocol/configuration.md, 7).
+/// The smallest resumed start within the engine's room (temper/docs/design/protocol/configuration/limits.md).
 pub fn resumed_start(engine: &config::Engine, problems: &mut Problems) {
     let core = &engine.limits.core;
     let needs = match u32::try_from(core.fleet.call_name_bytes) {
@@ -242,7 +242,7 @@ pub fn resumed_start(engine: &config::Engine, problems: &mut Problems) {
     );
 }
 /// The deployment's provider is not 0, which the root keeps for the forge's
-/// sign-in (domain/root.md, 6).
+/// sign-in (domain/root.md, 5).
 pub fn provider(engine: &config::Engine, problems: &mut Problems) {
     for (index, provider) in engine.providers.iter().enumerate() {
         match provider.kind {
@@ -475,7 +475,7 @@ pub(super) fn worker_limit(member: &[u8]) -> Path {
     at(0, Path::root().member(b"workers")).member(b"limits").member(b"overrides").member(member)
 }
 /// The resume window as jig's hub counts it, excluding answered calls
-/// (jig's `domain/hosts.md`; hosted.rs, `conversation_fits`).
+/// (jig's `domain/hosts/README.md`; hosted.rs, `conversation_fits`).
 fn resume_window(bytes: u32) -> Option<u64> {
     let bytes = u64::from(bytes);
     let carrier = u64::try_from(size_of::<Box<[u8]>>()).ok()?;
@@ -517,7 +517,7 @@ pub(super) fn agent_answer(agent: &settings::Agent, problems: &mut Problems) {
     );
 }
 /// Each process checks the turn bounds its own document can know
-/// (protocol/configuration.md, 13.8). A worker alone knows its agent and hub.
+/// (protocol/configuration/settings.md, 7). A worker alone knows its agent and hub.
 pub fn turns(
     engine: Option<&config::Limits>,
     workers: &[config::Worker],
@@ -632,7 +632,7 @@ fn landing_config(engine: &settings::Engine) -> Map<u32, domain::ProjectLanding>
 }
 
 /// What the root's construction asserts, refused before it is made, each
-/// naming the configuration that breaks it (domain/root.md, 6).
+/// naming the configuration that breaks it (domain/root.md, 5).
 pub fn root(
     mut core: jig_domain_core::Config,
     engine: &settings::Engine,
@@ -770,7 +770,7 @@ pub fn agent(engine: &config::Engine, agent: &settings::Agent, problems: &mut Pr
     }
 }
 /// Charter settings warn; deployment receiving bounds still refuse
-/// (temper/docs/design/protocol/configuration.md, 4).
+/// (temper/docs/design/protocol/configuration/README.md, 3).
 pub fn admission(
     core: &jig_domain_core::Config,
     engine: &config::Engine,
@@ -1054,7 +1054,7 @@ pub fn records(jig: &config::Engine, limits: &limits::Limits, problems: &mut Pro
             );
         }
     }
-    // Every observed installation must fit the deployment's client document (client/README.md, 4.6).
+    // Every observed installation must fit the deployment's client document (client/forge/records.md).
     let bound = temper_client_protocol_wire::INSTALLATIONS;
     if limits.forge_component.installations > bound {
         problems.push(

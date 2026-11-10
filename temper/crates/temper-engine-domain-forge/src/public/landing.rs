@@ -1,4 +1,4 @@
-//! A landing reached through a public member (temper/docs/design/client/forge.md, 11.1).
+//! A landing reached through a public member (temper/docs/design/client/forge/README.md, 9.1).
 use super::{Names, phase, policy, w};
 use crate::{Check, Domain, ReceiptKey};
 use skein_lib::List;

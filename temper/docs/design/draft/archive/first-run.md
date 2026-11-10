@@ -36,7 +36,7 @@ arranges them. Nothing here shapes a piece for the first run's sake.
   flag, an environment variable and a default, in that order of
   precedence (3.1, 3.2).
 - **`temper init`** writes the default document, a command of its own,
-  which answers setup.md's open question of a command that writes the
+  which answers ../../protocol/setup/README.md's open question of a command that writes the
   document (3.3).
 - **GitHub and an owned Forgejo are in the default document,** so
   connecting either needs no restart. An owned Forgejo there is dormant
@@ -87,7 +87,7 @@ line. What the terminal shows, and why, is 2.5.
 1. `temper box` finds `$XDG_CONFIG_HOME/temper` empty, runs `temper
    init` on it (3.3), and starts the document's steps (3.9).
 2. The person opens the link in a browser on the same machine. It signs
-   them in as the deployment's owner (`../../client/README.md`, section 7)
+   them in as the deployment's owner (`../../client/README.md`, section 4)
    and lands on the default project's chat.
 3. The project has the demo repository adopted, on the demo forge, and
    the demo model as its account (3.6). A banner says it is a demo and
@@ -117,7 +117,7 @@ below that keep it are superseded.*
   project's form suggests the repository's name as the project's,
   made unique ("tally 2" beside a "tally"), for the person to change;
   the name is then the project's own, not the repository's (jig's
-  `domain/core.md`, 6.1). jig makes no project after a first start
+  `domain/model.md`, 6.1). jig makes no project after a first start
   yet (2.4).
 - **The demo** can be hidden; its forge and model stay in the document,
   so a demo is always there to show someone.
@@ -140,19 +140,19 @@ Forgejo and model).
   Each step offers Later, and "Try the playground" stays offered until
   a forge of the person's connects.
 - **The demo starts only when chosen:** adopted (first-run-ux's M3),
-  its state in `../../protocol/setup.md`, 8.4, and `../../protocol/store.md`,
-  section 2, the box's asked demo group in setup.md 7.1, and the
-  client's start in `../../client/README.md`, 3.5, 4.6, 4.8 and section 8.
+  its state in `../../protocol/setup/playground.md`, and `../../protocol/store.md`,
+  section 2, the box's asked demo group in ../../protocol/setup/box.md 1, and the
+  client's start in `../../client/pages/README.md` and `../../client/forge/records.md` and `../../client/forge/family.md`, 7 and `../../client/engine.md`.
   The seed (3.6) and its link step go: serve's first link is the
   person's.
 - **The demo ends for good:** adopted (first-run-ux's M4). The end,
-  its record and a restart after it in `../../protocol/setup.md`, 8.4,
+  its record and a restart after it in `../../protocol/setup/playground.md`,
   the box's `stop` and `stopped` in 7.1 and 7.2; the forge and its
-  repository ended in `../../domain/forge.md`, 4.1, and
-  `../../protocol/forge.md`, 2.8 and 8.1; the client's re-read and the
-  demo model's account in `../../client/README.md`, 4.8. The demo's open
+  repository ended in `../../domain/forge/adoption.md`, 1, and
+  `../../protocol/forge/engine.md`, 8, and `../../protocol/forge/README.md`, 7.1; the client's re-read and the
+  demo model's account in `../../client/forge/family.md`, 7. The demo's open
   chats' end and its model's account removed with no client: adopted
-  (first-run-ux-2's M3), in setup.md, 8.4, on jig's deployment acts.
+  (first-run-ux-2's M3), in ../../protocol/setup/playground.md, on jig's deployment acts.
 - **The person meets the demo as the playground.** "Demo" undersells
   it and "fake" is harsh; the design keeps the demo as its concept's
   name (`application.demo`, the `fake` mode, the demo's halves). The
@@ -160,12 +160,12 @@ Forgejo and model).
   model and forge. Ask one of three requests and follow its change from
   a branch to main."; the banner "This is the playground: a scripted
   model and a playground forge."; the names Scripted model and
-  Playground forge (the client's phrasebook, `../../client/README.md`,
-  5.6), and the repository `playground/widget`, the fake's owner
-  `playground`. setup.md 8.4 holds the scripts' words; the client's
+  Playground forge (the client's phrasebook, `../../client/pages/welcome.md`,
+  2), and the repository `playground/widget`, the fake's owner
+  `playground`. ../../protocol/setup/playground.md holds the scripts' words; the client's
   README, its pages (3.5: `Welcome`, `ConnectForge`), the setup strip
   (5.1, 5.6) and the demo's halves ending for good (4.8); its
-  `forge.md`, 5.4, the Forges page and the flow.
+  `../../domain/forge/keeping-up.md`, 4, the Forges page and the flow.
 
 ### 2.4 Projects, made as the person goes
 
@@ -182,22 +182,22 @@ With the user, 2026-10-23. Amends 1, 2.2, 2.3 and 3.4. Mockups:
   with none. The default document configures one policy instead, jig's
   `engine.policies` 1, which each project made starts from, and its
   landing rule among the deployment's, so that every project takes it
-  (`../../protocol/setup.md`, 8.3).
+  (`../../protocol/setup/init.md`, 3).
 - **The playground's project, "Playground",** is made by the demo's
   start, when the person chooses "Try the playground"
-  (`../../protocol/setup.md`, 8.4). It keeps the playground's chats, and
+  (`../../protocol/setup/playground.md`). It keeps the playground's chats, and
   what they did, once the demo ends.
 - **The person's first project** is made with their first repository,
   named after it (`hello`, `widget`) until they change it: in the set
   up's form of a Forgejo here, in GitHub's Ready
-  (`../../client/forge.md`, 5.4), and in the adoption form for a forge
-  connected with no repository (`../../client/README.md`, 4.4). The first
+  (`../../client/forge/deployment.md`), and in the adoption form for a forge
+  connected with no repository (`../../client/forge/family.md`, 4). The first
   run offers no existing project; a later repository, from Forges, goes
   into one of the person's projects or a new one.
 - **The playground tried first, then set up:** two projects,
   Playground, its chats ended and readable, and the person's beside it.
 - **Waits on jig:** its projects made at runtime (jig's `MakeProject`,
-  its `domain/core.md`, 6.1, and its `STATUS.md`, jig-projects,
+  its `jig/docs/design/domain/model.md`, 6.1, and its `STATUS.md`, jig-projects,
   designed 2026-10-23) and projects' names (its `STATUS.md`, "A
   project's name"). Until both land, the default document seeds project
   1 as before, the playground's start and the first repository adopt
@@ -207,7 +207,7 @@ With the user, 2026-10-23. Amends 1, 2.2, 2.3 and 3.4. Mockups:
 ### 2.5 The box's terminal
 
 With the user, 2026-10-23. Amends 3.9; the mechanics are
-`../../protocol/setup.md`, 7.2.
+`../../protocol/setup/box.md`, 2.
 
 - **Why it changed.** A run on a terminal printed serve's notes and the
   sign-in link mixed, and the link itself cut by them: serve writes it
@@ -223,7 +223,7 @@ With the user, 2026-10-23. Amends 3.9; the mechanics are
   detached box would be a supervisor beside the system's: its pid file
   stale after a crash or a reboot, a status command to ask whether it
   runs, a restart at boot expected of it. The background way is the
-  system's supervisor (`../../protocol/setup.md`, 7.4; section 7), and a
+  system's supervisor (`../../protocol/setup/box.md`, 4; `first-run.md`, section 7), and a
   container runs the box in the foreground anyway.
 - **Quiet.** The terminal shows the box's own lines: what it wrote and
   started, each group's start, end and failure, a step's restart, the
@@ -243,18 +243,18 @@ With the user, 2026-10-23. Amends 3.9; the mechanics are
 
 | Piece | Its home | Useful alone for |
 |---|---|---|
-| A command's arguments, environment and defaults (3.1) | skein: `shell.md`, 6.5 | every binary of every repository |
-| Configuration, data and cache directories (3.2) | temper: `protocol/configuration.md`; jig for its parts' paths | every deployment, with or without the box |
-| `temper init` (3.3) | temper: `protocol/setup.md`, section 8 | a person, a test or QA starting a deployment |
+| A command's arguments, environment and defaults (3.1) | skein: `skein/docs/design/runtime/shell.md`, 6.5 | every binary of every repository |
+| Configuration, data and cache directories (3.2) | temper: `../../protocol/configuration/README.md`; jig for its parts' paths | every deployment, with or without the box |
+| `temper init` (3.3) | temper: `../../protocol/setup/init.md` | a person, a test or QA starting a deployment |
 | The fakes as product crates (3.5) | skein: `crates/`, from `testing/` | QA, the real loop, demos, a person trying a charter |
-| The fakes as the box's steps (3.5) | temper: `protocol/setup.md`, section 7 | QA's box on fake backends |
-| Adoption from a client tool (3.6) | temper: `../../client/tools.md` | scripts and agents adopting repositories |
-| `temper forge fetch` (3.7) | temper: `protocol/setup.md`, 6.1; skein: the pins | any owned Forgejo |
-| A dormant owned forge (3.8) | temper: `protocol/setup.md`, sections 5 to 7 | any deployment offering an owned forge later |
+| The fakes as the box's steps (3.5) | temper: `../../protocol/setup/box.md` | QA's box on fake backends |
+| Adoption from a client tool (3.6) | temper: `../../client/ctl/README.md` | scripts and agents adopting repositories |
+| `temper forge fetch` (3.7) | temper: `../../protocol/setup/owned.md`, 1; skein: the pins | any owned Forgejo |
+| A dormant owned forge (3.8) | temper: `../../protocol/setup/reconcile.md` and `../../protocol/setup/owned.md` and `../../protocol/setup/box.md` | any deployment offering an owned forge later |
 
 ### 3.1 Arguments, environment and defaults
 
-skein's rule for every binary (skein's `shell.md`, 6.5, landed
+skein's rule for every binary (skein's `runtime/shell.md`, 6.5, landed
 2026-10-20): a flag over an environment variable, `TEMPER_<NAME>`, over
 a default; directories defaulting to XDG's base directories. temper's
 commands adopt it with their next change.
@@ -273,7 +273,7 @@ commands adopt it with their next change.
 - **Every path in the document says its directory** by its type: a
   configuration path, a data path or a cache path, each relative to its
   directory, or absolute. Today paths are relative to the working
-  directory (configuration.md, section 2); the root's own paths and
+  directory (../../protocol/configuration/README.md, section 2); the root's own paths and
   jig's parts' are both concerned, so jig's parts take the same three
   roots.
 - **Secrets never sit in the configuration directory,** which people
@@ -292,14 +292,14 @@ deployment that starts:
 - **The clients' listener's port, chosen once:** the default port when
   it can be bound, or one the kernel assigns, written into the
   document. The document always names a fixed port, as a configured
-  GitHub forge requires (configuration.md, section 8); a later start on
+  GitHub forge requires (../../protocol/configuration/README.md, section 6); a later start on
   a port taken refuses, naming it and the document, as any start does.
   An owned forge's port is chosen the same way, and so are the fakes'
   and the webhooks'. Under `temper box` the sockets init chose are
   kept: the box holds every step's listener from its start and gives
   each step its own, so that no port is free between init and the
   step, and a second first run beside the first chooses other ports
-  (setup.md, 7.1 and 8.2).
+  (../../protocol/setup/box.md, 1, and ../../protocol/setup/init.md, 2).
 - **Nothing else:** no account, no forge credential, no repository,
   which are runtime's.
 
@@ -311,7 +311,7 @@ says so; otherwise it never writes the document.
 The first default is a working minimum, for the mechanics and the
 experience; good defaults for a person's real work are open (section 8).
 
-- **LLM providers:** OpenAI's, as the owned example's (setup.md, 8.1),
+- **LLM providers:** OpenAI's, as the owned example's (../../protocol/setup/init.md, 1),
   with no account; and the demo model, an endpoint on loopback in
   plaintext, as the real loop's fake LLM peer is reached.
 - **Forges,** each by its stable number: 1 the demo forge, 2 GitHub, 3
@@ -328,7 +328,7 @@ experience; good defaults for a person's real work are open (section 8).
 - **skein's fake LLM peer and fake forge move to `crates/`,** product
   crates on the same footing as the others, which the worlds and the
   real loop use as now. They keep their contracts (skein's
-  `fake-llm.md`, `fake-forge.md`); only their place, and the guarantee
+  `testing/fakes/llm.md`, `skein/docs/design/testing/fakes/forge.md`); only their place, and the guarantee
   that they ship, change.
 - **temper serves each as a command,** `temper fake llm` and `temper
   fake forge`, a long step of the box, its address and its script or
@@ -337,7 +337,7 @@ experience; good defaults for a person's real work are open (section 8).
   whose preparation writes a handover before it starts. The engine's
   setup host takes the handover, reconciles into records, runs
   start-time adoption, then connects the fake from those records
-  (`../../protocol/setup.md`, 6.5 and 8.4). Adoption grants the bot write
+  (`../../protocol/setup/owned.md`, 5 and `../../protocol/setup/playground.md`). Adoption grants the bot write
   access and hooks each repository to the configured webhooks'
   listener.
 - **The demo model's script** is the document's: suggested requests
@@ -351,18 +351,18 @@ experience; good defaults for a person's real work are open (section 8).
 - **The repository** is the fake forge's seed: `playground/widget`, a few
   files and a check workflow the fake's CI answers.
 - **Adoption is the demo's start's,** never configuration's:
-  repositories are never configured (configuration.md, section 8). The
+  repositories are never configured (../../protocol/configuration/README.md, section 6). The
   engine adds the demo model's key and adopts `playground/widget` at
-  the person's choice (2.3; setup.md, 8.4), where the box's seed once
+  the person's choice (2.3; ../../protocol/setup/playground.md), where the box's seed once
   ran `temper ctl` to do it.
 
 ### 3.7 `temper forge fetch`
 
 - **Fetches the pinned binaries** of Forgejo and its runner into the
   cache directory, when missing: `skein-forge`'s `VERSION` and
-  `RUNNER_VERSION` (setup.md, 6.1), from their releases.
-- **Checks each one's SHA-256,** pinned beside its version: setup.md
-  15's digests move from later to now, required for fetched binaries.
+  `RUNNER_VERSION` (../../protocol/setup/owned.md, 1), from their releases.
+- **Checks each one's SHA-256,** pinned beside its version: ../../protocol/setup/README.md
+  9's digests move from later to now, required for fetched binaries.
 - **A once step** of the box, before an owned forge's preparation, and a
   command of its own. An owned forge's binaries become a path, as now,
   or `"fetched"`, which names the cache's.
@@ -377,7 +377,7 @@ experience; good defaults for a person's real work are open (section 8).
   `temper serve` at spawn, carrying one request: start a dormant forge
   the document names. The box runs fetch, prepare and run, records the
   forge as started in its data directory, so that later starts run it,
-  and answers. Run without the box (setup.md, 7.4), the client names
+  and answers. Run without the box (../../protocol/setup/box.md, 4), the client names
   the commands to run instead.
 - **The engine takes the handover at runtime,** through the same
   connect a pasted managed admin's token takes (`../github.md`,
@@ -389,7 +389,7 @@ experience; good defaults for a person's real work are open (section 8).
   argument; init when empty (3.3).
 - **Its steps,** from the document: the fakes' (3.5), fetch, prepare
   and run for each started owned forge, then `temper serve`; a dormant
-  forge's when asked (3.8). Its policy is that of setup.md, 7.2, unchanged.
+  forge's when asked (3.8). Its policy is that of ../../protocol/setup/box.md, 2, unchanged.
 - **Its stdout** is `temper serve`'s links alone, each whole; its
   terminal is quiet, and each step's lines are in its log (2.5).
 
@@ -406,7 +406,7 @@ experience; good defaults for a person's real work are open (section 8).
 ## 5. Order
 
 1. **The arguments' rule:** its function in skein's shell (its design
-   landed, `shell.md`, 6.5); each binary adopts it with its own next
+   landed, `skein/docs/design/runtime/shell.md`, 6.5); each binary adopts it with its own next
    change.
 2. **Directories, `temper init`, the box changed,** on the default
    document without the fakes: the person signs into an empty project.
@@ -420,29 +420,29 @@ experience; good defaults for a person's real work are open (section 8).
 4. **Going real from the client:** fetch, the dormant owned forge, the
    box's pipe, the handover at runtime, and the client's banner and
    wording; and the first run's ports, each step's listener held by the
-   box from its start and given to the step (3.3; setup.md, 7.1), which
+   box from its start and given to the step (3.3; ../../protocol/setup/box.md, 1), which
    rests on skein holding, giving and adopting a listener (skein's
-   `io.md`, 3.2 and 6.3; `shell.md`, 6.6), Forgejo's on Linux, where
-   forge run stays its parent (setup.md, 6.4). Built; the process tier
+   `runtime/io/sockets.md`, 2, and `runtime/io/processes.md`, 3; `skein/docs/design/runtime/shell.md`, 6.6), Forgejo's on Linux, where
+   forge run stays its parent (../../protocol/setup/owned.md, 4). Built; the process tier
    walks it whole on fresh scratch, the playground then a Forgejo set up
-   from the client, with no restart (setup.md, 13.4, "The first run
+   from the client, with no restart (../../protocol/setup/testing.md, 4, "The first run
    whole").
 5. **The welcome and the demo's end** (2.3): adopted, closed here.
    The demo's state, the fakes asked, the seed's acts and the end in
-   the engine, `stop` on the pipe (setup.md, 7.1, 7.2 and 8.4;
-   `../../domain/forge.md`, 4.1), the welcome, its wizard and the halves
-   in the client (`../../client/README.md`, 3.5 and 4.8), and the
+   the engine, `stop` on the pipe (../../protocol/setup/box.md, 1 and 2 and ../../protocol/setup/playground.md;
+   `../../domain/forge/adoption.md`, 1), the welcome, its wizard and the halves
+   in the client (`../../client/pages/README.md` and `../../client/forge/family.md`, 7), and the
    playground's words in the fake's scripts, `temper init`'s document
    and the client; what is built is `STATUS.md`'s.
 
 ## 6. Testing
 
-- **The process tier** (setup.md, 13.4) runs `temper box` on empty
+- **The process tier** (../../protocol/setup/testing.md, 4) runs `temper box` on empty
   scratch directories with every directory flag given, and checks the
   link signs in and the demo project's chat answers a suggested
   request. No test uses the defaults under `$HOME`.
 - **`temper init`** in step tests: the document it writes checks as
-  configuration.md, section 8 says, port chosen and port fallen back.
+  ../../protocol/configuration/README.md, section 6 says, port chosen and port fallen back.
 - **The arguments' rule** in skein's own tests: flag, variable, default,
   an empty variable.
 - **Fetch** against a local file server with a wrong digest, refused.
@@ -452,7 +452,7 @@ experience; good defaults for a person's real work are open (section 8).
 - **The demo forge's pages:** its pull request's link now answers 404.
   Either the demo forge serves a few read-only pages, or temper shows a
   change's diff itself, which would also show more of a change's
-  progress on any forge (`../../client/forge.md`).
+  progress on any forge (`../../client/forge/README.md`).
 - **A hot restart:** the process stays, its listeners and connections
   with it, and the domain is built again from a new document as a start
   builds it. It would make section 4's last rows no restart. An
@@ -479,7 +479,7 @@ experience; good defaults for a person's real work are open (section 8).
     configuration's diff and its wiring.
 - **The box in the background:** should people want their terminal
   back, a command that writes a systemd user unit for the box
-  (`../../protocol/setup.md`, 7.4), never a pid file of temper's own
+  (`../../protocol/setup/box.md`, 4), never a pid file of temper's own
   (2.5).
 
 ## 8. Open questions
@@ -492,8 +492,8 @@ experience; good defaults for a person's real work are open (section 8).
   again. Default: as it falls in the first iteration (5, item 3);
   answered in its follow-up.
 - **git on the demo forge.** The fake forge's git is reached through a
-  typed transport, never over HTTP (`fake-forge.md`, section 3), and
-  the real loop runs a fake git program (`../../domain/testing.md`, 4.3).
+  typed transport, never over HTTP (`skein/docs/design/testing/fakes/forge.md`, section 3), and
+  the real loop runs a fake git program (`../../testing/fakes.md`, 3).
   The demo needs a git that reaches the fake forge across processes,
   not real git: its agent is the fake LLM, and nothing else reads its
   working trees. Default: the fake git program as a program of its
@@ -503,7 +503,7 @@ experience; good defaults for a person's real work are open (section 8).
 - **The default port.** Default: one unassigned port, chosen with the
   default document.
 - **Good defaults** for a person's real work: charters, landing rules,
-  limits, the memory bound (setup.md, section 16). Default: the first
+  limits, the memory bound (../../protocol/setup/README.md, section 10). Default: the first
   default of 3.4, refined once the mechanics run.
 - **The demo's content:** the repository, its CI, the suggested
   requests and their scripts. Default: one request, refined later.

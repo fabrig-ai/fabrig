@@ -1,4 +1,4 @@
-//! Named consistent limits, in each owner's types (configuration.md, 6).
+//! Named consistent limits, in each owner's types (protocol/limits.md).
 mod small;
 mod standard;
 use jig_domain_core as core;
@@ -9,7 +9,7 @@ pub enum Profile {
     Small,
     Standard,
 }
-/// The channel components' own numbers (channel.md, 11).
+/// The channel components' own numbers (protocol/channel/README.md, 10).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Link {
     pub chunk: u32,

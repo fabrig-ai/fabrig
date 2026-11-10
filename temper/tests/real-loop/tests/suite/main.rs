@@ -1,4 +1,4 @@
-//! Real-loop integration scenarios (temper/docs/design/domain/testing.md, 2.4).
+//! Real-loop integration scenarios (temper/docs/design/testing/real-loop.md).
 use skein_world::domain::heap::Counting;
 
 #[global_allocator]

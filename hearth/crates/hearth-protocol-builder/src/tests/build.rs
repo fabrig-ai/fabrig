@@ -58,7 +58,7 @@ fn an_absent_layers_directory_lists_as_one_empty_page() {
     assert_eq!(
         layer.told(),
         Some(BuilderEvent::Store(Event::Page { entries: Box::new([]), last: true })),
-        "hearth/docs/design/domain/store.md, 2.4: a store without layers"
+        "hearth/docs/design/domain/store/README.md, 2.4: a store without layers"
     );
 }
 fn config_record() -> tree::layer::Layer {

@@ -156,7 +156,7 @@ fn irrelevant_delivery_has_no_hint() {
 const ITEM_NUMBER: u64 = 1;
 // JOB has one failed step, numbered 1.
 const STEP_NUMBER: u32 = 1;
-// forge.md 6: the owner's key is at most op_bytes (the protocol fixture's 512).
+// forge/README.md 5: the owner's key is at most op_bytes (the protocol fixture's 512).
 const OP_BYTES: usize = 512;
 const KEY: [u8; OP_BYTES] = [0xab; OP_BYTES];
 const ONE_WORD: &[u8] = b"a";
@@ -256,7 +256,7 @@ fn unexpected_open_pull_read_status_is_unavailable() {
 }
 
 const RETRY: Duration = Duration::from_secs(5);
-// Merge sends one POST before reading the result (forge.md 5.2).
+// Merge sends one POST before reading the result (forge/forgejo.md 1.2).
 const MERGE_POST_REQUESTS: usize = 1;
 const MERGE_SENDS: [&str; 2] =
     ["POST /api/v1/repos/fixture/specimen/pulls/1/merge", "GET /api/v1/repos/fixture/specimen/pulls/1"];
@@ -517,7 +517,7 @@ use crate::forgejo::{
     plans::{Body as AnswerBody, Heard},
 };
 use fixtures::BOUNDS;
-// This response exceeds the local inner bound of two labels by one (forge.md 5.3).
+// This response exceeds the local inner bound of two labels by one (forge/forgejo.md 1.3).
 const INNER_BOUND: u32 = 2;
 const THREE_LABELS: &[u8] = br#"{"number":1,"state":"open","user":{"id":2,"login":"writer"},"labels":[{"name":"a"},{"name":"b"},{"name":"c"}],"updated_at":"1970-01-01T00:00:00Z","title":"t","body":"b"}"#;
 fn bounded_run(op: Op) -> Run {

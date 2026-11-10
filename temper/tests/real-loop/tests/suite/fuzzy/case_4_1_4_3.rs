@@ -1,4 +1,4 @@
-//! Retained first-edition story (domain/testing.md, 5.3): opener followed by its timer check on three workers.
+//! Retained first-edition story (testing/reference-case.md): opener followed by its timer check on three workers.
 use temper_real_loop_world::{
     End, Exit,
     case::{
@@ -12,7 +12,7 @@ const WORKERS: &[&str] = &["ws", "s1", "s2"];
 
 #[test]
 fn the_opener_and_the_two_hour_check_run_on_three_workers() {
-    // Leaves out survey, instructions/pool, host kinds, Markdown CI's fast path and goal issue; pools/load/queue/disk, moving B and the plane: testing.md 5.3's 4.1 and 4.3 rows.
+    // Leaves out survey, instructions/pool, host kinds, Markdown CI's fast path and goal issue; pools/load/queue/disk, moving B and the plane: testing/reference-case.md's 4.1 and 4.3 rows.
     let cluster = run_cluster_forge(
         WORKERS,
         &["s2"],

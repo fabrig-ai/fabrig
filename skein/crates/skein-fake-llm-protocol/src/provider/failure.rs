@@ -1,4 +1,4 @@
-//! Route-specific failure rows and script admission (fake-llm.md, 2.3).
+//! Route-specific failure rows and script admission (testing/fakes/llm.md, 2.3).
 use super::{Config, Error, Limits, Server, Service, State};
 use alloc::boxed::Box;
 use skein_fake_llm_domain::api;
@@ -41,7 +41,7 @@ pub(super) fn row(route: Provider, error: api::Error) -> Option<Row> {
 
 /// Refuses scripts whose failure class or reset has no representation on the route.
 ///
-/// Contract: fake-llm.md, section 2.3.
+/// Contract: testing/fakes/llm.md, section 2.3.
 pub fn scripts(config: &Config, accepted: &[Credential], scripts: &[api::Script]) -> Result<(), Error> {
     let route = super::route(config, accepted)?;
     for script in scripts {

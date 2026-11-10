@@ -1,6 +1,6 @@
 //! A goal's landing exhausts its repairs, stays held through a change into g,
-//! then checks and lands g's released head (temper/docs/design/domain/forge.md,
-//! 8.1, 8.4 and 8.5; temper/docs/design/draft/reference-landing.md, 3 and 9).
+//! then checks and lands g's released head (temper/docs/design/domain/forge/change/README.md, 1 and temper/docs/design/domain/forge/change/repairs.md and temper/docs/design/domain/forge/change/README.md, 3
+//! ; temper/docs/design/draft/reference-landing.md, 3 and 9).
 use super::goal_branch::{branch_tip, goal_request, writer};
 use super::goal_landing::{
     assert_goal_holds, ended, finish_run, land_into_goal, mine, producing_into_goal, row, status,

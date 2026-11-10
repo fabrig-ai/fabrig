@@ -1,4 +1,4 @@
-//! Canonical draws agree with generated codecs (codec.md, section 8.3).
+//! Canonical draws agree with generated codecs (data/codec/README.md, section 8.3).
 
 extern crate alloc;
 

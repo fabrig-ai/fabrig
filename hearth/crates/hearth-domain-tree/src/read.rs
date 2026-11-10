@@ -1,5 +1,5 @@
 //! One entry, read whole: its stat, its covered attributes, then a link's target or a file's
-//! hash (hearth/docs/design/domain/store.md, 3.4 and 5.4).
+//! hash (hearth/docs/design/domain/store/README.md, 3.4, and hearth/docs/design/domain/store/tree-helper.md, 4).
 use crate::{
     After, Tree, Wait, batch,
     limits::Limits,
@@ -90,7 +90,7 @@ pub(crate) fn stat(tree: &mut Tree, limits: &Limits, stat: Stat, out: &mut Queue
     }
 }
 
-/// The entry is the parent's, unchanged (hearth/docs/design/domain/store.md, 4.3): its covered fields are the
+/// The entry is the parent's, unchanged (hearth/docs/design/domain/store/README.md, 4.3): its covered fields are the
 /// parent's, unread, with the new stat's local index. Its file is not hashed, and it is no change.
 fn keep(tree: &mut Tree, limits: &Limits, out: &mut Queue<Output>) {
     let reading = tree.entry.as_ref().expect("an entry is in hand while it is kept");

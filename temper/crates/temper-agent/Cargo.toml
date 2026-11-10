@@ -1,6 +1,6 @@
 [package]
 name = "temper-agent"
-description = "The deployment's agent: smith's agent modes and Claude Code's launcher (protocol/README.md, 4.3)"
+description = "The deployment's agent: smith's agent modes and Claude Code's launcher (protocol/binaries.md, 3)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

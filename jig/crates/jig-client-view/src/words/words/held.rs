@@ -1,4 +1,4 @@
-//! Complete moved-hold facts without requiring an object slot; contract.md, 4.
+//! Complete moved-hold facts without requiring an object slot; client/domain/contract/README.md, 3.
 use super::{Words, name};
 use crate::words::phrases::jig::JigPhrase;
 use jig_client::contract::{ApplicationPart, HoldCategory, HoldFailure, HoldReason};

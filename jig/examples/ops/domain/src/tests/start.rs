@@ -1,4 +1,4 @@
-//! Journal barriers and cold starts (jig/docs/design/domain/engine.md, 6).
+//! Journal barriers and cold starts (jig/docs/design/domain/engine/restart.md).
 use super::{Domain, Env, Event, Limits, Output, Released, Store, core, fixture, step, take};
 use crate::{Key, Range, Record, Write};
 use core::start::{Continuation, Phase};

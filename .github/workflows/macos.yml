@@ -1,4 +1,4 @@
-# What macOS runs (temper/docs/design/domain/testing.md, 2.8): every target
+# What macOS runs (temper/docs/design/testing/README.md, 2.8): every target
 # compiled, then the one story. A red run blocks nothing: it is a finding.
 name: macos
 

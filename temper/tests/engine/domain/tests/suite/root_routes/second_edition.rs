@@ -1,4 +1,4 @@
-//! The director, P and its implementers (temper/docs/design/domain/testing.md, 2.2).
+//! The director, P and its implementers (temper/docs/design/testing/README.md, 2.2).
 use super::*;
 use jig_domain_link::EndpointBound;
 

@@ -1,4 +1,4 @@
-//! One level-triggered issue projection step (domain/forge.md, section 12).
+//! One level-triggered issue projection step (domain/forge/issues.md).
 //!
 //! The top commits the returned `Projected` and `Effect` together. A body
 //! digest and write time throttle only changed bodies; milestone keys are

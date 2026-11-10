@@ -8,7 +8,7 @@ the first start"), whose default project stayed only until jig made
 and named projects at runtime, which it now does, and changes what the
 welcome does with a forge's repositories. The look of the pages it
 names is tuned on the person's `look-requests` branch
-(`../client/journeys.md`, 7), landed apart from it.
+(`../client/web/journeys.md`, 7), landed apart from it.
 
 ## 1. In one page
 
@@ -40,7 +40,7 @@ names is tuned on the person's `look-requests` branch
 
 - **The default document seeds no project:** its `projects` is `[]`.
   jig makes each first owner a deployment owner with no project
-  configured (jig's `domain/people.md`, 3), and temper's engine, the
+  configured (jig's `domain/people/README.md`, 3), and temper's engine, the
   playground and the client already run a deployment with no project.
 - **Policy 1 stays,** a stock setting that projects are made from, not
   a project's.
@@ -62,7 +62,7 @@ names is tuned on the person's `look-requests` branch
   welcome would. What outlives it does so by design: the numbers used,
   never reused, and the spend in closed history.
 - **Nothing is added while it runs:** no LLM account and no forge can
-  be connected from the playground (`../client/README.md`, 4.8); its
+  be connected from the playground (`../client/forge/family.md`, 7); its
   pages offer no "Connect a model" and no forge to add.
 - **The way out is prominent:** while the playground runs, the banner
   offers "Set up temper →", the same act as the pages' line.
@@ -80,7 +80,7 @@ names is tuned on the person's `look-requests` branch
 - **Ready adopts the first repository:** when the connected forge's
   set up made a first repository that no project holds, the same act,
   once the project is made, adopts it into that project, as `temper
-  ctl forge setup`'s `--project` does (`../protocol/setup.md`, 6.7):
+  ctl forge setup`'s `--project` does (`../protocol/setup/owned.md`, 7):
   owned, the project's home, landing on `main`, with CI. The person's
   first project can change code from its first page, on the route
   supported first, Forgejo on this machine with its `work/hello` (the
@@ -112,16 +112,16 @@ names is tuned on the person's `look-requests` branch
   before "Create your project", and renames it later from the switcher
   (section 7). A name says what the project holds, as `temper ctl
   forge setup` with no `--project` names its new project after the
-  repository (`../client/tools.md`, 5.5); "Default" said nothing (the
+  repository (`../client/ctl/areas.md`); "Default" said nothing (the
   user, 2026-11-04).
 
 ## 5. A project with no repository
 
 - **Usable:** chats start and run in it, a chat that names no
-  repository running with no workspace (`../domain/agent.md`, 4.2).
+  repository running with no workspace (`../domain/agent/charter.md`, 2).
 - **Highlighted** wherever the project's repository would show, on the
   chats page's side pane above all, with "Adopt a repository", to the
-  adoption form into this project (`../client/README.md`, 4.4).
+  adoption form into this project (`../client/forge/family.md`, 4).
 
 ## 6. The first chat
 

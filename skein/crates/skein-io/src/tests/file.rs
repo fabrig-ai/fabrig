@@ -1,4 +1,4 @@
-//! Root admission and file metadata through the file driver (io.md, section 5).
+//! Root admission and file metadata through the file driver (runtime/io/files.md).
 
 #![expect(clippy::wildcard_enum_match_arm, reason = "unexpected test events are reported with their values")]
 
@@ -72,7 +72,7 @@ fn owns_tells_a_file_operation_from_an_io_one() {
 
 #[test]
 fn flight_limits_keep_io_tokens_below_the_file_lane() {
-    // io.md, 5: 2^27 flight slots, sized as eight per socket plus four
+    // runtime/io/files.md: 2^27 flight slots, sized as eight per socket plus four
     // independent slots. The largest representable table is four below it.
     const MOST_SOCKETS: u32 = (1 << 24) - 1;
     const MOST_FLIGHTS: u32 = (1 << 27) - 4;

@@ -1,4 +1,4 @@
-//! Routing the engine's drain without deciding connector work (engine.md, 6.1).
+//! Routing the engine's drain without deciding connector work (domain/engine/restart.md, 1).
 use crate::{Domain, Event, Request, Work};
 use alloc::boxed::Box;
 use jig_domain_core as core;
@@ -10,7 +10,7 @@ pub(super) fn defer(domain: &mut Domain, event: Event) -> Result<Event, ()> {
     }
     match event {
         // A start interrupted at its mark must not create the mark or adopt
-        // runs after the core has reported its drain (engine.md, 6.1).
+        // runs after the core has reported its drain (domain/engine/restart.md, 1).
         Event::StartDone(core::start::Phase::Switch) => Err(()),
         event @ (Event::Connector { .. }
         | Event::ConnectorTimer { .. }

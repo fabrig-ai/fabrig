@@ -1,4 +1,4 @@
-//! Each document expires independently of visibility (temper/docs/design/client/browser.md, 8.2).
+//! Each document expires independently of visibility (temper/docs/design/client/web/public.md, 2).
 use super::{Doc, Heard, PublicLimits, PublicRead};
 use crate::address::Public;
 use jig_client_protocol_wire::public_v1 as jig;

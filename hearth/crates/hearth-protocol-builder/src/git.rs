@@ -1,4 +1,4 @@
-//! One git child, held until its exit and all its resources close (hearth/docs/design/domain/render.md, 2.2).
+//! One git child, held until its exit and all its resources close (hearth/docs/design/domain/render/README.md, 2.2).
 use crate::{Asked, git_machine::invocation, resource::Resource};
 use alloc::boxed::Box;
 use skein_io::{

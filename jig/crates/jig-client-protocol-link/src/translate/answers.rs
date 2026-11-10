@@ -1,4 +1,4 @@
-//! Field-for-field client contract translation (protocol/client.md, 3 and 5).
+//! Field-for-field client contract translation (protocol/client/wire.md, 1, and protocol/client/README.md, 3).
 use crate::Limits;
 use crate::translate::{classify, text_problem};
 use alloc::boxed::Box;

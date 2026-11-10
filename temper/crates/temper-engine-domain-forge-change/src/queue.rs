@@ -1,12 +1,12 @@
-//! A derived landing queue (domain/forge.md, section 9).
+//! A derived landing queue (domain/forge/queues.md).
 //!
 //! No queue is stored. The top supplies ready changes for one branch;
 //! `first` chooses one by age, then priority (the lower first) and
-//! first-ready time (domain/forge.md, section 9).
+//! first-ready time (domain/forge/queues.md).
 use crate::Ready;
 use skein_lib::{Duration, Wall};
 
-/// Choose the first ready change, lower priority first (domain/forge.md, 9),
+/// Choose the first ready change, lower priority first (domain/forge/queues.md),
 /// with task number as a stable final tie.
 #[must_use]
 pub fn first(ready: &[Ready], window: Duration, now: Wall) -> Option<u64> {
@@ -42,7 +42,7 @@ fn before(a: &Ready, b: &Ready, window: Duration, now: Wall) -> bool {
 }
 
 impl Ready {
-    /// Compare queue candidates with the same order `first` uses (domain/forge.md, 9).
+    /// Compare queue candidates with the same order `first` uses (domain/forge/queues.md).
     #[must_use]
     pub fn before(a: &Ready, b: &Ready, window: Duration, now: Wall) -> bool {
         before(a, b, window, now)

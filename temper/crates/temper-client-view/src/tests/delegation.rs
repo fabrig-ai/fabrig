@@ -775,7 +775,7 @@ fn the_csv_chat_receives_the_whole_turn_and_anchors_the_landed_card_at_its_call(
 // QA frame 004: the change's result reached the parked chat, before the
 // resumed turn and before its independently watched task document caught up.
 // Whole, the first turn's delegate call anchors the card; cut, the heard
-// result does, and it is never drawn as bare words (client/README.md, 5.7).
+// result does, and it is never drawn as bare words (client/view.md, 5).
 #[test]
 fn the_csv_chat_keeps_its_card_and_header_together_as_the_result_arrives() {
     for turn_text in [2048, 512] {
@@ -1021,7 +1021,7 @@ fn a_browser_held_delegation_keeps_the_held_token() {
     status(&view, b"Held", look::STATUS_HELD);
 }
 
-/// The browser chat's card hides progress steps (temper/docs/design/client/browser.md, 4.6).
+/// The browser chat's card hides progress steps (temper/docs/design/client/web/testing.md, 6).
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the view's styles and their browser sheet jointly hide progress")]
 fn a_browser_chat_card_hides_its_steps() {

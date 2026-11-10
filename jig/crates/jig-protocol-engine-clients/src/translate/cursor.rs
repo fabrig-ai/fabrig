@@ -1,4 +1,4 @@
-//! Whole owner cursors, with keys carried by the store codec (jig/docs/design/protocol/client.md, 6).
+//! Whole owner cursors, with keys carried by the store codec (jig/docs/design/protocol/client/README.md, 4).
 use crate::cursor_v1::{self as c, CEILINGS as C};
 use alloc::boxed::Box;
 use jig_domain_core::{Key, documents, reads};

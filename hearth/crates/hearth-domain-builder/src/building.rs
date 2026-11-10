@@ -1,5 +1,5 @@
 //! A build's routes: render's spec in, the store's index and the protocol's steps between, its layers out to the client
-//! (hearth/docs/design/domain/build.md, 4.1; hearth/docs/design/client/README.md, 3.1).
+//! (hearth/docs/design/domain/build/README.md, 4.1; hearth/docs/design/client/README.md, 3.1).
 use crate::{
     Builder, Limits, build, render, store_step,
     vocabulary::{Answer, Request, State},

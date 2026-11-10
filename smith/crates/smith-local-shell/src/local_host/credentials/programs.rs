@@ -1,4 +1,4 @@
-//! Transfer program bindings after memory admission (shell.md, section 7.1).
+//! Transfer program bindings after memory admission (shell/credentials.md, section 1).
 use crate::credentials::{Location, Source, program_source};
 use skein_lib::List;
 use smith_host_domain::SourceName;

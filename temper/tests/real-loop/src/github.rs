@@ -1,4 +1,4 @@
-//! GitHub stories share one forge and its authenticated git route (domain/testing.md, 2.4).
+//! GitHub stories share one forge and its authenticated git route (testing/real-loop.md).
 use crate::{
     Exit, Ran, argv,
     calls::{D1, Step, browse, call, file, github_app, number, sign_in},

@@ -1,4 +1,4 @@
-//! Local git mechanics over `Checkout` (fake-checkout.md, section 4).
+//! Local git mechanics over `Checkout` (testing/fakes/checkout.md, section 4).
 //! Keeps object-presence, checked-out head and merge-conflict metadata in the
 //! checkout; commit graphs and trees live in the caller-supplied `Remote`.
 //! Never knows a service's repository policy, transport, authorization, clock
@@ -13,146 +13,146 @@
 //! The fixture owns graph/tree sizes and acyclic increasing commit IDs.
 //! Merge chooses the greatest common ID and allocates quadratic line-diff
 //! scratch, so this is no full Git implementation or production memory bound
-//! (programming-model.md, section 10.2; fake-checkout.md, section 4).
+//! (programming-model.md, section 10.2; testing/fakes/checkout.md, section 4).
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{Checkout, in_git};
 
 /// Owned regular-file bytes keyed by path relative to a working-tree root.
-/// Fixture supplies valid paths and sizes (fake-checkout.md, section 4).
+/// Fixture supplies valid paths and sizes (testing/fakes/checkout.md, section 4).
 pub type Tree = BTreeMap<Vec<u8>, Vec<u8>>;
 
 /// World-supplied synchronous remote/store boundary. The kit forwards
 /// repository and branch bytes; the implementation owns policy, availability
 /// and fault answers. Commit IDs increase topologically in a finite acyclic
 /// graph; all queried IDs must exist. No delivery state or clock is held here
-/// (fake-checkout.md, section 4).
+/// (testing/fakes/checkout.md, section 4).
 pub trait Remote {
     /// Clone asks for all repository branch tips, or a remote refusal. No
-    /// checkout mutation occurs before this returns (fake-checkout.md, section 4).
+    /// checkout mutation occurs before this returns (testing/fakes/checkout.md, section 4).
     fn heads(&mut self, remote: &[u8]) -> Result<Vec<u64>, Fault>;
 
     /// Fetch asks for the selected tip, or a remote refusal. The implementation
     /// resolves the selector; the kit imports its missing ancestry afterward
-    /// (fake-checkout.md, section 4).
+    /// (testing/fakes/checkout.md, section 4).
     fn fetch(&mut self, remote: &[u8], want: Want<'_>) -> Result<u64, Fault>;
 
     /// Caller delegates branch creation at `commit`; an existing branch stays
     /// where it is. Implementation checks repository/commit policy
-    /// (fake-checkout.md, section 4).
+    /// (testing/fakes/checkout.md, section 4).
     fn create(&mut self, remote: &[u8], branch: &[u8], commit: u64) -> Result<Created, Fault>;
 
     /// Caller delegates push policy. `None` supplies no old-head condition;
     /// `Some` requires that exact old head in addition to the implementation’s
     /// fast-forward rules. Rejection/refusal must leave the reference unchanged
-    /// (fake-checkout.md, section 4).
+    /// (testing/fakes/checkout.md, section 4).
     fn push(&mut self, remote: &[u8], branch: &[u8], commit: u64, expected: Option<u64>) -> Result<Pushed, Fault>;
 
     /// Pure first-parent lookup of an existing commit; `None` for its root
-    /// (fake-checkout.md, section 4).
+    /// (testing/fakes/checkout.md, section 4).
     fn parent(&self, commit: u64) -> Option<u64>;
 
     /// Pure second-parent lookup; `None` for a nonmerge commit
-    /// (fake-checkout.md, section 4).
+    /// (testing/fakes/checkout.md, section 4).
     fn merge_parent(&self, commit: u64) -> Option<u64>;
 
     /// Pure owned tree lookup of an existing commit, bounded by the fixture
-    /// (fake-checkout.md, section 4).
+    /// (testing/fakes/checkout.md, section 4).
     fn tree(&self, commit: u64) -> Tree;
 
     /// Pure owned message lookup of an existing commit. The opaque bytes are
-    /// bounded by the fixture (fake-checkout.md, section 4).
+    /// bounded by the fixture (testing/fakes/checkout.md, section 4).
     fn message(&self, commit: u64) -> Vec<u8>;
 
     /// Store the supplied tree with existing parent IDs. With no second parent,
     /// return `None` only when unchanged from `parent` and `always` is false; with a second parent,
     /// always issue a fresh ID recording both parents, even if unchanged.
     /// A new object records `message` verbatim; an unchanged tree drops it.
-    /// No remote reference moves (fake-checkout.md, section 4).
+    /// No remote reference moves (testing/fakes/checkout.md, section 4).
     fn store(&mut self, parent: u64, merging: Option<u64>, always: bool, tree: Tree, message: &[u8]) -> Option<u64>;
 }
 
 /// Remote implementation’s terminal refusal to a synchronous call. The kit
-/// propagates it without starting checkout changes (fake-checkout.md, section 4).
+/// propagates it without starting checkout changes (testing/fakes/checkout.md, section 4).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Fault {
-    /// Remote has no requested repository, branch or commit (fake-checkout.md, section 4).
+    /// Remote has no requested repository, branch or commit (testing/fakes/checkout.md, section 4).
     Missing(
-        /// Missing remote name kind (fake-checkout.md, section 4).
+        /// Missing remote name kind (testing/fakes/checkout.md, section 4).
         What,
     ),
 
-    /// Remote refuses the requested operation (fake-checkout.md, section 4).
+    /// Remote refuses the requested operation (testing/fakes/checkout.md, section 4).
     Refused,
 
-    /// Remote cannot be reached (fake-checkout.md, section 4).
+    /// Remote cannot be reached (testing/fakes/checkout.md, section 4).
     Unreachable,
 }
 
-/// Remote name kind that was not found (fake-checkout.md, section 4).
+/// Remote name kind that was not found (testing/fakes/checkout.md, section 4).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum What {
-    /// Repository address (fake-checkout.md, section 4).
+    /// Repository address (testing/fakes/checkout.md, section 4).
     Repository,
 
-    /// Branch name (fake-checkout.md, section 4).
+    /// Branch name (testing/fakes/checkout.md, section 4).
     Branch,
 
-    /// Commit ID (fake-checkout.md, section 4).
+    /// Commit ID (testing/fakes/checkout.md, section 4).
     Commit,
 }
 
 /// Caller’s fetch selector; interpreted entirely by `Remote`
-/// (fake-checkout.md, section 4).
+/// (testing/fakes/checkout.md, section 4).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Want<'a> {
-    /// Named branch tip (fake-checkout.md, section 4).
+    /// Named branch tip (testing/fakes/checkout.md, section 4).
     Branch(
-        /// Borrowed branch bytes for this call (fake-checkout.md, section 4).
+        /// Borrowed branch bytes for this call (testing/fakes/checkout.md, section 4).
         &'a [u8],
     ),
 
-    /// Specific commit ID (fake-checkout.md, section 4).
+    /// Specific commit ID (testing/fakes/checkout.md, section 4).
     Commit(
-        /// Commit ID in the remote’s store (fake-checkout.md, section 4).
+        /// Commit ID in the remote’s store (testing/fakes/checkout.md, section 4).
         u64,
     ),
 
-    /// Remote’s default branch tip (fake-checkout.md, section 4).
+    /// Remote’s default branch tip (testing/fakes/checkout.md, section 4).
     Default,
 }
 
-/// Remote’s branch-creation answer (fake-checkout.md, section 4).
+/// Remote’s branch-creation answer (testing/fakes/checkout.md, section 4).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Created {
-    /// Absent branch was created at the requested commit (fake-checkout.md, section 4).
+    /// Absent branch was created at the requested commit (testing/fakes/checkout.md, section 4).
     Created,
 
-    /// Branch already existed and was left unchanged (fake-checkout.md, section 4).
+    /// Branch already existed and was left unchanged (testing/fakes/checkout.md, section 4).
     Exists,
 }
 
 /// Remote’s push answer, including policy/expected-head rejection
-/// (fake-checkout.md, section 4).
+/// (testing/fakes/checkout.md, section 4).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Pushed {
-    /// Reference now names the requested commit (fake-checkout.md, section 4).
+    /// Reference now names the requested commit (testing/fakes/checkout.md, section 4).
     Pushed,
 
-    /// Policy or old-head condition rejected the push without moving the reference (fake-checkout.md, section 4).
+    /// Policy or old-head condition rejected the push without moving the reference (testing/fakes/checkout.md, section 4).
     Rejected,
 }
 
 /// Required head metadata or local object is absent. Checkout/commit/merge
-/// returns this before changing the working tree (fake-checkout.md, section 4).
+/// returns this before changing the working tree (testing/fakes/checkout.md, section 4).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct NotFetched;
 
 /// World adapter clones into an absent global directory: all commits
 /// reachable from every tip through both parents, recorded as local objects,
 /// without a checked-out tree. Remote failure leaves the checkout unchanged;
-/// an existing destination asserts (fake-checkout.md, section 4).
+/// an existing destination asserts (testing/fakes/checkout.md, section 4).
 pub fn clone_repository(
     forge: &mut impl Remote,
     checkout: &mut Checkout,
@@ -180,7 +180,7 @@ pub fn clone_repository(
 /// World adapter imports the selected commit and missing ancestry through
 /// both parents into `at`; existing object versions stay unchanged. Does not
 /// check out files or move remote references. Remote refusal leaves checkout
-/// unchanged (fake-checkout.md, section 4).
+/// unchanged (testing/fakes/checkout.md, section 4).
 pub fn fetch(
     forge: &mut impl Remote,
     checkout: &mut Checkout,
@@ -203,14 +203,14 @@ pub fn fetch(
 }
 
 /// World adapter forwards branch creation directly to `Remote`; no local
-/// checkout or object-presence check (fake-checkout.md, section 4).
+/// checkout or object-presence check (testing/fakes/checkout.md, section 4).
 pub fn create(forge: &mut impl Remote, remote: &[u8], branch: &[u8], commit: u64) -> Result<Created, Fault> {
     forge.create(remote, branch, commit)
 }
 
 /// World adapter replaces non-git descendants with an existing local commit’s
 /// tree, writes head metadata and clears merge metadata. Local object absence
-/// returns `NotFetched` without mutation (fake-checkout.md, section 4).
+/// returns `NotFetched` without mutation (testing/fakes/checkout.md, section 4).
 pub fn check_out(forge: &impl Remote, checkout: &mut Checkout, at: &[u8], commit: u64) -> Result<(), NotFetched> {
     if !checkout.exists(&object(at, commit)) {
         return Err(NotFetched);
@@ -226,7 +226,7 @@ pub fn check_out(forge: &impl Remote, checkout: &mut Checkout, at: &[u8], commit
 /// Unchanged tree returns `None`; a new commit records the opaque message,
 /// local presence and head.
 /// No remote reference moves; missing parent returns before mutation
-/// (fake-checkout.md, section 4).
+/// (testing/fakes/checkout.md, section 4).
 pub fn commit(
     forge: &mut impl Remote,
     checkout: &mut Checkout,
@@ -237,7 +237,7 @@ pub fn commit(
     commit_with(forge, checkout, at, parent, false, message)
 }
 
-/// Store a fresh single-parent object even when its tree is unchanged (fake-checkout.md, section 4).
+/// Store a fresh single-parent object even when its tree is unchanged (testing/fakes/checkout.md, section 4).
 pub fn commit_always(
     forge: &mut impl Remote,
     checkout: &mut Checkout,
@@ -271,7 +271,7 @@ fn commit_with(
 
 /// World adapter forwards a locally held commit to `Remote::push` with no
 /// old-head condition. The remote owns fast-forward and creation policy;
-/// missing local object asserts (fake-checkout.md, section 4).
+/// missing local object asserts (testing/fakes/checkout.md, section 4).
 pub fn push(
     forge: &mut impl Remote,
     checkout: &Checkout,
@@ -285,12 +285,12 @@ pub fn push(
 }
 
 /// Merge result after the working tree and merge metadata were written;
-/// no commit or remote reference was created (fake-checkout.md, section 4).
+/// no commit or remote reference was created (testing/fakes/checkout.md, section 4).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Merged {
     /// Sorted relative paths requiring resolution, each holding conflict
     /// markers. Count/bytes are bounded by the fixture’s trees
-    /// (fake-checkout.md, section 4).
+    /// (testing/fakes/checkout.md, section 4).
     pub conflicts: Vec<Vec<u8>>,
 }
 
@@ -298,7 +298,7 @@ pub struct Merged {
 /// the greatest-ID common ancestor. Preserves git nodes, writes markers for
 /// conflicts and records merge metadata. Missing head/object returns before
 /// mutation; malformed head bytes assert. No commit/reference moves
-/// (fake-checkout.md, section 4).
+/// (testing/fakes/checkout.md, section 4).
 pub fn merge(forge: &impl Remote, checkout: &mut Checkout, at: &[u8], theirs: u64) -> Result<Merged, NotFetched> {
     let raw = checkout.content(&[at, b"/.git/temper-head"].concat()).ok_or(NotFetched)?;
     let ours = u64::from_le_bytes(raw.try_into().expect("checkout stores an eight-byte head"));
@@ -344,16 +344,16 @@ pub fn merge(forge: &impl Remote, checkout: &mut Checkout, at: &[u8], theirs: u6
 }
 
 /// Merge commit refusal before creating an object or changing metadata
-/// (fake-checkout.md, section 4).
+/// (testing/fakes/checkout.md, section 4).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum CommitFailure {
-    /// One of the supplied parents is not locally held (fake-checkout.md, section 4).
+    /// One of the supplied parents is not locally held (testing/fakes/checkout.md, section 4).
     NotFetched,
 
-    /// Originally conflicted paths still contain marker lines (fake-checkout.md, section 4).
+    /// Originally conflicted paths still contain marker lines (testing/fakes/checkout.md, section 4).
     Unresolved {
         /// Relative paths still containing marker lines, in recorded conflict
-        /// order; fixture-sized (fake-checkout.md, section 4).
+        /// order; fixture-sized (testing/fakes/checkout.md, section 4).
         files: Vec<Vec<u8>>,
     },
 }
@@ -364,7 +364,7 @@ pub enum CommitFailure {
 /// presence/head, records the opaque message and clears merge metadata,
 /// without moving references.
 /// `Remote::store` must return a merge ID or this asserts
-/// (fake-checkout.md, section 4).
+/// (testing/fakes/checkout.md, section 4).
 pub fn commit_merging(
     forge: &mut impl Remote,
     checkout: &mut Checkout,
@@ -396,7 +396,7 @@ pub fn commit_merging(
 
 /// World adapter forwards a locally held commit and `Some(expected)` old
 /// head to `Remote::push`. The implementation owns conditional fast-forward
-/// policy; missing local object asserts (fake-checkout.md, section 4).
+/// policy; missing local object asserts (testing/fakes/checkout.md, section 4).
 pub fn push_expected(
     forge: &mut impl Remote,
     checkout: &Checkout,

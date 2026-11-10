@@ -1,4 +1,4 @@
-//! The accessible facts the browser face relies on (ui-web.md, 14.1).
+//! The accessible facts the browser face relies on (ui/web/testing.md, 1).
 #[path = "support/real.rs"]
 pub mod real;
 

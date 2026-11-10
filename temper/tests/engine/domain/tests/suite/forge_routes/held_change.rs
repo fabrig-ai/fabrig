@@ -1,4 +1,4 @@
-//! A held change's requester replies to its person before parking (temper/docs/design/domain/forge.md, 8.4).
+//! A held change's requester replies to its person before parking (temper/docs/design/domain/forge/change/repairs.md).
 use super::*;
 use jig_domain_core::reads;
 

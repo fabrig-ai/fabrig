@@ -1,4 +1,4 @@
-//! Small agent admission bounds (smith/docs/design/domain/run.md, section 13).
+//! Small agent admission bounds (smith/docs/design/domain/run.md, section 12).
 use crate::{Limits, run, session, tools};
 use alloc::boxed::Box;
 use skein_lib::Duration;

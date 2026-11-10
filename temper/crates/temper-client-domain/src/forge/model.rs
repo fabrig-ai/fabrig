@@ -1,4 +1,4 @@
-//! Account facts for the playground (temper/docs/design/client/README.md, 3.5).
+//! Account facts for the playground (temper/docs/design/client/pages/README.md).
 use super::{Request, Side};
 use jig_client::{Client, Handle, Latest, contract as c};
 use skein_lib::Queue;
@@ -25,7 +25,7 @@ fn usable_sources(sources: &skein_lib::List<c::AccountSource>) -> bool {
 
 /// A usable model of a provider other than the playground's: one of the person's `accounts`
 /// lines, or, for an owner, a deployment-held account of its delivered, uncut
-/// `deployment` document (client/README.md, 3.5 and 4.8).
+/// `deployment` document (client/pages/README.md and client/forge/family.md, 7).
 #[must_use]
 pub fn other_model_usable(
     accounts: &c::Accounts,
@@ -44,7 +44,7 @@ pub fn other_model_usable(
 }
 
 /// The first deployment-held account of another provider than the playground's that is usable
-/// and uncut, in an owner's delivered, uncut `deployment` (client/README.md, 3.5, 4.8).
+/// and uncut, in an owner's delivered, uncut `deployment` (client/pages/README.md, client/forge/family.md, 7).
 #[must_use]
 #[expect(clippy::manual_find, reason = "step code uses bounded loops without closures")]
 pub fn deployment_model(deployment: &c::Deployment, playground_provider: u32) -> Option<&c::Account> {

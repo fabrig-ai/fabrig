@@ -1,4 +1,4 @@
-//! RFC 3339 and HTTP dates (skein/docs/design/forge.md, 4.4).
+//! RFC 3339 and HTTP dates (skein/docs/design/forge/README.md, 4.4).
 use skein_lib::{Civil, Wall};
 fn number(text: &[u8], start: usize, end: usize) -> Option<u64> {
     skein_lib::bytes::decimal(text.get(start..end)?)

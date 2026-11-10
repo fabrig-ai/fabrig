@@ -1,4 +1,4 @@
-//! Pages use the owner's open directory as their cursor (io.md, 5).
+//! Pages use the owner's open directory as their cursor (runtime/io/files.md).
 use super::{
     Complete, Done, Entry, Error, Event, Fd, FileIo, Limits, Op, Pending, Queue, Submit, Token, Vec, Work, issue, vec,
 };

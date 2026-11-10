@@ -1,4 +1,4 @@
-//! Facts and file creation for `temper init` (protocol/setup.md, 8.2).
+//! Facts and file creation for `temper init` (protocol/setup/init.md, 2).
 use crate::{
     directories::{Directories, make_private},
     path,
@@ -314,7 +314,7 @@ fn write_deployment(
                     io.write(&destination, bytes, if private { 0o600 } else { 0o644 })
                 }
                 // skein-io at the pin has no symlink operation; like exact modes above,
-                // creating the link stays in this startup shell (setup.md, 8.2).
+                // creating the link stays in this startup shell (protocol/setup/init.md, 2).
                 temper_init::Content::Link { target } => {
                     std::os::unix::fs::symlink(path(&target), &destination).map_err(|why| why.to_string())
                 }

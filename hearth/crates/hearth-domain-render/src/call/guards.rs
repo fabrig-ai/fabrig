@@ -1,4 +1,4 @@
-//! Validate all task guards before any target entry or file (hearth/docs/design/domain/render.md, 7.1).
+//! Validate all task guards before any target entry or file (hearth/docs/design/domain/render/errors.md, 1).
 use crate::{
     entries,
     errors::{Error, Place},

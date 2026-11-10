@@ -12,7 +12,7 @@ const VERSION: u16 = 1;
 pub(crate) const HEADER: u32 = 22;
 const CHECKSUM: u32 = 4;
 
-/// A commit frame's header and checksum (skein/docs/design/kv.md, 3 and 7).
+/// A commit frame's header and checksum (skein/docs/design/data/kv.md, 3 and 7).
 pub const FRAME_BYTES: u32 = HEADER.checked_add(CHECKSUM).expect("fixed frame overhead fits");
 
 /// One put operation's encoded size, excluding the frame's overhead.
@@ -94,7 +94,7 @@ pub(crate) fn frame_len(head: &[u8], max: u32) -> Option<usize> {
 }
 
 /// Reserves a carried frame's whole length once its header has arrived, so that it moves
-/// at most once (skein/docs/design/kv.md, 3).
+/// at most once (skein/docs/design/data/kv.md, 3).
 pub(crate) fn reserve_frame(bytes: &mut Vec<u8>, max: u32) {
     if let Some(total) = frame_len(bytes, max) {
         bytes.reserve_exact(total.saturating_sub(bytes.len()));

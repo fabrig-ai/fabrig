@@ -1,4 +1,4 @@
-//! Accounts history, field re-entry, and both sign-in stories (temper/docs/design/client/browser.md, 4.6).
+//! Accounts history, field re-entry, and both sign-in stories (temper/docs/design/client/web/testing.md, 6).
 use skein_fake_person::{Find, Step as PersonStep};
 use skein_fake_person_browser::{Harness, Script, Step};
 use skein_ui::Role;

@@ -1,4 +1,4 @@
-// io's real-kernel files on the ring (shell.md, 9).
+// io's real-kernel files on the ring (runtime/shell.md, 8).
 #![cfg(target_os = "linux")]
 
 //! One exchange through io over the real ring (testing-strategy.md, 2.8, the

@@ -1,4 +1,4 @@
-//! Server-owned `OpenID` endpoints (protocol/sign-in.md, 9.2).
+//! Server-owned `OpenID` endpoints (protocol/openid-provider.md, 2).
 use alloc::boxed::Box;
 use jig_protocol_config::{self as config, Path, Problems, clients::ProviderUrls};
 use skein_lib::{Writer, bytes};

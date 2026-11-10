@@ -1,4 +1,4 @@
-//! Lossless query records for the reference case (domain/testing.md, 5.3).
+//! Lossless query records for the reference case (testing/reference-case.md).
 use crate::{Refusal, limits, read};
 use alloc::boxed::Box;
 use jig_protocol_config::Path;

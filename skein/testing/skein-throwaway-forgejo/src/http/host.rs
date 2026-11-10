@@ -74,7 +74,7 @@ impl Host for OneShot<'_> {
     fn iterate(&mut self, now: Time, wall: Wall) {
         let env = Env { now, wall, limits: limits() };
         // Deliver each io transition and its next HTTP demand before taking
-        // another completion: Failed drops unread intake (io.md, 3.3).
+        // another completion: Failed drops unread intake (runtime/io/sockets.md, 3).
         if self.events.room() >= 3 && self.submit.room() >= 2 {
             if self.io.is_ready() {
                 io::resume(&mut self.io, &env, &mut self.events, &mut self.submit);

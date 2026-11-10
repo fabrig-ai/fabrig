@@ -1,6 +1,6 @@
 //! A scripted document owner and watchers on skein's world harness.
 //! Subjects are plain counters. Document sizes and watcher pacing are seeded;
-//! the referee sees only owner inputs and watcher outputs (`domain/engine.md`, 11).
+//! the referee sees only owner inputs and watcher outputs (`domain/engine/views.md`).
 use crate::referee::{Document, Referee};
 use jig_domain_views::{self as views, Call, Domain, End, Event, Follow, Limits, Made, Request, TurnName, Window};
 use skein_lib::{Env, List, Queue, Rng, Time, Token, Wall};

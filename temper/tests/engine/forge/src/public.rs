@@ -1,4 +1,4 @@
-//! Scripted public core and forbidden sources (temper/docs/design/client/forge.md, 11.5).
+//! Scripted public core and forbidden sources (temper/docs/design/client/forge/README.md, 9.5).
 use crate::{REPO, World, changes, landings};
 use skein_fake_forge_domain::api as raw;
 use skein_lib::{Duration, Reader};

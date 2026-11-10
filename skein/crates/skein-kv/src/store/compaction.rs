@@ -1,4 +1,4 @@
-//! A snapshot's replacement lifecycle (skein/docs/design/kv.md, 5).
+//! A snapshot's replacement lifecycle (skein/docs/design/data/kv.md, 5).
 
 use alloc::boxed::Box;
 use core::mem;
@@ -176,7 +176,7 @@ fn chunk(
         let row_payload = key.len().checked_add(value.len()).expect("payload fits");
         let row_size = 8_usize.checked_add(row_payload).expect("row size fits");
         let Some(next) = size.checked_add(row_size) else { break };
-        // A row past the target has a chunk of its own, up to the ceiling (kv.md, 5).
+        // A row past the target has a chunk of its own, up to the ceiling (data/kv.md, 5).
         if next > target && !rows.is_empty() {
             break;
         }

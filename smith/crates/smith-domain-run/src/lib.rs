@@ -25,11 +25,11 @@
 //! (smith/docs/design/domain/run.md, sections 5.3 and 8.1).
 //! It also keeps the bounded labelled-message FIFO, current/offered read fence,
 //! settled wait/park state and activation-local turn numbering
-//! (smith/docs/design/domain/run.md, sections 6 and 13).
+//! (smith/docs/design/domain/run.md, sections 6 and 12).
 //! The run never knows authentication, provider dialect bytes,
 //! credential secrets, forge state, CI or the host's delivery policy. Output
 //! goes into an uncapped queue, and the caller delivers pending terminals
-//! even while cancellation is settling (smith/docs/design/domain/run.md, sections 2, 10;
+//! even while cancellation is settling (smith/docs/design/domain/run.md, sections 2, 9;
 //! skein/docs/foundation/programming-model.md, sections 5.2, 5.3 and 7).
 
 #![cfg_attr(not(test), no_std)]

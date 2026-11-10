@@ -1,4 +1,4 @@
-//! A binary's table and its printing (temper/docs/design/protocol/README.md, section 4).
+//! A binary's table and its printing (temper/docs/design/protocol/binaries.md).
 use std::fmt::Write;
 
 /// Who runs a command: `temper --help`'s groups, in this order.

@@ -1,4 +1,4 @@
-//! Public kinds, key ownership and glue (temper/docs/design/client/forge.md, 11).
+//! Public kinds, key ownership and glue (temper/docs/design/client/forge/README.md, 9).
 use super::*;
 use jig_domain_core as core;
 use skein_lib::{ReplyTo, Token};
@@ -49,7 +49,7 @@ fn a_public_read_and_its_answer_cross_the_root_boundary() {
     assert_eq!(answer, core::PublicAnswer::Busy);
 }
 
-/// A declared kind must fit the answer ceiling (jig/docs/design/protocol/configuration.md, 6).
+/// A declared kind must fit the answer ceiling (jig/docs/design/protocol/limits.md).
 #[test]
 fn a_public_kind_above_the_ceiling_names_answer_bytes() {
     let mut config = crate::tests::fixtures::engine();

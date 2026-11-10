@@ -1,6 +1,6 @@
 //! A keyed request's carried value: kept before the application sees the
-//! request, which names it by number and digest only (protocol/client.md, 5;
-//! store.md 9).
+//! request, which names it by number and digest only (protocol/client/README.md, 3;
+//! protocol/store/secrets.md).
 use super::fixtures::{self as f, Exchange};
 use crate::{Event, FromApplication, Request, SecretOwner, SecretsAnswer, SecretsRequest, ToApplication};
 use jig_client_protocol_wire::v19 as w;

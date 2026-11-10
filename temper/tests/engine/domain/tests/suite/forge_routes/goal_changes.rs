@@ -1,5 +1,5 @@
 //! A goal's dependent changes land under its branch's rules and keep their reports
-//! (temper/docs/design/domain/agent.md, 4.3.1; temper/docs/design/domain/forge.md, 8.2, 8.7 and 11.1).
+//! (temper/docs/design/domain/agent/tools.md, 1; temper/docs/design/domain/forge/change/README.md, 2, and temper/docs/design/domain/forge/change/gates.md, 2, and temper/docs/design/domain/forge/branches.md, 1).
 use super::goal_branch::{branch_tip, forge_hold, goal_request};
 use super::*;
 
@@ -191,12 +191,12 @@ fn assert_landed(world: &mut World, goal: u64, change: u64, base: u64, head: u64
     else {
         panic!("merge ancestry")
     };
-    assert_eq!(commits.len(), 1, "skein/docs/design/fake-forge.md, 2.2: a squash adds one commit");
+    assert_eq!(commits.len(), 1, "skein/docs/design/testing/fakes/forge.md, 2.2: a squash adds one commit");
     let commit = commits.iter().find(|commit| commit.id == merge).expect("merge commit");
     assert_eq!(
         commit.parents.as_ref(),
         &[base],
-        "skein/docs/design/fake-forge.md, 2.2; temper/docs/design/domain/forge.md, 4.4: the repository's style squashes onto the base's tip"
+        "skein/docs/design/testing/fakes/forge.md, 2.2; temper/docs/design/domain/forge/adoption.md, 4: the repository's style squashes onto the base's tip"
     );
     let Ok(raw::Answer::Tree(landed_tree)) =
         world.fake.inspect(&world.fake_env.limits, b"org/repo", &raw::Read::Tree { commit: merge })
@@ -210,7 +210,7 @@ fn assert_landed(world: &mut World, goal: u64, change: u64, base: u64, head: u64
     };
     assert_eq!(
         landed_tree, produced_tree,
-        "the squash keeps the producer's tree (skein/docs/design/fake-forge.md, 2.2)"
+        "the squash keeps the producer's tree (skein/docs/design/testing/fakes/forge.md, 2.2)"
     );
     assert_eq!(branch_tip(world, &branch), merge);
     assert_eq!(forge_hold(world, &branch).expect("goal still holds its branch").task, goal);

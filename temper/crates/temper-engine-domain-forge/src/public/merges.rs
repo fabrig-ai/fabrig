@@ -1,4 +1,4 @@
-//! Public queue merges from the landing log (temper/docs/design/client/forge.md, 11.2).
+//! Public queue merges from the landing log (temper/docs/design/client/forge/README.md, 9.2).
 use super::{Names, PublicAsk, w};
 use crate::{ChangeRow, Domain, Limits, LoggedLanding};
 use core::cmp::Reverse;

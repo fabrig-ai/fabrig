@@ -1,5 +1,5 @@
 //! Delivery survey, durable intent, git effects and answer (domain/host.md, section 8;
-//! protocol/hosts.md, section 5.5). The operation state owns marker evidence or
+//! protocol/host.md, section 5.5). The operation state owns marker evidence or
 //! uncertainty until its one terminal. Delivering keeps the live call, loaded intent
 //! or store operation and its continuation, never an owner without its call.
 //! Entrances route one terminal and follow advances transient states; git effects

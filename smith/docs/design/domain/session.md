@@ -39,7 +39,7 @@ child domain `smith-domain-session`, whose own child is the tools domain
   thread, its ordinal in the run's activation, main's being zero (run.md,
   sections 3.2 and 5.3). The session puts it unchanged into every prompt. skein's
   dialect renders it, or ignores it where the provider has nothing to
-  render it as (skein's llm.md). It is fixed for the conversation's life:
+  render it as (skein's llm/README.md). It is fixed for the conversation's life:
   across its windows (section 8), and across activations through its
   transcript, which records it (section 3). A session opened from a
   transcript keeps the affinity the transcript records.
@@ -99,7 +99,7 @@ child domain `smith-domain-session`, whose own child is the tools domain
   - Dynamic guidance is appended as messages, never placed in the system
     text or a tool's description: budget and threshold notes, the
     wind-down and final-turn notes, and messages passed on between
-    completions (run.md, sections 6 and 9).
+    completions (run.md, section 6 and budget.md).
   - A window boundary is the only exception (section 8.2). There, history
     is replaced whole; the system text, the tools and the affinity stay.
   - A prompt's encoding is byte-deterministic, so an unchanged prefix is
@@ -304,8 +304,8 @@ child domain `smith-domain-session`, whose own child is the tools domain
   called.
   - The opener gives the choice when it continues the session, as a run
     winding down offers `finish`, granted `deliver` and `wait`, and host tools
-    marked for the reserve (run.md, section 9), never `save` (run.md, 8.5).
-    The session sets `None` on its own final turn (section 7), and on a
+    marked for the reserve (budget.md), never `save` (run.md, 8.5).
+    The session sets `None` on its own final turn (`session.md`, section 7), and on a
     compaction (8.2), whatever the conversation's choice.
   - A call outside the choice, one a dialect that cannot express `Only`
     let through or one the model wrote anyway, is answered as not run.
@@ -324,13 +324,13 @@ child domain `smith-domain-session`, whose own child is the tools domain
   a turn, token or byte budget stops the next completion, not the turn
   in flight: the calls of the completion that crossed it still run and
   settle. For spend, the session reserves each completion's maximum first
-  (run.md, section 9), so spend never crosses it. Time is the exception:
+  (budget.md), so spend never crosses it. Time is the exception:
   when it runs out, the session closes at once. A compaction is a
   completion like any other: it counts as a turn, and is reserved,
-  charged and counted against these budgets (section 8.2). A job
+  charged and counted against these budgets (`session.md`, section 8.2). A job
   charges no turn, token or spend; its session's time runs on while it
   runs, as it does while any call runs, and a session that closes as its
-  time runs out cancels its jobs with its other calls (section 5).
+  time runs out cancels its jobs with its other calls (`session.md`, section 5).
 - **Context is a dimension of its own.** The window bounds one prompt
   (section 8.1); the token budgets bound what every completion used,
   summed. Neither stands for the other: a session well within its token
@@ -361,7 +361,7 @@ child domain `smith-domain-session`, whose own child is the tools domain
   delivery cannot charge it again. Restoring history does not charge old
   activations again. A run counts each child once, through the parent's
   terminal answer, never adding both. Enforcing one aggregate budget
-  across concurrently open sessions is the run's (run.md, section 9).
+  across concurrently open sessions is the run's (budget.md).
 
 ## 7. Sub-agents
 
@@ -388,8 +388,8 @@ that asked for it, whose result is the child's final message.
 - **Its answer is bounded,** and its system text states the bound
   (run.md, section 3.3).
 - **A main session has no final turn of its own.** Its run's wind-down
-  gives it its last completions, with a narrowed tool choice (run.md,
-  section 9).
+  gives it its last completions, with a narrowed tool choice (budget.md
+  ).
 
 ## 8. Context management
 
@@ -423,7 +423,7 @@ window, history only grows (section 3).
     a resume from a window turn), or with usage that reports no input
     count, the bound is the whole prompt's bytes plus the allowance the
     session's limits give for what the protocol layer and the provider
-    add (run.md, section 9), a byte a token. In a new window's first
+    add (budget.md), a byte a token. In a new window's first
     check, the summary that opens it counts as the output tokens its
     compaction reported, or the model's most output when none were
     reported, never as its bytes.
@@ -516,13 +516,13 @@ window, history only grows (section 3).
 - **Its trigger:** a failed window check (8.1), a provider's *context
   too long* or the guard's (section 4; 8.1), or a session opened from a window whose last
   turn's model is not its charter's main model, as when a person chose
-  another (`docs/design/shell.md`, 4.1). That compaction runs with the
+  another (`../shell/commands.md`, 1). That compaction runs with the
   window's own model, when the agent's configuration declares it, and
   the new window opens with the charter's, which its window turn records
   (protocol/transcript.md, section 2), so a later resume does not
   compact again; one the configuration no
   longer declares makes the transcript one the run cannot resume
-  (section 3).
+  (`session.md`, section 3).
 - **A window carried over** (protocol/transcript.md, section 4): a
   session opened from a window that ran on another endpoint or dialect
   than its charter's main LLM, on another account or backend, or on a
@@ -606,7 +606,7 @@ window, history only grows (section 3).
   transcript still ends at the window's last told turn, and a session
   opened from it compacts first (section 3). The messages held back for
   the new window are not read. The run takes the failure as any
-  session's: main's fails the run with that fault (run.md, section 10),
+  session's: main's fails the run with that fault (run.md, section 9),
   and a child's returns unanswered (run.md, 5.3).
 
 ### 8.3 What else keeps context small

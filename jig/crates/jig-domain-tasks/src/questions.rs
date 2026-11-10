@@ -1,4 +1,4 @@
-//! Question credits, requester moves and unanswered exits (domain/tasks.md, 5.7 and 7).
+//! Question credits, requester moves and unanswered exits (domain/tasks/lifecycle.md, 8 and domain/tasks/changes.md).
 use crate::domain::{Domain, publish, record, refused, task_mut};
 use crate::{Limits, MessageKind, Party, Refusal, Request, Word};
 use alloc::boxed::Box;

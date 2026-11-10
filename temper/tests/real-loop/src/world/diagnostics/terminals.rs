@@ -1,5 +1,5 @@
 //! Terminal task keys in successful engine journal writes and syncs
-//! (jig/docs/design/protocol/store.md, 5.1; skein/docs/design/kv.md, 3 and 4).
+//! (jig/docs/design/protocol/store/records.md, 1; skein/docs/design/data/kv.md, 3 and 4).
 use skein_io::kernel::{Complete, Done, Op};
 use skein_lib::{Queue, Reader};
 use std::collections::BTreeMap;

@@ -8,7 +8,7 @@ use skein_io::kernel::{Done, Error, Fd};
 use skein_lib::Token;
 use skein_sim::{Entry, Event, Fault, Pid, Summary};
 
-/// What a cancel's completion said about its target (kernel.md, 5).
+/// What a cancel's completion said about its target (runtime/kernel.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Answer {
     Stopped,

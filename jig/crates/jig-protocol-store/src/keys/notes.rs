@@ -1,4 +1,4 @@
-//! Scope patterns preserve each escaped segment (protocol/store.md, 4.1).
+//! Scope patterns preserve each escaped segment (protocol/store/README.md, 4.1).
 use alloc::boxed::Box;
 use jig_domain_notes::{Key, Last, Pattern, Scope};
 use skein_kv::{KeyReader, KeyWriter};

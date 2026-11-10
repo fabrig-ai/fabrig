@@ -1,5 +1,5 @@
 //! Defaults are checked before a service starts
-//! (temper/docs/design/domain/agent.md, 4.3).
+//! (temper/docs/design/domain/agent/tools.md).
 use super::fixtures;
 use crate::{startup, stock};
 use alloc::boxed::Box;

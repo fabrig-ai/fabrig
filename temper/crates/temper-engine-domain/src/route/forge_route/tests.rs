@@ -2831,7 +2831,7 @@ fn a_merge_jobs_spec_is_its_command_and_its_two_commits() {
     }
 }
 
-/// temper/docs/design/domain/forge.md, 8.4: a resolution carries the job's result within its words' room.
+/// temper/docs/design/domain/forge/change/repairs.md: a resolution carries the job's result within its words' room.
 #[test]
 #[expect(clippy::disallowed_methods, reason = "unit fixtures compare bounded resolution text")]
 fn a_resolution_after_a_merge_job_carries_its_result() {

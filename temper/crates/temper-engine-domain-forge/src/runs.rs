@@ -1,5 +1,5 @@
 //! Shared workflow following, independent of its owning procedure (domain/landing.md, 7).
-//! An outage spends no unseen lifetime (temper/docs/design/domain/forge.md, 5.11).
+//! An outage spends no unseen lifetime (temper/docs/design/domain/forge/keeping-up.md, 5).
 use alloc::boxed::Box;
 use skein_forge::api;
 use skein_lib::{Duration, List, Time};

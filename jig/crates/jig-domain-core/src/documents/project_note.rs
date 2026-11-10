@@ -1,5 +1,5 @@
 //! Project policy and notes (`client/domain/pages.md`, sections 6.1, 6.4, 6.5).
-//! Closed at once (jig/docs/design/domain/people.md, 5.2).
+//! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 //! Notes' bodies are loaded on demand by their child; this module builds a
 //! document from that loaded entry without adding a mutable cache.
 //! Pool edits target the configured period independently of the observed
@@ -140,7 +140,7 @@ pub enum NoteLocation {
         project: u32,
         scope: NoteScope,
     },
-    /// A person's own preferences, in no project (domain/engine.md, 10.1).
+    /// A person's own preferences, in no project (domain/engine/briefs.md, 2.1).
     Party {
         party: u64,
     },
@@ -559,7 +559,7 @@ pub(super) fn document_bound(limits: &super::DocumentLimits) -> Option<u64> {
         .checked_add(u64::from(limits.text_bytes))
 }
 
-/// A loaded note owns its whole description and body (domain/engine.md, 10).
+/// A loaded note owns its whole description and body (domain/engine/briefs.md, 2).
 pub(super) fn note_bound(limits: &Limits) -> Option<u64> {
     u64::try_from(size_of::<super::Document>())
         .ok()?

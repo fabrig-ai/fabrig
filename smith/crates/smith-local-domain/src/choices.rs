@@ -1,4 +1,4 @@
-//! One pending local command, applied between activations (shell.md, section 4.1).
+//! One pending local command, applied between activations (shell/commands.md, section 1).
 //! It owns only the bounded entered value; the store and run keep their existing owners.
 use crate::{Domain, Limits, Notice, Request};
 use alloc::boxed::Box;

@@ -429,7 +429,7 @@ fn specification_facts(b: &mut Builder, document: &c::SpecificationDocument, wor
     }
 }
 
-/// One settings card in a conversation or Needs you (client/README.md, 5.13).
+/// One settings card in a conversation or Needs you (client/pages/settings.md, 2).
 /// Ended cards retain their original proposal's words and read their recorded decision.
 pub(crate) fn settings(
     b: &mut Builder,
@@ -541,7 +541,7 @@ pub(crate) fn settings(
     true
 }
 
-/// What a settings card draws, from a live proposal or its retained record (client/README.md, 5.13).
+/// What a settings card draws, from a live proposal or its retained record (client/pages/settings.md, 2).
 pub(crate) struct SettingsFacts<'a> {
     pub(crate) key: c::ProposalKey,
     pub(crate) projects: &'a [u32],
@@ -777,7 +777,7 @@ fn settings_lines(b: &mut Builder, root: &temper_client_domain::Domain, facts: &
     b.close();
     owned_approval(b, root, facts.key.number, words);
 }
-/// The boundary of an owned forge's approval (client/README.md, 5.13).
+/// The boundary of an owned forge's approval (client/pages/settings.md, 2).
 pub(crate) fn owned_approval(b: &mut Builder, root: &temper_client_domain::Domain, number: u64, words: &Words) {
     if root.forge().owned_approval(number) {
         b.open(Role::Paragraph);
@@ -798,7 +798,7 @@ fn model_review(items: &[c::ReviewItem], setting: c::Setting) -> Option<&c::Revi
     }
     None
 }
-/// A model proposal names the change in the person's terms (domain/agent.md, 8.1).
+/// A model proposal names the change in the person's terms (domain/agent/agents.md, 1).
 fn model_item(item: &c::ReviewItem, words: &Words) -> Option<Box<[u8]>> {
     let c::Setting::Model(_) = item.setting else { return None };
     let before = review_model(&item.now);
@@ -911,7 +911,7 @@ fn proposed_ways(
         &words.say(Word::SettingsProposalWay, &[super::name(skein_lib::Decimal::of(u64::from(ways.way)).as_bytes())]),
     );
 }
-/// The table's subjects in the settings order (client/README.md, 5.13, The card in a chat).
+/// The table's subjects in the settings order (client/pages/settings.md, 2, The card in a chat).
 pub(crate) fn class_objects(
     words: &Words,
     classes: &temper_protocol_reaches::Classes,
@@ -1081,7 +1081,7 @@ fn settings_title(root: &temper_client_domain::Domain, facts: &SettingsFacts<'_>
     words.say(Word::SettingsProposalTitle, &[super::name(&names)])
 }
 
-/// A proposal's line keeps its actions outside its folded facts (client/README.md, 3.5).
+/// A proposal's line keeps its actions outside its folded facts (client/pages/README.md).
 pub(crate) fn terminal(
     b: &mut Builder,
     root: &temper_client_domain::Domain,
@@ -1105,7 +1105,7 @@ pub(crate) fn terminal(
     b.close();
 }
 
-/// A proposal's terminal heading (temper/docs/design/client/README.md, 3.5).
+/// A proposal's terminal heading (temper/docs/design/client/pages/README.md).
 pub(crate) fn line(card: &temper_client_domain::pages::inbox::Card, _words: &Words) -> Option<Box<[u8]>> {
     let page = card.page.as_ref()?;
     let c::ReadValue::Proposal(_) = page else { return None };

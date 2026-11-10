@@ -1,6 +1,6 @@
 //! Command options select frozen plans and settled evidence reports.
 //! No agent state is read; benchmark requests and settled public evidence are inputs.
-//! Contract: smith/docs/design/benchmarks.md, sections 5.1 and 11.5.
+//! Contract: smith/docs/design/benchmarks/README.md, section 5.1, and smith/docs/design/benchmarks/catalogue.md, section 5.
 
 use super::{
     Order, ProbeAgent, Source, archived, check_parent, codex, finish_calibration, gating, judgment, plan, prepare,

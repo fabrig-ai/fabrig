@@ -6,9 +6,9 @@ review's follow-up) is a finding: a labelled issue in the project's
 home, whose labels temper reads back, so that it can be triaged on the
 forge or in temper. And QA after landing: landings mark what a user can
 now do, a chooser picks which marks to test, and one tester at a time
-tries them on the newest cleared main. It replaces `forge.md`, 12's
-findings, kept in the store and never read back. What is open is section
-10.
+tries them on the newest cleared main. It replaces `forge/issues.md`'s
+findings, kept in the store and never read back. What is open is `findings.md`, section 10
+.
 
 ## 1. In one page
 
@@ -19,7 +19,7 @@ findings, kept in the store and never read back. What is open is section
   failing test ids and the failure's first line, where it has one.
 - **Labels are read back** (section 3): a person may triage on the
   forge, by its labels, or in temper; either way the finding's state is
-  its labels. A narrow exception to `forge.md` 12's "written and never
+  its labels. A narrow exception to `forge/issues.md`'s "written and never
   read back", for findings alone.
 - **temper keeps the mechanics** (section 4): filing, matching by
   signature (a flake seen again is counted, not filed twice), routing,
@@ -40,7 +40,7 @@ findings, kept in the store and never read back. What is open is section
 
 ## 2. What a finding is
 
-- **Its issue,** in the project's home (jig's `domain/core.md`, 6.1),
+- **Its issue,** in the project's home (jig's `domain/model.md`, 6.1),
   created by temper (skein's `Write::CreateIssue` with its labels),
   keyed by its purpose (section 4), its title the finder's.
 - **Its labels:** `finding`; `kind:qa`, `kind:flake`, `kind:red` or
@@ -50,7 +50,7 @@ findings, kept in the store and never read back. What is open is section
   has its labels made in its home by temper's own setup, not an effect:
   once its findings are on and its home adopted, temper writes each
   label it lacks through the forge client directly, as an adoption's
-  access on a managed Forgejo is the setup's (`forge.md`, 4.2), with no
+  access on a managed Forgejo is the setup's (`forge/adoption.md`, 2), with no
   grant; a label that exists counts as made, each retried until made,
   the progress kept on the project's findings record.
 - **Its body:** the key's marker; the reproduction, from a fresh start;
@@ -63,7 +63,7 @@ findings, kept in the store and never read back. What is open is section
 
 ## 3. Read back
 
-- **The keep reads the home's issues** as ever (`forge.md`, 5.2); each
+- **The keep reads the home's issues** as ever (`forge/keeping-up.md`, 2); each
   finding's labels, as the change feed's row carries them, are compared
   with its record. A `state:` label a person changed is the finding's
   new state; a `severity:` or `area:` label is its new severity or
@@ -83,7 +83,7 @@ findings, kept in the store and never read back. What is open is section
 - **Who files:** the QA procedure, from its tester's report (section
   8); verdicts, a flake (after-landing.md, 5.2) and a red of no goal's
   (after-landing.md, section 7); an agent's tool, outside its task
-  (`agent.md`, 4.3), as `forge.md` 12's findings were.
+  (`agent/tools.md`), as `forge/issues.md`'s findings were.
 - **What a verdict files:** its reproduction is the tier's or gate's
   workflow at the run's commit with its failing tests alone; its first
   line, the failed job's failed step's last line (skein's `Read::Job`);
@@ -96,7 +96,7 @@ findings, kept in the store and never read back. What is open is section
   finding's is counted on it (its record's count, and a comment once
   per day at most), never filed again; a red's or a QA finding's is
   filed anew, naming the open ones it overlaps.
-- **Purposes,** tag 9 in `forge.md`'s table: a finding's filing, by its
+- **Purposes,** tag 9 in `forge/README.md`'s table: a finding's filing, by its
   source (a verdict's repository, tier and run; a QA pass and its
   case's number; a task's call) and, where it has one, its signature's
   first id in byte order, else 0, so that the same thing asked twice
@@ -118,7 +118,7 @@ findings, kept in the store and never read back. What is open is section
 - **The triager** is named by the project's settings: a task, by its
   number (usually the person's chat), or a role of the project's. New
   findings wake it, at once or on its period: news on the forge's topic
-  of a project's findings for a task (`forge.md`, 7.1), a notification
+  of a project's findings for a task (`forge/README.md`, 5.1), a notification
   for a party.
 - **Its acts,** a task's through its tools and a party's through
   `temper ctl` (section 9), each writing the finding's labels and
@@ -142,7 +142,7 @@ findings, kept in the store and never read back. What is open is section
   nothing until it is repaired.
 - **The forge's own keywords** would close it at the merge: an owned
   Forgejo's setup turns its closing keywords off
-  (`../protocol/setup.md`, `CLOSE_KEYWORDS` empty); GitHub's
+  (`../protocol/setup/README.md`, `CLOSE_KEYWORDS` empty); GitHub's
   per-repository setting, "Auto-close issues with merged linked pull
   requests", is named at adoption, with whether it is off. On GitHub,
   whatever it says, and on any other forge, a finding closed in the
@@ -176,7 +176,7 @@ findings, kept in the store and never read back. What is open is section
   its users do, and writes down what it expects before trying each
   case. Its result is a report in the verdict contract: each case's
   outcome, and each finding with its reproduction, severity and area,
-  in the QA report contract (`agent.md`, 4.4): `cases`, each a mark's
+  in the QA report contract (`agent/charter.md`, 3): `cases`, each a mark's
   landing, what it expected, its outcome (`passed`, `failed`,
   `blocked`) and notes; and `findings`, each a title, a reproduction,
   a severity, an area and the mark it came from, each field within the
@@ -194,7 +194,7 @@ findings, kept in the store and never read back. What is open is section
   `CreateIssue` takes labels, and `Write::Labels { number, labels }`
   sets an issue's whole set of labels by name, `Write::CreateLabel {
   name, color }` makes one, `Exists` when the name is taken.
-- **Views and acts** (`../client/tools.md`, a group `finding` and a
+- **Views and acts** (`../client/ctl/README.md`, a group `finding` and a
   group `qa`): `finding list --project PROJECT [--state STATE]`,
   `finding show FINDING`, `finding route FINDING --goal TASK`, `finding
   backlog FINDING`, `finding drop FINDING REASON`; `qa marks --project

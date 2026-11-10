@@ -1,4 +1,4 @@
-//! A branch's path (temper/docs/design/domain/forge.md, 8.13).
+//! A branch's path (temper/docs/design/domain/forge/change/branch-path.md).
 #![expect(clippy::disallowed_methods, reason = "ordinary tests build and inspect bounded fixture paths")]
 use super::invariants::bounds;
 use super::*;
@@ -84,7 +84,7 @@ fn expected(path: &Path, words: &[(Actor, &str)], row: &str) {
 fn paths_follow_the_stock_and_branch_rules_in_order() {
     // The look request's three pages, with "verify" added to its first two
     // paths, since main's tier follows main whatever the way
-    // (temper/docs/design/domain/forge.md, 8.13).
+    // (temper/docs/design/domain/forge/change/branch-path.md).
     let mut maintainer = inputs(0, false, false, Way::Queue, false);
     maintainer.rules.first_mut().unwrap().rule.approvals =
         Box::new([RuleApproval { role: 1, people: 2, freshness: JudgeFreshness::Clean }]);

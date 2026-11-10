@@ -1,4 +1,4 @@
-//! Endpoint configuration and admission (llm-connection.md, sections 3, 4
+//! Endpoint configuration and admission (llm/connection.md, sections 3, 4
 //! and 7). The component keeps configured endpoints, physical bindings and
 //! an owner lifecycle and admitted calls in arrival order. It knows no retry
 //! or termination policy. `down` admits
@@ -68,7 +68,7 @@ pub struct Component {
 }
 
 impl Component {
-    /// Keeps later prepared bodies (skein/docs/design/llm-connection.status.md).
+    /// Keeps later prepared bodies (skein/docs/design/llm/connection.status.md).
     pub fn keep_bodies(&mut self) {
         if self.bodies.is_none() {
             self.bodies = Some(Queue::uncapped());

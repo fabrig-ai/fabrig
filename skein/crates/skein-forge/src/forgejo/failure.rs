@@ -44,5 +44,5 @@ pub fn answer(refusal: Refusal) -> (u16, &'static [u8]) {
     }
 }
 
-/// The pinned fast-forward refusal includes Git's diagnostic (forge.md, 9).
+/// The pinned fast-forward refusal includes Git's diagnostic (forge/forgejo.md, 2).
 pub const DIVERGING_FAST_FORWARD: &[u8] = b"Merge DivergingFastForwardOnly Error: exit status 128: hint: Diverging branches can't be fast-forwarded, you need to either:\nhint:\nhint: \tgit merge --no-ff\nhint:\nhint: or:\nhint:\nhint: \tgit rebase\nhint:\nhint: Disable this message with \"git config advice.diverging false\"\nfatal: Not possible to fast-forward, aborting.\n\n";

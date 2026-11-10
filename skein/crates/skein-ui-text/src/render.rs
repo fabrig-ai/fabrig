@@ -1,4 +1,4 @@
-//! Role-based text, independent of styles (ui-text.md, 5).
+//! Role-based text, independent of styles (ui/text.md, 5).
 use skein_ui::{EntryKind, Limits, Node, NodeId, Region, Role, Run, State, Tree};
 
 use skein_lib::{Decimal, List, Stack, len_u64};

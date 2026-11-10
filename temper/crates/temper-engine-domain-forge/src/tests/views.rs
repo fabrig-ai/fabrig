@@ -230,7 +230,7 @@ fn the_own_scope_answers_no_other_subject() {
     }
 }
 
-// Whole queues and retained titles (temper/docs/design/domain/forge.md, 9).
+// Whole queues and retained titles (temper/docs/design/domain/forge/queues.md).
 use temper_engine_domain_forge_change as change;
 const PROJECT: u32 = 5;
 const SECOND: u64 = fixtures::CHANGE + 1;

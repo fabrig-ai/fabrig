@@ -224,7 +224,7 @@ fn provider_routes_without_a_provider_are_not_found() {
     }
 }
 
-// protocol/sign-in.md, 9.2: a refusal leaves the public documents routable, including queries.
+// protocol/openid-provider.md, 2: a refusal leaves the public documents routable, including queries.
 fn document_routes(service: &mut crate::Service) {
     for (method, path, status) in [
         ("POST", "/.well-known/openid-configuration", b"405"),
@@ -243,7 +243,7 @@ fn document_routes(service: &mut crate::Service) {
     }
 }
 
-// protocol/sign-in.md, 9.3: an unknown client or redirect never yields an external destination.
+// protocol/openid-provider.md, 3: an unknown client or redirect never yields an external destination.
 fn refused_authorizations(service: &mut crate::Service, cookie: &[u8]) {
     let fields = format!(
         "Content-Type: application/octet-stream\r\nJig-Client: browser\r\nCookie: {}\r\n",

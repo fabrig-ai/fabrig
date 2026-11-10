@@ -316,7 +316,7 @@ pub(crate) fn run(r: &mut Runner<'_>) -> Result<()> {
     r.facts.push(Fact {
         name: "signatures-push-gh013",
         outcome: Outcome::Unchecked(
-            "required signatures are unbuilt in the fake (fake-forge.md 10.2); live is not probed".into(),
+            "required signatures are unbuilt in the fake (testing/fakes/github.md 1.2); live is not probed".into(),
         ),
     });
     Ok(())
@@ -1280,7 +1280,9 @@ fn setup(r: &mut Runner<'_>) -> Result<()> {
         if !r.fake() {
             r.facts.push(Fact {
                 name,
-                outcome: Outcome::Unchecked("live App is read only; fake-only manifest fact (fake-forge.md 11)".into()),
+                outcome: Outcome::Unchecked(
+                    "live App is read only; fake-only manifest fact (testing/fakes/github.md 2)".into(),
+                ),
             });
             continue;
         }

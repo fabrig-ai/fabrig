@@ -1,4 +1,4 @@
-//! Session and kept records, encoded under an application's prefix (skein/docs/design/ui-web.md, 10).
+//! Session and kept records, encoded under an application's prefix (skein/docs/design/ui/web/README.md, 8).
 use crate::platform::Platform;
 use skein_lib::{
     Writer,

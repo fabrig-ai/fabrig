@@ -1,9 +1,9 @@
-//! Refused-start stderr, including writes named before store decoding (protocol/README.md, 4).
+//! Refused-start stderr, including writes named before store decoding (protocol/binaries.md).
 use alloc::boxed::Box;
 use jig_protocol_store::OpenRefusal;
 use skein_lib::{Decimal, Writer};
 
-// jig's protocol/store.md, 10.3 caps the refusal's retained keys at 64.
+// jig's protocol/store/opening.md, 3 caps the refusal's retained keys at 64.
 const KEYS: usize = 64;
 const REMEDY: &[u8] = b" is still in flight; start the build before this one and stop it to settle it\n";
 

@@ -1,4 +1,4 @@
-//! Public reads decide nothing (jig/docs/design/domain/engine.md, 11).
+//! Public reads decide nothing (jig/docs/design/domain/engine/views.md).
 #![expect(
     clippy::disallowed_macros,
     reason = "unit tests snapshot the complete core state to check that public messages change nothing"

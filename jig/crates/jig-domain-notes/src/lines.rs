@@ -1,10 +1,10 @@
-//! A note's answer counts a single changed span (jig/docs/design/domain/engine.md, 10).
+//! A note's answer counts a single changed span (jig/docs/design/domain/engine/briefs.md, 2).
 
 use crate::Refusal;
 use alloc::boxed::Box;
 use skein_lib::Writer;
 
-/// The lines a range write replaces (jig/docs/design/domain/engine.md, 10).
+/// The lines a range write replaces (jig/docs/design/domain/engine/briefs.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct LineRange {
     /// The 1-based first line replaced; the body's lines + 1 to append.

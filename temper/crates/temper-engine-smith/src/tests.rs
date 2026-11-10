@@ -442,7 +442,7 @@ fn a_finite_change_run_keeps_its_modify_policy() {
 #[test]
 fn a_starting_run_hears_its_met_dependency_by_name() {
     // A run resumed by its last dependency's end hears the Met notice that woke it (jig's
-    // domain/tasks.md, section 8.1), as a live run does.
+    // domain/tasks/messages.md, section 1), as a live run does.
     let mut assignment = assignment();
     assignment.messages = Box::new([tasks::Word {
         number: 2,
@@ -2822,7 +2822,7 @@ fn document_sections_have_repository_path_and_heading_titles() {
     }
 }
 
-/// temper/docs/design/domain/agent.md, 4.3.1: merge accepts both commit widths and pads SHA-1.
+/// temper/docs/design/domain/agent/tools.md, 1: merge accepts both commit widths and pads SHA-1.
 #[test]
 fn a_plan_change_reads_merge_as_a_commit() {
     for (digits, length) in [("aB".repeat(20), 20), ("aB".repeat(32), 32)] {
@@ -2844,7 +2844,7 @@ fn a_plan_change_reads_merge_as_a_commit() {
     }
 }
 
-/// temper/docs/design/domain/agent.md, 4.3.1: a malformed commit names the refused member.
+/// temper/docs/design/domain/agent/tools.md, 1: a malformed commit names the refused member.
 #[test]
 fn a_malformed_merge_is_refused_naming_it() {
     for (digit, length) in [("a", 0), ("a", 39), ("a", 41), ("a", 63), ("a", 65), ("g", 40), ("g", 64)] {
@@ -2998,7 +2998,7 @@ fn read_compare_too_large_names_bounds_and_paged_fallback() {
     );
 }
 
-/// agent.md, 4.3: a forge size refusal retains its bound, measure and read-on words.
+/// domain/agent/tools.md: a forge size refusal retains its bound, measure and read-on words.
 #[test]
 fn forge_read_too_large_names_configured_bounds_and_clips() {
     use skein_forge::api::{Bound, Error, Excess};
@@ -3033,7 +3033,7 @@ fn forge_read_too_large_names_configured_bounds_and_clips() {
     }
 }
 
-/// agent.md, 4.3: a refused branch read says what to read instead; every
+/// domain/agent/tools.md: a refused branch read says what to read instead; every
 /// other Missing and Empty refusal keeps its one line.
 #[test]
 fn a_refused_branch_read_says_what_to_read_instead() {
@@ -3094,7 +3094,7 @@ fn branch_lists_render_whole_within_the_host_byte_bound() {
     }
 }
 
-/// agent.md, 4.3 and 4.3.2: a declaration says what a run calls instead.
+/// domain/agent/tools.md: a declaration says what a run calls instead.
 #[test]
 fn declarations_say_when_to_call_goal_and_what_prefix_to_give() {
     let mut count = 0_usize;

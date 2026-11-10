@@ -136,7 +136,7 @@ pub fn templates() -> Box<[jig_domain_core::Template]> {
 }
 
 /// jig's two default templates, the chat ended as `chat` says: by its
-/// requester, as temper's is configured (domain/agent.md, 4.6). The goal is
+/// requester, as temper's is configured (domain/agent/charter.md, 5). The goal is
 /// ended by its result either way.
 #[must_use]
 pub fn templates_ending(chat: jig_domain_tasks::EndedBy) -> Box<[jig_domain_core::Template]> {
@@ -243,7 +243,7 @@ pub fn first_start_over(
     config: engine::Config,
     limits: &engine::Limits,
 ) -> crate::store::Store {
-    // First-start rows, then the separate header-and-wires mark (domain/root.md, 9.1).
+    // First-start rows, then the separate header-and-wires mark (domain/root.md, 8.1).
     const FIRST_START_COMMITS: u64 = 2;
     let mut driver = Driver::cold(store, config, limits);
     driver.period_sent = true;

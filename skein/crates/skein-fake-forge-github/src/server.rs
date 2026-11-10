@@ -1,4 +1,4 @@
-//! One bounded HTTP connection over GitHub's API/browser or blob listener (skein/docs/design/fake-forge.md, 10.1, 10.6 and 12).
+//! One bounded HTTP connection over GitHub's API/browser or blob listener (skein/docs/design/testing/fakes/github.md, 1.1, 1.6 and 3).
 use crate::{
     answers, pages,
     service::{Limits, Outcome, Pending, Problem, Request, Response, Service},

@@ -1493,7 +1493,7 @@ enum OptionsStep {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "one table holds the field's options and their keys (ui-web.md, 7)")]
+#[expect(clippy::too_many_lines, reason = "one table holds the field's options and their keys (ui/web/README.md, 5)")]
 fn a_fields_options_take_its_keys() {
     use OptionsStep::{Blur, Click, ComposingKey, Keep, Key, Remove, ShiftEnter};
     let down = Key(b"ArrowDown");

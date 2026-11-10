@@ -1,5 +1,5 @@
-//! A peer world for the worker host (domain/hosts.md, sections
-//! 6.4-6.7 and 11). The parent plays a workspace and agent; the engine's
+//! A peer world for the worker host (domain/hosts/hub.md, sections 4-7, and domain/hosts/README.md, section 9
+//! ). The parent plays a workspace and agent; the engine's
 //! fake store commits turns before acknowledging them. The link may lose
 //! contact and replays the host's retained turns before its held answer.
 

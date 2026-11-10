@@ -1,4 +1,4 @@
-//! A real engine, worker and agent list child over simulated pipes and a fake provider (channel.md, 8 and 12).
+//! A real engine, worker and agent list child over simulated pipes and a fake provider (protocol/channel/README.md, 7 and 11).
 use crate::{
     fixtures,
     processes::{self, Proc},

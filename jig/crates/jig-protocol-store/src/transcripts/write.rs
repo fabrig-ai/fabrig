@@ -1,4 +1,4 @@
-//! Ordered frames synced before their accepting commit (store.md, 6 and 8.2).
+//! Ordered frames synced before their accepting commit (protocol/store/README.md, 5, and protocol/store/transcripts.md, 2).
 use super::{File, Stage};
 use crate::{Arrived, Below, Event, Limits, Phase, Root, Store, Write, commits, transcripts};
 use alloc::boxed::Box;

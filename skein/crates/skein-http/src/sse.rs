@@ -5,7 +5,7 @@
 //!
 //! # Its two sides
 //!
-//! Below, a `lib::stream` (lib.md, 7): a response body, from the HTTP
+//! Below, a `lib::stream` (runtime/lib.md, 7): a response body, from the HTTP
 //! client. The reader demands a line at a time: a scan to the first line
 //! end, a CR or an LF ([`Read::Line`]), of at most [`Limits::chunk`], so a
 //! delivery holds one line end at most, as its last byte, and a line longer
@@ -79,7 +79,7 @@ pub struct Limits {
 /// The most bytes the reader demands at once: a scan of [`Limits::chunk`].
 ///
 /// Whoever stacks the reader checks at startup that the side below takes a
-/// demand this large (lib.md, 7): for the HTTP client, its
+/// demand this large (runtime/lib.md, 7): for the HTTP client, its
 /// `Limits::read`.
 #[must_use]
 pub fn largest_demand(limits: &Limits) -> u32 {

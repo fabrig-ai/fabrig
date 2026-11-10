@@ -26,7 +26,7 @@ pub const MOVED_BASE: u64 = 3;
 pub(crate) const MERGE_BRANCH: &[u8] = b"temper/1/c2";
 pub(crate) const PROJECT: u32 = 1;
 pub(crate) const AGENT_KIND: u16 = 1;
-// A task names the repository by forge 1 and its id, packed (domain/forge.md, 4).
+// A task names the repository by forge 1 and its id, packed (domain/forge/adoption.md).
 pub(crate) const REPOSITORY_TAG: u64 = temper_engine_domain_forge::tag(1, REPOSITORY);
 pub(crate) const PARAMETER_NAMES: [u16; 3] = [1, 2, 3];
 pub(crate) const CHANGE_KIND: u16 = 1;
@@ -184,7 +184,7 @@ pub(crate) fn codec() -> jig_protocol_store::codec::View {
     let limits = jig_test_service_limits(&engine().limits);
     jig_protocol_store::codec::limits(&limits.root.core).expect("codec")
 }
-/// The configured models' names the people records name models by (jig's protocol/store.md, 5.1).
+/// The configured models' names the people records name models by (jig's protocol/store/records.md, 1).
 pub(crate) fn store_names() -> &'static [jig_domain_core::settings::ModelName] {
     static NAMES: std::sync::OnceLock<Box<[jig_domain_core::settings::ModelName]>> = std::sync::OnceLock::new();
     NAMES.get_or_init(|| jig_protocol_store::codec::names(&engine().llm.models()))

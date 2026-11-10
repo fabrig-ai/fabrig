@@ -11,9 +11,9 @@ the reference's M1 to M10.
 
 - **Five phases,** P1 to P5 (section 3), set with the user on
   2026-11-02 so that no two designers write one section at once: the
-  reference's M1 and M3 write jig's `domain/engine.md`,
-  17.5 to 17.7, temper's `../protocol/configuration.md`, 13.2 to 13.4
-  and the section M1 adds after 13.8, and `../domain/agent.md`, 4.3.1,
+  reference's M1 and M3 write jig's `domain/engine/settings.md`, 5 to 7
+  , temper's `../protocol/configuration/settings.md`, 2 to 3 and `../protocol/configuration/stock.md`
+  and the section M1 adds after 13.8, and `../domain/agent/tools.md`, 1,
   and P2 and P3 follow M3 beside them.
 - **P1 first,** landed 2026-11-03: what was designed and touched
   nothing in flight: a charter's documents, charters read at their
@@ -51,16 +51,16 @@ nothing.
 - **Executes:** `configuring.md`, section 2's "Rules must reach the
   runs" (a charter's documents), its section 4 (a task runs under the
   revision it was made in), and its 5.4's first row.
-- **Design:** none new. jig's `domain/engine.md`, 17.3 and 17.9;
-  temper's `../protocol/configuration.md`, 13.7; `../domain/agent.md`,
-  4.1 and 4.6; `../client/tools.md`, 5.3 (`chat start`'s `--template`).
+- **Design:** none new. jig's `domain/engine/settings.md`, 3 and 9;
+  temper's `../protocol/configuration/settings.md`, 6; `../domain/agent/charter.md`,
+  1 and 5; `../client/ctl/tools.md`, 3 (`chat start`'s `--template`).
   A designer finding a section incomplete writes its part, and no
   more.
 - **Builds:** jig's charter documents, planned with the brief; temper's
   gathering of each as a brief section; each run reading its charter,
   documents included, at its task's revision; `chat start --template`,
   any template a chat's.
-- **Tests:** `../domain/testing.md`, 6.4's rows for a charter's
+- **Tests:** `../testing/checks.md`, 4's rows for a charter's
   documents and for running work keeping its revision.
 - **Walk:** folds into P2's.
 - **Done** when it lands.
@@ -70,15 +70,15 @@ nothing.
 - **Executes:** `configuring.md`, 3.3 (a change touching a project's
   own policy; restoring a version) and 5.4's rows but the first, which
   is P1's.
-- **Design:** the rules jig's `domain/engine.md`, 17.9 and 17.10 and
-  temper's `../protocol/configuration.md`, section 13 cite this draft
+- **Design:** the rules jig's `domain/engine/settings.md`, 9 and 10 and
+  temper's `../protocol/configuration/settings.md` cite this draft
   for, in their own words (`configuring.status.md`'s first entry; those
-  `../domain/agent.md`, 8.1 cites are P3's); a change of settings
+  `../domain/agent/agents.md`, 1 cites are P3's); a change of settings
   touching a project's own policy, decided by one person holding both
-  roles (jig's `domain/engine.md`, 17.2 and 17.6, jig's
-  `domain/people.md`, 5.2, temper's `../protocol/configuration.md`,
-  13.1, `../client/tools.md`, 5.3); restore and temper's kinds (jig's
-  `domain/engine.md`, 17.10), the status's entry closed one way or
+  roles (jig's `domain/engine/settings.md`, 2 and 6, jig's
+  `domain/people/acts.md`, 2, temper's `../protocol/configuration/settings.md`,
+  1, `../client/ctl/tools.md`, 3); restore and temper's kinds (jig's
+  `domain/engine/settings.md`, 10), the status's entry closed one way or
   recorded as a departure the user decides; what that asks of 17.5,
   M3's, written after M3 lands.
 - **Builds:** the items of temper's kinds in a settings file and in a
@@ -91,16 +91,16 @@ nothing.
 ### P3. The configuring agent
 
 - **Executes:** `configuring.md`, 5.3 and section 6.
-- **Design:** `../domain/agent.md`, 8.1, as P2 left the settings, the
+- **Design:** `../domain/agent/agents.md`, 1, as P2 left the settings, the
   rules it cites this draft for in its own words;
   `../protocol/documentation.md`'s reference pages `configuration`,
   `configuration-engine` and `limits`, describing what M3 and P2 built.
 - **Builds:** charter 3 and template 3 in the stock; the `settings`
   family in the stock's policy and rules, offered only where a charter's
   `tools` names it; each charter leaving its brief room, checked at a
-  start and at a change's entrances (`../domain/agent.status.md`,
-  `../protocol/configuration.status.md`); the three pages.
-- **Tests:** `../domain/testing.md`, 6.4's rows for the configuring
+  start and at a change's entrances (`../domain/agent/README.status.md`,
+  `../protocol/configuration/README.status.md`); the three pages.
+- **Tests:** `../testing/checks.md`, 4's rows for the configuring
   agent.
 - **Walk:** a configuring chat started through `temper ctl` on a real
   model, a small description proposed and accepted.
@@ -111,7 +111,7 @@ nothing.
 - **Design:** the golden, `reference-code-production.md`, section 14
   cut into obligations; its check in code and its judge; the box's
   prerequisites and limits; designed beside 6.4 in
-  `../domain/testing.md` unless its designers find a better home.
+  `../testing/README.md` unless its designers find a better home.
 - **Builds:** the golden, the check and the judge; the walk's brief.
 - **Walk:** 8.1 itself, run again as the reference's milestones land.
 - **Done** when it has landed on main. 8.1 passes when its walk finds

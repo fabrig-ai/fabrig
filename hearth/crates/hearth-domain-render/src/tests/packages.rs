@@ -25,12 +25,12 @@ fn the_resolution_inputs_are_the_four_values_as_the_record_encodes_them() {
             bytes(b"updates"),
             Item::False
         ],
-        "hearth/docs/design/domain/store.md 3.1"
+        "hearth/docs/design/domain/store/README.md 3.1"
     );
     assert_eq!(
         (&*inputs.request, &*inputs.variant),
         (&[Item::List(0)][..], &[bytes(b"apt")][..]),
-        "hearth/docs/design/domain/render.md 5.1"
+        "hearth/docs/design/domain/render/spec.md 2.1"
     );
     assert_eq!(&*inputs.apt, &[Item::Map(1), bytes(b"install_recommends"), Item::False]);
 }

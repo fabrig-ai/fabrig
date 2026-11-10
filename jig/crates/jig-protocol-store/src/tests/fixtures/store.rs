@@ -1,4 +1,4 @@
-//! Memory component fixtures (protocol/store.md, section 14).
+//! Memory component fixtures (protocol/store/README.md, section 9).
 use super::{
     APPLICATION, CORE_LIMITS, DEPLOYMENT, INSTALLATION, KEY_LIMIT, calls, core_rows, identity, note_entry, note_line,
     task_history, task_record,

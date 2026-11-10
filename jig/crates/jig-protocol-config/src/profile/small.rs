@@ -1,4 +1,4 @@
-//! Limits for one person's machine (configuration.md, 6).
+//! Limits for one person's machine (protocol/limits.md).
 //! The profile keeps concurrent work and retained state small for a personal deployment.
 use super::{Limits, Link};
 use jig_domain_accounts as accounts;
@@ -340,7 +340,7 @@ pub(super) const DRIVER: skein_oauth_accounts::Limits = skein_oauth_accounts::Li
     exchanges: 4,
     listeners: CORE.accounts.sign_ins.checked_mul(2).expect("a listener and a settling one per sign-in"),
     // A full answer at the client's bounds, 13,407 bytes (redirect_room),
-    // with room to grow (jig's configuration.md, 6).
+    // with room to grow (jig's protocol/limits.md).
     redirect_bytes: REDIRECT,
     server: skein_http::server::Limits {
         // The request line at the redirect bound, BROWSER_FIELDS for a browser's fields
@@ -361,10 +361,10 @@ pub(super) const DRIVER: skein_oauth_accounts::Limits = skein_oauth_accounts::Li
             client_bytes: 1024,
             detail_bytes: 1024,
             record_bytes: 65536,
-            // Account sign-in: up to one KiB of issuer-issued client id (skein oauth.md 5).
+            // Account sign-in: up to one KiB of issuer-issued client id (skein skein/docs/design/oauth/README.md 5).
             issued_client_bytes: 1024,
             granted_bytes: 4096,
-            // Account sign-in: one KiB of OpenID subject (skein oauth.md 5).
+            // Account sign-in: one KiB of OpenID subject (skein skein/docs/design/oauth/README.md 5).
             subject_bytes: 1024,
             id_token_bytes: 7934,
             depth: 16,
@@ -376,7 +376,7 @@ pub(super) const DRIVER: skein_oauth_accounts::Limits = skein_oauth_accounts::Li
         code_bytes: 4096,
         url_bytes: jig_domain_accounts::ADDRESS,
         request_bytes: 65536,
-        // Account sign-in terms (skein oauth.md 5, 6.7): host id 17 + 45,
+        // Account sign-in terms (skein skein/docs/design/oauth/README.md, 5, skein/docs/design/oauth/accounts.md, 7): host id 17 + 45,
         // agent_name_hint 15 + up to 256 bytes.
         parameter_bytes: 62 + 15 + 256,
         // One URI's 4096 bytes for the account sign-in resource.
@@ -386,7 +386,7 @@ pub(super) const DRIVER: skein_oauth_accounts::Limits = skein_oauth_accounts::Li
         // Account sign-in discovery and key-set documents: 64 KiB each.
         metadata_bytes: 65_536,
         key_set_bytes: 65_536,
-        // Four rotating issuer keys (skein oauth.md 5).
+        // Four rotating issuer keys (skein skein/docs/design/oauth/README.md 5).
         keys: 4,
         modulus_bits: 2048,
         skew: Duration::ZERO,

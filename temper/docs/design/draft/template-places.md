@@ -6,12 +6,12 @@ plan takes it up until the user does, once the ways to start work are
 clearer, and nothing here is a part of v0.1.0 (`v0.1.0.md`). A
 project's ways to start work are its templates (jig's
 `protocol/configuration.md`, 3.1), as How work runs names them
-(`../client/README.md`, 5.13): jig's chat and goal and temper's
-configuring chat in the stock (`../protocol/configuration.md`, 13.4),
+(`../client/pages/settings.md`, 2): jig's chat and goal and temper's
+configuring chat in the stock (`../protocol/configuration/stock.md`),
 and perhaps many more. Today the client chooses by number which it
 offers where; this draft makes where a template is offered a setting.
 The look requests `new-menu` and `configure-chat-in-settings`
-(`../client/journeys.md`, 7) draw its two places.
+(`../client/web/journeys.md`, 7) draw its two places.
 
 ## 1. In one page
 
@@ -36,12 +36,12 @@ The look requests `new-menu` and `configure-chat-in-settings`
   template's number breaking a tie.
 - **Its line,** at most 120 bytes of the person's words: "Ask a
   question or ask for a change." How work runs shows it under the
-  template's name, its "line" (`../client/README.md`, 5.13).
+  template's name, its "line" (`../client/pages/settings.md`, 2).
 - **A template with no offer** is in no place: How work runs lists it,
   and New's "All ways to start work" leads there.
 - **It grants nothing.** An offer names no executor, budget or
   authority: a template is served, never used (jig's
-  `domain/engine.md`, section 11), and a start from an offer is the
+  `domain/engine/views.md`), and a start from an offer is the
   start its template fills, judged by the engine as any other.
 
 ## 3. Places
@@ -58,8 +58,8 @@ The look requests `new-menu` and `configure-chat-in-settings`
   (`configure-chat-in-settings`). To begin's first step (`to-begin.md`,
   section 3) and How work runs' "Tell temper how you work" start the
   first of them, and are not shown with none, where the client today
-  names template 3, falling back to template 1 (`../client/README.md`,
-  3.5's first chat).
+  names template 3, falling back to template 1 (`../client/pages/README.md`
+  's first chat).
 - **Later, a context's places:** a goal's page, a change's, a draft's:
   "Review this change", "Start a goal from this draft". A start there
   carries its context into the task, which jig's templates name no
@@ -74,8 +74,8 @@ The look requests `new-menu` and `configure-chat-in-settings`
   templates'; value an offer, which replaces kind 7's for its template
   in that project, an offer with no places taking it out of every
   place there; decided by that project's owners.
-- **Judged and kept as temper's other kinds** (`../protocol/configuration.md`,
-  13.2), by the connector that owns them (section 9): an item is
+- **Judged and kept as temper's other kinds** (`../protocol/configuration/settings.md`,
+  2), by the connector that owns them (`template-places.md`, section 9): an item is
   refused that does not decode, names a place this draft does not
   have, carries a line past its bound, or names a template the
   settings do not define; a template removed takes its offers with it,
@@ -83,7 +83,7 @@ The look requests `new-menu` and `configure-chat-in-settings`
 - **Bounds:** a value's largest bytes, its places, its order and its
   line at 120 bytes; values per scope, jig's limit on templates.
 - **Read** through the forge's family, as temper's other kinds' values
-  are (`../client/forge.md`, section 9); the client puts a project's
+  are (`../client/forge/served.md`); the client puts a project's
   offer over the deployment's.
 - **Proposed by the configuring agent** as any setting ("put reviews
   first in the menu"), nothing changing until an owner accepts
@@ -106,12 +106,12 @@ until its owners change them.
 - **The Settings page's offers,** from Settings' (section 3).
 - **How work runs' ways to start work:** each template's name and line,
   and, opened, its places and order, tagged Default, Changed or Added
-  as every setting is, with "Change it in a chat" (`../client/README.md`,
-  5.13).
+  as every setting is, with "Change it in a chat" (`../client/pages/settings.md`,
+  2).
 - **Offered whatever the role:** a template the person's role may not
   start is offered all the same; the engine judges the start, and its
   refusal says why, since the client never computes what a party may do
-  (`../client/README.md`, 5.3).
+  (`../client/view.md`, 3).
 - **Live:** a change of the offers reaches an open page as `me` and the
   forge's reads deliver it; an open menu closes when its items change.
 
@@ -133,7 +133,7 @@ until its owners change them.
 2. **The client:** the rail's entry and menu, the Settings page's
    offers, How work runs' rows and To begin's first step.
 3. **The configuring agent:** its instructions name offers
-   (`../domain/agent.md`, 8.1).
+   (`../domain/agent/agents.md`, 1).
 
 ## 9. Open questions
 
@@ -142,7 +142,7 @@ until its owners change them.
 - **Who owns kinds 7 and 8:** the forge's connector, which owns
   temper's other kinds, or a child of temper's root of its own for the
   client's settings: jig lets the root route a kind to any child (jig's
-  `domain/engine.md`, 17.5), and an offer is no concern of the forge's.
+  `domain/engine/settings.md`, 5), and an offer is no concern of the forge's.
 - **A context's places** need a template's input (section 3), a jig
   change.
 - **A person's own:** recent ways first, or a person's order, kept by

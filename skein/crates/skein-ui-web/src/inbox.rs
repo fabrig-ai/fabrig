@@ -1,4 +1,4 @@
-//! Reports are taken in order, without re-entering a turn (ui-web.md, 5.3).
+//! Reports are taken in order, without re-entering a turn (ui/web/README.md, 4.3).
 
 use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;

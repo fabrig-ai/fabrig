@@ -1,4 +1,4 @@
-//! Linux's tree keeper calls (shell.md, 7.5).
+//! Linux's tree keeper calls (runtime/readiness.md, 5).
 
 use crate::posix::group::negative_group;
 pub(crate) use crate::posix::group::{group_live, process_live, signal_group};

@@ -1,4 +1,4 @@
-//! The real smith host half for source commands (jig/docs/design/domain/hosts.md, 5.1 and 6.8).
+//! The real smith host half for source commands (jig/docs/design/domain/hosts/README.md, 5.1, and jig/docs/design/domain/hosts/hub.md, 8).
 //! Paths and a whole environment are injected below the worker root; no login
 //! contents or process environment are read here. Commands settle before reuse.
 use alloc::boxed::Box;

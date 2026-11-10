@@ -1,4 +1,4 @@
-//! The ended indexes commit with the task they name (protocol/store.md, 7.4).
+//! The ended indexes commit with the task they name (protocol/store/loads.md, 4).
 
 use crate::read_support::world;
 use jig_domain_core as core;

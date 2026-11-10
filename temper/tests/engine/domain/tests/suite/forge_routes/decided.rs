@@ -1,4 +1,4 @@
-//! A task's named decision is live and durable (temper/docs/design/domain/forge.md, 5.9).
+//! A task's named decision is live and durable (temper/docs/design/domain/forge/attention.md, 5).
 use super::*;
 use skein_lib::Wall;
 use temper_protocol_reaches::{Class, Classes, Item, Kind, Offer, PathSet, Reach, Reason, Subject, Way};

@@ -1,4 +1,4 @@
-//! The journeys: the client's pages recorded, replayed and printed (client/journeys.md).
+//! The journeys: the client's pages recorded, replayed and printed (client/web/journeys.md).
 
 use skein_ui::Role;
 use std::{
@@ -13,7 +13,7 @@ pub mod tui;
 pub mod tui_again;
 /// Where the TUI journeys live (temper/docs/design/client/tui/journeys.md, 6.1).
 pub const TUI_JOURNEYS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/design/client/tui/journeys");
-/// Where the journeys live, by the manifest's path (client/journeys.md, 5.1).
+/// Where the journeys live, by the manifest's path (client/web/journeys.md, 5.1).
 pub const JOURNEYS: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../docs/design/client/journeys");
 
 #[derive(Debug)]
@@ -43,7 +43,7 @@ pub enum Refusal {
     Harness { name: String, step: u32, report: String },
 }
 
-/// Whether NAME is a journey's name, `[a-z][a-z0-9-]*` (client/journeys.md, 5.1).
+/// Whether NAME is a journey's name, `[a-z][a-z0-9-]*` (client/web/journeys.md, 5.1).
 #[must_use]
 pub fn named(name: &str) -> bool {
     let mut bytes = name.bytes();
@@ -51,7 +51,7 @@ pub fn named(name: &str) -> bool {
         && bytes.all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
 }
 
-/// Counts of the originals and replacements (client/journeys.md, 3.6).
+/// Counts of the originals and replacements (client/web/journeys.md, 3.6).
 #[derive(Debug)]
 pub struct Added {
     pub link: u32,
@@ -65,7 +65,7 @@ pub struct Added {
 }
 
 /// Takes a recording as NAME, redacts, proves and scans it in memory, then
-/// replaces its recording and pages (client/journeys.md, 3.6–3.7, 4.3 and 5.1).
+/// replaces its recording and pages (client/web/journeys.md, 3.6–3.7 and 4.3–5.1).
 /// # Errors
 /// Refuses an invalid name, unreadable or unsafe bytes, a failed proof or io.
 pub fn add(journeys: &Path, name: &str, recording: &[u8], given: &[Box<[u8]>]) -> Result<Added, Refusal> {
@@ -270,7 +270,7 @@ fn io_refusal(path: &Path) -> Refusal {
     Refusal::Io { path: path.to_owned() }
 }
 
-// The main region's level-1 heading, as in the gallery (client/browser.md, 7.1).
+// The main region's level-1 heading, as in the gallery (client/web/gallery.md, 1).
 fn heading(tree: &skein_ui::Tree) -> Vec<u8> {
     let nodes = tree.nodes();
     for (index, node) in nodes.iter().enumerate() {

@@ -260,7 +260,7 @@ workspace that can write can remove, with no shell needed.
 - **A variable prints its name alone.** `smith-protocol-machine`'s
   `Variable`, `Environment` and `Spawn`, and the component that holds the
   environment, show each variable's name in `Debug`, never its value, as
-  skein's `Spawn` does (skein's `kernel.md`, 6.2): one rule for a spawned
+  skein's `Spawn` does (skein's `runtime/kernel.md`, 6.2): one rule for a spawned
   environment, whatever it holds.
 - **Search** is `rg`, run as a process of its own: no configuration, the
   pattern and glob passed so that neither reads as an option, and an
@@ -442,7 +442,7 @@ prove on a real kernel.
   does.
 - **A code graph:** indexing a workspace for codebase-memory-mcp, served
   as an MCP tool source, and who keeps the index.
-- **Workspaces beyond directories** (README.md, section 8).
+- **Workspaces beyond directories** (README.md, section 5).
 - **A job's standard input:** writing to a running job, which `job` does
   not do (section 5).
 - **A path's resolved bound and a hidden name:** with one directory, the
@@ -492,7 +492,7 @@ domain checks each call before it runs.
 - **What does not:**
   - one path namespace: the program sees its working directory and the
     paths of the directories beside it as its view mounts them
-    (protocol/hosts.md, section 3), not `/name/...`;
+    (../protocol/host.md, section 3), not `/name/...`;
   - read before write and match before edit, which are the program's
     own checks;
   - the stated bounds on each tool's output, which are the program's;

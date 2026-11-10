@@ -1,10 +1,10 @@
-//! A child refuses its pending restore before activation (store.md 10.2, step 7).
+//! A child refuses its pending restore before activation (protocol/store/opening.md 2, step 7).
 //! The store checks encodings and counts; the modelled child's stricter rule
 //! runs over the copy. Ending that start leaves the old generation active.
 use jig_store_world::patches::{self, BASE, Records, SETS};
 use jig_test_patches::patches::kept::fixture_shelf;
 
-/// A referee rule standing in for a child's restore rule (engine.md 6);
+/// A referee rule standing in for a child's restore rule (domain/engine/restart.md);
 /// the store world has no children, and jig's store has no such rule.
 /// This child accepts shelves weighing at most 30.
 fn a_child_refuses(key: &[u8], bytes: &[u8]) -> bool {

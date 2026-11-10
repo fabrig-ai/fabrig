@@ -214,7 +214,7 @@ fn run_with_peer(
     assert_no_children();
 }
 
-// Startup's content-free root counts (skein/docs/design/shell.md, section 6.2).
+// Startup's content-free root counts (skein/docs/design/runtime/shell.md, section 6.2).
 fn trust_notice(line: &str) -> bool {
     line.strip_prefix("smith: trust roots: ").is_some_and(|counts| {
         let fields: Vec<_> = counts.split(", ").collect();

@@ -1,5 +1,5 @@
 //! Task pages, live trees and goal lines (`client/domain/pages.md`, 5 and 6.2).
-//! Closed at once (jig/docs/design/domain/people.md, 5.2).
+//! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 //! Copies bounded rows from their owners. Trees fold every unshown live row into
 //! phase counts; held counts cover the whole subtree. Goal progress uses retained
 //! goal projections, including ended rows. Nothing here mutates a task or policy.
@@ -58,7 +58,7 @@ pub struct AuthorityLine {
 /// Result form and its admitted bounds, usable as a person task's form.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ContractLine {
-    /// Maximum application result bytes (jig/docs/design/domain/tasks.md, 5.3.1).
+    /// Maximum application result bytes (jig/docs/design/domain/tasks/lifecycle.md, 3.1).
     Job { bytes: u32 },
     /// Exact connector state required for approval; it is never shortened.
     Approval { state: Box<[u8]>, part: Part },
@@ -108,7 +108,7 @@ pub enum TaskLink {
 }
 
 /// Dependency facts from its owning task and the prerequisite's live row or stub
-/// (client/domain/contract.md, 5.1; domain/tasks.md, 5.7 and 7).
+/// (client/domain/contract/documents.md, 1; domain/tasks/lifecycle.md, 8 and domain/tasks/changes.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Dependency {
     pub number: u64,
@@ -154,7 +154,7 @@ pub struct HoldLine {
     pub hold_wait_since: Option<Wall>,
 }
 
-/// A placed hold and the reader's ownership admission (client/domain/contract.md, 5.6).
+/// A placed hold and the reader's ownership admission (client/domain/contract/documents.md, 6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PlacedLine {
     pub number: u64,
@@ -211,7 +211,7 @@ pub enum Parameter {
 }
 
 /// The settings revisions an agent task's runs read their charter from
-/// (client/domain/contract.md, 5.1; domain/engine.md, 17.3).
+/// (client/domain/contract/documents.md, 1; domain/engine/settings.md, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct TaskSettings {
     /// The revision the task records.
@@ -231,7 +231,7 @@ pub struct Task {
     pub label: u32,
     pub flags: tasks::Flags,
     pub last_activity: Wall,
-    /// When the task was made: its record's `created_at` (jig/docs/design/client/domain/contract.md, 5.1).
+    /// When the task was made: its record's `created_at` (jig/docs/design/client/domain/contract/documents.md, 1).
     pub made: Wall,
     pub chip: Chip,
     pub acts: List<crate::acts::Offered>,
@@ -257,7 +257,7 @@ pub struct Task {
     pub parameters: List<Parameter>,
     pub instructions: Option<Text>,
     /// An agent task's LLM choice as kept, by the core's indices; `None` takes its charter's
-    /// default (domain/tasks.md, 3).
+    /// default (domain/tasks/README.md, 3).
     pub llm: Option<tasks::LlmChoice>,
     /// The last successfully claimed main account.
     pub kept_account: Option<u32>,
@@ -1217,7 +1217,7 @@ pub(super) fn dependency_rows(limits: &Limits, row: &tasks::TaskRecord) -> List<
     facts
 }
 
-/// A retained ended root has no live subtree (client/domain/contract.md, 7.2).
+/// A retained ended root has no live subtree (client/domain/contract/README.md, 5.2).
 pub(crate) fn ended_tree(core: &Core, limits: &Limits, party: u64, row: &tasks::TaskRecord) -> Result<Tree, Missing> {
     if !(core.open_project(row.project) && core.people.role(party, row.project).is_some() || person_funded(row, party))
     {

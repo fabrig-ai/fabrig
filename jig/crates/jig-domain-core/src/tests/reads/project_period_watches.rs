@@ -1,5 +1,5 @@
 //! Frame watches signal project period changes; rereads keep each project's own period.
-//! `client/domain/contract.md`, 6, 7.1–7.2; `domain/engine.md`, 11.
+//! `client/domain/contract/README.md`, 4 and 5.1–5.2; `domain/engine/views.md`.
 
 use crate::tests::*;
 

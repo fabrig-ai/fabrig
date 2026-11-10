@@ -23,7 +23,7 @@ The owner's expectation (2026-11-09): temper puts no needless load on Forgejo by
    - Keep each answer's ETag and Last-Modified, and send them on the next read of the same resource.
    - A 304 reuses the kept answer and counts as a read.
    - Where Forgejo sends no validator, nothing changes.
-5. **The design says so:** `temper/docs/design/domain/forge.md` (watches, polls, retries) and its status file.
+5. **The design says so:** `temper/docs/design/domain/forge/README.md` (watches, polls, retries) and its status file.
 
 ## Not in this plan
 

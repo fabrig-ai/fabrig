@@ -1,6 +1,6 @@
 //! Measured native Messages requests and shape-derived cache markers.
 //! Keeps no state; replay is never modified. Entrances validate, measure and encode.
-//! Contract: llm.md, sections 4.5 and 4.7.
+//! Contract: llm/README.md, sections 4.5 and 4.7.
 use crate::{Block, Error, Json, Prompt, Provider, Replay, Role, Tool, wire};
 use alloc::boxed::Box;
 use skein_json::{Document, Kind, writer};

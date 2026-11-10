@@ -11,7 +11,7 @@ pub enum HoldKind {
 /// Admission rule for the forge's private branch kind.
 pub const BRANCH_HOLD: HoldKind = HoldKind::Exclusive { wait: true };
 
-/// Admission rule for a goal's own branch (domain/forge.md, 11.1).
+/// Admission rule for a goal's own branch (domain/forge/branches.md, 1).
 pub const GOAL_BRANCH_HOLD: HoldKind = HoldKind::Exclusive { wait: false };
 
 impl Domain {

@@ -7,7 +7,7 @@ const FIRST_START: &str = "first start";
 const RESTART: &str = "restart with a live run";
 // A direct world's complete restart settles within its existing 256-step horizon.
 const STEPS: u32 = 256;
-// The start's own decision contains only its deployment header and wires (root.md, 9.1).
+// The start's own decision contains only its deployment header and wires (root.md, 8.1).
 const MARK_WRITES: usize = 2;
 
 #[test]

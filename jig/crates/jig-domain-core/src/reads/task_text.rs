@@ -1,4 +1,4 @@
-//! Bounded source text reads (jig/docs/design/client/domain/contract.md, 6).
+//! Bounded source text reads (jig/docs/design/client/domain/contract/README.md, 4).
 use super::{Answer, Why};
 use crate::{Core, Limits};
 use alloc::boxed::Box;

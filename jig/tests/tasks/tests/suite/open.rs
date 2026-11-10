@@ -1,4 +1,4 @@
-//! Open and finite runs after the same committed turn (domain/tasks.md, 5.8).
+//! Open and finite runs after the same committed turn (domain/tasks/lifecycle.md, 9).
 use jig_domain_tasks::{
     self as tasks, Accepted, Active, Amendment, Cancel, Closing, End, EndKind, EndedBy, Ending, Event, Executor, Flags,
     Hold, InvalidResult, Key, Line, MessageKind, Models, New, Operation, Party, PersonAddress, Phase, Problem, Refusal,

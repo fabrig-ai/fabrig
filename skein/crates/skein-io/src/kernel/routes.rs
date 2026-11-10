@@ -1,6 +1,6 @@
 use super::{Complete, Op, Submit};
 use skein_lib::{Map, Queue, Token};
-/// A process's hand-off to the kernel: each owner's tokens renamed to one space (kernel.md, 5).
+/// A process's hand-off to the kernel: each owner's tokens renamed to one space (runtime/kernel.md, 5).
 #[derive(Debug)]
 pub struct Routes {
     active: Map<Token, (Token, Option<Token>)>,

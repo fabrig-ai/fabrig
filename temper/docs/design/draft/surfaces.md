@@ -7,11 +7,11 @@ mockups as their look (section 13). It is drawn green field, on the
 user's word: "take it as greenfield, doesn't matter what we have now,
 let's design optimizing for the vision". It revises the greenfield
 mock's rail (`../client/greenfield/README.md`), the client's rail, tab
-bar and Settings (`../client/README.md`, 5.3 and 3.5, *Settings*), and
+bar and Settings (`../client/view.md`, 3 and `../client/pages/README.md`, *Settings*), and
 the terminal's direction and what it leaves after its first pass
 (`tui.md`, sections 3, 6 and 7): the launchpad as drawn here, the side
 pane, needs from elsewhere and talking with a role become v0.1.0's
-through section 11. It wins where they differ
+through `surfaces.md`, section 11. It wins where they differ
 until its plans fold it in. temper/ui carries out the web, the phone and
 the drafter's instructions, which are a chat's; temper/tui carries out
 the terminal. Reasons: `whole-story.md` and `notes.md`.
@@ -54,8 +54,8 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
   12); "Ask temper"; a hairline; "How work runs"; then "+ New draft or
   change". At its foot: the Away switch, while it shows; on All
   projects it sets every project the person is in, and reads "Away on 2
-  of 4" while they differ; "Deployment"; the person's menu; the night switch, as today (`../client/README.md`,
-  5.3).
+  of 4" while they differ; "Deployment"; the person's menu; the night switch, as today (`../client/view.md`,
+  3).
 - **All projects** is the switcher's first row, once the person has a
   second project. On Home and Needs you it is where a sign-in lands. Work,
   Team and How work runs are a project's: chosen under All projects, they
@@ -69,7 +69,7 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
 - **Settings splits.** The rail's "Settings" goes: its How work runs and
   Repositories tabs become How work runs (section 7), and its Forges,
   Accounts, Models and Builders tabs become Deployment (section 8).
-- **While To begin shows** (`../client/README.md`, 3.5): "Home", "Ask
+- **While To begin shows** (`../client/pages/README.md`): "Home", "Ask
   temper", a hairline and "How work runs", with "Deployment", the
   person's menu and the night switch at the foot, today's "Settings"
   being those two. A new project's Home asks for one deliberate choice,
@@ -86,7 +86,7 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
 
 - **Across projects or one.** On All projects, Home is the deployment's
   for the person; on a project, that project's, as
-  `../client/README.md`, 3.5, *Home on any project*, has it, with this
+  `../client/pages/README.md`, *Home on any project*, has it, with this
   section's parts added. The mockups draw All projects.
 - **The intro:** the kicker, "Sunday 08:04 · you last looked 9 hours ago
   · away 23:10 to 08:00", the Away span while one ended since the last
@@ -98,7 +98,7 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
 - **The brief rolls up the owners.** The status agent writes it from
   each area's owner's Now and report (`standing-roles.md`, section 7) and
   what the engine keeps, on the triggers it has today, a look with
-  something new and none over an hour old (`../domain/forge.md`, 5.7). Its
+  something new and none over an hour old (`../domain/forge/attention.md`, 3). Its
   instructions and its brief are temper/ui's alone, as the status agent's
   are.
 - **On All projects,** one brief a project, as today, until a brief per
@@ -130,7 +130,7 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
 ## 4. Needs you
 
 - **Across projects by default,** filtered by project from a project's
-  pages, at its addresses as today (`../client/README.md`, 3.5, *Needs
+  pages, at its addresses as today (`../client/pages/README.md`, *Needs
   you*). On a wide page it is a list, oldest first, the first card open;
   on a phone, one card at a time, as today.
 - **The intro** says what reaches the person, from their projects'
@@ -181,7 +181,7 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
   ago · main green".
 - **Its filters:** All, Drafts, Goals, Changes, Chats. `Goals { project,
   filter }` and `Changes { project }` are its filters' addresses
-  (`../client/README.md`, 3.5, *Goals* and *Changes*).
+  (`../client/pages/README.md`, *Goals* and *Changes*).
 - **What it holds is what exists,** never the way's name: each chat that
   started work, change, goal and draft shows by its own facts, under what
   it belongs to, a goal's changes under the goal and a chat's under the
@@ -190,7 +190,7 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
   Draft first, with drafts and goals. A filter with nothing under it
   isn't drawn (section 12).
 - **A row opens its page:** a goal's and a task's pages stay as they are
-  (`../client/README.md`, 5.8 and 5.9), and a goal's conversation opens
+  (`../client/pages/goal.md`, 2, and `../client/pages/task.md`, 2), and a goal's conversation opens
   from its page.
 - **Not drawn:** Work is the greenfield mock's `goals.html` renamed, its
   rows widened to changes, chats and drafts.
@@ -232,15 +232,15 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
 ## 7. How work runs
 
 - **A project's process on one page.** It takes Settings' How work runs
-  tab's place (`../client/README.md`, 5.13) and carries what that page's
+  tab's place (`../client/pages/settings.md`, 2) and carries what that page's
   fuller form deferred: roles, ways to start work, rules, running work
-  and history (`../client/README.md`, section 11).
+  and history (`../client/README.md`, section 5).
 - **The intro:** a headline naming the way and its chief departure,
   "Draft first, with the protocol core asking you"; a lede; "Ask temper
   to change this", opening Ask temper on the project; "History · N
   changes", the settings' revisions.
 - **The path of a change,** the one drawing Ask temper's ways use
-  (`../client/README.md`, 5.16): a column a step, the stops of the
+  (`../client/pages/chat/conversation.md`, 3): a column a step, the stops of the
   project's derived path (`stock-ways.md`, section 4), a person's and an
   agent's above the authority line and code's below it, each by its mark,
   each opening its card (`stock-ways.md`, section 5); the line "no merge
@@ -263,7 +263,7 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
   roles start, with the chat's and Ask temper's, but not the deployment's
   model trial. A row each: its name, what it does and when, and the model
   a run of it would take now; opened, what it may do, what it is asked
-  and its instructions (`../client/README.md`, 5.13, *Roles*). The path
+  and its instructions (`../client/pages/settings.md`, 2, *Roles*). The path
   draws a typical run, and this is where the rest is, the foreman and the
   status agent among them. What it does is words saved with its charter
   (`whole-story.execution.md`, P3e).
@@ -271,9 +271,9 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
   starts.
 - **At its foot:** the project's repositories, today's Repositories tab,
   with "Adopt a repository"; and what the project shows, today's
-  switches (`../client/README.md`, 5.13), as overrides of what its way shows (section 12).
+  switches (`../client/pages/settings.md`, 2), as overrides of what its way shows (`surfaces.md`, section 12).
 - **Every change is a proposal an owner accepts,** or an owner's own
-  change of one item, as `../client/README.md`, 5.13, has it.
+  change of one item, as `../client/pages/settings.md`, 2, has it.
 - **Its mockup:** `how.html`.
 
 ## 8. Deployment
@@ -281,13 +281,13 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
 - **The deployment's own, from the rail's foot:** its tabs Accounts,
   Forges, Models, Workers, Members and Limits.
 - **Today's pages in a new frame:** Accounts, Forges, Models and Builders,
-  renamed Workers, keep their addresses and acts (`../client/README.md`,
-  3.5, *Settings*), drawn in Deployment's frame rather than a project's
+  renamed Workers, keep their addresses and acts (`../client/pages/README.md`
+  , *Settings*), drawn in Deployment's frame rather than a project's
   Settings, so that To begin's links and a connect's way back hold.
 - **Members:** who may do what, in the deployment and in each project
-  (jig's `domain/people.md`). Ownership of an area is Team's.
+  (jig's `domain/people/README.md`). Ownership of an area is Team's.
 - **Limits:** the deployment's limits, read-only but for an owner
-  (`../protocol/configuration.md`, section 7).
+  (`../protocol/configuration/limits.md`).
 - **Not drawn:** its pages are today's.
 
 ## 9. Ask temper and Tell temper
@@ -329,7 +329,7 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
 ## 11. The terminal
 
 This section revises `tui.md`, section 3, and the launchpad of
-`../client/README.md`, 6.14. The terminal stays where a person works with
+`../client/tui/pages.md`. The terminal stays where a person works with
 agents, one thing in focus (`tui.md`, section 2); watching running work
 stays the web's.
 
@@ -367,9 +367,9 @@ stays the web's.
   draft and its conversation, listed on the launchpad.
 - **`/goal` starts a goal from the draft,** its choices the project's
   ways of working, kind 7's tracked templates, as the web's "Start goal…"
-  offers them (`../client/README.md`, 3.5, *Ways*, and 5.14).
+  offers them (`../client/pages/README.md`, *Ways*, and 5.14).
 - **On the web,** the same session reads as a chat with its draft in
-  Split (`../client/README.md`, 3.5).
+  Split (`../client/pages/README.md`).
 - **Its mockup:** `design-session.html`.
 
 ### 11.3 Talking with a role
@@ -388,7 +388,7 @@ stays the web's.
 
 ### 11.4 Commands
 
-- **Today's commands stay** (`../client/README.md`, 3.5, *A chat's
+- **Today's commands stay** (`../client/pages/README.md`, *A chat's
   terminal*, and 6.14), `/chats` among them.
 - **Added:** `/draft`, a design session, or in one, the draft shown or
   hidden as today; `/change`; `/talk NAME`; `/ask`; `/brief`, the brief
@@ -398,7 +398,7 @@ stays the web's.
 ### 11.5 Views in the terminal
 
 - **Printed, not drawn** (the user, 2026-11-08): a view in a reply or a
-  chat's document (`../client/README.md`, 5.16) prints in the
+  chat's document (`../client/pages/chat/conversation.md`, 3) prints in the
   conversation as lines of the terminal's own text. No picture for
   v0.1.0.
 - **A path:** a stop a line, in the derivation's order: the mark the web
@@ -424,7 +424,7 @@ them, shows exactly its parts, and moving along it never flips a page.
 
 | Part | Shows when |
 |---|---|
-| Home's brief | the status agent has written one (`../domain/forge.md`, 5.7) |
+| Home's brief | the status agent has written one (`../domain/forge/attention.md`, 3) |
 | All projects, and Home's projects | the person is in two projects or more |
 | Needs you's approvals and sign-offs | a change waits for the person's review under a landing rule |
 | Needs you's questions, money, Only you | such an entry waits for the person |
@@ -462,10 +462,10 @@ them, shows exactly its parts, and moving along it never flips a page.
   unchanged: a fixed set of suggestions, each a rule over counts code
   keeps, offered as a proposal the person may make, changing nothing on
   its own.
-- **This replaces** today's `Domain::away_shown` (`../client/README.md`,
-  3.5, *Away*) and the greenfield mock's per-project `parts` switches.
+- **This replaces** today's `Domain::away_shown` (`../client/pages/README.md`
+  , *Away*) and the greenfield mock's per-project `parts` switches.
 - **Overrides:** today's "What the project shows" switches
-  (`../client/README.md`, 5.13) stay as overrides at How work runs'
+  (`../client/pages/settings.md`, 2) stay as overrides at How work runs'
   foot, hiding a part its rule would show, never showing one it would
   hide.
 
@@ -499,9 +499,9 @@ them, shows exactly its parts, and moving along it never flips a page.
   on a deployment of their own. Their words,
   parts, order and look bind; their figures don't.
 - **Their look is the greenfield mock's,** paper and ink with one signal
-  colour, and night as the client has it (`../client/README.md`, 5.3). Who
-  acts is a mark, those of the client's path (`../client/README.md`,
-  5.16), on its stops and on the chips: a person an orange ring, an agent
+  colour, and night as the client has it (`../client/view.md`, 3). Who
+  acts is a mark, those of the client's path (`../client/pages/chat/conversation.md`,
+  3), on its stops and on the chips: a person an orange ring, an agent
   an ink star, code a grey square. Orange is the person's alone, so
   How work runs' milestone, P3, turns the client's agent star, and the
   line's rise to it, from the signal colour to ink, in Ask temper's ways
@@ -513,9 +513,9 @@ them, shows exactly its parts, and moving along it never flips a page.
 
 Focused and fuzzy tests only; a walk and a render check follow landing.
 
-- **The web's gallery states** (`../client/browser.md`, section 7): Home
+- **The web's gallery states** (`../client/web/gallery.md`): Home
   on All projects, with needs and decisions, with nothing new, with a red
-  owned; a project's Home at each step of section 12; Needs you, a need
+  owned; a project's Home at each step of `surfaces.md`, section 12; Needs you, a need
   with its why and its offer, Only you, Decided for you, Tell temper's
   card; Work at Pair and with drafts first; Team with areas, a role's
   card, and none; How work runs under each stock way, with a rule by
@@ -530,7 +530,7 @@ Focused and fuzzy tests only; a walk and a render check follow landing.
   launchpad, a design session with the pane folded, half and full, and
   talking with a role up to the rule's proposal, at 80 by 24 and wider,
   in both themes.
-- **Journeys,** recorded as `../client/journeys.md` and
+- **Journeys,** recorded as `../client/web/journeys.md` and
   `../client/tui/journeys.md` say: Home to a need, answered; Team to a
   role, then Talk; a design session to `/goal`; a talk with a role that
   adds a rule. The user takes their pages and frames.

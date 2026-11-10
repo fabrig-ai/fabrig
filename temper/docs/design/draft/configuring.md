@@ -73,7 +73,7 @@ cites it for, its acceptance and its order (section 9).
   | Designers write the design under `docs/design`, a status file beside each document | rule | the designer's charter's instructions |
   | A producer pushes early and finishes with a Left list | rule | the coding agent's charter's instructions |
   | A producer never fixes what it does not own | rule | authority is per repository, not per path |
-  | `.temper/pre-pr` passes before delivery | rule | the project's checks, which the producer runs (`../domain/agent.md`, 4.5); the engine runs none of it |
+  | `.temper/pre-pr` passes before delivery | rule | the project's checks, which the producer runs (`../domain/agent/charter.md`, 4); the engine runs none of it |
 
 - **Rules say how agents use the structure.** "Designers first" is a
   rule; the dependency it asks the coordinator to make is the engine's.
@@ -86,7 +86,7 @@ cites it for, its acceptance and its order (section 9).
   producers follow". The person chooses what is guaranteed. The producer's last row is the honest answer the other
   way: it looks enforceable, and is not.
 - **Rules must reach the runs.** A run reads `AGENTS.md` in its
-  workspace's repositories (`../domain/agent.md`, 4.5), and a run with no
+  workspace's repositories (`../domain/agent/charter.md`, 4), and a run with no
   repository has no workspace, so a chat cannot read the process's
   document. A
   charter's instructions may therefore name documents, each a
@@ -120,11 +120,11 @@ configures work:
 | the forge's charter | temper's `application.charter` | when a procedure makes agent work | the newest |
 
 - **A project's own policy** is in the store already, changed by its
-  owners (jig's `domain/people.md`, 5.2), and stays as it is.
+  owners (jig's `domain/people/acts.md`, 2), and stays as it is.
 - **Only charters are read after a task is made.** A template's values
   are copied into the task it fills (jig's `protocol/configuration.md`,
   3.1), a project keeps a copy of the policy it was made from (jig's
-  `domain/people.md`, 5.2), and the rules are guards that every decision
+  `domain/people/acts.md`, 2), and the rules are guards that every decision
   reads afresh. That is why only charters need revisions.
 - **What stays in the document:** the directories, the listeners, the
   workers and their secrets' files, the limits (they size memory at the
@@ -138,7 +138,7 @@ configures work:
 
 - **The binary holds the defaults:** jig's chat and goal templates,
   temper's stock charters (today `temper init` embeds a chat's and a
-  coding agent's, `../protocol/setup.md`, 8.2), the stock policy and the
+  coding agent's, `../protocol/setup/init.md`, 2), the stock policy and the
   stock landing rule. The store holds what was changed, setting by
   setting, each by its number.
 - **The current settings are the defaults with the stored changes over
@@ -152,12 +152,12 @@ configures work:
   proposal: new work takes the new defaults, and running work keeps its
   own (section 4).
 - **The document stops naming them.** A document that names one is
-  refused, as any unknown member is (`../protocol/configuration.md`,
+  refused, as any unknown member is (`../protocol/configuration/README.md`,
   section 1); from the baseline on, a removed member is first accepted
   for one release with a warning (`upgrades.md`, section 10). Until the
   baseline a store whose format changes is made again, so nothing needs
   importing; an operator who keeps settings in a file proposes it
-  whole with `settings propose` (`../client/tools.md`, 5.3).
+  whole with `settings propose` (`../client/ctl/tools.md`, 3).
 - **Bounds stay the start's.** A change is checked as the start checks
   a document today: charters within jig's `tasks.charters`, a charter's
   instructions within the journal's run bytes, templates within jig's
@@ -167,7 +167,7 @@ configures work:
 ### 3.3 A change
 
 - **One decision.** The engine is the store's only writer, and a
-  decision commits all it changes at once (jig's `domain/core.md`,
+  decision commits all it changes at once (jig's `domain/model.md`,
   section 4): the settings changed, the revision they make and whatever
   they touch. After a crash the old revision holds or the new one does,
   never a mix.
@@ -179,7 +179,7 @@ configures work:
   project for its policy and its landing rules, as now. A set that
   touches both needs one person holding both.
 - **A proposal of a new kind.** jig's proposals are batches and
-  amendments of tasks (jig's `domain/tasks.md`, section 9). A change of
+  amendments of tasks (jig's `domain/tasks/proposals.md`). A change of
   settings proposed by an agent or a member is a proposal in the
   deployment's scope, decided by the roles above, judged when it is
   accepted. jig designs it.
@@ -192,8 +192,8 @@ configures work:
 - **What follows:** clients re-read `me`, whose templates changed; the
   next `MakeProject` copies the changed policy; a narrowed rule reaches
   every later decision, the decisions of tasks already made included, as
-  a policy's narrowing does (jig's `domain/people.md`, 5.2); charters
-  as section 4 says.
+  a policy's narrowing does (jig's `domain/people/acts.md`, 2); charters
+  as `configuring.md`, section 4 says.
 - **History.** The store keeps the set as each change left it, within
   a bound, with who accepted it and the proposal it came from.
   "Restore this version" makes a new proposal of that set, never a
@@ -222,10 +222,10 @@ made follows the new one, and what is in flight keeps the old.
   settings its plan was made under, is a later option of a change
   (5.2).
 - **A conversation moves at its next run.** A task its requester ends
-  (a chat; `../domain/agent.md`, 4.6) never ends on its own, so it would
+  (a chat; `../domain/agent/charter.md`, 5) never ends on its own, so it would
   never see a fix to its own charter. It moves to the newest revision
   at its next run, when the newest still offers its charter and allows
-  its LLM choice (jig's `domain/engine.md`, 17.4); otherwise it stays.
+  its LLM choice (jig's `domain/engine/settings.md`, 4); otherwise it stays.
 - **A change may move running work:** each task at its next run,
   checked the same way. A task whose charter the change removed, or
   whose LLM choice it no longer allows, cannot move, and finishes where
@@ -238,7 +238,7 @@ made follows the new one, and what is in flight keeps the old.
 - **Removing is free.** A removed charter lives in the revisions that
   hold it while tasks use them. That answers jig's open question on
   parts removed at a restart (jig's `protocol/configuration.md`, section
-  9), and two questions of a process that changes: retiring a charter
+  8), and two questions of a process that changes: retiring a charter
   (no new work under it; what runs finishes) and whether a charter's
   change reaches tasks already running (not unless they move).
 - **Bounded.** At most a limit's number of revisions are in use, and
@@ -332,14 +332,14 @@ designed and built separately, and act through the same requests.
 
 ### 5.4 Through `temper ctl`
 
-The same way, a command for each act (`../client/tools.md`, section 5):
+The same way, a command for each act (`../client/ctl/tools.md`):
 
 | The person's way | The command |
 |---|---|
 | Tell temper how you work | `chat start --project PROJECT --template 3 TEXT` |
 | the conversation | `task message TASK TEXT`; `chat show TASK` |
 | the card, and an owner's inbox | the chat's answer naming the proposal; `inbox --kind proposals` |
-| the review page | `proposal show PROPOSAL`: the values now and proposed, the revision it was made against, and its reason, under *temper enforces* and *your agents follow*, with its effect on running work (`../domain/agent.md`, 8.1) |
+| the review page | `proposal show PROPOSAL`: the values now and proposed, the revision it was made against, and its reason, under *temper enforces* and *your agents follow*, with its effect on running work (`../domain/agent/agents.md`, 1) |
 | Accept, Reject | `proposal decide PROPOSAL accept\|reject [REASON] [--running stays\|moves]`; a rejection's reason reaches the chat as the person's words |
 | How work runs | `settings show`, `settings show charter NUMBER [--revision REVISION]`, `revision show REVISION`, `revision list` |
 | Move them, Restore this version | `revision advance REVISION`, `revision restore REVISION` |
@@ -374,9 +374,9 @@ from intake to landing as the reference says. It passes in two stages,
 the second once the reference case walks.
 
 - **In the gate,** scripted stories on the fake LLM hold the
-  mechanisms (`../domain/testing.md`, 6.4): a person alone; two
+  mechanisms (`../testing/checks.md`, 4): a person alone; two
   people, one approving landings (a landing rule's approvals,
-  `../protocol/configuration.md`, section 3); a proposal gone stale;
+  `../protocol/configuration/engine.md`); a proposal gone stale;
   running work moved; a document a charter names, changed. The
   revisions' own: a change during a run, a restart with old revisions in
   use, the bound reached. They accept nothing: a fake model says only
@@ -385,10 +385,10 @@ the second once the reference case walks.
 ### 8.1 Stage 1: the proposal
 
 - **The box:** `temper box` with its owned forge
-  (`../protocol/setup.md`, section 7). Its settings are the stock
+  (`../protocol/setup/box.md`). Its settings are the stock
   defaults, and nothing in it is the reference's: neither the stock
   settings nor the documentation in the binary carry a recipe of it
-  (section 10), so the agent works from the description alone.
+  (`configuring.md`, section 10), so the agent works from the description alone.
 - **What the box brings, not the agent:** what needs a restart (5.3)
   and what lives in repositories. The pass's brief lists it, and the
   pass confirms it before the chat starts: temper's part through

@@ -31,7 +31,7 @@ pub const HEADER: Deployment = Deployment {
 };
 
 /// The installation's identifier these worlds draw: an empty store keeps it,
-/// and a reopened one answers the one it kept (jig's configuration.md, 8).
+/// and a reopened one answers the one it kept (jig's configuration.md, 7).
 const INSTALLATION: [u8; 16] = [0; 16];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -45,7 +45,7 @@ struct Delayed {
     delay: u32,
 }
 /// Numbered root transactions and their durable typed mirror.
-/// Today's catalogue survives reopening (jig/docs/design/domain/engine.md, 17.11).
+/// Today's catalogue survives reopening (jig/docs/design/domain/engine/settings.md, 11).
 pub struct Store {
     pub applied: u64,
     pub pending_generation: bool,
@@ -82,7 +82,7 @@ impl fmt::Debug for Store {
     }
 }
 // Replay covers the four fields Debug exposes, preserving the world's store
-// comparison boundary (skein/docs/design/lib.md, 5.1). The real component and
+// comparison boundary (skein/docs/design/runtime/lib.md, 5.1). The real component and
 // file machinery remain exercised by each world's commits and reads.
 impl core::hash::Hash for Store {
     fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
@@ -709,7 +709,7 @@ pub fn with_start_mark(mut rows: BTreeMap<Key, Record>) -> BTreeMap<Key, Record>
 
 /// Writer/store oracle for selected families, exclusive walk order and page
 /// continuation. Census owners can repeat; its cursor names an index instead
-/// (temper/docs/design/domain/root.md, 9.1; jig/docs/design/domain/engine.md, 15).
+/// (temper/docs/design/domain/root.md, 8.1; jig/docs/design/domain/engine/README.md, 9).
 ///
 /// # Errors
 /// Returns the violated family, ordering or continuation obligation.

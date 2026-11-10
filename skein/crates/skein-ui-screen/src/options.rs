@@ -1,5 +1,5 @@
 //! Options attached to the nearest field in their innermost form
-//! (skein/docs/design/ui.md, 3.2; skein/docs/design/ui-screen.md, 5.3, 5.4 and 6.2).
+//! (skein/docs/design/ui/README.md, 3.2; skein/docs/design/ui/screen.md, 5.3, 5.4 and 6.2).
 
 use skein_ui::{Node, NodeId, Role, State, Tree};
 

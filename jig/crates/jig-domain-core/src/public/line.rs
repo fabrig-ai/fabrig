@@ -1,4 +1,4 @@
-//! The one public task projection (jig/docs/design/client/domain/contract.md, 12).
+//! The one public task projection (jig/docs/design/client/domain/contract/README.md, 10).
 use super::{PublicCounts, PublicExecutor, PublicHold, PublicLine, PublicPhase};
 use jig_domain_tasks as tasks;
 

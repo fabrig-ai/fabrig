@@ -1,4 +1,4 @@
-//! File I/O for source inspection, shared by worker services (domain/hosts.md, 5.1).
+//! File I/O for source inspection, shared by worker services (domain/hosts/README.md, 5.1).
 //! Each worker tags the file lane with its own prefix. The stage owns no policy.
 use super::{Component, sources};
 use skein_io::{self as io, file, file_layer, kernel};

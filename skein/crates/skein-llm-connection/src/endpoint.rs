@@ -1,4 +1,4 @@
-//! Configured wire destinations (llm-connection.md, section 3). The address
+//! Configured wire destinations (llm/connection.md, section 3). The address
 //! is resolved before the loop, while transport admission is checked at
 //! component construction. The component does not resolve names.
 
@@ -27,7 +27,7 @@ pub struct Endpoint {
 
 impl Endpoint {
     /// Apply the transport's native pieces before any test cuts lower them
-    /// (llm-connection.md, section 7).
+    /// (llm/connection.md, section 7).
     pub fn pieces(&mut self, limits: &crate::Limits) {
         let read = match self.transport {
             Transport::Tls { .. } => {

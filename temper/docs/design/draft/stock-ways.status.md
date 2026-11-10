@@ -2,16 +2,16 @@
 
 2026-11-09. Where the design lags or departs from [stock-ways.md](stock-ways.md).
 
-Section 3 is designed in `../protocol/configuration.md`, 13.2 to 13.4
-and 13.9, with the forge and setup contracts following it; sections 4 to
-6 in `../domain/forge.md`, 8.13 (the path),
-`../protocol/configuration.md`, 13.10 (the ways and their items),
-`../client/README.md`, 3.5, 4.6, 5.13 and 5.16 (Ask temper's opening,
-the `ways` read, its acts and the views) and `../domain/agent.md`, 8.4 and 8.4.1 (`see ways` and the
-instructions); section 7 orders the steps. Section 4's words of a
+Section 3 is designed in `../protocol/configuration/settings.md`, 2 to 3 and `../protocol/configuration/stock.md` and `../protocol/configuration/reference.md`
+, with the forge and setup contracts following it; `stock-ways.md`, sections 4 to 6
+ in `../domain/forge/change/branch-path.md` (the path),
+`../protocol/configuration/settings.md`, 8 (the ways and their items),
+`../client/pages/README.md` and `../client/forge/records.md` and `../client/pages/settings.md`, 2 and `../client/pages/chat/conversation.md`, 3 (Ask temper's opening,
+the `ways` read, its acts and the views) and `../domain/agent/ask-temper.md` (`see ways` and the
+instructions); `stock-ways.md`, section 7 orders the steps. `stock-ways.md`, section 4's words of a
 goal's coordinator, "plan" or "design", and its "close-out" are a
-template's setting, kind 11 (`../protocol/configuration.md`, 13.2), drawn
-by `../domain/forge.md`, 8.13.
+template's setting, kind 11 (`../protocol/configuration/settings.md`, 2), drawn
+by `../domain/forge/change/branch-path.md`.
 
 - **Design lags:** none.
 - **Design departs:** 8: the three ways' paths over a project with CI and

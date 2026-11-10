@@ -1,4 +1,4 @@
-//! The shell's focus and caret (skein/docs/design/ui-screen.md, 5.4).
+//! The shell's focus and caret (skein/docs/design/ui/screen.md, 5.4).
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct Focus {

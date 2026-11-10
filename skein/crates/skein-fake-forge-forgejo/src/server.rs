@@ -1,4 +1,4 @@
-//! One bounded HTTP connection over Forgejo documents and the fake's calls (skein/docs/design/fake-forge.md, 4 and 12).
+//! One bounded HTTP connection over Forgejo documents and the fake's calls (skein/docs/design/testing/fakes/forge.md, 4, and skein/docs/design/testing/fakes/github.md, 3).
 mod git;
 use crate::{Error, Hosted, Limits, Service, errors, response, routes, service::Call};
 use alloc::boxed::Box;

@@ -1,4 +1,4 @@
-//! Top-level view blocks in committed text (temper/docs/design/client/README.md, 5.16).
+//! Top-level view blocks in committed text (temper/docs/design/client/pages/chat/conversation.md, 3).
 use crate::Limits;
 use skein_lib::List;
 
@@ -19,7 +19,7 @@ struct Fence {
 }
 
 /// Split at top-level fenced blocks whose info string is exactly `view`
-/// and whose body is one nonempty line (client/README.md, 5.16).
+/// and whose body is one nonempty line (client/pages/chat/conversation.md, 3).
 #[must_use]
 pub fn parts(text: &str) -> List<Part<'_>> {
     let mut parts = List::with_capacity(Limits::view_parts());

@@ -1,5 +1,5 @@
 //! A request's LLM choice and a refused model, by index as the tasks child keeps them
-//! (protocol/store.md, 5.1; domain/tasks.md, 3).
+//! (protocol/store/records.md, 1; domain/tasks/README.md, 3).
 use super::{List, domain, wire};
 
 /// Translate a request's LLM choice, if any.

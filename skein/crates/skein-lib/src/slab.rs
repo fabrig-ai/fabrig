@@ -1,4 +1,4 @@
-//! Entity storage (lib.md, 3): slots and lists grow as
+//! Entity storage (runtime/lib.md, 3): slots and lists grow as
 //! they fill, never past the admission limit for their entity kind, and
 //! the entities are walked in slot order.
 
@@ -237,7 +237,7 @@ fn growth(len: usize, capacity: u32) -> usize {
     grown(len, needed, usize_of(capacity)).checked_sub(len).expect("room for another item")
 }
 
-// lib.md, 5.1: slot identity and reuse order are state; capacity and len are not.
+// runtime/lib.md, 5.1: slot identity and reuse order are state; capacity and len are not.
 impl<T: Hash> Hash for Slab<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         for slot in &self.slots {

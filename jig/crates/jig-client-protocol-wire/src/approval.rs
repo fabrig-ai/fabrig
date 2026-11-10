@@ -1,4 +1,4 @@
-//! An approval's code (jig/docs/design/protocol/client.md, 8).
+//! An approval's code (jig/docs/design/protocol/client/sign-in.md).
 
 /// Twenty consonants, with no vowel or letter like a digit.
 pub const CODE_ALPHABET: [u8; 20] = *b"BCDFGHJKLMNPQRSTVWXZ";

@@ -1,4 +1,4 @@
-//! The facts a status agent can summarize (temper/docs/design/domain/forge.md, 5.7).
+//! The facts a status agent can summarize (temper/docs/design/domain/forge/attention.md, 3).
 use super::{Box, Domain, ProjectFacts, Wall};
 use core::cmp::Reverse;
 use skein_lib::{Decimal, List, Map};

@@ -1,4 +1,4 @@
-//! A hand-driven socket and a real rustls peer (skein/docs/design/link.md, 4).
+//! A hand-driven socket and a real rustls peer (skein/docs/design/net/link.md, 4).
 use skein_io::Request;
 use skein_lib::stream::Down;
 use skein_lib::{Duration, Env, Queue, Time, Token};

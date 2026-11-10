@@ -1,4 +1,4 @@
-//! The clients child and secret-free root handoffs (client.md, 2 and 8; service.md, 3).
+//! The clients child and secret-free root handoffs (protocol/client/README.md, 2 and protocol/client/sign-in.md; service.md, 3).
 use crate::{Seeds, family};
 use alloc::boxed::Box;
 use jig_client_test_protocol_wire::VERSION;
@@ -44,7 +44,7 @@ pub(super) struct Clients {
     public_names: Option<()>,
 }
 
-// Hide printed sign-in links because they carry secrets (skein/docs/design/lib.md, 6).
+// Hide printed sign-in links because they carry secrets (skein/docs/design/runtime/lib.md, 6).
 impl ::core::fmt::Debug for Clients {
     fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
         f.debug_struct("Clients")

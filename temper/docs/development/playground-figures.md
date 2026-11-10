@@ -24,7 +24,7 @@ The slice is the frame's displayed maximum. The test enforces no figure bar.
 The CPU-accounted tier ran 12 tests, all passed: 63.835377 CPU seconds
 (51.624100 user, 12.211277 system) and 61.022827 seconds wall, within the
 85-second CPU budget and the design's 120-second cap
-(temper/docs/design/client/browser.md, 4.3). No test was starved or unobserved;
+(temper/docs/design/client/web/testing.md, 3). No test was starved or unobserved;
 accounting reported no leaked or incomplete process trees. The playground
 walk used 14.806375 CPU seconds and 13.573744 seconds wall; its downloaded
 session log replayed natively with `Ok`.

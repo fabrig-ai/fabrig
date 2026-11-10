@@ -1,4 +1,4 @@
-//! Opaque subjects and pacing requests (`domain/engine.md`, 11).
+//! Opaque subjects and pacing requests (`domain/engine/views.md`).
 //! The parent owns documents, authorization and each subject's meaning.
 
 use alloc::boxed::Box;
@@ -43,7 +43,7 @@ pub enum Made {
 }
 
 /// A provisional retry, fenced by its attempt and activation turn.
-/// `client/domain/contract.md`, section 7.3.
+/// `client/domain/contract/README.md`, section 5.3.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct TurnName {
     pub attempt: u64,
@@ -51,7 +51,7 @@ pub struct TurnName {
     pub retry: u32,
 }
 
-/// A provider call's opaque identity (`jig/docs/design/client/domain/contract.md`, 7.3).
+/// A provider call's opaque identity (`jig/docs/design/client/domain/contract/README.md`, 5.3).
 /// Compare only for equality. The same provider id in another issued completion
 /// or owner names a different call; none of these values is a routing number.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

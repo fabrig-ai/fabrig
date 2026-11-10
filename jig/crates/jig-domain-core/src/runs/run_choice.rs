@@ -1,4 +1,4 @@
-//! A current joint account/source/host check (accounts.md, 4.3; engine.md, 7.1).
+//! A current joint account/source/host check (accounts.md, 4.3; domain/engine/executors.md, 1).
 use crate::{Core, RunPolicy};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
@@ -148,7 +148,7 @@ impl Core {
 
     /// Retain alternatives with compatible grants and check their host support.
     /// Selection and claim rebuild the same model/grant view for every task
-    /// (hosts.md, 8.1).
+    /// (domain/hosts/charters.md, 1).
     fn compatible_models(
         &self,
         task: u64,

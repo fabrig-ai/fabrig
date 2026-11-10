@@ -1,4 +1,4 @@
-//! Public reading's documents and messages (jig/docs/design/domain/people.md, 13).
+//! Public reading's documents and messages (jig/docs/design/domain/people/public-reading.md).
 
 pub(crate) mod index;
 mod line;
@@ -42,7 +42,7 @@ pub struct PublicProjects {
     pub projects: Box<[PublicProject]>,
 }
 
-/// A public project and its name (jig/docs/design/client/domain/contract.md, 12).
+/// A public project and its name (jig/docs/design/client/domain/contract/README.md, 10).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct PublicProject {
     pub project: u32,

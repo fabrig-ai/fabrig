@@ -1,4 +1,4 @@
-//! A read of a provider's list, held until a worker can take it (domain/engine.md, 17.12).
+//! A read of a provider's list, held until a worker can take it (domain/engine/settings.md, 12).
 //! Keeps the queue and which channel holds each. It never holds a value: a grant is a name.
 
 use crate::{Domain, Grant, HostKind, Request};

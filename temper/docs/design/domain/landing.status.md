@@ -4,7 +4,7 @@
 
 Section 13.1 has no known gap in what a branch's path reads: the
 project's `by`, and each repository's gates and tiers with the branch
-each follows, as the forge holds them (`forge.md`, 8.13).
+each follows, as the forge holds them (`forge/change/branch-path.md`).
 
 - **Not yet:** 7.1, by plan `forge-polls-quiet`: a landing polls its
   runs in flight every `poll`, not at the client's `poll_at`.

@@ -1,4 +1,4 @@
-//! Isolated process specifications for owned setup (protocol/setup.md, 6.3–6.4).
+//! Isolated process specifications for owned setup (protocol/setup/owned.md, 3–4).
 use crate::{
     check::joined,
     ini::flatten,
@@ -233,7 +233,7 @@ pub fn listening(mut spec: Spec) -> Spec {
 pub fn source_list(owned: &Owned, place: &Place) -> Spec {
     forgejo(owned, place, &words(&[b"admin", b"auth", b"list"]))
 }
-/// Adds the box's public client; no credential enters an argument (sign-in.md, 9.9).
+/// Adds the box's public client; no credential enters an argument (protocol/openid-provider.md, 9).
 #[must_use]
 pub fn source_add(owned: &Owned, place: &Place, client: &[u8], discovery: &[u8]) -> Spec {
     forgejo(
@@ -255,7 +255,7 @@ pub fn source_add(owned: &Owned, place: &Place, client: &[u8], discovery: &[u8])
     )
 }
 
-/// Points the box's source at temper's current discovery address (sign-in.md, 9.9).
+/// Points the box's source at temper's current discovery address (protocol/openid-provider.md, 9).
 #[must_use]
 pub fn source_update(owned: &Owned, place: &Place, id: &[u8], discovery: &[u8]) -> Spec {
     forgejo(

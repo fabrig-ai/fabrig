@@ -1,4 +1,4 @@
-//! Starts retain durable diagnostic answers (jig/docs/design/domain/engine.md, 6).
+//! Starts retain durable diagnostic answers (jig/docs/design/domain/engine/restart.md).
 use jig_core_world::fixtures;
 use jig_core_world::fixtures::phase;
 use jig_core_world::world::Setup;

@@ -1,5 +1,5 @@
 //! Exact tables at the session to run sibling boundary.
-//! Contract: smith/docs/design/domain/session.md, sections 3–6; smith/docs/design/domain/run.md, sections 5, 9 and 13.
+//! Contract: smith/docs/design/domain/session.md, sections 3–6; smith/docs/design/domain/run.md, section 5 and smith/docs/design/domain/budget.md and smith/docs/design/domain/run.md, section 12.
 
 use skein_lib::Duration;
 use smith_domain_run as run;

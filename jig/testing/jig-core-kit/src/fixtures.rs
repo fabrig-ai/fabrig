@@ -491,7 +491,7 @@ pub fn configure_resources(world: &mut crate::world::World) {
     );
 }
 
-/// A procedure with one declared job kind (jig/docs/design/domain/engine.md, 7.5).
+/// A procedure with one declared job kind (jig/docs/design/domain/engine/executors.md, 5).
 #[must_use]
 pub fn job_world(seed: u64, ceiling: bool) -> (crate::world::World, u64) {
     let (mut configuration, mut limits) = crate::faults::plan_fixture(seed);

@@ -1,5 +1,5 @@
-//! Bounded redirect reconstruction and query decoding (oauth.md, sections 1,
-//! 5 and 6.5). The registered URI is compared byte for byte before the OAuth
+//! Bounded redirect reconstruction and query decoding (oauth/README.md, sections 1 and 5, and oauth/accounts.md, section 5
+//! ). The registered URI is compared byte for byte before the OAuth
 //! machine sees query values; state authentication remains the machine's.
 
 use alloc::boxed::Box;
@@ -107,7 +107,7 @@ fn decode(value: &[u8], bound: u32) -> Option<Box<[u8]>> {
 }
 
 /// The listener lends the component a bounded redirect or only an over-long
-/// address's length and decoded state (skein/docs/design/oauth.md, 6.5).
+/// address's length and decoded state (skein/docs/design/oauth/accounts.md, 5).
 pub(crate) enum Read {
     Redirect(Redirect),
     Long { length: u32, state: Secret },

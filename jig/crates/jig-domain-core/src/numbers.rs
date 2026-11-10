@@ -1,8 +1,8 @@
-//! Deployment numbers owned by the core (domain/engine.md, 3 and 5.4; domain/core.md, 6.1).
+//! Deployment numbers owned by the core (domain/engine/README.md, 3 and 5.4; domain/model.md, 6.1).
 
 /// Core to store, then store to core at startup: one fixed-size deployment
 /// header with allocated high-water marks. Every writing decision saves it
-/// atomically with its other rows (domain/engine.md, 5.1 and 5.4).
+/// atomically with its other rows (domain/engine/README.md, 5.1 and 5.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Deployment {
     /// Shell-supplied identity committed on the deployment's first start and restored thereafter;
@@ -36,7 +36,7 @@ pub struct Deployment {
 }
 
 /// Core-selected counter for `fresh`; each is a separate checked `u64` high-water
-/// mark, not a channel token or child-owned handle (domain/engine.md, 5.4).
+/// mark, not a channel token or child-owned handle (domain/engine/README.md, 5.4).
 /// Selecting a family is pure; allocating it dirties the journal header.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Family {
@@ -121,7 +121,7 @@ impl Counters {
     }
 
     /// The bootstrap header cannot be written until the core's live load has
-    /// established whether a durable header already exists (domain/engine.md, 6).
+    /// established whether a durable header already exists (domain/engine/restart.md).
     pub(crate) fn begin_start(&mut self) {
         self.header = Header::Loading;
     }

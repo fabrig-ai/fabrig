@@ -681,7 +681,7 @@ fn the_bare_document_is_the_box_less_its_parts() {
     }
 }
 
-// configuration.md, 13.4: the seven declarations, including their document order.
+// protocol/configuration/stock.md: the seven declarations, including their document order.
 
 fn agent_limits(endpoint: &str) -> Value {
     json!({"window":1_048_576_u32,"output":8192,"reasoning_item":65_536_u32,
@@ -712,7 +712,7 @@ fn anthropic_agent() -> Value {
 }
 #[test]
 fn every_deployment_offers_claude_found_or_fetched() {
-    // setup.md, 8.3: OpenAI, Anthropic and demo fit in one offer.
+    // protocol/setup/init.md, 3: OpenAI, Anthropic and demo fit in one offer.
     const PROVIDERS: u32 = 3;
     for (row, facts) in cases() {
         let boxed = files(&facts, &DIRECTORIES, &[0; 32], &[0xab; 32]).unwrap();

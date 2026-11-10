@@ -1,10 +1,10 @@
-//! Goals and their reports (temper/docs/design/client/README.md, 3.5, Goals).
+//! Goals and their reports (temper/docs/design/client/pages/README.md, Goals).
 use super::{Request, report};
 use crate::{GoalsFilter, Limits, owner::Owner};
 use jig_client::{Client, Handle, Latest, Readable, Readout, Told, Watchable, contract as c};
 use skein_lib::{List, Queue, Wall};
 
-/// The open project's goal fact across pages (temper/docs/design/client/README.md, 5.3).
+/// The open project's goal fact across pages (temper/docs/design/client/view.md, 3).
 #[derive(Debug)]
 pub(super) struct HasGoals {
     query: Option<c::TaskQuery>,
@@ -411,7 +411,7 @@ fn handle(number: u64) -> Handle {
     Handle { asker: Owner::Pages.asker(), number }
 }
 
-/// The project's goal template supplies the label (temper/docs/design/client/README.md, 3.5).
+/// The project's goal template supplies the label (temper/docs/design/client/pages/README.md).
 #[must_use]
 pub fn query(me: &c::Me, project: u32) -> Option<c::TaskQuery> {
     Some(c::TaskQuery {
@@ -436,7 +436,7 @@ pub enum State {
     Closed,
     Failed,
 }
-/// First match wins (temper/docs/design/client/README.md, 3.5, Goals).
+/// First match wins (temper/docs/design/client/pages/README.md, Goals).
 #[must_use]
 pub fn state(chip: &c::Chip, needs: bool, report: bool, delegates_total: u32) -> State {
     if needs {
@@ -476,7 +476,7 @@ pub fn state(chip: &c::Chip, needs: bool, report: bool, delegates_total: u32) ->
     }
     if !report && delegates_total == 0 { State::Planning } else { State::Running }
 }
-/// The address's filter selects a goal's state (temper/docs/design/client/README.md, 3.5).
+/// The address's filter selects a goal's state (temper/docs/design/client/pages/README.md).
 #[must_use]
 pub fn shown(filter: GoalsFilter, state: State) -> bool {
     match filter {

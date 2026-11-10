@@ -6,7 +6,7 @@ use skein_lib::Time;
 use std::collections::BTreeMap;
 
 /// The start's mark changes only the deployment counter in the typed row mirror
-/// (`domain/engine.md`, 6); its wires belong to the component map.
+/// (`domain/engine/restart.md`); its wires belong to the component map.
 #[must_use]
 pub fn with_start_mark(rows: &BTreeMap<Key, Record>) -> BTreeMap<Key, Record> {
     let mut rows = rows.clone();

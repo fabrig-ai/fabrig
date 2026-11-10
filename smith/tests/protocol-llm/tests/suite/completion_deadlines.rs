@@ -26,7 +26,7 @@ fn head_for(bytes: usize) -> Vec<u8> {
 
 // A text delta carries the model's output, so it re-arms idle; its padding
 // crosses native read demand and dispatches an SSE message. Pings and status
-// events alone do not (skein/docs/design/llm-connection.md, section 6).
+// events alone do not (skein/docs/design/llm/connection.md, section 6).
 fn output_event() -> Vec<u8> {
     let mut bytes = br#"data: {"type":"response.output_text.delta","output_index":0,"content_index":0,"delta":"done","obfuscation":""#.to_vec();
     bytes.extend_from_slice(&[b' '; 513]);

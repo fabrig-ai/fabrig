@@ -1,4 +1,4 @@
-//! The scenario and settings drawn from a seed (tls.md, 5).
+//! The scenario and settings drawn from a seed (net/tls.md, 5).
 use crate::pki;
 use skein_lib::stream::Fault;
 use skein_lib::{Rng, Wall};

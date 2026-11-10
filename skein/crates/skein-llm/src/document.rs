@@ -1,4 +1,4 @@
-//! Neutral document admission bounds (llm.md, section 2). These describe a
+//! Neutral document admission bounds (llm/README.md, section 2). These describe a
 //! value owned by the caller; a client's streamed receiving limits are separate.
 use skein_json::{tokenizer, writer};
 

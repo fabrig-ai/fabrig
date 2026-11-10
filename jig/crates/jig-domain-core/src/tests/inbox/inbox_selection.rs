@@ -901,7 +901,7 @@ fn original_stored_ancestry_fits_at_depth_and_one_under_refuses_the_whole_page()
 }
 
 fn settings_document_bytes() -> u64 {
-    // A settings inventory document is priced beside every document (engine.md 17.7).
+    // A settings inventory document is priced beside every document (domain/engine/settings.md 7).
     // Four pending inventory heads add 96 bytes; the two value sets and
     // bounded review/item-head carriers add 115,248 bytes at this fixture.
     // Four older held revision heads, each with its holder count, add 288 bytes.

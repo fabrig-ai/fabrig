@@ -1,4 +1,4 @@
-//! Needs you's question states, through public documents and acts (client/browser.md, 7.2).
+//! Needs you's question states, through public documents and acts (client/web/gallery.md, 2).
 use crate::{
     driver,
     samples::{Then, World},

@@ -1,4 +1,4 @@
-//! A delegation's card in a chat (client/README.md, 5.7).
+//! A delegation's card in a chat (client/view.md, 5).
 use super::{name, text};
 use crate::{
     frame::Bindings,
@@ -137,7 +137,7 @@ pub(crate) fn said(b: &mut Builder, said: Said<'_>, words: &Words) {
     }
 }
 
-/// The browser's terminal needs one line; the task's page holds its details (client/README.md, 3.5).
+/// The browser's terminal needs one line; the task's page holds its details (client/pages/README.md).
 pub(crate) fn terminal_card(b: &mut Builder, task: &c::Task, words: &Words, bindings: &mut Bindings) {
     let facts = delegation::facts(task);
     b.open(Role::Region);
@@ -158,7 +158,7 @@ pub(crate) fn terminal_card(b: &mut Builder, task: &c::Task, words: &Words, bind
     b.close();
 }
 
-/// A terminal delegation's data (temper/docs/design/client/README.md, 3.5).
+/// A terminal delegation's data (temper/docs/design/client/pages/README.md).
 pub(crate) fn line(task: &c::Task, words: &Words) -> crate::shared::DelegationLine {
     let facts = delegation::facts(task);
     let kind = match facts.kind {

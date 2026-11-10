@@ -1,4 +1,4 @@
-//! The worker's agent: its document read and preflighted (protocol/README.md, 4.5; configuration.md, 5).
+//! The worker's agent: its document read and preflighted (protocol/binaries.md, 5; protocol/configuration/README.md, 4).
 use jig_domain_link::{Bounds, EndpointBound};
 use std::{
     os::unix::ffi::OsStrExt,
@@ -73,7 +73,7 @@ pub fn read(configuration: &Path) -> Result<Agent, String> {
         },
     })
 }
-/// Read declarations and check existing programs directories at their names (io.md, 5.3).
+/// Read declarations and check existing programs directories at their names (skein/docs/design/runtime/io/files.md, 3).
 /// Missing directories stay missing; neither this nor smith's check reads any login.
 pub fn preflight(named: &service::Named) -> Result<Agent, String> {
     let worker = named.worker.as_ref().ok_or("workers: standalone takes one worker")?;
@@ -92,7 +92,7 @@ pub fn program_directory_refusal(why: &smith_agent_document::program::Refusal) -
     format!("workers[0].agent.configuration: programs.claude_code.directory: {why}")
 }
 
-/// Claude Code's launcher, beside its programs directory (protocol/setup.md, 6.6).
+/// Claude Code's launcher, beside its programs directory (protocol/setup/owned.md, 6).
 #[must_use]
 pub fn launcher(directory: &Path) -> Option<PathBuf> {
     temper_launcher::beside(directory)

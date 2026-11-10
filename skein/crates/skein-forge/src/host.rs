@@ -1,4 +1,4 @@
-//! Host fields for forge requests (forge.md, section 5.1).
+//! Host fields for forge requests (forge/forgejo.md, section 1.1).
 use alloc::boxed::Box;
 use core::net::{IpAddr, SocketAddr};
 use skein_lib::{Decimal, List, bytes};

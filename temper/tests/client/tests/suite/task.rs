@@ -434,9 +434,9 @@ fn a_finished_goals_page_shows_its_report() {
 }
 
 // A chat's goal and its report, reached through Home and Goals
-// (temper/docs/design/domain/testing.md, 2.6 and 6.3;
-// temper/docs/design/client/README.md, 5.3, 5.8 and 5.13;
-// temper/docs/design/domain/agent.md, 8.3).
+// (temper/docs/design/testing/process-tier.md and temper/docs/design/testing/checks.md, 3;
+// temper/docs/design/client/view.md, 3, and temper/docs/design/client/pages/goal.md, 2, and temper/docs/design/client/pages/settings.md, 2;
+// temper/docs/design/domain/agent/agents.md, 3).
 #[test]
 fn a_chats_goal_shows_its_report_from_its_goals_row() {
     use smith_domain_session::llm::{Block, Message, Role as Speaker};
@@ -841,7 +841,7 @@ fn a_chat_reply_is_identified_by_its_task_in_the_native_inbox() {
     let mut world = fixtures::world(fixtures::SEED);
     let task = fixtures::replied_chat(world.front(), b"Hello");
     let person = world.client(fixtures::PARTY, fixtures::inbox());
-    // An inbox entry is named by its kind and its source task (client/README.md, 3.5).
+    // An inbox entry is named by its kind and its source task (client/pages/README.md).
     let entry = |kind: &str| format!("{kind} from T{task}").into_bytes().into_boxed_slice();
     let reply = Find::named(Role::Heading { level: 3 }, b"replied")
         .within(Box::new([skein_fake_person::Target::Role { role: Role::Item, name: entry("Reply") }]));

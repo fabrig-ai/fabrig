@@ -1,4 +1,4 @@
-//! A route's list of models (skein/docs/design/llm.md, 4.9). Pure: holds no connection.
+//! A route's list of models (skein/docs/design/llm/README.md, 4.9). Pure: holds no connection.
 
 use alloc::boxed::Box;
 use skein_json::{Document, Kind, document, tokenizer};

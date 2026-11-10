@@ -9,7 +9,7 @@
 //!
 //! It is the root domain over a tree of child domains (4.5), and the only one
 //! that faces the protocol layer, shaped as jig's reference worker root
-//! (jig's `domain/hosts.md`, section 4):
+//! (jig's `domain/hosts/README.md`, section 4):
 //!
 //! ```text
 //! temper-worker-domain                 faces the protocol; the hub's link; routes; translates

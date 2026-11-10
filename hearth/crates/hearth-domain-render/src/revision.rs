@@ -1,4 +1,4 @@
-//! The listing and typed documents (hearth/docs/design/protocol/format.md, 2.1 and 3.4).
+//! The listing and typed documents (hearth/docs/design/protocol/format/README.md, 2.1 and 3.4).
 use crate::errors::Repository;
 use alloc::boxed::Box;
 pub mod declaration;
@@ -205,7 +205,7 @@ pub struct On {
     pub at: Position,
 }
 
-/// Decoded configuration values with positions (hearth/docs/design/domain/render.md, 3.1).
+/// Decoded configuration values with positions (hearth/docs/design/domain/render/README.md, 3.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Value {
     pub at: Position,
@@ -338,7 +338,7 @@ impl Documents {
         u32::try_from(index).ok()
     }
 }
-/// Retained decoded bytes admitted on arrival (hearth/docs/design/domain/render.md, 2.3).
+/// Retained decoded bytes admitted on arrival (hearth/docs/design/domain/render/README.md, 2.3).
 #[derive(Debug, Hash)]
 pub struct Budget {
     held: u64,
@@ -390,7 +390,7 @@ pub fn base(path: &[u8]) -> Option<&[u8]> {
     Some(split(path.strip_prefix(b"hosts/")?)?.0)
 }
 
-/// The logical bytes retained from one decoded input (hearth/docs/design/domain/render.md, 2.3).
+/// The logical bytes retained from one decoded input (hearth/docs/design/domain/render/README.md, 2.3).
 #[must_use]
 pub fn decoded_size(read: &crate::vocabulary::Decoded, limits: &crate::limits::Limits) -> u64 {
     match read {

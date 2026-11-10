@@ -1,5 +1,5 @@
 //! The strict byte codec (temper/docs/design/client/tui/journeys.md, 3.2 and 3.3;
-//! temper/docs/design/client/journeys.md, 3.2).
+//! temper/docs/design/client/web/journeys.md, 3.2).
 use skein_lib::{Time, Wall};
 use skein_ui_screen::{Rgb, Size};
 use skein_ui_screen_terminal::Key;

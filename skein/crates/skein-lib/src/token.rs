@@ -21,7 +21,7 @@ impl Token {
         self.0
     }
 
-    /// Tags a namespace in the top four bits (skein/docs/design/lib.md, 4).
+    /// Tags a namespace in the top four bits (skein/docs/design/runtime/lib.md, 4).
     /// Refuses tags above 15 and values that need more than 60 bits.
     #[must_use]
     pub fn tagged(tag: u8, value: u64) -> Option<Token> {

@@ -1,5 +1,5 @@
 //! Result metadata and linked task identities (client/domain/objects.md, 8;
-//! client/domain/contract.md, 5). Missing stored facts stay absent.
+//! client/domain/contract/documents.md). Missing stored facts stay absent.
 use super::{Chip, Executor, ProposalKey, TaskContractDocument};
 use skein_lib::{List, Wall};
 

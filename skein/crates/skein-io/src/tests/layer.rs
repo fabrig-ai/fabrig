@@ -1,4 +1,4 @@
-//! What io does beside its two machines (io.md, 2 and 3.1): refusals at a
+//! What io does beside its two machines (runtime/io/README.md, 2, and runtime/io/sockets.md, 1): refusals at a
 //! full slab, held until the next up pass; stale tokens, dropped going down
 //! and asserted going up; and its admission limits.
 

@@ -1,4 +1,4 @@
-//! Model offers across engine, wire and client link (jig/docs/design/client/domain/contract.md, 5.1).
+//! Model offers across engine, wire and client link (jig/docs/design/client/domain/contract/documents.md, 1).
 use super::fixtures;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;

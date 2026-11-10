@@ -1,5 +1,5 @@
 //! smith's faces keep outside observations, never the running agent's state.
-//! Event records are read through smith-events (benchmarks.md, section 6).
+//! Event records are read through smith-events (../../../../docs/design/benchmarks/README.md, section 6).
 
 pub mod events;
 

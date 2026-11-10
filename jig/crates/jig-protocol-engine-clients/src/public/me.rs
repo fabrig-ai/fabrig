@@ -1,4 +1,4 @@
-//! Public project identifiers in me (jig/docs/design/domain/people.md, 13.8).
+//! Public project identifiers in me (jig/docs/design/domain/people/public-reading.md, 8).
 use super::{Box, Component, Env, Limits, Queue, Request, Token, Waiting, core, routes, w};
 use crate::translate;
 use jig_domain_core::documents::{Document, Frame};

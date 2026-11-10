@@ -1,4 +1,4 @@
-//! Each question gets a read-only foreman (temper/docs/design/domain/forge.md, 8.11).
+//! Each question gets a read-only foreman (temper/docs/design/domain/forge/change/questions.md, 1).
 use super::questions::{call, finish_producing, make_change, next_producer, plan_world, replies, row, wait_answer};
 use super::*;
 use temper_engine_domain_forge_change::Stands;

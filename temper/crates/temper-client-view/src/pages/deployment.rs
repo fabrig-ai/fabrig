@@ -1,4 +1,4 @@
-//! Deployment's read-only pages (temper/docs/design/client/README.md, 3.5, Members and Limits).
+//! Deployment's read-only pages (temper/docs/design/client/pages/README.md, Members and Limits).
 use super::settings::{self, Tab};
 use crate::{
     frame::Bindings,

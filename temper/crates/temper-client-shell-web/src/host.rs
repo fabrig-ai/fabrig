@@ -1,4 +1,4 @@
-//! One client host shared by the browser and the journeys' replay (client/journeys.md, 2).
+//! One client host shared by the browser and the journeys' replay (client/web/journeys.md, 2).
 use crate::{limits, records};
 use jig_client_protocol_http::Heard as Above;
 use jig_client_shell_web::adapter::{Asked, Heard};
@@ -12,7 +12,7 @@ use temper_client_domain::{
 };
 use temper_client_view as view;
 
-/// One report of a turn, as the shell gives it to the host (client/journeys.md, 2).
+/// One report of a turn, as the shell gives it to the host (client/web/journeys.md, 2).
 pub enum Report {
     Screen(skein_ui_web::screen::Report),
     Copied { token: u32, written: root::copy::Written },
@@ -25,7 +25,7 @@ pub enum Report {
     Carried { reports: Vec<skein_ui_web::transport::Carried>, writes: u32 },
 }
 
-/// A sign-in's tab, carried before the transport (client/browser.md, 2.1).
+/// A sign-in's tab, carried before the transport (client/web/README.md, 2.1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TabAct {
     Open { words: Box<[u8]> },
@@ -48,7 +48,7 @@ pub struct Duties {
 }
 
 impl Duties {
-    /// Whether carrying these duties leaves this page (client/journeys.md, 3.1).
+    /// Whether carrying these duties leaves this page (client/web/journeys.md, 3.1).
     #[must_use]
     pub fn departs(&self) -> bool {
         self.navigate.is_some() || self.replace.is_some()
@@ -102,7 +102,7 @@ impl Host {
             replace: None,
         }
     }
-    /// The kept look's night on every page (client/README.md, 3.5).
+    /// The kept look's night on every page (client/pages/README.md).
     #[must_use]
     pub fn night(&self) -> bool {
         self.root.pages().look().night
@@ -226,7 +226,7 @@ impl Host {
     fn due(&mut self) {
         root::fire(&mut self.root, &self.env, &mut self.out);
     }
-    /// The event the view makes of `act` on `node`, if any, without giving it (client/journeys.md, 3.3).
+    /// The event the view makes of `act` on `node`, if any, without giving it (client/web/journeys.md, 3.3).
     #[must_use]
     pub fn event_of(&self, node: NodeId, act: Act) -> Option<temper_client_domain::Event> {
         view::event(&self.view, node, act)

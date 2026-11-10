@@ -1,4 +1,4 @@
-//! Forge records from temper-secrets (protocol/README.md, 9; protocol/credentials.md, 2.1).
+//! Forge records from temper-secrets (protocol/README.md, 7; protocol/credentials.md, 2.1).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;

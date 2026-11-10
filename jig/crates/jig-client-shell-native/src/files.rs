@@ -1,5 +1,5 @@
-//! Private token and whole small-store files (protocol/client.md, 8 and 10).
-//! Each batch is answered in order (client/domain/client.md, 16).
+//! Private token and whole small-store files (protocol/client/sign-in.md and protocol/client/README.md, 7).
+//! Each batch is answered in order (client/domain/client/README.md, 13).
 use skein_io::{
     file::{self, Expect},
     file_layer::{FileIo, Limits as FileLimits, step},

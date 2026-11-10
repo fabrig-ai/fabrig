@@ -1,4 +1,4 @@
-//! Pure change procedure and landing queue policy (domain/forge.md, sections 8–10).
+//! Pure change procedure and landing queue policy (domain/forge/change/README.md and domain/forge/queues.md and domain/forge/README.md, section 6).
 //!
 //! This crate keeps no state: the connector top owns and commits every
 //! `Change`. It never knows a task or a forge API call. `step` reads a coherent

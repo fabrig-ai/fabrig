@@ -1,4 +1,4 @@
-//! The process boundary (`skein/docs/design/testing.md`, 6).
+//! The process boundary (`skein/docs/design/testing/README.md`, 6).
 //!
 //! # The `unsafe`, and why it is sound
 //!
@@ -8,7 +8,7 @@
 //! Waitpid borrows local status storage only until return and reaps only our child.
 #![expect(
     unsafe_code,
-    reason = "fork, waitpid and _exit form the test's process boundary (skein/docs/design/testing.md, 6)"
+    reason = "fork, waitpid and _exit form the test's process boundary (skein/docs/design/testing/README.md, 6)"
 )]
 
 use crate::{Exit, Split};

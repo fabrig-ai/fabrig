@@ -1,4 +1,4 @@
-//! Lock and record transitions (hearth/docs/design/domain/store.md, 8.2, steps 1 and 2).
+//! Lock and record transitions (hearth/docs/design/domain/store/README.md, 6.2, steps 1 and 2).
 use crate::{
     Phase, Store, Timer,
     limits::Limits,
