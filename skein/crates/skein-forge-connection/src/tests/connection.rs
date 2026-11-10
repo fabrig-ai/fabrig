@@ -137,6 +137,32 @@ fn raw_reads_keep_the_range_and_refuse_bytes_past_remaining_answer_room() {
         assert!(contains(&h.sent, range), "{name}: range header");
     }
 }
+#[test]
+fn head_ranges_count_bytes_and_report_a_truncated_partial_response() {
+    for (max, body, fields, more, range) in [
+        (1, b"a".as_slice(), b"Content-Range: bytes 0-0/8\r\n".as_slice(), true, b"Range: bytes=0-0\r\n".as_slice()),
+        (4, b"abcd".as_slice(), b"Content-Range: bytes 0-3/8\r\n".as_slice(), true, b"Range: bytes=0-3\r\n".as_slice()),
+        (
+            4,
+            b"abcd".as_slice(),
+            b"Content-Range: bytes 0-3/4\r\n".as_slice(),
+            false,
+            b"Range: bytes=0-3\r\n".as_slice(),
+        ),
+    ] {
+        let mut h = fixtures::ConnectionHarness::new();
+        h.start_forgejo(raw_request(), Some(Range::Head(max))).expect("valid head range");
+        let response = crate::fixtures::response_with_fields(206, body, fields);
+        let heard = h.answer(&response);
+        assert!(contains(&h.sent, range), "Head(n) requests exactly n bytes");
+        assert_eq!(
+            heard.last(),
+            Some(&Heard::Done(skein_forge::forgejo::plans::Body::Raw { bytes: Box::from(body), more })),
+            "Content-Range reports bytes omitted after the retained prefix"
+        );
+    }
+}
+
 type TailRow = (&'static str, &'static [u8], &'static [u8], bool, Phase);
 type RawRow = (&'static str, &'static [u8], u32, u32, &'static [u8], bool, Phase, &'static [u8]);
 fn contains(bytes: &[u8], expected: &[u8]) -> bool {

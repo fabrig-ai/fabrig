@@ -113,6 +113,26 @@ fn a_failed_jobs_log_end_comes_through_a_suffix_range() {
 }
 
 #[test]
+fn a_start_read_reads_the_fake_logs_first_bytes() {
+    let mut joint = Joint::failing(5);
+    let pushed = joint.push(b"work", b"change");
+    joint.run_for(Duration::from_secs(1));
+    let head = skein_forge_kit::client::commit(pushed);
+    joint.call(1, REPO, Op::Read(Read::Checks { commit: head }));
+    joint.run_for(Duration::from_secs(1));
+    let Some(Ok(Answer::Checks(statuses))) = joint.answered(1).map(|a| &a.result) else {
+        panic!("Checks: {:?}", joint.answered(1))
+    };
+    let attempt = statuses[0].job.expect("The failed status links its job");
+    joint.call(2, REPO, Op::Read(Read::Job { attempt, max_bytes: 8, part: skein_forge::api::LogPart::Start }));
+    joint.run_for(Duration::from_secs(1));
+    let answered = joint.answered(2).expect("Job answer");
+    assert_eq!(answered.cost, 3, "Run metadata, job metadata, whole job log");
+    let step = Some(skein_forge::api::Step { number: 1, name: Box::from(BUILD_STEP_NAME) });
+    assert_eq!(answered.result, Ok(Answer::Job { attempt, step, log: Box::from(&b"set up b"[..]), truncated: true }));
+}
+
+#[test]
 fn each_forgejo_write_completes_with_its_own_status() {
     const REVIEWER: u64 = 1; // The fixture's engine user can review the person's pull.
     const SEED: u64 = 3;

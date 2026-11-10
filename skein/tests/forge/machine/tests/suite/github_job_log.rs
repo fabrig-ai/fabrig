@@ -115,6 +115,35 @@ fn fixture_step() -> api::Step {
 }
 
 #[test]
+fn a_job_logs_start_read_keeps_the_head_of_the_redirected_log() {
+    let metadata = br#"{"id":1,"run_id":1,"run_attempt":1,"head_sha":"910a2dec89025cc1000000000000000100000000","steps":[{"number":3,"name":"build","conclusion":"failure"}]}"#;
+    let mut w = plaintext_job(
+        metadata,
+        b"selection: 7\nbuild failed\n##[error]Process completed with exit code 1.\nPost job cleanup.\n",
+    );
+    w.call(2, REPO, Op::Read(Read::Job { attempt: attempt(), max_bytes: 13, part: api::LogPart::Start }));
+    w.run_for(SECOND);
+    terminal(
+        &w,
+        2,
+        FOLLOW_COST,
+        &Ok(Value::Job {
+            attempt: attempt(),
+            step: Some(api::Step { number: 3, name: Box::from(*b"build") }),
+            log: Box::from(*b"selection: 7\n"),
+            truncated: true,
+        }),
+    );
+    let request = w.requests().last().expect("redirected log GET");
+    assert!(request.starts_with(b"GET /logs/2/1/1"), "the redirect was followed");
+    assert!(
+        !request.windows(b"Range:".len()).any(|bytes| bytes.eq_ignore_ascii_case(b"Range:")),
+        "the redirected GET carries no Range"
+    );
+    finish(&mut w, READY_REQUESTS + usize::try_from(FOLLOW_COST).expect("three follow requests"));
+}
+
+#[test]
 fn github_job_without_a_failed_step_keeps_cleanup_in_the_job_tail() {
     let metadata =
         br#"{"id":1,"run_id":1,"run_attempt":1,"head_sha":"910a2dec89025cc1000000000000000100000000","steps":[]}"#;
