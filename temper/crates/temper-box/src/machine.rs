@@ -1,5 +1,6 @@
 //! Steps, exits and timers in; process orders out (protocol/setup.md, 7.2).
 //! Kind slots and removal follow temper/docs/design/protocol/setup.md, 7.1.
+//! Source retries follow temper/docs/design/protocol/sign-in.md, 9.9.
 use crate::layout::Placed;
 use crate::limits::{Limits, Unfit, check};
 use crate::terminal::Fact;
@@ -10,39 +11,110 @@ use temper_forge_setup::{Kind, machine::BoxKind};
 /// Inputs referring only to a step's index. Withdrawn ends an unsent spawn without an io owner.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Input {
-    Started { step: usize },
-    Ready { step: usize },
-    NotReady { step: usize },
-    Line { step: usize },
-    Withdrawn { step: usize },
-    NotStarted { step: usize },
-    Exited { step: usize, exit: Exit },
-    Closed { step: usize },
+    Started {
+        step: usize,
+    },
+    Ready {
+        step: usize,
+    },
+    NotReady {
+        step: usize,
+    },
+    Line {
+        step: usize,
+    },
+    Withdrawn {
+        step: usize,
+    },
+    NotStarted {
+        step: usize,
+    },
+    Exited {
+        step: usize,
+        exit: Exit,
+    },
+    Closed {
+        step: usize,
+    },
+    /// The host drained the ended source's pipes and read its outcome.
+    SourceEnded {
+        step: usize,
+        added: bool,
+    },
     Terminate,
-    Ask { forge: u16 },
-    AskKind { forge: u16, kind: BoxKind },
-    Remove { forge: u16 },
-    Removed { forge: u16 },
-    RemoveFailed { forge: u16, why: Why },
-    Stop { forge: u16 },
-    Written { forge: u16 },
-    NotWritten { forge: u16 },
+    Ask {
+        forge: u16,
+    },
+    AskKind {
+        forge: u16,
+        kind: BoxKind,
+    },
+    Remove {
+        forge: u16,
+    },
+    Removed {
+        forge: u16,
+    },
+    RemoveFailed {
+        forge: u16,
+        why: Why,
+    },
+    Stop {
+        forge: u16,
+    },
+    Written {
+        forge: u16,
+    },
+    NotWritten {
+        forge: u16,
+    },
 }
 /// Effects requested of the host. Withdraw drops a spawn only before its io request exists.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Order {
-    Hold { step: usize },
-    Spawn { step: usize },
-    Withdraw { step: usize },
-    Wait { step: usize },
-    Signal { step: usize },
-    Close { step: usize },
-    Record { forge: u16 },
-    WriteGroup { forge: u16, kind: BoxKind },
-    Unlink { forge: u16 },
-    RunRemover { slot: usize, forge: u16 },
-    Say { said: Said },
-    Terminal { fact: Fact },
+    Hold {
+        step: usize,
+    },
+    Spawn {
+        step: usize,
+    },
+    Withdraw {
+        step: usize,
+    },
+    Wait {
+        step: usize,
+    },
+    Signal {
+        step: usize,
+    },
+    Close {
+        step: usize,
+    },
+    /// Drain the source's ending before completing its start or arming a retry.
+    Source {
+        step: usize,
+        first: bool,
+    },
+    Record {
+        forge: u16,
+    },
+    WriteGroup {
+        forge: u16,
+        kind: BoxKind,
+    },
+    Unlink {
+        forge: u16,
+    },
+    RunRemover {
+        slot: usize,
+        forge: u16,
+    },
+    Say {
+        said: Said,
+    },
+    Terminal {
+        fact: Fact,
+    },
 }
 /// Pipe replies name a placed step; formatting belongs to the host.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -113,6 +185,7 @@ enum Phase {
     Backoff { at: Time, next: Option<usize> },
     Grace { at: Time, second: bool },
     Stopped,
+    Source { next: Option<usize> },
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Role {
@@ -135,6 +208,8 @@ pub(crate) struct State {
     phase: Phase,
     why: Option<Why>,
     exits: Queue<Time>,
+    source_ended: bool,
+    source_delay: skein_lib::Duration,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum StopNotice {
@@ -228,6 +303,8 @@ impl Machine {
                     phase: Phase::Dormant,
                     why: None,
                     exits: Queue::with_capacity(limits.restarts.saturating_add(1)),
+                    source_ended: false,
+                    source_delay: limits.backoff,
                 })
                 .expect("one state per step");
         }
@@ -299,9 +376,12 @@ impl Machine {
             Phase::Starting { .. } | Phase::Live { .. } | Phase::Grace { .. } => {
                 if self.starting_group(step).is_some() { Relay::Send } else { Relay::Unasked }
             }
-            Phase::Dormant | Phase::Waiting { .. } | Phase::Closing { .. } | Phase::Backoff { .. } | Phase::Stopped => {
-                Relay::Exited
-            }
+            Phase::Dormant
+            | Phase::Waiting { .. }
+            | Phase::Closing { .. }
+            | Phase::Backoff { .. }
+            | Phase::Source { .. }
+            | Phase::Stopped => Relay::Exited,
         }
     }
     fn slot(&self, kind: BoxKind) -> Option<usize> {
@@ -431,7 +511,8 @@ impl Machine {
             | Input::NotStarted { step }
             | Input::Exited { step, .. }
             | Input::Closed { step } => step,
-            Input::Ready { .. }
+            Input::SourceEnded { .. }
+            | Input::Ready { .. }
             | Input::NotReady { .. }
             | Input::Line { .. }
             | Input::Withdrawn { .. }
@@ -471,6 +552,7 @@ impl Machine {
                     | Phase::Live { .. }
                     | Phase::Backoff { .. }
                     | Phase::Grace { .. }
+                    | Phase::Source { .. }
                     | Phase::Stopped => false,
                 };
                 let why = state.why.unwrap_or(Why::RemoveNotStarted);
@@ -481,7 +563,8 @@ impl Machine {
                     self.remove_failed(forge, why, orders);
                 }
             }
-            Input::Ready { .. }
+            Input::SourceEnded { .. }
+            | Input::Ready { .. }
             | Input::NotReady { .. }
             | Input::Line { .. }
             | Input::Withdrawn { .. }
@@ -519,6 +602,7 @@ impl Machine {
             | Phase::Closing { .. }
             | Phase::Backoff { .. }
             | Phase::Grace { .. }
+            | Phase::Source { .. }
             | Phase::Stopped => self.successor(step),
         }
     }
@@ -622,6 +706,7 @@ impl Machine {
                             | Phase::Closing { .. }
                             | Phase::Backoff { .. }
                             | Phase::Grace { .. }
+                            | Phase::Source { .. }
                             | Phase::Stopped => return,
                         };
                         state.phase = Phase::Closing { next, success: state.ignore_ending };
@@ -642,6 +727,7 @@ impl Machine {
                 }
             }
             Input::Closed { step } => self.closed(now, step, orders),
+            Input::SourceEnded { step, added } => self.source_ended(now, step, added, orders),
         }
         if self.stop_notice == StopNotice::Requested && self.is_idle() {
             self.stop_notice = StopNotice::Reported;
@@ -717,6 +803,7 @@ impl Machine {
             | Phase::Closing { .. }
             | Phase::Backoff { .. }
             | Phase::Grace { .. }
+            | Phase::Source { .. }
             | Phase::Stopped => {}
         }
     }
@@ -786,7 +873,9 @@ impl Machine {
             | Phase::Live { next }
             | Phase::Closing { next, .. }
             | Phase::Backoff { next, .. } => next,
-            Phase::Dormant | Phase::Starting { .. } | Phase::Grace { .. } | Phase::Stopped => None,
+            Phase::Dormant | Phase::Starting { .. } | Phase::Grace { .. } | Phase::Source { .. } | Phase::Stopped => {
+                None
+            }
         };
         let Some(link) = next else { return };
         let state = self.states.get(link).expect("next step");
@@ -799,7 +888,7 @@ impl Machine {
             | Phase::Live { next }
             | Phase::Closing { next, .. }
             | Phase::Backoff { next, .. } => *next = None,
-            Phase::Dormant | Phase::Starting { .. } | Phase::Grace { .. } | Phase::Stopped => {
+            Phase::Dormant | Phase::Starting { .. } | Phase::Grace { .. } | Phase::Source { .. } | Phase::Stopped => {
                 unreachable!("checked phase")
             }
         }
@@ -820,8 +909,12 @@ impl Machine {
                 state.phase = Phase::Closing { next: None, success: state.ignore_ending || exit == Exit::Code(0) };
                 orders.push(Order::Close { step });
             }
-            Phase::Dormant | Phase::Waiting { .. } | Phase::Closing { .. } | Phase::Backoff { .. } | Phase::Stopped => {
-            }
+            Phase::Dormant
+            | Phase::Waiting { .. }
+            | Phase::Closing { .. }
+            | Phase::Backoff { .. }
+            | Phase::Source { .. }
+            | Phase::Stopped => {}
         }
     }
     fn closed(&mut self, now: Time, step: usize, orders: &mut Queue<Order>) {
@@ -838,6 +931,10 @@ impl Machine {
                     && self.groups.get(group).expect("group").status == Status::Stopping
                 {
                     self.stop_group_next(now, group, orders);
+                } else if self.states.get(step).expect("step").kind == Kind::Source {
+                    self.states.get_mut(step).expect("source step").phase = Phase::Source { next };
+                    orders
+                        .push(Order::Source { step, first: !self.states.get(step).expect("source step").source_ended });
                 } else if let Some(group) = group
                     && self.group_starting(group)
                 {
@@ -875,8 +972,51 @@ impl Machine {
             | Phase::Live { .. }
             | Phase::Backoff { .. }
             | Phase::Grace { .. }
+            | Phase::Source { .. }
             | Phase::Stopped => {
                 state.phase = phase;
+            }
+        }
+    }
+    fn source_ended(&mut self, now: Time, step: usize, added: bool, orders: &mut Queue<Order>) {
+        let state = self.states.get_mut(step).expect("source step");
+        let next = match state.phase {
+            Phase::Source { next } => next,
+            Phase::Dormant
+            | Phase::Waiting { .. }
+            | Phase::Starting { .. }
+            | Phase::Live { .. }
+            | Phase::Closing { .. }
+            | Phase::Backoff { .. }
+            | Phase::Grace { .. }
+            | Phase::Stopped => return,
+        };
+        state.phase = Phase::Stopped;
+        if self.outcome.is_some() || self.group_stopping(step) {
+            return;
+        }
+        if self.group_failing(step) {
+            let group = self.states.get(step).expect("source step").group.expect("source group");
+            self.failed_if_closed(group, orders);
+            return;
+        }
+        let state = self.states.get_mut(step).expect("source step");
+        let first = !state.source_ended;
+        state.source_ended = true;
+        let group = state.group.expect("source belongs to a group");
+        if !added {
+            let delay = state.source_delay;
+            state.source_delay = delay.saturating_mul(2).min(self.limits.backoff_max);
+            state.phase = Phase::Backoff { at: now.saturating_add(delay), next: None };
+        }
+        if first {
+            if self.group_starting(group) {
+                self.advance_group(group, next, orders);
+            } else if self.groups.get(group).expect("group").chained {
+                self.group_started(group, orders);
+                if let Some(next) = next {
+                    self.spawn(next, self.continuation(next), orders);
+                }
             }
         }
     }
@@ -935,7 +1075,7 @@ impl Machine {
     fn source_pending(&self, end: usize) -> bool {
         let last = end.checked_sub(1).expect("nonempty group");
         let state = self.states.get(last).expect("group's final step");
-        state.ignore_ending && state.phase != Phase::Stopped
+        state.ignore_ending && !state.source_ended && state.phase != Phase::Stopped
     }
     fn ask(&mut self, forge: u16, orders: &mut Queue<Order>) {
         if self.refused(forge, false, orders) {
@@ -1008,6 +1148,8 @@ impl Machine {
             let state = self.states.get_mut(step).expect("group step");
             state.phase = Phase::Dormant;
             state.waiting = false;
+            state.source_ended = false;
+            state.source_delay = self.limits.backoff;
             while state.exits.pop().is_some() {}
         }
         let group = self.groups.get_mut(index).expect("group");
@@ -1091,11 +1233,13 @@ impl Machine {
                     state.phase = Phase::Closing { next: None, success: false };
                     orders.push(Order::Close { step });
                 }
+                Phase::Backoff { .. } if state.kind == Kind::Source => state.phase = Phase::Stopped,
                 Phase::Dormant
                 | Phase::Waiting { .. }
                 | Phase::Starting { .. }
                 | Phase::Closing { .. }
                 | Phase::Backoff { .. }
+                | Phase::Source { .. }
                 | Phase::Stopped => {}
             }
         }
@@ -1119,7 +1263,7 @@ impl Machine {
         };
         for step in group.first..group.end {
             match self.states.get(step).expect("group step").phase {
-                Phase::Dormant | Phase::Stopped => {}
+                Phase::Dormant | Phase::Source { .. } | Phase::Stopped => {}
                 Phase::Waiting { .. }
                 | Phase::Starting { .. }
                 | Phase::Live { .. }
@@ -1131,6 +1275,8 @@ impl Machine {
         for step in group.first..group.end {
             let state = self.states.get_mut(step).expect("group step");
             state.phase = Phase::Dormant;
+            state.source_ended = false;
+            state.source_delay = self.limits.backoff;
             for _ in 0..state.exits.len() {
                 state.exits.pop();
             }
@@ -1180,6 +1326,7 @@ impl Machine {
                 | Phase::Live { .. }
                 | Phase::Closing { .. }
                 | Phase::Grace { .. }
+                | Phase::Source { .. }
                 | Phase::Stopped => {}
             }
         }
@@ -1202,6 +1349,7 @@ impl Machine {
                     | Phase::Starting { .. }
                     | Phase::Closing { .. }
                     | Phase::Backoff { .. }
+                    | Phase::Source { .. }
                     | Phase::Stopped => {}
                 }
             }
@@ -1225,7 +1373,11 @@ impl Machine {
                     return false;
                 }
                 Phase::Starting { .. } | Phase::Closing { .. } | Phase::Grace { .. } => return false,
-                Phase::Dormant | Phase::Waiting { .. } | Phase::Backoff { .. } | Phase::Stopped => {}
+                Phase::Dormant
+                | Phase::Waiting { .. }
+                | Phase::Backoff { .. }
+                | Phase::Source { .. }
+                | Phase::Stopped => {}
             }
         }
         true
@@ -1236,8 +1388,14 @@ impl Machine {
             let phase = self.states.get(step).expect("bounded step").phase;
             match phase {
                 Phase::Backoff { at, next: following } if at <= now => {
+                    if !self.retry_ready(step) {
+                        continue;
+                    }
                     let mut first = step;
                     for before in (0..step).rev() {
+                        if self.states.get(step).expect("step").kind == Kind::Source {
+                            break;
+                        }
                         if self.states.get(before).expect("bounded step").role != Role::Command
                             || self.chain(before) != self.chain(step)
                         {
@@ -1269,22 +1427,33 @@ impl Machine {
                 | Phase::Closing { .. }
                 | Phase::Backoff { .. }
                 | Phase::Grace { .. }
+                | Phase::Source { .. }
                 | Phase::Stopped => {}
             }
         }
+    }
+    fn retry_ready(&self, step: usize) -> bool {
+        let state = self.states.get(step).expect("step");
+        state.kind != Kind::Source
+            || match state.group {
+                Some(group) => self.groups.get(group).expect("source group").status == Status::Started,
+                None => false,
+            }
     }
     /// Earliest backoff or grace still armed.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
         let mut next = None;
-        for state in &self.states {
+        for (step, state) in self.states.iter().enumerate() {
             match state.phase {
+                Phase::Backoff { .. } if !self.retry_ready(step) => {}
                 Phase::Backoff { at, .. } | Phase::Grace { at, .. } => next = Some(next.unwrap_or(at).min(at)),
                 Phase::Dormant
                 | Phase::Waiting { .. }
                 | Phase::Starting { .. }
                 | Phase::Live { .. }
                 | Phase::Closing { .. }
+                | Phase::Source { .. }
                 | Phase::Stopped => {}
             }
         }
@@ -1300,7 +1469,7 @@ impl Machine {
     pub fn is_idle(&self) -> bool {
         for state in &self.states {
             match state.phase {
-                Phase::Dormant | Phase::Waiting { .. } | Phase::Stopped => {}
+                Phase::Dormant | Phase::Waiting { .. } | Phase::Source { .. } | Phase::Stopped => {}
                 Phase::Starting { .. }
                 | Phase::Live { .. }
                 | Phase::Closing { .. }

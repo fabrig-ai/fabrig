@@ -2101,6 +2101,8 @@ fn a_restarted_workstation_keeps_the_directors_question_and_answers_it_once_as_p
     assert_eq!(run.first_placed().get(&case::HANG).map(String::as_str), Some("ws"));
 }
 
+// On Linux its restored Forgejo starts while discovery answers 502 with the
+// engine held down, then signs in after it returns, without a Forgejo restart.
 #[test]
 fn a_box_signs_its_person_in_to_its_owned_forgejo_with_one_click() {
     let scratch = support::Scratch::new("forgejo-box-sign-in");
