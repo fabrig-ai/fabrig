@@ -788,6 +788,22 @@ git = fail_add
         self.assertIn("(Sections 1 to 2).", self.read(f"{DESIGN}/new.md"))
         self.clean_check()
 
+    def test_wrapped_splits_keep_paragraphs_and_comment_prefixes(self):
+        self.write(B, "# b\n\nSee `a.md`, sections\n  1 and\n  2.1 for detail.\n\nNext `a.md`, sections\n  1 and\n  2.1\ncontinues.\n")
+        self.write("skein/crates/k/src/lib.rs", "//! See `docs/design/a.md`, sections\n//!   1 and\n//!   2.1 for detail.\n")
+        self.commit("wrapped split")
+        self.apply(f"{A} 2 -> {DESIGN}/new.md 4\ntitle {DESIGN}/new.md: New\n")
+        self.assertEqual(self.read(B), "# b\n\nSee `a.md`, section 1, and `new.md`, section 4.1\n   for detail.\n\nNext `a.md`, section 1, and `new.md`, section 4.1\ncontinues.\n")
+        self.assertEqual(self.read("skein/crates/k/src/lib.rs"), "//! See `docs/design/a.md`, section 1, and `docs/design/new.md`, section 4.1\n//!    for detail.\n")
+        self.clean_check()
+
+    def test_citation_coordinates_follow_a_promoted_heading_prefix(self):
+        self.write(A, DOC.replace("### 2.1 Part", "### 2.1 Part (`b.md`, 3)"))
+        self.commit("heading citation")
+        self.apply(f"{A} 2.1 -> {DESIGN}/new.md 4\ntitle {DESIGN}/new.md: New\n")
+        self.assertIn("## 4. Part (`b.md`, 3)", self.read(f"{DESIGN}/new.md"))
+        self.clean_check()
+
     def test_all_map_errors_leave_tree_and_index_unchanged(self):
         cases = [
             (f"{DESIGN}/gone.md -> {DESIGN}/new.md", "source does not exist"),

@@ -156,6 +156,7 @@ class Plan:
         self.titles, self.errors = titles, errors
         self.moves, self.sections, self.texts, self.by_hand = {}, [], {}, set()
         self.line_cache = {}
+        self.edited_away_rows = set()
         self.edits = collections.defaultdict(dict)
         self.consumed = collections.defaultdict(list)
         self.rewritten, self.rewritten_files = 0, set()
@@ -444,6 +445,16 @@ class Plan:
             for ln in range(start.line + 1, end.line + 1):
                 a = 0
                 b = end.column - 1 if ln == end.line else len(lines[ln - 1].rstrip("\r\n"))
+                plain = lines[ln - 1].rstrip("\r\n")
+                if ln < end.line or not plain[b:].strip():
+                    b = len(lines[ln - 1])
+                    self.edited_away_rows.add((start.file, ln))
+                else:
+                    body = c.comment_of(plain, start.file) if start.file.endswith(c.CODE_EXT) else None
+                    if body is not None:
+                        a = len(plain) - len(body) + len(body) - len(body.lstrip(" \t"))
+                    else:
+                        a = len(plain) - len(plain.lstrip(" \t"))
                 put(ln, a, b, "")
 
     def manual(self, citation, reason):
@@ -1068,11 +1079,17 @@ class Plan:
                 raise ValueError(f"overlapping citation edits: {row.file}:{row.line}")
             text = text[:a] + value + text[b:]
             end = a
-        return self.transformed(row._replace(text=text)).text
+        final = self.transformed(row._replace(text=text)).text
+        old_prefix = c.HEADING.match(text) or re.match(r"^#{1,6}\s+", text)
+        new_prefix = c.HEADING.match(final) or re.match(r"^#{1,6}\s+", final)
+        if old_prefix and new_prefix:
+            self.heading_offsets[dst, row.file, row.line] = (old_prefix.end(), new_prefix.end())
+        return final
 
     def contents(self):
         self.final_positions = collections.defaultdict(list)
         self.generated_lines = set()
+        self.heading_offsets = {}
         out = {}
         paths = set(self.rows) | set(self.status_edits) | {self.moves.get(p, p) for p in self.edits}
         inverse = {dst: src for src, dst in self.moves.items()}
@@ -1084,7 +1101,7 @@ class Plan:
             texts, ln, col = [], 1, 1
             for row in rows:
                 text = self.row_text(dst, row)
-                if row.file and text:
+                if row.file and (text or (row.file, row.line) in self.edited_away_rows):
                     self.final_positions[row.file, row.line].append((dst, ln, col))
                 elif text:
                     self.generated_lines.add((dst, ln))
@@ -1120,6 +1137,9 @@ class Plan:
                 shift += len(replacement) - (b - a)
         else:
             offset += shift
+        old_prefix, new_prefix = self.heading_offsets.get((dst, pos.file, pos.line), (0, 0))
+        if offset >= old_prefix:
+            offset += new_prefix - old_prefix
         return c.Position(dst, ln, col + offset)
 
     def reading(self, cite, tree):
