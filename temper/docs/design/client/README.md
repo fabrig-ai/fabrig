@@ -3498,7 +3498,7 @@ keeps (`../protocol/configuration.md`, section 2).
     *The try,* an account tried once it becomes usable on the welcome's Model
     step or Ready, or on `ConnectModel`, runs in the background and nothing
     waits for it. Its task, model selection, payer and end are
-    `../domain/trial.md`, 2 to 5; its facts and the lines they feed are 6.1 to
+    `../domain/trial.md`, 2 to 5; its facts and the lines they feed are `../domain/trial.md`, 6.1 to
     6.4. It is not a chat: it lists nowhere, adds nothing to Home's counts and
     writes no project's document. One short turn is paid by the person, as
     for a chat: included usage on a plan, or the key's price. Its first

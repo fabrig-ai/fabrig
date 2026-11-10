@@ -31,7 +31,7 @@ bounds are section 12, and what they take of jig section 13; an MCP endpoint and
   never a second chat. Acts that decide name the revision the agent saw
   (section 7). The named key is jig's (section 13).
 - **A turn too large for a page is read alone,** by jig's read of one
-  turn (5.2, section 13).
+  turn (5.2, `tools.md`, section 13).
 - **Thin command line.** `temper ctl DIRECTORY GROUP VERB ...` makes one
   call per process, in `jig-client`'s one-shot mode, over jig's native
   transport, and prints its result (section 8).

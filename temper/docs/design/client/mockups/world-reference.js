@@ -47,7 +47,7 @@
         },
       },
 
-      // One forge, GitHub, through temper's App (client forge.md, 5.4).
+      // One forge, GitHub, through temper's App (client/forge.md, 5.4).
       forges: [
         { n: 1, kind: 'GitHub', web: 'https://github.com', mode: 'connected', state: 'connected', login: 'temper-acme[bot]', id: 190244117,
           app: { slug: 'temper-acme', installs: [{ account: 'acme', id: 55120934, all: false, names: ['kit', 'app'] }] },
