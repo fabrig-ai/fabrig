@@ -1,4 +1,4 @@
-//! Seeded patches over every generic value form (codec.md, 11.8).
+//! Seeded patches over every generic value form (data/codec/patches.md, 8).
 
 use crate::support::generated;
 

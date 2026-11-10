@@ -1,4 +1,4 @@
-//! io worlds (testing-strategy.md, 2.6; io.md, 8): io over the simulator,
+//! io worlds (testing-strategy.md, 2.6; runtime/io/README.md, 5): io over the simulator,
 //! with a scripted owner as the step above it, in one loop.
 //!
 //! What the test binaries share:

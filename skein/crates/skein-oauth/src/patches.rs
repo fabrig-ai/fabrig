@@ -1,9 +1,9 @@
-//! Skein's patch set for kept token records (codec.md, 12), empty before the baseline.
+//! Skein's patch set for kept token records (data/codec/command.md), empty before the baseline.
 
 use skein_codec::patch::{Build, Halt, Old, Site};
 use skein_codec::value::Node;
 
-/// The owner's per-record inputs to written patches (codec.md, 11.5).
+/// The owner's per-record inputs to written patches (data/codec/patches.md, 5).
 #[derive(Debug)]
 pub struct Context {}
 

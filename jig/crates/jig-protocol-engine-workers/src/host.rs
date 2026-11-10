@@ -10,7 +10,7 @@ use skein_channel::{Lower, LowerEvent};
 use skein_io as io;
 use skein_lib::{List, Map, Queue, Time, Token, stream};
 
-/// The owner's namespaces for this part's io (skein/docs/design/lib.md, 4).
+/// The owner's namespaces for this part's io (skein/docs/design/runtime/lib.md, 4).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Tokens {
     pub listeners: u8,

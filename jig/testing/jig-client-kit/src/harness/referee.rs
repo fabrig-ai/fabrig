@@ -335,7 +335,7 @@ impl Rules {
                         self.promised.insert((task, message), words);
                     }
                 }
-                Seen::Outline { .. } => judge.check(false, "the page's outline: a tree broke skein's ui.md, 14"),
+                Seen::Outline { .. } => judge.check(false, "the page's outline: a tree broke skein's ui/README.md, 12"),
                 Seen::SignedOut => {
                     let allowed = !self.sign_out_asked.contains(&client) || self.sign_in_ended.contains(&client);
                     judge.check(allowed, "a sign-out told: the engine did not receive sign-out");

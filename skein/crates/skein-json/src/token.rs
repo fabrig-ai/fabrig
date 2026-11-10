@@ -1,4 +1,4 @@
-//! What the tokenizer reads and the writer writes (json.md, 3 and 4).
+//! What the tokenizer reads and the writer writes (data/json.md, 3 and 4).
 
 use alloc::boxed::Box;
 
@@ -25,7 +25,7 @@ pub enum Token {
     String(Box<[u8]>),
     /// A number, as the text of the document: validated against JSON's
     /// grammar, never converted. The consumer parses the integers it
-    /// expects, with checks (json.md, 3).
+    /// expects, with checks (data/json.md, 3).
     Number(Box<[u8]>),
     /// `true`
     True,

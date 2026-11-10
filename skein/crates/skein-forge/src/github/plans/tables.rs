@@ -1,10 +1,10 @@
-//! Repository rows and user logins, evicted by least recent use (forge.md, 4.2).
+//! Repository rows and user logins, evicted by least recent use (forge/README.md, 4.2).
 use crate::users::Users;
 use crate::{api, github::document};
 use alloc::boxed::Box;
 use skein_lib::Lru;
 
-/// The first merge method the repository allows (forge-github.md, 5.1).
+/// The first merge method the repository allows (forge/github.md, 5.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Method {
     Merge,

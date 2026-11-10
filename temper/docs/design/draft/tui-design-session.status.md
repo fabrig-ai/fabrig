@@ -3,15 +3,15 @@
 2026-11-09. Where the design lags or departs from [tui-design-session.md](tui-design-session.md).
 
 - **Design lags:** none: `../client/README.md`, 6.14, *A design
-  session*, and skein's `ui-screen.md`, 5.2, *A side region*, hold it,
+  session*, and skein's `ui/screen.md`, 5.2, *A side region*, hold it,
   the code lagging as `../client/README.status.md` and skein's
-  `ui-screen.status.md` say; the journey `design-session` is
+  `ui/screen.status.md` say; the journey `design-session` is
   `../client/tui/journeys.md`, section 9, not yet recorded
   (`../client/tui/journeys.status.md`).
 - **Design departs:**
   - *What it builds*, the side pane: the terminal had no way to lay two
     columns, so skein's full-screen shell gains a side region beside the
-    body (skein's `ui-screen.md`, 5.2), which shows its first rows and
+    body (skein's `ui/screen.md`, 5.2), which shows its first rows and
     scrolls with nothing; at half the pane shows the draft from its
     first section marked new, and all is where it is read whole. Half
     shows as all below 80 columns (`temper_client_tui::HALVES`). The

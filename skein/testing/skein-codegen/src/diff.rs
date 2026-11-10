@@ -1,4 +1,4 @@
-//! Changes between kept and current schema tables (codec.md, section 10).
+//! Changes between kept and current schema tables (data/codec/diff.md).
 
 use core::fmt;
 use skein_codec::schema::Schema;
@@ -6,7 +6,7 @@ use skein_codec::schema::Schema;
 mod spell;
 mod walk;
 
-/// A family's changes and unconfirmed renames (codec.md, 10.5).
+/// A family's changes and unconfirmed renames (data/codec/diff.md, 5).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Diff {
     pub family: String,
@@ -16,14 +16,14 @@ pub struct Diff {
     pub proposed: Vec<Rename>,
 }
 
-/// One operation and the conversion it needs (codec.md, 10.2–10.3).
+/// One operation and the conversion it needs (data/codec/diff.md, 2–3).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Change {
     pub kind: Kind,
     pub op: Op,
 }
 
-/// Conversion requirements, in increasing order (codec.md, 10.3).
+/// Conversion requirements, in increasing order (data/codec/diff.md, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Kind {
     NoneNeeded,
@@ -31,7 +31,7 @@ pub enum Kind {
     Written,
 }
 
-/// The one-line operations of codec.md, 10.2.
+/// The one-line operations of data/codec/diff.md, 2.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Op {
     AddDeclaration { decl: String },
@@ -51,21 +51,21 @@ pub enum Op {
     Payload { decl: String, variant: String, kept: Option<String>, current: Option<String> },
 }
 
-/// An added field's value or a request for one (codec.md, 10.2).
+/// An added field's value or a request for one (data/codec/diff.md, 2).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Fill {
     Absent,
     Asked,
 }
 
-/// A confirmed or proposed pairing; `decl` is current (codec.md, 10.1).
+/// A confirmed or proposed pairing; `decl` is current (data/codec/diff.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Rename {
     Declaration { old: String, new: String },
     Part { decl: String, old: String, new: String },
 }
 
-/// Whether the current header follows its changes (codec.md, 10.4).
+/// Whether the current header follows its changes (data/codec/diff.md, 4).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Version {
     Kept,
@@ -75,14 +75,14 @@ pub enum Version {
     Wrong,
 }
 
-/// Different families or the first invalid rename's index (codec.md, 10.1, 10.5).
+/// Different families or the first invalid rename's index (data/codec/diff.md, 1, 5).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DiffError {
     Family,
     Rename(usize),
 }
 
-/// Compares two parsed versions of one family (codec.md, 10.1–10.4).
+/// Compares two parsed versions of one family (data/codec/diff.md, 1–4).
 pub fn diff(kept: &Schema, current: &Schema, renames: &[Rename]) -> Result<Diff, DiffError> {
     if kept.spelled(kept.family()) != current.spelled(current.family()) {
         return Err(DiffError::Family);
@@ -92,13 +92,13 @@ pub fn diff(kept: &Schema, current: &Schema, renames: &[Rename]) -> Result<Diff,
 }
 
 impl Diff {
-    /// The greatest requirement, absent with no changes (codec.md, 10.3).
+    /// The greatest requirement, absent with no changes (data/codec/diff.md, 3).
     #[must_use]
     pub fn kind(&self) -> Option<Kind> {
         self.changes.iter().map(|change| change.kind).max()
     }
 
-    /// Checks the header without overflowing the kept version (codec.md, 10.4).
+    /// Checks the header without overflowing the kept version (data/codec/diff.md, 4).
     #[must_use]
     pub fn version(&self) -> Version {
         let needs = self.kind() >= Some(Kind::Derived);
@@ -111,7 +111,7 @@ impl Diff {
         }
     }
 
-    /// Distinct written sites in change order (codec.md, 10.3).
+    /// Distinct written sites in change order (data/codec/diff.md, 3).
     #[must_use]
     pub fn written(&self) -> Vec<String> {
         let mut sites = Vec::new();

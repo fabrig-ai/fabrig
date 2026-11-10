@@ -1,4 +1,4 @@
-//! The portable transport forwards plaintext without a TLS server (testing.md, 10).
+//! The portable transport forwards plaintext without a TLS server (testing/README.md, 10).
 
 use skein_io as io;
 use skein_lib::stream::{Down, OutputUp, Up};

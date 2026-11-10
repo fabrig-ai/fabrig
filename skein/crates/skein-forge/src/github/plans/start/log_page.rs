@@ -1,4 +1,4 @@
-//! One conditional or cursor page of the App's log (forge-github.md, 9.3).
+//! One conditional or cursor page of the App's log (forge/github.md, 9.3).
 use super::{Event, State, Step, api, document, plan};
 use crate::github::{header, log, pin, plans::Heard, request::Request};
 use skein_lib::{List, len_u64};

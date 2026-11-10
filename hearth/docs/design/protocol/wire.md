@@ -109,7 +109,7 @@ mode and the wire.
 
 ### 4.1 The channel
 
-- **skein's channel** (`skein/docs/design/channel.md`), the machine skein built
+- **skein's channel** (`skein/docs/design/net/channel.md`), the machine skein built
   for smith's and temper's channels, with hearth's schema: the magic
   `hrth`, one version to start, the kinds of 5.6. It gives framing, an
   opening that agrees a version, terms, bounds and flow control.
@@ -440,7 +440,7 @@ Application kinds of skein's channel; each belongs to one direction.
 | `0x0183` | `Read` | read id; what: facts afresh (M4), or a window (section 6, M5) | call |
 
 - **Refusal reasons,** the application's, from 256 (
-  `skein/docs/design/channel.md`, 5.1): 256 *unauthorized*, 257 *busy* (the engine turned
+  `skein/docs/design/net/channel.md`, 5.1): 256 *unauthorized*, 257 *busy* (the engine turned
   the machine away), 258 *replaced*.
 - **The output cap** is sized from the limits, as temper's (its
   `temper/docs/design/protocol/channel.md`, section 10): the hello, plus `orders` answers, plus read

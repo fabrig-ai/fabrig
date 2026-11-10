@@ -1,5 +1,5 @@
 //! The shared in-memory checkout kit
-//! (skein's docs/design/fake-checkout.md, sections 1–4;
+//! (skein's testing/fakes/checkout.md, sections 1–4;
 //! testing-strategy.md, section 4.3).
 //! This crate keeps no state or mechanics: skein owns files, scripted commands
 //! and local git, while temper's worlds retain remote policy, clocks, delivery

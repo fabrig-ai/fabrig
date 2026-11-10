@@ -1,4 +1,4 @@
-//! The App's JSON Web Token bytes (forge-github.md, 8.1).
+//! The App's JSON Web Token bytes (forge/github.md, 8.1).
 //! The component signs the input with `skein_tls::sign_rs256`.
 
 use alloc::boxed::Box;

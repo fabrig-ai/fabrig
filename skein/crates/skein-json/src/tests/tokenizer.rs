@@ -1,4 +1,4 @@
-//! The tokenizer (json.md, 3): its demands, its answers, every limit, every
+//! The tokenizer (data/json.md, 3): its demands, its answers, every limit, every
 //! escape, and closing in each state.
 
 #![expect(clippy::disallowed_types, reason = "a test collects what it reads in a Vec")]

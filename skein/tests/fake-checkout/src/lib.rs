@@ -1,5 +1,5 @@
 //! Private finite graph/transport answers for leaf tests; not a service forge.
-//! The kit is checked against explicit trees and call arguments (fake-checkout.md,
+//! The kit is checked against explicit trees and call arguments (testing/fakes/checkout.md,
 //! section 5; testing-strategy.md, sections 2.2 and 7).
 
 use std::collections::BTreeMap;
@@ -17,23 +17,23 @@ struct Commit {
 
 /// Tiny synchronous graph store with exact-head rejection, not a general forge.
 /// Tests supply existing parent IDs and finite trees; it keeps no domain state
-/// (fake-checkout.md, section 5).
+/// (testing/fakes/checkout.md, section 5).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Store {
     commits: BTreeMap<u64, Commit>,
     branches: BTreeMap<Vec<u8>, u64>,
     next: u64,
 
-    /// Scripted transport refusal for the focused boundary scenarios (fake-checkout.md, section 5).
+    /// Scripted transport refusal for the focused boundary scenarios (testing/fakes/checkout.md, section 5).
     pub fault: Option<Fault>,
 
-    /// Last exact push arguments observed at the remote boundary (fake-checkout.md, section 5).
+    /// Last exact push arguments observed at the remote boundary (testing/fakes/checkout.md, section 5).
     pub last_push: Option<(Vec<u8>, u64, Option<u64>)>,
     moves: usize,
 }
 
 impl Store {
-    /// One root commit, ID 1, at the fixture's `main` branch (fake-checkout.md, section 5).
+    /// One root commit, ID 1, at the fixture's `main` branch (testing/fakes/checkout.md, section 5).
     #[must_use]
     pub fn new(tree: Tree) -> Store {
         Store {
@@ -46,13 +46,13 @@ impl Store {
         }
     }
 
-    /// Pure branch lookup for the independent expected reference check (fake-checkout.md, section 5).
+    /// Pure branch lookup for the independent expected reference check (testing/fakes/checkout.md, section 5).
     #[must_use]
     pub fn branch(&self, branch: &[u8]) -> Option<u64> {
         self.branches.get(branch).copied()
     }
 
-    /// Number of reference moves performed by the private fixture (fake-checkout.md, section 5).
+    /// Number of reference moves performed by the private fixture (testing/fakes/checkout.md, section 5).
     #[must_use]
     pub fn moves(&self) -> usize {
         self.moves
@@ -142,13 +142,13 @@ impl Remote for Store {
     }
 }
 
-/// Owned byte tree from explicit independent expectations (fake-checkout.md, section 5).
+/// Owned byte tree from explicit independent expectations (testing/fakes/checkout.md, section 5).
 #[must_use]
 pub fn tree(files: &[(&[u8], &[u8])]) -> Tree {
     files.iter().map(|(path, bytes)| (path.to_vec(), bytes.to_vec())).collect()
 }
 
-/// One root commit cloned and checked out at `work`, without moving references (fake-checkout.md, section 5).
+/// One root commit cloned and checked out at `work`, without moving references (testing/fakes/checkout.md, section 5).
 #[must_use]
 pub fn cloned(files: &[(&[u8], &[u8])]) -> (Store, Checkout, u64) {
     let mut store = Store::new(tree(files));
@@ -158,7 +158,7 @@ pub fn cloned(files: &[(&[u8], &[u8])]) -> (Store, Checkout, u64) {
     (store, checkout, 1)
 }
 
-/// Regular working files excluding metadata, for explicit expected-tree checks (fake-checkout.md, section 5).
+/// Regular working files excluding metadata, for explicit expected-tree checks (testing/fakes/checkout.md, section 5).
 #[must_use]
 pub fn files(checkout: &Checkout) -> Tree {
     let mut files = checkout.tree(b"work");
@@ -167,7 +167,7 @@ pub fn files(checkout: &Checkout) -> Tree {
 }
 
 /// Independent tiny line-edit/conflict scenario and complete replay snapshot.
-/// Seed numbers select explicit edits, not kit-derived expectations (fake-checkout.md, section 5).
+/// Seed numbers select explicit edits, not kit-derived expectations (testing/fakes/checkout.md, section 5).
 #[must_use]
 pub fn merge_case(seed: u64) -> String {
     let base = [b"a\n".to_vec(), b"b\n".to_vec(), b"c\n".to_vec()];

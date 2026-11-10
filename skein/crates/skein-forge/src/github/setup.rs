@@ -1,4 +1,4 @@
-//! The setup documents written to the browser (forge-github.md, 11).
+//! The setup documents written to the browser (forge/github.md, 11).
 
 use alloc::boxed::Box;
 use skein_json::writer::{self, Encoder};
@@ -6,7 +6,7 @@ use skein_lib::{List, Writer, bytes};
 
 pub use super::document::Access;
 use super::document::{App, Permission};
-/// The App's permissions (forge-github.md, 11).
+/// The App's permissions (forge/github.md, 11).
 pub const PERMISSIONS: [(&[u8], Access); 9] = [
     (b"contents", Access::Write),
     (b"pull_requests", Access::Write),

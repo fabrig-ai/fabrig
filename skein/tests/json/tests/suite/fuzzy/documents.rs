@@ -1,4 +1,4 @@
-//! The tokenizer's machine world, swept (testing-strategy.md, 8; json.md,
+//! The tokenizer's machine world, swept (testing-strategy.md, 8; data/json.md,
 //! 6): many documents, generated and mutated, and the transcripts, cut and
 //! mutated, under limits and neighbours drawn from each seed, each run
 //! checked against the reference parser. This stands in for the fuzz

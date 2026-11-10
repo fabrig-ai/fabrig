@@ -200,7 +200,7 @@ iterate, after the step:
 
 ## 4. The journal
 
-The journal is a container of skein-lib's (skein's `lib.md`), generic
+The journal is a container of skein-lib's (skein's `runtime/lib.md`), generic
 over the writes and outputs it holds, as lib's queue is over its items.
 It inspects nothing it holds. What jig asks of it:
 

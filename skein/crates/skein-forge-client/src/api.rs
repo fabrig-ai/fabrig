@@ -1,4 +1,4 @@
-//! Client-side answer admission (forge-client.md, 2.3).
+//! Client-side answer admission (forge/client.md, 2.3).
 use skein_forge::api::{Answer, Commit, Kind, Op, Pull, Read, Write};
 use skein_lib::{Time, len_u64, usize_of};
 

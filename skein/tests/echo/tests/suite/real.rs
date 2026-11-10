@@ -18,7 +18,7 @@ use skein_lib::{Duration, Rng};
 use skein_shell::{Backend, Clock};
 use skein_world::{Deadline, Expired, real};
 
-// The echo's real loop on the ring (shell.md, 9).
+// The echo's real loop on the ring (runtime/shell.md, 8).
 #[cfg(target_os = "linux")]
 #[test]
 fn the_echo_answers_and_shuts_down_on_the_real_ring() {

@@ -1,4 +1,4 @@
-//! The page and its starter (ui-web.md, 4.3).
+//! The page and its starter (ui/web/bundle.md, 3).
 use std::collections::BTreeMap;
 use std::fmt::Write;
 use std::fs;

@@ -1,4 +1,4 @@
-//! Locate's owned names and the forge's nonzero repository id (forge.md, 3.7).
+//! Locate's owned names and the forge's nonzero repository id (forge/README.md, 3.7).
 use crate::api::Answer;
 use skein_lib::len_u64;
 

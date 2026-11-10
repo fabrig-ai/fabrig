@@ -1,4 +1,4 @@
-//! Shared decoded stream events (skein/docs/design/llm.md, 2).
+//! Shared decoded stream events (skein/docs/design/llm/README.md, 2).
 use crate::{Failure, Stop, Usage};
 use alloc::boxed::Box;
 

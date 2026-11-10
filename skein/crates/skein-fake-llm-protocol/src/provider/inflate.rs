@@ -1,4 +1,4 @@
-//! The fake's own inflater (fake-llm.md, section 3.1): a request body sent
+//! The fake's own inflater (testing/fakes/llm.md, section 3.1): a request body sent
 //! with `Content-Encoding: gzip` read back from its gzip member (RFC 1952),
 //! DEFLATE inside (RFC 1951), into the room the server already holds for a
 //! body. Simple over fast: one bit at a time, one symbol's code searched

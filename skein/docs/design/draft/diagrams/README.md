@@ -7,7 +7,7 @@ contract for the look, so that what is built is what was drawn.
 
 - A case's `.md` file: the fenced block, as an agent writes it.
 - Its `.W.svg` files: the scene skein-ui's web mapping prints for it
-  in a box `W` pixels wide (`../../ui-web.md`, section 8), byte for
+  in a box `W` pixels wide (`../../ui/web/README.md`, section 6), byte for
   byte, but the final newline.
 - Its `.fallback.txt` file: the drawing's name on its first line, empty
   for none, and its fallback's words on the second.

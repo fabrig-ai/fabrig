@@ -42,7 +42,7 @@ Nothing here is adopted, and no plan takes it up until the user does.
 ## 3. The reference document
 
 - **Stock, versioned with the release:** Markdown in the binary, read
-  by skein-ui's reader (`skein/docs/design/ui.md`, section 10), its
+  by skein-ui's reader (`skein/docs/design/ui/markdown.md`), its
   picture a flow (`skein/docs/design/draft/diagrams.md`); written from
   the reference drafts, in a person's words, and changed with them.
 - **Its sections:** one picture, the flow from a design draft to main;

@@ -3,7 +3,7 @@ use crate::{
     given::{self, Place, Refused},
     host::{File, Plan},
 };
-// forge-setup.md, 4.9: paths at most 255 bytes, repository names at most 100.
+// forge/setup/forgejo.md, 1.9: paths at most 255 bytes, repository names at most 100.
 const PATH: usize = 255;
 const NAME: usize = 100;
 const STRING: u32 = 512;

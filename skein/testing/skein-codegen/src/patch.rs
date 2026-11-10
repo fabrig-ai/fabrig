@@ -1,4 +1,4 @@
-//! The patch command and its check over an owner's crate (codec.md, section 12).
+//! The patch command and its check over an owner's crate (data/codec/command.md).
 //! Ordinary Rust: it reads and writes the crate's files, and reads no git. What
 //! is landed is its input (12.8), read by the binary.
 
@@ -23,7 +23,7 @@ use std::path::{Path, PathBuf};
 
 use crate::diff::{DiffError, Rename, Version};
 
-/// What the command is told beyond its crate (codec.md, 12.8).
+/// What the command is told beyond its crate (data/codec/command.md, 8).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Options {
     /// `--owner`: the header's owner, for a crate's first patch.
@@ -37,7 +37,7 @@ pub struct Options {
 }
 
 /// The base's files under the crate's `patches/` and `schema/kept/`, by path
-/// relative to the crate (codec.md, 12).
+/// relative to the crate (data/codec/command.md).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Landed {
     files: BTreeMap<PathBuf, Vec<u8>>,
@@ -77,7 +77,7 @@ impl Landed {
     }
 }
 
-/// What a run did (codec.md, 12.2 and 12.8).
+/// What a run did (data/codec/command.md, 2 and 8).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Report {
     /// Each family's, in name order.
@@ -97,7 +97,7 @@ pub struct Report {
     pub findings: Vec<Finding>,
 }
 
-/// A family's outcome in a run (codec.md, 12.2).
+/// A family's outcome in a run (data/codec/command.md, 2).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Outcome {
     /// Its first kept text, the baseline's or the family's.
@@ -114,7 +114,7 @@ pub enum Outcome {
     Refused { family: String, verdict: Version },
 }
 
-/// What the check finds (codec.md, 12.7).
+/// What the check finds (data/codec/command.md, 7).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Finding {
     /// A current text with no kept text.
@@ -139,7 +139,7 @@ pub enum Finding {
     Unplanned { patch: u32, family: String, error: String },
 }
 
-/// Why the command, or one of its parts, stops (codec.md, 12.8).
+/// Why the command, or one of its parts, stops (data/codec/command.md, 8).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Error {
     /// A file or directory that cannot be read or written.
@@ -172,7 +172,7 @@ impl Error {
     }
 }
 
-/// A verdict's name, as codec.md 10.4 spells it.
+/// A verdict's name, as data/codec/diff.md 4 spells it.
 const fn verdict_name(verdict: Version) -> &'static str {
     match verdict {
         Version::Kept => "Kept",
@@ -198,7 +198,7 @@ impl fmt::Display for Outcome {
             }
             Self::Patched { family, from, to } => write!(f, "{family}: patched {from} to {to}"),
             Self::Refused { family, verdict } => {
-                write!(f, "{family}: refused, {} (codec.md, 12.5)", verdict_name(*verdict))
+                write!(f, "{family}: refused, {} (data/codec/command.md, 5)", verdict_name(*verdict))
             }
         }
     }
@@ -217,7 +217,7 @@ impl fmt::Display for Finding {
                 write!(f, "{family}: kept version {version} lags the current text; {RUN}")
             }
             Self::Version { family, verdict, kept, current } => {
-                write!(f, "{family}: version {current} over kept {kept} is {} (codec.md, 12.5)", verdict_name(*verdict))
+                write!(f, "{family}: version {current} over kept {kept} is {} (data/codec/command.md, 5)", verdict_name(*verdict))
             }
             Self::Changed { path } => write!(f, "{}: landed, and changed or gone", path.display()),
             Self::PatchGap { missing } => write!(f, "patch {missing:04} missing"),
@@ -235,7 +235,7 @@ impl fmt::Display for Error {
             Self::Io { path, error } | Self::Schema { path, error } => write!(f, "{}: {error}", path.display()),
             Self::Diff { family, error: DiffError::Family } => write!(f, "{family}: two texts of different families"),
             Self::Diff { family, error: DiffError::Rename(index) } => {
-                write!(f, "{family}: rename {index} refused (codec.md, 10.1)")
+                write!(f, "{family}: rename {index} refused (data/codec/diff.md, 1)")
             }
             Self::Baseline => {
                 f.write_str("the crate keeps no text yet: before its baseline; pass --baseline at its first release")

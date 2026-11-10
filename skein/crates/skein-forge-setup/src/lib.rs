@@ -1,4 +1,4 @@
-//! Pure, owner-driven forge reconciliation (forge-setup.md, 4 and 6).
+//! Pure, owner-driven forge reconciliation (forge/setup/forgejo.md, 1, and forge/setup/README.md, 4).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;

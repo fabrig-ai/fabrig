@@ -8,8 +8,8 @@ invocations it runs, their arguments and environment, how its terminal is
 read from what git says, and how its failures are classified; then the
 processes, deadlines and cancel, the limits, and how it is tested. The
 mechanics are skein's `programming-model.md` (sections 4 and 9) and io's
-processes (skein's `io.md`, section 6). The credentials it hands git are
-credentials.md's (section 4). What is open is listed in section 10.
+processes (skein's `runtime/io/processes.md`). The credentials it hands git are
+credentials.md's (`credentials.md`, section 4). What is open is listed in `git.md`, section 10.
 
 ## 1. In one page
 
@@ -73,7 +73,7 @@ the routing                     hands each operation over, with its identity's v
   ▲
 temper-worker-protocol-git      the operations in flight: their invocations, pipes, deadlines; the sweep
   ▲ spawn, pipe reads and writes, signal, close; file operations
-io                              processes (skein's `io.md`, section 6) and files (skein's `io.md`, section 5)
+io                              processes (skein's `runtime/io/processes.md`) and files (skein's `runtime/io/files.md`)
   ▲
 the worker's root directory     workers[].root
 ├── workspaces/<token>/         a workspace, named by the checkout's token in decimal
@@ -102,7 +102,7 @@ the worker's root directory     workers[].root
   cancel won the race (section 7). Its `owner` token is echoed.
 - **The worker's root directory** is opened once at start by the
   worker's service and is the root every spawn and file operation
-  resolves beneath (skein's `io.md`, section 5). At every start the
+  resolves beneath (skein's `runtime/io/files.md`). At every start the
   component renames `workspaces` and `home` into `trash` if they exist,
   and makes them afresh, private (0o700), with `trash` if it is absent:
   the worker keeps nothing durable (`../domain/worker.md`, section 1),
@@ -226,7 +226,7 @@ fails a prepare (`../domain/worker.md`, section 9), and Make takes two
 file operations however large the old tree was.
 
 **The sweep** empties `trash`, which io cannot do in one operation (io
-never removes a tree: skein's `io.md`, section 5). While `trash` is not
+never removes a tree: skein's `runtime/io/files.md`). While `trash` is not
 empty and the worker is not shutting down, the component runs one file
 operation at a time:
 
@@ -643,15 +643,15 @@ variable of the worker's own process reaches git.
 ## 7. Processes, deadlines and cancel
 
 - **One invocation at a time per operation,** each spawned in a process
-  group of its own (skein's `io.md`, section 6); contained process trees
-  are for hosts apart (jig's `protocol/README.md`, section 10; section
-  10). git's own children (its remote helper, `index-pack`,
-  `pack-objects`) stay in that group. The settings of section 3 leave
+  group of its own (skein's `runtime/io/processes.md`); contained process trees
+  are for hosts apart (jig's `protocol/README.md`, section 10; `git.md`, section 10
+  ). git's own children (its remote helper, `index-pack`,
+  `pack-objects`) stay in that group. The settings of `git.md`, section 3 leave
   git nothing that would leave the group: no detached maintenance, no
   credential daemon, no file system monitor.
 - **An invocation ends** once git has exited, stdout and stderr have
   reached their ends, and io has closed the child, which kills whatever
-  is left of its group (skein's `io.md`, section 6). The next invocation
+  is left of its group (skein's `runtime/io/processes.md`). The next invocation
   starts only then.
 - **One deadline per operation:** the domain's, from the checkout's
   `remote_timeout` or `local_timeout`. It covers the whole sequence,
@@ -687,7 +687,7 @@ overridable under `git_component.` (configuration.md, section 7):
 | `stdout_bytes` | stdout kept per invocation | at least the largest output section 4 reads under the checkout's limits: the unmerged list (`conflicts` paths of `path_bytes`, each with its NUL), a push's status lines |
 | `stderr_bytes` | the stderr tail kept per invocation | at least `PushDiagnostic::CAPACITY` |
 | `read_bytes` | one read of Commit's scan | above 0 |
-| `sweep_entries`, `sweep_bytes` | one page of the sweep's listing: entries, and bytes of names | above 0; `sweep_bytes` at least 255, the longest name io lists (skein's `io.md`, section 5) |
+| `sweep_entries`, `sweep_bytes` | one page of the sweep's listing: entries, and bytes of names | above 0; `sweep_bytes` at least 255, the longest name io lists (skein's `runtime/io/files.md`) |
 
 The start is refused, naming the limit, when a rule does not hold. The
 component has no deadline of its own: an operation's is the domain's,
@@ -732,7 +732,7 @@ checks this document's contract:
   `tools/git-transcripts`: every invocation of section 4, and every
   failure of section 6 (a missing repository, branch and commit, a wrong
   token, no permission, a protected branch, a refused connection),
-  against skein's throwaway Forgejo (`fake-forge.md`, section 6;
+  against skein's throwaway Forgejo (`skein/docs/design/testing/fakes/forge.md`, section 6;
   `../domain/testing.md`, 2.6). Each keeps the argument vector,
   exit status, stdout and stderr, masked: object ids, ports, paths and
   times. No credential is ever written. The facts this document relies
@@ -770,10 +770,10 @@ checks this document's contract:
   next invocation. Default: accepted on one person's machine
   (credentials.md, section 8); the command-line settings of section 3
   and the URL on the command line cover what they name. Contained trees
-  (skein's `io.md`, 6.3), with the git directory unwritable by an
+  (skein's `runtime/io/processes.md`, 3), with the git directory unwritable by an
   agent's tree, close both. An agent's program surviving a forced stop
   also needs containment on one person's machine; git's configured
-  helpers stay in its group (section 7; setup.md, section 15).
+  helpers stay in its group (`git.md`, section 7; setup.md, section 15).
 - **A stray file of another name** (4.7): `git add` still takes it, a new
   file being indistinguishable from a run's new work, unless the repository
   ignores it. Default: the repository's `.gitignore` is where such a name goes.

@@ -1,5 +1,5 @@
 //! Resource reads through io on the shared simulated and real worlds
-//! (io.md, section 6.1). The owner observes exit, reads, closes, then reads
+//! (runtime/io/processes.md, section 1). The owner observes exit, reads, closes, then reads
 //! again; the referee checks that reaping alone adds the child's resources.
 
 use skein_io::kernel::{Complete, Done, Fd, Op, Resources, Spawn, Submit, Usage};

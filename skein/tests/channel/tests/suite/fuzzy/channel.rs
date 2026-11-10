@@ -1,4 +1,4 @@
-//! Seeded header, opening, terms and channel worlds (channel.md, section 11).
+//! Seeded header, opening, terms and channel worlds (net/channel.md, section 11).
 use skein_channel::{
     Direction, Event, Kind, Limits, Lower, LowerEvent, Machine, Role, Schema, Version, decode_control, parse_header,
 };

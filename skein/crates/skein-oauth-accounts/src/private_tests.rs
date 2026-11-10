@@ -1,4 +1,4 @@
-//! Private keeper entrance and terminal ownership (oauth.md, section 6.4).
+//! Private keeper entrance and terminal ownership (oauth/accounts.md, section 4).
 
 use super::*;
 use crate::{FileLower, Place, Unloaded};

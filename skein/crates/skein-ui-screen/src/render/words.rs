@@ -1,4 +1,4 @@
-//! The applicable words of skein/docs/design/ui-text.md, section 5, kept here
+//! The applicable words of skein/docs/design/ui/text.md, section 5, kept here
 //! so the full-screen renderer does not depend on the text shell's io.
 
 use super::canvas::Canvas;

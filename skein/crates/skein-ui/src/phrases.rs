@@ -1,4 +1,4 @@
-//! Typed language data (skein's ui.md, section 9).
+//! Typed language data (skein's ui/README.md, section 9).
 //! Loading checks every owner's declared phrase, its forms and typed holes.
 //! Each phrase's capacity is the longest form in any loaded language with
 //! every hole at its bound. Saying allocates its measured final bytes, within

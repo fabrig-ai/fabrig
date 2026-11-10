@@ -152,7 +152,7 @@ makes each call to a forge and hears its deliveries, is
 ```
 temper-engine-domain-forge              the connector's top: resources and holds, adoption, topics, judges, briefs, routing; the effects and their identities
 ├── skein-forge-client                  the working set, keeping up, fresh reads, the request budget, effects' keys, write lanes and recovery (skein's forge-client.md)
-├── skein-forge                         the vocabulary the top and the client share: calls, answers, errors, hints (skein's forge.md, section 3)
+├── skein-forge                         the vocabulary the top and the client share: calls, answers, errors, hints (skein's forge/README.md, section 3)
 ├── temper-engine-domain-forge-change   the change procedure and the landing queues: decisions over facts
 ├── temper-engine-domain-forge-landing  the landing by turn: decisions over a landing's state (landing.md)
 ├── temper-engine-domain-forge-issues   the goals' issues: what each projects, when to write it
@@ -174,7 +174,7 @@ temper-engine-domain-forge              the connector's top: resources and holds
 - **`skein-forge-client` is a capability:** it knows the forge's API as
   `skein-forge`'s vocabulary states it, the working set, the request
   budget, and how a write is made once. Its owner, how it is driven and
-  what it never knows are skein's `forge-client.md`, sections 2 and 9.
+  what it never knows are skein's `forge/client.md`, sections 2 and 9.
 - **`change`, `issues` and `tiers` are policy:** given a change's state
   and the facts, a goal's state, or a tier's record and what its run
   reported, they say what is due. They keep nothing between calls; their
@@ -234,7 +234,7 @@ temper-engine-domain-forge              the connector's top: resources and holds
   repository, merging only where the repository allows a merge style;
   read gives reads alone; no permission refuses the adoption as
   forbidden. Forgejo refuses protection reads to a writer who is not an
-  admin (skein's `forge.md`, section 9): adoption records
+  admin (skein's `forge/forgejo.md`, section 2): adoption records
   protection as unknown, never as absent, and its words say why
   (`../client/README.md`, 4.7). On GitHub temper's user is
   its App's bot, its permission the installation's on that repository,
@@ -353,7 +353,7 @@ temper-engine-domain-forge              the connector's top: resources and holds
   walk straight from its start to an adoption is not refused for the
   moment the start takes to connect.
   A read it answers is final; a write's entry fails at once, as a typed
-  refusal does, having reached no forge (skein's `forge-client.md`,
+  refusal does, having reached no forge (skein's `forge/client.md`,
   sections 5 and 7). The connector takes it as the forge's access
   lacking, never as a fact of a repository: nothing is narrowed, no
   change is held, and no effect is found again for it.
@@ -416,7 +416,7 @@ temper-engine-domain-forge              the connector's top: resources and holds
   ids), each told by the setup host at the restored connect, its
   account none, neither suspended nor stray, since the component's
   first read tells only those not accepted or changed (skein's
-  `forge-connection.md`, 4.4); the account is filled from the first
+  `forge/connection.md`, 4.4); the account is filled from the first
   `GitToken` minted for it (5.3 there), and changes follow as before.
 - **A forge ended** is one being removed (below), from its removal's
   decision on: the connector's own state, kept in its record
@@ -463,8 +463,8 @@ temper-engine-domain-forge              the connector's top: resources and holds
     removal's decision;
   - *its secrets erased at once:* the service drops the forge from the
     forge component and the setup host, which forget its calls, runs and
-    callbacks (skein's `forge-connection.md`, 3.1; skein's
-    `forge-setup.md`, 6.3), and erases each of its secrets, the admin's
+    callbacks (skein's `forge/connection.md`, 3.1; skein's
+    `forge/setup/README.md`, 4.3), and erases each of its secrets, the admin's
     token, the bot's tokens, the webhooks' secret and the App's key
     among them (`../protocol/forge.md`, 2.3);
   - *its records erased:* its writer and its outbox's entries in its
@@ -536,7 +536,7 @@ temper-engine-domain-forge              the connector's top: resources and holds
   that forge's repositories (4.3). One on a connecting forge waits for
   it, as above.
 - **The writer given at runtime.** The forge client refuses every effect
-  on a forge with no writer, `Forbidden` (skein's `forge-client.md`,
+  on a forge with no writer, `Forbidden` (skein's `forge/client.md`,
   7.1). The forge's record names none (`../protocol/forge.md`, 2.1):
   the connector gives the client a forge's writer, its
   user's id (the Forgejo user, or the GitHub App's bot user), when the
@@ -547,12 +547,12 @@ temper-engine-domain-forge              the connector's top: resources and holds
   it reaches the forge (`../protocol/forge.md`, 2.2), since the keys and
   echoes already on the forge are the old user's.
 - **The forge client keeps the writer as its own record** (skein's
-  `forge-client.md`, 7.1): `Stored::Writer` under `Key::Writer(forge)`,
+  `forge/client.md`, 7.1): `Stored::Writer` under `Key::Writer(forge)`,
   in temper's small store under its tag 16, and
   restored at start among the forge's rows, in any order: the client
   takes them all before `Restored`, and runs no restored effect before
   it, so a restored effect never meets `Forbidden` (skein's
-  `forge-client.md`, section 8; section 16). The connector keeps no
+  `forge/client.md`, section 8; section 16). The connector keeps no
   copy, and erases it in a removal's decision (above).
 
 ### 4.2 Access at adoption
@@ -593,7 +593,7 @@ and login, its name and whether it is private.
 
 Every kind is read the same way: the connector asks the root, which has
 the routing run the setup host's plan `Reachable { forge, installation?,
-page }` (skein's `forge-setup.md`, 4.8; `../protocol/forge.md`, 2.6),
+page }` (skein's `forge/setup/forgejo.md`, 1.8; `../protocol/forge.md`, 2.6),
 pages counted from 1, at most `reachable` rows (`picker.page`), ending
 `Done(Reachable { rows, more })`. The plan writes nothing, so it runs
 beside the forge's one writing plan, and no call of the forge client
@@ -602,9 +602,9 @@ reads the picker:
 - **GitHub:** one accepted installation's repositories (`GET
   /installation/repositories`), `installation` its id, read on a token
   the host mints for the page and drops. An id the forge has not
-  accepted is refused. The document is skein's (`forge-github.md`, 8.3).
+  accepted is refused. The document is skein's (`forge/github.md`, 8.3).
 - **A connected Forgejo:** the repositories temper's API token can push
-  to, read on that token (skein's `forge-setup.md`, 4.6).
+  to, read on that token (skein's `forge/setup/forgejo.md`, 1.6).
 - **A managed or owned Forgejo:** every repository the admin can see, by
   id ascending, since adoption gives temper's user its access (4.2). The
   admin's token stays the setup host's. Forgetting it makes the forge
@@ -653,7 +653,7 @@ narrowed, and its changes wait.
   may bypass them, `Never`, `PullsOnly` or `Always` (the App's own,
   never the ruleset's list). skein's `Protection` carries them as
   `queue`, `signatures`, `linear`, `code_owners` and `bypass` (skein's
-  `forge.md`, 3.6; `forge-github.md`, 5.3).
+  `forge/README.md`, 3.6; `skein/docs/design/forge/github.md`, 5.3).
   Forgejo answers each false, and `Never`.
 - **What each means:**
   - a merge queue: temper's changes enter it (9.1);
@@ -666,9 +666,9 @@ narrowed, and its changes wait.
   - linear history: a merge style that keeps it;
   - temper's prefix reserved to temper's user: welcome.
 - **The merge style** is shown at adoption. On Forgejo it is the
-  repository's default (skein's `forge.md`, section 12). GitHub keeps
+  repository's default (skein's `forge/README.md`, section 10). GitHub keeps
   none: it is the first the repository allows of merge, squash and
-  rebase (skein's `forge-github.md`, 5.1). On a branch a merge queue
+  rebase (skein's `forge/github.md`, 5.1). On a branch a merge queue
   guards, the queue merges by its own method, set in the branch's rules,
   and the adoption says so.
 - **Commit statuses on GitHub:** temper's App reads statuses and writes
@@ -721,7 +721,7 @@ public address, adopted into a project when `into` names one
   (`../protocol/setup.md`, 6.9). So a row waits for reconcile, a set up,
   an adoption's access or another copy, and restarts need no path of
   their own.
-- **`Copying`** (skein's `forge-setup.md`, 4.10) is the row's `copying`:
+- **`Copying`** (skein's `forge/setup/forgejo.md`, 1.10) is the row's `copying`:
   the plan's write sets it in a decision, and the service answers
   `Written` once that decision is kept. A stop at `Taken` clears it.
 - **Made,** with no `into` the row is erased: the repository waits for
@@ -744,7 +744,7 @@ public address, adopted into a project when `into` names one
   adopts it.
 - **Adopted,** the row is erased in the decision that hears jig's answer.
 - **A forge removed** erases its rows in its removal's decision (4.1),
-  and its live run ends with the forge's runs (skein's `forge-setup.md`, 6.3).
+  and its live run ends with the forge's runs (skein's `forge/setup/README.md`, 4.3).
 - **A project deleted** while a row names it: the act is refused, and the
   row says so.
 
@@ -798,7 +798,7 @@ repository's record what it found there, which CI's card names (8.13,
 
 - **The read** is the workflows' directory at a tip of the landing
   branch, the record's `settings.default_branch`: its immediate entries,
-  one `Read::File` (skein's `forge.md`, 3.2) answered as a directory's,
+  one `Read::File` (skein's `forge/README.md`, 3.2) answered as a directory's,
   `skein_forge::api::Answer::Directory`, within the client's
   `answer_bytes`, as a charter document's read is
   (`../protocol/configuration.md`, 13.7). On GitHub it is
@@ -852,14 +852,14 @@ repository's record what it found there, which CI's card names (8.13,
 ## 5. What it holds, and keeping up
 
 The working set, the keep, fresh reads and the budget are the client's
-(skein's `forge-client.md`, sections 3 to 6). This section keeps what
+(skein's `forge/client.md`, sections 3 to 6). This section keeps what
 temper puts in them and the members that set them: the client's limits
 are `forge.client.<limit>`, with durations in `_ms`
 (`../protocol/configuration.md`, section 7).
 
 ### 5.1 The working set
 
-Held by skein's `forge-client.md`, section 3. temper's part:
+Held by skein's `forge/client.md`, section 3. temper's part:
 
 - **The live resources, and nothing else** (jig's
   `domain/connectors.md`, 3.4). A resource enters when a live task names
@@ -930,7 +930,7 @@ Held by skein's `forge-client.md`, section 3. temper's part:
 
 ### 5.2 Keeping up
 
-Held by skein's `forge-client.md`, section 4: the listing per
+Held by skein's `forge/client.md`, section 4: the listing per
 repository since the forge's time, a pull request's backoff, the hints,
 the landing branches' tips, the slow pass and the forge's clock. temper's
 part:
@@ -938,16 +938,16 @@ part:
 - **Its values:** `forge.client.poll_ms`, `poll_max_ms`, `hinted_ms`,
   `slow_ms`, `settle_ms` and `fallback_ms`. The paces are what they are
   with no webhook, so a delivery lost, refused or never sent costs
-  latency, never liveness (skein's `forge-client.md`, section 4).
+  latency, never liveness (skein's `forge/client.md`, section 4).
 - **Listings only for items.** A repository is listed only while one of
-  its issue or pull watches lives (skein's `forge-client.md`, section 4):
+  its issue or pull watches lives (skein's `forge/client.md`, section 4):
   one temper names only for branches, as a goal's, a landing's and a
   tier's are, or watches as itself, lists nothing, and a hint there starts
   no listing. Its branches keep their own paces.
 - **Events first, polls as a fallback.** While a repository's
   deliveries arrive, its timed reads, and temper's own polls of it,
   fall back to `fallback`, 5 minutes as shipped (skein's
-  `forge-client.md`, 4.1). temper knows deliveries arrive by their
+  `forge/client.md`, 4.1). temper knows deliveries arrive by their
   arrival: each hint the client takes for a repository, temper's own
   echoes among them, keeps it hearing for `fallback`; no heartbeat or
   test delivery is sent. It is safe because nothing waits on a pace: a
@@ -965,7 +965,7 @@ part:
   goes to the client, temper's own echoes among them, which keep their
   repository hearing. The client reads on every hint it holds a
   resource for, and drops the news temper's own writes cause by its
-  echo ledger and keys (skein's `forge-client.md`, 4 and 7.6); a hint's
+  echo ledger and keys (skein's `forge/client.md`, 4 and 7.6); a hint's
   pusher is used for drift alone.
 - **Which change a hint wakes:** within its repository, a named branch
   wakes changes with that head branch or landing base; a commit wakes
@@ -986,7 +986,7 @@ part:
   polling, settling or stall deadlines (sections 8.3–8.4 and 9).
 - **temper's own polls fall back too.** A landing's or a tier's flight
   polling its runs in flight (`landing.md`, 7.1; `after-landing.md`,
-  section 3) and a queued merge's look (skein's `forge-client.md`, 7.7)
+  section 3) and a queued merge's look (skein's `forge/client.md`, 7.7)
   are due at `Domain::poll_at` for their repository with `poll`, so
   while it hears they come at the later of `poll` and its last hint
   plus `fallback`. A job's delivery still wakes its flight at once.
@@ -996,7 +996,7 @@ part:
   (`TooLarge`: a branch's comparison, a comment or review scan past its cap,
   an answer past the client's bounds) is reported once and not read again
   until a hint or the listing names its resource, or its branch reads another
-  tip (skein's `forge-client.md`, 4.2). Any other failure is read again after
+  tip (skein's `forge/client.md`, 4.2). Any other failure is read again after
   the client's `backoff`, 1 second as shipped, doubling after each failure in
   a row to `slow_ms`, and an answer sets it back; a failing listing waits
   alike. These waits are not stretched while a repository hears, and a
@@ -1007,14 +1007,14 @@ part:
   moves its head or base, and answers it not mergeable while it checks;
   and temper relies on no order between a job's end being delivered and
   its commit status being written, only on both settling within `settle`
-  (skein's `forge.md`, section 9). So, within `settle` of a move of
+  (skein's `forge/forgejo.md`, section 2). So, within `settle` of a move of
   its head or base (known by a hint, a read or temper's own push), a
   pull request that reads not mergeable is read again at `hinted`,
   doubling up to `poll` apart, until it reads mergeable or `settle`
   has passed; and a commit a job's hint named whose CI reads pending
   is read again the same way. These rereads are temper's fresh reads. `settle` is a limit
   of the forge client's, which checks only that it is above 0 and runs
-  no window (skein's `forge-client.md`, sections 4 and 5).
+  no window (skein's `forge/client.md`, sections 4 and 5).
 - **The window is the change procedure's own wait.** Until `settle` has
   passed since the move, not mergeable is not known: the change waits
   until the window's end at most, never stalls on it, and is never taken
@@ -1026,14 +1026,14 @@ part:
   opens a window.
 - **GitHub settles too.** It answers mergeability unknown until it has
   checked, and may refuse a merge as not mergeable just after a head
-  moves (skein's `forge-github.md`): within the window both are not
+  moves (skein's `forge/github.md`): within the window both are not
   known, and read again, as Forgejo's not mergeable is. An update GitHub
   accepts it makes after it answers: the update is done once the head,
   read afresh, contains the base's tip it asked for (section 10).
 
 ### 5.3 Fresh reads
 
-Held by skein's `forge-client.md`, section 5: a fresh read goes first
+Held by skein's `forge/client.md`, section 5: a fresh read goes first
 in the request budget (5.4). temper's part is what it asks for. Before a
 decision depends on a fact, the change child domain asks for it afresh:
 the branch's head, the base's tip, the pull request, CI on the exact
@@ -1048,7 +1048,7 @@ error. The root releases that attempt's read correlation and rendering
 flight. The host retries the same logical call after its backoff, within
 the caller's deadline; cancellation ends that wait. Each retry goes
 through the same authority and client admission checks, preserving the
-call slab limit and background reserve (skein's `forge-client.md`, 5–6).
+call slab limit and background reserve (skein's `forge/client.md`, 5–6).
 An admitted answer or any other terminal forge error follows the normal
 read-answer path once.
 
@@ -1065,7 +1065,7 @@ refused `Busy`, an answer or a failure reaches the one read that asked
 for it, never a read of another kind or another party's.
 
 - **Containment needs only ancestry.** The landing decision reads
-  `Read::Range { before: head, after: base_tip }` (skein's `forge.md`,
+  `Read::Range { before: head, after: base_tip }` (skein's `forge/README.md`,
   3.2), tied to the head and base tip this step observed. A count of 0
   proves the head contains that base tip; any other count disproves it,
   however far behind the head is, and the change takes its base (8.2).
@@ -1081,7 +1081,7 @@ for it, never a read of another kind or another party's.
   was last known at, a move that is not forward being drift (8.5).
 - **CI on a commit** is read as its checks, skein's `Read::Checks`: the
   commit statuses and, on GitHub, the check runs, each a row with its
-  context and verdict (skein's `forge.md`, 5.2; `forge-github.md`, 4.4),
+  context and verdict (skein's `forge/forgejo.md`, 1.2; `skein/docs/design/forge/github.md`, 4.4),
   never the combined status alone, which on GitHub stays pending with no
   status at all while Actions' check runs end. Which rows are CI is the
   adoption's: where the landing branch's rules name required checks
@@ -1095,7 +1095,7 @@ for it, never a read of another kind or another party's.
   its statuses, each context's latest, so its CI reads as before.
   Where no required checks are named, the pull request's own read,
   which folds every row of its head the same way (skein's
-  `forge-github.md`, 4.4), is the head's CI when it is at the head, and
+  `forge/github.md`, 4.4), is the head's CI when it is at the head, and
   no second read is made.
 - **Every page folded, never a page's combined state.** A forge may
   compute a combined state and a count over the page it was asked for
@@ -1105,12 +1105,12 @@ for it, never a read of another kind or another party's.
   from a page that came full is never a verdict. A first page that came
   short holds every row, so its combined state is their fold, which
   skein's Forgejo dialect takes for a pull request's CI but where it
-  reads `warning` (skein's `forge.md`, 5.1). The fake forge computes a
+  reads `warning` (skein's `forge/forgejo.md`, 1.1). The fake forge computes a
   page's combined state as Forgejo does, so that the worlds meet it.
 
 ### 5.4 The request budget
 
-Held by skein's `forge-client.md`, section 6: the four queues in their
+Held by skein's `forge/client.md`, section 6: the four queues in their
 order, the charge of each call and the wait after a refusal for the
 rate. The order is the one jig's `domain/connectors.md`, section 13
 gives: fresh reads first, a write's own checks and finds among them;
@@ -1526,7 +1526,7 @@ Every effect is committed into the outbox and made by `client`, in
 commit order per lane (a pull request, an issue, a repository) and one
 at a time on each (jig's `domain/connectors.md`, 4.2). The top owns the
 effects and their identities; the client's keys, its write lanes and its
-recovery are skein's `forge-client.md`, section 7. temper's effects:
+recovery are skein's `forge/client.md`, section 7. temper's effects:
 
 | Kind | Effect | What it is | Recovery class (jig's `domain/connectors.md`, 4.3) | Found again after an uncertain failure |
 |---|---|---|---|---|
@@ -1567,9 +1567,9 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
   it does not hold is a writer's bug, a link that cannot be made, which
   refuses the start (`root.md`, 9.1; jig's `domain/engine/restart.md`
   ).
-- **Classes follow what the forges offer** (skein's `forge-client.md`,
-  section 7.3; the facts, skein's `forge.md`, section 9, and
-  `forge-github.md`, section 13). Neither Forgejo nor GitHub keeps a
+- **Classes follow what the forges offer** (skein's `forge/client.md`,
+  section 7.3; the facts, skein's `forge/forgejo.md`, section 2, and
+  `skein/docs/design/forge/github.md`, section 13). Neither Forgejo nor GitHub keeps a
   key it would refuse a second creation by, so no kind is keyed. A pull
   request is opened only while none is open for its branches, and
   each forge keeps every pull request, closed or not, so the
@@ -1590,18 +1590,18 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
   comment, issue or branch found by its key, or by the state it
   leads to, is made; one not found by its deadline holds its task for a
   person, and is never sent again by temper on its own. The client makes
-  the find (skein's `forge-client.md`, section 7).
+  the find (skein's `forge/client.md`, section 7).
 - **Keys are carried** in what temper creates: a marker at the head of a
   body, a comment or a review, hidden where the forge renders it (skein's
-  `forge.md`, section 6; temper's word and namespace,
+  `forge/README.md`, section 5; temper's word and namespace,
   `../protocol/forge.md`, section 4). A pull request's branches locate
   a candidate; the change owns it when it is open on those branches or
   the change knows its number or pushed head, as above. An entry's start,
   and the find that reads only what came after it, are the client's (skein's
-  `forge-client.md`, section 7).
+  `forge/client.md`, section 7).
 - **An effect's identity** is its purpose, and the top encodes it. The
   client takes the bytes whole and never inspects them (skein's
-  `forge-client.md`, section 7). A key is the client's frame (version 1, the namespace's
+  `forge/client.md`, section 7). A key is the client's frame (version 1, the namespace's
   length as two bytes big-endian, the namespace) and then the purpose's
   bytes: a tag, and its fields in order, each number big-endian. The
   namespace is the deployment's id, 16 bytes. A purpose is derived from
@@ -1634,7 +1634,7 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
   the merge answers `Answer::Queued`, final for the call and not for the
   entry: neither a merge nor a refusal. The entry is the client's until
   a read finds the pull request merged or out of the queue (skein's
-  `forge.md`, 3.3; `forge-client.md`, 7.7): it is never sent again, and
+  `forge/README.md`, 3.3; `skein/docs/design/forge/client.md`, 7.7): it is never sent again, and
   it holds its lane, so a comment or a review on that pull request waits
   until the queue decides. What follows is 9.1's. Forgejo never answers
   it.
@@ -1645,7 +1645,7 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
   procedure's: the entry fails at once, `NotConnected`, and is committed
   again once the forge connects (4.1).
 - **A stop settles first** (root.md, 9.2): told to settle, the connector
-  tells its client to (skein's `forge-client.md`, 7.8), so no write
+  tells its client to (skein's `forge/client.md`, 7.8), so no write
   starts and none is tried again; a committed entry's notification is
   retired unmade, its row durable; no change steps. The writes already
   sent finish, with the reads that prove them, and their outcomes are
@@ -1722,7 +1722,7 @@ The files are read from the forge (a pull request's files, or the
 comparison of the branch's old and new tips), cached per head and cut at
 a limit past which the overlap is unknown. Forgejo pages a pull
 request's files but answers a comparison whole
-(skein's `forge.md`, section 9): the protocol layer bounds the
+(skein's `forge/forgejo.md`, section 2): the protocol layer bounds the
 comparison's bytes, files and commits before the domain holds them, and
 a bound reached, an unusable answer or an uncertain completeness makes
 the overlap unknown and wakes every affected subscriber. A pull
@@ -2186,7 +2186,7 @@ delegate's terminal wakes it to offer the landed result.
   independently of temper. On GitHub, temper's App has `statuses: read`
   and no more, so temper writes none: `status` is false in the kinds
   there (4.4), the post, `Write::Status`, is refused at the connector,
-  and nothing waits for it (skein's `forge-github.md`, 4.2). Every
+  and nothing waits for it (skein's `forge/github.md`, 4.2). Every
   adoption there says so, and the verdict stays temper's own; the App
   asks for no more (`../protocol/setup.md`, 17.1). Where an installation
   grants `statuses: write` (`../protocol/setup.md`, 17.1), adoption
@@ -2226,13 +2226,13 @@ delegate's terminal wakes it to offer the landed result.
   log, where a step tells its failure; the job's whole log's end when no
   step failed. The log is read at the job attempt that failed on this
   head, within the brief's byte budget, and its truncation is said; a
-  read that fails is said in its place (skein's `forge.md`, 5.2).
+  read that fails is said in its place (skein's `forge/forgejo.md`, 1.2).
   On GitHub the pin comes from the failed check's resolved Actions job,
-  whose id may differ from the check-run id (skein's `forge-github.md`,
+  whose id may differ from the check-run id (skein's `forge/github.md`,
   4.4). A log cut keeps its end, including a gate's complete timestamp
   line when it fits, and marks the missing prefix. A pin for another
   head is never read. On GitHub, streaming retention ends at the runner's
-  failed-process line before post-job cleanup (skein's `forge-github.md`,
+  failed-process line before post-job cleanup (skein's `forge/github.md`,
   10); without that marker it falls back to the job tail. The `read_job`
   host answer reserves its rendered metadata and truncation marker within
   the configured answer allowance, prices escaped bytes, and keeps the
@@ -2359,7 +2359,7 @@ delegate's terminal wakes it to offer the landed result.
   same rule applies to the pull sections for reviews and repairs.
   Likewise, if a page of the pull's files exceeds the forge client's answer
   byte or row limit (a page carries each of its files whole on both sides,
-  skein's `forge.md`, 5.2, so one large document can pass it however small
+  skein's `forge/forgejo.md`, 1.2, so one large document can pass it however small
   its change), the section keeps its pull identity, its gathered content and
   the pages before it, and appends a files-omitted notice within its byte
   budget, naming that page and the tools that read its files
@@ -2615,15 +2615,15 @@ merge, kind 4, on a pattern of landing branches (jig's
   decision (5.3). Facts read for another head are wait.
 - **Guarded or observed.** Each forge applies a merge only at the head
   it names, and a forge's merge queue takes a pull request in only at
-  the head it names (section 6; skein's `forge.md`, section 9;
-  `forge-github.md`, 5.1), so a fact pinned to that head still holds as
+  the head it names (section 6; skein's `forge/forgejo.md`, section 2;
+  `skein/docs/design/forge/github.md`, 5.1), so a fact pinned to that head still holds as
   the merge lands: CI, gates and approvals are guarded, and are marked
   as requirements that must be guarded. Up to date is observed: the base
   may move between the decision and the merge, and the forge does not
   check it then. Its freshness is zero, so only the reads of the step
   that decides the merge count. A base that moves in between lands the
   change on a tip it was not checked against, which the branch's own CI
-  then checks (section 9). Through a forge's merge queue, the forge
+  then checks (`forge.md`, section 9). Through a forge's merge queue, the forge
   itself merges the head onto the queue's base and checks the group
   before it lands (9.1).
 - **An approval,** the requirement, is a review a person posts on the
@@ -3467,7 +3467,7 @@ adoption says so, 4.4) lands through that queue. Forgejo keeps none.
   for the entry: the pull request is in the forge's queue at that head,
   neither landed nor refused. temper names no other call for it: the
   forge's rules, not temper, send the merge into its queue (skein's
-  `forge.md`, 3.3).
+  `forge/README.md`, 3.3).
 - **temper's queue decides only what enters and when.** A change in
   the forge's queue leaves temper's turn, and the next ready change
   becomes first, and enters behind it when its own turn comes; the
@@ -3478,8 +3478,8 @@ adoption says so, 4.4) lands through that queue. Forgejo keeps none.
   delivery or the delivery log (`../protocol/forge.md`, section 5 and
   5.1), and found by the client's read of the pull request: the merge's
   entry stays open in the client until that read finds the pull request
-  merged or out of the queue (skein's `forge.md`, 3.3;
-  `forge-client.md`, 7.7).
+  merged or out of the queue (skein's `forge/README.md`, 3.3;
+  `skein/docs/design/forge/client.md`, 7.7).
 - **Landed:** the change is landed (8.2), and its landing's commit is
   the queue's group's (`Pull.merged`), not the head temper saw: the
   forge merged that head onto the queue's base with the changes ahead
@@ -3519,13 +3519,13 @@ instead (`landing.md`, section 5).
   heads before the update stay the change's own.
 - **Made when the forge says, read afresh.** Forgejo has made the
   update when it answers; GitHub accepts it and makes it after (skein's
-  `forge-github.md`, 5.2). Either way the update is done once the head,
+  `forge/github.md`, 5.2). Either way the update is done once the head,
   read afresh, contains the base's tip it asked for, which is also how
   its recovery finds it (section 6), and the new head is heard as any
   push.
 - **Lost, and made again.** An update whose answer is lost is looked for
   by that read and, not found after its lifetime, checked and made again,
-  up to `write_attempts` (skein's `forge-client.md`, 7.5). It holds no one.
+  up to `write_attempts` (skein's `forge/client.md`, 7.5). It holds no one.
 - **Let go.** An update settled `Failed` with `Timeout` or `Unavailable`,
   or with `Stale` from its check, says nothing of the change: the forge
   did not answer, or what it was decided on has gone, perhaps to a copy of
@@ -3554,7 +3554,7 @@ instead (`landing.md`, section 5).
   checks it, so a person and a CI run; gates ask again. A merge names its
   exact head (section 6), so a copy lands nothing unchecked. A rebase's
   copy can also drop a push made since it read the head (skein's
-  `forge-client.md`, 7.3): the same hold, and a repair so dropped finds
+  `forge/client.md`, 7.3): the same hold, and a repair so dropped finds
   its failure again when the head is checked. A push by another hand so
   dropped is that hand's to make again, the hold saying the branch moved.
 - **A conflict** makes the forge refuse the update, and the change is
@@ -3649,7 +3649,7 @@ A task's saved work is named by the set its task's record keeps of the
 repositories a next attempt would resume from (`worker.md`, section 5). As
 its task's release begins, each branch of that set becomes a hold of the
 closing task, with no writer, and goes as any hold does: deleted, a branch
-already gone counting as deleted (skein's `forge-client.md`, section 7);
+already gone counting as deleted (skein's `forge/client.md`, section 7);
 or, if its task failed and is not its tree's root, kept for a person to
 read and deleted as the root closes. Such a hold has no holding in the
 hub, and no head is read for it. A branch outside that set stays until
@@ -3837,7 +3837,7 @@ CI selection:
   a goal with no goal branch each of its changes), the selection line
   its CI's jobs'
   logs begin with: the first line of a job's log, read by its start
-  (skein's `forge.md`, 3.2, `Job`'s `Start`, its first 4,096 bytes),
+  (skein's `forge/README.md`, 3.2, `Job`'s `Start`, its first 4,096 bytes),
   when it begins `selection: `, the line whole, cut to 256 bytes; the
   first job of the pull's merged head, in the forge's order, that has
   one gives it; `unknown` where no job's log reads one, a log not read,
@@ -4080,7 +4080,7 @@ deployment's id is given to the client first, as its namespace, before
 any restored entry or live resource; the client restores each forge's
 writer from its own record before any entry too (4.1). The client's
 part is skein's
-`forge-client.md`, section 8: what it reads afresh before anything else
+`forge/client.md`, section 8: what it reads afresh before anything else
 steps, how it settles an outbox entry as its class says, and where its
 listings start. That fresh read, each adopted repository's, covers what
 changed while the engine was down on GitHub too, since no delivery
@@ -4330,8 +4330,8 @@ whole.
   Default: it holds, and is measured after landing.
 - **What lands on a goal's branch and then on main** (5.6) counts twice,
   each a change landed. Default: so, said here and in the design of Home.
-- **What a refused copy leaves** (4.5; skein's `forge-setup.md`,
-  section 9): Forgejo keeps an empty repository at the name of a source
+- **What a refused copy leaves** (4.5; skein's `forge/setup/README.md`,
+  section 6): Forgejo keeps an empty repository at the name of a source
   it could not clone, and only the same address asked again takes it
   away: asked from another, the row holds no `copying` and stops at
   `Taken`. Default: so, and the person deletes it on the forge.
@@ -4402,7 +4402,7 @@ whole.
   when it is readable again, rather than read it on a backoff.
 - **A merge style per repository,** named by the project rather than the
   forge's (4.4). Default: on Forgejo the repository's default (skein's
-  `forge.md`, section 12); on GitHub the first the repository allows of
+  `forge/README.md`, section 10); on GitHub the first the repository allows of
   merge, squash and rebase; either shown at adoption.
 - **A change whose forge is not connected,** or whose repository is not
   reachable (an installation suspended, a repository it does not select):

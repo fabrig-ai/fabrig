@@ -356,7 +356,7 @@ missing in skein's world harness goes into skein first.
 reads its kit through its library, which re-exports it.
 `jig/tests/boundary/src/tests/kits.rs` holds this. Two packages named as worlds
 are kits by design: skein's world harness, `skein-world`
-(`skein/docs/design/testing.md`, 6), and smith's `smith-agent-process-world`.
+(`skein/docs/design/testing/README.md`, 6), and smith's `smith-agent-process-world`.
 
 ## 8. What an application adds
 

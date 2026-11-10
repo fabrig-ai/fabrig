@@ -13,7 +13,7 @@
 ## What
 
 skein-lib widens a native length with `length::len_u64`
-(`skein/docs/design/lib.md`, 6), so that no step writes `try_from` for it. jig's
+(`skein/docs/design/runtime/lib.md`, 6), so that no step writes `try_from` for it. jig's
 hand-written code retains 4 such calls, all in `jig-client-view`: two in production,
 `u64::try_from(text.bytes().len())` in `state/fields.rs` and
 `u64::try_from(words.bytes().len())` in `state/store.rs`, and two in the view's fragment

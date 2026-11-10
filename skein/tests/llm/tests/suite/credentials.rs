@@ -1,4 +1,4 @@
-//! Credential schemes follow their route's fields (llm.md, section 2.6).
+//! Credential schemes follow their route's fields (llm/README.md, section 2.6).
 use skein_llm::{Call, Cap, Credential, Endpoint, Error, Provider, Scheme};
 use skein_llm_world::{call, fields_holding, header, limits, rejection, response, run_call};
 
@@ -78,7 +78,7 @@ fn an_endpoint_header_naming_a_credential_field_is_refused() {
 }
 #[test]
 fn a_key_head_at_its_bound_is_admitted() {
-    // llm.md 4.7: six fixed fields with a key, including Content-Length.
+    // llm/README.md 4.7: six fixed fields with a key, including Content-Length.
     const KEY_FIELDS: u32 = 6;
     let world = run_call(input(Provider::Anthropic, Scheme::Key), limits(), response(401, "", b"{}", false), 1);
     let measured =

@@ -1,4 +1,4 @@
-//! Reads a fence into a flow (skein/docs/design/ui.md, 10.1).
+//! Reads a fence into a flow (skein/docs/design/ui/markdown.md, 1).
 
 use super::{Direction, Node, decode, encode};
 use crate::Limits;
@@ -64,7 +64,7 @@ pub(crate) fn read<'a>(info: &[u8], body: &'a [u8], limits: &Limits) -> Option<R
     }
     // A path uses at least four body bytes per node, less its final arrow.
     // Compact the entries before projecting nodes: the two lists together fit
-    // the Entry price for body bytes / 2 + 1 in markdown_bound (ui.md, 15).
+    // the Entry price for body bytes / 2 + 1 in markdown_bound (ui/README.md, 13).
     let entries = entries.into_boxed();
     let mut nodes = List::with_capacity(u32::try_from(entries.len()).ok()?);
     for _node in entries.as_ref() {

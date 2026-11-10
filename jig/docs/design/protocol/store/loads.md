@@ -3,7 +3,7 @@
 ## 1. Pages
 
 - **Same step.** skein-kv serves a page from memory in the step that asks
-  (skein's `kv.md`, section 2), and the component answers in that step
+  (skein's `data/kv.md`, section 2), and the component answers in that step
   too, through its outputs, never by recursion. Only transcripts' bytes
   take io (`transcripts.md`). The store answers `Restore` with `Event::Page` or `Event::PageRefused`.
 - **The cursor is exclusive.** A page's cursor is the last key it
@@ -183,7 +183,7 @@ a page, and each turn's line its turn (below).
 
 ## 4. Indexes
 
-skein-kv has no secondary index (skein's `kv.md`, section 1). Where a
+skein-kv has no secondary index (skein's `data/kv.md`, section 1). Where a
 scope's order is not a family's key order, the domain keeps an index: a
 family of small rows its owner saves and erases in the same decision as
 the records they point at, with keys reversed in time where a page reads
@@ -237,6 +237,6 @@ shows and no reply read comes back unread.
 reads newest first by computing forward intervals from its last
 position, which its owner task's record names; a family read newest
 first by time is keyed reversed. skein-kv's load runs forwards only
-(skein's `kv.md`, section 12). The lines after a position (a page beside
+(skein's `data/kv.md`, section 12). The lines after a position (a page beside
 a line, `../../client/domain/contract/README.md`, section 4) walk the same dense positions
 upward, from the one after it, stopping at the same bounds.

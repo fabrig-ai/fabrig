@@ -7,7 +7,7 @@ skein's browser parts. What its pages do is the client's (`README.md`;
 target, with later look requests, and takes precedence over `mockups/`
 (the user, 2026-11-05). Journeys record and print what temper draws
 (`journeys.md`). How a view runs in a browser is
-skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
+skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
 (jig's `protocol/browser.md`). What is still open is section 5.
 
 ## 1. In one page
@@ -16,7 +16,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   and the forge's family (`README.md`, sections 3 to 5), compiled to
   WebAssembly under a browser shell of temper's,
   `temper-client-shell-web`, on skein's browser parts (`skein-ui-web`;
-  skein's `ui-web.md`) and jig's client adapter and sign-in part
+  skein's `ui/web/README.md`) and jig's client adapter and sign-in part
   (`jig-client-shell-web`; jig's `protocol/browser.md`, 5.1), with
   neither jig's look nor its reference UI. The adapter carries jig's
   default HTTP mapping over fetch (`jig-client-protocol-http`). temper
@@ -28,14 +28,14 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   view, with its look and, where it has one, its browser-only story
   (4.2).
 - **No framework.** The client and its view are step code under the
-  subset in a browser too (skein's `ui.md`, section 1).
+  subset in a browser too (skein's `ui/README.md`, section 1).
 - **The view tree is the fake DOM.** Below the browser, every world
   reads skein-ui's tree by role, name and text through skein's fake
-  person (skein's `ui.md`, 17.1): no browser, no WebAssembly and no fake
+  person (skein's `ui/README.md`, 14.1): no browser, no WebAssembly and no fake
   DOM library.
 - **Served by temper's server, from one origin.** `temper-service` serves
-  the page and the bundle on its clients' listener (skein's `ui-web.md`,
-  4.4), beside jig's clients' component under `/jig` (`README.md`,
+  the page and the bundle on its clients' listener (skein's `ui/web/bundle.md`,
+  4), beside jig's clients' component under `/jig` (`README.md`,
   section 8), from the bundle the binary holds or a directory its
   configuration names, with jig's example guards and the page's policy,
   which is temper's: a strict content security policy, no frames, no
@@ -74,8 +74,8 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   subset, which build for the host and for wasm32 alike; the terminal
   and the agents' tools are not part of the bundle.
 - **Its look:** temper's style tokens and a stylesheet over skein's,
-  tuned on the journeys' prints (`journeys.md`, section 7; skein's `ui-web.md`, 3.2
-  and section 12): 2.5.
+  tuned on the journeys' prints (`journeys.md`, section 7; skein's `ui/web/README.md`, 3.2
+  and section 10): 2.5.
 - **Its pages,** the client's (`README.md`, 3.5), each at an address of
   its own (2.3); and the forge's parts, from `forge.md`, as the forge's
   side reads them.
@@ -83,7 +83,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   people's sign-in provider is temper's own routes (`README.md`,
   section 11).
 - **The toolchain:** the standard library for `wasm32-unknown-unknown`,
-  skein's bundler and the glue it names (skein's `ui-web.md`, section 4),
+  skein's bundler and the glue it names (skein's `ui/web/bundle.md`),
   and Chromium for the browser tier.
 
 ### 2.1 The shell
@@ -91,7 +91,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
 - **`temper-client-shell-web`** is a `cdylib` for
   `wasm32-unknown-unknown`, and a library on every target for its host
   and its journeys (`journeys.md`, section 2), ordinary Rust as a shell is (skein's
-  `ui.md`, section 2), copied from jig's reference browser shell,
+  `ui/README.md`, section 2), copied from jig's reference browser shell,
   `jig-client-test-shell-web` (jig's `protocol/browser.md`, 3.1), with
   temper's client root, view and records in place of jig's test
   application's, and none of jig's look (`jig-client-shell-web`'s
@@ -99,15 +99,15 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
   - `lib`: the start (skein's restart part; jig's sign-in part taking
     the link from the address before anything is sent; the small store;
     the page with temper's look; the DOM) and the turn of skein's
-    `ui-web.md`, 5.2; and, as jig's reference shell has it, the test
+    `ui/web/README.md`, 4.2; and, as jig's reference shell has it, the test
     address `/test/panic`, at which the shell panics at start, for
     skein's `panic` story (4.1);
   - `host`: the client host: temper's client root and view, and the
     view's patch queue, reserved at start at the view's limit on
-    patches and drained each turn (skein's `ui-web.md`, 5.2); the root's
+    patches and drained each turn (skein's `ui/web/README.md`, 4.2); the root's
     `Leave`, a forge's or an authorization's departure, as skein's
     transport's navigation away, in the turn that asked it (skein's
-    `ui-web.md`, section 10); the root's `Tab`, a sign-in's tab
+    `ui/web/README.md`, section 8); the root's `Tab`, a sign-in's tab
     (`README.md`, 3.5, `ConnectModel`, The sign-in's tab), as skein's
     platform's, the opening before the turn's transport, and a refusal
     given back as a report of that turn; jig's
@@ -131,7 +131,7 @@ skein's (skein's `ui-web.md`), and how a client of jig's does is jig's
     terminal's are (`README.md`, section 2), and their sum.
 - **The feature `playground`** builds the shell for the playground in
   the browser (`../playground.md`, 6): skein's worker platform where the
-  shipped shell holds the browser's (skein's `ui-web.md`, 18), a type the
+  shipped shell holds the browser's (skein's `ui/web/README.md`, 15), a type the
   feature chooses, the rest of the loop unchanged; the starter, which
   starts the world's worker and takes the printed link from what the
   world prints; the frame; and the failure page with the session's log.
@@ -166,7 +166,7 @@ replay says the same clocks (`README.md`, 5.12).
 
 - **The routes of the clients' listener,** temper's, in this order,
   over jig's mapping (jig's `protocol/browser.md`, section 12) and
-  skein's serving of a bundle (skein's `ui-web.md`, 4.4):
+  skein's serving of a bundle (skein's `ui/web/bundle.md`, 4):
   1. what jig's default mapping claims, under `/jig`, to jig's clients'
      component: every request there but a `GET` of the printed link's
      route, which the mapping leaves to the page, answered with the
@@ -186,14 +186,14 @@ replay says the same clocks (`README.md`, 5.12).
      restart temper." (`../protocol/setup.md`, 8.2);
   3. a request other than `GET`: `405`;
   4. `/bundle/<digest>/…`: the bundle's files, immutable, each in the
-     form the request takes (skein's `ui-web.md`, 4.4); any other path
+     form the request takes (skein's `ui/web/bundle.md`, 4); any other path
      under `/bundle/`: not found;
-  5. `/robots.txt`, the bundle's one root file (skein's `ui-web.md`,
+  5. `/robots.txt`, the bundle's one root file (skein's `ui/web/README.md`,
      3.3, step 5; jig's `protocol/browser.md`, section 12), disallowing
      every path;
   6. any other `GET`, the printed link's route among them: the page,
      with its ETag and `no-cache`, and `304` on a matching
-     `If-None-Match` (skein's `ui-web.md`, 4.4).
+     `If-None-Match` (skein's `ui/web/bundle.md`, 4).
 - **The page's policy,** on every answer temper gives: jig's reference
   policy as it stands (jig's `protocol/browser.md`, 12.1): `default-src 'none';
   script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src
@@ -216,8 +216,8 @@ replay says the same clocks (`README.md`, 5.12).
   four ordinary exchanges beside its two streams, therefore serve one
   page's concurrent requests in turn. Public reads retain their separate busy response (jig's
   `protocol/client/default-http.md`, 5); stopping refuses waiting ordinary calls.
-- **The bundle** is skein's bundler's output (skein's `ui-web.md`,
-  section 4): the shell's module, skein's stylesheet and temper's
+- **The bundle** is skein's bundler's output (skein's `ui/web/bundle.md`
+  ): the shell's module, skein's stylesheet and temper's
   (2.5). temper's build embeds it in the binary (2.6);
   `scripts/bundle.sh` builds one apart, from the module built for
   wasm32, into a directory it prints. `application.clients.bundle` is
@@ -235,7 +235,7 @@ replay says the same clocks (`README.md`, 5.12).
   start, as no bundle does; a directory without its forms (built with
   `--gzip off`) serves `NAME` alone. A new bundle is served
   after a restart; a tab on the old one is answered not found for its
-  files, and a reload loads the new (skein's `ui-web.md`, 4.4). A page
+  files, and a reload loads the new (skein's `ui/web/bundle.md`, 4). A page
   from the binary's own bundle always speaks its engine's records, so a
   client out of date (`README.md`, 5.1) comes only from a binary
   replaced under an open tab, or from a directory configured.
@@ -386,7 +386,7 @@ replay says the same clocks (`README.md`, 5.12).
   replaced with `/`. The codec never prints a path under `/jig`,
   `/bundle/`, `/test/` or `/forges/N/github/`, temper's routes for
   GitHub's steps (`forge.md`, 9.1), nor `/robots.txt`.
-- **Moving** is skein's (skein's `ui-web.md`, section 9): a link pressed
+- **Moving** is skein's (skein's `ui/web/README.md`, section 7): a link pressed
   is a move within the client, with a new history entry; back and
   forward are moves too, each entry keeping its scroll; a reload, or an
   address typed or opened, is a new client at that address (jig's
@@ -396,13 +396,13 @@ replay says the same clocks (`README.md`, 5.12).
 - **A heading drawn after its page** (the answer of 2026-11-06 to the
   `ui-composer-focus` task `composer-focus`): a new entry whose level-1 heading
   isn't drawn yet, as a chat's isn't until its task is read, has the focus on the
-  main (skein's `ui-web.md`, 7). When the heading is drawn, the shell moves the focus from the
+  main (skein's `ui/web/README.md`, 5). When the heading is drawn, the shell moves the focus from the
   main to it, unless the focus has moved meanwhile: a focus placed since keeps its
   place, even back on the main, and a focus request ends the wait. While
   `me` is read the main is empty and marked busy (`README.md`, 5.1), so a
   new entry then has the focus on it, and the page's heading drawn once
   `me` is read takes it alike, the page's main being that node (skein's
-  `ui.md`, 7). A new entry with no main yet waits for its
+  `ui/README.md`, 7). A new entry with no main yet waits for its
   main alike: when the main is drawn, its heading takes the focus, or the
   main until the heading comes, unless the focus has moved or a focus
   request came meanwhile.
@@ -483,7 +483,7 @@ replay says the same clocks (`README.md`, 5.12).
   cards; the conversation's turns; the composers. The view sets them
   (`README.md`, 5.1); the terminal prints none.
 - **The first paint, the placeholder's:** the shell's `loading.html` and
-  `loading.css`, given to skein's bundler (skein's `ui-web.md`, 4.3), so
+  `loading.css`, given to skein's bundler (skein's `ui/web/bundle.md`, 3), so
   that a person on a slow connection has something to read in a few
   kilobytes. The mark as inline paths, so that no font is fetched and
   nothing swaps: the welcome's, the four-point star in the signal,
@@ -532,7 +532,7 @@ replay says the same clocks (`README.md`, 5.12).
   CORS and so refuses to a page opened as a file, as the journeys'
   prints are (`journeys.md`, 5.4).
   Every control keeps its words as its name. Nothing a person must know
-  is said by colour or icon alone (skein's `ui.md`, section 8): a status
+  is said by colour or icon alone (skein's `ui/README.md`, section 8): a status
   is its word, and its colour only repeats it.
 - **The main's scale:** the page's main is drawn at 14/12 of the
   mockups' sheets' lengths and of this section's, as the mockups' own
@@ -755,7 +755,7 @@ replay says the same clocks (`README.md`, 5.12).
   `:not(:has())` is accepted.
 - **The page covers the display,** `viewport-fit=cover`, as the greenfield
   mock's does, wherever a page's head is printed: the bundler's page
-  (skein's `ui-web.md`, 4.3), the playground's, the setup pages', and the
+  (skein's `ui/web/bundle.md`, 3), the playground's, the setup pages', and the
   gallery's and journeys' prints. So what sits at the foot keeps off a
   phone's home bar by `env(safe-area-inset-bottom)`, which is 0 on a display
   without one and so measures as the mock draws it, at 760 px and under: the
@@ -869,7 +869,7 @@ replay says the same clocks (`README.md`, 5.12).
   words whole on a phone.
   A path's marks take no stroke but their own rules', as the request's
   page has none: skein's default stroke for a scene's marks (skein's
-  `ui-web.md`, 12) gives way under `.temper-ways-path` by one rule of the
+  `ui/web/README.md`, 10) gives way under `.temper-ways-path` by one rule of the
   path's, scoped to its drawn figure, `stroke: none` on the marks skein's
   rule names, outweighing skein's rule and outweighed by every mark's own
   (the line's, the boundary's, a person's ring, the halo, the caret, a
@@ -927,7 +927,7 @@ replay says the same clocks (`README.md`, 5.12).
     `.setting` rows;
   - *on a phone,* at 760 px and under, the column takes the frame's phone
     width and the path runs down the page, as on Ask temper's page.
-- **A flow** (`skein/docs/design/ui.md`, 11.5) has the look of
+- **A flow** (`skein/docs/design/ui/scenes.md`, 5) has the look of
   `skein/docs/design/draft/diagrams/preview.html`, in `temper.css` under
   `/* ==== ui: chats ==== */`: `--gf-paper` boxes on a `--gf-line-2` line, a strong
   box `--gf-ink` with a `--gf-surface` name, names `--gf-sans` 500 at 13 px and
@@ -970,7 +970,7 @@ replay says the same clocks (`README.md`, 5.12).
   team ==== */`, before Settings', on tokens of its own, `temper-team*`.
 - **A page target draws no ring:** anything given `tabindex=-1` only to take
   focus (`main`, a heading, a document's section) draws no outline, by
-  `skein-ui.css` (skein's `ui-web.md`, 12), and `temper.css` says so again of
+  `skein-ui.css` (skein's `ui/web/README.md`, 10), and `temper.css` says so again of
   `main` and a level-1 heading; a control keeps its ring.
 - **A scrolling pane holds its hidden parts:** a chat's log and its draft pane are
   positioned, so a visually hidden absolute part (a who-line) is clipped by the
@@ -1040,7 +1040,7 @@ replay says the same clocks (`README.md`, 5.12).
     the day's ink on the night's ground.
 - **The composers** (`NewChat`'s and a chat's) are text areas with
   skein-ui's `SubmitsOnEnter`: Enter sends, Shift+Enter is a new line
-  (skein's `ui-web.md`, section 7), which the view allows in a
+  (skein's `ui/web/README.md`, section 5), which the view allows in a
   composer's words, counted within its bound (`README.md`, 5.1). A
   chat's shows its placeholder, "Reply to T6", while it is empty, as
   `placeholder`, its name staying "Message", and `NewChat`'s "What do you
@@ -1053,7 +1053,7 @@ replay says the same clocks (`README.md`, 5.12).
   being written (`README.md`, 3.5) change in place;
   skein's page keeps focus, caret and scroll across it, and the
   conversation, a log, keeps its end in view while the person has not
-  scrolled away (skein's `ui-web.md`, section 7). Where the window has
+  scrolled away (skein's `ui/web/README.md`, section 5). Where the window has
   let its newest lines go, live text waits until the end is read again
   (`README.md`, 5.15).
 - **Reading the conversation** (`README.md`, 5.15): the bound log's
@@ -1119,7 +1119,7 @@ without it.
 
 - **One file.** The binary holds the bundle: the shell's module, its
   glue, and the stylesheets and files skein's bundler puts beside them
-  (2.2, 2.5), and their compressed forms (skein's `ui-web.md`, 4.2).
+  (2.2, 2.5), and their compressed forms (skein's `ui/web/bundle.md`, 2).
   Running it is the whole install: no directory beside it,
   no `scripts/bundle.sh` step.
 - **A plain `cargo build` makes it.** `cargo build`, then
@@ -1144,7 +1144,7 @@ without it.
   1. `build --locked --target wasm32-unknown-unknown -p
      temper-client-shell-web`, with the module's profile (below);
   2. `build --locked --release -p skein-ui-bundle`: the bundler,
-     always optimized, as skein's `ui-web.md`, 4.1 asks of a tool;
+     always optimized, as skein's `ui/web/bundle.md`, 1 asks of a tool;
   3. the bundler, with `scripts/bundle.sh`'s inputs (the name, the
      title, the prefix `/bundle/`, `temper.css`, `task-pages.css`, the
      placeholder's `loading.html` and `loading.css`, the shell's `files/`
@@ -1154,10 +1154,10 @@ without it.
   It has no build dependencies: the bundler is built by the nested
   cargo and run, never compiled into the script, so a build without the
   embed compiles a script of `std` alone, and nothing of the bundler is
-  ever linked into `temper` (skein's `ui.md`: "never linked into a
+  ever linked into `temper` (skein's `ui/README.md`: "never linked into a
   service or a module"). One `Cargo.lock` still locks the bundler's
   `wasm-bindgen-cli-support` with the module's macros (skein's
-  `ui-web.md`, 4.1). The script's logic (the dep-info's read, the
+  `ui/web/bundle.md`, 1). The script's logic (the dep-info's read, the
   nested commands, the bundle's directory read into its list) is plain
   functions, which the crate's tests take on samples.
 - **The nested build's directory** is `<target>/bundle/`, `<target>`
@@ -1194,7 +1194,7 @@ without it.
   domain's tests, the client crates' own) never runs it.
 - **The module's profile:** a dev build embeds a dev module, as
   `scripts/bundle.sh` makes; a release build embeds one built with
-  `web`, the profile skein's `ui-web.md`, 4.1 names for an
+  `web`, the profile skein's `ui/web/bundle.md`, 1 names for an
   application's release module, which temper's workspace defines as
   skein's does. The script maps cargo's `PROFILE`, `debug` or
   `release`, to `dev` and `web`.
@@ -1263,11 +1263,11 @@ without it.
 
 ## 4. The browser tier
 
-- **The driver is skein's.** `skein-browser` (skein's `browser.md`) runs
+- **The driver is skein's.** `skein-browser` (skein's `testing/browser.md`) runs
   headless Chromium as a child and drives it over the DevTools protocol
   on a pipe, from the loop beside the engine.
 - **The person's browser face is skein's** (`skein-fake-person-browser`;
-  skein's `ui-web.md`, 14.2): the same queries and acts as on the tree,
+  skein's `ui/web/testing.md`, 2): the same queries and acts as on the tree,
   made over Chromium's accessibility tree, and the browser's own: the
   current address, read from the navigation history, and keys pressed
   with Shift.
@@ -1297,7 +1297,7 @@ without it.
   (jig's `protocol/browser.md`, section 15) are not proved again.
 - **Every story checks the policy too:** skein's harness fails a test
   on a policy violation, an exception or a native dialog (skein's
-  `ui-web.md`, 14.2).
+  `ui/web/testing.md`, 2).
 
 ### 4.1 The first milestone's stories
 
@@ -1311,8 +1311,8 @@ without it.
    restart forgets retired link digests (jig's `protocol/client/sign-in.md`).
    That the secret leaves the address before the first request is held by
    the shell's start order (2.1), and is not tested.
-2. **Addresses:** skein's `back_and_forward` (skein's `ui-web.md`,
-   14.2), from the chats to a chat by its link and back; an address
+2. **Addresses:** skein's `back_and_forward` (skein's `ui/web/testing.md`,
+   2), from the chats to a chat by its link and back; an address
    that is no page opens the inbox, and the address reads `/` once it
    shows (2.3).
 3. **The composer:** in the chats, Enter starts a chat with the words
@@ -1320,7 +1320,7 @@ without it.
    with its composer focused, the focus stays there after Enter and after
    a press of "Send", and a chat opened from a list keeps its heading's
    (`README.md`, 3.5).
-4. **A panic:** skein's `panic` (skein's `ui-web.md`, 14.2), which
+4. **A panic:** skein's `panic` (skein's `ui/web/testing.md`, 2), which
    checks the shell's wiring of the restart part, at the test address
    `/test/panic` at which the shell panics at start, as jig's reference
    shell has it (2.1).
@@ -1367,7 +1367,7 @@ the page, which stayed, drawing the end.
   varies). The fake has no TLS, so the tier's bundle is built with
   skein-ui-web's `loopback-navigation` (4.3).
 - **The story:** a person on `ConnectModel` presses "Sign in to Test provider";
-  one more tab opens (skein's `ui-web.md`, 14.2, Its tabs),
+  one more tab opens (skein's `ui/web/testing.md`, 2, Its tabs),
   which can't reach its opener by the time it's at the listener, its
   address the listener's; the page's own address reads
   `/accounts/connect?provider=17&way=sign-in&source=S`, in place of the
@@ -1388,14 +1388,14 @@ the page, which stayed, drawing the end.
   sign-in reaches Ready after the welcome's.
 - **Run on Chromium alone,** the tier's one browser. Firefox and Safari
   are read: a press reaches `window.open` within its event's listener
-  (skein's `ui-web.md`, 14.3).
+  (skein's `ui/web/testing.md`, 3).
 - **Not here:** the tab's order, the press's before the answer, a refusal,
   and the terminal's root are the client world's (`tests/client`) and the
   host's; a tab refused by the browser and the pop-up rule, skein's tier.
 
 **`ConnectForge`'s App of your own, the pasted key,** has no story
 here. Its field is a text field of the secret kind, which skein's page
-maps to `<input type="password">` (skein's `ui-web.md`), its value read
+maps to `<input type="password">` (skein's `ui/web/README.md`), its value read
 as any text field's; HTML's value sanitization strips a password
 input's line feeds, the one thing a browser alone would add, and the
 client restores the PEM's armour from what is left (`forge.md`, 5.4).
@@ -1416,8 +1416,8 @@ real key in that restored form.
 - **The tier's bundle** turns on skein-ui-web's
   `loopback-navigation` (`scripts/bundle.sh --loopback`), so that a
   sign-in's tab (4.2) can go to the fake issuer on plaintext
-  loopback; the ordinary binary bundle never does (skein's `ui-web.md`,
-  section 10). The tier names that bundle in its configuration, so it
+  loopback; the ordinary binary bundle never does (skein's `ui/web/README.md`,
+  section 8). The tier names that bundle in its configuration, so it
   runs alike over a binary built with or without its own (2.6). It holds
   the compressed forms and Chromium takes gzip on loopback, so every
   test loads the compressed module under temper's policy.
@@ -1480,13 +1480,13 @@ real key in that restored form.
   each measure read after the run, name its story. Each story's assertions
   stay as its steps, in its order. It reruns whole on a flake, and a failure
   hides the steps after it: taken, for the cap. It stands on the same forty
-  seconds as any run of the harness (skein's `ui-web.md`, 14.2): a test that
+  seconds as any run of the harness (skein's `ui/web/testing.md`, 2): a test that
   can't fit them is two tests, never a longer run.
 - **Chromium** is the machine's, at the path its owner configures
-  (skein's `browser.md`), which skein's, jig's and temper's browser
+  (skein's `testing/browser.md`), which skein's, jig's and temper's browser
   tiers read from `SKEIN_TEST_CHROMIUM`. A missing Chromium or
-  bundle fails the suite, and never skips it (skein's `ui-web.md`,
-  14.1).
+  bundle fails the suite, and never skips it (skein's `ui/web/testing.md`,
+  1).
 - **The client's crates for wasm32:** the gate runs clippy for
   `wasm32-unknown-unknown` over `temper-client-domain`,
   `temper-client-view`, `temper-client-protocol-wire` and
@@ -1504,8 +1504,8 @@ One test, the github plan's: 4.6's 10, counted in 4.3's cap.
   (`../domain/testing.md`, 2.4).
 - **What it runs against:** `temper serve` with a GitHub forge whose
   `api` and `web` are the fake's GitHub layer, hosted on loopback in the
-  harness's loop by skein's forge peer (skein's `fake-forge.md`, section
-  10), which serves the tier for this test alone: the test needs only
+  harness's loop by skein's forge peer (skein's `testing/fakes/github.md`, section
+  1), which serves the tier for this test alone: the test needs only
   its `web`. A GitHub forge needs a fixed
   clients' listener (`forge.md`, 9.1), so the tier reserves a loopback
   port the kernel assigns before `temper serve` starts and names it in
@@ -1583,7 +1583,7 @@ setup across desktop and phone widths. The twelve test functions in
    pressed state kept across a reload and Back. The story awaits Closed
    pressed after reloading `/chats?state=closed`, then All pressed after
    Back to `/chats`, each by its exact button name within `WITHIN`
-   (skein's `ui-web.md`, 14.2), independently of a Drafts button arriving
+   (skein's `ui/web/testing.md`, 2), independently of a Drafts button arriving
    before Closed. An address that is no page opens
    the inbox at `/` (4.1, 2). Its chat's model scripts a run of calls: the folded
    line hides its rows until a press, and stays open on its node across a reply,
@@ -1838,7 +1838,7 @@ Not in the tier, each in the lowest world that shows it:
   of temper's. Default: temper's crate, until a second application
   embeds its bundle (jig's reference application, or skein's example),
   when they move to a small crate of skein's that a build script
-  depends on (skein's `ui-web.md`, section 15).
+  depends on (skein's `ui/web/README.md`, section 12).
 - **A binary to download:** where release binaries are built, for
   which targets and C library (a static musl build, or a floor of
   glibc), and where they are published. Default: none; temper's
@@ -1853,7 +1853,7 @@ Not in the tier, each in the lowest world that shows it:
   look says so, before the shell starts. Default: the placeholder is the day's
   (2.5, *Day and night*).
 - **Other browsers** than Chromium are `skein-browser`'s question
-  (skein's `browser.md`).
+  (skein's `testing/browser.md`).
 - **One shared stream per public document,** fanned out by the server
   to every visitor reading it, in place of each page reading again
   (section 8). Default: none; pages read again at the `max-age`, and a
@@ -1869,7 +1869,7 @@ Not in the tier, each in the lowest world that shows it:
   `skein-ui.css` by running skein's bundler with no module (7.1).
   Default: so, until skein's bundler offers the stylesheet alone.
 - **A press a render can lose:** the diff matches unkeyed children by
-  position among siblings of the same role (skein's `ui.md`, section 7),
+  position among siblings of the same role (skein's `ui/README.md`, section 7),
   so a section arriving before a control's group gives the control a new
   element, and a press between its mouse down and up does nothing, with
   nothing shown. Default: a group that sections arrive beside takes a
@@ -1937,7 +1937,7 @@ Not in the tier, each in the lowest world that shows it:
   browser kit would read a page's text at once.
 - **Every wrapped text fragment** (8.4): checking all of a title's wrapped
   fragments needs a browser testing interface decision (skein's
-  `browser.md`, 11). Default: keep `Seen` and its first content quad;
+  `testing/browser.md`, 11). Default: keep `Seen` and its first content quad;
   missing rectangles remain failures, with the text and measurement stage.
 - **A public page changing during measurement** (8.2, 8.4): one terminal
   boxed query avoids repeating every rectangle request for each text node,
@@ -1957,7 +1957,7 @@ Not in the tier, each in the lowest world that shows it:
   Chromium's own cache. Default: none, since a shared profile would change what each
   test starts from.
 - **A heading drawn after its page, in skein's reference** (2.3): the kit's rule
-  stops at the main (skein's `ui-web.md`, 7), and any application whose page reads
+  stops at the main (skein's `ui/web/README.md`, 5), and any application whose page reads
   before it draws its heading meets what this shell repairs. Default: this shell's
   alone, until a second application writes the same.
 - **Reading a conversation in every browser** (`README.md`, 5.15; `../draft/chat-reading.md`, 5):

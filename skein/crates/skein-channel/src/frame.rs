@@ -1,4 +1,4 @@
-//! Eight-byte framing and the six channel messages (channel.md, sections 3
+//! Eight-byte framing and the six channel messages (net/channel.md, sections 3
 //! and 5.1). A writer owns one measured allocation. This module never
 //! interprets application bodies or credentials; `parse_header` and
 //! `decode_control` check bytes before allocating variable fields.
@@ -34,7 +34,7 @@ pub struct Frame {
     bytes: Box<[u8]>,
 }
 
-// skein/docs/design/lib.md, 6 and skein/docs/design/channel.md, 3: a frame prints its lengths.
+// skein/docs/design/runtime/lib.md, 6 and skein/docs/design/net/channel.md, 3: a frame prints its lengths.
 #[expect(clippy::missing_fields_in_debug, reason = "frame bytes may carry credentials")]
 impl core::fmt::Debug for Frame {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -145,7 +145,7 @@ pub enum Control {
     Unsupported { kind: u16 },
 }
 
-// skein/docs/design/lib.md, 6 and skein/docs/design/channel.md, 5: a credential prints as its length.
+// skein/docs/design/runtime/lib.md, 6 and skein/docs/design/net/channel.md, 5: a credential prints as its length.
 impl core::fmt::Debug for Control {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {

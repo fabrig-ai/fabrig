@@ -1,11 +1,11 @@
-//! Help's text and layout rules (skein/docs/design/shell.md, 15.2).
+//! Help's text and layout rules (skein/docs/design/runtime/shell.md, 14.2).
 
 use super::{one_column, two_columns};
 use crate::table::{Command, Reach, Set, Switch, Table, Variable, Way, demo::DEMO};
 use crate::{Fallback, Setting, Settings};
 
 fn assert_page(actual: &str, expected: &str) {
-    assert_eq!(actual, expected, "the page follows shell.md, 15.2");
+    assert_eq!(actual, expected, "the page follows runtime/shell.md, 14.2");
     for text in [actual, expected] {
         for line in text.lines() {
             assert!(line.chars().count() <= 80, "line exceeds 80 columns: {line:?}");

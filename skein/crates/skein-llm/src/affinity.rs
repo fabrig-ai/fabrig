@@ -1,5 +1,5 @@
 //! Fixed-size caller identity rendering; no clocks, randomness or allocations.
-//! Contract: llm.md, sections 2.1 and 4.8.
+//! Contract: llm/README.md, sections 2.1 and 4.8.
 
 use skein_lib::bytes;
 

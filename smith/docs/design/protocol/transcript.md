@@ -285,9 +285,9 @@ jobs of every earlier window and activation.
   entities as they are told, and back on resume, with their kind and an
   opening turn's affinity, account and backend. Endpoint names are resolved through the agent's
   configuration both ways.
-- **skein owes** the codec generator (skein's `codec.md`), and providers'
+- **skein owes** the codec generator (skein's `data/codec/README.md`), and providers'
   replay as bounded bytes, tagged by dialect, with a call cut off at the
-  output limit marked as such (skein's `llm.md`).
+  output limit marked as such (skein's `llm/README.md`).
 
 ## 9. The world
 
@@ -322,7 +322,7 @@ jobs of every earlier window and activation.
   (domain/session.md, 8.2). Cutting it first, oldest turns first, waits
   on a host that needs it.
 - **A search's hits under a patch:** pieces are copied by a patch, not
-  opened (skein's `codec.md`, 11.3), so a patch that changes `Hit` is
+  opened (skein's `data/codec/patches.md`, 3), so a patch that changes `Hit` is
   refused until skein opens them (its section 13). Until then, from the
   baseline, a change of `Hit` waits for them.
 - **The channel's records a host keeps as bytes:** jig's store keeps a
@@ -353,8 +353,8 @@ other.
     turns and its deliveries), read after an upgrade by smith's local
     host alone (host.md, 5.3). It is kept like the turn from
     the baseline, under an owner of its own, `smith-local`, since an
-    owner's patches and kept texts are one crate's (skein's `codec.md`,
-    12.1); its `Turn.body` already says `holds smith-transcript Turn`, so
+    owner's patches and kept texts are one crate's (skein's `data/codec/command.md`,
+    1); its `Turn.body` already says `holds smith-transcript Turn`, so
     a turn it keeps is patched by the turn's set, its own patches
     pinned after smith's where they need its turns. Its set takes this
     section's shape, written with the local host's reads at the
@@ -369,7 +369,7 @@ other.
     5), and is no host's store;
   - **the channel's records** a host keeps as bytes are open (section
     11).
-- **The words owed** (skein's `codec.md`, section 3): a turn's one field
+- **The words owed** (skein's `data/codec/README.md`, section 3): a turn's one field
   whose bytes are pieces says so, `hits: bytes 2097152 pieces Hit` in
   `Found`, in place in `transcript-v6.schema`, version 6 unmoved; the
   word moves the family's layout, no byte and no Rust. The local host
@@ -389,7 +389,7 @@ other.
   - `patches::PATCHES`, the patches' texts in number order, and
     `patches::kept::smith_transcript::TEXTS`, the kept texts in version
     order, with the patches' `Context` and `written`, in the module
-    skein's command generates (skein's `codec.md`, 12.1 and 12.3);
+    skein's command generates (skein's `data/codec/command.md`, 1 and 3);
   - `FRESH_WINDOWS`, `"fresh-windows"`, the mark below.
 
   Before the baseline the module is written by hand (`src/patches.rs`)
@@ -401,7 +401,7 @@ other.
 - **The mark:** a smith patch whose change an agent would misread on a
   resume, such as a provider's replay it cannot carry or a call whose
   meaning moved, carries `mark fresh-windows` in its header (skein's
-  `codec.md`, 11.1). A host closes each live window across it, and the
+  `data/codec/patches.md`, 1). A host closes each live window across it, and the
   next run starts afresh from its brief with the transcript's tail (jig's
   `domain/engine/executors.md`, 2), never resumed from patched turns. A patch
   without it is resumed across. The word is `FRESH_WINDOWS` and its
@@ -416,10 +416,10 @@ other.
   `smith-transcript`, that version's kept text is frozen: a variant
   appended, a bound widened or a declaration added takes a patch the
   command writes and a version move, from the first release on (skein's
-  `codec.md`, 12.2, step 3; temper's `draft/upgrades.md`, 4.3). Before the
+  `data/codec/command.md`, 2, step 3; temper's `draft/upgrades.md`, 4.3). Before the
   baseline there is no kept text and no patch. Version 6 remains available
   to archival readers without system context; version 7 adds that context
-  and is the only resumable version (section 6).
+  and is the only resumable version (`transcript.md`, section 6).
 - **The tests** sit low, in the codec's world (`tests/codecs`), over a
   fixture family of their own (`tests/transcript-patches`): a fixture turn
   at version 1 and 2, made by skein's command, its first patch marked

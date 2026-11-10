@@ -1,4 +1,4 @@
-//! Plan and run bounded family patches (codec.md, section 11).
+//! Plan and run bounded family patches (data/codec/patches.md).
 
 use crate::schema::{self, DeclIx, FieldIx, Schema, SchemaError, Span, VariantIx};
 use skein_lib::{List, usize_of};
@@ -37,7 +37,7 @@ pub struct Patcher {
     build: Build,
 }
 
-/// The tables shared by planning and the run's build half (codec.md, 11.6).
+/// The tables shared by planning and the run's build half (data/codec/patches.md, 6).
 #[derive(Debug)]
 pub(crate) struct Tables {
     pub(crate) capacity: Capacity,
@@ -130,7 +130,7 @@ pub struct PatchError {
     pub wrong: PatchWrong,
 }
 
-/// A refusal of patch text or its planned changes (codec.md, 11.3).
+/// A refusal of patch text or its planned changes (data/codec/patches.md, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum PatchWrong {
     /// The text exceeds its capacity.

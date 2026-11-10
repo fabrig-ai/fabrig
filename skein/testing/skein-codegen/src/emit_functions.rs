@@ -1,6 +1,6 @@
 #![expect(clippy::format_push_string, reason = "generator assembles reviewed source fragments")]
 
-//! Split generated functions at codec.md, section 6's line bound.
+//! Split generated functions at data/codec/README.md, section 6's line bound.
 
 use alloc::collections::BTreeMap;
 

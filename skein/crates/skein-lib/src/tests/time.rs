@@ -1,4 +1,4 @@
-//! Time, deadlines and randomness (lib.md, 8).
+//! Time, deadlines and randomness (runtime/lib.md, 8).
 
 use crate::{Civil, Deadlines, Duration, Rng, Time, Wall, earliest};
 

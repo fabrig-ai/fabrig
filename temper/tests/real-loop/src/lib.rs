@@ -218,7 +218,7 @@ fn no_scripts(_: std::net::SocketAddr) -> Box<[skein_fake_llm_domain::api::Scrip
     Box::new([])
 }
 
-/// Run a forge story whose scripts pick each turn by their input rules (skein's fake-llm.md, 2.4).
+/// Run a forge story whose scripts pick each turn by their input rules (skein's testing/fakes/llm.md, 2.4).
 #[must_use]
 pub fn run_forge_by_input(
     fixture: forge::Fixture,

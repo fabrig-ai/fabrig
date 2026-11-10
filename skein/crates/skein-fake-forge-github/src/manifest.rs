@@ -1,4 +1,4 @@
-//! The browser's bounded manifest record (fake-forge.md, 10.1).
+//! The browser's bounded manifest record (testing/fakes/github.md, 1.1).
 use alloc::boxed::Box;
 use skein_forge::github::limits::Limits;
 use skein_json::{Token, tokenizer};

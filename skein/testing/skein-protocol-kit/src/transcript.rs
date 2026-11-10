@@ -1,4 +1,4 @@
-//! Kept transcripts and their text (skein/docs/design/testing.md, 6).
+//! Kept transcripts and their text (skein/docs/design/testing/README.md, 6).
 
 use std::fmt::Write as _;
 use std::fs;

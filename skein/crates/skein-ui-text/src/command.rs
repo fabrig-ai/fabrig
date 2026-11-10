@@ -1,4 +1,4 @@
-//! Last-print numbers interpreted against the current tree (ui-text.md, 6).
+//! Last-print numbers interpreted against the current tree (ui/text.md, 6).
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Writer, bytes, usize_of};
 use skein_ui::{Act, LogEdge};

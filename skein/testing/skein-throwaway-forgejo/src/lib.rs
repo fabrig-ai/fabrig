@@ -1,4 +1,4 @@
-//! The checked binary, isolated instance and plain HTTP client (fake-forge.md, 6).
+//! The checked binary, isolated instance and plain HTTP client (testing/fakes/forge.md, 6).
 mod binary;
 mod cli;
 pub use cli::{Output, WorkPath};

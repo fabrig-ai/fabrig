@@ -1,4 +1,4 @@
-//! Shared deterministic codec inputs (skein's codec.md, section 6).
+//! Shared deterministic codec inputs (skein's data/codec/README.md, section 6).
 use skein_lib::Rng;
 use std::fs;
 

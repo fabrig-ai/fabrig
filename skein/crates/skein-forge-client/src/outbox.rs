@@ -1,5 +1,5 @@
-//! In-flight write lanes and uncertain-effect recovery (forge-client.md,
-//! sections 7–8).
+//! In-flight write lanes and uncertain-effect recovery (forge/client.md, sections 7–8
+//! ).
 //!
 //! The client holds execution copies, not the top's durable outbox entries.
 //! It never chooses effects or sends their news. `make` accepts a committed

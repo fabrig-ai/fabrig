@@ -1,4 +1,4 @@
-//! Private sign-in from an absent root, cut before every submission (io.md, 8).
+//! Private sign-in from an absent root, cut before every submission (runtime/io/README.md, 5).
 use super::*;
 use crate::private::FileSystem;
 use crate::restart::Restartable;

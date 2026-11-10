@@ -1,4 +1,4 @@
-//! Writes one record at a time over the stream write half (skein/docs/design/lib.md, 7).
+//! Writes one record at a time over the stream write half (skein/docs/design/runtime/lib.md, 7).
 use core::mem;
 
 use alloc::boxed::Box;

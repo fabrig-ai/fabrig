@@ -1,4 +1,4 @@
-//! Native reads and output under short, reordered I/O (tls.md, 3.6).
+//! Native reads and output under short, reordered I/O (net/tls.md, 3.6).
 use skein_lib::Duration;
 use skein_sim::{Config, Faults};
 use skein_tls::client::Version;

@@ -1,4 +1,4 @@
-//! Ordered document data shared by the host and browser (ui-web.md, 6).
+//! Ordered document data shared by the host and browser (ui/web/elements.md).
 
 use std::fmt::Write;
 

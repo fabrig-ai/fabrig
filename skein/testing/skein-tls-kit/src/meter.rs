@@ -1,4 +1,4 @@
-//! The client's heap in metered steps, apart from its harness (tls.md, 5).
+//! The client's heap in metered steps, apart from its harness (net/tls.md, 5).
 
 use skein_heap::{Measured, Meter, Span};
 use skein_tls::client::{self, Limits};

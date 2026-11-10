@@ -1,4 +1,4 @@
-//! The intake's plain reference (lib.md, 7): what a demand takes from a
+//! The intake's plain reference (runtime/lib.md, 7): what a demand takes from a
 //! stream all of which is buffered, and a check of an intake fed in pieces
 //! against it.
 

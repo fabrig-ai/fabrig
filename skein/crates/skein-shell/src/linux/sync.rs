@@ -1,4 +1,4 @@
-//! Linux calls and decoders shared by its backends (shell.md, 7.5).
+//! Linux calls and decoders shared by its backends (runtime/readiness.md, 5).
 //!
 //! # The `unsafe`, and why it is sound
 //!
@@ -36,7 +36,7 @@ const NANOS_PER_SEC: u64 = 1_000_000_000;
 
 /// Finds an inherited output's kind at startup and enables `O_APPEND` on a
 /// regular file. Ownership stays with the caller until io adopts the descriptor.
-/// Pipes and terminals retain their flags (shell.md, section 6; io.md, 5.1).
+/// Pipes and terminals retain their flags (runtime/shell.md, section 6; runtime/io/files.md, 1).
 pub fn prepare_output(descriptor: Fd) -> Result<OutputKind, Error> {
     // SAFETY: stat is initialized, and remains writable throughout fstat.
     let mut stat: libc::stat = unsafe { mem::zeroed() };
@@ -95,7 +95,7 @@ pub(crate) fn read_signal(info: &libc::signalfd_siginfo, count: usize) -> Result
     Ok(Done::Signalled(signal))
 }
 
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn lock(fd: Fd) -> Result<(), i32> {
     // SAFETY: flock takes only the descriptor and integer flags, and never waits.
     let result = unsafe { libc::flock(fd.raw(), libc::LOCK_EX | libc::LOCK_NB) };
@@ -396,8 +396,8 @@ fn seek(fd: i32, to: libc::off_t, whence: i32) -> Result<libc::off_t, i32> {
     if at < 0 { Err(last_errno()) } else { Ok(at) }
 }
 
-/// Opens the directory at `path` as a root for io's files (kernel.md, 6.1),
-/// as a service's `main` does at startup, from its configuration (shell.md,
+/// Opens the directory at `path` as a root for io's files (runtime/kernel.md, 6.1),
+/// as a service's `main` does at startup, from its configuration (runtime/shell.md,
 /// 6): close-on-exec, and released only by a `Close` record. Fails with the
 /// error number: `ENOTDIR` when `path` is not a directory, `EINVAL` when
 /// it holds a NUL.
@@ -411,7 +411,7 @@ pub fn open_root(path: &Path) -> Result<Fd, i32> {
 }
 
 /// Opens a regular file beneath `root` for append, creating it with `mode` if absent
-/// (shell.md, 6). Existing contents and mode remain; links cannot escape the root.
+/// (runtime/shell.md, 6). Existing contents and mode remain; links cannot escape the root.
 pub fn open_append(root: Fd, path: &[u8], mode: u32) -> Result<Fd, Error> {
     if mode & !PERMISSIONS != 0 || path.is_empty() {
         return Err(Error::InvalidArgument);
@@ -471,7 +471,7 @@ pub(crate) fn random(bytes: &mut [u8]) -> Result<(), i32> {
 }
 
 /// Checks startup's directory with `faccessat2(W_OK | X_OK, AT_EACCESS)`;
-/// creates nothing, opens nothing for writing and changes nothing (shell.md, 6.1).
+/// creates nothing, opens nothing for writing and changes nothing (runtime/shell.md, 6.1).
 /// The answer describes this moment; a later write must find out for itself.
 pub fn directory_access(path: &Path) -> DirectoryAccess {
     let Ok(path) = CString::new(path.as_os_str().as_bytes()) else {
@@ -509,7 +509,7 @@ pub fn directory_access(path: &Path) -> DirectoryAccess {
     }
 }
 
-/// The process ID, read once by startup for the service's report (shell.md, section 6.1).
+/// The process ID, read once by startup for the service's report (runtime/shell.md, section 6.1).
 #[must_use]
 pub fn process_id() -> u32 {
     // SAFETY: getpid takes no pointers and has no preconditions.

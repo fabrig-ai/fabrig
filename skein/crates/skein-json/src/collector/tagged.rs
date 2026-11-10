@@ -1,4 +1,4 @@
-//! Provisional tagged projections (json.md, section 5.1). Each static node
+//! Provisional tagged projections (data/json.md, section 5.1). Each static node
 //! owns a whole candidate and counts for its variants. Shared fields occupy
 //! one range in the collector's compact projection; selection compacts it.
 use super::{AmbiguousFilter, Error, Filter, Keep, Key, Limits, Tagged, field};

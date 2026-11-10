@@ -1,4 +1,4 @@
-//! Account records, holds and owner lifecycle (oauth.md, sections 6.3 and 6.6).
+//! Account records, holds and owner lifecycle (oauth/accounts.md, sections 3 and 6).
 //! Keeps one exchange binding and keeper ownership per account; knows no provider
 //! identity or filesystem metadata. Owner requests, socket events and file
 //! terminals enter through `down`, `up` and `filed`; `fire` advances their work.
@@ -53,7 +53,7 @@ pub type Lower = skein_io::Request;
 /// An io event the owner routes by the component token echoed as owner.
 pub type LowerEvent = skein_io::Event;
 
-/// A private keeper request or cancellation for the owner's `FileIo` (oauth.md, section 6.4).
+/// A private keeper request or cancellation for the owner's `FileIo` (oauth/accounts.md, section 4).
 /// Requests use `file_layer::step::down_until`; cancellations use `file_layer::cancel`.
 /// The owner handles controls while `FileIo` is busy. A cancelled request still
 /// queued by the owner is discarded with its one `file::Event::Cancelled`.
@@ -163,7 +163,7 @@ pub(crate) enum Rejection {
     Rejected,
 }
 
-// Account configuration, state and ownership (oauth.md, sections 6.2 and 6.4).
+// Account configuration, state and ownership (oauth/accounts.md, sections 2 and 4).
 struct AccountEntry {
     name: Name,
     state: State,
@@ -221,7 +221,7 @@ pub struct Component {
     long_page: Box<[u8]>,
 }
 
-// skein/docs/design/oauth.md, 4: private exchanges carry credential bytes.
+// skein/docs/design/oauth/README.md, 4: private exchanges carry credential bytes.
 impl core::fmt::Debug for Component {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Component").field("lifecycle", &self.lifecycle).finish_non_exhaustive()
@@ -230,7 +230,7 @@ impl core::fmt::Debug for Component {
 
 impl Component {
     /// Checks accounts against the limits as making the component does, making nothing
-    /// and taking no generator (oauth.md, 6.7).
+    /// and taking no generator (oauth/accounts.md, 7).
     pub fn check(accounts: List<Account>, limits: &Limits) -> Result<(), Unusable> {
         drop(Self::configure(accounts, limits, None)?);
         Ok(())
@@ -238,7 +238,7 @@ impl Component {
 
     /// Validates configuration; the owner keys its generator on a process-distinct stream.
     /// `application` names the listener's long page: 1 to `APPLICATION_BYTES` bytes of
-    /// visible ASCII and spaces, or `Unusable::Limits` (skein/docs/design/oauth.md, 6.5 and 6.7).
+    /// visible ASCII and spaces, or `Unusable::Limits` (skein/docs/design/oauth/accounts.md, 5 and 7).
     pub fn new(
         accounts: List<Account>,
         limits: &Limits,
@@ -1075,7 +1075,7 @@ impl Component {
     }
 
     // The live exchanges include detached sockets; a retired one stays in the slab, and in
-    // its walks, until reclaim (programming-model.md, 5.2; oauth.md, 6.5), so each walk
+    // its walks, until reclaim (programming-model.md, 5.2; oauth/accounts.md, 5), so each walk
     // skips it.
     fn insert_exchange(&mut self, mut exchange: Exchange) -> Id<Exchange> {
         exchange.admitted = Some(self.admissions);
@@ -1138,8 +1138,8 @@ impl Component {
             && entry.binding == Some(id)
         {
             // A finished sign-in's sockets settle on their own; a pending keeper reply or a
-            // lock keeps the account, since `Unlock` names only the account (oauth.md, 6.4
-            // and 6.5).
+            // lock keeps the account, since `Unlock` names only the account (oauth/accounts.md, 4
+            // and 5).
             entry.binding = None;
         }
         self.listen_waiting(env, io);

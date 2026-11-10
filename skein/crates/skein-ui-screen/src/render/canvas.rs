@@ -1,5 +1,5 @@
 //! A streaming row buffer: storage follows columns and nodes, never text bytes
-//! (skein/docs/design/ui-screen.md, 5.1 to 5.4).
+//! (skein/docs/design/ui/screen.md, 5.1 to 5.4).
 
 use skein_lib::{List, usize_of};
 use skein_ui::{EntryKind, Node, Role, Tree};

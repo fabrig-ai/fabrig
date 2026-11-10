@@ -54,7 +54,7 @@ impl Store {
         let mut permission = direct;
         if self.organization(owner).is_some() {
             for team in &self.teams {
-                // forge-setup.md 4.8: teams without all repositories grant nothing without a team-to-repository table.
+                // forge/setup/forgejo.md 1.8: teams without all repositories grant nothing without a team-to-repository table.
                 if team.org.as_ref() == owner
                     && team.spec.includes_all_repositories
                     && team.members.as_slice().contains(&user)

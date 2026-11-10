@@ -1,4 +1,4 @@
-//! A plain queue model of the journal's promises (lib.md, section 11).
+//! A plain queue model of the journal's promises (runtime/lib.md, section 11).
 //!
 //! It stores writes and outputs in standard library queues, computes
 //! releases from their contents, and answers commits in send order. Each

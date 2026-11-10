@@ -1,5 +1,5 @@
 //! The tokenizer's and the writer's storage bounds against the counting
-//! allocator (json.md, 3.3 and 4; programming-model.md, 6.3): every call of
+//! allocator (data/json.md, 3.3 and 4; programming-model.md, 6.3): every call of
 //! an entry point a step of the meter, and what the machine held of its own
 //! never more than its storage bound.
 //!
@@ -8,7 +8,7 @@
 //! growth is counted with the receiver. Each delivery is made between steps,
 //! by the
 //! stream below, and is the tokenizer's to count from when it is handed over
-//! (lib.md, 7). What a step emits, a token's box among it, is handed out:
+//! (runtime/lib.md, 7). What a step emits, a token's box among it, is handed out:
 //! dropped before the check, as its receiver's.
 
 use skein_heap::Meter;

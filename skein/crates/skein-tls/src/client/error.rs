@@ -1,4 +1,4 @@
-//! Ends and failures (tls.md, 3.3).
+//! Ends and failures (net/tls.md, 3.3).
 #[cfg(doc)]
 use super::{FLIGHT, Limits};
 use skein_lib::stream::Fault;
@@ -30,13 +30,13 @@ pub enum Error {
     /// rustls failed for a reason of its own: no entropy from the kernel,
     /// or its keys exhausted; on the native face, also when its tokens below
     /// run out. Also refuses the portable target, where a world runs in plaintext
-    /// (testing.md, 10).
+    /// (testing/README.md, 10).
     Other,
 }
 
 impl Error {
     /// What the plaintext stream is told when the connection fails with
-    /// this (lib.md, 7): the stream's own fault; a reset for the peer's
+    /// this (runtime/lib.md, 7): the stream's own fault; a reset for the peer's
     /// alert, by which it gave up; invalid for anything wrong with the
     /// peer's data, a truncation among it, which a clean end would hide.
     #[must_use]

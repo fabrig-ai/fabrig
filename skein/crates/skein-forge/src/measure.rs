@@ -1,4 +1,4 @@
-//! Fixed payload accounting for forge values (forge.md, section 3.7).
+//! Fixed payload accounting for forge values (forge/README.md, section 3.7).
 use crate::api::{self, Answer, File, Op, Pull, Read, Summary, Write};
 use alloc::boxed::Box;
 use skein_lib::{len_u64, usize_of};
@@ -291,7 +291,7 @@ fn commit_messages(commits: &[api::CommitMessage]) -> Option<u64> {
 }
 
 /// Check every answer list, including nested lists, independently of bytes.
-/// Branches' names have no row bound, only bytes (skein/docs/design/forge.md, 3.7).
+/// Branches' names have no row bound, only bytes (skein/docs/design/forge/README.md, 3.7).
 #[must_use]
 pub fn answer_rows(value: &Answer, rows: u32) -> bool {
     let rows = usize_of(rows);

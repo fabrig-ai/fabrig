@@ -48,7 +48,7 @@ BARE_SECTION = re.compile(r"(?<![\w.])(sections?)\s+(" + NUM + r"(?:" + SEP + r"
                           + r")*)(?![\w.]*\d)(?!\.\d)")
 HEADING = re.compile(r"^#{1,6}\s+(\d+(?:\.\d+)*)\.?(?:\s|$)")
 DATED = re.compile(r"\d{4}-\d{2}-\d{2}")
-DATE = re.compile(r"^(?:\d{4}-)?\d{2}-\d{2}$")  # "kv.md, 2026-10-05", "reference-case.md, 11-02"
+DATE = re.compile(r"^(?:\d{4}-)?\d{2}-\d{2}$")  # "skein/docs/design/data/kv.md, 2026-10-05", "reference-case.md, 11-02"
 
 
 class Tree:

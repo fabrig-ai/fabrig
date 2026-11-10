@@ -1,4 +1,4 @@
-//! The last displayed tree and a spare (skein's ui.md, section 7).
+//! The last displayed tree and a spare (skein's ui/README.md, section 7).
 //! `stale` compares the caller's shown count. `builder` lends the spare as owned
 //! construction state; the caller builds and splices slots, then `finish`
 //! emits patches and keeps the new tree. This module knows no owner objects.

@@ -1,4 +1,4 @@
-//! Origin targets and percent encoding (skein/docs/design/forge.md, 4.4).
+//! Origin targets and percent encoding (skein/docs/design/forge/README.md, 4.4).
 use crate::limits::Limits;
 use alloc::boxed::Box;
 use skein_lib::{List, Overflow, Writer, bytes, usize_of};

@@ -1,4 +1,4 @@
-//! Request selection and turn counting (fake-llm.md, 2.4).
+//! Request selection and turn counting (testing/fakes/llm.md, 2.4).
 use super::respond;
 use crate::api::{Finish, Line, Message, Part, Scripts, Turn};
 use crate::domain::Played;

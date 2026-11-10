@@ -1,9 +1,9 @@
-//! The App's wanted access, shared by reconcile and paste (forge-setup.md, 5.6 and 5.8).
+//! The App's wanted access, shared by reconcile and paste (forge/setup/github.md, 1.6 and 1.8).
 use alloc::boxed::Box;
 use skein_forge::github::{document::App, setup};
 use skein_lib::List;
 
-/// One wanted permission or subscription the App lacks (forge-setup.md, 5.6, step 2).
+/// One wanted permission or subscription the App lacks (forge/setup/github.md, 1.6, step 2).
 /// Names are owned copies of the dialect's bounded manifest constants.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Lacking {
@@ -12,7 +12,7 @@ pub enum Lacking {
 }
 
 /// Compares an admitted App document using the dialect's wanted access check
-/// (forge-setup.md, 5.6 and 5.8). Permissions precede events, each in manifest
+/// (forge/setup/github.md, 1.6 and 1.8). Permissions precede events, each in manifest
 /// order, with at most nine permissions and fourteen events. Stronger grants
 /// satisfy weaker ones; extra grants and subscriptions add nothing to the result.
 #[must_use]

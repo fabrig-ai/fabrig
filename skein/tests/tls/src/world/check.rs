@@ -1,4 +1,4 @@
-//! The outcomes each run is checked against (tls.md, 5).
+//! The outcomes each run is checked against (net/tls.md, 5).
 use super::{Ending, Run, Scenario, Settings, run};
 use crate::pki::{self, Versions};
 use skein_lib::stream::{Fault, Read};

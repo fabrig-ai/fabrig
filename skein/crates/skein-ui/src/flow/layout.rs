@@ -1,4 +1,4 @@
-//! Lays a flow out as a scene (skein/docs/design/ui.md, 11.5).
+//! Lays a flow out as a scene (skein/docs/design/ui/scenes.md, 5).
 
 use super::{ARROW, BOX, CAPTION, Direction, KIND, NAME, Node, Nodes, STRONG, decode};
 use crate::scene::{Anchor, Command, Point, Scene};

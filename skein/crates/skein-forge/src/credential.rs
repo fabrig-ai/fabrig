@@ -1,4 +1,4 @@
-//! Owner-supplied credentials (forge.md, section 8).
+//! Owner-supplied credentials (forge/README.md, section 7).
 use skein_lib::Secret;
 
 /// A credential whose debug view delegates to the secret's redaction.

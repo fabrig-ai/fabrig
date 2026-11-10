@@ -1,4 +1,4 @@
-//! A named artifact, its run commit, and one bounded ZIP (forge.md, 5.2).
+//! A named artifact, its run commit, and one bounded ZIP (forge/forgejo.md, 1.2).
 use super::{
     Body, Heard,
     plan::{Bounds, Step},
@@ -64,7 +64,7 @@ impl Plan {
     #[expect(
         clippy::wildcard_enum_match_arm,
         clippy::manual_let_else,
-        reason = "the exchange's decoder picks the kind: forge.status.md, 4.2"
+        reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
     )]
     fn received(&mut self, row: d::Row, bounds: Bounds) -> Result<(), api::Error> {
         let value = match row {

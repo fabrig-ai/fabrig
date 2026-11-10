@@ -1,4 +1,4 @@
-//! Plain runs through the tokenizer (json.md, 6): decode is crate-private,
+//! Plain runs through the tokenizer (data/json.md, 6): decode is crate-private,
 //! and the fuzzy profile selects only the worlds' binaries. The step rows
 //! compare decode directly with next; these sweeps compare its tokens,
 //! outcomes and positions with the reference's naive byte-at-a-time reader.

@@ -101,7 +101,7 @@ fn a_flows_scene_prints_its_case_byte_for_byte() {
         let bytes = u32::try_from(input.len()).unwrap();
         let limits = Limits {
             nodes: markdown::max_nodes(bytes).unwrap().checked_add(1).unwrap(),
-            depth: 6, // ui.md, 10: the reader's five levels below the page.
+            depth: 6, // ui/markdown.md: the reader's five levels below the page.
             text_per_node: bytes.checked_mul(2).unwrap(),
             text_bytes: markdown::max_text_bytes(bytes).unwrap(),
             markdown_depth: 0,

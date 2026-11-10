@@ -154,7 +154,7 @@ impl<'a, K, V> IntoIterator for &'a Map<K, V> {
     }
 }
 
-// lib.md, 5.1: hash held state, never capacity or storage layout.
+// runtime/lib.md, 5.1: hash held state, never capacity or storage layout.
 impl<K: Hash, V: Hash> Hash for Map<K, V> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.entries.hash(state);

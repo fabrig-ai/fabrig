@@ -1,8 +1,8 @@
-//! A scratch directory, for tests on the real kernel (testing.md, 6): made
+//! A scratch directory, for tests on the real kernel (testing/README.md, 6): made
 //! empty beneath the system's temporary directory, and removed when
 //! dropped, whatever it holds and whatever modes a test gave what is in it,
 //! a failing test's included. The conformance suite lays out a root there
-//! for each scenario on files (`tests/conformance/real`; kernel.md, 8), and
+//! for each scenario on files (`tests/conformance/real`; runtime/kernel.md, 8), and
 //! the ring's own tests their files (`tests/ring`). [`paths`] is where a
 //! test finds its package, its tree, its workspace and its binaries when
 //! it runs.
@@ -32,7 +32,7 @@ impl Scratch {
     /// A new, empty directory, `skein-<label>-<pid>-<n>` beneath the
     /// system's temporary directory, `n` the first not taken. Its path is
     /// canonical, no link on its way: the shell's startup reads refuse links
-    /// there (shell.md, 7.5), and macOS's temporary directory is under
+    /// there (runtime/readiness.md, 5), and macOS's temporary directory is under
     /// `/var`, a link to `/private/var`.
     #[must_use]
     pub fn new(label: &str) -> Scratch {

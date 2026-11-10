@@ -26,7 +26,7 @@ const READY_REQUESTS: usize = 6;
 // Job metadata, API log redirect, and the blob GET are one call.
 const FOLLOW_COST: u32 = 3;
 const REFUSED_COST: u32 = 2;
-// The fake's signed target lives for 600 wall seconds (fake-forge.md, 10.1).
+// The fake's signed target lives for 600 wall seconds (testing/fakes/github.md, 1.1).
 const SIGNATURE_LIFE: Duration = Duration::from_secs(600);
 // The failing build fixture's complete plaintext log, including setup and completion.
 const WHOLE_LOG: &[u8] = b"set up build\nfailing check build 0\nfailing check build 1\nfailing check build 2\nfailing check build 3\nMissing changes/31.md with the line: opened 2026-11-01T14:07:25Z\njob build failed\n";

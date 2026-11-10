@@ -1,4 +1,4 @@
-//! One page of the App's installations (forge-github.md, 8.3).
+//! One page of the App's installations (forge/github.md, 8.3).
 use super::{Event, InstallationPage, State, Step, api, capacity, document, keep_installation, plan};
 use crate::github::{pin, plans::Heard, request::Request};
 use skein_lib::List;

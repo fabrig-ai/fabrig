@@ -366,7 +366,7 @@ fn direct_landing_finish_and_two_writes() {
 
 #[test]
 fn ruleset_refuses_merge_without_landing() {
-    // QA: skein forge-github.md 7 (405 rule violation -> Protected); Q3.
+    // QA: skein skein/docs/design/forge/github.md 7 (405 rule violation -> Protected); Q3.
     let mut world = Protocol::github(743);
     world.protect(raw::Protection {
         linear: false,
@@ -448,7 +448,7 @@ fn conflicting_update(world: &mut Protocol) -> u64 {
 
 #[test]
 fn conflicting_update_requests_resolution_without_merge() {
-    // QA: domain/forge.md 8.2, 8.4, 10; skein forge-github.md 7; Q3 prefix.
+    // QA: domain/forge.md 8.2, 8.4, 10; skein skein/docs/design/forge/github.md 7; Q3 prefix.
     let mut world = Protocol::github(750);
     conflicting_update(&mut world);
     world.finish();

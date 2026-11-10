@@ -1,6 +1,6 @@
 //! Bounded prefix digests written by admitted calls; no prompt bytes or timers.
 //! Reads use the query's scope and marker frontier at injected time. Oldest
-//! writes give way when full. Fake token lengths are content bytes divided by four. Contract: fake-llm.md, section 2.1.
+//! writes give way when full. Fake token lengths are content bytes divided by four. Contract: testing/fakes/llm.md, section 2.1.
 
 use crate::api::{Caching, Mark, Part, Query, Role, ToolChoice};
 use skein_lib::{Duration, Queue, Time, usize_of};

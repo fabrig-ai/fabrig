@@ -132,12 +132,12 @@ document says what temper adds. What is open is listed in section 11.
 - **A sign-in's redirect** binds a loopback listener on an ephemeral
   port for each sign-in, unless the LLM provider's registration fixes a
   port (jig's `protocol/configuration.md`, section 3; skein's
-  `oauth.md`, 6.5). A fixed port is checked at start against the
+  `oauth/accounts.md`, 5). A fixed port is checked at start against the
   deployment's own listeners: the clients' and the webhooks', the
-  machine's owned and fake `listen` (section 3) and `demo`'s fake LLM's
+  machine's owned and fake `listen` (`configuration.md`, section 3) and `demo`'s fake LLM's
   (setup.md, 8.4), whose ports it must not share on loopback.
 - **A sign-in's hosts** are resolved once at start, as skein's accounts
-  driver takes them (skein's `oauth.md`, 6.2): its token endpoint's,
+  driver takes them (skein's `oauth/accounts.md`, 2): its token endpoint's,
   and the origins of its issuer, its keys and its revocation. One that
   does not resolve, the default document's `auth.openai.com` on a
   machine without DNS (setup.md, 8.3), refuses no start: its address is
@@ -597,7 +597,7 @@ have one, an engine alone none. Each:
   until `temper program-login` makes it; one that exists must be a
   directory of the user's own with no group or other bits, not reached
   through a link at its name, or the start is refused, naming it
-  (skein's `io.md`, 5.3). A linked parent is accepted. temper reads
+  (skein's `runtime/io/files.md`, 3). A linked parent is accepted. temper reads
   nothing inside it and creates no missing programs directory at serve.
 - **The same names as the engine's** (jig's `protocol/configuration.md`,
   section 4), checked at start: every endpoint of `engine.llm`'s
@@ -632,7 +632,7 @@ have one, an engine alone none. Each:
   newline, which is not part of the secret (jig's
   `protocol/configuration.md`, section 9).
 - **Private reads,** each within its bound, with skein's
-  `read_private_file` (skein's `shell.md`, 6.1): a file readable by
+  `read_private_file` (skein's `runtime/shell.md`, 6.1): a file readable by
   anyone but the process's user, or reached through a link, is refused,
   naming it. For the handover, the forge stays not connected, or set up
   failed at the box's `started`; the engine and other forges run on
@@ -731,7 +731,7 @@ have one, an engine alone none. Each:
   | `root.` | the engine root's own limits, beyond those jig's `engine.limits` sets |
   | `forge.` | `temper-engine-domain-forge`'s `Limits`: `forge.client.`, `forge.change_policy.` and `forge.issue_policy.` for its children, `forge.queue_window_ms`, `forge.sitting_ms` |
   | `checkout.` | `temper-worker-domain-checkout`'s `Limits` |
-  | `forge_component.` | the forge component's, its webhooks' listener's and its GitHub App's among them (forge.md, section 7): the owner's, given once for every forge as the component is made (skein's `forge-connection.md`, 7.2), so none is per forge |
+  | `forge_component.` | the forge component's, its webhooks' listener's and its GitHub App's among them (forge.md, section 7): the owner's, given once for every forge as the component is made (skein's `forge/connection.md`, 7.2), so none is per forge |
   | `git_component.` | the git component's (git.md, section 8) |
   | `records.` | the engine's routing's: a forge's records and carried values in jig's secrets' store (credentials.md, 2.1) |
   | `forges.` | the engine's routing's, per forge: a GitHub forge's accepted installations and every forge's log origins (forge.md, section 7) |
@@ -771,7 +771,7 @@ have one, an engine alone none. Each:
 
   | Name | Bounds |
   |---|---|
-  | `forge.client.fallback_ms` | `fallback`: how long a repository hears after its last delivery, its timed reads and temper's own polls of it falling back to it meanwhile (`../domain/forge.md`, 5.2; skein's `forge-client.md`, 4.1); 300,000 (5 minutes) in both profiles, any value accepted, 0 keeping the paces with no fallback |
+  | `forge.client.fallback_ms` | `fallback`: how long a repository hears after its last delivery, its timed reads and temper's own polls of it falling back to it meanwhile (`../domain/forge.md`, 5.2; skein's `forge/client.md`, 4.1); 300,000 (5 minutes) in both profiles, any value accepted, 0 keeping the paces with no fallback |
   | `forge.client.settle_ms` | after a move of a pull request's head or base, how long a not mergeable answer, or a hinted job's pending CI, is read again at `hinted` and not believed, by the change procedure (`../domain/forge.md`, 5.2); above 0, as `hinted` is |
   | `forge_component.hooks` | the webhooks' listener's connections in all |
   | `forge_component.hook_head_bytes` | a delivery's request head |
@@ -783,11 +783,11 @@ have one, an engine alone none. Each:
   | `forges.log_origins` | a forge's job-log origins, its kind's (forge.md, 3.6); default 20, at most 32 |
   | `forge_component.installations` | the installations the component holds tokens for, per forge |
   | `forge_component.log_origins` | the origins a job log's redirect may reach, per forge (default 20); as many origins said of other redirects are kept per forge (`Fact::Origin`, forge.md, 3.6) |
-  | `forge_component.token_bytes` | a forge's token: an API token, a git token or a site admin's token (skein's `forge-connection.md`, 7.2) |
+  | `forge_component.token_bytes` | a forge's token: an API token, a git token or a site admin's token (skein's `forge/connection.md`, 7.2) |
   | `forge_component.key_bytes` | a GitHub App's key |
   | `forge_component.renew_before_ms` | `renew_before`: how long before an installation's token expires it is minted again (credentials.md, section 5) |
   | `forge_component.log_poll_ms` | `log_poll`: between two reads of a GitHub App's delivery log (default 5 s) |
-  | `forge_component.log_catch_up_ms` | `log_catch_up` (default 24 h): how far back the delivery log is read when a forge starts again within one process (skein's `forge-connection.md`, 6.5); at most a day, the log's own reach. temper keeps no `guid` across process starts: a process's first read of a forge's log keeps the newest and reads nothing back, and skein's forge client reads each adopted repository afresh at restart |
+  | `forge_component.log_catch_up_ms` | `log_catch_up` (default 24 h): how far back the delivery log is read when a forge starts again within one process (skein's `forge/connection.md`, 6.5); at most a day, the log's own reach. temper keeps no `guid` across process starts: a process's first read of a forge's log keeps the newest and reads nothing back, and skein's forge client reads each adopted repository afresh at restart |
   | `forge_component.log_pages` | the pages one read of the delivery log takes (default 10) |
   | `forge_component.delivery_bytes` | a delivery read from the log (default 1 MiB) |
   | `setup.deadline_ms` | a setup plan's run, its wait for the forge among it |
@@ -797,7 +797,7 @@ have one, an engine alone none. Each:
   | `setup.runs` | the setup host's runs at once, a forge's one writing run and its one `Reachable` beside it both counted; a request past them, or a second of either kind on one forge, is refused busy |
   | `setup.fetch_bytes` | a fetched binary's body, written to its part file as it streams, never held; one past it removes the part file and is refused, naming the URL (setup.md, 6.6) |
   | `routes.query_bytes` | a forge route's query |
-  | `picker.page` | the repositories one read of the picker takes, the setup host's `Reachable` plan's `reachable` on every kind (skein's `forge-setup.md`, 4.8), within the forge's own page cap: GitHub's page, a connected Forgejo's; at most 100, GitHub's largest page |
+  | `picker.page` | the repositories one read of the picker takes, the setup host's `Reachable` plan's `reachable` on every kind (skein's `forge/setup/forgejo.md`, 1.8), within the forge's own page cap: GitHub's page, a connected Forgejo's; at most 100, GitHub's largest page |
   | `box.backoff_ms`, `box.backoff_max_ms` | a long step restarted, doubling |
   | `box.restarts`, `box.window_ms` | a long step's exits within the window past which the box gives up; `box.restarts` at most 64; the backoff counted from the exits within the window (setup.md, 7.2) |
   | `box.grace_ms` | a long step's grace, after each of its stop's two signals (setup.md, 7.2) |
@@ -819,7 +819,7 @@ have one, an engine alone none. Each:
   - the forge component's: its connections equal the forge client's
     calls in flight; its `kept_bytes` is the forge client's `calls`
     times its `answer_bytes`, set by temper, not configured (skein's
-    `forge-connection.md`, 4.6); its deadline is at most the forge client's
+    `forge/connection.md`, 4.6); its deadline is at most the forge client's
     lifetime; its body bound holds the forge client's largest write and
     a key's marker; every listing's page size is at least 1 (forge.md,
     section 7);
@@ -1511,7 +1511,7 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
 - **A repository renamed or moved after adoption.** Default: its
   resource path, which landing patterns match, and its remote keep the
   owner and name of its adoption; Forgejo redirects the old path, and
-  git follows the redirect (skein's conformance, `fake-forge.md`,
+  git follows the redirect (skein's conformance, `skein/docs/design/testing/fakes/forge.md`,
   section 7: `moved-repository-is-a-redirect`;
   `tools/git-transcripts/facts.txt`,
   `git-follows-a-renamed-repository-redirect`).
@@ -1559,7 +1559,7 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
 ## 12. The three directories
 
 Every command that reads the document takes three directories, by
-skein's arguments' rule (skein's `shell.md`, 6.5): a flag, else its
+skein's arguments' rule (skein's `runtime/shell.md`, 6.5): a flag, else its
 variable, else its default.
 
 | Directory | Flag, variable | Default | Holds | Kept |
@@ -1581,9 +1581,9 @@ variable, else its default.
 - **Checked at start:** the data and cache directories, and their
   missing parents, are made private (0o700) when absent; an existing one
   must be the process's user's, private, and not reached through a link
-  at its name, or the start is refused, naming it (skein's `io.md`,
-  5.3). A linked parent is accepted, as the programs directory's is
-  (section 5). The configuration directory must hold the document; only
+  at its name, or the start is refused, naming it (skein's `runtime/io/files.md`,
+  3). A linked parent is accepted, as the programs directory's is
+  (`configuration.md`, section 5). The configuration directory must hold the document; only
   `temper init` makes it.
 - **Each path member's kind:**
   - *configuration paths:* jig's charters' instructions and trusted

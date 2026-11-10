@@ -12,7 +12,7 @@ pub trait Platform {
     fn read_all(&self) -> Vec<crate::store::Record>;
     fn write(&mut self, key: &[u8], value: &[u8]) -> bool;
     fn remove(&mut self, key: &[u8]);
-    /// The kept store's records, the browser's local storage (ui-web.md, 10); none by default.
+    /// The kept store's records, the browser's local storage (ui/web/README.md, 8); none by default.
     fn read_kept(&self) -> Vec<crate::store::Record> {
         Vec::new()
     }
@@ -25,18 +25,18 @@ pub trait Platform {
     fn send(&mut self, exchange: &crate::fetch::Exchange);
     fn navigate(&mut self, to: &[u8]);
     /// Opens the page's tab holding a line of words, in the turn of a person's act;
-    /// false when no tab opened (ui-web.md, 10).
+    /// false when no tab opened (ui/web/README.md, 8).
     fn open_tab(&mut self, _words: &[u8]) -> bool {
         false
     }
-    /// Points the page's tab at an address, its opener cut first, and lets it go (ui-web.md, 10).
+    /// Points the page's tab at an address, its opener cut first, and lets it go (ui/web/README.md, 8).
     fn point_tab(&mut self, _to: &[u8]) {}
-    /// Closes the page's tab, if one is held (ui-web.md, 10).
+    /// Closes the page's tab, if one is held (ui/web/README.md, 8).
     fn close_tab(&mut self) {}
     fn stream(&mut self, duty: crate::transport::StreamDuty);
-    /// Abandons an exchange in flight: nothing more is reported of it (ui-web.md, 10).
+    /// Abandons an exchange in flight: nothing more is reported of it (ui/web/README.md, 8).
     fn abandon(&mut self, exchange: u32);
-    /// Asks the stream's next piece, after the step that took the last (ui-web.md, 5.2).
+    /// Asks the stream's next piece, after the step that took the last (ui/web/README.md, 4.2).
     fn read_on(&mut self);
 }
 

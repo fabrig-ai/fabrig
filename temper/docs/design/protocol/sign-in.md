@@ -326,7 +326,7 @@ not found. Every answer of theirs carries the page's policy,
      goes to the sign-in's client, which checks the state in constant
      time, exchanges the code (the client secret in the body), and
      checks the ID token: its issuer, audience, expiry, nonce and RS256
-     signature by the key set (skein's `oauth.md`, 2.2). A state that
+     signature by the key set (skein's `oauth/README.md`, 2.2). A state that
      does not match, a deadline past or an exchange that fails: the
      expired page, or the unreachable page when Google could not be
      reached.
@@ -423,7 +423,7 @@ words do: "didn’t", never "didn't".
 `temper-service`'s `clients::google`: a table of at most
 `sign_in.pending` sign-ins under way, each its tag, its `then`, its
 deadline, the call held, if any, and a `skein_oauth::Client` made with
-Google's `Registration` (skein's `oauth.md`, section 1): the configured
+Google's `Registration` (skein's `oauth/README.md`, section 1): the configured
 endpoints, the client id, the client secret from its file, the redirect
 URI the public origin's `/sign-in/google/return`, the scopes `openid
 email profile`, the form wire, `pkce_for_confidential`, and terms with
@@ -518,7 +518,7 @@ A Forgejo of the deployment's signs its people in through temper: its
 authentication source `temper` is an OpenID Connect client of jig's
 provider (jig's `protocol/client/openid.md`), whose codes and
 access tokens jig holds and whose documents and tokens skein's issuer
-writes (skein's `oauth-issuer.md`). temper serves the routes, builds
+writes (skein's `oauth/issuer.md`). temper serves the routes, builds
 the issuer at start, and draws the authorization's page.
 
 ### 9.1 What a person sees
@@ -903,7 +903,7 @@ and does not generate); a key already there is left as it is. With no `openssl`,
 `clients.provider` and `machine.owned.sign_in` `null`, the box goes on and the links
 stay plain, and `box.log` says so.
 
-**The client is public** (skein's `oauth-issuer.md`, section 2): `secret` `null`.
+**The client is public** (skein's `oauth/issuer.md`, section 2): `secret` `null`.
 `add-oauth` takes `--secret` only as an argument, which a command line shows to other
 local users, and a fixed value is no secret. So the box's client has none, and
 `add-oauth` is given none. S256 and the exact redirect stand in for it. The clients'

@@ -1,6 +1,6 @@
 //! Bounded JSON document access for CDP replies and events.
 //!
-//! The document owns one message and its value index (skein/docs/design/browser.md,
+//! The document owns one message and its value index (skein/docs/design/testing/browser.md,
 //! 4 and 8). Lookups skip indexed subtrees. Only requested strings unescape.
 
 #![expect(clippy::disallowed_types, reason = "requested JSON strings are copied to owned byte vectors")]

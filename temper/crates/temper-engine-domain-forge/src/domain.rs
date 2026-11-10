@@ -3301,7 +3301,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
     }
     if let Some(owner) = owner {
         let pending = d.steps.get_mut(&owner).expect("found pending step");
-        // Entries hand off in number order (skein's forge-client.md, 7.2);
+        // Entries hand off in number order (skein's forge/client.md, 7.2);
         // the newest wake reserves the restart's entry and reads jig's current kept answer.
         pending.entry = entry;
         pending.heard.delegate = heard.delegate;
@@ -5456,7 +5456,7 @@ fn handoff_one(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if d.stopping || d.restore_phase == RestorePhase::Restoring {
         return;
     }
-    // skein's forge-client.md, 7.2: each new Make is above every held entry.
+    // skein's forge/client.md, 7.2: each new Make is above every held entry.
     // Fresh-read chains and goal-branch makings retain their reserved numbers; built changes,
     // projections and releases share this outbox and wait for lower chains
     // and entries to finish or commit. Hand over at most one per step.

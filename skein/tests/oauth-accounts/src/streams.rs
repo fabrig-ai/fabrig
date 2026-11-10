@@ -1,5 +1,5 @@
 //! One protocol driver: a client and an issuer over scripted streams.
-//! The stream ordering follows skein/docs/design/oauth.md, 6.8.
+//! The stream ordering follows skein/docs/design/oauth/accounts.md, 8.
 use crate::sign_in::protocol::Callbacks;
 use crate::world::{Client, TlsClose};
 use skein_fake_oauth as fake;

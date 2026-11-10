@@ -1,4 +1,4 @@
-//! The sweep's tally (skein/docs/design/testing.md, 6).
+//! The sweep's tally (skein/docs/design/testing/README.md, 6).
 
 use std::collections::BTreeMap;
 

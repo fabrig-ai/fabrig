@@ -1,4 +1,4 @@
-//! Cross-directory moves stay atomic through power loss (simulator.md, 3.3).
+//! Cross-directory moves stay atomic through power loss (testing/simulator.md, 3.3).
 use super::{Body, Machine, Node, NodeId, draw};
 use alloc::{boxed::Box, collections::BTreeMap};
 

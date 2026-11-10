@@ -1,4 +1,4 @@
-//! Credential routing and byte comparisons (fake-llm.md, 3; llm.md, 2.6).
+//! Credential routing and byte comparisons (testing/fakes/llm.md, 3; llm/README.md, 2.6).
 use super::{Config, Error};
 use crate::documents;
 use alloc::boxed::Box;
@@ -8,7 +8,7 @@ use skein_llm::{Credential, Provider, Scheme};
 /// The most credentials one peer holds.
 pub const MAX_CREDENTIALS: u32 = 16;
 
-/// What one request presented, without any credential bytes (fake-llm.md, 3).
+/// What one request presented, without any credential bytes (testing/fakes/llm.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Presented {
     /// The configured route.

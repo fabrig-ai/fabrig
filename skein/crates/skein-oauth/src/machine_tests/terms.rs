@@ -3,7 +3,7 @@ use super::*;
 const URI_CAP: usize = 256; // limits().uri_bytes.
 const PARAMETER_CAP: usize = 256; // limits().parameter_bytes.
 const RESOURCE_CAP: usize = 128; // limits().resource_bytes.
-const NONCE_MIN: usize = 16; // oauth.md, section 2.
+const NONCE_MIN: usize = 16; // oauth/README.md, section 2.
 const NONCE_CAP: usize = 64; // limits().nonce_bytes.
 
 pub(super) fn terms(openid: bool, varying_port: bool) -> Terms {

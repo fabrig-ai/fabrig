@@ -1,4 +1,4 @@
-//! Loopback io faces for scripted peers (fake-llm.md, section 3; oauth.md,
+//! Loopback io faces for scripted peers (testing/fakes/llm.md, section 3; oauth/README.md,
 //! section 5). Each peer keeps its independent machine, bounded connections,
 //! observations and io queues; it never knows a client's internal state or
 //! application policy. Constructors start listening; `Host::iterate` drives
@@ -13,7 +13,7 @@
 //! An application's real loop hosts the issuer on loopback in its process.
 //! Its script lists every token; give `oauth::Peer::granted()` to the LLM
 //! peer at start, before serving. The test follows each visit to the listener
-//! as the scripted browser does (oauth.md, section 6.8; fake-llm.md, section 6).
+//! as the scripted browser does (oauth/accounts.md, section 8; testing/fakes/llm.md, section 6).
 #![forbid(unsafe_code)]
 
 mod face;
@@ -25,7 +25,7 @@ pub mod transport;
 pub use face::{Error, Face, Limits};
 pub use transport::Transport;
 
-/// A listening peer borrowed by a real loop (ui-web.md, section 14.2).
+/// A listening peer borrowed by a real loop (ui/web/testing.md, section 2).
 /// The loop drives the host before reading its listening address. A listener
 /// may be opened by the host or adopted and claimed without a kernel listen.
 pub trait Listening: skein_shell::Host {

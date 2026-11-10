@@ -91,7 +91,7 @@ system.
   2, never stamped on every field.
 - **skein's foundation documents** are named by their own file names:
   `programming-model.md`, `testing-strategy.md`, `notes.md`. skein's
-  design documents are named with skein's name: skein's `lib.md`.
+  design documents are named with skein's name: skein's `runtime/lib.md`.
 - **smith's documents,** in smith's `docs/design/`, are named with
   smith's name and their path there: smith's `domain/run.md`, smith's
   `protocol/channel.md`.

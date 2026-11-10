@@ -1,4 +1,4 @@
-//! A step's writes protect its requests and navigation (ui-web.md, 5.3).
+//! A step's writes protect its requests and navigation (ui/web/README.md, 4.3).
 use crate::{
     fetch::Exchange,
     platform::Platform,

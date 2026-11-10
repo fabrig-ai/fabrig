@@ -1,4 +1,4 @@
-//! A job log's location, split for origin admission (forge-github.md, 10).
+//! A job log's location, split for origin admission (forge/github.md, 10).
 
 use alloc::boxed::Box;
 use skein_lib::{Writer, bytes};
@@ -22,7 +22,7 @@ pub struct Redirect {
 
 impl Origin {
     /// Host comparison ignores ASCII case; the scheme and port are exact
-    /// (forge-connection.md, 4.5).
+    /// (forge/connection.md, 4.5).
     #[must_use]
     pub fn same(&self, other: &Origin) -> bool {
         self.tls == other.tls && self.port == other.port && self.host.eq_ignore_ascii_case(&other.host)

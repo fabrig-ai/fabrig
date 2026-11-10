@@ -80,7 +80,7 @@ own after this one (section 6).
 ## 6. The bar that fills: skein's
 
 skein-ui's progress node carries text alone: "how far a piece of work
-has gone, its text saying it" (`skein/docs/design/ui.md`, 3.1). A bar that fills with the percentage needs a value it maps to
+has gone, its text saying it" (`skein/docs/design/ui/README.md`, 3.1). A bar that fills with the percentage needs a value it maps to
 the platform's (`aria-valuenow` on the web) and a width the stylesheet
 can draw. That is skein's, in a draft of its own, after this one. Until
 it lands, the bar stays the moving one, and the percentage says how
@@ -100,7 +100,7 @@ far.
 ## 8. Later
 
 - **One percentage for both binaries,** from sizes pinned beside their
-  digests (`skein/docs/design/forge.md`, 4.3), known before the first
+  digests (`skein/docs/design/forge/README.md`, 4.3), known before the first
   byte, so that the bar does not start again for the runner.
 - **The other steps' progress:** preparing and starting take seconds,
   and keep the moving bar.

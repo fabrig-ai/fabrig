@@ -1,4 +1,4 @@
-//! Each landing supplies the next run's base (codec.md, 12.9).
+//! Each landing supplies the next run's base (data/codec/command.md, 9).
 
 #[cfg(test)]
 mod tests {
@@ -122,7 +122,7 @@ mod tests {
     #[test]
     #[expect(
         clippy::too_many_lines,
-        reason = "codec.md 12.9 asks for one readable history, each run checked beside its inputs"
+        reason = "data/codec/command.md 9 asks for one readable history, each run checked beside its inputs"
     )]
     fn owner_history_replays_from_baseline_through_rebased_written_patch() {
         let scratch = Scratch::new("branch");

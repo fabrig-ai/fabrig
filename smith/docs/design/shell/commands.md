@@ -164,8 +164,8 @@ One run, then exit:
   - **standard output under `--json`** is the event sink's destination
     of its own (../protocol/events.md, 5.2), adopted by what it is: a
     regular file as an append stream, a pipe or a terminal as a write
-    stream, each under the stream's write deadline (skein's `io.md`,
-    5.1).
+    stream, each under the stream's write deadline (skein's `runtime/io/files.md`,
+    1).
 - **`--chat NAME`** resumes or starts that chat. Without it, the run
   starts a new chat, named in `session.started` and on standard error.
 - **`--ephemeral`** keeps no chat: its files live in a private temporary
@@ -181,7 +181,7 @@ One run, then exit:
     answered and before the process ends, the chat store removes through
     io each file it wrote there, by the names it knows (its state, its
     turns by number, its deliveries), then the directory, empty (skein's
-    `io.md`, 5, `Remove` with `directory`). It never lists or traverses
+    `runtime/io/files.md`, `Remove` with `directory`). It never lists or traverses
     the directory, so it removes nothing it did not write.
   - **A directory left behind is said.** One that is not empty then, or
     a removal the kernel refuses, is kept, and a warning before the last

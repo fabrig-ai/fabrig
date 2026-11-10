@@ -14,10 +14,10 @@ setup host; the views over it come last, once their look is settled
 - **"Copy", in the person's words** (section 2): the source stays where
   it is, and nothing is sent back.
 - **A plan of skein's, `Copy`,** beside `Create` (skein's
-  `forge-setup.md`, 4.9): the org when missing, the repository copied
+  `forge/setup/forgejo.md`, 1.9): the org when missing, the repository copied
   from a public address by Forgejo's own migration, the bot's access
   and hook, and the starter workflow; read first at every step, so a
-  run cut short, run again, finishes it (section 3).
+  run cut short, run again, finishes it (`repository-copies.md`, section 3).
 - **Forgejo fetches it,** not temper: no bytes of the source pass
   through the engine, and no git credential is minted for it
   (section 4).
@@ -58,7 +58,7 @@ setup host; the views over it come last, once their look is settled
 `Copy { forge, org, repository, from, files }` copies a public
 repository into a managed or owned Forgejo, ready for the service, run
 by the admin's token after reconcile, as `Create` is (skein's
-`forge-setup.md`, 4.9). Its steps, each reading first and writing only
+`forge/setup/forgejo.md`, 1.9). Its steps, each reading first and writing only
 what is missing:
 
 1. **The admin's token,** as `Create`'s step 1.
@@ -93,8 +93,8 @@ what is missing:
   time is the source's size over the network's speed. A run past it
   stops at `Repository`, `TimedOut`; the copy Forgejo may still be
   making is found at the next run (step 3).
-- **A writing run,** one per forge at once (skein's `forge-setup.md`,
-  6.3): copies on one forge run one after another.
+- **A writing run,** one per forge at once (skein's `forge/setup/README.md`,
+  4.3): copies on one forge run one after another.
 - **Forgejo's refusals,** each a stop at `Repository` with Forgejo's
   status and message, cut to the host's bounds: a source missing or
   private, a host refused by Forgejo's migration settings, a source
@@ -112,7 +112,7 @@ and a push (the user, 2026-11-04):
 - **No credential to mint.** A push would need a git token of the
   admin's or the bot's on the engine's side for the copy's life; the
   migration runs under the admin's token the setup host holds for the
-  run, and drops (skein's `forge-setup.md`, 6.3).
+  run, and drops (skein's `forge/setup/README.md`, 4.3).
 - **The same plan for owned and managed.** A managed Forgejo is not on
   temper's machine; its migration is still its own.
 - **Its settings are Forgejo's defaults:** the owned Forgejo's
@@ -200,24 +200,24 @@ MakeRepository {
 
 ## 6. Tested without a network
 
-- **The fake forge copies from a catalogue** (skein's `fake-forge.md`,
+- **The fake forge copies from a catalogue** (skein's `testing/fakes/forge.md`,
   section 2): sources its owner seeds, each an address and a
   repository in the fake's own git store, under hosts of the reserved
   `.invalid` domain. Its migration route copies one into the forge,
   answers a missing or private one as Forgejo does, and takes the
-  domain's timing faults (skein's `fake-forge.md`, 2.3), so a copy can
+  domain's timing faults (skein's `testing/fakes/forge.md`, 2.3), so a copy can
   be slow or cut short.
 - **`temper box --fake-backends`** seeds two, and prints their
   addresses with the files a walk pastes (`../protocol/setup.md`,
   7.5): a journey copies them in the welcome.
-- **The conformance** (skein's `fake-forge.md`, section 7) records each
+- **The conformance** (skein's `testing/fakes/forge.md`, section 7) records each
   fact `Copy` relies on, on the throwaway Forgejo, from a source served
   by a second throwaway on loopback, its migration settings allowing
   local networks in the throwaway alone: the migration's answer, a
   missing source's, the repository's state after a migration cut
   short, the default branch kept, `OFFLINE_MODE` leaving migrations
   on, and which workflow directory Actions reads when both are there
-  (section 8). They join skein's `forge-setup.md`, section 8.
+  (section 8). They join skein's `forge/setup/forgejo.md`, section 2.
 - **No test reaches a real host.**
 
 ## 7. The welcome

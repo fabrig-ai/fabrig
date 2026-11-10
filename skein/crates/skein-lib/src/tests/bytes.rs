@@ -1,4 +1,4 @@
-//! Bytes (lib.md, 6): the byte search, against a naive one too; the reader,
+//! Bytes (runtime/lib.md, 6): the byte search, against a naive one too; the reader,
 //! the writer, a count's decimal digits and their reading, and hex digits.
 
 use alloc::boxed::Box;

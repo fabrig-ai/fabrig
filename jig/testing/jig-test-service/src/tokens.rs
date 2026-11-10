@@ -1,5 +1,5 @@
 //! Service token namespaces (jig/docs/design/protocol/service.md, 7 and 10;
-//! skein/docs/design/io.md, 3.1).
+//! skein/docs/design/runtime/io/sockets.md, 1).
 use skein_io as io;
 use skein_lib::Token;
 

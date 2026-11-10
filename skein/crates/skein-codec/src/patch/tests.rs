@@ -1,4 +1,4 @@
-//! Public planning admission and lookup contracts (codec.md, 11.6).
+//! Public planning admission and lookup contracts (data/codec/patches.md, 6).
 
 use super::*;
 

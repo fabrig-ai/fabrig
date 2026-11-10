@@ -1,8 +1,8 @@
-// The ring adapter's own (shell.md, 9).
+// The ring adapter's own (runtime/shell.md, 8).
 #![cfg(target_os = "linux")]
 
 //! The ring adapter's own part in files, against the real kernel, in a
-//! scratch directory (shell.md, 9): a root opened at startup, a `List` it
+//! scratch directory (runtime/shell.md, 8): a root opened at startup, a `List` it
 //! runs itself at submit, the position it hands from one `List` to the next
 //! across its own buffer, a large file through its reads and writes, and its
 //! open retry path. The records' behaviour is the conformance
@@ -166,7 +166,7 @@ fn an_error_of_a_file_names_what_the_contract_says() {
 }
 
 /// A `Rename` from one filesystem to another: `EXDEV`, which on a `Rename`
-/// is no escape but `Other` (kernel.md, 6.1). Needs `/dev/shm` on a mount
+/// is no escape but `Other` (runtime/kernel.md, 6.1). Needs `/dev/shm` on a mount
 /// apart from the temporary directory's; without one, there is nothing to
 /// rename across, and the test says so by passing having checked nothing.
 #[test]

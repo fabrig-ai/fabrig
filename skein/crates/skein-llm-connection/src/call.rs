@@ -1,5 +1,5 @@
-//! One physical connection and its current call (llm-connection.md, sections
-//! 4 and 5), over a link (skein/docs/design/link.md, 3). A connection keeps
+//! One physical connection and its current call (llm/connection.md, sections
+//! 4 and 5), over a link (skein/docs/design/net/link.md, 3). A connection keeps
 //! its LLM client and bounded routing queues. It never knows the owner's
 //! domain or retry policy. `route` advances the selected transport and the LLM client.
 //!

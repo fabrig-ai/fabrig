@@ -1,4 +1,4 @@
-//! The world harness's own tests (testing.md, 6): processes that are
+//! The world harness's own tests (testing/README.md, 6): processes that are
 //! scripts of raw kernel records, so that what a test shows is the
 //! harness's and not a service's, and a referee over what they received.
 //!

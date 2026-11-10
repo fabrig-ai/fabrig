@@ -1,11 +1,11 @@
-//! Issued registrations, carried names and loopback redirects (oauth.md, 5).
+//! Issued registrations, carried names and loopback redirects (oauth/README.md, 5).
 use crate::{Config, Field, Limits};
 use alloc::boxed::Box;
 use skein_lib::{List, bytes, usize_of};
 
 /// Maximum issued client ids retained in a fake registration.
 pub const ISSUED: usize = 4;
-/// The issuer’s optional registration and revocation terms (oauth.md, 5).
+/// The issuer’s optional registration and revocation terms (oauth/README.md, 5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Terms {
     /// Client id issued by each authorization, with the last repeated.

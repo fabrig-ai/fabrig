@@ -54,7 +54,7 @@ fn row_calls() -> [Call; 2] {
 }
 #[test]
 fn document_and_empty_requests_reserve_no_listing_rows() {
-    // forge-setup.md, 4.9: creation reads a repository, a branch and raw file bytes.
+    // forge/setup/forgejo.md, 1.9: creation reads a repository, a branch and raw file bytes.
     let at = fj::Repo { owner: b"work".as_slice().into(), name: b"hello".as_slice().into() };
     let reference = skein_forge::forgejo::id::read(b"0123456789abcdef0123456789abcdef01234567").expect("object id");
     skein_rows::check(

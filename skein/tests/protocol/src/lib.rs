@@ -1,4 +1,4 @@
-//! Protocol worlds (testing-strategy.md, 2.5; testing.md, 2): both ends of
+//! Protocol worlds (testing-strategy.md, 2.5; testing/README.md, 2): both ends of
 //! an LLM streaming exchange, built as two services would build them, their
 //! bottoms joined by an in-memory stream in each direction, cut and joined
 //! at random.

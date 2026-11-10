@@ -1,4 +1,4 @@
-//! Joined sockets with both owners in one process (io.md, 3.5 and 8).
+//! Joined sockets with both owners in one process (runtime/io/sockets.md, 5, and runtime/io/README.md, 5).
 use skein_io_world::joined::{closing, names_full, taken, unbound};
 use skein_sim::Config;
 const SEEDS: [u64; 3] = [1, 2, 3];

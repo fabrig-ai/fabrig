@@ -101,7 +101,7 @@ shell crates only choose a profile and the values a setting overrides.
   does not declare is refused (../protocol/charter.md, section 2). It never
   holds a credential. It is `smith-agent-document`'s, which this crate
   re-exports (2.6).
-- **Startup,** in the order of skein's `shell.md`, section 6: the
+- **Startup,** in the order of skein's `runtime/shell.md`, section 6: the
   configuration and the derived edge limits checked, termination
   signals blocked, the endpoints' names resolved, trust roots loaded,
   the seed and the kernel.
@@ -111,7 +111,7 @@ shell crates only choose a profile and the values a setting overrides.
   channel, each with its own policy and loss count (../protocol/agent.md,
   section 5). The adapter opens or adopts the workspace's roots, and its
   hook writes only the operator's short lines to an error writer its
-  caller supplies (skein's `shell.md`, section 12). `smith-agent` runs
+  caller supplies (skein's `runtime/shell.md`, section 11). `smith-agent` runs
   it with `skein_shell::drive`, and the worlds host the same adapter
   (../testing.md, section 4).
 - **The end** is ../protocol/agent.md, section 6's: its answer sent, the
@@ -164,7 +164,7 @@ Each lands in skein, with its design, before its smith consumer
   and no shipped binary links a testing crate.
 - **An append sink:** a bounded append stream on the ring, to a file or
   an inherited descriptor, with a write deadline, that counts what it
-  drops and settles exactly at exit (skein's `io.md`, 5.1). No thread.
+  drops and settles exactly at exit (skein's `runtime/io/files.md`, 1). No thread.
 - **Resource usage:** the CPU time and peak resident size of the process
   and of its reaped children, read by the shell at the end for
   `session.ended` (../protocol/events.md, 3.2).
@@ -172,23 +172,23 @@ Each lands in skein, with its design, before its smith consumer
   io's create, write, sync and rename, its directory synced; and private
   record files on it, with their permissions and links checked.
 - **A directory's lock:** exclusive, taken without waiting, released
-  when its root closes or its process ends (skein's `io.md`, section 5),
+  when its root closes or its process ends (skein's `runtime/io/files.md`),
   so that processes sharing a record take turns writing it (`credentials.md`).
 - **The OAuth io driver:** the loopback listener, the token exchange over
   skein-http, and refresh before expiry, which `skein-oauth` leaves to
-  its caller (skein's `oauth.md`); and `localhost` redirects, bound to
+  its caller (skein's `oauth/README.md`); and `localhost` redirects, bound to
   127.0.0.1 and compared exactly. With it, a client id the issuer
   issues, a checked ID token and its subject, revocation, a redirect
   whose port varies, and a record shared across processes, read again
-  under its owner's lock before each write (skein's `oauth.md`, 2.1 to 2.3 and 6.4 to 6.5
+  under its owner's lock before each write (skein's `oauth/README.md`, 2.1 to 2.3, and `oauth/accounts.md`, 4 to 5
   ).
 - **The LLM client's routes:** OpenAI's public Responses route and
   Anthropic's Messages with a key, a credential as a value and its
   scheme, and the failure classes for an account's limit, its refusal
-  and a field a provider does not take (skein's `llm.md`, 2.5, 2.6, 4.7
+  and a field a provider does not take (skein's `llm/README.md`, 2.5, 2.6, 4.7
   and 4.8).
 - **Trust roots:** the machine's roots, or one DER file, loaded at
-  startup (skein's `tls.md`).
+  startup (skein's `net/tls.md`).
 - **Terminal modes:** the window's size, as a shell effect, for the
   status line. Raw input, and its restoration at exit, wait for a view
   that reads a key at a time (../protocol/host.md, open questions: a
@@ -199,10 +199,10 @@ Each lands in skein, with its design, before its smith consumer
 
 A host that embeds the agent, rather than spawning `smith-agent`, hands
 it everything: an application's world, natively or in a browser's Web
-Worker (skein's `world.md` and `skein/docs/design/playground.md`), hosts it so. That
+Worker (skein's `testing/world.md` and `skein/docs/design/playground.md`), hosts it so. That
 part of `smith-agent-shell` reads nothing of the system, and builds for
-`wasm32-unknown-unknown`, the portable target of skein's `shell.md`,
-section 14.
+`wasm32-unknown-unknown`, the portable target of skein's `runtime/shell.md`,
+section 13.
 
 - **Portable:** `Agent::new`, the configuration's decoding and checks
   from its bytes, the derived limits, `Resources`, and the `Agent`
@@ -311,10 +311,10 @@ closure:
   2. reads the settings and runs `smith check`'s checks, refusing with
      their exit code (`settings.md`, 1.3);
   3. blocks termination signals, draws the seed, and opens the kernel
-     and the roots (skein's `shell.md`, section 6);
+     and the roots (skein's `runtime/shell.md`, section 6);
   4. composes the service, runs it with `skein_shell::drive`, and exits
      with the code its outcome maps to (`commands.md`, 3), once the service holds
-     nothing (skein's `shell.md`, section 13).
+     nothing (skein's `runtime/shell.md`, section 12).
 
   `smith-agent.rs` reads the configuration's path, starts
   `smith-agent-shell`, runs it with `drive`, and exits 0 after its
@@ -364,7 +364,7 @@ closure:
   directories outside the workspace that builds write: for `rust`,
   `$CARGO_HOME/registry` and `$CARGO_HOME/git`. `smith check` confirms
   each is a directory smith's effective user may write and search, as
-  the kernel answers it (skein's `shell.md`, 6.1, `directory_access`),
+  the kernel answers it (skein's `runtime/shell.md`, 6.1, `directory_access`),
   creating and changing nothing. A cache it cannot confirm (absent, not a
   directory, or denied, with the kernel's error) is a warning naming the
   cache and why: a build that never writes there is not stopped by it.
@@ -408,7 +408,7 @@ closure:
   process ends (../domain/host.md, section 9.2).
 - **The end:** after its last word, the process closes everything it
   owns and exits once each has reported closed and io is empty, when
-  `drive` returns (skein's `shell.md`, section 13). The LLM pool closes
+  `drive` returns (skein's `runtime/shell.md`, section 12). The LLM pool closes
   at the answer. A termination signal while closing turns the remaining
   closes into aborts. A host that spawns `smith-agent` derives its exit
   grace from the same bound (`settings.md`, 2.5).

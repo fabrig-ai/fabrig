@@ -1,5 +1,5 @@
 //! Two generic channels joined over socket-like and separate-pipe in-memory
-//! streams (channel.md, sections 7 and 11; testing-strategy.md, section 2.5).
+//! streams (net/channel.md, sections 7 and 11; testing-strategy.md, section 2.5).
 use std::collections::VecDeque;
 
 use skein_channel::{

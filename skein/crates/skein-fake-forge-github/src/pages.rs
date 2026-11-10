@@ -1,4 +1,4 @@
-//! Browser pages and their single-use conversion codes (fake-forge.md, 10.1).
+//! Browser pages and their single-use conversion codes (testing/fakes/github.md, 1.1).
 use crate::{
     answers,
     app::App,

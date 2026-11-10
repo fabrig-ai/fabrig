@@ -33,7 +33,7 @@ skein-shell.workspace = true
 skein-scratch.workspace = true
 
 # tests/clippy.toml bans what would make a run unrepeatable; what rustls draws
-# from the kernel makes it so anyway (tls.md, 5).
+# from the kernel makes it so anyway (net/tls.md, 5).
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
 elided_lifetimes_in_paths = "deny"

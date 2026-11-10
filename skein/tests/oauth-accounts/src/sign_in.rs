@@ -1,5 +1,5 @@
 //! Actual accounts sign-in with an independent issuer and scripted browser.
-//! The shared world owns schedules, replay and process heaps (oauth.md, 6.8).
+//! The shared world owns schedules, replay and process heaps (oauth/accounts.md, 8).
 use crate::world::Client;
 pub use crate::world::Process;
 use skein_fake_oauth as fake;

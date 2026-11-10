@@ -15,7 +15,7 @@ whatever its source (../domain/host.md, section 7).
 | `none` | none | nothing | nothing |
 
 - **`sign_in`:** smith's own OAuth sign-in, with skein's OAuth client
-  and its driver (skein's `oauth.md`, section 6), as a public client
+  and its driver (skein's `oauth/accounts.md`), as a public client
   with the registration its provider's preset carries (`settings.md`, 2.2), never one a
   setting gives.
   - **Its addresses may move,** so that a test reaches the fake issuer
@@ -27,16 +27,16 @@ whatever its source (../domain/host.md, section 7).
     scopes and redirect path, never moves.
   - **`redirect_port`,** optional: the port the loopback listener tries
     first, on a port drawn for the sign-in when that one is taken
-    (skein's `oauth.md`, 6.5). Without it, each sign-in draws its port.
+    (skein's `oauth/accounts.md`, 5). Without it, each sign-in draws its port.
     Only the port changes between sign-ins.
   - **What a sign-in checks:** the ID token, by the provider's published
-    keys, its issuer, audience, expiry and nonce (skein's `oauth.md`,
+    keys, its issuer, audience, expiry and nonce (skein's `oauth/README.md`,
     2.2), and the granted scopes. The account is the token's subject,
     never an email. A sign-in without a scope the preset requires keeps
     its record, and the account is not usable for a run until it signs
     in again and allows it (`commands.md`, 5).
   - **The issued client id** is kept with the record, and every
-    exchange, refresh and revocation after uses it (skein's `oauth.md`,
+    exchange, refresh and revocation after uses it (skein's `oauth/README.md`,
     2.1).
   - **One subject per account.** A sign-in whose subject another of the
     settings' accounts holds is refused, naming that account, and its
@@ -77,7 +77,7 @@ whatever its source (../domain/host.md, section 7).
   settings, hooks and plugins for a program never load into a run
   (../protocol/programs.md, 4.2).
 - **Each file private,** read and written as skein's private files are,
-  each replaced whole by durable replace (skein's `io.md`, 5.2 and 5.3).
+  each replaced whole by durable replace (skein's `runtime/io/files.md`, 2 and 3).
   The programs directory is private; `smith login` makes each
   configuration directory in it, private, and only the program writes
   there.
@@ -94,17 +94,17 @@ whatever its source (../domain/host.md, section 7).
 
 - **Several processes share a record:** two terminals on one account, a
   benchmark's attempts, a live test beside a person's chat.
-- **Each sign-in record is shared** (skein's `oauth.md`, 6.4): every
+- **Each sign-in record is shared** (skein's `oauth/accounts.md`, 4): every
   write of it, a refresh, `smith login`'s keep and `smith logout`'s
   revocation, runs under the record's lock, and first reads the record
   again. A newer generation another process kept is used with no
   refresh; no record is an account signed out; another subject fails
   the grant, so a run never changes person mid-run.
 - **The lock** is `tokens/<account>.lock/`, a directory opened and
-  locked with skein's `Lock` (skein's `io.md`, section 5): exclusive,
+  locked with skein's `Lock` (skein's `runtime/io/files.md`): exclusive,
   released when it is closed or its process ends, never left behind by
   a crash. A process that finds it busy asks again on a timer, within
-  the driver's lock wait (skein's `oauth.md`, 6.7), and then the write
+  the driver's lock wait (skein's `oauth/accounts.md`, 7), and then the write
   fails as busy, and the grant is asked for again.
 - **A refresh refused for good,** such as `invalid_grant` or
   `refresh_token_reused`, means the account must sign in again (exit 3,
@@ -119,7 +119,7 @@ A charter's LLM names its account by number, a `u32`, and a
 transcript's opening turn keeps it (../protocol/charter.md, section 2;
 ../protocol/transcript.md, section 2). The local host derives each
 account's number from its name: the first four bytes of the name's
-SHA-256 (skein's `lib.md`, 6.2), read as a big-endian `u32`. It never
+SHA-256 (skein's `runtime/lib.md`, 6.2), read as a big-endian `u32`. It never
 comes from the account's place in the settings or among the run's
 models, so that an account has one number in every invocation, and a
 chat resumed on the same account is not carried over. Renaming an

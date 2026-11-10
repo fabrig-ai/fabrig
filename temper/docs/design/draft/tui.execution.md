@@ -52,7 +52,7 @@ milestone that meets a question the draft leaves open takes its section
 - **Design:** the TUI's part of `../client/README.md` (its crates, its
   host, its terminal, its directory) and of `../protocol/README.md`,
   section 4 (bare `temper`); the full-screen shell in skein's design
-  beside `ui-text.md`; its theme, from the browser's chat terminal
+  beside `ui/text.md`; its theme, from the browser's chat terminal
   (`../client/browser.md`, 2.5).
 - **Builds:** skein's full-screen shell, its renderer and its terminal;
   the TUI's view and host on temper's client root; bare `temper` and

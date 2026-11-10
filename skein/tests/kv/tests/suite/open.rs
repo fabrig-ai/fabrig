@@ -1,4 +1,4 @@
-//! Recovery reads and heap follow the files' sizes (skein/docs/design/kv.md, 3 and 9).
+//! Recovery reads and heap follow the files' sizes (skein/docs/design/data/kv.md, 3 and 9).
 
 use skein_heap::Span;
 use skein_kv::{Event, Limits, Op, Page, Request};

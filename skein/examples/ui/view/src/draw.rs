@@ -1,4 +1,4 @@
-//! The notes-by-label chart, with words supplied by the view (ui.md, 11).
+//! The notes-by-label chart, with words supplied by the view (ui/scenes.md).
 use crate::view::OWNER;
 use skein_lib::{Decimal, List, Reader};
 use skein_ui::{

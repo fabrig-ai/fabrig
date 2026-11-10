@@ -1,4 +1,4 @@
-//! REST refusal is the only entrance to queue admission (forge-github.md, 5.1).
+//! REST refusal is the only entrance to queue admission (forge/github.md, 5.1).
 use super::{Plan, Request, Stage, Step, api};
 use crate::github::document;
 impl Plan {

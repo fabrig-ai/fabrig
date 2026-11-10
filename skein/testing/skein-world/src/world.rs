@@ -1,4 +1,4 @@
-//! The referee's loop and verdicts over the simulated world's steps (world.md, 3).
+//! The referee's loop and verdicts over the simulated world's steps (testing/world.md, 3).
 use crate::heap::{Heap, Metered};
 use crate::{
     Controls, Cut, Digests, Host, HostedProgram, Inherited, Machine, Memory, NoMachine, Outcome, Referee,
@@ -65,7 +65,7 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
     }
 
     /// Registers a factory and the named directories opened independently for
-    /// each launch, before its factory runs (simulator.md, section 3.1).
+    /// each launch, before its factory runs (testing/simulator.md, section 3.1).
     pub fn host_roots(&mut self, program: HostedProgram<P>, roots: StartupRoots) {
         self.inner.host_roots(program, roots);
     }
@@ -82,7 +82,7 @@ impl<P: Host, R: Referee<P>, M: Machine> World<P, R, M> {
 
     /// Adds a process whose factory owns independently opened named roots
     /// and a signal source. A cut restarts it at the same index over these
-    /// root paths (simulator.md, 3.3).
+    /// root paths (testing/simulator.md, 3.3).
     pub fn spawn_restartable(&mut self, roots: Vec<StartupRoot>, make: fn(&Inherited) -> P) -> usize {
         self.inner.spawn_restartable(roots, make)
     }

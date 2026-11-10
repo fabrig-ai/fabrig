@@ -1,4 +1,4 @@
-//! The organization step: each given org made when absent (forge-setup.md, 4.3, step 5).
+//! The organization step: each given org made when absent (forge/setup/forgejo.md, 1.3, step 5).
 use super::{Reconcile, State};
 use crate::forgejo::{Reply, reply, unexpected};
 use crate::given::Given;

@@ -1,4 +1,4 @@
-//! Metadata and cleanup checks before private bytes are read (io.md, 5.3).
+//! Metadata and cleanup checks before private bytes are read (runtime/io/files.md, 3).
 
 #![expect(
     clippy::wildcard_enum_match_arm,

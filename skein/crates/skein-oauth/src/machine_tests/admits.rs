@@ -1,4 +1,4 @@
-//! Pure redirect admission and the event's fatal boundary (oauth.md, 3).
+//! Pure redirect admission and the event's fatal boundary (oauth/README.md, 3).
 use super::*;
 
 fn redirect() -> Redirect {

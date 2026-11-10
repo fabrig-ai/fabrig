@@ -1,4 +1,4 @@
-//! Section 3's private git route with installation credentials (fake-forge.md, 10.1).
+//! Section 3's private git route with installation credentials (testing/fakes/github.md, 1.1).
 use crate::{
     auth::Access,
     service::{Limits, Outcome, Pending as Continuation, PendingKind, Request, Response, Service},
@@ -13,7 +13,7 @@ use skein_forge::github::request::Method;
 use skein_json::tokenizer as json;
 use skein_lib::{Queue, ReplyTo, Wall, bytes};
 
-/// One request on the private git route (fake-forge.md 10.1), never its credential.
+/// One request on the private git route (testing/fakes/github.md 1.1), never its credential.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct GitCall {
     /// The token's installation and mint number while its issued entry is retained,

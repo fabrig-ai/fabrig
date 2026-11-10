@@ -1,4 +1,4 @@
-//! Bounded keyed requests and their store barrier (lib.md, section 12).
+//! Bounded keyed requests and their store barrier (runtime/lib.md, section 12).
 //!
 //! The table owns requests, opaque scopes and owner values, declared byte
 //! counts, seeded keys and attempt tokens. It never reads an owner or a
@@ -84,7 +84,7 @@ pub enum RequestRefused<T> {
     Held(T),
 }
 
-/// Fixed admission, output and retry bounds (lib.md, section 12).
+/// Fixed admission, output and retry bounds (runtime/lib.md, section 12).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RequestLimits {
     /// Requests held, including work whose store output has not been taken.
@@ -735,7 +735,7 @@ impl<O: Copy, R> RequestTake<'_, O, R> {
     }
 }
 
-// lib.md, 5.1: hash held state, never capacity or storage layout.
+// runtime/lib.md, 5.1: hash held state, never capacity or storage layout.
 impl<O: Hash, R: Hash> Hash for RequestTable<O, R> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.entries.hash(state);

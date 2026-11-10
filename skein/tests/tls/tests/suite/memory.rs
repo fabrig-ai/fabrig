@@ -1,4 +1,4 @@
-//! The client's scenario ceilings against the counting allocator (tls.md, 5;
+//! The client's scenario ceilings against the counting allocator (net/tls.md, 5;
 //! programming-model.md, 6.3): every call of an entry point a step of the
 //! meter, and what the client held of its own, rustls's heap included,
 //! never more than the scenario's ceiling.
@@ -8,7 +8,7 @@
 //! span around everything done between steps, and each step is checked
 //! against the client's ceiling plus that heap, which no step of the client's
 //! touches: what the meter finds past it is the client's own. An input moved
-//! into a step was counted by whoever made it (testing.md, 5): a delivery
+//! into a step was counted by whoever made it (testing/README.md, 5): a delivery
 //! from below is made between steps, to the client's demand, and its ceiling
 //! covers it; a `Send` from above is the side above's, and the step
 //! that takes it is checked against the ceiling and its size. What a step

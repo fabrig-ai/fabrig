@@ -1,4 +1,4 @@
-//! The public kernel and its startup choice (shell.md, 7.1).
+//! The public kernel and its startup choice (runtime/readiness.md, 1).
 
 use std::{fmt, io};
 
@@ -13,7 +13,7 @@ use crate::{readiness, system};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Config {
     /// The most operations in flight at once, cancels included, as io's
-    /// operation slab counts them (kernel.md, 5). Both rings are
+    /// operation slab counts them (runtime/kernel.md, 5). Both rings are
     /// sized from it, so the completion queue cannot overflow, and
     /// [`crate::Kernel::submit`] takes no record past it.
     pub operations: u32,
@@ -33,7 +33,7 @@ pub enum Wait {
     Forever,
 }
 
-/// Why [`crate::Kernel::open`] refused: the shell does not start (shell.md, 4).
+/// Why [`crate::Kernel::open`] refused: the shell does not start (runtime/shell.md, 4).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum OpenError {
     /// A config of no operations, which could never submit one.
@@ -46,7 +46,7 @@ pub enum OpenError {
     Setup(i32),
     /// The kernel is below the floor, 6.12: its ring lacks this operation.
     Missing(&'static str),
-    /// The kernel's release is below this system's floor (shell.md, 4 and 7.6).
+    /// The kernel's release is below this system's floor (runtime/shell.md, 4, and runtime/readiness.md, 6).
     BelowFloor,
     /// This system has no completion ring.
     Unsupported,
@@ -112,7 +112,7 @@ impl fmt::Display for Chosen {
     }
 }
 
-/// io's kernel, opened once on one thread (shell.md, 3 and 7).
+/// io's kernel, opened once on one thread (runtime/shell.md, 3 and runtime/readiness.md).
 #[derive(Debug)]
 pub struct Kernel {
     running: Running,
@@ -124,7 +124,7 @@ pub struct Kernel {
     target_os = "linux",
     expect(
         clippy::large_enum_variant,
-        reason = "the startup choice holds the ring inline so its path adds no allocation or indirection (shell.md, 7.1)"
+        reason = "the startup choice holds the ring inline so its path adds no allocation or indirection (runtime/readiness.md, 1)"
     )
 )]
 enum Running {
@@ -133,7 +133,7 @@ enum Running {
     Readiness(readiness::Readiness),
 }
 
-/// The ring's refusal that falls back to readiness (shell.md, 7.1):
+/// The ring's refusal that falls back to readiness (runtime/readiness.md, 1):
 /// `Setup(ENOSYS)` or `Setup(EPERM)`, its errno; anything else, None.
 #[cfg(any(target_os = "linux", test))]
 fn falls_back(refused: &OpenError) -> Option<i32> {
@@ -147,7 +147,7 @@ fn falls_back(refused: &OpenError) -> Option<i32> {
 }
 
 impl Kernel {
-    /// The host's backend (shell.md, 7.1).
+    /// The host's backend (runtime/readiness.md, 1).
     #[cfg(target_os = "linux")]
     pub fn open(config: Config) -> Result<Self, OpenError> {
         match ring::Ring::open(config) {
@@ -162,7 +162,7 @@ impl Kernel {
         }
     }
 
-    /// The host's readiness backend (shell.md, 7.1).
+    /// The host's readiness backend (runtime/readiness.md, 1).
     #[cfg(target_os = "macos")]
     pub fn open(config: Config) -> Result<Self, OpenError> {
         Self::open_on(config, Backend::Readiness)

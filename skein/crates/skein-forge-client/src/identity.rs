@@ -1,4 +1,4 @@
-//! Deployment keys and authenticated forge writers (forge-client.md, section 6).
+//! Deployment keys and authenticated forge writers (forge/client.md, section 6).
 //!
 //! The client's configuration names the key framing and the writers known
 //! at start; the owner gives others at runtime, and the domain's table holds
@@ -9,7 +9,7 @@ use alloc::boxed::Box;
 use skein_forge::api;
 use skein_lib::{List, usize_of};
 
-/// Frame the owner's namespace and opaque effect identity (forge-client.md, 7.1).
+/// Frame the owner's namespace and opaque effect identity (forge/client.md, 7.1).
 #[must_use]
 pub fn effect_key(namespace: &[u8], identity: &[u8], max: u32) -> Option<Box<[u8]>> {
     let total = 3_usize.checked_add(namespace.len())?.checked_add(identity.len())?;

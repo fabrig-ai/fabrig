@@ -81,7 +81,7 @@ enum Listener {
 /// its transitions (programming-model.md, 5.4).
 const CLOSED: Listener = Listener::Closed { error: None };
 
-/// The service's shutdown from io or a lower-tier world (io.md, section 7),
+/// The service's shutdown from io or a lower-tier world (runtime/io/README.md, section 4),
 /// told to the domain once from the ready list.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Shutdown {
@@ -91,7 +91,7 @@ enum Shutdown {
 }
 
 /// The connections' stop (examples.md, 3.4): drained once the domain asks
-/// `Stop`, aborted by a second shutdown (shell.md, section 13).
+/// `Stop`, aborted by a second shutdown (runtime/shell.md, section 12).
 #[derive(Debug)]
 enum Stop {
     Serving,
@@ -121,7 +121,7 @@ impl Protocol {
     }
 
     /// Asks for the domain to be told `Shutdown`, from the ready list. Asked
-    /// again, it aborts connections still settling (shell.md, section 13).
+    /// again, it aborts connections still settling (runtime/shell.md, section 12).
     pub fn shutdown(&mut self) {
         let shutdown = mem::replace(&mut self.shutdown, Shutdown::Told);
         self.shutdown = match shutdown {
@@ -478,7 +478,7 @@ fn listener_failed(proto: &mut Protocol, error: Error, down: &mut Queue<Io>) {
 
 /// io closed the listener: after its close, or after its listen failed. A
 /// listen refused for want of resources is asked again after
-/// `Limits::retry`, as io's `Busy` allows (io.md, 2); any other failure
+/// `Limits::retry`, as io's `Busy` allows (runtime/io/README.md, 2); any other failure
 /// stops the listener for good, and the service with it.
 fn listener_closed(proto: &mut Protocol, env: &Env<Limits>) {
     let state = mem::replace(&mut proto.listener, CLOSED);

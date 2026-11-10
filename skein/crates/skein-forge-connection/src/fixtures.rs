@@ -1,4 +1,4 @@
-//! Fixtures shared by step tests and the machine world's hand (forge-connection.md, 10).
+//! Fixtures shared by step tests and the machine world's hand (forge/connection.md, 10).
 use crate::{
     Limits, Settings, Shared,
     settings::{Forge, Kind, Transport},
@@ -11,7 +11,7 @@ use skein_lib::{Duration, List, Secret};
 pub const WORD: &[u8] = b"kit";
 pub const USER_AGENT: &[u8] = b"kit/0.0.0";
 pub const OP_BYTES: u32 = 512;
-// Twice the operation bound, the owner's word, and marker framing (forge.md 6).
+// Twice the operation bound, the owner's word, and marker framing (forge/README.md 5).
 pub const BODY_ROOM: u32 = 2 * OP_BYTES + 3 + 15;
 pub const WRITER: u64 = 2;
 

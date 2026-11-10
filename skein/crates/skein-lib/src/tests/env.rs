@@ -1,4 +1,4 @@
-//! A child environment shares the iteration's clocks (skein/docs/design/lib.md, 9).
+//! A child environment shares the iteration's clocks (skein/docs/design/runtime/lib.md, 9).
 
 use alloc::boxed::Box;
 

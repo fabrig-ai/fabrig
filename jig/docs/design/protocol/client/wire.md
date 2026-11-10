@@ -3,7 +3,7 @@
 ## 1. The wire
 
 - **`jig-client-protocol-wire`,** a codec crate generated from schemas
-  (skein's `codec.md`), holds jig's records for both ends:
+  (skein's `data/codec/README.md`), holds jig's records for both ends:
   - the envelope of every message: its owner and its version (`README.md`, section 6
     );
   - the operations of `../../client/domain/contract/requests.md`, 2, one record
@@ -66,14 +66,14 @@
   32 items, so 32 is the most the client's `rows` may be, and with it
   the rows of its pages and windows. More changes the wire's schema;
   until the first release its version stays fixed (`README.md`, section 6; skein's
-  `codec.md`, section 5). A client whose rows pass it is unusable: the link
+  `data/codec/README.md`, section 5). A client whose rows pass it is unusable: the link
   refuses its limits at construction, and nothing is cut to fit.
 - **A document's nested collections cross as pieces.** The client bounds
   a document by its bytes in all, not each list by its count times its
   largest item. So a list whose items hold lists of their own (a page's
   rows; the rows of a table in which a contract type that nests itself
   is flattened, each row with its parent's index) crosses as one piece
-  bounded by the client's document limit (skein's `codec.md`, section 3,
+  bounded by the client's document limit (skein's `data/codec/README.md`, section 3,
   "A sum crosses as one piece"). The client decodes each row as it
   splits the piece, counting it against that limit, so a page of many
   small rows and one of a few large ones cost what they hold. Lists of

@@ -1,4 +1,4 @@
-//! Pull lookup and bounded CI page folding (forge-github.md, 4.1 and 4.4).
+//! Pull lookup and bounded CI page folding (forge/github.md, 4.1 and 4.4).
 use super::{Bounds, Plan, Read, Response, Stage, Step, api, document, size};
 use crate::{
     github::{plans::reading, request::Request},

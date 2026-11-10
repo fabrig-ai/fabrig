@@ -1,0 +1,53 @@
+# lib: status
+
+2026-11-07. Where skein's code lags or departs from [lib.md](lib.md).
+
+- **Not yet:** 3: `Slab::get2_mut`. 6: a carrier's lengths, beyond
+  skein-http's heads, skein-channel's frames and the oauth crates' bodies
+  and URLs (http.md, 2; ../net/channel.md, 3; ../oauth/README.md, 4). These still derive `Debug` over what they carry, as the request of
+  2026-11-05 left them: skein-io's stream, pipe and kernel bytes, with
+  lib's `stream::Down`, `stream::Up`, `Intake` and `Writer`; skein-kv's
+  values; skein-oauth's `Json`; jig's bodies; skein-channel's refusal text
+  and `FrameWriter`; skein-http's `sse::Dispatch` and `sse::Outgoing`, and
+  what its event-stream reader and writer hold. That request has the first
+  four with no known credential path, and the code has one through each.
+  The stream's records and `Intake` hold an HTTP head, an HTTP body or a
+  channel frame on its way through the stream below. kv's values hold
+  jig's secrets' records, unsealed, an account's key and a source's saved
+  tokens among them (`jig-protocol-store/src/secrets.rs`). A `Json` holds a
+  token response, though only as a local of its reader, in no record that
+  prints (`skein-oauth/src/machine.rs`). jig's bodies hold the encoded
+  `LinkSignIn` in `Message::SignInLink`, on each side of the transport, and
+  in the engine's HTTP `Call`, so the printed link's secret prints there,
+  and a bearer's token in `Reply::Record`'s encoded `SignedIn`. Of the rest,
+  a `FrameWriter` holds a body as it is written, a local in the same way, and
+  none has a known credential path. jig's `translate::Up::Visited` and
+  `jig_domain_accounts::Event::Visited` print the visit address, with the sign-in's `state`,
+  challenge and nonce that ../oauth/README.md, 4 has hidden, because jig's
+  `protocol/llm.md`, 5.2 keeps the address as an answer, spent with its sign-in.
+- **Departs:** 6: a step widens with `usize_of` and `len_u64`, but `try_from`
+  still stands for them in three places. What the schema compiler prints
+  holds `usize::try_from(limit).expect("u32 fits usize")`, 13 sites in
+  `skein-oauth` and `skein/examples/ui/view`, which the debt item the request
+  of 2026-11-05 paid counts and names no exception for, because changing it
+  regenerates every tree's codecs (../data/codec/README.md, 10). `skein-fake-checkout`
+  measures two lengths with `u64::try_from`, against that item too, because
+  it has no `skein-lib` dependency; `skein/scripts/old-forms.txt`'s
+  `widening` holds them at 22, the other 20 a
+  `u64`'s or a signed count's, which can fail and are outside the rule. And
+  about 135 lines of step code write `usize::try_from(..)` with no `.expect(..)` on
+  the line, over a `u32` or a `u64`, `skein-kv`'s frames and snapshots among
+  them, which that item does not name and that form does not count.
+  `skein-forge/src/forgejo/server/files.rs` keeps a private `joined` beside
+  `bytes::concat`, because it writes a slash between a path's segments, and
+  `concat` has no separator.
+  12: `skein-lib/src/requests.rs`'s `Entry` holds its three lifecycles in
+  `State`, `Keeping` and `Telling`, but the table's methods write most of their
+  cells as assignments in their own arms, and `Entry::reachable` and the table's
+  `pending` and `next_out` read `keeping` by `==` or `!=`, so a new `Keeping`
+  breaks no build there, against `skein/docs/foundation/programming-model.md`, 5.4's one small
+  handler per cell and exhaustive matches. The `debt-28` plan's task took the
+  flags and options and left the idiom to its implementer, and that plan's item,
+  which asked that the state follow 5.4, is deleted. Seen by reading. 12: that
+  plan's request of 2026-11-06 has each of its items end with fewer lines than
+  it started; the table's ended 20 lines of Rust up, within its task's cap.

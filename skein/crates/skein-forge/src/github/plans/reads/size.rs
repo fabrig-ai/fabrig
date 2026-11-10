@@ -6,7 +6,7 @@ use skein_lib::len_u64;
 pub(super) fn capacity(bounds: Bounds, width: usize) -> Result<u32, api::Error> {
     Ok(bounds.rows.min(byte_capacity(bounds, width)?))
 }
-// Branch names have no row bound (skein/docs/design/forge.md, 3.7).
+// Branch names have no row bound (skein/docs/design/forge/README.md, 3.7).
 pub(super) fn byte_capacity(bounds: Bounds, width: usize) -> Result<u32, api::Error> {
     let Ok(width) = u32::try_from(width) else {
         return Err(api::Error::TooLarge);

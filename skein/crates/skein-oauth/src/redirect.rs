@@ -6,7 +6,7 @@ use core::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use core::str::FromStr;
 use skein_lib::{Decimal, List, Writer, bytes, usize_of};
 
-/// An issuer's additions to its client registration (oauth.md, section 1).
+/// An issuer's additions to its client registration (oauth/README.md, section 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Terms {
     pub parameters: Box<[Parameter]>,
@@ -33,7 +33,7 @@ pub enum Sent {
     NewRegistration,
 }
 
-/// The ID token's issuer, published key set and requested profile claims (oauth.md, 2.2).
+/// The ID token's issuer, published key set and requested profile claims (oauth/README.md, 2.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct OpenId {
     pub issuer: Box<[u8]>,
@@ -80,7 +80,7 @@ pub fn validate_registration(registration: &Registration, limits: &ClientLimits,
     Ok(())
 }
 
-// oauth.md, section 1 requires HTTPS to name a host without userinfo, and
+// oauth/README.md, section 1 requires HTTPS to name a host without userinfo, and
 // permits HTTP only when the issuer address itself is loopback. Names are not
 // resolved by this sans-IO client: a numeric host proves the HTTP address.
 #[expect(clippy::disallowed_methods, reason = "the OAuth protocol machine validates bounded numeric URI hosts")]
@@ -161,7 +161,7 @@ fn parse_port(port: &[u8]) -> Option<u16> {
 
 /// Address the caller binds for a public redirect; `localhost` is never resolved.
 /// Admits only exact loopback spellings, an explicit nonzero port and a path
-/// (oauth.md, sections 1 and 5); the caller still compares the whole URI exactly.
+/// (oauth/README.md, sections 1 and 5); the caller still compares the whole URI exactly.
 pub fn redirect_address(uri: &[u8]) -> Result<SocketAddr, Failure> {
     parse_redirect(uri, false)
 }
@@ -461,7 +461,7 @@ pub(crate) fn issued_id(registration: &Registration) -> bool {
     }
 }
 
-/// Names required scopes not granted by a record (oauth.md, section 2.2).
+/// Names required scopes not granted by a record (oauth/README.md, section 2.2).
 #[must_use]
 pub fn missing_scopes(registration: &Registration, record: &crate::SavedToken) -> Box<[u8]> {
     let required = match &registration.terms {
@@ -503,7 +503,7 @@ pub fn missing_scopes(registration: &Registration, record: &crate::SavedToken) -
     writer.finish()
 }
 
-/// The profile claims a registration asks to read of an ID token (oauth.md, 2.2).
+/// The profile claims a registration asks to read of an ID token (oauth/README.md, 2.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Profile {
     pub email: bool,

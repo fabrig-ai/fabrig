@@ -101,7 +101,7 @@ pub enum Part {
     /// The native decoder delivers this complete function call in `Output::Part`.
     /// The Client translates it before its eventual call terminal. IDs are
     /// admitted JSON strings, never packed into a delimiter-separated string.
-    /// See `docs/design/llm.md`, Vocabulary and ownership.
+    /// See `docs/design/llm/README.md`, Vocabulary and ownership.
     ToolCall {
         /// Exact identity paired with the application's result, under `Limits::strings`.
         call_id: Box<[u8]>,
@@ -119,7 +119,7 @@ pub enum Part {
         cut: bool,
     },
 }
-/// Decoded events over this dialect's `Part` (skein/docs/design/llm.md, 2).
+/// Decoded events over this dialect's `Part` (skein/docs/design/llm/README.md, 2).
 pub type Output = crate::wire::Output<Part>;
 #[derive(Debug)]
 pub struct StreamDecoder {
@@ -930,7 +930,7 @@ pub fn encode_error(error: &ProviderError, limits: &Limits) -> Result<Box<[u8]>,
     encode_event(&Event::Failed { error: error.clone() }, limits)
 }
 /// Writes a failed Responses terminal, with its error under `response`.
-/// Contract: docs/design/fake-llm.md, section 2.3.
+/// Contract: docs/design/testing/fakes/llm.md, section 2.3.
 pub fn encode_failed(error: &ProviderError, limits: &Limits) -> Result<Box<[u8]>, DecodeError> {
     let bounded = limits.writer_limits();
     let mut measure = Encoder::measure(&bounded);

@@ -1,4 +1,4 @@
-//! Browser history owns paths and entry scroll (ui-web.md, 9).
+//! Browser history owns paths and entry scroll (ui/web/README.md, 7).
 use crate::inbox::Inbox;
 use std::{cell::RefCell, rc::Rc};
 use wasm_bindgen::{JsCast, JsValue, closure::Closure};

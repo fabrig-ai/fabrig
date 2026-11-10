@@ -26,8 +26,8 @@ disallowed-types = [
     { path = "std::net::TcpStream", reason = "a descriptor is closed by a Close record, not on drop" },
     { path = "std::net::TcpListener", reason = "a descriptor is closed by a Close record, not on drop" },
     { path = "std::net::UdpSocket", reason = "a descriptor is closed by a Close record, not on drop" },
-    { path = "std::process::Child", reason = "std::process is not used (io.md, 6)" },
-    { path = "std::process::Command", reason = "std::process is not used (io.md, 6)" },
+    { path = "std::process::Child", reason = "std::process is not used (runtime/io/processes.md)" },
+    { path = "std::process::Command", reason = "std::process is not used (runtime/io/processes.md)" },
 ]
 
 disallowed-methods = [

@@ -4,7 +4,7 @@ use skein_lib::Duration;
 pub const WORD: &[u8] = b"kit";
 pub const USER_AGENT: &[u8] = b"kit/0.0.0";
 pub const OP_BYTES: u32 = 512;
-// Twice the operation bound, the owner's word, and marker framing (forge.md 6).
+// Twice the operation bound, the owner's word, and marker framing (forge/README.md 5).
 pub const BODY_ROOM: u32 = 2 * OP_BYTES + 3 + 15;
 pub const WRITER: u64 = 2;
 #[must_use]
@@ -106,7 +106,7 @@ pub fn response(code: u16, body: &[u8]) -> Vec<u8> {
     bytes.extend_from_slice(body);
     bytes
 }
-/// An Items listing supplies the time of its own snapshot (forge.md, 5.3).
+/// An Items listing supplies the time of its own snapshot (forge/forgejo.md, 1.3).
 #[must_use]
 pub fn dated_response(code: u16, body: &[u8]) -> Vec<u8> {
     let mut bytes = format!(

@@ -393,8 +393,8 @@ shows, it reads through the public client.
   kinds in words (`client/domain/pages.md`, section 9).
 - **Its drawing:** an incident's error rate, on the incident's page, a
   drawing of observability's with its fallback in words. Its drawing
-  code, in `jig-ops-client-view`, draws it as a scene (skein's `ui.md`,
-  section 11; `client/domain/view.md`, section 17), tested by golden
+  code, in `jig-ops-client-view`, draws it as a scene (skein's `ui/scenes.md`
+  ; `client/domain/view.md`, section 17), tested by golden
   scenes.
 - **A person in the worlds** is skein's fake person, reading the tree:
   P accepting a restart from an incident's page
@@ -405,7 +405,7 @@ shows, it reads through the public client.
   People sign in by the printed link; `ops` has no sign-in of its own.
 - **Its terminal** is a presentation of the same client, on skein's text
   shell, with jig's settings: its client and its presentation, printed
-  by `skein-ui-text` at most once a second (skein's `ui-text.md`;
+  by `skein-ui-text` at most once a second (skein's `ui/text.md`;
   `client/domain/view.md`, section 15), over the native shell,
   `jig-client-shell-native`, and the default mapping's client end,
   holding its credential as a bearer token. Its client world plays it

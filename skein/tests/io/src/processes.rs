@@ -1,4 +1,4 @@
-//! io's group lifetime over the shared world harness (io.md, sections 6 and 8).
+//! io's group lifetime over the shared world harness (runtime/io/processes.md and runtime/io/README.md, section 5).
 //! The scripted owner sees tokens, pipe EOF and exit, never service state.
 //! The same owner runs against the minimal machine and the real fixture.
 

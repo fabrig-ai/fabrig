@@ -64,7 +64,7 @@ fn accepted(given: &Given, label: &str) {
     assert_eq!(given::check(given), Ok(()), "{label}");
     assert!(Reconcile::new(given).is_ok(), "{label}");
 }
-// Grammar maxima from forge-setup.md, 4.1, and their one-byte overruns.
+// Grammar maxima from forge/setup/forgejo.md, 1.1, and their one-byte overruns.
 const WORD_MAX: usize = 16;
 const LOGIN_MAX: usize = 40;
 const EMAIL_MAX: usize = 254;

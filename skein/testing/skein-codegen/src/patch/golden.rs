@@ -1,4 +1,4 @@
-//! Old golden values run through a kept patch (codec.md, 12.3).
+//! Old golden values run through a kept patch (data/codec/command.md, 3).
 
 use alloc::collections::{BTreeMap, BTreeSet};
 use std::{fs, path::Path};

@@ -69,7 +69,7 @@ pub fn processes<B: Backend>(backend: &mut B, executable: &[u8]) -> Processes {
     assert_eq!(
         failed.result,
         Err(Error::NotFound),
-        "a failed Spawn makes no usable descriptors (kernel.md, sections 3 and 4)"
+        "a failed Spawn makes no usable descriptors (runtime/kernel.md, sections 3 and 4)"
     );
 
     let status = command(executable, root, &[b"exit", b"42"], &[]);

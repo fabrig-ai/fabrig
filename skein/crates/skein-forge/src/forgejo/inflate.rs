@@ -1,4 +1,4 @@
-//! Private bounded raw DEFLATE decoding for ZIP entries (forge.md, 5.2; RFC 1951).
+//! Private bounded raw DEFLATE decoding for ZIP entries (forge/forgejo.md, 1.2; RFC 1951).
 //! Malformed streams and output past the caller's capacity are refused.
 
 use skein_lib::List;

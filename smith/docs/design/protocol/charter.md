@@ -47,7 +47,7 @@ workers carry unread, and its version must be the one its agents read
 
 ## 2. The charter
 
-A versioned record (skein's `codec.md`, section 3):
+A versioned record (skein's `data/codec/README.md`, section 3):
 
 - **mode:** `finite` or `open` (domain/run.md, 3.1). Open requires `wait`
   and neither `deliver` nor `save`, or admission refuses MalformedCharter; its result
@@ -233,7 +233,7 @@ and a refusal names what was too large.
   entities by `smith-protocol-channel`, with each endpoint's name resolved
   through the agent's configuration, and a result translated back.
 - **skein owes** the codec generator and `skein-codec` (skein's
-  `codec.md`).
+  `data/codec/README.md`).
 
 ## 8. The world
 

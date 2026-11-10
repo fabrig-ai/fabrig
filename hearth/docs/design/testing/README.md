@@ -145,7 +145,7 @@ mid-write.
 ### 2.6 Simulated worlds
 
 Each process's `iterate` on skein's simulator, the fake machine behind
-its machine seam (`skein/docs/design/simulator.md`, section 3). A spawn starts a
+its machine seam (`skein/docs/design/testing/simulator.md`, section 3). A spawn starts a
 tool's fake, or one of hearth's own processes in the same world: the
 activator spawning the steward, the steward its builder, the builder
 its tree helper. A reboot
@@ -206,7 +206,7 @@ tests/vm/tests/*.rs                 the VM tier (section 7)
 ```
 
 The world harness is skein's `skein-world`, and the counting allocator
-`skein-heap` (`skein/docs/design/testing.md`, section 5).
+`skein-heap` (`skein/docs/design/testing/README.md`, section 5).
 
 ### 2.10 What changes from os
 
@@ -290,7 +290,7 @@ no window under readers in a loop; the propagation traps. Real owners,
 setuid bits, capabilities and `trusted.*` attributes through an overlay
 need root, and wait for the VM tier (`vm.md`, 3). Each case names the
 rule it checks. No running kernel can check
-the crash model, as `skein/docs/design/kv.md` says of its own: it rests on the
+the crash model, as `skein/docs/design/data/kv.md` says of its own: it rests on the
 sources it cites, and the VM tier's power cuts (`vm.md`, 3) test hearth, not
 the model.
 

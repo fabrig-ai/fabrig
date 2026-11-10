@@ -1,4 +1,4 @@
-//! RFC 8439, appendix A.1, with the original counter layout (lib.md, 8).
+//! RFC 8439, appendix A.1, with the original counter layout (runtime/lib.md, 8).
 use crate::{CryptoRng, Secret, bytes};
 const ONE: [u8; 64] = [
     0x76, 0xb8, 0xe0, 0xad, 0xa0, 0xf1, 0x3d, 0x90, 0x40, 0x5d, 0x6a, 0xe5, 0x53, 0x86, 0xbd, 0x28, 0xbd, 0xd2, 0x19,
@@ -39,7 +39,7 @@ impl<T: Clone> Probe<T> {
 #[expect(clippy::assertions_on_constants, reason = "the trait probe is a nextest regression check")]
 fn a_generator_is_neither_copied_nor_cloned() {
     assert!(Probe::<crate::Token>::CLONE, "the probe sees a Clone type");
-    assert!(!Probe::<CryptoRng>::CLONE, "a copy would yield its bytes again (lib.md, 8)");
+    assert!(!Probe::<CryptoRng>::CLONE, "a copy would yield its bytes again (runtime/lib.md, 8)");
 }
 
 #[test]

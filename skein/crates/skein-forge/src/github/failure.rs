@@ -1,4 +1,4 @@
-//! GitHub's whole-line failure map (forge-github.md, section 7).
+//! GitHub's whole-line failure map (forge/github.md, section 7).
 use super::{document::Refusal, header::Head};
 use crate::api;
 use skein_lib::Duration;

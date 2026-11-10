@@ -1,11 +1,11 @@
-//! The domain layer of a fake forge, for simulation worlds (fake-forge.md, section 2).
+//! The domain layer of a fake forge, for simulation worlds (testing/fakes/forge.md, section 2).
 //!
-//! A forge seen from the inside (fake-forge.md, section 2), Forgejo-shaped:
+//! A forge seen from the inside (testing/fakes/forge.md, section 2), Forgejo-shaped:
 //! repositories with their users' permissions, labels, issues and pull
 //! requests sharing one numbering, comments, reviews, CI statuses, merges, a
 //! wiki, and the git a worker clones, fetches and pushes, all in one store,
 //! so a branch a worker pushes is the head the engine reads, and a merge the
-//! engine makes moves the branch the next fetch sees (fake-forge.md, sections 2 and 3).
+//! engine makes moves the branch the next fetch sees (testing/fakes/forge.md, sections 2 and 3).
 //!
 //! Calls come up from its protocol layer as [`Event::Call`] (the `boundary`
 //! module states the contract), each by a user

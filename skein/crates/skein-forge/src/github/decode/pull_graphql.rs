@@ -1,4 +1,4 @@
-//! The shared pull query's identity and queue fields (forge-github.md, 4.3).
+//! The shared pull query's identity and queue fields (forge/github.md, 4.3).
 use super::{Malformed, document};
 use crate::api;
 use alloc::boxed::Box;

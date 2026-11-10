@@ -18,7 +18,7 @@ pub struct Start {
     pub start: Wall,
 }
 
-/// An input for the visitor: fetch's duties (ui-web.md, 10).
+/// An input for the visitor: fetch's duties (ui/web/README.md, 8).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Input {
     Exchange(Exchange),
@@ -27,7 +27,7 @@ pub enum Input {
     ReadOn,
 }
 
-/// An exchange crossing the worker boundary, with owned kept names (skein/docs/design/ui-web.md, 18).
+/// An exchange crossing the worker boundary, with owned kept names (skein/docs/design/ui/web/README.md, 15).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Exchange {
     pub id: u32,

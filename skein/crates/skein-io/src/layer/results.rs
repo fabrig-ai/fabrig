@@ -1,4 +1,4 @@
-//! Kernel result interpretation for io (kernel.md, sections 5 and 6.3).
+//! Kernel result interpretation for io (runtime/kernel.md, sections 5 and 6.3).
 
 use crate::kernel::{self, Done};
 
@@ -45,7 +45,7 @@ pub(super) fn window(result: Result<Done, kernel::Error>) -> crate::Window {
             | kernel::Error::Escape
             | kernel::Error::Busy
             | kernel::Error::NotAFile,
-        ) => unreachable!("Window fails only Other (kernel.md, section 6.3)"),
+        ) => unreachable!("Window fails only Other (runtime/kernel.md, section 6.3)"),
     }
 }
 
@@ -94,6 +94,6 @@ pub(crate) fn unsubmitted(result: Result<Done, kernel::Error>) -> bool {
             | kernel::Error::Escape
             | kernel::Error::Busy
             | kernel::Error::NotAFile,
-        ) => unreachable!("a cancel fails only too late or unsubmitted (kernel.md, 5)"),
+        ) => unreachable!("a cancel fails only too late or unsubmitted (runtime/kernel.md, 5)"),
     }
 }

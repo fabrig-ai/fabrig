@@ -1,4 +1,4 @@
-//! A lent domain and whole requests without io (skein/docs/design/fake-forge.md, 10.6).
+//! A lent domain and whole requests without io (skein/docs/design/testing/fakes/github.md, 1.6).
 use crate::{
     server::{self, Event, Server},
     service::{Limits, Service},

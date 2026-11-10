@@ -1,4 +1,4 @@
-//! Every page of the App's installations (forge-github.md, 8.3).
+//! Every page of the App's installations (forge/github.md, 8.3).
 use super::{Event, State, Step, api, capacity, document, keep_installation, plan};
 use crate::github::{plans::Heard, request::Request};
 use alloc::boxed::Box;

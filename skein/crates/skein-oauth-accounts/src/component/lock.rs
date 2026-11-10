@@ -1,4 +1,4 @@
-//! Shared writes read once under the owner's lock (oauth.md, section 6.4).
+//! Shared writes read once under the owner's lock (oauth/accounts.md, section 4).
 
 use super::{Component, Lending, Lifecycle, Refresh, State, grant, held, recorded};
 use crate::accounts::{Source, copy_registration};

@@ -1,4 +1,4 @@
-//! Admission and answer fit for Actions and trees (forge-client.md, 2.3).
+//! Admission and answer fit for Actions and trees (forge/client.md, 2.3).
 use super::fixtures::{Harness, outbox as writing};
 use super::{LIMITS, REPO, at, terminal};
 use crate::{Condition, Event, Outcome};

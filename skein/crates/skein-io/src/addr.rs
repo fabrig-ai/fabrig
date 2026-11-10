@@ -1,4 +1,4 @@
-//! io addresses and inline in-process names (io.md, sections 2 and 4).
+//! io addresses and inline in-process names (runtime/io/README.md, sections 2 and 3).
 
 use core::net::SocketAddr;
 
@@ -7,7 +7,7 @@ use core::net::SocketAddr;
 pub enum Addr {
     /// The kernel's socket address.
     Ip(SocketAddr),
-    /// A listener in this io's own namespace (io.md, 3.5).
+    /// A listener in this io's own namespace (runtime/io/sockets.md, 5).
     InProcess(Name),
 }
 
@@ -22,7 +22,7 @@ impl Addr {
     }
 }
 
-/// An inline name, compared as bytes (io.md, section 4).
+/// An inline name, compared as bytes (runtime/io/README.md, section 3).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Name {
     bytes: [u8; 32],

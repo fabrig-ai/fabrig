@@ -124,7 +124,7 @@ enum Due {
     Expire { pid: Pid, connect: Token },
 }
 
-/// The simulated kernel (simulator.md), for every process of one
+/// The simulated kernel (testing/simulator.md), for every process of one
 /// world, deterministic from its seed. See the crate documentation.
 #[derive(Debug)]
 pub struct Sim {
@@ -235,7 +235,7 @@ impl Sim {
     }
 
     /// Cuts a process with every record it owns, never completing them,
-    /// and releases its descriptors (simulator.md, 3.3). The world settles
+    /// and releases its descriptors (testing/simulator.md, 3.3). The world settles
     /// the returned file handles; calls discarded by this cut are not answered.
     pub fn cut(&mut self, pid: Pid) -> Box<[Handle]> {
         self.cut_with(pid, drop)
@@ -331,7 +331,7 @@ impl Sim {
     }
 
     /// A window size for one of `pid`'s descriptors; `Op::Window` on it answers
-    /// `Done::Window(size)` (skein/docs/design/simulator.md, 3.2).
+    /// `Done::Window(size)` (skein/docs/design/testing/simulator.md, 3.2).
     pub fn set_window(&mut self, pid: Pid, fd: Fd, size: Size) {
         let process = self.process(pid);
         if !process.fds.contains_key(&fd)
@@ -347,7 +347,7 @@ impl Sim {
     }
 
     /// `Signalled::WindowChanged` on `pid`'s signal source `fd`, in order with
-    /// its other signals (skein/docs/design/simulator.md, 3.2).
+    /// its other signals (skein/docs/design/testing/simulator.md, 3.2).
     pub fn deliver_window_changed(&mut self, pid: Pid, fd: Fd) {
         self.deliver_signalled(pid, fd, Signalled::WindowChanged);
     }
@@ -1687,7 +1687,7 @@ impl Sim {
         self.die(&format!("a bug of the simulator: {what}"));
     }
 
-    #[expect(clippy::panic, reason = "the simulator fails the world on a broken invariant (simulator.md, 5)")]
+    #[expect(clippy::panic, reason = "the simulator fails the world on a broken invariant (testing/simulator.md, 5)")]
     fn die(&self, what: &str) -> ! {
         let from = self.trace.len().saturating_sub(TAIL);
         let tail = match self.config.trace {

@@ -1,5 +1,5 @@
 //! Incremental text writes, queued behind the current SSE event.
-//! Contract: docs/design/fake-llm.md, sections 2.2 and 5.
+//! Contract: docs/design/testing/fakes/llm.md, sections 2.2 and 5.
 
 use super::{Call, Event, Limits, Server, Service, State, documents, next_event};
 use alloc::boxed::Box;

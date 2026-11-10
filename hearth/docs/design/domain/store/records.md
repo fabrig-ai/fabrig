@@ -219,7 +219,7 @@ hearth/docs/design/domain/build/artifacts.md (`README.md`, 4.3) lists them. Its 
 ## 8. Written by rename; versioned
 
 - **Atomic:** a record is replaced whole by skein's `Store` (
-  `skein/docs/design/io.md`, sections 5 and 5.2): its temporary, `<name>.skein-<16 hex>`,
+  `skein/docs/design/runtime/io/files.md`): its temporary, `<name>.skein-<16 hex>`,
   written beside it, synced, renamed over `<name>`, the directory
   synced. A reader sees the old record or the new. A tree file [M2] is
   written the same way by the builder itself, as `<key>.tree.tmp`.
@@ -237,7 +237,7 @@ hearth/docs/design/domain/build/artifacts.md (`README.md`, 4.3) lists them. Its 
   A file whose name is already present is not written again: its
   temporary is removed. An index a resolution keeps is synced where apt
   left it, renamed from its scratch directory into `cache/<sha256>`
-  (`skein/docs/design/io.md`, 5: a rename between two directories), and `cache/`
+  (`skein/docs/design/runtime/io/files.md`: a rename between two directories), and `cache/`
   synced, before its record (hearth/docs/design/domain/render/spec.md, 2.3). A cut anywhere leaves a
   temporary, or a file with no record, which the startup scan deletes
   (`README.md`, 4.4).

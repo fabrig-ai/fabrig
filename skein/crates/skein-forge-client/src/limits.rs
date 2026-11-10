@@ -1,4 +1,4 @@
-//! Capacity limits and representability checks (forge-client.md, section 5).
+//! Capacity limits and representability checks (forge/client.md, section 5).
 //!
 //! The limits bound retained calls, live rows and in-flight writes. This
 //! module retains no state and knows no task policy. `valid` rejects
@@ -38,7 +38,7 @@ pub struct Limits {
     /// How long Forgejo may settle mergeability and a hinted job's CI.
     pub settle: Duration,
     /// How long a repository hears after its last hint, its timed reads
-    /// falling back to this window meanwhile (forge-client.md, 4.1).
+    /// falling back to this window meanwhile (forge/client.md, 4.1).
     /// Zero stretches nothing.
     pub fallback: Duration,
     pub facts: u32,

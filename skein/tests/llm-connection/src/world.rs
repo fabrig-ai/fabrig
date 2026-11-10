@@ -1,5 +1,5 @@
 //! The pooled component, owner script and independent byte peers over seeded
-//! plaintext wires (llm-connection.md, section 8). The referee observes owner
+//! plaintext wires (llm/connection.md, section 8). The referee observes owner
 //! terminals and physical settlement, and rejects events after Closed.
 
 use std::collections::{BTreeMap, BTreeSet};

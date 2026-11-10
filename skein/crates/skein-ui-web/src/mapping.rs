@@ -1,4 +1,4 @@
-//! The default semantic tree mapping (ui-web.md, 6).
+//! The default semantic tree mapping (ui/web/elements.md).
 
 use skein_ui::{EntryKind, Fraction, Made, Modifier, Role, Run, Shortcut, Source, State, TextRun};
 
@@ -14,7 +14,7 @@ pub enum Primary {
     Meta,
 }
 
-/// The words the page part says for the states no attribute stands for (ui-web.md, 6).
+/// The words the page part says for the states no attribute stands for (ui/web/elements.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Words<'a> {
     /// Said after a completed item's words.
@@ -685,7 +685,7 @@ fn shortcut(e: &mut Element, shortcut: Option<Shortcut>, primary: Primary) {
 
 #[expect(
     clippy::wildcard_enum_match_arm,
-    reason = "over a dozen other roles all use their first accessible role when overriding the element (ui-web.md, 6.1)"
+    reason = "over a dozen other roles all use their first accessible role when overriding the element (ui/web/elements.md, 1)"
 )]
 fn override_element(e: &mut Element, made: &Made, look: &Look<'_>) {
     let a = &made.attribute;
@@ -707,7 +707,7 @@ fn override_element(e: &mut Element, made: &Made, look: &Look<'_>) {
     }
 }
 
-/// The menu supplies the context that makes its item a field's option (ui-web.md, 6).
+/// The menu supplies the context that makes its item a field's option (ui/web/elements.md).
 pub(crate) fn option_element(element: &mut Element, node: skein_ui::NodeId) {
     let element = crate::page::semantic_mut(element);
     element.set("role", "option");

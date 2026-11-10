@@ -1,4 +1,4 @@
-//! Status pages, run pages, then sequential failed Actions jobs (forge-github.md, 4.1).
+//! Status pages, run pages, then sequential failed Actions jobs (forge/github.md, 4.1).
 use super::{Bounds, Plan, Read, Response, Stage, Step, api, document, pulls::RUN_PAGES, size};
 use crate::{
     github::{plans::reading, request::Request},

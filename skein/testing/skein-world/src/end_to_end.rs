@@ -240,7 +240,7 @@ impl Binary {
                 .collect(),
             pipes: pipes.into_boxed_slice(),
         };
-        // Cgroups are Linux's (shell.md, 7.5).
+        // Cgroups are Linux's (runtime/readiness.md, 5).
         #[cfg(target_os = "linux")]
         let child = match tree.cgroup() {
             Some(cgroup) => skein_shell::keeper::start_binary_in_cgroup(&mut spawn, terminal, cgroup),
@@ -346,7 +346,7 @@ impl Binary {
 
     /// Abandons observation and cancels its pending reads and wait. Keep driving
     /// this host until `is_empty`: target and cancel completions precede tree
-    /// reaping and descriptor closure, on every kernel backend (kernel.md, 7).
+    /// reaping and descriptor closure, on every kernel backend (runtime/kernel.md, 7).
     /// Repeating the request while it settles has no effect.
     pub fn abandon(&mut self) {
         if self.abandoning {

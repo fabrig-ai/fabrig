@@ -1,4 +1,4 @@
-//! Colours, placement and checked glyphs (skein/docs/design/ui-screen.md, section 3).
+//! Colours, placement and checked glyphs (skein/docs/design/ui/screen.md, section 3).
 
 use alloc::boxed::Box;
 use skein_ui::{Region, Style};
@@ -103,7 +103,7 @@ pub struct StyleLook {
     pub active_name: Option<Paint>,
     /// On a focused text field or text area carrying this token: the paint
     /// laid over the node's own paint on its value and its caret's cell, in
-    /// place of the focus's paint (ui-screen.md, 3 and 5.4).
+    /// place of the focus's paint (ui/screen.md, 3 and 5.4).
     pub focused_value: Option<Paint>,
     pub spaced: bool,
 }

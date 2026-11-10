@@ -1,4 +1,4 @@
-//! Bounded process output kept as whole lines for the world's loop (world.md, 3).
+//! Bounded process output kept as whole lines for the world's loop (testing/world.md, 3).
 
 use alloc::{boxed::Box, rc::Rc, vec::Vec};
 use core::cell::RefCell;

@@ -1,4 +1,4 @@
-//! Readiness admission decisions without opening a poller (shell.md, 7.4).
+//! Readiness admission decisions without opening a poller (runtime/readiness.md, 4).
 
 use super::{BTreeMap, Config, Fd, Op, OpenError, Readiness, Waiters, check_waiters};
 

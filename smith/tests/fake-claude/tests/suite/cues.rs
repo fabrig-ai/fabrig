@@ -1,5 +1,5 @@
 //! Conversation cues and resumed cursors through the simulated process face
-//! (smith/docs/design/protocol/programs.md, sections 5.8 and 8; skein/docs/design/fake-llm.md, section 2.4).
+//! (smith/docs/design/protocol/programs.md, sections 5.8 and 8; skein/docs/design/testing/fakes/llm.md, section 2.4).
 
 use crate::support::{Invocation, Run, print};
 use serde_json::{Value, json};

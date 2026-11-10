@@ -285,11 +285,11 @@ release(root):   (the service's iterate)
   open.
 - **Stopping of its own:** a root that cannot go on (a counter at its
   end, a decision past the store's commit edge) stops its journal
-  (`Journal::stop`, skein's `lib.md`, 11), and nothing held or at the
+  (`Journal::stop`, skein's `runtime/lib.md`, 11), and nothing held or at the
   door leaves again; a failed commit fails it as jig's journal says
   (jig's `domain/root.md`, section 4).
 - **A stopped journal ends the engine, naming why.** A store answer the
-  journal refuses (skein's `lib.md`, 11: an answer outside the order the
+  journal refuses (skein's `runtime/lib.md`, 11: an answer outside the order the
   commits were sent) stops it as the stops above do. Whichever stopped
   it, the root emits `Stop` in the same step, with what stopped it: the
   commit that failed, the answer refused with the commits sent and
@@ -737,7 +737,7 @@ exhaustively with no `_` arm (jig's `domain/root.md`, section 6).
   branch, and a resolution's base commit or a gate's number and head,
   each commit as text: its id in lowercase hexadecimal, 40 digits for a
   SHA-1 id and 64 for a SHA-256 one, as the forge's ids are written
-  (skein's `forge.md`, 5.1), since a task's parameters are text (jig's
+  (skein's `forge/forgejo.md`, 1.1), since a task's parameters are text (jig's
   `client/domain/contract/documents.md`, 3); its contract is a change, or a
   gate's verdict; its authority is the change's, its budget what the
   change has left, with no delegation of its own.
@@ -1009,7 +1009,7 @@ drains as jig's `domain/engine/restart.md`, 1 says.
     listeners already refuse new openings and parties' requests
     (jig's `protocol/service.md`, section 5).
   With no write lacking its outcome, the forge has settled at once.
-- **Bounded** by its client's (skein's `forge-client.md`, 7.8): twice
+- **Bounded** by its client's (skein's `forge/client.md`, 7.8): twice
   the writes' lifetime and their clock margin from the stop
   (`forge.client.lifetime_ms`, `forge.client.clock_margin_ms`), by
   which each write sent before has its answer and its proving read, or

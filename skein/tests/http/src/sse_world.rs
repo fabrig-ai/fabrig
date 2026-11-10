@@ -256,7 +256,7 @@ pub fn check(stream: &[u8], settings: &Settings, seed: u64) -> Run {
 /// The outcome a reader that reads `bytes` by line scans of `chunk` comes
 /// to, the reference having read them as `expected`. It is the reference's
 /// but for a failure in the incomplete line the bytes may end with: of a
-/// line with no end, a line scan delivers only whole chunks (lib.md, 7),
+/// line with no end, a line scan delivers only whole chunks (runtime/lib.md, 7),
 /// and what is left of it at the end is never read, as the standard drops
 /// it. A failure the reference found there reads as the stream's end.
 #[must_use]
@@ -448,7 +448,7 @@ impl World<'_> {
             self.above.receive(event);
         }
         while let Some(request) = self.requests.pop() {
-            // One stated while the end is on its way crosses it (lib.md, 7).
+            // One stated while the end is on its way crosses it (runtime/lib.md, 7).
             let crossing = self.below.life == Life::Ending;
             let limits = &self.settings.limits;
             self.below.receive(&request, closing, limits);

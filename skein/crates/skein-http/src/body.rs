@@ -3,7 +3,7 @@
 //! client reads a response's body this way, and the server a request's.
 //!
 //! The machine is the side below of the body's stream, so it keeps the
-//! stream's contract (lib.md, 7) and holds its carry-over: the bytes read
+//! stream's contract (runtime/lib.md, 7) and holds its carry-over: the bytes read
 //! below that no demand above has taken yet, in an intake of the machine's
 //! `Limits::read`. It reads below only what a demand above still needs, by
 //! the demand's own shape (a fill, or a scan to the same delimiter) and
@@ -82,7 +82,7 @@ pub(crate) enum Face {
     Idle,
     /// A demand outstanding, which the intake does not meet yet.
     Demand(Read),
-    /// The side above withdrew its demand: it reads no more (lib.md, 7),
+    /// The side above withdrew its demand: it reads no more (runtime/lib.md, 7),
     /// and discards the rest or closes the machine next.
     Withdrawn,
     /// The side above gave up the rest: read and dropped.
@@ -130,7 +130,7 @@ pub(crate) fn pump(incoming: &mut Incoming, intake: &mut Intake) -> (Option<Up>,
                 return (None, Pumped::Open);
             }
             // What is held cannot meet it, and nothing more comes: the end,
-            // which leaves the rest of the intake unseen (lib.md, 7).
+            // which leaves the rest of the intake unseen (runtime/lib.md, 7).
             (Some(Up::End), Pumped::Over)
         }
         Face::Discarding => {
@@ -186,7 +186,7 @@ fn piece(face: Face, intake: &Intake, most: u32, left: u64) -> Read {
             if intake.ends_partway(until) {
                 return Read::Fill(1);
             }
-            // A scan holds its delimiter (lib.md, 7); a shorter read is a
+            // A scan holds its delimiter (runtime/lib.md, 7); a shorter read is a
             // fill, which cannot hold one.
             if usize_of(wanted) >= until.as_bytes().len() {
                 Read::Scan { until, max: wanted }
@@ -284,7 +284,7 @@ fn took(face: &mut Face, intake: &mut Intake, bytes: Box<[u8]>, left: u64, up: &
 }
 
 /// Whether `bytes` are exactly what `read` asks for, as lib's intake would
-/// meet it from them (lib.md, 7).
+/// meet it from them (runtime/lib.md, 7).
 fn answers(read: Read, bytes: &[u8]) -> bool {
     match read {
         Read::Nothing => false,

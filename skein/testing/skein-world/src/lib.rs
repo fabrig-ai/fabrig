@@ -12,9 +12,9 @@
 //!   expectations, safety on every observation and liveness as deadlines,
 //!   and what the referee injects that belongs to no process;
 //! - [`World`]: the loop over the simulator, which moves time only when the
-//!   world is idle (simulator.md, 3), returns the run's trace for replay,
+//!   world is idle (testing/simulator.md, 3), returns the run's trace for replay,
 //!   checks each process's heap at every iteration against its own worst
-//!   case, under the counting allocator (simulator.md, 5), and once
+//!   case, under the counting allocator (testing/simulator.md, 5), and once
 //!   settled checks that every process holds
 //!   nothing and the simulator nothing in flight;
 //! - [`real`]: the same processes and referee in one loop over the real
@@ -68,13 +68,13 @@ pub use skein_sim_world::{PipeCapture, PipeHost, PipeWriter};
 pub use world::World;
 
 /// Fails the world, loudly, with what it found: a world fails its test as
-/// the simulator does (simulator.md, 5).
+/// the simulator does (testing/simulator.md, 5).
 #[expect(clippy::panic, reason = "a world fails its test on what it finds, as the simulator does")]
 pub(crate) fn fail(what: &str) -> ! {
     panic!("{what}")
 }
 
-/// The world's deterministic 32-byte cryptographic seed (shell.md, 5).
+/// The world's deterministic 32-byte cryptographic seed (runtime/shell.md, 5).
 #[must_use]
 pub fn crypto_seed(seed: u64) -> skein_lib::Secret {
     let mut random = skein_lib::Rng::new(seed);

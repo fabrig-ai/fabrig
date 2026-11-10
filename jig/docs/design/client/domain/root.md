@@ -134,7 +134,7 @@ fire(root, now):
 ## 4. The request table
 
 The request table is the client's: `jig-client` holds skein-lib's
-`RequestTable` (skein's `lib.md`, section 12), and keeps, sends and
+`RequestTable` (skein's `runtime/lib.md`, section 12), and keeps, sends and
 retires every keyed request, jig's and the application's alike
 (client/requests.md). No root routes it, holds it, or wraps its
 records: a child asks the client to send, and the root routes each
@@ -440,7 +440,7 @@ what the engine made durable.
   fact, never a guess.
 - **Onto skein-ui's owner, and the client's asker.** skein-ui's owner,
   `skein_ui::Owner { number: u32 }`, and the client's asker are opaque
-  numbers, compared and never interpreted (skein's `ui.md`, 3.3;
+  numbers, compared and never interpreted (skein's `ui/README.md`, 3.3;
   client/README.md, section 4). jig's typed owner (`jig_client_view::Owner`,
   view.md, section 3) maps onto both by one total function:
   `Application { number }` to the same number, and `Jig` to 65536, one

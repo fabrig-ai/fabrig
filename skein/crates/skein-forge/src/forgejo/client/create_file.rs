@@ -1,4 +1,4 @@
-//! A contents API commit (forge-setup.md, 4.3).
+//! A contents API commit (forge/setup/forgejo.md, 1.3).
 use super::{Encoded, Refusal, items::Target};
 use crate::forgejo::{
     decode::{

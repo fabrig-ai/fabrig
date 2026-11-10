@@ -1,4 +1,4 @@
-//! Bounded keeping-up of live forge resources (forge-client.md, sections 3–4).
+//! Bounded keeping-up of live forge resources (forge/client.md, sections 3–4).
 //!
 //! The working set holds live rows, scan positions, inbox delivery stamps,
 //! and observed heads. It never discovers resources from labels or reads
@@ -82,7 +82,7 @@ enum Phase {
     Branch,
     BranchCompare { before: Commit, after: Commit },
 }
-// A refusal belongs to a phase kind, not a scan page (forge-client.md, 4.2).
+// A refusal belongs to a phase kind, not a scan page (forge/client.md, 4.2).
 #[derive(Hash, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "each phase kind independently retains its refusal")]
 struct Refusals {
@@ -278,7 +278,7 @@ fn listings(d: &mut Domain, out: &mut Queue<Request>) {
         }
     }
 }
-/// Stretch a timed read while its active repository hears (forge-client.md, 4.1).
+/// Stretch a timed read while its active repository hears (forge/client.md, 4.1).
 pub(crate) fn fallen_back(k: &Keep, l: &Limits, now: Time, repository: Repository, at: Time) -> Time {
     if let Some(row) = k.repos.get(&repository)
         && row.active
@@ -522,7 +522,7 @@ fn valid_participation(watch: &Watch) -> bool {
     }
 }
 
-// Keeping failures wait independently of hearing (forge-client.md, 4.2).
+// Keeping failures wait independently of hearing (forge/client.md, 4.2).
 fn retry_wait(retry: &mut Duration, l: &Limits) -> Duration {
     *retry = if *retry == Duration::ZERO { l.backoff } else { retry.saturating_mul(2).min(l.slow.max(l.backoff)) };
     *retry

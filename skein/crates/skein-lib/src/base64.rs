@@ -1,4 +1,4 @@
-//! Canonical, bounded RFC 4648 text (lib.md, 6.1).
+//! Canonical, bounded RFC 4648 text (runtime/lib.md, 6.1).
 #![expect(clippy::disallowed_types, reason = "the decoder owns its bounded byte buffer")]
 use crate::{Overflow, Writer};
 use alloc::{boxed::Box, vec::Vec};

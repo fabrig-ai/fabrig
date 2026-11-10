@@ -1,4 +1,4 @@
-//! Pure list reading (skein/docs/design/llm.md, 4.9).
+//! Pure list reading (skein/docs/design/llm/README.md, 4.9).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,
@@ -6,7 +6,7 @@
     reason = "table fixtures use ordinary Rust to assemble bounded JSON bodies"
 )]
 
-// The field and row bounds are skein/docs/design/llm.md, 4.9's.
+// The field and row bounds are skein/docs/design/llm/README.md, 4.9's.
 const NAME_BYTES: usize = 128;
 const SHOWN_BYTES: usize = 64;
 const ROWS: usize = 256;

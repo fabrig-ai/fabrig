@@ -1,4 +1,4 @@
-//! Forge client entry points (forge-client.md, sections 5–6).
+//! Forge client entry points (forge/client.md, sections 5–6).
 //!
 //! `Domain` keeps calls, live resources, deadlines and active write lanes.
 //! It never knows authorization, subscribers or the top's durable entries.
@@ -93,7 +93,7 @@ impl Domain {
         }
     }
     /// The owner's next poll, stretched while the repository hears
-    /// (forge-client.md, 4.1). Reads state and changes none.
+    /// (forge/client.md, 4.1). Reads state and changes none.
     #[must_use]
     pub fn poll_at(
         &self,
@@ -135,7 +135,7 @@ impl Domain {
     pub fn cached(&self, resource: &Resource) -> Option<&crate::Cached> {
         self.keep.cached(resource)
     }
-    /// The retained live rows' keys, in the keep's order (forge-client.md, the keep):
+    /// The retained live rows' keys, in the keep's order (forge/client.md, the keep):
     /// for a caller naming a row on a failure path; allocates.
     #[must_use]
     pub fn live_keys(&self) -> Box<[Resource]> {
@@ -164,7 +164,7 @@ impl Domain {
         }
     }
 }
-/// Give a forge's writer once its access is known (forge-client.md, 7.1).
+/// Give a forge's writer once its access is known (forge/client.md, 7.1).
 /// It saves a new writer as a `Writer` row and returns true. The same
 /// author again changes nothing and returns true. A writer `give` refuses
 /// returns false and changes nothing.

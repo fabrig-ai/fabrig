@@ -224,7 +224,7 @@ impl Limits {
             scene_bytes: skein_ui::flow::scene_bytes(24, 2048)?.max(crate::paths::SCENE_BYTES),
             // Work, tool and run, plus independent running and failed states (3.5).
             styles_per_node: 5,
-            // A diff emits at most four patches a node (skein's ui.md, 7).
+            // A diff emits at most four patches a node (skein's ui/README.md, 7).
             patches: nodes.checked_mul(4)?,
             bindings: nodes,
             slots: 0,

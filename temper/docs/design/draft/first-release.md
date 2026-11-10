@@ -181,4 +181,4 @@ throughout.
   Default: the store alone.
 - **People's names on public pages.** Default: hidden.
 - **When the upgrade policy starts.** At the first release, the baseline
-  (skein's `codec.md`, section 5), proposed as v0.1.0; its date is open.
+  (skein's `data/codec/README.md`, section 5), proposed as v0.1.0; its date is open.

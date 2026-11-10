@@ -1,4 +1,4 @@
-//! A client's promises over decoded observations (fake-forge.md, section 2.5).
+//! A client's promises over decoded observations (testing/fakes/forge.md, section 2.5).
 //!
 //! The profile's client is judged, including another user rebasing its branch.
 //! Creations establish ownership within this stream; pre-existing objects have no known owner. The first `Labelled`

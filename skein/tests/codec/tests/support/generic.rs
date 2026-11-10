@@ -1,4 +1,4 @@
-//! The generic tree in the generated types' Debug form (codec.md, 8.3).
+//! The generic tree in the generated types' Debug form (data/codec/README.md, 8.3).
 
 use skein_codec::schema::{DeclIx, FieldIx, Schema, Shape, Span, Type, TypeIx};
 use skein_codec::value::{Node, Part, Path, Value};

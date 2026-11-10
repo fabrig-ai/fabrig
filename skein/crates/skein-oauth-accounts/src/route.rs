@@ -1,5 +1,5 @@
 //! Socket owner tokens retain the exchange's slab generation and distinguish
-//! its issuer, listener and callback (oauth.md, sections 6.1 and 6.5).
+//! its issuer, listener and callback (oauth/accounts.md, sections 1 and 5).
 
 use crate::exchange::Exchange;
 use skein_lib::{Id, Token};

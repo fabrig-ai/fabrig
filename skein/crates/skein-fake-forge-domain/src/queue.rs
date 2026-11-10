@@ -1,4 +1,4 @@
-//! Groups follow fake-forge.md, 10.2: one squash per entry, on the group
+//! Groups follow testing/fakes/github.md, 1.2: one squash per entry, on the group
 //! ahead, with CI on a counted branch and landing in admission order.
 use alloc::boxed::Box;
 use skein_lib::{
@@ -33,7 +33,7 @@ impl Group {
     }
 }
 
-/// fake-forge.md, 10.2: the branch names the head in the shared SHA-1 spelling.
+/// testing/fakes/github.md, 1.2: the branch names the head in the shared SHA-1 spelling.
 fn branch(base: &[u8], entry: QueueEntry, limit: u32) -> Result<Box<[u8]>, Error> {
     let number = Decimal::of(entry.number);
     let size = b"gh-readonly-queue/".len().checked_add(base.len()).ok_or(Error::TooLarge)?;
@@ -156,7 +156,7 @@ fn make(
     let pull = repository.item(entry.number)?.pull.as_ref().expect("queued pull");
     let name = branch(&pull.base, entry, env.limits.limits.name_bytes)?;
     let by = pull.queued_by;
-    // fake-forge.md, 10.2: COMMIT_OR_PR_TITLE uses the sole commit's
+    // testing/fakes/github.md, 1.2: COMMIT_OR_PR_TITLE uses the sole commit's
     // message, otherwise the pull's title, relative to the pull's base.
     let base = repository.branches.get(&*pull.base).copied().ok_or(Error::Missing(What::Branch))?;
     let head = domain.commits.get(&entry.head).expect("queued head");

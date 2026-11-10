@@ -1,4 +1,4 @@
-//! Configured sources, endpoint bindings and keepers (oauth.md, sections 6.2 and 6.4).
+//! Configured sources, endpoint bindings and keepers (oauth/accounts.md, sections 2 and 4).
 
 use alloc::boxed::Box;
 use skein_io::kernel::Addr;
@@ -10,7 +10,7 @@ use skein_tls::{Config, Name};
 #[derive(Debug)]
 #[expect(
     clippy::large_enum_variant,
-    reason = "bounded startup configuration follows oauth.md section 6.2 without an extra allocation"
+    reason = "bounded startup configuration follows oauth/accounts.md section 2 without an extra allocation"
 )]
 pub enum Account {
     /// Access-only records the owner supplies; never refreshed or kept.
@@ -48,7 +48,7 @@ pub enum Keeper {
     /// The owner's store; each candidate goes out as Keep and waits for Kept.
     Owner { kept: Option<SavedToken> },
     /// Private whole-file storage beneath the owner's `FileIo` root; the component closes only its private root.
-    /// The owner configures `FileIo`'s effective user before adopting that startup root (io.md, section 5.3).
+    /// The owner configures `FileIo`'s effective user before adopting that startup root (runtime/io/files.md, section 3).
     Private { root: Token, directory: Box<[u8]>, file: Box<[u8]> },
 }
 

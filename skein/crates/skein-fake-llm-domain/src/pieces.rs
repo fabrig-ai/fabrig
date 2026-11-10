@@ -1,6 +1,6 @@
 //! A call walks retained script pieces without copying their list.
 //!
-//! Contract: docs/design/fake-llm.md, sections 2.2 and 5.
+//! Contract: docs/design/testing/fakes/llm.md, sections 2.2 and 5.
 use crate::api::{Answer, Failure, Line, Piece, Script, Usage};
 use crate::domain::{Request, State};
 use alloc::boxed::Box;

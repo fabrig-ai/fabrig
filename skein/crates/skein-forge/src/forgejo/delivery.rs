@@ -1,4 +1,4 @@
-//! The fields carried by the webhook hints (forge.md, section 5).
+//! The fields carried by the webhook hints (forge/forgejo.md, section 1).
 use crate::forgejo::{document::Body, id::ObjectId, request::ReviewEvent};
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Writer};
@@ -50,8 +50,8 @@ impl Delivery {
             | Self::Job { .. } => None,
         }
     }
-    /// A branch deletion's push has an all-zero `after` (forge.md,
-    /// section 5).
+    /// A branch deletion's push has an all-zero `after` (forge/forgejo.md,
+    /// section 1).
     #[must_use]
     pub fn deleted(&self) -> bool {
         match self {
@@ -65,7 +65,7 @@ impl Delivery {
         }
     }
 }
-/// The org hook's subscribed events (forge.md, section 5).
+/// The org hook's subscribed events (forge/forgejo.md, section 1).
 pub const SUBSCRIBED: [&[u8]; 22] = [
     b"issues",
     b"issue_assign",
@@ -94,7 +94,7 @@ pub const SUBSCRIBED: [&[u8]; 22] = [
 pub const EVENT_HEADER: &[u8] = b"X-Forgejo-Event";
 /// The header holding the body's HMAC-SHA256 in hexadecimal.
 pub const SIGNATURE_HEADER: &[u8] = b"X-Forgejo-Signature";
-/// The listener path for a forge's deliveries (forge.md, section 5).
+/// The listener path for a forge's deliveries (forge/forgejo.md, section 1).
 #[must_use]
 pub fn hook_target(forge: u16) -> Box<[u8]> {
     let number = Decimal::of(u64::from(forge));
@@ -162,7 +162,7 @@ pub(crate) fn header(delivery: &Delivery) -> &'static [u8] {
     unreachable!("every variant has a header")
 }
 
-/// Subscriptions in the row of forge.md, section 7, for this delivery header.
+/// Subscriptions in the row of forge/README.md, section 6, for this delivery header.
 /// Events in one row all take the same hint, including the fake's over-approximation.
 #[must_use]
 pub fn subscriptions(header: &[u8]) -> Option<&'static [&'static [u8]]> {

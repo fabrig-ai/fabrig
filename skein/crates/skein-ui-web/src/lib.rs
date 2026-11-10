@@ -1,4 +1,4 @@
-//! Browser parts, usable independently (ui-web.md, 5.1).
+//! Browser parts, usable independently (ui/web/README.md, 4.1).
 #![forbid(unsafe_code)]
 
 pub mod bridge;

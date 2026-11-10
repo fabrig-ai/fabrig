@@ -1,4 +1,4 @@
-//! Spell the plan's changes, place renames and propose pairings (codec.md, 10.1–10.3).
+//! Spell the plan's changes, place renames and propose pairings (data/codec/diff.md, 1–3).
 
 use super::spell::{label, name, parts, spell, word};
 use super::{Change, Diff, DiffError, Fill, Kind, Op, Rename};

@@ -84,7 +84,7 @@ patch and drift tests check the generated `encoded_bound` and
 - **On skein's world harness** (skein's `examples.md`, section 6): each
   process's `iterate` over the simulator, one loop, the referee beside
   them. A spawn of the agent service starts it in the same world, joined
-  to its host by simulated pipes (skein's `simulator.md`, section 3).
+  to its host by simulated pipes (skein's `testing/simulator.md`, section 3).
 - **The machine sits behind the simulator** (3.2). The fake peers listen
   on the simulated network, in plaintext.
 - **Calm and faulted.** Every world runs its focused scenarios calm, and
@@ -177,7 +177,7 @@ patch and drift tests check the generated `encoded_bound` and
   - `smith` on a terminal: a first run that signs in and ends with a
     commit in place; a second invocation that resumes the chat from its
     files; an interrupt that cancels the run. The interrupt reaches the
-    process alone (skein's `io.md`, section 6);
+    process alone (skein's `runtime/io/processes.md`);
   - `smith login` and `smith logout` against the fake issuer and the
     browser: a first sign-in that registers, and one again; and on a
     `program` account, against the fake program;
@@ -286,7 +286,7 @@ patch and drift tests check the generated `encoded_bound` and
       days in the settings' seconds (shell/settings.md, 2.5), past any access
       token's life, so that only the issuer's earliest refresh time
       holds a refresh back: none is asked before it, whatever the lead
-      (skein's `oauth.md`, sections 2 and 6.3). OpenAI's issuer sets
+      (skein's `oauth/README.md`, section 2, and `oauth/accounts.md`, section 3). OpenAI's issuer sets
       one on every token it issues, a few minutes before the token
       expires. The story reads the record's refresh facts before its
       run, and checks the rule as the record stands:
@@ -479,7 +479,7 @@ Every component's files and processes go through it:
   As a service on io, it listens on loopback for the simulated worlds and
   the real loop. Its recorded exchanges are skein's.
 - **The OAuth issuer:** skein's fake issuer, with the same three faces
-  (skein's `oauth.md`, section 5), reached through a `sign_in` account's
+  (skein's `oauth/README.md`, section 5), reached through a `sign_in` account's
   moved addresses (shell/credentials.md, 1), so that smith's own registration is
   what the worlds exercise: the entry client, the issued client id, the
   scopes and the ID token.
@@ -708,7 +708,7 @@ benchmarks/                      smith-bench, the benchmark harness (benchmarks.
 ## 8. Open questions
 
 - **The real loop in CI:** a kernel that allows `io_uring`, with git, rg and
-  sh installed (skein's `shell.md`, section 10).
+  sh installed (skein's `runtime/shell.md`, section 9).
 - **Containment in CI:** cgroup v2 delegation and user namespaces in the
   CI's containers.
 - **The sample host in the real loop:** whether a second host earns a

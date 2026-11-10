@@ -1,0 +1,27 @@
+# accounts: status
+
+2026-11-10. Where the tree's code lags or departs from [accounts.md](accounts.md).
+
+- **Departs:**  a refresh's profile reader requires a nonce claim, though
+  it compares none (`skein-oauth/src/jwt.rs`, `refreshed_claims`). A token
+  without one gives no profile claims and the refresh still succeeds, as
+  `account-email/oauth-profile`'s acceptance requires. The task's stricter
+  acceptance and `README.md`, section 2.2's nonce-independent profile checks disagree;
+  reading a nonce-less token's profile remains unimplemented.
+   `skein/docs/foundation/programming-model.md`, 5.4 asks
+  for one explicit state enum per lifecycle, each state holding exactly
+  its data, no lifecycle in flags or `Option`s beside it, and one handler
+  per cell; `skein-oauth-accounts/src/exchange.rs` keeps `pending_grant`,
+  `aborted` and `file_active` beside `Exchange::stage`, and neither
+  crate's machine keeps one handler per cell; no reason is recorded.
+  `skein-oauth/src/machine/fetch.rs`'s sign-in start holds its URL in a
+  `(visit, url)` pair of `Option`s, with a `url.expect`, which the `debt-26`
+  request's leftovers name: by reading, taking it from `Grant::SignIn` on the
+  path with no fetch needs a new `unreachable!`, which that plan's task ruled out.
+  8: `skein/tests/oauth-accounts`'s world branches on `story ==` 80 times,
+  with further story comparisons and label helpers, against
+  `skein/docs/foundation/testing-strategy.md`, 10's scenarios as data. The
+  remaining rows are low-value work of level size, and the paste/listener
+  ordering needs a script interpreted separately by each tier to preserve
+  its visible events (`README.md`, section 6; the code's side is
+  `skein/docs/development/debt/D048-oauth-accounts-world-copies.md`).

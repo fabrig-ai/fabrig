@@ -10,7 +10,7 @@
 //! implies (its demand, whether its idle deadline runs) is applied after
 //! every transition, in [`follow`] (programming-model.md, 5.4).
 //!
-//! Owner transitions (examples.md, section 3.3; shell.md, section 13):
+//! Owner transitions (examples.md, section 3.3; runtime/shell.md, section 12):
 //! | State | Owner request | Next and effects |
 //! |---|---|---|
 //! | Greeting, Reading, Draining | Drain | Closing(Clear); Close and Gone if admitted |

@@ -1,4 +1,4 @@
-//! The peers' transport: plaintext everywhere, buffered TLS on Unix (testing.md, 10).
+//! The peers' transport: plaintext everywhere, buffered TLS on Unix (testing/README.md, 10).
 
 use crate::{Error, Limits};
 
@@ -27,7 +27,7 @@ pub enum Transport {
 pub(crate) fn validate(limits: &Limits, transport: Transport) -> Result<(), Error> {
     if transport == Transport::Tls && cfg!(not(unix)) {
         // TLS is not available on the portable target: a world runs in plaintext
-        // (testing.md, 10).
+        // (testing/README.md, 10).
         return Err(Error::Limits);
     }
     if transport == Transport::Tls && limits.plaintext < 16_384 {

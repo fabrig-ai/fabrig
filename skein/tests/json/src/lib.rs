@@ -1,4 +1,4 @@
-//! The JSON tokenizer's machine worlds (testing-strategy.md, 2.4; json.md,
+//! The JSON tokenizer's machine worlds (testing-strategy.md, 2.4; data/json.md,
 //! 6), and the writer against it.
 //!
 //! What the test binaries share:

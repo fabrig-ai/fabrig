@@ -1,4 +1,4 @@
-//! The App's install link, with host-issued authority (forge-setup.md, 5.4 and 5.7).
+//! The App's install link, with host-issued authority (forge/setup/github.md, 1.4 and 1.7).
 use super::{
     given::{self, Given, Refused},
     manifest,
@@ -22,7 +22,7 @@ enum Phase {
     Slug(Inputs),
     Ended,
 }
-/// Reads only the slug and returns an installation link (forge-setup.md, 5.4).
+/// Reads only the slug and returns an installation link (forge/setup/github.md, 1.4).
 #[derive(Debug)]
 pub struct Install {
     phase: Phase,

@@ -1,4 +1,4 @@
-//! PEM and source decisions with in-memory input (shell.md, 6.2).
+//! PEM and source decisions with in-memory input (runtime/shell.md, 6.2).
 
 use std::path::Path;
 

@@ -1,4 +1,4 @@
-//! Joined socket worlds: the simulator never sees these entities (io.md, 3.5).
+//! Joined socket worlds: the simulator never sees these entities (runtime/io/sockets.md, 5).
 use crate::owner::{Dial, Owner, Reads, Serve, ServeClose, Target};
 use crate::referee::{Expect, Referee};
 use crate::scenarios::{END, limits, plan};
@@ -283,7 +283,7 @@ pub struct Seen {
     pub failed: [Option<skein_lib::stream::Fault>; 2],
 }
 
-/// Run the same owners over loopback and over a name (io.md, section 8).
+/// Run the same owners over loopback and over a name (runtime/io/README.md, section 5).
 #[must_use]
 pub fn either(seed: u64, plans: [crate::owner::Plan; 2]) -> [Seen; 2] {
     let pairs = [(crate::scenarios::local(0), plans.clone()), (name(b"either"), plans)];
@@ -312,7 +312,7 @@ pub fn either(seed: u64, plans: [crate::owner::Plan; 2]) -> [Seen; 2] {
     })
 }
 
-/// The pair has no expectation wakeups; its time bound is observed (io.md, 8).
+/// The pair has no expectation wakeups; its time bound is observed (runtime/io/README.md, 5).
 struct EitherJudge(u32);
 
 impl skein_world::Referee<crate::world::Hosted> for EitherJudge {

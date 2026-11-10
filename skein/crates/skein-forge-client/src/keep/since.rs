@@ -1,4 +1,4 @@
-//! Comments since (skein/docs/design/forge-client.md, section 4).
+//! Comments since (skein/docs/design/forge/client.md, section 4).
 use super::Live;
 use skein_lib::Time;
 

@@ -1,4 +1,4 @@
-//! Darwin's system boundary (shell.md, 7.5).
+//! Darwin's system boundary (runtime/readiness.md, 5).
 //!
 //! # The `unsafe`, and why it is sound
 //!
@@ -12,7 +12,7 @@
 //! so no spawn can intervene before close-on-exec is set. Other cases are
 //! documented beside the files, listing, process, signals and terminal calls.
 
-#![expect(unsafe_code, reason = "Darwin's synchronous calls retain no borrowed buffers (shell.md, 7.5)")]
+#![expect(unsafe_code, reason = "Darwin's synchronous calls retain no borrowed buffers (runtime/readiness.md, 5)")]
 
 pub(crate) mod files;
 pub(crate) mod group;
@@ -68,7 +68,7 @@ fn configure(raw: i32) -> Result<Fd, i32> {
     }
     Ok(fd)
 }
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn socket(family: Family) -> Result<Fd, i32> {
     let domain = match family {
         Family::Ipv4 => libc::AF_INET,
@@ -136,14 +136,14 @@ fn decode(storage: &libc::sockaddr_storage, len: libc::socklen_t) -> Result<Addr
         _ => Err(libc::EAFNOSUPPORT),
     }
 }
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn bind(fd: Fd, addr: &Addr) -> Result<(), i32> {
     let mut storage = storage();
     let len = encode(addr, &mut storage);
     // SAFETY: the initialized encoded address lives across bind.
     status(unsafe { libc::bind(fd.raw(), ptr::from_ref(&storage).cast(), len) })
 }
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn connect(fd: Fd, addr: &Addr) -> Result<(), i32> {
     let mut storage = storage();
     let len = encode(addr, &mut storage);
@@ -159,7 +159,7 @@ pub(crate) fn bound_addr(fd: Fd) -> Result<Addr, i32> {
     })?;
     decode(&storage, len)
 }
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn accept(fd: Fd) -> Result<(Fd, Addr), i32> {
     let mut storage = storage();
     let mut len = socklen::<libc::sockaddr_storage>();
@@ -175,7 +175,7 @@ pub(crate) fn accept(fd: Fd) -> Result<(Fd, Addr), i32> {
     }
 }
 
-/// An `EINTR` is returned, not retried (shell.md, 7.4).
+/// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn listen(fd: Fd, backlog: u32) -> Result<(), i32> {
     // SAFETY: listen takes only integer arguments.
     status(unsafe { libc::listen(fd.raw(), i32::try_from(backlog).unwrap_or(i32::MAX)) })

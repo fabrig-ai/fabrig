@@ -10,7 +10,7 @@ use skein_lib::{
     usize_of,
 };
 use skein_ui::{Region, Tree};
-/// This terminal's namespace among its service's operations (lib.md, 4).
+/// This terminal's namespace among its service's operations (runtime/lib.md, 4).
 const NAMESPACE: u8 = 4;
 const BATCH: u32 = 64;
 /// The application's whole terminal configuration, with no defaults.
@@ -92,7 +92,7 @@ impl Terminal {
             retry: Duration::from_millis(1),
         })
     }
-    /// The most io operations in flight at once, cancels included (ui-text.md, 3).
+    /// The most io operations in flight at once, cancels included (ui/text.md, 3).
     #[must_use]
     pub fn operations(settings: &Settings, view: &skein_ui::Limits) -> Option<u32> {
         skein_io::operations(&Self::io_limits(settings, view)?)

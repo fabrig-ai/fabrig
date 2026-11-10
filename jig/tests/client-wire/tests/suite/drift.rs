@@ -1,4 +1,4 @@
-//! The committed client codecs and bytes against their schemas (skein's codec.md, 6).
+//! The committed client codecs and bytes against their schemas (skein's data/codec/README.md, 6).
 #[path = "../../../codec-families.rs"]
 mod families;
 

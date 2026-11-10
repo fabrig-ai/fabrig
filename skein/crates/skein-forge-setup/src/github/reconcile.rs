@@ -1,4 +1,4 @@
-//! Prove the kept App, repair its hook and sweep installations (forge-setup.md, 5.6).
+//! Prove the kept App, repair its hook and sweep installations (forge/setup/github.md, 1.6).
 use super::{
     app::Kept,
     checks::{self, Lacking},

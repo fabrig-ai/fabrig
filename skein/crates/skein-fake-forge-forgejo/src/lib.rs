@@ -1,4 +1,4 @@
-//! Forgejo's HTTP vocabulary over the fake forge (fake-forge.md, section 4).
+//! Forgejo's HTTP vocabulary over the fake forge (testing/fakes/forge.md, section 4).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -29,7 +29,7 @@ pub struct Limits {
     pub raw_bytes: u32,
 }
 impl Limits {
-    /// The private git route's bounds (fake-forge.md, section 12).
+    /// The private git route's bounds (testing/fakes/github.md, section 3).
     #[must_use]
     pub const fn git(&self) -> skein_fake_forge_http::git::Limits {
         skein_fake_forge_http::git::Limits { http: self.http, documents: self.documents }
@@ -42,7 +42,7 @@ pub struct Repository {
     pub full: Box<[u8]>,
     pub protected: Option<Box<[u8]>>,
 }
-/// A catalogue address and its domain source (skein/docs/design/fake-forge.md, 4).
+/// A catalogue address and its domain source (skein/docs/design/testing/fakes/forge.md, 4).
 #[derive(Debug)]
 pub struct Source {
     pub address: Box<[u8]>,

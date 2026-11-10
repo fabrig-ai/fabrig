@@ -8,14 +8,14 @@ store. jig ships the component that does this, `jig-protocol-store`; the
 application hands it its own records as bytes it encodes. The domain's
 half (commits, loads, what is kept) is `../../domain/engine/README.md`, section 5,
 and what the rest of the protocol layer relies on is `../README.md`,
-section 9. Read it with skein's `kv.md`. What is still open is listed in
+section 9. Read it with skein's `data/kv.md`. What is still open is listed in
 section 11.
 
 ## 1. In one page
 
 - **skein-kv, in the engine's process.** The engine's protocol layer owns
   `jig-protocol-store`, a component that owns two skein-kv stores (skein's
-  `kv.md`): the store, with every record jig and the application keep,
+  `data/kv.md`): the store, with every record jig and the application keep,
   and the secrets' store. Keys are ordered bytes, values are bytes, both
   in memory, made durable by an append-only log and snapshots. There is
   no store process, no wire and no SQL: the engine is the store's only
@@ -76,7 +76,7 @@ the application's root          commits (jig's writes typed, its own wrapped), l
         │   (the application's records encoded by its own codecs on the way down, decoded on the way up)
 jig-protocol-store              keys and records to bytes; ranges to intervals; parties' reads and joins;
         │                       transcripts' files; secrets
-        │ skein-kv's vocabulary (skein's kv.md, section 2)      │ io's file requests (skein's io.md, section 5)
+        │ skein-kv's vocabulary (skein's data/kv.md, section 2)      │ io's file requests (skein's runtime/io/files.md)
 skein-kv ×2                     the store; the secrets' store
         │ io's file requests
 skein-io                        files: the ring, or the simulator's disk
@@ -114,7 +114,7 @@ skein-io                        files: the ring, or the simulator's disk
   (`manifest.skein-<16 hex>`), is a first start a cut stopped before `active`
   named it (the stores' first open, which makes their files,
   comes after `active`): it is removed, with any temporary io's durable replace
-  left beside `active` (`active.skein-<16 hex>`; skein's `io.md`, 5.2).
+  left beside `active` (`active.skein-<16 hex>`; skein's `runtime/io/files.md`, 2).
   A `generations/` that holds anything else, with no `active`, is
   refused, `Generations::Unnamed`, and left as it is: a generation
   whose `active` was lost, which the operator names again from a
@@ -271,7 +271,7 @@ the application's part with the application's codecs.
   goes whole, by retention (6.1).
 - **Reads see what is durable.** A load, a read, a get or a transcript
   sees every commit answered before it was asked, and nothing that is
-  not durable (skein's `kv.md`, section 2). Each load of the core's is
+  not durable (skein's `data/kv.md`, section 2). Each load of the core's is
   held until every commit made before it is answered
   (`../../domain/engine/README.md`, 4.2 and 5.3), so it sees what the decisions
   before it wrote.
@@ -283,7 +283,7 @@ the application's part with the application's codecs.
 ### 4.1 The encoding
 
 - **Bytes sort as the domain's keys do.** Every key is written with
-  skein-kv's key writer (skein's `kv.md`, 2.1) so that byte order equals
+  skein-kv's key writer (skein's `data/kv.md`, 2.1) so that byte order equals
   the order Rust derives for it: a variant's index as a tag, then its
   fields in order; numbers big-endian at fixed width, narrower ones
   widened; an absent option before a present one; a byte string escaped
@@ -292,7 +292,7 @@ the application's part with the application's codecs.
 - **Keys never hold payload:** numbers, small fixed identities, and
   names within their limits.
 - **Written out, not generated.** skein's generator writes values, whose
-  length-prefixed bytes do not sort (skein's `codec.md`, section 3), so
+  length-prefixed bytes do not sort (skein's `data/codec/README.md`, section 3), so
   each family's key has a small encoder and decoder of its own, beside
   its codec. A property test holds each encoder to the derived order on
   generated keys, and each decoder to the encoder.
@@ -387,7 +387,7 @@ secrets' store (`secrets.md`).
   copies; a first key the map doesn't hold fails the commit.
   A key written more than once in one commit becomes one operation, its
   last write, which leaves the map as the writes in order would:
-  skein-kv applies a commit whole (skein's `kv.md`, section 7), so
+  skein-kv applies a commit whole (skein's `data/kv.md`, section 7), so
   nothing sees the writes between.
   A turn's save becomes a frame in its task's file, written first
   (`transcripts.md`, 2), and puts of its place in the map.
@@ -396,7 +396,7 @@ secrets' store (`secrets.md`).
   numbers reach skein-kv in order. The wait is one sync, and only for the
   commits behind a turn.
 - **Group commit.** While a sync is in flight, commits queue, and the next
-  write carries them all (skein's `kv.md`, section 4). The root's bound
+  write carries them all (skein's `data/kv.md`, section 4). The root's bound
   on commits in flight is checked at start against skein-kv's queue and
   queued bytes, and the component's queue behind transcripts' syncs, so
   the store never answers a commit busy.
@@ -427,7 +427,7 @@ secrets' store (`secrets.md`).
   wire message carries it. An application feeds the rejected number to its
   uncommitted-commit policy and may report the named cause.
 - **A commit's operations are bounded,** as skein-kv applies each commit
-  in one step (skein's `kv.md`, section 7). Where removing a record would
+  in one step (skein's `data/kv.md`, section 7). Where removing a record would
   erase an unbounded number of rows (a transcript's attempts' places,
   `transcripts.md`, 5), its commit erases the row that names the rest, so nothing reads
   them from then on, and the rest, orphans, go in the commits that
@@ -476,7 +476,7 @@ was made (`../../domain/tasks/README.md`, section 3):
 ### 6.2 Fill
 
 - **The store reports its fill** with each commit's answer: the map's
-  bytes against its budget (skein's `kv.md`, section 7).
+  bytes against its budget (skein's `data/kv.md`, section 7).
 - **Above a high-water mark** of that budget (both are limits,
   `../limits.md`), the domain refuses new work at its
   entrances: new tasks, new sign-ins. Work under way goes on,
@@ -505,14 +505,14 @@ was made (`../../domain/tasks/README.md`, section 3):
   the frames' largest bytes (a turn's, from the domain's limits), the
   queue of commits behind transcripts' syncs, the reads in flight and the
   joins a page may make.
-- **Three file drivers,** one for each store (skein's `kv.md`, section
+- **Three file drivers,** one for each store (skein's `data/kv.md`, section
   12) and one for transcripts, so a turn's sync never queues behind a
   store's write, nor a store's behind a turn's.
-- **The worst case** is both stores' (skein's `kv.md`, section 7: each
+- **The worst case** is both stores' (skein's `data/kv.md`, section 7: each
   map's budget, its queued commits and its buffers, which follow its
   chunk target and the largest row it holds), the component's buffers
   and tables, and the three drivers' (skein's
-  `io.md`, section 5). Patching's peak (`opening.md`, 2:
+  `runtime/io/files.md`). Patching's peak (`opening.md`, 2:
   one map open, one machine per kept family within its own map's record
   room, the walk's page and commit buffers at the larger of the two
   maps' bounds, since one walk serves both, the copy's chunk, and the
@@ -603,7 +603,7 @@ Each within jig's suites' budgets.
   active, the other strays removed, and its records the patched or the
   old, never a mix.
 - **The transcripts' framing's golden bytes,** as skein-kv keeps its
-  own (skein's `kv.md`, section 9): a task's file of frames made from
+  own (skein's `data/kv.md`, section 9): a task's file of frames made from
   fixed turns (a window turn, a turn at the frame's bound, two
   attempts), kept beside the component's tests and never regenerated
   by the test that reads it; the writer's file compared with it byte
@@ -635,7 +635,7 @@ Each within jig's suites' budgets.
   tests in `jig-protocol-store` over `jig-test-patches-smith` (and a
   fixture body family in `jig-test-patches-jig`): frames written at each
   fixture version, read by every kind of `transcripts.md`, 3, each handing on the bytes
-  its patches' goldens give (skein's `codec.md`, 12.3) and the file's
+  its patches' goldens give (skein's `data/codec/command.md`, 3) and the file's
   bytes unchanged; bounds judged on patched sizes; each halt, a
   `NoSite` and a turn past its kept texts among them, an unread frame; a
   version before a machine's first or past its last unread; a site up
@@ -676,7 +676,7 @@ Each within jig's suites' budgets.
 - **On the real ring,** the reference binary (`../service.md`, section 7)
   killed around each phase of a turn's commit and started again. A killed
   process keeps the page cache, so this checks integration, not power
-  loss (skein's `kv.md`, section 9).
+  loss (skein's `data/kv.md`, section 9).
 
 ## 10. What it owes and is owed
 
@@ -760,9 +760,9 @@ component's (`README.md`, 4.4, `records.md`, 3).
 
 ### 10.10 What skein owes
 
-io's `OpenWrite` and `Cut` (skein's `io.md`, section 5), for transcripts.md, 2 and 4. skein-kv serves as it is: its in-memory mode, its key writer, its
+io's `OpenWrite` and `Cut` (skein's `runtime/io/files.md`), for transcripts.md, 2 and 4. skein-kv serves as it is: its in-memory mode, its key writer, its
 fill. Its accounts driver takes the owner's store as keeper, made with
-the records it holds (skein's `oauth.md`, 6.4).
+the records it holds (skein's `oauth/accounts.md`, 4).
 
 ### 10.11 What the application owes
 
@@ -774,11 +774,11 @@ intervals, and its indexes, by the rules of section 7.
 - **Upgrades** are a pass at opening that patches a copy and switches
   to it (`README.md`, section 2, and `records.md`, section 3, and `opening.md`, section 1 to 4). Still open:
   - values nested in another owner's family as they run across owners'
-    levels (skein's `codec.md`, section 13);
+    levels (skein's `data/codec/README.md`, section 10);
   - pieces held by a frame's turn (smith's `Found.hits`, `pieces Hit`)
     are copied, not opened, so a smith patch that changes `Hit` is
-    refused `Pieces` until they open (skein's `codec.md`, 11.3 and
-    section 13); so are jig's own packed lists (`records.md`, 1), whose words make
+    refused `Pieces` until they open (skein's `data/codec/patches.md`, 3, and `data/codec/README.md`, 10
+    ); so are jig's own packed lists (`records.md`, 1), whose words make
     a copying patch reach them and a converting one refuse;
   - the core's records walked by a smith patch: the core's `Row` reaches
     `TurnRecord`, which holds smith's turn, so each smith patch runs the
@@ -789,9 +789,9 @@ intervals, and its indexes, by the rules of section 7.
     (`transcripts.md`, 6): from the baseline on, about 249 MB per serving store
     (`Patcher::workspace_bound` at 1,054,764 nodes), though a typical
     turn takes a few hundred nodes. Its tables grow in bounded steps
-    (skein's `codec.md`, 11.7), so a store holds what its largest turn
+    (skein's `data/codec/patches.md`, 7), so a store holds what its largest turn
     needed, not the price; but it keeps that room until the machine
-    goes, so one large turn keeps it large (skein's `codec.md`, 13,
+    goes, so one large turn keeps it large (skein's `data/codec/README.md`, 10,
     "Shrinking");
   - keys a patch moves (`opening.md`, 3), left to later work: a line for them
     in skein's patch text, and the key function's answer up and back;
@@ -799,14 +799,14 @@ intervals, and its indexes, by the rules of section 7.
   - a gate holding each patch's `after` to at least the pin it lands
     on (`opening.md`, 3);
   - a copy made by the file system (a reflink, or btrfs's snapshot:
-    skein's `io.md`, section 5) in place of one written file by file;
+    skein's `runtime/io/files.md`) in place of one written file by file;
   - what a patch's working buffers pay (`opening.md`, 2): the copy reads and writes
     a file in pieces of skein-kv's `Limits::chunk`, the row ceiling, not
-    its chunk target (skein's `kv.md`, 5 and 7), and the switch's digest
+    its chunk target (skein's `data/kv.md`, 5 and 7), and the switch's digest
     check reads `active` into a buffer of the drivers' whole read, which
     that ceiling sets (`host::max_read`). So a patch pays about 60 MB on
     standard however small its rows; a deployment's budgets meet this
-    (skein's `kv.md`, section 12).
+    (skein's `data/kv.md`, section 12).
 - **The header by its own level's text.** A jig behind decodes the header
   by the binary's core text, which every store holds until jig's first patch
   moves the core; that patch brings the kept text's decode with it.
@@ -818,7 +818,7 @@ intervals, and its indexes, by the rules of section 7.
 - **Finding a turn faster:** a row per turn in the map, if walking an
   attempt's frames proves slow for parties' reads.
 - **Values on disk,** with only keys in memory, if a deployment outgrows
-  its map's budget after retention (skein's `kv.md`, section 12).
+  its map's budget after retention (skein's `data/kv.md`, section 12).
 - **Search** over tasks, notes and transcripts: an index of the domain's,
   or a file-based one beside the store.
 - **Several engines:** the store is one process's; the log of commits is

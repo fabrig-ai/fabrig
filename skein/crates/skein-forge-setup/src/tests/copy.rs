@@ -1,4 +1,4 @@
-//! Hand-given copy replies, including interrupted copies (skein/docs/design/forge-setup.md, 4.10).
+//! Hand-given copy replies, including interrupted copies (skein/docs/design/forge/setup/forgejo.md, 1.10).
 use super::{fixtures, host};
 use crate::{
     copy::{self, Copy},

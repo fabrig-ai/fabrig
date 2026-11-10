@@ -1,4 +1,4 @@
-//! Command line entry point for codec.md, sections 6 and 12.8.
+//! Command line entry point for data/codec/README.md, section 6, and data/codec/command.md, section 8.
 
 extern crate alloc;
 
@@ -65,7 +65,7 @@ fn arguments(args: &[String]) -> Result<Arguments, &'static str> {
     Ok(Arguments::Patch { owner: second.into(), options, base, check })
 }
 
-#[expect(clippy::print_stderr, reason = "the command's errors are printed to stderr (codec.md 12.8)")]
+#[expect(clippy::print_stderr, reason = "the command's errors are printed to stderr (data/codec/command.md 8)")]
 fn main() -> ExitCode {
     skein_fail_stop::install();
     match execute() {
@@ -77,7 +77,7 @@ fn main() -> ExitCode {
     }
 }
 
-#[expect(clippy::print_stdout, reason = "the binary prints the run's report and the check's findings (codec.md 12.8)")]
+#[expect(clippy::print_stdout, reason = "the binary prints the run's report and the check's findings (data/codec/command.md 8)")]
 #[expect(clippy::disallowed_methods, reason = "skein's round: reads the codegen command line")]
 fn execute() -> Result<u8, Box<dyn core::error::Error>> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();

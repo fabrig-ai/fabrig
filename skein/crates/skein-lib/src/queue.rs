@@ -118,7 +118,7 @@ impl<'a, T> IntoIterator for &'a Queue<T> {
     }
 }
 
-// lib.md, 5.1: hash held state, never capacity or storage layout.
+// runtime/lib.md, 5.1: hash held state, never capacity or storage layout.
 impl<T: Hash> Hash for Queue<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.items.hash(state);

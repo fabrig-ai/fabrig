@@ -10,7 +10,7 @@ whichever layer of hearth sits just above it:
 |---|---|---|
 | the domain | domain face | typed operations: a subvolume made, snapshotted, frozen, thawed or removed; a tree read or written; a tool run with typed arguments; a variable set; a reboot |
 | the protocol layer | io face | io's records: files by name, a full stat, extended attributes, the btrfs ioctls, efivarfs, spawns with argument vectors into namespaces and cgroups, bytes on pipes, exits |
-| io | behind the simulator | the operations the simulator passes on (`skein/docs/design/simulator.md`, 3.1), and the machine's power |
+| io | behind the simulator | the operations the simulator passes on (`skein/docs/design/testing/simulator.md`, 3.1), and the machine's power |
 | everything | none | the real kernel: a scratch directory, real btrfs, or a VM (`README.md`, section 3 and `real-builds.md` and `vm.md`) |
 
 The io face answers the records hearth asks of skein (hearth/docs/design/README.md, 7.1) and
@@ -375,7 +375,7 @@ A scenario picks the machine's kind:
 A power cut falls between any two of the machine's operations, or inside
 a write: the referee picks one, the seed draws one, or a sweep takes
 each in turn. The model follows skein's for its fake disk (
-`skein/docs/design/kv.md`, section 8), and where a guarantee is still to verify it takes
+`skein/docs/design/data/kv.md`, section 8), and where a guarantee is still to verify it takes
 the weaker one, so hearth is never written against a promise the kernel
 may not keep:
 
@@ -403,7 +403,7 @@ The machine then powers on, and the firmware boots what it would (7).
   (tens of MB on a real root), so a disk that held the output can fill
   while preparing a slot.
 - **ENOSPC** falls at a drawn write.
-- **The simulator's own disk faults** (`skein/docs/design/simulator.md`, section
+- **The simulator's own disk faults** (`skein/docs/design/testing/simulator.md`, section
   4: an I/O error, a filesystem gone read-only, an operation that hangs)
   apply behind it. The machine adds its own: a variable store full,
   firmware that forgets, a disk missing at boot, a GRUB save that fails,
@@ -439,7 +439,7 @@ protocol is their command line. hearth builds it first.
   stays hearth's, as `hearth-fake-machine`, on the kit, since a
   service's fake machine is the service's (skein/docs/foundation/testing-strategy.md, 4.3).
 - **skein's minimal fake machine stays minimal,** as
-  `skein/docs/design/testing.md`, section 4 says; the kit does not grow it.
+  `skein/docs/design/testing/README.md`, section 4 says; the kit does not grow it.
 
 ## 12. Containers [M5]
 

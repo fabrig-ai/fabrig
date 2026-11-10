@@ -1,4 +1,4 @@
-//! A complete buffer served as the side below of a stream (lib.md, 7).
+//! A complete buffer served as the side below of a stream (runtime/lib.md, 7).
 
 use alloc::boxed::Box;
 
@@ -11,7 +11,7 @@ use super::{Read, Up};
 /// reads it. All of it is here, so every demand is answered at once, in
 /// the same step, and what a demand cannot be met by is the stream's end.
 ///
-/// It keeps the contract of a stream as the side below (lib.md, 7): a
+/// It keeps the contract of a stream as the side below (runtime/lib.md, 7): a
 /// demand is answered once, by exactly what its read asks for, or by `End`
 /// when what is left can never meet it; `End` comes once, and nothing
 /// after it. It asks nothing of room: the data is read, not written.
@@ -41,7 +41,7 @@ impl Held {
 }
 
 /// A borrowed buffer, read as a stream: [`Held`]'s contract over a slice.
-/// It copies only each delivery, never the whole buffer (lib.md, 7).
+/// It copies only each delivery, never the whole buffer (runtime/lib.md, 7).
 #[derive(Debug)]
 pub struct Slice<'a> {
     bytes: &'a [u8],

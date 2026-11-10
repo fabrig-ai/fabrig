@@ -19,7 +19,7 @@ const NO_ROWS: Size = Size { columns: 30, rows: 0 };
 const NO_COLUMNS: Size = Size { columns: 0, rows: 8 };
 // Ten cells force the area onto three rows, leaving the fourth for Tail.
 const FIELD_EDGE: Size = Size { columns: 10, rows: 4 };
-// ui-screen.md, section 9, and the task's whole-tree frame at six 24-row pages.
+// ui/screen.md, section 9, and the task's whole-tree frame at six 24-row pages.
 const EVERY: Size = Size { columns: 80, rows: 24 };
 const EVERY_TALL: Size = Size { columns: 80, rows: 144 };
 // A titled frame, two empty body rows and one spread footer row.

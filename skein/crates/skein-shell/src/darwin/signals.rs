@@ -1,4 +1,4 @@
-//! Ignored signals delivered by `EVFILT_SIGNAL` (shell.md, 7.5).
+//! Ignored signals delivered by `EVFILT_SIGNAL` (runtime/readiness.md, 5).
 //!
 //! # The `unsafe`, and why it is sound
 //!
@@ -17,10 +17,10 @@ use std::{
 };
 
 // Descriptor identities are process-wide; the lock serializes their ownership
-// when harnesses or separately hosted loops share one process (shell.md, 7.5).
+// when harnesses or separately hosted loops share one process (runtime/readiness.md, 5).
 #[expect(
     clippy::disallowed_types,
-    reason = "process-wide signal pipe ownership is serialized across hosted loops (shell.md, 7.5)"
+    reason = "process-wide signal pipe ownership is serialized across hosted loops (runtime/readiness.md, 5)"
 )]
 static PIPES: std::sync::Mutex<BTreeSet<Fd>> = std::sync::Mutex::new(BTreeSet::new());
 pub(super) fn remember_pipe(fd: Fd) {

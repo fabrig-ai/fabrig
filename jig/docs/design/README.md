@@ -273,7 +273,7 @@ does not hand-roll data structures.
   and numbers are the core's.
 - **It keeps to the subset:** generic types and lib's own containers, no
   traits defined, no closures. Its design is a section of skein's
-  `lib.md`.
+  `runtime/lib.md`.
 
 ### 6.3 One shape for every root
 
@@ -504,12 +504,12 @@ the engine     the application's root around jig's core, and jig's clients' comp
 - **Presentation is the application's:** its routes and URLs, its
   screens, words and look, its confirmations and drafts, its home and
   navigation. jig's client knows no page, place or arrangement. An
-  application presents with skein's UI kit (skein's `ui.md`), with
+  application presents with skein's UI kit (skein's `ui/README.md`), with
   anything else, or with nothing at all.
 - **So are the server and its URL space.** The application's service
   owns the clients' listener, its routes and every HTTP and browser
   guard. It serves its own pages and bundle, through skein's serving
-  contract (skein's `ui-web.md`, section 4), its own API, and whatever
+  contract (skein's `ui/web/bundle.md`), its own API, and whatever
   else it wants. It mounts jig's clients' component,
   `jig-protocol-engine-clients`, under a prefix of its choosing, and
   carries jig's messages to it and back. jig reserves no path
@@ -614,7 +614,7 @@ the engine     the application's root around jig's core, and jig's clients' comp
   nothing an application cannot. An application takes it whole, takes a
   part of it, or leaves it.
 - **Every consumer is the same client:** a browser, through wasm32; a
-  terminal, on skein's text shell (skein's `ui-text.md`); a phone or a
+  terminal, on skein's text shell (skein's `ui/text.md`); a phone or a
   desktop application on Linux, macOS or Windows; a chat bot; a one-shot
   command; a service with no presentation at all.
   - **Only the shell and the transport are the platform's.** The client,
@@ -687,7 +687,7 @@ the engine     the application's root around jig's core, and jig's clients' comp
 | the engine's protocol layer's routing, `iterate` and `main` | the application, copied from the reference, around jig's service parts (`protocol/service.md`, sections 7 and 11) |
 | agents' hosts: the hub, the charter's translation / the worker's root, kinds of workspace, `main` (none without agents) | jig / the application |
 | the agent and its capabilities, `smith-host-domain` and `smith-inline-agent` / its charters | smith / the application |
-| the UI kit: the tree and its vocabulary, the builder, the diff, the phrasebook's machinery, Markdown, scenes, the outline's rules; the text shell; the browser parts and their default mapping; the bundler; the fake person, its browser face and the harness | skein (`skein-ui`, `skein-ui-text`, `skein-ui-web`, `skein-ui-bundle`, `skein-fake-person`, `skein-fake-person-browser`: skein's `ui.md`, section 2) |
+| the UI kit: the tree and its vocabulary, the builder, the diff, the phrasebook's machinery, Markdown, scenes, the outline's rules; the text shell; the browser parts and their default mapping; the bundler; the fake person, its browser face and the harness | skein (`skein-ui`, `skein-ui-text`, `skein-ui-web`, `skein-ui-bundle`, `skein-fake-person`, `skein-fake-person-browser`: skein's `ui/README.md`, section 2) |
 | its presentation: its routes and URLs, its screens, words and look, its confirmations and drafts, its home and navigation; on skein's UI kit, on anything else, or on nothing | the application |
 | the client: `jig-client`, its domain, jig's wire and its link; jig's helpers, `shapes`, `facts`, `thread` and `words` / its families' wire, carried as bytes by the same client, and which helpers it uses | jig / the application (`client/domain/client/README.md`; `protocol/client/README.md`) |
 | the server: the clients' component, transport-agnostic, and credentials, minted, verified, expired and revoked; the printed link and services' credentials; the server part (`protocol/service.md`, 11.4) / the clients' listener on that part, its routes and URL space, its pages and bundle, the component mounted under a prefix of its choosing, its sign-in flows and every guard | jig / the application, copied from jig's test application's (`protocol/service.md`; `protocol/client/README.md`) |
@@ -739,7 +739,7 @@ application as its first user.
   `domain/model.md` names one of the domain's.
 - **skein's foundation documents** are named by their own file names:
   `programming-model.md`, `testing-strategy.md`, `notes.md`. skein's
-  design documents are named with skein's name: skein's `lib.md`.
+  design documents are named with skein's name: skein's `runtime/lib.md`.
 - **smith's documents** are named with smith's name and their path in
   smith's `docs/design/`: smith's `domain/run.md`.
 - **An application** appears only as an example, and says so.
@@ -841,11 +841,11 @@ open (`domain/README.md`, section 5), and the client's on its own
   root's test application, `jig-test` and `jig-test-service`
   (`protocol/service.md`, section 7), and `jig-boundary`, the check of
   the crate graph.
-- **The UI kit's crates are skein's** (skein's `ui.md`, section 2): the
+- **The UI kit's crates are skein's** (skein's `ui/README.md`, section 2): the
   tree, `skein-ui`, which `jig-client-view` builds on; the text shell,
   `skein-ui-text`; the browser parts, `skein-ui-web`; the bundler,
   `skein-ui-bundle`, a tool that makes the bundle a browser loads
-  (skein's `ui-web.md`, 4.2); the person, `skein-fake-person`, and its
+  (skein's `ui/web/bundle.md`, 2); the person, `skein-fake-person`, and its
   browser face and harness, `skein-fake-person-browser`. jig has no
   crate of its own for them: a terminal presents the client with
   `skein-ui-text`, and the reference UI with jig's settings

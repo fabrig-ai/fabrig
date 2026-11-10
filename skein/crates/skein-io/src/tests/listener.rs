@@ -1,4 +1,4 @@
-//! The listener's cells (io.md, 3.2): made, bound and listening; accepting
+//! The listener's cells (runtime/io/sockets.md, 2): made, bound and listening; accepting
 //! one socket at a time, each announced and answered; its accept errors; the
 //! accept batch; and closing, with its accept in flight and the races of its
 //! cancel.

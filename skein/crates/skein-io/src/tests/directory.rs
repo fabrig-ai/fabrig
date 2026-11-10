@@ -1,4 +1,4 @@
-//! Directory requests retain the owner's two roots (io.md, 5).
+//! Directory requests retain the owner's two roots (runtime/io/files.md).
 use super::file::{complete, file_env};
 use crate::{
     file::{Event, Request},

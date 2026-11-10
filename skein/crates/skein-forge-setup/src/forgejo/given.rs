@@ -1,4 +1,4 @@
-//! Owner-provided values and admission (forge-setup.md, 4.1).
+//! Owner-provided values and admission (forge/setup/forgejo.md, 1.1).
 use crate::limits::{self, Limits};
 use alloc::boxed::Box;
 use core::net::SocketAddr;
@@ -102,7 +102,7 @@ pub fn check(given: &Given) -> Result<(), Refused> {
     check_adopted(&given.adopted, &given.limits)
 }
 /// Checks a plan's adopted repositories before the owner sends a `Reconcile`.
-/// The host asserts this check: a refused plan is the owner's bug (forge-setup.md, 6.3).
+/// The host asserts this check: a refused plan is the owner's bug (forge/setup/README.md, 4.3).
 pub fn check_adopted(adopted: &[u64], limits: &Limits) -> Result<(), Refused> {
     if adopted.len() > usize_of(limits.repositories) {
         return Err(Refused { place: Place::Repositories, other: None });
@@ -179,7 +179,7 @@ pub fn email(b: &[u8]) -> bool {
     ats == 1
 }
 
-/// Checks a creation plan before its owner sends it (forge-setup.md, 4.9).
+/// Checks a creation plan before its owner sends it (forge/setup/forgejo.md, 1.9).
 /// `string_bytes` is the host's admitted decoder string bound.
 pub fn check_create(limits: &Limits, string_bytes: u32, plan: &crate::host::Plan) -> Result<(), Refused> {
     limits::check(limits)?;
@@ -189,7 +189,7 @@ pub fn check_create(limits: &Limits, string_bytes: u32, plan: &crate::host::Plan
     create_fields(limits, string_bytes, org, repository, files)
 }
 
-/// Checks a copy's destination, files and public source (forge-setup.md, 4.10).
+/// Checks a copy's destination, files and public source (forge/setup/forgejo.md, 1.10).
 /// `string_bytes` is the host's admitted decoder string bound.
 pub fn check_copy(limits: &Limits, string_bytes: u32, plan: &crate::host::Plan) -> Result<(), Refused> {
     limits::check(limits)?;
@@ -238,7 +238,7 @@ pub(crate) fn create_fields(
     Ok(())
 }
 
-/// Forgejo repository names (forge-setup.md, 4.9).
+/// Forgejo repository names (forge/setup/forgejo.md, 1.9).
 #[must_use]
 pub(crate) fn repository_name(name: &[u8]) -> bool {
     if name.is_empty() || name.len() > 100 || name == b"." || name == b".." {

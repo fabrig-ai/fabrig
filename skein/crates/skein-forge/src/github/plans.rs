@@ -1,4 +1,4 @@
-//! Pure GitHub call plans and their exchange events (forge-github.md, section 2).
+//! Pure GitHub call plans and their exchange events (forge/github.md, section 2).
 use crate::github::{decode, document, header};
 pub use crate::plan::Failure;
 use alloc::boxed::Box;

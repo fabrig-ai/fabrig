@@ -120,7 +120,7 @@ pub const REPO: crate::api::Repository = crate::api::Repository { forge: 1, repo
 
 pub const START_USER: u64 = 7;
 pub const TOKEN: &[u8] = b"secret";
-/// A canned server's positive page cap (forge.md, section 4.1).
+/// A canned server's positive page cap (forge/README.md, section 4.1).
 pub const PAGE_CAP: u32 = 50;
 
 pub fn credential() -> crate::credential::Credential {
@@ -128,7 +128,7 @@ pub fn credential() -> crate::credential::Credential {
 }
 
 pub fn api_settings(cap: u32) -> Document {
-    // Explicit paging uses max_response_items, not the default (forge.md, 5.1).
+    // Explicit paging uses max_response_items, not the default (forge/forgejo.md, 1.1).
     const DEFAULT_PAGING_NUM: u32 = 30;
     Document::ApiSettings(crate::forgejo::document::ApiSettings {
         max_response_items: cap,
@@ -157,7 +157,7 @@ use crate::forgejo::plans::{
     tables::Tables,
 };
 use crate::forgejo::request::Method;
-/// The protocol fixtures' small bounds (forge.md, sections 5.1 and 11).
+/// The protocol fixtures' small bounds (forge/forgejo.md, section 1.1, and forge/README.md, section 9).
 pub const ROWS: u32 = 8;
 pub const ANSWER_BYTES: u32 = 65_536;
 pub const BODY_BYTES: u32 = 1045;

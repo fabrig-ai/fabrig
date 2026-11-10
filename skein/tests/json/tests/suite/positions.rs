@@ -1,4 +1,4 @@
-//! Where the reference and the world place answers (json.md, 3.6 and 6).
+//! Where the reference and the world place answers (data/json.md, 3.6 and 6).
 use skein_json::tokenizer::{Limits, Position};
 use skein_json_world::{
     reference,

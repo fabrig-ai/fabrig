@@ -1,4 +1,4 @@
-//! Bundle helpers (jig/docs/design/protocol/service.md, 11.4; skein/docs/design/ui-web.md, 4.4).
+//! Bundle helpers (jig/docs/design/protocol/service.md, 11.4; skein/docs/design/ui/web/bundle.md, 4).
 use crate::server::{Routed, Server};
 use alloc::boxed::Box;
 use skein_http::{Header, server as http};
@@ -11,7 +11,7 @@ pub struct File {
     pub bytes: Box<[u8]>,
     pub gzip: Option<Box<[u8]>>,
 }
-/// The file a compressed form belongs to (skein/docs/design/ui-web.md, 4.4).
+/// The file a compressed form belongs to (skein/docs/design/ui/web/bundle.md, 4).
 #[must_use]
 pub fn compressed_of(path: &[u8]) -> Option<&[u8]> {
     let plain = path.strip_suffix(b".gz")?;

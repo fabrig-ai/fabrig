@@ -1,6 +1,6 @@
 //! A gzip encoder (http.md, section 3.1): a whole request body to its gzip
 //! member (RFC 1952), DEFLATE inside (RFC 1951), for a caller whose server
-//! takes a compressed body (RFC 9110, 8.4.1; llm.md, section 4.8).
+//! takes a compressed body (RFC 9110, 8.4.1; llm/README.md, section 4.8).
 //!
 //! [`bound`] is the worst case of the output from the body's length: the
 //! caller sets that much room aside, and [`encode`] writes the member into

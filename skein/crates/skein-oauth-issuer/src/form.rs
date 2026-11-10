@@ -7,7 +7,7 @@ pub(crate) struct Field {
     value: Box<[u8]>,
     past: bool,
 }
-// skein/docs/design/oauth.md, 4: a form value's secret bytes stay out of Debug.
+// skein/docs/design/oauth/README.md, 4: a form value's secret bytes stay out of Debug.
 impl core::fmt::Debug for Field {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Field")

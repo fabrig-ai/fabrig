@@ -1,4 +1,4 @@
-//! Frame differences as terminal bytes (skein/docs/design/ui-screen.md, 7 and 8).
+//! Frame differences as terminal bytes (skein/docs/design/ui/screen.md, 7 and 8).
 use skein_lib::{Decimal, List};
 use skein_ui_screen::{Frame, Paint, Position, Rgb, Size};
 

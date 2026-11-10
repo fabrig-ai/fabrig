@@ -1,4 +1,4 @@
-//! Forgejo exchanges held by their plans (skein/docs/design/forge-connection.md, 8.1).
+//! Forgejo exchanges held by their plans (skein/docs/design/forge/connection.md, 8.1).
 use super::{Connection, Ended, Keep, Moved, Payload, Phase, field};
 use crate::limits::{self, Limits};
 use crate::settings::Forge;

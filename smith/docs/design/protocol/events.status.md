@@ -8,7 +8,7 @@
   (agent.md, section 3).
 - **Departs:** 6: `smith-events/src/read.rs`, `tokenize`, drives a
   tokenizer over one whole line by hand, with its own step bound, where
-  `skein/docs/design/json.md`, 5.3 gives one whole buffer to `parse` or a
+  `skein/docs/design/data/json.md`, 5.3 gives one whole buffer to `parse` or a
   `Feed`, and the user's request of 11-04 asked that no step crate
   outside skein-json do so. No reason is recorded, and no debt item
   holds it.

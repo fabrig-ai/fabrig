@@ -1,5 +1,5 @@
 //! Private keepers on the minimal machine, with the existing independent socket
-//! issuer and owner contract referee (oauth.md, sections 6.4 and 6.8).
+//! issuer and owner contract referee (oauth/accounts.md, sections 4 and 8).
 
 use crate::world::{self, Client, Fact, Process, Story as OwnerStory};
 use skein_fake_machine::{How, Item, Machine as Files, Opened};
@@ -107,7 +107,7 @@ impl FileSystem {
         match story {
             Story::NoIssuedId => {
                 let mut version_two = encoded.into_vec();
-                version_two[5] = 2; // oauth.md 1: version two, without the five optional presence bytes.
+                version_two[5] = 2; // oauth/README.md 1: version two, without the five optional presence bytes.
                 version_two.truncate(version_two.len() - 5);
                 items.push(Item::file(b"secret/record", &version_two).mode(0o600));
             }

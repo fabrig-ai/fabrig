@@ -1,4 +1,4 @@
-//! A patch's text read into its statements (codec.md, 11.1), leniently: the
+//! A patch's text read into its statements (data/codec/patches.md, 1), leniently: the
 //! command reads what it wrote and its author edited, and leaves the grammar's
 //! refusals to skein-codec's `header` and `plan`.
 

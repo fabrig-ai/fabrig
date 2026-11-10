@@ -1,5 +1,5 @@
 //! Opening policy that is mechanical rather than the owner's decision
-//! (channel.md, sections 5.1–5.3). The machine checks magic, range, phase
+//! (net/channel.md, sections 5.1–5.3). The machine checks magic, range, phase
 //! and terms; its owner alone judges credentials and acceptable limits.
 use skein_lib::List;
 

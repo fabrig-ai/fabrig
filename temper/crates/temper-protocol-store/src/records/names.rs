@@ -102,7 +102,7 @@ pub(super) fn encode_protection(value: &d::Protection) -> w::RepositoryProtectio
 pub(super) fn decode_contexts(bytes: &[u8], bounds: &Bounds) -> Result<Box<[Box<[u8]>]>, Undecodable> {
     decode_names(bytes, bounds, bounds.forge().client.rows)
 }
-// Stored names keep their encoding; Branches is byte-bounded (skein's forge.md, 3.7).
+// Stored names keep their encoding; Branches is byte-bounded (skein's forge/README.md, 3.7).
 pub(super) fn decode_branches(bytes: &[u8], bounds: &Bounds) -> Result<Box<[Box<[u8]>]>, Undecodable> {
     let width = u32::try_from(skein_forge::measure::STRING_BYTES).expect("string width fits");
     let capacity = bounds.forge().client.answer_bytes.checked_div(width).expect("nonzero string width");

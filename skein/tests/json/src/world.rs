@@ -422,7 +422,7 @@ impl World<'_> {
             below.intake.append(arrived).expect("within the room");
             below.unsent = rest;
         }
-        // A failure may come after the end too (lib.md, 7), once.
+        // A failure may come after the end too (runtime/lib.md, 7), once.
         if let Some((at, fault)) = self.settings.failure
             && self.iteration >= at
             && below.failed.is_none()
@@ -618,7 +618,7 @@ impl Below<'_> {
         };
         assert!(!closing, "a close demands nothing");
         assert!(self.demand.is_none(), "one demand at a time: {read:?} over {:?}", self.demand);
-        // One stated while the end is on its way crosses it (lib.md, 7).
+        // One stated while the end is on its way crosses it (runtime/lib.md, 7).
         assert!(self.life != Life::Over, "nothing is demanded once the stream's end or failure arrived: {read:?}");
         self.fell.crossed_end |= self.life == Life::Ending;
         assert!(wanted >= 1, "a demand is for something: {read:?}");

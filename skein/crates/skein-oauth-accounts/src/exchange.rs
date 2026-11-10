@@ -1,4 +1,4 @@
-//! One issuer exchange and its HTTP/TLS socket (oauth.md, sections 2, 3 and 6.4).
+//! One issuer exchange and its HTTP/TLS socket (oauth/README.md, sections 2 and 3, and oauth/accounts.md, section 4).
 //! Keeps child handoffs and one bounded response document; knows no grant policy
 //! or durable store. The component routes io events and advances one child at a
 //! time, then consumes the client's terminal before closing the connection.
@@ -170,7 +170,7 @@ enum Phase {
     Closed,
 }
 
-/// HTTP over one link (skein/docs/design/link.md, 3).
+/// HTTP over one link (skein/docs/design/net/link.md, 3).
 pub(crate) struct Web {
     link: Link,
     phase: Phase,

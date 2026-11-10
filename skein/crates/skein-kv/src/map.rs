@@ -34,7 +34,7 @@ struct Charge {
 }
 
 /// What the commits in flight and queued leave behind: each key they touch, with its charge
-/// once they apply, and the map's used bytes and entries then (skein/docs/design/kv.md, 7).
+/// once they apply, and the map's used bytes and entries then (skein/docs/design/data/kv.md, 7).
 #[derive(Debug)]
 pub(crate) struct Queued {
     charges: Map<Box<[u8]>, Charge>,
@@ -73,7 +73,7 @@ impl Queued {
         self.count = projected.count;
     }
 
-    /// Check admission without reserving charges when the byte queue would refuse it (kv.md, 4).
+    /// Check admission without reserving charges when the byte queue would refuse it (data/kv.md, 4).
     pub(crate) fn check(&self, map: &KvMap, ops: &[Op], limits: &Limits) -> Result<Projected, Refusal> {
         let (used, count) = if self.charges.is_empty() { (map.used, map.len()) } else { (self.used, self.count) };
         let mut after = i128::from(used);
@@ -175,7 +175,7 @@ impl KvMap {
     }
 
     /// Each row's key and value and 8 bytes of lengths, as a snapshot's chunks hold them
-    /// (skein/docs/design/kv.md, 5 and 7).
+    /// (skein/docs/design/data/kv.md, 5 and 7).
     #[must_use]
     pub(crate) fn live(&self) -> u64 {
         self.live

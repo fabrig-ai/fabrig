@@ -46,12 +46,12 @@ file the site serves beside it (5.1). The site that links them is
 - **Its target:** `x86_64-unknown-linux-gnu`, built with
   `TEMPER_BUNDLE=embed` and the release profile, stripped; one file,
   nothing beside it at run time but section 4's programs.
-- **Its floors:** Linux 6.12, skein's (skein's `shell.md`, sections 4
-  and 7); glibc 2.39, the oldest that has the process calls skein's
+- **Its floors:** Linux 6.12, skein's (skein's `runtime/shell.md`, section 4 and `runtime/readiness.md`
+  ); glibc 2.39, the oldest that has the process calls skein's
   shell uses (`pidfd_spawn`, `pidfd_getpid`,
   `posix_spawnattr_setcgroup_np`). Built against a newer glibc, it
   would require that one: so the release builds in a root of the floor's
-  own glibc (section 5), and its versioned symbols are checked against
+  own glibc (`release.md`, section 5), and its versioned symbols are checked against
   2.39 before it is published. That 2.39 is the newest of the
   `GLIBC_` symbol versions those calls carry, as the first release
   build's own symbols show; a newer one found there moves the floor

@@ -1,4 +1,4 @@
-//! What a second crate takes of the JSON world: the reference reader, the generator and their outcome types (skein/docs/design/testing.md, 6).
+//! What a second crate takes of the JSON world: the reference reader, the generator and their outcome types (skein/docs/design/testing/README.md, 6).
 
 pub mod generate;
 pub mod reference;
@@ -7,7 +7,7 @@ use skein_json::Token;
 use skein_json::tokenizer::Error;
 use skein_json::writer::{self, Encoder, Refusal};
 
-/// `tokens`, a document, through the writer's two passes (json.md, 4):
+/// `tokens`, a document, through the writer's two passes (data/json.md, 4):
 /// measured, then written into exactly that length; or why the measuring
 /// pass refused it.
 ///

@@ -1,4 +1,4 @@
-//! A bounded generic framed channel (channel.md, sections 1–10).
+//! A bounded generic framed channel (net/channel.md, sections 1–10).
 //!
 //! A `Machine` keeps a checked application schema, opening phase, one
 //! partial input frame, the peer's terms, a bounded output queue, and one

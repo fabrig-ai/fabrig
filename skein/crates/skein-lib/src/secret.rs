@@ -1,4 +1,4 @@
-//! Owned secret bytes (lib.md, 6), exposed only at their point of use.
+//! Owned secret bytes (runtime/lib.md, 6), exposed only at their point of use.
 use alloc::boxed::Box;
 
 /// A credential, token or key whose debug view contains its length only.

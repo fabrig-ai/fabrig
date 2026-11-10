@@ -8,7 +8,7 @@ mod growth;
 mod keep_box;
 mod tabs;
 
-/// Other tabs awaited as listed (skein/docs/design/ui-web.md, 14.2).
+/// Other tabs awaited as listed (skein/docs/design/ui/web/testing.md, 2).
 #[derive(Clone, Debug)]
 pub struct TabSeen {
     /// The tab's title, whole.
@@ -51,7 +51,7 @@ pub enum Step {
     Key(skein_browser::boundary::Key),
     KeyWithShift(skein_browser::boundary::Key),
     Focused(skein_fake_person::Find),
-    /// Await the found node pressed, within this long (skein/docs/design/ui-web.md, 14.2).
+    /// Await the found node pressed, within this long (skein/docs/design/ui/web/testing.md, 2).
     Pressed {
         find: skein_fake_person::Find,
         within: Duration,

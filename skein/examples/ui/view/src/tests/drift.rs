@@ -1,4 +1,4 @@
-//! The family and golden bytes cannot drift (codec.md, 6).
+//! The family and golden bytes cannot drift (data/codec/README.md, 6).
 #[test]
 #[expect(clippy::disallowed_methods, reason = "skein's round: reads SKEIN_CODEGEN_WRITE, the codegen rewrite switch")]
 fn records_match_their_generated_code() {

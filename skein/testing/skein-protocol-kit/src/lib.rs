@@ -1,4 +1,4 @@
-//! Shared protocol-world harness parts (skein/docs/design/testing.md, 6).
+//! Shared protocol-world harness parts (skein/docs/design/testing/README.md, 6).
 
 pub mod below;
 pub mod random;

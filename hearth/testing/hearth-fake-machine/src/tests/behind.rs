@@ -133,7 +133,7 @@ fn a_lock_is_busy_through_a_second_handle_until_the_first_closes() {
     assert_eq!(
         answer(&mut behind, Ask::Lock { file: first }),
         Ok(Reply::Done),
-        "skein/docs/design/kernel.md, 6.1: taken"
+        "skein/docs/design/runtime/kernel.md, 6.1: taken"
     );
     assert_eq!(answer(&mut behind, Ask::Lock { file: second }), Err(Error::Busy), "another open holds it");
     assert_eq!(answer(&mut behind, Ask::Close { file: first }), Ok(Reply::Done), "closed");

@@ -1,4 +1,4 @@
-//! Capacities derived from 64 notes and the record ceilings (ui.md, 15).
+//! Capacities derived from 64 notes and the record ceilings (ui/README.md, 13).
 #[must_use]
 pub fn limits() -> skein_ui::Limits {
     skein_ui::Limits {

@@ -1,5 +1,5 @@
 //! Two worlds in lockstep compare by digest at each iteration, and by text where they differ
-//! and once at a seed's end (skein/docs/foundation/testing-strategy.md, 6; skein/docs/design/lib.md, 5.1).
+//! and once at a seed's end (skein/docs/foundation/testing-strategy.md, 6; skein/docs/design/runtime/lib.md, 5.1).
 
 use core::fmt::{Debug, Display};
 use core::hash::{Hash, Hasher};

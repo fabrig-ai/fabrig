@@ -215,8 +215,8 @@ policy.
   closes everything it owns and exits once each has settled; only io's
   close deadlines bound that, and they make its teardown bound
   (protocol/agent.md, section 6). The host's exit grace is derived from
-  that bound and exceeds it, as a supervisor's does (skein's `shell.md`,
-  section 13; protocol/limits.md, `grace-over-teardown`), so an agent
+  that bound and exceeds it, as a supervisor's does (skein's `runtime/shell.md`,
+  section 12; protocol/limits.md, `grace-over-teardown`), so an agent
   that keeps its contract is never signalled. Past the grace, its tree
   is terminated, then killed.
 - **How the agent ended** is evidence, not a guess: its end carries
@@ -239,7 +239,7 @@ policy.
   such as its error output's tail, never shown to an LLM; and its end,
   with the exit evidence. An agent that panics ends its error output
   with the panic's `panicked at` line and message, after the backtrace
-  (skein's `shell.md`, section 6), so the tail keeps them when that
+  (skein's `runtime/shell.md`, section 6), so the tail keeps them when that
   closing text fits its bound, however long the backtrace before them.
   A closing text larger than the bound is itself kept as a tail.
 
@@ -321,7 +321,7 @@ policy.
 - **The local host's sources.** Each account the local host lends has
   the source its settings give it (`../shell/settings.md`, 1.2):
   - **its own sign-in** (`sign_in`): skein's OAuth driver with the
-    registration of the provider's preset (skein's `oauth.md`, 6.2), a
+    registration of the provider's preset (skein's `oauth/accounts.md`, 2), a
     redirect on a port drawn for each sign-in unless the settings fix
     one (6.5), and the subject from the ID token. The record is kept
     privately in the credentials directory, under its lock, and read

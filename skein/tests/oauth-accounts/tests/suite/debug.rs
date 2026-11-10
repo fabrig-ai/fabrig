@@ -1,4 +1,4 @@
-//! Credential and carrier debug views (skein/docs/design/oauth.md, 4; skein/docs/design/lib.md, 6).
+//! Credential and carrier debug views (skein/docs/design/oauth/README.md, 4; skein/docs/design/runtime/lib.md, 6).
 
 use std::fmt::Debug;
 
