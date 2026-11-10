@@ -1869,6 +1869,15 @@ pub enum Event {
         task: u64,
         entry: u64,
     },
+    /// Supply a fresh entry for a missing goal branch (domain/forge.md, 11.1).
+    ContinueGoalBranch {
+        task: u64,
+        entry: u64,
+    },
+    /// Read and make a goal's branch after its making hold is released.
+    RetryGoalBranch {
+        task: u64,
+    },
     /// Lift a held projection after a person resolves its permanent failure.
     ReleaseProjection {
         goal: u64,
@@ -2216,6 +2225,10 @@ pub enum Request {
     },
     /// A prior effect or release write settled; advance the closing task.
     ContinueRelease {
+        task: u64,
+    },
+    /// A missing goal branch needs a fresh outbox number (domain/forge.md, 11.1).
+    ContinueGoalBranch {
         task: u64,
     },
     /// All effects issued before resource cleanup have settled.
