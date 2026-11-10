@@ -992,6 +992,15 @@ part:
   plus `fallback`. A job's delivery still wakes its flight at once.
   Settling's rereads (below), fresh reads and stall deadlines are not
   stretched.
+- **Failures stop or back off.** A keeping read refused for its inputs
+  (`TooLarge`: a branch's comparison, a comment or review scan past its cap,
+  an answer past the client's bounds) is reported once and not read again
+  until a hint or the listing names its resource, or its branch reads another
+  tip (skein's `forge-client.md`, 4.2). Any other failure is read again after
+  the client's `backoff`, 1 second as shipped, doubling after each failure in
+  a row to `slow_ms`, and an answer sets it back; a failing listing waits
+  alike. These waits are not stretched while a repository hears, and a
+  restart forgets a refusal and tries once more.
 - **What Forgejo settles after it delivers** is read again sooner, by
   the change procedure, which reads its pull request afresh (5.3), not
   by the keep. Forgejo checks a pull request's mergeability after a push

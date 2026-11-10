@@ -746,7 +746,7 @@ fn missing_uses_hinted_rest_and_unavailable_keeps_backoff() {
 
     let mut h = Harness::new();
     h.keep(Box::new([watch(branch(), false)]));
-    for now in [101, 102, 103] {
+    for now in [101, 103, 107] {
         let read = h.one();
         h.event(Event::Answered { call: read.call, cost: 1, free: 0, rate: None, result: Err(Error::Unavailable) });
         assert!(h.send().is_none());

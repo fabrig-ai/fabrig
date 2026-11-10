@@ -9,6 +9,3 @@
   rebase's concurrent-push behaviour. The connector world checks a dropped
   push by an explicit branch rewrite; the design takes the forced push at
   its worst until the real forge's behaviour is recorded.
-- **Not yet:** 4.2: every keeping failure but `Missing` is read again
-  after `backoff`, unchanging; a `TooLarge` comparison or inbox scan is
-  read again and reports `Changed` each time.

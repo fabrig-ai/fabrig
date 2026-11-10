@@ -40,6 +40,8 @@ struct Live {
     hinted: bool,
     state: State,
     interval: Duration,
+    refused: Refusals,
+    retry: Duration,
     echo_capacity: u32,
     inbox: Inbox,
 }
@@ -79,6 +81,41 @@ enum Phase {
     Branch,
     BranchCompare { before: Commit, after: Commit },
 }
+// A refusal belongs to a phase kind, not a scan page (forge-client.md, 4.2).
+#[derive(Hash, Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "each phase kind independently retains its refusal")]
+struct Refusals {
+    object: bool,
+    pull: bool,
+    reviews: bool,
+    branch: bool,
+    comparison: Option<(Commit, Commit)>,
+}
+impl Refusals {
+    const fn new() -> Self {
+        Self { object: false, pull: false, reviews: false, branch: false, comparison: None }
+    }
+    fn contains(&self, phase: Phase) -> bool {
+        match phase {
+            Phase::Object => self.object,
+            Phase::Pull => self.pull,
+            Phase::Reviews(_) => self.reviews,
+            Phase::Branch => self.branch,
+            Phase::BranchCompare { before, after } => self.comparison == Some((before, after)),
+        }
+    }
+    fn set(&mut self, phase: Phase, refused: bool) {
+        match phase {
+            Phase::Object => self.object = refused,
+            Phase::Pull => self.pull = refused,
+            Phase::Reviews(_) => self.reviews = refused,
+            Phase::Branch => self.branch = refused,
+            Phase::BranchCompare { before, after } => {
+                self.comparison = if refused { Some((before, after)) } else { None };
+            }
+        }
+    }
+}
 #[derive(Hash, Debug)]
 struct Repo {
     record: RepositoryRecord,
@@ -88,6 +125,7 @@ struct Repo {
     state: Scan,
     hinted: bool,
     heard: Option<Time>,
+    retry: Duration,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Fresh {
@@ -187,12 +225,14 @@ fn live(record: LiveRecord, l: &Limits, alarm: u64) -> Live {
         hinted: false,
         state: State::Due(phase, Priority::Keep),
         interval: l.poll,
+        refused: Refusals::new(),
+        retry: Duration::ZERO,
         echo_capacity: l.rows,
         inbox: Inbox { repair_at: Time::ZERO, needs_repair, reviews_needed: false },
     }
 }
 fn repository(record: RepositoryRecord) -> Repo {
-    Repo { record, active: true, dropping: false, fresh: Fresh::Complete, state: Scan::Off, hinted: false, heard: None }
+    Repo { record, active: true, dropping: false, fresh: Fresh::Complete, state: Scan::Off, hinted: false, heard: None, retry: Duration::ZERO }
 }
 fn listed(k: &Keep, repository: Repository) -> bool {
     for (key, row) in &k.live {
@@ -470,4 +510,14 @@ fn valid_participation(watch: &Watch) -> bool {
         What::Pull(_) | What::Issue(_) => true,
         What::Repository | What::Branch(_) => !watch.participating,
     }
+}
+
+// Keeping failures wait independently of hearing (forge-client.md, 4.2).
+fn retry_wait(retry: &mut Duration, l: &Limits) -> Duration {
+    *retry = if *retry == Duration::ZERO { l.backoff } else { retry.saturating_mul(2).min(l.slow.max(l.backoff)) };
+    *retry
+}
+fn taken(row: &mut Live, phase: Phase) {
+    row.retry = Duration::ZERO;
+    row.refused.set(phase, false);
 }

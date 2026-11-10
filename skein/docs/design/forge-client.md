@@ -277,8 +277,9 @@ asked again.
 - **Refused for its inputs.** `TooLarge` answers a live resource's
   same inputs the same way: a comparison of two commits (the drift
   check's, section 4), a scan past `inbox` stamps or pages, and an
-  answer past `answer_bytes` or `rows` (2.3). The live row keeps the refusal in
-  memory: its phase, and for a comparison its two commits. It reports
+  answer past `answer_bytes` or `rows` (2.3). The live row keeps each refusal in
+  memory: its phase, and for a comparison its two commits; a pull may hold
+  one for each of its phases. It reports
   `Changed { result: Err(TooLarge) }` once and rests as after a read.
   While its inputs stand, a timed read skips the refused phase and goes
   on to the next one: a pull's object phase to its pull, its pull to its
@@ -289,11 +290,14 @@ asked again.
   reports it changed, and, for a comparison, when the branch's next read
   answers another tip, which is another pair. The next read of that
   phase then tries again. A restart forgets the refusal and tries once
-  more.
+  more. A read whose inputs changed while it was out keeps no refusal:
+  its `TooLarge` is reported, and the next read tries again.
 - **Any other failure** but `Missing` (section 4) may pass when asked
   again. It reports `Changed` each time and is read again after
   `backoff`, doubling after each failure in a row to at most `slow`, the
-  backstop's pace; an answer sets the wait back to `backoff`. A listing
+  backstop's pace, or `backoff` where `slow` is shorter; an answer the client
+  takes sets the wait back to `backoff`, and one it refuses (`InvalidAnswer`)
+  is a failure in a row. A listing
   that fails waits the same way and reports nothing, `TooLarge`
   included, since a listing's pages move as items change. These waits
   are not stretched (4.1): a failing read is not a quiet one.

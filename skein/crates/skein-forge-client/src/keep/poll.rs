@@ -3,7 +3,7 @@ use super::{
     Repository, Request, Resource, Scan, Sent, State, Stored, What, api, calls,
 };
 
-pub(crate) fn pump(d: &mut Domain, _env: &Env<Limits>, out: &mut Queue<Request>) -> bool {
+pub(crate) fn pump(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) -> bool {
     if !d.keep.is_ready() || d.calls.is_full() {
         return false;
     }
@@ -26,6 +26,14 @@ pub(crate) fn pump(d: &mut Domain, _env: &Env<Limits>, out: &mut Queue<Request>)
         }
     }
     for key in super::keys(&d.keep) {
+        let row = d.keep.live.get(&key).expect("bounded key remains");
+        match row.state {
+            State::Due(phase, _) if row.active && row.refused.contains(phase) => {
+                super::answer::skip_resource(d, env, &key, phase);
+                return true;
+            }
+            State::Idle | State::Due(_, _) | State::Busy(_, _) | State::Waiting(_, _) => {}
+        }
         let row = d.keep.live.get_mut(&key).expect("bounded key remains");
         let key = &key;
         match row.state {
@@ -124,6 +132,7 @@ pub(crate) fn writer(d: &mut Domain, env: &Env<Limits>, key: &Resource, taken: b
     }
     if let Some(row) = d.keep.live.get_mut(key) {
         if row.writer && !taken && row.active {
+            row.refused = super::Refusals::new();
             match row.state {
                 State::Idle | State::Waiting(_, _) => {
                     d.alarms.cancel(Alarm::Resource(row.alarm));
@@ -248,6 +257,7 @@ pub(super) fn nudge_resource(
     key: &Resource,
     row: &mut Live,
 ) {
+    row.refused = super::Refusals::new();
     row.interval = env.limits.poll;
     match row.state {
         State::Idle => {
