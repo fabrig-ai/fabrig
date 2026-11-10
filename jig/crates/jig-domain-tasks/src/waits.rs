@@ -999,7 +999,10 @@ fn eliminate(domain: &Domain, limits: &Limits) -> Map<u64, u32> {
 
 /// Judge members, their ordered reservations and their creator's new wait together (domain/tasks.md, 6.7).
 pub(crate) fn check_batch(domain: &Domain, limits: &Limits, creator: Party, batch: &[New]) -> Result<(), Problem> {
-    let staged = Staged::new(0);
+    let mut staged = Staged::new(1);
+    if let Some(row) = crate::closer::with_work(domain, limits, creator, batch, skein_lib::Wall::EPOCH)? {
+        staged.rows.push(row).expect("one projected closer");
+    }
     let task = match creator {
         Party::Task(parent) => parent,
         Party::Person(_) | Party::Deployment { .. } => batch.first().expect("nonempty admitted batch").number,

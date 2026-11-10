@@ -199,6 +199,7 @@ fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::Reply
         | tasks::Event::WakeProcedure { .. }
         | tasks::Event::TickRecurring { .. }
         | tasks::Event::RenewStanding { .. }
+        | tasks::Event::CloserBatch { .. }
         | tasks::Event::RecurringBatch { .. }
         | tasks::Event::StalledProposal { .. }
         | tasks::Event::Notice { .. }

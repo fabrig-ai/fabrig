@@ -290,6 +290,7 @@ pub(crate) fn notice(domain: &mut Domain, env: &Env<Limits>, number: u64, word: 
         }
         SubscriptionKind::Task { .. } | SubscriptionKind::Topic { .. } => {}
     }
+    crate::closer::ask(domain, number, out);
 }
 
 pub(crate) fn notify_state(

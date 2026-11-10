@@ -622,11 +622,14 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     }
     let nothing_awaited = end_kind == crate::EndKind::Parked
         && !narrowed
-        && nothing_awaited(record(domain, number).expect("answered task live"));
+        && nothing_awaited(domain, record(domain, number).expect("answered task live"));
+    let closer = crate::closer::named(record(domain, number).expect("answered task live"));
     if nothing_awaited {
         let task = task_mut(domain, number).expect("idle task live");
         task.record.tries = previous_tries;
-        task.record.tries.add(Class::Run);
+        if !closer {
+            task.record.tries.add(Class::Run);
+        }
         if task.record.tries.of(Class::Run) > env.limits.retries.run.retries {
             task.record.phase =
                 Phase::Closing(Closing { stage: Stage::Delegates, ending: Ending::Failed { reason: Box::new([]) } });
@@ -634,7 +637,11 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
     }
     publish(domain, env, number, out);
     if nothing_awaited && record(domain, number).expect("idle task live").phase == Phase::Active(Active::Idle) {
-        out.push(Request::NothingAwaitedDue { task: number });
+        if closer {
+            crate::closer::ask(domain, number, out);
+        } else {
+            out.push(Request::NothingAwaitedDue { task: number });
+        }
     }
     if parked && kept.owes && record(domain, number).expect("owing task live").phase == Phase::Active(Active::Idle) {
         out.push(Request::QuestionOwedDue { task: number });
@@ -840,7 +847,7 @@ fn exceeded(domain: &mut Domain, number: u64, exceeded: crate::Exceeded) -> Phas
 pub(crate) const NOTHING_AWAITED_WORDS: &[u8] =
     b"Nothing more will come: your delegates have ended and no question waits. Finish with your result.";
 
-fn nothing_awaited(row: &crate::TaskRecord) -> bool {
+pub(crate) fn nothing_awaited(domain: &Domain, row: &crate::TaskRecord) -> bool {
     if row.phase != Phase::Active(Active::Idle)
         || !ends::for_record(row).finishes_alone()
         || !row.questions.is_empty()
@@ -863,7 +870,12 @@ fn nothing_awaited(row: &crate::TaskRecord) -> bool {
     }
     for subscription in &row.subscriptions {
         match subscription.kind {
-            crate::SubscriptionKind::Task { .. } | crate::SubscriptionKind::Timer { .. } => return false,
+            crate::SubscriptionKind::Task { target, .. } => {
+                if record(domain, target).is_some() {
+                    return false;
+                }
+            }
+            crate::SubscriptionKind::Timer { .. } => return false,
             crate::SubscriptionKind::Topic { .. } => {}
         }
     }
@@ -878,7 +890,7 @@ pub(crate) fn nothing_awaited_notice(
     out: &mut Queue<Request>,
 ) {
     let Some(row) = record(domain, number) else { return };
-    if !nothing_awaited(row) || message == 0 || message <= row.last_message {
+    if !nothing_awaited(domain, row) || message == 0 || message <= row.last_message {
         return;
     }
     let word = crate::Word {

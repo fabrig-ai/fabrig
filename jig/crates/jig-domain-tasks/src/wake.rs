@@ -90,7 +90,7 @@ fn rule(domain: &Domain, number: u64, word: &Word) -> WakeRule {
         MessageKind::Result(result) => match task.wake.results {
             ResultsWake::Never => WakeRule::Never,
             ResultsWake::Each => WakeRule::Immediate,
-            ResultsWake::LastOrFailure => result_wake(result, task.delegates.is_empty()),
+            ResultsWake::LastOrFailure => result_wake(result, task.delegates.is_empty() && !crate::closer::named(task)),
         },
         MessageKind::Notice { .. } => task.wake.notices,
         MessageKind::Timer { .. } => {
@@ -252,6 +252,7 @@ pub(crate) fn after_message(
     };
     schedule(domain, env, number);
     if !ready {
+        crate::closer::ask(domain, number, out);
         return;
     }
     let row = record(domain, number).expect("batch task live");

@@ -7,6 +7,19 @@ use jig_domain_authority as authority;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, Token};
 
+pub(crate) fn closer_due(core: &mut Core, env: &Env<Limits>, task: u64, pending: &mut Queue<tasks::Request>) {
+    let Some(row) = core.tasks.task(task) else { return };
+    if row.closer.is_some() || row.phase != tasks::Phase::Active(tasks::Active::Idle) {
+        return;
+    }
+    let number = crate::fresh(&mut core.counters, crate::Family::Task).expect("closer task number admitted");
+    let mut follow = Queue::uncapped();
+    crate::routing::step::step_tasks(core, env, tasks::Event::CloserBatch { task, number }, &mut follow);
+    for _ in 0..follow.len() {
+        pending.push(follow.pop().expect("closer output count"));
+    }
+}
+
 pub(crate) fn recurring_due(
     core: &mut Core,
     env: &Env<Limits>,

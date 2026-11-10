@@ -641,6 +641,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::RecurringBatch { task, period, numbers } => {
             crate::recurring::make_batch(domain, env, task, period, &numbers, out);
         }
+        Event::CloserBatch { task, number } => crate::closer::make(domain, env, task, number, out),
         Event::Procedure { reply_to, task, step, read, decision } => {
             crate::procedure::stepped(domain, env, reply_to, task, (step, read), decision, out);
         }
@@ -1351,6 +1352,13 @@ pub(crate) fn make_admitted(
     batch: Box<[New]>,
     out: &mut Queue<Request>,
 ) -> Box<[u64]> {
+    if let Some(row) = crate::closer::with_work(domain, &env.limits, creator, &batch, env.wall)
+        .expect("closer's dependency projection admitted")
+    {
+        let number = row.number;
+        task_mut(domain, number).expect("live closer").record = row;
+        publish(domain, env, number, out);
+    }
     crate::funders::reserve(domain, env, &batch, out);
     let parent = match creator {
         Party::Task(number) => Some(number),

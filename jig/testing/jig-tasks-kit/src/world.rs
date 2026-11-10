@@ -390,6 +390,27 @@ impl World {
         tasks::step(&mut self.domain, &self.env, Event::QuestionEndedNotice { task, notices }, &mut self.out);
     }
 
+    fn closer_due(&mut self, task: u64) {
+        if self.domain.task(task).is_some_and(|row| row.closer.is_none()) {
+            let number = self
+                .pending
+                .iter()
+                .filter_map(|request| match request {
+                    Request::Save { record: Stored::Live(row) } => Some(row.number),
+                    _ => None,
+                })
+                .chain(self.records.keys().filter_map(|key| match key {
+                    Key::Live(number) | Key::Ended(number) => Some(*number),
+                    _ => None,
+                }))
+                .max()
+                .unwrap_or(0)
+                .checked_add(1)
+                .expect("closer number room");
+            tasks::step(&mut self.domain, &self.env, Event::CloserBatch { task, number }, &mut self.out);
+        }
+    }
+
     fn route_hint(&mut self, request: &Request) {
         match request {
             Request::PersonStallDue { task } => {
@@ -401,6 +422,7 @@ impl World {
                     &mut self.out,
                 );
             }
+            Request::CloserDue { task } => self.closer_due(*task),
             Request::QuestionOwedDue { task } | Request::NothingAwaitedDue { task } => {
                 self.message = self.message.checked_add(1).expect("reminder number room");
                 let event = if matches!(request, Request::QuestionOwedDue { .. }) {
@@ -534,6 +556,7 @@ impl World {
             | Event::PeriodNext { .. }
             | Event::TickRecurring { .. }
             | Event::RenewStanding { .. }
+            | Event::CloserBatch { .. }
             | Event::RecurringBatch { .. }
             | Event::Procedure { .. }
             | Event::WakeProcedure { .. }
@@ -632,6 +655,7 @@ impl World {
             | Event::PeriodNext { .. }
             | Event::TickRecurring { .. }
             | Event::RenewStanding { .. }
+            | Event::CloserBatch { .. }
             | Event::RecurringBatch { .. }
             | Event::Procedure { .. }
             | Event::WakeProcedure { .. }
@@ -843,6 +867,7 @@ impl World {
                 | Request::Relay { .. }
                 | Request::MetDue { .. }
                 | Request::QuestionOwedDue { .. }
+                | Request::CloserDue { .. }
                 | Request::NothingAwaitedDue { .. }
                 | Request::QuestionEndedDue { .. }
                 | Request::PersonStallDue { .. }
@@ -938,6 +963,7 @@ impl World {
                 | Request::EscalationNeeded { .. }
                 | Request::MetDue { .. }
                 | Request::QuestionOwedDue { .. }
+                | Request::CloserDue { .. }
                 | Request::NothingAwaitedDue { .. }
                 | Request::QuestionEndedDue { .. }
                 | Request::PersonStallDue { .. }
