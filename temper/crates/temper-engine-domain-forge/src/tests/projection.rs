@@ -224,7 +224,7 @@ fn a_milestone_lost_to_a_crash_counts_as_posted_and_the_issue_closes() {
     let (_, lost_write) = write(&mut d, &environment);
     restart_inflight(&mut d, &mut environment, LOST);
     let (find, op) = call(&mut d, &environment);
-    assert_eq!(op, Op::Read(Read::Item { number: ISSUE, after: 0, since: skein_lib::Time::ZERO }));
+    assert_eq!(op, Op::Read(Read::Item { number: ISSUE, after: 0, since: Time::ZERO }));
     let recovered = answer(&mut d, &environment, find, missing_comment());
     assert!(
         recovered.contains(&Request::ProjectionOutcome { entry: LOST, outcome: skein_forge_client::Outcome::Held })
