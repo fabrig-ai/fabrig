@@ -803,7 +803,7 @@ pub(crate) fn app_control(
     back: Option<Address>,
 ) {
     // The first installation is primary on Forges too; another account is maintenance.
-    // On the welcome, GitHub's card stands beside Forgejo's, the default (forge.md, 5.4).
+    // On the welcome, GitHub's card stands beside Forgejo's, the default (client/forge.md, 5.4).
     let primary = if word == Word::ForgeConnectGitHub && back == Some(Place::Connect.address(None)) {
         connect::default_choice(connect::records(root.forges()), connect::playground(root.forge()), owned(root))
             == Some(connect::Choice::GitHub)

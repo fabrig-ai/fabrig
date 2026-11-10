@@ -1424,7 +1424,7 @@ section 11's after-landing work (*Away on All projects after landing*).
   button of a menu with "Accounts" and "Sign out", where the mock draws the
   person's name as plain text, and a browser over 760 px signs out there rather
   than on the `Accounts` tab. `greenfield/README.md` notes it.
-- **Design departs:** 3.5, 5.13 and 10, from the request `ui-walk-large` of 2026-11-06:
+- **Design departs:** `README.md`, sections 3.5, 5.13 and 10, from the request `ui-walk-large` of 2026-11-06:
   - 3.5: a proposal of settings shows in the Needs you of a project's owner who also
     owns the deployment, those who can decide it, by that plan's cut: a project's owner
     alone has no row of it (jig's `domain/engine.md`, 17.6, and its status).

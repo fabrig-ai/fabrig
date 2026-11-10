@@ -206,7 +206,7 @@ h3 { font-size: 14px; line-height: 1.35; letter-spacing: -.015em; margin-bottom:
 .task-card .step { font-size: 10px; }
 .terminal-ended { color: #8b8378; }
 
-/* The deployment's forges (client forge.md, 5.4). */
+/* The deployment's forges (client/forge.md, 5.4). */
 .forge-card h2 small { font-weight: 400; color: var(--muted); font-size: 11px; margin-left: 6px; }
 .forge-card .repo-lines { margin-top: 10px; }
 .forge-acts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px; margin-top: 4px; }
