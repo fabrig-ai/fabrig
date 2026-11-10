@@ -70,10 +70,14 @@ fn git_ids_and_counts_share_the_forge_codec() {
 fn spawn(command: &Command) -> k::Spawn {
     let kind = match command {
         Command::Clone { .. } => Some(temper_worker_domain_checkout::git::Kind::Clone),
-        Command::Fetch { .. } => Some(temper_worker_domain_checkout::git::Kind::Fetch),
+        Command::SnapshotFetch { .. } | Command::Fetch { .. } => Some(temper_worker_domain_checkout::git::Kind::Fetch),
         Command::Create { .. } => Some(temper_worker_domain_checkout::git::Kind::Create),
         Command::Push { .. } | Command::IsAncestor { .. } => Some(temper_worker_domain_checkout::git::Kind::Push),
-        Command::Unmerged
+        Command::SnapshotHead
+        | Command::SnapshotMerge { .. }
+        | Command::SnapshotReachable { .. }
+        | Command::SnapshotReset { .. }
+        | Command::Unmerged
         | Command::Add
         | Command::DiffIndex { .. }
         | Command::WriteTree

@@ -321,6 +321,7 @@ fn a_commit_on_github_takes_the_values_author() {
     stand.route_git(
         Token::new(92),
         git::Op::Commit {
+            snapshot: None,
             at: fixtures::git_place(),
             parent: git::Commit::new([1; 32]),
             merging: None,

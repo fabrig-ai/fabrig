@@ -102,7 +102,12 @@ impl<T: Transport> Git<T> {
                 Command::Origin { directory } | Command::Clone { directory, .. } => {
                     jobs.push_back(Job::Scan(path(&checked.at, directory)));
                 }
-                Command::Fetch { .. }
+                Command::SnapshotHead
+                | Command::SnapshotMerge { .. }
+                | Command::SnapshotReachable { .. }
+                | Command::SnapshotReset { .. }
+                | Command::SnapshotFetch { .. }
+                | Command::Fetch { .. }
                 | Command::Create { .. }
                 | Command::CheckOut { .. }
                 | Command::Clean

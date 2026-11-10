@@ -11,6 +11,7 @@ use temper_worker_domain_checkout::{self as checkout, git};
 #[expect(clippy::large_enum_variant, reason = "bounded diagnostics stay inline as in git::Done")]
 pub enum Next {
     Run(Command),
+    Snapshot { parent: git::Commit, merging: Option<git::Commit> },
     Make,
     Scan { files: Box<[Box<[u8]>]> },
     End(git::Done),
@@ -38,7 +39,8 @@ pub fn first(op: &git::Op) -> Next {
         git::Op::CheckOut { commit, .. } => Command::CheckOut { commit: *commit },
         git::Op::IsAncestor { ancestor, commit, .. } => Command::IsAncestor { expected: *ancestor, commit: *commit },
         git::Op::Merge { theirs, .. } => Command::Merge { theirs: *theirs },
-        git::Op::Commit { merging, .. } => {
+        git::Op::Commit { snapshot: Some(_), .. } => Command::SnapshotHead,
+        git::Op::Commit { merging, snapshot: None, .. } => {
             if merging.is_some() {
                 Command::Unmerged
             } else {
@@ -68,6 +70,9 @@ pub fn after(
     cut: u64,
     checkout: &checkout::Limits,
 ) -> Next {
+    if let Some(next) = crate::snapshot::after(op, ran, code, stdout) {
+        return next;
+    }
     match ran {
         Command::Origin { .. } => match op {
             git::Op::Look { remote, .. } => match code {
@@ -132,8 +137,14 @@ pub fn after(
             | git::Op::Merge { .. }
             | git::Op::Push { .. } => {}
         },
-        Command::DiffIndex { .. } => match code {
-            0 => return Next::End(git::Done::Unchanged),
+        Command::DiffIndex { parent } => match code {
+            0 => {
+                return Next::End(if crate::snapshot::enabled(op) {
+                    git::Done::Committed { commit: *parent }
+                } else {
+                    git::Done::Unchanged
+                });
+            }
             1 => return Next::Run(Command::WriteTree),
             _ => {}
         },
@@ -144,7 +155,11 @@ pub fn after(
         }
         Command::CommitTree { .. } if code == 0 => {
             if let Some(commit) = id(stdout) {
-                return Next::End(git::Done::Committed { commit });
+                return if crate::snapshot::enabled(op) {
+                    Next::Run(Command::SnapshotReset { commit })
+                } else {
+                    Next::End(git::Done::Committed { commit })
+                };
             }
         }
         Command::IsAncestor { .. } => match op {
@@ -175,7 +190,12 @@ pub fn after(
             | git::Op::Merge { .. }
             | git::Op::Commit { .. } => {}
         },
-        Command::Version
+        Command::SnapshotHead
+        | Command::SnapshotMerge { .. }
+        | Command::SnapshotFetch { .. }
+        | Command::SnapshotReachable { .. }
+        | Command::SnapshotReset { .. }
+        | Command::Version
         | Command::Clone { .. }
         | Command::Fetch { .. }
         | Command::CheckOut { .. }

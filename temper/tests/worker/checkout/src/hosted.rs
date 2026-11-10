@@ -23,10 +23,14 @@ pub fn identity() -> Identity {
 pub fn spawn_of(command: &Command) -> Spawn {
     let kind = match command {
         Command::Clone { .. } => Some(git::Kind::Clone),
-        Command::Fetch { .. } => Some(git::Kind::Fetch),
+        Command::SnapshotFetch { .. } | Command::Fetch { .. } => Some(git::Kind::Fetch),
         Command::Create { .. } => Some(git::Kind::Create),
         Command::Push { .. } | Command::IsAncestor { .. } => Some(git::Kind::Push),
-        Command::Unmerged
+        Command::SnapshotHead
+        | Command::SnapshotMerge { .. }
+        | Command::SnapshotReachable { .. }
+        | Command::SnapshotReset { .. }
+        | Command::Unmerged
         | Command::Add
         | Command::DiffIndex { .. }
         | Command::WriteTree

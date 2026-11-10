@@ -50,9 +50,10 @@ credentials.md's (section 4). What is open is listed in section 10.
   fast-forward; an expected head adds a compare-and-swap; a branch is
   created only where none exists. The one exception is `Rewrite`
   (4.10), a prepare job's candidate onto its branch, under a lease.
-- **Commits on the parents the domain names,** by git's plumbing
-  (`write-tree`, `commit-tree`), so a merge always records both parents;
-  HEAD stays where the checkout put it.
+- **Commits keep the checkout's ancestry at delivery,** using HEAD and a
+  merge's second parent; an unchanged local commit is kept. Preparation
+  and saves use the parents the domain names. Git's plumbing (`write-tree`,
+  `commit-tree`) records both parents, and delivery advances HEAD (4.7).
 - **Make is file operations:** the old workspace renamed aside and a new
   one made; a sweep empties what was set aside, one file operation at a
   time.
@@ -200,7 +201,7 @@ pipes      stdin (written, then closed), stdout, stderr
 | `Create` | 1 | `Succeeded`, `Exists` |
 | `CheckOut` | 2 | `Succeeded` |
 | `Merge` | 1 or 2 | `Merged`, `Conflicted { files }` |
-| `Commit` | 1 to 4, and a scan of files for a merge | `Committed { commit }`, `Unchanged`, `Conflicted { files }` |
+| `Commit` | 1 to 4; a delivery adds 2 to 5, and a scan of files for a merge | `Committed { commit }`, `Unchanged`, `Conflicted { files }` |
 | `Push` | 1, or 2 with an expected head | `Succeeded`, `Rejected` |
 | `IsAncestor` | 1 | `IsAncestor { contains }` |
 
@@ -360,9 +361,10 @@ git diff-files --name-only -z --diff-filter=U          only after exit 1
 
 ### 4.7 Commit
 
-`Commit { at, parent, merging, title, body, identity }`: the working tree
-exactly as it is, on the parents the domain names. The message, given on
-stdin, is `title`, then, when `body` is not empty, a blank line and
+`Commit { at, parent, merging, title, body, identity, snapshot }`: the working
+tree exactly as it is, on the parents the domain names, or those the checkout
+holds when `snapshot` names the delivery remote and its account. The message,
+given on stdin, is `title`, then, when `body` is not empty, a blank line and
 `body`, then a newline. `.gitignore` is honoured: an ignored file is not
 part of the tree. **A hidden log is no part of a change:** a file named
 `.*.log`, at any depth, is what a tool left in the workspace. It is never
@@ -372,11 +374,50 @@ parent's contents. Every other file of the tree is taken, a new one included,
 since a run's new work is as untracked as a stray file: only this name and the
 repository's own ignore rules tell them apart.
 
+**Delivery** (`snapshot` is present) first reads the checkout, with no other
+writer, before the staging and commit sequence below:
+
+```
+git log -1 --format='%H %P' HEAD --                    HEAD and its committed parents
+git rev-parse --verify --quiet MERGE_HEAD             exit 1: no merge in progress
+```
+
+HEAD replaces `parent`. MERGE_HEAD, when present, replaces `merging`.
+Without MERGE_HEAD, a changed HEAD means a producer's committed work and
+clears the remembered `merging`; an unchanged HEAD retains an explicit
+second parent the domain named, even if git wrote no MERGE_HEAD. More than
+two committed parents, or more than one MERGE_HEAD, refuses delivery.
+Before staging, a second parent in progress, or HEAD's committed second
+parent when no merge is in progress, is checked against the remote:
+
+```
+git fetch --quiet --prune --no-tags --no-write-fetch-head --no-recurse-submodules -- <remote> '+refs/heads/*:refs/temper/delivery/heads/*' '+refs/tags/*:refs/temper/delivery/tags/*'
+git for-each-ref --count=1 --format='%(objectname)' --contains <second> refs/temper/delivery/
+```
+
+The fetch prunes obsolete references, so a cached remote tip cannot vouch
+for a commit the remote no longer reaches. An empty listing refuses with
+`delivery second parent is not reachable from the branch's remote`.
+The fetch alone carries that account's credential, under the operation's
+remote deadline. Local metadata and listings obey the usual stdout bounds;
+a malformed id is `Broken`. A MERGE_HEAD listing with more than one id
+refuses, naming that delivery supports at most two merge parents.
+
+For a delivery without an in-progress merge, `diff-index` exit 0 returns
+`Committed { commit: HEAD }`, preserving a local commit, including its
+parents, message and identity. An edited tree commits on HEAD. With a merge
+in progress, the sequence below always records both parents. After a new
+commit, delivery runs `git reset --mixed -q <commit>`: HEAD moves, the index
+is that commit's tree, working files stay, and the merge state clears.
+Its failure fails the operation; no push follows. A later delivery therefore
+reads the preceding delivery as HEAD. An unchanged existing commit needs
+no reset.
+
 **Without a second parent** (`merging` is `None`):
 
 ```
 git add --all -- . ':(exclude,glob)**/.*.log'
-git diff-index --cached --quiet <parent> --            exit 0: Unchanged, and nothing more runs
+git diff-index --cached --quiet <parent> --            exit 0: Unchanged, or Committed { HEAD } for delivery
 git write-tree
 git commit-tree <tree> -p <parent> -F -
 ```
@@ -409,10 +450,10 @@ git commit-tree <tree> -p <parent> -p <m> -F -
   and git refuses to write that pseudo-reference through `update-ref`.
   `commit-tree` records exactly the parents asked, signs nothing and runs
   no hook.
-- **HEAD is not moved,** nor the merge's state cleared, by a commit: HEAD
-  and the merge's state are `CheckOut`'s. Each commit compares and
-  records against the parent the domain names, never against HEAD, so
-  the next commit and push are right whatever HEAD says.
+- **Without a delivery snapshot, HEAD is not moved,** nor the merge's
+  state cleared, by a commit: HEAD and the merge's state are `CheckOut`'s.
+  These commits compare and record against the parents the domain names.
+  Delivery reads and advances HEAD as above.
 - **The author and committer** are the identity's author (section 5); the
   date is the clock's, in UTC.
 
@@ -734,12 +775,11 @@ checks this document's contract:
   settles more files than `conflicts` cannot deliver. Default: as it
   stands; scanning the listing in pages, staging each page found clean
   before listing the next, would close it.
-- **HEAD after a commit.** Default: not moved (section 4.7), keeping each
-  commit to four invocations; after a delivery an agent that reads git sees
-  the work since its start as uncommitted. Preparation follows each clean
-  producer merge or merged head's commit with `CheckOut`, moving HEAD and
-  clearing the merge's state before the run (`../domain/worker.md`, section 5).
-  Moving HEAD after a delivery costs a fifth invocation (`git reset -q <commit>`).
+- **HEAD after a save.** Default: a commit without a delivery snapshot
+  does not move HEAD (section 4.7). Preparation follows each clean producer
+  merge or merged head's commit with `CheckOut`, moving HEAD and clearing
+  the merge's state before the run (`../domain/worker.md`, section 5).
+  A save retains its domain-named parents; delivery reads and advances HEAD.
 - **A forge whose certificate needs its own trust for git.** Default: the
   machine's roots, for git as for the forge's API, whose record names
   its TLS name alone (forge.md, 2.1). Between hosts, the trust would

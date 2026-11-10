@@ -602,7 +602,18 @@ runs as contained processes and whose output it parses.
   `finish` with a change or mid-run, it has run the repository's checks
   with nothing else writing to the checkout (smith's `domain/run.md`,
   8.1); the worker commits exactly that tree and pushes the commit, with
-  the run's title and body. A push is a fast-forward and never forced: if
+  the run's title and body. Delivery reads the checkout's current HEAD and
+  merge state: an in-progress merge records HEAD and MERGE_HEAD as its two
+  parents, even when its resolution is already staged. A committed merge
+  keeps its ancestry. When the delivered tree is HEAD's tree and no merge
+  is in progress, the worker delivers that commit unchanged, retaining the
+  producer's message and identity. Edits beyond a local commit build on that
+  commit. A second parent, in progress or at HEAD, must be reachable from a
+  branch or tag on the delivery branch's remote; otherwise delivery refuses,
+  saying that its second parent is not reachable from that remote, before
+  staging or committing. A new delivery commit becomes the checkout's HEAD
+  and clears its completed merge state (../protocol/git.md, 4.7).
+  A push is a fast-forward and never forced: if
   the branch moved incompatibly with the run's commit, the push fails and
   the run is told. When the assignment names an expected head, the
   remote must also still be at that exact head, so no movement of the

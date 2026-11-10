@@ -193,6 +193,7 @@ pub fn fetch() -> Scenario {
 pub fn commit(merging: bool) -> Scenario {
     scenario(
         git::Op::Commit {
+            snapshot: None,
             at: at(),
             parent: ONE,
             merging: merging.then_some(TWO),

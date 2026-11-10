@@ -100,6 +100,7 @@ impl Operation {
                 None => (Box::from(&b""[..]), None),
             }
         };
+        let kind = self.environment_kind(kind);
         let mut pipes = skein_lib::List::with_capacity(3);
         if self.is_commit_tree() {
             pipes.push(kernel::Pipe { child: 0, way: kernel::Way::In, parent: None }).expect("three pipes");
@@ -130,10 +131,39 @@ impl Operation {
         }
         settings.git.as_deref()
     }
+    fn environment_kind(&self, kind: Option<git::Kind>) -> Option<git::Kind> {
+        match self.command {
+            Command::SnapshotFetch { .. } => Some(git::Kind::Fetch),
+            Command::SnapshotHead
+            | Command::SnapshotMerge { .. }
+            | Command::SnapshotReachable { .. }
+            | Command::SnapshotReset { .. }
+            | Command::Version
+            | Command::Origin { .. }
+            | Command::Clone { .. }
+            | Command::Fetch { .. }
+            | Command::Create { .. }
+            | Command::CheckOut { .. }
+            | Command::Clean
+            | Command::Merge { .. }
+            | Command::Unmerged
+            | Command::Add
+            | Command::DiffIndex { .. }
+            | Command::WriteTree
+            | Command::CommitTree { .. }
+            | Command::IsAncestor { .. }
+            | Command::Push { .. } => kind,
+        }
+    }
     fn is_commit_tree(&self) -> bool {
         match self.command {
             Command::CommitTree { .. } => true,
-            Command::Origin { .. }
+            Command::SnapshotHead
+            | Command::SnapshotMerge { .. }
+            | Command::SnapshotFetch { .. }
+            | Command::SnapshotReachable { .. }
+            | Command::SnapshotReset { .. }
+            | Command::Origin { .. }
             | Command::Version
             | Command::Clone { .. }
             | Command::Fetch { .. }
@@ -169,7 +199,7 @@ impl Operation {
         {
             match next {
                 Next::End(_) => return,
-                Next::Run(_) | Next::Make | Next::Scan { .. } => {}
+                Next::Run(_) | Next::Snapshot { .. } | Next::Make | Next::Scan { .. } => {}
             }
         }
         if self.stop.is_none() {
@@ -229,7 +259,12 @@ impl Operation {
     fn delimiter(&self) -> u8 {
         match self.command {
             Command::Unmerged => 0,
-            Command::Origin { .. }
+            Command::SnapshotHead
+            | Command::SnapshotMerge { .. }
+            | Command::SnapshotFetch { .. }
+            | Command::SnapshotReachable { .. }
+            | Command::SnapshotReset { .. }
+            | Command::Origin { .. }
             | Command::Version
             | Command::Clone { .. }
             | Command::Fetch { .. }

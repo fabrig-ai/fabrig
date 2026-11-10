@@ -656,9 +656,10 @@ fn a_push_commits_the_tree_on_its_start_and_pushes_it_to_the_push_branch() {
     let mut h = Harness::new(LIMITS);
     let hold = h.ready(1, two(b"w"));
     let commit_op = io(h.one(Event::Push { hold, message: message() }), hold);
-    let Op::Commit { at, parent, title, body, identity, merging: None } = commit_op else {
+    let Op::Commit { at, parent, title, body, identity, merging: None, snapshot } = commit_op else {
         panic!("a commit: {commit_op:?}")
     };
+    assert_eq!(snapshot, Some(crate::git::Snapshot { remote: remote(b"a"), account: None }));
     assert_eq!((&*at.repository, parent), (&b"a"[..], commit(1)), "the writable one, on its start");
     assert_eq!((&*title, &*body, identity), (&b"Fix it"[..], &b"Because."[..], 0));
     let push = h.next(hold, Done::Committed { commit: commit(11) });
