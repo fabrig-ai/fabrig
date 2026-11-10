@@ -38,7 +38,7 @@ fn documents(documents: &List<CharterDocument>, first_path: &[u8], first_heading
 #[test]
 #[expect(
     clippy::too_many_lines,
-    reason = "one reference fixture checks designer choices and catch-up instructions together"
+    reason = "one reference fixture checks designer choices and coordinator prohibitions together"
 )]
 fn the_reference_settings_file_decodes() {
     let items = settings_form::file::decode(
@@ -87,7 +87,7 @@ fn the_reference_settings_file_decodes() {
             words: WakeRule::Immediate,
             notices: WakeRule::Immediate,
             news: WakeRule::Paced { span: Duration::from_secs(1800) },
-            results: ResultsWake::Each,
+            results: ResultsWake::LastOrFailure,
             questions: true,
             answers: true,
             timers: true,
@@ -108,6 +108,9 @@ fn the_reference_settings_file_decodes() {
     assert_eq!(designer.wake, WakePolicy::DEFAULT);
     documents(&designer.documents, b"DESIGN.md", None, b"AGENTS.md");
     assert!(bytes::find(designer.instructions.bytes(), b"Not yet").is_some());
+    let designer_text = std::str::from_utf8(designer.instructions.bytes()).expect("designer UTF-8");
+    assert!(!designer_text.contains("close-out"));
+    assert!(designer_text.contains("Tag each Not yet entry a change of your family will close with `[in flight: change N]` once `change` has answered its number; your requester tags those made after your report."));
     let SettingValue::Charter(coder) = value(&items, Setting::Charter(SettingNumber { number: CODER })) else {
         panic!("coding charter")
     };
@@ -180,14 +183,14 @@ fn the_reference_settings_file_decodes() {
     let temper_engine_domain_forge::settings::Value::Goal(work) = decoded.value else {
         panic!("goal template's work record")
     };
-    assert_eq!((work.design, work.close_out), (true, true));
+    assert_eq!((work.design, work.close_out), (true, false));
 }
 
 // Rules pin the shared instructions or the wake parts selected by their on names.
 fn coordinator_rules(coordinator: &settings_form::view::Charter) {
     let shared = "shared";
     let cut = "first";
-    let questions = "question question_answered question_ended question_owed";
+    let questions = "question question_answered question_ended question_owed words";
     let results = "escalation proposal person_stalled result notice nothing_awaited";
     let news = "news timer";
     let mut texts = vec![(shared.to_owned(), std::str::from_utf8(coordinator.instructions.bytes()).expect("shared"))];
@@ -212,9 +215,15 @@ fn coordinator_rules(coordinator: &settings_form::view::Charter) {
             "{on}: the core already subscribes the goal to its changes' landings"
         );
     }
-    assert!(texts.iter().find(|(on, _)| on == results).expect("results part").1.ends_with(
-        "If you finish without a landing, say why in your report; your goal branch is kept for a person to read."
-    ));
+    let prohibition = "Never land your goal, make a close-out or a catch-up, or finish once your changes have ended: your closer settles your goal's status, lands it and reports, and comes to you only through an escalation.";
+    assert_eq!(texts[0].1.matches(prohibition).count(), 1);
+    let without_prohibition = texts[0].1.replace(prohibition, "");
+    for (on, text) in &texts {
+        let rest = if on == shared { without_prohibition.as_str() } else { *text }.to_ascii_lowercase();
+        for forbidden in [r#""branch": "mine""#, r#""merge""#, "catch", "close-out", "read_task"] {
+            assert!(!rest.contains(forbidden), "{on}: {forbidden}");
+        }
+    }
 }
 
 fn coordinator_shared_rules(texts: &[(String, &str)]) {
@@ -229,7 +238,14 @@ fn coordinator_shared_rules(texts: &[(String, &str)]) {
         ("Risk: ", shared),
         ("Decided: ", shared),
         ("your goal's scope", shared),
-        ("Revise it in place", shared),
+        ("Revise that note in place", shared),
+        ("body only these lines, one item each, each only if it holds", shared),
+        ("Write no narrative: your tree and your closer's report hold the rest", shared),
+        ("After planning and whenever a decision is taken or a risk found", shared),
+        ("[in flight: change N]", shared),
+        ("watch with `subscribe` each person task you wait on", shared),
+        ("Watch each designer's change with `subscribe` for its result", shared),
+        ("Then watch it with `subscribe` and call wait", shared),
         ("Read your report note and the tree first at every wake", shared),
         ("park with `wait` once your decisions are made", shared),
         ("an answer", shared),
@@ -251,7 +267,7 @@ fn coordinator_shared_rules(texts: &[(String, &str)]) {
 
 fn coordinator_part_rules(texts: &[(String, &str)]) {
     let cut = "first";
-    let questions = "question question_answered question_ended question_owed";
+    let questions = "question question_answered question_ended question_owed words";
     let results = "escalation proposal person_stalled result notice nothing_awaited";
     for (phrase, place) in [
         ("Where a request settles its changes with no shape for the code to follow", cut),
@@ -261,15 +277,13 @@ fn coordinator_part_rules(texts: &[(String, &str)]) {
         ("On a question a change relays", questions),
         ("Never answer what you have not settled.", questions),
         ("On a person task's result, answer the change that waited for it", results),
-        ("close-out", results),
-        (r#""branch": "mine""#, results),
         ("with decide, saying why", results),
-        ("a live repair owning its failing tests", results),
-        ("then the draft it was built from, by path,", results),
-        (
-            "If you finish without a landing, say why in your report; your goal branch is kept for a person to read.",
-            results,
-        ),
+        ("On a task's words, read them and act as on a question", questions),
+        ("On a change that failed, read why", results),
+        ("On a designer's result, which reaches you because you watched its change with `subscribe`", results),
+        ("When your closer escalates (its change settling your status", results),
+        ("then release: your closer waits for it and lands the new head", results),
+        ("Cancel your closer only to drop the landing", results),
     ] {
         coordinator_phrase(texts, phrase, place);
     }
@@ -281,18 +295,7 @@ fn coordinator_news_rules(texts: &[(String, &str)]) {
         ("delegate its triage to charter 8", news),
         (r#""repairs""#, news),
         ("a red of your goal branch's tier", news),
-        (
-            "When main moves under your goal, you hear a landing into main that touches your goal's open work as news.",
-            news,
-        ),
-        (
-            "Catch up with one `change`: `\"landing\": \"goal\"`, `\"merge\"` the landing's merge commit, its words naming the landing and why your goal needs it now.",
-            news,
-        ),
-        (
-            "Keep one catch-up live at a time: a later landing's commit carries the earlier ones, so on news while one is live, wait for its result.",
-            news,
-        ),
+        ("While your goal's landing is verified, when a red after landing reaches you as news", news),
     ] {
         coordinator_phrase(texts, phrase, place);
     }
