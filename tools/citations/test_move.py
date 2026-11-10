@@ -215,8 +215,11 @@ class Moves(unittest.TestCase):
     def test_dry_run_matches_apply_and_changes_nothing(self):
         mapping = f"{A} -> {DESIGN}/sub/a.md\n"
         before = self.snapshot()
+        (self.root / A).touch()
+        index = (self.root / ".git/index").read_bytes()
         result = self.move(mapping, "--dry-run")
         self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.root / ".git/index").read_bytes(), index)
         self.assertEqual(self.snapshot(), before)
         self.assertEqual(self.git("status", "--porcelain", "--untracked-files=no"), "")
         applied = self.apply(mapping)
