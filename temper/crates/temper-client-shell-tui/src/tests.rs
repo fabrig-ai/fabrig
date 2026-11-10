@@ -2151,13 +2151,24 @@ enum LaunchWant {
 fn the_launchpad_takes_its_own_words() {
     for (words, at, want) in [
         (
+            b"/draft Design an export".as_slice(),
+            LaunchAt::Home,
+            LaunchWant::Started {
+                label: 8,
+                words: b"Design an export\n\nWrite this up as a draft beside us.",
+                from: Address::NewChat { draft: true },
+            },
+        ),
+        (
             b"/change Add a CSV export".as_slice(),
             LaunchAt::Home,
             LaunchWant::Started { label: 8, words: b"Add a CSV export", from: Address::NewChat { draft: false } },
         ),
+        (b"/draft", LaunchAt::Home, LaunchWant::Words(b"/draft ")),
+        (b"/d", LaunchAt::Home, LaunchWant::Words(b"/draft ")),
         (b"/change", LaunchAt::Home, LaunchWant::Words(b"/change ")),
         (b"/c", LaunchAt::Home, LaunchWant::Words(b"/change ")),
-        (b"/", LaunchAt::Home, LaunchWant::Words(b"/change ")),
+        (b"/", LaunchAt::Home, LaunchWant::Words(b"/draft ")),
         (b"/ask", LaunchAt::Home, LaunchWant::Words(b"/ask ")),
         (b"/a", LaunchAt::Home, LaunchWant::Words(b"/ask ")),
         (b"/n", LaunchAt::Need, LaunchWant::New),
@@ -2305,6 +2316,7 @@ fn the_launchpad_takes_its_own_words() {
 fn each_event_becomes_its_acts() {
     let page = b"http://127.0.0.1:8367/projects/3".as_slice();
     for (event, words, brief, walking, open) in [
+        (Event::Own { command: Own::Draft }, b"/draft ".as_slice(), false, false, None),
         (Event::Own { command: Own::Change }, b"/change ".as_slice(), false, false, None),
         (Event::Own { command: Own::Ask }, b"/ask ".as_slice(), false, false, None),
         (Event::Own { command: Own::Brief }, b"".as_slice(), true, false, None),
@@ -2486,7 +2498,7 @@ fn each_event_becomes_its_acts() {
                     host.report(Report::Key(Key::Down));
                     host.state().left_off() == Some(NEWEST)
                         && event.is_none()
-                        && text(&mut host).lines().any(|line| line.starts_with("❯ /ask"))
+                        && text(&mut host).lines().any(|line| line.starts_with("❯ /change"))
                 }
             }
             "stop" => give(&mut host, Event::Stop).close,
@@ -2881,10 +2893,29 @@ pub(crate) fn background_reply(request: &Request) -> Option<Report> {
         return matches!(request, Request::Save { .. } | Request::Erase { .. })
             .then_some(Report::Heard(jig_client::Event::Stored));
     };
-    let read = w::ReadAnswer::None(
-        w::ReadAnswerNone::new(&w::CEILINGS, w::ReadAnswerNoneParts { value: w::ReadNone::Unknown })
-            .expect("background read"),
-    );
+    let read = if let Message::Read(bytes) = message
+        && let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("read envelope")
+        && owned.owner() != &w::Owner::Jig
+        && let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("family read")
+        && matches!(temper_client_protocol_wire::decode_reading(envelope.record(), &temper_client_protocol_wire::v1::CEILINGS).as_ref().map(temper_client_protocol_wire::v1::Reading::read), Some(temper_client_protocol_wire::v1::Read::Setting(setting)) if setting.kind() == 7)
+    {
+        use temper_client_protocol_wire::{self as wire, v1 as f};
+        let record = wire::setting_answer(
+            &f::SettingAnswer::new(&f::CEILINGS, f::SettingAnswerParts { value: None }).expect("stock ways"),
+        );
+        w::ReadAnswer::Value(
+            w::Owned::new(
+                &w::CEILINGS,
+                w::OwnedParts { owner: owned.owner().clone(), version: wire::CLIENT_VERSION, record },
+            )
+            .expect("ways answer"),
+        )
+    } else {
+        w::ReadAnswer::None(
+            w::ReadAnswerNone::new(&w::CEILINGS, w::ReadAnswerNoneParts { value: w::ReadNone::Unknown })
+                .expect("background read"),
+        )
+    };
     let size = match message {
         Message::Watch(_) => w::OpenAnswer::Admitted.measure(),
         Message::Unwatch(_) => w::CloseAnswer::Closed.measure(),

@@ -1,10 +1,9 @@
 ╭─ temper · Hello ─────────────────────────────────────────── 127.0.0.1:37409 ─╮
 ╰──────────────────────────────────────────────────────────────────────────────╯
  Start
+   /draft    a design session that ends in a draft and a goal
    /change   one change, run as Hello's way says
    /ask      Ask temper
-
-
 
 
 
@@ -12,7 +11,8 @@
 ────────────────────────────────────────────────────────────────────────────────
 ❯ /
 ────────────────────────────────────────────────────────────────────────────────
-❯ /change   One change, run as the project's way says
+❯ /draft    A design session that ends in a draft and a goal
+  /change   One change, run as the project's way says
   /ask      Ask temper
   /model    Change the model, from the next turn
   /effort   Change the effort

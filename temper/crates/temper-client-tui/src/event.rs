@@ -33,6 +33,7 @@ pub const EXIT: &[u8] = b"/exit";
 /// The TUI's own commands (temper/docs/design/client/README.md, 6.14).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Own {
+    Draft,
     Change,
     Ask,
     Brief,
@@ -41,10 +42,11 @@ pub enum Own {
     Theme,
 }
 impl Own {
-    pub const ALL: [Own; 6] = [Own::Change, Own::Ask, Own::Brief, Own::Needs, Own::Open, Own::Theme];
+    pub const ALL: [Own; 7] = [Own::Draft, Own::Change, Own::Ask, Own::Brief, Own::Needs, Own::Open, Own::Theme];
     #[must_use]
     pub const fn name(self) -> &'static [u8] {
         match self {
+            Self::Draft => b"/draft",
             Self::Change => b"/change",
             Self::Ask => b"/ask",
             Self::Brief => b"/brief",

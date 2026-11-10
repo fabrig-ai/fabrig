@@ -23,6 +23,7 @@ use temper_client_view::{
 #[derive(Debug)]
 pub(crate) struct Launchpad {
     pub project: Option<Box<[u8]>>,
+    pub drafts: bool,
     pub address: Box<[u8]>,
     pub playground: bool,
     pub lines: List<Line>,
@@ -45,7 +46,7 @@ pub(crate) struct LeftOff {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum LeftKind {
-    Chat { number: u32 },
+    Chat { number: u32, session: bool },
     Goal,
 }
 #[derive(Debug)]
@@ -156,13 +157,16 @@ fn left_off(root: &Domain, project: u32, me: &c::Me, words: &Words, wall: Wall) 
                     None => true,
                 } {
                     newest = Some(row);
-                    kind = LeftKind::Chat { number: number.checked_add(1).expect("three chat numbers") };
+                    kind = LeftKind::Chat {
+                        number: number.checked_add(1).expect("three chat numbers"),
+                        session: chats::drafting(me, row.project, &row.chip.executor),
+                    };
                 }
             }
         }
         let Some(row) = newest else { break };
         match kind {
-            LeftKind::Chat { number: next } => number = next,
+            LeftKind::Chat { number: next, .. } => number = next,
             LeftKind::Goal => {}
         }
         lines
@@ -239,6 +243,10 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Launc
     };
     let mut part = Launchpad {
         project,
+        drafts: match number {
+            Some(project) => temper_client_domain::pages::drafts_offered(root, project),
+            None => false,
+        },
         address: crate::place(tui.address(), tui.front()),
         playground: front::playground(root, number),
         lines: List::with_capacity(3),
@@ -371,6 +379,7 @@ fn row(
 }
 // The screen adds punctuation to Term and Heading. Paragraph heads keep
 // the section labels plain; Description retains the two-column words indent.
+#[expect(clippy::too_many_lines, reason = "the foot and launchpad retain their existing section layout")]
 fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
     b.open(Role::Region);
     b.region(look::SECTIONS);
@@ -388,7 +397,8 @@ fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
             }
             b.open(Role::Paragraph);
             let kind = match left.kind {
-                LeftKind::Chat { .. } => Word::KindChat,
+                LeftKind::Chat { session: true, .. } => Word::KindSession,
+                LeftKind::Chat { session: false, .. } => Word::KindChat,
                 LeftKind::Goal => Word::KindGoal,
             };
             let tail = concat(&[
@@ -399,7 +409,7 @@ fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
                 &left.state,
             ]);
             let hint = match left.kind {
-                LeftKind::Chat { number } => words.say(Word::ChatNumber, &[Hole::Number(u64::from(number))]),
+                LeftKind::Chat { number, .. } => words.say(Word::ChatNumber, &[Hole::Number(u64::from(number))]),
                 LeftKind::Goal => Box::default(),
             };
             row(b, part, &left.project, &left.title, &tail, &hint, 0, words);
@@ -438,9 +448,13 @@ fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
         b.open(Role::Region);
         text(b, Role::Paragraph, &words.say(Word::StartHead, &[]), Some(look::HEAD));
         for (command, description) in [
+            (Own::Draft, words.say(Word::DraftStart, &[])),
             (Own::Change, words.say(Word::ChangeStart, &[Hole::Name(copy_of(project))])),
             (Own::Ask, words.say(Word::AskTemper, &[])),
         ] {
+            if command == Own::Draft && !part.drafts {
+                continue;
+            }
             b.open(Role::Description);
             b.open(Role::Paragraph);
             text(
