@@ -304,15 +304,22 @@ the fake's goal script, who is offered `decided`, what Ask temper
 can read to size temper's own way, and what no real model has
 shown: a document built in parts and a receipt's words.
 Section 4.3 has no gap in combined charter and workspace ownership fitting.
-Sections 4.3 and 4.3.1 have no known implementation gap in a goal's
-delivery grant or `change` on its run branch. The real-loop story uses
-real smith and a worker with a scripted model, fake git and a fake forge:
-it edits, receives a receipt naming r, lands through a change into g and
-finishes with a report, leaving main unchanged. It does not establish
-real-model behaviour or run the project's executable checks; the grant
-requires them, and smith's report-delivery process story checks the files.
+Section 4.3 has no known implementation gap in a goal's delivery grant.
 Stock and reference instructions remain separate work (section 10 and
 `../draft/goal-as-designer.status.md`).
+- **Not yet:** 4.3, 4.3.1: a goal's run delivers to its run branch r, and
+  `change` still takes `"branch": "run"` to land r into g; the schema
+  offers `["mine","run"]` (`temper-engine-smith/src/calls.rs`, `PLAN_CHANGE`)
+  [in flight: change 98].
+- **Not yet:** 6: a design delivery's outcomes: the worker pushes a goal's
+  delivery as any, Stale when its branch moved, with no Markdown check,
+  no merge of the moved tip and no refusal of a `save` [in flight: change 94].
+- **Not yet:** section 8, *A coordinator hears its changes while it
+  designs*: a coordinator's first run hears none of its changes' results
+  while it lives (jig's `domain/tasks.status.md`, 8.6), and the stock
+  coordinator's words say its first run never reacts to its changes
+  (`temper-service/src/stock/coordinator.md`) [in flight: change 100].
+  smith's offer between two completions is built.
 Section 4.3 has no known implementation gap in task and forge reads
 fitting to the live attempt's worker reply bound, else the local agent's.
 Task reads use `documents.text_bytes` where neither names a bound; forge

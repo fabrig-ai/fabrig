@@ -1742,9 +1742,8 @@ branch. Its parameters:
   `domain/tasks.md`, 6.4), or its own, named after its tree
   (section 11), which a producing task pushes; or, held by its
   requester and not by the task, its requester's held branch: the
-  requester's own goal branch (11.1), which the change lands whole, or
-  its own run branch (section 11), which the change lands as its
-  deliveries left it (below);
+  requester's own goal branch (11.1), which the change lands whole
+  (below);
 - **what to produce,** when nothing is pushed yet: the spec of its
   producing task, and its producer's charter, which its repairs,
   resolutions and checks' gates run under too: the one `change` names,
@@ -1854,11 +1853,11 @@ A goal across repositories is several change tasks, ordered by their
 dependencies: skein's change lands before temper's that bumps its lock.
 
 **A change on its requester's held branch** (`change`'s `"branch":
-"mine"` or `"run"`, `agent.md`, 4.3.1) is how a goal lands what it holds:
-the goal's landing, a change into the base whose branch is the goal's own
-(11.1); or what its runs delivered, a change whose branch is the goal's
-run branch, usually into g (11.1). It is an ordinary change, but for the
-branch:
+"mine"`, `agent.md`, 4.3.1) is how a goal lands what it holds: the
+goal's landing, a change into the base whose branch is the goal's own
+(11.1). What a goal's runs write needs no such change: they push it
+straight to the goal's branch (11.3). It is an ordinary change, but for
+the branch:
 
 - **No producing step,** as for a branch handed over: it starts at
   opening, its head the branch's tip as read then. Its pull request is
@@ -1884,11 +1883,9 @@ branch:
   leaves the branch its requester's, deleted or kept as its requester
   closes (section 11). Cancelled, its pull request is closed as any
   (8.6), and its requester may make another.
-- **Beside the run that made it:** a change on a run branch is made by a
-  run that goes on, its requester's run in the branch's writer slot. That
-  doesn't stop the change, which steps at the head it reads (8.5). A run
-  branch nothing has reached holds the change at its opening, as a branch
-  missing does (8.5), and its requester cancels it and makes another.
+- **Beside the run that made it:** the goal's own runs push design to
+  the branch while the change lives (11.3). That doesn't stop the change,
+  which steps at the head it reads (8.5).
 
 The question route is number parameter 14: 1 for `foreman`, 2 for `up`;
 absent means `none`. The root writes it only for `foreman` or `up`. Any
@@ -1966,7 +1963,13 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    at once with no change, its words saying so.
 2. **Opening:** its pull request into its landing branch, keyed by its
    branches, its body naming its goal's issue ("Part of
-   `ai/temper#12`").
+   `ai/temper#12`"). **No step past it without its pull:** CI runs on
+   pull requests, so a change reaches checking or gating only with its
+   pull request open. A change released from a hold at opening (its
+   branch moved or missing, 8.5) comes back to this step at the head it
+   then reads: it opens its pull request, or finds the one already open,
+   before it reads CI. A release of any other hold that finds no pull
+   request open does the same.
 3. **Checking:** CI runs on its head, where its landing branch's rules
    ask CI passed (8.7). A failure is a repair (8.4): a task given the
    failing output. A repository without CI is checked by its checks
@@ -2537,7 +2540,8 @@ the change reads the head afresh once the slot is freed. Otherwise:
   project's turn, the rewrite its own prepare made is the change's: the
   forge's rebase (`landing.md`, 5.2) or a prepare job's delivery
   (`worker.md`, 4.4). A release
-  takes the new head as the change's and checks it, gates asked again.
+  takes the new head as the change's and checks it, gates asked again,
+  its pull request opened first where none is open (8.2, step 2).
 - **Its branch deleted:** held. A release creates the branch again at
   the head temper last knew, which the forge keeps under the pull
   request, and reopens the pull request.
@@ -2562,14 +2566,14 @@ released, and the release takes the head as it then is, checked again.
 A move with no writer of its requester's subtree in the slot, by
 another identity, or not forward, is drift, as above.
 
-**Its requester's own run in the slot** (a goal's run, on its run branch:
-11.1) is the one writer the change doesn't wait for. A forward move by
-temper's identity is that run's delivery, and the change's new head as it
-reads it, checked again as above, while the run goes on; a move by another
-identity, or not forward, is drift. The change's own delegates, its repairs,
-its resolution and its merge job, wait for the slot as any claim does (jig's
-`domain/tasks.md`, 6.3), until that run answers, parks included. So do its
-updates. The change's stall counts that wait.
+**Its requester's own runs** (a goal's design writers, 11.3) are writers
+the change doesn't wait for: they take no writer slot of the branch. A
+forward move by temper's identity while one lives is that run's design
+push, and the change's new head as it reads it, checked again as above,
+while the run goes on, never "branch moved"; a move by another identity,
+or not forward, is drift. The change's own delegates, its repairs, its
+resolution and its merge job, take the slot as any claim does (jig's
+`domain/tasks.md`, 6.3), beside the design writer.
 
 Nothing is written over: a held change makes no effect until it is
 released. A drift is the change's to judge: what the forge says of a
@@ -3594,11 +3598,12 @@ instead (`landing.md`, section 5).
   - a goal's own branch: `temper/<root>/g<task>`, the goal's number, in
     its project's home, held by the goal (11.1);
   - an agent's task's own branch, for runs that push outside a change,
-    as a chat making a small fix does and a goal's runs do:
+    as a chat making a small fix does:
     `temper/<root>/r<task>`, in each repository its runs may write, the
     project's home among them, which the task holds from the commit that
-    makes it. A chat hands it to the change task that lands it; a goal
-    keeps it, and a change on it lands what it holds (8.1, 11.1).
+    makes it. A chat hands it to the change task that lands it. A goal's
+    runs push to its goal branch instead (11.3): a goal holding a run
+    branch has nothing push it, and its close deletes it as below.
 
   A task made before its project's home was adopted holds no run branch
   there: its runs read the home without pushing, and its brief says why.
@@ -3618,7 +3623,8 @@ instead (`landing.md`, section 5).
   once it has its number (jig's `domain/authority.md`, section 4).
 - **Held by the task it is named after,** a change's by the change that
   lands it, a goal's own by its goal, and written by its delegates one
-  at a time (jig's `domain/tasks.md`, 6.3).
+  at a time (jig's `domain/tasks.md`, 6.3); a goal's own is written by
+  its own runs too, beside them (11.3).
 - **Landing branches are never made by a push.** A landing branch must
   exist when it is adopted or named; a goal's own branch (11.1) is made
   at its base's tip as its goal's hold is taken, as the taking's effect
@@ -3633,10 +3639,9 @@ instead (`landing.md`, section 5).
   read, until deleted by hand or by the deployment's retention. A change
   on its requester's held branch (8.1) holds no branch and deletes none
   as it closes: the goal's landing leaves its goal's branch to the
-  goal's own close, and a change on a run branch leaves it to its goal. A
-  goal's run branch goes as its goal closes, what it holds that g lacks
-  with it (section 20). A release waits for a lost
-  writer's reread, and fails only if that reread fails.
+  goal's own close. A goal's run branch goes as its goal closes. A
+  release waits for a lost writer's reread, and fails only if that
+  reread fails.
 
 A goal's release recognises its branch as landed from a change in the same
 repository on that branch, in landed, red, cleared or uncleared state, whose
@@ -3683,32 +3688,27 @@ own, never a change's:
   refuses, and made at the home's default branch's tip as the hold is
   taken, as the taking's effect. A making that fails for good holds the
   goal, its words naming the branch and what the forge answered.
-- **Written by change alone:** each of the goal's changes lands into it
-  as its landing branch. An ordinary `change` call from the goal or its
+- **Written by change, and by the goal's design:** each of the goal's
+  changes lands into it as its landing branch, and the goal's own runs
+  push their design and status documents to it (11.3); code reaches it
+  by change alone. An ordinary `change` call from the goal or its
   subtree defaults to the nearest applicable held goal branch; an explicit
   destination outside it refuses the whole call before delegation. This
   also holds for every member of a batch. The deliberate `"branch": "mine"`
   change lands that held branch whole into the base instead (8.1).
   Each child merge is ordered by the branch's queue (section
   9) and takes the branch's writer slot while in flight; the goal's own
-  runs read it and take no writer slot of it (jig's `domain/tasks.md`, 6.3),
+  runs take no writer slot of it (jig's `domain/tasks.md`, 6.3; 11.3),
   so merges into it go on while they run.
   A change whose landing branch is a goal's own, made by a task that is
   neither that goal nor one of its subtree, is refused at its batch,
   naming the goal.
-- **What a goal writes goes by its run branch,** where its charter's
-  `modify` is set (`agent.md`, 4.3). Its run pushes to its own run branch
-  (section 11), taking that branch's writer slot and never g's. A change
-  with `"branch": "run"` lands what that branch holds into g, by g's queue,
-  like any change (8.1), and a conflict goes to the merge job and a
-  resolution. A change `after` it starts early on the branch's pushed head
-  (8.11). The first run starts at g's tip; with the run branch at a head, a
-  later run starts from g's tip with that head merged in (`worker.md`,
-  section 5), so its delivery fast-forwards the run branch: a head g holds
-  is no merge, one that merges cleanly is committed before the run starts,
-  and a conflict is left in its checkout for it to settle. A run resuming
-  saved work starts from it, as any does. A charter without `modify` leaves
-  its goal's run to inspect its confirmed branch, as it starts there.
+- **What a goal writes goes straight to g,** where its charter's
+  `modify` is set (`agent.md`, 4.3): its runs are g's design writers
+  (11.3), and `deliver` pushes their design to g, at any point in a run
+  and as often as it likes, with no change to land it. A charter without
+  `modify` leaves its goal's run to inspect its confirmed branch, as it
+  starts there.
 - **Landed whole** by a change into the base whose branch is the goal's
   own: made by the goal's closer (11.2) where the goal is ended by one,
   and otherwise by the goal on its held branch (8.1); and deleted as the
@@ -3779,6 +3779,16 @@ section 6).
   words naming the step and the change, which escalates to the goal:
   its release makes the step's change again, and its cancel ends the
   closer, the goal's branch kept.
+- **A landing that ended is never the end.** When the land step's
+  change ends cancelled or failed, the closer first reads afresh
+  whether the base holds the goal's branch (the land step's own test,
+  above): where it does, someone or something landed it meanwhile, and
+  the closer goes on to report, its landing part `The landing: none,
+  its base already held the goal's branch.`; where it does not, it
+  holds as above. Its release reads that again, and either reports or
+  makes a new landing change, never holding again on the landing that
+  ended: a hold names a change still to be made, never one that has
+  ended.
 - **New work waits for, and reopens, the steps.** A change the goal
   makes while its closer lives is the closer's dependency (jig's
   `domain/tasks.md`, 5.10). The closer, kept, makes no new step while it
@@ -3849,6 +3859,58 @@ CI selection:
   bytes cut]`; then, if it still passes, the report keeps its first
   bytes that fit, at a UTF-8 boundary, and ends with `[N bytes cut]`,
   N what it dropped.
+
+### 11.3 A goal's design writers
+
+A goal's design goes straight to its goal branch. A run of the goal
+whose charter sets `modify`, its goal branch made, confirmed and
+undrifted, is a **design writer** of it: its workspace starts at g's tip
+(or its saved work, or, where its run branch holds a head g lacks, g's
+tip with that head merged in) and names g as both its push branch and
+its landing branch, which the worker takes as a design delivery
+(`worker.md`, section 5): Markdown only, g's moved tip merged first, a
+fast-forward never forced. Its repository's other writes are as before.
+
+- **How it calls it:** smith's `deliver`, with a `title` and a `body`
+  as a change's delivery has them, at any point in its run and as often
+  as it likes; the project's checks run at it (`agent.md`, section 6).
+  It answers a delivery's receipt, `pushed <head> to branch <g>; your
+  checkout stays detached, as expected`, or, where g had moved, `pushed
+  <head> to branch <g>, merging its tip <tip> first; ...`; or a refusal
+  the run settles and delivers again: a path that isn't Markdown, named,
+  since code goes through `change`; files in conflict with g's moved
+  tip, named, the merge left in its checkout; g kept moving. It is never
+  stale, and a `save` there pushes nothing and is refused.
+- **No writer slot.** A design writer takes no writer slot of g (jig's
+  `domain/tasks.md`, 6.3): g's hold keeps its design writers beside its
+  slot, each a run's attempt, so merges into g, a landing's repairs and
+  the goal's other writers go on while it runs. The hold keeps them with
+  it in the store, so a restart keeps them.
+- **Its pushes are g's own.** While g has a design writer, a forward
+  move by temper's identity is that writer's push, never drift, as
+  while any writer holds a branch (8.5); a move by another identity, or
+  not forward, is drift as before. When the design writer's run
+  answers, or its attempt is lost, g is read afresh, as a lost writer's
+  branch is (section 11): a tip that descends from the head temper last
+  knew becomes g's recorded head, as the branch's own; one that does not
+  is drift. What the run reports pushing is not taken as the head, since
+  merges land beside it.
+- **Written while any writes it.** The forge's keep counts g as written
+  while a design writer lives, a run holds its slot, or a merge into it
+  is in flight; each of them ending leaves g written while another
+  stands.
+- **Changes on g take it.** A change on g (the goal's landing,
+  `"branch": "mine"`, the closer's land step) treats a live design
+  writer as its requester's own run (8.5): a forward move is its new
+  head, checked again, never "branch moved".
+- **Its brief says so**: one line, that `deliver` pushes the
+  checkout's Markdown straight to the goal branch, merging its moved tip
+  first, and that code goes through `change`.
+- **The goal's own runs alone.** A designer the goal makes besides
+  itself stays a change (`../draft/goal-as-designer.md`, section 2): its
+  producer delivers its change's branch, and its design reaches g by
+  that change's pull request, as any change's does. A push to g from
+  anywhere but a design writer holds as drift (8.5).
 
 ## 12. Issues
 
@@ -4290,16 +4352,6 @@ whole.
   owners. Default: keep the files-omitted notice and the tool's unknown
   measure; neither raise the room nor split a file across pages. A host
   answer's rendered-size bound is separate from the forge client's bound.
-- **A goal closing with a run branch g lacks** (section 11): the branch goes
-  with its goal, what it held with it. A goal's own branch is kept where no
-  change landed it. Retaining unlanded run work on close would need a
-  retention rule of its own. Default: the run branch goes.
-- **A saved start a change overtook** (11.1): a goal's run that parked with
-  edits resumes from them. If a repair or a resolution has since moved the run
-  branch, its delivery finds the branch moved and the run ends stale, and its
-  next run resumes from the same saved tree. Recovery from this case, with
-  a parked edit and a live change's repair on one branch, is left for later.
-  Default: the stale end and the saved tree remain.
 - **Saved branches outside the task's saved set** (11): a terminal the
   engine never heard, a repository no longer in the set, or full holds at
   close can leave a branch on the forge. Finding these needs a branch

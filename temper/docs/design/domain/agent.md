@@ -163,12 +163,16 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
   change merged into the goal's branch (`forge.md`, 8.1).
 - **A goal's run may modify and deliver** where its charter's `modify` is
   set and its task holds a goal branch in the repository; otherwise it
-  inspects alone. It delivers to its own run branch (`forge.md`, 11.1),
-  with a `title` and a `body` as a change's delivery has them, and the
-  project's checks run at it (section 6; smith's `domain/run.md`, 8.1).
-  Delivering isn't finishing: it has no change among its outcomes, its
-  `finish` offers a report and a failure, and it goes on after a delivery.
-  What it delivered lands by `change`'s `"branch": "run"` (4.3.1).
+  inspects alone. It delivers straight to its goal branch, a design
+  writer of it (`forge.md`, 11.3), with a `title` and a `body` as a
+  change's delivery has them, at any point in its run and as often as it
+  likes, and the project's checks run at it (section 6; smith's
+  `domain/run.md`, 8.1). A design delivery carries Markdown alone, takes
+  the goal branch's moved tip first and is never stale (section 6); code
+  goes through `change`. Delivering isn't finishing: it has no change
+  among its outcomes, its `finish` offers a report and a failure, and it
+  goes on after a delivery. What it delivered is on its goal branch once
+  the receipt says so: no change lands it.
 - **Every host tool below,** declared in every charter, each with the
   charter's call timeout, but `read_task`, offered only with the task's read
   family, and those of the `settings` family, declared
@@ -614,7 +618,6 @@ delegate from what it knows:
 {"changes": [{"name": "lexer", "words": "...", "landing": "goal"},
              {"name": "parser", "words": "...", "landing": "goal", "after": ["lexer"]}]}
 {"words": "...", "branch": "mine"}
-{"words": "...", "branch": "run", "landing": "goal"}
 ```
 
 - **`landing`:** `"goal"`, the nearest goal branch held by the requester
@@ -636,13 +639,11 @@ delegate from what it knows:
   `"mine"` from a run whose task holds no goal branch in that repository
   is refused, saying so; with `"landing": "goal"`, a branch into
   itself, refused, saying so; while another live change of the task is
-  on that branch, refused, naming its task. `"run"`, its requester's run
-  branch, `temper/<root>/r<task>` in the change's repository, which the
-  change lands as it stands, with no producer (forge.md, 8.1): what the
-  run delivered (4.3). `"run"` from a run whose task holds no goal branch
-  in that repository, or holds no run branch there, is refused, saying
-  so; while another live change of the task is on that branch, refused,
-  naming its task. Any other value refused, naming it.
+  on that branch, refused, naming its task. Any other value refused,
+  naming it, `"run"` among them: a goal's runs deliver their design
+  straight to its goal branch (4.3; forge.md, 11.3), so no change lands
+  a run branch. The schema offers `"enum": ["mine"]`, described `mine:
+  goal into base; omit: a new.`
 - **`name`:** a name for the change within the call, at most 64 bytes,
   unique in it, which another change of the same call names in its
   `after`; it names nothing once the call is decided.
@@ -1012,6 +1013,18 @@ merge, with both parents. Its outcomes, in smith's terms (smith's
 | a conflicted file still holds a marker | refused, naming the file |
 | refused by the forge, unreachable, timed out, broken, too large, missing the repository, a branch or a commit | failed, with the reason and the last 512 bytes of git's diagnostic output |
 
+A goal's design delivery to its goal branch (`forge.md`, 11.3; worker.md,
+section 5) has outcomes of its own, and is never stale:
+
+| The design push | smith's delivery |
+|---|---|
+| landed, the goal branch at the head it started from | delivered, `pushed <head> to branch <branch>; your checkout stays detached, as expected` |
+| landed, the goal branch's moved tip merged first | delivered, `pushed <head> to branch <branch>, merging its tip <tip> first; your checkout stays detached, as expected` |
+| a path that isn't Markdown | refused, naming the path: `a delivery to the goal branch carries Markdown only; code goes through a change` |
+| the moved tip in conflict | refused, naming the files in conflict, the merge left in progress to settle and deliver again |
+| the branch moving at each of three tries | refused: `the goal branch kept moving; deliver again` |
+| a `save` | refused: `the goal branch takes checked deliveries alone; deliver instead` |
+
 What it delivers is the tree, not the run's history: a checkout is detached
 (worker.md, section 5), and the worker commits on its own record of the head,
 never on HEAD (`../protocol/git.md`, 4.7). So a run's own commits, resets and
@@ -1086,8 +1099,20 @@ the fresh preparation above.
 | a review (forge.md, 8.3), a triage | none | reads; `finish` with a verdict | its verdict meets its contract |
 | a foreman (forge.md, 8.11) | none | reads: the workspace's inspection, from the landing branch's tip, and the forge's; `finish` with a verdict | its verdict meets its contract |
 | a chat | its person's words; its delegates' results and questions, and its person's answers to those questions (8.2) | most; `deliver` mid-run; `message`; `wait` | its person closes it |
-| a coordinator | questions, results, overlapping landings, the answers to its own questions (8.2); proposals and escalations to decide | `delegate`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `note`, `message`; `wait` | its goal's report is written |
+| a coordinator | questions, results, overlapping landings, the answers to its own questions (8.2); proposals and escalations to decide; while its run lives, its changes' results its wake policy wakes it for (below) | `delegate`, `change`, `amend`, `cancel`, `release`, `decide`, `decide_escalation`, `propose`, `subscribe_forge`, `note`, `message`; `deliver` mid-run, its design straight to its goal branch, where its charter sets `modify` (4.3; forge.md, 11.3); `wait` | its goal's report is written |
 | Ask temper (8.4) | its person's words; its proposals' outcomes: accepted, rejected with a reason, withdrawn as stale (8.1) | `see`, `document`, `remember`, `propose_settings` in its asking form; `wait` | its person closes it |
+
+**A coordinator hears its changes while it designs.** A coordinator's
+run doesn't wait for its changes, but goes on designing while they run.
+While it lives it is offered, at its next turn, each of its changes'
+results its wake policy wakes it for (jig's `domain/tasks.md`, 8.3 and
+8.6): under the stock's `last_or_failure`, a change failing or
+cancelled, and the result of its last live change, a closer-ended goal's
+included, since a live run makes no closer. smith offers what arrives
+while the run works between two completions (smith's `domain/run.md`,
+section 6, *Messages mid-work*),
+so a design written beside its changes fits what landed or failed. A
+result its run leaves unread is judged again when the run ends.
 
 The change's agents run under the charters the change was made with,
 kept on it whatever later changes of settings make them
