@@ -283,7 +283,7 @@ fn the_coordinators_parts_load_the_whole_first_edition_as_written() {
         [
             "shared",
             "part, on: first",
-            "part, on: question, question_answered, question_ended, question_owed",
+            "part, on: question, question_answered, question_ended, question_owed, words",
             "part, on: result, notice, nothing_awaited, escalation, proposal, person_stalled",
             "part, on: news, timer",
         ],
@@ -295,7 +295,8 @@ fn the_coordinators_parts_load_the_whole_first_edition_as_written() {
         Reasons::QUESTION
             .union(Reasons::QUESTION_ANSWERED)
             .union(Reasons::QUESTION_ENDED)
-            .union(Reasons::QUESTION_OWED),
+            .union(Reasons::QUESTION_OWED)
+            .union(Reasons::WORDS),
         Reasons::RESULT
             .union(Reasons::NOTICE)
             .union(Reasons::NOTHING_AWAITED)
@@ -309,6 +310,40 @@ fn the_coordinators_parts_load_the_whole_first_edition_as_written() {
         assert_eq!(part.on, on);
         assert_eq!(part.instructions.as_ref(), text.trim_matches('\n').as_bytes());
     }
+}
+
+#[test]
+fn the_coordinators_charter_makes_no_landing_close_out_or_catch_up() {
+    let engine = engine(&generated());
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let charter = defaults.charters.iter().find(|charter| charter.number == 5).expect("stock coordinator");
+    let shared = core::str::from_utf8(&charter.policy.instructions).expect("shared UTF-8");
+    let prohibition = "Never land your goal, make a close-out or a catch-up, or finish once your changes have ended: your closer settles your goal's status, lands it and reports, and comes to you only through an escalation.";
+    assert_eq!(shared.matches(prohibition).count(), 1);
+    let rest = shared.replace(prohibition, "");
+    for text in core::iter::once(rest.as_str())
+        .chain(charter.parts.iter().map(|part| core::str::from_utf8(&part.instructions).expect("part UTF-8")))
+    {
+        for forbidden in [r#""branch": "mine""#, r#""merge""#, "catch", "close-out", "read_task"] {
+            assert!(!text.to_ascii_lowercase().contains(forbidden), "{forbidden}");
+        }
+    }
+    assert!(shared.contains("[in flight: change N]"));
+    assert!(shared.contains("Then watch it with `subscribe` and call wait"));
+    assert!(shared.contains("watch with `subscribe` each person task you wait on"));
+    let results = core::str::from_utf8(&charter.parts[2].instructions).expect("results UTF-8");
+    assert!(
+        results.contains("On a change that failed, read why; make a change for what the plan still needs, or nothing.")
+    );
+    assert!(results.contains("When your closer escalates (its change settling your status, or your goal's landing, held past its bounds, or the closer held): read why and what failed. Release it where the cause has passed or an amendment naming it will do. Where the landing needs work, make the change into your goal branch with `\"landing\": \"goal\"`, then release: your closer waits for it and lands the new head. Cancel your closer only to drop the landing; your goal branch then stays as it is. Pass up with `decide` only what the draft does not settle."));
+}
+
+#[test]
+fn the_coordinators_wake_policy_wakes_on_a_failure_or_the_last_result() {
+    let engine = engine(&generated());
+    let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    let charter = defaults.charters.iter().find(|charter| charter.number == 5).expect("stock coordinator");
+    assert_eq!(charter.wake.results, jig_domain_tasks::ResultsWake::LastOrFailure);
 }
 
 #[test]
@@ -495,7 +530,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
             run = (bytes, Setting::Charter(charter.number));
         }
     }
-    assert_eq!(run, (12_883, Setting::Charter(5)));
+    assert_eq!(run, (11_112, Setting::Charter(5)));
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         (b"core.policy_bytes", 5918, Setting::Policy(1), "the stock's policy 1 needs 5918 bytes"),
@@ -1772,7 +1807,7 @@ fn the_stock_reports_follow_the_deployment_result_bound_and_keep_its_floor() {
         words: jig_domain_tasks::WakeRule::Immediate,
         notices: jig_domain_tasks::WakeRule::Immediate,
         news: jig_domain_tasks::WakeRule::Paced { span: skein_lib::Duration::from_secs(1800) },
-        results: jig_domain_tasks::ResultsWake::Each,
+        results: jig_domain_tasks::ResultsWake::LastOrFailure,
         questions: true,
         answers: true,
         timers: true,

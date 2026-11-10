@@ -577,7 +577,7 @@ const COORDINATOR_WAKE: WakePolicy = WakePolicy {
     words: WakeRule::Immediate,
     notices: WakeRule::Immediate,
     news: WakeRule::Paced { span: Duration::from_secs(1_800) },
-    results: ResultsWake::Each,
+    results: ResultsWake::LastOrFailure,
     questions: true,
     answers: true,
     timers: true,

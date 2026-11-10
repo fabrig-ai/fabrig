@@ -379,7 +379,7 @@
       },
       "member": "close_out",
       "test": "equal",
-      "value": true
+      "value": false
     },
     {
       "id": "small-goal-template.stock",
@@ -1142,8 +1142,8 @@
     {
       "id": "coordinator.catch-up",
       "role": "coordinator",
-      "words": "A landing into main that touches the goal's open work is taken by a catch-up change into the goal's branch, one live at a time",
-      "source": "reference-code-production.md, 11"
+      "words": "The coordinator makes no catch-up changes when main moves under its goal",
+      "source": "temper/docs/design/protocol/configuration.md, 13.9"
     },
     {
       "id": "coordinator.triage",
@@ -1154,8 +1154,8 @@
     {
       "id": "coordinator.close",
       "role": "coordinator",
-      "words": "When the plan is done, the close-out, a designer's change, then the goal's landing, a change into main whose branch is the goal's",
-      "source": "reference-code-production.md, 12"
+      "words": "The coordinator makes no close-out, landing or finish once its plan's changes end; its closer settles status, lands the goal and writes the goal's report",
+      "source": "temper/docs/design/protocol/configuration.md, 13.9"
     },
     {
       "id": "triage.report",
