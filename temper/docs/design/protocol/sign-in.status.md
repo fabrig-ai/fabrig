@@ -81,7 +81,3 @@ unchanged. Local `Lost` uses the busy page, as section 9.3 now records.
   connects with `--web`, as that walk does. Which of the two stands is
   the user's, not yet decided.
 
-- **Not yet:**
-  - 9.9: the source's step neither reads temper's discovery first nor asks
-    Forgejo whether it serves a listed source, and is not run again.
-    [in flight: change 71]

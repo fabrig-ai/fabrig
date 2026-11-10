@@ -116,7 +116,3 @@ whose smallest resumed start passes the room (`limits.rs`). The wire's
   those grants arrive through the same `Assignment` and `Granted` frames as
   the covered stories; extending coverage remains section 14's question.
 
-- **Not yet:**
-  - 10.1: the grace's clock stops at a channel's opening, before the engine
-    admits its hello, and a redial's wait may pass a quarter of the grace.
-    [in flight: change 65]

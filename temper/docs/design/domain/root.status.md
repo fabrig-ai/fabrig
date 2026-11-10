@@ -145,10 +145,3 @@ LINKED`, as for every link jig's start cannot make
   held before its commit. The application settings' contribution is omitted;
   no reason is recorded.
 
-- **Not yet:**
-  - 9.3: an engine restarted alone, as `worker.md`'s status for section 2
-    says. [in flight: change 69]
-  - 9.3: a forge away, as `forge.md`'s status for 5.11 says.
-    [in flight: change 70]
-  - 9.3: an owned Forgejo's sign-in, as `../protocol/setup.md`'s status for
-    7.2 says. [in flight: change 71]

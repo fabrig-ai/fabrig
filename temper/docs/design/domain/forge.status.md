@@ -585,16 +585,3 @@ a change's merge job from the engine through its worker to the fake forge
   panics at its link, where the section refuses the start
   (`root.status.md`, 9.1).
 
-- **Not yet:**
-  - 5.11: a change's or a lost writer's fresh read ending `Unavailable` or
-    `Timeout` after its attempts holds its task; a failed checks read is
-    dropped and no return of the forge reads CI again; a run's lifetime, a
-    tier's faults and a change's stall count an outage; a repair's brief
-    spends transient tries on it; a never-sent write failed `Unavailable`
-    fails its effect. [in flight: change 70]
-  - 6 and 11.1: a goal's own branch is an unrecoverable creation, held for a
-    person when its find misses; a restart that cut its making before its
-    entry holds the goal, a release makes nothing, and a forge away while
-    it is made fails it. [in flight: change 67]
-  - 16: step 2 settles a goal's own branch as any unrecoverable creation.
-    [in flight: change 67]

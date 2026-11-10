@@ -57,6 +57,3 @@ parks without spending a try.
   8.5: a conversation's questions.
   12: the stories of these.
 
-- **Not yet:**
-  - 5.2: a run its host cancelled for lost contact or for shutdown spends an
-    agent try. [in flight: change 66]

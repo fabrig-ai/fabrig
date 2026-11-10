@@ -382,9 +382,3 @@ try. A window's later pages keep its first page's slot there
   whether this departs, is the designer's decision: it is a bug if the
   design requires `Full` in this case; no reason is recorded.
 
-- **Not yet:**
-  - 7.2: a transient try spent anywhere in a task's life keeps its next
-    attempts from resuming, and a transcript-caused failure closes no
-    window. [in flight: change 66]
-  - 8: the fleet judges a hello heard before the start's settings restore
-    against the configured charters, and may refuse it. [in flight: change 66]
