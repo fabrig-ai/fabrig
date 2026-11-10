@@ -622,10 +622,27 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 Some(tasks) => skein_lib::len_u64(tasks.len()),
                 None => 0,
             };
-            closed
+            let mut total = closed
                 .checked_add(skein_lib::len_u64(row.close_changes.len()))?
                 .checked_add(skein_lib::len_u64(row.landing_changes.len()))?
-                .checked_mul(8)
+                .checked_mul(8)?
+                .checked_add(skein_lib::len_u64(row.closer.selections.len()).checked_mul(
+                    u64::try_from(size_of::<temper_engine_domain_forge_closer::PullSelection>()).ok()?,
+                )?)?;
+            for selection in &row.closer.selections {
+                let held = match &selection.progress {
+                    temper_engine_domain_forge_closer::SelectionProgress::Jobs { attempts, .. } => {
+                        skein_lib::len_u64(attempts.len())
+                            .checked_mul(u64::try_from(size_of::<skein_forge::api::JobAttempt>()).ok()?)?
+                    }
+                    temper_engine_domain_forge_closer::SelectionProgress::Done { line: Some(line) } => bytes(line),
+                    temper_engine_domain_forge_closer::SelectionProgress::Done { line: None }
+                    | temper_engine_domain_forge_closer::SelectionProgress::Pull
+                    | temper_engine_domain_forge_closer::SelectionProgress::Checks => 0,
+                };
+                total = total.checked_add(held)?;
+            }
+            Some(total)
         }
         Stored::Change(row) => skein_lib::len_u64(row.repair_tasks.len())
             .checked_mul(8)?

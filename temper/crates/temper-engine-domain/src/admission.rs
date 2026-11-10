@@ -143,6 +143,7 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::StepChange { .. }
             | forge::Event::SavedWork { .. }
             | forge::Event::Closer { .. }
+            | forge::Event::ReadCloserSelection { .. }
             | forge::Event::CheckCloser { .. }
             | forge::Event::ChangeEnding { .. }
             | forge::Event::ReleaseChange { .. }

@@ -1258,6 +1258,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
     }
     match event {
         Event::Closer { row } => crate::closer::save(d, row, out),
+        Event::ReadCloserSelection { task, repository } => crate::closer::read_selection(d, env, task, repository, out),
         Event::CheckCloser { task, step, repository, branch, base } => {
             crate::closer::check(d, env, task, step, repository, branch, base, out);
         }
@@ -1961,7 +1962,9 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 admission::kept(d, env, owner, result, out);
             }
             skein_forge_client::Request::Read { owner, result } => {
-                if d.closing.reads.contains_key(&owner) {
+                if d.closing.selection_reads.contains_key(&owner) {
+                    crate::closer::selection_answered(d, owner, result, out);
+                } else if d.closing.reads.contains_key(&owner) {
                     crate::closer::answered(d, env, owner, result, out);
                 } else if d.tier_ops.reads.contains_key(&owner) {
                     crate::tiers::answered(d, env, owner, result, out);

@@ -20,6 +20,7 @@ pub struct CloserRow {
 pub(crate) struct State {
     pub(crate) rows: Map<u64, CloserRow>,
     pub(crate) reads: Map<Token, Reading>,
+    pub(crate) selection_reads: Map<Token, u64>,
     checked: Map<u64, (u64, Result<bool, Error>)>,
 }
 #[derive(Hash, Debug)]
@@ -39,7 +40,12 @@ enum Stage {
 }
 impl State {
     pub(crate) fn new(tasks: u32) -> Self {
-        Self { rows: Map::with_capacity(tasks), reads: Map::with_capacity(tasks), checked: Map::with_capacity(tasks) }
+        Self {
+            rows: Map::with_capacity(tasks),
+            reads: Map::with_capacity(tasks),
+            selection_reads: Map::with_capacity(tasks),
+            checked: Map::with_capacity(tasks),
+        }
     }
 }
 impl Domain {
@@ -87,6 +93,15 @@ fn discard_check(d: &mut Domain, task: u64) {
     }
     for owner in &owners {
         d.closing.reads.remove(owner);
+    }
+    let mut owners = List::with_capacity(d.closing.selection_reads.len());
+    for (owner, reading) in &d.closing.selection_reads {
+        if *reading == task {
+            owners.push(*owner).expect("bounded selection reads");
+        }
+    }
+    for owner in &owners {
+        d.closing.selection_reads.remove(owner);
     }
 }
 
@@ -274,4 +289,41 @@ fn covered(d: &Domain, task: u64) -> Option<(Commit, Commit)> {
         | temper_engine_domain_forge_change::State::Ended => return None,
     };
     Some((row.change.last_head?, merge))
+}
+
+// Selection reads are safe while the closer is kept: they make no forge effect.
+pub(crate) fn read_selection(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    repository: Repository,
+    out: &mut Queue<Request>,
+) {
+    for (_, reading) in &d.closing.selection_reads {
+        if *reading == task {
+            return;
+        }
+    }
+    let Some(row) = d.closing.rows.get(&task) else { return };
+    let Some(read) = temper_engine_domain_forge_closer::selection_read(&row.closer) else { return };
+    d.sequence = d.sequence.checked_add(1).expect("closer read sequence");
+    let owner = Token::new(d.sequence | (1_u64 << 62));
+    d.closing.selection_reads.insert(owner, task).expect("one selection read per closer");
+    crate::domain::child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
+}
+
+pub(crate) fn selection_answered(
+    d: &mut Domain,
+    owner: Token,
+    result: Result<Answer, Error>,
+    out: &mut Queue<Request>,
+) {
+    let Some(task) = d.closing.selection_reads.remove(&owner) else { return };
+    let Some(mut row) = d.closing.rows.get(&task).cloned() else { return };
+    if row.done {
+        return;
+    }
+    temper_engine_domain_forge_closer::selection_answer(&mut row.closer, result);
+    save(d, row, out);
+    out.push(Request::CloserChecked { task });
 }

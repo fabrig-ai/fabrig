@@ -5513,6 +5513,7 @@ dependencies = [
 name = "temper-engine-domain-forge-closer"
 version = "0.0.0"
 dependencies = [
+ "skein-forge",
  "skein-lib",
 ]
 
