@@ -241,7 +241,7 @@ fn held_goal_with_change(row: ChangeRow) -> Domain {
     let mut d = fresh();
     take(&mut d);
     fixtures::answer_next(&mut d, Ok(Answer::Commit(TIP)));
-    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     d
 }
 

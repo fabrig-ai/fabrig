@@ -2337,7 +2337,14 @@ pub(crate) fn closing(d: &mut Domain, task: u64, ending: crate::ReleaseEnding, o
         for member in &row.landing.members {
             if let Some(change) = d.changes.get_mut(&member.change) {
                 change.change.landing = None;
-                emit(out, Request::Save { record: Stored::Change(change.clone()), release: None, read_afresh: None });
+                emit(
+                    out,
+                    Request::Save {
+                        record: Stored::Change(Box::new(change.clone())),
+                        release: None,
+                        read_afresh: None,
+                    },
+                );
                 emit(out, Request::WakeProcedure { task: member.change });
             }
         }
@@ -2357,7 +2364,7 @@ pub(crate) fn closing(d: &mut Domain, task: u64, ending: crate::ReleaseEnding, o
         remap_members(d, &mut row, &prior);
         let change = d.changes.get_mut(&task).expect("cancelled member");
         change.change.landing = None;
-        emit(out, Request::Save { record: Stored::Change(change.clone()), release: None, read_afresh: None });
+        emit(out, Request::Save { record: Stored::Change(Box::new(change.clone())), release: None, read_afresh: None });
         let project = row.landing.project;
         save(d, row, out);
         emit(out, Request::WakeProcedure { task: landing });

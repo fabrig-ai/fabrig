@@ -192,6 +192,7 @@ pub struct Domain {
     pending_ci: Map<Token, PendingCi>,
     restart_fresh: Option<bool>,
     pub(crate) sequence: u64,
+    pub(crate) closing: crate::closer::State,
     pub(crate) changes: Map<u64, ChangeRow>,
     pub(crate) steps: Map<Token, PendingStep>,
     start_conflicts: Map<u64, skein_forge::api::Commit>,
@@ -718,6 +719,7 @@ impl Domain {
             pending_ci: Map::with_capacity(l.subscriptions),
             restart_fresh: None,
             sequence: 0,
+            closing: crate::closer::State::new(l.tasks),
             changes: Map::with_capacity(l.changes),
             steps: Map::with_capacity(l.changes),
             start_conflicts: Map::with_capacity(l.changes),
@@ -761,7 +763,7 @@ impl Domain {
             close_kind: None,
             projection_due: Map::with_capacity(l.issues),
             full_outbox_met: false,
-            change_due: Map::with_capacity(l.changes),
+            change_due: Map::with_capacity(l.changes.checked_add(l.tasks).ok_or(skein_forge::api::Error::TooLarge)?),
             procedure_wakes: Map::with_capacity(l.changes),
             settling: Map::with_capacity(l.changes),
         })
@@ -1149,6 +1151,16 @@ impl Domain {
         None
     }
 
+    /// Retained changes in task order (temper/docs/design/domain/forge.md, 11.2).
+    #[must_use]
+    pub fn change_tasks(&self) -> Box<[u64]> {
+        let mut tasks = List::with_capacity(self.changes.len());
+        for (task, _) in &self.changes {
+            tasks.push(*task).expect("retained change count");
+        }
+        tasks.into_boxed()
+    }
+
     /// Current durable change state used by the root's procedure route.
     #[must_use]
     pub fn change(&self, task: u64) -> Option<&ChangeRow> {
@@ -1245,6 +1257,17 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         return;
     }
     match event {
+        Event::Closer { row } => crate::closer::save(d, row, out),
+        Event::CheckCloser { task, step, repository, branch, base } => {
+            crate::closer::check(d, env, task, step, repository, branch, base, out);
+        }
+        Event::ChangeEnding { task, ending } => {
+            if let Some(row) = d.changes.get_mut(&task) {
+                row.ending = Some(ending);
+                let row = row.clone();
+                save_change(d, out, row);
+            }
+        }
         Event::TierWords { task, words } => crate::tiers::words::projected(d, task, &words, out),
         Event::StatusTask { project, task } => crate::status::task(d, project, Some(task), out),
         Event::StatusRefused { project } => crate::status::task(d, project, None, out),
@@ -1467,6 +1490,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         }
         Event::ApplicationAnswered { request, outcome } => adoption::answered(d, env, request, outcome, out),
         Event::ForgetProjection { goal } => {
+            crate::closer::forget(d, goal, out);
             if let Some(row) = d.issues.get(&goal)
                 && row.pending.is_none()
                 && !row.failed
@@ -1937,7 +1961,9 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 admission::kept(d, env, owner, result, out);
             }
             skein_forge_client::Request::Read { owner, result } => {
-                if d.tier_ops.reads.contains_key(&owner) {
+                if d.closing.reads.contains_key(&owner) {
+                    crate::closer::answered(d, env, owner, result, out);
+                } else if d.tier_ops.reads.contains_key(&owner) {
                     crate::tiers::answered(d, env, owner, result, out);
                 } else if d.landing.pending.contains_key(&owner) {
                     crate::landing::answered(d, env, owner, result, out);
@@ -2818,8 +2844,16 @@ fn delegated(
         emit(out, Request::Refused { task });
         return;
     };
-    if let change::Delegate::Repair(why) = kind {
-        row.result.repaired(why, row.change.last_head, env.limits.client.answer_bytes);
+    match kind {
+        change::Delegate::Repair(why) => {
+            row.result.repaired(why, row.change.last_head, env.limits.client.answer_bytes);
+            row.repair_tasks = task_account(&row.repair_tasks, child);
+        }
+        change::Delegate::Resolve { .. } => row.resolution_tasks = task_account(&row.resolution_tasks, child),
+        change::Delegate::Produce
+        | change::Delegate::Close
+        | change::Delegate::Merge { .. }
+        | change::Delegate::Gate { .. } => {}
     }
     row.delegate = Some((child, kind));
     match kind {
@@ -2834,6 +2868,17 @@ fn delegated(
     row.delegate_status = change::Status::Unknown;
     let saved = row.clone();
     save_change(d, out, saved);
+}
+
+fn task_account(prior: &[u64], child: u64) -> Box<[u64]> {
+    let mut tasks = List::uncapped();
+    for task in prior {
+        tasks.push(*task).expect("uncapped task account");
+    }
+    if !prior.contains(&child) {
+        tasks.push(child).expect("admitted delegate");
+    }
+    tasks.into_boxed()
 }
 
 fn delegate_refused(d: &mut Domain, env: &Env<Limits>, task: u64, child: u64, out: &mut Queue<Request>) {
@@ -3556,7 +3601,10 @@ fn step_read(
                         && row.result.checked(head, &rows, env.limits.client.answer_bytes)
                     {
                         let saved = row.clone();
-                        emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Change(saved) });
+                        emit(
+                            out,
+                            Request::Save { read_afresh: None, release: None, record: Stored::Change(Box::new(saved)) },
+                        );
                     }
                 }
                 Ok(_) | Err(_) => {
@@ -4778,6 +4826,39 @@ fn end_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Requ
     let Some(row) = d.changes.get_mut(&task) else { return };
     let before = crate::panel::ready(row);
     row.change.state = ended_change_state(&row.change.state, merge, cancelled, env.wall);
+    row.ending = match &row.change.state {
+        change::State::Landed { .. }
+        | change::State::Red { .. }
+        | change::State::Cleared { .. }
+        | change::State::Uncleared { .. } => Some(crate::Ending::Landed),
+        change::State::NoChange { .. } => Some(crate::Ending::NoChange),
+        change::State::Ended => match row.ending.take() {
+            Some(ending) => Some(ending),
+            None if cancelled => Some(crate::Ending::Cancelled),
+            None => Some(crate::Ending::Failed {
+                line: temper_engine_domain_forge_closer::first_line(
+                    row.producer_failure.as_deref().unwrap_or(b"change failed"),
+                )
+                .into(),
+            }),
+        },
+        change::State::Producing { .. }
+        | change::State::Opening { .. }
+        | change::State::Recreating { .. }
+        | change::State::Reopening { .. }
+        | change::State::Checking { .. }
+        | change::State::Gating { .. }
+        | change::State::CancellingGates { .. }
+        | change::State::Ready { .. }
+        | change::State::Preparing { .. }
+        | change::State::Queued { .. }
+        | change::State::First { .. }
+        | change::State::Updating { .. }
+        | change::State::Resolving { .. }
+        | change::State::Repairing { .. }
+        | change::State::Landing { .. }
+        | change::State::Held { .. } => unreachable!("ending reduces the change to a terminal state"),
+    };
     row.change.released = None;
     row.change.owns_turn = false;
     row.delegate = None;
@@ -6281,10 +6362,16 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             child(d, env, skein_forge_client::Event::Restore { record: row }, &mut discarded);
             assert!(discarded.is_empty(), "restoration emits no output");
         }
+        Stored::Closer(row) => {
+            if !row.done {
+                d.change_due.insert(row.task, env.wall).expect("restored closer wake room checked");
+            }
+            d.closing.rows.insert(row.task, row).expect("restored closer room checked");
+        }
         Stored::Change(row) => {
             // Volatile waits are rebuilt by stepping every restored change (domain/forge.md, 16).
             d.change_due.insert(row.task, env.wall).expect("a wake per restored change");
-            d.changes.insert(row.task, row).expect("restored change within limits");
+            d.changes.insert(row.task, *row).expect("restored change within limits");
         }
         Stored::Issue(row) => {
             if row.pending.is_none() && !row.failed && !row.state.closed && row.desired.is_some() {
@@ -6606,7 +6693,7 @@ pub(crate) fn save_change(d: &mut Domain, out: &mut Queue<Request>, mut row: Cha
         }
     }
     let tasks = tasks.into_boxed();
-    emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Change(row) });
+    emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Change(Box::new(row)) });
     emit(out, Request::Marked { tasks });
 }
 
@@ -6673,7 +6760,7 @@ fn save_queue_change(
         previous = Some(next);
     }
     retain_terminal_ci(d, &mut row);
-    emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Change(row) });
+    emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Change(Box::new(row)) });
     emit(out, Request::Marked { tasks: tasks.into_boxed() });
 }
 
@@ -6828,6 +6915,13 @@ impl Domain {
                         || need == (Need::EntryOwner { task: row.entry.task, entry: *key })
                     {
                         return Key::Entry(*key);
+                    }
+                }
+            }
+            RecordKind::Closer => {
+                for (task, row) in &self.closing.rows {
+                    if need.task(*task, None) || need.task(row.goal, None) {
+                        return Key::Closer(*task);
                     }
                 }
             }

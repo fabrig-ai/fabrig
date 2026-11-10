@@ -203,7 +203,7 @@ fn landing_fixture() -> Domain {
     row.repository = REPO;
     row.pull = Some(1);
     row.change.landing = None;
-    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     assert!(d.project_landing(
         5,
         temper_engine_domain_forge_change::Way::Turn,
@@ -549,7 +549,7 @@ fn across_fixture() -> Domain {
     change.change.task = OTHER_CHANGE;
     change.change.landing = None;
     change.repository = OTHER_REPOSITORY;
-    outputs(&mut d, Event::Restore { record: Stored::Change(change) });
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(change)) });
     d
 }
 

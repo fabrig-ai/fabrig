@@ -637,6 +637,10 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
         catch_up,
         close,
         merge_result,
+        goal,
+        ending,
+        repair_tasks,
+        resolution_tasks,
     } = value;
     w::ChangeRow::new(
         &w::CEILINGS,
@@ -695,6 +699,10 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
             catch_up: *catch_up,
             close: close.clone(),
             merge_result: merge_result.clone(),
+            goal: *goal,
+            ending: encode_ending(ending.as_ref()),
+            repair_tasks: encode_numbers(repair_tasks),
+            resolution_tasks: encode_numbers(resolution_tasks),
             effect_account: match effect_account {
                 Some(account) => Some(
                     w::EffectAccount::new(
@@ -709,6 +717,7 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
     )
     .expect(FITS)
 }
+#[expect(clippy::too_many_lines, reason = "the durable change account translates each row field in place")]
 pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
     let w::ChangeRowParts {
         task,
@@ -745,8 +754,16 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         catch_up,
         close,
         merge_result,
+        goal,
+        ending,
+        repair_tasks,
+        resolution_tasks,
     } = value.into_parts();
     top::ChangeRow {
+        goal,
+        ending: decode_ending(ending),
+        repair_tasks: repair_tasks.into_boxed(),
+        resolution_tasks: resolution_tasks.into_boxed(),
         result: decode_result(result),
         task,
         repository: names::decode_repository(repository),
@@ -1032,4 +1049,23 @@ fn decode_questions(value: w::Questions) -> d::Questions {
         taken,
         open: questions.into_boxed(),
     }
+}
+
+fn encode_ending(ending: Option<&top::Ending>) -> Option<w::ChangeEnding> {
+    Some(match ending? {
+        top::Ending::Landed => w::ChangeEnding::Landed,
+        top::Ending::NoChange => w::ChangeEnding::NoChange,
+        top::Ending::Cancelled => w::ChangeEnding::Cancelled,
+        top::Ending::Failed { line } => w::ChangeEnding::Failed(
+            w::ChangeFailure::new(&w::CEILINGS, w::ChangeFailureParts { line: line.clone() }).expect(FITS),
+        ),
+    })
+}
+fn decode_ending(ending: Option<w::ChangeEnding>) -> Option<top::Ending> {
+    Some(match ending? {
+        w::ChangeEnding::Landed => top::Ending::Landed,
+        w::ChangeEnding::NoChange => top::Ending::NoChange,
+        w::ChangeEnding::Cancelled => top::Ending::Cancelled,
+        w::ChangeEnding::Failed(line) => top::Ending::Failed { line: line.into_parts().line },
+    })
 }

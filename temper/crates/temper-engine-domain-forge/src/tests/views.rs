@@ -36,7 +36,7 @@ fn setup() -> Domain {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut change = fixtures::opening_row();
     change.pull = Some(1);
-    outputs(&mut d, Event::Restore { record: Stored::Change(change) });
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(change)) });
     assert!(d.project_landing(
         5,
         temper_engine_domain_forge_change::Way::Turn,
@@ -183,7 +183,7 @@ fn a_landed_queue_change_is_a_change_document_and_has_no_turn_landing() {
     row.change.state =
         temper_engine_domain_forge_change::State::Landed { merge: fixtures::HEAD, since: Wall::from_nanos(17) };
     row.pending = None;
-    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     let Document::Change(panel) = document(&d, fixtures::CHANGE) else { panic!("queue change document") };
     assert_eq!(panel.task, fixtures::CHANGE);
     assert_eq!(panel.way, temper_engine_domain_forge_change::Way::Queue);
@@ -256,7 +256,7 @@ fn changes_setup(rows: &[(u64, i32, u64)]) -> Domain {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     for (task, priority, seconds) in rows {
-        outputs(&mut d, Event::Restore { record: Stored::Change(queued(*task, *priority, *seconds)) });
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(queued(*task, *priority, *seconds))) });
     }
     d
 }
@@ -373,7 +373,7 @@ fn changes_document_says_a_red_with_nothing_queued() {
     let mut d = changes_setup(&[]);
     let mut row = fixtures::opening_row();
     row.change.state = change::State::Red { merge: fixtures::HEAD, since: env().wall };
-    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     red(&mut d);
     let got = changes(&d);
     assert_eq!(got.landing.as_ref(), b"main");
@@ -434,7 +434,7 @@ fn changes_document_keeps_to_its_project() {
     outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
     let mut row = queued(SECOND, -10_i32, 50);
     row.repository = OTHER_REPO;
-    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     log(&mut d, OTHER_REPO, Box::new([logged(SECOND, 1, 5, b"private")]));
     assert_eq!(tasks(&changes(&d)).as_ref(), &[fixtures::CHANGE]);
     assert!(changes(&d).landed.is_empty());

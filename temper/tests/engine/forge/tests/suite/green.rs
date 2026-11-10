@@ -39,7 +39,7 @@ fn released(world: &mut World, why: change::Hold) {
     saved.change.state = change::State::Held { was: Box::new(saved.change.state), why };
     saved.delegate = None;
     saved.delegate_status = change::Status::Failed;
-    world.event(top::Event::Restore { record: top::Stored::Change(saved) });
+    world.event(top::Event::Restore { record: top::Stored::Change(Box::new(saved)) });
 }
 
 #[test]

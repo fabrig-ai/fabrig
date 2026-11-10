@@ -35,6 +35,8 @@ pub const LOOKED: u8 = 37;
 pub const AWAY: u8 = 38;
 /// Decisions for a person (temper/docs/design/protocol/store.md, 2).
 pub const DECIDED: u8 = 39;
+/// A goal closer (temper/docs/design/domain/forge.md, 11.2).
+pub const CLOSER: u8 = 40;
 
 fn write_name(writer: &mut KeyWriter, name: &forge::Name) {
     writer.u64(u64::from(name.forge)).u64(u64::from(name.repository));
@@ -213,6 +215,9 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
             writer.tag(11);
             write_client(&mut writer, key);
         }
+        forge::Key::Closer(task) => {
+            writer.tag(CLOSER).u64(*task);
+        }
         forge::Key::Change(task) => {
             writer.tag(12).u64(*task);
         }
@@ -311,6 +316,7 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
         9 => forge::Key::Landed(read_commit(&mut reader)?),
         10 => forge::Key::Entry(reader.u64()?),
         11 => forge::Key::Client(read_client(&mut reader, limits)?),
+        CLOSER => forge::Key::Closer(reader.u64()?),
         12 => forge::Key::Change(reader.u64()?),
         13 => forge::Key::Issue(reader.u64()?),
         14 => forge::Key::Release(reader.u64()?),

@@ -176,7 +176,7 @@ fn landing_into_a_held_goal_branch_runs_without_following_the_change() {
     assert!(row.record.run.as_ref().unwrap().landings.is_empty());
     let mut change = fixtures::opening_row();
     change.base = BRANCH.into();
-    outputs(&mut d, Event::Restore { record: Stored::Change(change) });
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(change)) });
     let mut out = Queue::uncapped();
     verification::landed(&mut d, NEXT_TIP, CHANGE, &mut out);
     assert_eq!(d.change_verification(CHANGE), temper_engine_domain_forge_change::Verification::Unfollowed);

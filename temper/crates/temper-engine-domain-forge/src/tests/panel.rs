@@ -8,7 +8,7 @@ fn panel(d: &Domain) -> Panel {
 fn with_row(row: ChangeRow) -> Domain {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
-    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     d
 }
 #[test]
@@ -90,7 +90,7 @@ fn every_record_save_marks_its_change_after_the_save() {
     assert_eq!(
         outputs(&mut d, Event::Change { row: row.clone() }).as_ref(),
         &[
-            Request::Save { record: Stored::Change(row.clone()), release: None, read_afresh: None },
+            Request::Save { record: Stored::Change(Box::new(row.clone())), release: None, read_afresh: None },
             Request::Marked { tasks: Box::new([row.task]) },
         ]
     );
@@ -121,7 +121,7 @@ fn queue_place_uses_priority_time_aging_and_the_base_repairs_precedence() {
         for (task, priority, seconds) in rows {
             let mut row = queued(task, priority, seconds);
             row.base_repair = repair && task == 51;
-            outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+            outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
         }
         for (index, task) in expected.iter().enumerate() {
             let got = d.panel(*task, ApplicationScope::Project(5), env().wall, &LIMITS).expect("queued panel");
@@ -154,7 +154,7 @@ fn a_long_queue_counts_every_place_but_carries_only_the_nearest_ahead() {
     let mut out = Queue::uncapped();
     step(&mut d, &environment, Event::Restore { record: Stored::Repository(adopted()) }, &mut out);
     for task in 1..=u64::from(CHANGES) {
-        step(&mut d, &environment, Event::Restore { record: Stored::Change(queued(task, 0, 95)) }, &mut out);
+        step(&mut d, &environment, Event::Restore { record: Stored::Change(Box::new(queued(task, 0, 95))) }, &mut out);
     }
     let got = d.panel(u64::from(CHANGES), ApplicationScope::Project(5), env().wall, &limits).expect("last panel");
     let mut ahead = skein_lib::List::with_capacity(PANEL_AHEAD);
@@ -171,7 +171,7 @@ fn queue_entry_and_departure_mark_the_nearest_followers_within_the_subject_bound
     assert_eq!(
         got.as_ref(),
         &[
-            Request::Save { record: Stored::Change(expected), release: None, read_afresh: None },
+            Request::Save { record: Stored::Change(Box::new(expected)), release: None, read_afresh: None },
             Request::Marked { tasks: Box::new([51, changes_subject(5), status_subject(5), APPROVALS_SUBJECT, 52]) },
         ]
     );
@@ -304,7 +304,7 @@ fn priority_moves_mark_the_nearest_followers_and_stop_at_the_mark_bound() {
     let mut out = Queue::uncapped();
     step(&mut d, &environment, Event::Restore { record: Stored::Repository(adopted()) }, &mut out);
     for task in 1..=u64::from(CHANGES) {
-        step(&mut d, &environment, Event::Restore { record: Stored::Change(queued(task, 0, 95)) }, &mut out);
+        step(&mut d, &environment, Event::Restore { record: Stored::Change(Box::new(queued(task, 0, 95))) }, &mut out);
     }
     d.priority(&environment, u64::from(CHANGES), -10, &mut out);
     let Some(Request::Save { record: Stored::Change(row), .. }) = out.pop() else { panic!("priority saved") };
@@ -389,7 +389,7 @@ fn ending_a_change_saves_its_last_ci_without_an_extra_write() {
     let [saved] = records.as_slice() else { panic!("the finish's one change save") };
     assert_eq!(saved.change.state, change::State::Ended);
     assert_eq!(saved.ci, Some(read));
-    assert_eq!(panel(&with_row(saved.clone())).ci, change::Status::Failed);
+    assert_eq!(panel(&with_row(*saved.clone())).ci, change::Status::Failed);
 }
 
 /// The parent commits every save; replaying them in order restores each key's
@@ -619,7 +619,7 @@ fn waiting_changes(changes: &[(u64, skein_forge::api::Commit)]) -> Domain {
         row.task = *task;
         row.change.task = *task;
         row.change.state = change::State::Landed { merge: *merge, since: env().wall };
-        outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
         d.verifications
             .insert(
                 (REPO, *merge),

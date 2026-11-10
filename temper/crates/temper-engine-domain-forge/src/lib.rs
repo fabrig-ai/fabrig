@@ -36,8 +36,10 @@ mod capabilities;
 mod workflows;
 pub use workflows::{WORKFLOW_BYTES, WORKFLOWS};
 mod ci;
+mod closer;
 mod commit;
 mod connect;
+pub use closer::CloserRow;
 mod status;
 pub use status::{
     BRIEF_LEDE_BYTES, BRIEF_SENTENCE_BYTES, Brief, Looked, LookedAnswer, ProjectFacts, SITTING, StatusRunning,
@@ -313,6 +315,7 @@ pub fn stored_key(row: &Stored) -> Key {
                 unreachable!("the connector keeps the client's writer as Stored::Writer")
             }
         }),
+        Stored::Closer(row) => Key::Closer(row.task),
         Stored::Change(row) => Key::Change(row.task),
         Stored::Issue(row) => Key::Issue(row.goal),
         Stored::Release(row) => Key::Release(row.task),
@@ -614,7 +617,25 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         }
         Stored::Entry { entry, .. } => skein_forge_client::measure::effect(&entry.effect),
         Stored::Client(row) => skein_forge_client::measure::stored(row),
-        Stored::Change(row) => bytes(&row.branch)
+        Stored::Closer(row) => {
+            let closed = match &row.closer.closed {
+                Some(tasks) => skein_lib::len_u64(tasks.len()),
+                None => 0,
+            };
+            closed
+                .checked_add(skein_lib::len_u64(row.close_changes.len()))?
+                .checked_add(skein_lib::len_u64(row.landing_changes.len()))?
+                .checked_mul(8)
+        }
+        Stored::Change(row) => skein_lib::len_u64(row.repair_tasks.len())
+            .checked_mul(8)?
+            .checked_add(u64::try_from(size_of::<ChangeRow>()).ok()?)?
+            .checked_add(skein_lib::len_u64(row.resolution_tasks.len()).checked_mul(8)?)?
+            .checked_add(match &row.ending {
+                Some(Ending::Failed { line }) => bytes(line),
+                Some(Ending::Landed | Ending::NoChange | Ending::Cancelled) | None => 0,
+            })?
+            .checked_add(bytes(&row.branch))?
             .checked_add(bytes(&row.base))?
             .checked_add(bytes(&row.title))?
             .checked_add(bytes(&row.body))?

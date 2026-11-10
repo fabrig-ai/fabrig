@@ -361,7 +361,7 @@ fn a_change_of_rules_wakes_the_live_changes_it_covers() {
     let mut repository = adopted();
     repository.project = 1;
     outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
-    outputs(&mut d, Event::Restore { record: Stored::Change(opening_row()) });
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(opening_row())) });
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
     d.offered_change(CHANGE);

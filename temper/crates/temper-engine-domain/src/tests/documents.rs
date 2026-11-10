@@ -248,6 +248,10 @@ fn repair() -> forge::ChangeRow {
         delegate: Some((8, change::Delegate::Repair(change::Repair::Ci))),
         delegate_status: change::Status::Unknown,
         verdicts: Box::new([]),
+        goal: None,
+        ending: None,
+        repair_tasks: Box::new([]),
+        resolution_tasks: Box::new([]),
         result: forge::ChangeResult::empty(),
         gate_remarks: Box::new([]),
         drift: None,
@@ -277,7 +281,7 @@ fn a_repair_replaces_optional_core_sections_and_keeps_both_documents() {
     forge::step(
         &mut domain.forge,
         &crate::translate::environment_forge(&env),
-        forge::Event::Restore { record: forge::Stored::Change(repair()) },
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(repair())) },
         &mut Queue::uncapped(),
     );
     let documents = Box::new([document(91, None), document(92, None)]);
@@ -313,7 +317,7 @@ fn required_forge_context_without_optional_core_room_abandons_the_documents() {
     forge::step(
         &mut domain.forge,
         &crate::translate::environment_forge(&env),
-        forge::Event::Restore { record: forge::Stored::Change(repair()) },
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(repair())) },
         &mut Queue::uncapped(),
     );
     let documents = Box::new([document(91, None), document(92, None)]);

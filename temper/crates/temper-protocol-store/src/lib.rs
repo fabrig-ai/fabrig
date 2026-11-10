@@ -7,6 +7,7 @@ use alloc::boxed::Box;
 pub mod keys;
 pub mod records;
 #[rustfmt::skip]
+#[expect(clippy::similar_names, reason = "the generated change fields ending and pending name distinct durable facts")]
 #[path = "generated/v11.rs"]
 pub mod v11;
 #[cfg(test)]
@@ -62,6 +63,7 @@ pub fn bounds(forge: &temper_engine_domain_forge::Limits, change_words: u32) -> 
         // Explicit titles fit the forge; the body retains the task words.
         change_row_title: 256,
         change_row_body: change_words,
+        change_failure_line: change_words,
         change_row_report: forge.client.op_bytes,
         held_answer: forge.client.op_bytes,
         open_words: forge.client.op_bytes,

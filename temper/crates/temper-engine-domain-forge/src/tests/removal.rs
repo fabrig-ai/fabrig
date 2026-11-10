@@ -568,7 +568,7 @@ fn removal_keeps_retained_change_history_reconcilable() {
     remove(&mut d, 1, Some(PartyRole::Owner));
     outputs(&mut d, Event::SecretsErased { forge: 1 });
     outputs(&mut d, Event::BoxRemoved { forge: 1 });
-    let history = Stored::Change(d.change(51).unwrap().clone());
+    let history = Stored::Change(Box::new(d.change(51).unwrap().clone()));
     assert!(
         crate::reconcile::references_resolve(&d, &LIMITS, &history, &[]),
         "the retained change panel must restore after its repository is erased"
@@ -607,7 +607,7 @@ fn removed_history_restores_without_a_repository_but_live_names_still_require_it
     let mut row = fixtures::opening_row();
     row.pending = None;
     row.change.state = temper_engine_domain_forge_change::State::Ended;
-    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+    outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
     d.reconcile(&reconcile::empty_tasks());
     assert!(!crate::reconcile::references_resolve(
         &d,
