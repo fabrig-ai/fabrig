@@ -1065,20 +1065,41 @@ refused `Busy`, an answer or a failure reaches the one read that asked
 for it, never a read of another kind or another party's.
 
 - **Containment needs only ancestry.** The landing decision reads
-  `Read::Range { before: head, after: base_tip }` (skein's `forge.md`,
-  3.2), tied to the head and base tip this step observed. A count of 0
-  proves the head contains that base tip; any other count disproves it,
-  however far behind the head is, and the change takes its base (8.2).
-  A failed read, or an answer whose `before` and `after` are not the
-  step's, leaves containment unknown and never permits a merge. A
-  catch-up's range, from its landing branch's tip to the commit it
-  takes, is read by the same rule (8.2, step 1). This read lists no
-  commit, changed file or file contents, so a goal's diff and forward
-  history do not bound its landing. After an update the proof is made
-  again at the new head (section 10). Every other containment the
-  connector asks is the same read: a landing's member holding its main
-  (`landing.md`), and a lost run's observed head holding the head it
-  was last known at, a move that is not forward being drift (8.5).
+  `Read::Commits { before: head, after: base_tip, page: 1 }`, tied to
+  the head and base tip this step observed. A complete empty reverse
+  range proves the head contains that base tip. Any commit the range
+  lists disproves it, whether or not more follow, and so does a range
+  the forge refuses as too large to list (`TooLarge`), which only a
+  range with commits in it can be: the head lacks the base's tip
+  however far behind it is, and the change takes its base (8.2). A
+  failed read otherwise, or an empty page that says more follow, leaves
+  containment unknown and never permits a merge. A catch-up's range,
+  from its landing branch's tip to the commit it takes, is read by the
+  same rule (8.2, step 1). This read collects no changed
+  files or file contents, so a goal's diff and forward history do not
+  bound its landing. After an update the proof is made again at the
+  new head (section 10).
+- **Every containment reader reads ancestry, never a comparison.** A
+  reader that needs only whether one commit contains another reads the
+  ancestry range by the rule above, never `Read::Compare`: `Read::Commits
+  { before: container, after: contained, page: 1 }`, the commits the
+  contained one has that the container lacks. On Forgejo that is one
+  comparison with `files=false` (skein's `forge.md`, 5.2), so a branch
+  however far ahead of and behind the other answers in a page, and no
+  file's name or side is read. Complete and empty, it is contained; a
+  range that lists a commit, whether or not more follow, or one the forge
+  refuses as too large to list, is not; any other failure, or an empty
+  page that says more follow, leaves it unknown. Its readers:
+  - **a landing's candidate,** whether its head contains main's tip
+    (`landing.md`, 5.2): `before` the head, `after` main's tip;
+    contained, the head is the candidate as it is; not contained, it is
+    prepared; unknown, the landing waits as it does for any fact it lacks;
+  - **a goal's closer,** whether its base holds the goal branch's tip
+    (11.2): `before` the base's tip, `after` the goal's tip;
+  - **a lost writer's reread,** whether the branch moved forward from the
+    head it last knew (11.1): `before` the observed head, `after` the
+    known one; contained, the move is forward; not contained, it is
+    drift; unknown, the reread fails as any failed reread does.
 - **CI on a commit** is read as its checks, skein's `Read::Checks`: the
   commit statuses and, on GitHub, the check runs, each a row with its
   context and verdict (skein's `forge.md`, 5.2; `forge-github.md`, 4.4),
@@ -1719,13 +1740,13 @@ LLM:
   prefix, or with none named, or when the overlap is unknown.
 
 The files are read from the forge (a pull request's files, or the
-comparison of the branch's old and new tips), cached per head and cut at
-a limit past which the overlap is unknown. Forgejo pages a pull
-request's files but answers a comparison whole
-(skein's `forge.md`, section 9): the protocol layer bounds the
-comparison's bytes, files and commits before the domain holds them, and
-a bound reached, an unusable answer or an uncertain completeness makes
-the overlap unknown and wakes every affected subscriber. A pull
+comparison of the branch's old and new tips, by names alone: skein's
+`forge.md`, 3.2 and 3.3), cached per head and cut at a limit past which
+the overlap is unknown. A comparison names at most `forge.client.rows`
+paths and counts the rest (`changed`): one that leaves a path out, an
+unusable answer or an uncertain completeness makes the overlap unknown
+and wakes every affected subscriber, and its paths are a landing's files
+for workflow discovery too (4.7). A pull
 request's pages count only while fresh reads before and after them name
 the same head; a head that moved voids the listing.
 
@@ -2354,20 +2375,31 @@ delegate's terminal wakes it to offer the landed result.
   `absent after`. A named file takes its lines' room alone, so the files
   after it are carried as they fit. The charter's fit
   (`agent.md`, 4.3) can still cut the section's end, with its own line.
-  If the pull section's pinned comparison exceeds the forge client's answer
-  byte or row limit, the section keeps its pull identity and gathered content
-  and appends a comparison-omitted notice within its byte budget. This completes
-  the section; it does not retry the comparison or raise the client's limits.
-  Other comparison read failures are the section's read failures (below). The
-  same rule applies to the pull sections for reviews and repairs.
+  Its pinned comparison, of the head and the base it conflicts with, is by
+  names (skein's `forge.md`, 3.2 and 3.3), so a conflict however far its
+  branches have gone apart is compared: `What landed in the base: N
+  commits`, N its `ahead`; then each path it names, `Base file: PATH`,
+  followed by `Conflicting file: PATH` where the pull's own files name it
+  too; then, where it names fewer than its `changed`, `[K more base files
+  not listed: past forge.client.rows (R); read them in your checkout]`, K
+  what it left out and R the configured rows. A repair's comparison, from
+  its last clean head, reads the same. A review's says `Against base:`,
+  then its paths, then `[K more files not listed: past forge.client.rows
+  (R); read_pull_files lists them]`. Each line is appended where it fits
+  the section's room, so the section keeps what fits and names what it
+  left out. A comparison refused `TooLarge` keeps the section's pull
+  identity and gathered content and appends a comparison-omitted notice
+  within its byte budget. This completes the section; it does not retry
+  the comparison or raise the client's limits. Other comparison read
+  failures are the section's read failures (below). The same rule applies
+  to the pull sections for reviews and repairs.
   Likewise, if a page of the pull's files exceeds the forge client's answer
   byte or row limit (a page carries each of its files whole on both sides,
   skein's `forge.md`, 5.2, so one large document can pass it however small
   its change), the section keeps its pull identity, its gathered content and
   the pages before it, and appends a files-omitted notice within its byte
-  budget, naming that page and the tools that read its files
-  (`read_pull_files` from the next page, `read_file` for a path at the head
-  or the base). The section then goes on as after its last page, to its
+  budget, naming that page, its bound and the tools that read its files:
+  `[files omitted from page P: past BOUND; read_pull_files from page P+1 lists the rest, and read_file reads a path at the head or the base]`. The section then goes on as after its last page, to its
   comparison where it has one; it reads no later page of files and raises no
   limit. This holds for every pull section, a review's included, so a
   review of a small change to a large document starts.
@@ -2387,11 +2419,25 @@ delegate's terminal wakes it to offer the landed result.
   | an answer of another shape | permanent | `the forge answered another read` |
   | `Forbidden`, `NotInstalled` | permanent | `the forge forbids this read`, `the forge App is not installed` |
   | `Missing`, `MissingJob` | permanent | `the forge has no such object` |
-  | `TooLarge` | permanent | `the answer is past the client's limit` |
+  | `TooLarge` | permanent | `the answer is past BOUND`, in a bound's words (below) |
   | any other error | permanent | `the forge refused this read` |
   | no change for the pull, its identity past the section's bytes, or a title that fills them; no repository for a home-access reason | permanent | `the change cannot be named in its section` |
   | failed checks whose heads do not fit their section | permanent | `the failed checks do not fit their section` |
   | a section the plan gave wrong bounds, or the connector no longer holds | permanent | `the connector cannot hold this section` |
+
+- **A bound's words.** A `TooLarge` is named by its `Excess` (skein's
+  `forge.md`, 3.4), in the same words wherever temper writes it: a
+  brief's notices and its REASON above, a host tool's refusal
+  (`agent.md`, 4.3) and the log's `brief read refused` line. BOUND is
+  `forge.client.rows (LIMIT): SIZE rows`, `forge.client.answer_bytes
+  (LIMIT): SIZE bytes` or `forge.client.op_bytes (LIMIT): SIZE bytes`,
+  SIZE read `at least SIZE` where the size is not exact; `a bound of the
+  forge's (LIMIT): SIZE` for `Forge`, or `a bound of the forge's` where it
+  holds no figure; and `an unnamed bound` for `Unnamed`. LIMIT is the
+  configured figure the client refused at, so the words agree with the
+  configuration (`../protocol/configuration.md`, section 7), as in
+  `the answer is past forge.client.rows (8): 22 rows`. A pull section's
+  comparison-omitted notice reads `[comparison omitted: past BOUND]`.
 
   A repair's two forge sections, its pull section and its reason (CI's or
   reviews'), are a pair, and each can stand without the other: the agent has
@@ -3801,6 +3847,17 @@ section 6).
   reports.
 - **Never a catch-up:** the closer makes none, and nor does a goal it
   ends (11.1).
+- **Whether the base holds the goal's tip** is read afresh before a land
+  step is made and before the closer reports: the goal branch's tip, or
+  the merge a squash landing recorded for it, against the base's tip,
+  by the ancestry range (5.3, every containment reader), so a goal
+  branch far ahead of and behind its base still lands. Contained, the
+  land step is skipped; not contained, it is made. Unknown, the closer
+  makes no step and reads again after a wait: `forge.client.backoff`
+  first, doubled after each unknown in a row, capped at
+  `forge.client.poll_max`, as the client's own reads and polls back off
+  (skein's `forge-client.md`, sections 4 and 5). A known answer ends the
+  run of waits, and a restart starts it again from `backoff`.
 
 **The report.** The closer's result, a report in the words of the
 goal's contract, from what the store and the forge already hold, each
@@ -4354,14 +4411,6 @@ whole.
   belongs beside the owned-Forgejo domain story, then a real person's
   review in the live tier (`testing.md`, section 11). Default: lower
   setup, link and review checks establish those separate pieces alone.
-- **A forge read past its bound** (8.4): distinguishing
-  `forge.client.rows` from `forge.client.answer_bytes`, with the measured
-  size, needs skein's bare `TooLarge` to carry the bound and an exact or
-  lower-bound measure, then temper's stored answer to retain them.
-  Those public-interface and stored-format decisions belong to their
-  owners. Default: keep the files-omitted notice and the tool's unknown
-  measure; neither raise the room nor split a file across pages. A host
-  answer's rendered-size bound is separate from the forge client's bound.
 - **Saved branches outside the task's saved set** (11): a terminal the
   engine never heard, a repository no longer in the set, or full holds at
   close can leave a branch on the forge. Finding these needs a branch

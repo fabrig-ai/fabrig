@@ -276,7 +276,7 @@ fn setting_rows_count_scopes_slots_and_proposals_with_checked_arithmetic() {
         ) else {
             panic!("overflowing setting rows must refuse construction");
         };
-        assert_eq!(error, skein_forge::api::Error::TooLarge);
+        assert_eq!(error, skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()));
     }
 }
 

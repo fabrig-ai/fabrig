@@ -244,7 +244,7 @@ pub fn pull(value: d::PullRequest, format: ObjectFormat, ci: api::Ci) -> Result<
     let base_commit = optional_commit(value.base.sha, format)?;
     let merged = if value.merged { optional_commit(value.merge_commit_sha, format)? } else { None };
     let Ok(count) = u32::try_from(value.requested_reviewers.len()) else {
-        return Err(api::Error::TooLarge);
+        return Err(api::Error::TooLarge(api::Excess::unnamed()));
     };
     let mut reviewers = skein_lib::List::with_capacity(count);
     for user in &value.requested_reviewers {

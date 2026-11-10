@@ -4,6 +4,7 @@ use super::{
     plan::{Bounds, Exchange, Step},
     tables::{self, Repository, Tables},
 };
+use crate::api::Excess;
 use crate::{
     api,
     github::{document, header::Head, request::Request},
@@ -194,8 +195,8 @@ impl Plan {
             Read::Commits { .. } => self.commits_admission(bounds)?,
             Read::Compare { .. } | Read::PullFiles { .. } => self.files_admission(bounds)?,
             Read::File { path, max_bytes, .. } => {
-                let path = u32::try_from(path.len()).ok().ok_or(api::Error::TooLarge)?;
-                let room = bounds.answer_bytes.checked_sub(path).ok_or(api::Error::TooLarge)?;
+                let path = u32::try_from(path.len()).ok().ok_or(api::Error::TooLarge(Excess::unnamed()))?;
+                let room = bounds.answer_bytes.checked_sub(path).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
                 self.raw_cap = room.min(*max_bytes);
             }
             Read::Reviews { .. } => {
@@ -526,9 +527,13 @@ impl Plan {
         let Read::Branches { prefix } = &self.read else {
             return Err(api::Error::InvalidAnswer);
         };
-        self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge)?;
+        self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if self.count > self.limit {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(Excess::at_least(
+                api::Bound::Forge,
+                u64::from(self.limit),
+                u64::from(self.count),
+            )));
         }
         match row {
             document::Row::SkippedBranch => Ok(()),
@@ -539,7 +544,7 @@ impl Plan {
                 self.size = size::add(self.size, &name, bounds)?;
                 match self.rows.push(name) {
                     Ok(()) => Ok(()),
-                    Err(_) => Err(api::Error::TooLarge),
+                    Err(_) => Err(api::Error::TooLarge(Excess::unnamed())),
                 }
             }
             document::Row::Issue(_)

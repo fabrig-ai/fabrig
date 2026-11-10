@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use skein_forge::api::{Answer, Commit, Error, Read, Repository};
 use skein_lib::{Decimal, Queue, Time, Token, Writer};
 
-use crate::brief_words::{self, BOUNDS, BUSY, ROOM};
+use crate::brief_words::{self, bounds, busy, room};
 use crate::{BriefDocument, BriefRead, Domain, Request};
 
 #[derive(Hash, Debug)]
@@ -97,15 +97,15 @@ fn repository(domain: &Domain, document: &BriefDocument) -> Option<Repository> {
 
 pub(crate) fn gather(domain: &mut Domain, section: Token, parts: u32, max_bytes: u32, out: &mut Queue<Request>) {
     let Some(document) = domain.brief_documents.remove(&section) else {
-        crate::held::ready(domain, section, BriefRead::Failed(BOUNDS), out);
+        crate::held::ready(domain, section, BriefRead::Failed(bounds()), out);
         return;
     };
     if domain.document_fetches.len() == domain.document_fetches.capacity() {
-        crate::held::ready(domain, section, BriefRead::Failed(ROOM), out);
+        crate::held::ready(domain, section, BriefRead::Failed(room()), out);
         return;
     }
     if parts == 0 {
-        crate::held::ready(domain, section, BriefRead::Failed(BOUNDS), out);
+        crate::held::ready(domain, section, BriefRead::Failed(bounds()), out);
         return;
     }
     let Some(repository) = repository(domain, &document) else {
@@ -384,6 +384,6 @@ pub(crate) fn expire(domain: &mut Domain, now: Time, out: &mut Queue<Request>) {
         let fetch = domain.document_fetches.remove(&section).expect("expired document");
         let stage = if fetch.head.is_none() { "branch" } else { "file" };
         out.push(Request::BriefReadRefused { section: fetch.section, stage, error: Some(Error::Busy) });
-        crate::held::ready(domain, fetch.section, BriefRead::Failed(BUSY), out);
+        crate::held::ready(domain, fetch.section, BriefRead::Failed(busy()), out);
     }
 }

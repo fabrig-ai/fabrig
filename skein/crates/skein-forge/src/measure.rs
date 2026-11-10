@@ -222,8 +222,12 @@ pub fn answer(value: &Answer) -> Option<u64> {
             Some(held)
         }
         Answer::PullFiles { files: values, .. } => files(values),
-        Answer::Compare { files: values, commits, .. } => {
-            files(values)?.checked_add(rows(commits.len(), COMMIT_BYTES)?)
+        Answer::Compare { files, .. } => {
+            let mut held = rows(files.len(), STRING_BYTES)?;
+            for path in files {
+                held = held.checked_add(bytes(path)?)?;
+            }
+            Some(held)
         }
         Answer::Protection(value) => match value {
             Some(value) => {
@@ -294,43 +298,48 @@ fn commit_messages(commits: &[api::CommitMessage]) -> Option<u64> {
 /// Branches' names have no row bound, only bytes (skein/docs/design/forge.md, 3.7).
 #[must_use]
 pub fn answer_rows(value: &Answer, rows: u32) -> bool {
-    let rows = usize_of(rows);
+    answer_list_rows(value) <= usize_of(rows)
+}
+
+/// The longest list of an answer, including nested lists (forge.md, 3.4).
+#[must_use]
+pub fn answer_list_rows(value: &Answer) -> usize {
     match value {
         Answer::Commits { commits, .. } => {
-            if commits.len() > rows { return false; }
-            for commit in commits { if commit.parents.len() > rows { return false; } }
-            true
+            let mut rows = commits.len();
+            for commit in commits {
+                rows = rows.max(commit.parents.len());
+            }
+            rows
         }
-        Answer::Run(run) => run.jobs.len() <= rows,
+        Answer::Run(run) => run.jobs.len(),
         Answer::Runs { runs, .. } => {
-            if runs.len() > rows { return false; }
-            for run in runs { if run.jobs.len() > rows { return false; } }
-            true
+            let mut rows = runs.len();
+            for run in runs {
+                rows = rows.max(run.jobs.len());
+            }
+            rows
         }
-        Answer::Tree { entries, .. } => entries.len() <= rows,
+        Answer::Tree { entries, .. } => entries.len(),
         Answer::Items { items, .. } => {
-            if items.len() > rows {
-                return false;
-            }
+            let mut rows = items.len();
             for item in items {
-                if item.labels.len() > rows {
-                    return false;
-                }
+                rows = rows.max(item.labels.len());
             }
-            true
+            rows
         }
-        Answer::Item { item, comments, .. } => item.labels.len() <= rows && comments.len() <= rows,
-        Answer::Pull(pull) => pull.reviewers.len() <= rows,
-        Answer::Reviews { reviews, .. } => reviews.len() <= rows,
-        Answer::Statuses { statuses, .. } | Answer::Checks(statuses) => statuses.len() <= rows,
-        Answer::Remarks { remarks, .. } => remarks.len() <= rows,
-        Answer::PullFiles { files, .. } => files.len() <= rows,
-        Answer::Compare { files, commits, .. } => files.len() <= rows && commits.len() <= rows,
+        Answer::Item { item, comments, .. } => item.labels.len().max(comments.len()),
+        Answer::Pull(pull) => pull.reviewers.len(),
+        Answer::Reviews { reviews, .. } => reviews.len(),
+        Answer::Statuses { statuses, .. } | Answer::Checks(statuses) => statuses.len(),
+        Answer::Remarks { remarks, .. } => remarks.len(),
+        Answer::PullFiles { files, .. } => files.len(),
+        Answer::Compare { files, .. } => files.len(),
         Answer::Protection(protection) => match protection {
-            Some(value) => value.contexts.len() <= rows,
-            None => true,
+            Some(value) => value.contexts.len(),
+            None => 0,
         },
-        Answer::Collaborators { collaborators, .. } => collaborators.len() <= rows,
+        Answer::Collaborators { collaborators, .. } => collaborators.len(),
         Answer::Branches(_)
         | Answer::Located { .. }
         | Answer::Commit(_)
@@ -343,9 +352,21 @@ pub fn answer_rows(value: &Answer, rows: u32) -> bool {
         | Answer::Commented(_)
         | Answer::Reviewed(_)
         | Answer::Merged(_)
-        // Only a merge is answered Queued; it never reaches a read.
         | Answer::Queued
         | Answer::Branch(_)
-        | Answer::Done => true,
+        | Answer::Done => 0,
+    }
+}
+
+/// A list's next row did not fit its configured row or byte capacity.
+#[must_use]
+pub(crate) fn capacity_excess(count: u32, rows: u32, answer_bytes: u32, width: usize) -> api::Excess {
+    let size = u64::from(count).saturating_add(1);
+    if count >= rows {
+        api::Excess::at_least(api::Bound::Rows, u64::from(rows), size)
+    } else if size.saturating_mul(len_u64(width)) > u64::from(answer_bytes) {
+        api::Excess::at_least(api::Bound::AnswerBytes, u64::from(answer_bytes), size.saturating_mul(len_u64(width)))
+    } else {
+        api::Excess::at_least(api::Bound::Forge, u64::from(count), size)
     }
 }

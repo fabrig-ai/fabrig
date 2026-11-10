@@ -199,7 +199,16 @@ fn full_and_oversized_admission_answer_once_without_an_api_call() {
     terminal(
         &h.step(Event::Read { owner: Token::new(3), repository: REPO, read: Read::Branch { branch: value } }),
         3,
-        Error::TooLarge,
+        Error::TooLarge(api::Excess::exact(api::Bound::OpBytes, 256, 257)),
+    );
+    terminal(
+        &h.step(Event::Read {
+            owner: Token::new(5),
+            repository: REPO,
+            read: Read::File { head: [1; 32], path: b"p".as_slice().into(), max_bytes: 65_537 },
+        }),
+        5,
+        Error::TooLarge(api::Excess::exact(api::Bound::AnswerBytes, u64::from(LIMITS.answer_bytes), 65_537)),
     );
     let sent = h.one();
     assert!(h.send().is_none());
@@ -280,9 +289,25 @@ fn fresh_reads_reject_answers_inconsistent_with_their_calls() {
                     Answer::Compare {
                         before: [0; 32],
                         after: [2; 32],
-                        contains_before: false,
                         files: Box::new([]),
-                        commits: Box::new([]),
+                        ahead: 0,
+                        behind: 1,
+                        changed: 0,
+                    },
+                    1,
+                ),
+            ),
+            (
+                "comparison_names_cannot_outnumber_changed",
+                (
+                    Read::Compare { before: [1; 32], after: [2; 32] },
+                    Answer::Compare {
+                        before: [1; 32],
+                        after: [2; 32],
+                        ahead: 22,
+                        behind: 3,
+                        files: Box::new([Box::from(*b"x")]),
+                        changed: 0,
                     },
                     1,
                 ),
@@ -339,33 +364,47 @@ fn arbitrary_item_since_tolerates_the_providers_coarse_inclusive_overlap() {
 }
 #[test]
 fn input_rows_are_checked_before_scanning_or_forwarding_them() {
-    let mut h = Harness::new(LIMITS);
-    assert!(
-        h.step(Event::Read {
-            owner: Token::new(1),
-            repository: REPO,
-            read: Read::Compare { before: [1; 32], after: [2; 32] }
-        })
-        .is_empty()
-    );
-    let sent = h.one();
-    let answer = Answer::Compare {
-        before: [1; 32],
-        after: [2; 32],
-        contains_before: false,
-        files: Box::new([]),
-        commits: Box::new([[0; 32]; 5]),
-    };
-    terminal(&h.answer(&sent, 1, Ok(answer)), 1, Error::TooLarge);
+    for (rows, bytes, bound, size) in
+        [(9, 153, api::Bound::Rows, 9), (1, 70_000, api::Bound::AnswerBytes, 70_000), (9, 70_000, api::Bound::Rows, 9)]
+    {
+        let mut h = Harness::new(Limits { rows: 8, answer_bytes: 65_536, ..LIMITS });
+        assert!(
+            h.step(Event::Read {
+                owner: Token::new(1),
+                repository: REPO,
+                read: Read::Compare { before: [1; 32], after: [2; 32] }
+            })
+            .is_empty()
+        );
+        let sent = h.one();
+        let mut paths = skein_lib::List::with_capacity(rows);
+        for _ in 1..rows {
+            paths.push(Box::from(b"p".as_slice())).expect("room");
+        }
+        let text_bytes = bytes - rows * 16 - (rows - 1);
+        paths.push(skein_lib::bytes::zeroed(usize::try_from(text_bytes).expect("small fixture"))).expect("room");
+        // Mismatched endpoints must not reach validation before bounded admission.
+        // Comparison paths retain a row bound; branch names have only a byte bound.
+        let answer = Answer::Compare {
+            before: [3; 32],
+            after: [4; 32],
+            ahead: 0,
+            behind: 0,
+            files: paths.into_boxed(),
+            changed: u64::from(rows),
+        };
+        assert_eq!(skein_forge::measure::answer(&answer), Some(u64::from(bytes)));
+        let limit = if bound == api::Bound::Rows { 8 } else { 65_536 };
+        terminal(&h.answer(&sent, 1, Ok(answer)), 1, Error::TooLarge(api::Excess::exact(bound, limit, size)));
+    }
 }
 
 #[test]
-fn compare_files_and_commits_each_fit_eight_rows() {
+fn compare_names_fit_rows_independently_of_counts() {
     const ROWS: u32 = 8;
     // Keep every fixture below the byte cap to isolate row admission.
     const ANSWER_BYTES: u32 = 65_536;
-    for (file_rows, commit_rows, admitted) in [(8, 2, true), (14, 2, false), (0, 8, true), (0, 9, false), (8, 8, true)]
-    {
+    for (file_rows, commit_rows, admitted) in [(8, 22, true), (9, 22, false)] {
         let mut h = Harness::new(Limits { rows: ROWS, answer_bytes: ANSWER_BYTES, ..LIMITS });
         let before = [1; 32];
         let after = [2; 32];
@@ -376,27 +415,16 @@ fn compare_files_and_commits_each_fit_eight_rows() {
         let sent = h.one();
         let mut files = skein_lib::List::with_capacity(file_rows);
         for _ in 0..file_rows {
-            files
-                .push(api::File {
-                    path: b"file".as_slice().into(),
-                    before: Some(b"a".as_slice().into()),
-                    after: Some(b"b".as_slice().into()),
-                })
-                .expect("file room");
+            files.push(Box::from(*b"file")).expect("file room");
         }
-        let mut commits = skein_lib::List::with_capacity(commit_rows);
-        for _ in 0..commit_rows {
-            commits.push(after).expect("commit room");
-        }
-        let answer = Answer::Compare {
-            before,
-            after,
-            contains_before: true,
-            files: files.into_boxed(),
-            commits: commits.into_boxed(),
-        };
+        let answer =
+            Answer::Compare { before, after, ahead: commit_rows, behind: 0, changed: 12, files: files.into_boxed() };
         assert!(skein_forge::measure::answer(&answer).unwrap() < u64::from(h.env.limits.answer_bytes));
-        let expected = if admitted { Ok(answer.clone()) } else { Err(Error::TooLarge) };
+        let expected = if admitted {
+            Ok(answer.clone())
+        } else {
+            Err(Error::TooLarge(api::Excess::exact(api::Bound::Rows, 8, u64::from(file_rows))))
+        };
         assert_eq!(
             h.answer(&sent, 1, Ok(answer)).as_ref(),
             &[Request::Read { owner: Token::new(1), result: expected }],
@@ -476,7 +504,7 @@ fn job_logs_are_bounded_and_pinned_to_the_failing_attempt() {
             read: Read::Job { part: api::LogPart::End, attempt, max_bytes: LIMITS.answer_bytes + 1 },
         }),
         5,
-        Error::TooLarge,
+        Error::TooLarge(api::Excess::exact(api::Bound::AnswerBytes, 4096, 4097)),
     );
 }
 #[test]
@@ -547,8 +575,8 @@ fn confirmed_write_terminals_do_not_invent_update_commits_or_branch_success() {
     assert!(crate::api::accepts(&branch, &Answer::Branch(api::BranchCreation::Exists)));
     assert!(!crate::api::accepts(&branch, &Answer::Done));
     let edit = Op::Write(Write::Edit { number: 1, title: None, body: Some(Box::from(&b"body"[..])) });
-    assert!(crate::bounds::op(&edit, &Limits { op_bytes: 4, ..LIMITS }));
-    assert!(!crate::bounds::op(&edit, &Limits { op_bytes: 3, ..LIMITS }));
+    crate::bounds::op(&edit, &Limits { op_bytes: 4, ..LIMITS }).expect("fits");
+    assert!(crate::bounds::op(&edit, &Limits { op_bytes: 3, ..LIMITS }).is_err());
 }
 #[test]
 fn protection_nested_contexts_and_checks_provider_details_are_bounded() {
@@ -564,9 +592,9 @@ fn protection_nested_contexts_and_checks_provider_details_are_bounded() {
         approvals: 2,
         dismiss_stale: true,
     }));
-    assert!(crate::bounds::answer(&protection, &LIMITS));
-    assert!(!crate::bounds::answer(&protection, &Limits { rows: 1, ..LIMITS }));
-    assert!(!crate::bounds::answer(&protection, &Limits { answer_bytes: 41, ..LIMITS }));
+    crate::bounds::answer(&protection, &LIMITS).expect("fits");
+    assert!(crate::bounds::answer(&protection, &Limits { rows: 1, ..LIMITS }).is_err());
+    assert!(crate::bounds::answer(&protection, &Limits { answer_bytes: 41, ..LIMITS }).is_err());
     let status = api::Status {
         at: Time::ZERO,
         context: Box::from(&b"ci"[..]),
@@ -577,8 +605,8 @@ fn protection_nested_contexts_and_checks_provider_details_are_bounded() {
     };
     let checks = Answer::Checks(Box::new([status]));
     assert!(crate::api::accepts(&Op::Read(Read::Checks { commit: [1; 32] }), &checks));
-    assert!(crate::bounds::answer(&checks, &LIMITS));
-    assert!(!crate::bounds::answer(&checks, &Limits { rows: 0, ..LIMITS }));
+    crate::bounds::answer(&checks, &LIMITS).expect("fits");
+    assert!(crate::bounds::answer(&checks, &Limits { rows: 0, ..LIMITS }).is_err());
 }
 
 #[test]
@@ -637,7 +665,10 @@ fn deployment_config_and_decoded_key_frames_are_checked() {
         },
     ];
     for config in configs {
-        assert_eq!(Domain::configured(&LIMITS, 0, config).expect_err("invalid config"), Error::TooLarge);
+        assert_eq!(
+            Domain::configured(&LIMITS, 0, config).expect_err("invalid config"),
+            Error::TooLarge(api::Excess::unnamed())
+        );
     }
     let config = crate::Config {
         namespace: Box::from(&b"kit"[..]),
@@ -645,7 +676,7 @@ fn deployment_config_and_decoded_key_frames_are_checked() {
     };
     assert_eq!(
         Domain::configured(&Limits { op_bytes: 1, ..LIMITS }, 0, config).expect_err("oversized config"),
-        Error::TooLarge
+        Error::TooLarge(api::Excess::exact(api::Bound::OpBytes, 1, 19))
     );
 }
 
@@ -676,7 +707,13 @@ fn file_reads_are_pinned_bounded_and_charged_to_the_fresh_lane() {
         repository: REPO,
         read: Read::File { head: [3; 32], path: Box::from(&b"file"[..]), max_bytes: LIMITS.answer_bytes + 1 },
     });
-    assert_eq!(refused.as_ref(), &[Request::Read { owner: Token::new(1), result: Err(Error::TooLarge) }]);
+    assert_eq!(
+        refused.as_ref(),
+        &[Request::Read {
+            owner: Token::new(1),
+            result: Err(Error::TooLarge(api::Excess::exact(api::Bound::AnswerBytes, 4096, 4097)))
+        }]
+    );
     assert!(h.send().is_none());
 }
 
@@ -697,7 +734,11 @@ fn a_job_answers_step_name_counts_against_answer_bytes() {
             log: Box::from(&[b'x'; 4096][..length]),
             truncated: false,
         };
-        let expected = if accepted { Ok(answer.clone()) } else { Err(Error::TooLarge) };
+        let expected = if accepted {
+            Ok(answer.clone())
+        } else {
+            Err(Error::TooLarge(api::Excess::exact(api::Bound::AnswerBytes, 4096, 4097)))
+        };
         assert_eq!(
             h.answer(&sent, 1, Ok(answer)).as_ref(),
             &[Request::Read { owner: Token::new(1), result: expected }],

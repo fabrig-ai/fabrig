@@ -311,9 +311,7 @@ refusals are 5.1's.
   whose repository has no path kept resolves it (4.2), and one that
   needs a login not held looks it up (4.3). A locate, which finds a
   repository by owner and name, names repository 0 (forge.md, 3).
-- GitHub File keeps the requested head within the answer bound; Compare and
-  PullFiles keep whole file bodies to their bound, with PullFiles reading
-  each before side at the merge base.
+- GitHub File keeps the requested head within the answer bound; PullFiles keeps whole file bodies to their bound, reading each before side at the merge base, and Compare keeps names alone (forge.md, 3.2).
 - **Cost** is the component's count, never a plan's (forge.md, 4.2): one
   for each request whose first byte was written, the requests that
   resolve a path or a login included. It goes up with the one terminal
@@ -798,9 +796,7 @@ watches), and io's caps. A plan is handed only what it reads: a
 listing's page size, `body_bytes`, `rows` and `answer_bytes`. A page
 size is the least of `rows`, the forge's page cap, and `answer_bytes`
 over the listing's largest row, measured from `string_bytes`,
-`body_bytes` and `inner`. Compare pages commit ids, each 32 bytes,
-by the same rule. Its commits and files each fit `rows`; together their
-bytes fit `answer_bytes` (forge-github.md, 4.1).
+`body_bytes` and `inner`. Compare reads one page and keeps its paths while they fit `rows` and `answer_bytes`, counting the rest (forge-github.md, 4.1).
 
 ### 7.4 Checked at start
 

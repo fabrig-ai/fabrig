@@ -449,58 +449,35 @@ fn github_compare_answers_several_commits_in_full() {
 }
 
 fn compare_commits(count: u64) {
-    const COMPARE: &str = "GET /repos/acme/widgets/compare/0000000000000000000000000000000000000000...1111111111111111111111111111111111111111?per_page=8";
-    const BEFORE: &str = "GET /repos/acme/widgets/contents/file?ref=0000000000000000000000000000000000000000";
-    const AFTER: &str = "GET /repos/acme/widgets/contents/file?ref=1111111111111111111111111111111111111111";
+    const COMPARE: &str = "GET /repos/acme/widgets/compare/0000000000000000000000000000000000000000...1111111111111111111111111111111111111111?per_page=1";
     let mut after = [0; 32];
     after[..20].fill(0x11);
-    let mut commits: Vec<_> = (1..count)
-        .map(|id| skein_forge::github::id::commit(format!("{id:040x}").as_bytes()).expect("commit"))
-        .collect();
-    commits.push(after);
     let rows: Vec<_> = (1..count)
         .map(|id| format!(r#"{{"sha":"{id:040x}"}}"#))
         .chain(std::iter::once(format!(r#"{{"sha":"{}"}}"#, "1".repeat(40))))
         .collect();
     let body = format!(
-        r#"{{"total_commits":{count},"behind_by":0,"commits":[{}],"files":[{{"filename":"file"}}]}}"#,
+        r#"{{"total_commits":{count},"ahead_by":{count},"behind_by":0,"commits":[{}],"files":[{{"filename":"file"}}]}}"#,
         rows.join(",")
     );
-    let mut w = world(
-        &[1],
-        vec![
-            Answer::served(LOCATE),
-            bytes(COMPARE, body.as_bytes()),
-            Answer {
-                request: BEFORE,
-                response: Response::Bytes(b"HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nold".to_vec()),
-            },
-            Answer {
-                request: AFTER,
-                response: Response::Bytes(b"HTTP/1.1 200 OK\r\nContent-Length: 3\r\n\r\nnew".to_vec()),
-            },
-        ],
-    );
+    let mut w = world(&[1], vec![Answer::served(LOCATE), bytes(COMPARE, body.as_bytes())]);
     located(&mut w);
     w.call(2, REPO, Op::Read(Read::Compare { before: [0; 32], after }));
     w.run_for(SECOND);
     value(
         &w,
         2,
-        3,
+        1,
         &Ok(Value::Compare {
             before: [0; 32],
             after,
-            contains_before: true,
-            commits: commits.into_boxed_slice(),
-            files: Box::from([api::File {
-                path: Box::from(b"file".as_slice()),
-                before: Some(Box::from(b"old".as_slice())),
-                after: Some(Box::from(b"new".as_slice())),
-            }]),
+            ahead: count,
+            behind: 0,
+            changed: 1,
+            files: Box::from([Box::from(b"file".as_slice())]),
         }),
     );
     assert!(w.script_done());
-    assert_eq!(w.requests().len(), START + 4);
+    assert_eq!(w.requests().len(), START + 2);
     assert!(w.close());
 }

@@ -186,16 +186,7 @@ fn settling_keeps_a_reviews_proving_find_and_an_updates_comparison() {
     update.answer(verify, Ok(Answer::Pull(pull([3; 32]))));
     assert_eq!(update.settled, None);
     let compare = update.one();
-    update.answer(
-        compare,
-        Ok(Answer::Compare {
-            before: [3; 32],
-            after: [2; 32],
-            contains_before: false,
-            files: Box::new([]),
-            commits: Box::new([]),
-        }),
-    );
+    update.answer(compare, Ok(Answer::Commits { commits: Box::new([]), more: false }));
     assert_eq!(update.settled.as_deref(), Some([].as_slice()));
     assert_eq!(update.writes, 1);
 }
