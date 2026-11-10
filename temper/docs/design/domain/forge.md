@@ -1025,20 +1025,20 @@ refused `Busy`, an answer or a failure reaches the one read that asked
 for it, never a read of another kind or another party's.
 
 - **Containment needs only ancestry.** The landing decision reads
-  `Read::Commits { before: head, after: base_tip, page: 1 }`, tied to
-  the head and base tip this step observed. A complete empty reverse
-  range proves the head contains that base tip. Any commit the range
-  lists disproves it, whether or not more follow, and so does a range
-  the forge refuses as too large to list (`TooLarge`), which only a
-  range with commits in it can be: the head lacks the base's tip
-  however far behind it is, and the change takes its base (8.2). A
-  failed read otherwise, or an empty page that says more follow, leaves
-  containment unknown and never permits a merge. A catch-up's range,
-  from its landing branch's tip to the commit it takes, is read by the
-  same rule (8.2, step 1). This read collects no changed
-  files or file contents, so a goal's diff and forward history do not
-  bound its landing. After an update the proof is made again at the
-  new head (section 10).
+  `Read::Range { before: head, after: base_tip }` (skein's `forge.md`,
+  3.2), tied to the head and base tip this step observed. A count of 0
+  proves the head contains that base tip; any other count disproves it,
+  however far behind the head is, and the change takes its base (8.2).
+  A failed read, or an answer whose `before` and `after` are not the
+  step's, leaves containment unknown and never permits a merge. A
+  catch-up's range, from its landing branch's tip to the commit it
+  takes, is read by the same rule (8.2, step 1). This read lists no
+  commit, changed file or file contents, so a goal's diff and forward
+  history do not bound its landing. After an update the proof is made
+  again at the new head (section 10). Every other containment the
+  connector asks is the same read: a landing's member holding its main
+  (`landing.md`), and a lost run's observed head holding the head it
+  was last known at, a move that is not forward being drift (8.5).
 - **CI on a commit** is read as its checks, skein's `Read::Checks`: the
   commit statuses and, on GitHub, the check runs, each a row with its
   context and verdict (skein's `forge.md`, 5.2; `forge-github.md`, 4.4),
@@ -1062,7 +1062,10 @@ for it, never a read of another kind or another party's.
   (Forgejo 17 does: a read of one status reads success while a job is
   still pending), so CI on a commit, a pull request's included, is
   every row of every page, folded as above, and a combined state read
-  from a limited page is never a verdict. The fake forge computes a
+  from a page that came full is never a verdict. A first page that came
+  short holds every row, so its combined state is their fold, which
+  skein's Forgejo dialect takes for a pull request's CI but where it
+  reads `warning` (skein's `forge.md`, 5.1). The fake forge computes a
   page's combined state as Forgejo does, so that the worlds meet it.
 
 ### 5.4 The request budget
@@ -2555,7 +2558,7 @@ merge, kind 4, on a pattern of landing branches (jig's
 | Requirement | Its parameters | Met | Wait | Refuse | Guarded or observed |
 |---|---|---|---|---|---|
 | 1, CI passed | none | CI passed at the head; for a repository without CI, every one of its checks passed at exactly the head; no CI verdict is needed for the explicit adoption choice to land without CI described below | CI pending or unknown; a check with no verdict at the head | CI failed; a check failed; a repository with neither CI nor checks unless explicitly adopted to land without CI as described below | guarded |
-| 2, up to date | none | the head contains the base's tip | the ancestry range unread or failed, or an empty page that says more follow | the head lacks the base's tip: the range lists a commit, or is too large to list (5.3) | observed, freshness 0 |
+| 2, up to date | none | the head contains the base's tip | the ancestry range unread or failed | the head lacks the base's tip: the range counts a commit (5.3) | observed, freshness 0 |
 | 3, a gate | its number; `exact` or `clean` (8.3) | its verdict, at the head or, where `clean`, at a head the change's clean updates led through, approves | no such verdict yet, or one pending | such a verdict asks for changes | guarded |
 | 4, an approval | a role; how many people; `exact` or `clean` | that many distinct people holding the role in the project approved the pull request at the head, or where `clean` at a head its clean updates led through | fewer have; the reviews too many to read whole | one of them asked for changes at such a head, which a change repairs (8.3) | guarded |
 
@@ -2666,7 +2669,7 @@ merge, kind 4, on a pattern of landing branches (jig's
   | Requirement | Its parameters | Met | Wait | Refuse | Guarded or observed |
   |---|---|---|---|---|---|
   | 5, the landing rules | none | each such rule's CI, gates and approvals are met, as 1, 3 and 4 above; or no rule enforces there | one waits, and none refuses | one refuses | guarded |
-  | 6, up to date by the landing rules | none | each such rule asking for it is met, as 2 above; or none asks | the ancestry range unread or failed, or an empty page that says more follow | the head lacks the base's tip: the range lists a commit, or is too large to list (5.3) | observed, freshness 0 |
+  | 6, up to date by the landing rules | none | each such rule asking for it is met, as 2 above; or none asks | the ancestry range unread or failed | the head lacks the base's tip: the range counts a commit (5.3) | observed, freshness 0 |
 
   The change keeps the rule and the criterion of its last wait or
   refusal, by the rule's scope and number and the criterion's kind
