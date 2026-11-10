@@ -1,4 +1,4 @@
-//! Persistent data records (hearth/docs/design/domain/render.md, 4.3).
+//! Persistent data records (hearth/docs/design/domain/render/spec.md, 1.3).
 use crate::form::{json::field, text::Lines};
 use alloc::boxed::Box;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

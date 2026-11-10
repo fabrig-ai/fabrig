@@ -1,4 +1,4 @@
-//! Hostile document mutations (hearth/docs/design/domain/testing.md, 2.9).
+//! Hostile document mutations (hearth/docs/design/testing/README.md, 2.9).
 use skein_lib::Rng;
 const HOSTILE: &[&[u8]] = &[
     br#"{"a":1,"a":2}"#,

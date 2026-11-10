@@ -1,4 +1,4 @@
-//! Validated values and expression operands (hearth/docs/design/protocol/format.md, 6.2, 7.4, 7.6).
+//! Validated values and expression operands (hearth/docs/design/protocol/format/README.md, 5.2, hearth/docs/design/protocol/format/templates.md, 4, 6).
 use super::{Budget, ELEMENT, FaultKind};
 use alloc::boxed::Box;
 use skein_lib::{List, Stack, bytes};

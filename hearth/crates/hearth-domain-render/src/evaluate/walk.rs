@@ -1,4 +1,4 @@
-//! Iterative deep comparison, with absent entries omitted (hearth/docs/design/protocol/format.md, 7.4, 7.6).
+//! Iterative deep comparison, with absent entries omitted (hearth/docs/design/protocol/format/templates.md, 4, 6).
 use super::{Entry, FaultKind, Operand, Value};
 use skein_lib::Stack;
 #[derive(Clone, Copy, Debug)]

@@ -1,4 +1,4 @@
-//! Text filters and a two-pass, depth-bounded JSON walk (hearth/docs/design/protocol/format.md, 7.5).
+//! Text filters and a two-pass, depth-bounded JSON walk (hearth/docs/design/protocol/format/templates.md, 5).
 use super::{
     Budget, Entry, FaultKind, Filter, Operand, Written,
     walk::{self, Items, View},

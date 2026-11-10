@@ -1,4 +1,4 @@
-//! The tree helper's `hash`: the walk of a layer with no parent (hearth/docs/design/domain/store.md, 5.3 and 5.4).
+//! The tree helper's `hash`: the walk of a layer with no parent (hearth/docs/design/domain/store/tree-helper.md, 3 and 4).
 //!
 //! A step machine over its own vocabulary. It reads every entry of the layer depth-first, with
 //! an explicit stack and each directory's names sorted, hashes every file, and hands the tree

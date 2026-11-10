@@ -1,8 +1,8 @@
-/// Shipped listing entries (hearth/docs/design/domain/render.md, 2.3).
+/// Shipped listing entries (hearth/docs/design/domain/render/README.md, 2.3).
 pub const LISTING_ENTRIES: u64 = 16_384;
-/// Shipped document bytes (hearth/docs/design/domain/render.md, 2.3).
+/// Shipped document bytes (hearth/docs/design/domain/render/README.md, 2.3).
 pub const DOCUMENT_BYTES: u64 = 262_144;
-/// A listed path may hold 4 KiB (hearth/docs/design/domain/render.md, 2.3).
+/// A listed path may hold 4 KiB (hearth/docs/design/domain/render/README.md, 2.3).
 pub const PATH_BYTES: usize = 4_096;
 /// One listed path is enough to cross the per-path allowance.
 pub const SINGLE_ENTRY: u32 = 1;

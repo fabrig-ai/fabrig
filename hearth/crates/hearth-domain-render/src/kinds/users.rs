@@ -1,4 +1,4 @@
-//! Users retain their source and subordinate ranges for build (hearth/docs/design/protocol/format.md, 5.6).
+//! Users retain their source and subordinate ranges for build (hearth/docs/design/protocol/format/tasks.md, 6).
 use super::{
     groups::{self, Group, bounded, id, package},
     secrets::{fault, formed, text},

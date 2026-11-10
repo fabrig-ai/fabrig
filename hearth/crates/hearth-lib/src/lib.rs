@@ -1,4 +1,4 @@
-//! The canonical encoding of hearth's values (hearth/docs/design/domain/store.md, 3.1), and a tree entry's path.
+//! The canonical encoding of hearth's values (hearth/docs/design/domain/store/README.md, 3.1), and a tree entry's path.
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]

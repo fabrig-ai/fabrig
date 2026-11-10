@@ -1,4 +1,4 @@
-//! Meta's changed fields (hearth/docs/design/domain/render.md, 6.1).
+//! Meta's changed fields (hearth/docs/design/domain/render/README.md, 4.1).
 use crate::diff::{MemberPair, MetaChange, NamePair, PlacementPair};
 use crate::{
     form::{json::field, text::Lines},

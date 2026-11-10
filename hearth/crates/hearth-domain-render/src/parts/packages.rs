@@ -1,4 +1,4 @@
-//! The packages record and its four resolution inputs (hearth/docs/design/domain/render.md, 4.2, 5.1).
+//! The packages record and its four resolution inputs (hearth/docs/design/domain/render/spec.md, 1.2, 2.1).
 use alloc::boxed::Box;
 mod change;
 pub use change::*;

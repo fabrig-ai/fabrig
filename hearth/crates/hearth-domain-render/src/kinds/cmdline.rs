@@ -1,4 +1,4 @@
-//! Kernel parameters safe in GRUB's script (hearth/docs/design/protocol/format.md, 5.4).
+//! Kernel parameters safe in GRUB's script (hearth/docs/design/protocol/format/tasks.md, 4).
 use crate::{
     entries::Concrete,
     errors::{Format, Schema},

@@ -1,4 +1,4 @@
-//! Configured render limits (hearth/docs/design/domain/render.md, 2.3).
+//! Configured render limits (hearth/docs/design/domain/render/README.md, 2.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     pub closure: u32,

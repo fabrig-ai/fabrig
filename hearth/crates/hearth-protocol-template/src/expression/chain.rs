@@ -1,4 +1,4 @@
-//! Straight lookup links, with index operands kept above the outer chain (hearth/docs/design/protocol/format.md, 7.6).
+//! Straight lookup links, with index operands kept above the outer chain (hearth/docs/design/protocol/format/templates.md, 6).
 use crate::{Missing, Op, Operation};
 use skein_lib::List;
 #[derive(Debug)]

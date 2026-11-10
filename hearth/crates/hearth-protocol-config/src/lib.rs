@@ -1,5 +1,5 @@
-//! Strict configuration decoding (hearth/docs/design/protocol/format.md, 2.2;
-//! hearth/docs/design/domain/render.md, 3.1).
+//! Strict configuration decoding (hearth/docs/design/protocol/format/README.md, 2.2;
+//! hearth/docs/design/domain/render/README.md, 3.1).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;

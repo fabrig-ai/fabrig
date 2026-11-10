@@ -1,4 +1,4 @@
-//! Opening the store before a builder call (hearth/docs/design/domain/store.md, 8.2).
+//! Opening the store before a builder call (hearth/docs/design/domain/store/README.md, 6.2).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;

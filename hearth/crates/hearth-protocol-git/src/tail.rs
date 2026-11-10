@@ -1,4 +1,4 @@
-//! Bounded standard-error lines (hearth/docs/design/domain/render.md, 2.2).
+//! Bounded standard-error lines (hearth/docs/design/domain/render/README.md, 2.2).
 use crate::limits::Limits;
 use alloc::boxed::Box;
 use skein_lib::{List, Queue};

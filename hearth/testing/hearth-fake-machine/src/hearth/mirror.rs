@@ -1,4 +1,4 @@
-//! Snapshot suites and their unsigned indices (hearth/docs/design/domain/testing.md, 3.6).
+//! Snapshot suites and their unsigned indices (hearth/docs/design/testing/fake-machine.md, 6).
 use super::universe::Universe;
 use alloc::{boxed::Box, collections::BTreeMap, format, string::String, vec::Vec};
 use core::fmt::Write;

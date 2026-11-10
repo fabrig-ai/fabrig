@@ -1,4 +1,4 @@
-//! The packages closure's change in client forms (hearth/docs/design/domain/render.md, 6.1).
+//! The packages closure's change in client forms (hearth/docs/design/domain/render/README.md, 4.1).
 use crate::{
     diff::{Listed, Moved, ResolutionChange},
     form::text::Lines,

@@ -1,4 +1,4 @@
-//! Template instructions translated in full (hearth/docs/design/domain/render.md, 8.2).
+//! Template instructions translated in full (hearth/docs/design/domain/render/README.md, 5.2).
 use crate::render::evaluate::template as render;
 use hearth_protocol_template::instruction as template;
 use skein_lib::List;

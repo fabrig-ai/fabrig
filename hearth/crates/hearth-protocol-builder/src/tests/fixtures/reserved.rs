@@ -19,7 +19,7 @@ pub fn composition_kinds() -> [render::errors::Composition; 11] {
         },
     ]
 }
-pub const CMDLINE_BYTES: u32 = 2049; // One past hearth/docs/design/domain/machine.md, 6.2's bound.
+pub const CMDLINE_BYTES: u32 = 2049; // One past hearth/docs/design/domain/machine/boot.md, 3.2's bound.
 pub const RESERVED_RULES: &[render::errors::Rule] = &[
     render::errors::Rule::ActivatorKey,
     render::errors::Rule::RootKey,

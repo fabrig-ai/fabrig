@@ -1,4 +1,4 @@
-//! Exhaustive config faults and client error records (hearth/docs/design/domain/render.md, 7.1).
+//! Exhaustive config faults and client error records (hearth/docs/design/domain/render/errors.md, 1).
 mod ids;
 mod reserved;
 use crate::{

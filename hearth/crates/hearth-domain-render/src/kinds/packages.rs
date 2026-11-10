@@ -1,4 +1,4 @@
-//! Debian Policy 5.6.1 names and hearth/docs/design/protocol/format.md 5.3 components.
+//! Debian Policy 5.6.1 names and hearth/docs/design/protocol/format/tasks.md 3 components.
 use crate::{
     entries::Concrete,
     errors::{Format, Schema},

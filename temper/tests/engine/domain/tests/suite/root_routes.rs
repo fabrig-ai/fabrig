@@ -3528,7 +3528,7 @@ fn restored_waiting_keeps_its_committed_holder_despite_current_membership() {
     let mut changed = held_driver(store);
     changed.settle();
     assert!(!changed.stopped);
-    // A restart preserves the committed holder, entry and routing time (jig tasks.md, 12).
+    // A restart preserves the committed holder, entry and routing time (jig's tasks.md, 12).
     let original = held_waiting_store();
     for (key, row) in &original.rows {
         if let Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(_))) = row {

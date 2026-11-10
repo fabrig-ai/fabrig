@@ -1,4 +1,4 @@
-//! Pipe routing for the git child (hearth/docs/design/domain/render.md, 2.2).
+//! Pipe routing for the git child (hearth/docs/design/domain/render/README.md, 2.2).
 use crate::{
     git,
     git::{Intake, Stage},

@@ -1,4 +1,4 @@
-//! The fixed large render at shipped limits (hearth/docs/design/domain/render.md, 8.4).
+//! The fixed large render at shipped limits (hearth/docs/design/domain/render/README.md, 5.4).
 use hearth_builder_world::{fixtures, simulated};
 
 #[test]

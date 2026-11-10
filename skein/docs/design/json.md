@@ -244,7 +244,7 @@ Nothing converts it: the consumer parses the integers it expects.
 `tokenizer.position()` says where the tokenizer's last answer is in the
 document, for a consumer that reports where a document is wrong, as
 hearth reports a configuration's file, line and column (
-hearth/docs/design/domain/render.md, section 7).
+hearth/docs/design/domain/render/errors.md).
 
 ```rust
 pub struct Position {

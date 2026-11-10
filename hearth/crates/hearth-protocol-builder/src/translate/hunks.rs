@@ -1,4 +1,4 @@
-//! Git's unified lines translated without inspecting their text (hearth/docs/design/domain/render.md, 6.1).
+//! Git's unified lines translated without inspecting their text (hearth/docs/design/domain/render/README.md, 4.1).
 use crate::{git_machine::hunks as source, render::diff as target};
 use skein_lib::List;
 #[must_use]

@@ -1,4 +1,4 @@
-//! Resolution and layer keys (hearth/docs/design/domain/render.md, 4.5, 5.1).
+//! Resolution and layer keys (hearth/docs/design/domain/render/spec.md, 1.5, 2.1).
 use crate::parts::{PartRecord, Spec, packages::Inputs};
 use hearth_lib::{encode::Digest, hash::H};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

@@ -1,4 +1,4 @@
-//! Compare assembled sides, resolving changed keys before answering (hearth/docs/design/domain/render.md, 5.7).
+//! Compare assembled sides, resolving changed keys before answering (hearth/docs/design/domain/render/spec.md, 2.7).
 use super::{Comparison, Side};
 use crate::vocabulary::Output;
 use skein_lib::Queue;

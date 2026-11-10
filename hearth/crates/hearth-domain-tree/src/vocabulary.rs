@@ -1,4 +1,4 @@
-//! The walk's events, requests and answers, typed (hearth/docs/design/domain/store.md, 5.3 and 5.4).
+//! The walk's events, requests and answers, typed (hearth/docs/design/domain/store/tree-helper.md, 3 and 4).
 //!
 //! The domain parses nothing: the protocol layer turns these into the pipes' messages, the
 //! tree file's items and the layer's syscalls, and back. Paths are relative to the layer's

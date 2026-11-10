@@ -20,7 +20,7 @@ fn the_lowest_changed_layer_is_the_rebuild() {
         assert_eq!(
             diff::rebuild(changed, Needs::Needed),
             *expected,
-            "hearth/docs/design/domain/render.md 6.2: {changed:?}"
+            "hearth/docs/design/domain/render/README.md 4.2: {changed:?}"
         );
     }
 }

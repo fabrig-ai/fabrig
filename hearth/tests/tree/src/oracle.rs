@@ -1,4 +1,4 @@
-//! A tree file's oracle, written from hearth/docs/design/domain/store.md (3.1, 3.4, 3.5 and 6.3)
+//! A tree file's oracle, written from hearth/docs/design/domain/store/README.md (3.1, 3.4, 3.5 and 6.3)
 //! with nothing of the crate's codec in it: values as a plain tree encoded
 //! recursively into bytes, paths ordered by splitting them, and the rules a
 //! sequence of items must meet.

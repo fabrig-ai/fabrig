@@ -1284,7 +1284,7 @@ pub struct Rlimit { pub resource: Resource, pub soft: u64, pub hard: u64 }
   made. The simulator puts the same listener in the child's socket
   table, so that the child's claim (3.2) accepts what the parent's
   backlog held. A helper that works beneath a store the
-  service opened takes it so (hearth/docs/design/domain/store.md, 5.2).
+  service opened takes it so (hearth/docs/design/domain/store/tree-helper.md, 2).
 - **Contained.** A contained child has a user namespace of its own,
   mapped as `users` and `groups` say, and with it mount, ipc and cgroup
   namespaces of its own; a pid namespace if `pid`; a network namespace

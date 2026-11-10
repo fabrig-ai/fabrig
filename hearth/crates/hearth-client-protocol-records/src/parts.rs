@@ -1,4 +1,4 @@
-//! A part's record and its forms (hearth/docs/design/domain/render.md, 4).
+//! A part's record and its forms (hearth/docs/design/domain/render/spec.md, 1).
 pub mod boot;
 pub mod config;
 pub mod data;

@@ -1,4 +1,4 @@
-//! Seeded work durations for hosted tools (hearth/docs/design/domain/testing.md, 4.1).
+//! Seeded work durations for hosted tools (hearth/docs/design/testing/tool-fakes.md, 1).
 use skein_lib::{Duration, Rng};
 use skein_world::domain::Span;
 #[derive(Clone, Copy, Debug)]

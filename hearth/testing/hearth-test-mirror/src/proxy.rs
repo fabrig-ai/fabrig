@@ -9,7 +9,7 @@ use std::{
     time::Duration,
 };
 
-/// The mirror on a loopback port, served by one thread (hearth/docs/design/domain/testing.md, 6.2).
+/// The mirror on a loopback port, served by one thread (hearth/docs/design/testing/real-builds.md, 2).
 #[derive(Debug)]
 pub struct Proxy {
     port: u16,

@@ -1,4 +1,4 @@
-//! Secret access must exclude hearth and every group it belongs to (hearth/docs/design/protocol/format.md, 9.1).
+//! Secret access must exclude hearth and every group it belongs to (hearth/docs/design/protocol/format/README.md, 7.1).
 use super::{Refused, refused};
 use crate::{
     entries::{Expansion, Located},

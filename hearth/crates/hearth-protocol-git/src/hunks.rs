@@ -1,4 +1,4 @@
-//! Unified hunks with bounded lines and retained text (hearth/docs/design/domain/render.md, 2.2 and 6.1).
+//! Unified hunks with bounded lines and retained text (hearth/docs/design/domain/render/README.md, 2.2 and 4.1).
 use crate::limits::Limits;
 use alloc::boxed::Box;
 use core::mem;

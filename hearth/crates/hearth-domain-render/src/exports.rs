@@ -1,4 +1,4 @@
-//! A task's typed exports depend on its settings and target alone (hearth/docs/design/protocol/format.md, 8.1).
+//! A task's typed exports depend on its settings and target alone (hearth/docs/design/protocol/format/README.md, 6.1).
 use crate::{
     entries::Fault,
     errors::{ExportFault, Kind, Root, Schema},

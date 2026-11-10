@@ -1,4 +1,4 @@
-//! The stable text form (hearth/docs/design/domain/render.md, 9.2), measured before allocation.
+//! The stable text form (hearth/docs/design/domain/render/README.md, 6.2), measured before allocation.
 use crate::{
     form::Refusal,
     records::{Record, Type},

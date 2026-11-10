@@ -1,4 +1,4 @@
-//! Failure tails and causes, deny before allow (hearth/docs/design/domain/render.md, 5.5 and 7.1).
+//! Failure tails and causes, deny before allow (hearth/docs/design/domain/render/spec.md, 2.5, and hearth/docs/design/domain/render/errors.md, 1).
 use crate::{limits::Limits, output::Reader, vector::Name};
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, bytes};

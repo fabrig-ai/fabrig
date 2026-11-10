@@ -1,4 +1,4 @@
-//! The recording's independent typed expectations (hearth/docs/design/domain/testing.md, 4.5).
+//! The recording's independent typed expectations (hearth/docs/design/testing/tool-fakes.md, 5).
 use crate::world::Blob;
 use hearth_protocol_git::{
     listing::{Entry, Mode},

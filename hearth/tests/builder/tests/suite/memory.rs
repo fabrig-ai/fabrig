@@ -28,7 +28,7 @@ fn the_builder_holds_no_more_than_its_ceiling_at_every_iteration() {
     assert!(outcome.peaks().is_some(), "the simulator checked every iteration's peak");
     assert!(
         fixtures::lists(&outcome.machine) > fixtures::STORE_PAGE,
-        "hearth/docs/design/domain/store.md, 8.2: the ledger contains more than one page of list operations"
+        "hearth/docs/design/domain/store/README.md, 6.2: the ledger contains more than one page of list operations"
     );
     assert_eq!(outcome.machine.contents(fixtures::OUTPUT).as_deref(), fixtures::THIN_OUTPUT);
 }
