@@ -345,6 +345,7 @@ class Plan:
         paths = set(self.moves) | {e.src for e, _ in self.sections} | self.renumbers
         paths |= {p for p in self.tracked if self.moves.get(p, p) in {e.dst for e, _ in self.sections}}
         paths = {p for p in paths if p.endswith(".md")}
+        self.layout_sources = paths
         self.heading_lines = set()
         for path in paths:
             fence = False
@@ -627,7 +628,7 @@ class Plan:
 
     @staticmethod
     def format_numbers(tree, target, numbers, original):
-        nums = list(dict.fromkeys(numbers))
+        nums = list(numbers)
         if "" in nums:
             return "the whole document"
         range_sep = re.search(r"\s*(to|–|-)\s*", original)
@@ -663,8 +664,9 @@ class Plan:
             "section " if cite.kind == "section-self" or re.search(r"\bsection\b", self.span_text(cite.start, cite.numbers[0].start)) else "")
         parts = []
         for target, numbers in groups:
-            token = self.styled(after, source, target, cite.token or os.path.basename(target), cite.owner, is_code)
-            nums = list(dict.fromkeys(numbers))
+            path_target = target[:-3] + ".status.md" if cite.target and cite.target.endswith(".status.md") and cite.kind == "path" else target
+            token = self.styled(after, source, path_target, cite.token or os.path.basename(path_target), cite.owner, is_code)
+            nums = list(numbers)
             if "" in nums:
                 suffix = ""
             else:
@@ -808,6 +810,10 @@ class Plan:
                     continue
                 if cite.kind == "path":
                     self.consumed[path].append((cite.start, cite.end))
+                    if cite.link:
+                        bases = {cite.token, cite.token + cite.link.tail, c.doc_of_status(cite.token)}
+                        if any(cite.link.text == base or cite.link.text.startswith(f"`{base}`") for base in bases):
+                            self.consumed[path].append((cite.link.start, cite.link.end))
                     self.dependent_grammar(cite)
                 self.expectations.append((cite, self.expanded(cite, before), is_code, source))
                 expanded = self.numbers_to_rewrite(cite, before)
@@ -863,7 +869,8 @@ class Plan:
                 has_range = any(re.fullmatch(r"\s*(?:to|–|-)\s*", self.span_text(a.end, b.start))
                                 for a, b in zip(cite.numbers, cite.numbers[1:]))
                 render_range = has_range and all(d is not None for d in destinations) and not (cite.link and "#" in cite.link.tail)
-                if len(files) > 1 or render_range:
+                render_whole = any(d and not d[1] for d in destinations) and not (cite.link and "#" in cite.link.tail)
+                if len(files) > 1 or render_range or render_whole:
                     if (cite.link and "#" in cite.link.tail) or any(d is None for d in destinations):
                         self.manual(cite, "split citation with dependent grammar")
                         continue
@@ -1012,6 +1019,8 @@ class Plan:
                     consumed = [(a.column - 1, b.column - 1) for a, b in self.consumed.get(path, [])
                                 if a.line == ln == b.line]
                     edits = [(a, b) for number, a, b in self.edits.get(path, {}) if number == ln]
+                    edits += [(a, b) for changes in self.status_edits.values()
+                              for (file, number, a, b) in changes if file == path and number == ln]
                     if path == c.ALLOW or any(a <= m.start() and m.start() + len(tok) <= b for a, b in consumed + edits):
                         continue
                     moved_file = any(old in self.moves for old in sources)
@@ -1047,6 +1056,7 @@ class Plan:
 
     def contents(self):
         self.final_positions = collections.defaultdict(list)
+        self.generated_lines = set()
         out = {}
         paths = set(self.rows) | set(self.status_edits) | {self.moves.get(p, p) for p in self.edits}
         inverse = {dst: src for src, dst in self.moves.items()}
@@ -1060,6 +1070,8 @@ class Plan:
                 text = self.row_text(dst, row)
                 if row.file and text:
                     self.final_positions[row.file, row.line].append((dst, ln, col))
+                elif text:
+                    self.generated_lines.add((dst, ln))
                 texts.append(text)
                 if "\n" in text:
                     ln += text.count("\n")
@@ -1107,9 +1119,27 @@ class Plan:
             return []
         if nums:
             values = [frozenset(self.target(t, n.value) for t in n.targets) for n in nums]
-            # Several source numbers can become the same whole-document citation.
-            return [v for i, v in enumerate(values)
-                    if not (i and v == values[i - 1] and all(not n for _, n in v))]
+            # A whole-document member subsumes its contiguous subsection members.
+            out, index = [], 0
+            while index < len(values):
+                value = values[index]
+                if len(value) != 1:
+                    out.append(value)
+                    index += 1
+                    continue
+                path, _ = next(iter(value))
+                end = index + 1
+                while end < len(values) and len(values[end]) == 1 and next(iter(values[end]))[0] == path:
+                    end += 1
+                group = values[index:end]
+                if any((path, "") in v for v in group):
+                    if cite.kind == "path" and cite.target.endswith(".status.md"):
+                        path = path[:-3] + ".status.md"
+                    out.append(frozenset(((path, ""),)))
+                else:
+                    out.extend(group)
+                index = end
+            return out
         if cite.link and "#" in cite.link.tail:
             target, anchor = self.anchor_expected.get(cite.start, (self.moves.get(cite.target, cite.target), unquote(cite.link.tail.partition("#")[2])))
             return [frozenset(((target, "#" + anchor if anchor else ""),))]
@@ -1131,10 +1161,12 @@ class Plan:
                 # Use final headings for recognising the newly written own numbers.
                 cites += list(self.bare_numbers(tree, path, texts[path], cites))
             readings[path] = cites
+        matched = set()
         for cite, nums, is_code, source in self.expectations:
-            expected = self.expected(cite, nums)
-            if (not expected and cite.kind != "status-label") or any(not value for value in expected):
+            if cite.file in self.layout_sources and (cite.file, cite.start.line) not in self.final_positions:
+                # A section's discarded heading contributes no text to the destination.
                 continue
+            expected = self.expected(cite, nums)
             start, end = self.reference_span(cite)
             a = self.final_position(start, destination=source)
             b = self.final_position(end, end=True, destination=source)
@@ -1143,6 +1175,7 @@ class Plan:
                      and (v.start.line, v.start.column) >= (a.line, a.column)
                      and (v.start.line, v.start.column) < (b.line, b.column)]
             found.sort(key=lambda v: (v.start.line, v.start.column))
+            matched.update(id(v) for v in found)
             actual = [value for v in found for value in self.reading(v, tree)]
             if cite.kind == "status-label" and not found and a.line == b.line:
                 fragment = texts[a.file][a.line - 1][a.column - 1:b.column - 1]
@@ -1164,10 +1197,22 @@ class Plan:
                     self.wrong.append((a.file, a.line, texts[a.file][a.line - 1].strip(),
                                        [frozenset(((found[0].token or "", "restyled name"),))],
                                        [frozenset(((cite.token, "preserved bare name"),))]))
-            agrees = len(actual) == len(expected) and all(read and read <= want for read, want in zip(actual, expected))
+            agrees = len(actual) == len(expected) and all(read == want or (read and read <= want)
+                                                        for read, want in zip(actual, expected))
             if not agrees:
                 text = texts.get(a.file, [""])[a.line - 1].strip()
                 self.wrong.append((a.file, a.line, text, actual, expected))
+        for path, cites in readings.items():
+            for cite in cites:
+                if id(cite) in matched:
+                    continue
+                generated = (path, cite.start.line) in self.generated_lines
+                if generated and cite.target and all(n.targets for n in cite.numbers):
+                    continue
+                text = texts[path][cite.start.line - 1].strip()
+                actual = self.reading(cite, tree)
+                self.wrong.append((path, cite.start.line, text, actual,
+                                   [frozenset((("an original reading" if not generated else "a resolving generated citation", ""),))]))
         return not self.wrong
 
     def dry_verify(self, contents):
@@ -1201,6 +1246,8 @@ class Plan:
         print("By hand:")
         items = []
         for path, line, reason, context in self.by_hand:
+            if path in self.layout_sources and (path, line) not in self.final_positions:
+                continue
             locations = self.final_positions.get((path, line), [(self.moves.get(path, path), line, 1)])
             if reason in ("moved status entry", "split status entry"):
                 locations = locations[:1]
@@ -1214,7 +1261,8 @@ class Plan:
             print("Wrong:")
             for path, ln, text, actual, expected in self.wrong:
                 def describe(values):
-                    return "; ".join(" | ".join(p + (" " + n if n else "") for p, n in sorted(v)) for v in values) or "nothing"
+                    return "; ".join(" | ".join(p + (" " + n if n else "") for p, n in sorted(v)) or "unresolved"
+                                     for v in values) or "nothing"
                 print(f"  {path}:{ln}: {text}\n    reads: {describe(actual)}\n    should read: {describe(expected)}")
 
 
