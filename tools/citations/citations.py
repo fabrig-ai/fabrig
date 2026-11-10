@@ -299,7 +299,8 @@ def check(root, tracked):
 Position = collections.namedtuple("Position", "file line column")
 Number = collections.namedtuple("Number", "value start end targets")
 Citation = collections.namedtuple(
-    "Citation", "kind file line context token start end target how owner numbers targets link")
+    "Citation", "kind file line context token start end target how owner numbers targets link readings")
+Reading = collections.namedtuple("Reading", "target how")
 Link = collections.namedtuple("Link", "text start end tail tail_start tail_end")
 
 
@@ -316,6 +317,7 @@ def citations(tree, rel, lines, is_code):
 
     A path reading includes its following section numbers. Bare readings and status
     labels have no path token; their numbers carry the candidates that hold them.
+    Readings distinguish self, sentence, list-item and same-name candidates.
     Link metadata covers its label and its query/anchor suffix separately.
     """
     is_status = rel.endswith(".status.md")
@@ -349,7 +351,7 @@ def citations(tree, rel, lines, is_code):
                                 pos(m.start(2)), pos(m.end(2)))
                     yield Citation("anchor", rel, line_at(marks, m.start()), m.group(0), "",
                                    pos(m.start(2)), pos(m.start(2)), rel, "local-anchor", None,
-                                   (), (), link)
+                                   (), (), link, (Reading(rel, "local-anchor"),))
                     continue
                 tok = re.split(r"[?#]", target, maxsplit=1)[0]
                 if tok:
@@ -402,7 +404,8 @@ def citations(tree, rel, lines, is_code):
                                         and doc.startswith(prefix) and doc not in targets]
                         nums = numbers(sm, 1, end, targets)
             yield Citation("path", rel, ln, ctx, tok, pos(token_start), pos(token_start + len(tok)),
-                           res, how, owner, nums, tuple(targets), link)
+                           res, how, owner, nums, tuple(targets), link,
+                           tuple(Reading(t, how if i == 0 else "same-name") for i, t in enumerate(targets)))
         if is_code:
             continue
         for m in BARE_SECTION.finditer(text):
@@ -417,18 +420,21 @@ def citations(tree, rel, lines, is_code):
             sentence = max(pre.rfind(". "), pre.rfind("; "), 0)
             antecedent = [r for (st, r) in resolved if sentence <= st < m.start()]
             targets = [self_doc] + antecedent[-1:]
+            readings = [Reading(self_doc, "self")] + [Reading(t, "sentence") for t in antecedent[-1:]]
             if item_target and item_target not in targets:
                 targets.append(item_target)
+                readings.append(Reading(item_target, "list-item"))
             yield Citation("section-self", rel, line_at(marks, m.start()),
                            text[max(0, m.start() - 80): m.end() + 40].strip(), None,
                            pos(m.start()), pos(m.end()), None, "bare", None,
-                           numbers(m, 2, 0, targets), tuple(targets), None)
+                           numbers(m, 2, 0, targets), tuple(targets), None, tuple(readings))
         if is_status and not by_step:
             for m in status_label_matches(rel, text):
                 yield Citation("status-label", rel, line_at(marks, m.start()),
                                text[max(0, m.start() - 20): m.end() + 80].strip(), None,
                                pos(m.start()), pos(m.end()), self_doc, "status", None,
-                               numbers(m, 1, 0, [self_doc]), (self_doc,), None)
+                               numbers(m, 1, 0, [self_doc]), (self_doc,), None,
+                               (Reading(self_doc, "status"),))
 
 
 def check_file(tree, rel, lines, is_code):
