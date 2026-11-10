@@ -1699,7 +1699,7 @@ Not in the tier, each in the lowest world that shows it:
   shadows against their day values (2.5, *Shadows keep their colour*). Check
   the faint top-right glow without rings and readability on every other
   page; refine the first night palette with the user. Run the history
-  story's phone Ask row (4.6, 11) and night reload row after landing.
+  story's phone Ask row (4.6, story 11) and night reload row after landing.
   Default: tokens, focused tables and gallery prints establish no
   rendered equality or browser runtime result.
 
@@ -1922,7 +1922,7 @@ Not in the tier, each in the lowest world that shows it:
   run deadline and the whole tier's 127.5 CPU-second budget, 85 raised by
   half by the user's word of 11-08, for now, to be revisited. A whole-tier
   run supplies the cost proof; separate story measurements do not.
-- **Reading's test past its run's forty seconds** (4.3; 4.6, 14). Default: it
+- **Reading's test past its run's forty seconds** (4.3; 4.6, story 14). Default: it
   becomes two tests, the long chat's apart, and test 15, which shares its setup
   with 4 and 5, becomes a step of theirs, so that the tier stays at twelve.
 - **A long chat at the person's whole bound** (4.3; `README.md`, 5.15): the
