@@ -39,7 +39,17 @@ A draft being carried out may have an execution file beside it, `<name>.executio
 ## 4. Keeping them
 
 - A retired or superseded draft is deleted, not marked. A draft whose vision the design now carries in full is deleted or moved to `draft/archive/`.
-- Surviving sections are never renumbered, since code and documents cite them: a removed section leaves its number unused. Whoever removes or moves a document or section fixes every citation to it in the repository.
+- Documents and sections move with `tools/citations/move.py`, from a map of where each goes: it moves the text and rewrites every citation to match, so sections are renumbered freely through it (`tools/citations/README.md`). Whoever moves one repairs what the tool lists under **By hand**. A section removed outright leaves its number unused, and whoever removes it fixes every citation to it.
 - Citations are checked by code, not by hand: a branch with a broken path, section or status-label citation does not land (`tools/citations/`). Before pushing, run `python3 -I -B tools/citations/citations.py --base origin/main` from the repository root, which lists each broken one by file and line, and spend no review on hunting them.
 - The reasons behind drafts go in `draft/notes.md`. Reviews, reports and debt inventories go in the tree's `docs/development/`, never in `docs/design/`.
 - Each tree's `docs/design/STATUS.md` indexes its status files under a one-paragraph summary.
+
+## 5. Their shape
+
+A tree's `docs/design/` is read by its directory and file names before any document is opened, so it keeps the shape of the system, not the order it was written in:
+
+- **The tree mirrors the system.** Its layers are directories (`domain/`, `protocol/`, `client/`, `shell/`). Inside one, a part with several documents is a directory named for that part, whose `README.md` is its one page and lists its documents. The design root's `README.md` gives the tree in one page, the reading order, and a line for each file below it.
+- **One concept per document, named for it:** a slot's trial is a `trial` document in a `slots/` directory, not a section of a document about slots. The same name in two layers is one subject seen from each, never two subjects.
+- **Small enough to read whole.** A document stays under 64 KB, and most are 10 to 40. Past the limit it splits along its concepts. The citation gate refuses a Markdown file under `docs/design/` that crosses the limit, or one already over it that grows, in the trees `tools/citations/sized.txt` lists. A tree joins that list once its layout keeps every file under the limit.
+- **New text goes where it belongs.** A designer first finds the document and section the new text belongs in, and moves or renumbers what it must (section 4), rather than appending. Nothing follows a document's "Later" or "Open questions" but more of them. A change that would leave a document over the limit, one concept spread across documents, or a directory whose names no longer say what it holds restructures in the same change, with a map.
+- **Testing:** a tree's testing design is at its design root, as `testing.md` or `testing/`, since it crosses the layers. A part whose tests are its own alone, such as a client's, keeps them in its directory.
