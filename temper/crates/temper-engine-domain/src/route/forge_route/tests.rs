@@ -3932,7 +3932,10 @@ fn a_dependency_head_refreshes_a_change_already_reading_its_facts() {
     // The current asynchronous step began before the dependency's first push.
     let stale = super::change_step(&domain, &env, 7, 1, change_row(None).repository, b"main", false);
     let forge::Event::StepChange { pending, .. } = stale else { panic!("change step") };
-    assert_eq!(pending.as_ref(), &[change::Pending { task: 8, kind: change::PendingKind::Change { head: None, kept: false } }]);
+    assert_eq!(
+        pending.as_ref(),
+        &[change::Pending { task: 8, kind: change::PendingKind::Change { head: None, kept: false } }]
+    );
     forge::step(
         &mut domain.forge,
         &forge_env,
@@ -3954,7 +3957,10 @@ fn a_dependency_head_refreshes_a_change_already_reading_its_facts() {
     let Some(Work::Forge(forge::Event::StepChange { task: 7, pending, .. })) = domain.work.pop() else {
         panic!("a dependency wake refreshes the already-due step");
     };
-    assert_eq!(pending.as_ref(), &[change::Pending { task: 8, kind: change::PendingKind::Change { head: Some(SHA1), kept: false } }]);
+    assert_eq!(
+        pending.as_ref(),
+        &[change::Pending { task: 8, kind: change::PendingKind::Change { head: Some(SHA1), kept: false } }]
+    );
     assert!(domain.work.is_empty());
 }
 

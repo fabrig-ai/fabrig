@@ -1953,7 +1953,10 @@ impl World {
             }
             self.tick();
         }
-        assert!(self.store.pending.is_empty() && self.pending.is_empty() && self.events.is_empty(), "restart cut drains within the fixture's bound");
+        assert!(
+            self.store.pending.is_empty() && self.pending.is_empty() && self.events.is_empty(),
+            "restart cut drains within the fixture's bound"
+        );
     }
 
     /// Restore a delegate question with its reserved answer room at a committed cut.

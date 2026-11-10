@@ -232,7 +232,16 @@ fn live(record: LiveRecord, l: &Limits, alarm: u64) -> Live {
     }
 }
 fn repository(record: RepositoryRecord) -> Repo {
-    Repo { record, active: true, dropping: false, fresh: Fresh::Complete, state: Scan::Off, hinted: false, heard: None, retry: Duration::ZERO }
+    Repo {
+        record,
+        active: true,
+        dropping: false,
+        fresh: Fresh::Complete,
+        state: Scan::Off,
+        hinted: false,
+        heard: None,
+        retry: Duration::ZERO,
+    }
 }
 fn listed(k: &Keep, repository: Repository) -> bool {
     for (key, row) in &k.live {
