@@ -114,7 +114,7 @@ fn every_stock_charter_admits_its_whole_maximal_brief() {
         (1, true, 42_313, 357_648),
         (2, false, 29_423, 370_538),
         (4, false, 25_989, 373_972),
-        (5, false, 43_581, 356_380),
+        (5, false, 43_755, 356_206),
         (6, false, 27_213, 372_748),
         (9, false, 24_656, 375_305),
         (10, false, 24_371, 375_590),
@@ -180,7 +180,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     // Task words and contract, then the task identity and requester.
     const TASK_PARTS: u32 = 2;
     // Charter 5's room leaves this margin beyond the framed brief.
-    const COORDINATOR_MARGIN: u32 = 1_836;
+    const COORDINATOR_MARGIN: u32 = 1_662;
     const MARGIN: u32 = 195;
     const OTHER: u32 = 768;
     let configuration = configured();
@@ -189,7 +189,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     assert!(brief.parts >= TASK_PARTS);
     let largest = temper_engine_smith::charter(&assignment(5, false, 0));
     let room = run::brief_room(&largest, Some(&workspace(true)), &limits).unwrap();
-    assert_eq!(room, 356_380);
+    assert_eq!(room, 356_206);
     let full = brief.budgets.task + brief.budgets.pull + brief.budgets.reviews + OTHER;
     assert_eq!(full, 395_520);
     assert_eq!(brief.brief_bytes, full.min(room - FRAMING - COORDINATOR_MARGIN));

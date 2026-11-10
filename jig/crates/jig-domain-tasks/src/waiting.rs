@@ -9,7 +9,7 @@ pub(crate) fn next(domain: &Domain, task: u64, after: Option<u64>) -> Option<Wor
     }
     let mut next = None;
     for word in &task_record.inbox {
-        if !task_record.refused.contains(&word.number) && crate::offered(word, task_record.offered) {
+        if !task_record.refused.contains(&word.number) && crate::wake::offered(domain, task, word) {
             consider(&mut next, word, after);
         }
     }

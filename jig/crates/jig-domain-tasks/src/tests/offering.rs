@@ -626,7 +626,8 @@ fn live_results_follow_wake_policy_not_parts() {
         ("never", ResultsWake::Never, Failed, false, false, vec![]),
     ] {
         let mut h = fixture();
-        start(&mut h, R::FIRST);
+        let offered = if policy == ResultsWake::Never { R::ALL } else { R::FIRST };
+        start(&mut h, offered);
         let row = &mut crate::domain::task_mut(&mut h.domain, TASK).expect("parent").record;
         row.wake.results = policy;
         if closer {
@@ -638,16 +639,19 @@ fn live_results_follow_wake_policy_not_parts() {
         row.delegates = Box::new([7, 8]);
         let mut out = result_arrival(&mut h, MESSAGE, 7, first, &[8]);
         out.extend(result_arrival(&mut h, MESSAGE + 1, 8, Report, &[]));
-        let relayed: Vec<_> = out.iter().filter_map(|request| match request {
-            Request::Relay { task, attempt, word, .. } => {
-                assert_eq!((*task, *attempt), (TASK, 1));
-                Some(word.number)
-            }
-            _ => None,
-        }).collect();
+        let relayed: Vec<_> = out
+            .iter()
+            .filter_map(|request| match request {
+                Request::Relay { task, attempt, word, .. } => {
+                    assert_eq!((*task, *attempt), (TASK, 1));
+                    Some(word.number)
+                }
+                _ => None,
+            })
+            .collect();
         assert_eq!(relayed, expected, "{name}");
         let row = h.domain.task(TASK).expect("parent");
-        assert_eq!(row.offered, R::FIRST, "results choose no new part: {name}");
+        assert_eq!(row.offered, offered, "results choose no new part: {name}");
         assert_eq!(row.reasons, R::FIRST, "results keep the run's reasons: {name}");
     }
 }
@@ -680,6 +684,9 @@ fn waiting_results_use_the_live_wake_rule_when_relay_room_frees() {
         };
         assert_eq!(taken, before_last, "non-last success still waits: {policy:?}");
         result_arrival(&mut h, MESSAGE + 2, 9, crate::ResultKind::Report, &[]);
+        if policy == ResultsWake::LastOrFailure {
+            assert_eq!(h.domain.next_waiting(TASK, None).expect("success judged again").number, MESSAGE);
+        }
         while let Some(word) = h.domain.next_waiting(TASK, after) {
             after = Some(word.number);
             taken.push(word.number);

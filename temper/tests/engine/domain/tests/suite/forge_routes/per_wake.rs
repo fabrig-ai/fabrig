@@ -150,10 +150,9 @@ fn request(world: &World, template: &jig_domain_core::Template) -> people::Ask {
         ended_by: match template.flags.ended_by {
             tasks::EndedBy::Result => people::EndedBy::Result,
             tasks::EndedBy::Requester => people::EndedBy::Requester,
-            tasks::EndedBy::Closer(closer) => people::EndedBy::Closer(people::Closer {
-                connector: closer.connector,
-                code: closer.code,
-            }),
+            tasks::EndedBy::Closer(closer) => {
+                people::EndedBy::Closer(people::Closer { connector: closer.connector, code: closer.code })
+            }
         },
     };
     member.llm = template.llm.as_ref().map(|choice| people::LlmChoice {
@@ -294,8 +293,9 @@ fn the_reference_goal_reads_its_cut_then_its_questions_part() {
     world.close();
 }
 
+/// The cut hears a real change's cancel, then its last live change's landing, without waiting.
 #[test]
-fn the_reference_goals_running_cut_hears_a_failed_change_and_its_last_landing() {
+fn the_reference_goals_running_cut_hears_a_cancelled_change_and_its_last_landing() {
     let ReferenceGoal { mut world, first, cut, .. } = reference_goal();
     let row = live_task(&world, first.task);
     assert!(matches!(row.flags.ended_by, tasks::EndedBy::Closer(_)));
@@ -311,17 +311,21 @@ fn the_reference_goals_running_cut_hears_a_failed_change_and_its_last_landing() 
     );
     let engine::CallAnswer::Delegated(made) = answer else { panic!("two live changes: {answer:?}") };
     assert_eq!(made.len(), 2);
-    let (failed, last) = (made[0].task, made[1].task);
-    assert_eq!(live_task(&world, first.task).delegates.as_ref(), &[failed, last]);
+    let (cancelled, last) = (made[0].task, made[1].task);
+    assert_eq!(live_task(&world, first.task).delegates.as_ref(), &[cancelled, last]);
     let producer = super::reviews::next_assignment(&mut world, 1);
-    assert_eq!(live_task(&world, producer.task).requester, tasks::Party::Task(failed));
-    super::goal_landing::finish_run(
-        &mut world,
-        &producer,
-        tasks::TaskResult::Failure { reason: b"Cannot implement this change".as_slice().into() },
+    assert_eq!(live_task(&world, producer.task).requester, tasks::Party::Task(cancelled));
+    let answer = world.scripted_call(
+        &first,
+        101,
+        engine::Tool::Cancel { target: cancelled, reason: b"Drop this change".as_slice().into() },
     );
+    assert_eq!(answer, engine::CallAnswer::Controlled, "change cancelled");
+    let event =
+        world.protocol.answer(CHANNEL, producer.task, producer.attempt, 1, tasks::End::Refused, engine::Parts::none());
+    world.send(event);
     world.until(Until::Ready);
-    read_change_result(&mut world, &first, failed, true);
+    read_change_result(&mut world, &first, cancelled, true);
     assert_eq!(live_task(&world, first.task).delegates.as_ref(), &[last]);
 
     let producer = super::reviews::next_assignment(&mut world, 2);
@@ -340,18 +344,38 @@ fn the_reference_goals_running_cut_hears_a_failed_change_and_its_last_landing() 
     world.close();
 }
 
-fn read_change_result(world: &mut World, run: &engine::Assignment, change: u64, failed: bool) {
-    let result = live_task(world, run.task).inbox.iter().find(|word| {
-        word.from == tasks::Party::Task(change) && matches!(word.kind, tasks::MessageKind::Result(_))
-    }).expect("change result kept").clone();
-    if failed {
-        assert_eq!(result.kind, tasks::MessageKind::Result(tasks::ResultKind::Failed));
+fn read_change_result(world: &mut World, run: &engine::Assignment, change: u64, cancelled: bool) {
+    for _ in 0..1000 {
+        // The forge world's full landing and hold-release bound.
+        if live_task(world, run.task)
+            .inbox
+            .iter()
+            .any(|word| word.from == tasks::Party::Task(change) && matches!(word.kind, tasks::MessageKind::Result(_)))
+        {
+            break;
+        }
+        world.tick();
+    }
+    world.until(Until::Ready);
+    let result = live_task(world, run.task)
+        .inbox
+        .iter()
+        .find(|word| word.from == tasks::Party::Task(change) && matches!(word.kind, tasks::MessageKind::Result(_)))
+        .expect("change result kept after its holds are released")
+        .clone();
+    if cancelled {
+        assert_eq!(result.kind, tasks::MessageKind::Result(tasks::ResultKind::Cancelled));
     } else {
         assert!(matches!(result.kind, tasks::MessageKind::Result(tasks::ResultKind::Change { .. })));
         assert!(String::from_utf8_lossy(&result.words).contains("Landed:"));
     }
-    assert!(world.delivered_messages.get(&(run.task, run.attempt)).is_some_and(|messages| messages.contains(&result.number)),
-        "change {change}'s result is relayed to the running cut");
+    assert!(
+        world
+            .delivered_messages
+            .get(&(run.task, run.attempt))
+            .is_some_and(|messages| messages.contains(&result.number)),
+        "change {change}'s result is relayed to the running cut"
+    );
     let turn = live_task(world, run.task).turn;
     world.scripted_read_inbox(run);
     let row = live_task(world, run.task);
