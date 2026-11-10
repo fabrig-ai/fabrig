@@ -1692,9 +1692,24 @@ const REPLY_TURN: jig_client::contract::TurnName = jig_client::contract::TurnNam
 
 fn reply_host() -> Host {
     use smith_transcript as s;
-    let (mut host, _, _) = signed_host(true);
+    let (mut host, me_watch, _) = signed_host(true);
+    let mut me = launchpad_me(true).into_parts();
+    let mut reader = Reader::new(&me.projects);
+    let project = skein_codec::piece::split(&mut reader).unwrap().unwrap();
+    let mut project = w::MeProject::decode(&w::CEILINGS, &mut Reader::new(&project)).unwrap().into_parts();
+    let mut reader = Reader::new(&project.templates);
+    let template = skein_codec::piece::split(&mut reader).unwrap().unwrap();
+    let mut template = w::Template::decode(&w::CEILINGS, &mut Reader::new(&template)).unwrap().into_parts();
+    template.number = 6;
+    let template = w::Template::new(&w::CEILINGS, template).unwrap();
+    let mut writer = Writer::new(usize::try_from(template.measure()).unwrap());
+    template.encode(&mut writer).unwrap();
+    project.templates = [project.templates.as_ref(), pieces(&[writer.finish()]).as_ref()].concat().into();
+    me.projects = pieces(&[project_bytes(&w::MeProject::new(&w::CEILINGS, project).unwrap())]);
+    delivery(&mut host, me_watch, &w::DeliveryValue::Me(w::Me::new(&w::CEILINGS, me).unwrap()));
     let duties = give(&mut host, Event::Act { act: Act::Go { address: Address::Chat { task: 7 } } });
-    let task_watch = watch(&duties, &w::Subject::Task(w::SubjectTask::new(&w::CEILINGS, w::SubjectTaskParts { task: 7 }).unwrap()));
+    let task_watch =
+        watch(&duties, &w::Subject::Task(w::SubjectTask::new(&w::CEILINGS, w::SubjectTaskParts { task: 7 }).unwrap()));
     let activity = read_exchange(&duties, "activity");
     let mut task = records::task_record().into_parts();
     task.project = 3;
@@ -1703,7 +1718,15 @@ fn reply_host() -> Host {
     let mut rows = Vec::new();
     while let Some(bytes) = skein_codec::piece::split(&mut reader).unwrap() {
         let mut fact = w::Fact::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
-        if let w::Fact::ChipDetails(row) = fact {
+        if let w::Fact::Chip(row) = fact {
+            let mut row = row.into_parts();
+            let mut fields = row.value.into_parts();
+            fields.executor = w::ChipExecutor::Agent(
+                w::ChipExecutorAgent::new(&w::CEILINGS, w::ChipExecutorAgentParts { charter: 5 }).unwrap(),
+            );
+            row.value = w::ChipFields::new(&w::CEILINGS, fields).unwrap();
+            fact = w::Fact::Chip(w::ChipRow::new(&w::CEILINGS, row).unwrap());
+        } else if let w::Fact::ChipDetails(row) = fact {
             let mut row = row.into_parts();
             let mut fields = row.value.into_parts();
             fields.live_delegates = 0;
@@ -1716,18 +1739,33 @@ fn reply_host() -> Host {
     task.activity = 1;
     task.result = None;
     task.waits_on = w::WaitsOn::News;
-    let offer = w::Offered::new(&w::CEILINGS, w::OfferedParts { act: w::ActKind::Message, admission: w::Admission::Allowed, effect: None }).unwrap();
+    let offer = w::Offered::new(
+        &w::CEILINGS,
+        w::OfferedParts { act: w::ActKind::Message, admission: w::Admission::Allowed, effect: None },
+    )
+    .unwrap();
     let mut writer = Writer::new(usize::try_from(offer.measure()).unwrap());
     offer.encode(&mut writer).unwrap();
     task.acts = pieces(&[writer.finish()]);
     delivery(&mut host, task_watch, &w::DeliveryValue::Task(Box::new(w::Task::new(&w::CEILINGS, task).unwrap())));
     let mut turn = s::decode_archived(&s::CEILINGS, records::FULL_TURN).unwrap().into_parts();
-    let text = s::Block::Text(s::Text::new(&s::CEILINGS, s::TextParts {
-        text: "Choose.\n\n1. Move it at once — no mixed state\n2. Side by side\n3. Tell me something else".as_bytes().into(), replay: None,
-    }).unwrap());
-    turn.messages = List::from_boxed(Box::new([s::Message::new(&s::CEILINGS, s::MessageParts {
-        role: s::Role::Assistant, blocks: List::from_boxed(Box::new([text])),
-    }).unwrap()]));
+    let text = s::Block::Text(
+        s::Text::new(
+            &s::CEILINGS,
+            s::TextParts {
+                text: "Choose.\n\n1. Move it at once — no mixed state\n2. Side by side\n3. Tell me something else"
+                    .as_bytes()
+                    .into(),
+                replay: None,
+            },
+        )
+        .unwrap(),
+    );
+    turn.messages = List::from_boxed(Box::new([s::Message::new(
+        &s::CEILINGS,
+        s::MessageParts { role: s::Role::Assistant, blocks: List::from_boxed(Box::new([text])) },
+    )
+    .unwrap()]));
     let turn = s::Turn::new(&s::CEILINGS, turn).unwrap();
     let mut writer = Writer::new(usize::try_from(turn.measure()).unwrap());
     turn.encode(&mut writer).unwrap();
@@ -2777,17 +2815,23 @@ fn read_reply(host: &mut Host, exchange: skein_lib::Token, value: &w::ReadValue)
 }
 
 fn reply_events() {
-    for (case, typed_words, message, aside, kept) in [
-        ("answer", b"left in box".as_slice(), Some(b"Move it at once".as_slice()), false, b"".as_slice()),
-        ("aside", b"my own words", None, true, b"my own words"),
-        ("number one", b"1", Some(b"Move it at once"), false, b""),
-        ("number two", b"2", Some(b"Side by side"), false, b""),
-        ("number else", b"3", None, true, b"3"),
-        ("not a number", b"1 ", Some(b"1 "), false, b""),
-        ("out of range", b"4", Some(b"4"), false, b""),
-        ("leading zero", b"01", Some(b"01"), false, b""),
-        ("menu", b"", Some(b"Move it at once"), false, b""),
-        ("escape", b"", None, true, b""),
+    for (case, typed_words, keys, message, typed_aside, aside, kept) in [
+        ("menu", b"".as_slice(), &[Key::Enter][..], Some(b"Move it at once".as_slice()), false, false, b"".as_slice()),
+        ("menu two", b"", &[Key::Down, Key::Enter][..], Some(b"Side by side"), false, false, b""),
+        ("menu else", b"", &[Key::Down, Key::Down, Key::Enter][..], None, false, true, b""),
+        ("number one", b"1", &[Key::Enter][..], Some(b"Move it at once"), false, false, b""),
+        ("number two", b"2", &[Key::Enter][..], Some(b"Side by side"), false, false, b""),
+        ("number else", b"3", &[Key::Enter][..], None, false, true, b""),
+        ("words", b"my own words", &[Key::Enter][..], Some(b"my own words"), true, true, b""),
+        ("not a number", b"1 ", &[Key::Enter][..], Some(b"1 "), true, true, b""),
+        ("out of range", b"4", &[Key::Enter][..], Some(b"4"), true, true, b""),
+        ("leading zero", b"01", &[Key::Enter][..], Some(b"01"), true, true, b""),
+        ("escape", b"", &[Key::Escape][..], None, false, true, b""),
+        ("escape number", b"2", &[Key::Escape][..], None, false, true, b"2"),
+        ("escaped number sent", b"2", &[Key::Escape, Key::Enter][..], Some(b"2"), false, true, b""),
+        ("erased words", b"x", &[Key::Backspace][..], None, true, true, b""),
+        ("erased number", b"2", &[Key::Backspace, Key::Enter][..], Some(b"Move it at once"), false, false, b""),
+        ("edited number", b"2x", &[Key::Backspace, Key::Enter][..], Some(b"2"), true, true, b""),
     ] {
         let mut host = reply_host();
         host.report(Report::Key(Key::Paste(typed_words.into())));
@@ -2796,16 +2840,18 @@ fn reply_events() {
         let key_event = host.event_of(&Key::Enter);
         let number_event = temper_client_tui::reply_number(&host.view, typed_words);
         let before = host.state().box_written();
-        let duties = match case {
-            "answer" => give(&mut host, Event::Answer { words: b"Move it at once".as_slice().into() }),
-            "aside" => give(&mut host, Event::ReplyAside { turn: REPLY_TURN }),
-            "escape" => host.report(Report::Key(Key::Escape)),
-            _ => host.report(Report::Key(Key::Enter)),
-        };
+        assert_eq!(host.state().reply_aside(), typed_aside.then_some(REPLY_TURN), "{case}: aside on typing");
+        let mut duties = Duties::default();
+        for key in keys {
+            duties = host.report(Report::Key(key.clone()));
+            host.frame();
+        }
         let duties = stored(&mut host, duties);
         let asks = sent_ask(&duties);
         if let Some(words) = message {
-            let [(_, w::Ask::Message(sent))] = asks.as_slice() else { panic!("{case}: {asks:?}; key={key_event:?}; number={number_event:?}; words={:?}", host.words()) };
+            let [(_, w::Ask::Message(sent))] = asks.as_slice() else {
+                panic!("{case}: {asks:?}; key={key_event:?}; number={number_event:?}; words={:?}", host.words())
+            };
             assert_eq!((sent.task(), sent.words()), (7, words), "{case}: choice words, not the number");
             assert!(host.state().box_written() > before, "{case}: box write advances");
         } else {

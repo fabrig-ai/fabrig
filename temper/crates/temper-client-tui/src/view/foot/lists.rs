@@ -98,20 +98,24 @@ pub(crate) fn reply(root: &Domain, tui: &Tui, words: &Words) -> Option<Options> 
     let mut items = List::uncapped();
     for choice in choices.choices {
         let number = u64::from(items.len()).checked_add(1).expect("choice number fits");
-        items.push(OptionItem {
-            name: numbered(&choice.words, number, words),
-            words: choice.reason.unwrap_or_default(),
-            selected: items.is_empty(),
-            event: Event::Answer { words: choice.words },
-        }).expect("reply choices fit memory");
+        items
+            .push(OptionItem {
+                name: numbered(&choice.words, number, words),
+                words: choice.reason.unwrap_or_default(),
+                selected: items.is_empty(),
+                event: Event::Answer { words: choice.words },
+            })
+            .expect("reply choices fit memory");
     }
     let number = u64::from(items.len()).checked_add(1).expect("else number fits");
-    items.push(OptionItem {
-        name: numbered(&words.say(Word::Else, &[]), number, words),
-        words: Box::default(),
-        selected: false,
-        event: Event::ReplyAside { turn },
-    }).expect("else fits memory");
+    items
+        .push(OptionItem {
+            name: numbered(&words.say(Word::Else, &[]), number, words),
+            words: Box::default(),
+            selected: false,
+            event: Event::ReplyAside { turn },
+        })
+        .expect("else fits memory");
     Some(Options {
         style: look::OPTION,
         head: None,

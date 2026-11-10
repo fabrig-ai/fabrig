@@ -260,8 +260,12 @@ pub(crate) fn last_reply(root: &Domain) -> Option<(c::TurnName, Box<[u8]>)> {
             }
             Line::Activity { line } => match &line.source.line {
                 c::Activity::Words { .. } | c::Activity::Turn { .. } => reply = None,
-                c::Activity::Heard(_) | c::Activity::Notified { .. } | c::Activity::Decided { .. }
-                | c::Activity::Kept { .. } | c::Activity::RunBegan { .. } | c::Activity::RunEnded { .. }
+                c::Activity::Heard(_)
+                | c::Activity::Notified { .. }
+                | c::Activity::Decided { .. }
+                | c::Activity::Kept { .. }
+                | c::Activity::RunBegan { .. }
+                | c::Activity::RunEnded { .. }
                 | c::Activity::Milestone { .. } => {}
             },
         }

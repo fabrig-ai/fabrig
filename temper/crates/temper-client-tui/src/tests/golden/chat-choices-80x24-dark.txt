@@ -1,4 +1,4 @@
-❯ What landed overnight?
+❯ Plan the cluster's move.
 
 ✦ One point is yours. Move at once, or side by side?
   1. Move it at once — no mixed state
@@ -16,7 +16,7 @@
 
 
 
-─────────────────────────────────── Hello / What landed… T2 on 127.0.0.1:8367 ──
+─────────────────────────────── Hello / Move the cluster T2 on 127.0.0.1:8367 ──
 ❯
 ────────────────────────────────────────────────────────────────────────────────
 ❯ 1. Move it at once          no mixed state
@@ -41,7 +41,7 @@ c...............................................................................
 ................................................................................
 ................................................................................
 ................................................................................
-ddddddddddddddddddddddddddddddddddddeeeeedddeeeeeeeeeeeefffffffffffffffffffffddd
+ddddddddddddddddddddddddddddddddeeeeedddeeeeeeeeeeeeeeeefffffffffffffffffffffddd
 cc..............................................................................
 dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
 gggggggggggggggggggggggggggggghhhhhhhhhhhhhhiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii

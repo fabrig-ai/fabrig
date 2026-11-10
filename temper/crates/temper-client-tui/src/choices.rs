@@ -1,6 +1,9 @@
 //! A reply's trailing choices (temper/docs/design/client/README.md, 6.14, A design session).
 use alloc::boxed::Box;
-use skein_lib::{List, bytes::{copy_of, find, decimal}};
+use skein_lib::{
+    List,
+    bytes::{copy_of, decimal, find},
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct ReplyChoices {
@@ -51,7 +54,7 @@ fn line(bytes: &[u8], items: &mut List<ReplyChoice>, valid: &mut bool) {
 }
 fn numbered(bytes: &[u8]) -> Option<(u64, &[u8])> {
     let mut bytes = bytes;
-    for _ in 0..3 {
+    for _ in 0_u8..3 {
         if let Some(rest) = bytes.strip_prefix(b" ") {
             bytes = rest;
         }
@@ -92,7 +95,9 @@ fn choice(bytes: &[u8]) -> ReplyChoice {
     match cut {
         Some((at, length)) => ReplyChoice {
             words: copy_of(plain.get(..at).expect("separator is in item").trim_ascii()),
-            reason: Some(copy_of(plain.get(at.checked_add(length).expect("separator fits")..).expect("separator fits").trim_ascii())),
+            reason: Some(copy_of(
+                plain.get(at.checked_add(length).expect("separator fits")..).expect("separator fits").trim_ascii(),
+            )),
         },
         None => ReplyChoice { words: copy_of(plain.trim_ascii()), reason: None },
     }

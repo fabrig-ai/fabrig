@@ -379,7 +379,7 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
         }
         Body::Chat(_) | Body::Welcome(_) => {}
     }
-    view.reply = signed.foot.reply.clone();
+    view.reply.clone_from(&signed.foot.reply);
     view.box_empty = match &signed.foot.composer {
         Some(composer) => composer.value.is_empty(),
         None => false,
@@ -408,8 +408,19 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
 /// What Escape makes in the tree last built.
 #[must_use]
 pub fn escape(view: &View) -> Option<Event> {
-    view.escape.clone()
+    match &view.escape {
+        Some(event) => Some(event.clone()),
+        None => view.reply_aside(),
+    }
 }
+impl View {
+    /// Set aside the reply on the tree last built, even behind typed words.
+    #[must_use]
+    pub fn reply_aside(&self) -> Option<Event> {
+        self.reply.last().cloned()
+    }
+}
+
 /// A reply's numbered event on the tree last built, even behind typed words.
 #[must_use]
 pub fn reply_number(view: &View, words: &[u8]) -> Option<Event> {

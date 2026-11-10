@@ -243,6 +243,12 @@ impl Host {
         {
             self.tell(Told::Aside { object: None });
         }
+        if !self.words().is_empty()
+            && tui::reply_number(&self.view, self.words()).is_none()
+            && let Some(event) = self.view.reply_aside()
+        {
+            self.event(event, &mut duties);
+        }
         if self.need.as_ref().is_some_and(|need| matches!(need.phase, Phase::Signing(None))) {
             self.end_local();
         }
@@ -650,6 +656,10 @@ impl Host {
             return;
         }
         if let Some(event) = tui::reply_number(&self.view, self.words()) {
+            if matches!(&event, tui::Event::ReplyAside { .. }) {
+                self.act(Act::MessageWords { words: Box::default() });
+                self.tell(Told::Cleared);
+            }
             self.event(event, duties);
             return;
         }

@@ -118,6 +118,7 @@ fn cancelled_task() -> c::Task {
     })));
     task
 }
+#[expect(clippy::struct_excessive_bools, reason = "fixture flags independently supply chat, prompt and document facts")]
 struct Input {
     task: Option<Box<c::Task>>,
     rows: Box<[c::DecodedActivityLine]>,
@@ -127,6 +128,9 @@ struct Input {
     older: bool,
     shown: Option<Shown>,
     question: bool,
+    session: bool,
+    asking: bool,
+    draft: bool,
 }
 impl Input {
     fn empty() -> Self {
@@ -139,6 +143,9 @@ impl Input {
             older: false,
             shown: None,
             question: false,
+            session: false,
+            asking: false,
+            draft: false,
         }
     }
 }
@@ -164,7 +171,10 @@ fn activity_page(input: &Input, before: Option<c::Cursor>, answered: &mut bool) 
 fn root(input: &Input) -> Domain {
     let mut root = d::unlinked(&chat_limits(), f::SEED);
     chat_event(&mut root, Event::Client { event: jig_client::Event::StartUnlinked { kept: List::with_capacity(0) } });
-    chat_event(&mut root, Event::LookKept { look: d::pages::terminal::Look { terminal: true, ..d::pages::terminal::Look::default() } });
+    chat_event(
+        &mut root,
+        Event::LookKept { look: d::pages::terminal::Look { terminal: true, ..d::pages::terminal::Look::default() } },
+    );
     let mut opened = chat_event(
         &mut root,
         Event::Start {
@@ -186,13 +196,19 @@ fn root(input: &Input) -> Domain {
                         down: Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Me) },
                     },
             } => {
+                let mut me = f::me(&[b"Hello"]);
+                if input.session || input.asking {
+                    let mut template = super::foot::template(if input.session { 6 } else { 5 });
+                    template.executor = c::TemplateExecutor::Charter(if input.session { 12 } else { 1 });
+                    me.projects.get_mut(0).unwrap().templates = List::from_boxed(Box::new([template]));
+                }
                 let mut replies = chat_event(
                     &mut root,
                     Event::Client {
                         event: jig_client::Event::Up {
                             up: jig_client::Up::Watched {
                                 watch,
-                                event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(f::me(&[b"Hello"])))),
+                                event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))),
                             },
                         },
                     },
@@ -218,8 +234,12 @@ fn root(input: &Input) -> Domain {
         task.chip.details.phase = c::ChipPhase::Active(c::RunStage::Idle);
         task.waits_on = c::WaitsOn::News;
     }
+    if input.session {
+        task.chip.executor = c::ChipExecutor::Agent { charter: 12 };
+    }
     if input.question {
-        task.waits_on = c::WaitsOn::Party { whom: c::Whom::Person(73), entries: 1, task: TASK, kind: c::WaitedFor::Question };
+        task.waits_on =
+            c::WaitsOn::Party { whom: c::Whom::Person(73), entries: 1, task: TASK, kind: c::WaitedFor::Question };
     }
     let mut run = jig_client_test_records::run_state_record().into_parts();
     run.task = TASK;
@@ -253,12 +273,48 @@ fn root(input: &Input) -> Domain {
     let mut activity_answered = false;
     while let Some(request) = out.pop() {
         let up = match request {
-            d::Request::Unlinked { request: UnlinkedRequest::Down { down: Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Inbox { .. }) } } } if input.question => Some(jig_client::Up::Watched {
+            d::Request::Unlinked {
+                request:
+                    UnlinkedRequest::Down {
+                        down: Down::Read { read, what: jig_client::Readable::Jig(c::Read::Notes { scope, .. }) },
+                    },
+            } if input.draft => Some(jig_client::Up::ReadDone {
+                read,
+                result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Notes(Box::new(c::NotePage {
+                    rows: List::from_boxed(Box::new([c::Note {
+                        number: 1,
+                        revision: c::Revision { value: 1 },
+                        scope,
+                        description: c::DocumentText::complete(text(b"Migration")),
+                        body: c::DocumentText::complete(text(b"# Migration\nMove the cluster.")),
+                        writer: c::NoteAuthor::Task { task: TASK, attempt: ATTEMPT },
+                        tasks: List::with_capacity(0),
+                        changed: None,
+                        acts: List::with_capacity(0),
+                        cut: false,
+                    }])),
+                    before: None,
+                    after: None,
+                    cut: false,
+                })))),
+            }),
+            d::Request::Unlinked {
+                request:
+                    UnlinkedRequest::Down {
+                        down: Down::Open { watch, subject: jig_client::Watchable::Jig(c::Subject::Inbox { .. }) },
+                    },
+            } if input.question => Some(jig_client::Up::Watched {
                 watch,
                 event: c::WatchEvent::Delivered(c::Delivery::Inbox(Box::new(c::Inbox {
-                    party: 73, needs: List::with_capacity(0), updates: List::with_capacity(0), next: None,
-                    cached_needs: 0, cached_updates: c::Count { value: 0, limited: false }, results_seen: 0,
-                    updates_time_complete: true, selection: None,
+                    party: 73,
+                    needs: List::with_capacity(0),
+                    updates: List::with_capacity(0),
+                    next: None,
+                    cached_needs: 0,
+                    cached_updates: c::Count { value: 0, limited: false },
+                    results_seen: 0,
+                    updates_time_complete: true,
+                    selection: None,
                 }))),
             }),
             d::Request::Unlinked {
@@ -292,7 +348,10 @@ fn root(input: &Input) -> Domain {
                 )))),
             }),
             d::Request::Unlinked {
-                request: UnlinkedRequest::Down { down: Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { .. }) } },
+                request:
+                    UnlinkedRequest::Down {
+                        down: Down::Read { read, what: jig_client::Readable::Jig(c::Read::Inbox { .. }) },
+                    },
             } if input.question => Some(jig_client::Up::ReadDone {
                 read,
                 result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Inbox(Box::new(c::InboxPage {
@@ -301,22 +360,43 @@ fn root(input: &Input) -> Domain {
                         task: c::TaskLink::Stored { number: TASK, status: None },
                         project: Some(1),
                         object: c::InboxObject::Question { message: 1 },
-                        activity: Some(1), at: Some(f::NOW), unread: None,
-                        cursor: c::InboxCursor::Inbox { task: TASK, object: c::InboxObject::Question { message: 1 }, at: Some(f::NOW) },
+                        activity: Some(1),
+                        at: Some(f::NOW),
+                        unread: None,
+                        cursor: c::InboxCursor::Inbox {
+                            task: TASK,
+                            object: c::InboxObject::Question { message: 1 },
+                            at: Some(f::NOW),
+                        },
                         projects: List::with_capacity(0),
                     }])),
-                    cut: false, before: None, after: None, selection: None,
+                    cut: false,
+                    before: None,
+                    after: None,
+                    selection: None,
                 })))),
             }),
             d::Request::Unlinked {
-                request: UnlinkedRequest::Down { down: Down::Read { read, what: jig_client::Readable::Jig(c::Read::Question { task: _, message }) } },
+                request:
+                    UnlinkedRequest::Down {
+                        down:
+                            Down::Read { read, what: jig_client::Readable::Jig(c::Read::Question { task: _, message }) },
+                    },
             } if input.question => Some(jig_client::Up::ReadDone {
                 read,
                 result: jig_client::Readout::Jig(c::ReadResult::Value(c::ReadValue::Question(Box::new(c::Question {
-                    task: task.chip.clone(), from: None, message,
-                    words: c::DocumentText::complete(text(b"Which separator?\nChoice: Comma (recommended)\nChoice: Semicolon")),
+                    task: task.chip.clone(),
+                    from: None,
+                    message,
+                    words: c::DocumentText::complete(text(
+                        b"Which separator?\nChoice: Comma (recommended)\nChoice: Semicolon",
+                    )),
                     since: f::NOW,
-                    acts: List::from_boxed(Box::new([c::Offered { act: c::ActKind::Answer, admission: c::Admission::Allowed, effect: None }])),
+                    acts: List::from_boxed(Box::new([c::Offered {
+                        act: c::ActKind::Answer,
+                        admission: c::Admission::Allowed,
+                        effect: None,
+                    }])),
                     ending: None,
                 })))),
             }),
@@ -367,7 +447,8 @@ pub(super) fn reply_root(case: &str) -> Domain {
     let mut rows = List::uncapped();
     rows.push(turn(&[c::Block::Text(text(if case == "no choices" { b"No question." } else { CHOICES }))])).unwrap();
     if case == "newer" || case == "newer without choices" || case == "newer without text" {
-        let mut newer = turn(&[c::Block::Text(text(if case == "newer without choices" { b"No question." } else { CHOICES }))]);
+        let mut newer =
+            turn(&[c::Block::Text(text(if case == "newer without choices" { b"No question." } else { CHOICES }))]);
         newer.source.position = 2;
         let archive = newer.decoded.as_mut().unwrap();
         archive.name.number = 2;
@@ -383,11 +464,18 @@ pub(super) fn reply_root(case: &str) -> Domain {
         said.source.position = 2;
         rows.push(said).unwrap();
     }
+    let mut task = task();
+    task.chip.title = c::DocumentText::complete(text(b"Move the cluster"));
+    task.spec.specification.words = c::DocumentText::complete(text(b"Plan the cluster's move."));
     root(&Input {
+        task: Some(Box::new(task)),
         rows: rows.into_boxed(),
         writing: if case == "provisional after" { Some(b"Thinking") } else { None },
         working: case == "working" || case == "provisional after",
-        question: case == "held question",
+        question: case == "held question" || case == "walk",
+        session: case != "plain chat" && case != "writing draft" && case != "document",
+        draft: case == "document",
+        asking: case == "writing draft",
         ..Input::empty()
     })
 }
@@ -823,6 +911,7 @@ fn the_chats_are_their_goldens() {
 fn choice_goldens() {
     use skein_ui_screen::{Focus, Size};
     let root = reply_root("choices");
+    assert!(foot::read(&root, &Tui::new(f::ADDRESS), &f::words(), f::NOW).session);
     let mut tui = Tui::new(f::ADDRESS);
     tui.step(Told::Size { columns: 80 });
     let mut view = view();
@@ -832,10 +921,17 @@ fn choice_goldens() {
         ("chat-choices-80x24-dark", Scheme::Dark, include_bytes!("golden/chat-choices-80x24-dark.txt").as_slice()),
         ("chat-choices-80x24-light", Scheme::Light, include_bytes!("golden/chat-choices-80x24-light.txt").as_slice()),
     ] {
-        checks.push(goldens::Golden {
-            name, scheme, want, tree: view.tree(), size: Size { columns: 80, rows: 24 },
-            focus: Focus::default(), background: Some(crate::theme::palette(scheme)[0].1),
-        }).unwrap();
+        checks
+            .push(goldens::Golden {
+                name,
+                scheme,
+                want,
+                tree: view.tree(),
+                size: Size { columns: 80, rows: 24 },
+                focus: Focus::default(),
+                background: Some(crate::theme::palette(scheme)[0].1),
+            })
+            .unwrap();
     }
     goldens::check(checks.as_slice());
 }

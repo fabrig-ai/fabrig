@@ -1003,13 +1003,22 @@ fn question_states() {
     assert!(foot::lists::question_list(question(Some(1), false), Some(c::ObjectKey::Task(9)), &words).is_none());
     assert!(foot::lists::question_list(question(Some(1), false), Some(c::ObjectKey::Task(10)), &words).is_some());
 }
-#[expect(clippy::disallowed_methods, clippy::disallowed_types, clippy::too_many_lines, reason = "reply rows inspect the rendered options and their bindings")]
+#[expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    clippy::too_many_lines,
+    reason = "reply rows inspect the rendered options and their bindings"
+)]
 fn reply_states() {
-    use super::chat::{reply_root, REPLY_TURN};
+    use super::chat::{REPLY_TURN, reply_root};
     let aside = TuiEvent::ReplyAside { turn: REPLY_TURN };
     for (case, typed, drawn, numbered) in [
         ("choices", b"".as_slice(), true, true),
+        ("plain chat", b"", false, false),
+        ("writing draft", b"", true, true),
+        ("document", b"", true, true),
         ("no choices", b"", false, false),
+        ("walk", b"", false, false),
         ("held question", b"", false, false),
         ("set aside", b"", false, false),
         ("newer", b"", true, true),
@@ -1028,6 +1037,16 @@ fn reply_states() {
         if case == "set aside" || case == "newer" {
             tui.step(Told::ReplyAside { turn: REPLY_TURN });
         }
+        if case == "writing draft" {
+            act(&mut root, d::pages::Act::AddDraft);
+            assert!(root.pages().chat().unwrap().writing);
+        }
+        if case == "document" {
+            assert!(root.pages().chat().unwrap().draft.is_some());
+        }
+        if case == "walk" {
+            tui.step(Told::Walk { by_key: false });
+        }
         act(&mut root, d::pages::Act::MessageWords { words: typed.into() });
         if case == "models" {
             act(&mut root, d::pages::Act::Terminal(d::pages::terminal::Act::Run { command: Command::Model }));
@@ -1036,7 +1055,7 @@ fn reply_states() {
         f::build(&mut view, &tui, &root);
         let turn = if case == "newer" { c::TurnName { number: 2, ..REPLY_TURN } } else { REPLY_TURN };
         let expected = TuiEvent::ReplyAside { turn };
-        assert_eq!(crate::escape(&view) == Some(expected.clone()), drawn, "{case}: escape");
+        assert_eq!(crate::escape(&view) == Some(expected.clone()), drawn || numbered, "{case}: escape");
         let tree = view.tree();
         let items: Vec<_> = tree.nodes().iter().filter(|node| node.role == Role::MenuItem).collect();
         if drawn {
@@ -1046,10 +1065,17 @@ fn reply_states() {
             let field = f::find(tree, Role::TextArea, b"Message");
             assert!(field.placeholder.is_none());
             for (index, (name, description, event)) in [
-                ("1. Move it at once", "no mixed state", TuiEvent::Answer { words: b"Move it at once".as_slice().into() }),
+                (
+                    "1. Move it at once",
+                    "no mixed state",
+                    TuiEvent::Answer { words: b"Move it at once".as_slice().into() },
+                ),
                 ("2. Side by side", "", TuiEvent::Answer { words: b"Side by side".as_slice().into() }),
                 ("3. Tell it something else", "", expected.clone()),
-            ].into_iter().enumerate() {
+            ]
+            .into_iter()
+            .enumerate()
+            {
                 let item = items[index];
                 assert_eq!(item.name.as_deref(), Some(name.as_bytes()), "{case}");
                 assert_eq!(item.description.as_deref(), Some(description.as_bytes()), "{case}");
@@ -1058,6 +1084,9 @@ fn reply_states() {
                 assert_eq!(crate::event(&view, item.id, Act::Press), Some(event), "{case}");
                 assert!(f::index(tree, field.id) < f::index(tree, item.id));
             }
+        } else if case == "walk" {
+            assert_eq!(crate::escape(&view), Some(TuiEvent::EndWalk));
+            assert!(items.iter().any(|item| item.name.as_deref() == Some(b"4. Next")));
         } else if case == "held question" {
             assert!(shared::question(&root, view.words().view()).is_some());
             assert!(items.iter().any(|item| item.name.as_deref() == Some(b"1. Comma")));
@@ -1069,8 +1098,15 @@ fn reply_states() {
             (b"1".as_slice(), Some(TuiEvent::Answer { words: b"Move it at once".as_slice().into() })),
             (b"2", Some(TuiEvent::Answer { words: b"Side by side".as_slice().into() })),
             (b"3", Some(expected.clone())),
-            (b"0", None), (b"4", None), (b"01", None), (b"1 ", None), (b" 1", None),
-            (b"1\n", None), (b"-1", None), (b"words", None), (b"", None),
+            (b"0", None),
+            (b"4", None),
+            (b"01", None),
+            (b"1 ", None),
+            (b" 1", None),
+            (b"1\n", None),
+            (b"-1", None),
+            (b"words", None),
+            (b"", None),
         ] {
             assert_eq!(crate::reply_number(&view, words), if numbered { event } else { None }, "{case}: {words:?}");
         }

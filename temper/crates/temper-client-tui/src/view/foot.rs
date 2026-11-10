@@ -139,7 +139,12 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Foot
     };
     let signing_in = root.client().link().state == Link::SignedOut && tui.local() != Local::Signing;
     let mut list = if signing_in { None } else { lists::read(root, tui, words, &value) };
-    let standing = if signing_in || list.is_some() { None } else { lists::reply(root, tui, words) };
+    let pane = match chat {
+        Some(chat) => chat.draft.is_some() || chat.writing,
+        None => false,
+    };
+    let standing =
+        if signing_in || list.is_some() || !(session || pane) { None } else { lists::reply(root, tui, words) };
     let mut reply = List::uncapped();
     if let Some(standing) = standing {
         for item in &standing.items {
