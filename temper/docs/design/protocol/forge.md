@@ -1099,7 +1099,7 @@ each start from the records and the events (`../domain/forge.md`,
 ## 9. The fake forge's protocol layer
 
 Held by skein's `fake-forge.md`, section 4, for Forgejo's dialect, and
-section 10, its GitHub layer, for GitHub's (with skein's
+skein's `fake-forge.md`, section 10, its GitHub layer, for GitHub's (with skein's
 `forge-github.md`): its App, installations, installation tokens, merge
 queue, delivery log, job log redirect, rate windows and pauses, its
 fixed test keys, and its two browser pages answered as redirects, so
