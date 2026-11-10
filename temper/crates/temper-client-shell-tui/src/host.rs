@@ -243,6 +243,12 @@ impl Host {
         {
             self.tell(Told::Aside { object: None });
         }
+        if !self.words().is_empty()
+            && tui::reply_number(&self.view, self.words()).is_none()
+            && let Some(event) = self.view.reply_aside()
+        {
+            self.event(event, &mut duties);
+        }
         if self.need.as_ref().is_some_and(|need| matches!(need.phase, Phase::Signing(None))) {
             self.end_local();
         }
@@ -531,6 +537,13 @@ impl Host {
             tui::Event::Send => self.send(duties),
             tui::Event::Act { act } => self.act(act),
             tui::Event::Aside { object } => self.tell(Told::Aside { object: Some(object) }),
+            tui::Event::Answer { words } => {
+                self.act(Act::MessageWords { words });
+                self.act(Act::Send);
+                self.act(Act::MessageWords { words: Box::default() });
+                self.tell(Told::Cleared);
+            }
+            tui::Event::ReplyAside { turn } => self.tell(Told::ReplyAside { turn }),
             tui::Event::Dismiss => self.dismiss(),
         }
     }
@@ -543,7 +556,7 @@ impl Host {
 
     fn own(&mut self, command: tui::Own, duties: &mut Duties) {
         match command {
-            tui::Own::Change | tui::Own::Ask => {
+            tui::Own::Draft | tui::Own::Change | tui::Own::Ask => {
                 let words = skein_lib::bytes::concat(&[command.name(), b" "]);
                 self.act(Act::ChatWords { words });
                 self.tell(Told::Cleared);
@@ -620,7 +633,7 @@ impl Host {
                     .find(|command| tui::command_name(**command).starts_with(words))
                     .copied()
             };
-            if let Some(command @ (tui::Own::Change | tui::Own::Ask)) = own {
+            if let Some(command @ (tui::Own::Draft | tui::Own::Change | tui::Own::Ask)) = own {
                 self.event(tui::Event::Own { command }, duties);
             } else if let Some(command) = root {
                 self.event(tui::Event::Command { command }, duties);
@@ -640,6 +653,14 @@ impl Host {
             self.act(Act::Needs(needs::Act::SendReply { object }));
             self.act(Act::ChatWords { words: Box::default() });
             self.tell(Told::Walked { object });
+            return;
+        }
+        if let Some(event) = tui::reply_number(&self.view, self.words()) {
+            if matches!(&event, tui::Event::ReplyAside { .. }) {
+                self.act(Act::MessageWords { words: Box::default() });
+                self.tell(Told::Cleared);
+            }
+            self.event(event, duties);
             return;
         }
         if self.root.pages().chat().is_some()
@@ -663,7 +684,15 @@ impl Host {
 
     fn launchpad_words(&mut self) -> bool {
         let words = self.words();
-        if let Some(words) = words.strip_prefix(b"/change ").filter(|words| !words.is_empty()) {
+        if let Some(words) = words.strip_prefix(b"/draft ").filter(|words| !words.is_empty())
+            && self.root.pages().project().is_some_and(|project| root::pages::drafts_offered(&self.root, project))
+        {
+            let words = words.into();
+            self.went(Address::NewChat { draft: true });
+            self.act(Act::ChatWords { words });
+            self.act(Act::StartChat);
+            self.tell(Told::Cleared);
+        } else if let Some(words) = words.strip_prefix(b"/change ").filter(|words| !words.is_empty()) {
             let words = words.into();
             self.went(Address::NewChat { draft: false });
             self.act(Act::ChatWords { words });

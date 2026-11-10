@@ -90,7 +90,11 @@ fn me() -> c::Me {
     let mut goal = super::foot::template(jig_client::shapes::GOAL);
     goal.label = 8;
     me.projects.get_mut(0).unwrap().templates =
-        List::from_boxed(Box::new([super::foot::template(jig_client::shapes::CHAT), goal]));
+        List::from_boxed(Box::new([super::foot::template(jig_client::shapes::CHAT), goal, {
+            let mut draft = super::foot::template(d::pages::chats::DRAFTING_TEMPLATE);
+            draft.executor = c::TemplateExecutor::Charter(12);
+            draft
+        }]));
     me
 }
 fn inbox() -> c::Inbox {
@@ -239,6 +243,14 @@ fn home_rows(
                             .unwrap(),
                         )),
                     },
+                }
+            }
+            jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } }
+                if f::ways_read(&record.bytes) =>
+            {
+                Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Family { family: wire::FORGE, record: Some(f::draft_setting(true)) },
                 }
             }
             jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Tasks { .. }) } => {
@@ -396,9 +408,12 @@ fn same_words(a: &[u8], b: &[u8]) -> bool {
         .filter(|word| !word.is_empty())
         .eq(b.split(|byte| *byte == b' ').filter(|word| !word.is_empty()))
 }
-fn start_lines(lines: &mut List<&'static [u8]>, project: Option<&[u8]>) {
+fn start_lines(lines: &mut List<&'static [u8]>, project: Option<&[u8]>, drafts: bool) {
     if let Some(project) = project {
         lines.push(b"Start").unwrap();
+        if drafts {
+            lines.push(b"/draft    a design session that ends in a draft and a goal").unwrap();
+        }
         lines
             .push(if project == b"Demo" {
                 b"/change   one change, run as Demo's way says"
@@ -418,6 +433,9 @@ fn the_launchpad_says_each_state() {
     let left = home(None, &[line(CHAT, b"Away mode", 1, false), line(ENDED_CHAT, b"Ended", 3, true)]);
     let sorted = home(None, &[line(OLDER_CHAT, b"Older", 0, false), line(CHAT, b"Away mode", 1, false)]);
     let ended = home(None, &[line(ENDED_CHAT, b"Ended", 3, true)]);
+    let mut session_line = line(CHAT, b"Away mode", 1, false);
+    session_line.chip.executor = c::ChipExecutor::Agent { charter: 12 };
+    let session = home(None, &[session_line]);
     let (start, _) = f::live(Some(f::me(&[b"Hello", b"Demo"])));
     let (none, _) = f::live(Some(f::me(&[])));
     let (before, _) = f::live(None);
@@ -447,6 +465,14 @@ fn the_launchpad_says_each_state() {
     let starting_playground = home_read(Some(true), &[], false, Some((Some(PROJECT), w::PlaygroundState::Starting)));
     let header = "temper · Hello127.0.0.1:8367";
     let rows = [
+        (
+            "design session",
+            &session,
+            &ordinary,
+            header,
+            &["Where you left off", "Hello   Away mode, a design session · 00:00 · waiting on you  /chats 1"][..],
+            None,
+        ),
         (
             "the playground running in the project",
             &playground,
@@ -576,10 +602,15 @@ fn the_launchpad_says_each_state() {
         let mut expected = List::with_capacity(LINES);
         expected.push(heading.as_bytes()).unwrap();
         let part = launchpad::read(root, tui, &f::words(), NOW);
+        if name == "start address" {
+            assert!(!part.drafts, "drafts off");
+        } else if name == "new brief" {
+            assert!(part.drafts, "drafts on");
+        }
         for line in lines {
             expected.push(line.as_bytes()).unwrap();
         }
-        start_lines(&mut expected, part.project.as_deref());
+        start_lines(&mut expected, part.project.as_deref(), part.drafts);
         if tui.notice().is_some() {
             let notice = f::find(view.tree(), Role::Text, "Unknown command /unknown · /help lists them".as_bytes());
             assert_eq!(notice.styles.as_slice(), &[look::SIGNAL]);
@@ -701,6 +732,7 @@ fn draw_states(failures: &mut List<&'static str>) {
         let mut signals = 0_usize;
         for node in view.tree().nodes() {
             if node.role == Role::Description
+                && !f::text(view.tree(), node).starts_with(b"/draft")
                 && !f::text(view.tree(), node).starts_with(b"/change")
                 && !f::text(view.tree(), node).starts_with(b"/ask")
             {
@@ -952,7 +984,11 @@ fn the_left_off_chats_are_ordered_and_bounded() {
         let part = launchpad::read(&root, &Tui::new(f::ADDRESS), &f::words(), NOW);
         assert_eq!(usize::try_from(part.left_off.len()).unwrap(), expected.len(), "{name} read bound");
         for (index, (row, (_, at))) in part.left_off.iter().zip(expected).enumerate() {
-            assert_eq!(row.kind, launchpad::LeftKind::Chat { number: u32::try_from(index + 1).unwrap() }, "{name}");
+            assert_eq!(
+                row.kind,
+                launchpad::LeftKind::Chat { number: u32::try_from(index + 1).unwrap(), session: false },
+                "{name}"
+            );
             assert_eq!(row.project.as_ref(), b"Hello", "{name}");
             assert_eq!(row.at.as_ref(), at.as_bytes(), "{name}");
         }
@@ -979,25 +1015,25 @@ fn the_left_off_chats_are_ordered_and_bounded() {
             5,
             &[
                 (7, launchpad::LeftKind::Goal),
-                (9, launchpad::LeftKind::Chat { number: 1 }),
-                (8, launchpad::LeftKind::Chat { number: 2 }),
+                (9, launchpad::LeftKind::Chat { number: 1, session: false }),
+                (8, launchpad::LeftKind::Chat { number: 2, session: false }),
             ][..],
         ),
         (
             "goal between chats",
             3,
             &[
-                (9, launchpad::LeftKind::Chat { number: 1 }),
+                (9, launchpad::LeftKind::Chat { number: 1, session: false }),
                 (7, launchpad::LeftKind::Goal),
-                (8, launchpad::LeftKind::Chat { number: 2 }),
+                (8, launchpad::LeftKind::Chat { number: 2, session: false }),
             ][..],
         ),
         (
             "goal oldest",
             1,
             &[
-                (9, launchpad::LeftKind::Chat { number: 1 }),
-                (8, launchpad::LeftKind::Chat { number: 2 }),
+                (9, launchpad::LeftKind::Chat { number: 1, session: false }),
+                (8, launchpad::LeftKind::Chat { number: 2, session: false }),
                 (7, launchpad::LeftKind::Goal),
             ][..],
         ),
@@ -1005,9 +1041,9 @@ fn the_left_off_chats_are_ordered_and_bounded() {
             "goal fourth",
             0,
             &[
-                (9, launchpad::LeftKind::Chat { number: 1 }),
-                (8, launchpad::LeftKind::Chat { number: 2 }),
-                (11, launchpad::LeftKind::Chat { number: 3 }),
+                (9, launchpad::LeftKind::Chat { number: 1, session: false }),
+                (8, launchpad::LeftKind::Chat { number: 2, session: false }),
+                (11, launchpad::LeftKind::Chat { number: 3, session: false }),
             ][..],
         ),
         (
@@ -1015,8 +1051,8 @@ fn the_left_off_chats_are_ordered_and_bounded() {
             4,
             &[
                 (7, launchpad::LeftKind::Goal),
-                (9, launchpad::LeftKind::Chat { number: 1 }),
-                (8, launchpad::LeftKind::Chat { number: 2 }),
+                (9, launchpad::LeftKind::Chat { number: 1, session: false }),
+                (8, launchpad::LeftKind::Chat { number: 2, session: false }),
             ][..],
         ),
     ] {
@@ -1261,7 +1297,7 @@ fn the_launchpad_surface_follows_the_displayed_facts() {
         (
             "neither",
             SurfacePage::Home { brief: false, needs: false },
-            &[Own::Change, Own::Ask, Own::Open, Own::Theme][..],
+            &[Own::Draft, Own::Change, Own::Ask, Own::Open, Own::Theme][..],
         ),
         ("chat", SurfacePage::Chat, &[Own::Open, Own::Theme][..]),
         ("no project", SurfacePage::NoProject, &[Own::Theme][..]),

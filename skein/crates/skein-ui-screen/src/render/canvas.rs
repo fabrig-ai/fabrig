@@ -11,12 +11,13 @@ use crate::{Align, Cell, Focus, Frame, Paint, Position, RegionLook, Theme, width
 pub(super) struct Viewport {
     pub first: u32,
     pub origin: u16,
+    pub left: u16,
     pub height: u16,
     pub draw: bool,
 }
 impl Viewport {
     pub fn measure() -> Self {
-        Self { first: 0, origin: 0, height: 0, draw: false }
+        Self { first: 0, origin: 0, left: 0, height: 0, draw: false }
     }
 }
 
@@ -446,14 +447,21 @@ impl Canvas {
                 });
             }
             if visible && self.viewport.draw {
-                frame.put(Position { row: screen_row, column }, ink.cell);
+                self.put(frame, Position { row: screen_row, column }, ink.cell);
                 if ink.caret {
-                    frame.set_cursor(Some(Position { row: screen_row, column }));
+                    frame.set_cursor(Some(Position {
+                        row: screen_row,
+                        column: self.viewport.left.saturating_add(column),
+                    }));
                 }
             }
         }
         self.row = self.row.saturating_add(1);
     }
+    fn put(&self, frame: &mut Frame, at: Position, cell: Cell) {
+        frame.put(Position { row: at.row, column: self.viewport.left.saturating_add(at.column) }, cell);
+    }
+
     fn lay_line(&mut self) {
         if let Some(paint) = self.band {
             // An item's prefix can precede its child's indentation.
@@ -603,7 +611,7 @@ impl Canvas {
         );
         if title.first_len > 0 {
             if column < limit {
-                frame.put(Position { row, column }, Cell { glyph: ' ', paint });
+                self.put(frame, Position { row, column }, Cell { glyph: ' ', paint });
                 column = column.saturating_add(1);
             }
             for ink in title.first.iter().take(usize::from(title.first_len)) {
@@ -613,23 +621,23 @@ impl Canvas {
                 if width(ink.cell.glyph) == 2 && column.saturating_add(1) >= limit {
                     break;
                 }
-                frame.put(Position { row, column }, ink.cell);
+                self.put(frame, Position { row, column }, ink.cell);
                 column = column.saturating_add(1);
             }
             if column < limit {
-                frame.put(Position { row, column }, Cell { glyph: ' ', paint });
+                self.put(frame, Position { row, column }, Cell { glyph: ' ', paint });
             }
         }
         // Each part keeps its two spaces; two border cells follow the end's space.
         let needed = u32::from(title.first_len).saturating_add(u32::from(end.first_len)).saturating_add(6);
         if end.first_len > 0 && needed <= u32::from(limit.saturating_sub(edge.left.saturating_add(side))) {
             let mut column = edge.right.saturating_sub(3).saturating_sub(end.first_len);
-            frame.put(Position { row, column: column.saturating_sub(1) }, Cell { glyph: ' ', paint });
+            self.put(frame, Position { row, column: column.saturating_sub(1) }, Cell { glyph: ' ', paint });
             for ink in end.first.iter().take(usize::from(end.first_len)) {
-                frame.put(Position { row, column }, ink.cell);
+                self.put(frame, Position { row, column }, ink.cell);
                 column = column.saturating_add(1);
             }
-            frame.put(Position { row, column }, Cell { glyph: ' ', paint });
+            self.put(frame, Position { row, column }, Cell { glyph: ' ', paint });
         }
     }
     pub fn spread_line(&mut self, line: &Canvas, offset: u16, length: u16) {

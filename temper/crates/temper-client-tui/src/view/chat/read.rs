@@ -229,6 +229,50 @@ fn owner(root: &Domain, chat: &Chat, line: &c::Activity, words: &Words) -> Optio
         c::Activity::RunBegan { .. } | c::Activity::RunEnded { .. } | c::Activity::Milestone { .. } => None,
     }
 }
+/// The newest committed turn's last assistant text, fenced by later words or live text.
+pub(crate) fn last_reply(root: &Domain) -> Option<(c::TurnName, Box<[u8]>)> {
+    let chat = root.pages().chat()?;
+    if chat.thread.lines.edges.before != Edge::End || chat.thread.loaded < chat.thread.committed {
+        return None;
+    }
+    let mut reply = None;
+    for line in chat.thread.lines().into_boxed() {
+        match line {
+            Line::Turn { name, turn, .. } => {
+                reply = None;
+                for message in &turn.messages {
+                    if message.speaker != c::Speaker::Assistant {
+                        continue;
+                    }
+                    for block in &message.blocks {
+                        match block {
+                            c::Block::Text(text) => reply = Some((name, text.bytes().into())),
+                            c::Block::Call(_) | c::Block::Result { .. } | c::Block::Opaque { .. } => {}
+                        }
+                    }
+                }
+            }
+            Line::Words { .. } | Line::Undecoded { .. } => reply = None,
+            Line::Provisional { text, .. } => {
+                if !text.is_empty() {
+                    reply = None;
+                }
+            }
+            Line::Activity { line } => match &line.source.line {
+                c::Activity::Words { .. } | c::Activity::Turn { .. } => reply = None,
+                c::Activity::Heard(_)
+                | c::Activity::Notified { .. }
+                | c::Activity::Decided { .. }
+                | c::Activity::Kept { .. }
+                | c::Activity::RunBegan { .. }
+                | c::Activity::RunEnded { .. }
+                | c::Activity::Milestone { .. } => {}
+            },
+        }
+    }
+    reply
+}
+
 pub(super) fn entries(root: &Domain, words: &Words) -> Box<[Entry]> {
     let chat = root.pages().chat().expect("chat page");
     let mut entries = List::uncapped();

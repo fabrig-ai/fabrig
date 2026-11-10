@@ -47,6 +47,7 @@ pub enum Place {
     Top,
     Body,
     Bottom,
+    Side { percent: u8 },
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -136,6 +137,19 @@ impl Theme {
                 if earlier.region == look.region {
                     return false;
                 }
+            }
+            match look.place {
+                Place::Side { percent } => {
+                    if !(1..100).contains(&percent) || look.arrange == Arrange::Spread {
+                        return false;
+                    }
+                    if let Some(border) = look.border
+                        && (border.sides || border.title)
+                    {
+                        return false;
+                    }
+                }
+                Place::Top | Place::Body | Place::Bottom => {}
             }
             if let Some(border) = look.border {
                 for glyph in border.corners.into_iter().chain([border.across, border.down]) {

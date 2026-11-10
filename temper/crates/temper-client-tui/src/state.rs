@@ -1,7 +1,7 @@
 //! The TUI's own state beside the client root (temper/docs/design/client/README.md, 6.14, 6.17 and 7.1).
 use crate::{BoxLine, Scheme, limits, theme::ThemeChoice};
 use alloc::boxed::Box;
-use jig_client::contract::ObjectKey;
+use jig_client::contract::{ObjectKey, TurnName};
 use skein_lib::{List, Queue, Secret, bytes::copy_of};
 
 #[derive(Debug)]
@@ -25,6 +25,7 @@ pub struct Tui {
     written: u64,
     columns: u16,
     aside: Option<ObjectKey>,
+    reply_aside: Option<TurnName>,
     notice: Option<Notice>,
     focus: u64,
     box_written: u64,
@@ -108,6 +109,9 @@ pub enum Told {
     Aside {
         object: Option<ObjectKey>,
     },
+    ReplyAside {
+        turn: TurnName,
+    },
     Notice {
         notice: Option<Notice>,
     },
@@ -172,6 +176,7 @@ impl Tui {
             written: 0,
             columns: 0,
             aside: None,
+            reply_aside: None,
             notice: None,
             focus: 1,
             box_written: 0,
@@ -247,6 +252,10 @@ impl Tui {
     #[must_use]
     pub const fn aside(&self) -> Option<ObjectKey> {
         self.aside
+    }
+    #[must_use]
+    pub const fn reply_aside(&self) -> Option<TurnName> {
+        self.reply_aside
     }
     #[must_use]
     pub fn notice(&self) -> Option<&Notice> {
@@ -529,6 +538,11 @@ impl Tui {
             Told::Aside { object } => {
                 let changed = self.aside != object;
                 self.aside = object;
+                changed
+            }
+            Told::ReplyAside { turn } => {
+                let changed = self.reply_aside != Some(turn);
+                self.reply_aside = Some(turn);
                 changed
             }
             Told::Notice { notice } => {
