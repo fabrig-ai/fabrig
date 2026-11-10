@@ -815,6 +815,7 @@ impl Domain {
         .chain(self.watch_due)
         .chain(self.playground_due)
         .chain(crate::tiers::deadline(self))
+        .chain(goal_branch::deadline(self))
         .min()
     }
 
@@ -1708,6 +1709,8 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::SavedWork { task, branches } => saved_work(d, env, task, &branches, out),
         Event::Release { task, root, ending, reason, entry } => release(d, env, task, root, ending, reason, entry, out),
         Event::ContinueRelease { task, entry } => continue_release(d, env, task, entry, out),
+        Event::ContinueGoalBranch { task, entry } => goal_branch::continue_making(d, env, task, entry, out),
+        Event::RetryGoalBranch { task } => goal_branch::retry_task(d, env, task, out),
         Event::ReleaseProjection { goal } => release_projection(d, goal, out),
         Event::Committed { entry } => committed(d, env, entry, out),
         Event::Resolve { entry, again } => resolve(d, env, entry, again, out),
@@ -1806,6 +1809,7 @@ pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
     crate::playground::expire(d, env.now, out);
     brief::expire(d, env.now, out);
+    goal_branch::fire(d, env.now);
     admission::fire(d, env, out);
     crate::tiers::fire(d, env, out);
     let mut goals = List::with_capacity(env.limits.issues);
@@ -1892,6 +1896,9 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             skein_forge_client::Request::Erase { key } => emit(out, Request::Erase { key: Key::Client(key) }),
             skein_forge_client::Request::Progress { entry } => keep_entry(d, entry, None, out),
             skein_forge_client::Request::Outcome { entry, task, outcome } => {
+                if outcome == skein_forge_client::Outcome::Held && goal_branch::remake_held(d, env, entry, out) {
+                    continue;
+                }
                 let account = match d.entries.get(&entry) {
                     Some(row) => {
                         crate::effect_words::account(&row.entry, d.repositories.get(&row.entry.repository), outcome)

@@ -473,6 +473,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectionOutcome { .. }
         | Request::NotMade { .. }
         | Request::ContinueRelease { .. }
+        | Request::ContinueGoalBranch { .. }
         | Request::Released { .. }
         | Request::ProjectReleased { .. }
         | Request::Retained { .. }
@@ -565,6 +566,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectionOutcome { .. }
         | Request::NotMade { .. }
         | Request::ContinueRelease { .. }
+        | Request::ContinueGoalBranch { .. }
         | Request::Released { .. }
         | Request::ProjectReleased { .. }
         | Request::Retained { .. }
@@ -650,6 +652,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectionOutcome { .. }
         | Request::NotMade { .. }
         | Request::ContinueRelease { .. }
+        | Request::ContinueGoalBranch { .. }
         | Request::Released { .. }
         | Request::ProjectReleased { .. }
         | Request::Retained { .. }
