@@ -582,7 +582,7 @@ fn echo_landing_rearms_the_resting_resource() {
         assert_eq!(h.domain.next_deadline(), Some(at(fixture::HINT_AT)), "{name}");
         h.fire(fixture::HINT_AT);
         let object = h.one();
-        assert_eq!(object.op, Op::Read(Read::Item { number: 9, after: 0, since: skein_lib::Time::ZERO }), "{name}");
+        assert_eq!(object.op, Op::Read(Read::Item { number: 9, after: 0, since: kept::summary().updated }), "{name}");
         let mut own = kept::comment(9);
         own.author = 1;
         h.answer(

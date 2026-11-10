@@ -177,6 +177,7 @@ pub fn check(state: d::StatusState) -> a::Check {
     clippy::too_many_lines,
     reason = "exhaustive domain request selection also names the protocol-only setup variants"
 )]
+#[expect(clippy::manual_map, reason = "step code spells Option transformations with exhaustive matches")]
 pub fn op(config: &Config, request: &Request) -> Result<Op, a::Error> {
     let missing = a::Error::Missing(a::What::Commit);
     let read = match request {

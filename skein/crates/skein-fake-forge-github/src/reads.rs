@@ -140,6 +140,7 @@ fn contents(read: &Read) -> bool {
 }
 
 #[expect(clippy::too_many_lines, reason = "each read variant translates to its domain call and retained identity")]
+#[expect(clippy::manual_map, reason = "step code spells Option transformations with exhaustive matches")]
 pub(crate) fn call(
     service: &Service,
     read: Read,

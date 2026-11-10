@@ -132,6 +132,7 @@ impl Plan {
         self.count = 0;
         Step::send(request)
     }
+    #[expect(clippy::too_many_lines, reason = "initial request dispatch exhaustively names the read vocabulary")]
     fn initial(
         &mut self,
         read: api::Read,

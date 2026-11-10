@@ -36,6 +36,7 @@ use crate::{pulls, wiki};
 
 /// What `read` answers on the repository `id`.
 #[expect(clippy::too_many_lines, reason = "the read dispatcher names every variant of the domain vocabulary")]
+#[expect(clippy::manual_map, reason = "step code spells Option transformations with exhaustive matches")]
 pub(crate) fn read(domain: &Domain, config: &Config, id: Id<Repository>, read: &Read) -> Result<Answer, Error> {
     let limits = &config.limits;
     let repository = domain.repositories.get(id).expect("a repository of the forge");
@@ -241,6 +242,7 @@ fn items(
 }
 
 /// The item `number` and a page of its comments with ids above `after`.
+#[expect(clippy::manual_map, reason = "step code spells Option transformations with exhaustive matches")]
 fn item(
     repository: &Repository,
     config: &Config,
