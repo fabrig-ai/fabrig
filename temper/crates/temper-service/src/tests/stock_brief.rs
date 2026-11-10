@@ -180,7 +180,7 @@ fn the_stock_brief_with_a_whole_spec_fits_both_receiving_bounds() {
     // Task words and contract, then the task identity and requester.
     const TASK_PARTS: u32 = 2;
     // Charter 5's room leaves this margin beyond the framed brief.
-    const COORDINATOR_MARGIN: u32 = 1_906;
+    const COORDINATOR_MARGIN: u32 = 1_836;
     const MARGIN: u32 = 195;
     const OTHER: u32 = 768;
     let configuration = configured();
