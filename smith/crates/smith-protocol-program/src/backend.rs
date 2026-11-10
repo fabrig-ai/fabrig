@@ -135,6 +135,8 @@ pub struct Root {
 
 /// Fixed run startup and receiving bounds supplied by the owning service (5.1).
 pub struct Settings {
+    /// Append the charter to the program's own prompt instead of replacing it.
+    pub keep_program_prompt: bool,
     /// Maximum original host path length, in bytes (domain/tools.md 4).
     pub path_bytes: u32,
     pub program: Programs,

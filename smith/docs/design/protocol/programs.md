@@ -187,7 +187,7 @@ open is section 9.
 
 | smith's run | Claude Code |
 |---|---|
-| the charter's instructions and brief | `--append-system-prompt-file`, keeping Claude Code's own prompt; for a run with no workspace, `--system-prompt-file`, in its place (below) |
+| the charter's instructions and brief | `--system-prompt-file`, replacing Claude Code's own prompt by default; `--append-system-prompt-file` when `programs.claude_code.keep_program_prompt` is true (below) |
 | the main LLM's model and effort | `--model`, `--effort` |
 | host tools, `finish`, `deliver` and `wait` | the agent's own MCP server (5.3), given with `--mcp-config` and `--strict-mcp-config` |
 | the result contract | `--json-schema`, the outcome read from `structured_output` when no `finish` was accepted (5.5) |
@@ -209,21 +209,32 @@ open is section 9.
   directory (domain/tools.md, section 2), with the run's environment
   (agent.md, section 4) as 4.2 changes it; a run with no workspace in a
   directory of its own (below).
-- **A run with no workspace replaces Claude Code's prompt:**
-  `--system-prompt-file` in place of `--append-system-prompt-file`,
-  `--tools ""` whatever its charter grants (5.3), and
+- **Every run replaces Claude Code's prompt by default:**
+  `--system-prompt-file` supplies the charter's instructions and brief,
+  with or without a workspace (the person, 2026-11-10: replace by default).
+  The program's own guidance on git, commits, tone and tasks conflicts
+  with charters and costs context on each request. The agent's program
+  declaration (agent.md, section 4) may set
+  `programs.claude_code.keep_program_prompt` to `true` to keep the
+  program's prompt and append with `--append-system-prompt-file` instead;
+  it is `false` when omitted. This launch choice applies to main,
+  children, summary sessions and resumes. A workspace run keeps its
+  granted built-in tools, MCP server, working directory and slash
+  commands. Its summary session (5.8) starts as its run does, with
+  summary tools as 5.8 specifies; a resume keeps the run's arguments.
+- **A run with no workspace** also passes `--tools ""` whatever its
+  charter grants (5.3), and
   `--disable-slash-commands`, in `work`, an empty private directory
   beside the run's own files below, made with them and removed with
-  them, which is no repository. So the program's own prompt, its file
+  them, which is no repository. By default the program's own prompt, its file
   tools' text, a git status and its commands are absent from what it
   sends: seen on 2.1.312 with no MCP server, a billing line, its SDK's
   line ("You are a Claude agent, built on Anthropic's Claude Agent
   SDK.") and a message of about 0.9 KB naming the directory, the
   platform, the model and the date. A subscription's login takes such a
-  request (checked 2026-11-07, 2.1.312). Its summary session (5.8)
-  starts as its run does, and a resume keeps the run's arguments. A run
-  with a workspace keeps Claude Code's prompt, as above (the user,
-  2026-11-07).
+  request (checked 2026-11-07, 2.1.312). Keeping the program prompt
+  changes only the prompt flag; its tools, slash commands and directory
+  remain as above.
 - **The run's own files for the program,** its instructions, its MCP
   configuration and its outcome's schema, are private files (skein's
   `runtime/io/files.md`, 3) in a directory of the run's own outside its workspace,
@@ -632,7 +643,7 @@ backend.
 
   | The child's | Claude Code |
   |---|---|
-  | brief, with `## Your share` (domain/run.md, 5.3) | `--append-system-prompt-file`, in a private directory of its own |
+  | brief, with `## Your share` (domain/run.md, 5.3) | `--system-prompt-file` by default, or `--append-system-prompt-file` when keeping the program prompt (5.1), in a private directory of its own |
   | LLM, the one the call names or main's | `--model`, `--effort` |
   | inspect | `--tools Read,Glob,Grep`, each call asking at the prompt (5.4) |
   | served tools: none | the agent's server for it lists the prompt tool alone: no host tool, no `finish`, `deliver`, `wait` or `remove`, and no `sub_agent`, since a child opens no children |
@@ -780,7 +791,9 @@ conditions. smith keeps each as a rule of its own:
   - a run with no workspace: its prompt replaced, `--tools ""` and
     `--disable-slash-commands` among its arguments, in an empty working
     directory that is no repository, and its summary session started
-    alike; a run with a workspace, its prompt appended, as a row beside it;
+    alike; a run with a workspace, its prompt replaced and granted tools
+    kept; the opt-in keeps the program prompt in both, including summaries
+    and resumes;
   - a built-in call allowed, and one denied for a path outside the
     workspace;
   - a built-in tool not granted, listed by `system/init`, failing the

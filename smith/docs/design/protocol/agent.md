@@ -190,8 +190,13 @@ product's own settings are `../shell/README.md`'s.
   4.2), and each program's path, by the program's name: the path of
   `claude`, for `claude_code` (programs.md, section 3). A configuration
   whose endpoint names a program it gives no path for is refused,
-  naming the field. The agent runs a program as programs.md, section 5
-  says, in the commands' environment as programs.md, 4.2 changes it.
+  naming the field. `programs.claude_code.keep_program_prompt` is a
+  boolean, `false` when omitted: `true` keeps Claude Code's own prompt
+  and appends the charter instead of replacing it (programs.md, 5.1).
+  This belongs to the program declaration with its other launch choices,
+  rather than to a model. The agent runs a program as programs.md,
+  section 5 says, in the commands' environment as programs.md, 4.2
+  changes it.
 - **A profile:** its name, and the deployment's declared quantities,
   `charter_models` among them, and policy values (limits.md, sections 2.2
   and 2.3). A profile is a named

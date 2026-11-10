@@ -6,6 +6,7 @@ fn an_unbound_program_keeps_the_native_limits() {
     let mut configuration = super::super::tests::configuration();
     let limits = configuration.limits;
     configuration.program = Some(ProgramBackend {
+        keep_program_prompt: false,
         program: Programs { claude: b"/claude".as_slice().into(), directory: b"/programs".as_slice().into() },
         endpoints: Box::default(),
         relay: Box::default(),
@@ -24,6 +25,7 @@ fn an_unbound_program_keeps_the_native_limits() {
 fn program_close_reaches_io_with_pending_file_terminals() {
     let mut configuration = super::super::tests::configuration();
     configuration.program = Some(ProgramBackend {
+        keep_program_prompt: false,
         program: Programs { claude: b"/claude".as_slice().into(), directory: b"/programs".as_slice().into() },
         endpoints: Box::new([0]),
         relay: b"/agent".as_slice().into(),

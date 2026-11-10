@@ -302,6 +302,7 @@ impl Backend {
                 &instructions,
                 &self.startup.session(),
                 self.settings.workspace.is_none(),
+                self.settings.keep_program_prompt,
             )?
         } else {
             arguments(
@@ -314,6 +315,7 @@ impl Backend {
                 &self.startup.session(),
                 &super::policy::tools_flag(prompt.tools),
                 self.settings.workspace.is_none(),
+                self.settings.keep_program_prompt,
             )?
         };
         if self.startup.resuming() {
@@ -357,6 +359,7 @@ pub(super) fn arguments(
     session: &[u8],
     tools: &[u8],
     no_workspace: bool,
+    keep_program_prompt: bool,
 ) -> Option<Box<[Box<[u8]>]>> {
     let turns = Decimal::of(u64::from(max_turns));
     let mut arguments = List::with_capacity(36);
@@ -380,7 +383,7 @@ pub(super) fn arguments(
         arguments.push(Box::from(effort)).ok()?;
     }
     let permission = skein_lib::bytes::concat(&[b"mcp__", mcp::SERVER, b"__", mcp::PROMPT_TOOL]);
-    let prompt_flag: &[u8] = if no_workspace { b"--system-prompt-file" } else { b"--append-system-prompt-file" };
+    let prompt_flag: &[u8] = if keep_program_prompt { b"--append-system-prompt-file" } else { b"--system-prompt-file" };
     for argument in [prompt_flag, instructions, b"--mcp-config", mcp_file, b"--strict-mcp-config"] {
         arguments.push(Box::from(argument)).ok()?;
     }

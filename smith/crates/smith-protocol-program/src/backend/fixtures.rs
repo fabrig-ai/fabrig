@@ -74,6 +74,7 @@ pub(super) fn backend_with_line_bytes(line_bytes: u32) -> Backend {
     Backend::new(
         Token::new(10),
         Settings {
+            keep_program_prompt: false,
             program: Programs { claude: b"/claude".as_slice().into(), directory: b"/programs".as_slice().into() },
             directory: None,
             workspace: None,

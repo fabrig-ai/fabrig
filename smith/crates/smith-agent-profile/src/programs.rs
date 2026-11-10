@@ -46,6 +46,8 @@ pub const FILE_SLOTS: u32 = 4;
 /// One configured program selected by the main account's source grant (section 3).
 #[derive(Debug)]
 pub struct ProgramBackend {
+    /// Append the charter to the program's own prompt instead of replacing it.
+    pub keep_program_prompt: bool,
     pub program: Programs,
     pub endpoints: Box<[u32]>,
     pub relay: Box<[u8]>,
@@ -104,6 +106,7 @@ pub fn settings(
     // plus message headers, IDs, usage and block envelopes.
     let line_bytes = translation.client.answer.checked_mul(JSON_ESCAPE_BYTES)?.checked_add(STREAM_ENVELOPE_BYTES)?;
     Some(backend::Settings {
+        keep_program_prompt: config.keep_program_prompt,
         program: Programs { claude: config.program.claude.clone(), directory: config.program.directory.clone() },
         relay: config.relay.clone(),
         parent: config.parent,

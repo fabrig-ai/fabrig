@@ -24,6 +24,7 @@ fn a_configuration_names_claude_code_s_paths() {
         Some(&Program {
             path: "/usr/local/bin/claude".into(),
             directory: "/home/u/.local/state/smith/programs".into(),
+            keep_program_prompt: false,
         })
     );
     assert!(configuration.program_endpoints.is_empty(), "only endpoints naming a program are stored");
@@ -124,4 +125,28 @@ fn the_program_startup_pool_prices_declarations_independently() {
     assert_eq!(program.service.limits.domain.configured_endpoint_bytes, expected);
     assert_eq!(program.service.domain.programs.len(), 1);
     assert!(program.service.domain.valid(&program.service.limits.domain));
+}
+
+#[test]
+fn keeping_the_program_prompt_is_an_explicit_launch_choice() {
+    for keep in [None, Some(false), Some(true)] {
+        let mut document = document();
+        document["endpoints"][0]["program"] = "claude_code".into();
+        if let Some(keep) = keep {
+            document["programs"]["claude_code"]["keep_program_prompt"] = keep.into();
+        }
+        let configuration = parse_value(&document).expect("program prompt choice");
+        let program = configuration.service.program.as_ref().expect("program backend");
+        let settings = smith_agent_profile::programs::settings(
+            program,
+            &configuration.service.limits,
+            &configuration.service.environment,
+        )
+        .expect("program launch settings");
+        assert_eq!(configuration.program.as_ref().expect("program").keep_program_prompt, keep.unwrap_or(false));
+        assert_eq!(settings.keep_program_prompt, keep.unwrap_or(false));
+    }
+    let mut document = document();
+    document["programs"]["claude_code"]["keep_program_prompt"] = "true".into();
+    assert!(parse_value(&document).is_err(), "the launch choice requires a boolean");
 }
