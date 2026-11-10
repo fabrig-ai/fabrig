@@ -13,7 +13,7 @@ at `poll_at`), and `../protocol/configuration.md`'s
 `forge.client.fallback_ms` (the user, 2026-11-09). Item 4 is skein's
 `forge-connection.md`, 4.6 (conditional reads; kept answers bounded by
 the owner's `calls` times `answer_bytes`, oldest out, with no figure of
-their own, the user, 2026-11-09), with `forge.md`, 3.3 and
+their own, the user, 2026-11-09), with `skein/docs/design/forge.md`, 3.3 and
 `forge-github.md`, 8.5. Item 5 is `../domain/forge.md`, 5.2 and its
 status file.
 
