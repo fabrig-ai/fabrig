@@ -109,9 +109,25 @@ impl Accounting {
             && after.numbers.spent_below == 0
     }
 
-    fn resized(&self, before: &TaskRecord, after: &TaskRecord) -> bool {
-        self.amendments.get(&before.number) == Some(&(before.funder, after.numbers.budget))
-            && before.funder == after.funder
+    fn resized(&self, before: &TaskRecord, after: &TaskRecord, rows: &BTreeMap<Key, Stored>) -> bool {
+        if before.funder != after.funder {
+            return false;
+        }
+        if self.amendments.get(&before.number) == Some(&(before.funder, after.numbers.budget)) {
+            return true;
+        }
+        // A closer yields on its task's claim and takes its idle task's available budget (domain/tasks.md, 5.10).
+        let Funder::Task(parent) = after.funder else { return false };
+        let (Some(old), Some(parent)) = (live(&self.before, parent), live(rows, parent)) else { return false };
+        if old.closer != Some(before.number) || parent.closer != Some(after.number) {
+            return false;
+        }
+        if parent.attempt > old.attempt {
+            return after.numbers.budget == after.numbers.spent + after.numbers.spent_below + after.numbers.reserved;
+        }
+        matches!(parent.phase, Phase::Waiting | Phase::Active(Active::Idle))
+            && after.numbers.budget >= before.numbers.budget
+            && parent.numbers.budget == parent.numbers.spent + parent.numbers.spent_below + parent.numbers.reserved
     }
 
     fn moved(&self, before: &TaskRecord, after: &TaskRecord) -> bool {
@@ -329,7 +345,7 @@ impl Accounting {
             let moved = self.moved(old, task) || self.refunded(old, task);
             if !moved
                 && ((old.funder != task.funder && !recurring_reset && !renewed && !standing_delegate)
-                    || old.numbers.budget != task.numbers.budget && !self.resized(old, task))
+                    || old.numbers.budget != task.numbers.budget && !self.resized(old, task, rows))
             {
                 return Err("allocation identity or promise changed");
             }

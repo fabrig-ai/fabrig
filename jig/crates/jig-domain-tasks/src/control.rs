@@ -806,6 +806,7 @@ pub(crate) fn apply_amend(
     if let Some(release) = release {
         apply_release(domain, env, by, release, out);
     }
+    crate::closer::take_available(domain, env, number, out);
 }
 
 fn below(domain: &Domain, number: u64, ancestor: u64, bound: u32) -> bool {

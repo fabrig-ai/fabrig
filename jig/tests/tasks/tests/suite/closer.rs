@@ -388,6 +388,58 @@ fn a_held_closer_escalates_to_its_task_once() {
 }
 
 #[test]
+fn a_task_woken_by_its_held_closer_runs() {
+    let mut world = parked_closer();
+    let closer = live_closer(&world);
+    let before = world.record(TASK).clone();
+    assert_eq!(world.record(closer).numbers.budget, 1_000);
+    let mut child = task(closer + 1, &[]);
+    child.funder = tasks::Funder::Task(closer);
+    assert_eq!(world.make(Party::Task(closer), vec![child]), Reply::Made(vec![closer + 1]));
+    route_hold(&mut world, closer);
+    world.claim_budget(TASK, 2, 100);
+    let floor = world.record(closer).numbers;
+    assert_eq!(floor.budget, floor.spent + floor.spent_below + floor.reserved);
+    assert_eq!(floor.budget, 100);
+    let parent = world.record(TASK);
+    assert_eq!(parent.numbers.budget, before.numbers.budget);
+    assert_eq!(parent.funder, before.funder);
+    assert_eq!(parent.numbers.spent, before.numbers.spent);
+    assert_eq!(parent.numbers.reserved, 200);
+    assert_eq!(
+        parent.numbers.budget - parent.numbers.spent - parent.numbers.spent_below - parent.numbers.reserved,
+        800
+    );
+}
+
+#[test]
+fn an_idle_task_gives_what_it_has_left_to_its_closer() {
+    let mut world = parked_closer();
+    let closer = live_closer(&world);
+    route_hold(&mut world, closer);
+    world.claim_budget(TASK, 2, 100);
+    assert_eq!(world.record(closer).numbers.budget, 0);
+    let work = closer + 1;
+    let mut child = task(work, &[]);
+    child.funder = tasks::Funder::Task(TASK);
+    assert_eq!(world.make(Party::Task(TASK), vec![child]), Reply::Made(vec![work]));
+    read_inbox(&mut world);
+    assert_eq!(world.terminal(TASK, tasks::End::Parked), Reply::Acknowledged(tasks::Accepted::New));
+    let parent = world.record(TASK).numbers;
+    assert_eq!(parent.budget - parent.spent - parent.spent_below - parent.reserved, 0);
+    assert_eq!(world.record(closer).numbers.budget, 900);
+    assert_eq!(
+        parent.spent + parent.spent_below + world.record(closer).numbers.budget + world.record(work).numbers.budget,
+        parent.budget
+    );
+    world.finish_task(work);
+    let parent = world.record(TASK).numbers;
+    assert_eq!(parent.budget - parent.spent - parent.spent_below - parent.reserved, 0);
+    assert_eq!(world.record(closer).numbers.budget, 1_000);
+    assert_eq!(parent.spent + parent.spent_below + world.record(closer).numbers.budget, parent.budget);
+}
+
+#[test]
 fn a_delegate_made_while_the_closer_lives_waits_the_closer() {
     let mut world = parked_closer();
     let closer = live_closer(&world);

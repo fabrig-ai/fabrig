@@ -149,7 +149,7 @@ impl Core {
             }
         }
         let writes = current.into_boxed();
-        let numbers = translate::authority_numbers(task_numbers);
+        let numbers = translate::authority_numbers(self.tasks.claim_numbers(number).unwrap_or(task_numbers));
         authority::check_run(
             &self.authority,
             &authority::RunAsk {

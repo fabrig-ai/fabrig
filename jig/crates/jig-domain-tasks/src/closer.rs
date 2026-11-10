@@ -7,6 +7,54 @@ use skein_lib::{Env, Queue};
 /// Fixed words for the task's own closer (jig/docs/design/domain/tasks.md, 5.10).
 pub const CLOSER_WORDS: &[u8] = b"Close your requester: nothing more will come.";
 
+pub(crate) fn claim_numbers(domain: &Domain, task: u64) -> Option<crate::Numbers> {
+    let row = record(domain, task)?;
+    let mut numbers = row.numbers;
+    if crate::run::run_attempt(&row.phase).is_none()
+        && let Some(closer) = row.closer
+        && let Some(closer) = record(domain, closer)
+    {
+        numbers.reserved = numbers.reserved.checked_sub(crate::funders::available(closer.numbers)?)?;
+    }
+    Some(numbers)
+}
+
+pub(crate) fn yield_for_run(domain: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
+    let Some(row) = record(domain, task) else { return };
+    let Some(closer) = row.closer else { return };
+    let numbers = record(domain, closer).expect("live closer").numbers;
+    let floor = crate::funders::total(numbers)
+        .expect("valid closer spend")
+        .checked_add(numbers.reserved)
+        .expect("valid closer reservations");
+    crate::funders::resize(domain, env, closer, floor, out);
+    publish(domain, env, closer, out);
+}
+
+pub(crate) fn take_available(domain: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
+    let Some(row) = record(domain, task) else { return };
+    if row.phase != Phase::Active(Active::Idle) && row.phase != Phase::Waiting {
+        return;
+    }
+    let Some(closer) = row.closer else { return };
+    let left = crate::funders::available(row.numbers).expect("valid task balance");
+    let closing = match record(domain, closer).expect("live closer").phase {
+        Phase::Closing(_) | Phase::Held { was: Was::Closing(_), .. } | Phase::Ended(_) => true,
+        Phase::Waiting | Phase::Active(_) | Phase::Held { was: Was::Waiting | Was::Active(_), .. } => false,
+    };
+    if left == 0 || closing {
+        return;
+    }
+    let budget = record(domain, closer)
+        .expect("live closer")
+        .numbers
+        .budget
+        .checked_add(left)
+        .expect("closer within its task's budget");
+    crate::funders::resize(domain, env, closer, budget, out);
+    publish(domain, env, closer, out);
+}
+
 pub(crate) fn named(row: &crate::TaskRecord) -> bool {
     match row.flags.ended_by {
         EndedBy::Closer(_) => true,
