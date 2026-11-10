@@ -452,7 +452,8 @@ const STANDARD_ROOT: Root = Root {
     journal: engine::JournalLimits {
         // Deep task row at jig standard's bounds, including its inbox, later choice
         // and two reason sets (engine::row_bound).
-        transcript_bytes: 22_467_696,
+        // The task's closer adds 32 bytes to the task owner.
+        transcript_bytes: 22_467_728,
         result_bytes: STANDARD_BRIEF.brief_bytes,
         ..ROOT.journal
     },
