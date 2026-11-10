@@ -1,6 +1,6 @@
 # cli-c2-box-engine: temper-box and temper-engine in temper/bin/
 
-The request: milestone C2 of `temper/docs/design/draft/cli.execution.md`. That's `temper/docs/design/draft/cli.md`, sections 4.2, 4.3, 4.6, 8.4, 8.5, 8.7 and 8.10, as its row says:
+The request: milestone C2 of `temper/docs/design/draft/cli.execution.md`. That's `temper/docs/design/draft/cli.md`, sections 4.2, 4.3, 4.6 and section 8's items 4, 5, 7 and 10, as its row says:
 - `temper-box` (today's whole-product `temper`) and `temper-engine`, each in a package under `temper/bin/`, its `main.rs` at most 30 lines, its logic in crates;
 - the libraries holding their names, renamed;
 - their tables, sets, help and `--version`;
