@@ -18,12 +18,10 @@ transcript lists its three commits newest first, as the plan reads them.
   rebase can drop the intervening push (forge-client.md, 7.3). These facts
   await real-Forgejo conformance after landing.
 - **Not yet:** 3.2, 5.2: `Item`'s `since`, which neither dialect sends.
-  [in flight: change 25]
-- **Not yet:** 5.2: `PullFor`'s listing without its `head` and `base` filters
-  (`skein-forge/src/forgejo/client/reviews.rs`). [in flight: change 23]
+ 
 - **Not yet:** 3.7, 5.2: `Branches`' names bounded by `rows`
   (`skein-forge/src/forgejo/plans/reads.rs`, and `measure.rs`'s row count).
-  [in flight: change 32]
+ 
 - **Not yet:** 3.2, 3.3, 3.7, 5.2: `Read::Range` and its answer, in
   neither dialect; `Runs` sent with `workflow=` in place of
   `workflow_id=` (`skein-forge/src/forgejo/client/files.rs`); each
