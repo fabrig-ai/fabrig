@@ -342,6 +342,14 @@ document with kinds 4 and 5, the ways and checks `../domain/landing.md`,
   resolution of its changes and catch-ups into its goals' branches
   (`../domain/forge.md`, 8.4 and section 10). A path past its bounds
   refuses the start at its member.
+- **The close job's command,** beside `merge_job`, by either way:
+  `close_job`, a relative path of at most 4,096 bytes, without `..`, in
+  each repository a goal's branch of the project is in, none when
+  absent: the project's close command (`tooling.md`, 4.2), and with it
+  the close step of each goal's closer (`../domain/forge.md`, 11.2). It
+  is read as `merge_job` is, its errors named at
+  `application.landing.projects[i].close_job`; a path past its bounds
+  refuses the start at its member.
 - **The turn's project settings,** beside `by`:
   `prepare` and `key`, paths in the project's home, or absent for
   temper's own; `home_revision`, the home's commit they run at;
@@ -2077,7 +2085,12 @@ forge's connector, which judges them (jig's `domain/engine.md`, 17.5):
     `{"design": BOOL, "close_out": BOOL}`, both members required; read
     by a party with a role in the deployment, as kinds 1 and 3 are;
   - *the stock's,* 13.4's: template 4's, neither; the reference's,
-    13.9's: template 4's, both.
+    13.9's: template 4's, design alone, since its goals close by temper's
+    closer (`../domain/forge.md`, 11.2), whose close step settles what a
+    close-out wrote. A template's closer is no part of this kind: it is
+    the template's `ended_by` (jig's `protocol/configuration.md`, 3.2),
+    which every way of making a goal from the template carries, while
+    this kind is read by no way that makes a task.
 
 ### 13.3 How the landing rules are enforced
 
@@ -2138,13 +2151,13 @@ init`'s document carries none of them (`setup.md`, 8.3).
 | template 1, a chat | jig's chat, run by charter 1; its report the deployment's `tasks.result_bytes`, read at each start as C is (below) |
 | template 2, a goal | jig's goal, its executor chosen; its report as template 1's |
 | charter 11, Ask temper's | as charter 1, with the `stock` module's `ask.txt` (`../draft/ask-temper.md`, section 8, but its Showing part's later steps; `../domain/agent.md`, 8.1 and 8.4), and no inspect, modify, shell or agents; its models Ask temper's order (below); its `tools` the asking and settings families, 3,072, so that its runs are declared `see`, `document`, `remember` and `propose_settings` in its asking form alone, and have no workspace (`../domain/agent.md`, 4.2 and 4.3); it names no repository, and its instructions delegate nothing and effect nothing. Numbered past the trial's |
-| charter 5, the coordinator's | its first edition (`../draft/stock-ways.md`, 3.3): the `stock` module's `coordinator.md`, its `## shared` section the instructions and each `## part, on: …` section one part, its `on` set the reasons the heading names and its instructions the text to the next heading (jig's `domain/tasks.md`, 8.6), every byte as written but the blank lines that open and close a section; it cuts a draft into changes it specifies itself, each into its goal's branch with questions `foreman`, and lands the goal whole, with catch-ups and the triage of a red on its goal's tier, as 13.9's charter 5 does, with no designers, no command or path of one project and no model named, so that its runs take the stock's order; models: the stock's order; hosts `workers`; its runs starting fresh, as a charter in parts' must (jig's `domain/tasks.md`, 8.6), and waiting 0, parking without retaining a worker slot or program session; the root admits zero waiting; charter 2's run, 800 turns and 8 hours, a reserve of 1 turn and 60 s; inspect, modify and agents, no shell; charter 1's host families; no documents; the coordinator's wake policy (13.9): questions, failures, each delegate's result, its delegates' and its person's words at once, news at most once in 30 minutes. Numbered as the reference's, whose settings file sets its second edition over it (13.9) |
-| template 4, a goal for a draft | 13.9's: named `goal for a draft`, run by charter 5; no LLM choice, so that its runs take the stock's order; tracked at priority 1; its report template 1's; the creator's budget and deadline; labelled as template 2; *its own goal branch* among its resources (jig's `protocol/configuration.md`, 3.3; `../client/tools.md`, 5.3) |
+| charter 5, the coordinator's | its first edition (`../draft/stock-ways.md`, 3.3): the `stock` module's `coordinator.md`, its `## shared` section the instructions and each `## part, on: …` section one part, its `on` set the reasons the heading names and its instructions the text to the next heading (jig's `domain/tasks.md`, 8.6), every byte as written but the blank lines that open and close a section; it cuts a draft into changes it specifies itself, each into its goal's branch with questions `foreman`, writing its design's status up front, each entry a change will close tagged with it (fabrig's `DESIGN.md`, section 2), and triages a red on its goal's tier, as 13.9's charter 5 does, while its goal's closer lands the goal whole (template 4; `../domain/forge.md`, 11.2), with no catch-ups and no designers, no command or path of one project and no model named, so that its runs take the stock's order; models: the stock's order; hosts `workers`; its runs starting fresh, as a charter in parts' must (jig's `domain/tasks.md`, 8.6), and waiting 0, parking without retaining a worker slot or program session; the root admits zero waiting; charter 2's run, 800 turns and 8 hours, a reserve of 1 turn and 60 s; inspect, modify and agents, no shell; charter 1's host families; no documents; the coordinator's wake policy (13.9): questions, failures, the last delegate's result or a failure (`last_or_failure`), its delegates' and its person's words at once, news at most once in 30 minutes, its parts covering every kind that policy wakes it for, `words` among them (jig's `domain/tasks.md`, 8.6). Numbered as the reference's, whose settings file sets its second edition over it (13.9) |
+| template 4, a goal for a draft | 13.9's: named `goal for a draft`, run by charter 5; ended by temper's goal closer, `ended_by` `{"closer": {"connector": 1, "code": 6}}` (jig's `protocol/configuration.md`, 3.2; `../domain/forge.md`, 11.2); no LLM choice, so that its runs take the stock's order; tracked at priority 1; its report template 1's; the creator's budget and deadline; labelled as template 2; *its own goal branch* among its resources (jig's `protocol/configuration.md`, 3.3; `../client/tools.md`, 5.3) |
 | template 5, Ask temper | a chat named `ask`, flagged conversation and labelled as jig's chat is, its contract and budget template 1's, run by charter 11. Numbered past the reference's template 4 (13.9) |
 | charter 12, the drafter's | the instructions in the `stock` module's `drafter.txt`, every byte as written (`../draft/surfaces.md`, 11.2): a design session with its person, the draft written as the chat's document (`../domain/agent.md`, 8.3), one question at a time as numbered choices, its open points under `## Open questions`, a session taken up again from its draft and first open point, and nothing started or built; charter 1's models, hosts, waiting, resume, run, reserve, spend and call timeout; agents, so that its model's sub-agents survey where it has them, but no inspect, modify or shell, so that its runs are given no repository (`../domain/agent.md`, 4.2) and read the project's code through the forge's reads alone; its `tools` every family but delegate, settings and asking, 1,022, so that its runs are declared no `goal`, `change` or `delegate` (`../domain/agent.md`, 4.3; 8.5). Numbered past Ask temper's |
 | template 6, a design session | a chat named `design session`, flagged conversation, kept and labelled as jig's chat is, its contract, budget and grace template 1's, run by charter 12, so that a session is listed among the project's chats and, opened again, resumes from its draft (`../domain/agent.md`, 8.5; `../client/README.md`, 3.5). Numbered past Ask temper's template 5 |
 | policy 1 | no requirements; owner 0 is the escalation role; forge admin (3) maps to maintainer 1, write (2) to member 2, read (1) to observer 3; no forge permission maps to owner. Maintainer: owner authority and period spend, requests 255 (no policy changes), decisions 31. Member: owner task authority, period spend 24K, requests 185 (create, amend, cancel, release, watch), no decisions. Observer: watch alone (128), no decisions, spend, tools, models, grants or delegation. The project and owner: role 0 requests and decides everything, a period's spend of 80 × 24K, 1,920K, for role 0 and of 81 × 24K, 1,944K, for the project, an authority's spend of 24K (below), with the rules' grants and delegation; its ceiling's and role 0's tool families 3,975, delegation, messages, control, reads, settings, notes, recall and asking (jig's `ToolFamilies` Delegate, Message, Control, Read, Settings, Note, Recall and Ask), so that a chat reads the forge it works on, answers its delegates' questions and keeps its document, a goal writes its report (`../domain/agent.md`, 8.3), a goal's `change` names its plan's members (`../domain/agent.md`, 4.3.1), and an Ask temper chat (template 5) reads the settings through the asking family's `see` and proposes, a proposal changing nothing until an owner decides it (jig's `domain/engine.md`, 17.6; `../domain/agent.md`, 8.1 and 8.4); its ceiling's and every role's note scopes a goal's, `Scopes(1)`, but an observer's, none, so that a chat writes its own scope and only it (jig's `domain/engine.md`, section 10; `../domain/agent.md`, 8.3); a goal has its own scope for its report, while an advisor and a change have none (`../domain/agent.md`, 4.3.2); its ceiling's and role 0's delegation 384 tasks 32 deep, jig's `standard` tree and depth, so that one goal's tree holds five times the largest fabrig's development has made, 73 tasks, and five times its depth, 5 |
-| the rules | today's: tools 3,975, delegation, messages, control, reads, settings, notes, recall and asking, note scopes a goal's, the forge's grants under `forge`, delegation to charters 1, 2, 4, 5, 6, 9, 11 and 12, the change procedure, role 0 and the merge job (job 3), so that a goal for a draft runs on any project (`../draft/stock-ways.md`, 3.3), 384 tasks 32 deep, a spend of 1,920K and a period's spend of 1,944K, a run's spend from 2C to K (below); and 13.3's two requirements |
+| the rules | today's: tools 3,975, delegation, messages, control, reads, settings, notes, recall and asking, note scopes a goal's, the forge's grants under `forge`, delegation to charters 1, 2, 4, 5, 6, 9, 11 and 12, the change procedure, the goal's closer (procedure 6), role 0, the merge job (job 3) and the close job (job 4), so that a goal for a draft runs and closes on any project (`../draft/stock-ways.md`, 3.3), 384 tasks 32 deep, a spend of 1,920K and a period's spend of 1,944K, a run's spend from 2C to K (below); and 13.3's two requirements |
 | kind 1 | no rule: the rules a deployment's owners add, which every project's merges meet beside its own (13.3) |
 | kind 2, rule 1 | for every project: every branch of each of its repositories (`branch`, open: 13.2), enforced: CI passed, up to date, and gate 1, an agent's review, blocking, fresh at a clean head; no approvals (`../draft/stock-ways.md`, 3.1) |
 | kind 3 | number 1, the change's charter: charter 2; number 2, its reviews' charter: charter 4; number 3, its foremen's charter: charter 6 |
@@ -2233,9 +2246,12 @@ init`'s document carries none of them (`setup.md`, 8.3).
   and each charter's offered host part is checked against smith's bound
   (`../domain/agent.md`, 4.3).
 - **The stock charters' wake policies** (jig's `domain/tasks.md`,
-  8.3): charter 5 uses the coordinator's policy (13.9), each delegate's
-  result and words and notices at once, news paced to 30 minutes, with
-  questions, answers and timers. Every other stock charter uses jig's
+  8.3): charter 5 uses the coordinator's policy (13.9), the last
+  delegate's result or a failure, words and notices at once, news paced
+  to 30 minutes, with questions, answers and timers, and its parts offer each of those
+  kinds to the run it wakes, a task's words among them, so that no kind
+  it wakes for is left unread to wake it again after the run (jig's
+  `domain/tasks.md`, 8.6). Every other stock charter uses jig's
   default: words, notices and news at once, the last delegate's result
   or a failure, questions, answers and timers. A deployment sets another
   on the charter as any of its members.
@@ -2751,38 +2767,36 @@ that changes the stock changes nothing of them.
     changes it specifies itself, each made by `change` into its own
     goal branch with its dependencies, one batch per family:
     `../domain/agent.md`, 4.3.1, each with questions `foreman`), for
-    each result and its Left list (a new change for what is left, an
-    amendment of a live change, or nothing), for each question a change
-    relays (`../domain/forge.md`, 8.11: answer it from the draft and the
+    each question a change relays (`../domain/forge.md`, 8.11: answer it from the draft and the
     design; amend the change and answer what changed; make a new change,
     add it to the change's `after` by amendment and answer that the work
     waits for it; or ask its person through a person task, the options
     as its choices, and answer once the person has chosen), for each
     hold that reaches it (release it, amend then release it, cancel it,
     or pass it up to its person with its reasons, by `decide`), for
-    catch-ups (on a landing into main that touches the
-    goal's open work, heard as news, a catch-up into its goal branch
-    naming the landing's merge commit with `change`'s `merge`, one live
-    at a time), for the goal's landing once the plan's changes have landed (one change on
-    its own goal branch, `"branch": "mine"`, its
-    words the goal's title in one line, then what the goal built, by
-    design section: `../domain/forge.md`, 8.1), for that landing's life
-    (a change into the goal branch only for the landing's needs, each
-    one landed there its new head: `../domain/forge.md`, 8.5; on its
-    hold past its bounds, a release with an amendment, changes into the
-    goal branch first and then a release, a cancel that drops the
-    landing and keeps the branch, or a question to its person; never a
-    write of the goal branch of its own, nor a second landing while one
-    lives), and for the goal's end (its report on the landing's result,
-    naming the changes landed into its goal branch, their Left lists and
-    the landing's pull request and merge commit; without a landing, why,
-    its branch kept); the document's models, the
+    the escalations of its closer's landing (`../domain/forge.md`,
+    11.2: on a hold past its bounds, a release with an amendment, a
+    change into the goal branch for the landing's needs and then a
+    release, which the closer waits for, a cancel of the closer that
+    drops the landing and keeps the branch, or a question to its
+    person; never a write of the goal branch of its own, nor a landing
+    of its own), and for its design's status, written up front with
+    each entry a change will close tagged `[in flight: change N]`
+    (fabrig's `DESIGN.md`, section 2), the tags of the entries written
+    before their changes were made given in its next delivery; never a
+    catch-up, a landing, a close-out, or a finish of its own once its
+    plan's changes have ended: its closer lands the goal and reports
+    (`../domain/forge.md`, 11.2); the document's models, the
     workers, its runs starting fresh, waiting 0, a run sized for a
     plan's turns; its default wake policy the coordinator's (jig's
-    `domain/tasks.md`, 8.3): questions, failures, each delegate's
-    result, its delegates' and its person's words at once, waking news
-    at most once in 30 minutes; its instructions in parts (*Charter 5
-    in parts*, below);
+    `domain/tasks.md`, 8.3): questions, failures, the last delegate's
+    result or a failure, which for a goal its closer ends wakes it for a
+    failure alone (jig's `domain/tasks.md`, 5.10), its delegates' and
+    its person's words at once, waking news at most once in 30 minutes,
+    a designer's result and a person task's result reaching it by the
+    watch it subscribes to each (8.4 there); its instructions in parts
+    (*Charter 5 in parts*, below), which cover every kind its policy
+    wakes it for;
   - *charter 2, the coding agent's:* the stock's with smith's shell
     family (`shell` and `job`: smith's `domain/tools.md`), its
     instructions the stock's but for its line that it can run nothing,
@@ -2807,7 +2821,10 @@ that changes the stock changes nothing of them.
     the design in its checkout settle scope, a file outside the change's
     own is `finish` with a Left item, never permission to edit it, and a
     choice the draft leaves open is `escalate`;
-  - *template 4, the goal template for drafts:* charter 5;
+  - *template 4, the goal template for drafts:* charter 5; ended by
+    temper's goal closer, `ended_by` `{"closer": {"connector": 1,
+    "code": 6}}` (jig's `protocol/configuration.md`, 3.2;
+    `../domain/forge.md`, 11.2);
     `../draft/reference-code-production.md`, section 4's LLM choice,
     Opus 5.5 at xhigh with sub-agents at Opus 5.5 and high, and a later
     choice (`../draft/per-wake.md`, section 5), Opus 5.5 at high with
@@ -2818,17 +2835,19 @@ that changes the stock changes nothing of them.
     goal branch* among its resources (jig's `protocol/configuration.md`,
     3.3; `../client/tools.md`, 5.3);
   - *template 4's work,* kind 11 (13.2), `template-goal` number 4:
-    design and close-out, since its charter 5's second edition delivers
-    the shared design first, as a designer's change, and makes the
-    close-out, X (*Designers and the cut*, below), so that the case's
-    path draws "design" and "close-out" (`../domain/forge.md`, 8.13).
+    design and no close-out, since its charter 5's second edition
+    delivers the shared design first, as a designer's change (*Designers
+    and the cut*, below), and its closer's close step settles what a
+    close-out wrote, so that the case's path draws "design" and no
+    "close-out" (`../domain/forge.md`, 8.13).
 - **The rules and policy 1** are changed on the box from their current
   values, which hold the deployment's own budgets (13.4): read with
   `temper ctl settings show --json`, charter 7 added to the rules' and
   policy 1's delegation (and charters 5 and 6, the merge kind, job 3,
-  and role 0, which the stock's delegation holds (13.4), where their
-  stored values predate it), so the coordinator may delegate to its
-  designers, run its merges and ask its person through a person task
+  the goal's closer, procedure 6, the close kind, job 4, and role 0,
+  which the stock's delegation holds (13.4), where their stored values
+  predate it), so the coordinator may delegate to its designers, its
+  goals close, run its merges and ask its person through a person task
   (jig's `domain/people.md`, section 8), and jig's control family to
   their tools and role 0's, so the coordinator may name `change`'s plan
   members (`../domain/agent.md`, 4.3.1), and jig's notes family beside it, in
@@ -2838,10 +2857,11 @@ that changes the stock changes nothing of them.
   profile's `README.md` gives them, then applied whole. The widening
   takes the drafter's charter 12 out of that delegation (13.4), since the
   reference's work starts no design session, so that the stock's other
-  fourteen executors and charters 7 and 8 fill the box's sixteen executor
-  places (13.4), which hold this delegation without a delegation-limit
-  change or restart; the profile's limits (below) reserve room for
-  further work.
+  sixteen executors, the goal's closer and the close kind among them,
+  and charters 7 and 8 fill eighteen executor places: the profile's
+  `authority.executors` and `tasks.executor_kinds` are 18, which the
+  box takes at its next start; the profile's limits (below) reserve
+  room for further work.
 - **Designers and the cut** (`../draft/reference-code-production.md`,
   sections 3, 5 and 12): the same file's later edition adds
   - *charter 7, the designer's:* instructions to write one family's
@@ -2856,8 +2876,9 @@ that changes the stock changes nothing of them.
     changes, a few lines each: a name, the design sections and status
     entries it closes, what it owns, its dependencies and its effort; for
     a revision, the sections revised and the live changes they concern;
-    for the close-out, the status files, the Later sections and the
-    draft's fate. Claude Code's model at Opus 5.5, its sub-agents
+    each status entry a family's change will close tagged with it
+    (fabrig's `DESIGN.md`, section 2); never a close-out, which the
+    goal's closer makes (`../domain/forge.md`, 11.2). Claude Code's model at Opus 5.5, its sub-agents
     the same; inspect, modify and sub-agents; the workers; its runs
     starting fresh, waiting 0, a run sized for a family's design;
     documents: the design rules (`DESIGN.md`, whole) and `AGENTS.md`'s
@@ -2868,8 +2889,7 @@ that changes the stock changes nothing of them.
     coding batch only after every required design change is confirmed
     landed into g, a revision of the design as a
     designer's change followed by amendments of the live changes it
-    concerns, and the close-out, X, a designer's change, before its
-    report; each change's `producer` and `llm` (`../domain/agent.md`,
+    concerns, and no close-out; each change's `producer` and `llm` (`../domain/agent.md`,
     4.3.1): a designer's change `"producer": 7` at the template's LLM
     choice, Opus 5.5 at xhigh with sub-agents at Opus 5.5 and high, with
     questions `up`, its designer's questions going straight to the
@@ -2932,80 +2952,41 @@ that changes the stock changes nothing of them.
   and notes what it learns (a slow check, a
   dead end, a trap in the code) with jig's `note`, in the goal's or the
   repository's scope, and reads the notes before it triages. Its
-  goal's end waits for the landing's result at cleared, repaired or
-  not. Before finishing on that result, it checks every requested
-  acceptance item and collects its evidence, including full or docs for
-  each main pull when CI selection is requested. A `[log bytes cut]`
-  marker with a required header absent means evidence is missing: it
-  retries `read_job` with a larger `max_bytes` to recover it. It reports
-  an unresolved gap only after available reads cannot supply the evidence,
-  and does not claim completion for an unmet item; an avoidably short read
-  does not satisfy acceptance.
-- **Acceptance evidence, from production to close-out.** Charter 2 maps
+  goal's end is its closer's (`../domain/forge.md`, 11.2): the closer's
+  report gives each main pull's CI selection, read by code, so that no
+  run of charter 5 reads a CI log for it, nor checks the reports against
+  their acceptance before the landing.
+- **Acceptance evidence, in each change's report.** Charter 2 maps
   each acceptance item to a named assertion at the lowest tier that
   shows it, adding or extending tests where existing assertions do not
   cover the requested behavior. Its report distinguishes assertions
   added or extended, existing coverage, and checks actually run, with
   what each assertion proves. Page bounds and link validity do not
-  establish coverage of a new explanation or pointer. Charter 5's
-  results part checks this mapping and carries it and each unresolved
-  coverage gap in the close-out's words, beside the complete reports
-  and Left dispositions. Charter 7 reviews that evidence and retains
-  the mapping and gaps in its report, requesting missing evidence or
-  routing the gap for repair before declaring the item built. Missing
-  coverage remains an unresolved gap even when Left is empty or CI
-  passes; close-out and the goal's landing wait for it to be resolved.
-  For help trimming or a supplied replacement patch, charter 5's shared
-  specification instructions identify existing facts at risk and require a
-  before/after fact mapping and named retention assertions. Charter 2
+  establish coverage of a new explanation or pointer. For help trimming
+  or a supplied replacement patch, charter 5's shared specification
+  instructions identify existing facts at risk and require a
+  before/after fact mapping and named retention assertions; charter 2
   preserves unrelated facts during initial production as well as repairs
-  and resolutions, and reports missing preservation evidence as unresolved
-  acceptance. Charter 5's results review checks the mapping and carries it
-  and every missing preservation assertion in the close-out's words;
-  charter 7 checks and retains them in its report. Passing addition tests
-  and page bounds cannot settle missing preservation evidence. It remains
-  unresolved acceptance until supplied or repaired, and blocks close-out.
-  The help case adds the early-start explanation and resolving pointer
-  while retaining the guidance that `read_task` supplies the answer number.
-  The domain story uses explicitly scripted replacement records: deletion
-  of that hint despite passing addition checks, and retention of all three
-  facts. Bounded report reads and close-out handoff retain the missing or
-  complete evidence. These records are not a recovered patch or a model
-  transcript, and establish no real-model compliance.
-  Each requested deliverable also carries its requested evidence, from
-  the coordinator's spec through production, results review and close-out.
-  When each scoped-check table row's cost is requested, each row needs
-  its own measured timing; suite wall time and an arithmetic average
-  cannot establish individual row costs. Charter 2 reports missing
-  measurements as unfinished. Charter 5 checks the deliverable-to-evidence
-  mapping and carries it and every missing measurement in the close-out's
-  words; charter 7 checks and retains them in its report. An unmet
-  requested deliverable remains unfinished despite passing CI, a status
-  entry or a proposed accepted Left disposition. It goes for repair;
-  changing the requested scope requires the person's decision. A Later
-  entry or the draft's retirement cannot waive that acceptance.
-  The domain world checks the assigned instructions and retained
-  evidence through fake landings and bounded report continuations,
-  including aggregate-only and complete per-row timing cases; its
-  scripted choices establish no model compliance.
-- **Charter 5's plan done, and its landing's words**
-  (`../draft/reference-code-production.md`, section 12;
-  `../draft/reference-landing.md`, section 3, step 2), in its
-  instructions beside the rest. The plan is done when every change has
-  landed or been cancelled, every requested deliverable has its evidence,
-  every Left list is made into a change or accepted as optional follow-up
-  outside requested acceptance, and its goal branch's tier is settled: no red of
-  that tier it has heard is left without a repair that landed after it
-  or a live repair owning its failing tests. A green run says nothing
-  (`../domain/after-landing.md`, section 7), and a red still failing
-  reaches the goal's next run (the same, 5.4), so the reds it has heard
-  are what it knows; a red left unowned gets its repair first, and the
-  close-out waits for that repair to land. A run of the tier in flight
-  as the plan ends is not waited for: the landing's CI, the project's
-  full gate, checks the whole. The landing's words are the goal's title
-  in one line; then the draft it was built from, by path; then what the
-  goal built, by design section; the forge makes them the pull
-  request's title and body (`../domain/forge.md`, 8.1).
+  and resolutions. Each requested deliverable carries its requested
+  evidence in the coordinator's spec, and when each scoped-check table
+  row's cost is requested, each row needs its own measured timing.
+  Charter 2 reports what it leaves unresolved (missing coverage,
+  preservation evidence or measurements) as unfinished, under its Left,
+  which the goal's closer quotes word for word in the goal's report
+  (`../domain/forge.md`, 11.2); the person reads it there, and a change
+  that would settle it is theirs or the goal's to ask for. The domain
+  world checks the assigned instructions; its scripted choices establish
+  no model compliance.
+- **No plan done of charter 5's** (`../draft/goal-runs-itself.md`,
+  sections 2 to 7). Its plan's changes ending leaves its goal nothing to
+  judge, and no run: its closer settles the goal's status, lands it and
+  reports (`../domain/forge.md`, 11.2), the landing's words the goal's
+  title in one line, then the draft it was built from, by path, which
+  the forge makes the pull request's title and body
+  (`../domain/forge.md`, 8.1). A red of g's tier it has heard is its to
+  repair while its changes live, by the triage below; a run of the tier
+  in flight as the last change ends is not waited for: the landing's CI,
+  the project's full gate, checks the whole.
 - **A triage delegate** (`../draft/reference-landing.md`, section 6):
   *charter 8, the triage's*, in the settings file, read-only as charter
   6 is (inspect and the forge's reads; no modify, no shell, no
@@ -3046,8 +3027,14 @@ that changes the stock changes nothing of them.
     the options as its choices and its recommendation in its words; the
     report note and the notes; reading its report note and the tree
     first at every wake, and parking with `wait` once its decisions are
-    made; never fixing code, writing its goal branch or making a second
-    landing; and how to take what every run is offered (jig's
+    made; its design's status written up front, each entry a change
+    will close tagged `[in flight: change N]` (fabrig's `DESIGN.md`,
+    section 2); a watch subscribed to each designer's change's result
+    and to each person task's result it waits on, since only a failure
+    or a last result wakes it by its policy; never fixing code, writing
+    its goal branch, landing it, making a close-out or a catch-up, or
+    finishing once its plan's changes have ended, which its closer does
+    (`../domain/forge.md`, 11.2); and how to take what every run is offered (jig's
     `domain/tasks.md`, 8.6): an answer, a decision on its proposal or
     its settings, an effect not made, a `met`, an amendment, a request
     to finish and a person's words, each as it comes, and an entry
@@ -3059,7 +3046,9 @@ that changes the stock changes nothing of them.
     designer's change per family as the first batch. Coding that needs
     pending design stays out of that batch until every required design
     change is confirmed landed into g; coding needing no pending design
-    may proceed. Where a request settles its changes
+    may proceed. Each status entry written before the change that will
+    close it is made gets its tag in the delivery after it. Where a
+    request settles its changes
     with no shape for the code to follow, as one made of documents
     does, the cut writes no design, says so in its report note, and
     makes its changes. The cut never waits for or reacts to its
@@ -3069,23 +3058,24 @@ that changes the stock changes nothing of them.
     7.2), so a `subscribe_forge` of its own to them is a duplicate,
     refused; the cut's part says so in one sentence;
   - *questions,* `on` `question`, `question_answered`,
-    `question_ended` and `question_owed`: a designer's question and a
-    question a change relays, settled from the draft and the design by
-    an answer, an amendment and its answer, a prerequisite change and
-    the answer that the work waits for it, or a question to its person;
+    `question_ended`, `question_owed` and `words`: a designer's question,
+    a question a change relays and a task's words, settled from the
+    draft and the design by an answer, an amendment and its answer, a
+    prerequisite change and the answer that the work waits for it, or a
+    question to its person;
   - *results and holds,* `on` `result`, `notice`, `nothing_awaited`,
     `escalation`, `proposal` and `person_stalled`: a designer's result
     read for its design and family changes, then its family's coding
     batch only once every required design change is confirmed landed
     into g; a person task's result into the answer
-    that waited for it; a change's result and its Left list, and a
-    ruling that becomes design; an escalation released, amended,
-    cancelled or passed up; the plan done, the close-out and the
-    landing; the landing's life, its hold and its result; the goal's
-    end, with a landing or without;
-  - *news,* `on` `news` and `timer`: a catch-up; a red of g's tier and
-    its triage, the triage delegate among it, reading the notes first;
-    a red after landing.
+    that waited for it; a change's failure, and a ruling that becomes
+    design; an escalation released, amended, cancelled or passed up, its
+    closer's and its landing's among them (`../domain/forge.md`, 11.2:
+    a release, a change into g for the landing's needs then a release,
+    or a cancel of the closer that keeps the branch);
+  - *news,* `on` `news` and `timer`: a red of g's tier and its triage,
+    the triage delegate among it, reading the notes first; a red after
+    landing, while its closer's landing is verified.
 
   So the cut reads the shared instructions and the cut, and an answer
   the shared instructions and the questions part
@@ -3234,7 +3224,7 @@ defaults (13.4), so that a test world gives its own or none.
 |---|---|---|---|
 | You approve | "You approve every change" | "An agent makes each change; nothing reaches main until you approve it." | kind 2's rule 1: every branch (`branch`, open: 13.2), enforced, CI, up to date, no gate, one approval by role 0, `clean`; rules 2 to 4 removed; kind 8: You approve's table (`../domain/forge.md`, 5.10) |
 | Agents review | "Agents review every change, and code lands it" | "An agent makes each change, another reviews it, and code lands it." | kind 2's rule 1, the stock's (13.4); rules 2 to 4 removed; kind 8: Agents review's table |
-| Draft first | "Draft first, then agents build it on its own branch" | "You and an agent write a design draft; agents build it on its own branch, and it lands whole." | kind 2's rule 1: `branch`, exact `main`, enforced, CI, up to date, no gate, no approval; rule 2: `branch`, open `temper`, enforced, no CI, not up to date, no gate, no approval; rules 3 and 4 removed; kind 7: the project's own, or the stock's with none, with `drafts` and `goals` on and `way` 4; kind 8: Draft first's table; the project's policy, where its delegation lacks charter 5, role 0 or the merge job (job 3), with them added to its ceiling's and role 0's delegation |
+| Draft first | "Draft first, then agents build it on its own branch" | "You and an agent write a design draft; agents build it on its own branch, and it lands whole." | kind 2's rule 1: `branch`, exact `main`, enforced, CI, up to date, no gate, no approval; rule 2: `branch`, open `temper`, enforced, no CI, not up to date, no gate, no approval; rules 3 and 4 removed; kind 7: the project's own, or the stock's with none, with `drafts` and `goals` on and `way` 4; kind 8: Draft first's table; the project's policy, where its delegation lacks charter 5, the goal's closer (procedure 6), role 0, the merge job (job 3) or the close job (job 4), with them added to its ceiling's and role 0's delegation |
 
 - **In this order,** from more of the person to more of their agents, as
   the page's tabs are. Each way's name, headline and line are its words,

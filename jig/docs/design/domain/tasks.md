@@ -242,6 +242,7 @@ it is live:
   done, failed and cancelled, kept as each ends, so that a list of tasks says
   how far a task has gone without reading its delegates. A delegate moved
   away is not counted, and a retained delegate's erasure takes nothing back.
+- **Its closer,** while one lives: its number (5.10).
 - **Its holds:** the resources it writes and holds alone, or the pool
   slots it holds; or, while it waits for them, its place in their queues
   (section 6).
@@ -454,7 +455,9 @@ will come: your delegates have ended and no question waits. Finish with
 your result." It always wakes and merges in the dependency-met notice
 slot: an unread dependency-met notice already wakes it before this rule
 is reached. Each such park consumes a run try, retained across these
-wakes; exhausting the run tries ends the task failed. A task ended by its requester may remain idle (5.8).
+wakes; exhausting the run tries ends the task failed. A task ended by its requester may remain idle (5.8). A task ended by its closer is
+not due by this rule: where it would be, jig makes its closer instead,
+and numbers no notice (5.10).
 
 ### 5.3 Procedure tasks
 
@@ -737,8 +740,8 @@ batch per asker; the core numbers each notice once.
 
 ### 5.8 Ended by its requester
 
-A task is ended by its result or by its requester: its `ended_by`, fixed
-at its making. A result ends it by default. Its requester may end it
+A task is ended by its result, by its requester or by its closer (5.10):
+its `ended_by`, fixed at its making. A result ends it by default. Its requester may end it
 only if it is an agent's conversation with a person, its requester;
 making it refuses any other shape, and a restart takes what was made
 (engine.md, section 6). It changes no right
@@ -900,6 +903,71 @@ deadline, circles, a procedure's need) keep their rules.
 - **Restart** restores placed holds and their subscriptions with the
   tasks they hold, resolving each hold's owner once the people child's
   parties are restored; a drain in progress goes on draining.
+
+### 5.10 Ended by its closer
+
+A closer ends a task when nothing is left for its agent to judge: jig
+decides when, by 5.2's rule, and the application's procedure decides
+what, so that a model wakes for judgement alone and code does what is
+mechanical once the task's work is done (temper's `domain/forge.md`,
+11.2, a goal's landing).
+
+- **Named at its making:** `ended_by` `Closer { connector, code }`, a
+  procedure executor (5.3), given by its batch entry or its template
+  (`../protocol/configuration.md`, 3.2), and fixed: no amendment changes
+  it. Only an agent task that is no conversation takes one; any other
+  shape is refused as `ended_by` is (section 4). Its making is refused,
+  beyond authority, where the task's own delegation does not name the
+  procedure (authority.md, section 3), as a delegate's would be.
+- **A result-ended task besides:** a run that finishes with a result
+  ends it, as for a task its result ends. The closer only takes the
+  place of 5.2's `NothingAwaited` notice.
+- **Made where the notice would be.** When the nothing-left-to-await
+  rule (5.2) finds the task due again, and no closer of it is live, the
+  tasks child asks the core to make its closer instead: one procedure
+  task, the task's own delegate, made by the task as one batch with no
+  run: its executor the named procedure, its words the fixed `Close
+  your requester: nothing more will come.`, no parameters or inputs,
+  its contract the task's own, its authority the task's own whole, one
+  level shallower in delegation, and its budget `AsAllowed` within the
+  task's (authority.md, section 7). The task keeps the closer's number
+  while it lives, stays idle, numbers no notice and spends no run try.
+  A refused making (a budget or a limit reached) holds the task, its
+  words naming the closer's refusal (5.5).
+- **Also when its last awaited thing ends while it is idle.** A
+  delegate's end, an answer or a watch's end that leaves an idle task
+  nothing to await, by the same conditions, makes its closer too, with
+  no run between: a last result under `last_or_failure` (8.3) does not
+  wake it, where a failure still does, and the result stays in its
+  inbox, offered to its next run if one comes.
+- **Its success ends the task:** the closer ending done, its result is
+  the task's: checked against the task's contract as a run's finish is
+  (5.6), and the task closes with it (5.1), no run claiming it. A
+  result the contract refuses holds the task, `Contract`, its words
+  naming the closer. Its requester hears the task's result, never the
+  closer's.
+- **Its failure is the task's to judge.** A closer held, by a failure
+  past its tries or a hold of its own (5.5), escalates to the task as
+  any delegate does (section 9), and the escalations of the closer's
+  own delegates pass the closer, a procedure, to the task. A closer
+  that ends failed or cancelled is a delegate's result, which wakes the
+  task by its policy; one that ends failed spends a run try, as a park
+  with nothing to await does, so that a closer failing every time
+  ends the task failed. The task's next park with nothing to await
+  makes a closer again.
+- **New work keeps it waiting.** A delegate the task makes while its
+  closer lives (by a run, an accepted proposal or a batch) becomes a
+  dependency of the closer in the same commit, added by jig as an
+  amendment adds one (section 7), so the closer is kept (5.7) until
+  that work has ended: it steps, and cannot end done, nor so end the
+  task, before the work. Its procedure reads the work as any kept
+  procedure reads its dependencies, and decides what its own steps need
+  again. A batch that would make a circle of waits through the closer is
+  refused as any is.
+- **Closed with the task:** a task that closes otherwise (a run's
+  finish, a cancel, its requester's) closes its closer as any delegate
+  (5.1). Restart takes the closer as any task, and the task's record its
+  number.
 
 ## 6. Holds
 
@@ -1495,10 +1563,11 @@ the settings hold it when the task is made, and keeps it as its own;
 its creator narrows or widens it by naming a whole policy in the entry,
 and an amendment changes it as any policy. A chat's default wakes on
 its person's words and on its delegates' results; a coordinator's on
-questions, escalations, failures, each delegate's result, not only the
-last, words from its delegates and its person's words, at once, and on
-news its connectors class as waking at a pace, at most once in a span
-(the reference's coordinator: 30 minutes); most other agents' on
+questions, escalations, failures and its last delegate's result
+(`last_or_failure`; for a task its closer ends, a failure alone: 5.10),
+words from its delegates and its person's words, at once, and on news
+its connectors class as waking at a pace, at most once in a span (the
+reference's coordinator: 30 minutes); most other agents' on
 nothing, since they finish within one run. A procedure's policy is its
 owner's: it steps on whatever it reads.
 

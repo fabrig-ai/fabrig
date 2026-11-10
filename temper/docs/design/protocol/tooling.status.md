@@ -1,10 +1,10 @@
 # tooling: status
 
-2026-11-04. Where temper's code lags or departs from [tooling.md](tooling.md).
+2026-11-10. Where temper's code lags or departs from [tooling.md](tooling.md).
 
 - **Not yet:** 1, 3 to 6: the `prepare` and `key` commands and their
   contract, since neither kind is built (`../domain/worker.md`, 4.4): no
-  project names one, and the worker declares the merge kind alone,
+  project names one, and the worker declares the merge and close kinds alone,
   though the job capability that would run them is built
   (`temper-worker-domain-tooling`). 2: the project's `prepare_timeout`
   bounds no command: a command's time is its job's deadline. 6:
@@ -21,3 +21,10 @@
   (`temper/crates/temper-worker-domain/src/jobs.rs`), because the
   checkout lays a workspace's repositories out by name
   (`../domain/worker.md`, section 5) and no kind built needs `repos/`.
+- **Not yet:** 4.2: the close job's run on a worker: its checkout at the
+  goal's branch's tip, its command run with `close`, and what it staged
+  committed with one parent and pushed. [in flight: close-job-worker]
+- **Not yet:** 4.2: the close request written and the close job made as
+  a close change's producer. [in flight: close-change]
+- **Not yet:** 4.2: the project's `close_job` read at the start, and the
+  close kind declared by the worker and the engine. [in flight: close-job-service]

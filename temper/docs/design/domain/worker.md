@@ -402,19 +402,21 @@ smith's agent processes, and declares in its hello the kinds it runs:
 | 1, prepare | a landing's candidate for one repository (`landing.md`, 5.3): the project's prepare command, or temper's own rebase of a stack when the project names none | the repository, its main's tip, its members' heads in order, the upstream candidates and the pins between them, the command and the home's revision | the candidate's commit, or the conflict's member and files; each gate's key, when the project's key command is named |
 | 2, key | a gate's key at a candidate, by the project's key command (`landing.md`, 6.1) | the repository, the candidate, the gate, the command and the home's revision | the key |
 | 3, merge | a merge of a base into a head, the conflicts the project's merge command knows settled (`forge.md`, 8.4) | the command, the head and the base | the files settled, and those left |
+| 4, close | what a goal leaves in its branch settled by the project's close command, before its landing (`forge.md`, 11.2) | the command and the close request | the files settled |
 
 - **Its kinds are entries** the root gives the capability: each a
   kind's number, the command's verb (its second argument,
   `../protocol/tooling.md`, section 2) and whether it delivers. The hello
   declares each with the worker's limits for jobs: its spec's and
   result's bytes and its longest deadline. Prepare and key are the first
-  two, by the table, and merge the third; a worker declares a kind only
-  once it is built, and none before.
+  two, by the table, merge the third and close the fourth; a worker
+  declares a kind only once it is built, and none before.
 - **One spec and one result for every kind:** the spec, temper's record
   in its payload codec, the command's path in the job's directory and
   the request file's bytes, the path under `home/` for a command of the
   project's home (prepare and key) and under the repository's own name
-  for one of the repository it merges (merge); the result, the result file's bytes as the
+  for one of the repository it merges or closes (merge, close); the
+  result, the result file's bytes as the
   command wrote them. Exit 0 and 3 finish the job with that result
   (`../protocol/tooling.md`, section 1); any other exit fails it as its
   own, with the end of its error output as detail; a result file missing
@@ -461,6 +463,24 @@ smith's agent processes, and declares in its hello the kinds it runs:
   minutes, the small profile's constants. The engine declares the kind
   only where its tasks limits hold those bounds; a deployment that
   configures them smaller declares no kind 3 and makes no merge job.
+- **The close kind,** kind 4, verb `close`, delivering
+  (`../protocol/tooling.md`, 4.2). Its checkout holds one repository,
+  the close change's, under its own name, writable, prepared as a
+  producer's is: its own branch made at the goal's branch's tip and
+  checked out, clean (section 5); its command is the project's
+  `close_job`, a path in that repository, so the spec's command is the
+  repository's name, `/`, then that path, and its request the close
+  request's bytes, which the engine writes whole. On exit 0 the delivery
+  commits what the command staged, one parent, the tip, its message
+  `Settle goal G's status`, G the request's goal, and pushes it as a
+  fast-forward onto the branch the item names as writable, a producer's
+  push; with nothing staged it commits and pushes nothing, and the job
+  is done. A file left unstaged in the tree is not delivered and fails
+  nothing. The engine learns which from the branch, as for a merge: its
+  head moved, or not. Its bounds, the engine's declaration and the
+  worker's alike: a spec of 16,384 bytes, a result of 512 and a deadline
+  of 10 minutes, the small profile's constants; the engine declares it
+  only where its tasks limits hold those bounds, as kind 3's.
 - **The spec is written by the engine's root** as it makes the job, in
   the worker wire's `JobSpec` record, since jig takes a job's spec as
   the application's bytes when the job is made (jig's

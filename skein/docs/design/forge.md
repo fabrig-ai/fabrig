@@ -223,10 +223,15 @@ and no policy. Every type is a plain value.
   `OpenPull` takes none.
 - **`PullFor { head, base }`** asks for the open pull request of a head
   and a base, else the oldest.
-- **`Job { attempt, max_bytes }`** asks for the end of one failed job
-  attempt's log; `File { head, path, max_bytes }` for the start of one
-  file at a commit. Both are cut to `max_bytes`, or to what the answer
-  has left (5.3), and say when they cut.
+- **`Job { attempt, max_bytes, part }`** asks for one part of one job
+  attempt's log: `End`, the end of its failed step's log, or of its
+  whole log when no step failed; or `Start`, the first bytes of its
+  whole log, where a CI's opening lines are, such as the selection line
+  a goal's report quotes (temper's `domain/forge.md`, 11.2). `File {
+  head, path, max_bytes }` asks for the start of one file at a commit.
+  Both are cut to `max_bytes`, or to what the answer has left (5.3), and
+  say when they cut: a `Start` that cut kept the log's first bytes and
+  dropped the rest.
 - **`Merge { number, head }`** is conditional on the head. A merge's
   base is the client's precondition, checked by reading the pull
   request afresh (forge-client.md, section 7). Where a merge queue
@@ -804,7 +809,7 @@ first failure, but where a row says otherwise.
 | `Read::PullFiles { number, head, page }` | `GET R/pulls/<number>`; `GET R/pulls/<number>/files?page=<page>&limit=<size>`; for each file, `GET R/raw/<path>?ref=<merge_base>` (but for `added`; at `previous_filename` for `renamed`) and `GET R/raw/<filename>?ref=<head>` (but for `deleted`) | `head`; each file's `filename` with its contents at the merge base and at the head, a side absent when the file's `status` says so or its read answers `404`; `more` from `X-HasMore`; a `head.sha` other than `head` fails the call `Stale` before any file is read |
 | `Read::Compare { before, after }` | `GET R/compare/<before>...<after>?verification=false`; `GET R/compare/<after>...<before>?files=false&verification=false`; for each file, `GET R/raw/<filename>?ref=<before>` and `?ref=<after>` | `files[].filename` with its contents at `before` and at `after`, a side absent when its read answers `404`; `commits[].sha`; `contains_before` when the second comparison's `total_commits` is 0; the whole comparison within the answer's bound, or `TooLarge` |
 | `Read::Checks { commit }` | `GET R/commits/<commit>/status?page=<n>&limit=<size>`, every page; for each status whose link names a run of this repository's Actions, pending, passed or failed: `GET R/actions/runs?head_sha=<commit>&run_number=<n>&page=1&limit=1`, then `GET R/actions/runs/<id>/jobs` | each context's latest status as for `Statuses`, its `job` the commit, the run's `id`, the job's `id` and its `attempt` when found, none otherwise: the link's index of the job in its run is never taken for the job's `id` |
-| `Read::Job { attempt, max_bytes }` | `GET R/actions/runs/<run>`; `GET R/actions/jobs/<job>`; `GET R/actions/jobs/<job>/logs?attempt=<attempt>&step=<number>` with `Range: bytes=-<max_bytes>`, `step` the failed step's, absent when no step failed | the failed step, its `number` and `name` (5.3), none when no step failed; the last `max_bytes` bytes of that step's log, or of the job's whole log when no step failed; `truncated` when `Content-Range` names bytes before them; `MissingJob` when a read answers `404`, the run's `commit_sha` is not the attempt's head, or the job's `run_id` or `attempt` is not the attempt's |
+| `Read::Job { attempt, max_bytes, part }` | `GET R/actions/runs/<run>`; `GET R/actions/jobs/<job>`; `GET R/actions/jobs/<job>/logs?attempt=<attempt>&step=<number>` with `Range: bytes=-<max_bytes>`, `step` the failed step's, absent when no step failed; for `Start`, `GET R/actions/jobs/<job>/logs?attempt=<attempt>` with `Range: bytes=0-<max_bytes − 1>` and no `step` | the failed step, its `number` and `name` (5.3), none when no step failed; for `End`, the last `max_bytes` bytes of that step's log, or of the job's whole log when no step failed, `truncated` when `Content-Range` names bytes before them; for `Start`, the job's whole log's first `max_bytes` bytes, `truncated` when `Content-Range` names bytes after them; `MissingJob` when a read answers `404`, the run's `commit_sha` is not the attempt's head, or the job's `run_id` or `attempt` is not the attempt's |
 | `Read::File { head, path, max_bytes }` | `GET R/raw/<path>?ref=<head>` with `Range: bytes=0-<max_bytes>` | the first `max_bytes` bytes; `truncated` when more came |
 | `Read::Protection { branch }` | `GET R/branches/<branch>`; then `GET R/branch_protections/<effective_branch_protection_name>` when it names a rule, or `GET R/branch_protections` when it names none | `rule_name`, `status_check_contexts` when `enable_status_check`, `required_approvals`, `dismiss_stale_approvals`, `require_signed_commits`; none when no rule applies; a `403` (a writer who is not an admin) `Forbidden` |
 | `Read::Settings` | `GET /api/v1/repositories/<id>` | `default_branch`; `allow_merge_commits`, `allow_squash_merge`, `allow_rebase`; the repository's row kept afresh |

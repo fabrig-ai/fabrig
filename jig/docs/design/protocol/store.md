@@ -436,7 +436,12 @@ follow from the limits that bound each kind (5.4).
   context (`../domain/engine.md`, 7.2). Tasks version 9 carries it in
   place before the first release; its layout fingerprint changes (5.3).
 - **A task's ending authority** is carried in the tasks and people
-  families.
+  families, and a template's in the settings family: `EndedBy`'s
+  `closer`, a record of the procedure's connector (`u16`) and code
+  (`u32`), beside `result` and `requester`; and a live task's closer, its
+  number, in the tasks family (`../domain/tasks.md`, 5.10). Each family
+  carries them in place before the first release, its layout fingerprint
+  changing (5.3).
 - **Change results** keep an explicit title beside their words in the
   tasks family. Both fields independently fit the result-byte limit.
 
