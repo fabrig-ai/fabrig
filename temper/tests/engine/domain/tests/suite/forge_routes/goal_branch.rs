@@ -757,27 +757,29 @@ fn a_forward_move_without_a_goal_writer_names_the_resource_and_move() {
     goal_drift(BranchMove::Unowned);
 }
 
-fn delayed_goal_comparison(world: &mut World, branch: &[u8]) -> engine::Event {
+fn delayed_goal_ancestry(world: &mut World, branch: &[u8]) -> engine::Event {
     let head = translate::commit(branch_tip(world, branch));
+    world.forge_reads = Some(Vec::new());
     hint_goal_branch(world, branch);
     for _ in 0..STEPS {
         world.tick();
         if let Some(index) = world.events.iter().position(|event| {
             matches!(event,
             engine::Event::Forge(event) if matches!(event.as_ref(), forge_top::Event::Client(
-                skein_forge_client::Event::Answered { result: Ok(skein_forge::api::Answer::Compare { after, .. }), .. }
-            ) if *after == head))
+                skein_forge_client::Event::Answered { call, result: Ok(skein_forge::api::Answer::Commits { .. }), .. }
+            ) if world.forge_reads.as_ref().expect("recorded reads").iter().any(|(asked, read)|
+                asked == call && matches!(read, skein_forge::api::Read::Commits { before, page: 1, .. } if *before == head))))
         }) {
-            return world.events.remove(index).expect("selected comparison");
+            return world.events.remove(index).expect("selected ancestry read");
         }
     }
-    panic!("the keep compares the observed merge before its confirmation")
+    panic!("the keep reads the observed merge's ancestry before its confirmation")
 }
 
 #[test]
 fn a_goal_merge_confirmed_while_its_observation_is_being_compared_is_not_drift() {
     let (mut world, goal, branch, sibling) = merging_siblings();
-    let comparison = delayed_goal_comparison(&mut world, &branch);
+    let comparison = delayed_goal_ancestry(&mut world, &branch);
     world.release_write_answers();
     for _ in 0..STEPS {
         world.tick();

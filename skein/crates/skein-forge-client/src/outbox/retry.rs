@@ -30,7 +30,7 @@ pub(super) fn failed(
             | Phase::Queued
             | Phase::Find { .. }
             | Phase::DispatchRuns { .. }
-            | Phase::Compare { .. }
+            | Phase::Ancestry { .. }
             | Phase::AfterUpdate
             | Phase::AfterMerge { .. } => {
                 backoff(d, env, number, phase, out);
@@ -42,7 +42,7 @@ pub(super) fn failed(
             Phase::Queued
             | Phase::Find { .. }
             | Phase::DispatchRuns { .. }
-            | Phase::Compare { .. }
+            | Phase::Ancestry { .. }
             | Phase::AfterUpdate
             | Phase::AfterMerge { .. } => {
                 backoff(d, env, number, phase, out);
@@ -89,7 +89,7 @@ pub(super) fn failed(
                 Phase::Queued
                 | Phase::Clock
                 | Phase::Check
-                | Phase::Compare { .. }
+                | Phase::Ancestry { .. }
                 | Phase::AfterUpdate
                 | Phase::AfterMerge { .. } => {
                     super::finish(d, env, number, Outcome::Failed(error), out);
@@ -248,7 +248,7 @@ fn retain_uncertain(
             | Phase::Make
             | Phase::Find { .. }
             | Phase::DispatchRuns { .. }
-            | Phase::Compare { .. }
+            | Phase::Ancestry { .. }
             | Phase::AfterUpdate => {}
         }
         if d.outbox.entries.get(&number).expect("failed entry remains").uncertain {

@@ -2573,7 +2573,7 @@ fn lost(d: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, out: &mut Qu
     }
 }
 
-/// Ask one waiting lost writer's read again: its branch, or the comparison
+/// Ask one waiting lost writer's read again: its branch, or the ancestry
 /// of the head it found with the head the forge last knew.
 fn ask_lost_again(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let mut waiting = None;
@@ -2588,7 +2588,9 @@ fn ask_lost_again(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let comparison = pending.comparison;
     let Some(resource) = to_client(&pending.name, &env.limits) else { return };
     let read = match (comparison, resource.what) {
-        (Some((before, after)), _) => skein_forge::api::Read::Compare { before, after },
+        (Some((baseline, observed)), _) => {
+            skein_forge::api::Read::Commits { before: observed, after: baseline, page: 1 }
+        }
         (None, skein_forge_client::What::Branch(branch)) => skein_forge::api::Read::Branch { branch },
         (
             None,
@@ -2602,6 +2604,10 @@ fn ask_lost_again(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     child(d, env, skein_forge_client::Event::Read { owner, repository: resource.repository, read }, out);
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "one fresh-read chain retains the lost writer through branch and ancestry answers"
+)]
 fn lost_read(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -2642,7 +2648,7 @@ fn lost_read(
                     skein_forge_client::Event::Read {
                         owner,
                         repository: resource.repository,
-                        read: skein_forge::api::Read::Compare { before, after: commit },
+                        read: skein_forge::api::Read::Commits { before: commit, after: before, page: 1 },
                     },
                     out,
                 );
@@ -2650,18 +2656,31 @@ fn lost_read(
             }
             Some(commit)
         }
-        (
-            Some((expected_before, expected_after)),
-            Ok(skein_forge::api::Answer::Compare { before, after, contains_before, .. }),
-        ) if before == expected_before && after == expected_after => {
-            if !contains_before {
-                drift(
+        (Some((before, after)), result) => {
+            let error = match &result {
+                Err(error) => *error,
+                Ok(_) => skein_forge::api::Error::InvalidAnswer,
+            };
+            match ancestry_status(result) {
+                change::Status::Passed => {}
+                change::Status::Failed => drift(
                     d,
                     env,
                     resource.clone(),
                     crate::DriftChange::Branch { expected: before, observed: Some(after) },
                     out,
-                );
+                ),
+                change::Status::Unknown | change::Status::Pending => {
+                    lost_failed(
+                        d,
+                        pending.task,
+                        pending.attempt,
+                        &pending.name,
+                        crate::effect_words::error_words(error),
+                        out,
+                    );
+                    return;
+                }
             }
             Some(after)
         }
@@ -3425,7 +3444,7 @@ fn status(ci: skein_forge::api::Ci) -> change::Status {
 
 // Any listed commit, or a range too large to list, disproves containment
 // (temper/docs/design/domain/forge.md, 5.3).
-fn ancestry_status(result: Result<skein_forge::api::Answer, skein_forge::api::Error>) -> change::Status {
+pub(crate) fn ancestry_status(result: Result<skein_forge::api::Answer, skein_forge::api::Error>) -> change::Status {
     match result {
         Ok(skein_forge::api::Answer::Commits { commits, more }) => {
             if !commits.is_empty() {
