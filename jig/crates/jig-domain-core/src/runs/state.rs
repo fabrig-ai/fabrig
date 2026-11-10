@@ -212,6 +212,15 @@ impl Core {
         }
     }
 
+    /// Only unusable window history closes a window (jig/docs/design/domain/engine.md, 7.2).
+    pub(crate) fn close_window(&mut self, task: u64) {
+        if let Some(proof) = self.proofs.get_mut(&task)
+            && let Some(window) = &mut proof.window
+        {
+            window.closed = true;
+        }
+    }
+
     /// Begin a bounded transcript load for a due task's previous attempt.
     pub fn begin_transcript(&mut self, task: u64, previous_attempt: u64, window: Option<(u64, u32)>) {
         self.start_input();

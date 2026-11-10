@@ -291,7 +291,11 @@ fn a_closed_window_keeps_its_tail_after_a_transient_try() {
     assert_eq!(f::tail(&world), Some(f::TAIL));
     assert_eq!(f::tries(&world).transient, 1);
     assert_eq!(f::tries(&world), f::tries(&control));
-    assert_eq!(f::activity(&world), f::activity(&control));
+    assert!(control.assigned.as_ref().expect("control resumes").run.policy.resume);
+    let mut activity = f::activity(&world);
+    let Some(tasks::Line::RunBegan { resumed, .. }) = activity.last_mut() else { panic!("fresh run activity") };
+    *resumed = true;
+    assert_eq!(activity, f::activity(&control));
 }
 
 #[test]
@@ -321,7 +325,7 @@ fn an_unusable_transcript_fails_transient_and_the_next_conversation_starts_fresh
     world.park_for_message(1);
     let read = world.say(77);
     assert_eq!(world.assigned.as_ref().expect("resumed attempt").transcript.len(), 1);
-    world.end(tasks::End::Failed(tasks::Class::Transient), 0);
+    host_ending(&mut world, transcript_failure(), 0);
     world.retry_due();
     let fresh = world.assigned.as_ref().expect("fresh retry");
     assert!(!fresh.run.policy.resume);
@@ -379,6 +383,22 @@ fn settled_answers_resume_in_commit_order_and_a_replay_preserves_exact_bytes() {
     assert_eq!(answers[0].key, key);
     assert_eq!(answers[1].key, core::CallKey { completion: 2, ..key });
     assert!(answers[0].call.serial < answers[1].call.serial);
+}
+
+#[test]
+fn start_messages_survive_a_loss_before_the_first_turn_oldest_first() {
+    let mut world = World::new(Setup { seed: 120, ..Setup::default() });
+    world.park_for_message(0);
+    world.say(91);
+    world.say(92);
+    world.end(tasks::End::Failed(tasks::Class::Lost), 0);
+    world.retry_due();
+    let first = world.assigned.as_ref().expect("start with waiting messages").messages.clone();
+    assert_eq!(first.len(), 2);
+    assert!(first[0].number < first[1].number);
+    world.end(tasks::End::Failed(tasks::Class::Lost), 0);
+    world.retry_due();
+    assert_eq!(world.assigned.as_ref().expect("retry carries unread start").messages, first);
 }
 
 fn a_woken_chats_start_carries_its_waiting_words_oldest_first() {
@@ -666,13 +686,27 @@ fn a_resumed_run_names_its_first_runs_attempt() {
     }
 }
 
+fn transcript_failure() -> jig_domain_host::Ending {
+    jig_domain_host::Ending::Failed {
+        failure: jig_domain_host::Failure::Run(jig_domain_host::RunFailure::Transcript),
+        detail: Box::new([]),
+        work: jig_domain_host::Work { left: None, saved: None },
+    }
+}
+
 fn host_ending(world: &mut World, ending: jig_domain_host::Ending, spent: u64) {
     world.send(root::Event::Link {
         channel: Token::new(7),
         link: root::link::Event::Up(jig_domain_host::LinkUp::Answer {
             run: Token::new(world.task()),
             attempt: Token::new(world.attempt()),
-            answer: jig_domain_host::RunAnswer { read: None, refused: Box::new([]), turns: 0, spent, ending },
+            answer: jig_domain_host::RunAnswer {
+                read: None,
+                refused: Box::new([]),
+                turns: world.domain.core().tasks.task(world.task()).expect("answer's task").turn,
+                spent,
+                ending,
+            },
         }),
     });
 }
@@ -681,10 +715,15 @@ fn host_ending(world: &mut World, ending: jig_domain_host::Ending, spent: u64) {
 fn an_unrelated_transient_try_does_not_disable_a_later_windows_resume() {
     use jig_domain_host as host;
     let mut world = World::new(Setup { seed: 118, ..Setup::default() });
-    host_ending(&mut world, host::Ending::Failed {
-        failure: host::Failure::Unprepared(host::Preparation::Transient),
-        detail: Box::new([]), work: host::Work { left: None, saved: None },
-    }, 0);
+    host_ending(
+        &mut world,
+        host::Ending::Failed {
+            failure: host::Failure::Unprepared(host::Preparation::Transient),
+            detail: Box::new([]),
+            work: host::Work { left: None, saved: None },
+        },
+        0,
+    );
     world.retry_due();
     let conversation = world.attempt();
     world.window_turn(1, 1, None, b"window after preparation retry");
@@ -697,11 +736,42 @@ fn an_unrelated_transient_try_does_not_disable_a_later_windows_resume() {
 }
 
 #[test]
+fn unusable_history_closes_its_committed_window_before_the_retry() {
+    use jig_domain_host as host;
+    for ending in [
+        host::Ending::Failed {
+            failure: host::Failure::Run(host::RunFailure::Transcript),
+            detail: Box::new([]),
+            work: host::Work { left: None, saved: None },
+        },
+        host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Transcript)),
+        host::Ending::Refused(host::Refusal::Invalid(host::Invalid::Start {
+            cause: host::StartCause::Transcript,
+            why: b"unusable".as_slice().into(),
+        })),
+    ] {
+        let mut world = World::new(Setup { seed: 119, ..Setup::default() });
+        world.store.transcript_text(window_text);
+        world.window_turn(1, 1, None, b"saved tail");
+        world.park_for_message(1);
+        world.say(90);
+        host_ending(&mut world, ending, 0);
+        assert!(current_window_proof(&world).window.expect("closed history retained").closed);
+        world.retry_due();
+        let fresh = world.assigned.as_ref().expect("fresh attempt");
+        assert!(fresh.transcript.is_empty());
+        assert_eq!(fresh.conversation, fresh.attempt);
+        assert_eq!(fresh_windows::tail(&world), Some(b"saved tail".as_slice()));
+        assert_eq!(world.domain.core().tasks.task(world.task()).expect("live chat").tries.transient, 1);
+    }
+}
+
+#[test]
 fn a_fresh_start_after_a_transient_failure_names_its_own() {
     let mut world = World::new(Setup { seed: 111, ..Setup::default() });
     let first = world.assigned.as_ref().expect("first assignment").attempt;
     world.turn(1, 1, None, b"old conversation");
-    world.end(tasks::End::Failed(tasks::Class::Transient), 1);
+    host_ending(&mut world, transcript_failure(), 1);
     world.retry_due();
     let assignment = world.assigned.as_ref().expect("fresh assignment");
     assert!(assignment.attempt > first);
@@ -796,7 +866,7 @@ fn a_window_turn_moves_the_tasks_window_in_its_commit() {
 fn a_fresh_start_clears_the_window_until_its_first_turn() {
     let mut world = World::new(Setup { seed: 114, ..Setup::default() });
     world.window_turn(1, 1, None, b"old window");
-    world.end(tasks::End::Failed(tasks::Class::Transient), 1);
+    host_ending(&mut world, transcript_failure(), 1);
     world.retry_due();
     let attempt = current_window_proof(&world).attempt;
     assert_eq!(current_window_proof(&world).window, None);

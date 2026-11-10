@@ -138,11 +138,34 @@ fn a_hello_waits_for_restored_needs_then_adopts_its_listed_run_once() {
     // One held hello per channel; a repeated report cannot repeat Sources or admission.
     assert!(h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds_window(8192)) }).is_empty());
     step(&mut h.domain, &h.env, Event::Needs(restored), &mut h.out);
-    let requests: Vec<_> = (0..h.out.len()).map(|_| h.out.pop().expect("restored hello output")).collect();
-    assert_eq!(requests.iter().filter(|r| matches!(r, Request::Sources { channel, .. } if *channel == C1)).count(), 1);
-    assert!(!requests.iter().any(|r| matches!(r, Request::Refuse { .. })));
+    assert_eq!(h.out.len(), 2);
+    assert_eq!(h.out.pop(), Some(Request::Placed { run: R1, attempt: A1 }));
+    assert_eq!(h.out.pop(), Some(Request::Sources { channel: C1, sources: Box::new([]) }));
     assert_eq!(h.domain.workers(), 1);
-    assert!(h.answer(C1, R1, A1, Answer::Parked, 1).iter().any(|r| matches!(r, Request::Answered { .. })));
+    let mut answered = false;
+    for request in h.answer(C1, R1, A1, Answer::Parked, 1) {
+        if let Request::Answered { .. } = request {
+            answered = true;
+        }
+    }
+    assert!(answered);
+}
+
+#[test]
+fn held_hellos_keep_arrival_order_and_lost_channels_are_dropped() {
+    let mut h = Harness::unrestored(LIMITS, 0, needs_window(8192));
+    for (worker, channel) in [(0, C2), (1, C1), (2, C3), (0, Token::new(0))] {
+        assert!(h.step(Event::Hello { worker, channel, hello: hello(bounds_window(8192)) }).is_empty());
+    }
+    for channel in [C3, Token::new(0)] {
+        assert!(h.step(Event::Lost { channel }).is_empty());
+    }
+    step(&mut h.domain, &h.env, Event::Needs(needs_window(8192)), &mut h.out);
+    assert_eq!(h.out.len(), 2);
+    assert_eq!(h.out.pop(), Some(Request::Sources { channel: C2, sources: Box::new([]) }));
+    assert_eq!(h.out.pop(), Some(Request::Sources { channel: C1, sources: Box::new([]) }));
+    assert_eq!(h.domain.workers(), 2);
+    let crate::domain::EngineHello::Expected = h.domain.engine_hello else { panic!("lost engine hello dropped") };
 }
 
 #[test]

@@ -20,6 +20,25 @@ pub fn needs() -> jig_domain_fleet::Needs {
     jig_domain_fleet::Needs { charters: Box::new([]), spend: 0, message_bytes: 0, start_messages: 0, unacknowledged: 0 }
 }
 
+/// A runtime unit fixture has completed the start's needs restoration.
+pub(crate) fn restore_needs(domain: &mut jig_domain_fleet::Domain, limits: &Limits, needs: jig_domain_fleet::Needs) {
+    let mut out = Queue::uncapped();
+    jig_domain_fleet::step(
+        domain,
+        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet },
+        jig_domain_fleet::Event::Needs(needs),
+        &mut out,
+    );
+    assert!(out.is_empty(), "fixture has no early hellos");
+    settle_fleet(domain, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet });
+}
+
+pub(crate) fn restored_fleet(limits: &Limits, needs: jig_domain_fleet::Needs) -> jig_domain_fleet::Domain {
+    let mut domain = jig_domain_fleet::Domain::new(&limits.fleet, limits.settings.versions, needs.clone());
+    restore_needs(&mut domain, limits, needs);
+    domain
+}
+
 /// Make one bounded batch and apply its projection saves to the unit core.
 pub(crate) fn make_batch(core: &mut Core, limits: &Limits, creator: tasks::Party, batch: Box<[tasks::New]>) {
     make_batch_at(core, limits, creator, batch, Wall::EPOCH);

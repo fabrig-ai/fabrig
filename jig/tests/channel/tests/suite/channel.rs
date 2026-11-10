@@ -224,9 +224,12 @@ fn a_worker_shutdown_stops_its_native_run() {
     let outcome = run(Story::Shutdown);
     assert_eq!(outcome.verdict, Verdict::Passed);
     assert!(outcome.shut_down);
-    assert_eq!(outcome.agent_starts, 1);
+    assert_eq!(outcome.agent_starts, 2);
     assert!(outcome.shutdown_cancelled);
-    assert_eq!(outcome.answers_acknowledged, 1);
+    assert_eq!(outcome.answers_acknowledged, 2);
+    assert_eq!(outcome.resumed_turns, Some(1));
+    assert!(outcome.identity_kept);
+    assert_eq!(outcome.resumed_tries, Some(jig_domain_tasks::Tries::NONE));
 }
 
 #[test]

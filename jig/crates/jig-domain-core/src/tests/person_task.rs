@@ -546,7 +546,7 @@ fn run_progress_uses_the_current_chip_observation_and_ends_with_the_run() {
     assert!(!core.run_past_starting(u64::MAX));
     claim(&mut core, &env, task, None);
     env.limits.fleet.engine_slots = 1;
-    core.fleet = fleet::Domain::new(&env.limits.fleet, env.limits.settings.versions, fixtures::needs());
+    core.fleet = fixtures::restored_fleet(&env.limits, fixtures::needs());
     let mut out = Queue::uncapped();
     fleet::step(
         &mut core.fleet,

@@ -71,7 +71,9 @@ impl Harness {
     }
 
     fn with_versions(limits: Limits, versions: u32, needs: crate::Needs) -> Harness {
-        Self::unrestored(limits, versions, needs)
+        let mut h = Self::unrestored(limits, versions, needs.clone());
+        assert!(h.step(Event::Needs(needs)).is_empty());
+        h
     }
 
     fn unrestored(limits: Limits, versions: u32, needs: crate::Needs) -> Harness {

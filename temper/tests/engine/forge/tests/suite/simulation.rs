@@ -1221,6 +1221,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::ProjectionOutcome { .. }
                 | top::Request::NotMade { .. }
                 | top::Request::ContinueRelease { .. }
+                | top::Request::ContinueGoalBranch { .. }
                 | top::Request::EffectsSettled { .. }
                 | top::Request::Released { .. }
                 | top::Request::ProjectReleased { .. }
@@ -1372,6 +1373,101 @@ fn a_created_issue_with_its_answer_lost_is_found_after_restart() {
         Some(top::Stored::Issue(row)) => assert!(row.number.is_some()),
         Some(_) | None => panic!("recovered issue"),
     }
+}
+
+fn wait_for_creation(world: &mut World) {
+    for _ in 0..30 {
+        world.run_for(1);
+        if world.writes() == 1 {
+            return;
+        }
+    }
+    panic!("creation was not sent");
+}
+
+#[test]
+fn a_goal_branch_with_its_creations_answer_lost_is_found_after_restart_once() {
+    let mut world = World::new(324);
+    world.adopt();
+    world.slow_calls(skein_lib::Duration::from_secs(5));
+    let name = top::Name {
+        forge: REPO.forge,
+        repository: REPO.repository,
+        what: top::What::Branch(Box::new([
+            b"temper".as_slice().into(),
+            b"77".as_slice().into(),
+            b"g77".as_slice().into(),
+        ])),
+    };
+    world.event(top::Event::Hold { entry: 1, task: 77, resource: name.clone(), from: None });
+    world.run_for(11);
+    world.event(top::Event::Committed { entry: 1 });
+    wait_for_creation(&mut world);
+    world.restart();
+    world.run_for(40);
+    assert_eq!(world.writes(), 1);
+    assert_eq!(world.branch(b"temper/77/g77"), world.branch(b"main"));
+    assert_eq!(world.stored().get(&top::Key::Entry(1)), None);
+    assert!(world.seen().iter().all(|request| !matches!(
+        request,
+        top::Request::MakeFailed { .. } | top::Request::Outcome { outcome: skein_forge_client::Outcome::Held, .. }
+    )));
+    assert!(matches!(
+        world.stored().get(&top::Key::Hold(name)),
+        Some(top::Stored::Hold(top::Hold { writer: None, .. }))
+    ));
+}
+
+#[test]
+fn a_pull_opened_with_its_answer_lost_is_found_by_its_branches_after_restart_once() {
+    let mut world = World::new(325);
+    world.adopt();
+    world.produce(b"temper/51");
+    world.slow_calls(skein_lib::Duration::from_secs(5));
+    let mut row = change_row();
+    row.change.state = change::State::Opening { requested: true };
+    row.pending = Some(1);
+    row.effect = change::EffectResult::Pending;
+    world.event(top::Event::Change { row });
+    world.event(top::Event::Enqueue {
+        entry: skein_forge_client::Entry {
+            number: 1,
+            task: 51,
+            repository: REPO,
+            effect: skein_forge_client::Effect {
+                write: skein_forge::api::Write::OpenPull {
+                    head: b"temper/51".as_slice().into(),
+                    base: b"main".as_slice().into(),
+                    title: b"Small fix".as_slice().into(),
+                    body: b"Fix".as_slice().into(),
+                },
+                condition: skein_forge_client::Condition::None,
+            },
+            start: None,
+            attempt: None,
+            failures: 0,
+            queued: false,
+        },
+    });
+    world.event(top::Event::Committed { entry: 1 });
+    wait_for_creation(&mut world);
+    world.restart();
+    world.run_for(40);
+    assert_eq!(world.writes(), 1);
+    assert_eq!(world.stored().get(&top::Key::Entry(1)), None);
+    assert!(world.seen().contains(&top::Request::Outcome {
+        entry: 1,
+        task: 51,
+        account: None,
+        outcome: skein_forge_client::Outcome::Made { made: skein_forge_client::Made::Created(1), found: true },
+    }));
+    assert!(
+        matches!(world.stored().get(&top::Key::Change(51)), Some(top::Stored::Change(row)) if row.effect == change::EffectResult::Made && row.pending.is_none())
+    );
+    assert!(world.take_calls().contains(&skein_forge::api::Op::Read(skein_forge::api::Read::PullFor {
+        head: b"temper/51".as_slice().into(),
+        base: b"main".as_slice().into(),
+    })));
 }
 
 #[test]
@@ -1827,6 +1923,99 @@ fn landing_subscriptions_admit_shared_watches_and_refuse_a_full_union() {
     world.event(top::Event::Subscribe { subscription });
     assert!(world.seen().iter().any(|request| matches!(request, top::Request::Refused { task: 53 })));
     assert!(!world.stored().contains_key(&key), "a refused watch must retain no subscription");
+}
+
+#[test]
+fn a_change_rides_a_long_forge_outage_and_reads_ci_posted_without_a_delivery() {
+    use skein_fake_forge_domain::api::Check;
+    use skein_lib::Duration;
+    let mut world = World::new(292);
+    world.adopt();
+    world.produce(b"temper/51");
+    let pull = world.open_pull(b"temper/51", b"main");
+    world.status(b"temper/51", Check::Pending);
+    let head = translate::commit(world.branch(b"temper/51"));
+    let mut row = change_row();
+    row.pull = Some(pull);
+    row.change.state = change::State::Checking { head };
+    row.change.last_head = Some(head);
+    row.change.since = world.wall();
+    world.event(top::Event::Change { row });
+    world.event(top::Event::Subscribe {
+        subscription: top::Subscriber {
+            task: 51,
+            number: 1,
+            topic: top::Topic::Ci { repository: REPO, head },
+            own_change: None,
+            goal_tasks: None,
+            paths: Box::new([]),
+        },
+    });
+    world.run_for(1);
+    world.take_seen();
+    let from = world.wall();
+    let away = Duration::from_secs(180);
+    assert!(away > temper_engine_forge_world::LIMITS.change_policy.stall);
+    assert!(away > temper_engine_forge_world::LIMITS.client.lifetime);
+    let until = Wall::from_nanos(from.as_nanos() + away.as_nanos());
+    world.unavailable(from, until);
+    world.event(top::Event::StepChange {
+        merge_job: false,
+        task: 51,
+        entry: 1,
+        heard: change::Heard {
+            review_request: None,
+            start_conflict: None,
+            lacking: None,
+            spend: None,
+            delegate: change::Status::Passed,
+            delegate_running: false,
+            delegate_live: false,
+            effect: change::EffectResult::None,
+            released: false,
+            cancelled: false,
+        },
+        gates: Box::new([]),
+        queue_repair_active: false,
+        pending: Box::new([]),
+        kept: false,
+    });
+    world.run_for(90);
+    assert!(matches!(world.change(51).change.state, change::State::Checking { .. }));
+    world.status(b"temper/51", Check::Passed); // no hook or Hint reaches the connector
+    world.run_to(until);
+    assert!(matches!(world.change(51).change.state, change::State::Checking { .. }));
+    world.run_for(60);
+    let recovered = world.take_seen();
+    assert!(recovered.iter().any(|r| matches!(r, top::Request::News { news: top::News::Ci { head: seen, status: skein_forge::api::Ci::Passed }, .. } if *seen == head)), "forge back refreshes the subscription: {recovered:?}");
+    assert!(
+        !recovered.iter().any(|r| matches!(
+            r,
+            top::Request::ResourceRefused { .. }
+                | top::Request::LostReadFailed { .. }
+                | top::Request::ChangeDecision {
+                    decision: change::Decision::Hold(_) | change::Decision::Delegate(change::Delegate::Repair(_)),
+                    ..
+                }
+        )),
+        "an outage is not a failure: {recovered:?}"
+    );
+    let mut landed = None;
+    for entry in 2..20 {
+        let decision = change_step(&mut world, entry, change::Status::Passed, Box::new([]));
+        assert!(
+            !matches!(decision, change::Decision::Hold(_) | change::Decision::Delegate(change::Delegate::Repair(_))),
+            "{decision:?}"
+        );
+        if let change::Decision::Finish { merge } = decision {
+            landed = Some(merge);
+            break;
+        }
+    }
+    assert_eq!(landed, Some(translate::commit(world.branch(b"main"))));
+    assert_eq!(world.writes(), 1, "one merge, no duplicate effect");
+    assert_eq!(world.change(51).change.repairs, 0);
+    assert!(world.hints().is_empty(), "no delivery supplied the green status");
 }
 
 #[test]

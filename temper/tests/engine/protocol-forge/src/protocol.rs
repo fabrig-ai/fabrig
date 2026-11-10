@@ -594,6 +594,7 @@ impl Protocol {
                 | top::Request::ProjectionOutcome { .. }
                 | top::Request::NotMade { .. }
                 | top::Request::ContinueRelease { .. }
+                | top::Request::ContinueGoalBranch { .. }
                 | top::Request::EffectsSettled { .. }
                 | top::Request::Released { .. }
                 | top::Request::ProjectReleased { .. }

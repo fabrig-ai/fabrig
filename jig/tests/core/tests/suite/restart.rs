@@ -525,16 +525,26 @@ fn a_contact_cancellation_after_restart_resumes_without_spending_a_try() {
     let (task, attempt) = (world.task(), world.attempt());
     let tries = restored_task(&world, task).tries;
     world.restart(126, false);
-    hello(&mut world, Box::new([Hosting { run: Token::new(task), attempt: Token::new(attempt), phase: Phase::Active }]));
+    hello(
+        &mut world,
+        Box::new([Hosting { run: Token::new(task), attempt: Token::new(attempt), phase: Phase::Active }]),
+    );
     account(&mut world);
     world.send(root::Event::Link {
         channel: Token::new(7),
         link: root::link::Event::Up(host::LinkUp::Answer {
-            run: Token::new(task), attempt: Token::new(attempt),
+            run: Token::new(task),
+            attempt: Token::new(attempt),
             answer: host::RunAnswer {
-                read: None, refused: Box::new([]), turns: 1, spent: 3,
-                ending: host::Ending::Failed { failure: host::Failure::Cancelled(host::Reason::Contact),
-                    detail: Box::new([]), work: host::Work { left: None, saved: None } },
+                read: None,
+                refused: Box::new([]),
+                turns: 1,
+                spent: 3,
+                ending: host::Ending::Failed {
+                    failure: host::Failure::Cancelled(host::Reason::Contact),
+                    detail: Box::new([]),
+                    work: host::Work { left: None, saved: None },
+                },
             },
         }),
     });

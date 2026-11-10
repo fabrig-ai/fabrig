@@ -98,13 +98,42 @@ pub fn model_bounds(names: &[&[u8]]) -> Bounds {
 /// Fixed configured membership for the fleet worlds, independent of live channels.
 #[must_use]
 pub fn domain(limits: &jig_domain_fleet::Limits, needs: jig_domain_fleet::Needs) -> jig_domain_fleet::Domain {
-    let mut domain = jig_domain_fleet::Domain::new(limits, 0, needs);
+    let mut domain = restored_fleet(limits, needs);
     let names =
         (0..limits.configured_workers).map(|index| format!("worker-{index}").into_bytes().into_boxed_slice()).collect();
     let names =
         Membership::new(names, limits.configured_workers, limits.worker_name_bytes).expect("fixture membership");
     domain.configure_workers(names);
     domain
+}
+
+/// A runtime fleet fixture has heard its start's restored needs.
+#[must_use]
+pub fn restored_fleet(limits: &jig_domain_fleet::Limits, needs: jig_domain_fleet::Needs) -> jig_domain_fleet::Domain {
+    let mut domain = jig_domain_fleet::Domain::new(limits, 0, needs.clone());
+    let mut out = skein_lib::Queue::uncapped();
+    jig_domain_fleet::step(
+        &mut domain,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: *limits },
+        jig_domain_fleet::Event::Needs(needs),
+        &mut out,
+    );
+    assert!(out.is_empty(), "fixture has no early hellos");
+    settle_fleet(&mut domain, limits);
+    domain
+}
+
+fn settle_fleet(domain: &mut jig_domain_fleet::Domain, limits: &jig_domain_fleet::Limits) {
+    let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: *limits };
+    for _ in 0_u8..4 {
+        if !domain.is_ready() {
+            return;
+        }
+        let mut out = skein_lib::Queue::uncapped();
+        jig_domain_fleet::resume(domain, &env, &mut out);
+        assert!(out.is_empty(), "fixture fleet pass must be empty: {out:?}");
+    }
+    assert!(!domain.is_ready(), "fixture fleet readiness settles within four passes");
 }
 
 /// Independent served endpoints for the three model fixtures.
