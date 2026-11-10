@@ -806,13 +806,18 @@ fn source_deadlines_and_spawn_failures_leave_preparation_succeeding() {
     }
 }
 /// Fake HTTP peers share this test's loop with the source command.
-fn source_answer(discovery: Option<u16>, listed: bool, response: &str) -> (std::process::Output, String, Vec<String>) {
+fn source_answer(
+    case: &str,
+    discovery: Option<u16>,
+    listed: bool,
+    response: &str,
+) -> (std::process::Output, String, Vec<String>) {
     use std::{
         io::{Read, Write},
         net::TcpListener,
         process::Stdio,
     };
-    let scratch = support::Scratch::new("forge_source_serving");
+    let scratch = support::Scratch::new(case);
     let directory = scratch.path();
     let _programs = support::owned::scripted(directory);
     fs::create_dir_all(directory.join("forge-1/forgejo")).expect("source work path");
@@ -895,7 +900,7 @@ fn source_answer(discovery: Option<u16>, listed: bool, response: &str) -> (std::
 #[test]
 fn source_reads_discovery_before_running_any_forgejo_command() {
     for discovery in [None, Some(502)] {
-        let (output, commands, _) = source_answer(discovery, false, "");
+        let (output, commands, _) = source_answer("forge_source_discovery", discovery, false, "");
         support::forge_sign_in::success(&output);
         assert_eq!(output.stdout, b"source failed temper's discovery did not answer\n");
         assert!(commands.is_empty(), "discovery failure must not run Forgejo: {commands}");
@@ -904,7 +909,7 @@ fn source_reads_discovery_before_running_any_forgejo_command() {
 
 #[test]
 fn source_adds_an_absent_source_only_after_discovery_answers() {
-    let (output, commands, seen) = source_answer(Some(200), false, "");
+    let (output, commands, seen) = source_answer("forge_source_absent", Some(200), false, "");
     support::forge_sign_in::success(&output);
     assert_eq!(output.stdout, b"source added\n");
     assert!(commands.contains("add-oauth\n--name\ntemper\n"), "{commands}");
@@ -927,7 +932,7 @@ fn a_listed_source_is_added_only_when_its_sign_in_redirects_to_the_issuer() {
         (307, "ISSUER/oauth/authorize/child", false),
     ] {
         let response = format!("HTTP/1.1 {status} Answer\r\nLocation: {location}\r\nContent-Length: 0\r\n\r\n");
-        let (output, commands, seen) = source_answer(Some(200), true, &response);
+        let (output, commands, seen) = source_answer("forge_source_listed", Some(200), true, &response);
         support::forge_sign_in::success(&output);
         assert_eq!(
             output.stdout,

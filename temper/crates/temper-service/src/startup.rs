@@ -689,6 +689,7 @@ fn check_files(parsed: &Parsed, files: &settings::Files) -> Result<(), Problems>
     if problems.is_empty() { Ok(()) } else { Err(problems) }
 }
 pub(crate) struct CheckedStart {
+    warnings: Problems,
     not_set_up: List<u16>,
     pub(crate) engine: settings::Engine,
     worker: Option<settings::Worker>,
@@ -789,8 +790,9 @@ pub(crate) fn checked_start_with(
     }
     let mut core = config::core(&parsed.engine, seeds.deployment, seeds.seed);
     core.jobs = crate::limits::jobs(&parsed.engine.limits);
+    let mut warnings = Problems::empty();
     if let Some(agent) = agent {
-        checks::admission(&core, &parsed.engine, agent, &mut problems);
+        warnings = checks::admission(&core, &parsed.engine, agent, &mut problems);
         checks::agent_answer(agent, &mut problems);
     }
     if !problems.is_empty() {
@@ -850,7 +852,7 @@ pub(crate) fn checked_start_with(
     }
     .ok_or(problem(Path::root().member(b"engine").member(b"limits").member(b"io"), What::Jig(config::What::Bound)))?;
     let prepared_forges = prepare_forges(&engine, forges)?;
-    Ok(CheckedStart { not_set_up, engine, worker, io, forges: prepared_forges })
+    Ok(CheckedStart { warnings, not_set_up, engine, worker, io, forges: prepared_forges })
 }
 fn checked_start(
     document: &[u8],
@@ -922,7 +924,7 @@ pub fn with_setup_given(
     given: &crate::stock::Given,
     program_environment: Box<[u8]>,
 ) -> Result<Service, Problems> {
-    let CheckedStart { mut engine, worker, io, forges, not_set_up } =
+    let CheckedStart { mut engine, worker, io, forges, not_set_up, warnings } =
         checked_start_with(document, directories, files, agent, seeds, forges, setup, given)?;
     engine.program_environment = program_environment;
     #[cfg(feature = "worker")]
@@ -937,6 +939,14 @@ pub fn with_setup_given(
     };
     match Service::prepared(engine, seeds, accounts, forges, worker, io, box_line_bytes, program_login) {
         Ok(mut service) => {
+            for warning in &warnings.problems {
+                let mut found = Problems::empty();
+                found.push(warning.path.clone(), warning.what);
+                let line = lines(&found);
+                service.notes().push(crate::Note::StartupWarning {
+                    line: line.strip_suffix(b"\n").expect("one warning line").into(),
+                });
+            }
             for number in &not_set_up {
                 crate::setup::lifecycle::state(
                     service.engine.as_mut().expect("engine startup"),

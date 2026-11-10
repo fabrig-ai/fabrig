@@ -2102,23 +2102,17 @@ fn a_model_added_by_rest_is_checked_against_the_agents_bounds() {
     let engine = engine(&generated());
     let mut agent = fixtures::parsed_agent(fixtures::stock_configuration(10_662, 8192).unwrap());
     let mut problems = crate::startup::Problems::empty();
-    crate::startup::checks::agent(&engine, &agent, &mut problems);
+    let core = config::core(&engine, [7; 16], 7);
+    let warnings = crate::startup::checks::admission(&core, &engine, &agent, &mut problems);
     assert!(problems.is_empty());
+    assert!(warnings.is_empty());
     let demo = agent.bounds.endpoints.iter_mut().find(|endpoint| endpoint.endpoint == 3).unwrap();
     demo.output = 8191;
-    crate::startup::checks::agent(&engine, &agent, &mut problems);
-    assert_eq!(problems.problems.len(), u32::try_from(engine.charters.len()).unwrap());
-    for (problem, charter) in problems.problems.iter().zip(&engine.charters) {
-        assert_eq!(problem.what, crate::startup::What::Agent);
-        let mut one = crate::startup::Problems::empty();
-        one.push(problem.path.clone(), problem.what);
-        assert_eq!(
-            crate::startup::lines(&one).as_ref(),
-            format!(
-                "charter {}.alternatives[6]: not in the agent's configuration under the same name\n",
-                charter.number
-            )
-            .as_bytes()
-        );
-    }
+    let warnings = crate::startup::checks::admission(&core, &engine, &agent, &mut problems);
+    assert!(problems.is_empty());
+    assert_eq!(warnings.problems.len(), 1);
+    assert_eq!(
+        crate::startup::lines(&warnings).as_ref(),
+        b"engine.charters[0].alternatives[6]: needs 8192 output tokens; the agent offers 8191 tokens\n"
+    );
 }

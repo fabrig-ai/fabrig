@@ -369,6 +369,9 @@ pub fn note_line(binary: &str, note: temper_service::Note) -> String {
             format!("{binary} serve: the core is not answering: {}\n", String::from_utf8_lossy(&why.words()))
         }
         temper_service::Note::CoreAnswers => format!("{binary} serve: the core answers again\n"),
+        temper_service::Note::StartupWarning { line } => {
+            format!("{binary} serve: warning: {}\n", String::from_utf8_lossy(&line))
+        }
         temper_service::Note::ForgeLink { forge, note } => {
             let words = match note {
                 temper_engine_domain_forge::LinkNote::Gone => "their account is gone, the link kept",
@@ -1005,16 +1008,25 @@ fn listening_notes_print_each_listener_and_socket_address_exactly() {
 }
 
 #[test]
+fn startup_warnings_print_the_configuration_path_and_figures() {
+    let line = b"engine.charters[1].reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 90000 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout";
+    assert_eq!(
+        note_line("temper", temper_service::Note::StartupWarning { line: line.as_slice().into() }),
+        "temper serve: warning: engine.charters[1].reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 90000 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout\n"
+    );
+}
+
+#[test]
 fn hello_refusal_notes_print_the_channel_and_words_exactly() {
     assert_eq!(
         note_line(
             "temper",
             temper_service::Note::HelloRefused {
                 channel: 7,
-                text: b"charter 3: needs 64 turns; the agent's profile.policy.max_turns allows 32".as_slice().into(),
+                text: b"charter 2: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 90000 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout".as_slice().into(),
             }
         ),
-        "temper serve: hello refused channel=7: charter 3: needs 64 turns; the agent's profile.policy.max_turns allows 32\n",
+        "temper serve: hello refused channel=7: charter 2: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 90000 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout\n",
     );
 }
 

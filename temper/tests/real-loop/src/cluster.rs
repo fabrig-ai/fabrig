@@ -18,6 +18,11 @@ impl std::ops::Deref for Cluster {
     }
 }
 impl Cluster {
+    /// The engine's peak tries per class, retained before a successful park clears them.
+    #[must_use]
+    pub fn tries(&self, number: u64) -> jig_domain_tasks::Tries {
+        *self.ran.service().tries.get(&number).expect("observed task")
+    }
     #[must_use]
     pub fn worker(&self, name: &str) -> &ServiceHost {
         self.ran
@@ -35,9 +40,22 @@ pub fn run_cluster(
     recipe: impl FnOnce() -> llm::Recipe,
     steps: impl FnOnce() -> Vec<calls::Step>,
 ) -> Cluster {
+    run_cluster_with_grace(workers, skein_lib::Duration::from_millis(10), recipe, steps)
+}
+
+/// Run the cluster with a worker's engine-away bound; link deadlines stay above patience.
+#[must_use]
+pub fn run_cluster_with_grace(
+    workers: &[&'static str],
+    grace: skein_lib::Duration,
+    recipe: impl FnOnce() -> llm::Recipe,
+    steps: impl FnOnce() -> Vec<calls::Step>,
+) -> Cluster {
     let git = temper_worker_checkout_world::hosted::scenario().transport;
     crate::git::share(Some(git.clone()));
-    run_with(workers, Some(git), |scratch| crate::Outcome::Checked(world::run_cluster(workers, scratch, recipe, steps)))
+    run_with(workers, Some(git), |scratch| {
+        crate::Outcome::Checked(world::run_cluster(workers, grace, scratch, recipe, steps))
+    })
 }
 
 /// The cluster's services and hosted git share one forge, as in `run_forge`.
@@ -78,8 +96,8 @@ fn run_with(
 }
 
 pub(crate) enum Shape {
-    Engine(Vec<&'static str>),
-    Worker { name: &'static str, engine: Option<SocketAddr>, started: bool },
+    Engine { workers: Vec<&'static str>, grace: skein_lib::Duration },
+    Worker { name: &'static str, engine: Option<SocketAddr>, started: bool, grace: skein_lib::Duration },
 }
 impl Shape {
     pub(crate) fn ready(&self) -> bool {
@@ -103,14 +121,16 @@ impl Shape {
             serde_json::from_slice(&std::fs::read(data.join("temper.json")).expect("base document"))
                 .expect("base JSON");
         // Link deadlines exceed PATIENCE, so load cannot lose a link or run in this story.
-        // Loss and grace belong to the engine's domain world (domain/testing.md, 2.4).
+        // A restart closes the socket explicitly rather than waiting on a link timer.
         // The stop bound stays below fleet grace (protocol/README.md, 15.3).
         let ping_ms = crate::PATIENCE.as_nanos().div_euclid(1_000_000) + 1;
         let silence_ms = 3 * ping_ms;
-        let [grace_ms, agent_stop_ms, delivery_ms, save_ms] = [10_u64, 5, 5, 5];
+        let (Self::Engine { grace, .. } | Self::Worker { grace, .. }) = self;
+        let grace_ms = grace.as_millis();
+        let [agent_stop_ms, delivery_ms, save_ms] = [5_u64, 5, 5];
         let stop_bound_ms = ping_ms + silence_ms + grace_ms + agent_stop_ms.max(delivery_ms) + save_ms;
         match self {
-            Self::Engine(workers) => {
+            Self::Engine { workers, .. } => {
                 document["workers"] = json!([]);
                 document["application"]["workers"] = json!([]);
                 document["engine"]["hosts"]["listener"] = json!([{"socket":"127.0.0.1:0"}]);
@@ -152,6 +172,10 @@ impl Shape {
                 worker["graces"] = json!({"grace_ms":grace_ms,"agent_stop_ms":agent_stop_ms,"delivery_ms":delivery_ms,"save_ms":save_ms});
                 worker["limits"]["overrides"]["link.ping_ms"] = ping_ms.into();
                 worker["limits"]["overrides"]["link.silence_ms"] = silence_ms.into();
+                if grace_ms >= 1_000 {
+                    // Redial promptly after the grace too; waiting out backoff is not this story's rule.
+                    worker["limits"]["overrides"]["link.ceiling_ms"] = 1_000.into();
+                }
                 document = json!({"workers":document["workers"],"application":{"workers":document["application"]["workers"],"limits":document["application"]["limits"]}});
                 fixtures::private(
                     &data.join(format!("secrets/{name}.secret")),
@@ -175,6 +199,7 @@ pub(crate) struct Runs {
     bytes: Vec<u8>,
     pending: Option<u64>,
     pub(crate) tasks: Vec<u64>,
+    pub(crate) assignments: Vec<jig_protocol_worker_wire::Assignment>,
     pub(crate) assigned_at: Option<skein_lib::Time>,
 }
 impl Runs {
@@ -201,6 +226,7 @@ impl Runs {
                         .expect("assignment");
                         self.pending = Some(assignment.task());
                         self.assigned_at.get_or_insert(now);
+                        self.assignments.push(assignment);
                     }
                     self.bytes.drain(..end);
                 }

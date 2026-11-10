@@ -895,6 +895,27 @@ fn paths_are_resolved_by_kind_and_absolute_only_members_refuse_relative_values()
 }
 
 #[test]
+fn a_standalone_check_reserve_shortfall_prepares_with_one_warning() {
+    let mut agent = fixtures::startup_agent();
+    agent.bounds.checks = skein_lib::Duration::from_millis(90_000);
+    let mut service = fixtures::start(
+        &fixtures::document(),
+        &config::Directories::working(),
+        &fixtures::files(),
+        &agent,
+        &fixtures::seeds(),
+        None,
+        fixtures::worker_runtime(),
+        fixtures::forge_runtime(),
+    )
+    .expect("a charter shortfall is a warning");
+    assert_eq!(service.notes().pop(), Some(crate::Note::StartupWarning {
+        line: b"engine.charters[1].reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 90000 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout".as_slice().into(),
+    }));
+    assert_eq!(service.notes().pop(), None, "the warning is enqueued once");
+}
+
+#[test]
 fn admission_model_words_use_tokens_and_missing_names_make_no_amount_claim() {
     use jig_domain_fleet::AgentShortfall;
     for (why, expected) in [
