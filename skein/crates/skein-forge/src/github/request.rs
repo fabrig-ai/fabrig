@@ -106,6 +106,7 @@ pub enum Request {
         number: u64,
         page: u32,
         per_page: u32,
+        since: Option<Wall>,
     },
     Pull {
         owner: Box<[u8]>,
@@ -691,7 +692,7 @@ fn items_target(request: &Request, out: &mut Target) -> Result<(), Refusal> {
             out.put(b"/issues/");
             out.number(*number);
         }
-        Request::Comments { owner, name, number, page, per_page } => {
+        Request::Comments { owner, name, number, page, per_page , since: _ } => {
             out.repo(owner, name)?;
             out.put(b"/issues/");
             out.number(*number);

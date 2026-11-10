@@ -1117,7 +1117,7 @@ fn producer_titles_name_changes_when_the_brief_opens_with_context() {
         land_titled_change(&mut world, &assigned, &branch, title);
         assert_eq!(world.merges, 1, "the titled change lands");
         let raw::Answer::Item { item: pull, .. } =
-            world.external(1, raw::Op::Read(raw::Read::Item { number: 1, after: 0 }))
+            world.external(1, raw::Op::Read(raw::Read::Item { number: 1, after: 0 , since: None }))
         else {
             panic!("created pull")
         };
@@ -1164,7 +1164,7 @@ fn handed_title(title: &[u8]) -> Box<[u8]> {
     }
     assert_eq!(world.merges, 1, "the handed branch lands: {:?}", world.answers);
     assert_eq!(world.assigned.len(), 1, "no producer is needed");
-    let raw::Answer::Item { item, .. } = world.external(1, raw::Op::Read(raw::Read::Item { number: 1, after: 0 }))
+    let raw::Answer::Item { item, .. } = world.external(1, raw::Op::Read(raw::Read::Item { number: 1, after: 0 , since: None }))
     else {
         panic!("handed pull")
     };

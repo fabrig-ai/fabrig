@@ -89,7 +89,7 @@ impl Plan {
                     .checked_div(u64::try_from(crate::measure::COMMENT_BYTES).expect("comment width"))
                     .expect("nonzero width");
                 let rows = List::with_capacity(bounds.rows.min(u32::try_from(room).expect("bounded room")));
-                let step = self.send(Request::Comments { at: row.at(), number: item.number });
+                let step = self.send(Request::Comments { at: row.at(), number: item.number , since: None });
                 return Ok((State::Comments { item, rows, more: false, size, after }, Some(step)));
             }
             State::Pull { row } => return Self::pull_status(row, pull(document)?, bounds),

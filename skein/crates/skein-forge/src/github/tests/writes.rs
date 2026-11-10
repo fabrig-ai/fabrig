@@ -786,7 +786,7 @@ fn github_post_original_key_find() {
         ("2026-10-20T08:00:01Z", api::Provenance::Revised),
         ("", api::Provenance::Unknown),
     ] {
-        let mut find = Plan::new(KEY, api::Op::Read(api::Read::Item { number: NUMBER, after: 0 }));
+        let mut find = Plan::new(KEY, api::Op::Read(api::Read::Item { number: NUMBER, after: 0 , since: skein_lib::Time::ZERO }));
         begin(&mut find, &mut tables);
         head(&mut find, 200, &mut tables);
         let (_, issue) = decode(Kind::Issue, br#"{"number":9007199254740993,"state":"open","user":{"id":9007199254740993},"updated_at":"2026-10-20T08:00:00Z","title":"alice","body":"text"}"#, 7, &limits());

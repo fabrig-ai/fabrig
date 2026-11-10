@@ -47,7 +47,7 @@ pub(super) fn route(method: Method, bytes: &[u8], limits: &Limits) -> Result<Rou
         }
         [issues, number] if &**issues == b"issues" => Request::Issue { at, number: number_value(number)? },
         [issues, number, comments] if &**issues == b"issues" && &**comments == b"comments" => {
-            Request::Comments { at, number: number_value(number)? }
+            Request::Comments { at, number: number_value(number)? , since: None }
         }
         [pulls, number] if &**pulls == b"pulls" => Request::Pull { at, number: number_value(number)? },
         [pulls, base, head] if &**pulls == b"pulls" => Request::PullFor { at, base: base.clone(), head: head.clone() },

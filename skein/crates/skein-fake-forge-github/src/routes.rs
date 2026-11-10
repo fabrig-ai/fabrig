@@ -100,8 +100,8 @@ pub(crate) fn decode(method: Method, target: &[u8], limits: &Limits) -> Option<R
             Route::Token(Token::Read(reads::Read::Issues { owner, name, since, page, per_page }))
         }
         Request::Issue { owner, name, number } => Route::Token(Token::Read(reads::Read::Issue { owner, name, number })),
-        Request::Comments { owner, name, number, page, per_page } if page > 0 && per_page > 0 => {
-            Route::Token(Token::Read(reads::Read::Comments { owner, name, number, page, per_page }))
+        Request::Comments { owner, name, number, page, per_page , since: _ } if page > 0 && per_page > 0 => {
+            Route::Token(Token::Read(reads::Read::Comments { owner, name, number, page, per_page , since: None }))
         }
         Request::Pull { owner, name, number } => Route::Token(Token::Read(reads::Read::Pull { owner, name, number })),
         Request::PullsFor { owner, name, head, base, open } => {

@@ -91,6 +91,7 @@ pub enum Read {
     Item {
         number: u64,
         after: u64,
+        since: Option<Time>,
     },
     /// The comment `id`. Answered by [`Answer::Comment`].
     Comment {
@@ -161,6 +162,7 @@ pub enum Read {
     /// The whole thread, oldest first.
     Comments {
         number: u64,
+        since: Option<Time>,
     },
     /// The oldest matching pull, open or not.
     FirstPull {

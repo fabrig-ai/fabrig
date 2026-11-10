@@ -247,8 +247,8 @@ pub fn op(config: &Config, request: &Request) -> Result<Op, a::Error> {
                 limit,
             }
         }
-        Request::Issue { number, .. } => Read::Item { number: *number, after: 0 },
-        Request::Comments { number, .. } => Read::Comments { number: *number },
+        Request::Issue { number, .. } => Read::Item { number: *number, after: 0 , since: None },
+        Request::Comments { number, .. } => Read::Comments { number: *number , since: None },
         Request::Pull { number, .. } | Request::Reviews { number, .. } | Request::ReviewComments { number, .. } => {
             Read::Pull { number: *number }
         }

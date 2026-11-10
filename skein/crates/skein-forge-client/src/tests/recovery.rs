@@ -189,13 +189,13 @@ fn restart_reads_before_settling_the_outbox() {
     assert_eq!(listing.op, Op::Read(Read::Items { since: at(fixture::START_AT), page: 1, kind: None }));
     h.answer(listing, Answer::Items { items: Box::new([]), more: false, now: at(fixture::START_AT) });
     let object = h.one();
-    assert_eq!(object.op, Op::Read(Read::Item { number: 9, after: u64::MAX }));
+    assert_eq!(object.op, Op::Read(Read::Item { number: 9, after: u64::MAX , since: skein_lib::Time::ZERO }));
     h.answer(object, fixture::empty_item());
     assert_eq!(h.fresh_done, 1);
     assert!(h.send().is_none());
     h.event(Event::SettleOutbox);
     let find = h.one();
-    assert_eq!(find.op, Op::Read(Read::Item { number: 9, after: 0 }));
+    assert_eq!(find.op, Op::Read(Read::Item { number: 9, after: 0 , since: skein_lib::Time::ZERO }));
     h.answer(find, fixture::empty_item());
     assert_eq!(h.outbox_done, 1);
     assert!(h.send().is_none());
@@ -540,7 +540,7 @@ fn rate_refused_writes_save_a_new_attempt() {
     );
     h.answer(resent, Err(Error::Timeout));
     let find = h.one();
-    assert_eq!(find.op, Op::Read(Read::Item { number: 9, after: 0 }));
+    assert_eq!(find.op, Op::Read(Read::Item { number: 9, after: 0 , since: skein_lib::Time::ZERO }));
     assert_eq!(
         h.store.get(&1).expect("find keeps attempt").attempt.expect("attempt").deadline,
         at(fixture::RETRY_DEADLINE)
@@ -579,7 +579,7 @@ fn echo_landing_rearms_the_resting_resource() {
         assert_eq!(h.domain.next_deadline(), Some(at(fixture::HINT_AT)), "{name}");
         h.fire(fixture::HINT_AT);
         let object = h.one();
-        assert_eq!(object.op, Op::Read(Read::Item { number: 9, after: 0 }), "{name}");
+        assert_eq!(object.op, Op::Read(Read::Item { number: 9, after: 0 , since: skein_lib::Time::ZERO }), "{name}");
         let mut own = kept::comment(9);
         own.author = 1;
         h.answer(
@@ -681,7 +681,7 @@ fn oversized_and_lost_write_answers_are_uncertain() {
         fixture::failed_fact(&mut h, error);
         assert_eq!(h.store.get(&1).expect("uncertain entry saved").failures, 1, "{name}");
         assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Uncertain)], "{name}");
-        assert_eq!(h.one().op, Op::Read(Read::Item { number: 9, after: 0 }), "{name}");
+        assert_eq!(h.one().op, Op::Read(Read::Item { number: 9, after: 0 , since: skein_lib::Time::ZERO }), "{name}");
         assert_eq!(h.writes, 1, "{name}");
     }
 }

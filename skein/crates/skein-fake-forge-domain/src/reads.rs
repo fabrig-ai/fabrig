@@ -77,7 +77,7 @@ pub(crate) fn read(domain: &Domain, config: &Config, id: Id<Repository>, read: &
                 items(repository, config, *state, *kind, labels, *author, *order, *since, *page, *limit);
             Ok(Answer::Items { items, more, now: domain.clock })
         }
-        Read::Item { number, after } => item(repository, limits, *number, *after),
+        Read::Item { number, after , since: _ } => item(repository, limits, *number, *after),
         Read::Comment { id } => {
             let Some(&number) = repository.comments.get(id) else {
                 return Err(Error::Missing(What::Comment));
@@ -116,7 +116,7 @@ pub(crate) fn read(domain: &Domain, config: &Config, id: Id<Repository>, read: &
             None => Err(Error::Missing(What::Pull)),
         },
         Read::OpenPulls { page, limit } => open_pulls(domain, limits, repository, *page, *limit),
-        Read::Comments { number } => {
+        Read::Comments { number , since: _ } => {
             let item = repository.item(*number)?;
             let mut comments = List::with_capacity(limits.comments);
             for (&id, comment) in &item.comments {

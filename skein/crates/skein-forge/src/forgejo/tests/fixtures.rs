@@ -17,7 +17,7 @@ pub fn repository() -> crate::forgejo::request::Repo {
     crate::forgejo::request::Repo { owner: Box::from(*b"fixture"), name: Box::from(*b"specimen") }
 }
 pub fn comments(number: u64) -> crate::forgejo::request::Request {
-    crate::forgejo::request::Request::Comments { at: repository(), number }
+    crate::forgejo::request::Request::Comments { at: repository(), number , since: None }
 }
 pub fn capped(body: &[u8], cap: u32, limits: &Limits) -> tokenizer::Event {
     let mut feed = tokenizer::Feed::new(body, &limits.json);

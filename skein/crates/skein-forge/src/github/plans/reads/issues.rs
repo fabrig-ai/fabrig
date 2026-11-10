@@ -243,7 +243,7 @@ impl Plan {
             number,
             page: self.page,
             per_page: self.limit,
-        })))
+         since: None })))
     }
     pub(super) fn issue_rows_done(&mut self, bounds: Bounds) -> Result<Option<Step>, api::Error> {
         let next = match self.response {

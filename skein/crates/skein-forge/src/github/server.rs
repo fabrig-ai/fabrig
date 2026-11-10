@@ -181,7 +181,7 @@ fn item_route(owner: Box<[u8]>, name: Box<[u8]>, tail: &[u8], query: &Query) -> 
         return match suffix {
             b"" => Some(Request::Issue { owner, name, number }),
             b"comments" => {
-                Some(Request::Comments { owner, name, number, page: query.page()?, per_page: query.size()? })
+                Some(Request::Comments { owner, name, number, page: query.page()?, per_page: query.size()? , since: None })
             }
             _ => None,
         };

@@ -38,8 +38,8 @@ fn read_rows() -> [(Request, Route, Op); 26] {
                 limit: 2,
             }),
         ),
-        (Request::Issue { at: at(), number: 3 }, Route::Issue, Op::Read(Read::Item { number: 3, after: 0 })),
-        (Request::Comments { at: at(), number: 3 }, Route::Comments, Op::Read(Read::Comments { number: 3 })),
+        (Request::Issue { at: at(), number: 3 }, Route::Issue, Op::Read(Read::Item { number: 3, after: 0 , since: None })),
+        (Request::Comments { at: at(), number: 3 , since: None }, Route::Comments, Op::Read(Read::Comments { number: 3 , since: None })),
         (Request::Pull { at: at(), number: 3 }, Route::Pull, Op::Read(Read::Pull { number: 3 })),
         (
             Request::PullFor { at: at(), head: boxed(b"work"), base: boxed(b"main") },

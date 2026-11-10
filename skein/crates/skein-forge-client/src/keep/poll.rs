@@ -73,7 +73,7 @@ fn operation(row: &Live, key: &Resource, phase: Phase) -> Read {
             What::Pull(number) | What::Issue(number) => Read::Item {
                 number,
                 after: if row.record.watch.participating { row.record.comment_after } else { u64::MAX },
-            },
+             since: skein_lib::Time::ZERO },
             What::Repository | What::Branch(_) => unreachable!("item stage"),
         },
         Phase::Pull => match key.what {

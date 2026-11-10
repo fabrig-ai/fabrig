@@ -274,10 +274,10 @@ pub(crate) fn call(
                 limit: per_page.min(service.limits.page),
             }),
         ),
-        Read::Issue { number, .. } => (Pending::Issue, Op::Read(a::Read::Item { number, after: 0 })),
+        Read::Issue { number, .. } => (Pending::Issue, Op::Read(a::Read::Item { number, after: 0 , since: None })),
         Read::Comments { number, page, per_page, .. } => (
             Pending::Comments { target: bytes::copy_of(target), page, size: per_page.min(service.limits.page) },
-            Op::Read(a::Read::Comments { number }),
+            Op::Read(a::Read::Comments { number , since: None }),
         ),
         Read::Repository(_) | Read::Locate { .. } => (Pending::Repository(row.clone()), Op::Read(a::Read::Settings)),
         Read::Branch { branch, .. } => (Pending::Branch(branch.clone()), Op::Read(a::Read::Branch { branch })),

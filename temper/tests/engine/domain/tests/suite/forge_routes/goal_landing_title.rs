@@ -93,7 +93,7 @@ fn assert_landing_title(words: &str, first_line: Option<&[u8]>, title: &[u8]) {
     }
     let row = change_row(&world, landing);
     let number = row.pull.unwrap_or_else(|| panic!("the held branch opens immediately: {row:?}"));
-    let raw::Answer::Item { item, .. } = world.external(1, raw::Op::Read(raw::Read::Item { number, after: 0 })) else {
+    let raw::Answer::Item { item, .. } = world.external(1, raw::Op::Read(raw::Read::Item { number, after: 0 , since: None })) else {
         panic!("landing pull")
     };
     assert_eq!(item.title.as_ref(), title);

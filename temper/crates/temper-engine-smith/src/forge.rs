@@ -88,7 +88,7 @@ fn read(kind: &[u8], value: &Value) -> Result<api::Read, Problem> {
         b"item" => Ok(api::Read::Item {
             number: positive_number(value, b"number")?,
             after: optional_number(value, b"after", 0)?,
-        }),
+         since: skein_lib::Time::ZERO }),
         b"pull" => Ok(api::Read::Pull { number: positive_number(value, b"number")? }),
         b"pull_for" => Ok(api::Read::PullFor {
             head: value.required(b"head")?.text(b"head")?,

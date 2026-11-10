@@ -15,7 +15,7 @@ fn github_calls_costs_and_credentials_survive_cuts_renewal_and_replacement() {
         let number = world.person_issue(b"before");
         let _ = world.read(Read::Items { since: Time::ZERO, page: 1, kind: None });
         world.person_edit(number, b"after");
-        let _ = world.read(Read::Item { number, after: 0 });
+        let _ = world.read(Read::Item { number, after: 0 , since: skein_lib::Time::ZERO });
         fixtures::github_close(&mut world, number);
         world.restart();
         let mints = world.github_mints();
@@ -23,7 +23,7 @@ fn github_calls_costs_and_credentials_survive_cuts_renewal_and_replacement() {
         world.run_for(Duration::from_secs(3600));
         assert!(world.github_mints() > mints, "renewal, seed {seed}");
         // An owner read is outstanding when the new key/access is handed in.
-        world.event(Event::Read { owner: Token::new(100), repository: REPO, read: Read::Item { number, after: 0 } });
+        world.event(Event::Read { owner: Token::new(100), repository: REPO, read: Read::Item { number, after: 0 , since: skein_lib::Time::ZERO } });
         world.replace_github_access();
         world.run_for(Duration::from_secs(20));
         let _ = world.read(Read::Items { since: Time::ZERO, page: 1, kind: None });

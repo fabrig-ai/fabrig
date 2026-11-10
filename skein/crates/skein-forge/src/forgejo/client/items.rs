@@ -83,7 +83,7 @@ fn target(request: &Request, out: &mut Target) {
             issue_query(out, *state, *kind, *since, *sort, *page);
         }
         Request::Issue { at, number } => out.numbered(at, b"/issues/", *number),
-        Request::Comments { at, number } => {
+        Request::Comments { at, number , since: _ } => {
             out.numbered(at, b"/issues/", *number);
             out.put(b"/comments");
         }

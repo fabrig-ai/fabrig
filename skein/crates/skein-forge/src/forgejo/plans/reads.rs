@@ -184,7 +184,7 @@ impl Plan {
                     },
                 )
             }
-            api::Read::Item { number, after } => (State::Issue { row, after }, Request::Issue { at, number }),
+            api::Read::Item { number, after , since: _ } => (State::Issue { row, after }, Request::Issue { at, number }),
             api::Read::Pull { number } => (State::Pull { row }, Request::Pull { at, number }),
             api::Read::PullFor { head, base } => {
                 (State::PullFor { row, head: head.clone(), base: base.clone() }, Request::PullFor { at, head, base })
