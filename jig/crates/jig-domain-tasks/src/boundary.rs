@@ -1576,6 +1576,8 @@ pub enum Event {
     RenewStanding { task: u64, period: u64 },
     /// Root supplies fresh identities for the template batch requested by the core procedure.
     RecurringBatch { task: u64, period: u64, numbers: Box<[u64]> },
+    /// Root supplies the fresh identity of the task's own closer (domain/tasks.md, 5.10).
+    CloserBatch { task: u64, number: u64 },
     /// Fenced decision from the owner of one due procedure task.
     Procedure {
         reply_to: ReplyTo,
@@ -1954,6 +1956,8 @@ pub enum Request {
     QuestionOwedDue { task: u64 },
     /// Number the always-waking notice for an idle result-ended task.
     NothingAwaitedDue { task: u64 },
+    /// Make the idle task's closer instead of numbering a notice (domain/tasks.md, 5.10).
+    CloserDue { task: u64 },
     /// Root supplies one message number for the notice that a kept task goes on (domain/tasks.md, 5.7 and 8.1).
     MetDue { task: u64, dependency: u64, removed: bool, by: Party },
     /// One nonfinal held decision passed its configured wait.

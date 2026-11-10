@@ -69,7 +69,9 @@ mod capacity;
 mod changed;
 mod close_project;
 
+mod closer;
 mod closing;
+pub use closer::CLOSER_WORDS;
 mod compound;
 mod control;
 pub use compound::{CompoundAdmission, CompoundContext, CompoundTask, Operation};

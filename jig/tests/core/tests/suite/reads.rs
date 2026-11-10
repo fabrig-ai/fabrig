@@ -993,3 +993,69 @@ fn parking_with_nothing_awaited_commits_the_notice_and_resumes() {
     finish_chat(&mut world, task);
     world.restart(814, false);
 }
+
+#[test]
+fn parking_with_a_closer_makes_it_and_numbers_no_notice() {
+    use jig_core_world::fixtures::live_row;
+    use jig_domain_authority::Executor;
+    let seed = 815;
+    let (mut configuration, limits) = jig_core_world::faults::plan_fixture(seed);
+    let kinds = Box::new([Executor::Charter(1), Executor::Procedure(6)]);
+    configuration.core.defaults.rules.ceiling.delegation.kinds = kinds.clone();
+    let policy = &mut configuration.core.seed_projects[0].policy.policy;
+    policy.ceiling.delegation.kinds = kinds.clone();
+    policy.roles[0].authority.delegation.kinds = kinds;
+    configuration.first.procedures[0].number = 6;
+    let mut member = jig_test_profile::fixtures::conversation_member(false);
+    member.flags.conversation = false;
+    member.flags.ended_by = people::EndedBy::Closer(people::Closer { connector: 1, code: 6 });
+    member.authority.delegation.kinds = Box::new([people::Executor::Charter(1), people::Executor::Procedure(6)]);
+    let mut world = jig_core_world::world::World::new(Setup {
+        seed,
+        configuration: Some(configuration),
+        limits,
+        initial: Some(people::Ask::Create { project: 1, batch: Box::new([member]) }),
+        ..Setup::default()
+    });
+    world.hold_procedures = true;
+    let assigned = world.assigned.as_ref().expect("closer-ended agent assigned");
+    let task = assigned.task;
+    let attempt = assigned.attempt;
+    let before = world.assignments.len();
+    let messages = world.domain.core().counters.deployment().messages;
+    let tasks = world.domain.core().counters.deployment().tasks;
+    world.end(tasks::End::Parked, 0);
+    let parent = live_row(&world, task);
+    let closer = parent.closer.expect("core numbered and made the closer");
+    assert_eq!(world.domain.core().counters.deployment().tasks, tasks + 1);
+    assert_eq!(parent.phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert_eq!(parent.tries, tasks::Tries::NONE);
+    assert_eq!(parent.last_message, 0);
+    assert_eq!(world.domain.core().counters.deployment().messages, messages);
+    assert_eq!(parent.attempt, attempt);
+    assert_eq!(parent.delegates.as_ref(), [closer]);
+    let row = live_row(&world, closer);
+    assert_eq!(row.executor, tasks::Executor::Procedure { connector: 1, code: 6 });
+    assert_eq!(row.requester, tasks::Party::Task(task));
+    assert_eq!(row.spec.words.as_ref(), tasks::CLOSER_WORDS);
+    assert_eq!(world.assignments.len(), before);
+    assert!(
+        world
+            .procedure_inputs
+            .iter()
+            .any(|(_, connector, code, context)| *connector == 1 && *code == 6 && context.task == closer)
+    );
+    let (step, connector, code, _) = world.procedure_inputs.last().expect("closer offered");
+    world.send(root::Event::Core(core::Event::ProcedureStep {
+        task: closer,
+        step: *step,
+        connector: *connector,
+        code: u32::from(*code),
+        decision: core::ProcedureStep::new(core::StepEnd::Result(tasks::TaskResult::Report {
+            words: b"closed".as_slice().into(),
+        })),
+    }));
+    assert!(world.domain.core().tasks.task(task).is_none());
+    assert_eq!(world.assignments.len(), before);
+    world.restart(seed, false);
+}

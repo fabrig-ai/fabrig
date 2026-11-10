@@ -1210,6 +1210,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         tasks::Event::CloseProject { .. }
         | tasks::Event::Charters { .. }
         | tasks::Event::WakeProcedure { .. }
+        | tasks::Event::CloserBatch { .. }
         | tasks::Event::RecurringBatch { .. }
         | tasks::Event::Procedure { .. }
         | tasks::Event::DecideSettingsProposal { .. }

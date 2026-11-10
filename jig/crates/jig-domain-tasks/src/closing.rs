@@ -427,6 +427,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, ending: Ending,
             task.record.ended_below.add(endings);
             task.record.ended_delegates = task.record.ended_delegates.ended(status);
             task.record.last_activity = env.wall;
+            crate::closer::ended(domain, env, parent, number, &ending, out);
             publish(domain, env, parent, out);
         }
         Party::Person(_) | Party::Deployment { .. } => {}
