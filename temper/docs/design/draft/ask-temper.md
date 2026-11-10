@@ -151,7 +151,9 @@ carries it out (`ask-temper.md`, section 11). Reasons: `notes.md`, section 10.
   `--tools ""`, `--disable-slash-commands`, and a working directory of the
   run's own that is empty and no repository, where today it is the
   workspace's first directory (smith's `protocol/programs.md`, 5.1 and 5.3).
-  A run with a workspace keeps Claude Code's prompt, as today.
+  A run with a workspace also replaces Claude Code's prompt by default;
+  `programs.claude_code.keep_program_prompt` opts into appending (smith's
+  `protocol/programs.md`, 5.1).
 - **What Claude Code still sends,** seen on 2.1.312 on 2026-11-07, run against
   a recorder with no MCP server: a billing line; "You are a Claude agent, built
   on Anthropic's Claude Agent SDK."; and a message of about 0.9 KB naming the

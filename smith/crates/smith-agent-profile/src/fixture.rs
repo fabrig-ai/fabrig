@@ -80,6 +80,7 @@ pub fn configuration() -> Config {
 pub fn program_configuration() -> Config {
     let mut config = configuration();
     config.program = Some(ProgramBackend {
+        keep_program_prompt: false,
         program: Programs { claude: Box::from(b"/claude".as_slice()), directory: Box::from(b"/programs".as_slice()) },
         endpoints: Box::new([0]),
         relay: Box::from(b"/agent".as_slice()),

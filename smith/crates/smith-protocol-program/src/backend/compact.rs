@@ -20,6 +20,7 @@ pub(super) fn arguments(
     instructions: &[u8],
     session: &[u8],
     no_workspace: bool,
+    keep_program_prompt: bool,
 ) -> Option<Box<[Box<[u8]>]>> {
     let ordinary = start::arguments(
         &prompt.model,
@@ -31,6 +32,7 @@ pub(super) fn arguments(
         session,
         b"",
         no_workspace,
+        keep_program_prompt,
     )?;
     let mut arguments = List::with_capacity(36);
     let mut skip = false;

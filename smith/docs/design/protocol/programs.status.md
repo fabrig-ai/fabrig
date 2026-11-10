@@ -14,9 +14,12 @@ its crash lifetime remains section 9's deferred work.
 Sections 5.1, 5.3 and 8 have no known implementation gap in a run with no
 workspace replacing the prompt, disabling built-in tools and slash commands,
 and starting in its private empty `work` directory, including its summary
-session. A workspace run keeps the appended prompt. The fake program records
-these arguments and the initial directory; the MCP-attached size measurement
-remains section 9's work.
+session. Every run replaces the prompt by default, with the agent's
+`keep_program_prompt` launch choice appending instead. The backend table
+covers both choices with and without a workspace, including summary sessions
+and resumes; the configuration table checks the default and forwarding.
+The fake program records the arguments and initial directory; the
+MCP-attached size measurement remains section 9's work.
 
 Section 5.1 has no known gap in each program's file answers or in an
 answer not asked for. The agent service hands a file answer to main or

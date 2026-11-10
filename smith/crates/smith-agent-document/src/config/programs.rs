@@ -1,5 +1,5 @@
 //! Program declarations and endpoint bindings (smith/docs/design/protocol/agent.md, section 4).
-//! Keeps paths and adapter names only; it never opens or runs a program.
+//! Keeps launch choices and adapter names only; it never opens or runs a program.
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -18,11 +18,13 @@ pub enum ProgramName {
     ClaudeCode,
 }
 
-/// A program's executable and directory of source configurations (smith/docs/design/protocol/programs.md, 4.2).
+/// A program's launch choices and directory of source configurations (smith/docs/design/protocol/programs.md, 4.2 and 5.1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Program {
     pub path: PathBuf,
     pub directory: PathBuf,
+    /// Append the charter to the program's own prompt instead of replacing it.
+    pub keep_program_prompt: bool,
 }
 
 #[derive(Deserialize)]
@@ -30,6 +32,8 @@ pub struct Program {
 pub(super) struct ProgramDocument {
     path: Option<String>,
     directory: Option<String>,
+    #[serde(default)]
+    keep_program_prompt: bool,
 }
 
 fn name(value: &str, field: &str) -> Result<ProgramName, ConfigurationRefusal> {
@@ -54,6 +58,7 @@ pub(super) fn build(documents: BTreeMap<String, ProgramDocument>) -> Result<Opti
         program = Some(Program {
             path: path(document.path, "programs.claude_code.path")?,
             directory: path(document.directory, "programs.claude_code.directory")?,
+            keep_program_prompt: document.keep_program_prompt,
         });
     }
     Ok(program)
@@ -94,6 +99,7 @@ pub(super) fn backend(
     use std::os::unix::ffi::OsStrExt;
     let program = program?;
     Some(smith_agent_profile::ProgramBackend {
+        keep_program_prompt: program.keep_program_prompt,
         program: smith_protocol_program::Programs {
             claude: program.path.as_os_str().as_bytes().into(),
             directory: program.directory.as_os_str().as_bytes().into(),

@@ -89,7 +89,7 @@ fn a_new_window_stops_the_old_session() {
 fn a_compaction_runs_without_tools() {
     let mut prompt = ordinary();
     prompt.purpose = llm::Purpose::Compaction { room: 1000 };
-    let args = compact::arguments(&prompt, b"instructions.md", b"session", false).expect("compact arguments");
+    let args = compact::arguments(&prompt, b"instructions.md", b"session", false, false).expect("compact arguments");
     assert!(args.iter().any(|argument| argument.as_ref() == b"--strict-mcp-config"));
     for forbidden in [b"--mcp-config".as_slice(), b"--permission-prompt-tool", b"--json-schema", b"--resume"] {
         assert!(!args.iter().any(|argument| argument.as_ref() == forbidden));
@@ -98,7 +98,7 @@ fn a_compaction_runs_without_tools() {
     assert!(args.windows(2).any(|pair| pair[0].as_ref() == b"--max-turns" && pair[1].as_ref() == b"1"));
     assert!(
         args.windows(2)
-            .any(|pair| pair[0].as_ref() == b"--append-system-prompt-file" && pair[1].as_ref() == b"instructions.md")
+            .any(|pair| pair[0].as_ref() == b"--system-prompt-file" && pair[1].as_ref() == b"instructions.md")
     );
 }
 

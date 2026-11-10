@@ -124,6 +124,7 @@ pub(crate) fn configuration() -> smith_agent_service::Config {
         name: b"claude_code".as_slice().into(),
     }]);
     service.program = Some(smith_agent_service::ProgramBackend {
+        keep_program_prompt: false,
         program: smith_protocol_program::Programs {
             claude: b"/private/programs/claude".as_slice().into(),
             directory: b"/private/programs".as_slice().into(),

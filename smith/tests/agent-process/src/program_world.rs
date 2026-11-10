@@ -289,6 +289,7 @@ fn configuration(case: Case) -> smith_agent_service::Config {
     };
     config.limits.io.close_timeout = Duration::from_millis(10);
     config.program = Some(smith_agent_service::ProgramBackend {
+        keep_program_prompt: false,
         program: smith_protocol_program::Programs {
             claude: b"/programs/claude".as_slice().into(),
             directory: b"/programs".as_slice().into(),

@@ -76,6 +76,7 @@ fn command_keeps_the_inline_schema_in_one_argument() {
         b"9213b8f4-a680-416e-a34c-6718a9575807",
         b"",
         false,
+        false,
     )
     .expect("bounded command");
     let flag = arguments.iter().position(|argument| argument.as_ref() == b"--json-schema").expect("schema flag");
@@ -219,72 +220,92 @@ fn launch_uses_the_workspace_policy() {
         br#"{"type":"system","subtype":"init","mcp_servers":[{"name":"smith","status":"connected"}],"tools":[]}"#;
     const INSPECT_INIT: &[u8] = br#"{"type":"system","subtype":"init","mcp_servers":[{"name":"smith","status":"connected"}],"tools":["Read","Glob","Grep"]}"#;
     const SUMMARY_INIT: &[u8] = br#"{"type":"system","subtype":"init","mcp_servers":[],"tools":[]}"#;
-    for (label, workspace, summary, prompt_flag, tools, disabled, directory, init) in [
-        (
-            "no workspace",
-            None,
-            false,
-            b"--system-prompt-file".as_slice(),
-            b"".as_slice(),
-            true,
-            b"work".as_slice(),
-            EMPTY_INIT,
-        ),
+    for (label, workspace, summary, resume, tools, disabled, directory, init) in [
+        ("no workspace", None, false, false, b"".as_slice(), true, b"work".as_slice(), EMPTY_INIT),
         (
             "a workspace",
             Some(Root { file: Token::new(50), descriptor: kernel::Fd::new(51) }),
             false,
-            b"--append-system-prompt-file",
+            false,
             b"Read,Glob,Grep",
             false,
             b"",
             INSPECT_INIT,
         ),
-        ("no workspace summary", None, true, b"--system-prompt-file", b"", true, b"work", SUMMARY_INIT),
+        ("no workspace summary", None, true, false, b"", true, b"work", SUMMARY_INIT),
         (
             "a workspace summary",
             Some(Root { file: Token::new(50), descriptor: kernel::Fd::new(51) }),
             true,
-            b"--append-system-prompt-file",
+            false,
             b"",
             false,
             b"",
             SUMMARY_INIT,
         ),
+        ("no workspace resume", None, false, true, b"", true, b"work", EMPTY_INIT),
+        (
+            "a workspace resume",
+            Some(Root { file: Token::new(50), descriptor: kernel::Fd::new(51) }),
+            false,
+            true,
+            b"Read,Glob,Grep",
+            false,
+            b"",
+            INSPECT_INIT,
+        ),
     ] {
-        let mut backend = fixtures::resumable();
-        backend.settings.workspace = workspace;
-        fixtures::new_window([0; 16], &mut backend);
-        let mut request = fixtures::request(&backend);
-        let FromDomain::Complete { prompt, .. } = &mut request else { panic!("complete") };
-        prompt.tools.inspect = true;
-        if summary {
-            prompt.purpose = llm::Purpose::Compaction { room: 1000 };
+        for keep_program_prompt in [false, true] {
+            let mut backend = fixtures::resumable();
+            backend.settings.workspace = workspace;
+            backend.settings.keep_program_prompt = keep_program_prompt;
+            let mut request = if resume {
+                fixtures::resume_request(&backend)
+            } else {
+                fixtures::new_window([0; 16], &mut backend);
+                fixtures::request(&backend)
+            };
+            let FromDomain::Complete { prompt, .. } = &mut request else { panic!("complete") };
+            prompt.tools.inspect = true;
+            if summary {
+                prompt.purpose = llm::Purpose::Compaction { room: 1000 };
+            }
+            fixtures::claim_completion(fixtures::COMPLETION, &mut backend);
+            fixtures::retain_request(request, &mut backend);
+            let spawn = backend.launch_spec().expect("launch");
+            let value = |flag: &[u8]| {
+                let index = spawn.args.iter().position(|argument| argument.as_ref() == flag).expect("flag");
+                spawn.args[index + 1].as_ref()
+            };
+            let (prompt_flag, absent_flag) = if keep_program_prompt {
+                (b"--append-system-prompt-file".as_slice(), b"--system-prompt-file".as_slice())
+            } else {
+                (b"--system-prompt-file".as_slice(), b"--append-system-prompt-file".as_slice())
+            };
+            assert_eq!(value(prompt_flag), backend.run_path(b"instructions.md").as_ref(), "{label}: prompt flag");
+            assert!(!spawn.args.iter().any(|arg| arg.as_ref() == absent_flag), "{label}: one prompt flag");
+            assert_eq!(value(b"--tools"), tools, "{label}: built-ins");
+            assert!(spawn.args.iter().any(|arg| arg.as_ref() == b"--strict-mcp-config"), "{label}: strict MCP");
+            if !summary {
+                assert_eq!(value(b"--mcp-config"), backend.run_path(b"mcp.json").as_ref(), "{label}: MCP file");
+            }
+            assert_eq!(
+                spawn.args.iter().any(|arg| arg.as_ref() == b"--disable-slash-commands"),
+                disabled,
+                "{label}: slash commands"
+            );
+            assert_eq!(spawn.args.iter().any(|arg| arg.as_ref() == b"--resume"), resume, "{label}: resume");
+            let expected = if directory.is_empty() {
+                Box::default()
+            } else {
+                skein_lib::bytes::concat(&[&backend.run_relative(), b"/", directory])
+            };
+            assert_eq!(spawn.dir, expected, "{label}: working directory");
+            assert_eq!(spawn.root, workspace.or(backend.settings.directory).expect("root").descriptor);
+            let mut up = skein_lib::Queue::uncapped();
+            let mut below = skein_lib::Queue::uncapped();
+            backend.later_init(&fixtures::env(0), init, &mut up, &mut below);
+            assert!(up.is_empty(), "{label}: the init agrees with the launch: {up:?}");
         }
-        fixtures::claim_completion(fixtures::COMPLETION, &mut backend);
-        fixtures::retain_request(request, &mut backend);
-        let spawn = backend.launch_spec().expect("launch");
-        let value = |flag: &[u8]| {
-            let index = spawn.args.iter().position(|argument| argument.as_ref() == flag).expect("flag");
-            spawn.args[index + 1].as_ref()
-        };
-        assert_eq!(value(prompt_flag), backend.run_path(b"instructions.md").as_ref(), "{label}: prompt flag");
-        assert_eq!(value(b"--tools"), tools, "{label}: built-ins");
-        assert_eq!(
-            spawn.args.iter().any(|arg| arg.as_ref() == b"--disable-slash-commands"),
-            disabled,
-            "{label}: slash commands"
-        );
-        let expected = if directory.is_empty() {
-            Box::default()
-        } else {
-            skein_lib::bytes::concat(&[&backend.run_relative(), b"/", directory])
-        };
-        assert_eq!(spawn.dir, expected, "{label}: working directory");
-        assert_eq!(spawn.root, workspace.or(backend.settings.directory).expect("root").descriptor);
-        let mut up = skein_lib::Queue::uncapped();
-        let mut below = skein_lib::Queue::uncapped();
-        backend.later_init(&fixtures::env(0), init, &mut up, &mut below);
-        assert!(up.is_empty(), "{label}: the init agrees with the launch: {up:?}");
     }
 }
