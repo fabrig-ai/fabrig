@@ -67,14 +67,13 @@ fn gather(world: &mut World, pull: u64, head: api::Commit) {
 }
 
 fn completed(world: &mut World, pull: u64, head: api::Commit, files: u32, commits: usize) {
-    let sizes: Vec<_> =
-        world
-            .seen()
-            .iter()
-            .filter_map(|request| {
-                if let top::Request::BriefSized { section: SECTION, size } = request { Some(size.clone()) } else { None }
-            })
-            .collect();
+    let sizes: Vec<_> = world
+        .seen()
+        .iter()
+        .filter_map(|request| {
+            if let top::Request::BriefSized { section: SECTION, size } = request { Some(size.clone()) } else { None }
+        })
+        .collect();
     assert_eq!(sizes.len(), 1, "one terminal sizing response");
     let size = sizes[0].clone().expect("required Pull section survives comparison admission");
     assert!(size <= BYTES);

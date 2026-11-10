@@ -159,7 +159,8 @@ impl Plan {
             }
             crate::github::document::Row::File(file) => {
                 if self.stage == Stage::Compare {
-                    self.files.changed = self.files.changed.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
+                    self.files.changed =
+                        self.files.changed.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
                     if self.files.changed >= 300 {
                         return Err(api::Error::TooLarge(Excess::at_least(api::Bound::Forge, 299, self.files.changed)));
                     }

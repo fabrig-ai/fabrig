@@ -256,7 +256,8 @@ impl Plan {
             d::Row::File(file) => match state {
                 State::Files(sides) => State::Files(self.keep_file(sides, file, bounds)?),
                 State::Compare(mut compared) => {
-                    compared.changed = compared.changed.checked_add(1).ok_or(api::Error::TooLarge(api::Excess::unnamed()))?;
+                    compared.changed =
+                        compared.changed.checked_add(1).ok_or(api::Error::TooLarge(api::Excess::unnamed()))?;
                     let width = u64::try_from(crate::measure::STRING_BYTES)
                         .expect("path width")
                         .saturating_add(skein_lib::len_u64(file.filename.len()));
