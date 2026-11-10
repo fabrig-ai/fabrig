@@ -226,7 +226,10 @@ runs it on the fake forge.
 - **Not yet:** 8.1, 8.5, 11, 11.1, 11.3: a goal's runs push to its run
   branch r, and a `"branch": "run"` change lands r into g; g records no
   design writers, so a push to g by the goal's run would hold the goal as
-  drift and a landing change on g as "branch moved" [in flight: change 98].
+  drift and a landing change on g as "branch moved"; a goal's run prepared
+  before g is made and confirmed starts on the base, its run unable to
+  deliver (`temper-engine-domain-forge/src/items.rs`,
+  `task_workspace_item`) [in flight: change 98].
 - **Not yet:** 11.2: a closer whose land step's change ended cancelled or
   failed holds without reading whether the base already holds the goal's
   branch, and its release holds again on the same ended change.

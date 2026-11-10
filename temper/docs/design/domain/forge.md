@@ -3871,6 +3871,16 @@ its landing branch, which the worker takes as a design delivery
 (`worker.md`, section 5): Markdown only, g's moved tip merged first, a
 fast-forward never forced. Its repository's other writes are as before.
 
+- **Its first run among them.** A goal's run prepared while its goal
+  branch is still being made (the taking's effect in flight, jig's
+  `domain/connectors.md`, 4.7) or not yet confirmed (its head not yet
+  recorded as temper's own) waits, as a write into a branch still being
+  made does, and starts once g is made and confirmed, at g's tip, a
+  design writer like any later run. A modifying goal holding g never
+  starts on its base or with its workspace's writes read-only, so its
+  first run can deliver the first wave's design before it cuts its
+  changes. A making that fails for good holds the goal (11.1); a drifted
+  g holds it (8.5), and its run starts once a release settles it.
 - **How it calls it:** smith's `deliver`, with a `title` and a `body`
   as a change's delivery has them, at any point in its run and as often
   as it likes; the project's checks run at it (`agent.md`, section 6).
