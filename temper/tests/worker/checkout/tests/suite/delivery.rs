@@ -189,7 +189,6 @@ fn an_unpushed_second_parent_refuses_a_staged_or_committed_merge() {
     }
 }
 
-
 #[test]
 fn a_design_delivery_fast_forwards_g() {
     temper_worker_checkout_world::merges::design_fast_forward();
@@ -223,4 +222,19 @@ fn a_design_delivery_refuses_a_goal_that_keeps_moving_without_ending_stale() {
 #[test]
 fn a_design_repository_refuses_unchecked_save_but_keeps_saved_work() {
     temper_worker_checkout_world::merges::design_no_unchecked_save();
+}
+
+#[test]
+fn a_changed_tree_lists_the_deleted_non_markdown_name_even_when_renamed_to_markdown() {
+    let mut scenario = hosted::scenario();
+    let tree = scenario.transport.tree(scenario.base);
+    let (deleted, content) = tree.iter().next().expect("base has files");
+    scenario.checkout.remove(&[scenario.at.as_slice(), b"/", deleted].concat());
+    scenario.checkout.write(&[scenario.at.as_slice(), b"/renamed.md"].concat(), content);
+    let git::Done::Committed { commit } = deliver(&mut scenario, false, None) else { panic!("checked tree committed") };
+    let command = Command::DiffPaths { before: translate::commit(scenario.base), after: commit };
+    let answer = hosted::apply(&mut scenario, &command);
+    assert_eq!(answer.exit, 0);
+    let expected = [deleted.as_slice(), b"\0renamed.md\0"].concat();
+    assert_eq!(answer.stdout, expected, "no rename detection: deletion is listed in git order");
 }

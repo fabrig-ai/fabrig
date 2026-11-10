@@ -158,7 +158,9 @@ pub(crate) fn landings(outcome: checkout::Outcome, repositories: u32) -> Box<[wi
 
 fn landing(landing: checkout::Landing) -> wire::Landing {
     match landing {
-        checkout::Landing::Conflicted { files } | checkout::Landing::DesignConflict { files } => wire::Landing::Conflicted { files },
+        checkout::Landing::Conflicted { files } | checkout::Landing::DesignConflict { files } => {
+            wire::Landing::Conflicted { files }
+        }
         checkout::Landing::Explained { fault, diagnostic } => wire::Landing::Explained {
             failure: wire::PushFailure {
                 repository: None,
@@ -166,10 +168,15 @@ fn landing(landing: checkout::Landing) -> wire::Landing {
                 diagnostic: wire::PushDiagnostic::new(diagnostic.output(), diagnostic.cut()),
             },
         },
-        checkout::Landing::Landed { commit } | checkout::Landing::DesignMerged { commit, .. } => wire::Landing::Landed { commit: commit.raw() },
+        checkout::Landing::Landed { commit } | checkout::Landing::DesignMerged { commit, .. } => {
+            wire::Landing::Landed { commit: commit.raw() }
+        }
         checkout::Landing::Moved => wire::Landing::Moved,
         checkout::Landing::Unchanged => wire::Landing::Unchanged,
-        checkout::Landing::DesignCode { .. } | checkout::Landing::DesignMoving | checkout::Landing::DesignUnchecked | checkout::Landing::Refused => wire::Landing::Refused,
+        checkout::Landing::DesignCode { .. }
+        | checkout::Landing::DesignMoving
+        | checkout::Landing::DesignUnchecked
+        | checkout::Landing::Refused => wire::Landing::Refused,
         checkout::Landing::Failed | checkout::Landing::Aborted => wire::Landing::Failed,
     }
 }

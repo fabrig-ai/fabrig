@@ -117,7 +117,9 @@ impl Harness {
                 Op::Make { .. } | Op::Clone { .. } | Op::Create { .. } | Op::CheckOut { .. } | Op::Push { .. } => {
                     Done::Succeeded
                 }
-                Op::DiffPaths { .. } | Op::IsAncestor { .. } | Op::Commit { .. } => panic!("a prepare commits or compares nothing"),
+                Op::DiffPaths { .. } | Op::IsAncestor { .. } | Op::Commit { .. } => {
+                    panic!("a prepare commits or compares nothing")
+                }
             };
             match self.one(Event::Done { owner: hold, done }) {
                 Request::Io { owner, op: next, deadline: _ } => {
@@ -278,7 +280,7 @@ fn workspace_of(op: &Op) -> Token {
         | Op::CheckOut { at, .. }
         | Op::Look { at, .. }
         | Op::DiffPaths { at, .. }
-                    | Op::IsAncestor { at, .. }
+        | Op::IsAncestor { at, .. }
         | Op::Merge { at, .. }
         | Op::Commit { at, .. }
         | Op::Push { at, .. } => at.workspace,
@@ -927,7 +929,7 @@ fn landing_fetch_failures_fail_preparation_and_never_fall_back() {
                     Op::Fetch { want: Want::Commit { commit }, .. } => Done::Fetched { commit },
                     Op::CheckOut { .. } => Done::Succeeded,
                     Op::DiffPaths { .. } => panic!("this prepare lists no delivery paths"),
-            Op::IsAncestor { .. } => Done::IsAncestor { contains: false },
+                    Op::IsAncestor { .. } => Done::IsAncestor { contains: false },
                     other @ (Op::Make { .. }
                     | Op::Look { .. }
                     | Op::Clone { .. }
@@ -1603,7 +1605,7 @@ fn assert_account(op: Op, expected: Option<u64>, kind: Kind) {
         | Op::Push { account, .. } => assert_eq!(account, expected),
         Op::Look { .. }
         | Op::DiffPaths { .. }
-                    | Op::IsAncestor { .. }
+        | Op::IsAncestor { .. }
         | Op::Make { .. }
         | Op::CheckOut { .. }
         | Op::Merge { .. }

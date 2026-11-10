@@ -483,9 +483,13 @@ pub(crate) fn wrote(domain: &mut Domain, env: &Env<Limits>, client: Token, outco
     let items = record.items;
     let next = domain.items.get(&items).expect("workspace items live until the answer");
     let feedback = match &outcome {
-        checkout::Outcome::Pushed { landings } => crate::smith_delivery::landings(landings, &next.branches, record_unchecked(&record.state)),
+        checkout::Outcome::Pushed { landings } => {
+            crate::smith_delivery::landings(landings, &next.branches, record_unchecked(&record.state))
+        }
         checkout::Outcome::Refused { .. } => agent::Delivery::Failed(agent::DeliveryFailure {
-            directory: 0, reason: agent::DeliveryReason::Unknown, diagnostic: agent::Diagnostic::empty(),
+            directory: 0,
+            reason: agent::DeliveryReason::Unknown,
+            diagnostic: agent::Diagnostic::empty(),
         }),
     };
     let landings = translate::landings(outcome, repositories);
@@ -774,7 +778,9 @@ mod tests {
                     &[
                         checkout::Landing::Landed { commit: checkout::git::Commit::new(commits[0]) },
                         checkout::Landing::Landed { commit: checkout::git::Commit::new(commits[1]) },
-                    ], &next.branches, false,
+                    ],
+                    &next.branches,
+                    false,
                 ),
             );
             match written {

@@ -270,7 +270,12 @@ impl Op {
         match self {
             Op::Clone { .. } | Op::Fetch { .. } | Op::Create { .. } | Op::Push { .. } => true,
             Op::Commit { snapshot, .. } => snapshot.is_some(),
-            Op::Look { .. } | Op::IsAncestor { .. } | Op::DiffPaths { .. } | Op::Make { .. } | Op::CheckOut { .. } | Op::Merge { .. } => false,
+            Op::Look { .. }
+            | Op::IsAncestor { .. }
+            | Op::DiffPaths { .. }
+            | Op::Make { .. }
+            | Op::CheckOut { .. }
+            | Op::Merge { .. } => false,
         }
     }
 }

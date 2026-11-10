@@ -50,7 +50,7 @@ pub fn workspace(op: &Op) -> Token {
         | Op::CheckOut { at, .. }
         | Op::Look { at, .. }
         | Op::DiffPaths { at, .. }
-                    | Op::IsAncestor { at, .. }
+        | Op::IsAncestor { at, .. }
         | Op::Merge { at, .. }
         | Op::Commit { at, .. }
         | Op::Push { at, .. } => at.workspace,
@@ -66,8 +66,12 @@ pub fn identity(op: &Op) -> Option<u32> {
         | Op::Create { identity, .. }
         | Op::Commit { identity, .. }
         | Op::Push { identity, .. } => Some(*identity),
-        Op::Make { .. } | Op::CheckOut { .. } | Op::Look { .. } | Op::DiffPaths { .. }
-                    | Op::DiffPaths { .. } | Op::IsAncestor { .. } | Op::Merge { .. } => None,
+        Op::Make { .. }
+        | Op::CheckOut { .. }
+        | Op::Look { .. }
+        | Op::DiffPaths { .. }
+        | Op::IsAncestor { .. }
+        | Op::Merge { .. } => None,
     }
 }
 
@@ -79,8 +83,12 @@ pub fn remote(op: &Op) -> Option<&[u8]> {
             Some(remote)
         }
         Op::Commit { snapshot, .. } => snapshot.as_ref().map(|snapshot| snapshot.remote.as_ref()),
-        Op::Make { .. } | Op::CheckOut { .. } | Op::Look { .. } | Op::DiffPaths { .. }
-                    | Op::DiffPaths { .. } | Op::IsAncestor { .. } | Op::Merge { .. } => None,
+        Op::Make { .. }
+        | Op::CheckOut { .. }
+        | Op::Look { .. }
+        | Op::DiffPaths { .. }
+        | Op::IsAncestor { .. }
+        | Op::Merge { .. } => None,
     }
 }
 
@@ -210,8 +218,13 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
             let before = forge.tree(fake(before));
             let after = forge.tree(fake(after));
             let paths: std::collections::BTreeSet<_> = before.keys().chain(after.keys()).collect();
-            Done::Paths { files: paths.into_iter().filter(|path| before.get(*path) != after.get(*path))
-                .map(|path| path.clone().into_boxed_slice()).collect() }
+            Done::Paths {
+                files: paths
+                    .into_iter()
+                    .filter(|path| before.get(*path) != after.get(*path))
+                    .map(|path| path.clone().into_boxed_slice())
+                    .collect(),
+            }
         }
         Op::IsAncestor { at, ancestor, commit } => {
             assert_cloned(disk, &at);

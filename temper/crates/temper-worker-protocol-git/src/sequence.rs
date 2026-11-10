@@ -90,7 +90,7 @@ pub fn after(
             | git::Op::Create { .. }
             | git::Op::CheckOut { .. }
             | git::Op::DiffPaths { .. }
-                    | git::Op::IsAncestor { .. }
+            | git::Op::IsAncestor { .. }
             | git::Op::Merge { .. }
             | git::Op::Commit { .. }
             | git::Op::Push { .. } => unreachable!("origin is a look's invocation"),
@@ -142,7 +142,7 @@ pub fn after(
             | git::Op::CheckOut { .. }
             | git::Op::Look { .. }
             | git::Op::DiffPaths { .. }
-                    | git::Op::IsAncestor { .. }
+            | git::Op::IsAncestor { .. }
             | git::Op::Merge { .. }
             | git::Op::Push { .. } => {}
         },
@@ -264,7 +264,7 @@ fn unmerged(op: &git::Op, stdout: &[u8], checkout: &checkout::Limits) -> Option<
         | git::Op::CheckOut { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
-                    | git::Op::IsAncestor { .. }
+        | git::Op::IsAncestor { .. }
         | git::Op::Push { .. } => None,
     }
 }
@@ -281,7 +281,7 @@ fn commit_tree(op: &git::Op, stdout: &[u8]) -> Option<Command> {
         | git::Op::CheckOut { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
-                    | git::Op::IsAncestor { .. }
+        | git::Op::IsAncestor { .. }
         | git::Op::Merge { .. }
         | git::Op::Push { .. } => None,
     }
@@ -297,7 +297,7 @@ fn checked_out(op: &git::Op) -> Next {
         | git::Op::Create { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
-                    | git::Op::IsAncestor { .. }
+        | git::Op::IsAncestor { .. }
         | git::Op::Merge { .. }
         | git::Op::Commit { .. }
         | git::Op::Push { .. } => Next::Run(Command::Clean),

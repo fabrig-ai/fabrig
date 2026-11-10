@@ -17,10 +17,11 @@ pub struct Limits {
     pub name_bytes: u32,
     /// The longest commit message, its title and body together.
     pub message_bytes: u32,
-    /// Maximum originally or still conflicted paths per repository. Zero
-    /// disables merge starts; other workspace preparation remains available.
+    /// Maximum originally or still conflicted paths, or changed paths in a
+    /// design delivery, per repository. Zero disables merge starts; other
+    /// workspace preparation remains available.
     pub conflicts: u32,
-    /// Maximum bytes of one full relative conflicted path.
+    /// Maximum bytes of one full relative conflicted or changed path.
     pub path_bytes: u32,
     /// How long an operation that reaches the forge may take: a clone, a
     /// fetch, a branch's creation, a push.

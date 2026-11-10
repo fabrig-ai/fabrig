@@ -346,7 +346,7 @@ impl Operation {
                         | git::Op::CheckOut { .. }
                         | git::Op::Look { .. }
                         | git::Op::DiffPaths { .. }
-                    | git::Op::IsAncestor { .. }
+                        | git::Op::IsAncestor { .. }
                         | git::Op::Merge { .. }
                         | git::Op::Commit { .. }
                         | git::Op::Push { .. },

@@ -145,7 +145,7 @@ impl Component {
             | git::Op::CheckOut { .. }
             | git::Op::Look { .. }
             | git::Op::DiffPaths { .. }
-                    | git::Op::IsAncestor { .. }
+            | git::Op::IsAncestor { .. }
             | git::Op::Merge { .. } => false,
         };
         if self.start != Start::Started

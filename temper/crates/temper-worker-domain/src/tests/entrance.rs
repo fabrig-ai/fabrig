@@ -310,14 +310,15 @@ fn an_unchecked_receipt_names_the_saved_head_branch_and_missing_checks() {
     }
 }
 
-
 #[test]
 fn a_design_receipt_names_the_tip_it_merged_first() {
     let delivery = crate::smith_delivery::landings(
         &[crate::checkout::Landing::DesignMerged {
             commit: crate::checkout::git::Commit::new([0xab; 32]),
             tip: crate::checkout::git::Commit::new([0xcd; 32]),
-        }], &[Some(b"g".as_slice().into())], false,
+        }],
+        &[Some(b"g".as_slice().into())],
+        false,
     );
     let agent::Delivery::Delivered(delivered) = delivery else { panic!("landed design") };
     assert_eq!(delivered.receipts()[0].text(), b"pushed abababababababababababababababababababababababababababababababab to branch g, merging its tip cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd first; your checkout stays detached, as expected");
@@ -327,18 +328,68 @@ fn a_design_receipt_names_the_tip_it_merged_first() {
 fn design_refusals_keep_the_run_going_and_name_the_offending_path() {
     use crate::checkout::Landing;
     for (landing, path, words) in [
-        (Landing::DesignCode { path: b"src/lib.rs".as_slice().into() }, Some(b"src/lib.rs".as_slice()), b"a delivery to the goal branch carries Markdown only; code goes through a change".as_slice()),
-        (Landing::DesignConflict { files: Box::new([b"docs/a.md".as_slice().into()]) }, Some(b"docs/a.md".as_slice()), b"settle the files in conflict and deliver again".as_slice()),
+        (
+            Landing::DesignCode { path: b"src/lib.rs".as_slice().into() },
+            Some(b"src/lib.rs".as_slice()),
+            b"a delivery to the goal branch carries Markdown only; code goes through a change".as_slice(),
+        ),
+        (
+            Landing::DesignConflict { files: Box::new([b"docs/a.md".as_slice().into()]) },
+            Some(b"docs/a.md".as_slice()),
+            b"settle the files in conflict and deliver again".as_slice(),
+        ),
         (Landing::DesignMoving, None, b"the goal branch kept moving; deliver again".as_slice()),
         (Landing::DesignUnchecked, None, b"the goal branch takes checked deliveries alone; deliver instead".as_slice()),
     ] {
         let delivered = crate::smith_delivery::landings(&[landing], &[Some(b"g".as_slice().into())], false);
-        let expected = agent::Delivery::Refused(agent::DeliveryRefusal::new(
-            match path {
-                Some(path) => Some(agent::Marker::new(0, path.into()).expect("path")),
-                None => None,
-            }, words.into(),
-        ).expect("bounded refusal"));
+        let expected = agent::Delivery::Refused(
+            agent::DeliveryRefusal::new(
+                match path {
+                    Some(path) => Some(agent::Marker::new(0, path.into()).expect("path")),
+                    None => None,
+                },
+                words.into(),
+            )
+            .expect("bounded refusal"),
+        );
         assert_eq!(delivered, expected);
+    }
+}
+
+#[test]
+fn merged_receipts_keep_both_heads_within_the_512_byte_bound() {
+    let mut sha1 = [0; 32];
+    sha1.get_mut(..20).expect("SHA-1 bytes").fill(0xab);
+    for (commit, tip, head_bytes, tip_bytes) in [
+        (sha1, sha1, 40_usize, 40_usize),
+        (sha1, [0xcd; 32], 40, 64),
+        ([0xab; 32], sha1, 64, 40),
+        ([0xab; 32], [0xcd; 32], 64, 64),
+    ] {
+        let words = b"pushed , merging its tip  first; your checkout stays detached, as expected".len();
+        let base = words.checked_add(head_bytes).expect("fixed head").checked_add(tip_bytes).expect("fixed tip");
+        let room = agent::Receipt::CAPACITY
+            .checked_sub(base)
+            .expect("fixed words fit")
+            .checked_sub(b" to branch ".len())
+            .expect("branch prefix fits");
+        for (length, included) in [(room, true), (room.checked_add(1).expect("past bound"), false)] {
+            let mut branch = skein_lib::bytes::zeroed(length);
+            branch.fill(b'b');
+            let delivery = crate::smith_delivery::landings(
+                &[crate::checkout::Landing::DesignMerged {
+                    commit: crate::checkout::git::Commit::new(commit),
+                    tip: crate::checkout::git::Commit::new(tip),
+                }],
+                &[Some(branch)],
+                false,
+            );
+            let agent::Delivery::Delivered(delivered) = delivery else { panic!("landed design") };
+            let text = delivered.receipts()[0].text();
+            assert_eq!(text.len(), if included { agent::Receipt::CAPACITY } else { base });
+            assert_eq!(skein_lib::bytes::find(text, b" to branch ").is_some(), included);
+            assert!(skein_lib::bytes::find(text, b", merging its tip ").is_some());
+            assert!(text.ends_with(b" first; your checkout stays detached, as expected"));
+        }
     }
 }

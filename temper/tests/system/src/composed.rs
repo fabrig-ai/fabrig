@@ -1563,7 +1563,7 @@ fn forge_operation(mut op: worker::checkout::git::Op) -> worker::checkout::git::
         | Op::CheckOut { .. }
         | Op::Look { .. }
         | Op::DiffPaths { .. }
-                    | Op::IsAncestor { .. }
+        | Op::IsAncestor { .. }
         | Op::Merge { .. }
         | Op::Commit { snapshot: None, .. } => return op,
     };

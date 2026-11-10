@@ -912,6 +912,11 @@ impl World {
             let repo = &client.repos[index];
             let left = &client.left[index];
             match landing {
+                Landing::DesignMerged { .. }
+                | Landing::DesignConflict { .. }
+                | Landing::DesignCode { .. }
+                | Landing::DesignMoving
+                | Landing::DesignUnchecked => panic!("these clients script no design deliveries"),
                 Landing::Conflicted { .. } => panic!("this fixture prepares one checkout branch"),
                 Landing::Landed { commit } => {
                     assert!(repo.writable, "only a writable repository is pushed");
@@ -1064,7 +1069,7 @@ impl World {
             | Op::CheckOut { .. }
             | Op::Look { .. }
             | Op::DiffPaths { .. }
-                    | Op::IsAncestor { .. }
+            | Op::IsAncestor { .. }
             | Op::Merge { .. } => {
                 panic!("a push or a save commits, pushes and verifies, nothing else: {op:?}")
             }
@@ -1123,6 +1128,7 @@ impl World {
                 | Done::Rejected
                 | Done::Failed { .. }
                 | Done::FailedWithOutput { .. }
+                | Done::Paths { .. }
                 | Done::Looked { .. }
                 | Done::IsAncestor { .. }
                 | Done::Merged
@@ -1171,7 +1177,7 @@ impl World {
             | Op::Push { .. }
             | Op::Look { .. }
             | Op::DiffPaths { .. }
-                    | Op::IsAncestor { .. }
+            | Op::IsAncestor { .. }
             | Op::Merge { .. } => None,
         };
         let creates = op.kind() == Kind::Create;
@@ -1214,6 +1220,7 @@ impl World {
             | Done::Rejected
             | Done::Failed { .. }
             | Done::FailedWithOutput { .. }
+            | Done::Paths { .. }
             | Done::Looked { .. }
             | Done::IsAncestor { .. }
             | Done::Merged
@@ -1261,6 +1268,7 @@ impl World {
                     | Kind::Commit
                     | Kind::Push
                     | Kind::Look
+                    | Kind::DiffPaths
                     | Kind::IsAncestor
                     | Kind::Merge => {}
                 }

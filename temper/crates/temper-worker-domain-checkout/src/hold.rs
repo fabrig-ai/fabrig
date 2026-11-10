@@ -153,6 +153,7 @@ pub(crate) struct Tips {
     merging: Option<Commit>,
     expected: Option<Commit>,
     landing: Option<Commit>,
+    /// The tip this head merged, retained for repeated delivery receipts.
     design_merged: Option<Commit>,
 }
 
@@ -288,7 +289,10 @@ fn unchecked_head(to: &To) -> bool {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[expect(clippy::large_enum_variant, reason = "diagnostics stay inline with a fixed byte capacity")]
 enum PushStep {
-    Design { delivery: design::Delivery, step: design::Step },
+    Design {
+        delivery: design::Delivery,
+        step: design::Step,
+    },
     CompareLanding {
         repository: u32,
     },
@@ -1161,7 +1165,7 @@ fn preparation_detail(step: PrepareStep, done: &Done) -> Box<[u8]> {
         | Done::Exists
         | Done::Rejected
         | Done::Paths { .. }
-            | Done::Looked { .. }
+        | Done::Looked { .. }
         | Done::IsAncestor { .. }
         | Done::Merged => {
             return Box::new([]);
@@ -1558,7 +1562,7 @@ fn pushed(
                 | Done::Rejected
                 | Done::Merged
                 | Done::Paths { .. }
-            | Done::Looked { .. }
+                | Done::Looked { .. }
                 | Done::Conflicted { .. } => unreachable!("an ancestry query has its own terminals"),
             };
             (repository, landing)
@@ -1576,8 +1580,14 @@ fn pushed(
 
 #[expect(clippy::too_many_arguments, reason = "a push completion takes the state and the repository's landing")]
 fn complete_push(
-    holding: &Holding, id: Id<Hold>, mut push: Push, repository: u32,
-    landing: Landing, asked: Asked, env: &Env<Limits>, out: &mut Queue<Request>,
+    holding: &Holding,
+    id: Id<Hold>,
+    mut push: Push,
+    repository: u32,
+    landing: Landing,
+    asked: Asked,
+    env: &Env<Limits>,
+    out: &mut Queue<Request>,
 ) -> State {
     push.landings.push(landing).expect("room for each repository's landing");
     match asked {
@@ -1611,7 +1621,7 @@ fn committed(holding: &mut Holding, repository: u32, done: Done, to: &To) -> Res
         | Done::Exists
         | Done::Rejected
         | Done::Paths { .. }
-            | Done::Looked { .. }
+        | Done::Looked { .. }
         | Done::IsAncestor { .. }
         | Done::Merged => {
             unreachable!("io ends a commit with its own terminals")
@@ -1700,7 +1710,7 @@ fn pushed_to(holding: &mut Holding, to: &To, repository: u32, done: Done) -> Res
         | Done::Unchanged
         | Done::Exists
         | Done::Paths { .. }
-            | Done::Looked { .. }
+        | Done::Looked { .. }
         | Done::IsAncestor { .. }
         | Done::Merged
         | Done::Conflicted { .. } => {
@@ -1744,7 +1754,7 @@ fn verified(holding: &mut Holding, to: &To, repository: u32, done: Done, failure
         | Done::Exists
         | Done::Rejected
         | Done::Paths { .. }
-            | Done::Looked { .. }
+        | Done::Looked { .. }
         | Done::IsAncestor { .. }
         | Done::Merged
         | Done::Conflicted { .. } => {
@@ -1841,7 +1851,7 @@ const fn damages(done: &Done) -> bool {
         | Done::Exists
         | Done::Rejected
         | Done::Paths { .. }
-            | Done::Looked { .. }
+        | Done::Looked { .. }
         | Done::IsAncestor { .. }
         | Done::Merged
         | Done::Conflicted { .. } => false,
@@ -1871,7 +1881,7 @@ fn failed_landing(done: Done) -> Landing {
         | Done::Exists
         | Done::Rejected
         | Done::Paths { .. }
-            | Done::Looked { .. }
+        | Done::Looked { .. }
         | Done::IsAncestor { .. }
         | Done::Merged => unreachable!("only a failed invocation is explained"),
     }
@@ -1883,11 +1893,13 @@ fn tally(landings: &[Landing]) -> Tally {
         let counted = match landing {
             Landing::Landed { .. } | Landing::DesignMerged { .. } => &mut tally.landed,
             Landing::Moved => &mut tally.moved,
-            Landing::DesignConflict { .. } | Landing::DesignCode { .. }
-            | Landing::DesignMoving | Landing::DesignUnchecked
-            | Landing::Conflicted { .. } | Landing::Refused | Landing::Explained { fault: Fault::Refused, .. } => {
-                &mut tally.refused
-            }
+            Landing::DesignConflict { .. }
+            | Landing::DesignCode { .. }
+            | Landing::DesignMoving
+            | Landing::DesignUnchecked
+            | Landing::Conflicted { .. }
+            | Landing::Refused
+            | Landing::Explained { fault: Fault::Refused, .. } => &mut tally.refused,
             Landing::Failed | Landing::Explained { .. } => &mut tally.failed,
             Landing::Unchanged => &mut tally.unchanged,
             Landing::Aborted => &mut tally.aborted,
