@@ -493,7 +493,7 @@ pub fn conditions() -> [skein_forge_client::Condition; 4] {
     ]
 }
 
-pub fn errors() -> [(skein_forge::api::Error, u8); 18] {
+pub fn errors() -> [(skein_forge::api::Error, u8); 23] {
     use skein_forge::api::Error;
     [
         (Error::Unavailable, 0),
@@ -502,7 +502,19 @@ pub fn errors() -> [(skein_forge::api::Error, u8); 18] {
         (Error::Forbidden, 3),
         (Error::Missing, 4),
         (Error::MissingJob, 5),
-        (Error::TooLarge, 6),
+        (Error::TooLarge(skein_forge::api::Excess::unnamed()), 6),
+        (Error::TooLarge(skein_forge::api::Excess::exact(skein_forge::api::Bound::OpBytes, 32, 44)), 6),
+        (Error::TooLarge(skein_forge::api::Excess::at_least(skein_forge::api::Bound::AnswerBytes, 65_536, 70_000)), 6),
+        (Error::TooLarge(skein_forge::api::Excess::exact(skein_forge::api::Bound::Rows, 8, 9)), 6),
+        (
+            Error::TooLarge(skein_forge::api::Excess::exact(
+                skein_forge::api::Bound::Forge,
+                u64::from(u32::MAX),
+                1_u64 << 32,
+            )),
+            6,
+        ),
+        (Error::TooLarge(skein_forge::api::Excess::at_least(skein_forge::api::Bound::Forge, 0, 0)), 6),
         (Error::Empty, 7),
         (Error::Full, 8),
         (Error::Exists, 9),

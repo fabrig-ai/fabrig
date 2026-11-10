@@ -104,12 +104,13 @@ answers, pending calls, rows and kept facts retain their edge caps.
   string its length.
 - **An operation is admitted** when its bytes are at most
   `op_bytes`, its pages start at 1, a file's path is not empty and a
-  `max_bytes` is from 1 to `answer_bytes`; else it is `TooLarge`, with no
-  call.
+  `max_bytes` is from 1 to `answer_bytes`; else it is `TooLarge`, with no call: `OpBytes` with the operation's bytes,
+  or `AnswerBytes` with the `max_bytes` asked, both exact (forge.md, 3.4).
 - **An answer is checked** against its call before anyone takes it, by
   forge.md, section 3.7's table. Past `answer_bytes` or `rows` it is
-  `TooLarge` for a read and, for a write, `InvalidAnswer`: a lost
-  answer, since the write may have been done (7.4, step 5). Any other
+  `TooLarge` for a read, naming the bound it passed with the answer's exact
+  measure, `Rows` (its longest list's rows) before `AnswerBytes` (its bytes)
+  where it passes both; for a write it is `InvalidAnswer`: a lost answer, since the write may have been done (7.4, step 5). Any other
   mismatch is `InvalidAnswer`, and so is an answered `Busy`: `Busy` is
   the client's own refusal, never a dialect's.
 

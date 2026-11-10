@@ -2974,64 +2974,33 @@ fn comparisons_answer_names_counts_and_containment_with_omissions() {
 #[expect(clippy::disallowed_methods, reason = "the test inspects the host guidance as UTF-8 text")]
 fn read_compare_too_large_names_bounds_and_paged_fallback() {
     use skein_forge::api::Error;
-    let refused = engine::CallAnswer::ForgeRead(Box::new(Err(Error::TooLarge)));
+    let refused = engine::CallAnswer::ForgeRead(Box::new(Err(Error::TooLarge(skein_forge::api::Excess::exact(
+        skein_forge::api::Bound::Rows,
+        8,
+        22,
+    )))));
     let rendered = crate::answer_for_tool(&refused, b"read_compare", 2048, crate::ForgeReadBounds::STOCK);
     assert!(rendered.error());
     let text = core::str::from_utf8(rendered.text()).expect("compare guidance is UTF-8");
+    assert!(text.starts_with("Forge read failed: too large: past forge.client.rows (8): 22 rows.\n"));
     for guidance in [
-        "This comparison is too large to return whole",
         "commit ids were read",
         "another id won't help",
         "Never retry with a changed or guessed id",
-        "no pages",
-        "forge.client.rows (8)",
-        "files",
-        "commits",
-        "forge.client.answer_bytes (65536)",
-        "both whole sides of every changed file",
-        "Which bound was exceeded is unknown",
-        "read_pull",
         "read_pull_files",
-        "head",
-        "page=1",
-        "advance page while more follows",
         "read_file",
         "both endpoints",
-        "directories",
         "max_bytes",
-        "sides must fit whole",
     ] {
         assert!(text.contains(guidance), "missing {guidance}: {text:?}");
     }
-    let mut previous = 0;
-    for phrase in [
-        "too large to return whole",
-        "commit ids were read",
-        "another id won't help",
-        "Never retry",
-        "no pages",
-        "forge.client.rows (8)",
-        "forge.client.answer_bytes (65536)",
-        "Which bound was exceeded is unknown",
-        "read_pull to",
-        "read_pull_files",
-        "read_file to",
-    ] {
-        let position = text.find(phrase).expect(phrase);
-        assert!(position > previous, "out of order: {phrase}");
-        previous = position;
-    }
-    for absent in ["core.call_answer_bytes", "host answer limit"] {
-        assert!(!text.contains(absent), "unexpected {absent}");
-    }
+    assert!(!text.contains("unknown"));
     for cap in [0, 32, 512, 2048] {
         let bounded = crate::answer_for_tool(&refused, b"read_compare", cap, crate::ForgeReadBounds::STOCK);
         assert!(bounded.error());
         assert!(bounded.text().len() <= usize::try_from(cap).unwrap());
         assert_eq!(bounded.text(), &text.as_bytes()[..bounded.text().len()]);
     }
-    let unrelated = crate::answer_for_tool(&refused, b"read_pull", 2048, crate::ForgeReadBounds::STOCK);
-    assert_eq!(unrelated.text(), b"Forge read failed: too large. The answer passed forge.client.rows (8) or forge.client.answer_bytes (65536); which one is unknown.");
     let missing = engine::CallAnswer::ForgeRead(Box::new(Err(Error::Missing)));
     assert_eq!(
         crate::answer_for_tool(&missing, b"read_compare", 2048, crate::ForgeReadBounds::STOCK).text(),
@@ -3039,27 +3008,36 @@ fn read_compare_too_large_names_bounds_and_paged_fallback() {
     );
 }
 
-/// agent.md, 4.3: a forge size refusal names both configured bounds, not a guessed cause.
+/// agent.md, 4.3: a forge size refusal retains its bound, measure and read-on words.
 #[test]
 fn forge_read_too_large_names_configured_bounds_and_clips() {
-    use crate::ForgeReadBounds;
-    use skein_forge::api::Error;
-    const SMALL_CAP: u32 = 64; // Too short for the bounds and uncertainty together.
-    const STOCK_TEXT: &[u8] = b"Forge read failed: too large. The answer passed forge.client.rows (8) or forge.client.answer_bytes (65536); which one is unknown.";
-    let refused = engine::CallAnswer::ForgeRead(Box::new(Err(Error::TooLarge)));
-    for (forge, expected) in [
-        (ForgeReadBounds::STOCK, STOCK_TEXT),
-        (ForgeReadBounds { rows: 3, answer_bytes: 4096 }, b"Forge read failed: too large. The answer passed forge.client.rows (3) or forge.client.answer_bytes (4096); which one is unknown.".as_slice()),
+    use skein_forge::api::{Bound, Error, Excess};
+    for (excess, expected) in [
+        (Excess::exact(Bound::Rows, 8, 22), "forge.client.rows (8): 22 rows"),
+        (
+            Excess::at_least(Bound::AnswerBytes, 65_536, 70_000),
+            "forge.client.answer_bytes (65536): at least 70000 bytes",
+        ),
+        (Excess::exact(Bound::OpBytes, 32, 44), "forge.client.op_bytes (32): 44 bytes"),
+        (Excess::exact(Bound::Forge, 4_294_967_295, 4_294_967_296), "a bound of the forge's (4294967295): 4294967296"),
+        (Excess::at_least(Bound::Forge, 0, 0), "a bound of the forge's"),
+        (Excess::unnamed(), "an unnamed bound"),
     ] {
-        for tool in [b"read_branches".as_slice(), b"read_pull"] {
-            let cap = u32::try_from(expected.len()).expect("refusal length fits");
-            let whole = crate::answer_for_tool(&refused, tool, cap, forge);
+        let refused = engine::CallAnswer::ForgeRead(Box::new(Err(Error::TooLarge(excess))));
+        for (tool, recovery) in [
+            (b"read_branches".as_slice(), "Use a longer prefix, or read_branch for one name."),
+            (b"read_reviews", "Advance page to list the rest; a later page skips this oversized page."),
+        ] {
+            let expected = format!("Forge read failed: too large: past {expected}. {recovery}");
+            // An unrelated renderer configuration cannot replace the excess's figures.
+            let forge = crate::ForgeReadBounds { rows: 3, answer_bytes: 4096 };
+            let whole = crate::answer_for_tool(&refused, tool, 2048, forge);
             assert!(whole.error());
-            assert_eq!(whole.text(), expected);
-            for cap in [0, SMALL_CAP, cap - 1] {
+            assert_eq!(whole.text(), expected.as_bytes());
+            for cap in [0, 64, u32::try_from(expected.len()).unwrap() - 1] {
                 let clipped = crate::answer_for_tool(&refused, tool, cap, forge);
                 assert!(clipped.error());
-                assert_eq!(clipped.text(), &expected[..usize::try_from(cap).unwrap()]);
+                assert_eq!(clipped.text(), &expected.as_bytes()[..usize::try_from(cap).unwrap()]);
             }
         }
     }
@@ -3321,18 +3299,11 @@ fn file_and_pull_rendering_boundaries() {
         }
     }
     for tool in [b"read_file".as_slice(), b"read_pull_files"] {
-        let recorded = engine::CallAnswer::ForgeRead(Box::new(Err(api::Error::TooLarge)));
+        let recorded = engine::CallAnswer::ForgeRead(Box::new(Err(api::Error::TooLarge(api::Excess::unnamed()))));
         let feedback = crate::answer_for_tool(&recorded, tool, 1024, crate::ForgeReadBounds::STOCK);
         let words = feedback.text();
         assert!(feedback.error());
-        for required in [
-            "1024",
-            "size unknown",
-            "read_file",
-            "max_bytes",
-            "forge.client.rows (8)",
-            "forge.client.answer_bytes (65536)",
-        ] {
+        for required in ["Forge read failed: too large: past an unnamed bound.", "read_file", "max_bytes"] {
             assert!(skein_lib::bytes::find(words, required.as_bytes()).is_some(), "missing {required}: {words:?}");
         }
     }

@@ -209,7 +209,11 @@ fn bounded_cases() -> [BoundedCase; 2] {
                 more: false,
             }),
         ),
-        ("past", &[b'x'; 4032], Err(Error::TooLarge)),
+        (
+            "past",
+            &[b'x'; 4032],
+            Err(Error::TooLarge(skein_forge::api::Excess::at_least(skein_forge::api::Bound::AnswerBytes, 4096, 4097))),
+        ),
     ]
 }
 #[test]

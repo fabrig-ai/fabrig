@@ -67,7 +67,7 @@ fn a_full_batch_is_refused_before_any_partial_admission() {
     let mut h = Harness::new();
     h.env.limits.resources = 1;
     h.keep(Box::new([watch(issue(), true), watch(branch(), false)]));
-    assert_eq!(h.kept.as_slice(), &[Err(Error::TooLarge)]);
+    assert_eq!(h.kept.as_slice(), &[Err(Error::TooLarge(api::Excess::exact(api::Bound::Forge, 1, 2)))]);
     assert!(h.records.is_empty());
     assert!(!h.domain.is_ready());
 }
@@ -517,7 +517,7 @@ fn inbox_overflow_never_partially_delivers_or_advances_a_page() {
     let read = h.one();
     let saved = h.record(&issue()).clone();
     h.answer(read, Answer::Item { item: summary(), comments: Box::new([comment(1), comment(2)]), more: false });
-    assert_eq!(h.failures.as_slice(), &[Error::TooLarge]);
+    assert_eq!(h.failures.as_slice(), &[Error::TooLarge(api::Excess::unnamed())]);
     assert!(h.news.is_empty());
     assert_eq!(h.record(&issue()), &saved);
     h.env.limits.inbox = 2;
@@ -588,7 +588,7 @@ fn writer_moves_require_forward_ancestry_and_authenticated_identity() {
         (2, contained, [3; 32], 0, None),
         (1, Ok(Answer::Commits { commits: Box::new([listed.clone()]), more: false }), [2; 32], 1, None),
         (1, Ok(Answer::Commits { commits: Box::new([listed]), more: true }), [2; 32], 1, None),
-        (1, Err(Error::TooLarge), [2; 32], 1, None),
+        (1, Err(Error::TooLarge(api::Excess::unnamed())), [2; 32], 1, None),
         (1, Ok(Answer::Commits { commits: Box::new([]), more: true }), [2; 32], 0, Some(Error::InvalidAnswer)),
         (1, Err(Error::Unavailable), [2; 32], 0, Some(Error::Unavailable)),
         (1, Err(Error::Forbidden), [2; 32], 0, Some(Error::Forbidden)),

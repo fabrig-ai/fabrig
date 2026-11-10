@@ -446,10 +446,16 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
     from its first push."
 
   Every other tool's `Missing` and `Empty` keep their one line. A forge read
-  refused as too large names `forge.client.rows` and `forge.client.answer_bytes`
-  with their configured figures, without claiming which was passed. The
-  refusal stays marked an error and is cut to fit the host answer's
-  bound, as the compare's is.
+  refused as too large names the bound it passed and the size it met, in a
+  bound's words (`forge.md`, 8.4): `Forge read failed: too large: past
+  forge.client.rows (8): 22 rows.`, then how to read on, as its tool's
+  description says. Each forge read's description names the bounds its
+  answer meets and how to read past them: a listing by its next page, a
+  file by path within `max_bytes` (`read_file`), a pull's files by page
+  or a path at the head or the base, a comparison by names with each
+  file's contents by path, a branch list by a longer prefix. The refusal
+  stays marked an error and is cut to fit the host answer's bound, as
+  the compare's is.
 - **Reads and writes:** the forge's reads, `recall`, `settings` and `read_docs` are reads; every
   other host tool is a write, which smith runs alone (smith's
   `domain/run.md`, 5.2).

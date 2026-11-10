@@ -240,14 +240,14 @@ fn item_answered(
     let after = row.record.comment_after;
     let participating = row.record.watch.participating;
     if more && participating && row.record.comment_page >= env.limits.inbox {
-        failed_resource(d, env, key, Phase::Object, Error::TooLarge, out);
+        failed_resource(d, env, key, Phase::Object, Error::TooLarge(api::Excess::unnamed()), out);
         return;
     }
     let mut stamps = copied_stamps(&row.record.comments, env.limits.inbox);
     if participating {
         for comment in &comments {
             if !remember(&mut stamps, Delivery { id: comment.id, revision: comment.revision }) {
-                failed_resource(d, env, key, Phase::Object, Error::TooLarge, out);
+                failed_resource(d, env, key, Phase::Object, Error::TooLarge(api::Excess::unnamed()), out);
                 return;
             }
         }
@@ -325,14 +325,14 @@ fn reviews_answered(
         Phase::Object | Phase::Pull | Phase::Branch | Phase::BranchAncestry { .. } => unreachable!("reviews stage"),
     };
     if more && page >= env.limits.inbox {
-        failed_resource(d, env, key, phase, Error::TooLarge, out);
+        failed_resource(d, env, key, phase, Error::TooLarge(api::Excess::unnamed()), out);
         return;
     }
     let next = if more {
         match page.checked_add(1) {
             Some(next) => next,
             None => {
-                failed_resource(d, env, key, phase, Error::TooLarge, out);
+                failed_resource(d, env, key, phase, Error::TooLarge(api::Excess::unnamed()), out);
                 return;
             }
         }
@@ -343,7 +343,7 @@ fn reviews_answered(
     let mut stamps = copied_stamps(&row.record.reviews, env.limits.inbox);
     for review in &reviews {
         if !remember(&mut stamps, Delivery { id: review.id, revision: review.revision }) {
-            failed_resource(d, env, key, phase, Error::TooLarge, out);
+            failed_resource(d, env, key, phase, Error::TooLarge(api::Excess::unnamed()), out);
             return;
         }
     }
@@ -472,7 +472,7 @@ fn branch_ancestry_answered(
                 true
             }
         }
-        Err(Error::TooLarge) => false,
+        Err(Error::TooLarge(_)) => false,
         result => {
             let error = match result {
                 Err(error) => error,

@@ -539,17 +539,23 @@ fn write_inner_overflow_is_timeout() {
 #[test]
 fn read_inner_overflow_is_too_large() {
     let mut run = bounded_run(Op::Read(Read::Item { number: ITEM_NUMBER, after: 0 }));
-    assert_eq!(run.answer(200, THREE_LABELS), Step::Done(Err(Error::TooLarge)));
+    let Step::Done(Err(Error::TooLarge(_))) = run.answer(200, THREE_LABELS) else {
+        panic!("expected a typed size refusal");
+    };
     for read in [Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1 }, Read::Checks { commit: HEAD }] {
         let mut run = bounded_run(Op::Read(read));
-        assert_eq!(inner_overflow(&mut run), Some(Step::Done(Err(Error::TooLarge))));
+        let Some(Step::Done(Err(Error::TooLarge(_)))) = inner_overflow(&mut run) else {
+            panic!("expected a typed size refusal");
+        };
     }
 }
 
 #[test]
 fn open_pull_inner_overflow_is_too_large() {
     let mut run = bounded_run(Op::Write(write_cases::open_pull()));
-    assert_eq!(inner_overflow(&mut run), Some(Step::Done(Err(Error::TooLarge))));
+    let Some(Step::Done(Err(Error::TooLarge(_)))) = inner_overflow(&mut run) else {
+        panic!("expected a typed size refusal");
+    };
 }
 
 #[test]
@@ -617,11 +623,20 @@ fn file_sides_past_remaining_room_are_too_large() {
     let answer_bytes =
         u32::try_from(crate::measure::FILE_BYTES.saturating_add(FILE_PATH.len()).saturating_add(SHORT_RAW.len()))
             .unwrap();
-    for (read, answers, sends) in side_cases() {
-        let mut run = Run::with(super::super::plan::Bounds { answer_bytes, ..BOUNDS }, Op::Read(read));
-        replies(&mut run, answers);
-        assert_eq!(run.answer(200, FULL_RAW), Step::Done(Err(Error::TooLarge)));
-        run.assert_sent(sends);
+    for (bytes, more) in [(FULL_RAW, false), (SHORT_RAW, true)] {
+        for (read, answers, sends) in side_cases() {
+            let mut run = Run::with(super::super::plan::Bounds { answer_bytes, ..BOUNDS }, Op::Read(read));
+            replies(&mut run, answers);
+            assert_eq!(
+                raw_body(&mut run, bytes, more),
+                Some(Step::Done(Err(Error::TooLarge(api::Excess::at_least(
+                    api::Bound::AnswerBytes,
+                    u64::from(answer_bytes),
+                    u64::from(answer_bytes).saturating_add(1)
+                )))))
+            );
+            run.assert_sent(sends);
+        }
     }
 }
 
@@ -722,7 +737,9 @@ fn branch_prefix_past_eight_matches_is_too_large() {
         body.put(br#""}"#).unwrap();
     }
     body.put(b"]").unwrap();
-    assert_eq!(run.answer(200, &body.finish()), Step::Done(Err(Error::TooLarge)));
+    let Step::Done(Err(Error::TooLarge(_))) = run.answer(200, &body.finish()) else {
+        panic!("expected a typed size refusal");
+    };
 }
 
 #[test]
@@ -788,7 +805,9 @@ fn read_rows_check_the_bound_before_keeping_and_keep_before_validation() {
         );
         run.begin();
         let row = Row::User(User { id: 7, login: Box::from(&b"writer"[..]), is_admin: false, full_name: Box::new([]) });
-        assert_eq!(run.hear(Heard::Row(row)), Some(Step::Done(Err(Error::TooLarge))));
+        let Some(Step::Done(Err(Error::TooLarge(_)))) = run.hear(Heard::Row(row)) else {
+            panic!("expected a typed size refusal");
+        };
         assert_eq!(run.tables().user(REPO.forge, 7), kept);
     }
 }

@@ -1,5 +1,6 @@
 //! Bounded issue listings and comments paged by Link (forge-github.md, 4.1).
 use super::{Bounds, Plan, Read, Response, Stage, Step, api, document, size};
+use crate::api::Excess;
 use crate::{
     github::{plans::reading, request::Request},
     measure,
@@ -69,9 +70,13 @@ impl Plan {
         if self.stage != Stage::Read && self.stage != Stage::Comments {
             return Err(api::Error::InvalidAnswer);
         }
-        self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge)?;
+        self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if self.count > self.limit {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(Excess::at_least(
+                if self.count > bounds.rows { api::Bound::Rows } else { api::Bound::Forge },
+                u64::from(if self.count > bounds.rows { bounds.rows } else { self.limit }),
+                u64::from(self.count),
+            )));
         }
         match (&self.read, row) {
             (Read::Items { kind, .. }, document::Row::Issue(issue)) if self.stage == Stage::Read => {
@@ -84,19 +89,34 @@ impl Plan {
                     return Ok(());
                 }
                 let item = reading::summary(word, issue);
-                let width = u64::try_from(measure::SUMMARY_BYTES).ok().ok_or(api::Error::TooLarge)?;
-                let measured = measure::summary(&item).ok_or(api::Error::TooLarge)?;
+                let width =
+                    u64::try_from(measure::SUMMARY_BYTES).ok().ok_or(api::Error::TooLarge(Excess::unnamed()))?;
+                let measured = measure::summary(&item).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
                 let total = self
                     .size
                     .checked_add(width)
-                    .ok_or(api::Error::TooLarge)?
+                    .ok_or(api::Error::TooLarge(Excess::unnamed()))?
                     .checked_add(measured)
-                    .ok_or(api::Error::TooLarge)?;
+                    .ok_or(api::Error::TooLarge(Excess::unnamed()))?;
                 if self.issues.items.len() >= bounds.rows || total > u64::from(bounds.answer_bytes) {
-                    return Err(api::Error::TooLarge);
+                    let excess = if self.issues.items.len() >= bounds.rows {
+                        Excess::at_least(
+                            api::Bound::Rows,
+                            u64::from(bounds.rows),
+                            u64::from(self.issues.items.len()).saturating_add(1),
+                        )
+                    } else {
+                        Excess::at_least(api::Bound::AnswerBytes, u64::from(bounds.answer_bytes), total)
+                    };
+                    return Err(api::Error::TooLarge(excess));
                 }
                 if self.issues.items.push(item).is_err() {
-                    return Err(api::Error::TooLarge);
+                    return Err(api::Error::TooLarge(measure::capacity_excess(
+                        self.issues.items.capacity(),
+                        bounds.rows,
+                        bounds.answer_bytes,
+                        measure::SUMMARY_BYTES,
+                    )));
                 }
                 self.size = total;
             }
@@ -105,26 +125,32 @@ impl Plan {
                     return Ok(());
                 }
                 let comment = reading::comment(word, comment)?;
-                let width = u64::try_from(measure::COMMENT_BYTES).ok().ok_or(api::Error::TooLarge)?;
+                let width =
+                    u64::try_from(measure::COMMENT_BYTES).ok().ok_or(api::Error::TooLarge(Excess::unnamed()))?;
                 let key = match &comment.key {
                     Some(key) => key.len(),
                     None => 0,
                 };
-                let key = u64::try_from(key).ok().ok_or(api::Error::TooLarge)?;
+                let key = u64::try_from(key).ok().ok_or(api::Error::TooLarge(Excess::unnamed()))?;
                 let body = len_u64(comment.body.len());
                 let total = self
                     .size
                     .checked_add(width)
-                    .ok_or(api::Error::TooLarge)?
+                    .ok_or(api::Error::TooLarge(Excess::unnamed()))?
                     .checked_add(key)
-                    .ok_or(api::Error::TooLarge)?
+                    .ok_or(api::Error::TooLarge(Excess::unnamed()))?
                     .checked_add(body)
-                    .ok_or(api::Error::TooLarge)?;
+                    .ok_or(api::Error::TooLarge(Excess::unnamed()))?;
                 if self.issues.comments.len() >= bounds.rows || total > u64::from(bounds.answer_bytes) {
                     self.issues.more = true;
                 } else {
                     if self.issues.comments.push(comment).is_err() {
-                        return Err(api::Error::TooLarge);
+                        return Err(api::Error::TooLarge(measure::capacity_excess(
+                            self.issues.comments.capacity(),
+                            bounds.rows,
+                            bounds.answer_bytes,
+                            measure::COMMENT_BYTES,
+                        )));
                     }
                     self.size = total;
                 }
@@ -205,9 +231,14 @@ impl Plan {
             return Err(api::Error::InvalidAnswer);
         }
         let item = reading::summary(word, issue);
-        self.size = measure::summary(&item).ok_or(api::Error::TooLarge)?;
+        self.size = measure::summary(&item).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if self.size > u64::from(bounds.answer_bytes) {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(Excess {
+                bound: api::Bound::AnswerBytes,
+                limit: u64::from(bounds.answer_bytes),
+                size: self.size,
+                exact: false,
+            }));
         }
         self.issues.item = Some(item);
         self.stage = Stage::Comments;
@@ -259,7 +290,7 @@ impl Plan {
             }
             Read::Item { .. } if self.stage == Stage::Comments => {
                 if !self.issues.more && next {
-                    self.page = self.page.checked_add(1).ok_or(api::Error::TooLarge)?;
+                    self.page = self.page.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
                     return self.comments_request();
                 }
                 let item = self.issues.item.take().ok_or(api::Error::InvalidAnswer)?;

@@ -1,4 +1,5 @@
 use super::fixtures::{decode, limits};
+use crate::api::Excess;
 use crate::{
     api,
     github::{
@@ -773,7 +774,9 @@ fn github_post_bounds_and_failures() {
     }
     let mut tables = cached_tables();
     let mut plan = write_plan(post(b"text"));
-    assert_eq!(plan.begin(Bounds { body_bytes: 1, ..bounds() }, WORD, &mut tables), Err(api::Error::TooLarge));
+    let Err(api::Error::TooLarge(_)) = plan.begin(Bounds { body_bytes: 1, ..bounds() }, WORD, &mut tables) else {
+        panic!("expected a typed size refusal");
+    };
 }
 #[test]
 fn github_post_original_key_find() {
@@ -868,7 +871,9 @@ fn github_review_self_approval_and_bounds() {
     }
     let mut tables = cached_tables();
     let mut plan = write_plan(review(api::Verdict::Comment, b"text"));
-    assert_eq!(plan.begin(Bounds { body_bytes: 1, ..bounds() }, WORD, &mut tables), Err(api::Error::TooLarge));
+    let Err(api::Error::TooLarge(_)) = plan.begin(Bounds { body_bytes: 1, ..bounds() }, WORD, &mut tables) else {
+        panic!("expected a typed size refusal");
+    };
     for body in
         [Body::Empty, Body::Document(Document::Done), Body::Malformed(decoding::Malformed::Missing { field: b"id" })]
     {
@@ -1099,7 +1104,10 @@ fn github_update_422_and_first_failure() {
     }
     for (body, error) in [
         (Body::Malformed(decoding::Malformed::Missing { field: b"head" }), api::Error::Unavailable),
-        (Body::Malformed(decoding::Malformed::Bound { field: b"requested_reviewers" }), api::Error::TooLarge),
+        (
+            Body::Malformed(decoding::Malformed::Bound { field: b"requested_reviewers" }),
+            api::Error::TooLarge(Excess::unnamed()),
+        ),
         (Body::Empty, api::Error::Unavailable),
     ] {
         let mut tables = cached_tables();
@@ -1121,8 +1129,8 @@ fn github_update_422_and_first_failure() {
     for (pull, call_bounds, error) in [
         (document::Pull { number: 1, ..update_pull() }, bounds(), api::Error::Unavailable),
         (document::Pull { head_commit: [255; 32], ..update_pull() }, bounds(), api::Error::Unavailable),
-        (update_pull(), Bounds { rows: 0, ..bounds() }, api::Error::TooLarge),
-        (update_pull(), Bounds { answer_bytes: 1, ..bounds() }, api::Error::TooLarge),
+        (update_pull(), Bounds { rows: 0, ..bounds() }, api::Error::TooLarge(Excess::unnamed())),
+        (update_pull(), Bounds { answer_bytes: 1, ..bounds() }, api::Error::TooLarge(Excess::unnamed())),
     ] {
         let mut tables = cached_tables();
         let mut plan = write_plan(update());

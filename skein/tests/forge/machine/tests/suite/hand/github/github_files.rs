@@ -132,7 +132,9 @@ fn whole_file_bodies_fit_the_answer_bound_and_refuse_one_byte_past_it() {
         let number = fake.number;
         let answer = run(&mut h, &mut fake, Read::PullFiles { number, head, page: 1 });
         if extra == 1 {
-            assert_eq!(answer.result, Err(Error::TooLarge));
+            let Err(Error::TooLarge(_)) = answer.result else {
+                panic!("expected a typed size refusal");
+            };
         } else {
             assert_eq!(
                 answer.result,

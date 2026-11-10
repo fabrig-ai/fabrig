@@ -81,7 +81,9 @@ record ProposedEffect { number: u64 resource: What entry: Entry }
 
 # 04.3b: named effects, errors and reads without answer-item pieces.
 record RateLimited { after: duration }
-enum Error { unavailable, timeout, rate_limited: RateLimited, forbidden, missing, missing_job, too_large, empty, full, exists, nothing_to_merge, closed, stale, conflict, protected, refused, invalid_answer, busy, not_installed }
+enum Bound { op_bytes, answer_bytes, rows, forge, unnamed }
+record Excess { bound: Bound limit: u64 size: u64 exact: bool }
+enum Error { unavailable, timeout, rate_limited: RateLimited, forbidden, missing, missing_job, too_large: Excess, empty, full, exists, nothing_to_merge, closed, stale, conflict, protected, refused, invalid_answer, busy, not_installed }
 record ErrorValue { error: Error }
 enum Made { created: Number, commented: Number, reviewed: Number, merged: Commit, updated: Commit, branch: Commit, set }
 record OutcomeMade { made: Made found: bool }

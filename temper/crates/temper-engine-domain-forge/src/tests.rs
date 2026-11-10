@@ -1262,7 +1262,7 @@ fn a_failed_goals_lost_writer_reports_its_read_failure() {
         task: 7,
         attempt: 4,
         resource: name.clone(),
-        reason: b"forge policy refused the operation",
+        reason: Box::from(b"forge policy refused the operation".as_slice()),
     }));
     assert_eq!(d.hold(&name).unwrap().writer, Some(Writer::Lost { task: 7, attempt: 4 }));
 }
@@ -1301,7 +1301,7 @@ fn a_task_can_claim_its_own_stale_writer() {
                 task: 7,
                 attempt: 4,
                 resource: name.clone(),
-                reason: b"forge policy refused the operation",
+                reason: Box::from(b"forge policy refused the operation".as_slice()),
             }));
             assert_eq!(d.hold(&name).unwrap().writer, Some(Writer::Run { task: 7, attempt: 5 }));
         }
@@ -1340,7 +1340,7 @@ fn a_lost_writers_read_answered_not_connected_is_asked_again_when_its_forge_conn
                 task: 9,
                 attempt: 1,
                 resource: run_branch(b"7"),
-                reason: b"forge policy refused the operation",
+                reason: Box::from(b"forge policy refused the operation".as_slice()),
             }),
             refused
         );
@@ -1713,7 +1713,11 @@ fn a_configured_git_base_is_bounded_by_its_priced_pull_address_bytes() {
         } else {
             assert_eq!(
                 result.err(),
-                Some(skein_forge::api::Error::TooLarge),
+                Some(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::exact(
+                    skein_forge::api::Bound::Forge,
+                    2048,
+                    2049
+                ))),
                 "a larger base is refused before retaining it"
             );
         }
@@ -1877,7 +1881,7 @@ fn configured_forges_are_bounded_at_construction() {
     Domain::new(&LIMITS, 4, config(), &[], &forges.as_slice()[..count], false).unwrap();
     assert_eq!(
         Domain::new(&LIMITS, 4, config(), &[], forges.as_slice(), false).unwrap_err(),
-        skein_forge::api::Error::TooLarge
+        skein_forge::api::Error::TooLarge(skein_forge::api::Excess::exact(skein_forge::api::Bound::Forge, 4, 5))
     );
 }
 

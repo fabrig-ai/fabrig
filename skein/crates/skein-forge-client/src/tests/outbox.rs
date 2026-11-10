@@ -183,7 +183,7 @@ fn update_recovery_proves_the_requested_base_is_an_ancestor() {
         (Ok(Answer::Commits { commits: Box::new([]), more: false }), Some(true)),
         (Ok(Answer::Commits { commits: Box::new([listed.clone()]), more: false }), Some(false)),
         (Ok(Answer::Commits { commits: Box::new([listed]), more: true }), Some(false)),
-        (Err(Error::TooLarge), Some(false)),
+        (Err(Error::TooLarge(api::Excess::unnamed())), Some(false)),
         (Ok(Answer::Commits { commits: Box::new([]), more: true }), None),
         (Err(Error::Unavailable), None),
         (Err(Error::Forbidden), None),
@@ -366,7 +366,7 @@ fn ancestry_overflow_does_not_prove_an_update_before_its_deadline() {
     let find = h.one();
     h.answer(find, Ok(Answer::Pull(pull([3; 32]))));
     let compare = h.one();
-    h.answer(compare, Err(Error::TooLarge));
+    h.answer(compare, Err(Error::TooLarge(api::Excess::unnamed())));
     assert_eq!(h.writes, 1);
     assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Uncertain)]);
     assert!(h.store.get(&1).is_some());

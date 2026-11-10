@@ -349,7 +349,7 @@ and no policy. Every type is a plain value.
 | `Forbidden` | the writer lacks the permission (a bad or lacking credential included) |
 | `Missing` | the object is absent |
 | `MissingJob` | the job attempt is absent, or is no longer the attempt asked for |
-| `TooLarge` | a request or an answer passes a bound |
+| `TooLarge(Excess)` | a request or an answer passes a bound, which it names with the size met |
 | `Empty` | the write has no content |
 | `Full` | the forge has no room for the write (a quota) |
 | `Exists` | the object already exists |
@@ -378,6 +378,26 @@ and no policy. Every type is a plain value.
 - **`Timeout` is the error that leaves a write's outcome unknown.** The
   client finds the outcome by the write's key, or by reading
   (forge-client.md, section 7).
+- **`TooLarge` names its bound and its size,** as `Excess { bound,
+  limit, size, exact }`, a plain value:
+  - `bound`, a `Bound`: `OpBytes`, `AnswerBytes` or `Rows`, the client's
+    own configured bounds (forge-client.md, 2.2 and 2.3), passed by a
+    call's bytes, an answer's bytes by the measure (3.7), or an answer's
+    longest list; `Forge`, a bound of the dialect's, the component's or
+    the forge's own: a body past `body_bytes_in`, a string past
+    `string_bytes`, a listing the forge cuts, a count past the
+    vocabulary's width; `Unnamed`, where the check kept no figure.
+  - `limit`, the bound's figure, and `size`, what was met, both in the
+    bound's unit, bytes or rows. Both are 0 for `Unnamed`, and for a
+    `Forge` bound whose figure the check does not hold.
+  - `exact`: `size` is the whole's, measured; otherwise it is a lower
+    bound, what had been read when the bound stopped the read.
+
+  So `size` less `limit` says by how much, at least. A call's
+  `max_bytes` past `answer_bytes` is `AnswerBytes`, its `size` the
+  `max_bytes` asked. A dialect names the client's bound where its own
+  check is the client's figure (the answer's bytes left for a file's
+  side, a page's rows), and `Forge` or `Unnamed` otherwise.
 
 ### 3.5 The hint
 
@@ -479,7 +499,7 @@ body the forge keeps changes (5.3).
 
   | Call | An answer fits when |
   |---|---|
-  | any | it has the shape in 3.2's table; a read's answer past `answer_bytes` or `rows` is `TooLarge`, a write's `InvalidAnswer`, a lost answer (forge-client.md, 7.4); any other mismatch is `InvalidAnswer` |
+  | any | it has the shape in 3.2's table; a read's answer past `answer_bytes` or `rows` is `TooLarge`, naming the bound with the answer's exact measure (3.4), a write's `InvalidAnswer`, a lost answer (forge-client.md, 7.4); any other mismatch is `InvalidAnswer` |
   | `Items` | `updated` never decreases; rows of one time rise strictly by number; numbers are nonzero and unique; each row's kind is the call's, when it names one |
   | `Item` | the number is the call's; comment ids rise strictly and are above `after` |
   | `Reviews` | ids rise strictly |
@@ -1073,7 +1093,7 @@ Notes on the table:
   may have been done. It fails a read as `InvalidAnswer`. Either way the
   connection is closed, since what followed on it can no longer be
   trusted. A repository id past the vocabulary's 32 bits fails the call
-  as `TooLarge`.
+  as `TooLarge` (`Forge`, `limit` 4,294,967,295, `size` the id).
 
 ### 5.4 Failures
 
@@ -1104,7 +1124,7 @@ such a request costs nothing.
 | `409` on `Merge`, `head out of date` | `Stale` |
 | `409` on `Update`, `merge failed because of conflict` | `Conflict` |
 | a pull request's head other than `PullFiles` names | `Stale` |
-| an answer past the component's bounds | `TooLarge` on a read; `Timeout` on a write, which may have been done |
+| an answer past the component's bounds | `TooLarge` on a read, `Forge` with the bound and what was read where the component gives them, else `Unnamed`; `Timeout` on a write, which may have been done |
 | a write whose text is not UTF-8, which JSON cannot carry; nothing written | `Refused` |
 | any other `4xx` | `Refused` on a write; `InvalidAnswer` on a read |
 

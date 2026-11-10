@@ -388,10 +388,18 @@ fn keep_refuses_invalid_participation() {
 fn keep_refuses_invalid_branch_names() {
     for branch in [Box::from(&b""[..]), fixture::repeated(b'a', fixture::EXCESS_OP_BYTES)] {
         let mut h = fixture::ready();
+        let length = skein_lib::len_u64(branch.len());
         let watch = kept::watch(Resource { repository: REPO, what: What::Branch(branch) }, false);
         assert_eq!(
             h.step(Event::Keep { owner: Token::new(1), watches: Box::new([watch]) }).as_ref(),
-            &[Request::Kept { owner: Token::new(1), result: Err(Error::TooLarge) }]
+            &[Request::Kept {
+                owner: Token::new(1),
+                result: Err(Error::TooLarge(if length == 0 {
+                    api::Excess::unnamed()
+                } else {
+                    api::Excess::exact(api::Bound::OpBytes, 256, length)
+                }))
+            }]
         );
         assert!(h.domain.cached(&kept::branch()).is_none());
         assert!(h.send().is_none());
@@ -668,8 +676,8 @@ fn comment_and_review_finds_require_believed_original_keys() {
 #[test]
 fn oversized_and_lost_write_answers_are_uncertain() {
     let branches = Answer::Branches(Box::new([Box::from(&b"kit"[..])]));
-    assert!(crate::bounds::answer(&branches, &Limits { answer_bytes: 19, ..LIMITS }));
-    assert!(!crate::bounds::answer(&branches, &Limits { answer_bytes: 18, ..LIMITS }));
+    crate::bounds::answer(&branches, &Limits { answer_bytes: 19, ..LIMITS }).expect("fits");
+    assert!(crate::bounds::answer(&branches, &Limits { answer_bytes: 18, ..LIMITS }).is_err());
     for (name, answer, error) in
         [("oversized", Ok(branches), Error::InvalidAnswer), ("lost", Err(Error::Timeout), Error::Timeout)]
     {

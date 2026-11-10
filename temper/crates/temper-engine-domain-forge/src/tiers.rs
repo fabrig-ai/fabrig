@@ -748,7 +748,7 @@ fn reported_part(
         return false;
     }
     let reason = match &answer {
-        Err(error) => joined(&[b"artifact report: ", crate::effect_words::error_words(*error)]),
+        Err(error) => joined(&[b"artifact report: ", &crate::effect_words::error_words(*error)]),
         Ok(_) => Box::from(b"artifact report is empty, malformed or names no failing tests".as_slice()),
     };
     let outcome = reported(d, env, row, answer);

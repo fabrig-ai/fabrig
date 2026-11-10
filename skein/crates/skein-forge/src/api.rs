@@ -273,6 +273,40 @@ pub enum EntryKind {
     /// A git submodule.
     Submodule,
 }
+/// What a refused call or answer passed (forge.md, 3.4).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct Excess {
+    pub bound: Bound,
+    pub limit: u64,
+    pub size: u64,
+    pub exact: bool,
+}
+impl Excess {
+    /// A check that kept no figure.
+    #[must_use]
+    pub const fn unnamed() -> Self {
+        Self { bound: Bound::Unnamed, limit: 0, size: 0, exact: false }
+    }
+    /// What had been read when a bound stopped the read.
+    #[must_use]
+    pub const fn at_least(bound: Bound, limit: u64, size: u64) -> Self {
+        Self { bound, limit, size, exact: false }
+    }
+    /// A whole measured against its bound.
+    #[must_use]
+    pub const fn exact(bound: Bound, limit: u64, size: u64) -> Self {
+        Self { bound, limit, size, exact: true }
+    }
+}
+/// The bound a `TooLarge` names (forge.md, 3.4).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Bound {
+    OpBytes,
+    AnswerBytes,
+    Rows,
+    Forge,
+    Unnamed,
+}
 /// A typed refusal or failure of one forge call.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Error {
@@ -289,7 +323,7 @@ pub enum Error {
     /// The requested job attempt is absent.
     MissingJob,
     /// The request or answer exceeds a configured bound.
-    TooLarge,
+    TooLarge(Excess),
     /// The requested operation has no content, including an empty branch prefix.
     Empty,
     /// The provider has no room for this operation.

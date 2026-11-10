@@ -1,4 +1,5 @@
 use super::fixtures::{bytes, decode, limits};
+use crate::api::Excess;
 use crate::{
     api,
     github::{
@@ -121,7 +122,7 @@ fn app_fact_bounds_keep_fitting_values_and_classify_excess() {
                     limits: limits(),
                     expected: Err(Malformed::Bound { field: b"permissions" }),
                     app,
-                    classified: Some(api::Error::TooLarge),
+                    classified: Some(api::Error::TooLarge(Excess::unnamed())),
                 }
             }),
             ("github_app_facts_name_bounds_are_too_large: events 129", {
@@ -131,7 +132,7 @@ fn app_fact_bounds_keep_fitting_values_and_classify_excess() {
                     limits: limits(),
                     expected: Err(Malformed::Bound { field: b"events" }),
                     app,
-                    classified: Some(api::Error::TooLarge),
+                    classified: Some(api::Error::TooLarge(Excess::unnamed())),
                 }
             }),
             ("github_app_facts_name_bounds_are_too_large: permissions 256", {
@@ -142,7 +143,7 @@ fn app_fact_bounds_keep_fitting_values_and_classify_excess() {
                     limits: limits(),
                     expected: Err(Malformed::Bound { field: b"permissions" }),
                     app,
-                    classified: Some(api::Error::TooLarge),
+                    classified: Some(api::Error::TooLarge(Excess::unnamed())),
                 }
             }),
             ("github_app_facts_name_bounds_are_too_large: events 256", {
@@ -152,7 +153,7 @@ fn app_fact_bounds_keep_fitting_values_and_classify_excess() {
                     limits: limits(),
                     expected: Err(Malformed::Bound { field: b"events" }),
                     app,
-                    classified: Some(api::Error::TooLarge),
+                    classified: Some(api::Error::TooLarge(Excess::unnamed())),
                 }
             }),
             ("github_app_facts_list_bounds_are_too_large: permissions 2", {
@@ -188,7 +189,7 @@ fn app_fact_bounds_keep_fitting_values_and_classify_excess() {
                     limits,
                     expected: Err(Malformed::Bound { field: b"permissions" }),
                     app,
-                    classified: Some(api::Error::TooLarge),
+                    classified: Some(api::Error::TooLarge(Excess::unnamed())),
                 }
             }),
             ("github_app_facts_list_bounds_are_too_large: events 3", {
@@ -199,7 +200,7 @@ fn app_fact_bounds_keep_fitting_values_and_classify_excess() {
                     limits,
                     expected: Err(Malformed::Bound { field: b"events" }),
                     app,
-                    classified: Some(api::Error::TooLarge),
+                    classified: Some(api::Error::TooLarge(Excess::unnamed())),
                 }
             }),
         ],

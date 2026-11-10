@@ -37,7 +37,7 @@ pub(super) fn failed(
             }
         },
         Error::Unavailable => backoff(d, env, number, phase, out),
-        Error::TooLarge => match phase {
+        Error::TooLarge(_) => match phase {
             Phase::Clock | Phase::Check | Phase::Make => super::finish(d, env, number, Outcome::Failed(error), out),
             Phase::Queued
             | Phase::Find { .. }
@@ -127,7 +127,7 @@ fn stopped_write(d: &mut Domain, number: u64, error: Error, out: &mut Queue<Requ
     let lost = match error {
         Error::Timeout | Error::InvalidAnswer | Error::Unavailable => true,
         Error::RateLimited { .. }
-        | Error::TooLarge
+        | Error::TooLarge(_)
         | Error::Missing
         | Error::Exists
         | Error::Forbidden
@@ -193,7 +193,7 @@ fn retain_uncertain(
         return false;
     }
     let transient = match error {
-        Error::Timeout | Error::InvalidAnswer | Error::Unavailable | Error::TooLarge | Error::RateLimited { .. } => {
+        Error::Timeout | Error::InvalidAnswer | Error::Unavailable | Error::TooLarge(_) | Error::RateLimited { .. } => {
             true
         }
         Error::Forbidden

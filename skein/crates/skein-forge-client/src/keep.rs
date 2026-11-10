@@ -222,14 +222,25 @@ fn scan_busy(state: Scan) -> bool {
 }
 fn admission(k: &Keep, l: &Limits, watches: &[Watch]) -> Result<(), Error> {
     if watches.len() > usize_of(l.resources) {
-        return Err(Error::TooLarge);
+        return Err(Error::TooLarge(api::Excess::exact(
+            api::Bound::Forge,
+            u64::from(l.resources),
+            skein_lib::len_u64(watches.len()),
+        )));
     }
     if !k.ready || k.failed {
         return Err(Error::Busy);
     }
     for (index, watch) in watches.iter().enumerate() {
         if !valid_resource(&watch.resource, l) {
-            return Err(Error::TooLarge);
+            let excess = match &watch.resource.what {
+                What::Branch(name) if name.is_empty() => api::Excess::unnamed(),
+                What::Branch(name) => {
+                    api::Excess::exact(api::Bound::OpBytes, u64::from(l.op_bytes), skein_lib::len_u64(name.len()))
+                }
+                What::Repository | What::Pull(_) | What::Issue(_) => api::Excess::unnamed(),
+            };
+            return Err(Error::TooLarge(excess));
         }
         if watch.participating {
             match watch.resource.what {
