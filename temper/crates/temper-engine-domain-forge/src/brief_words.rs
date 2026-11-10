@@ -1,4 +1,5 @@
 //! Fixed reasons and counts for section reads (temper/docs/design/domain/forge.md, 8.4).
+//! A forge away pauses preparation without spending a try (section 5.11).
 use skein_forge::api::{Answer, Error};
 
 /// How a section's unread reason counts (temper/docs/design/domain/forge.md, 8.4).
@@ -36,8 +37,8 @@ pub(crate) fn unread_of(result: &Result<Answer, Error>) -> BriefUnread {
     let (fate, words): (BriefFate, &'static [u8]) = match error {
         Error::Busy => return BUSY,
         Error::NotConnected => (BriefFate::Capacity, b"the forge is not connected"),
-        Error::Unavailable => (BriefFate::Transient, b"the forge could not be reached"),
-        Error::Timeout => (BriefFate::Transient, b"the forge did not answer in time"),
+        Error::Unavailable => (BriefFate::Capacity, b"the forge could not be reached"),
+        Error::Timeout => (BriefFate::Capacity, b"the forge did not answer in time"),
         Error::RateLimited { .. } => (BriefFate::Transient, b"the forge is limiting calls"),
         Error::InvalidAnswer => (BriefFate::Permanent, b"the forge's answer did not match its read"),
         Error::Forbidden => (BriefFate::Permanent, b"the forge forbids this read"),

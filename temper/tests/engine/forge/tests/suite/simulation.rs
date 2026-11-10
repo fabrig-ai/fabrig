@@ -1926,6 +1926,99 @@ fn landing_subscriptions_admit_shared_watches_and_refuse_a_full_union() {
 }
 
 #[test]
+fn a_change_rides_a_long_forge_outage_and_reads_ci_posted_without_a_delivery() {
+    use skein_fake_forge_domain::api::Check;
+    use skein_lib::Duration;
+    let mut world = World::new(292);
+    world.adopt();
+    world.produce(b"temper/51");
+    let pull = world.open_pull(b"temper/51", b"main");
+    world.status(b"temper/51", Check::Pending);
+    let head = translate::commit(world.branch(b"temper/51"));
+    let mut row = change_row();
+    row.pull = Some(pull);
+    row.change.state = change::State::Checking { head };
+    row.change.last_head = Some(head);
+    row.change.since = world.wall();
+    world.event(top::Event::Change { row });
+    world.event(top::Event::Subscribe {
+        subscription: top::Subscriber {
+            task: 51,
+            number: 1,
+            topic: top::Topic::Ci { repository: REPO, head },
+            own_change: None,
+            goal_tasks: None,
+            paths: Box::new([]),
+        },
+    });
+    world.run_for(1);
+    world.take_seen();
+    let from = world.wall();
+    let away = Duration::from_secs(180);
+    assert!(away > temper_engine_forge_world::LIMITS.change_policy.stall);
+    assert!(away > temper_engine_forge_world::LIMITS.client.lifetime);
+    let until = Wall::from_nanos(from.as_nanos() + away.as_nanos());
+    world.unavailable(from, until);
+    world.event(top::Event::StepChange {
+        merge_job: false,
+        task: 51,
+        entry: 1,
+        heard: change::Heard {
+            review_request: None,
+            start_conflict: None,
+            lacking: None,
+            spend: None,
+            delegate: change::Status::Passed,
+            delegate_running: false,
+            delegate_live: false,
+            effect: change::EffectResult::None,
+            released: false,
+            cancelled: false,
+        },
+        gates: Box::new([]),
+        queue_repair_active: false,
+        pending: Box::new([]),
+        kept: false,
+    });
+    world.run_for(90);
+    assert!(matches!(world.change(51).change.state, change::State::Checking { .. }));
+    world.status(b"temper/51", Check::Passed); // no hook or Hint reaches the connector
+    world.run_to(until);
+    assert!(matches!(world.change(51).change.state, change::State::Checking { .. }));
+    world.run_for(60);
+    let recovered = world.take_seen();
+    assert!(recovered.iter().any(|r| matches!(r, top::Request::News { news: top::News::Ci { head: seen, status: skein_forge::api::Ci::Passed }, .. } if *seen == head)), "forge back refreshes the subscription: {recovered:?}");
+    assert!(
+        !recovered.iter().any(|r| matches!(
+            r,
+            top::Request::ResourceRefused { .. }
+                | top::Request::LostReadFailed { .. }
+                | top::Request::ChangeDecision {
+                    decision: change::Decision::Hold(_) | change::Decision::Delegate(change::Delegate::Repair(_)),
+                    ..
+                }
+        )),
+        "an outage is not a failure: {recovered:?}"
+    );
+    let mut landed = None;
+    for entry in 2..20 {
+        let decision = change_step(&mut world, entry, change::Status::Passed, Box::new([]));
+        assert!(
+            !matches!(decision, change::Decision::Hold(_) | change::Decision::Delegate(change::Delegate::Repair(_))),
+            "{decision:?}"
+        );
+        if let change::Decision::Finish { merge } = decision {
+            landed = Some(merge);
+            break;
+        }
+    }
+    assert_eq!(landed, Some(translate::commit(world.branch(b"main"))));
+    assert_eq!(world.writes(), 1, "one merge, no duplicate effect");
+    assert_eq!(world.change(51).change.repairs, 0);
+    assert!(world.hints().is_empty(), "no delivery supplied the green status");
+}
+
+#[test]
 fn a_ci_subscription_reads_its_head_and_restarts_without_repeating_old_news() {
     let mut world = World::new(94);
     world.adopt();

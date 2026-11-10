@@ -189,7 +189,12 @@ pub fn answer_at(
     result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
 ) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    step(d, env, Event::Client(skein_forge_client::Event::Answered { free: 0, rate: None, call, cost: 1, result }), &mut out);
+    step(
+        d,
+        env,
+        Event::Client(skein_forge_client::Event::Answered { free: 0, rate: None, call, cost: 1, result }),
+        &mut out,
+    );
     d.reclaim();
     out
 }

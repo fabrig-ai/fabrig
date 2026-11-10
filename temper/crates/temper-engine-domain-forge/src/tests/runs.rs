@@ -83,12 +83,21 @@ fn an_unseen_run_is_not_lost_until_a_read_answers_without_it() {
     for error in [a::Error::Unavailable, a::Error::Timeout] {
         let mut follow = follow();
         for now in [20, 40, 80] {
-            assert!(follow.answered(Err(error), 1, Time::from_nanos(now), Duration::from_nanos(10)).is_none(), "{error:?} is not a runner fault");
+            assert!(
+                follow.answered(Err(error), 1, Time::from_nanos(now), Duration::from_nanos(10)).is_none(),
+                "{error:?} is not a runner fault"
+            );
             assert_eq!(follow.outcome, None);
             assert!(matches!(follow.read(), Some(a::Read::Runs { .. })));
         }
         let empty = a::Answer::Runs { runs: Box::new([]), more: false };
-        assert_eq!(follow.answered(Ok(empty), 1, Time::from_nanos(81), Duration::from_nanos(10)).expect("answered absence past lifetime").outcome, policy::Verdict::Fault(policy::Fault::Lost));
+        assert_eq!(
+            follow
+                .answered(Ok(empty), 1, Time::from_nanos(81), Duration::from_nanos(10))
+                .expect("answered absence past lifetime")
+                .outcome,
+            policy::Verdict::Fault(policy::Fault::Lost)
+        );
     }
 }
 

@@ -170,6 +170,77 @@ fn a_missing_rerun_report_records_why_before_retrying() {
     assert!(skein_lib::bytes::find(projection, reason).is_some());
 }
 #[test]
+fn an_unavailable_artifact_is_read_again_without_a_fault_or_retry() {
+    for error in [api::Error::Unavailable, api::Error::Timeout] {
+        let mut d = one();
+        let mut env = env();
+        env.limits.client.read_attempts = 1;
+        completed(&mut d, api::Conclusion::Failure, Some(1));
+        tier_step(&mut d, DISPATCH + 1, false);
+        let mut artifact = None;
+        for _ in 0..LIMITS.client.pending {
+            let (call, op) = fixtures::next_at(&mut d, &env);
+            match op {
+                api::Op::Read(api::Read::Artifact { .. }) => {
+                    artifact = Some((call, op));
+                    break;
+                }
+                api::Op::Read(api::Read::Tree { .. }) => {
+                    fixtures::answer_at(
+                        &mut d,
+                        &env,
+                        call,
+                        Ok(api::Answer::Tree { entries: Box::new([]), more: false }),
+                    );
+                }
+                _ => panic!("artifact read: {op:?}"),
+            }
+        }
+        let (call, op) = artifact.expect("artifact read");
+        let saved = row(&d).record.run.clone();
+        fixtures::answer_at(&mut d, &env, call, Err(error));
+        assert_eq!(row(&d).record.run, saved, "an outage spends no retry");
+        assert_eq!(row(&d).held, None);
+        fixtures::advance(&mut d, &mut env, CLIENT.backoff);
+        let mut retried = None;
+        for _ in 0..LIMITS.client.pending {
+            let (call, asked) = fixtures::next_at(&mut d, &env);
+            if asked == op {
+                retried = Some(call);
+                break;
+            }
+            if let api::Op::Read(api::Read::Items { .. }) = asked {
+                fixtures::answer_at(
+                    &mut d,
+                    &env,
+                    call,
+                    Ok(api::Answer::Items { items: Box::new([]), more: false, now: env.now }),
+                );
+            } else if let api::Op::Read(api::Read::Branch { .. }) = asked {
+                fixtures::answer_at(&mut d, &env, call, Ok(api::Answer::Commit(BASE)));
+            } else {
+                panic!("artifact re-ask: {asked:?}");
+            }
+        }
+        let again = retried.expect("the same artifact is asked again");
+        let head = workflow(&d, api::Conclusion::Failure, Some(1)).commit;
+        fixtures::answer_at(
+            &mut d,
+            &env,
+            again,
+            Ok(api::Answer::File {
+                head,
+                path: b"failed.txt".as_slice().into(),
+                bytes: FAILURES.into(),
+                truncated: false,
+            }),
+        );
+        assert_eq!(row(&d).record.run.as_ref().expect("rerun").faults, 0);
+        assert_eq!(row(&d).record.run.as_ref().expect("rerun").part, p::Part::Rerun { failed: tests() });
+    }
+}
+
+#[test]
 fn a_workflow_fault_records_why_before_retrying() {
     let mut d = one();
     completed(&mut d, api::Conclusion::Failure, Some(0));

@@ -1,4 +1,5 @@
 //! Shared workflow following, independent of its owning procedure (domain/landing.md, 7).
+//! An outage spends no unseen lifetime (temper/docs/design/domain/forge.md, 5.11).
 use alloc::boxed::Box;
 use skein_forge::api;
 use skein_lib::{Duration, List, Time};
@@ -155,6 +156,9 @@ impl Follow {
         now: Time,
         lifetime: Duration,
     ) -> Option<Ended> {
+        if let Err(api::Error::Unavailable | api::Error::Timeout) = &answer {
+            return None;
+        }
         match answer {
             Ok(api::Answer::Runs { runs, more }) => {
                 for run in runs {
