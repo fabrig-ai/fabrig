@@ -243,6 +243,12 @@ impl Host {
         {
             self.tell(Told::Aside { object: None });
         }
+        if !self.words().is_empty()
+            && tui::reply_number(&self.view, self.words()).is_none()
+            && let Some(event) = self.view.reply_aside()
+        {
+            self.event(event, &mut duties);
+        }
         if self.need.as_ref().is_some_and(|need| matches!(need.phase, Phase::Signing(None))) {
             self.end_local();
         }
@@ -531,6 +537,13 @@ impl Host {
             tui::Event::Send => self.send(duties),
             tui::Event::Act { act } => self.act(act),
             tui::Event::Aside { object } => self.tell(Told::Aside { object: Some(object) }),
+            tui::Event::Answer { words } => {
+                self.act(Act::MessageWords { words });
+                self.act(Act::Send);
+                self.act(Act::MessageWords { words: Box::default() });
+                self.tell(Told::Cleared);
+            }
+            tui::Event::ReplyAside { turn } => self.tell(Told::ReplyAside { turn }),
             tui::Event::Dismiss => self.dismiss(),
         }
     }
@@ -640,6 +653,14 @@ impl Host {
             self.act(Act::Needs(needs::Act::SendReply { object }));
             self.act(Act::ChatWords { words: Box::default() });
             self.tell(Told::Walked { object });
+            return;
+        }
+        if let Some(event) = tui::reply_number(&self.view, self.words()) {
+            if matches!(&event, tui::Event::ReplyAside { .. }) {
+                self.act(Act::MessageWords { words: Box::default() });
+                self.tell(Told::Cleared);
+            }
+            self.event(event, duties);
             return;
         }
         if self.root.pages().chat().is_some()

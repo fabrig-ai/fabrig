@@ -17,7 +17,7 @@ use temper_client_view::{
     words::Word as Shared,
 };
 
-mod read;
+pub(crate) mod read;
 
 #[derive(Debug)]
 pub(crate) struct Chat {
