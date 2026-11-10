@@ -37,6 +37,15 @@ world's `forge_routes::close_change`, `forge_routes::goal_closer` and
 `forge_routes::goal_closes` stories exercise the composed path with fake
 forge and job completions; they establish no deployment outcome.
 
+- **Not yet:** 5.2, by plan `forge-polls-quiet`: no `fallback`
+  reaches the client (`forge.client.fallback_ms`), and the landing's
+  and tiers' flights poll their runs every `poll`, not at `poll_at`.
+- **Not yet:** 5.9: a call answered ask at the bound, with no row past
+  its day, erases the project's rows older than 7 days without marking
+  `decided`, so its document lists them until the next mark
+  (`temper-engine-domain-forge/src/away.rs`, `decided`); no test holds
+  that branch's sweep.
+
 Section 11.1 has no known implementation gap in whole-goal child isolation:
 words-only calls and batch members use the nearest held goal branch,
 including callers in its subtree; an explicit destination outside it is

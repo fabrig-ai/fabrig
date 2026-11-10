@@ -585,8 +585,9 @@ and `login`. REST's `GET /user` is a `403` on that token
   `Answered.free`: GitHub does not count it (`etag-304-free`). The
   fact uses an installation token's two reads of an unchanging repository,
   with the first ETag on the second and the same remaining rate. A changing
-  delivery log may answer a new body instead. The dialect sends its
-  validator on the delivery log's first page alone (9.3).
+  delivery log may answer a new body instead. Every read sends the
+  validators the component kept for it (forge-connection.md, 4.6), the
+  delivery log's first page among them (9.3).
 
 ## 9. Deliveries
 

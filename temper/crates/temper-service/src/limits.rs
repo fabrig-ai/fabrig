@@ -182,6 +182,8 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     slow: Duration::from_secs(40),
     // Bound Forgejo's settling of mergeability and hinted CI after a move.
     settle: Duration::from_secs(30),
+    // Fallback 0 stretches no pace (skein/docs/design/forge-client.md, 4.1).
+    fallback: Duration::ZERO,
     // Facts awaiting drain, from the engine forge world fixture.
     facts: 16,
 };
