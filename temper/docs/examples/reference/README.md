@@ -58,8 +58,8 @@ temper ctl DIR settings show rules --json > reference-rules.json
 temper ctl DIR settings show policy 1 --json > reference-policy.json
 cat > reference-authority.json <<'JSON'
 {"tools": [8, 16, 32, 128, 256], "notes": [1, 2],
- "kinds": [{"charter": 5}, {"charter": 7}, {"charter": 6},
-           {"procedure": 2}, {"job": 3}, {"role": 0}]}
+ "kinds": [{"charter": 5}, {"charter": 7}, {"charter": 8}, {"charter": 6},
+           {"procedure": 2}, {"procedure": 6}, {"job": 3}, {"job": 4}, {"role": 0}]}
 JSON
 cat > reference-authority.jq <<'JQ'
 def grant($bits):
@@ -72,7 +72,8 @@ def widen:
 .items |= map(
   .set.ceiling |= widen
   | if .setting.kind == "rules" then .
-    else (.set.roles[] | select(.number == $role) | .authority) |= widen
+    else (.set.roles[] | .authority.delegation.kinds) |= map(select(. != {"charter": 12}))
+      | (.set.roles[] | select(.number == $role) | .authority) |= widen
     end)
 JQ
 jq -s '{items: map({setting, set: .value})}' reference-rules.json reference-policy.json > reference-input.json
@@ -81,9 +82,11 @@ jq --slurpfile required reference-authority.json --argjson role ROLE -f referenc
 
 Expect: widened rules and policy 1 in `FILE`. The stock's
 delegation already holds coordinator charter 5, foreman charter 6, change procedure 2,
-merge job 3 and person role 0; the widening adds designer charter 7 and takes out
+goal closer procedure 6, merge job 3, close job 4 and person role 0; the widening adds designer charter 7 and takes out
 the drafter's charter 12, which the reference's work never starts, keeping each
-kind once. Install charters first, offering these families.
+kind once. With triage charter 8, the reference holds eighteen executor places,
+within jig standard's `authority.executors` and `tasks.executor_kinds` of 18.
+No executor override is needed in `limits.json`. Install charters first, offering these families.
 Size tasks, depth and spend (temper help budget).
 
 Policy 1 affects future projects. Existing projects need project-policy.

@@ -257,7 +257,9 @@ fn lacks_delegation(domain: &Domain, project: u32) -> bool {
     }
     let Some(owner) = owner else { return true };
     for delegation in [&policy.ceiling.delegation, owner] {
-        for executor in [Executor::Charter(5), Executor::Role(0), Executor::Job(3)] {
+        for executor in
+            [Executor::Charter(5), Executor::Procedure(6), Executor::Role(0), Executor::Job(3), Executor::Job(4)]
+        {
             if !delegation.kinds.contains(&executor) {
                 return true;
             }

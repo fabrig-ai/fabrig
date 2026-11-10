@@ -517,9 +517,15 @@ fn add_executors(delegation: &mut c::Delegation) -> bool {
         kinds.push(*executor).expect("held executors fit");
     }
     let mut changed = false;
-    for executor in [c::AuthorityExecutor::Charter(5), c::AuthorityExecutor::Role(0), c::AuthorityExecutor::Job(3)] {
+    for executor in [
+        c::AuthorityExecutor::Charter(5),
+        c::AuthorityExecutor::Procedure(6),
+        c::AuthorityExecutor::Role(0),
+        c::AuthorityExecutor::Job(3),
+        c::AuthorityExecutor::Job(4),
+    ] {
         if !kinds.as_slice().contains(&executor) {
-            kinds.push(executor).expect("three executors join the policy");
+            kinds.push(executor).expect("five executors join the policy");
             changed = true;
         }
     }

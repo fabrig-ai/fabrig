@@ -618,3 +618,45 @@ fn roles_fixture(
     );
     (domain, env)
 }
+
+#[test]
+fn draft_first_requires_the_closer_and_close_job_in_both_delegations() {
+    use jig_domain_authority::{self as authority, Executor};
+    let required =
+        Box::new([Executor::Charter(5), Executor::Procedure(6), Executor::Role(0), Executor::Job(3), Executor::Job(4)]);
+    let mut config = resume_fixture::config(7);
+    config.core.defaults.rules.ceiling.delegation.kinds = required.clone();
+    let policy = &mut config.core.seed_projects[0].policy.policy;
+    policy.ceiling.delegation.kinds = required.clone();
+    policy.roles[0].authority.delegation.kinds = required.clone();
+    let mut limits = resume_fixture::limits();
+    // Draft first's delegation occupies five executor places in each limit.
+    limits.authority.executors = 5;
+    // Draft first's delegation occupies five executor places in each limit.
+    limits.tasks.executor_kinds = 5;
+    let (mut domain, _) = resume_fixture::root_with_config_and_limits(config, &limits);
+    let complete = domain.core.authority.policy(PROJECT).unwrap().clone();
+    assert!(!lacks_delegation(&domain, PROJECT));
+    for missing in [Executor::Procedure(6), Executor::Job(4)] {
+        for ceiling in [true, false] {
+            let mut policy = complete.clone();
+            let mut kept = List::with_capacity(u32::try_from(required.len()).unwrap());
+            for executor in required.iter() {
+                if *executor != missing {
+                    kept.push(*executor).unwrap();
+                }
+            }
+            policy.roles[0].authority.delegation.kinds = kept.into_boxed();
+            if ceiling {
+                policy.ceiling.delegation.kinds.clone_from(&policy.roles[0].authority.delegation.kinds);
+            }
+            let mut out = Queue::uncapped();
+            authority::step(
+                &mut domain.core.authority,
+                authority::Event::Policy { project: PROJECT, policy },
+                &mut out,
+            );
+            assert!(lacks_delegation(&domain, PROJECT), "{missing:?}, ceiling {ceiling}");
+        }
+    }
+}

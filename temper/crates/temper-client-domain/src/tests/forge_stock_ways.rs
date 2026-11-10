@@ -27,15 +27,19 @@ const COMPLETE: &[c::AuthorityExecutor] = &[
     c::AuthorityExecutor::Charter(1),
     c::AuthorityExecutor::Procedure(5),
     c::AuthorityExecutor::Charter(5),
+    c::AuthorityExecutor::Procedure(6),
     c::AuthorityExecutor::Role(0),
     c::AuthorityExecutor::Job(3),
+    c::AuthorityExecutor::Job(4),
 ];
 const COMPLETED_PARTIAL: &[c::AuthorityExecutor] = &[
     c::AuthorityExecutor::Charter(1),
     c::AuthorityExecutor::Procedure(5),
     c::AuthorityExecutor::Role(0),
     c::AuthorityExecutor::Charter(5),
+    c::AuthorityExecutor::Procedure(6),
     c::AuthorityExecutor::Job(3),
+    c::AuthorityExecutor::Job(4),
 ];
 struct WayWords {
     name: &'static [u8],
