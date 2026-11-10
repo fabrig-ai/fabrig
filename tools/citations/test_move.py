@@ -176,7 +176,8 @@ class Moves(unittest.TestCase):
         self.write("tools/citations/allow.txt", f"{A} {A} 2.1 # a label\n{DESIGN}/*.md {A} # a glob\n")
         self.write(".github/workflows/check.yml", f"path: {A}\n")
         (self.root / "names.bin").write_bytes(b"\x00\xff\n" + A.encode() + b"\n")
-        self.write("skein/crates/k/src/lib.rs", f'const PATH: &str = "{A}"; // See {A}, 2.1.\n')
+        self.write("skein/crates/k/src/lib.rs", f'const PATH: &str = "{A}"; // See {A}, 2.1.\n'
+                   'const DOC: &str = include_str!("../../../../docs/design/a.md");\n')
         self.write("skein/docs/plan/p.md", f"See {A}.\n")
         self.write("skein/docs/development/2026-01-01.md", f"See docs/design/a.md.\n")
         self.commit("advisories")
@@ -185,6 +186,7 @@ class Moves(unittest.TestCase):
         self.assertIn(".github/workflows/check.yml:1: name in code", result.stdout)
         self.assertIn("names.bin:2: name in code", result.stdout)
         self.assertIn("skein/crates/k/src/lib.rs:1: name in code", result.stdout)
+        self.assertIn("skein/crates/k/src/lib.rs:2: name in code", result.stdout)
         self.assertIn("skein/docs/plan/p.md:1: name in code", result.stdout)
         self.assertIn("skein/docs/development/2026-01-01.md:1: name in code", result.stdout)
         self.assertEqual(self.read("tools/citations/allow.txt"), f"{DESIGN}/sub/a.md {DESIGN}/sub/a.md 2.1 # a label\n{DESIGN}/*.md {DESIGN}/sub/a.md # a glob\n")
