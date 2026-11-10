@@ -46,11 +46,11 @@ pub(super) struct ReadCase {
     kept: bool,
     login: Option<&'static [u8]>,
 }
-pub(super) fn read_cases() -> [[ReadCase; 5]; 4] {
-    [find_cases(), review_cases(), content_cases(), repository_cases()]
+pub(super) fn read_cases() -> [Box<[ReadCase]>; 4] {
+    [find_cases(), Box::new(review_cases()), Box::new(content_cases()), Box::new(repository_cases())]
 }
-fn find_cases() -> [ReadCase; 5] {
-    [
+fn find_cases() -> Box<[ReadCase]> {
+    Box::new([
         ReadCase {
             name: "locate",
             read: Read::Locate { owner: Box::from(&b"fixture"[..]), name: Box::from(&b"specimen"[..]) },
@@ -76,7 +76,7 @@ fn find_cases() -> [ReadCase; 5] {
         },
         ReadCase {
             name: "item",
-            read: Read::Item { number: 1, after: 0 },
+            read: Read::Item { number: 1, after: 0 , since: Time::ZERO },
             replies: &[(200, REPOSITORY), (200, ISSUE), (200, b"[]")],
             expected: Ok(Answer::Item { item: summary(), comments: Box::new([]), more: false }),
             sends: &[
@@ -87,6 +87,22 @@ fn find_cases() -> [ReadCase; 5] {
             range: None,
             kept: true,
             login: None,
+        },
+        ReadCase {
+            name: "item comments since, including an edited older id",
+            read: Read::Item { number: 1, after: 1, since: Time::from_nanos(1_000_000_000) },
+            replies: &[(200, REPOSITORY), (200, ISSUE), (200, br#"[{"id":1,"user":{"id":2,"login":"writer"},"created_at":"1970-01-01T00:00:00Z","updated_at":"1970-01-01T00:00:02Z","body":"edited"},{"id":2,"user":{"id":2,"login":"writer"},"created_at":"1970-01-01T00:00:02Z","updated_at":"1970-01-01T00:00:02Z","body":"new"}]"#)],
+            expected: Ok(Answer::Item { item: summary(), comments: Box::new([api::Comment {
+                id: 2, author: 2, created: Time::from_nanos(2_000_000_000),
+                body: Box::from(*b"new"), key: None, provenance: api::Provenance::Original,
+                revision: super::super::reading::revision(&crate::forgejo::document::Body::Kept(Box::from(*b"new")), Some(skein_lib::Wall::from_nanos(2_000_000_000))),
+            }]), more: false }),
+            sends: &[
+                "GET /api/v1/repositories/1",
+                "GET /api/v1/repos/fixture/specimen/issues/1",
+                "GET /api/v1/repos/fixture/specimen/issues/1/comments?since=1970-01-01T00%3A00%3A01Z",
+            ],
+            range: None, kept: true, login: None,
         },
         ReadCase {
             name: "pull",
@@ -116,7 +132,7 @@ fn find_cases() -> [ReadCase; 5] {
             kept: true,
             login: None,
         },
-    ]
+    ])
 }
 fn review_cases() -> [ReadCase; 5] {
     [
@@ -462,6 +478,18 @@ fn read_plans_emit_escaped_targets_for_supplied_inputs() {
                     ["GET /api/v1/repos/fixture/specimen/issues?state=all&since=2554-07-21T23%3A34%3A33Z&sort=leastupdate&page=1&limit=2"].as_slice(),
                 ),
             ),
+
+            (
+                "comments_escape_far_future_time",
+                (
+                    Read::Item { number: 1, after: 0, since: Time::from_nanos(u64::MAX) },
+                    [ISSUE].as_slice(),
+                    [
+                        "GET /api/v1/repos/fixture/specimen/issues/1",
+                        "GET /api/v1/repos/fixture/specimen/issues/1/comments?since=2554-07-21T23%3A34%3A33Z",
+                    ].as_slice(),
+                ),
+            ),
         ],
         |(read, before, targets)| {
             let mut run = Run::known(Op::Read(read));
@@ -638,7 +666,7 @@ fn refusals_match_status_and_whole_message() {
 #[test]
 fn first_failure_ends_the_plan() {
     for (factory, replies, sends) in first_failures() {
-        let mut run = factory(Op::Read(Read::Item { number: 1, after: 0 }));
+        let mut run = factory(Op::Read(Read::Item { number: 1, after: 0, since: Time::ZERO }));
         run.begin();
         for (status, body) in replies {
             run.answer(*status, body);

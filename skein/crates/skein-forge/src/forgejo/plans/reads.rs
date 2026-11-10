@@ -46,7 +46,7 @@ enum State {
     Items { rows: List<api::Summary>, now: Time, size: u64 },
     Reviews { format: ObjectFormat, rows: List<api::Review>, size: u64 },
     Remarks { rows: List<api::Remark>, more: bool, page: u32, size: u64 },
-    Issue { row: Repository, after: u64 },
+    Issue { row: Repository, after: u64, since: Option<Wall> },
     Comments { item: api::Summary, rows: List<api::Comment>, more: bool, size: u64, after: u64 },
     Pull { row: Repository },
     PullFor { row: Repository, head: Box<[u8]>, base: Box<[u8]> },
@@ -132,6 +132,7 @@ impl Plan {
         self.count = 0;
         Step::send(request)
     }
+    #[expect(clippy::too_many_lines, reason = "initial request dispatch exhaustively names the read vocabulary")]
     fn initial(
         &mut self,
         read: api::Read,
@@ -184,7 +185,14 @@ impl Plan {
                     },
                 )
             }
-            api::Read::Item { number, after } => (State::Issue { row, after }, Request::Issue { at, number }),
+            api::Read::Item { number, after, since } => (
+                State::Issue {
+                    row,
+                    after,
+                    since: if since == Time::ZERO { None } else { Some(Wall::from_nanos(since.as_nanos())) },
+                },
+                Request::Issue { at, number },
+            ),
             api::Read::Pull { number } => (State::Pull { row }, Request::Pull { at, number }),
             api::Read::PullFor { head, base } => {
                 (State::PullFor { row, head: head.clone(), base: base.clone() }, Request::PullFor { at, head, base })
