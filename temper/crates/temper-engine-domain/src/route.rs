@@ -446,23 +446,23 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 if let core::Event::AcceptedTurn { accepted: tasks::Accepted::Already, transcript, .. } = &event {
                     domain.release_bytes(skein_lib::len_u64(transcript.len()), "already accepted turn body was held");
                 }
-                let routed = core::step(&mut domain.core, &environment_core(env), event);
+                let routed = forge_route::step_core(domain, env, event);
                 route_core_requests(domain, env, decision, routed);
             }
             Work::Tasks(event) => {
-                let routed = core::step(&mut domain.core, &environment_core(env), core::Event::Tasks(event));
+                let routed = forge_route::step_core(domain, env, core::Event::Tasks(event));
                 route_core_requests(domain, env, decision, routed);
             }
             Work::People(event) => {
-                let routed = core::step(&mut domain.core, &environment_core(env), core::Event::People(event));
+                let routed = forge_route::step_core(domain, env, core::Event::People(event));
                 route_core_requests(domain, env, decision, routed);
             }
             Work::Fleet(event) => {
-                let routed = core::step(&mut domain.core, &environment_core(env), core::Event::Fleet(event));
+                let routed = forge_route::step_core(domain, env, core::Event::Fleet(event));
                 route_core_requests(domain, env, decision, routed);
             }
             Work::Brief(event) => {
-                let routed = core::step(&mut domain.core, &environment_core(env), core::Event::Brief(event));
+                let routed = forge_route::step_core(domain, env, core::Event::Brief(event));
                 route_core_requests(domain, env, decision, routed);
             }
             Work::ForgeRestored => {

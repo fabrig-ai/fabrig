@@ -1,4 +1,5 @@
-//! A goal's taking makes its branch; its release deletes it once a change landed it, and keeps it otherwise
+//! A held goal branch is made across restarts and releases of a failed making.
+//! Closing deletes it once a change landed it, and keeps it otherwise
 //! (temper/docs/design/domain/forge.md, 2, 11.1 and 16).
 use super::{
     BranchHead, Domain, Env, Limits, LostReadState, Name, Request, Role, Stored, Writer, child, emit, keep_entry,
@@ -7,7 +8,7 @@ use super::{
 use alloc::boxed::Box;
 use skein_forge::api::{Answer, Error, Read, Write};
 use skein_forge_client::{Condition, Effect, Entry, Outcome};
-use skein_lib::{List, Queue, Token};
+use skein_lib::{Duration, List, Queue, Time, Token};
 
 #[derive(Hash, Debug)]
 pub(super) struct Making {
@@ -16,6 +17,8 @@ pub(super) struct Making {
     entry: Option<u64>,
     default: bool,
     state: LostReadState,
+    retry_at: Option<Time>,
+    backoff: Duration,
 }
 
 /// A taking retains its outbox number through branch reads and read retries.
@@ -151,7 +154,15 @@ pub(super) fn start(d: &mut Domain, env: &Env<Limits>, name: Name, entry: Option
     };
     d.sequence = sequence;
     let owner = Token::new(sequence | (1_u64 << 59));
-    let pending = Making { task, name, entry, default: false, state: LostReadState::Asked };
+    let pending = Making {
+        task,
+        name,
+        entry,
+        default: false,
+        state: LostReadState::Asked,
+        retry_at: None,
+        backoff: env.limits.client.backoff,
+    };
     if let Err((_, pending)) = d.makings.insert(owner, pending) {
         failed(pending.task, pending.name, b"goal branch read capacity exhausted", out);
         return;
@@ -180,6 +191,12 @@ pub(super) fn answered(
     {
         return;
     }
+    if let Err(Error::Unavailable | Error::Timeout) = result {
+        pending.retry_at = Some(env.now.saturating_add(pending.backoff));
+        pending.backoff = pending.backoff.saturating_add(pending.backoff).min(env.limits.client.slow);
+        d.makings.insert(owner, pending).expect("making keeps its read slot");
+        return;
+    }
     let read_state = match result {
         Err(Error::Busy) => Some(LostReadState::WaitingForRoom),
         Err(Error::NotConnected) => Some(LostReadState::WaitingForConnection),
@@ -190,6 +207,7 @@ pub(super) fn answered(
         d.makings.insert(owner, pending).expect("making keeps its read slot");
         return;
     }
+    pending.backoff = env.limits.client.backoff;
     read_result(d, env, owner, pending, result, out);
 }
 
@@ -204,6 +222,37 @@ fn read_result(
     match result {
         Ok(Answer::Commit(commit)) if pending.default => make(d, env, pending, commit, out),
         Ok(Answer::Commit(commit)) => {
+            if let Some(entry) = held_entry(d, &pending.name) {
+                let expected = match entry.effect.write {
+                    Write::CreateBranch { commit, .. } => commit,
+                    Write::CreateIssue { .. }
+                    | Write::OpenPull { .. }
+                    | Write::Post { .. }
+                    | Write::Review { .. }
+                    | Write::Edit { .. }
+                    | Write::SetReviewers { .. }
+                    | Write::Close { .. }
+                    | Write::Reopen { .. }
+                    | Write::Merge { .. }
+                    | Write::Update { .. }
+                    | Write::Status { .. }
+                    | Write::Dispatch { .. }
+                    | Write::Rerun { .. }
+                    | Write::DeleteBranch { .. } => unreachable!("held goal branch creation"),
+                };
+                let outcome = if expected == commit {
+                    Outcome::Made { made: skein_forge_client::Made::Branch(commit), found: true }
+                } else {
+                    Outcome::Failed(Error::Exists)
+                };
+                d.client_out.push(skein_forge_client::Request::Outcome {
+                    entry: entry.number,
+                    task: entry.task,
+                    outcome,
+                });
+                super::drain(d, env, out);
+                return;
+            }
             let head = BranchHead { name: pending.name.clone(), commit, owned: true };
             if d.heads.insert(pending.name.clone(), head.clone()).is_ok() {
                 emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
@@ -229,6 +278,10 @@ fn read_result(
 }
 
 fn missing(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: Making, out: &mut Queue<Request>) {
+    if let Some(entry) = held_entry(d, &pending.name) {
+        super::resolve(d, env, entry.number, true, out);
+        return;
+    }
     if pending.entry.is_none() {
         if waiting(d, &pending.name) {
             return;
@@ -241,12 +294,8 @@ fn missing(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: Making,
             }
             Some(Writer::Run { .. } | Writer::Lost { .. }) | None => {}
         }
-        failed(
-            pending.task,
-            pending.name,
-            b"branch missing after restart; forge has no restored outbox entry allocator",
-            out,
-        );
+        emit(out, Request::ContinueGoalBranch { task: pending.task });
+        d.makings.insert(owner, pending).expect("making waits for its entry");
         return;
     }
     let resource = to_client(&pending.name, &env.limits).expect("validated held branch");
@@ -301,6 +350,98 @@ fn make(
         queued: false,
     };
     keep_entry(d, entry, Some(number), out);
+}
+
+fn held_entry(d: &Domain, name: &Name) -> Option<Entry> {
+    let hold = d.holds.get(name)?;
+    for (_, row) in &d.entries {
+        if row.held && row.entry.task == hold.task && makes(&row.entry, name) {
+            return Some(row.entry.clone());
+        }
+    }
+    None
+}
+
+/// The client's unrecoverable branch creation is conditional for a goal (11.1).
+pub(super) fn remake_held(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) -> bool {
+    let Some(row) = d.entries.get(&number) else { return false };
+    let mut name = None;
+    for (resource, hold) in &d.holds {
+        if row.entry.task == hold.task && makes(&row.entry, resource) && is_goal(d, resource) {
+            name = Some(resource.clone());
+            break;
+        }
+    }
+    let Some(name) = name else { return false };
+    let row = d.entries.get_mut(&number).expect("goal making entry");
+    row.held = true;
+    emit(
+        out,
+        Request::Save {
+            read_afresh: None,
+            release: None,
+            record: Stored::Entry { entry: row.entry.clone(), held: true },
+        },
+    );
+    let task = row.entry.task;
+    super::erase_flight(d, task, number, out);
+    start(d, env, name, None, out);
+    true
+}
+
+pub(super) fn continue_making(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out: &mut Queue<Request>) {
+    let mut selected = None;
+    for (owner, pending) in &d.makings {
+        if pending.task == task && pending.entry.is_none() && !pending.default {
+            selected = Some(*owner);
+            break;
+        }
+    }
+    let Some(owner) = selected else { return };
+    let mut pending = d.makings.remove(&owner).expect("making waiting for its entry");
+    pending.entry = Some(entry);
+    missing(d, env, owner, pending, out);
+}
+
+pub(super) fn retry_task(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
+    let mut names = List::with_capacity(env.limits.holds);
+    for (name, hold) in &d.holds {
+        if hold.task == task && is_goal(d, name) {
+            names.push(name.clone()).expect("bounded goal holds");
+        }
+    }
+    for name in names.into_boxed() {
+        start(d, env, name, None, out);
+    }
+}
+
+pub(super) fn deadline(d: &Domain) -> Option<Time> {
+    let mut next: Option<Time> = None;
+    for (_, pending) in &d.makings {
+        if let Some(at) = pending.retry_at {
+            next = Some(match next {
+                Some(previous) => previous.min(at),
+                None => at,
+            });
+        }
+    }
+    next
+}
+
+pub(super) fn fire(d: &mut Domain, now: Time) {
+    let mut due = List::with_capacity(d.makings.capacity());
+    for (owner, pending) in &d.makings {
+        if let Some(at) = pending.retry_at
+            && at <= now
+        {
+            due.push(*owner).expect("bounded making reads");
+        }
+    }
+    for owner in due.into_boxed() {
+        let pending = d.makings.get_mut(&owner).expect("due making read");
+        pending.retry_at = None;
+        pending.state = LostReadState::WaitingForRoom;
+    }
 }
 
 pub(super) fn outcome(d: &mut Domain, number: u64, outcome: Outcome, out: &mut Queue<Request>) {

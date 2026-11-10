@@ -151,6 +151,8 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::SettleEffects { .. }
             | forge::Event::Release { .. }
             | forge::Event::ContinueRelease { .. }
+            | forge::Event::ContinueGoalBranch { .. }
+            | forge::Event::RetryGoalBranch { .. }
             | forge::Event::ReleaseProjection { .. }
             | forge::Event::Committed { .. }
             | forge::Event::Resolve { .. }

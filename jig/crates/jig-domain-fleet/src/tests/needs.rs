@@ -122,6 +122,53 @@ fn a_worker_whose_checks_outlast_a_change_reserve_is_refused() {
     );
 }
 #[test]
+fn a_hello_waits_for_restored_needs_then_adopts_its_listed_run_once() {
+    let mut configured = needs_window(8192);
+    configured.charters[0].change_reserve = Some(Duration::from_secs(10));
+    let mut restored = configured.clone();
+    restored.charters[0].change_reserve = Some(Duration::from_secs(60));
+    let mut h = Harness::unrestored(LIMITS, 0, configured);
+    let mut bounds = bounds_window(8192);
+    bounds.checks = Duration::from_secs(60);
+    let mut report = hello(bounds);
+    report.hosting = Box::new([Hosting { run: R1, attempt: A1, phase: Phase::Active }]);
+    assert!(h.adopt(R1, A1).is_empty());
+    assert!(h.step(Event::Hello { worker: 0, channel: C1, hello: report }).is_empty());
+    assert_eq!(h.domain.workers(), 0);
+    // One held hello per channel; a repeated report cannot repeat Sources or admission.
+    assert!(h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds_window(8192)) }).is_empty());
+    step(&mut h.domain, &h.env, Event::Needs(restored), &mut h.out);
+    assert_eq!(h.out.len(), 2);
+    assert_eq!(h.out.pop(), Some(Request::Placed { run: R1, attempt: A1 }));
+    assert_eq!(h.out.pop(), Some(Request::Sources { channel: C1, sources: Box::new([]) }));
+    assert_eq!(h.domain.workers(), 1);
+    let mut answered = false;
+    for request in h.answer(C1, R1, A1, Answer::Parked, 1) {
+        if let Request::Answered { .. } = request {
+            answered = true;
+        }
+    }
+    assert!(answered);
+}
+
+#[test]
+fn held_hellos_keep_arrival_order_and_lost_channels_are_dropped() {
+    let mut h = Harness::unrestored(LIMITS, 0, needs_window(8192));
+    for (worker, channel) in [(0, C2), (1, C1), (2, C3), (0, Token::new(0))] {
+        assert!(h.step(Event::Hello { worker, channel, hello: hello(bounds_window(8192)) }).is_empty());
+    }
+    for channel in [C3, Token::new(0)] {
+        assert!(h.step(Event::Lost { channel }).is_empty());
+    }
+    step(&mut h.domain, &h.env, Event::Needs(needs_window(8192)), &mut h.out);
+    assert_eq!(h.out.len(), 2);
+    assert_eq!(h.out.pop(), Some(Request::Sources { channel: C2, sources: Box::new([]) }));
+    assert_eq!(h.out.pop(), Some(Request::Sources { channel: C1, sources: Box::new([]) }));
+    assert_eq!(h.domain.workers(), 2);
+    let crate::domain::EngineHello::Expected = h.domain.engine_hello else { panic!("lost engine hello dropped") };
+}
+
+#[test]
 fn a_charter_for_the_engine_only_needs_nothing_of_workers() {
     let mut needs = needs_window(8192);
     needs.charters[0].kinds = Kinds::Engine;

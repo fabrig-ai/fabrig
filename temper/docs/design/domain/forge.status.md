@@ -605,3 +605,4 @@ a change's merge job from the engine through its worker to the fake forge
 - **Not yet:** 6: a `Flight` row whose entry the forge does not hold
   panics at its link, where the section refuses the start
   (`root.status.md`, 9.1).
+

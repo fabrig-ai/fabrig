@@ -805,6 +805,147 @@ fn source_deadlines_and_spawn_failures_leave_preparation_succeeding() {
         scratch.remove();
     }
 }
+/// Fake HTTP peers share this test's loop with the source command.
+fn source_answer(
+    case: &str,
+    discovery: Option<u16>,
+    listed: bool,
+    response: &str,
+) -> (std::process::Output, String, Vec<String>) {
+    use std::{
+        io::{Read, Write},
+        net::TcpListener,
+        process::Stdio,
+    };
+    let scratch = support::Scratch::new(case);
+    let directory = scratch.path();
+    let _programs = support::owned::scripted(directory);
+    fs::create_dir_all(directory.join("forge-1/forgejo")).expect("source work path");
+    let issuer = TcpListener::bind("127.0.0.1:0").expect("issuer peer");
+    let forge = TcpListener::bind("127.0.0.1:0").expect("Forgejo peer");
+    let issuer_address = issuer.local_addr().expect("issuer address");
+    let forge_address = forge.local_addr().expect("Forgejo address");
+    source_configuration(directory, issuer_address.port());
+    let path = directory.join("temper.json");
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&fs::read(&path).expect("source configuration")).expect("source JSON");
+    value["application"]["machine"]["owned"]["listen"] = serde_json::json!({"socket":forge_address.to_string()});
+    value["engine"]["clients"]["provider"]["clients"][0]["redirect_uri"] =
+        format!("http://{forge_address}/user/oauth2/temper/callback").into();
+    support::write_private(&path, &serde_json::to_vec(&value).expect("source JSON"));
+    let program = format!(
+        "#!/bin/sh\nprintf '%s\\n' \"$@\" >> '{}'\nif [ \"$5 $6 $7\" = 'admin auth list' ]; then printf '{}'; fi\n",
+        directory.join("source-arguments").display(),
+        if listed { "27 temper OAuth2 true\\n" } else { "ID Name Type Enabled\\n" }
+    );
+    fs::write(directory.join("forgejo"), program).expect("fake Forgejo");
+    issuer.set_nonblocking(true).expect("issuer peer polling");
+    forge.set_nonblocking(true).expect("Forgejo peer polling");
+    let issuer = discovery.map(|status| (issuer, format!("HTTP/1.1 {status} Answer\r\nContent-Length: 2\r\n\r\n{{}}")));
+    let forge_response = response.replace("ISSUER", &format!("http://{issuer_address}"));
+    let mut peers = Vec::new();
+    if let Some(peer) = issuer {
+        peers.push(peer);
+    }
+    peers.push((forge, forge_response));
+    let mut child = Command::new(skein_scratch::paths::binary("temper"))
+        .args(["forge", "source"])
+        .args(support::configuration::flags(directory))
+        .arg("1")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("source command");
+    let mut seen = Vec::new();
+    let mut deadline = skein_world::Deadline::arm("the source and its fake peers", support::WITHIN);
+    deadline.watch_process(child.id());
+    loop {
+        for (listener, response) in &peers {
+            if let Ok((socket, _)) = listener.accept() {
+                let mut socket = support::socket::Socket::owned(
+                    socket,
+                    support::WITHIN,
+                    ["the source peer's request", "the source peer's answer"],
+                );
+                let mut head = Vec::new();
+                while !head.ends_with(b"\r\n\r\n") {
+                    let mut byte = [0];
+                    socket.read_exact(&mut byte).expect("source peer request");
+                    head.push(byte[0]);
+                    assert!(head.len() <= 16_384, "source request head bound");
+                }
+                seen.push(String::from_utf8(head).expect("source request text"));
+                socket.write_all(response.as_bytes()).expect("source peer answer");
+            }
+        }
+        if child.try_wait().expect("source exit").is_some() {
+            break;
+        }
+        if deadline.passed() {
+            support::parent::end_child(&mut child);
+            match deadline.expired() {
+                skein_world::Expired::Starved(starved) => starved.pass(),
+                skein_world::Expired::Failed(figures) => panic!("source did not finish: {figures}"),
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    }
+    let output = child.wait_with_output().expect("source output");
+    let commands = fs::read_to_string(directory.join("source-arguments")).unwrap_or_default();
+    scratch.remove();
+    (output, commands, seen)
+}
+
+#[test]
+fn source_reads_discovery_before_running_any_forgejo_command() {
+    for discovery in [None, Some(502)] {
+        let (output, commands, _) = source_answer("forge_source_discovery", discovery, false, "");
+        support::forge_sign_in::success(&output);
+        assert_eq!(output.stdout, b"source failed temper's discovery did not answer\n");
+        assert!(commands.is_empty(), "discovery failure must not run Forgejo: {commands}");
+    }
+}
+
+#[test]
+fn source_adds_an_absent_source_only_after_discovery_answers() {
+    let (output, commands, seen) = source_answer("forge_source_absent", Some(200), false, "");
+    support::forge_sign_in::success(&output);
+    assert_eq!(output.stdout, b"source added\n");
+    assert!(commands.contains("add-oauth\n--name\ntemper\n"), "{commands}");
+    assert_eq!(seen.len(), 1, "only discovery is read for an absent source");
+    assert!(seen[0].starts_with("GET /.well-known/openid-configuration "));
+}
+
+#[test]
+fn a_listed_source_is_added_only_when_its_sign_in_redirects_to_the_issuer() {
+    for (status, location, added) in [
+        (307, "ISSUER/oauth/authorize?client_id=forgejo", true),
+        (302, "ISSUER/oauth/authorize", true),
+        (307, "ISSUER/oauth/authorize#continue", true),
+        (307, "", false),
+        (307, "/oauth/authorize", false),
+        (200, "ISSUER/oauth/authorize", false),
+        (500, "", false),
+        (307, "https://other.invalid/oauth/authorize", false),
+        (307, "ISSUER/oauth/authorize-other", false),
+        (307, "ISSUER/oauth/authorize/child", false),
+    ] {
+        let response = format!("HTTP/1.1 {status} Answer\r\nLocation: {location}\r\nContent-Length: 0\r\n\r\n");
+        let (output, commands, seen) = source_answer("forge_source_listed", Some(200), true, &response);
+        support::forge_sign_in::success(&output);
+        assert_eq!(
+            output.stdout,
+            if added { b"source added\n".as_slice() } else { b"source failed Forgejo does not serve the source\n" },
+            "{status} {location}"
+        );
+        assert!(!commands.contains("add-oauth"), "listed sources are not added again");
+        assert_eq!(seen.len(), 2, "discovery then the source; no redirect followed");
+        assert!(seen[0].starts_with("GET /.well-known/openid-configuration "));
+        assert!(seen[1].starts_with("GET /user/oauth2/temper "));
+    }
+}
+
 #[test]
 fn a_termination_signal_during_source_maintenance_still_stops_preparation() {
     let scratch = support::Scratch::new("forge_source_interrupted");

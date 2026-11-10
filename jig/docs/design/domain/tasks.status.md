@@ -62,3 +62,4 @@ parks without spending a try.
   task's last success is never relayed, even while its run lives
   (`jig-domain-tasks/src/wake.rs`, `after_message` and `rule`;
   `waiting.rs`, `next`) [in flight: change 100].
+

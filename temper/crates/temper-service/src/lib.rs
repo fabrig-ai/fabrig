@@ -169,6 +169,10 @@ pub struct SetupStep {
 /// Operator diagnostics taken by the shell (protocol/forge.md, 2.3).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Note {
+    /// A configured charter may differ from the store's settings (protocol/configuration.md, 4).
+    StartupWarning {
+        line: Box<[u8]>,
+    },
     /// The gate has kept a party's input for at least 1 s (protocol/README.md, 8.2).
     CoreWaiting {
         why: CoreWait,

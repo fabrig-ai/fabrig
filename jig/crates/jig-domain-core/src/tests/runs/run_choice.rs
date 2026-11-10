@@ -446,6 +446,7 @@ fn terminal_after_zero_reset(account_terminal: bool) -> tasks::Tries {
             end: tasks::End::Failed(tasks::Class::Run),
             saved: None,
             invalid_saved: false,
+            unusable_history: false,
             read: None,
             refused: Box::new([]),
         },
@@ -512,7 +513,7 @@ fn a_task_document_distinguishes_an_application_credential_wait() {
 fn a_progress_count_leaves_due_task_watches_unmarked() {
     let (mut core, mut limits) = ready(false);
     limits.fleet.engine_slots = 1;
-    core.fleet = fleet::Domain::new(&limits.fleet, limits.settings.versions, fixtures::needs());
+    core.fleet = fixtures::restored_fleet(&limits, fixtures::needs());
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.fleet };
     let mut out = Queue::uncapped();
     fleet::step(
@@ -583,8 +584,7 @@ pub(in crate::tests) fn placement_fleet(core: &Core, limits: &Limits) -> fleet::
     config.defaults.charters[0].hosts = core.charter(1).unwrap().hosts;
     config.defaults.charters[0].policy = core.charter(1).unwrap().policy.clone();
     config.defaults.charters[0].policy.alternatives = core.settings.models[1..].into();
-    let mut fleet =
-        fleet::Domain::new(&limits.fleet, limits.settings.versions, fleet_needs::configured(&config, limits));
+    let mut fleet = fixtures::restored_fleet(limits, fleet_needs::configured(&config, limits));
     fleet.configure_workers(
         Membership::new(config.worker_names, limits.fleet.configured_workers, limits.fleet.worker_name_bytes).unwrap(),
     );
@@ -988,7 +988,7 @@ fn due_and_preparing_documents_refine_only_the_host_wait_from_an_actual_refused_
         let mut configuration = config(41);
         configuration.defaults.charters[0].hosts = fleet::Kinds::Both;
         let needs = fleet_needs::configured(&configuration, &limits);
-        core.fleet = fleet::Domain::new(&limits.fleet, limits.settings.versions, needs.clone());
+        core.fleet = fixtures::restored_fleet(&limits, needs.clone());
         assert_eq!(document_wait(&core, &limits), Some(TaskRunWait::Host));
         let channel = if kind == fleet::HostKind::Engine { Token::new(0) } else { FIRST };
         let at = Wall::from_nanos(1234);
@@ -1031,7 +1031,7 @@ fn due_and_preparing_documents_refine_only_the_host_wait_from_an_actual_refused_
         send_task(&mut core, &limits, tasks::Event::Hold { task: TASK, why: tasks::Hold::Uncertain { entry: 1 } });
         assert_eq!(document_wait(&core, &limits), None);
         // A new fleet has no durable refusal; observing it again reconstructs the explanation.
-        core.fleet = fleet::Domain::new(&limits.fleet, limits.settings.versions, needs);
+        core.fleet = fixtures::restored_fleet(&limits, needs);
         let mut row = core.tasks.task(TASK).unwrap().clone();
         row.phase = tasks::Phase::Active(tasks::Active::Due);
         assert_eq!(task_from_row(&core, &limits, 1, &row, Wall::EPOCH).unwrap().run_wait, Some(TaskRunWait::Host));
@@ -1243,9 +1243,49 @@ fn invalid_start_answer(attempt: u64, refused: &[u64]) -> Event {
         end: tasks::End::Failed(tasks::Class::Invalid),
         saved: None,
         invalid_saved: false,
+        unusable_history: false,
         read: None,
         refused: refused.into(),
     }
+}
+
+#[test]
+fn unusable_history_keeps_its_transient_class_while_an_account_waits() {
+    let (mut core, limits) = ready(false);
+    claim_open(&mut core, &limits, OPEN_ATTEMPT);
+    core.proofs.get_mut(&OPEN_TASK).expect("claimed proof").account_terminal = true;
+    let mut answer = invalid_start_answer(OPEN_ATTEMPT, &[]);
+    let Event::AnswerPayload { end, unusable_history, .. } = &mut answer else { panic!("answer fixture") };
+    *end = tasks::End::Failed(tasks::Class::Transient);
+    *unusable_history = true;
+    let _out = step(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, answer);
+    assert_eq!(
+        core.proofs.get(&OPEN_TASK).expect("answered proof").terminal.as_ref().expect("terminal").end,
+        tasks::End::Failed(tasks::Class::Transient)
+    );
+    assert_eq!(core.tasks.task(OPEN_TASK).expect("retrying task").tries.transient, 1);
+}
+
+#[test]
+fn a_priced_interruption_keeps_saved_work_and_spends_no_try() {
+    let (mut core, limits) = ready(false);
+    claim_open(&mut core, &limits, OPEN_ATTEMPT);
+    let before = core.tasks.task(OPEN_TASK).expect("claimed task").clone();
+    let saved: Box<[tasks::SavedResource]> =
+        Box::new([tasks::SavedResource { connector: 1, path: Box::new([b"kept-work".as_slice().into()]) }]);
+    let mut answer = invalid_start_answer(OPEN_ATTEMPT, &[]);
+    let Event::AnswerPayload { end, cumulative, saved: work, .. } = &mut answer else { panic!("answer fixture") };
+    *end = tasks::End::Recheck;
+    *cumulative = 3;
+    *work = Some(saved.clone());
+    let _out = step(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, answer);
+    let task = core.tasks.task(OPEN_TASK).expect("interrupted task");
+    assert_eq!(task.tries, before.tries);
+    assert_eq!(task.refusals, before.refusals);
+    assert_eq!(task.numbers.spent, before.numbers.spent.checked_add(3).expect("answer spend"));
+    assert_eq!(task.phase, tasks::Phase::Active(tasks::Active::Due));
+    assert_eq!(task.saved, saved);
+    assert_eq!(core.tasks.run_context(OPEN_TASK).expect("next preparation").saved, saved);
 }
 
 #[test]
@@ -1520,6 +1560,7 @@ fn an_invalid_start_spends_a_try_across_fences_and_endings() {
                         end: tasks::End::Failed(tasks::Class::Invalid),
                         saved: None,
                         invalid_saved,
+                        unusable_history: false,
                         read,
                         refused: Box::from(refused),
                     },
@@ -1692,6 +1733,7 @@ fn an_answer_whose_followups_pass_the_batch_bytes_is_invalid() {
                 },
                 saved: None,
                 invalid_saved: false,
+                unusable_history: false,
                 read: None,
                 refused: Box::new([]),
             },
