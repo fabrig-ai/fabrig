@@ -399,6 +399,7 @@ mod tests {
                 families: skein_lib::List::with_capacity(0),
                 wait: false,
                 deliver: false,
+                save: false,
                 host: skein_lib::List::with_capacity(0),
             },
             contract: skein_lib::List::with_capacity(0),

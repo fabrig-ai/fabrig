@@ -144,7 +144,8 @@ pub(crate) fn host_out(
             host::Request::Source { .. } | host::Request::SourceFault => {
                 unreachable!("engine hub has no program sources")
             }
-            host::Request::Deliver { .. }
+            host::Request::DeliverUnchecked { .. }
+            | host::Request::Deliver { .. }
             | host::Request::Abort { .. }
             | host::Request::Save { .. }
             | host::Request::Release { .. } => unreachable!("engine hub has no workspace capability"),

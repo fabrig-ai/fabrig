@@ -42,6 +42,10 @@ crosses cut. Both stand on reading alone: that evidence is outside the
 repository, and no deployment on record has resumed such a producer
 since.
 
+Section 4.4's close kind is built: kind 4 is declared with its bounds,
+prepares the close change's checkout and delivers its staged tree with the
+goal's status message (`temper-worker-domain/src/jobs.rs`, `commit_title`).
+
 Section 4.4's failure lines have no known gap but the result's why below.
 When its hub answers a job failed or refused, the worker writes its line
 (`temper-service/src/worker.rs`, `job_answer`, the why kept by
@@ -115,7 +119,7 @@ them (`temper/crates/temper/src/agent.rs`). The service gives the worker's
   job capability's `Read` answers no bytes for both
   (`temper-worker-domain-tooling/src/boundary.rs`, `Event::Read`).
   4.4: the prepare and key kinds: neither kind's entry is
-  built, so the worker's hello declares the merge kind alone
+  built, so the worker's hello declares the merge and close kinds
   (`temper/crates/temper-service/src/limits.rs`, `job_kinds`), and with prepare the
   `Rewrite` delivery (`../protocol/git.md`, 4.10). 5: a missing base branch fails the
   preparation; the checkout creates it from the default branch for a
@@ -212,8 +216,3 @@ them (`temper/crates/temper/src/agent.rs`). The service gives the worker's
   (`../draft/dogfood-hacks.md`, 2.13). It carries no credential. No test
   runs the variable from a worker through a real agent process to a file, as
   the request of 2026-11-05 leaves that to the next comparison's run.
-- **Not yet:** 4.4: the close kind, kind 4, verb `close`: its checkout
-  at the goal's branch's tip, its delivery of what its command staged.
-  [in flight: close-job-worker]
-- **Not yet:** 4.4: the close kind declared in the worker's hello and by
-  the engine, with its bounds. [in flight: close-job-service]

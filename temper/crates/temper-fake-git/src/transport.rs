@@ -208,7 +208,10 @@ impl Remote for Typed {
     fn message(&self, commit: u64) -> Vec<u8> {
         self.forge.borrow().domain.object(commit).expect("stored commit").message.to_vec()
     }
-    fn store(&mut self, parent: u64, merging: Option<u64>, tree: Tree, message: &[u8]) -> Option<u64> {
+    fn store(&mut self, parent: u64, merging: Option<u64>, always: bool, tree: Tree, message: &[u8]) -> Option<u64> {
+        if always {
+            return Some(Self::commit_tree(self, parent, merging, tree, message));
+        }
         let mut forge = self.forge.borrow_mut();
         let config = forge.config;
         let files =

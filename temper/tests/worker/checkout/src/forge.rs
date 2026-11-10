@@ -382,7 +382,13 @@ impl Remote for Forge {
         self.domain.object(commit).expect("a commit of the store").message.to_vec()
     }
 
-    fn store(&mut self, parent: u64, merging: Option<u64>, tree: Tree, message: &[u8]) -> Option<u64> {
+    fn store(&mut self, parent: u64, merging: Option<u64>, always: bool, tree: Tree, message: &[u8]) -> Option<u64> {
+        if always {
+            return Some(
+                skein_fake_forge_domain::commit_tree(&mut self.domain, &CONFIG, parent, merging, files(tree), message)
+                    .expect("the forge has room"),
+            );
+        }
         match merging {
             Some(second) => Some(
                 skein_fake_forge_domain::merge_commit(&mut self.domain, &CONFIG, parent, second, files(tree), message)

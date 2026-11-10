@@ -147,6 +147,7 @@ fn a_landed_receipt_says_pushed_at_which_head_on_which_branch() {
     let delivery = crate::smith_delivery::landings(
         &[crate::wire::Landing::Landed { commit: [0xab; 32] }],
         &[Some(Box::from(b"topic".as_slice()))],
+        false,
     );
     let agent::Delivery::Delivered(delivered) = delivery else { panic!("landed delivery: {delivery:?}") };
     assert_eq!(delivered.receipts().len(), 1);
@@ -164,6 +165,7 @@ fn a_sha1_receipt_spells_the_head_in_40_digits() {
     let delivery = crate::smith_delivery::landings(
         &[crate::wire::Landing::Landed { commit }],
         &[Some(Box::from(b"topic".as_slice()))],
+        false,
     );
     let agent::Delivery::Delivered(delivered) = delivery else { panic!("landed delivery: {delivery:?}") };
     assert_eq!(
@@ -192,6 +194,7 @@ fn a_branch_past_the_receipts_bound_leaves_its_words_out() {
         let delivery = crate::smith_delivery::landings(
             &[crate::wire::Landing::Landed { commit }],
             &[Some(Box::from(branch.as_bytes()))],
+            false,
         );
         let agent::Delivery::Delivered(delivered) = delivery else { panic!("landed delivery: {delivery:?}") };
         let len = if included { agent::Receipt::CAPACITY } else { b"pushed ".len() + digits.len() + DETACHED.len() };
@@ -226,7 +229,7 @@ fn a_delivery_not_made_never_says_pushed() {
             }),
         ),
     ] {
-        assert_eq!(crate::smith_delivery::landings(&[landing], &[None]), expected);
+        assert_eq!(crate::smith_delivery::landings(&[landing], &[None], false), expected);
     }
 }
 
@@ -288,4 +291,21 @@ fn merged_heads_are_bounded_at_the_workers_entrance_and_keep_their_order() {
     assert_eq!(heads.len(), HEADS);
     assert_eq!(heads[0].raw(), [3; 32]);
     assert_eq!(heads[HEADS - 1].raw(), [4; 32]);
+}
+
+#[test]
+fn an_unchecked_receipt_names_the_saved_head_branch_and_missing_checks() {
+    for branch in [b"topic".as_slice(), &[b'x'; 512]] {
+        let delivery = crate::smith_delivery::landings(
+            &[crate::wire::Landing::Landed { commit: [1; 32] }],
+            &[Some(branch.into())],
+            true,
+        );
+        let agent::Delivery::Delivered(delivered) = delivery else { panic!("landed save") };
+        let text = delivered.receipts()[0].text();
+        assert!(text.starts_with(b"saved 01010101"));
+        assert!(text.ends_with(b", unchecked: no check ran; your checkout stays detached, as expected"));
+        assert_eq!(skein_lib::bytes::find(text, b" to branch topic").is_some(), branch == b"topic");
+        assert!(text.len() <= agent::Receipt::CAPACITY);
+    }
 }

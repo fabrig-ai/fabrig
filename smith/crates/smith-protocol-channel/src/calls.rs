@@ -57,6 +57,11 @@ pub(crate) fn delivery_call(
     call(name, run::HostEffect::Write, ask, deadline, limits)
 }
 
+/// Encode an unchecked save with no fields under the delivery reply route.
+pub(crate) fn save_call(name: run::CallName, deadline: Duration, limits: &wire::Limits) -> Result<Frame, Error> {
+    call(name, run::HostEffect::Write, wire::Ask::Save, deadline, limits)
+}
+
 fn call(
     name: run::CallName,
     effect: run::HostEffect,

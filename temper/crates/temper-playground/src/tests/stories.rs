@@ -435,6 +435,7 @@ fn opening(words: &str, mode: run::Mode) -> run::Opening {
         grants: charter::Grants {
             wait: true,
             deliver: None,
+            save: false,
             tools: charter::Tools { inspect: false, modify: false, shell: false },
             agents: false,
             host_tools: Box::new([]),

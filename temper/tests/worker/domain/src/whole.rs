@@ -234,6 +234,8 @@ impl World {
         if let Op::Commit { title, body, .. } = &op {
             if title.as_ref() == b"Save unfinished work" {
                 self.report.saves += 1;
+            } else if title.as_ref() == b"Unchecked: work in progress, saved before a question" {
+                assert!(body.is_empty());
             } else {
                 assert_eq!(title.as_ref(), b"Delivery");
                 assert_eq!(body.as_ref(), b"Worker story");
@@ -308,7 +310,13 @@ impl World {
                 for byte in &commit[..width] {
                     write!(&mut encoded, "{byte:02x}").expect("String write");
                 }
-                let expected = format!("pushed {encoded} to branch topic; your checkout stays detached, as expected");
+                let expected = if self.forge.message(landed).starts_with(b"Unchecked:") {
+                    format!(
+                        "saved {encoded} to branch topic, unchecked: no check ran; your checkout stays detached, as expected"
+                    )
+                } else {
+                    format!("pushed {encoded} to branch topic; your checkout stays detached, as expected")
+                };
                 assert_eq!(
                     receipts.receipts()[0].text(),
                     expected.as_bytes(),
@@ -700,4 +708,32 @@ pub fn retry(seed: u64, resume: bool) -> Report {
     assert_eq!(world.domain.kept_answers(), 0);
     assert_eq!(world.stops, 1);
     world.report
+}
+
+/// A save crosses the worker's host face and is replaced by a checked equal-tree push.
+pub fn unchecked_save_then_delivery(seed: u64) {
+    let mut world = World::new(seed);
+    world.start();
+    world.say(agent::Up::Call {
+        call: CALL,
+        name: agent::CallName { activation: ATTEMPT.raw(), completion: 1, position: 0 },
+        deadline: world.env.now.saturating_add(Duration::from_secs(60)),
+        ask: agent::Ask::Save,
+    });
+    assert_eq!(world.deliveries, 1, "save is answered with its unchecked receipt");
+    assert!(world.answer.is_none(), "save is no result");
+    let saved = world.forge.branch(REMOTE, b"topic").expect("save moved the producer branch");
+    assert_eq!(world.forge.branch(REMOTE, b"main"), Some(world.first), "save leaves the goal branch");
+    assert_eq!(world.forge.message(saved), b"Unchecked: work in progress, saved before a question");
+    world.deliver();
+    let checked = world.forge.branch(REMOTE, b"topic").expect("checked push");
+    assert_ne!(checked, saved, "an equal tree gets the checked delivery's commit");
+    assert_eq!(world.forge.tree(saved), world.forge.tree(checked));
+    assert_eq!(world.forge.parent(checked), Some(saved));
+    assert_eq!(world.forge.message(checked), b"Delivery\n\nWorker story");
+    assert_eq!(world.deliveries, 2);
+    world.finish();
+    world.gone();
+    assert!(world.answer.is_some());
+    assert_eq!(world.domain.workspaces(), 0);
 }

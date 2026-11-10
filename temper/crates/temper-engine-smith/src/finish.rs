@@ -50,6 +50,7 @@ pub fn turn(request: smith::Request, transcript: Box<[u8]>) -> Result<host::Turn
         | smith::Request::MessageRefused { .. }
         | smith::Request::Long { .. }
         | smith::Request::LongDone { .. }
+        | smith::Request::Save { .. }
         | smith::Request::Deliver { .. }
         | smith::Request::Unauthorized { .. }
         | smith::Request::Limited { .. }

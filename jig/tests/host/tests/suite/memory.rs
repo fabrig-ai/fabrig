@@ -109,7 +109,7 @@ impl Measured {
                     | LinkUp::AccountRefused { .. },
                 ) => continue,
                 Request::Up(LinkUp::Turn { .. }) => Asked::Turn,
-                Request::Deliver { owner, .. } => Asked::Delivery { owner },
+                Request::DeliverUnchecked { owner, .. } | Request::Deliver { owner, .. } => Asked::Delivery { owner },
                 Request::Up(LinkUp::Call { call, .. }) => Asked::Relay { call },
                 Request::Up(LinkUp::Answer { answer, .. }) => {
                     if answer.turns == 0 {
@@ -505,6 +505,7 @@ fn source_replacement_at_capacity_completes_every_check() {
                     | ToAgent::Cancel { .. }
                     | ToAgent::Grant { .. },
                 )
+                | Request::DeliverUnchecked { .. }
                 | Request::Deliver { .. }
                 | Request::CancelRelay { .. }
                 | Request::Prepare { .. }

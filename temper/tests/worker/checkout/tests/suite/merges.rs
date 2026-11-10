@@ -45,7 +45,9 @@ fn a_resumed_producer_holding_the_tip_pushes_no_merge() {
 
 #[test]
 fn a_resumed_producers_clean_merge_is_committed_before_its_run() {
-    let _ = merges::run(73, Case::Resumed, 64);
+    for case in [Case::Resumed, Case::Conflict, Case::Contained] {
+        let _ = merges::run(73, case, 64);
+    }
 }
 
 #[test]

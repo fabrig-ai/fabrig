@@ -291,11 +291,18 @@ enum State {
     Preparing { hold: Option<Token>, abandoned: bool },
     /// Prepared in the directory io names `directory`. `asked` is the host's
     /// owner of the push or the save in flight, if there is one.
-    Ready { hold: Token, directory: Token, asked: Option<Token> },
+    Ready { hold: Token, directory: Token, asked: Option<Writing> },
     /// Released, until the checkout says nothing touches it.
     Releasing,
     /// Terminal: holds nothing.
     Closed,
+}
+
+/// A write in flight, kept until the checkout answers it.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+struct Writing {
+    owner: Token,
+    unchecked: bool,
 }
 
 /// What a transition asks of the child domains: a record of the checkout's and
@@ -386,6 +393,7 @@ pub(crate) fn save(domain: &mut Domain, env: &Env<Limits>, owner: Token, workspa
 /// A push or a save, as the host asks it.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub(crate) enum Write {
+    Unchecked,
     Push { title: Box<[u8]>, body: Box<[u8]> },
     Save,
 }
@@ -475,11 +483,14 @@ pub(crate) fn wrote(domain: &mut Domain, env: &Env<Limits>, client: Token, outco
     let items = record.items;
     let landings = translate::landings(outcome, repositories);
     let next = domain.items.get_mut(&items).expect("workspace items live until the answer");
-    let done = record_written(next, items, landings, push);
+
     let mut then = Then::NOTHING;
     let state = mem::replace(&mut record.state, State::Closed);
     record.state = match state {
-        State::Ready { hold, directory, asked: Some(owner) } => written(hold, directory, owner, done, &mut then),
+        State::Ready { hold, directory, asked: Some(writing) } => {
+            let done = record_written(next, items, landings, push, writing.unchecked);
+            written(hold, directory, writing.owner, done, &mut then)
+        }
         State::Ready { asked: None, .. } | State::Preparing { .. } | State::Releasing | State::Closed => {
             unreachable!("a push or a save ends once, as the workspace stays held")
         }
@@ -488,7 +499,13 @@ pub(crate) fn wrote(domain: &mut Domain, env: &Env<Limits>, client: Token, outco
 }
 
 /// Keep feedback by deployment tag before the host is told the write ended.
-fn record_written(next: &mut Items, items: Token, landings: Box<[wire::Landing]>, push: bool) -> Written {
+fn record_written(
+    next: &mut Items,
+    items: Token,
+    landings: Box<[wire::Landing]>,
+    push: bool,
+    unchecked: bool,
+) -> Written {
     if push {
         let mut changed = false;
         for (index, landing) in landings.iter().enumerate() {
@@ -506,7 +523,7 @@ fn record_written(next: &mut Items, items: Token, landings: Box<[wire::Landing]>
                 | wire::Landing::Unchanged => {}
             }
         }
-        next.delivery = Some(crate::smith_delivery::landings(&landings, &next.branches));
+        next.delivery = Some(crate::smith_delivery::landings(&landings, &next.branches, unchecked));
         let outcome = translate::delivery_outcome(&translate::summarize(landings));
         Written::Delivered(host::Delivery { outcome, left: items, changed })
     } else {
@@ -566,11 +583,16 @@ fn abandon(hold: Token, then: &mut Then) -> State {
 
 /// Ready, push or save: asked of the checkout, for the host's `owner`.
 fn asked(hold: Token, directory: Token, owner: Token, write: Write, then: &mut Then) -> State {
+    let unchecked = match &write {
+        Write::Unchecked => true,
+        Write::Push { .. } | Write::Save => false,
+    };
     then.checkout = Some(match write {
+        Write::Unchecked => checkout::Event::PushUnchecked { hold },
         Write::Push { title, body } => checkout::Event::Push { hold, message: checkout::Message { title, body } },
         Write::Save => checkout::Event::Save { hold, message: translate::saved() },
     });
-    State::Ready { hold, directory, asked: Some(owner) }
+    State::Ready { hold, directory, asked: Some(Writing { owner, unchecked }) }
 }
 
 /// What a push or a save left, for the host.
@@ -734,6 +756,7 @@ mod tests {
                 workspace.items,
                 Box::new([wire::Landing::Landed { commit: commits[0] }, wire::Landing::Landed { commit: commits[1] }]),
                 push,
+                false,
             );
             match written {
                 Written::Delivered(delivery) => {

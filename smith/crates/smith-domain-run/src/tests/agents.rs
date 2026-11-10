@@ -731,3 +731,27 @@ fn a_capped_child_answer_keeps_its_budget_stop_until_the_seen_end_and_returns_on
     assert_eq!(*spent, 50);
     assert!(harness.step(ended(child, End::Closed, spend(50))).is_empty(), "stale end cannot answer twice");
 }
+
+#[test]
+fn saving_is_offered_to_main_and_never_inherited_by_a_child() {
+    let mut harness = Harness::new(LIMITS);
+    let mut policy = agents();
+    policy.grants.deliver = Some(ChangeSpec { checks_must_pass: true, fields: Box::new([]) });
+    policy.grants.save = true;
+    policy.reserve.time = LIMITS.check_timeout;
+    let requests = harness.start(1, policy);
+    let [Request::Admitted { run, .. }, Request::Read { .. }] = requests.as_ref() else {
+        panic!("producer admitted: {requests:?}")
+    };
+    let run = *run;
+    let requests = harness.step(Event::Read { owner: run, read: Read::Missing });
+    let [Request::Probe { .. }] = requests.as_ref() else { panic!("delivery checks discovered: {requests:?}") };
+    let requests = harness.step(Event::Probed { owner: run, executable: true });
+    let [Request::Open { conversation, opening }] = requests.as_ref() else { panic!("main opens: {requests:?}") };
+    assert!(opening.save);
+    let main = *conversation;
+    drop(harness.step(Event::Started { conversation: main, peer: PEER }));
+    let (_, child) = harness.child(main, 7, families(true, false, false), 101);
+    assert!(!child.save);
+    assert!(skein_lib::bytes::find(&child.system, b"You may call `save`").is_none());
+}

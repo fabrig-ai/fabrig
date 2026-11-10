@@ -113,7 +113,7 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
                 Err(fault) => failed(fault),
             }
         }
-        Op::Fetch { at, remote, want, identity: _, account: _ } => {
+        Op::Fetch { at, remote, want, into, identity: _, account: _ } => {
             assert_cloned(disk, &at);
             let want = match &want {
                 Want::Branch { branch } => git::Want::Branch(branch),
@@ -121,7 +121,14 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
                 Want::Default => git::Want::Default,
             };
             match git::fetch(forge, disk, &remote, &path(&at), want) {
-                Ok(fetched) => Done::Fetched { commit: commit(fetched) },
+                Ok(fetched) => {
+                    let reference = match into {
+                        temper_worker_domain_checkout::git::Into::Fetched => b"refs/temper/fetched".as_slice(),
+                        temper_worker_domain_checkout::git::Into::Landing => b"refs/temper/landing".as_slice(),
+                    };
+                    disk.write(&[path(&at).as_slice(), b"/.git/", reference].concat(), &fetched.to_le_bytes());
+                    Done::Fetched { commit: commit(fetched) }
+                }
                 Err(fault) => failed(fault),
             }
         }
@@ -142,12 +149,17 @@ pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
             checked_out.expect("a checkout is of a commit fetched into the repository");
             Done::Succeeded
         }
-        Op::Commit { at, parent, merging, title, body, identity: _ } => {
+        Op::Commit { at, parent, merging, always, title, body, identity: _ } => {
             assert_cloned(disk, &at);
             assert!(!title.is_empty(), "a commit has a title");
             let message =
                 if body.is_empty() { title.to_vec() } else { [title.as_ref(), b"\n\n", body.as_ref()].concat() };
             match merging {
+                None if always => Done::Committed {
+                    commit: commit(
+                        git::commit_always(forge, disk, &path(&at), fake(parent), &message).expect("parent fetched"),
+                    ),
+                },
                 None => match git::commit(forge, disk, &path(&at), fake(parent), &message)
                     .expect("parent is locally fetched")
                 {

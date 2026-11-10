@@ -100,3 +100,8 @@ fn a_run_starting_fresh_from_its_brief_starts_clean() {
 fn a_landed_change_saves_nothing() {
     assert_eq!(run(111, Case::Delivered).saves, 0);
 }
+
+#[test]
+fn an_unchecked_save_keeps_the_producer_tree_and_a_checked_push_replaces_its_commit() {
+    temper_worker_domain_world::whole::unchecked_save_then_delivery(101);
+}

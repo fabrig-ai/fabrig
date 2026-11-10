@@ -89,7 +89,7 @@ enum Effect { read, write }
 record HostAsk { tool: text 64 input: bytes 1048576 }
 record Field { name: text 64 text: text 262144 }
 record DeliverAsk { fields: list 32 Field }
-enum Ask { host: HostAsk, deliver: DeliverAsk }
+enum Ask { host: HostAsk, deliver: DeliverAsk, save }
 record Call { name: CallName effect: Effect deadline: duration ask: Ask }
 record Withdraw { name: CallName }
 record Turn {

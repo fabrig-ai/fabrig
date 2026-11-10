@@ -389,6 +389,7 @@ fn hosted_git_stages_no_hidden_log() {
         if !new_work {
             assert_eq!(difference.exit, 0, "hidden logs alone leave the parent tree unchanged");
             let op = git::Op::Commit {
+                always: false,
                 at: git::Place { git: None, workspace: skein_lib::Token::new(1), repository: b"app".as_slice().into() },
                 parent: commit(parent),
                 merging: None,
@@ -620,7 +621,11 @@ fn hosted_git_fires_past_an_older_due_read_and_keeps_its_reply_once() {
     let mut disk = Disk::new(&scenario);
     let result = disk.run(
         &scenario,
-        &Command::Fetch { remote: scenario.remote.clone().into(), source: invocation::Source::Default },
+        &Command::Fetch {
+            into: git::Into::Fetched,
+            remote: scenario.remote.clone().into(),
+            source: invocation::Source::Default,
+        },
         b"",
     );
     assert_eq!(result.exit, 0, "{:?}", result.stderr);

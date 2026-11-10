@@ -163,8 +163,11 @@ pub fn named(full: &[u8], protected: Option<&[u8]>) -> Scenario {
     let mut transport = Typed::new(forge, &table(full, protected));
     let identity = identity();
     transport.authenticate(Some(&(identity.login, identity.token)));
-    let topic =
-        if base == 0 { 0 } else { transport.store(base, None, tree(b"topic\n"), b"topic").expect("changed tree") };
+    let topic = if base == 0 {
+        0
+    } else {
+        transport.store(base, None, false, tree(b"topic\n"), b"topic").expect("changed tree")
+    };
     if base != 0 {
         transport.push(&remote(full), b"topic", topic, None).expect("new topic");
     }
@@ -203,7 +206,7 @@ pub fn apply(scenario: &mut Scenario, command: &Command) -> Answer {
     answer(&checked, &mut scenario.checkout, &mut scenario.transport)
 }
 fn ours(scenario: &mut Scenario) -> u64 {
-    let number = scenario.transport.store(scenario.base, None, tree(b"ours\n"), b"ours").expect("changed tree");
+    let number = scenario.transport.store(scenario.base, None, false, tree(b"ours\n"), b"ours").expect("changed tree");
     scenario.checkout.write(&[scenario.at.as_slice(), format!("/.git/objects/{number}").as_bytes()].concat(), b"");
     number
 }
@@ -305,21 +308,54 @@ fn command_case(case: &str, scenario: &mut Scenario) -> Command {
         | "clone-stranger-private"
         | "clone-wrong-token"
         | "clone-refused-connection" => clone_case(case, scenario, remote),
-        "fetch-branch" => Command::Fetch { remote, source: Source::Branch(b"topic".as_slice().into()) },
-        "fetch-sha256-branch" => Command::Fetch { remote, source: Source::Branch(b"main".as_slice().into()) },
-        "fetch-missing-branch" => Command::Fetch { remote, source: Source::Branch(b"missing".as_slice().into()) },
-        "fetch-missing-commit" => Command::Fetch { remote, source: Source::Commit(commit(u64::MAX)) },
-        "fetch-wrong-token" => Command::Fetch { remote, source: Source::Default },
+        "fetch-branch" => Command::Fetch {
+            into: temper_worker_domain_checkout::git::Into::Fetched,
+            remote,
+            source: Source::Branch(b"topic".as_slice().into()),
+        },
+        "fetch-sha256-branch" => Command::Fetch {
+            into: temper_worker_domain_checkout::git::Into::Fetched,
+            remote,
+            source: Source::Branch(b"main".as_slice().into()),
+        },
+        "fetch-missing-branch" => Command::Fetch {
+            into: temper_worker_domain_checkout::git::Into::Fetched,
+            remote,
+            source: Source::Branch(b"missing".as_slice().into()),
+        },
+        "fetch-missing-commit" => Command::Fetch {
+            into: temper_worker_domain_checkout::git::Into::Fetched,
+            remote,
+            source: Source::Commit(commit(u64::MAX)),
+        },
+        "fetch-wrong-token" => {
+            Command::Fetch { into: temper_worker_domain_checkout::git::Into::Fetched, remote, source: Source::Default }
+        }
         "fetch-commit" => {
             apply(
                 scenario,
-                &Command::Fetch { remote: remote.clone(), source: Source::Branch(b"topic".as_slice().into()) },
+                &Command::Fetch {
+                    into: temper_worker_domain_checkout::git::Into::Fetched,
+                    remote: remote.clone(),
+                    source: Source::Branch(b"topic".as_slice().into()),
+                },
             );
-            Command::Fetch { remote, source: Source::Commit(base) }
+            Command::Fetch {
+                into: temper_worker_domain_checkout::git::Into::Fetched,
+                remote,
+                source: Source::Commit(base),
+            }
         }
         "fetch-default" | "fetch-up-to-date" => {
-            apply(scenario, &Command::Fetch { remote: remote.clone(), source: Source::Default });
-            Command::Fetch { remote, source: Source::Default }
+            apply(
+                scenario,
+                &Command::Fetch {
+                    into: temper_worker_domain_checkout::git::Into::Fetched,
+                    remote: remote.clone(),
+                    source: Source::Default,
+                },
+            );
+            Command::Fetch { into: temper_worker_domain_checkout::git::Into::Fetched, remote, source: Source::Default }
         }
         "checkout-1" => Command::CheckOut { commit: base },
         "checkout-2" => {

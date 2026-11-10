@@ -104,6 +104,7 @@ pub(super) fn request(service: &mut Stages, frame: &mut Frame, request: domain::
         | domain::Request::Admitted { .. }
         | domain::Request::Long { .. }
         | domain::Request::LongDone { .. }
+        | domain::Request::Save { .. }
         | domain::Request::Deliver { .. }
         | domain::Request::Unauthorized { .. }
         | domain::Request::Limited { .. }
@@ -179,6 +180,15 @@ pub(super) fn request(service: &mut Stages, frame: &mut Frame, request: domain::
         domain::Request::LongDone { host_run: _ } => {
             frame.channel.send_long_done(token, &mut service.channel_events, &mut service.channel_below)
         }
+        domain::Request::Save { name, deadline, host_run: _, owner } => frame.channel.send_save(
+            service.domain_env.now,
+            name,
+            owner,
+            deadline,
+            token,
+            &mut service.channel_events,
+            &mut service.channel_below,
+        ),
         domain::Request::Deliver { name, deadline, host_run: _, owner, change } => frame.channel.send_delivery(
             service.domain_env.now,
             name,

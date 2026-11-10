@@ -216,6 +216,7 @@ impl Producer {
                 families,
                 wait: charter.grants.wait,
                 deliver: charter.grants.deliver.is_some(),
+                save: charter.grants.save,
                 host,
             },
             contract,

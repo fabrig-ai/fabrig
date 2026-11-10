@@ -761,3 +761,20 @@ fn fault_rows() -> [(smith_channel::ModelFault, smith_host_domain::ModelFault); 
         ),
     ]
 }
+
+#[test]
+fn a_save_ask_has_no_fields_and_requires_a_write_effect() {
+    use smith_channel as wire;
+    for effect in [wire::Effect::Read, wire::Effect::Write] {
+        let name =
+            wire::CallName::new(&wire::CEILINGS, wire::CallNameParts { activation: 1, completion: 2, position: 3 })
+                .expect("name");
+        let record = wire::Call::new(
+            &wire::CEILINGS,
+            wire::CallParts { name, effect, deadline: skein_lib::Duration::from_secs(30), ask: wire::Ask::Save },
+        )
+        .expect("save envelope");
+        let expected = if record.effect() == &wire::Effect::Write { Some(smith_host_domain::Ask::Save) } else { None };
+        assert_eq!(crate::translate::decode_ask(&record).expect("typed save"), expected);
+    }
+}

@@ -70,7 +70,7 @@ pub enum Op {
     /// Fetch `want` from the repository at `remote` into the repository. Ends
     /// in `Fetched`, or fails `Missing` if the forge has no such branch or
     /// commit, or no default branch.
-    Fetch { at: Place, remote: Box<[u8]>, want: Want, identity: u32, account: Option<u64> },
+    Fetch { at: Place, remote: Box<[u8]>, want: Want, into: Into, identity: u32, account: Option<u64> },
     /// Create `branch` on the forge at `commit`, only if it does not exist:
     /// a branch that does is left where it is, and the operation ends in
     /// `Exists`.
@@ -87,10 +87,18 @@ pub enum Op {
     Merge { at: Place, theirs: Commit },
     /// Commit the working tree exactly as it is, on `parent`, with the message `title` and `body`,
     /// authored as `identity`. Ends in `Committed`, or in `Unchanged` if the tree is `parent`'s and
-    /// `merging` is None. With a second parent it always records both parents; before doing so io
+    /// `merging` is None and `always` is false. With a second parent it always records both parents; before doing so io
     /// refuses markers remaining in originally conflicted paths, ending `Conflicted` with those
     /// paths.
-    Commit { at: Place, parent: Commit, merging: Option<Commit>, title: Box<[u8]>, body: Box<[u8]>, identity: u32 },
+    Commit {
+        at: Place,
+        parent: Commit,
+        merging: Option<Commit>,
+        always: bool,
+        title: Box<[u8]>,
+        body: Box<[u8]>,
+        identity: u32,
+    },
     /// Push `commit` to `branch` on the forge, as a fast-forward, never forced:
     /// a branch that does not exist is created, and one that is not an
     /// ancestor of `commit` is left where it is, and the operation ends in
@@ -105,6 +113,15 @@ pub enum Op {
         identity: u32,
         account: Option<u64>,
     },
+}
+
+/// The local reference a fetch writes (temper/docs/design/protocol/git.md, 4.3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Into {
+    /// The scratch reference, moved freely by fetches.
+    Fetched,
+    /// The landing pin, written once during prepare.
+    Landing,
 }
 
 /// What a fetch asks for.

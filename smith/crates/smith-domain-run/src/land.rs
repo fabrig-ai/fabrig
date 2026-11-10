@@ -1,6 +1,6 @@
-//! One exclusive checked snapshot for final and mid-run delivery (smith/docs/design/domain/run.md,
+//! One exclusive snapshot for checked delivery and unchecked saving (smith/docs/design/domain/run.md,
 //! sections 8 and 10). State keeps opaque fields, durable name, caller deadline
-//! and whether this is a finishing Change; a running check keeps its given span.
+//! and its purpose: finishing Change, delivery or save; a running check keeps its given span.
 //! It never knows receipt encoding,
 //! provider ids, callback identity or host delivery policy. Main's write batch
 //! waits while jobs settle, through checks and submission; children have already returned.
@@ -25,8 +25,15 @@ pub(crate) struct Landing {
     change: Change,
     name: CallName,
     deadline: Time,
-    finish: bool,
+    purpose: Purpose,
     stage: Stage,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Purpose {
+    Finish,
+    Deliver,
+    Save,
 }
 
 #[derive(Debug)]
@@ -48,8 +55,8 @@ pub(crate) enum Settled {
     Cancelled,
 }
 
-pub(crate) fn landing(change: Change, name: CallName, deadline: Time, finish: bool) -> Landing {
-    Landing { change, name, deadline, finish, stage: Stage::Closed }
+pub(crate) fn landing(change: Change, name: CallName, deadline: Time, purpose: Purpose) -> Landing {
+    Landing { change, name, deadline, purpose, stage: Stage::Closed }
 }
 
 pub(crate) fn cancel_jobs(landing: &mut Landing, peer: Token, out: &mut Queue<Request>) {
@@ -164,8 +171,11 @@ pub(crate) fn delivered(
                     return malformed(run, owner, out);
                 }
             }
-            let settled =
-                if landing.finish { Settled::Finished(landing.change.clone()) } else { Settled::MidDelivered };
+            let settled = if landing.purpose == Purpose::Finish {
+                Settled::Finished(landing.change.clone())
+            } else {
+                Settled::MidDelivered
+            };
             back(owner, Returned::Delivered(receipts), settled, out)
         }
         Delivery::Nothing => back(owner, Returned::Nothing, Settled::Refused, out),
@@ -232,9 +242,14 @@ pub(crate) fn withdraw(landing: &mut Landing, id: Id<Call>, why: Withdrawal, out
 
 fn next(landing: &Landing, id: Id<Call>, run: &Run, check: u32, env: &Env<Limits>, out: &mut Queue<Request>) -> Stage {
     run.lease.assert_workspace(id.token());
-    let Some(&index) = run.found.checks.get(check) else {
+    let check_index = if landing.purpose == Purpose::Save { None } else { run.found.checks.get(check) };
+    let Some(&index) = check_index else {
         let deadline = landing.deadline.min(env.now.saturating_add(env.limits.delivery_timeout));
         assert!(env.now < deadline, "admission and completed checks refuse expired submission");
+        if landing.purpose == Purpose::Save {
+            out.push(Request::Save { host_run: run.host_name, owner: id.token(), name: landing.name, deadline });
+            return Stage::Delivering;
+        }
         out.push(Request::Deliver {
             host_run: run.host_name,
             owner: id.token(),

@@ -42,6 +42,8 @@ pub enum Event {
     /// exactly as it is, and push it to the repository's push branch.
     /// Answered by exactly one `Pushed`.
     Push { hold: Token, message: Message },
+    /// Keep work in progress unchecked on each push branch; answered by `Pushed`.
+    PushUnchecked { hold: Token },
     /// The same, to the saved-work destination of each writable
     /// repository. Answered by exactly one `Saved`.
     Save { hold: Token, message: Message },

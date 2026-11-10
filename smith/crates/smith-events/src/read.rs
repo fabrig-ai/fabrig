@@ -711,6 +711,7 @@ fn read_tools(tokens: &[Token], limits: &Limits) -> Result<Tools, Error> {
         families: read_list_family(required(tokens, b"families")?, limits)?,
         wait: boolean(required(tokens, b"wait")?)?,
         deliver: boolean(required(tokens, b"deliver")?)?,
+        save: boolean(required(tokens, b"save")?)?,
         host: read_list_text(required(tokens, b"host")?, limits)?,
     })
 }

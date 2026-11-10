@@ -625,6 +625,7 @@ fn decode(
                 };
             }
             llm::Served::Finish
+            | llm::Served::Save
             | llm::Served::Deliver
             | llm::Served::Host(_)
             | llm::Served::Wait

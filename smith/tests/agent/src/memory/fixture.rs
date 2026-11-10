@@ -121,7 +121,7 @@ pub(super) fn charter(context_bytes: u64) -> Charter {
         instructions,
         brief: run::Brief { sections: sections.into_boxed_slice() },
 
-        grants: Grants { wait: true, deliver: None, tools: all, agents: true, host_tools: Box::new([]) },
+        grants: Grants { wait: true, deliver: None, save: false, tools: all, agents: true, host_tools: Box::new([]) },
         outcome: OutcomeSpec {
             change: Some(ChangeSpec {
                 checks_must_pass: true,

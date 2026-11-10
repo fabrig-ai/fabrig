@@ -540,6 +540,7 @@ fn size_tools(limits: &Limits) -> Option<u64> {
         .checked_add((size_family(limits)?).checked_add(1)?.checked_mul(u64::from(limits.items))?.checked_add(2)?)?;
     length = length.checked_add(8)?.checked_add(5_u64)?;
     length = length.checked_add(11)?.checked_add(5_u64)?;
+    length = length.checked_add(8)?.checked_add(5_u64)?;
     length = length.checked_add(8)?.checked_add(
         (string_size(limits.string)?).checked_add(1)?.checked_mul(u64::from(limits.items))?.checked_add(2)?,
     )?;

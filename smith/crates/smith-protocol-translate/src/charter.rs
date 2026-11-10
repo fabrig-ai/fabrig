@@ -78,6 +78,7 @@ pub fn encode_charter(
             },
             wait: source.grants.wait,
             deliver,
+            save: source.grants.save,
             host,
         },
     ) {

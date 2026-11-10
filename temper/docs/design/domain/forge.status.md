@@ -26,6 +26,17 @@ narrowed table deciding the next call; the forge's tables hold the bound
 person and the paths an asker's change touches at its head are the
 draft's lags (`../draft/what-reaches-you.status.md`, 4).
 
+Section 8.11's early starts accept any dependency's pushed head, a producer's
+unchecked save included. No stored record identifies checked heads; the
+worker's wire carries no such distinction. The dependent's own delivery
+checks cover its whole tree (`../draft/delivery-checks.status.md`).
+
+Sections 8.1 and 11.2's close changes and goal closer are built, including
+the ordered report, Left sections and CI selection. The engine-domain
+world's `forge_routes::close_change`, `forge_routes::goal_closer` and
+`forge_routes::goal_closes` stories exercise the composed path with fake
+forge and job completions; they establish no deployment outcome.
+
 Section 11.1 has no known implementation gap in whole-goal child isolation:
 words-only calls and batch members use the nearest held goal branch,
 including callers in its subtree; an explicit destination outside it is
@@ -573,15 +584,3 @@ a change's merge job from the engine through its worker to the fake forge
 - **Not yet:** 6: a `Flight` row whose entry the forge does not hold
   panics at its link, where the section refuses the start
   (`root.status.md`, 9.1).
-- **Not yet:** 8.1: bytes parameter 17, a close step's change, its
-  producer the close job, kind 4, at a branch made at its landing
-  branch's tip, ending with no change where the job pushed nothing.
-  [in flight: close-change]
-- **Not yet:** 8.1, 11.1, 11.2: the goal closer, procedure 6: its close,
-  land and report steps, the goal's landing made by the closer on the
-  goal's held branch, a step's change ending without landing holding it,
-  and its steps made again after work it waited for. [in flight: goal-closer]
-- **Not yet:** 11.2: the report's words, their order and their cut, a
-  change's `Left` section found in its result. [in flight: goal-report]
-- **Not yet:** 11.2: the report's CI selection, each pull into the base's
-  jobs' logs read by their start. [in flight: closer-ci-selection]

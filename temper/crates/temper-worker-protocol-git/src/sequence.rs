@@ -24,7 +24,8 @@ pub fn first(op: &git::Op) -> Next {
         git::Op::Clone { at, remote, .. } => {
             Command::Clone { remote: remote.clone(), directory: at.repository.clone() }
         }
-        git::Op::Fetch { remote, want, .. } => Command::Fetch {
+        git::Op::Fetch { remote, want, into, .. } => Command::Fetch {
+            into: *into,
             remote: remote.clone(),
             source: match want {
                 git::Want::Branch { branch } => Source::Branch(branch.clone()),
@@ -88,8 +89,8 @@ pub fn after(
             | git::Op::Push { .. } => unreachable!("origin is a look's invocation"),
         },
         Command::Clone { .. } | Command::Clean if code == 0 => return Next::End(git::Done::Succeeded),
-        Command::Fetch { .. } if code == 0 => {
-            if let Some(commit) = output::fetched(stdout) {
+        Command::Fetch { into, .. } if code == 0 => {
+            if let Some(commit) = output::fetched(stdout, *into) {
                 return Next::End(git::Done::Fetched { commit });
             }
         }
@@ -115,8 +116,8 @@ pub fn after(
             }
         }
         Command::Add if code == 0 => match op {
-            git::Op::Commit { parent, merging, .. } => {
-                return Next::Run(if merging.is_some() {
+            git::Op::Commit { parent, merging, always, .. } => {
+                return Next::Run(if merging.is_some() || *always {
                     Command::WriteTree
                 } else {
                     Command::DiffIndex { parent: *parent }

@@ -30,7 +30,7 @@ pub enum Command {
     Version,
     Origin { directory: Box<[u8]> },
     Clone { remote: Box<[u8]>, directory: Box<[u8]> },
-    Fetch { remote: Box<[u8]>, source: Source },
+    Fetch { remote: Box<[u8]>, source: Source, into: git::Into },
     Create { remote: Box<[u8]>, branch: Box<[u8]>, commit: git::Commit },
     CheckOut { commit: git::Commit },
     Clean,
@@ -152,13 +152,13 @@ pub fn arguments(command: &Command) -> Box<[Box<[u8]>]> {
             &mut out,
             &[b"clone", b"--no-checkout", b"--no-tags", b"--origin", b"origin", b"--", remote, directory],
         ),
-        Command::Fetch { remote, source } => {
+        Command::Fetch { remote, source, into } => {
             let from = match source {
                 Source::Branch(branch) => joined(&[b"refs/heads/", branch]),
                 Source::Commit(commit) => hex(*commit),
                 Source::Default => Box::from(&b"HEAD"[..]),
             };
-            let spec = joined(&[b"+", &from, b":refs/temper/fetched"]);
+            let spec = joined(&[b"+", &from, b":", reference(*into)]);
             words(
                 &mut out,
                 &[
@@ -322,4 +322,12 @@ fn nibble(byte: u8) -> Option<u8> {
 pub fn place(at: &git::Place) -> Box<[u8]> {
     let workspace = Decimal::of(at.workspace.raw());
     joined(&[b"workspaces/", workspace.as_bytes(), b"/", &at.repository])
+}
+
+/// The local destination of a fetch (temper/docs/design/protocol/git.md, 4.3).
+pub(crate) const fn reference(into: git::Into) -> &'static [u8] {
+    match into {
+        git::Into::Fetched => b"refs/temper/fetched",
+        git::Into::Landing => b"refs/temper/landing",
+    }
 }

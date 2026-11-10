@@ -1,6 +1,6 @@
 # run: status
 
-2026-11-08. Where smith's code lags or departs from [run.md](run.md).
+2026-11-10. Where smith's code lags or departs from [run.md](run.md).
 
 Section 3.3 has no known gap in omitting the workspace tool instructions
 and Checkout section when no workspace is given. The remaining Checkout

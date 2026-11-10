@@ -44,6 +44,7 @@ record Tools {
     families: Families
     wait: bool
     deliver: option ChangeRule
+    save: bool
     host: list 128 HostTool
 }
 record Conventions { guide: text 1024 checks: text 1024 }

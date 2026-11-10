@@ -85,7 +85,9 @@ impl Book {
         assert_eq!(call.scope.run, scope.run, "the root call belongs to its provider activation");
         assert_eq!(call.scope.conversation, scope.conversation, "the root call belongs to its provider asker");
         match ask {
-            smith_domain::run::facts::Asked::Deliver | smith_domain::run::facts::Asked::Finish => {
+            smith_domain::run::facts::Asked::Save
+            | smith_domain::run::facts::Asked::Deliver
+            | smith_domain::run::facts::Asked::Finish => {
                 assert!(self.landing.is_none(), "main's landing is an exclusive writer");
                 self.landing = Some(owner);
             }
@@ -488,3 +490,41 @@ pub(crate) fn valid(limits: &session::Limits) -> bool {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[test]
+fn a_save_call_records_its_delivery_terminal() {
+    let mut book = Book::new(&smith_agent_world::LIMITS.session, crate::sinks::Capture::None);
+    let metadata = session::ToolCall {
+        owner: Token::new(43),
+        id: b"save-call".as_slice().into(),
+        name: b"save".as_slice().into(),
+        source: session::ToolSource::Run,
+        effect: tools::Effect::Write,
+        deadline: Time::from_nanos(99),
+        input_bytes: 2,
+    };
+    let scope = Scope { run: 1, conversation: 1 };
+    let started = book.started(Time::ZERO, Time::ZERO, Token::new(1), scope, &metadata);
+    let Event::ToolStarted(started) = started.event else { panic!("save started") };
+    assert_eq!(started.tool.as_ref(), b"save");
+    assert_eq!(started.effect, smith_events::Effect::Write);
+    book.called(metadata.owner, scope, smith_domain::run::facts::Asked::Save);
+    book.delivered(smith_domain::run::DeliveryStatus::Delivered);
+    let completed = book.completed(
+        Time::ZERO,
+        Time::from_nanos(1),
+        &metadata,
+        Terminal {
+            job: None,
+            verdict: smith_events::Verdict::Result,
+            exit: None,
+            bytes: 0,
+            omitted_bytes: 0,
+            clamped: false,
+        },
+    );
+    let Event::ToolCompleted(completed) = completed.event else { panic!("save completed") };
+    assert_eq!(completed.tool.as_ref(), b"save");
+    assert_eq!(completed.delivery, Some(smith_events::Delivered::Delivered));
+}

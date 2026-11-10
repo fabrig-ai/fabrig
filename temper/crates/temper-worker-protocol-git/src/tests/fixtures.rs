@@ -52,6 +52,7 @@ pub fn fetch(owner: skein_lib::Token, deadline: skein_lib::Time) -> crate::Reque
     crate::Request::Io {
         owner,
         op: git::Op::Fetch {
+            into: git::Into::Fetched,
             at: at(),
             remote: Box::from(REMOTE),
             want: git::Want::Default,
@@ -64,6 +65,7 @@ pub fn fetch(owner: skein_lib::Token, deadline: skein_lib::Time) -> crate::Reque
 }
 pub fn commit_op(merging: Option<git::Commit>) -> git::Op {
     git::Op::Commit {
+        always: false,
         at: at(),
         parent: PARENT,
         merging,

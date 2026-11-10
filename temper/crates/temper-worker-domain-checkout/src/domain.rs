@@ -88,6 +88,7 @@ impl Domain {
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::Prepare { client, spec } => hold::prepare(domain, env, client, spec, out),
+        Event::PushUnchecked { hold } => hold::unchecked(domain, env, hold, out),
         Event::Push { hold, message } => hold::push(domain, env, hold, message, out),
         Event::Save { hold, message } => hold::save(domain, env, hold, message, out),
         Event::Abort { hold } => hold::abort(domain, hold, out),

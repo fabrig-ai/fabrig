@@ -125,6 +125,7 @@ pub(super) fn domain_request(service: &mut Stages, mut frame: Option<&mut Frame>
         | domain::Request::Answer { .. }
         | domain::Request::Long { .. }
         | domain::Request::LongDone { .. }
+        | domain::Request::Save { .. }
         | domain::Request::Deliver { .. }
         | domain::Request::Unauthorized { .. }
         | domain::Request::Limited { .. }

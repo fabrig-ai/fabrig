@@ -282,6 +282,9 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
         host::Request::CancelRelay { run, attempt, call } => out.push(Request::CancelRelay { run, attempt, call }),
         host::Request::Prepare { owner, workspace } => workspace::prepare(domain, env, owner, workspace),
         host::Request::Abort { owner } => workspace::abort(domain, env, owner),
+        host::Request::DeliverUnchecked { owner, workspace } => {
+            workspace::write(domain, env, owner, workspace, Write::Unchecked);
+        }
         host::Request::Deliver { owner, workspace, title, body } => {
             workspace::write(domain, env, owner, workspace, Write::Push { title, body });
         }

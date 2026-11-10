@@ -562,7 +562,11 @@ fn oversized_call_feedback_states_size_bound_and_batched_recovery_within_its_cap
 fn fixed_own_schema_measurement_matches_the_complete_fixed_inventory() {
     let stated = crate::Stated::from_tools(&tools(), 2048).expect("bounded quantities");
     let mut prompt = described_prompt();
-    prompt.served = Box::new([smith_domain::llm::Served::Wait, smith_domain::llm::Served::SubAgent]);
+    prompt.served = Box::new([
+        smith_domain::llm::Served::Wait,
+        smith_domain::llm::Served::SubAgent,
+        smith_domain::llm::Served::Save,
+    ]);
     let mut largest = 0;
     for namespace in [
         tools::Namespace::One,
@@ -573,7 +577,7 @@ fn fixed_own_schema_measurement_matches_the_complete_fixed_inventory() {
         let rendered =
             inventory.iter().map(|tool| tool.name.len() + tool.description.len() + tool.schema.len()).sum::<usize>();
         largest = largest.max(rendered);
-        assert_eq!(inventory.len(), 10);
+        assert_eq!(inventory.len(), 11);
     }
     assert_eq!(crate::fixed_schema_bytes(&stated), u64::try_from(largest).ok());
 }
@@ -961,15 +965,22 @@ fn removal_renders_success_and_the_nonempty_refusal() {
 fn schema_inventory_at_capacity_fits_and_one_more_is_refused() {
     use smith_domain::{llm, run::outcome};
     let mut prompt = described_prompt();
-    prompt.served = Box::new([llm::Served::Finish, llm::Served::Deliver, llm::Served::SubAgent, llm::Served::Wait]);
+    prompt.served = Box::new([
+        llm::Served::Finish,
+        llm::Served::Deliver,
+        llm::Served::Save,
+        llm::Served::SubAgent,
+        llm::Served::Wait,
+    ]);
     let stated = crate::Stated::from_tools(&tools(), 4096).expect("fixture stated quantities");
     let delivery = outcome::ChangeSpec { checks_must_pass: false, fields: Box::new([]) };
     let contract = crate::fixture::contract();
     let inventory = crate::schemas_for_contract(&prompt, &stated, &contract, Some(&delivery), u32::MAX)
         .expect("eight workspace and four run tools fit");
-    assert_eq!(inventory.len(), 12);
+    assert_eq!(inventory.len(), 13);
     prompt.served = Box::new([
         llm::Served::Finish,
+        llm::Served::Save,
         llm::Served::Deliver,
         llm::Served::SubAgent,
         llm::Served::Wait,
@@ -979,4 +990,37 @@ fn schema_inventory_at_capacity_fits_and_one_more_is_refused() {
         crate::schemas_for_contract(&prompt, &stated, &contract, Some(&delivery), u32::MAX),
         Err(crate::Error::Limit)
     );
+}
+
+#[test]
+fn save_is_an_empty_object_write_offered_only_under_its_descriptor() {
+    use smith_domain::{llm, run};
+    let limits =
+        crate::fixture::small(skein_llm_kit::limits(), crate::Stated::from_tools(&tools(), 4096).expect("stated"));
+    let grants = tools::Grants { inspect: false, modify: false, shell: false };
+    assert_eq!(
+        crate::decode(b"save", b"{}", grants, &[llm::Served::Save], llm::Asker::Main, &limits),
+        llm::Decoded::Served { ask: run::Ask::Save }
+    );
+    assert_eq!(
+        crate::decode(b"save", b"{}", grants, &[], llm::Asker::Child, &limits),
+        llm::Decoded::Invalid { problem: llm::Problem::UnknownTool }
+    );
+    for input in [b"{\"title\":\"x\"}".as_slice(), b"[]", b"null"] {
+        let decoded = crate::decode(b"save", input, grants, &[llm::Served::Save], llm::Asker::Main, &limits);
+        let llm::Decoded::Invalid { .. } = decoded else { panic!("save accepts only an empty object: {decoded:?}") };
+    }
+    let mut prompt = described_prompt();
+    prompt.served = Box::new([llm::Served::Save]);
+    let schemas = crate::schemas_for_contract(&prompt, &limits.stated, &crate::fixture::contract(), None, u32::MAX)
+        .expect("save schema");
+    let mut save = None;
+    for schema in &schemas {
+        if schema.name.as_ref() == b"save" {
+            save = Some(schema);
+        }
+    }
+    let save = save.expect("save offered");
+    assert_eq!(save.kind, crate::ToolKind::Save);
+    assert!(skein_lib::bytes::find(&save.schema, b"\"additionalProperties\":false").is_some());
 }

@@ -1,6 +1,6 @@
 # git: status
 
-2026-11-09. Where temper's code lags or departs from [git.md](git.md).
+2026-11-10. Where temper's code lags or departs from [git.md](git.md).
 
 Section 7 has no known gap in the orderly worker-close ordering: serve
 waits for its agent processes before aborting the worker's remaining

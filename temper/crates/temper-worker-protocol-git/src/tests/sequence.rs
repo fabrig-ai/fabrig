@@ -43,9 +43,18 @@ fn standard_rows() {
     let push = fixtures::push_op(Some(fixtures::EXPECTED));
     let merge = git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT };
     let fetch = git::Op::Fetch {
+        into: git::Into::Fetched,
         at: fixtures::at(),
         remote: Box::from(fixtures::REMOTE),
         want: git::Want::Default,
+        identity: 1,
+        account: None,
+    };
+    let landing = git::Op::Fetch {
+        at: fixtures::at(),
+        remote: Box::from(fixtures::REMOTE),
+        want: git::Want::Default,
+        into: git::Into::Landing,
         identity: 1,
         account: None,
     };
@@ -66,7 +75,9 @@ fn standard_rows() {
         (&merging,Command::Unmerged,0,b"one\0two\0three\0four\0five\0",Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
         (&merge,Command::Unmerged,0,too_long.as_slice(),Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
         (&merge,Command::Unmerged,0,b"",Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
-        (&fetch,Command::Fetch { remote:Box::from(fixtures::REMOTE),source:crate::invocation::Source::Default },0,b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/fetched\n",Next::End(git::Done::Fetched { commit:fixtures::COMMIT })),
+        (&fetch,Command::Fetch { into: git::Into::Fetched,  remote:Box::from(fixtures::REMOTE),source:crate::invocation::Source::Default },0,b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/fetched\n",Next::End(git::Done::Fetched { commit:fixtures::COMMIT })),
+        (&landing,Command::Fetch { into: git::Into::Landing,  remote:Box::from(fixtures::REMOTE),source:crate::invocation::Source::Default },0,b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/landing\n",Next::End(git::Done::Fetched { commit:fixtures::COMMIT })),
+        (&landing,Command::Fetch { into: git::Into::Landing,  remote:Box::from(fixtures::REMOTE),source:crate::invocation::Source::Default },0,b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/fetched\n",Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
     ];
     for (op, ran, code, stdout, next) in rows {
         assert_eq!(sequence::after(op, &ran, code, stdout, b"", 0, &fixtures::checkout()), next, "{ran:?}: {code}");
@@ -123,4 +134,15 @@ fn a_look_requires_the_exact_remote_and_handles_absent_repositories() {
             diagnostic: git::PushDiagnostic::new(b"bad config", 3)
         })
     );
+}
+
+#[test]
+fn an_always_commit_writes_a_tree_without_comparing_the_parent() {
+    for always in [false, true] {
+        let mut op = fixtures::commit_op(None);
+        let git::Op::Commit { always: flag, .. } = &mut op else { unreachable!("commit fixture") };
+        *flag = always;
+        let expected = if always { Command::WriteTree } else { Command::DiffIndex { parent: fixtures::PARENT } };
+        assert_eq!(sequence::after(&op, &Command::Add, 0, b"", b"", 0, &fixtures::checkout()), Next::Run(expected));
+    }
 }

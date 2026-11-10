@@ -153,6 +153,7 @@ pub fn charter(charter: Charter) -> Option<run::Charter> {
                 modify: charter.workspace.modify && deliver.is_some(),
                 shell: charter.workspace.shell,
             },
+            save: deliver.is_some() && outcome.change.is_some(),
             deliver,
             agents: charter.agents,
             host_tools: tools.into_boxed(),

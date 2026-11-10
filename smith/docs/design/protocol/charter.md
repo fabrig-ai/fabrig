@@ -50,7 +50,7 @@ workers carry unread, and its version must be the one its agents read
 A versioned record (skein's `codec.md`, section 3):
 
 - **mode:** `finite` or `open` (domain/run.md, 3.1). Open requires `wait`
-  and no `deliver`, or admission refuses MalformedCharter; its result
+  and neither `deliver` nor `save`, or admission refuses MalformedCharter; its result
   contract stays bounded and validated;
 - **instructions:** text;
 - **the brief:** a list of sections, each a title and its text, in order;
@@ -62,6 +62,9 @@ A versioned record (skein's `codec.md`, section 3):
     asked for (domain/run.md, 5.3; llm.md, section 3);
   - whether `wait` is granted;
   - whether `deliver` is granted mid-run, with a change's contract (2.1);
+  - whether `save` is granted, a delivery with no checks, marked
+    unchecked (domain/run.md, 8.5): only with `deliver`, or admission
+    refuses the grants;
   - the host tools, each declared with:
     - a name;
     - a description for the LLM;
@@ -189,6 +192,11 @@ version at a time, and any change a reader would notice is a new one.
 - **Version 4 is current.** Both versioned records, Charter and
   RunResult, carry family version 4. Versions 1–3 are refused, with no
   decoder of their own.
+- **Before v0.1.0 a format changes in place.** The `save` grant (section
+  2) was added to version 4 as it is, with no new version (the owner,
+  2026-11-09): a writer and its agents of different builds are of one
+  release only once v0.1.0 is cut, and until then they are built
+  together.
 
 ## 6. Limits
 

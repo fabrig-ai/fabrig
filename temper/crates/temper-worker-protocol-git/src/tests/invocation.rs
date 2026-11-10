@@ -37,7 +37,8 @@ const SETTINGS: &[&[u8]] = &[
     b"submodule.recurse=false",
 ];
 const ID: &[u8] = b"abababababababababababababababababababab";
-fn rows() -> [(Command, &'static [&'static [u8]]); 18] {
+#[expect(clippy::too_many_lines, reason = "the argument table covers both fetch destinations")]
+fn rows() -> [(Command, &'static [&'static [u8]]); 19] {
     let remote: Box<[u8]> = Box::from(fixtures::REMOTE);
     let branch: Box<[u8]> = Box::from(&b"temper/7"[..]);
     let commit = fixtures::COMMIT;
@@ -52,7 +53,7 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 18] {
             &[b"clone", b"--no-checkout", b"--no-tags", b"--origin", b"origin", b"--", fixtures::REMOTE, b"app"],
         ),
         (
-            Command::Fetch { remote: remote.clone(), source: Source::Branch(branch.clone()) },
+            Command::Fetch { into: git::Into::Fetched, remote: remote.clone(), source: Source::Branch(branch.clone()) },
             &[
                 b"fetch",
                 b"--porcelain",
@@ -66,7 +67,21 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 18] {
             ],
         ),
         (
-            Command::Fetch { remote: remote.clone(), source: Source::Commit(commit) },
+            Command::Fetch { into: git::Into::Landing, remote: remote.clone(), source: Source::Branch(branch.clone()) },
+            &[
+                b"fetch",
+                b"--porcelain",
+                b"--verbose",
+                b"--no-tags",
+                b"--no-write-fetch-head",
+                b"--no-recurse-submodules",
+                b"--",
+                fixtures::REMOTE,
+                b"+refs/heads/temper/7:refs/temper/landing",
+            ],
+        ),
+        (
+            Command::Fetch { into: git::Into::Fetched, remote: remote.clone(), source: Source::Commit(commit) },
             &[
                 b"fetch",
                 b"--porcelain",
@@ -80,7 +95,7 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 18] {
             ],
         ),
         (
-            Command::Fetch { remote: remote.clone(), source: Source::Default },
+            Command::Fetch { into: git::Into::Fetched, remote: remote.clone(), source: Source::Default },
             &[
                 b"fetch",
                 b"--porcelain",

@@ -84,6 +84,7 @@ impl Referee {
                 | ToAgent::Cancel { .. }
                 | ToAgent::Grant { .. },
             )
+            | Request::DeliverUnchecked { .. }
             | Request::Deliver { .. }
             | Request::CancelRelay { .. }
             | Request::Prepare { .. }

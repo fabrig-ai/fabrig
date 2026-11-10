@@ -37,6 +37,7 @@ pub fn query(prompt: agent::Prompt) -> provider::Query {
             agent::Served::Deliver => fixed(b"deliver"),
             agent::Served::Finish => fixed(b"finish"),
             agent::Served::SubAgent => fixed(b"sub_agent"),
+            agent::Served::Save => fixed(b"save"),
             agent::Served::Wait => fixed(b"wait"),
         };
         tools.push(specification);
@@ -182,6 +183,7 @@ pub fn decode(
             | agent::Served::Deliver
             | agent::Served::Finish
             | agent::Served::SubAgent
+            | agent::Served::Save
             | agent::Served::Wait => {}
         }
     }

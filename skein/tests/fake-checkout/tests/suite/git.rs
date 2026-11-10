@@ -9,9 +9,9 @@ use skein_fake_checkout_tests::{Store, cloned, files, merge_case, tree};
 #[test]
 fn clone_and_fetch_import_both_parent_chains_without_rewriting_existing_objects() {
     let mut store = Store::new(tree(&[(b"code", b"first")]));
-    let left = store.store(1, None, tree(&[(b"code", b"left")]), b"fixture").expect("left");
-    let right = store.store(1, None, tree(&[(b"code", b"right")]), b"fixture").expect("right");
-    let tip = store.store(left, Some(right), tree(&[(b"code", b"merged")]), b"fixture").expect("two parents");
+    let left = store.store(1, None, false, tree(&[(b"code", b"left")]), b"fixture").expect("left");
+    let right = store.store(1, None, false, tree(&[(b"code", b"right")]), b"fixture").expect("right");
+    let tip = store.store(left, Some(right), false, tree(&[(b"code", b"merged")]), b"fixture").expect("two parents");
     assert_eq!(git::create(&mut store, b"repo", b"side", tip), Ok(Created::Created));
     let mut cloned = Checkout::new();
     git::clone_repository(&mut store, &mut cloned, b"repo", b"work").expect("all tips");
@@ -64,7 +64,7 @@ fn checkout_preserves_nested_git_and_commit_snapshots_only_working_files_without
 #[test]
 fn unfetched_inputs_and_transport_refusals_leave_the_checkout_unchanged() {
     let (mut store, mut checkout, first) = cloned(&[(b"code", b"first")]);
-    let missing = store.store(first, None, tree(&[(b"code", b"next")]), b"fixture").expect("external commit");
+    let missing = store.store(first, None, false, tree(&[(b"code", b"next")]), b"fixture").expect("external commit");
     let before = format!("{checkout:?}");
     assert_eq!(git::check_out(&store, &mut checkout, b"work", missing), Err(NotFetched));
     assert_eq!(git::commit(&mut store, &mut checkout, b"work", missing, b"fixture"), Err(NotFetched));
@@ -137,7 +137,7 @@ fn conflict_deletion_resolves_without_a_failed_commit_allocating_an_object() {
     let (mut store, mut checkout, first) = cloned(&[(b"code", b"old\n")]);
     checkout.write(b"work/code", b"ours\n");
     let ours = git::commit(&mut store, &mut checkout, b"work", first, b"fixture").expect("local").expect("changed");
-    let theirs = store.store(first, None, tree(&[(b"code", b"theirs\n")]), b"fixture").expect("side");
+    let theirs = store.store(first, None, false, tree(&[(b"code", b"theirs\n")]), b"fixture").expect("side");
     git::fetch(&mut store, &mut checkout, b"repo", b"work", Want::Commit(theirs)).expect("side fetched");
     assert_eq!(git::merge(&store, &mut checkout, b"work", theirs).expect("local").conflicts, [b"code".to_vec()]);
     assert_eq!(checkout.content(b"work/.git/temper-conflicts/0"), Some(b"code".as_slice()));
@@ -165,7 +165,7 @@ fn merge_preserves_additions_and_deletions_and_even_unchanged_trees_record_both_
     checkout.write(b"work/conflict", b"modified");
     checkout.write(b"work/ours", b"added");
     let ours = git::commit(&mut store, &mut checkout, b"work", first, b"fixture").expect("local").expect("change");
-    let theirs = store.store(first, None, tree(&[(b"theirs", b"added too")]), b"fixture").expect("deletions");
+    let theirs = store.store(first, None, false, tree(&[(b"theirs", b"added too")]), b"fixture").expect("deletions");
     git::fetch(&mut store, &mut checkout, b"repo", b"work", Want::Commit(theirs)).expect("side");
     assert_eq!(git::merge(&store, &mut checkout, b"work", theirs).expect("merge").conflicts, [b"conflict".to_vec()]);
     assert!(!checkout.exists(b"work/clean"));
@@ -187,4 +187,16 @@ fn merge_preserves_additions_and_deletions_and_even_unchanged_trees_record_both_
     assert_eq!(store.merge_parent(unchanged), Some(theirs));
     assert_eq!(store.message(unchanged), b"fixture");
     assert_eq!(store.moves(), 0);
+}
+
+#[test]
+fn an_always_commit_records_a_fresh_equal_tree_with_its_own_message() {
+    let (mut store, mut checkout, first) = cloned(&[(b"code", b"first")]);
+    let next = git::commit_always(&mut store, &mut checkout, b"work", first, b"checked").expect("local parent");
+    assert_ne!(first, next);
+    assert_eq!(store.tree(next), store.tree(first));
+    assert_eq!(store.parent(next), Some(first));
+    assert_eq!(store.merge_parent(next), None);
+    assert_eq!(store.message(next), b"checked");
+    assert_eq!(store.branch(b"main"), Some(first), "commit moves no branch");
 }

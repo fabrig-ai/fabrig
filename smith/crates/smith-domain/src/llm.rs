@@ -89,6 +89,8 @@ pub enum NotRun {
 /// protocol layer decodes into a [`run::Ask`].
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Served {
+    /// Main-only unchecked saving descriptor.
+    Save,
     /// Main-only exclusive settled-wait descriptor, fixed name wait and no arguments.
     Wait,
 

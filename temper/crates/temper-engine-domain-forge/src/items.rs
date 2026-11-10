@@ -163,16 +163,9 @@ impl Domain {
             push = None;
         }
         let landing = match inherited {
-            Some((row, change::Delegate::Produce)) => match &start {
-                Start::Branch(branch) => match &push {
-                    Some(push) if branch == push => Some(row.base.clone()),
-                    Some(_) | None => None,
-                },
-                Start::Merge { .. } => match &push {
-                    Some(_) => Some(row.base.clone()),
-                    None => None,
-                },
-                Start::Base(_) | Start::Saved(_) | Start::Merged { .. } => None,
+            Some((row, change::Delegate::Produce)) => match &push {
+                Some(_) => Some(row.base.clone()),
+                None => None,
             },
             Some((
                 _,

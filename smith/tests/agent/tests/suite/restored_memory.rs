@@ -144,6 +144,7 @@ fn charter(restoring: bool) -> run::Charter {
         grants: run::charter::Grants {
             wait: true,
             deliver: None,
+            save: false,
             tools: run::charter::Tools { inspect: false, modify: false, shell: false },
             agents: false,
             host_tools: Box::new([]),
@@ -591,6 +592,7 @@ impl Counted {
                 }
                 Request::HostCall { .. }
                 | Request::WithdrawHost { .. }
+                | Request::Save { .. }
                 | Request::Deliver { .. }
                 | Request::Unauthorized { .. }
                 | Request::Refused { .. }

@@ -663,7 +663,7 @@ impl World {
                 self.reading = true;
             }
 
-            Request::Deliver { owner, workspace, .. } => {
+            Request::DeliverUnchecked { owner, workspace } | Request::Deliver { owner, workspace, .. } => {
                 assert!(self.agent_live && self.space_live && workspace == SPACE);
                 self.stats.deliveries += 1;
                 self.events.push_back(Event::Delivered {

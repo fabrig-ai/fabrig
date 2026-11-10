@@ -382,6 +382,7 @@ pub fn charter(config: &Config) -> charter::Charter {
         grants: charter::Grants {
             wait: true,
             deliver: config.deliver.clone(),
+            save: false,
             tools: charter::Tools { inspect: workspace.is_some(), modify: writable, shell: workspace.is_some() },
             agents: config.sub_agents,
             host_tools: Box::new([]),

@@ -199,15 +199,13 @@ settled by the oversized-file repair.
 The settings-position wording left by `replay-repairs` remains section
 11's follow-up: jig's corrected refusal counts from 0, and temper prints
 it unchanged, while temper's own translation refusal counts from 1.
-The silent-check diagnosis is by reading, not a timed deployment run:
-`.temper/pre-pr` emits no progress before its format and baseline work,
-and its 60-second `check_timeout` remains unchanged. Progress output is
-also deferred in section 11. Section 13.9's delivery hook batches format
-roots by edition and configuration and runs every baseline with the private
-snapshot index. Its focused boundary world models the 69,758 ms formatter
-workload and 17,000 ms baseline workload, checks two uncached design additions
-within 60,000 ms, and refuses formatter, baseline and interrupted checks.
-These deterministic checks do not measure a deployment under load.
+Section 13.9's delivery hook batches format roots by edition and
+configuration, runs every baseline with the private snapshot index, names
+its checks and uses the worker's landing pin for package selection and
+inherited failures. Its cache is keyed by tree and base
+(`tools/pre-pr/design.status.md`). The focused boundary tables exercise
+these rules; they do not measure a deployment under load. Section 11's
+60-second `check_timeout` remains unchanged.
 
 Sections 2 and 13.4 have no known gap in model-free configuration
 documents or `rest` on stock charters. The numbered stock's gap and the
@@ -261,22 +259,16 @@ Section 13.8 has no gap in note-backed settings transport within the call payloa
 
 ## Gaps and departures
 
+- **Not yet:** 13.9: the reference's charter 2 still tells the coder to run
+  shell lints and focused tests before delivery, and charter 5 still permits
+  asking for them (`docs/examples/reference/settings.json`), where the
+  delivery hook owns those checks. The charters' words are generated
+  elsewhere (`../draft/delivery-checks.md`).
 - **Not yet:** 13.9: stage one's golden (`../domain/testing.md`, the
   reference's roles) names the deployment's two landing rules and not
   the case's project's rule 1, so a box Ask temper configures from the
   reference's description keeps the stock's rule 1 over its goals'
   branches until its owner sets the project's.
-- **Not yet:** 13.9, *template 4's work*: the reference sets
-  `close_out`, which 13.2 makes a change into the landing branch once
-  the goal has landed, so its path draws "close-out" after main's
-  merge; but its charter 5's instructions make the close-out, X, a
-  designer's change into the goal's branch, and land the goal after it
-  (`docs/examples/reference/settings.json`), as
-  `../draft/reference-case.md` has it. `../draft/goal-as-designer.md`,
-  section 2, moves the close-out after the landing, which the reference's
-  charters don't take yet (`../draft/goal-as-designer.status.md`); until
-  then the reference's path draws its close-out where its runs don't
-  make it. [in flight: coordinator-charter]
 
 - **Not yet:** 13.4, 13.8: the supplied retirement inventory has no outcome
   for the seven-model stock's largest-turn remeasurement or its affected
@@ -329,7 +321,7 @@ remain section 11's deferred work.
 - **Design departs:** 13.4, from the request `ui-home-status` of 2026-11-05, decided by its plan's cut: the status agent is stock charter 9, where the request has 7, because the reference's settings already number its designer 7 and its triage 8 (13.9), so a stock 7 would run the designer's words there. Its "no tools but finish" holds by the run's authority, which names none, since the host part declares its fixed tools whatever a charter says, but for the settings and delegate families', which charter 9 doesn't name (`../domain/agent.md`, 4.3).
 - **Design departs:** 13.4, from the request `first-goal-fixes` of 2026-11-05, decided by its plan's cut: `documents.text_bytes` is 512 in `temper init`'s documents, where the request has 8,192 (`setup.status.md`).
 - **Design departs:** 13.9, from the request `ui-settings` of 2026-11-05, decided by its plan's cut: the reference's kind 7 is a file of its own, `docs/examples/reference/project.json`, with `way` 4, the reference's goal, where the request has `settings.json` set all four and says no way, because `settings.json` is applied before the case's project exists, and jig refuses a project's item then.
-- **Departs:** 3, 8: a kept GitHub forge whose record holds the base `https://github.com/` keeps remotes `https://github.com//OWNER/NAME.git`, where section 3 has a remotes' base end in no `/`: `temper-service/src/system.rs`'s `GITHUB_REMOTE` gives new forges a base with none, but a kept forge keeps the place its record holds (section 8), `temper-service/src/translate.rs`, `repository_item`, joins the base as it stands and nothing rewrites a record, so such a forge has them until it is removed and connected again (section 11). 1, 3: `forge::settings` takes a list of the document's forges (`temper-service/src/forge.rs`), populated only by in-process test fixtures while the product prepares an empty list, to pair each forge with its endpoint; its refusals name `application.forges[N].api`, `log_origins` and `number`, the startup checks name `application.forges` and `application.forges[N].api` (`temper-service/src/startup/checks.rs`), and the setup host's refusals name `application.forges.<number>` (`temper-service/src/setup/settings.rs`), members the document does not have, because those fixtures give their forges' endpoints that way and the host names runtime forge numbers under the same path. The client's page for a Forgejo elsewhere tells a person to add entries to `application.forges`, `application.identities` and `application.setup` (`temper-client-view/src/words.rs`, `ForgeConfig`, `ForgeIdentity`, `ForgeSetupEntry`), members the document refuses as unknown, a defect the code gives no reason for (the page itself is `../client/forge.status.md`, 5.4). 13.4: the rules and policy 1 also delegate to procedures 3 and 4, which 13.4 does not name, for a reason the code does not record (`temper-service/src/stock.rs`). 13.9: `.temper/pre-pr` runs the format check and the counted baselines, no lints and no package's focused tests, because whether a build runs at each push waits for the numbers, which the record so far does not give and the case's walk measures (section 11; the user, 2026-11-02).
+- **Departs:** 3, 8: a kept GitHub forge whose record holds the base `https://github.com/` keeps remotes `https://github.com//OWNER/NAME.git`, where section 3 has a remotes' base end in no `/`: `temper-service/src/system.rs`'s `GITHUB_REMOTE` gives new forges a base with none, but a kept forge keeps the place its record holds (section 8), `temper-service/src/translate.rs`, `repository_item`, joins the base as it stands and nothing rewrites a record, so such a forge has them until it is removed and connected again (section 11). 1, 3: `forge::settings` takes a list of the document's forges (`temper-service/src/forge.rs`), populated only by in-process test fixtures while the product prepares an empty list, to pair each forge with its endpoint; its refusals name `application.forges[N].api`, `log_origins` and `number`, the startup checks name `application.forges` and `application.forges[N].api` (`temper-service/src/startup/checks.rs`), and the setup host's refusals name `application.forges.<number>` (`temper-service/src/setup/settings.rs`), members the document does not have, because those fixtures give their forges' endpoints that way and the host names runtime forge numbers under the same path. The client's page for a Forgejo elsewhere tells a person to add entries to `application.forges`, `application.identities` and `application.setup` (`temper-client-view/src/words.rs`, `ForgeConfig`, `ForgeIdentity`, `ForgeSetupEntry`), members the document refuses as unknown, a defect the code gives no reason for (the page itself is `../client/forge.status.md`, 5.4). 13.4: the rules and policy 1 also delegate to procedures 3 and 4, which 13.4 does not name, for a reason the code does not record (`temper-service/src/stock.rs`).
 - **Departs:** 3: `checks::standalone` (`temper-service/src/startup/checks.rs`) refuses a `clients.listener` off loopback in every engine shape, where this section asks loopback only in standalone and wherever the printed link is on, because `Clients` expects the listener's address as text at `Listening`, and jig's `address_text` gives none for an IPv6 address off loopback; an IPv4 address has text and is refused with it. So `[::]:7100`, which the user's request of 2026-11-04 asks to show panicking, is refused at the start and reaches no `Listening`. The user chose the check on 2026-11-05: it stands, in place of section 3's bound outside standalone.
 
 Sections 3 and 10 have `engine.clients.approval` enabled beside `link`
@@ -341,14 +333,8 @@ Section 13.8 has no known gap in a brief's charter bound: the engine
 fits a charter to the smaller of `hub.charter_bytes` and its worker's
 allowance, 65,536 where its process has no local agent
 (`../domain/agent.status.md`, 4.3).
-- **Not yet:** 3: `close_job`, read at the start beside `merge_job` and
-  kept per project. [in flight: close-job-service]
-- **Not yet:** 13.2, 13.4, 13.9: charter 5's instructions without the
-  landing, the close-out, catch-ups, CI selection reads or acceptance
-  checks before landing, with tagged status written up front and the
-  lean report note; its policy's results `last_or_failure` and its
-  questions part on `words`; charter 7 without the close-out; the
-  reference's `template-goal` 4 at design alone. [in flight: coordinator-charter]
-- **Not yet:** 13.4, 13.9: template 4 ended by the goal closer; the
-  stock's and the reference's delegation naming procedure 6 and job 4,
-  and the reference's eighteen executor places. [in flight: template-closer]
+
+Sections 3, 13.2, 13.4 and 13.9's close job setting, coordinator policy and
+instructions, template 4's closer and reference delegation are built.
+`temper-service`'s stock tables check the configured editions; the
+engine-domain world's goal closer stories exercise their composition.

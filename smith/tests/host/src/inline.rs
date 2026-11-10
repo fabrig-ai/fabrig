@@ -399,12 +399,16 @@ impl World {
                                 host::Ask::Host { .. } => {
                                     host::Reply::Host { error: false, body: b"host completed".as_slice().into() }
                                 }
-                                host::Ask::Deliver { .. } => host::Reply::Delivery(host::Delivery::Delivered(
-                                    host::Delivered::new(Box::from([
-                                        host::Receipt::new(0, b"kept".as_slice().into()).expect("bounded receipt")
-                                    ]))
-                                    .expect("bounded delivery"),
-                                )),
+                                host::Ask::Save | host::Ask::Deliver { .. } => {
+                                    host::Reply::Delivery(host::Delivery::Delivered(
+                                        host::Delivered::new(Box::from([host::Receipt::new(
+                                            0,
+                                            b"kept".as_slice().into(),
+                                        )
+                                        .expect("bounded receipt")]))
+                                        .expect("bounded delivery"),
+                                    ))
+                                }
                             },
                         });
                     }

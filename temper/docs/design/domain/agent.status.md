@@ -1,6 +1,6 @@
 # agent: status
 
-2026-11-09. Where temper's code lags or departs from [agent.md](agent.md).
+2026-11-10. Where temper's code lags or departs from [agent.md](agent.md).
 
 Sections 4.3's `decided`, 8.1 and 8.4.1 have no known implementation gap
 but the one below in what reaches a person, the whole story's milestone

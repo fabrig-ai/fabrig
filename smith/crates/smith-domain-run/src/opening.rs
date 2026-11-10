@@ -59,6 +59,7 @@ pub(crate) fn main(
         wait: charter.grants.wait,
         host_tools: charter.grants.host_tools.clone(),
         deliver: charter.grants.deliver.is_some(),
+        save: charter.grants.save,
         llm: charter.llm.clone(),
         line: super::charter::line(&charter.llm, limits.compaction_material),
         system: prompt::system(charter, workspace, found, charter.budget.remainder(spent, left), resumed),

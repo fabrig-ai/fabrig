@@ -207,6 +207,11 @@ selection, while its coordinator wakes for questions, escalations,
 failures, reds and words alone, with no landing, close-out or catch-up
 of its own (`domain/forge.status.md`, 11.2;
 `protocol/tooling.status.md`, 4.2; `draft/goal-runs-itself.status.md`).
+Delivery checks (`draft/delivery-checks.md`; `tools/pre-pr/design.md`) use
+the worker's frozen landing pin, run changed-package lints and focused
+tests with direct dependents, and identify inherited failures. The
+reference's coder and coordinator still ask for manual checks
+(`protocol/configuration.status.md`, 13.9).
 Nothing tells Ask temper to propose a template's work, and stage one's golden asks it
 at template 4 by number (`protocol/configuration.status.md`, 13.9;
 `domain/agent.status.md`, 8.1; `domain/testing.status.md`, 6.5.1;
@@ -1150,6 +1155,7 @@ Drafts:
 - [`draft/cli.md`](draft/cli.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
 - [`draft/dashboards.md`](draft/dashboards.status.md)
+- [`draft/delivery-checks.md`](draft/delivery-checks.status.md)
 - [`draft/deployment-binaries.md`](draft/deployment-binaries.status.md)
 - [`draft/dogfood-hacks.md`](draft/dogfood-hacks.status.md)
 - [`draft/first-release.md`](draft/first-release.status.md)

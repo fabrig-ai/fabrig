@@ -823,6 +823,7 @@ fn answer_head(service: &Stages) -> bool {
             | domain::Request::Admitted { .. }
             | domain::Request::Long { .. }
             | domain::Request::LongDone { .. }
+            | domain::Request::Save { .. }
             | domain::Request::Deliver { .. }
             | domain::Request::Unauthorized { .. }
             | domain::Request::Refused { .. }

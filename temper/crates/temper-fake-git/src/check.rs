@@ -2,6 +2,7 @@
 use skein_io::kernel::Spawn;
 use skein_lib::{Secret, base64};
 use std::collections::BTreeMap;
+use temper_worker_domain_checkout::git;
 use temper_worker_protocol_git::invocation::{self, Command, Source};
 /// The name and email the commit's environment carries.
 pub type Author = (Box<[u8]>, Box<[u8]>);
@@ -224,7 +225,12 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
             url,
             spec,
         ] => {
-            let from = spec.strip_prefix(b"+")?.strip_suffix(b":refs/temper/fetched")?;
+            let spec = spec.strip_prefix(b"+")?;
+            let (from, into) = if let Some(from) = spec.strip_suffix(b":refs/temper/fetched") {
+                (from, git::Into::Fetched)
+            } else {
+                (spec.strip_suffix(b":refs/temper/landing")?, git::Into::Landing)
+            };
             let source = if from == b"HEAD" {
                 Source::Default
             } else if let Some(branch) = from.strip_prefix(b"refs/heads/") {
@@ -232,7 +238,7 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
             } else {
                 Source::Commit(invocation::object(from)?)
             };
-            Command::Fetch { remote: (*url).into(), source }
+            Command::Fetch { remote: (*url).into(), source, into }
         }
         [b"checkout", b"--force", b"--detach", commit] => Command::CheckOut { commit: invocation::object(commit)? },
         [b"clean", b"-ffdxq"] => Command::Clean,

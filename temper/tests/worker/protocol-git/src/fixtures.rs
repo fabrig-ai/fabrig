@@ -184,7 +184,14 @@ pub fn operations() -> Vec<(&'static str, Scenario)> {
 #[must_use]
 pub fn fetch() -> Scenario {
     scenario(
-        git::Op::Fetch { at: at(), remote: remote(), want: git::Want::Default, identity: 1, account: None },
+        git::Op::Fetch {
+            into: git::Into::Fetched,
+            at: at(),
+            remote: remote(),
+            want: git::Want::Default,
+            identity: 1,
+            account: None,
+        },
         &["fetch-default"],
         Expected::done(git::Done::Fetched { commit: TWO }),
     )
@@ -193,6 +200,7 @@ pub fn fetch() -> Scenario {
 pub fn commit(merging: bool) -> Scenario {
     scenario(
         git::Op::Commit {
+            always: false,
             at: at(),
             parent: ONE,
             merging: merging.then_some(TWO),

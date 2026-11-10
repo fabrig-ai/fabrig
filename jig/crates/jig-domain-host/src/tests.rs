@@ -5,8 +5,8 @@ use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue, Time, Token, Wall};
 
 use crate::{
-    CallAnswer, Delivery, DeliveryOutcome, Event, Failure, Finish, Hub, Invalid, Limits, MessageRefusal, Preparation,
-    Reason, Refusal, Refused, Request, RunAssignment, Work, Workspace, step,
+    Ask, CallAnswer, Delivery, DeliveryOutcome, Event, Failure, Finish, Hub, Invalid, Limits, MessageRefusal,
+    Preparation, Reason, Refusal, Refused, Request, RunAssignment, Work, Workspace, step,
 };
 
 const LIMITS: Limits = Limits {
@@ -660,7 +660,7 @@ fn named_relay(h: &mut Harness, owner: Token, name: &[u8]) {
     let requests = h.step(Event::Agent(crate::FromAgent::Called {
         owner,
         call: Box::from(name),
-        ask: crate::Ask::Relay {
+        ask: Ask::Relay {
             tool: Box::from(&b"read"[..]),
             writes: false,
             input: Box::from(&b"{}"[..]),
@@ -1042,7 +1042,7 @@ fn admission_classifies_calls_and_link_work_separately_from_completions() {
     let call = crate::FromAgent::Called {
         owner: Token::new(1),
         call: Box::from(*b"read"),
-        ask: crate::Ask::Relay {
+        ask: Ask::Relay {
             tool: Box::from(*b"logs"),
             writes: false,
             input: Box::new([]),
@@ -1178,4 +1178,32 @@ fn a_shutting_hub_says_draining_again_after_each_opening() {
             panic!("each opening while shutting down says draining after hello: {requests:?}");
         };
     }
+}
+
+#[test]
+fn a_save_is_an_unchecked_delivery_and_shares_the_delivery_slot() {
+    let mut h = Harness::new();
+    let (owner, workspace, agent) = h.live(1);
+    let call = Token::new(8);
+    let requests = h.step(fixtures::called(owner, call, Ask::Save));
+    let [Request::DeliverUnchecked { owner: delivery, workspace: target }] = requests.as_ref() else {
+        panic!("unchecked workspace delivery: {requests:?}")
+    };
+    assert_eq!(*target, workspace);
+    let delivery = *delivery;
+    for ask in [Ask::Save, fixtures::deliver(b"checked".as_slice().into())] {
+        let requests = h.step(fixtures::called(owner, Token::new(9), ask));
+        let [Request::Agent(crate::ToAgent::Answer { answer: CallAnswer::Busy, .. })] = requests.as_ref() else {
+            panic!("save shares the delivery slot: {requests:?}")
+        };
+    }
+    let result = Delivery { outcome: DeliveryOutcome::Delivered, left: Token::new(900), changed: true };
+    assert_eq!(
+        h.step(Event::Delivered { owner: delivery, delivery: result }).as_ref(),
+        [Request::Agent(crate::ToAgent::Answer {
+            agent,
+            call: Box::from(call.raw().to_be_bytes()),
+            answer: CallAnswer::Delivered(result)
+        })]
+    );
 }

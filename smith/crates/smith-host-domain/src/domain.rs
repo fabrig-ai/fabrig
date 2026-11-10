@@ -589,7 +589,7 @@ fn receive(agent: &mut Agent, owner: Token, message: Up, env: &Env<Limits>, out:
         Up::Call { call, name, deadline, ask } => {
             let kind = match &ask {
                 Ask::Host { .. } => Kind::Host,
-                Ask::Deliver { .. } => Kind::Delivery,
+                Ask::Save | Ask::Deliver { .. } => Kind::Delivery,
             };
             agent.waiting = false;
             if agent.calls.len() >= env.limits.calls {

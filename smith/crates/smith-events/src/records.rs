@@ -587,6 +587,7 @@ pub struct Tools {
     pub withheld: List<Family>,
     pub wait: bool,
     pub deliver: bool,
+    pub save: bool,
     pub host: List<Box<[u8]>>,
 }
 

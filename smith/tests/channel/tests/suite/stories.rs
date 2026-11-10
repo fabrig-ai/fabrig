@@ -972,7 +972,7 @@ fn a_delivery_keeps_fields_and_a_settled_landing_or_stale_terminal() {
     let fields = world.observations().iter().find_map(|observation| match observation {
         Observation::HostCall { call, ask: boxed, .. } if *call == skein_lib::Token::new(1) => match boxed.as_ref() {
             smith_host_domain::channel::Ask::Deliver { fields } => Some(fields.value()),
-            smith_host_domain::channel::Ask::Host { .. } => None,
+            smith_host_domain::channel::Ask::Save | smith_host_domain::channel::Ask::Host { .. } => None,
         },
         _ => None,
     });

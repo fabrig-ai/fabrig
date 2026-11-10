@@ -191,6 +191,7 @@ fn run(command: &Command, script: Vec<(Call, Response)>) -> (crate::Answer, Disk
     (answer, disk, net)
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "one replay table holds each command and its resulting files")]
 fn missed_calls_replay_the_scanned_checkout_and_make_each_write_once() {
     let rows = [
         (
@@ -202,7 +203,11 @@ fn missed_calls_replay_the_scanned_checkout_and_make_each_write_once() {
         ),
         (
             "fetch",
-            Command::Fetch { remote: REMOTE.into(), source: Source::Branch(b"topic".as_slice().into()) },
+            Command::Fetch {
+                into: temper_worker_domain_checkout::git::Into::Fetched,
+                remote: REMOTE.into(),
+                source: Source::Branch(b"topic".as_slice().into()),
+            },
             vec![(
                 Call::Fetch {
                     repository: b"acme/app".as_slice().into(),
@@ -211,6 +216,23 @@ fn missed_calls_replay_the_scanned_checkout_and_make_each_write_once() {
                 Response::Answer(RemoteAnswer::Commit(TOPIC)),
             )],
             b"repo/.git/refs/temper/fetched",
+            b"\x02\0\0\0\0\0\0\0",
+        ),
+        (
+            "fetch landing",
+            Command::Fetch {
+                into: temper_worker_domain_checkout::git::Into::Landing,
+                remote: REMOTE.into(),
+                source: Source::Branch(b"topic".as_slice().into()),
+            },
+            vec![(
+                Call::Fetch {
+                    repository: b"acme/app".as_slice().into(),
+                    want: api::Want::Branch(b"topic".as_slice().into()),
+                },
+                Response::Answer(RemoteAnswer::Commit(TOPIC)),
+            )],
+            b"repo/.git/refs/temper/landing",
             b"\x02\0\0\0\0\0\0\0",
         ),
         (

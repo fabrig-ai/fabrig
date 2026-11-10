@@ -52,6 +52,7 @@ pub fn priced_charter() -> smith_domain::run::Charter {
         grants: run::charter::Grants {
             wait: true,
             deliver: None,
+            save: false,
             agents: false,
             host_tools: Box::default(),
             tools: run::charter::Tools { inspect: false, modify: false, shell: false },

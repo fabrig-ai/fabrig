@@ -27,6 +27,7 @@ fn an_admitted_run_reads_its_checkout_then_opens_main_with_the_whole_budget() {
         activation: 1,
         host_tools: charter().grants.host_tools,
         deliver: false,
+        save: false,
         llm: charter().llm,
         line: 7168,
         system: crate::prompt::system(&charter(), Some(&workspace()), &found, BUDGET, false),

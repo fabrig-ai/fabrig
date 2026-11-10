@@ -576,6 +576,11 @@ fn delivery_follows_contract_policy_and_workspace() {
         let mut assembled = crate::assignment(value, Box::new([]), Box::new([]), false).expect("agent charter");
         assembled.delivers = delivers;
         let translated = charter(assembled).expect("bounded charter");
+        assert_eq!(
+            translated.grants.save,
+            delivery.is_some() && translated.outcome.change.is_some(),
+            "save only for a finite producer: {contract:?} / {ended_by:?}"
+        );
         assert_eq!(translated.grants.deliver.as_ref(), delivery, "{contract:?} / {ended_by:?} / {modify} / {delivers}");
         assert_eq!(translated.grants.tools.modify, writable, "{contract:?} / {ended_by:?} / {modify} / {delivers}");
     }
@@ -936,4 +941,17 @@ fn hosted_refuses_a_connector_section_without_its_bytes() {
         )
         .is_none()
     );
+}
+
+#[test]
+fn a_producers_save_grant_is_encoded_in_charter_version_four() {
+    let mut source = source();
+    source.contract.change = Some(crate::ChangeRule { checks_must_pass: true, fields: Box::new([]) });
+    let value = charter(source).expect("producer charter");
+    assert!(value.grants.save);
+    let names = [EndpointName { number: 7, dialect: 3, name: b"primary".as_slice().into() }];
+    let bytes = encode(value, &names, &wire::CEILINGS).expect("encoded charter");
+    let decoded = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).expect("version four");
+    assert!(decoded.tools().save());
+    assert!(decoded.tools().deliver().is_some());
 }

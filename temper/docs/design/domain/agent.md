@@ -152,6 +152,15 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
   disables `modify`; repository edits, including small fixes, go through
   `change` (4.3.1). The stock coder has read, write, edit and remove: a
   file the change drops is removed once read.
+- **`save`, for a change's producer** (smith's `domain/run.md`, 8.5; jig's
+  `domain/hosts.md`, section 8): granted with `deliver` to a finite run with
+  a change among its outcomes, and to no other run, a goal's included. It
+  pushes the checkout's tree to the change's own branch at once, with no
+  check run, marked unchecked (section 6), so that a producer that stops to
+  ask a question has its work on the branch first, unrefused for being
+  unfinished. Only a `deliver` or a `finish` that delivers runs the checks,
+  and only a producer's successful result, whose finish ran them, has its
+  change merged into the goal's branch (`forge.md`, 8.1).
 - **A goal's run may modify and deliver** where its charter's `modify` is
   set and its task holds a goal branch in the repository; otherwise it
   inspects alone. It delivers to its own run branch (`forge.md`, 11.1),
@@ -885,6 +894,25 @@ and the state as it is now (jig's `domain/tasks.md`, 5.6).
 Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
 `domain/run.md`, 3.1 and 8.1).
 
+- **What a delivery checks** is its project's: the host runs the
+  repository's `.temper/pre-pr` on the run's warm checkout before anything
+  is pushed, at each `deliver` and at a `finish` that delivers, and a
+  failing check refuses the delivery, its output's tail the run's feedback.
+  A `save` runs none, and is marked unchecked (4.3; section 6).
+  The worker pins the landing branch's tip in each change producer's
+  checkout as `refs/temper/landing` (worker.md, section 5), so a check can
+  take what the delivery changed against it; fabrig's checks the changed
+  packages' lints and the focused tests of those packages and their direct
+  dependents, a failure the base has too reported as inherited
+  (`../protocol/configuration.md`, 13.9; `tools/pre-pr/design.md`).
+- **No CI before a goal's branch.** A pull request into a goal's branch
+  runs no CI: a change's delivery checks are all it meets before it lands
+  there. The landing's CI into main, the project's full gate, is the
+  guard (`../protocol/configuration.md`, 13.9).
+- **No security boundary:** an agent can change what a check runs
+  (smith's `domain/run.md`, 8.1); the landing's CI and its authority's
+  requirements guard what lands on main.
+
 ### 4.6 Budget, models, waiting
 
 - **Budget:** the run's turns, spend and time, with its reserve of turns
@@ -984,6 +1012,21 @@ delivered unchanged lands the save's commit, the delivery's title and body
 unused (worker.md, section 5). The head delivered names what is on the branch,
 and the coding charter's words say so (`../protocol/configuration.md`, 13.4's
 charter 2 row), since a run can't otherwise tell.
+
+A `save` (4.3) is the same push with no check run before it, and marked
+unchecked: its commit's title is `Unchecked: work in progress, saved before a
+question`, with no body, and a landed save's receipt reads `saved <head> to
+branch <branch>, unchecked: no check ran; your checkout stays detached, as
+expected`. Its other outcomes are the table's. A save's push moves the
+change's own branch as a delivery's does, so the engine hears of it as of
+any push the run left (worker.md, 4.2), and the forge opens no pull request
+on it (`forge.md`, 8.1). In its hold, the next checked delivery, or the
+worker's own save of saved work, commits afresh on a save's head even with
+the tree unchanged (worker.md, section 5), so the head a finish delivers
+carries the delivery's title and body, never the unchecked mark. A later
+hold that starts from that save's head and delivers it unchanged lands it as
+it is: its tree is the one that finish checked, and its title still says
+unchecked.
 
 A receipt says it in words, whatever the charter, so that a run that finds its
 checkout detached does not take a good delivery for a failure: its full head,

@@ -2397,7 +2397,11 @@ pub fn change_world_funded(
         world.tick();
     }
     let producer = world.assigned.get(producer_index).expect("change producer assigned").clone();
-    assert_eq!(producer.workspace.repositories[0].landing, None, "initial producer starts from Base");
+    assert_eq!(
+        producer.workspace.repositories[0].landing.as_deref(),
+        Some(b"main".as_slice()),
+        "initial producer starts from Base"
+    );
     let change = world
         .answers
         .iter()

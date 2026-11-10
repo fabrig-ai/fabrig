@@ -1410,12 +1410,12 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   while a settings file and temper's translation refusal count from 1.
   Consistent person-facing numbering is later work. Default: keep the
   protocol's position and the current words until both temper paths agree.
-- **Progress from the repository's checks** (13.9): `.temper/pre-pr`
-  can run its quiet snapshot and format check before a baseline prints
-  anything. A timeout there can truthfully carry an empty tail. Naming
-  phases in that script is later repository work. Default: keep its output
-  and the agent's 60-second `check_timeout`, with smith's check path and
-  given time in the refusal; no larger figure follows from a silent tail.
+- **The checks' deadline** (13.9): `.temper/pre-pr` names each check
+  before it starts (`tools/pre-pr/design.md`, section 4), so a timeout's
+  tail shows where it stopped; with lints and focused tests it builds, and
+  the agent's 60-second `check_timeout` is the owner's to raise, separately
+  (2026-11-09). Default: 60 seconds, with smith's check path and given time
+  in the refusal.
 - **A reference call of 128 KB** (13.8): the 131,072-byte payload and
   98,500-token output pass the session's rendered feedback beyond the
   transcript's `said_text` ceiling. Raising that ceiling changes a stored
@@ -1542,27 +1542,6 @@ one owned Forgejo's place, with its own values (setup.md, 8.1).
   of the agent's largest size with its wrapper can pass. Default: such a
   turn, which no plan's model reaches in ordinary use, shows as too
   large to read (jig's `protocol/store.md`, 7.3).
-- **What the project's checks run at each push** (13.9). Lints and the
-  changed packages' focused tests are builds in the box's worker at
-  every delivery. Default: the reference's first edition of
-  `.temper/pre-pr` runs the format check and the counted baselines
-  alone, and the coding agent's charter, with the shell, runs the rest
-  (13.9); whether the script runs them too is decided from the reds that
-  reach a goal's branch, their repairs' cost and the check's time at
-  each push (the user, 2026-11-02). The record so far
-  (`../../development/pre-pr-numbers.md`) does not decide it: of 39 reds
-  that reached a plan's shared branch before the reference, where every
-  implementer ran its own lints and focused tests, 4 would have been
-  stopped by the changed packages' lints and focused tests at push, and
-  2 in part, each repaired in 5 to 18 minutes; the rest came from a
-  dependent package, a merge of main, the docs' vocabulary, or timing.
-  A producer that runs its checks itself leaves the same residue; one
-  that does not, a different one. The case's walk measures what
-  decides it: the reds of g's tier per change, by cause; each repair's
-  tasks and minutes; and the time of the changed packages' lints and
-  focused tests at a push in the box's worker, warm and cold, beside
-  the checks' deadline (the agent's `policy.check_timeout`, 60 s on the
-  box, a timeout the user sets).
 - **Who writes the case's workflows** (13.9). The repository a case runs
   on carries CI and `tier-slow.yml` and `tier-goal.yml` for its landing
   to meet them. Who writes them, and the runner's budget they take, are
@@ -2799,14 +2778,10 @@ that changes the stock changes nothing of them.
     wakes it for;
   - *charter 2, the coding agent's:* the stock's with smith's shell
     family (`shell` and `job`: smith's `domain/tools.md`), its
-    instructions the stock's but for its line that it can run nothing,
-    which says instead that before each delivery it runs the lints and
-    the focused tests of each package it changed, in this project
-    `cargo clippy -p PKG --all-targets -- -D warnings` and `cargo nextest
-    run -p PKG`, and fixes what they find in its own files, a failure
-    outside them going on its Left list (`.temper/pre-pr` runs neither:
-    section 11); and adding: push early; run the project's checks before
-    delivering;
+    instructions keep the stock's rule that it runs no build or test:
+    the delivery hook runs the lints and focused tests
+    (`tools/pre-pr/design.md`). It fixes failures in its own files and
+    records a failure outside them under Left; and adds: push early;
     finish with a Left list of what it found and does not own; mark a
     story that fails for code it does not own as ignored, the fault its
     reason, and never fix that code, the change that fixes the fault
@@ -3087,9 +3062,10 @@ that changes the stock changes nothing of them.
   landing are charter 2's, which acts on them; charter 6 judges a
   change by its words and the design, and charter 8 reads. Charter 5
   builds and tests nothing, so it holds only what a spec must carry of
-  those rules: a spec may ask its coder for the lints and the focused
-  tests of the packages it changes, as charter 2 runs them, and never
-  for a slow tier or a walk, which run after landing. Charter 7 writes
+  those rules: the delivery hook checks the changed packages' lints and
+  focused tests with their direct dependents, and a spec asks for no
+  separate build or test command. Slow tiers and walks run after
+  landing. Charter 7 writes
   design and names a change's effort, and holds no rule for building.
 - **The profile, whole** (`../draft/reference-code-production.md`,
   section 14; `../draft/notes.md`, N21): a box is set up for the
@@ -3178,8 +3154,20 @@ that changes the stock changes nothing of them.
   on its forge, the repository's default on Forgejo
   (`../domain/forge.md`, section 4), set where the repository is made;
   the project's checks are its `.temper/pre-pr` (smith's
-  `domain/run.md`, 8.1): format, lints, the changed packages' focused
-  tests and the counted baselines; its tiers' workflows are
+  `domain/run.md`, 8.1; `tools/pre-pr/design.md`): the format check and
+  the counted baselines on everything, then, against the base the worker
+  pins (`../domain/worker.md`, section 5), the lints of the packages the
+  delivery changed and the focused tests of those packages and their
+  direct dependents; a failure the base has too is reported as inherited
+  and refuses nothing; without the pin, the first two alone, saying so.
+  Coding agents run no build or test: this check runs them, mechanically,
+  at each delivery (the owner, 2026-11-09). A pull request into a goal's
+  branch runs no CI (its rules ask none: the rules above;
+  `../domain/forge.md`, 8.7 and 11.1), so a delivery's checks are
+  the only checks a change meets before it lands there; the landing's CI
+  into main, the project's full gate, is the guard. An agent can change
+  what a check runs: it is no security boundary (smith's
+  `domain/run.md`, 8.1). Its tiers' workflows are
   `tier-slow.yml` and `tier-goal.yml`, dispatch-only, each running the
   ids in its `temper_tests` input alone when given them
   (`../domain/after-landing.md`, section 2). Its merge command is its
@@ -3189,9 +3177,11 @@ that changes the stock changes nothing of them.
   The delivery format check batches Cargo's target roots by target edition
   and nearest rustfmt configuration, retaining rustfmt's module traversal;
   all five trees' counted baselines run against the private snapshot index,
-  including newly added sources. Only a tree whose checks all succeed may
-  reuse that success for an identical tree. The first uncached delivery
-  must also fit the unchanged 60-second check timeout (section 11).
+  including newly added sources. Only a tree whose checks all succeed, or
+  fail only as inherited, may reuse that success for an identical tree on
+  the same base. A first uncached delivery that changes no package must
+  also fit the 60-second check timeout; one that builds takes the
+  deployment's `check_timeout`, which the owner sets (section 11).
 - **Checked as it is read:** a test decodes the settings file as
   `temper ctl settings apply` decodes one, and the landing member as the
   document's is parsed, so an edition that no longer reads is red before

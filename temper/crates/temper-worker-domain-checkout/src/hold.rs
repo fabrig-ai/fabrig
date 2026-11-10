@@ -28,8 +28,8 @@
 //! since the start. Otherwise it is `Unchanged`, unless this hold's last push
 //! landed its head there: then it is that landing again, so that a delivery
 //! followed by a finish with nothing new is still a delivery. An eligible
-//! producer retry also fetches its landing tip during preparation: unchanged
-//! existing work outside that tip is delivered by a fresh guarded push, after
+//! producer retry compares with the landing pin fetched during preparation:
+//! unchanged existing work outside that tip is delivered by a fresh guarded push, after
 //! a local ancestry query. This snapshot never changes the checkout start.
 //! A save does the
 //! same to the saved-work branch, for every repository changed since the
@@ -109,7 +109,7 @@ use crate::boundary::{
 use crate::cache::{Cache, Workspace, count};
 use crate::domain::Domain;
 use crate::facts::{Cached, Ending, Fact, Facts, Preparation, Tally, Target};
-use crate::git::{Commit, Done, Fault, Missing, Op, Place, Want};
+use crate::git::{Commit, Done, Fault, Into, Missing, Op, Place, Want};
 use crate::limits::Limits;
 
 #[derive(Debug)]
@@ -136,13 +136,15 @@ struct Holding {
 /// its working tree is on (that one, or the last it committed), and the
 /// newest commit its push branch is known to have from this hold (the start,
 /// until a push lands); saved starts instead fetch the delivery baseline.
-/// `delivered` records whether this hold pushed its head.
+/// `delivered` records whether this hold pushed its head; `unchecked` requires
+/// a fresh commit while that head is its last save.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(crate) struct Tips {
     start: Commit,
     head: Commit,
     pushed: Option<Commit>,
     delivered: bool,
+    unchecked: bool,
     merging: Option<Commit>,
     expected: Option<Commit>,
     landing: Option<Commit>,
@@ -202,9 +204,11 @@ enum PrepareStep {
         repository: u32,
         saved: Commit,
     },
+    /// The pin, followed by the start's remaining preparation or a producer merge.
     FetchLanding {
         repository: u32,
         ours: Commit,
+        merging: Option<Commit>,
     },
     FetchBase {
         repository: u32,
@@ -262,8 +266,16 @@ struct Push {
 /// saved-work branch.
 #[derive(Debug)]
 enum To {
+    Unchecked,
     Branches,
     Saved,
+}
+
+fn unchecked_head(to: &To) -> bool {
+    match to {
+        To::Unchecked => true,
+        To::Branches | To::Saved => false,
+    }
 }
 
 /// The operation a pushing hold waits for.
@@ -339,6 +351,12 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
 
 pub(crate) fn push(domain: &mut Domain, env: &Env<Limits>, hold: Token, message: Message, out: &mut Queue<Request>) {
     start(domain, env, hold, To::Branches, message, out);
+}
+
+pub(crate) fn unchecked(domain: &mut Domain, env: &Env<Limits>, hold: Token, out: &mut Queue<Request>) {
+    let message =
+        Message { title: copy_of(b"Unchecked: work in progress, saved before a question"), body: Box::new([]) };
+    start(domain, env, hold, To::Unchecked, message, out);
 }
 
 pub(crate) fn save(domain: &mut Domain, env: &Env<Limits>, hold: Token, message: Message, out: &mut Queue<Request>) {
@@ -627,26 +645,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             }
         },
         PrepareStep::Fetch { repository } => match done {
-            Done::Fetched { commit } if landing_branch(nth(holding, repository)).is_some() => {
-                Next::Step(PrepareStep::FetchLanding { repository, ours: commit })
-            }
-            Done::Fetched { commit } => match nth(holding, repository).start {
-                Start::Merge { base, .. } => {
-                    Next::Step(PrepareStep::FetchBase { repository, ours: commit, base, head: None })
-                }
-                Start::Merged { ref heads, .. } => Next::Step(PrepareStep::FetchBase {
-                    repository,
-                    ours: commit,
-                    base: *heads.first().expect("admitted heads are nonempty"),
-                    head: Some(0),
-                }),
-                Start::Saved { .. } if nth(holding, repository).push.is_some() => {
-                    Next::Step(PrepareStep::FetchPush { repository, saved: commit })
-                }
-                Start::Base { .. } | Start::Branch { .. } | Start::Commit { .. } | Start::Saved { .. } => {
-                    Next::Step(PrepareStep::CheckOut { repository, commit, landing: None, pushed: Some(commit) })
-                }
-            },
+            Done::Fetched { commit } => fetched_start(holding, repository, commit),
             Done::Failed { fault: Fault::Missing { missing: Missing::Branch } }
             | Done::FailedWithOutput { fault: Fault::Missing { missing: Missing::Branch }, .. }
                 if creates_base(holding, repository) =>
@@ -682,9 +681,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             }
         },
         PrepareStep::Create { repository, commit } => match done {
-            Done::Succeeded => {
-                Next::Step(PrepareStep::CheckOut { repository, commit, landing: None, pushed: Some(commit) })
-            }
+            Done::Succeeded => fetched_start(holding, repository, commit),
             Done::Exists => Next::Step(PrepareStep::Refetch { repository }),
             Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
             Done::Fetched { .. }
@@ -699,9 +696,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             }
         },
         PrepareStep::Refetch { repository } => match done {
-            Done::Fetched { commit } => {
-                Next::Step(PrepareStep::CheckOut { repository, commit, landing: None, pushed: Some(commit) })
-            }
+            Done::Fetched { commit } => fetched_start(holding, repository, commit),
             // It was there a moment ago: whoever made it removed it since.
             Done::Failed { fault: Fault::Missing { .. } }
             | Done::FailedWithOutput { fault: Fault::Missing { .. }, .. } => Next::Failed(Failure::Transient),
@@ -718,13 +713,11 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
                 unreachable!("io ends a fetch with its own terminals")
             }
         },
-        PrepareStep::FetchLanding { repository, ours } => match done {
-            Done::Fetched { commit } => Next::Step(PrepareStep::CheckOut {
-                repository,
-                commit: ours,
-                landing: Some(commit),
-                pushed: Some(ours),
-            }),
+        PrepareStep::FetchLanding { repository, ours, merging } => match done {
+            Done::Fetched { commit } => match merging {
+                Some(base) => begin_merge(holding, repository, ours, Some(base)),
+                None => after_start(holding, repository, ours, Some(commit)),
+            },
             Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
             Done::Succeeded
             | Done::Looked { .. }
@@ -764,6 +757,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
                     head: commit,
                     pushed,
                     delivered: false,
+                    unchecked: false,
                     merging: None,
                     landing,
                     expected: if nth(holding, repository).start.is_saved() {
@@ -865,7 +859,13 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
         },
         PrepareStep::CompareBase { repository, ours, base } => match done {
             Done::IsAncestor { contains: true } => resume_contained(holding, repository, ours),
-            Done::IsAncestor { contains: false } => begin_merge(holding, repository, ours, Some(base)),
+            Done::IsAncestor { contains: false } => {
+                if pin_branch(nth(holding, repository)).is_some() {
+                    Next::Step(PrepareStep::FetchLanding { repository, ours, merging: Some(base) })
+                } else {
+                    begin_merge(holding, repository, ours, Some(base))
+                }
+            }
             Done::Failed { .. } | Done::FailedWithOutput { .. } => Next::Failed(Failure::Transient),
             Done::Succeeded
             | Done::Fetched { .. }
@@ -997,6 +997,47 @@ fn checked_out_merge(holding: &mut Holding, repository: u32, ours: Commit, base:
     begin_merge(holding, repository, ours, merging)
 }
 
+/// Fetch each named writable landing once; a merge keeps its contained-resume path.
+fn fetched_start(holding: &Holding, repository: u32, ours: Commit) -> Next {
+    let spec = nth(holding, repository);
+    let merge = match spec.start {
+        Start::Merge { .. } => true,
+        Start::Base { .. }
+        | Start::Branch { .. }
+        | Start::Commit { .. }
+        | Start::Saved { .. }
+        | Start::Merged { .. } => false,
+    };
+    if !merge && pin_branch(spec).is_some() {
+        Next::Step(PrepareStep::FetchLanding { repository, ours, merging: None })
+    } else {
+        after_start(holding, repository, ours, None)
+    }
+}
+
+fn after_start(holding: &Holding, repository: u32, ours: Commit, pin: Option<Commit>) -> Next {
+    let spec = nth(holding, repository);
+    match &spec.start {
+        Start::Merge { base, .. } => Next::Step(PrepareStep::FetchBase { repository, ours, base: *base, head: None }),
+        Start::Merged { heads, .. } => Next::Step(PrepareStep::FetchBase {
+            repository,
+            ours,
+            base: *heads.first().expect("admitted heads are nonempty"),
+            head: Some(0),
+        }),
+        Start::Saved { .. } if spec.push.is_some() => Next::Step(PrepareStep::FetchPush { repository, saved: ours }),
+        Start::Base { .. } | Start::Branch { .. } | Start::Commit { .. } | Start::Saved { .. } => {
+            let landing = if landing_branch(spec).is_some() { pin } else { None };
+            Next::Step(PrepareStep::CheckOut { repository, commit: ours, landing, pushed: Some(ours) })
+        }
+    }
+}
+
+/// A supplied landing never grants write authority (temper/docs/design/domain/worker.md, 5).
+fn pin_branch(repository: &Repository) -> Option<&[u8]> {
+    if repository.push.is_some() { repository.landing.as_deref() } else { None }
+}
+
 fn resume_contained(holding: &mut Holding, repository: u32, ours: Commit) -> Next {
     let index = usize::try_from(repository).expect("a u32 fits in a usize");
     let spec = holding.repositories.get_mut(index).expect("a repository of the spec");
@@ -1005,10 +1046,10 @@ fn resume_contained(holding: &mut Holding, repository: u32, ours: Commit) -> Nex
     };
     if spec.push.as_deref() == Some(&**branch) {
         spec.start = Start::Branch { branch: copy_of(branch) };
-        Next::Step(PrepareStep::FetchLanding { repository, ours })
+        fetched_start(holding, repository, ours)
     } else {
         spec.start = Start::Saved { branch: copy_of(branch) };
-        Next::Step(PrepareStep::FetchPush { repository, saved: ours })
+        fetched_start(holding, repository, ours)
     }
 }
 
@@ -1018,6 +1059,7 @@ fn begin_merge(holding: &mut Holding, repository: u32, ours: Commit, merging: Op
         head: ours,
         pushed: Some(ours),
         delivered: false,
+        unchecked: false,
         merging,
         landing: None,
         expected: nth(holding, repository).expected,
@@ -1201,14 +1243,21 @@ fn prepare_step(
             let remote = copy_of(&repository.remote);
             let identity = repository.identity;
             let account = repository.account;
-            Op::Fetch { at: place(workspace, repository), remote, want, identity, account }
+            Op::Fetch { into: Into::Fetched, at: place(workspace, repository), remote, want, identity, account }
         }
         PrepareStep::Default { repository } => {
             let repository = nth(holding, repository);
             let remote = copy_of(&repository.remote);
             let identity = repository.identity;
             let account = repository.account;
-            Op::Fetch { at: place(workspace, repository), remote, want: Want::Default, identity, account }
+            Op::Fetch {
+                into: Into::Fetched,
+                at: place(workspace, repository),
+                remote,
+                want: Want::Default,
+                identity,
+                account,
+            }
         }
         PrepareStep::Create { repository, commit } => {
             let repository = nth(holding, repository);
@@ -1230,9 +1279,10 @@ fn prepare_step(
         PrepareStep::FetchLanding { repository, .. } => {
             let spec = nth(holding, repository);
             Op::Fetch {
+                into: Into::Landing,
                 at: place(workspace, spec),
                 remote: copy_of(&spec.remote),
-                want: Want::Branch { branch: copy_of(landing_branch(spec).expect("eligible producer")) },
+                want: Want::Branch { branch: copy_of(pin_branch(spec).expect("writable item names its landing")) },
                 identity: spec.identity,
                 account: spec.account,
             }
@@ -1240,6 +1290,7 @@ fn prepare_step(
         PrepareStep::FetchPush { repository, .. } => {
             let spec = nth(holding, repository);
             Op::Fetch {
+                into: Into::Fetched,
                 at: place(workspace, spec),
                 remote: copy_of(&spec.remote),
                 want: Want::Branch { branch: copy_of(spec.push.as_deref().expect("writable saved start")) },
@@ -1255,6 +1306,7 @@ fn prepare_step(
         PrepareStep::FetchBase { repository, base, .. } => {
             let repository = nth(holding, repository);
             Op::Fetch {
+                into: Into::Fetched,
                 at: place(workspace, repository),
                 remote: copy_of(&repository.remote),
                 want: Want::Commit { commit: base },
@@ -1296,6 +1348,7 @@ fn commit_merge(holding: &Holding, workspace: Token, repository: u32, theirs: Co
         at: place(workspace, spec),
         parent: tips(holding, repository).head,
         merging: Some(theirs),
+        always: false,
         title: merge_title(theirs),
         body: Box::new([]),
         identity: spec.identity,
@@ -1333,7 +1386,7 @@ fn push_from(
     for repository in from..count(holding.repositories.len()) {
         let spec = nth(holding, repository);
         let writable = match push.to {
-            To::Branches => spec.push.is_some(),
+            To::Branches | To::Unchecked => spec.push.is_some(),
             To::Saved => spec.push.is_some() && spec.save.is_some(),
         };
         if !writable {
@@ -1345,7 +1398,20 @@ fn push_from(
         let title = copy_of(&push.message.title);
         let body = copy_of(&push.message.body);
         let merging = tips(holding, repository).merging;
-        io(id, Op::Commit { at, parent, merging, title, body, identity: spec.identity }, env, out);
+        io(
+            id,
+            Op::Commit {
+                at,
+                parent,
+                merging,
+                always: tips(holding, repository).unchecked,
+                title,
+                body,
+                identity: spec.identity,
+            },
+            env,
+            out,
+        );
         return State::Pushing { push, step: PushStep::Commit { repository }, asked: Asked::Nothing };
     }
     answer(holding.client, &push.to, Outcome::Pushed { landings: push.landings.into_boxed() }, out);
@@ -1367,13 +1433,13 @@ fn pushed(
 ) -> State {
     let (repository, landing) = match step {
         PushStep::Commit { repository } => match asked {
-            Asked::Nothing => match committed(holding, repository, done) {
+            Asked::Nothing => match committed(holding, repository, done, &push.to) {
                 Ok(()) => match unpushed(holding, &push.to, repository) {
                     Some(commit) => return push_commit(holding, id, push, repository, commit, env, out),
                     None => {
                         let prior = landed_before(holding, &push.to, repository);
                         let comparison = match push.to {
-                            To::Branches => tips(holding, repository).landing,
+                            To::Branches | To::Unchecked => tips(holding, repository).landing,
                             To::Saved => None,
                         };
                         if prior == Landing::Unchanged
@@ -1402,7 +1468,7 @@ fn pushed(
                 Err(failure) => (repository, failed_landing(failure)),
             },
             // Committed or not, nothing is pushed.
-            Asked::Abort | Asked::Release => match committed(holding, repository, done) {
+            Asked::Abort | Asked::Release => match committed(holding, repository, done, &push.to) {
                 Ok(())
                 | Err(
                     Done::Failed { fault: Fault::Cancelled } | Done::FailedWithOutput { fault: Fault::Cancelled, .. },
@@ -1459,11 +1525,12 @@ fn pushed(
 /// Pushing, a commit done: the repository's new head, if it committed, or
 /// why it failed.
 #[expect(clippy::result_large_err, reason = "the fixed diagnostic terminal is returned without allocation")]
-fn committed(holding: &mut Holding, repository: u32, done: Done) -> Result<(), Done> {
+fn committed(holding: &mut Holding, repository: u32, done: Done, to: &To) -> Result<(), Done> {
     match done {
         Done::Committed { commit } => {
             let tips = tips_mut(holding, repository);
             tips.head = commit;
+            tips.unchecked = unchecked_head(to);
             tips.merging = None;
             Ok(())
         }
@@ -1490,7 +1557,7 @@ fn committed(holding: &mut Holding, repository: u32, done: Done) -> Result<(), D
 fn unpushed(holding: &Holding, to: &To, repository: u32) -> Option<Commit> {
     let tips = tips(holding, repository);
     let base = match to {
-        To::Branches => {
+        To::Branches | To::Unchecked => {
             // A saved tree is unfinished work even when a prior mid-run delivery
             // already put it on the target. Establish this hold's landing with a
             // guarded push before reporting it; subsequent finishes reuse it.
@@ -1509,7 +1576,7 @@ fn unpushed(holding: &Holding, to: &To, repository: u32) -> Option<Commit> {
 fn landed_before(holding: &Holding, to: &To, repository: u32) -> Landing {
     let tips = tips(holding, repository);
     match to {
-        To::Branches => match tips.pushed {
+        To::Branches | To::Unchecked => match tips.pushed {
             Some(commit) if commit == tips.head && tips.delivered => Landing::Landed { commit },
             Some(_) | None => Landing::Unchanged,
         },
@@ -1535,7 +1602,7 @@ fn push_commit(
     let identity = spec.identity;
     let account = spec.account;
     let expected = match push.to {
-        To::Branches => tips(holding, repository).expected,
+        To::Branches | To::Unchecked => tips(holding, repository).expected,
         To::Saved => None,
     };
     io(id, Op::Push { at, remote, commit, branch, expected, identity, account }, env, out);
@@ -1592,7 +1659,7 @@ fn verify(
     let remote = copy_of(&spec.remote);
     let identity = spec.identity;
     let account = spec.account;
-    io(id, Op::Fetch { at, remote, want, identity, account }, env, out);
+    io(id, Op::Fetch { into: Into::Fetched, at, remote, want, identity, account }, env, out);
     State::Pushing { push, step: PushStep::Verify { repository, failure }, asked }
 }
 
@@ -1621,9 +1688,10 @@ fn verified(holding: &mut Holding, to: &To, repository: u32, done: Done, failure
 fn land(holding: &mut Holding, to: &To, repository: u32) -> Landing {
     let tips = tips_mut(holding, repository);
     match to {
-        To::Branches => {
+        To::Branches | To::Unchecked => {
             tips.pushed = Some(tips.head);
             tips.delivered = true;
+            tips.unchecked = unchecked_head(to);
             if tips.expected.is_some() {
                 tips.expected = Some(tips.head);
             }
@@ -1673,7 +1741,7 @@ fn released(client: Token, out: &mut Queue<Request>) -> State {
 
 fn answer(client: Token, to: &To, outcome: Outcome, out: &mut Queue<Request>) {
     match to {
-        To::Branches => out.push(Request::Pushed { client, outcome }),
+        To::Branches | To::Unchecked => out.push(Request::Pushed { client, outcome }),
         To::Saved => out.push(Request::Saved { client, outcome }),
     }
 }
@@ -1890,7 +1958,9 @@ fn place(workspace: Token, repository: &Repository) -> Place {
 /// The branch a push to `to` of `repository` goes to.
 fn branch_of(repository: &Repository, to: &To) -> Box<[u8]> {
     match to {
-        To::Branches => copy_of(repository.push.as_deref().expect("only a writable repository is pushed")),
+        To::Branches | To::Unchecked => {
+            copy_of(repository.push.as_deref().expect("only a writable repository is pushed"))
+        }
         To::Saved => copy_of(repository.save.as_deref().expect("only a repository with a save destination is saved")),
     }
 }

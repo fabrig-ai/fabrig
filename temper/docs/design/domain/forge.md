@@ -1899,10 +1899,13 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    change alone), so the change cancels its producing task, whose work
    is done, and goes on to open it, in the same commit that frees the
    slot, before any retry could claim it. A change handed a pushed
-   branch starts at the next step. A producing delegate retried while it
-   still owns an existing change branch starts at that branch and carries
-   the change's landing branch beside its write destination. Only a
-   writable producer whose start is that destination gets this comparison;
+   branch starts at the next step. Every producing delegate's writable
+   repository carries the change's landing branch beside its write
+   destination, whatever its start, and the worker pins its tip for the
+   project's checks (`worker.md`, 4.1 and section 5). A producing delegate
+   retried while it still owns an existing change branch starts at that
+   branch. Only a writable producer whose start is that destination gets
+   the comparison for existing work;
    saved starts, repairs, resolution, gates and ordinary runs do not. The
    worker fetches the landing tip per hold and verifies an existing
    unlanded head through a guarded push (worker.md, section 5). This does
