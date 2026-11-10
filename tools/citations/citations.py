@@ -82,8 +82,14 @@ class Tree:
 
     def markdown(self):
         if self.docs is None:
-            self.docs = [rel for rel, _ in walk(self.root, every_md=True)]
+            self.docs = sorted((rel for rel, _ in walk(self.root, every_md=True)), key=document_order)
         return self.docs
+
+
+def document_order(path):
+    """Git archives' file-first directory walk, independent of filesystem insertion order."""
+    parts = path.split("/")
+    return tuple((1, part) for part in parts[:-1]) + ((0, parts[-1]),)
 
 
 def tree_of(rel):
@@ -174,6 +180,12 @@ def resolve(tree, src, token, owner, is_code):
 
 def suffix(tree, tok, home, how):
     """Match by path suffix among docs/ files: same tree first, then skein's foundation, then any."""
+    candidates, rule = suffix_candidates(tree, tok, home)
+    return (candidates[0], rule) if candidates else (None, how + "-dead")
+
+
+def suffix_candidates(tree, tok, home):
+    """All candidates at the suffix reader's winning precedence, in its selection order."""
     t = tok
     while t.startswith(("../", "./")):
         t = t[3:] if t.startswith("../") else t[2:]
@@ -181,11 +193,11 @@ def suffix(tree, tok, home, how):
     docs = [d for d in hits if "/docs/" in d or d.startswith("docs/")]
     same = [d for d in docs if home and d.startswith(home + "/")]
     if same:
-        return same[0], "suffix-same" if len(same) == 1 else "suffix-ambiguous"
+        return same, "suffix-same" if len(same) == 1 else "suffix-ambiguous"
     for group in ([d for d in docs if d.startswith("skein/docs/foundation/")], docs, hits):
         if group:
-            return group[0], "suffix"
-    return None, how + "-dead"
+            return group, "suffix"
+    return [], None
 
 
 def doc_of_status(rel):
@@ -403,9 +415,12 @@ def citations(tree, rel, lines, is_code):
                             targets += [doc for doc in tree.markdown() if os.path.basename(doc) == base
                                         and doc.startswith(prefix) and doc not in targets]
                         nums = numbers(sm, 1, end, targets)
+            readings = tuple(Reading(t, how if i == 0 else "same-name") for i, t in enumerate(targets))
+            if not nums and res:
+                paths = suffix_candidates(tree, tok, owner or tree_of(rel))[0] if how.startswith("suffix") else [res]
+                readings = tuple(Reading(t, how) for t in paths)
             yield Citation("path", rel, ln, ctx, tok, pos(token_start), pos(token_start + len(tok)),
-                           res, how, owner, nums, tuple(targets), link,
-                           tuple(Reading(t, how if i == 0 else "same-name") for i, t in enumerate(targets)))
+                           res, how, owner, nums, tuple(targets), link, readings)
         if is_code:
             continue
         for m in BARE_SECTION.finditer(text):
