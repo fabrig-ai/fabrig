@@ -323,3 +323,25 @@ fn the_identity_s_debug_shows_no_token_byte() {
     assert!(!printed.contains("tok-1"));
     assert!(!printed.contains("116, 111, 107, 45, 49"));
 }
+
+#[test]
+fn changed_paths_compare_both_trees_without_rename_detection() {
+    let args = invocation::arguments(&Command::DiffPaths { before: fixtures::PARENT, after: fixtures::COMMIT });
+    let settings = invocation::SETTINGS.len().checked_mul(2).expect("two arguments per setting");
+    let expected: &[&[u8]] = &[
+        b"diff-tree",
+        b"--no-commit-id",
+        b"--name-only",
+        b"--no-renames",
+        b"-r",
+        b"-z",
+        &invocation::hex(fixtures::PARENT),
+        &invocation::hex(fixtures::COMMIT),
+        b"--",
+    ];
+    let tail = args.get(settings..).expect("settings prefix");
+    assert_eq!(tail.len(), expected.len());
+    for (arg, expected) in tail.iter().zip(expected) {
+        assert_eq!(arg.as_ref(), *expected);
+    }
+}

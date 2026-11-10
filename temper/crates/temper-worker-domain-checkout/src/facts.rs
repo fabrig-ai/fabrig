@@ -38,6 +38,7 @@ pub enum Fact {
 /// their boundary receiver and are never copied into the facts queue.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Ending {
+    Paths { files: u32 },
     Looked { holds: bool },
     IsAncestor { contains: bool },
     Succeeded,

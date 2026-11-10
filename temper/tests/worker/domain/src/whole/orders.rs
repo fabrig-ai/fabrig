@@ -86,6 +86,7 @@ fn collect(
                     | checkout::git::Op::Create { at, .. }
                     | checkout::git::Op::CheckOut { at, .. }
                     | checkout::git::Op::Look { at, .. }
+                    | checkout::git::Op::DiffPaths { at, .. }
                     | checkout::git::Op::IsAncestor { at, .. }
                     | checkout::git::Op::Merge { at, .. }
                     | checkout::git::Op::Commit { at, .. }

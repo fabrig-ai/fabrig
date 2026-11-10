@@ -117,7 +117,9 @@ impl Harness {
                 Op::Make { .. } | Op::Clone { .. } | Op::Create { .. } | Op::CheckOut { .. } | Op::Push { .. } => {
                     Done::Succeeded
                 }
-                Op::IsAncestor { .. } | Op::Commit { .. } => panic!("a prepare commits or compares nothing"),
+                Op::DiffPaths { .. } | Op::IsAncestor { .. } | Op::Commit { .. } => {
+                    panic!("a prepare commits or compares nothing")
+                }
             };
             match self.one(Event::Done { owner: hold, done }) {
                 Request::Io { owner, op: next, deadline: _ } => {
@@ -277,6 +279,7 @@ fn workspace_of(op: &Op) -> Token {
         | Op::Create { at, .. }
         | Op::CheckOut { at, .. }
         | Op::Look { at, .. }
+        | Op::DiffPaths { at, .. }
         | Op::IsAncestor { at, .. }
         | Op::Merge { at, .. }
         | Op::Commit { at, .. }
@@ -781,6 +784,7 @@ fn pin_ready(h: &mut Harness, client: u64, repo: Repository, tip: Commit) -> (To
             Op::Fetch { into: Into::Landing, .. } => Done::Fetched { commit: tip },
             Op::Fetch { want: Want::Commit { commit }, .. } => Done::Fetched { commit: *commit },
             Op::Fetch { .. } => Done::Fetched { commit: commit(1) },
+            Op::DiffPaths { .. } => panic!("this prepare lists no delivery paths"),
             Op::IsAncestor { .. } => Done::IsAncestor { contains: false },
             Op::Merge { .. } => Done::Merged,
             Op::Commit { .. } => Done::Committed { commit: commit(3) },
@@ -924,6 +928,7 @@ fn landing_fetch_failures_fail_preparation_and_never_fall_back() {
                 let done = match op {
                     Op::Fetch { want: Want::Commit { commit }, .. } => Done::Fetched { commit },
                     Op::CheckOut { .. } => Done::Succeeded,
+                    Op::DiffPaths { .. } => panic!("this prepare lists no delivery paths"),
                     Op::IsAncestor { .. } => Done::IsAncestor { contains: false },
                     other @ (Op::Make { .. }
                     | Op::Look { .. }
@@ -1599,6 +1604,7 @@ fn assert_account(op: Op, expected: Option<u64>, kind: Kind) {
         | Op::Create { account, .. }
         | Op::Push { account, .. } => assert_eq!(account, expected),
         Op::Look { .. }
+        | Op::DiffPaths { .. }
         | Op::IsAncestor { .. }
         | Op::Make { .. }
         | Op::CheckOut { .. }
