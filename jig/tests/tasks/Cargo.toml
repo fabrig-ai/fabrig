@@ -11,6 +11,12 @@ publish.workspace = true
 test = false
 doctest = false
 
+[dev-dependencies]
+jig-domain-authority.workspace = true
+jig-core-kit.workspace = true
+jig-domain-core.workspace = true
+jig-domain-people.workspace = true
+
 [dependencies]
 jig-tasks-kit.workspace = true
 skein-lib.workspace = true

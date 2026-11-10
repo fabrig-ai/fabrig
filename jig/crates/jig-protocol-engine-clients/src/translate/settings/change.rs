@@ -332,6 +332,9 @@ fn template(value: w::Template, models: &[crate::Model], limits: &w::Limits) -> 
             ended_by: match flags.ended_by {
                 w::EndedBy::Result => t::EndedBy::Result,
                 w::EndedBy::Requester => t::EndedBy::Requester,
+                w::EndedBy::Closer(closer) => {
+                    t::EndedBy::Closer(t::Closer { connector: closer.connector(), code: closer.code() })
+                }
             },
         },
         label: v.label,

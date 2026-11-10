@@ -84,7 +84,7 @@ mod goals;
 mod grace;
 #[doc(hidden)]
 pub use flags::shaped;
-pub use flags::{EndedBy, Flags, Retention};
+pub use flags::{Closer, EndedBy, Flags, Retention};
 mod funders;
 mod hold_origin;
 mod holds;

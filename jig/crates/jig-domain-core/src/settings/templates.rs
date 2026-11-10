@@ -66,9 +66,13 @@ pub fn valid_executor(
     charters: &[crate::Charter],
     models: &[crate::Model],
 ) -> bool {
-    if template.flags.ended_by == jig_domain_tasks::EndedBy::Requester
-        && (!template.flags.conversation || executor == TemplateExecutor::Chosen)
-    {
+    if !jig_domain_tasks::shaped(
+        template.flags,
+        match executor {
+            TemplateExecutor::Charter(charter) => jig_domain_tasks::Executor::Agent { charter },
+            TemplateExecutor::Chosen => jig_domain_tasks::Executor::Person(jig_domain_tasks::PersonAddress::Person(1)),
+        },
+    ) {
         return false;
     }
     let policy = match executor {
@@ -152,9 +156,13 @@ pub(crate) fn valid_current_executor(
     template: &Template,
     executor: TemplateExecutor,
 ) -> bool {
-    if template.flags.ended_by == jig_domain_tasks::EndedBy::Requester
-        && (!template.flags.conversation || executor == TemplateExecutor::Chosen)
-    {
+    if !jig_domain_tasks::shaped(
+        template.flags,
+        match executor {
+            TemplateExecutor::Charter(charter) => jig_domain_tasks::Executor::Agent { charter },
+            TemplateExecutor::Chosen => jig_domain_tasks::Executor::Person(jig_domain_tasks::PersonAddress::Person(1)),
+        },
+    ) {
         return false;
     }
     let policy = match executor {

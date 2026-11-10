@@ -774,6 +774,10 @@ fn wire_template(value: &c::Template, limits: &w::Limits) -> Result<w::Template,
                     ended_by: match value.flags.ended_by {
                         c::EndedBy::Result => w::EndedBy::Result,
                         c::EndedBy::Requester => w::EndedBy::Requester,
+                        c::EndedBy::Closer(closer) => w::EndedBy::Closer(w::Closer::new(
+                            limits,
+                            w::CloserParts { connector: closer.connector, code: closer.code },
+                        )?),
                     },
                     conversation: value.flags.conversation,
                     listed: value.flags.listed,

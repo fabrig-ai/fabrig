@@ -1346,6 +1346,8 @@ impl Joint {
                 limits.authority.executors = SETTINGS_EXECUTORS;
                 limits.tasks.executor_kinds = SETTINGS_EXECUTORS;
                 limits.documents.executors = SETTINGS_EXECUTORS;
+                // The task's closer adds 32 bytes; the settings row now needs 8,200 bytes.
+                limits.journal.transcript_bytes = 8200;
             }
             let mut domain = a::Domain::new(rules, limits.authority).expect("landing authority");
             let mut out = skein_lib::Queue::uncapped();

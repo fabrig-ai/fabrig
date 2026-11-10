@@ -715,7 +715,8 @@ fn assignment_keeps_brief_order_tools_mode_and_resume_policy() {
                 assert_eq!(
                     translated.mode,
                     match ended_by {
-                        jig_domain_tasks::EndedBy::Result => smith_domain_run::Mode::Finite,
+                        jig_domain_tasks::EndedBy::Result | jig_domain_tasks::EndedBy::Closer(_) =>
+                            smith_domain_run::Mode::Finite,
                         jig_domain_tasks::EndedBy::Requester => smith_domain_run::Mode::Open,
                     }
                 );

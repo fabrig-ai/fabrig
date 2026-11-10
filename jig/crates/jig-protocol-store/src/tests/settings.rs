@@ -732,3 +732,18 @@ fn charter_parts_refuse_empty_and_unknown_reason_bits() {
         );
     }
 }
+
+#[test]
+fn a_templates_closer_round_trips_in_the_settings_family() {
+    let mut template = template();
+    template.flags.conversation = false;
+    template.flags.ended_by = tasks::EndedBy::Closer(tasks::Closer { connector: 1, code: 6 });
+    let row = core::Record::Core(core::CoreRecord::Settings(s::Record::Changed {
+        setting: s::Setting::Template(1),
+        changed: s::Changed { revision: 1, value: Some(s::Value::Template(Box::new(template))) },
+    }));
+    let limits = codec::limits(&fixtures::CORE_LIMITS).unwrap();
+    let names = [catalogue_name(b"one"), catalogue_name(b"two")];
+    let bytes = codec::encode(&row, &limits, &names).unwrap();
+    assert_eq!(codec::decode(&row.key(), &bytes, &limits, &names), Some(row));
+}

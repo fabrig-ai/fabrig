@@ -585,3 +585,15 @@ fn invalid_run_ends_keep_their_contract_kind_in_store_bytes() {
         assert_eq!(saved_tasks(&row), Ok(row));
     }
 }
+
+#[test]
+fn a_closer_ended_task_record_round_trips() {
+    for closer in [Some(41), None] {
+        let mut record = current_record();
+        record.flags.conversation = false;
+        record.flags.ended_by = domain::EndedBy::Closer(domain::Closer { connector: 1, code: 6 });
+        record.closer = closer;
+        let row = live_record(record);
+        assert_eq!(saved_tasks(&row), Ok(row));
+    }
+}

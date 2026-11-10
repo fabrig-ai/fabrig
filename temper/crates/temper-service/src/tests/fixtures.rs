@@ -202,10 +202,12 @@ pub fn routes() -> crate::store::route::Routes {
     crate::store::route::Routes::new(2, &root, bounds)
 }
 
+#[expect(clippy::too_many_lines, reason = "the fixture supplies every retained task field")]
 pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
     use jig_domain_tasks as tasks;
     use skein_lib::Wall;
     tasks::TaskRecord {
+        closer: None,
         offered: jig_domain_tasks::Reasons::ALL,
         reasons: jig_domain_tasks::Reasons::FIRST,
         asked_requester: false,

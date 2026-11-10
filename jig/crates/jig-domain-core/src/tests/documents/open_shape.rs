@@ -33,6 +33,9 @@ fn tasks_people_and_core_agree_on_open_shape() {
             ended_by: match ended_by {
                 EndedBy::Result => tasks::EndedBy::Result,
                 EndedBy::Requester => tasks::EndedBy::Requester,
+                EndedBy::Closer(closer) => {
+                    tasks::EndedBy::Closer(tasks::Closer { connector: closer.connector, code: closer.code })
+                }
             },
             conversation,
             ..tasks::Flags::PLAIN

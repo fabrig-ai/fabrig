@@ -5,6 +5,7 @@ mod activity;
 mod added;
 mod circles;
 mod close_project;
+mod closer;
 mod exceeded;
 mod funding;
 mod holds;
