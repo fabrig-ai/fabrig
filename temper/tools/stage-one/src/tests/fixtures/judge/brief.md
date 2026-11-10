@@ -123,7 +123,7 @@ Tag each status entry with the change that will close it, as the shared rule say
 
 Where a request settles its changes with no shape for the code to follow, as one made of documents does, write no design, say so in your report note, and make its changes.
 
-The core subscribes you to the landings on each branch your changes target on its first change. Never subscribe_forge; it refuses duplicates. The cut parks without reacting to changes.
+The core subscribes you to your goal branch's landings on its first change. Never subscribe_forge; it refuses duplicates. Never subscribe to main's landings. Reds reach you through your branch's tiers. The cut parks without reacting to changes.
 ```
 
 Part on question question_answered question_ended question_owed words:

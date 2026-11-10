@@ -349,6 +349,10 @@ fn the_coordinators_charter_makes_no_landing_close_out_or_catch_up() {
     assert!(shared.contains("[in flight: change N]"));
     assert!(shared.contains("Then watch it with `subscribe` and call wait"));
     assert!(shared.contains("watch with `subscribe` each person task you wait on"));
+    let first = core::str::from_utf8(&charter.parts[0].instructions).expect("first UTF-8");
+    assert!(first.contains("Never subscribe to main's landings"));
+    let reference = include_str!("../../../../docs/examples/reference/settings.json");
+    assert!(reference.contains("Never subscribe to main's landings"));
     let results = core::str::from_utf8(&charter.parts[2].instructions).expect("results UTF-8");
     assert!(
         results.contains("On a change that failed, read why; make a change for what the plan still needs, or nothing.")
@@ -548,7 +552,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
             run = (bytes, Setting::Charter(charter.number));
         }
     }
-    assert_eq!(run, (11_112, Setting::Charter(5)));
+    assert_eq!(run, (11_172, Setting::Charter(5)));
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
         // Two executor places in four policy authorities add 2 * 4 * 8 bytes.

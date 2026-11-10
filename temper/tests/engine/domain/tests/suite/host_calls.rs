@@ -1071,7 +1071,7 @@ fn reference_executor_authority(authority: &mut jig_domain_authority::Authority)
             matches!(
                 kind,
                 Executor::Charter(2 | 4 | 5 | 6 | 7)
-                    | Executor::Procedure(2 | 3 | 4)
+                    | Executor::Procedure(2..=4)
                     | Executor::Job(3)
                     | Executor::Role(0)
             )

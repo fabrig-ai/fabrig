@@ -18,7 +18,7 @@ const WORDS: &[u8] = b"Build the draft\n\nDraft: PATH";
     clippy::too_many_lines,
     reason = "one fixture joins the stock template, job capability and person creating offer"
 )]
-fn goal_world(template: u32) -> (World, engine::Assignment, Box<[u8]>) {
+fn goal_world_in(template: u32, branch: bool) -> (World, engine::Assignment, Box<[u8]>) {
     let defaults = stock_defaults();
     let model = stock::box_model();
     let mut limits = temper_engine_domain_world::forge_routes::box_limits();
@@ -119,15 +119,22 @@ fn goal_world(template: u32) -> (World, engine::Assignment, Box<[u8]>) {
     let jig_client::shapes::Judged::Create(c::Ask::Create { project, tasks }) = judged else {
         panic!("goal offered: {judged:?}")
     };
-    let member = member(tasks.as_slice().first().expect("one goal"));
+    let mut member = member(tasks.as_slice().first().expect("one goal"));
+    if !branch {
+        member.symbols = Box::new([]);
+    }
     let goal = assigned_chat(&mut world, 92, people::Ask::Create { project, batch: Box::new([member]) });
     world.until(Until::Ready);
-    let branch = if template == 4 {
+    let branch = if template == 4 && branch {
         format!("temper/{}/g{}", goal.task, goal.task).into_bytes().into_boxed_slice()
     } else {
         b"main".as_slice().into()
     };
     (world, goal, branch)
+}
+
+fn goal_world(template: u32) -> (World, engine::Assignment, Box<[u8]>) {
+    goal_world_in(template, true)
 }
 
 // Only the shape this fixture asks set_goal_from for crosses the domain world's worker boundary.
@@ -339,6 +346,30 @@ fn a_goal_whose_last_change_lands_closes_with_no_agent_run() {
     let (closer, landing) = finish_closing(&mut world, goal.task, &branch);
     assert_report(&world, goal.task, closer, landing, &[(first, b"First"), (second, b"Second")]);
     assert_eq!(goal_runs(&world, goal.task), 1);
+    world.close();
+}
+
+#[test]
+fn a_closer_ended_goal_without_a_goal_branch_creates_no_main_subscription() {
+    let (mut world, goal, _) = goal_world_in(4, false);
+    let answer = mine(&mut world, &goal, 93, br#"{"words":"Build on main","landing":"main"}"#);
+    let Some(engine::CallAnswer::Delegated(made)) = answer else {
+        panic!("change admitted: {answer:?}; {:?}", world.call_errors)
+    };
+    let task = made[0].task;
+    producer_for(&mut world, task);
+    assert_eq!(row(&world, task).base.as_ref(), b"main");
+    assert!(
+        !world.store.rows.values().any(|row| matches!(row,
+            Record::Forge { row } if matches!(row.as_ref(),
+                forge_top::Stored::Subscription(sub) if sub.task == goal.task
+                    && sub.topic == forge_top::Topic::Landings {
+                        repository: forge_world::REPO, branch: b"main".as_slice().into()
+                    }
+            )
+        )),
+        "a closer-ended goal must not subscribe to main"
+    );
     world.close();
 }
 
