@@ -26,6 +26,7 @@ pub fn step(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits:
     stepped
 }
 
+#[expect(clippy::too_many_lines, reason = "the ordered guards include requester-branch moves before phase dispatch")]
 fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
     let mut next = change.clone();
     if change.gates.len() > skein_lib::usize_of(limits.gates)
@@ -70,7 +71,7 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
             && !facts.writer_taken
             && facts.pull != Pull::Closed
         {
-            next.state = released_state(was, *why);
+            next.state = released_state(was, *why, facts.pull);
             next.since = now;
             next.owns_turn = false;
             return Stepped { change: next, decision: Decision::EndHold };
@@ -101,21 +102,40 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
     if facts.requester_branch
         && let Some(head) = facts.branch
     {
-        let prior_head = if let State::Opening { .. } = change.state {
-            change.last_head
-        } else if let State::Checking { head }
-        | State::Gating { head, .. }
-        | State::Queued { head, .. }
-        | State::First { head, .. }
-        | State::Ready { head, .. } = change.state
-        {
-            Some(head)
-        } else {
-            None
+        let (prior_head, needs_opening) = match &change.state {
+            State::Opening { .. } => (change.last_head, facts.pull == Pull::Missing),
+            State::Checking { head }
+            | State::Gating { head, .. }
+            | State::Queued { head, .. }
+            | State::First { head, .. }
+            | State::Ready { head, .. } => (Some(*head), false),
+            State::Producing { .. }
+            | State::Recreating { .. }
+            | State::Reopening { .. }
+            | State::CancellingGates { .. }
+            | State::Preparing { .. }
+            | State::Updating { .. }
+            | State::Resolving { .. }
+            | State::Repairing { .. }
+            | State::Landing { .. }
+            | State::Landed { .. }
+            | State::NoChange { .. }
+            | State::Ended
+            | State::Held { .. }
+            | State::Red { .. }
+            | State::Cleared { .. }
+            | State::Uncleared { .. } => (None, false),
         };
         if let Some(prior) = prior_head
             && prior != head
         {
+            if needs_opening {
+                next.clean = Box::new([]);
+                next.owns_turn = false;
+                next.since = now;
+                next.state = State::Opening { requested: false };
+                return opening(next, false, facts, standing, now, limits);
+            }
             return take_pushed_head(next, head, now);
         }
     }
@@ -362,7 +382,11 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
                 Stepped { change, decision: Decision::Effect(Effect::CreateBranch { head }) }
             }
             None => {
-                change.state = State::Producing { requested: false };
+                change.state = if facts.requester_branch {
+                    State::Opening { requested: false }
+                } else {
+                    State::Producing { requested: false }
+                };
                 Stepped { change, decision: Decision::None }
             }
         },
@@ -371,7 +395,10 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
             change.state = match facts.branch {
                 Some(head) => {
                     change.last_head = Some(head);
-                    pushed(&change, head)
+                    match facts.pull {
+                        Pull::Open { .. } => pushed(&change, head),
+                        Pull::Missing | Pull::Closed | Pull::Merged { .. } => State::Opening { requested: false },
+                    }
                 }
                 None => State::Producing { requested: false },
             };
@@ -385,14 +412,27 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
         | Hold::Failed
         | Hold::Rejected
         | Hold::Authority(_) => {
-            change.state = released_state(was, why);
+            change.state = released_state(was, why, facts.pull);
             Stepped { change, decision: Decision::None }
         }
     }
 }
 
-fn released_state(was: &State, why: Hold) -> State {
+fn released_state(was: &State, why: Hold, pull: Pull) -> State {
+    let open = match pull {
+        Pull::Open { .. } => true,
+        Pull::Missing | Pull::Closed | Pull::Merged { .. } => false,
+    };
     match was {
+        State::Checking { .. }
+        | State::Gating { .. }
+        | State::Ready { .. }
+        | State::Queued { .. }
+        | State::First { .. }
+            if !open =>
+        {
+            State::Opening { requested: false }
+        }
         State::Ready { head, .. }
         | State::Queued { head, .. }
         | State::First { head, .. }

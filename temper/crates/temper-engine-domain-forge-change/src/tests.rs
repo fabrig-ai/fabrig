@@ -778,6 +778,113 @@ fn release_reopens_a_closed_pull_and_recreates_a_deleted_branch() {
     assert_eq!(two.change.state, State::Recreating { head: HEAD });
 }
 #[test]
+fn a_released_opening_move_opens_before_checking_the_new_head() {
+    for way in [crate::Way::Queue, crate::Way::Turn] {
+        let mut c = change(State::Held { was: Box::new(State::Opening { requested: true }), why: Hold::BranchMoved });
+        c.way = way;
+        let mut f = Facts { branch: Some(NEW), pull: Pull::Missing, ..facts() };
+        let lifted = decide(&c, &f, &Heard { released: true, ..heard() });
+        assert_eq!(lifted.change.last_head, Some(NEW));
+        assert_eq!(lifted.change.state, State::Opening { requested: false });
+        let opening = decide(&lifted.change, &f, &heard());
+        assert_eq!(opening.decision, Decision::Effect(Effect::Open));
+        assert_eq!(opening.change.state, State::Opening { requested: true });
+        f.pull = Pull::Open { head: NEW, base: BASE };
+        let opened = decide(&opening.change, &f, &heard());
+        let expected = match way {
+            crate::Way::Queue => State::Checking { head: NEW },
+            crate::Way::Turn => State::Gating { head: NEW, asked: Box::new([]) },
+        };
+        assert_eq!(opened.change.state, expected);
+        assert_eq!(opened.decision, Decision::None);
+    }
+}
+
+#[test]
+fn a_released_opening_move_finds_the_pull_already_open() {
+    let c = change(State::Held { was: Box::new(State::Opening { requested: false }), why: Hold::BranchMoved });
+    let f = Facts { branch: Some(NEW), pull: Pull::Open { head: NEW, base: BASE }, ..facts() };
+    let next = decide(&c, &f, &Heard { released: true, ..heard() });
+    assert_eq!(next.change.last_head, Some(NEW));
+    assert_eq!(next.change.state, State::Checking { head: NEW });
+    assert_eq!(next.decision, Decision::None);
+}
+
+#[test]
+fn a_requesters_branch_move_during_opening_still_opens_the_pull() {
+    for requested in [false, true] {
+        let c = change(State::Opening { requested });
+        let f = Facts { pull: Pull::Missing, ..moved_branch(true) };
+        let next = decide(&c, &f, &heard());
+        assert_eq!(next.change.last_head, Some(NEW));
+        assert_eq!(next.change.state, State::Opening { requested: true });
+        assert_eq!(next.decision, Decision::Effect(Effect::Open));
+    }
+}
+
+#[test]
+fn a_released_missing_requester_branch_without_a_head_has_no_producer() {
+    let mut c = change(State::Held { was: Box::new(State::Opening { requested: false }), why: Hold::BranchMissing });
+    c.last_head = None;
+    let mut f = Facts { requester_branch: true, branch: None, pull: Pull::Missing, ..facts() };
+    let lifted = decide(&c, &f, &Heard { released: true, ..heard() });
+    assert_eq!(lifted.change.state, State::Opening { requested: false });
+    let missing = decide(&lifted.change, &f, &heard());
+    assert_eq!(missing.decision, Decision::Hold(Hold::BranchMissing));
+    f.branch = Some(NEW);
+    let lifted = decide(&missing.change, &f, &Heard { released: true, ..heard() });
+    let opening = decide(&lifted.change, &f, &heard());
+    assert_eq!(opening.change.last_head, Some(NEW));
+    assert_eq!(opening.decision, Decision::Effect(Effect::Open));
+    assert_eq!(opening.change.state, State::Opening { requested: true });
+
+    f.requester_branch = false;
+    f.branch = None;
+    let produced = decide(&c, &f, &Heard { released: true, ..heard() });
+    assert_eq!(produced.change.state, State::Producing { requested: false });
+}
+
+#[test]
+fn a_release_never_checks_or_gates_without_an_open_pull() {
+    let authority = crate::AuthorityHold {
+        recovery: crate::AuthorityRecovery { task: 2, spec: 0, hold: 3, tasks: 7 },
+        lack: crate::AuthorityLack::Tasks,
+        had: 6,
+        released: false,
+    };
+    for way in [crate::Way::Queue, crate::Way::Turn] {
+        for (was, _) in movable_phases() {
+            for why in [
+                Hold::Failed,
+                Hold::Repairs,
+                Hold::Rejected,
+                Hold::BranchMoved,
+                Hold::Stalled,
+                Hold::Resolutions,
+                Hold::Updates,
+                Hold::BranchMissing,
+                Hold::PullClosed,
+                Hold::Retargeted,
+                Hold::Questions,
+                Hold::Authority(authority),
+            ] {
+                for pull in [Pull::Missing, Pull::Closed] {
+                    let mut c = change(State::Held { was: Box::new(was.clone()), why });
+                    c.way = way;
+                    let f = Facts { pull, ..facts() };
+                    let next = decide(&c, &f, &Heard { released: true, ..heard() });
+                    assert!(
+                        !matches!(next.change.state, State::Checking { .. } | State::Gating { .. }),
+                        "{way:?} {was:?} {why:?} {pull:?}: {:?}",
+                        next.change.state
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn a_reopened_pull_keeps_its_target_when_the_landing_tip_advances() {
     let c = change(State::Reopening { requested: true, retarget: false });
     let mut f = facts();
