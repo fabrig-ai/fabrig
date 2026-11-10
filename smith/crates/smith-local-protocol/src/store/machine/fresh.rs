@@ -1,4 +1,4 @@
-//! Fresh-history recovery, from journal through both directory syncs (protocol/hosts.md, 5.3).
+//! Fresh-history recovery, from journal through both directory syncs (protocol/host.md, 5.3).
 //! Recovery retains its new metadata and whether its terminal resumes a load or a save.
 use super::Terminal;
 use super::{Action, AfterWrite, Box, ChatState, Queue, RecordName, State, Store, file, local, save_state};

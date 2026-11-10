@@ -1,4 +1,4 @@
-//! Completed line syntax (shell.md, section 4.1). The terminal owns no model
+//! Completed line syntax (shell/commands.md, section 1). The terminal owns no model
 //! catalog or chat store; the local host applies slash choices at a boundary.
 use alloc::boxed::Box;
 

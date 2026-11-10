@@ -1,5 +1,5 @@
 //! Closes an unfinished `--ephemeral` directory's store, removes the directory,
-//! and closes its parent (smith/docs/design/shell.md, 4.2).
+//! and closes its parent (smith/docs/design/shell/commands.md, 2).
 //! It keeps the captured roots and the first kernel failure, not the run's outcome.
 use skein_io::file_layer::step;
 use skein_io::{file, file_layer, kernel};

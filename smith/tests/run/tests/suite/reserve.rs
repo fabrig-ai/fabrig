@@ -1,5 +1,5 @@
 //! Positive-first mutations of ordinary-pool child openings.
-//! Contract: smith/docs/design/domain/run.md, sections 5.3, 9.1 and 13.
+//! Contract: smith/docs/design/domain/run.md, section 5.3, and smith/docs/design/domain/budget.md, section 1, and smith/docs/design/domain/run.md, section 12.
 
 use skein_lib::Duration;
 use skein_world::domain::Verdict;

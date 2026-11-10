@@ -1,7 +1,7 @@
 //! Live composition: each loop round drives the root/run/session/shared
 //! fake, then moves its typed outputs into the host kit.
 //! Parent commitment and lower IO rights remain independent of agent settlement.
-//! Contract: smith/docs/design/domain/host.md, sections 6 and 9; smith/docs/design/domain/run.md, sections 6 and 13;
+//! Contract: smith/docs/design/domain/host.md, sections 6 and 9; smith/docs/design/domain/run.md, sections 6 and 12;
 //! skein/docs/foundation/testing-strategy.md, sections 2.3, 6 and 7.
 
 use skein_lib::{Duration, Time, Token};

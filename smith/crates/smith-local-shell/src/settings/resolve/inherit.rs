@@ -1,5 +1,5 @@
 //! Custom names take preset defaults, retaining each value supplied by a layer.
-//! Only the catalog is read here; no endpoint or credential is opened (shell.md, 5.2).
+//! Only the catalog is read here; no endpoint or credential is opened (shell/settings.md, 1.2).
 use super::{
     super::{Origin, Refusal, Settings, Sourced},
     input,

@@ -1,5 +1,5 @@
 //! Program accounts keep host answers separate from the spawned agent's facts.
-//! Both captures are bounded by the attempt log ceiling (benchmarks.md 6.2/8).
+//! Both captures are bounded by the attempt log ceiling (../../../../docs/design/benchmarks/README.md 6.2/8).
 
 use crate::agent::Traces;
 use crate::run::Archive;

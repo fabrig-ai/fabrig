@@ -1,4 +1,4 @@
-//! Interval unions retain overlap on the main thread (benchmarks.md, section 8.1).
+//! Interval unions retain overlap on the main thread (../../docs/design/benchmarks/README.md, section 8.1).
 //! No intervals are inferred from missing records; adapters supply matched spans.
 
 use crate::{Measure, TimeRecord};

@@ -1,5 +1,5 @@
 //! Neutral checks read the settled end and bounded text without interpreting
-//! agent diagnostics (benchmarks.md, sections3.2/8.3; shell.md, section4.3).
+//! agent diagnostics (../../../docs/design/benchmarks/README.md, sections3.2/8.3; shell/README.md, section4.3).
 
 use crate::{CheckVerdict, End, Exit, Measure, OutcomeCheck};
 

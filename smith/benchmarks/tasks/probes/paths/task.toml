@@ -9,7 +9,7 @@ seed_sha256 = "18289b27085aae9b99b964edb453ac5df42f0ff5ef463635c4ed2b4934a93ea7"
 working_directory = "app"
 setup = [["chmod", "-R", "a-w", "spec"]]
 protected = ["app/input.txt", "spec/rules.txt"]
-guards = ["domain/tools.md, section 2", "benchmarks.md, section 11.1"]
+guards = ["domain/tools.md, section 2", "benchmarks/catalogue.md, section 1"]
 deciding = ["end", "exit-code", "file-content:app/answer.txt", "tool-path", "tool-call", "no-verdict", "completions", "run-completed", "stream-whole", "paired", "nothing-lost", "tree-ended", "protected-unchanged"]
 
 [budget]

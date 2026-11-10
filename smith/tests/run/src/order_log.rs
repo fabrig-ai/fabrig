@@ -1,4 +1,4 @@
-//! Optional pass observations for scheduling orders (`smith/docs/design/domain/run.md`, 9.1 and 13).
+//! Optional pass observations for scheduling orders (`smith/docs/design/domain/budget.md`, 1, and `smith/docs/design/domain/run.md`, 12).
 //! This log retains boundary names, pass numbers and phase eligibility; it never
 //! knows provider syntax or chooses when an entrance runs.
 

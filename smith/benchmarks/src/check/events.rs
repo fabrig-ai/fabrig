@@ -1,5 +1,5 @@
 //! Manifest check parameters use the event vocabulary's documented spellings.
-//! Unknown names refuse before an agent runs (benchmarks.md, section3.2).
+//! Unknown names refuse before an agent runs (../../../docs/design/benchmarks/README.md, section3.2).
 
 use std::path::Path;
 

@@ -1,6 +1,6 @@
 # hosts: status
 
-2026-11-10. Where smith's code lags or departs from [hosts.md](hosts.md).
+2026-11-10. Where smith's code lags or departs from [host.md](host.md).
 
 Section 2 has no known gap in carrying a usable program check's optional
 email alongside its state.

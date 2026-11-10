@@ -97,7 +97,7 @@ desktop browsers are well supported (the user, 10-26).
 - **The composition,** moved out of `tests/one-process`: the service,
   the engine and one worker in one `iterate`, started from configuration
   bytes as `temper serve` starts them; jig's store on skein-kv over the
-  fake machine's disk; smith's agents hosted (smith's `shell.md`, 2.5);
+  fake machine's disk; smith's agents hosted (smith's `shell/README.md`, 2.5);
   the fake LLM and fake forge peers on simulated sockets; the fake git
   program; skein's visitor (skein's `playground.md`, 4). Its process
   type and its program registry are the composition's; the harness's

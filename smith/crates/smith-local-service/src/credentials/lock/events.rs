@@ -1,5 +1,5 @@
 //! Route per-account lock state without reading a record. `lock_event` settles
-//! each attempt or schedules a retry (shell.md, 7.3; oauth.md, 6.7).
+//! each attempt or schedules a retry (shell/credentials.md, 3; oauth.md, 6.7).
 use super::{RETRY, State};
 use crate::credentials::{Accounts, oauth};
 use skein_io::file;

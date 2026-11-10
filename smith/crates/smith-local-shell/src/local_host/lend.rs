@@ -1,4 +1,4 @@
-//! The shell's unrefreshed grants (domain/host.md, section 7; shell.md, 7.1).
+//! The shell's unrefreshed grants (domain/host.md, section 7; shell/credentials.md, 1).
 //! `Lent` keeps startup values and their last lent generations, not key paths.
 //! `answer` lends from memory only; it never reads a key renewed on disk.
 use skein_lib::{Duration, Map};

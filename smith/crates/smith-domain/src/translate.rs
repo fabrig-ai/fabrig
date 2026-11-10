@@ -1,5 +1,5 @@
 //! The translations between the run's vocabulary and the session's (skein/docs/foundation/programming-model.md, section 4.5;
-//! smith/docs/design/domain/run.md, sections 5, 6, 9 and 13; smith/docs/design/domain/session.md, sections 3–6):
+//! smith/docs/design/domain/run.md, sections 5 and 6 and smith/docs/design/domain/budget.md and smith/docs/design/domain/run.md, section 12; smith/docs/design/domain/session.md, sections 3–6):
 //! siblings share no types, so the run's conversations and the sessions meet
 //! here, through small total functions, each an exhaustive match, so that a
 //! variant added on either side breaks the build in one place.

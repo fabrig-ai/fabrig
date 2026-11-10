@@ -11,7 +11,7 @@
     the local host's simulated scenarios do not run there.
   - 2.3: the live stories choose their account with
     `-c endpoints.<name>.account=`, since `--account` is not built
-    (shell.status.md).
+    (shell/README.status.md).
   - 2.3: whether the refresh story passes live is unknown: main holds
     it as 2.3 has it from `c2922ded2b10`, and no after-landing run of a
     main holding it is read. The last run read, at main

@@ -1,4 +1,4 @@
-//! Program source answers (protocol/hosts.md, section 2; protocol/programs.md,
+//! Program source answers (protocol/host.md, section 2; protocol/programs.md,
 //! sections 3 and 4.1). Keeps typed results and bounded stderr detail; knows
 //! no login contents, executable paths or I/O. The half returns these to its host.
 

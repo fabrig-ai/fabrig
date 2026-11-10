@@ -1,5 +1,5 @@
 //! The adopted signal stream and its retained kernel read
-//! (skein/docs/foundation/programming-model.md, 5.2; smith/docs/design/shell.md, 9).
+//! (skein/docs/foundation/programming-model.md, 5.2; smith/docs/design/shell/README.md, 5).
 //! Adoption, submission, completion and `Closed` update the stream's state.
 //! `close` asks io to close it; the machine knows no shutdown policy or routes.
 

@@ -1,4 +1,4 @@
-//! Local actor admission against the finishing reserve (smith/docs/design/domain/run.md, 9.1).
+//! Local actor admission against the finishing reserve (smith/docs/design/domain/budget.md, 1).
 
 use smith_local_domain::{ExitStatus, Failure, Notice};
 use smith_local_world::World;

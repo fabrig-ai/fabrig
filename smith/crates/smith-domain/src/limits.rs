@@ -1,7 +1,7 @@
 //! Admission limits and checked capacities. This module retains no runtime state.
 //! `valid` checks compatibility and constructor capacities, without knowing live ownership.
 //!
-//! Contract: smith/docs/design/domain/run.md, section 13; skein/docs/foundation/programming-model.md, sections 4.4, 4.5 and 6.3.
+//! Contract: smith/docs/design/domain/run.md, section 12; skein/docs/foundation/programming-model.md, sections 4.4, 4.5 and 6.3.
 
 use smith_domain_run as run;
 use smith_domain_session as session;

@@ -1,6 +1,6 @@
 //! Host bounds derived from the agent profile, never a chat or run charter.
 //! `host_limits` grants a window large enough for the agent's largest turn.
-//! Contracts: smith/docs/design/shell.md, sections 2.1 and 2.6;
+//! Contracts: smith/docs/design/shell/README.md, sections 2.1 and 2.6;
 //! smith/docs/design/protocol/limits.md, sections 3.6 and 3.8.
 
 use crate::profile::{Check, Layer, LimitName, Refusal, Value};

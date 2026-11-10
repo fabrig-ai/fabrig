@@ -1,5 +1,5 @@
-//! Account metadata for check and startup warnings (shell.md, 4.4 and 7.4;
-//! protocol/hosts.md, sections 5.2 and 5.4).
+//! Account metadata for check and startup warnings (shell/commands.md, 4, and shell/credentials.md, 4;
+//! protocol/host.md, sections 5.2 and 5.4).
 //! Keeps provider, source, number and place, never credential values. `report`
 //! inspects the catalog; startup warnings omit program sources not checked.
 use super::{Account, Credential, Directory, Source, inspect, program_check::ProgramStates, source};

@@ -1,7 +1,7 @@
 //! Captured write arguments are compared with settled bytes, not the seed.
 //! Missing capture or incomplete streams stay unavailable; exact call identities
 //! join terminals. No provider text or remote inference state is known here.
-//! Contracts: benchmarks.md, section11.1; domain/tools.md, sections3/4.
+//! Contracts: ../../../../../docs/design/benchmarks/README.md, section11.1; domain/tools.md, sections3/4.
 
 use std::path::{Component, Path, PathBuf};
 

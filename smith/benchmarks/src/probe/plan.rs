@@ -1,6 +1,6 @@
 //! Frozen request planning consumes authored suites and verified arms.
 //! No agent state is read; benchmark requests and settled public evidence are inputs.
-//! Contract: smith/docs/design/benchmarks.md, sections 5.1 and 11.5.
+//! Contract: smith/docs/design/benchmarks/README.md, section 5.1, and smith/docs/design/benchmarks/catalogue.md, section 5.
 
 use super::{Order, Planned, ProbeAgent, Source, gating};
 use crate::arm::ArmRef;

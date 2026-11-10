@@ -1,4 +1,4 @@
-//! Private, unrefreshed key files (domain/host.md, section 7; shell.md, 7.1).
+//! Private, unrefreshed key files (domain/host.md, section 7; shell/credentials.md, 1).
 //! Startup keeps `read`'s bytes for in-memory lends; `inspect` reports usability.
 use super::Credential;
 use std::path::Path;

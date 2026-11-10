@@ -277,7 +277,7 @@ down:  released and door outputs → components → io submissions
   spawns the agent program its configuration names (`configuration.md`,
   section 4), with an environment holding no credential, in a process
   group of its own (skein's `io.md`, section 6), and gives smith's host
-  half its pipes (smith's `protocol/hosts.md`, section 3). A run on a
+  half its pipes (smith's `protocol/host.md`, section 3). A run on a
   program source names its configuration directory under the programs
   directory (`configuration.md`, section 4), where the program keeps
   its own login; that login is on the host, beyond the environment, and
@@ -293,12 +293,12 @@ down:  released and door outputs → components → io submissions
   into the worker's tables, and the protocol layer hands LLM accounts'
   values, each with its scheme, or a program source's name, to smith's
   host half, which fills them into each agent's start and grants
-  (`channel.md`, section 8; smith's `protocol/hosts.md`, section 2); an
+  (`channel.md`, section 8; smith's `protocol/host.md`, section 2); an
   application's credentials go to its workspace's io.
 - **Program logins:** for the program sources the engine names, the
   worker's protocol layer has smith's host half check each login, runs
   each sign-out in the source's environment, and reports both over the
-  link (`channel.md`, 5.1 and 5.2; smith's `protocol/hosts.md`, section
+  link (`channel.md`, 5.1 and 5.2; smith's `protocol/host.md`, section
   2; smith's `protocol/programs.md`, section 4).
 - **Or agents in the worker's process,** as the worker's root's choice,
   for one person's machine: a root that composes `smith-inline-agent`
@@ -402,7 +402,7 @@ Each within jig's suites' budgets.
   fake LLM peer, smith's agent processes over skein's
   fake LLM
   spawned on skein's fake machine beneath the test worker (smith's
-  `protocol/hosts.md`, section 7), and the application's systems' fakes,
+  `protocol/host.md`, section 7), and the application's systems' fakes,
   the process killed and started again at drawn moments, and drained by
   a shutdown. Its referee is the conformance world's, seen through bytes:
   nothing a party, a host or a system saw depended on a commit that was

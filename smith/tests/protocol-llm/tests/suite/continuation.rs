@@ -4,7 +4,7 @@
 //! or combined memory proof. The separate malformed-call story drives original
 //! root discovery, byte peers, one corrected host effect and cancellation.
 //! Contract: domain/run.md, sections 5.2,
-//! 10 and 13; testing-strategy.md, sections 2.3, 2.4, 4.1 and 6.
+//! 9 and 12; testing-strategy.md, sections 2.3, 2.4, 4.1 and 6.
 
 use skein_fake_llm_domain::api::{Line, Part, Query, Script};
 use skein_lib::{Duration, Time, Token, Wall};

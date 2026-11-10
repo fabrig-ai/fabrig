@@ -69,7 +69,7 @@ pub struct Budget {
 
 /// The turns and time a run keeps to finish once the rest of its budget is
 /// spent; its spend is the main model's costliest completions for those turns
-/// (smith's `run.md`, section 9.1).
+/// (smith's `domain/budget.md`, section 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Reserve {
     pub turns: u32,

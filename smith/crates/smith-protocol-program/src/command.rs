@@ -75,7 +75,7 @@ impl Command {
         Self::spawn(io_owner, launch, None, STATUS_BYTES, deadline, detail_bytes, below)
     }
 
-    /// Spawn with one secret ask on stdin and a caller-bounded stdout capture (smith/docs/design/protocol/hosts.md, 2).
+    /// Spawn with one secret ask on stdin and a caller-bounded stdout capture (smith/docs/design/protocol/host.md, 2).
     pub fn with_input(
         io_owner: Token,
         launch: Launch,

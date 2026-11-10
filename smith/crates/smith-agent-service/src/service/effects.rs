@@ -1,6 +1,6 @@
 //! Host-owned effects over the service's shared lower stages.
 //! It retains the lower stages and installed grant names, never a root domain or
-//! channel. Contract: smith/docs/design/domain/host.md, section 9; smith/docs/design/protocol/hosts.md, section 5.6.
+//! channel. Contract: smith/docs/design/domain/host.md, section 9; smith/docs/design/protocol/host.md, section 5.6.
 
 use super::stages::{clocks, done, next_deadline, work_pending};
 
@@ -15,7 +15,7 @@ use smith_domain::{self as domain, run};
 
 /// Agent LLM and machine effects owned by a host that keeps the domain itself.
 /// Typed requests have typed terminals, with no channel, frames or agent process
-/// (smith/docs/design/domain/host.md, section 9; smith/docs/design/protocol/hosts.md, section 5.6).
+/// (smith/docs/design/domain/host.md, section 9; smith/docs/design/protocol/host.md, section 5.6).
 #[derive(Debug)]
 pub struct Effects {
     stages: super::Stages,

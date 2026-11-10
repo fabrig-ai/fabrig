@@ -1,4 +1,4 @@
-//! Read-only directory inspection before a source check (protocol/hosts.md, 2).
+//! Read-only directory inspection before a source check (protocol/host.md, 2).
 //! Keeps one file request in flight and closes each opened directory before
 //! answering. No login contents are read and no directory is made.
 use alloc::boxed::Box;

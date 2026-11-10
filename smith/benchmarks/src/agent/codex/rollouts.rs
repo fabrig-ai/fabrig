@@ -1,7 +1,7 @@
 //! Named-thread collection retains immutable response ids and bounded raw files.
 //! It opens Codex's state database read-only and follows only this root's edges;
 //! unrelated sessions and credentials are never read. A missing parent remains
-//! an unavailable child scope (benchmarks.md, sections 6, 8.2, 10 and 14).
+//! an unavailable child scope (../../../../docs/design/benchmarks/README.md, sections 6, 8.2, 10 and 13).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;

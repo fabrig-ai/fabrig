@@ -1,5 +1,5 @@
 //! Check cancellation crosses the run and machine boundaries once.
-//! Contract: smith/docs/design/domain/run.md, sections 8.1 and 10.
+//! Contract: smith/docs/design/domain/run.md, sections 8.1 and 9.
 
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use smith_domain_run::facts::FactKind;

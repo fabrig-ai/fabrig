@@ -1,4 +1,4 @@
-//! Scratch FIFO translation and opening teardown (protocol/hosts.md, section 3).
+//! Scratch FIFO translation and opening teardown (protocol/host.md, section 3).
 
 use super::{Process, ProcessEvent, State};
 use crate::{Received, tests};

@@ -1,4 +1,4 @@
-//! Exec's durable result file (shell.md, sections 4.2–4.3).
+//! Exec's durable result file (shell/commands.md, sections 2–3).
 //! The file owner holds teardown until its whole-file write and closes end.
 //! It knows the output path and kernel terminals, not the run's outcome.
 use super::{Refused, cleanup::EphemeralCleanup, host, root};
@@ -140,7 +140,7 @@ impl Files {
     }
 }
 
-/// The base of `--ephemeral`'s private directory (shell.md, section 4.2): `$XDG_RUNTIME_DIR` when set and non-empty, else `$TMPDIR`
+/// The base of `--ephemeral`'s private directory (shell/commands.md, section 2): `$XDG_RUNTIME_DIR` when set and non-empty, else `$TMPDIR`
 /// when set and non-empty, else `/tmp`. Never the state directory, which
 /// it is not given: a run's chat sits apart from the disk its builds fill.
 fn ephemeral_base(runtime: Option<OsString>, temporary: Option<OsString>) -> PathBuf {

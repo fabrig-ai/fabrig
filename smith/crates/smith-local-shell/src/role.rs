@@ -1,6 +1,6 @@
 //! The shell's default task instructions, kept apart from the run's mechanics.
 //! Settings may replace the text; it carries no conversation state.
-//! Contract: shell.md, sections 5.2 and 6.6; domain/run.md, section 3.1.
+//! Contract: shell/settings.md, sections 1.2 and 2.6; domain/run.md, section 3.1.
 
 /// Instructions the shell gives every model for chats and tasks unless replaced.
 pub const TASK_ROLE: &str = "Carry the person's request through to completion within its scope. Infer the intended result from the request and available context, do the work, and check that the result meets the request. When it gives a plan or steps, follow them in their order, and do nothing they rule out. Keep going through setbacks; ask for missing information only when it changes what you can do.

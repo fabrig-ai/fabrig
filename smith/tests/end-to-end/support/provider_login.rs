@@ -1,6 +1,6 @@
 //! One shipped credential command against a listening provider fixture.
 //! The referee keeps readiness and browser progress, never credential values;
-//! entry points observe sign-in ownership (smith/docs/design/protocol/hosts.md, section 5.4)
+//! entry points observe sign-in ownership (smith/docs/design/protocol/host.md, section 5.4)
 //! through shipped commands (smith/docs/design/testing.md, sections 2.3 and 5).
 use super::{Process, Ran};
 use skein_lib::{Duration, Time};

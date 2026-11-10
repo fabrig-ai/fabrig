@@ -6,7 +6,7 @@ use crate::credentials::{
 };
 use skein_lib::Wall;
 
-// shell.md, section 7.4: the name work hashes to this number.
+// shell/credentials.md, section 4: the name work hashes to this number.
 const WORK: u32 = 14_761_687;
 
 fn lent(value: GrantValue, generation: u64) -> Lent {

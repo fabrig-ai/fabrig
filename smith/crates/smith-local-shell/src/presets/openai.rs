@@ -1,4 +1,4 @@
-//! The public endpoint and model catalog (shell.md, 6.1–6.2).
+//! The public endpoint and model catalog (shell/settings.md, 2.1–2.2).
 pub(super) const SETTINGS: &str = r"
 [endpoints.openai]
 preset = 'openai'

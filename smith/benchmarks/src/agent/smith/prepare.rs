@@ -1,6 +1,6 @@
 //! Preparation writes guarded settings and selects access-only credential handling.
 //! The arm and append-only face registry choose the codec; user login
-//! bytes are read only by credential.rs (benchmarks.md, sections 6.2 and 10).
+//! bytes are read only by credential.rs (../../../../docs/design/benchmarks/README.md, sections 6.2 and 10).
 
 use crate::{Fault, configuration};
 use std::fs;
@@ -26,7 +26,7 @@ pub struct Prepared {
     pub serial: Option<std::fs::File>,
 }
 
-/// Read check's version 1 or 2 teardown bound (benchmarks.md, section 10).
+/// Read check's version 1 or 2 teardown bound (../../../../docs/design/benchmarks/README.md, section 10).
 /// Both versions use the same effective limits shape.
 pub fn teardown_from_check(bytes: &[u8]) -> Result<skein_lib::Duration, Fault> {
     let report: serde_json::Value =

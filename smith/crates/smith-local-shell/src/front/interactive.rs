@@ -1,4 +1,4 @@
-//! The line-mode live view (shell.md, section 4.1). Records come typed from
+//! The line-mode live view (shell/commands.md, section 1). Records come typed from
 //! the one sink's best-effort queue. Outcomes still come from the local host.
 use skein_lib::{Duration, Map, Token};
 use smith_events::{Model, Quantity, Usage, Verdict};

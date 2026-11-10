@@ -1,5 +1,5 @@
 //! The agent child and the host's single channel read
-//! (smith/docs/design/protocol/hosts.md, sections 2 and 3).
+//! (smith/docs/design/protocol/host.md, sections 2 and 3).
 //! `spawned`, `hold` and `answered` keep the child and read together; the hub's
 //! `drain_process` releases read terminals. This machine knows neither the
 //! process's internal progress nor its IO routes; `Process` owns those.

@@ -9,7 +9,7 @@
 //! Captured arguments reconstruct only reported successful mutations; a failed
 //! edit is retained as evidence and changes nothing. Missing content stays
 //! unavailable. Replay scratch is bounded by the task's unchanged file cap.
-//! Contracts: benchmarks.md, section11.1; domain/tools.md, sections3/4.
+//! Contracts: ../../../../../docs/design/benchmarks/README.md, section11.1; domain/tools.md, sections3/4.
 
 use std::path::Path;
 
@@ -55,7 +55,7 @@ pub(super) fn oversized_check(
     CheckVerdict { check: "oversized-write".into(), passed, evidence }
 }
 
-/// No call past the bound is not exercised (benchmarks.md, section 11.1).
+/// No call past the bound is not exercised (benchmarks/catalogue.md, section 1).
 fn protocol_verdict(refused: usize, bound: u64, evidence: &mut Vec<String>) -> Measure<bool> {
     if refused == 0 {
         evidence.push(format!("NotExercised: no call past the stated call_input={bound}; bound honoured"));

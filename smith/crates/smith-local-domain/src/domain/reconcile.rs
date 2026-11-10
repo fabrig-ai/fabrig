@@ -1,4 +1,4 @@
-//! Recovery of saved delivery intents (protocol/hosts.md, section 5.5).
+//! Recovery of saved delivery intents (protocol/host.md, section 5.5).
 //! Only inspected commit evidence can establish a landed effect; remote uncertainty
 //! retains the intent rather than claiming a successful delivery. Delivering owns
 //! this loaded intent until follow yields its saved answer or ends recovery.

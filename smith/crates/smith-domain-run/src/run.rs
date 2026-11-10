@@ -1,5 +1,5 @@
 //! Run admission, main and child lifetimes, shared spend and terminal rights
-//! (smith/docs/design/domain/run.md, sections 3, 6–10). State retains the charter, prepared
+//! (smith/docs/design/domain/run.md, sections 3 and 6–8 and smith/docs/design/domain/budget.md and smith/docs/design/domain/run.md, section 9). State retains the charter, prepared
 //! guides/checks, run identity, never-reused child ordinals, conversation bindings,
 //! call ownership, the wind-down's budget or host cause, and one pending ending.
 //! Entrances below act only through bounded queues, slabs and injected time.
@@ -12,12 +12,12 @@
 //! completion's maximum across all conversations before the root sends it and
 //! returns unused credit on its terminal. Global accounting sums monotonic own
 //! deltas, while inclusive subtree totals transfer only as child bills. A charge that cannot fit ends the
-//! session before it is added (smith/docs/design/domain/run.md, sections 9 and 10).
+//! session before it is added (smith/docs/design/domain/budget.md and smith/docs/design/domain/run.md, section 9).
 //!
 //! The run and its conversations move through these retained phases. Each row
 //! names the event that changes the phase; all issued operations still owe their
 //! typed terminal while the run winds down (smith/docs/design/domain/run.md, sections 5.2, 6,
-//! 8.2 and 10).
+//! 8.2 and 9).
 //!
 //! ```text
 //! run phase    event                              next phase   outward action

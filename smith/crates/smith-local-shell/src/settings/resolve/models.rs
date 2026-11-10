@@ -1,4 +1,4 @@
-//! Declared models and rates after precedence and tier selection (shell.md, 5.2 and 6.1).
+//! Declared models and rates after precedence and tier selection (shell/settings.md, 1.2 and 2.1).
 use super::super::{Origin, Problem, Refusal, Relationship, Settings};
 use super::input::{self, count, model_key, money, number, text};
 use skein_lib::Duration;

@@ -1,4 +1,4 @@
-//! Adopt source descriptors without changing their public shape (protocol/hosts.md, 5.4).
+//! Adopt source descriptors without changing their public shape (protocol/host.md, 5.4).
 use super::{Account, Origin, Source, lock, oauth};
 use skein_io::file_layer;
 use skein_lib::{List, Wall};

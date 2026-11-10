@@ -1,5 +1,5 @@
-//! Activation spend accounting in the agent domain (smith/docs/design/domain/run.md,
-//! sections 9, 10 and 13). The outside oracle prices each provider callback once;
+//! Activation spend accounting in the agent domain (smith/docs/design/domain/budget.md and smith/docs/design/domain/run.md, sections 9 and 12
+//! ). The outside oracle prices each provider callback once;
 //! historical and child-inclusive Turn bills never supply its global total.
 
 use skein_fake_checkout::Checkout;

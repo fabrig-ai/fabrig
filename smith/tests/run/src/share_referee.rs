@@ -1,6 +1,6 @@
 //! Independent effective-share oracle at child openings.
 //! The world reconstructs ordinary credit from host budgets, time and usage.
-//! Contract: smith/docs/design/domain/run.md, sections 5.3, 9.1 and 13.
+//! Contract: smith/docs/design/domain/run.md, section 5.3, and smith/docs/design/domain/budget.md, section 1, and smith/docs/design/domain/run.md, section 12.
 
 use skein_lib::{Duration, Time};
 use skein_world::domain::{Expectations, Judge, Referee, Verdict};

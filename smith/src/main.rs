@@ -1,5 +1,5 @@
 //! Product entry points over resolved settings and Skein's one-thread loop.
-//! Contract: smith/docs/design/shell.md, sections 4, 5 and 9.
+//! Contract: smith/docs/design/shell/commands.md and smith/docs/design/shell/settings.md, section 1 and smith/docs/design/shell/README.md, section 5.
 use std::{env, process::ExitCode};
 
 fn main() -> ExitCode {

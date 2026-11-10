@@ -1,4 +1,4 @@
-//! Small protocol receiving profiles (protocol/hosts.md, section 5).
+//! Small protocol receiving profiles (protocol/host.md, section 5).
 use crate::{GitLimits, PlainLimits, StoreLimits, TerminalLimits};
 
 /// One short terminal line and bounded notice.

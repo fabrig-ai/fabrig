@@ -1,4 +1,4 @@
-//! Plain capture bounds and replacement over the fake machine (shell.md, section 4).
+//! Plain capture bounds and replacement over the fake machine (shell/commands.md).
 
 use super::{PLAIN_CHILDREN, PLAIN_FILE_BYTES, TOO_MANY_PLAIN_CHILDREN};
 use crate::host_io::HostIo;

@@ -1,4 +1,4 @@
-//! Wrapper configuration sources and name-only credential warnings (shell.md, 8).
+//! Wrapper configuration sources and name-only credential warnings (shell/README.md, 4).
 use super::Warning;
 use crate::settings::{Origin, Problem, Refusal, Settings, environment};
 use std::{

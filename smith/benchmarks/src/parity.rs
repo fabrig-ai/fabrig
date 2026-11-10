@@ -1,6 +1,6 @@
 //! Offline parity retains the five criteria, the price basis and the smith arm.
 //! `recompute` judges attempt rows; `verify` checks the committed section and
-//! arm identity. Missing observations never establish parity (benchmarks.md, 16).
+//! arm identity. Missing observations never establish parity (benchmarks/codex-parity.md).
 
 pub mod change;
 mod number;

@@ -1,4 +1,4 @@
-//! Named command variables and build caches (shell.md, section 8). Values feed
+//! Named command variables and build caches (shell/README.md, section 4). Values feed
 //! the agent's existing environment encoder; check reports names and origins.
 use super::{Origin, Problem, Refusal, Settings};
 use std::{collections::BTreeMap, path::PathBuf};

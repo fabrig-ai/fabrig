@@ -1,5 +1,5 @@
 //! Small run limits for deterministic fixtures.
-//! Contract: smith/docs/design/domain/run.md, section 13.
+//! Contract: smith/docs/design/domain/run.md, section 12.
 
 use skein_lib::Duration;
 

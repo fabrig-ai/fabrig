@@ -1,4 +1,4 @@
-//! Route and settle one check (protocol/hosts.md, section 2).
+//! Route and settle one check (protocol/host.md, section 2).
 use super::{Checks, Queue, SourceAnswer, Time, Token, failure, io, local};
 
 impl Checks {

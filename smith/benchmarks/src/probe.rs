@@ -1,5 +1,5 @@
 //! Commands prepare frozen requests and print settled evidence; the shared
-//! dispatcher owns execution and judging (benchmarks.md, sections 5.1 and 11.5).
+//! dispatcher owns execution and judging (../../docs/design/benchmarks/README.md, section 5.1, and benchmarks/catalogue.md, section 5).
 
 use std::path::PathBuf;
 

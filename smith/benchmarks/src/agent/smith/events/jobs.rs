@@ -1,6 +1,6 @@
 //! Jobs are joined within one process, run and conversation, by their number.
 //! Only reported terminals bound overlap; no command lifetime is inferred from
-//! result text (benchmarks.md, section 11.1; protocol/events.md, section 3.6).
+//! result text (benchmarks/catalogue.md, section 1; protocol/events.md, section 3.6).
 
 use smith_events::{Event, Verdict};
 

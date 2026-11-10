@@ -3,7 +3,7 @@
 //! message/block origin and complete ID/name/input; IDs in other historical turns
 //! confer no authority. Entrances observe calls, submissions, terminals and the
 //! exact locally paired prompt; the judge never reads private domain state.
-//! Contract: smith/docs/design/domain/run.md, sections 5.2 and 13;
+//! Contract: smith/docs/design/domain/run.md, sections 5.2 and 12;
 //! skein/docs/foundation/testing-strategy.md, section 7.
 
 use skein_lib::{Time, Token};

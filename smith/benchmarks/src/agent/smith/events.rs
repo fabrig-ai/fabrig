@@ -1,7 +1,7 @@
 //! Typed outside observations retain process streams and their exact records.
 //! The reader knows only reported facts, never domain state or missing metadata.
 //! `feed` accepts chunks; `finish` checks framing, and measures retain loss gaps
-//! (protocol/events.md, sections2/6; benchmarks.md, sections6.2/8/11.2).
+//! (protocol/events.md, sections2/6; ../../../../docs/design/benchmarks/README.md, sections6.2/8/11.2).
 
 use serde::{Deserialize, Serialize};
 use smith_events::{Event, Reader, Record, SessionEnded, SessionStarted};

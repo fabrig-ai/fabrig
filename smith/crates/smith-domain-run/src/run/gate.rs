@@ -1,6 +1,6 @@
 //! Shared completion admission, reservations and monotonic usage.
 //! The gate retains no separate lifecycle; it accounts against its run and follows
-//! every run transition. Contract: smith/docs/design/domain/run.md, section 9.
+//! every run transition. Contract: smith/docs/design/domain/budget.md.
 
 use core::mem;
 

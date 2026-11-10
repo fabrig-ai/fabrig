@@ -251,7 +251,7 @@ where each is answered:
   connectors.md, section 7).
 - **A hard ceiling on recorded spend:** a run reserves each completion's
   most before making it and winds down on its reserve when the rest is
-  spent, as smith's budget does (smith's `domain/run.md`, 9 and 9.1), and
+  spent, as smith's budget does (smith's `domain/budget.md`), and
   the core places no run smith would refuse for its budget; on a program
   backend, which makes its own completions, the run's reserve holds one
   more of its main model's most costly completions, which the one

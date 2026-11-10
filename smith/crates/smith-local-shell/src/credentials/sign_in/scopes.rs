@@ -1,4 +1,4 @@
-//! Scope-only inspection of saved sign-ins (shell.md, 7.1; protocol/hosts.md, 5.2).
+//! Scope-only inspection of saved sign-ins (shell/credentials.md, 1; protocol/host.md, 5.2).
 //! Keeps no issuer or transport; the registration below only adapts supplied
 //! scopes to skein's `missing_scopes` API and never starts an exchange.
 use skein_oauth as oauth;

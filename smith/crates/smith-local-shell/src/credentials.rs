@@ -1,4 +1,4 @@
-//! Credential source inspection for startup and check (shell.md, section 7).
+//! Credential source inspection for startup and check (shell/credentials.md).
 //! Reports retain names, locations and expiry only. Login bytes and variable
 //! values leave this module only for the service's credential storage.
 pub(crate) const PROGRAM_SOCKETS: u32 = 3;

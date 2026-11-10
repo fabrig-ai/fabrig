@@ -1,5 +1,5 @@
 //! The durable pre-effect intent and post-effect decision for a local
-//! delivery (protocol/hosts.md, sections 5.3 and 5.5; domain/host.md,
+//! delivery (protocol/host.md, sections 5.3 and 5.5; domain/host.md,
 //! section 2). Neither this codec nor its caller may discard an intent after
 //! a crash: the local domain reconciles it before the next run. The file is
 //! replaced through Skein's synced whole-file store before the effect starts

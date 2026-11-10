@@ -4,7 +4,7 @@
 
 Sections 3.6 and 3.8's `host_limits` and the agent's profile derivation
 are `smith-agent-profile`'s at main's `fdc26f71c6`, re-exported at the
-service's and local service's old paths (smith's `shell.md`, 2.6).
+service's and local service's old paths (smith's `../shell/README.md`, 2.6).
 The move leaves the bounds and the gaps below unchanged.
 
 Sections 2.1, 2.2, 3.9 and 4 have no known gap in endpoint limits,

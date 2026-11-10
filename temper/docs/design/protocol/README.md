@@ -786,7 +786,7 @@ on skein's UI kit (`../client/README.md`, section 5).
 
 **smith's:** `smith-host-domain`, the worker root's agent child;
 `smith-host-protocol`, smith's host half, one channel per agent process
-over its pipes (smith's `protocol/hosts.md`, sections 2 and 3);
+over its pipes (smith's `protocol/host.md`, sections 2 and 3);
 `smith-protocol-channel`, `smith-channel`, `smith-charter` and
 `smith-transcript`, smith's codecs, which the routing calls to decode and
 encode smith's payloads; `smith-agent-shell`, the agent's modes in

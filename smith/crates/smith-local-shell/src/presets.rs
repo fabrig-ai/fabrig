@@ -1,6 +1,6 @@
 //! Presets supply literal settings and list prices; layers retain their origins.
 //! They know no file, credential or running service. `built_in` supplies the
-//! catalog; `list_prices` selects the tier after a window resolves (shell.md, 5.2, 6.1–6.2).
+//! catalog; `list_prices` selects the tier after a window resolves (shell/settings.md, 1.2 and 2.1–2.2).
 use crate::settings::{Origin, Settings, Sourced};
 pub use smith_domain::run::Prices;
 mod openai;

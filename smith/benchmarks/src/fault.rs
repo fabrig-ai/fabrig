@@ -1,5 +1,5 @@
 //! Harness failures retain their kind and exact detail, never persisted kind data.
-//! Preparation labels follow the ends in smith/docs/design/benchmarks.md, 8.3.
+//! Preparation labels follow the ends in smith/docs/design/benchmarks/README.md, 8.3.
 
 use crate::isolate::SetupStep;
 

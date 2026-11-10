@@ -1,4 +1,4 @@
-//! What the runs tell whoever watches the agent (smith/docs/design/domain/run.md, section 11):
+//! What the runs tell whoever watches the agent (smith/docs/design/domain/run.md, section 10):
 //! a fact for each thing that happened, content-free (tokens, counts and
 //! classifications, never what an LLM, the charter or the host said), in a
 //! uncapped queue the parent drains at its own pace.
@@ -56,7 +56,7 @@ pub enum FactKind {
     },
     /// It opened main or a child with its asked and effective share.
     Opened { run: Token, conversation: Token, kind: Kind },
-    /// The run's budget at a charge, stage change, or a child's usage line (smith/docs/design/domain/run.md, section 9.2).
+    /// The run's budget at a charge, stage change, or a child's usage line (smith/docs/design/domain/budget.md, section 2).
     Budget {
         run: Token,
         standing: Standing,
@@ -202,7 +202,7 @@ pub enum Return {
     Refused,
 }
 
-/// A conversation terminal's content-free kind (smith/docs/design/domain/run.md, section 11).
+/// A conversation terminal's content-free kind (smith/docs/design/domain/run.md, section 10).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum EndKind {
     /// Price arithmetic failed.
@@ -243,7 +243,7 @@ impl End {
     }
 }
 
-/// A failed answer's content-free kind (smith/docs/design/domain/run.md, section 11).
+/// A failed answer's content-free kind (smith/docs/design/domain/run.md, section 10).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum FailureKind {
     /// The transcript could not be resumed.

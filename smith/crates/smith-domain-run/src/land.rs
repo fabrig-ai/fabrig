@@ -1,5 +1,5 @@
 //! One exclusive snapshot for checked delivery and unchecked saving (smith/docs/design/domain/run.md,
-//! sections 8 and 10). State keeps opaque fields, durable name, caller deadline
+//! sections 8 and 9). State keeps opaque fields, durable name, caller deadline
 //! and its purpose: finishing Change, delivery or save; a running check keeps its given span.
 //! It never knows receipt encoding,
 //! provider ids, callback identity or host delivery policy. Main's write batch

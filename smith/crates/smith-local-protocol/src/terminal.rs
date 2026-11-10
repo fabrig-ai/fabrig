@@ -1,5 +1,5 @@
 //! Bounded line and signal translation for one person at a terminal
-//! (protocol/hosts.md, section 5.1). Only completed lines reach the local
+//! (protocol/host.md, section 5.1). Only completed lines reach the local
 //! domain; a second interrupt asks the selected child to drop through local policy.
 
 use alloc::boxed::Box;
@@ -964,7 +964,7 @@ mod older_tests {
 
     #[test]
     fn older_store_words_match_all_three_shell_contract_blockquotes_verbatim() {
-        let documented = include_str!("../../../docs/design/shell.md");
+        let documented = include_str!("../../../docs/design/shell/settings.md");
         let quotes: Vec<_> = documented
             .lines()
             .filter_map(|line| line.strip_prefix("> Chat "))

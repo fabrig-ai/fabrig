@@ -1,4 +1,4 @@
-//! Serial durable chat operations (protocol/hosts.md, 5.3; skein io.md, 5.2).
+//! Serial durable chat operations (protocol/host.md, 5.3; skein io.md, 5.2).
 //! Compatibility, loading, fresh-history recovery and writes own their sequence
 //! data. Record versions survive operations; conversation policy is never known.
 mod compatibility;
