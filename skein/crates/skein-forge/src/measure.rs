@@ -291,6 +291,7 @@ fn commit_messages(commits: &[api::CommitMessage]) -> Option<u64> {
 }
 
 /// Check every answer list, including nested lists, independently of bytes.
+/// Branches' names have no row bound, only bytes (skein/docs/design/forge.md, 3.7).
 #[must_use]
 pub fn answer_rows(value: &Answer, rows: u32) -> bool {
     let rows = usize_of(rows);
@@ -323,7 +324,6 @@ pub fn answer_rows(value: &Answer, rows: u32) -> bool {
         Answer::Reviews { reviews, .. } => reviews.len() <= rows,
         Answer::Statuses { statuses, .. } | Answer::Checks(statuses) => statuses.len() <= rows,
         Answer::Remarks { remarks, .. } => remarks.len() <= rows,
-        Answer::Branches(branches) => branches.len() <= rows,
         Answer::PullFiles { files, .. } => files.len() <= rows,
         Answer::Compare { files, commits, .. } => files.len() <= rows && commits.len() <= rows,
         Answer::Protection(protection) => match protection {
@@ -331,7 +331,8 @@ pub fn answer_rows(value: &Answer, rows: u32) -> bool {
             None => true,
         },
         Answer::Collaborators { collaborators, .. } => collaborators.len() <= rows,
-        Answer::Located { .. }
+        Answer::Branches(_)
+        | Answer::Located { .. }
         | Answer::Commit(_)
         | Answer::Job { .. }
         | Answer::Directory { .. }
