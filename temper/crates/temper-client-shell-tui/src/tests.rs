@@ -1688,6 +1688,58 @@ fn person_chat(host: &mut Host) {
     read_reply(host, activity, &w::ReadValue::Activity(records::activity_rows(&[row])));
 }
 
+const REPLY_TURN: jig_client::contract::TurnName = jig_client::contract::TurnName { attempt: 44, number: 1 };
+
+fn reply_host() -> Host {
+    use smith_transcript as s;
+    let (mut host, _, _) = signed_host(true);
+    let duties = give(&mut host, Event::Act { act: Act::Go { address: Address::Chat { task: 7 } } });
+    let task_watch = watch(&duties, &w::Subject::Task(w::SubjectTask::new(&w::CEILINGS, w::SubjectTaskParts { task: 7 }).unwrap()));
+    let activity = read_exchange(&duties, "activity");
+    let mut task = records::task_record().into_parts();
+    task.project = 3;
+    let chip = chat_chip(7, b"Choices");
+    let mut reader = Reader::new(chip.rows());
+    let mut rows = Vec::new();
+    while let Some(bytes) = skein_codec::piece::split(&mut reader).unwrap() {
+        let mut fact = w::Fact::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+        if let w::Fact::ChipDetails(row) = fact {
+            let mut row = row.into_parts();
+            let mut fields = row.value.into_parts();
+            fields.live_delegates = 0;
+            row.value = w::ChipDetailsFields::new(&w::CEILINGS, fields).unwrap();
+            fact = w::Fact::ChipDetails(Box::new(w::ChipDetailsRow::new(&w::CEILINGS, row).unwrap()));
+        }
+        rows.push(fact);
+    }
+    task.chip = records::chip_from_rows(&rows);
+    task.activity = 1;
+    task.result = None;
+    task.waits_on = w::WaitsOn::News;
+    let offer = w::Offered::new(&w::CEILINGS, w::OfferedParts { act: w::ActKind::Message, admission: w::Admission::Allowed, effect: None }).unwrap();
+    let mut writer = Writer::new(usize::try_from(offer.measure()).unwrap());
+    offer.encode(&mut writer).unwrap();
+    task.acts = pieces(&[writer.finish()]);
+    delivery(&mut host, task_watch, &w::DeliveryValue::Task(Box::new(w::Task::new(&w::CEILINGS, task).unwrap())));
+    let mut turn = s::decode_archived(&s::CEILINGS, records::FULL_TURN).unwrap().into_parts();
+    let text = s::Block::Text(s::Text::new(&s::CEILINGS, s::TextParts {
+        text: "Choose.\n\n1. Move it at once — no mixed state\n2. Side by side\n3. Tell me something else".as_bytes().into(), replay: None,
+    }).unwrap());
+    turn.messages = List::from_boxed(Box::new([s::Message::new(&s::CEILINGS, s::MessageParts {
+        role: s::Role::Assistant, blocks: List::from_boxed(Box::new([text])),
+    }).unwrap()]));
+    let turn = s::Turn::new(&s::CEILINGS, turn).unwrap();
+    let mut writer = Writer::new(usize::try_from(turn.measure()).unwrap());
+    turn.encode(&mut writer).unwrap();
+    let mut page = records::activity_rows(&[records::turn_line(1, 0, 1, &writer.finish())]).into_parts();
+    page.after = None;
+    page.cut = false;
+    read_reply(&mut host, activity, &w::ReadValue::Activity(w::ActivityPage::new(&w::CEILINGS, page).unwrap()));
+    host.frame();
+    assert_eq!(temper_client_tui::reply_number(&host.view, b"3"), Some(Event::ReplyAside { turn: REPLY_TURN }));
+    host
+}
+
 fn give(host: &mut Host, event: Event) -> Duties {
     let mut duties = Duties::default();
     host.event(event, &mut duties);
@@ -2417,6 +2469,7 @@ fn each_event_becomes_its_acts() {
         assert_eq!(host.state().brief_shown(), brief, "{own:?}");
         assert_eq!(host.state().walk().is_some_and(|walk| !walk.by_key()), walk, "{own:?}");
     }
+    reply_events();
     let mut failures = Vec::new();
     for row in [
         "stop",
@@ -2721,6 +2774,50 @@ fn read_reply(host: &mut Host, exchange: skein_lib::Token, value: &w::ReadValue)
     let mut writer = Writer::new(usize::try_from(answer.measure()).expect("answer size"));
     answer.encode(&mut writer).expect("answer fits");
     reply(host, exchange, writer.finish())
+}
+
+fn reply_events() {
+    for (case, typed_words, message, aside, kept) in [
+        ("answer", b"left in box".as_slice(), Some(b"Move it at once".as_slice()), false, b"".as_slice()),
+        ("aside", b"my own words", None, true, b"my own words"),
+        ("number one", b"1", Some(b"Move it at once"), false, b""),
+        ("number two", b"2", Some(b"Side by side"), false, b""),
+        ("number else", b"3", None, true, b"3"),
+        ("not a number", b"1 ", Some(b"1 "), false, b""),
+        ("out of range", b"4", Some(b"4"), false, b""),
+        ("leading zero", b"01", Some(b"01"), false, b""),
+        ("menu", b"", Some(b"Move it at once"), false, b""),
+        ("escape", b"", None, true, b""),
+    ] {
+        let mut host = reply_host();
+        host.report(Report::Key(Key::Paste(typed_words.into())));
+        host.frame();
+        assert_eq!(host.words(), typed_words, "{case}: typed words before Enter");
+        let key_event = host.event_of(&Key::Enter);
+        let number_event = temper_client_tui::reply_number(&host.view, typed_words);
+        let before = host.state().box_written();
+        let duties = match case {
+            "answer" => give(&mut host, Event::Answer { words: b"Move it at once".as_slice().into() }),
+            "aside" => give(&mut host, Event::ReplyAside { turn: REPLY_TURN }),
+            "escape" => host.report(Report::Key(Key::Escape)),
+            _ => host.report(Report::Key(Key::Enter)),
+        };
+        let duties = stored(&mut host, duties);
+        let asks = sent_ask(&duties);
+        if let Some(words) = message {
+            let [(_, w::Ask::Message(sent))] = asks.as_slice() else { panic!("{case}: {asks:?}; key={key_event:?}; number={number_event:?}; words={:?}", host.words()) };
+            assert_eq!((sent.task(), sent.words()), (7, words), "{case}: choice words, not the number");
+            assert!(host.state().box_written() > before, "{case}: box write advances");
+        } else {
+            assert!(asks.is_empty(), "{case}: no send");
+        }
+        assert_eq!(host.state().reply_aside(), aside.then_some(REPLY_TURN), "{case}");
+        assert_eq!(host.words(), kept, "{case}: composer");
+        if aside {
+            host.frame();
+            assert_eq!(temper_client_tui::reply_number(&host.view, b"1"), None, "{case}: set aside");
+        }
+    }
 }
 
 fn waiting_host() -> Host {

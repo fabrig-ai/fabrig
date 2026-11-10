@@ -10,6 +10,8 @@ pub enum Event {
     Command { command: Command },
     Act { act: temper_client_domain::pages::Act },
     Aside { object: jig_client::contract::ObjectKey },
+    Answer { words: Box<[u8]> },
+    ReplyAside { turn: jig_client::contract::TurnName },
     Dismiss,
     Stop,
     Stay,
