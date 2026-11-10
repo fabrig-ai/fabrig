@@ -143,6 +143,49 @@ fn branch_base_and_pull_reads_retain_their_target_and_cause() {
 }
 
 #[test]
+fn change_reads_ride_outages_with_capped_waits_and_reset_on_an_answer() {
+    use skein_forge::api::Error;
+    for error in [Error::Unavailable, Error::Timeout] {
+        for before in [&[][..], &[fixtures::HEAD][..], &[fixtures::HEAD, fixtures::BASE][..]] {
+            let mut d = gathering();
+            let mut env = env();
+            env.limits.client.read_attempts = 1;
+            for head in before {
+                fixtures::answer_next(&mut d, Ok(Answer::Commit(*head)));
+            }
+            let (mut call, op) = fixtures::next_at(&mut d, &env);
+            for seconds in [1, 2, 4, 8, 16, 32, 40, 40] {
+                let out = fixtures::answer_at(&mut d, &env, call, Err(error));
+                for request in &out {
+                    assert!(!matches!(request, Request::ResourceRefused { .. }), "{out:?}");
+                }
+                let mut early = Queue::uncapped();
+                fixtures::advance(&mut d, &mut env, Duration::from_nanos(Duration::from_secs(seconds).as_nanos() - 1));
+                resume(&mut d, &env, &mut early);
+                for request in &early {
+                    assert!(!matches!(request, Request::Call { .. }), "no early re-ask: {early:?}");
+                }
+                fixtures::advance(&mut d, &mut env, Duration::from_nanos(1));
+                let next = fixtures::next_at(&mut d, &env);
+                assert_eq!(next.1, op, "the same fresh read, not a new chain");
+                call = next.0;
+            }
+            let answer = match before.len() {
+                0 => Answer::Commit(fixtures::HEAD),
+                1 => Answer::Commit(fixtures::BASE),
+                _ => Answer::Pull(fixtures::open_pull()),
+            };
+            fixtures::answer_at(&mut d, &env, call, Ok(answer));
+            let (call, next_op) = fixtures::next_at(&mut d, &env);
+            assert_ne!(next_op, op, "the change steps on the answer");
+            fixtures::answer_at(&mut d, &env, call, Err(error));
+            fixtures::advance(&mut d, &mut env, CLIENT.backoff);
+            assert_eq!(fixtures::next_at(&mut d, &env).1, next_op, "an answer resets the wait");
+        }
+    }
+}
+
+#[test]
 fn cancelled_watch_admission_does_not_return_after_pressure_clears() {
     let (mut d, mut env, call) = departing();
     send(&mut d, &env, Event::Names { task: NEXT, resources: Box::new([run_branch(b"8")]) });

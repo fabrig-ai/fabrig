@@ -321,6 +321,8 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
                 }
             }
             root::Delivery::Assigned { channel, assignment } => {
+                // Take the restored deployment id, as the forge binds it at restore (domain/root.md, 9.1).
+                engine.workers.encoding.deployment = engine.domain.deployment().id;
                 engine.workers.assignment(engine.env.now, channel, assignment, &engine.values, &mut engine.events);
             }
             root::Delivery::Link { channel, down } => {

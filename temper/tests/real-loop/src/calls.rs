@@ -81,6 +81,14 @@ pub enum Step {
     ReleaseHold {
         name: &'static [u8],
     },
+    /// Drain the engine, retaining its store and directories while workers live.
+    StopEngine,
+    /// Start the drained engine again and wait for its fresh sign-in link.
+    StartEngine,
+    /// Wait for a worker's retained lost-contact cancellation answer.
+    WorkerCancelled {
+        name: &'static str,
+    },
     /// Drain a named worker while retaining its root for a restart.
     StopWorker {
         name: &'static str,
@@ -261,6 +269,21 @@ pub fn github_app() -> Arg {
 #[must_use]
 pub fn add_worker(name: &'static str) -> Step {
     Step::AddWorker { name }
+}
+/// Terminate the engine and wait until its service and ring I/O settle.
+#[must_use]
+pub fn stop_engine() -> Step {
+    Step::StopEngine
+}
+/// Restart the settled engine on its retained store and directories.
+#[must_use]
+pub fn start_engine() -> Step {
+    Step::StartEngine
+}
+/// Wait until this worker keeps an answer cancelled for lost engine contact.
+#[must_use]
+pub fn worker_cancelled(name: &'static str) -> Step {
+    Step::WorkerCancelled { name }
 }
 /// Terminate one worker and wait until its service and ring I/O settle.
 #[must_use]
@@ -509,6 +532,10 @@ pub(crate) struct Caller {
     pub(crate) hold_released: Cell<bool>,
     pub(crate) added: Cell<bool>,
     pub(crate) worker_ready: Cell<bool>,
+    pub(crate) engine_ready: Cell<bool>,
+    pub(crate) contact_cancelled: Cell<bool>,
+    pub(crate) held_queries: Cell<usize>,
+    pub(crate) llm_queries: Cell<usize>,
     pub(crate) held: Cell<bool>,
     pub(crate) links: Cell<u32>,
     retry_link: Option<u32>,
@@ -588,6 +615,10 @@ impl Caller {
             Some(Step::ReleaseHold { name }) => {
                 writeln!(out, "caller waits_for=LLM hold release {:?}", String::from_utf8_lossy(name))
                     .expect("string writer");
+            }
+            Some(Step::StopEngine | Step::StartEngine) => out.push_str("caller waits_for=engine transition\n"),
+            Some(Step::WorkerCancelled { name }) => {
+                writeln!(out, "caller waits_for=lost-contact answer {name}").expect("string writer");
             }
             Some(Step::StopWorker { name } | Step::StartWorker { name } | Step::AddWorker { name }) => {
                 writeln!(out, "caller waits_for=worker transition {name}").expect("string writer");
@@ -704,6 +735,9 @@ impl Caller {
             | Step::EndsLeaving(_)
             | Step::ReleaseHold { .. }
             | Step::Terminal(_)
+            | Step::StopEngine
+            | Step::StartEngine
+            | Step::WorkerCancelled { .. }
             | Step::StopWorker { .. }
             | Step::StartWorker { .. }
             | Step::AddWorker { .. }
@@ -727,6 +761,18 @@ impl Caller {
             Some(Step::AddWorker { name }) => Some(*name),
             _ => None,
         }
+    }
+    pub(crate) fn stopping_engine(&self) -> bool {
+        matches!(self.steps.get(self.next), Some(Step::StopEngine))
+    }
+    pub(crate) fn starting_engine(&self) -> bool {
+        matches!(self.steps.get(self.next), Some(Step::StartEngine))
+    }
+    pub(crate) fn cancelled_worker(&self) -> Option<&'static str> {
+        if let Some(Step::WorkerCancelled { name }) = self.steps.get(self.next) { Some(*name) } else { None }
+    }
+    pub(crate) fn held_name(&self) -> Option<&'static [u8]> {
+        if let Some(Step::Held { name }) = self.steps.get(self.next) { Some(*name) } else { None }
     }
     pub(crate) fn stopping_worker(&self) -> Option<&'static str> {
         if let Some(Step::StopWorker { name }) = self.steps.get(self.next) { Some(*name) } else { None }
@@ -793,6 +839,10 @@ impl Caller {
             hold_released: Cell::new(false),
             added: Cell::new(false),
             worker_ready: Cell::new(false),
+            engine_ready: Cell::new(false),
+            contact_cancelled: Cell::new(false),
+            held_queries: Cell::new(0),
+            llm_queries: Cell::new(0),
             held: Cell::new(false),
             links: Cell::new(0),
             retry_link: None,
@@ -848,6 +898,9 @@ impl Caller {
             | Step::EndsLeaving(_)
             | Step::ReleaseHold { .. }
             | Step::Terminal(_)
+            | Step::StopEngine
+            | Step::StartEngine
+            | Step::WorkerCancelled { .. }
             | Step::StopWorker { .. }
             | Step::StartWorker { .. }
             | Step::AddWorker { .. }
@@ -1333,7 +1386,8 @@ impl Caller {
     }
     fn skip_completed_steps(&mut self) {
         if matches!(self.steps.get(self.next), Some(Step::Held { .. })) && self.held.get() {
-            // Issue the following kill in this pass, before the hosted caller's next turn.
+            // Issue the following transition before the hosted caller's next turn.
+            self.held_queries.set(self.llm_queries.get());
             self.next += 1;
         }
         if matches!(self.steps.get(self.next), Some(Step::EndsLeaving(_))) {
@@ -1368,9 +1422,14 @@ impl Caller {
             Step::FixtureReady => self.fixture_ready(),
             Step::EndsLeaving(_) => unreachable!("ending declaration was skipped"),
             Step::AddWorker { .. } if !self.added.replace(false) => return,
+            Step::StopEngine | Step::StartEngine if !self.engine_ready.replace(false) => return,
+            Step::WorkerCancelled { .. } if !self.contact_cancelled.get() => return,
             Step::StopWorker { .. } | Step::StartWorker { .. } if !self.worker_ready.replace(false) => return,
             Step::Advance | Step::Push { .. } if !self.advanced.get() => return,
-            Step::StopWorker { .. }
+            Step::StopEngine
+            | Step::StartEngine
+            | Step::WorkerCancelled { .. }
+            | Step::StopWorker { .. }
             | Step::StartWorker { .. }
             | Step::AddWorker { .. }
             | Step::Advance
@@ -1439,6 +1498,8 @@ impl Caller {
             Some(Step::Terminal(act)) => self.terminal.ready(act, self.links.get()),
             Some(Step::EndsLeaving(_)) | None => self.can_finish(),
             Some(Step::FixtureReady) => self.running.iter().all(Option::is_none),
+            Some(Step::StopEngine | Step::StartEngine) => self.engine_ready.get(),
+            Some(Step::WorkerCancelled { .. }) => self.contact_cancelled.get(),
             Some(Step::StopWorker { .. } | Step::StartWorker { .. }) => self.worker_ready.get(),
             Some(Step::Advance | Step::Push { .. }) => self.advanced.get(),
             Some(Step::ReleaseHold { .. }) => self.hold_released.get(),

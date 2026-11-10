@@ -547,6 +547,39 @@ have one, an engine alone none. Each:
   worker on another host. The cluster's workers are on its machine, and
   it serves them (`README.md`, 15.2).
 
+**The engine-away bound** is jig's worker member `graces.grace_ms`: how
+long a worker keeps hosting its runs with no engine that has admitted
+its hello (jig's `domain/hosts.md`, 6.6; `../domain/worker.md`, section
+2). `temper init` writes 60,000, so that an engine's restart (its
+store's load, its switch, its listeners again) passes within it and
+each run is adopted where it stands; a deployment whose engine takes
+longer to start raises it.
+
+- **It is ordered under the engine's grace.** The stop bound a worker
+  states is its ping interval, its silence deadline, this grace, the
+  longer of `agent_stop_ms` and `delivery_ms`, then `save_ms`: 86
+  seconds with jig's link profile (5 and 15 seconds) and `temper init`'s
+  graces (60,000, 5,000, 1,000 and 1,000). It must stay below the
+  engine's `fleet.grace`, 120 seconds in both of jig's profiles, or the
+  hello is refused (jig's `domain/engine.md`, section 8); a deployment
+  that raises the one raises the other with it.
+- **A hello refused for a charter's reserve names the setting.** The
+  fleet judges a worker's checks' timeout against each modifying
+  charter's `reserve_time` in the store's settings (jig's
+  `domain/engine.md`, section 8). The refusal's words, on the wire and in
+  the engine's log, name both: `charter N: needs checks within R ms; the
+  agent's profile.policy.check_timeout is O ms; raise charter N's
+  reserve_time (temper help settings) or lower the timeout`, within the
+  refusal text's 256 bytes.
+- **A start judges its own worker against the store,** not the
+  document. Standalone, the engine's start checks its worker's agent
+  against the configured charters only for the deployment's own bounds
+  (a message, an inbox, the turns kept unacknowledged, section 7); a
+  charter's turns, time, waiting, checks or models are the store's
+  settings' once a store exists, so a shortfall there is printed as a
+  warning naming the configuration's path, and the hello's check, which
+  names the setting, keeps runs off a worker too small for them.
+
 ## 5. The agent's configuration
 
 - **smith's agent configuration** (smith's `protocol/agent.md`, section
@@ -2635,7 +2668,7 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 | Limit | Relation |
 |---|---|
 | both `hub.turn_bytes` | T |
-| the engine's `core.resume_bytes` | T + 4 |
+| the engine's `core.resume_bytes` | the larger of T + 4 and 4,194,304 (4 MiB), so that a coding run's whole window resumes after an interruption, not one turn's worth (`../domain/worker.md`, section 2) |
 | both `hub.transcript_bytes` | resume + 12 × ⌊resume / 4⌋ |
 | both `hub.turn_queue_bytes` | 8 × T |
 | the engine's and each worker's `io.output` | the same room, the greatest worker room derived from a turn of T's frame and the workers' configured rooms |

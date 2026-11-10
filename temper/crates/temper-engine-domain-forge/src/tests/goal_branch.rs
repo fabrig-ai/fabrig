@@ -370,7 +370,7 @@ fn a_goal_branch_already_gone_completes_its_release() {
 }
 
 #[test]
-fn a_goal_branch_found_missing_after_restart_reports_the_missing_entry_allocator() {
+fn a_goal_branch_found_missing_after_restart_gets_a_fresh_entry() {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(
@@ -382,16 +382,203 @@ fn a_goal_branch_found_missing_after_restart_reports_the_missing_entry_allocator
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     outputs(&mut d, Event::ReadAfresh);
     let missing = fixtures::answer_next(&mut d, Err(Error::Missing));
-    assert!(
-        missing.contains(&Request::MakeFailed {
-            task: GOAL,
-            resource: name(GOAL_BRANCH),
-            reason: b"branch missing after restart; forge has no restored outbox entry allocator".as_slice().into()
-        }),
-        "{missing:?}"
+    assert!(missing.contains(&Request::ContinueGoalBranch { task: GOAL }), "{missing:?}");
+    assert_no_making(&missing);
+    outputs(&mut d, Event::ContinueGoalBranch { task: GOAL, entry: TAKING });
+    let (call, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Branch { branch: b"main".as_slice().into() }));
+    assert_kept_making(&fixtures::answer(&mut d, call, Ok(Answer::Commit(TIP))));
+    assert_eq!(d.hold(&name(GOAL_BRANCH)).unwrap().writer, Some(Writer::Entry(TAKING)));
+    // Restart twice after the entry committed but before its first attempt.
+    for _ in 0_u8..2 {
+        d = restored_making(entry(), false);
+    }
+    fixtures::answer_next(&mut d, Ok(Answer::Items { items: Box::new([]), more: false, now: env().now }));
+    let (call, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Write(Write::CreateBranch { branch: GOAL_BRANCH.into(), commit: TIP }));
+    assert!(fixtures::answer(&mut d, call, Ok(Answer::Branch(BranchCreation::Created))).contains(&made()));
+}
+
+fn restored_making(entry: skein_forge_client::Entry, held: bool) -> Domain {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    outputs(
+        &mut d,
+        Event::Restore {
+            record: Stored::Hold(Hold {
+                name: name(GOAL_BRANCH),
+                task: GOAL,
+                writer: Some(Writer::Entry(TAKING)),
+                drift: None,
+            }),
+        },
     );
-    assert!(missing.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }));
-    assert!(d.hold(&name(GOAL_BRANCH)).is_some());
+    outputs(&mut d, Event::Restore { record: Stored::Entry { entry, held } });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    fixtures::answer_next(&mut d, Err(Error::Missing));
+    outputs(&mut d, Event::SettleOutbox);
+    d
+}
+
+#[test]
+fn a_restored_goal_branch_not_found_past_its_deadline_is_made_again() {
+    let mut attempted = entry();
+    attempted.start = held_issue().start;
+    attempted.attempt = held_issue().attempt;
+    attempted.failures = 1;
+    let mut d = restored_making(attempted.clone(), false);
+    for restart in 0_u8..2 {
+        if restart != 0 {
+            d = restored_making(attempted.clone(), false);
+        }
+        let missing = fixtures::answer_next(&mut d, Err(Error::Missing));
+        for request in &missing {
+            if let Request::MakeFailed { .. } | Request::Outcome { outcome: skein_forge_client::Outcome::Held, .. } =
+                request
+            {
+                panic!("a goal is not held for a missing branch: {request:?}");
+            }
+        }
+        // The connector reads again before remaking. A second restart cuts
+        // after this save and before the remade entry's first attempt.
+        let remade = fixtures::answer_next(&mut d, Err(Error::Missing));
+        assert!(
+            remade.contains(&Request::Save {
+                read_afresh: None,
+                release: None,
+                record: Stored::Entry { entry: attempted.clone(), held: false },
+            }),
+            "{remade:?}"
+        );
+    }
+    // Remake looks first too; it retains the old entry's commit.
+    fixtures::answer_next(&mut d, Err(Error::Missing));
+    let (call, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Write(Write::CreateBranch { branch: GOAL_BRANCH.into(), commit: TIP }));
+    let made = fixtures::answer(&mut d, call, Ok(Answer::Branch(BranchCreation::Created)));
+    assert!(made.contains(&self::made()), "{made:?}");
+    assert_eq!(d.hold(&name(GOAL_BRANCH)).unwrap().writer, None);
+    // A crash can also retain the connector's held entry before its reread.
+    let mut d = restored_making(attempted, true);
+    fixtures::answer_next(&mut d, Err(Error::Missing));
+    let (call, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Write(Write::CreateBranch { branch: GOAL_BRANCH.into(), commit: TIP }));
+    assert!(fixtures::answer(&mut d, call, Ok(Answer::Branch(BranchCreation::Created))).contains(&self::made()));
+}
+
+#[test]
+fn a_restored_goal_branch_found_at_its_commit_is_made_and_at_another_fails() {
+    for after_held in [false, true] {
+        for found in [TIP, fixtures::HEAD] {
+            let mut attempted = entry();
+            attempted.start = held_issue().start;
+            attempted.attempt = held_issue().attempt;
+            let mut d = restored_making(attempted, false);
+            if after_held {
+                fixtures::answer_next(&mut d, Err(Error::Missing));
+            }
+            let requests = fixtures::answer_next(&mut d, Ok(Answer::Commit(found)));
+            if found == TIP {
+                assert!(
+                    requests.contains(&Request::Outcome {
+                        entry: TAKING,
+                        task: GOAL,
+                        account: None,
+                        outcome: skein_forge_client::Outcome::Made {
+                            made: skein_forge_client::Made::Branch(TIP),
+                            found: true
+                        },
+                    }),
+                    "{requests:?}"
+                );
+                assert_eq!(d.branch_head(&name(GOAL_BRANCH)), Some(TIP));
+            } else {
+                assert!(
+                    requests.contains(&Request::MakeFailed {
+                        task: GOAL,
+                        resource: name(GOAL_BRANCH),
+                        reason: b"target already exists".as_slice().into(),
+                    }),
+                    "{requests:?}"
+                );
+            }
+            assert_eq!(d.hold(&name(GOAL_BRANCH)).unwrap().writer, None);
+        }
+    }
+}
+
+fn at_step(d: &mut Domain, env: &Env<Limits>, event: Event) -> Box<[Request]> {
+    if let Event::Restore { .. } = &event {
+        d.restore_begin(Wall::EPOCH);
+    }
+    let mut out = Queue::uncapped();
+    step(d, env, event, &mut out);
+    let mut requests = skein_lib::List::with_capacity(out.len());
+    while let Some(request) = out.pop() {
+        requests.push(request).unwrap();
+    }
+    requests.into_boxed()
+}
+fn at_call(d: &mut Domain, env: &Env<Limits>) -> (Token, Op) {
+    let mut out = Queue::uncapped();
+    for _ in 0_u8..2 {
+        resume(d, env, &mut out);
+        while let Some(request) = out.pop() {
+            if let Request::Call { call, op, .. } = request {
+                return (call, op);
+            }
+        }
+    }
+    panic!("one goal branch call at {:?}, ready={}, due={:?}", env.now, d.is_ready(), d.next_deadline());
+}
+fn at_answer(d: &mut Domain, env: &Env<Limits>, result: Result<Answer, Error>) -> Box<[Request]> {
+    let (call, _) = at_call(d, env);
+    let requests = at_step(
+        d,
+        env,
+        Event::Client(skein_forge_client::Event::Answered { free: 0, rate: None, call, cost: 1, result }),
+    );
+    d.reclaim();
+    requests
+}
+
+#[test]
+fn goal_branch_reads_wait_out_an_outage_with_capped_backoff_reset_by_an_answer() {
+    for (error, waits) in [
+        (Error::Unavailable, &[1, 2][..]),
+        (Error::Unavailable, &[1, 2, 4, 8, 16, 32, 40, 40][..]),
+        (Error::Timeout, &[1, 2, 4, 8, 16, 32, 40, 40][..]),
+    ] {
+        let mut env = env();
+        env.limits.client.read_attempts = 1;
+        let mut d = domain_with_limits(&env.limits);
+        at_step(&mut d, &env, Event::Restore { record: Stored::Repository(adopted()) });
+        at_step(&mut d, &env, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        at_step(&mut d, &env, Event::ReadAfresh);
+        at_step(&mut d, &env, Event::SettleOutbox);
+        at_step(&mut d, &env, Event::Hold { entry: TAKING, task: GOAL, resource: name(GOAL_BRANCH), from: None });
+        for seconds in waits {
+            let requests = at_answer(&mut d, &env, Err(error));
+            assert_no_making(&requests);
+            assert!(!d.is_ready());
+            let due = env.now.saturating_add(Duration::from_secs(*seconds));
+            assert_eq!(d.next_deadline(), Some(due));
+            env.now = due;
+            let mut out = Queue::uncapped();
+            fire(&mut d, &env, &mut out);
+        }
+        // Missing answers the branch read and resets the wait for the default tip.
+        let requests = at_answer(&mut d, &env, Err(Error::Missing));
+        assert_no_making(&requests);
+        let requests = at_answer(&mut d, &env, Err(error));
+        assert_no_making(&requests);
+        assert_eq!(d.next_deadline(), Some(env.now.saturating_add(CLIENT.backoff)));
+        env.now = env.now.saturating_add(CLIENT.backoff);
+        let mut out = Queue::uncapped();
+        fire(&mut d, &env, &mut out);
+        assert_kept_making(&at_answer(&mut d, &env, Ok(Answer::Commit(TIP))));
+    }
 }
 
 #[test]

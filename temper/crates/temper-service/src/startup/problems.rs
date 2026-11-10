@@ -282,6 +282,11 @@ fn admission(
     put(writer, length, measuring, between);
     put(writer, length, measuring, Decimal::of(offered).as_bytes());
     put(writer, length, measuring, after);
+    if let AgentShortfall::Checks { charter } = why {
+        put(writer, length, measuring, b"; raise charter ");
+        put(writer, length, measuring, Decimal::of(u64::from(charter)).as_bytes());
+        put(writer, length, measuring, b"'s reserve_time (temper help settings) or lower the timeout");
+    }
 }
 fn render_path(path: &config::Path, writer: &mut Writer, length: &mut usize, measuring: bool) {
     let mut member = false;

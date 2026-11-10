@@ -2225,6 +2225,67 @@ fn watch_change_pull(domain: &mut Domain, env: &Env<Limits>, row: &forge::Change
     }
 }
 
+/// A release of the account for a goal's making reads its branch again (domain/forge.md, 11.1).
+/// Capture the source before jig restores the held phase; failed releases change nothing.
+pub(crate) fn step_core(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    event: jig_domain_core::Event,
+) -> Queue<jig_domain_core::Request> {
+    let mut makings = List::with_capacity(env.limits.forge.holds);
+    for view in domain.core.tasks.view_tasks() {
+        if making_held(domain, env, view.number) {
+            makings.push(view.number).expect("goal makings bounded by holds");
+        }
+    }
+    let mut requests = jig_domain_core::step(&mut domain.core, &super::environment_core(env), event);
+    let mut routed = Queue::uncapped();
+    while let Some(request) = requests.pop() {
+        if let jig_domain_core::Request::Write(jig_domain_core::Write::Save(jig_domain_core::Record::Tasks(
+            tasks::Stored::History(row),
+        ))) = &request
+            && row.change == tasks::Change::Released
+            && makings.as_slice().contains(&row.task)
+        {
+            domain.work.push(Work::Forge(forge::Event::RetryGoalBranch { task: row.task }));
+        }
+        routed.push(request);
+    }
+    routed
+}
+
+fn making_held(domain: &Domain, env: &Env<Limits>, task: u64) -> bool {
+    let Some(row) = domain.core.tasks.task(task) else { return false };
+    let tasks::Phase::Held { why: tasks::Hold::EffectFailed, source: Some(source), .. } = &row.phase else {
+        return false;
+    };
+    let tasks::HoldSource::Account { connector, words, .. } = source.as_ref() else { return false };
+    if *connector != domain.config.forge_connector {
+        return false;
+    }
+    let Some(home) = domain.forge.home(row.project) else { return false };
+    let Some(root) = domain.core.tasks.root(task) else { return false };
+    let Some(branch) = tree_branch(home, root, b'g', task, None, env.limits.forge.name_bytes) else { return false };
+    let Some(what) = branch_what(&branch, env.limits.forge.name_bytes) else { return false };
+    let name = forge::Name { forge: home.provider.forge, repository: home.provider.repository, what };
+    let Some(hold) = domain.forge.hold(&name) else { return false };
+    if hold.task != task {
+        return false;
+    }
+    if words.starts_with(&holds::make_words(domain, &name, b"")) {
+        return true;
+    }
+    // A write's terminal account can supersede MakeFailed's read account.
+    let mut target = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+    append(&mut target, b"; resource ");
+    append(&mut target, &home.owner);
+    append(&mut target, b"/");
+    append(&mut target, &home.name);
+    append(&mut target, b" branch ");
+    append(&mut target, &branch);
+    words.starts_with(b"create branch: ") && words.ends_with(target.as_slice())
+}
+
 fn retry_change_names(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     if domain.forge.names(task).is_some() {
         return;
@@ -5026,6 +5087,13 @@ pub(crate) fn outputs(
                         outcome: result,
                     },
                 )));
+            }
+            forge::Request::ContinueGoalBranch { task } => {
+                if let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) {
+                    domain.work.push(Work::Forge(forge::Event::ContinueGoalBranch { task, entry }));
+                } else {
+                    holds::hold(domain, task, b"connector entry numbers exhausted while making a goal branch");
+                }
             }
             forge::Request::ContinueRelease { task } => {
                 if let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) {

@@ -797,15 +797,27 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
     let original: serde_json::Value =
         serde_json::from_slice(&fs::read(&path).expect("agent fixture")).expect("agent JSON");
     for (member, value, expected) in [
-        ("max_turns", 7, Some("charter 1.turns: needs 64 turns; the agent's profile.policy.max_turns allows 7\n")),
-        ("max_turns", 15, Some("charter 1.turns: needs 64 turns; the agent's profile.policy.max_turns allows 15\n")),
-        ("max_turns", 799, Some("charter 2.turns: needs 800 turns; the agent's profile.policy.max_turns allows 799\n")),
+        (
+            "max_turns",
+            7,
+            Some("engine.charters[0].turns: needs 64 turns; the agent's profile.policy.max_turns allows 7\n"),
+        ),
+        (
+            "max_turns",
+            15,
+            Some("engine.charters[0].turns: needs 64 turns; the agent's profile.policy.max_turns allows 15\n"),
+        ),
+        (
+            "max_turns",
+            799,
+            Some("engine.charters[1].turns: needs 800 turns; the agent's profile.policy.max_turns allows 799\n"),
+        ),
         ("max_turns", 800, None),
         (
             "check_timeout",
             60001,
             Some(
-                "charter 2.reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 60001 ms\n",
+                "engine.charters[1].reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 60001 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout\n",
             ),
         ),
         ("check_timeout", 60000, None),
@@ -813,7 +825,7 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
             "check_timeout",
             300_000,
             Some(
-                "charter 2.reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 300000 ms\n",
+                "engine.charters[1].reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 300000 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout\n",
             ),
         ),
         (
@@ -838,6 +850,15 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
         support::write_private(&path, &serde_json::to_vec(&agent).expect("agent JSON"));
         let result = temper::prepare_in(&support::configuration::directories(scratch.path()));
         match expected {
+            Some(line) if member != "tool_payload" => {
+                let mut service = result.expect("charter shortfalls warn");
+                assert_eq!(
+                    service.notes().pop(),
+                    Some(temper_service::Note::StartupWarning { line: line.trim_end().as_bytes().into() }),
+                    "{member}={value}"
+                );
+                assert_eq!(service.notes().pop(), None);
+            }
             Some(line) => assert_eq!(
                 result.err().expect("admission refused"),
                 format!("temper serve: {line}"),
@@ -853,7 +874,7 @@ fn serve_checks_the_owned_agents_admission_at_each_bound() {
     support::write_private(&path, &serde_json::to_vec(&agent).expect("agent JSON"));
     assert_eq!(
         temper::prepare_in(&support::configuration::directories(scratch.path())).err().expect("old tuple refused"),
-        "temper serve: charter 1.turns: needs 64 turns; the agent's profile.policy.max_turns allows 5\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n"
+        "temper serve: engine.limits: needs 10660-byte messages (tasks.message_bytes); the agent offers 598 (tool_payload less 2)\ntemper serve: workers[0].agent.profile.declared.tool_payload: 600 bytes, short of temper's documentation answer (read_docs), 2048 bytes\n"
     );
     scratch.remove();
 }

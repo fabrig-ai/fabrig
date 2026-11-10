@@ -130,6 +130,7 @@ pub struct World {
     writer_saves: u32,
     writes: u32,
     lose_writes: bool,
+    unavailable: Option<(Wall, Wall)>,
     calls: u32,
     call_ops: Vec<skein_forge::api::Op>,
     hints: Vec<skein_forge::api::Hint>,
@@ -461,6 +462,7 @@ impl World {
             writer_saves: 0,
             writes: 0,
             lose_writes: false,
+            unavailable: None,
             calls: 0,
             call_ops: Vec::new(),
             hints: Vec::new(),
@@ -1189,6 +1191,7 @@ impl World {
                 | top::Request::ProjectionOutcome { .. }
                 | top::Request::NotMade { .. }
                 | top::Request::ContinueRelease { .. }
+                | top::Request::ContinueGoalBranch { .. }
                 | top::Request::EffectsSettled { .. }
                 | top::Request::Released { .. }
                 | top::Request::ProjectReleased { .. }
@@ -1231,6 +1234,22 @@ impl World {
         assert!(repository.repository == REPO.repository || repository.repository == 0 || repository.repository == 3);
         self.calls += 1;
         self.call_ops.push(op.clone());
+        if let Some((from, until)) = self.unavailable
+            && self.env.wall >= from
+            && self.env.wall < until
+        {
+            self.to_top.push((
+                self.generation,
+                top::Event::Client(skein_forge_client::Event::Answered {
+                    free: 0,
+                    rate: None,
+                    call,
+                    cost: 1,
+                    result: Err(skein_forge::api::Error::Unavailable),
+                }),
+            ));
+            return;
+        }
         if let Some(result) = self.scripted_read(&op) {
             self.to_top.push((
                 self.generation,
@@ -1354,6 +1373,13 @@ impl World {
                 hook @ forge::Request::Hook { .. } => self.hear(&hook),
             }
         }
+    }
+
+    /// Every connector call is unavailable in this interval; external changes
+    /// still reach the fake, without inventing a delivery (domain/forge.md, 5.11).
+    pub fn unavailable(&mut self, from: Wall, until: Wall) {
+        assert!(until > from);
+        self.unavailable = Some((from, until));
     }
 
     /// Answer writes as timed out, then apply their copies after this delay.

@@ -3416,9 +3416,104 @@ fn a_stop_with_a_committed_forge_effect_makes_no_commit_and_no_write() {
     assert_eq!(issue_count(&mut world), 1, "the retried call settles its durable outbox entry once");
 }
 
+fn goal_branch_survives_cut(cut: u8) {
+    let mut world = goal_branch::adopted_world();
+    let request = goal_branch::goal_request(&world, true);
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(92)),
+        sign_in: world.signed_in.expect("owner"),
+        key: [92; 16],
+        ask: request,
+    }));
+    let mut making = None;
+    for _ in 0..1000 {
+        // Handle the tip answer outside tick: tick also commits its first
+        // decision, which would skip the before-entry cut.
+        if let Some(index) = world.events.iter().position(|event| {
+            matches!(event,
+                engine::Event::Forge(event) if matches!(event.as_ref(), forge_top::Event::Client(
+                    skein_forge_client::Event::Answered { result: Ok(skein_forge::api::Answer::Commit(_)), .. }
+                ))
+            )
+        }) {
+            let event = world.events.remove(index).expect("queued tip answer");
+            world.send(event);
+        }
+        if let Some(found) = world.store.pending.front().into_iter().flat_map(|(_, writes)| writes.iter()).find_map(
+            |write| match write {
+                engine::Write::Save(Record::Forge { row }) => match row.as_ref() {
+                    forge_top::Stored::Entry { entry, .. } => match &entry.effect.write {
+                        skein_forge::api::Write::CreateBranch { branch, .. } if entry.attempt.is_none() => {
+                            Some((entry.task, branch.clone()))
+                        }
+                        _ => None,
+                    },
+                    _ => None,
+                },
+                _ => None,
+            },
+        ) {
+            making = Some(found);
+            break;
+        }
+        world.tick();
+    }
+    let (goal, branch) = making.expect("making awaits its first commit");
+    if cut == 0 {
+        world.store.pending.clear();
+    } else {
+        let number = world.store.apply();
+        if cut >= 2 {
+            world.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
+            for _ in 0..1000 {
+                if world.events.iter().any(goal_branch_answer) {
+                    break;
+                }
+                world.tick();
+            }
+            assert_eq!(goal_branch_creations(&world, &branch), 1, "external making before cut {cut}");
+            if cut == 3 {
+                let index = world.events.iter().position(goal_branch_answer).expect("queued making answer");
+                let event = world.events.remove(index).expect("queued making answer");
+                world.send(event);
+                assert!(!world.store.pending.is_empty());
+                world.store.pending.clear();
+            }
+        }
+    }
+    world.restart(true, true);
+    world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
+    for _ in 0..200 {
+        world.tick();
+    }
+    assert_eq!(
+        goal_branch_creations(&world, &branch),
+        1,
+        "cut {cut} makes the goal branch once: {:?}",
+        live_task(&world, goal).phase
+    );
+    assert_eq!(goal_branch::branch_tip(&mut world, &branch), goal_branch::branch_tip(&mut world, b"main"));
+    assert!(
+        !matches!(live_task(&world, goal).phase, tasks::Phase::Held { .. }),
+        "cut {cut}: {:?}",
+        live_task(&world, goal).phase
+    );
+    world.close();
+}
+fn goal_branch_answer(event: &engine::Event) -> bool {
+    matches!(event, engine::Event::Forge(event) if matches!(event.as_ref(),
+        forge_top::Event::Client(skein_forge_client::Event::Answered { result: Ok(skein_forge::api::Answer::Branch(_)), .. })
+    ))
+}
+fn goal_branch_creations(world: &World, expected: &[u8]) -> usize {
+    world.writes.iter().filter(|write| matches!(write, skein_forge::api::Write::CreateBranch { branch, .. } if branch.as_ref() == expected)).count()
+}
+
 #[test]
 fn effect_survives_each_commit_and_outbox_cut_without_a_second_issue() {
     for cut in 0..4 {
+        goal_branch_survives_cut(cut);
         let (mut world, assignment) = pending_issue_effect();
         if cut == 0 {
             // The decision was sent, but no record became durable.
