@@ -37,6 +37,10 @@ python3 -I -B tools/citations/test_citations.py
   at most two words before the parenthesis). Bare sections after "its", "their", "that" or
   "this" are skipped regardless of case. A status file that says "By step" before its first
   numbered label has step labels: its labels are left unchecked, while its citations are checked.
+- **The size limit:** in the trees `sized.txt` lists, a Markdown file under `docs/design/` over
+  64 KiB (`LIMIT`) fails `--all`, and fails the gate when it crossed the limit or grew while
+  over it, renames mapped (`DESIGN.md`, 5). A tree is listed once its layout keeps every file
+  under the limit.
 - **`allow.txt`** excuses what must stay as it is, one line each: `FILE TARGET # reason`, FILE a
   glob and TARGET as the checker prints it, or `*` for every target.
 - Exit 0 clean, 1 findings, 2 usage, a malformed `allow.txt` or a git failure.
