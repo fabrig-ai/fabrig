@@ -161,6 +161,14 @@ class Citations(unittest.TestCase):
         self.assertEqual(len(result.stdout.splitlines()), 1, result.stdout)
         self.assertIn(f"status-label {DESIGN}/b.md 14", result.stdout)
 
+    def test_an_in_flight_tag_on_a_status_entry_passes(self):
+        self.write(f"{DESIGN}/a.status.md",
+                   "# Status\n\n- **Not yet:** 2.1: text [in flight: change 12]\n"
+                   "- **Not yet:** 2.1: more [in flight: some-name]\n")
+        self.commit("head")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_by_step_must_precede_the_first_label_and_only_skips_labels(self):
         self.write(f"{DESIGN}/a.status.md",
                    "# Status\n\n- **2:** waiting. By step:\n\n- **14:** waiting.\n")

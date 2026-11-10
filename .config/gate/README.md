@@ -100,6 +100,8 @@ Each list has one entry per line; `#` starts a comment line.
   `smith/docs/design/domain/run.md`, 8.1).
 - **`.temper/merge`:** the reference's merge job, `tools/merge/merge.py`
   (`temper/docs/design/protocol/tooling.md`, 4.1).
+- **`.temper/close`:** fabrig's close command, `tools/close/close.py`
+  (`temper/docs/design/protocol/tooling.md`, 4.2).
 - **`.config/fixture-readers.toml`:** the readers and generators of every tracked
   `**/fixtures/**` file (`tools/tiers/design.md`, 9;
   `skein/docs/foundation/testing-strategy.md`, 8).

@@ -17,7 +17,9 @@ credential and no network, and needs only Python's standard library and git.
   with its continuation lines, those indented beneath it, to the next list
   item, blank line or heading. **Its tag** is the text `[in flight: change N]`
   that ends it, N a positive decimal integer, with nothing but spaces after
-  it on its last line. An entry with no tag is left as it is.
+  it on its last line. An entry ending `[in flight: ANY]` of another form
+  has a tag naming no change of the request, which fails. An entry with no
+  tag is left as it is.
 - **What it does to a tagged entry:**
   - its change landed (`"landed": true`): the entry is deleted, its lines
     whole, nothing else of the file moved;

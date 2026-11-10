@@ -1,0 +1,4 @@
+#!/bin/sh
+# The reference's close job (temper/docs/design/protocol/tooling.md, 4.2).
+set -eu
+exec python3 -I -B "$(dirname "$0")/../tools/close/close.py" "$@"
