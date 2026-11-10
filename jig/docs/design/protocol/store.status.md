@@ -1,6 +1,6 @@
 # store: status
 
-2026-11-09. Where jig's code lags or departs from [store.md](store.md).
+2026-11-10. Where jig's code lags or departs from [store.md](store.md).
 
 Section 5.1's tasks-v9 failed ends retain every optional invalid-result
 kind through the store codec. The generated layout fingerprint and golden
@@ -86,3 +86,6 @@ keeps its name while its window reads expect the cut).
   cheaply: a snapshot waits for the log past its bound (skein's
   `kv.md`, 5), and a group for commits queued below the component.
 - **Departs:** 14: `jig/tests/store/src/model.rs` reads a copy as a settings revision's and panics on any other row, because the core copies only that one, so no story reaches it; `jig/crates/jig-protocol-store/src/tests/commits.rs` holds a copy of another row and section 6's two rules of a copy.
+- **Not yet:** 5.1: `EndedBy`'s `closer` in the tasks, people and
+  settings families, and a live task's closer in the tasks family.
+  [in flight: jig-closer-carried]

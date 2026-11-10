@@ -1,6 +1,6 @@
 # Status
 
-2026-11-09. Where temper's code lags or departs from its design, and
+2026-11-10. Where temper's code lags or departs from its design, and
 its design from its drafts, from the status files below. The TUI's
 connected milestone is built: bare `temper` or `temper ADDRESS`, a
 pasted-link sign-in and a live launchpad, with golden frames,
@@ -196,10 +196,18 @@ the drafter is no role yet (`client/README.status.md`, 5.13;
 goal's path draws "design" in place of "plan", and a "close-out" after
 the landing, from kind 11, its template's work, the whole story's
 milestone P3f, by plan `ui-p3f-design`: the stock's template 4 neither,
-the reference's both, read and proposed by ctl and Ask temper's tools,
-with derivation rows and a fuzz test. The reference's runs still make
-their close-out into the goal's branch before the landing, nothing tells
-Ask temper to propose a template's work, and stage one's golden asks it
+the reference's design alone, read and proposed by ctl and Ask temper's
+tools, with derivation rows and a fuzz test. A goal from template 4 runs
+itself (`draft/goal-runs-itself.md`): jig makes its closer once nothing
+is left for its coordinator to judge, and temper's goal closer settles
+its in-flight status by the project's close command (fabrig's settles
+`DESIGN.md`'s tags), lands it into main and ends it with a report of its
+changes, their Left sections, the landing and each main pull's CI
+selection, while its coordinator wakes for questions, escalations,
+failures, reds and words alone, with no landing, close-out or catch-up
+of its own (`domain/forge.status.md`, 11.2;
+`protocol/tooling.status.md`, 4.2; `draft/goal-runs-itself.status.md`).
+Nothing tells Ask temper to propose a template's work, and stage one's golden asks it
 at template 4 by number (`protocol/configuration.status.md`, 13.9;
 `domain/agent.status.md`, 8.1; `domain/testing.status.md`, 6.5.1;
 `draft/surfaces.status.md`, 7). Words saved with a setting are the
@@ -1150,6 +1158,7 @@ Drafts:
 - [`draft/forge-identity.md`](draft/forge-identity.status.md)
 - [`draft/github.md`](draft/github.status.md)
 - [`draft/goal-as-designer.md`](draft/goal-as-designer.status.md)
+- [`draft/goal-runs-itself.md`](draft/goal-runs-itself.status.md)
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
 - [`draft/model-catalogue.md`](draft/model-catalogue.status.md)

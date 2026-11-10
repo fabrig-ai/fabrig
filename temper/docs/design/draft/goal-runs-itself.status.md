@@ -2,4 +2,37 @@
 
 2026-11-10. Where the design lags or departs from [goal-runs-itself.md](goal-runs-itself.md).
 
-- **Design lags:** 2: jig's `domain/tasks.md`, 5.2 and 5.3: no closer; a task that parks with nothing left to await is woken with the `NothingAwaited` notice. 3: `../protocol/configuration.md`, 13.2: kind 11 has no `closes`; `../domain/forge.md`, 11.1: the goal makes its landing and catches up. 4: `../protocol/tooling.md`, section 4: no `close` command; fabrig's `DESIGN.md`, section 2: no in-flight tag. 5: no report written by temper. 6 and 7: `../protocol/configuration.md`, 13.4 and 13.9: charter 5's wakes and instructions, and the reference's charter 7.
+Sections 1 to 8 are carried by jig's `domain/tasks.md`, 5.2 and 5.10, and
+jig's `protocol/configuration.md`, 3.2; `../domain/forge.md`, 8.1, 11.1 and
+11.2; `../protocol/tooling.md`, 4.2; `../domain/worker.md`, 4.4;
+`../protocol/configuration.md`, section 3, 13.2, 13.4 and 13.9; skein's
+`forge.md`, 3.2; and fabrig's `DESIGN.md`, section 2 and
+`tools/close/README.md`. Section 10's two defaults are the design's.
+
+- **Design departs:**
+  - 3: the closer is named by template 4's `ended_by`, `{"closer":
+    {"connector": 1, "code": 6}}` (jig's `protocol/configuration.md`,
+    3.2), not by a `closes` member of kind 11: every way of making a goal
+    from a template carries the template's `ended_by` into the task,
+    while kind 11 is read by no way that makes a task and says only, for
+    the pages, what a template's charter does. Kind 11 keeps `design`
+    and `close_out`, the reference's template 4 at design alone. Decided
+    by the goal's designer, 2026-11-10, for the user's review.
+  - 4: fabrig's close command, as temper's contract has every `close`
+    command, stages its edits and temper commits them, one parent, as
+    the merge job's command stages and temper commits
+    (`../protocol/tooling.md`, 4.1 and 4.2), so that a command needs no
+    git identity of its own. Decided by the goal's designer, 2026-11-10.
+  - 4: a goal writes its tags `[in flight: change N]` with its changes'
+    task numbers, which `change` gives only once a change is made, so an
+    entry written before its change is tagged in the goal's next
+    delivery (`../protocol/configuration.md`, 13.9, charter 5's cut).
+    Decided by the goal's designer, 2026-11-10.
+  - 6: charter 5's wake policy takes results `last_or_failure`, and a
+    goal its closer ends is woken by a failure alone, its last result
+    making its closer instead (jig's `domain/tasks.md`, 5.10); a
+    designer's result and a person task's result reach it by the watch
+    it subscribes to each. Decided by the goal's designer, 2026-11-10.
+  - 7: charter 7 stays the reference's designer's charter, which the
+    designers section 7 keeps run under; only its close-out goes.
+    Decided by the goal's designer, 2026-11-10.

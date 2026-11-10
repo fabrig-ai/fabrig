@@ -1,6 +1,6 @@
 # configuration: status
 
-2026-11-09. Where temper's code lags or departs from [configuration.md](configuration.md).
+2026-11-10. Where temper's code lags or departs from [configuration.md](configuration.md).
 
 Sections 7, 13.2, 13.4 and 13.10 have no known implementation gap in a
 project's classes, the whole story's milestone N1, by plan
@@ -38,7 +38,7 @@ neither where none is held; the store's and smith's codecs; its
 declaration to jig, `limits.templates` per scope; `template-goal` in a
 settings file, the settings form, a run's `settings`, `see` and
 `propose_settings`, and the "none kept" answer; and the stock's template
-4 at neither, the reference's at both. The forge's judge and kinds tables, smith's round
+4 at neither, the reference's at design alone. The forge's judge and kinds tables, smith's round
 trip, `kinds_are_declared_with_their_bounds`,
 `the_binary_gives_the_forges_stock_at_every_start`,
 `the_reference_settings_file_decodes` and the engine world's
@@ -276,7 +276,7 @@ Section 13.8 has no gap in note-backed settings transport within the call payloa
   section 2, moves the close-out after the landing, which the reference's
   charters don't take yet (`../draft/goal-as-designer.status.md`); until
   then the reference's path draws its close-out where its runs don't
-  make it.
+  make it. [in flight: coordinator-charter]
 
 - **Not yet:** 13.4, 13.8: the supplied retirement inventory has no outcome
   for the seven-model stock's largest-turn remeasurement or its affected
@@ -341,3 +341,14 @@ Section 13.8 has no known gap in a brief's charter bound: the engine
 fits a charter to the smaller of `hub.charter_bytes` and its worker's
 allowance, 65,536 where its process has no local agent
 (`../domain/agent.status.md`, 4.3).
+- **Not yet:** 3: `close_job`, read at the start beside `merge_job` and
+  kept per project. [in flight: close-job-service]
+- **Not yet:** 13.2, 13.4, 13.9: charter 5's instructions without the
+  landing, the close-out, catch-ups, CI selection reads or acceptance
+  checks before landing, with tagged status written up front and the
+  lean report note; its policy's results `last_or_failure` and its
+  questions part on `words`; charter 7 without the close-out; the
+  reference's `template-goal` 4 at design alone. [in flight: coordinator-charter]
+- **Not yet:** 13.4, 13.9: template 4 ended by the goal closer; the
+  stock's and the reference's delegation naming procedure 6 and job 4,
+  and the reference's eighteen executor places. [in flight: template-closer]

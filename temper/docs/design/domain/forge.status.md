@@ -573,3 +573,15 @@ a change's merge job from the engine through its worker to the fake forge
 - **Not yet:** 6: a `Flight` row whose entry the forge does not hold
   panics at its link, where the section refuses the start
   (`root.status.md`, 9.1).
+- **Not yet:** 8.1: bytes parameter 17, a close step's change, its
+  producer the close job, kind 4, at a branch made at its landing
+  branch's tip, ending with no change where the job pushed nothing.
+  [in flight: close-change]
+- **Not yet:** 8.1, 11.1, 11.2: the goal closer, procedure 6: its close,
+  land and report steps, the goal's landing made by the closer on the
+  goal's held branch, a step's change ending without landing holding it,
+  and its steps made again after work it waited for. [in flight: goal-closer]
+- **Not yet:** 11.2: the report's words, their order and their cut, a
+  change's `Left` section found in its result. [in flight: goal-report]
+- **Not yet:** 11.2: the report's CI selection, each pull into the base's
+  jobs' logs read by their start. [in flight: closer-ci-selection]

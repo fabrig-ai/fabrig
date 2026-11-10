@@ -1702,7 +1702,10 @@ branch. Its parameters:
   resolutions and checks' gates run under too: the one `change` names,
   or the forge's change charter (8.9); or, for a catch-up, the commit
   the merge job merges into a branch made at its landing branch's tip
-  (section 10), parameter 16, its producer that job and no agent;
+  (section 10), parameter 16, its producer that job and no agent; or,
+  for a goal's close step, the close request (`../protocol/tooling.md`,
+  4.2), bytes parameter 17, its producer the close job, kind 4, run at
+  a branch made at its landing branch's tip, and no agent (11.2);
 - **its agents' LLM choices,** by role (jig's `domain/tasks.md`, section
   3): the producer's, for its producing task, its repairs, its
   resolutions and its checks' gates; the reviews', for its agents'
@@ -1819,7 +1822,9 @@ branch:
   is cut and says that the change's full words are on its task in temper.
 - **Held by its requester, not by the change.** The change takes no
   hold of the branch and hands none: its requester holds it for its own
-  life (11.1). The change writes it only through its own delegates (its
+  life (11.1). A goal's landing made by the goal's closer (11.2) is on
+  the goal's held branch, its requester's requester's: the goal holds
+  it, and the closer, which holds none, makes no other change on it. The change writes it only through its own delegates (its
   repairs and its resolution) and the updates it asks for, each taking
   the branch's writer slot under its requester's hold as it writes
   (jig's `domain/tasks.md`, 6.3), as a change's delegates write its own
@@ -1841,6 +1846,17 @@ The question route is number parameter 14: 1 for `foreman`, 2 for `up`;
 absent means `none`. The root writes it only for `foreman` or `up`. Any
 other value refuses the change's start as a malformed parameter
 (2026-11-04).
+
+The close request a goal's close step carries is bytes parameter 17, the
+request's exact text form (`../protocol/tooling.md`, 4.2), within the close
+kind's spec bound less the command's path; a value in another form, beside
+parameter 16 or on a change with a branch of its own pushed or handed,
+refuses the change's start as a malformed parameter. Its start is refused,
+naming the setting, where the change's project names no `close_job`, and
+naming the kind where its authority does not delegate to kind 4. Like a
+catch-up's, its producer is the job: the change makes its own branch at its
+landing branch's tip, the job's checkout, and a job that pushed nothing ends
+the change with no change, as a catch-up already contained does (11.2).
 
 The red landing a change repairs is carried as bytes parameter 12, its merge
 commit as 40 or 64 lowercase hexadecimal digits. The start keeps it with the
@@ -3643,11 +3659,145 @@ own, never a change's:
   saved work starts from it, as any does. A charter without `modify` leaves
   its goal's run to inspect its confirmed branch, as it starts there.
 - **Landed whole** by a change into the base whose branch is the goal's
-  own, made by the goal on its held branch (8.1), and deleted as the goal closes once that change has landed it
-  (section 11); otherwise kept as the goal closes. It takes the base's
-  landings that touch its area as they come, by catch-ups (section 10),
-  which its goal makes as it hears them (7.3). A project's rule may
-  require or forbid it.
+  own: made by the goal's closer (11.2) where the goal is ended by one,
+  and otherwise by the goal on its held branch (8.1); and deleted as the
+  goal closes once that change has landed it (section 11); otherwise
+  kept as the goal closes. A goal its closer ends makes no catch-ups:
+  its landing takes the base at the front of the base's queue, as any
+  change does (8.2), and a conflict goes to the merge job and a
+  resolution (8.4). A goal with no closer may still take the base's
+  landings that touch its area by catch-ups (section 10), which it makes
+  as it hears them (7.3). A project's rule may require or forbid it.
+
+### 11.2 A goal's closer
+
+A goal from a template that names it is ended by temper's goal closer
+(jig's `domain/tasks.md`, 5.10): when nothing is left for its agent to
+judge, jig makes the closer as the goal's own delegate, and the closer
+does with no model what a goal's run did once its plan's changes had
+ended: it settles the goal's branch, lands it, and reports. The goal's
+agent wakes for judgement alone (`../draft/goal-runs-itself.md`,
+section 6).
+
+- **The forge's procedure 6,** the goal closer, beside the change (2),
+  the landing (3), the after-landing (4) and the status (5) procedures.
+  Its task's words are jig's fixed words and it takes no parameters: it
+  reads its goal, its requester, from the store, and the goal's
+  changes, its delegates and theirs. A template names it as `ended_by`
+  `{"closer": {"connector": 1, "code": 6}}` (`../protocol/configuration.md`,
+  13.4 and 13.9). Its state is a row of the forge's, kept under its
+  task's number as a change's is, and restored with it (section 16).
+- **Its steps, in order,** each a change of its own, made as its
+  delegate and waited for:
+  1. **Close,** where the goal holds a goal branch and its project names
+     a `close_job` (`../protocol/configuration.md`, section 3): a change
+     into the goal's branch whose producer is the close job, kind 4
+     (`worker.md`, 4.4), as a catch-up's is the merge job: its bytes
+     parameter 17 the close request (`../protocol/tooling.md`, 4.2),
+     naming the goal and each change of the goal's tree whose landing
+     branch is the goal's branch, with how each ended, the closer's own
+     changes left out; its words `Settle goal G's status.` The change
+     makes its branch at the goal's branch's tip, its producer the job,
+     no agent, and lands as any change into the branch does; nothing
+     staged ends it with no change. Where the project names none, or the
+     goal holds no goal branch, this step is skipped.
+  2. **Land,** where the goal holds a goal branch whose tip its base
+     does not hold: the goal's landing, a change on the goal's held
+     branch into its base, as the goal's `"branch": "mine"` would make
+     it (8.1), made by the closer on the goal's behalf: its branch the
+     goal's, held by the goal and not by the closer or the change; its
+     landing branch the repository's default branch; its words the
+     goal's title, the first line of the goal's words, then a blank
+     line and `Draft: PATH`, where the goal's words hold a line
+     `Draft: PATH`, as a goal started from a draft's do, and nothing
+     more where they hold none. CI, the queue, taking the base,
+     a conflict's resolution, a CI repair and the after-landing
+     verification are what they are for any change, and the step waits
+     for the landing's result at cleared, repaired or not
+     (`after-landing.md`, section 6). A goal with no goal branch, or whose base
+     already holds its tip, skips it.
+  3. **Report:** the closer's result, below, and its end: done, which
+     ends the goal (jig's `domain/tasks.md`, 5.10).
+- **What wakes the goal meanwhile** is what wakes it for any delegate:
+  a step's change held past its bounds, its resolution or repair
+  failing, escalates past the closer, a procedure, to the goal (jig's
+  `domain/tasks.md`, section 9); a red after landing, while the landing
+  is verified, is news for the goal, whose tree the landing is in
+  (`after-landing.md`, section 7). A step's change that ends without
+  landing (cancelled, failed) holds the closer, `ClosingStep`, its
+  words naming the step and the change, which escalates to the goal:
+  its release makes the step's change again, and its cancel ends the
+  closer, the goal's branch kept.
+- **New work waits for, and reopens, the steps.** A change the goal
+  makes while its closer lives is the closer's dependency (jig's
+  `domain/tasks.md`, 5.10). The closer, kept, makes no new step while it
+  is pending, and a step's change already made goes on: a landing into
+  whose branch the new work lands takes it as its new head (8.5). Once
+  the work has ended, the closer reads afresh: a change of the goal that
+  landed into the goal's branch since its close step makes the close
+  step again, and a landing whose result is in while the goal's branch
+  has moved past what it landed makes the land step again; then it
+  reports.
+- **Never a catch-up:** the closer makes none, and nor does a goal it
+  ends (11.1).
+
+**The report.** The closer's result, a report in the words of the
+goal's contract, from what the store and the forge already hold, each
+part in this order, each line as written here:
+
+```
+Goal TG: TITLE
+Landed:
+- TN TITLE: pull request #P into BRANCH
+  Left: LINE
+  LINE
+Ended without landing:
+- TN TITLE: WHY
+The landing: pull request #P, merged into BASE as COMMIT; repairs TN, TN; resolutions TN.
+CI selection:
+- pull request #P: LINE
+```
+
+- **The heading:** the goal's task number and title, the first line of
+  its words.
+- **Each change of the goal's tree that landed,** the closer's own
+  left out, by task number, ascending: its title (its result's title,
+  or else its words' first line), its pull request's number (its
+  result's resource), the branch it landed into, and its
+  result's `Left` section word for word, each of its lines indented two
+  spaces: the lines of its result's words from the first line whose
+  first word, after any `#`, `*` or spaces, is `Left` followed by a
+  colon or the line's end, to the line before the next line opening
+  with `#` or the words' end; `Left: none given` where it has none.
+  The part is left out where no change landed.
+- **Each change of the goal's tree that ended without landing,** the
+  closer's own left out, ascending: why, `cancelled`,
+  `failed: ` then its failure's first line, or `no change: ` then its
+  result's first line. The part is left out where none did.
+- **The landing:** its pull request, the base, its merge commit (the
+  first line of its result's words), and the task numbers of the
+  repairs and the resolutions its change made, each list left out where
+  empty; `The landing: none, its base already held the goal's branch.`,
+  `The landing: none, no goal branch.`, or `The landing: none, PULL
+  ended WHY.` otherwise.
+- **Each pull into the base's CI selection:** for each pull request of
+  the goal's tree that landed into the base, the repository's default
+  branch (the landing, each repair into the base its goal made, and for
+  a goal with no goal branch each of its changes), the selection line
+  its CI's jobs'
+  logs begin with: the first line of a job's log, read by its start
+  (skein's `forge.md`, 3.2, `Job`'s `Start`, its first 4,096 bytes),
+  when it begins `selection: `, the line whole, cut to 256 bytes; the
+  first job of the pull's merged head, in the forge's order, that has
+  one gives it; `unknown` where no job's log reads one, a log not read,
+  a job with no identity, or a forge that names no job among them. The
+  part is left out where no pull landed into the base.
+- **Cut to the contract's bound** as any report is: where the whole
+  passes the contract's words bound, the `Left` sections are cut first,
+  from the last change's back, each cut one replaced by `  Left: [N
+  bytes cut]`; then, if it still passes, the report keeps its first
+  bytes that fit, at a UTF-8 boundary, and ends with `[N bytes cut]`,
+  N what it dropped.
 
 ## 12. Issues
 
@@ -3865,8 +4015,8 @@ higher priority.
 | t4 | Worker, agent | the worker prepares the merge in progress; the agent resolves `limits.rs` and runs the checks; the worker commits the merge, with both parents, and pushes it | B2's head is b2′ |
 | t5 | CI, agent | CI passes on b2′; a review, asked again since an LLM resolved a conflict, approves it | |
 | t5 | Engine | merges B2 at exactly b2′ | main is M3 |
-| t5 | Engine | news for B (its last change landed: its coordinator's policy wakes on the last of its delegates done) and A (no overlap: kept) | |
-| t5 | Coordinator B | its one run: reads its inbox (A1 and B1 landed, the conflict resolved) and finishes goal B with its report, which the issue's last milestone carries | goal B is done |
+| t5 | Engine | news for B (its own change landed: kept) and A (no overlap: kept); B2's result leaves B nothing to await, so jig makes B's closer and wakes no run (jig's `domain/tasks.md`, 5.10) | |
+| t5 | Closer B | B holds no goal branch: no close step and no landing; its report, B1's and B2's pull requests and Left sections and their CI selection, ends goal B (11.2), and the issue's last milestone carries it | goal B is done |
 
 ## 16. Restart
 
@@ -4022,6 +4172,12 @@ whole.
   it. Telling them apart reads each file and its triggers, a read per
   workflow at each change of the directory. Default: by file, every one
   but the dispatched.
+
+- **A closer's stops on a goal's path** (8.13; 11.2): its close step's
+  change and its landing draw as a change into the goal's branch and
+  the goal's landing do, with no stop of an agent's; whether the path
+  names them "close" and "land", and a closer's card, is open. Default:
+  as any change's.
 
 - **A close-out's own charter** (8.13, *The coordinator's cards*): the
   "close-out" stop opens the goal template's charter, the coordinator,

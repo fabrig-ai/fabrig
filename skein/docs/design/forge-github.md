@@ -168,7 +168,7 @@ the call fails `TooLarge` when a 50th page still has a next.
 | `Read::PullFiles { number, head, page }` | `GET R/pulls/<number>`; `GET R/compare/<base.sha>...<head.sha>?per_page=1`, for `merge_base_commit.sha`; `GET R/pulls/<number>/files?per_page=<size>&page=<page>`; for each file, the raw read (below) at the merge base, at `previous_filename` for `renamed`, but for `added`, and at the head but for `removed` | as forge.md 5.2; a `head.sha` other than `head` is `Stale` before any file is read; `more` from `Link` |
 | `Read::Compare { before, after }` | `GET R/compare/<before>...<after>?per_page=<size>`; for each file, the raw reads at `before` and `after` | `files[].filename` with its sides; `commits[].sha`; `contains_before` when `behind_by` is 0; `TooLarge` when the listed commits are fewer than `total_commits`, or `files` holds 300, GitHub's cap (`compare-files-capped-300`) |
 | `Read::Checks { commit }` | `GET R/commits/<commit>/status?per_page=<size>&page=<n>`, every page; `GET R/commits/<commit>/check-runs?filter=latest&per_page=<size>&page=<n>`, every page; for each failed Actions check with a resolvable link, `GET R/actions/jobs/<job>` | each status as for `Statuses`; each check run as a `Status` (4.4), its `job` the commit, the run from `run_id`, the job its `id` and the attempt its `run_attempt`, after validating the linked run and job and the requested head (4.4), none otherwise |
-| `Read::Job { attempt, max_bytes }` | `GET R/actions/jobs/<job>`; `GET R/actions/jobs/<job>/logs`, answered `302`; the redirect followed (section 10) | the failed step: the first of `steps[]` whose `conclusion` is `failure`, its `number` and `name`; the log's last `max_bytes` bytes (10); `MissingJob` on a `404` or `410`, or when `run_id`, `run_attempt` or `head_sha` is not the attempt's |
+| `Read::Job { attempt, max_bytes, part }` | `GET R/actions/jobs/<job>`; `GET R/actions/jobs/<job>/logs`, answered `302`; the redirect followed (section 10) | the failed step: the first of `steps[]` whose `conclusion` is `failure`, its `number` and `name`; for `End`, the log's last `max_bytes` bytes (10), for `Start`, its first (10); `MissingJob` on a `404` or `410`, or when `run_id`, `run_attempt` or `head_sha` is not the attempt's |
 | `Read::File { head, path, max_bytes }` | the raw read of `path` at `head` | the first `max_bytes` bytes, `truncated` when more came; `Missing` on a `404`, and on a JSON answer (a directory's listing) |
 | `Read::Protection { branch }` | `GET R/rules/branches/<branch>?per_page=100&page=<n>`, every page; for each ruleset named, `GET R/rulesets/<ruleset_id>`; `GET R/branches/<branch>/protection` | section 5.3 |
 | `Read::Settings` | `GET /repositories/<id>` | `default_branch`; `allow_merge_commit`, `allow_squash_merge`, `allow_rebase_merge`; the row kept afresh |
@@ -695,6 +695,9 @@ subscribing; the others are `EVENTS`' (section 11), and no more.
   without replacing that suffix. Recognition crosses stream chunks and
   uses constant state beside the bounded suffix. Without a failed step,
   or without that runner marker, the job's last `max_bytes` are kept.
+  A `Start` read keeps the log's first `max_bytes` with
+  `Retention::Head`, whatever its failed step, and drains the rest; it
+  sends no Range, as an `End` read does not.
   The step name shares the answer's bound with the log. `truncated` says
   that any prefix or cleanup bytes were omitted.
 - **Later:** identifying failed action boundaries without a runner process

@@ -1,7 +1,11 @@
 # Status
 
-2026-11-09. Where jig's code lags or departs from its design, from the
-status files below. Browser-approved sign-in is built through the wire,
+2026-11-10. Where jig's code lags or departs from its design, from the
+status files below. A task's `ended_by` may name a closer, a procedure
+jig makes as the task's own delegate where it would have numbered the
+`NothingAwaited` notice, whose success ends the task with no run, whose
+failure escalates to it, and which waits for work the task makes while
+it lives (`domain/tasks.status.md`, 5.10). Browser-approved sign-in is built through the wire,
 clients' component, HTTP mapping, configuration and linked and unlinked
 clients. Only the secret's take makes the approving browser's party's
 sign-in; bearers cannot read or decide approvals. An admitted take's

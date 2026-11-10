@@ -1,6 +1,6 @@
 # tasks: status
 
-2026-11-08. Where jig's code lags or departs from [tasks.md](tasks.md).
+2026-11-10. Where jig's code lags or departs from [tasks.md](tasks.md).
 
 Section 5.2 has no known gap in an agent claim interrupted by its
 engine's orderly stop: `End::Recheck` keeps committed turns, calls and
@@ -51,3 +51,12 @@ parks without spending a try.
   outlive their asker. 8.3: markers.
   8.5: a conversation's questions.
   12: the stories of these.
+- **Not yet:** 3, 5.8: `ended_by`'s closer and a task's live closer
+  kept in its record, carried by every batch entry, template and the
+  client's `NewTask`; refused on a conversation or a task that is no
+  agent's; a task's delegation naming its closer's procedure checked at
+  its making. [in flight: jig-closer-carried]
+- **Not yet:** 5.2, 5.10: a closer made where the `NothingAwaited`
+  notice would be, its success ending its task, its failure spending a
+  run try, and a delegate made while it lives becoming its dependency.
+  [in flight: jig-closer-rule]

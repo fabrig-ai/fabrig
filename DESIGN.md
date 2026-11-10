@@ -21,6 +21,7 @@ Beside every draft and every design document is its status file, `<name>.status.
 
 - A design document's status: **Not yet** (designed, not built) and **Departs** (built otherwise, with the reason). What the document itself defers (its "Later" or "Open questions") is no gap, and the design text carries no build state.
 - A draft's status: **Design lags** (the design document and section that still say otherwise or say nothing, and what), **Design departs** (what the design does instead, why, and who decided) and **Open** (decisions awaiting the user).
+- **In flight:** a goal's design writes its status up front. A **Not yet** entry for a section one of the goal's changes will build ends with a tag naming that change, `[in flight: change N]`, N its task number (a goal run outside temper names its change its own way, the tag's form unchanged). When the goal closes, its project's `close` command settles the tags (`temper/docs/design/protocol/tooling.md`, 4.2): it deletes each entry whose change landed into the goal's branch, and drops the tag from each whose change ended without landing, so that the gap stays recorded. A goal writes no other entry for a section its change builds, and its draft's status, its execution file's state and `STATUS.md`'s summaries as they will stand once it lands. The citation checker reads a tagged entry as any other.
 
 ```
 # <name>: status

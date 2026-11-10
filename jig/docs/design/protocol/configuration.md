@@ -345,12 +345,19 @@ not select accounts or infer provider membership. The public JSON refuses
 
 ### 3.2 Ending authority in templates
 
-Templates optionally name `ended_by` as `result` (the default) or
-`requester`. Requester requires a named agent charter and `conversation:
-true`; effective executor overrides must preserve it. The delivered
-client template carries this flag into the NewTask record, without a
-template identity in the request. Tool-created and deployment tasks use
-Result explicitly; the tools take no `ended_by` key.
+Templates optionally name `ended_by` as `result` (the default),
+`requester`, or a closer, `{"closer": {"connector": C, "code": N}}`, the
+procedure that ends the task once nothing is left to await
+(`../domain/tasks.md`, 5.10), its connector by number and its code within
+the connector's procedures. Requester requires a named agent charter and
+`conversation: true`; a closer requires a named agent charter and no
+conversation, and is checked at the start as an executor is: a connector
+configured, and a code within `u32`. Effective executor overrides must
+preserve either. The delivered client template carries this flag into
+the NewTask record, without a template identity in the request, so that
+every way of making a task from the template names its closer.
+Tool-created and deployment tasks use Result explicitly; the tools take
+no `ended_by` key.
 
 ### 3.3 A template's own resources
 

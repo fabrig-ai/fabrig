@@ -1,7 +1,9 @@
 # Status
 
-2026-11-09. Where skein's code lags or departs from its design, and its
-design from its drafts, from the status files below. The full-screen
+2026-11-10. Where skein's code lags or departs from its design, and its
+design from its drafts, from the status files below. A job's log reads
+by its start as well as its end, in both dialects (`forge.status.md`,
+3.2). The full-screen
 shell's renderer, keys, drawing and simulated terminal are built, with
 panic restoration and simulated resizes. Rules, border-end titles, bands,
 options menus, marks, unlabelled fields, a token's focused value's
