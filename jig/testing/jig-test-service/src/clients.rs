@@ -1,4 +1,4 @@
-//! The clients child and secret-free root handoffs (client.md, 2 and 8; service.md, 3).
+//! The clients child and secret-free root handoffs (protocol/client.md, 2 and 8; service.md, 3).
 use crate::{Seeds, family};
 use alloc::boxed::Box;
 use jig_client_test_protocol_wire::VERSION;

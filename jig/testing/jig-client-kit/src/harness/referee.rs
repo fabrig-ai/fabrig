@@ -174,7 +174,7 @@ impl Rules {
         }
     }
     /// A tab's page starts, first or on a reload: its stream has only its own
-    /// heartbeat until a hello (client.md, section 8), so it tells the link
+    /// heartbeat until a hello (protocol/client.md, section 8), so it tells the link
     /// within the bound of a link coming back, whatever an earlier page owed.
     fn started(&mut self, client: ClientId, judge: &mut JudgeOf) {
         judge.withdraw(&Deadline::Online(client));

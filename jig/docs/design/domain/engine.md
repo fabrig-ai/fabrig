@@ -52,7 +52,7 @@ does with all of it is root.md. The mechanics are those of skein's
   made from, the rules, and an application's own kinds. An owner's
   change is one decision and makes a revision; a task records the
   revision it was made in, and its runs read their charter from it.
-- **The domain is complete** (programming-model.md, section 4): a world
+- **The domain is complete** (skein/docs/foundation/programming-model.md, section 4): a world
   of domains and fakes runs everything the core does, with no protocol
   and no io (section 15).
 
@@ -122,7 +122,7 @@ jig-domain-core/src/
 
 Each directory is one concept of this document; a route lives under the kind of route it is, whatever child it steps.
 
-The tree follows programming-model.md, 4.5: each child domain has its
+The tree follows skein/docs/foundation/programming-model.md, 4.5: each child domain has its
 own vocabulary, limits and world; a parent owns its children's state and
 routes between them; siblings share no domain types, and the core
 translates between them with small total functions.
@@ -222,7 +222,7 @@ nothing held left early (testing.md, section 5).
 ### 4.3 Decisions and hand-offs
 
 A decision is a route through several children and connectors, completed
-within one step of the root's (programming-model.md, 4.5):
+within one step of the root's (skein/docs/foundation/programming-model.md, 4.5):
 
 - **One event in,** from the root.
 - **Hand-offs out and back:** the core asks the root for what only a
@@ -331,7 +331,7 @@ step its last answer arrives.
   The core's `Limits::routes` bounds each drain within a step, with
   its predicate asserted empty afterward (root.md, section 10). A
   commit's write limit remains the store's edge
-  (programming-model.md, 7.1).
+  (skein/docs/foundation/programming-model.md, 7.1).
 - **A failed commit stops the engine** (core.md, section 4). Nothing
   waiting for that commit, or any later one, goes out. A restart starts
   from the last durable commit.
@@ -373,7 +373,7 @@ answers to a run's reads.
 - **What is loaded, not held:** ended tasks and their results;
   transcripts; history; notes' entries; anything a client pages through.
 - **A load is a request** with a token and one terminal event, rows in
-  bounded pages (programming-model.md, 4.4). What waits on it is in a
+  bounded pages (skein/docs/foundation/programming-model.md, 4.4). What waits on it is in a
   state that says so: a brief gathering, a run being prepared to resume,
   a party's page, an amendment adding an ended task (tasks.md, section
   7). That amendment's request stays unanswered while the rows load,
@@ -433,7 +433,7 @@ root wraps both in its store vocabulary (root.md, section 6).
 
 **Times** the store keeps are wall times (`env.wall`), so a record means
 the same after a restart; a wait the core arms is a deadline on its
-monotonic clock (`env.now`), computed from them (programming-model.md,
+monotonic clock (`env.now`), computed from them (skein/docs/foundation/programming-model.md,
 section 9). Accounts' source deadlines retain both clocks where the
 limit or retry is created (`accounts.md`, 3.5): timers use `Deadline.at`,
 and every projection and stored reset uses its source-owned
@@ -1718,7 +1718,7 @@ A person's preferences: a few short lines kept for them across the
 deployment and read by the runs that explain to them, so that what they asked
 to be remembered holds in their next conversation (`draft/notes-memory.md`,
 section 3, taken up as far as an application's asking runs need it; temper's
-Ask temper is the first, its `draft/ask-temper.md`, section 7).
+Ask temper is the first, its `temper/docs/design/draft/ask-temper.md`, section 7).
 
 - **The scope,** `Party { party }`, a person's number: one per person, in no
   project, so that no project's reads list it and a project's deletion leaves
@@ -1877,7 +1877,7 @@ computes for them is said below (11.1 to 11.5).
   `text` and `input`: the root routes them as `RunText` and `RunInput`.
   Reasoning is dropped and counted at that boundary. So is a piece whose
   offset is past the 32 bits the views count, where a host counts
-  smith's 64 (`hosts.md`, 6.5). The protocol layer carries every kind
+  smith's 64 (`jig/docs/design/domain/hosts.md`, 6.5). The protocol layer carries every kind
   and offset as it is (`../protocol/channel.md`, 6.4), and the same root
   route serves the engine's own hub and its workers'. A later retry
   replaces an earlier one's text; text that starts past what the views
@@ -2122,7 +2122,7 @@ them beside LLM accounts, and lends them as it lends a source's value
 ## 13. Limits and working sets
 
 What the core holds, each bounded by its limits and summed into its
-worst case (programming-model.md, 6.3):
+worst case (skein/docs/foundation/programming-model.md, 6.3):
 
 - live tasks, with their inboxes, subscriptions, references, holds and
   queues, and their dependencies, with the index of each resource's

@@ -599,7 +599,7 @@ is added by the client's adapter (5.1); the engine end checks both
 sign in and out (`../client/domain/client.md`, section 12; `client.md`,
 section 8).
 
-- **The cookie,** its attributes `client.md`, 17.3's (why: section 19):
+- **The cookie,** its attributes `client.md`, 17.3's (why: browser.md, section 19):
   every request under the prefix carries it; the module, the client and
   the application's client host never see it, since the client is
   signed in by the transport.

@@ -30,7 +30,7 @@ is still open is listed in section 13.
 - **Several operations, one decision.** A party's compound request
   cancels, moves, amends, releases, messages and stops in one decision,
   all or none (section 7).
-- **One lifecycle for every executor** (programming-model.md, 5.2): a
+- **One lifecycle for every executor** (skein/docs/foundation/programming-model.md, 5.2): a
   task waits on its dependencies and its holds, is active while its
   executor works, closes (its run ended, its delegates closed, its
   effects settled, its holds released), and ends done, failed or
@@ -58,7 +58,7 @@ The tasks child domain is a child of the core (engine.md, section 3),
 and its center: it keeps every live task, and the other children serve
 it. Its state is a slab of live tasks, a slab of pending proposals,
 their inboxes, subscriptions and holds, and the timers it arms. It is a
-step machine of its own (programming-model.md, 4.5): its own
+step machine of its own (skein/docs/foundation/programming-model.md, 4.5): its own
 vocabulary, limits and world.
 
 What it does not know, and how it is told:

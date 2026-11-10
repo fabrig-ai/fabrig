@@ -83,7 +83,7 @@ skein-io                        files: the ring, or the simulator's disk
 ```
 
 - **A component of the engine's protocol layer,** step code under the
-  subset (programming-model.md, section 10), with its limits, worst case,
+  subset (skein/docs/foundation/programming-model.md, section 10), with its limits, worst case,
   deadlines and most outputs per entry point. It depends on skein-lib,
   skein-kv, io's file vocabulary, skein-codec and its generated codecs,
   and the core's vocabulary (its keys, records, ranges and reads). It
@@ -276,7 +276,7 @@ the application's part with the application's codecs.
   (`../domain/engine.md`, 4.2 and 5.3), so it sees what the decisions
   before it wrote.
 - **One terminal per request,** tagged with the asker's token
-  (programming-model.md, 4.4).
+  (skein/docs/foundation/programming-model.md, 4.4).
 
 ## 4. Keys
 
@@ -1920,7 +1920,7 @@ impl PatchSets {
   by the binary's codec; the fixture turn's last is its own, since the
   component hands a turn's bytes on undecoded. The names, texts and keys are `&'static`, the binary's own constants,
   never state: the only references in fields the component holds
-  (programming-model.md, 10.3), read by its plan and by each serving
+  (skein/docs/foundation/programming-model.md, 10.3), read by its plan and by each serving
   open, which makes the frames' machines from them (8.6), since `keep`
   and `plan` copy what they need into each machine's tables.
 - **A set is checked where it is admitted,** at every open, before the
@@ -2001,14 +2001,14 @@ impl PatchSets {
   to the version its family has after the patch, `next_pass` after the
   first. In a patch's walk, its families' records run its plan,
   and a family the patch leaves alone whose records hold one it moves runs
-  its identity plan (codec.md 11.3), which reaches the held fields alone.
+  its identity plan (skein/docs/design/codec.md 11.3), which reaches the held fields alone.
   The frames' machines are others, made at each open that serves
   (8.6).
-- **A written site goes up.** Step code holds no function (codec.md,
-  11.4; programming-model.md, 10.3), so at `Step::Written` the
+- **A written site goes up.** Step code holds no function (skein/docs/design/codec.md,
+  11.4; skein/docs/foundation/programming-model.md, 10.3), so at `Step::Written` the
   component answers `Site` with the owner, the record's key, the site,
   the node and the family's `Patcher` itself, moved, never shared. The
-  shell sets the key in that owner's `Context` (codec.md, 11.5), which
+  shell sets the key in that owner's `Context` (skein/docs/design/codec.md, 11.5), which
   it keeps for the whole patching (`Default` at its start), runs the
   owner's generated `written` over `parts()`, and hands the `Patcher`
   back in a `Site` request with the result; the component then calls
@@ -2243,7 +2243,7 @@ was made (`../domain/tasks.md`, section 3):
   larger of it and serving's, since the root never serves while it
   patches. The sets are the shell's; their kept families determine the
   patch machines' capacities. Fixed scenarios check measured heap peaks
-  against named ceilings (programming-model.md, 6.3).
+  against named ceilings (skein/docs/foundation/programming-model.md, 6.3).
   Serving's holds the frames' machines (8.6), at most two, each its
   `Patcher::workspace_bound`, and none for sets with no kept text: their
   bytes the frames' bounds and their nodes the most their kept texts
@@ -2273,7 +2273,7 @@ Each within jig's suites' budgets.
   over skein-kv's in-memory mode, in place of a fake of the map, so every
   story runs the real keys, codecs, intervals, paging and joins. No
   world fakes the store's component: the real one runs in each
-  (testing-strategy.md, section 4).
+  (skein/docs/foundation/testing-strategy.md, section 4).
 - **The restart oracle** (`../domain/engine.md`, section 15): every
   world story ends with a cold restart over its store that restores
   with every link made and reads back what it wrote. The cross-record
@@ -2482,8 +2482,7 @@ component's (4.4, 5.3).
 
 ### 15.10 What skein owes
 
-io's `OpenWrite` and `Cut` (skein's `io.md`, section 5), for 8.2 and
-8.4. skein-kv serves as it is: its in-memory mode, its key writer, its
+io's `OpenWrite` and `Cut` (skein's `io.md`, section 5), for store.md, 8.2 and 8.4. skein-kv serves as it is: its in-memory mode, its key writer, its
 fill. Its accounts driver takes the owner's store as keeper, made with
 the records it holds (skein's `oauth.md`, 6.4).
 

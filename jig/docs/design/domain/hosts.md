@@ -207,7 +207,7 @@ On a worker:
 A worker's root may compose `smith-inline-agent` in place of
 `smith-host-domain` (5.2); nothing else in its tree changes.
 
-Each tree follows programming-model.md, 4.5. The hub knows a hosted run's
+Each tree follows skein/docs/foundation/programming-model.md, 4.5. The hub knows a hosted run's
 lifecycle and nothing of the application's workspaces, of processes, of
 channels or of the core, and links no smith crate; the agent, the
 workspace and the job capability are capabilities, which the root translates to and from with
@@ -218,7 +218,7 @@ capability, and at most once more back and forth, so each entry point
 completes them before it returns.
 
 A worker's root admits new work by a watermark, with no store: a worker
-keeps nothing durable (programming-model.md, 7.1).
+keeps nothing durable (skein/docs/foundation/programming-model.md, 7.1).
 
 - **The reference worker's backlog** counts the root's `hub_out`,
   `agent_out` and `pending`, and the service's `out`, `process_events`
@@ -252,7 +252,7 @@ keeps nothing durable (programming-model.md, 7.1).
   run (`!hand_out_pending`), requires the final turn and result to
   return before the hub hears that the agent is gone. The root drains
   hub outputs before agent outputs, and hand-out returns follow their
-  pending FIFO (6.8; programming-model.md, 7.2). The channel world holds
+  pending FIFO (6.8; skein/docs/foundation/programming-model.md, 7.2). The channel world holds
   this under load in `jig-channel-world`,
   `worker_orders::a_run_ends_after_its_last_hand_out_under_load`.
 
@@ -791,7 +791,7 @@ reach past the grace.
   and an application's roots that compose smith's agent capability, with
   their protocol layers' routing, which also runs smith's components
   where it composes them. Never the hub, the core, or jig's channel's components,
-  which pass smith's bytes through (`../protocol/channel.md`, 6.1).
+  which pass smith's bytes through (`jig/docs/design/protocol/channel.md`, 6.1).
 
 ### 6.9 Jobs
 

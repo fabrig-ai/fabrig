@@ -23,7 +23,7 @@ pub enum Event {
     Unwatch { handle: Handle },
     Read { handle: Handle, read: Readable },
     Send { key: Key, name: Option<skein_lib::RequestKey>, request: Ask },
-    // A value carried either way: sent once under its name, never kept (client.md, 6).
+    // A value carried either way: sent once under its name, never kept (client/domain/client.md, 6).
     Carry { key: Key, name: skein_lib::RequestKey, request: Ask, value: Option<Secret> },
     Reply { exchange: Token, message: Box<[u8]> },
     Lost { exchange: Token },

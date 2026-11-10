@@ -354,7 +354,7 @@ pub enum Ended {
     Busy,
 }
 
-/// A provider endpoint answer (client.md, 18); a body may contain bearer tokens.
+/// A provider endpoint answer (protocol/client.md, 18); a body may contain bearer tokens.
 #[derive(Debug)]
 pub struct ProviderAnswer {
     pub status: u16,
