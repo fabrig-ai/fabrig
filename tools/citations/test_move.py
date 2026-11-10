@@ -175,6 +175,7 @@ class Moves(unittest.TestCase):
     def test_allow_entries_globs_and_code_names(self):
         self.write("tools/citations/allow.txt", f"{A} {A} 2.1 # a label\n{DESIGN}/*.md {A} # a glob\n")
         self.write(".github/workflows/check.yml", f"path: {A}\n")
+        (self.root / "names.bin").write_bytes(b"\x00\xff\n" + A.encode() + b"\n")
         self.write("skein/crates/k/src/lib.rs", f'const PATH: &str = "{A}"; // See {A}, 2.1.\n')
         self.write("skein/docs/plan/p.md", f"See {A}.\n")
         self.write("skein/docs/development/2026-01-01.md", f"See docs/design/a.md.\n")
@@ -182,6 +183,7 @@ class Moves(unittest.TestCase):
         result = self.apply(f"{A} -> {DESIGN}/sub/a.md\n")
         self.assertIn("glob matches a moved path", result.stdout)
         self.assertIn(".github/workflows/check.yml:1: name in code", result.stdout)
+        self.assertIn("names.bin:2: name in code", result.stdout)
         self.assertIn("skein/crates/k/src/lib.rs:1: name in code", result.stdout)
         self.assertIn("skein/docs/plan/p.md:1: name in code", result.stdout)
         self.assertIn("skein/docs/development/2026-01-01.md:1: name in code", result.stdout)
@@ -381,6 +383,14 @@ sys.exit(module['main'](['move.map']))
         self.commit("allow candidates")
         self.apply(f"{A} -> {DESIGN}/sub/a.md\n")
         self.assertEqual(self.read("tools/citations/allow.txt"), f"{B} {DESIGN}/sub/a.md|{B} 2.1 # shared target\n")
+        self.clean_check()
+
+    def test_anchor_slug_uses_visible_heading_text(self):
+        self.write(A, DOC.replace("2.1 Part", "2.1 `Value<T>` and _other_"))
+        self.write(B, "# b\n\n[part](a.md#21-valuet-and-other).\n")
+        self.commit("heading markup")
+        self.apply(f"{A} 2.1 -> {DESIGN}/new.md 4\ntitle {DESIGN}/new.md: New\n")
+        self.assertEqual(self.read(B), "# b\n\n[part](new.md#4-valuet-and-other).\n")
         self.clean_check()
 
     def test_all_map_errors_leave_tree_and_index_unchanged(self):
