@@ -260,12 +260,25 @@ pub(super) fn decode_adopted(value: w::Adopted, bounds: &Bounds) -> Result<d::Re
 }
 
 pub(super) fn encode_hold(value: &d::Hold) -> w::Hold {
-    let d::Hold { name, task, writer, drift } = value;
+    let d::Hold { name, task, writer, design_writers, drift } = value;
+    let mut designs = List::with_capacity(u32::try_from(design_writers.len()).expect("admitted design count"));
+    for design in design_writers {
+        designs
+            .push(
+                w::DesignWriter::new(
+                    &w::CEILINGS,
+                    w::DesignWriterParts { task: design.task, attempt: design.attempt, rereading: design.rereading },
+                )
+                .expect(FITS),
+            )
+            .expect("same design count");
+    }
     w::Hold::new(
         &w::CEILINGS,
         w::HoldParts {
             name: encode_name(name),
             task: *task,
+            design_writers: designs,
             writer: match writer {
                 Some(v) => Some(encode_writer(*v)),
                 None => None,
@@ -279,10 +292,16 @@ pub(super) fn encode_hold(value: &d::Hold) -> w::Hold {
     .expect(FITS)
 }
 pub(super) fn decode_hold(value: w::Hold, bounds: &Bounds) -> Result<d::Hold, Undecodable> {
-    let w::HoldParts { name, task, writer, drift } = value.into_parts();
+    let w::HoldParts { name, task, writer, design_writers, drift } = value.into_parts();
+    let mut designs = List::with_capacity(design_writers.len());
+    for design in design_writers.into_boxed() {
+        let w::DesignWriterParts { task, attempt, rereading } = design.into_parts();
+        designs.push(d::DesignWriter { task, attempt, rereading }).expect("same design count");
+    }
     Ok(d::Hold {
         name: decode_name(name, bounds)?,
         task,
+        design_writers: designs.into_boxed(),
         writer: match writer {
             Some(v) => Some(decode_writer(v)),
             None => None,

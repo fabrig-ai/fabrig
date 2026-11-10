@@ -339,8 +339,10 @@ fn released(d: &Domain, task: u64, out: &mut Queue<Request>) {
 
 pub(super) fn restart(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let mut names = List::with_capacity(env.limits.holds);
-    for (name, _) in &d.holds {
-        if is_goal(d, name) {
+    for (name, hold) in &d.holds {
+        // A design writer's confirmed branch keeps its drift baseline until
+        // that attempt's fresh read (domain/forge.md, 11.3).
+        if is_goal(d, name) && hold.design_writers.is_empty() {
             names.push(name.clone()).expect("bounded holds");
         }
     }

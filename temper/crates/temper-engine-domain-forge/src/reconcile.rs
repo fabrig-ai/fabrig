@@ -174,6 +174,9 @@ impl Reconciliation {
             Stored::Hold(row) => {
                 self.name(RecordKind::Hold, &row.name)?;
                 self.task(RecordKind::Hold, row.task, Some(row.name.forge))?;
+                for writer in &row.design_writers {
+                    self.task(RecordKind::Hold, writer.task, Some(row.name.forge))?;
+                }
                 if let Some(crate::Writer::Run { task, .. } | crate::Writer::Lost { task, .. }) = row.writer {
                     self.task(RecordKind::Hold, task, Some(row.name.forge))?;
                 }

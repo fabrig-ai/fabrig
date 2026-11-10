@@ -68,7 +68,13 @@ fn a_closing_tasks_saved_work_is_deleted() {
         assert_eq!(
             saved(&mut d, TASK).as_ref(),
             &[Request::Save {
-                record: Stored::Hold(Hold { name: name(), task: TASK, writer: None, drift: None }),
+                record: Stored::Hold(Hold {
+                    design_writers: Box::new([]),
+                    name: name(),
+                    task: TASK,
+                    writer: None,
+                    drift: None
+                }),
                 release: None,
                 read_afresh: None,
             }]

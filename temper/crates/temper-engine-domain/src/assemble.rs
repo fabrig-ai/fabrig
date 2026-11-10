@@ -334,7 +334,14 @@ fn plan_home_access(
 ) -> bool {
     let Some(row) = domain.core.tasks.task(task) else { return true };
     let Some(home) = domain.forge.home(row.project) else { return true };
-    if unheld_run_branch(domain, &env.limits, task, home) != Some(true) {
+    let design = match domain.core.tasks.run_context(task) {
+        Some(context) => match crate::route::forge_route::run_workspace(domain, env, &context, 0) {
+            Some(workspace) => !workspace.designs.is_empty(),
+            None => false,
+        },
+        None => false,
+    };
+    if !design && unheld_run_branch(domain, &env.limits, task, home) != Some(true) {
         return true;
     }
     let inherited = match parent {
@@ -361,7 +368,7 @@ fn plan_home_access(
     if wanted.room() == 0 && optional.is_none() {
         return false;
     }
-    let source = forge::BriefSource::Home { repository: home.provider };
+    let source = forge::BriefSource::Home { repository: home.provider, design };
     let kind = forge_brief_kind(source);
     let token = domain
         .brief_connectors

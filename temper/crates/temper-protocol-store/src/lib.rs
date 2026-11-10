@@ -110,6 +110,7 @@ pub fn bounds(forge: &temper_engine_domain_forge::Limits, change_words: u32) -> 
         retargeted_before: forge.name_bytes,
         retargeted_after: forge.name_bytes,
         names_resources: forge.resources_per_task,
+        hold_design_writers: forge.holds,
         landings_topic_branch: forge.name_bytes,
         subscriber_goal_tasks_some: forge.issue_policy.plan_items,
         subscriber_paths: forge.paths_per_subscription,

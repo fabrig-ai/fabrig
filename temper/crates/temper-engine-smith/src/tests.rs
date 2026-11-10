@@ -1968,22 +1968,12 @@ fn change_decodes_branch_mine() {
 }
 
 #[test]
-fn change_decodes_branch_run_into_goal() {
+fn change_refuses_branch_run_as_an_unknown_choice() {
     for input in [
         br#"{"words":"a","branch":"run","landing":"goal"}"#.as_slice(),
         br#"{"changes":[{"words":"a","branch":"run","landing":"goal"}]}"#,
     ] {
-        let engine::Tool::Change { changes } = decided(b"change", input).expect("branch run").tool else {
-            panic!("change")
-        };
-        assert_eq!(
-            changes.as_ref(),
-            &[engine::ChangeCall {
-                branch: Some(engine::ChangeBranch::Run),
-                landing: Some(engine::ChangeLanding::Goal),
-                ..engine::ChangeCall::words(b"a".as_slice().into(), None)
-            }]
-        );
+        assert_eq!(decided(b"change", input), Err(Problem::Range(b"branch")));
     }
 }
 
@@ -2005,7 +1995,7 @@ fn change_keeps_branch_repairs_producer_and_llm_together() {
 }
 
 #[test]
-fn change_refuses_a_branch_other_than_mine_or_run() {
+fn change_refuses_a_branch_other_than_mine() {
     let cases: &[(&[u8], Problem)] = &[
         (br#"{"words":"a","branch":"theirs"}"#, Problem::Range(b"branch")),
         (br#"{"words":"a","branch":""}"#, Problem::Range(b"branch")),
@@ -2256,7 +2246,7 @@ fn change_batch_refuses_outer_options() {
         ("repository", r#""owner/name""#),
         ("name", r#""batch""#),
         ("landing", r#""goal""#),
-        ("branch", r#""run""#),
+        ("branch", r#""mine""#),
         ("merge", r#""aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa""#),
         ("after", "[1]"),
         ("producer", "2"),
@@ -2386,7 +2376,7 @@ fn change_refuses_words_with_changes_and_empty_members() {
 #[test]
 fn change_offers_its_plan_members_only_with_control() {
     let legacy = br#"{"type":"object","properties":{"words":{"type":"string","description":"What to change: the files, and the exact text where it matters. It is all the change's coder reads."},"repository":{"type":"string","description":"The repository, as owner/name; leave it out when the project has one you may write."}},"required":["words"]}"#;
-    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/name; omit: held goal/base."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: goal into base; run: land run branch; omit: a new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"changes":{"type":"array","description":"Batch: put all options inside each item.","items":{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/name; omit: held goal/base."},"branch":{"type":"string","enum":["mine","run"],"description":"mine: goal into base; run: land run branch; omit: a new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}},"required":["words"]},"minItems":1},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}}}"#;
+    let plan = br#"{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/name; omit: held goal/base."},"branch":{"type":"string","enum":["mine"],"description":"mine: goal into base; omit: a new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"changes":{"type":"array","description":"Batch: put all options inside each item.","items":{"type":"object","properties":{"words":{"type":"string","description":"Change's complete brief.","minLength":1},"repository":{"type":"string","description":"owner/name; omit if sole writable."},"name":{"type":"string","description":"A name for after."},"landing":{"type":"string","description":"goal/name; omit: held goal/base."},"branch":{"type":"string","enum":["mine"],"description":"mine: goal into base; omit: a new."},"merge":{"type":"string","description":"Catch-up: 40/64 hex commit."},"after":{"type":"array","description":"Live delegate IDs/earlier names.","items":{"oneOf":[{"type":"integer","minimum":1},{"type":"string"}]}},"producer":{"type":"integer","minimum":1,"description":"Producer charter; omit: forge default."},"llm":{"type":"object","description":"producer/review:{main:{model,effort},sub_agents:[{model,effort}]}."},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}},"required":["words"]},"minItems":1},"repairs":{"type":"string","description":"Red landing's 40/64 hex merge commit.","pattern":"^([0-9a-f]{40}|[0-9a-f]{64})$"},"questions":{"type":"string","enum":["none","foreman","up"],"description":"foreman, up, none; omit: project setting."}}}"#;
     let stock = 1_539;
     for (authority, schema) in [(stock, legacy.as_slice()), (stock | 0b100, plan.as_slice())] {
         let mut found = false;

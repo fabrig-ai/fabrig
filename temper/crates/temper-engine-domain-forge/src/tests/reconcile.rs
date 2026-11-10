@@ -102,7 +102,7 @@ fn subscription() -> Stored {
     })
 }
 fn hold(task: u64, writer: Option<Writer>) -> Stored {
-    Stored::Hold(Hold { name: branch(), task, writer, drift: None })
+    Stored::Hold(Hold { name: branch(), task, writer, design_writers: Box::new([]), drift: None })
 }
 fn owner_rows() -> [Stored; 7] {
     [

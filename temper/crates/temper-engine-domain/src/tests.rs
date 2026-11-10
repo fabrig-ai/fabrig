@@ -788,6 +788,7 @@ fn a_conversations_prepared_text_ask_reaches_its_assignment() {
                     workstream: fixture.task,
                     writes: Box::new([]),
                     names: Box::new([]),
+                    designs: Box::new([]),
                     own_holds: Box::new([]),
                 },
                 claim_names: Box::new([]),

@@ -376,7 +376,13 @@ fn a_goal_branch_found_missing_after_restart_reports_the_missing_entry_allocator
     outputs(
         &mut d,
         Event::Restore {
-            record: Stored::Hold(Hold { name: name(GOAL_BRANCH), task: GOAL, writer: None, drift: None }),
+            record: Stored::Hold(Hold {
+                design_writers: Box::new([]),
+                name: name(GOAL_BRANCH),
+                task: GOAL,
+                writer: None,
+                drift: None,
+            }),
         },
     );
     outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
@@ -451,7 +457,13 @@ fn a_goal_branch_taking_blocks_a_writer_during_its_reads() {
     assert_eq!(
         outputs(
             &mut d,
-            Event::Claim { task: OTHER, attempt: 1, writes: Box::new([name(GOAL_BRANCH)]), holders: Box::new([GOAL]) }
+            Event::Claim {
+                designs: Box::new([]),
+                task: OTHER,
+                attempt: 1,
+                writes: Box::new([name(GOAL_BRANCH)]),
+                holders: Box::new([GOAL])
+            }
         )
         .as_ref(),
         &[Request::Taken { task: OTHER, resource: name(GOAL_BRANCH), by: GOAL }]
@@ -459,7 +471,13 @@ fn a_goal_branch_taking_blocks_a_writer_during_its_reads() {
     fixtures::answer_next(&mut d, Ok(Answer::Commit(TIP)));
     outputs(
         &mut d,
-        Event::Claim { task: OTHER, attempt: 1, writes: Box::new([name(GOAL_BRANCH)]), holders: Box::new([GOAL]) },
+        Event::Claim {
+            designs: Box::new([]),
+            task: OTHER,
+            attempt: 1,
+            writes: Box::new([name(GOAL_BRANCH)]),
+            holders: Box::new([GOAL]),
+        },
     );
     assert_eq!(d.hold(&name(GOAL_BRANCH)).unwrap().writer, Some(Writer::Run { task: OTHER, attempt: 1 }));
 }
@@ -616,6 +634,109 @@ fn a_merge_into_a_watched_goal_branch_saves_the_clients_advanced_tip() {
     assert_saved_goal_tip(&watched, TIP);
     let requests = merge_into_goal(&mut d);
     assert_saved_goal_tip(&requests, MERGED);
+}
+
+#[test]
+fn a_merge_beside_a_design_writer_leaves_g_written_until_its_fresh_answer() {
+    let mut d = fresh();
+    take(&mut d);
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(TIP)));
+    outputs(&mut d, Event::Names { task: GOAL, resources: Box::new([name(GOAL_BRANCH)]) });
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(TIP)));
+    outputs(
+        &mut d,
+        Event::Claim {
+            task: GOAL,
+            attempt: 3,
+            writes: Box::new([]),
+            designs: Box::new([name(GOAL_BRANCH)]),
+            holders: Box::new([]),
+        },
+    );
+    merge_into_goal(&mut d);
+    assert_eq!(d.branch_head(&name(GOAL_BRANCH)), Some(MERGED));
+    assert_eq!(d.hold(&name(GOAL_BRANCH)).unwrap().writer, None);
+    let tip = [8; 32];
+    outputs(
+        &mut d,
+        Event::Hint {
+            hint: skein_forge::api::Hint {
+                repository: REPO,
+                change: skein_forge::api::Change::BranchMoved { branch: GOAL_BRANCH.into(), head: tip, actor: 7 },
+                key: None,
+            },
+        },
+    );
+    let mut later = env();
+    later.now = later.now.saturating_add(LIMITS.client.hinted);
+    fire(&mut d, &later, &mut Queue::uncapped());
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(tip)));
+    assert_eq!(
+        d.hold(&name(GOAL_BRANCH)).unwrap().drift,
+        None,
+        "ending the merge leaves the design writer's forward push owned"
+    );
+    fixtures::answer_next(
+        &mut d,
+        Ok(Answer::Compare {
+            before: MERGED,
+            after: tip,
+            contains_before: true,
+            files: Box::new([]),
+            commits: Box::new([]),
+        }),
+    );
+    outputs(&mut d, Event::Answered { task: GOAL, attempt: 3, pushed: Box::new([(name(GOAL_BRANCH), TIP)]) });
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(tip)));
+    fixtures::answer_next(
+        &mut d,
+        Ok(Answer::Compare {
+            before: MERGED,
+            after: tip,
+            contains_before: true,
+            files: Box::new([]),
+            commits: Box::new([]),
+        }),
+    );
+    assert_eq!(
+        d.branch_head(&name(GOAL_BRANCH)),
+        Some(tip),
+        "the fresh head holds the merge and the design, not the report"
+    );
+    assert!(d.hold(&name(GOAL_BRANCH)).unwrap().design_writers.is_empty());
+}
+
+#[test]
+fn a_design_answer_read_started_before_a_merge_reads_g_again() {
+    let mut d = fresh();
+    take(&mut d);
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(TIP)));
+    outputs(
+        &mut d,
+        Event::Claim {
+            task: GOAL,
+            attempt: 3,
+            writes: Box::new([]),
+            designs: Box::new([name(GOAL_BRANCH)]),
+            holders: Box::new([]),
+        },
+    );
+    outputs(&mut d, Event::Answered { task: GOAL, attempt: 3, pushed: Box::new([]) });
+    let (stale, op) = fixtures::next_call(&mut d);
+    assert_eq!(op, Op::Read(Read::Branch { branch: GOAL_BRANCH.into() }));
+    merge_into_goal(&mut d);
+    fixtures::answer(&mut d, stale, Ok(Answer::Commit(TIP)));
+    let (fresh, op) = fixtures::next_call(&mut d);
+    assert_eq!(
+        op,
+        Op::Read(Read::Branch { branch: GOAL_BRANCH.into() }),
+        "a read from before the merge cannot judge its head"
+    );
+    fixtures::answer(&mut d, fresh, Ok(Answer::Commit(MERGED)));
+    assert_eq!(d.branch_head(&name(GOAL_BRANCH)), Some(MERGED));
+    let hold = d.hold(&name(GOAL_BRANCH)).unwrap();
+    assert_eq!(hold.drift, None);
+    assert!(hold.design_writers.is_empty());
 }
 
 fn assert_saved_goal_tip(requests: &[Request], tip: skein_forge::api::Commit) {

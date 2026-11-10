@@ -360,6 +360,7 @@ fn add_holds(name: &top::Name, rows: &mut List<(&'static str, top::Stored)>) {
         rows.push((
             label,
             top::Stored::Hold(top::Hold {
+                design_writers: Box::new([]),
                 name: name.clone(),
                 task: 1,
                 writer: Some(writer),
