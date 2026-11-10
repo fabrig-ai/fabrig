@@ -165,7 +165,7 @@ fn an_endpoint_or_model_missing_from_the_agent_is_named() {
             true,
             b"engine.llm.endpoints[0]: not in the agent's configuration under the same name\n".as_slice(),
         ),
-        ("model", true, false, b"charter 1.model: not in the agent's configuration under the same name\ncharter 2.model: not in the agent's configuration under the same name\ncharter 4.model: not in the agent's configuration under the same name\ncharter 5.model: not in the agent's configuration under the same name\ncharter 6.model: not in the agent's configuration under the same name\ncharter 9.model: not in the agent's configuration under the same name\ncharter 10.model: not in the agent's configuration under the same name\ncharter 11.model: not in the agent's configuration under the same name\ncharter 12.model: not in the agent's configuration under the same name\n"),
+        ("model", true, false, b"engine.charters[0].model: not in the agent's configuration under the same name"),
     ] {
         let mut agent = fixtures::startup_agent();
         if !endpoints {
@@ -174,8 +174,23 @@ fn an_endpoint_or_model_missing_from_the_agent_is_named() {
         if !models {
             agent.bounds.endpoints = Box::new([]);
         }
-        let found = started(&document, &fixtures::files(), &agent);
-        assert_eq!(&*lines(&found), expected, "row {row}");
+        let result = fixtures::start(
+            &document,
+            &config::Directories::working(),
+            &fixtures::files(),
+            &agent,
+            &fixtures::seeds(),
+            None,
+            fixtures::worker_runtime(),
+            fixtures::forge_runtime(),
+        );
+        if models {
+            assert_eq!(&*lines(&result.err().expect("endpoint is deployment configuration")), expected, "row {row}");
+        } else {
+            let mut service = result.expect("a charter model shortfall warns");
+            assert_eq!(service.notes().pop(), Some(crate::Note::StartupWarning { line: expected.into() }));
+            assert_eq!(service.notes().pop(), None, "one selected warning");
+        }
     }
 }
 #[test]
@@ -511,9 +526,19 @@ fn agent_model_bounds_are_checked_under_the_configured_name() {
         }
         let mut problems = Problems::empty();
         checks::agent(&engine, &agent, &mut problems);
+        assert!(problems.is_empty(), "charter models do not refuse the start");
+        let core = config::core(&engine, [7; 16], 7);
+        let warnings = checks::admission(&core, &engine, &agent, &mut problems);
+        assert!(problems.is_empty());
+        assert_eq!(warnings.problems.len(), 1);
         assert_eq!(
-            &*lines(&problems),
-            b"charter 1.model: not in the agent's configuration under the same name\ncharter 2.model: not in the agent's configuration under the same name\ncharter 4.model: not in the agent's configuration under the same name\ncharter 5.model: not in the agent's configuration under the same name\ncharter 6.model: not in the agent's configuration under the same name\ncharter 9.model: not in the agent's configuration under the same name\ncharter 10.model: not in the agent's configuration under the same name\ncharter 11.model: not in the agent's configuration under the same name\ncharter 12.model: not in the agent's configuration under the same name\n"
+            &*lines(&warnings),
+            if window {
+                b"engine.charters[0].model: needs a context window of 8192 tokens; the agent offers 1 tokens\n"
+                    .as_slice()
+            } else {
+                b"engine.charters[0].model: needs 1024 output tokens; the agent offers 1 tokens\n".as_slice()
+            }
         );
     }
 }

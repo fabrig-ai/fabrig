@@ -172,6 +172,10 @@ impl Shape {
                 worker["graces"] = json!({"grace_ms":grace_ms,"agent_stop_ms":agent_stop_ms,"delivery_ms":delivery_ms,"save_ms":save_ms});
                 worker["limits"]["overrides"]["link.ping_ms"] = ping_ms.into();
                 worker["limits"]["overrides"]["link.silence_ms"] = silence_ms.into();
+                if grace_ms >= 1_000 {
+                    // Redial promptly after the grace too; waiting out backoff is not this story's rule.
+                    worker["limits"]["overrides"]["link.ceiling_ms"] = 1_000.into();
+                }
                 document = json!({"workers":document["workers"],"application":{"workers":document["application"]["workers"],"limits":document["application"]["limits"]}});
                 fixtures::private(
                     &data.join(format!("secrets/{name}.secret")),

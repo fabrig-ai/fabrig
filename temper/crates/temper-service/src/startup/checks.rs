@@ -781,6 +781,21 @@ pub fn admission(
     let needs = jig_domain_core::settings::fleet_needs::configured(core, &engine.limits.core);
     let bounds = agent.bounds();
     let mut warnings = Problems::empty();
+    // A charter warning must not mask a deployment's receiving shortfall.
+    for (why, offered, required) in [
+        (AgentShortfall::Message, bounds.message_bytes, needs.message_bytes),
+        (AgentShortfall::Inbox, bounds.inbox, needs.start_messages),
+        (AgentShortfall::Unacknowledged, bounds.unacknowledged, needs.unacknowledged),
+    ] {
+        if offered < required {
+            problems.push(
+                Path::root().member(b"engine").member(b"limits"),
+                What::Admission { why, offered: u64::from(offered), required: u64::from(required) },
+            );
+            break;
+        }
+    }
+    // Report the first charter shortfall, as hello admission does, without filling the notes queue.
     for charter in &needs.charters {
         if !charter.kinds.allows(fleet::HostKind::Worker) {
             continue;
@@ -798,21 +813,8 @@ pub fn admission(
                     ),
                     What::Agent,
                 );
+                return warnings;
             }
-        }
-    }
-    // A charter warning must not mask a deployment's receiving shortfall.
-    for (why, offered, required) in [
-        (AgentShortfall::Message, bounds.message_bytes, needs.message_bytes),
-        (AgentShortfall::Inbox, bounds.inbox, needs.start_messages),
-        (AgentShortfall::Unacknowledged, bounds.unacknowledged, needs.unacknowledged),
-    ] {
-        if offered < required {
-            problems.push(
-                Path::root().member(b"engine").member(b"limits"),
-                What::Admission { why, offered: u64::from(offered), required: u64::from(required) },
-            );
-            break;
         }
     }
     let Some(why) = fleet::shortfall(&needs, bounds, fleet::HostKind::Worker) else { return warnings };

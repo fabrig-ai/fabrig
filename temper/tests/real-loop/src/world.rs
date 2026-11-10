@@ -149,7 +149,6 @@ impl Host for Kind {
                 && std::mem::take(&mut llm.cue)
             {
                 llm.peer.release(crate::cluster::PLACED).expect("placement hold");
-                llm.placement_released = true;
             }
             if let Self::Llm(llm) = self
                 && let Some(name) = llm.release.take()
@@ -267,7 +266,7 @@ fn run_with_issuer(
             recipe: None,
             rules: None,
             cue: false,
-            placement_released: false,
+            placement_hold: true,
             holds: Vec::new(),
             release: None,
             released: None,
@@ -330,7 +329,7 @@ pub(crate) struct Llm {
     recipe: Option<crate::ForgeRecipe>,
     rules: Option<Rules>,
     cue: bool,
-    placement_released: bool,
+    placement_hold: bool,
     holds: Vec<Box<[u8]>>,
     pub(crate) release: Option<&'static [u8]>,
     pub(crate) released: Option<&'static [u8]>,
@@ -414,7 +413,7 @@ pub(crate) fn run_forge(
             recipe,
             rules,
             cue: false,
-            placement_released: false,
+            placement_hold: true,
             holds: Vec::new(),
             release: None,
             released: None,
@@ -461,7 +460,7 @@ pub(crate) fn run_github(
             recipe: None,
             rules: None,
             cue: false,
-            placement_released: false,
+            placement_hold: true,
             holds: Vec::new(),
             release: None,
             released: None,
@@ -846,7 +845,7 @@ impl Referee<Proc> for Judge {
         }
         self.worker_actions(caller_end, caller, workers);
         peer.release_hold(caller);
-        if placed(workers) && !peer.placement_released && !self.lifecycle.finished {
+        if placed(workers) && peer.placement_hold && !self.lifecycle.finished {
             peer.cue = true;
         }
         if !self.armed {
@@ -922,6 +921,10 @@ impl Referee<Proc> for Judge {
             self.finish_peers(peer, children);
         }
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the referee observes engine and worker restart cues alongside peer and caller progress"
+    )]
     fn observe(&mut self, now: Time, procs: &[Proc]) {
         for proc in procs {
             if let Kind::Service(host) = &proc.kind
@@ -985,7 +988,7 @@ impl Referee<Proc> for Judge {
                     && (!forge.observations().is_empty() || !service.seen.responses().is_empty()))
         });
         let pending = self.llm_history.observe(peer.observations());
-        let placing = placed(workers) && pending > 0 && !peer.placement_released;
+        let placing = placed(workers) && pending > 0 && peer.placement_hold;
         let named_worker = |name| {
             worker_position(workers, name).map(|position| {
                 let Kind::Service(worker) = &workers[position].kind else { panic!("worker root") };
@@ -1208,6 +1211,7 @@ fn cluster_roots<R: Referee<Proc>>(
     world.spawn(|| {
         let recipe = recipe();
         let holds = script_holds(&recipe);
+        let placement_hold = holds.iter().any(|name| name.as_ref() == crate::cluster::PLACED);
         Proc::new(Kind::Llm(Box::new(Llm {
             pending_streak: crate::patience::PendingStreak::default(),
             peer: llm::peer(recipe).expect("cluster LLM"),
@@ -1216,7 +1220,7 @@ fn cluster_roots<R: Referee<Proc>>(
             recipe: None,
             rules: forge.map(|(_, _, rules)| rules),
             cue: false,
-            placement_released: false,
+            placement_hold: forge.is_some() || placement_hold,
             holds,
             release: None,
             released: None,
