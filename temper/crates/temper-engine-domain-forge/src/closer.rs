@@ -2,7 +2,8 @@
 use crate::{Domain, Key, Limits, Request, Stored};
 use alloc::boxed::Box;
 use skein_forge::api::{Answer, Commit, Error, Read, Repository};
-use skein_lib::{Env, List, Map, Queue, Token};
+use skein_lib::{Duration, Env, List, Map, Queue, Token, Wall};
+use temper_engine_domain_forge_change::Status;
 use temper_engine_domain_forge_closer::{Closer, Step};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -22,6 +23,7 @@ pub(crate) struct State {
     pub(crate) reads: Map<Token, Reading>,
     pub(crate) selection_reads: Map<Token, u64>,
     checked: Map<u64, (u64, Result<bool, Error>)>,
+    waits: Map<u64, Duration>,
 }
 #[derive(Hash, Debug)]
 pub(crate) struct Reading {
@@ -36,7 +38,7 @@ pub(crate) struct Reading {
 enum Stage {
     Branch,
     Base { head: Commit },
-    Contains { head: Commit, base: Commit },
+    Contains,
 }
 impl State {
     pub(crate) fn new(tasks: u32) -> Self {
@@ -45,6 +47,7 @@ impl State {
             reads: Map::with_capacity(tasks),
             selection_reads: Map::with_capacity(tasks),
             checked: Map::with_capacity(tasks),
+            waits: Map::with_capacity(tasks),
         }
     }
 }
@@ -84,6 +87,7 @@ pub(crate) fn forget(d: &mut Domain, goal: u64, out: &mut Queue<Request>) {
 }
 fn discard_check(d: &mut Domain, task: u64) {
     d.closing.checked.remove(&task);
+    d.closing.waits.remove(&task);
     d.offered_change(task);
     let mut owners = List::with_capacity(d.closing.reads.len());
     for (owner, reading) in &d.closing.reads {
@@ -121,6 +125,7 @@ pub(crate) fn check(
             return;
         }
     }
+    d.offered_change(task);
     let Some(sequence) = d.sequence.checked_add(1) else { return };
     d.sequence = sequence;
     let owner = Token::new(sequence | (1_u64 << 62));
@@ -144,10 +149,26 @@ pub(crate) fn answered(
     out: &mut Queue<Request>,
 ) {
     let Some(mut reading) = d.closing.reads.remove(&owner) else { return };
+    match reading.stage {
+        Stage::Contains => {
+            let error = match &result {
+                Err(error) => *error,
+                Ok(_) => Error::InvalidAnswer,
+            };
+            let contained = match crate::domain::ancestry_status(result) {
+                Status::Passed => Ok(true),
+                Status::Failed => Ok(false),
+                Status::Unknown | Status::Pending => Err(error),
+            };
+            finish(d, env, reading, contained, out);
+            return;
+        }
+        Stage::Branch | Stage::Base { .. } => {}
+    }
     let answer = match result {
         Ok(answer) => observation(answer),
         Err(error) => {
-            finish(d, reading, Err(error), out);
+            finish(d, env, reading, Err(error), out);
             return;
         }
     };
@@ -161,8 +182,8 @@ pub(crate) fn answered(
                 reading.stage = Stage::Base { head };
                 Read::Branch { branch: reading.base.clone() }
             }
-            Observed::Contains { .. } | Observed::Other => {
-                finish(d, reading, Err(Error::InvalidAnswer), out);
+            Observed::Other => {
+                finish(d, env, reading, Err(Error::InvalidAnswer), out);
                 return;
             }
         },
@@ -181,31 +202,18 @@ pub(crate) fn answered(
                     out,
                 );
                 if head == base {
-                    finish(d, reading, Ok(true), out);
+                    finish(d, env, reading, Ok(true), out);
                     return;
                 }
-                reading.stage = Stage::Contains { head, base };
-                Read::Compare { before: head, after: base }
+                reading.stage = Stage::Contains;
+                Read::Commits { before: base, after: head, page: 1 }
             }
-            Observed::Contains { .. } | Observed::Other => {
-                finish(d, reading, Err(Error::InvalidAnswer), out);
+            Observed::Other => {
+                finish(d, env, reading, Err(Error::InvalidAnswer), out);
                 return;
             }
         },
-        Stage::Contains { head, base } => {
-            let result = match answer {
-                Observed::Contains { before, after, contains } => {
-                    if before == head && after == base {
-                        Ok(contains)
-                    } else {
-                        Err(Error::InvalidAnswer)
-                    }
-                }
-                Observed::Head { .. } | Observed::Other => Err(Error::InvalidAnswer),
-            };
-            finish(d, reading, result, out);
-            return;
-        }
+        Stage::Contains => unreachable!("ancestry answered above"),
     };
     let repository = reading.repository;
     d.closing.reads.insert(owner, reading).expect("replaces check");
@@ -215,16 +223,13 @@ pub(crate) fn answered(
 #[derive(Debug)]
 enum Observed {
     Head { commit: Commit },
-    Contains { before: Commit, after: Commit, contains: bool },
     Other,
 }
 fn observation(answer: Answer) -> Observed {
     match answer {
         Answer::Commit(commit) => Observed::Head { commit },
-        Answer::Compare { before, after, contains_before, .. } => {
-            Observed::Contains { before, after, contains: contains_before }
-        }
-        Answer::Located { .. }
+        Answer::Compare { .. }
+        | Answer::Located { .. }
         | Answer::Items { .. }
         | Answer::Item { .. }
         | Answer::Pull(_)
@@ -255,7 +260,19 @@ fn observation(answer: Answer) -> Observed {
     }
 }
 
-fn finish(d: &mut Domain, reading: Reading, result: Result<bool, Error>, out: &mut Queue<Request>) {
+fn finish(d: &mut Domain, env: &Env<Limits>, reading: Reading, result: Result<bool, Error>, out: &mut Queue<Request>) {
+    if result.is_err() {
+        let wait = match d.closing.waits.get(&reading.task) {
+            Some(previous) => Duration::from_nanos(previous.as_nanos().saturating_mul(2)),
+            None => env.limits.client.backoff,
+        };
+        let wait = core::cmp::min(wait, env.limits.client.poll_max);
+        d.closing.waits.insert(reading.task, wait).expect("one wait per closer");
+        let until = Wall::from_nanos(env.wall.as_nanos().saturating_add(wait.as_nanos()));
+        d.wait_change(env, reading.task, Some(until));
+    } else {
+        d.closing.waits.remove(&reading.task);
+    }
     d.closing.checked.insert(reading.task, (reading.step, result)).expect("one answer per closer");
     out.push(Request::CloserChecked { task: reading.task });
 }

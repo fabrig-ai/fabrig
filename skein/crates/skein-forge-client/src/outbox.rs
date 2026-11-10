@@ -64,7 +64,7 @@ enum Phase {
     Queued,
     Find { page: u32, after: u64 },
     DispatchRuns { head: Commit, page: u32 },
-    Compare { head: Commit, base: Commit },
+    Ancestry { head: Commit, base: Commit },
     AfterUpdate,
     AfterMerge { merged: Commit },
 }
@@ -294,7 +294,7 @@ pub(crate) fn pump(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
         | Phase::Queued
         | Phase::Make
         | Phase::DispatchRuns { .. }
-        | Phase::Compare { .. }
+        | Phase::Ancestry { .. }
         | Phase::AfterUpdate
         | Phase::AfterMerge { .. } => {}
     }
@@ -308,7 +308,7 @@ pub(crate) fn pump(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
         | Phase::Queued
         | Phase::Find { .. }
         | Phase::DispatchRuns { .. }
-        | Phase::Compare { .. }
+        | Phase::Ancestry { .. }
         | Phase::AfterUpdate
         | Phase::AfterMerge { .. } => Priority::Fresh,
     };
@@ -327,7 +327,7 @@ fn operation(w: &Writing, phase: Phase) -> Op {
             };
             Read::Runs { workflow: workflow.clone(), commit: head, page }
         }
-        Phase::Compare { head, base } => Read::Compare { before: head, after: base },
+        Phase::Ancestry { head, base } => Read::Commits { before: head, after: base, page: 1 },
         Phase::Check | Phase::Queued | Phase::AfterUpdate | Phase::AfterMerge { .. } => {
             Read::Pull { number: w.lane.number.expect("conditional effect names an item") }
         }
@@ -383,7 +383,7 @@ pub(crate) fn sent(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Que
         | Phase::Queued
         | Phase::Find { .. }
         | Phase::DispatchRuns { .. }
-        | Phase::Compare { .. }
+        | Phase::Ancestry { .. }
         | Phase::AfterUpdate
         | Phase::AfterMerge { .. } => {}
     }
