@@ -1393,7 +1393,7 @@ temper box
 ├── temper forge run DIRS N forgejo   long: Forgejo's parent on Linux with fd 3 (6.4)
 │   └── forgejo web                   via temper internal forge-child; execs without fd 3
 ├── forgejo-runner daemon             long: temper forge run DIRS N runner
-├── temper forge source DIRS N        once, whatever its ending, when machine.owned.sign_in is set (`sign-in.md`, 9.9)
+├── temper forge source DIRS N        once, then again until the source serves, when machine.owned.sign_in is set (`sign-in.md`, 9.9)
 └── temper internal serve DIRS --box  long: its own tree (README.md, section 4); its setup
                                       host takes each handover and reconciles (section 5);
                                       its listeners from fd 3, then its pipe to the box (below)
@@ -1517,7 +1517,7 @@ temper box
   | `start FORGE` | serve, once it has written the group's file: at an owned forge's set up (6.5) and at the playground's start (8.4) | start the forge's group, by its file |
   | `step FORGE STEP` | the box | the group's step `fetch`, `prepare`, `run` or `source` is starting, for the client's row (`../client/forge.md`, 5.4) |
   | `fetched FORGE BINARY DONE TOTAL` | the box | how far the group's `fetch` step has gone, one for each line it says (6.6): `BINARY` `forgejo` or `runner`, `DONE` its bytes written, `TOTAL` its size or `none`. Between `step FORGE fetch` and the next step alone (7.2), and at most 64 bytes, `box.line_bytes`'s least, whatever its numbers |
-  | `source FORGE added`, `source FORGE failed WHY` | the box | how the group's `source` step ended (`sign-in.md`, 9.9), before its `started`: `WHY` as `failed`'s, the step's own words or `source exited N`, `source did not start`, within the line's bound, holding no secret. A `start` for a group already standing says its last such line again, before its `started` |
+  | `source FORGE added`, `source FORGE failed WHY` | the box | how the group's `source` step ended (`sign-in.md`, 9.9), before its `started`: `WHY` as `failed`'s, the step's own words or `source exited N`, `source did not start`, within the line's bound, holding no secret. A `start` for a group already standing says its last such line again, before its `started`. A retried step's ending is said again, after the `started`, only when it differs from the last one said, so `source FORGE added` follows a `failed` once the source serves |
   | `started FORGE` | the box | the group's long steps are started, an owned Forgejo answers, and its record is written; the engine then takes the handover and reconciles (6.5) |
   | `failed FORGE WHY` | the box | the group stopped: `WHY` names the step by its name, as its log file and the box's terminal name it (7.2), such as `prepare-3 exited 1`: `<step> exited <code>`, `<step> killed by signal <n>`, `<step> did not start`, `record not written`, or a removal's `remove: exited <code>`, `remove: did not start` or `remove: files not removed`, cut to fit the line's bound, and holds no secret; a step's own lines are in its log, the last of them under the terminal's `failed` line (7.2) |
   | `stop FORGE` | serve | stop the forge's group, its file and record kept |
@@ -1581,7 +1581,11 @@ temper box
 
 - **In order:** each step starts once the one before it has started, when
   that one is long, or has exited 0, when it is once or link; the `source` step
-  alone (7.1) ends the group's start whichever way it ends, never failing it. A link
+  alone (7.1) ends the group's start whichever way it ends, never failing it.
+  A `source` step that did not make the source serve runs again while its
+  group stands, after a wait doubling from `box.backoff_ms` to
+  `box.backoff_max_ms`, until one does: the engine may be starting, or
+  away, when Forgejo starts (`sign-in.md`, 9.9). A link
   step starts once the long step before it has written its first line
   to its stdout.
 - **A link step** is given that line whole on its stdin, which is then
@@ -4470,6 +4474,17 @@ Each is intended; what it needs is named with it.
 - **The time of day on the terminal's error lines** (7.2;
   `../draft/box-link-first.md`, 6): the user may prefer none. Default:
   kept.
+- **Forgejo serving a source it listed when its discovery failed**
+  (7.2; `sign-in.md`, 9.9): the source step relies on Forgejo loading its
+  sources again at a sign-in naming one it holds no provider for, which
+  Forgejo's sign-in does and which no walk has measured on Forgejo 17;
+  the process tier's story pins it after landing. Default: the step's
+  request; if Forgejo does not serve the source after it, the step keeps
+  failing, saying so, and Forgejo's next start serves it.
+- **A sign-in source for `temper serve`'s owned Forgejo** (6.8): its
+  command is printed, not run, so nothing retries it; a source whose
+  discovery failed at Forgejo's start serves at a person's first sign-in,
+  as above. Default: as 6.8 says.
 
 ## 17. Connecting GitHub
 
