@@ -336,6 +336,10 @@ pub(crate) fn start_refused(domain: &mut Domain, task: u64) {
             why: tasks::Hold::EffectFailed,
             source: Box::new(source(domain, Some(account.entry), account.words.clone())),
         }));
+    } else if let Some(context) = domain.core.tasks.run_context(task)
+        && let Some(words) = super::close::refusal(domain, &context)
+    {
+        hold(domain, task, words);
     } else {
         hold(domain, task, b"change procedure cannot start from its repository and branch parameters");
     }

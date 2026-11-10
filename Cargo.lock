@@ -5598,6 +5598,7 @@ dependencies = [
  "temper-fake-checkout",
  "temper-protocol-reaches",
  "temper-protocol-store",
+ "temper-protocol-worker-wire",
  "temper-service",
  "temper-worker-checkout-world",
  "temper-worker-domain-checkout",

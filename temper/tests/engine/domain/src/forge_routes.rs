@@ -647,6 +647,7 @@ impl World {
                         .insert(
                             1,
                             engine::ProjectLanding {
+                                close_job: None,
                                 merge_job: None,
                                 after: engine::AfterLandingCheck {
                                     tier_retries: 2,
@@ -1245,6 +1246,7 @@ impl World {
                 .insert(
                     1,
                     engine::ProjectLanding {
+                        close_job: None,
                         merge_job: Some(command.into()),
                         by: engine::Way::Queue,
                         repositories: Box::new([]),
@@ -1255,6 +1257,65 @@ impl World {
         }
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid merge job configuration");
+        self
+    }
+
+    /// Configure the close kind and its project's command before startup.
+    #[must_use]
+    pub fn with_close_job(mut self, command: Option<&[u8]>, authority: bool) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "close configuration precedes startup");
+        // Retain the close request and both whole change word fields in the fixture carrier.
+        self.env.limits.tasks.spec_bytes = 16_384;
+        self.env.limits.journal.transcript_bytes = self.env.limits.journal.transcript_bytes.max(65_536);
+        self.env.limits.loads.transcript_bytes = self.env.limits.loads.transcript_bytes.max(65_536);
+        self.env.limits.loads.bytes = self.env.limits.loads.bytes.max(65_536);
+        self.env.limits.loads.reply_bytes = self.env.limits.loads.reply_bytes.max(self.env.limits.loads.bytes);
+        self.restart_config.core.jobs = Box::new([jig_domain_link::JobBound {
+            kind: jig_domain_link::JobKind(forge_top::CLOSE_KIND),
+            spec: 16_384,
+            result: 512,
+            deadline: Duration::from_secs(600),
+        }]);
+        if authority {
+            let kinds = &mut self.restart_config.core.defaults.rules.ceiling.delegation.kinds;
+            let mut extended = kinds.to_vec();
+            extended.push(authority::Executor::Job(forge_top::CLOSE_KIND));
+            let count = u32::try_from(extended.len()).expect("fixture executor count");
+            self.env.limits.tasks.executor_kinds = self.env.limits.tasks.executor_kinds.max(count);
+            self.env.limits.authority.executors = self.env.limits.authority.executors.max(count);
+            *kinds = extended.into_boxed_slice();
+            for project in &mut self.restart_config.core.seed_projects {
+                project.policy.policy.ceiling.delegation.kinds.clone_from(kinds);
+                project.policy.policy.roles[0].authority.delegation.kinds.clone_from(kinds);
+            }
+        }
+        self.restart_config
+            .landings
+            .insert(
+                1,
+                engine::ProjectLanding {
+                    by: engine::Way::Queue,
+                    merge_job: None,
+                    close_job: command.map(Into::into),
+                    repositories: Box::new([]),
+                    after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
+                },
+            )
+            .expect("one project's landing");
+        self.env.limits.documents = paths::document_limits(self.env.limits.documents, &self.env.limits);
+        self.creating =
+            jig_test_profile::fixtures::Creating::new(&self.restart_config.core, self.env.limits.tasks.tree_tasks);
+        let mut codec = crate::store::widest();
+        codec.tasks = self.env.limits.tasks;
+        codec.authority = self.env.limits.authority;
+        self.store = crate::fixtures::restored_over(
+            Store::with_limits(&codec),
+            crate::oracle::config::copy(&self.restart_config),
+            &self.env.limits,
+        );
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid close job configuration");
         self
     }
 

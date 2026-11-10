@@ -558,7 +558,7 @@ fn hold_changed_charter(
         Some(Delegate::Produce | Delegate::Repair(_) | Delegate::Resolve { .. }) => {
             (b"producer", row.producing_charter)
         }
-        Some(Delegate::Merge { .. }) | None => return false,
+        Some(Delegate::Merge { .. } | Delegate::Close) | None => return false,
     };
     let model = match refusal {
         core::StepRefusal::Denied { findings, .. }

@@ -248,6 +248,7 @@ fn change_row() -> ChangeRow {
         report: Box::new([]),
         repairs: None,
         catch_up: None,
+        close: None,
         merge_result: None,
     }
 }
@@ -356,6 +357,7 @@ fn setup_with_limits(limits: &Limits) -> Domain {
                     },
                     bound: Duration::from_secs(30),
                 },
+                None,
                 None,
             ),
         )

@@ -56,6 +56,7 @@ pub fn change_row() -> top::ChangeRow {
         report: Box::new([]),
         repairs: None,
         catch_up: None,
+        close: None,
         merge_result: None,
     }
 }

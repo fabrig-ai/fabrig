@@ -183,6 +183,7 @@ pub fn with_repository(seed: u64, limits: &client::Limits, reader: Reader, repos
                         1,
                         engine::ProjectLanding {
                             by: engine::Way::Queue,
+                            close_job: None,
                             merge_job: None,
                             repositories: Box::new([engine::RepositoryChecks {
                                 repository: skein_forge::api::Repository { forge: fixtures::FORGE, repository: 7 },

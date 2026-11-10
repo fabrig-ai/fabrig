@@ -237,6 +237,7 @@ pub struct Domain {
     pub(crate) brief_pending: Map<Token, held::Pending>,
     pub(crate) brief_held: Map<Token, held::Held>,
     merge_kind: Option<(u32, u32)>,
+    close_kind: Option<(u32, u32)>,
     projection_due: Map<u64, skein_lib::Wall>,
     /// Volatile: a projection met the full outbox since the root's step began
     /// (temper/docs/design/domain/forge.md, 12). Never saved; false after a restore.
@@ -264,6 +265,11 @@ impl Domain {
     /// The core's declared merge bounds (temper/docs/design/domain/worker.md, 4.4).
     pub fn merge_kind(&mut self, spec: u32, result: u32) {
         self.merge_kind = Some((spec, result));
+    }
+
+    /// The core's declared close bounds (temper/docs/design/domain/worker.md, 4.4).
+    pub fn close_kind(&mut self, spec: u32, result: u32) {
+        self.close_kind = Some((spec, result));
     }
 
     /// Before the first input, size the volatile routing tables by the connection component's bounds.
@@ -752,6 +758,7 @@ impl Domain {
             brief_pending: Map::with_capacity(l.brief_sections),
             brief_held: Map::with_capacity(l.brief_sections),
             merge_kind: None,
+            close_kind: None,
             projection_due: Map::with_capacity(l.issues),
             full_outbox_met: false,
             change_due: Map::with_capacity(l.changes),
@@ -2817,7 +2824,10 @@ fn delegated(
     row.delegate = Some((child, kind));
     match kind {
         change::Delegate::Resolve { .. } | change::Delegate::Merge { .. } => row.merge_result = None,
-        change::Delegate::Produce | change::Delegate::Repair(_) | change::Delegate::Gate { .. } => {}
+        change::Delegate::Produce
+        | change::Delegate::Close
+        | change::Delegate::Repair(_)
+        | change::Delegate::Gate { .. } => {}
     }
     row.producer_failure = None;
     row.effect_account = None;
@@ -2853,7 +2863,7 @@ fn delegate_admission_refused(
         return;
     }
     let asked = match (kind, &row.change.state) {
-        (change::Delegate::Produce, change::State::Producing { requested }) => *requested,
+        (change::Delegate::Produce | change::Delegate::Close, change::State::Producing { requested }) => *requested,
         (change::Delegate::Repair(why), change::State::Repairing { requested, why: current }) => {
             *requested && why == *current
         }
@@ -2878,7 +2888,9 @@ fn delegate_admission_refused(
 
 fn unasked(row: &mut ChangeRow, kind: change::Delegate) -> change::State {
     match (kind, &row.change.state) {
-        (change::Delegate::Produce, change::State::Producing { .. }) => change::State::Producing { requested: false },
+        (change::Delegate::Produce | change::Delegate::Close, change::State::Producing { .. }) => {
+            change::State::Producing { requested: false }
+        }
         (change::Delegate::Repair(why), change::State::Repairing { .. }) => {
             row.change.repairs = row.change.repairs.saturating_sub(1);
             change::State::Repairing { requested: false, why }
@@ -2960,6 +2972,7 @@ fn delegate_result(
     let agent = match kind {
         change::Delegate::Gate { .. } => false,
         change::Delegate::Produce
+        | change::Delegate::Close
         | change::Delegate::Repair(_)
         | change::Delegate::Resolve { .. }
         | change::Delegate::Merge { .. } => true,
@@ -2969,7 +2982,7 @@ fn delegate_result(
     }
     // Keep the merge's identity through the fresh branch read, including after restart.
     match kind {
-        change::Delegate::Merge { .. } | change::Delegate::Resolve { .. } => {}
+        change::Delegate::Merge { .. } | change::Delegate::Close | change::Delegate::Resolve { .. } => {}
         change::Delegate::Produce | change::Delegate::Repair(_) | change::Delegate::Gate { .. } => row.delegate = None,
     }
     d.start_conflicts.remove(&task);
@@ -2979,6 +2992,16 @@ fn delegate_result(
             if !record_review(row, env, number, head, (status, failed, cancelled), words) {
                 emit(out, Request::Refused { task });
                 return;
+            }
+        }
+        change::Delegate::Close => {
+            producer_result(row, false, failed, words);
+            if status == change::Status::Passed {
+                let bound = match d.close_kind {
+                    Some((_, result)) => result,
+                    None => 0,
+                };
+                row.report = crate::text::fit(words, skein_lib::usize_of(bound), b"...");
             }
         }
         change::Delegate::Produce => producer_result(row, no_change, failed, words),
@@ -3009,7 +3032,7 @@ fn delegate_result(
 /// A delegate's cancellation account (temper/docs/design/domain/forge.md, 8.4).
 fn cancelled_delegate_words(kind: change::Delegate, child: u64, words: &[u8]) -> Option<Box<[u8]>> {
     let name: &[u8] = match kind {
-        change::Delegate::Produce => b"producer",
+        change::Delegate::Produce | change::Delegate::Close => b"producer",
         change::Delegate::Repair(_) => b"repair",
         change::Delegate::Resolve { .. } => b"resolution",
         change::Delegate::Merge { .. } => b"merge job",
@@ -4057,6 +4080,7 @@ fn change_facts(
             None => None,
         },
         catch_up: row.catch_up,
+        close: row.close.is_some(),
         contains_catch_up: pending.contains_catch_up,
         mergeable: match &pending.pull {
             Some(pull) if pull.mergeable => change::Status::Passed,

@@ -39,6 +39,7 @@ mod relay;
 pub(crate) use holds::{hold as hold_reason, refused_step, start_refused};
 pub(crate) use relay::{ChangeStep, own_agents_words, refused as relay_refused};
 
+mod close;
 mod merge;
 
 #[cfg(test)]
@@ -2327,6 +2328,7 @@ fn change_delegate_live(domain: &Domain, task: u64) -> bool {
     match kind {
         forge_change::Delegate::Gate { .. } => return false,
         forge_change::Delegate::Produce
+        | forge_change::Delegate::Close
         | forge_change::Delegate::Repair(_)
         | forge_change::Delegate::Resolve { .. }
         | forge_change::Delegate::Merge { .. } => {}
@@ -2358,6 +2360,9 @@ fn change_delegate_running(domain: &Domain, task: u64) -> bool {
 #[expect(clippy::too_many_lines, reason = "one procedure registration and fresh-step route")]
 pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) -> bool {
     let task = context.task;
+    if close::refusal(domain, context).is_some() {
+        return false;
+    }
     let mut provider = None;
     let mut base = None;
     let mut branch = None;
@@ -2370,6 +2375,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
     let mut requester_branch = false;
     let mut repairs = None;
     let mut catch_up = None;
+    let mut close = None;
     for parameter in &context.spec.parameters {
         match parameter {
             tasks::Parameter::Resource { name: 1, connector, resource } => {
@@ -2411,6 +2417,8 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 }
                 repairs = Some(commit);
             }
+            // The close request is parameter 17 (temper/docs/design/domain/forge.md, 8.1).
+            tasks::Parameter::Bytes { name: 17, value } => close = Some(value.clone()),
             tasks::Parameter::Bytes { name: 16, value } => {
                 let Some(commit) = catch_up_commit(value) else { return false };
                 catch_up = Some(commit);
@@ -2463,8 +2471,10 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 repository: provider,
                 branch: branch.clone(),
                 base: base.clone(),
-                // A catch-up has no producing agent to supply its pull request's title.
-                title: if catch_up.is_some() {
+                // Job producers have no agent to supply their pull request's title.
+                title: if close.is_some() {
+                    context.spec.words.clone()
+                } else if catch_up.is_some() {
                     Box::from(b"Catch up landing branch".as_slice())
                 } else {
                     initial_change_title(&context.spec.parameters)
@@ -2520,6 +2530,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 report: Box::new([]),
                 repairs,
                 catch_up,
+                close,
                 merge_result: None,
             },
         }));
@@ -2539,12 +2550,16 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
         if let Some(goal) = tracked_ancestor(domain, context.requester) {
             subscribe_goal(domain, env, goal, forge::Topic::Landings { repository: provider, branch: base.clone() });
         }
-    } else if let Some((child, _)) = domain.forge.change(task).expect("registered change").delegate {
+    } else if let Some((child, delegate)) = domain.forge.change(task).expect("registered change").delegate {
         for word in &context.inbox {
             if word.from != tasks::Party::Task(child) {
                 continue;
             }
-            let status = change_delegate_status(&word.kind);
+            let status = if delegate == forge_change::Delegate::Close && close::failed(domain, child, &word.kind) {
+                Some((forge_change::Status::Failed, true, false))
+            } else {
+                change_delegate_status(&word.kind)
+            };
             if let Some((status, failed, cancelled)) = status {
                 domain.work.push(Work::Forge(forge::Event::DelegateResult {
                     task,
@@ -3488,7 +3503,9 @@ fn change_delegate(
         forge_change::Delegate::Produce
         | forge_change::Delegate::Repair(_)
         | forge_change::Delegate::Resolve { .. } => row.questions.route != forge_change::Route::None,
-        forge_change::Delegate::Gate { .. } | forge_change::Delegate::Merge { .. } => false,
+        forge_change::Delegate::Gate { .. } | forge_change::Delegate::Merge { .. } | forge_change::Delegate::Close => {
+            false
+        }
     };
     if !asking {
         authority.tools.0 &= !domain.core.settings.tools.message.0;
@@ -3533,6 +3550,35 @@ fn change_delegate(
             llm: None,
         });
     }
+    if kind == forge_change::Delegate::Close {
+        let bound = domain.config.close_kind?;
+        let repository = domain.forge.repository(row.repository)?;
+        let command = domain.forge.close_job(repository.project)?;
+        return Some(super::Delegate {
+            executor: tasks::Executor::Job { kind: forge::CLOSE_KIND },
+            spec: tasks::Spec {
+                job: Some(Box::new(tasks::JobSpec {
+                    bytes: close::spec(&repository.name, command, row.close.as_deref()?, bound.spec)?,
+                    deadline: bound.deadline,
+                })),
+                asks: false,
+                words: Box::new([]),
+                parameters: Box::new([]),
+                inputs: Box::new([]),
+            },
+            contract: tasks::Contract::Job { bytes: bound.result },
+            authority,
+            deadline: tasks::Deadline::Named,
+            tracked: None,
+            label: 0,
+            flags: tasks::Flags::PLAIN,
+            budget: people::Budget::Named,
+            symbolic_grants: Box::new([]),
+            dependencies: Box::new([]),
+            wake: Some(tasks::WakePolicy::DEFAULT),
+            llm: None,
+        });
+    }
     let mut parameters = List::with_capacity(env.limits.tasks.parameters);
     parameters
         .push(tasks::Parameter::Resource {
@@ -3549,7 +3595,7 @@ fn change_delegate(
         words: env.limits.tasks.result_bytes,
     };
     let (executor, words, contract, llm) = match kind {
-        forge_change::Delegate::Merge { .. } => return None,
+        forge_change::Delegate::Merge { .. } | forge_change::Delegate::Close => return None,
         forge_change::Delegate::Produce => (
             tasks::Executor::Agent { charter: row.producing_charter },
             production_words(domain, env, task, row)?,
@@ -4278,6 +4324,7 @@ fn cancel_change_repair(domain: &Domain, task: u64, head: [u8; 32]) -> Procedure
             Some((
                 _,
                 forge_change::Delegate::Produce
+                | forge_change::Delegate::Close
                 | forge_change::Delegate::Repair(_)
                 | forge_change::Delegate::Resolve { .. }
                 | forge_change::Delegate::Gate { .. }

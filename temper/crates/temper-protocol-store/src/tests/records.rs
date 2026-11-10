@@ -1941,3 +1941,14 @@ fn rows_refuse_invalid_options_and_keys() {
         }
     }
 }
+
+/// temper/docs/design/domain/forge.md, 8.1: the request and producer survive restart.
+#[test]
+fn a_change_row_with_a_close_request_round_trips() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Producing { requested: true });
+    row.close = Some(br#"{"version":1,"goal":7,"changes":[{"task":9,"landed":true}]}"#.as_slice().into());
+    row.delegate = Some((42, temper_engine_domain_forge_change::Delegate::Close));
+    let row = forge::Stored::Change(row);
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+}

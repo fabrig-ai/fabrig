@@ -935,6 +935,8 @@ pub struct ChangeRow {
     pub repairs: Option<skein_forge::api::Commit>,
     /// The commit this catch-up merges (temper/docs/design/domain/forge.md, 8.2).
     pub catch_up: Option<skein_forge::api::Commit>,
+    /// The close request (temper/docs/design/domain/forge.md, 8.1).
+    pub close: Option<Box<[u8]>>,
     /// The last merge job's result, at most 512 bytes (temper/docs/design/domain/forge.md, 8.4).
     pub merge_result: Option<Box<[u8]>>,
 }

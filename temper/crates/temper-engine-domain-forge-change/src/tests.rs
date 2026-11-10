@@ -59,6 +59,7 @@ fn facts() -> Facts {
         merge_job: false,
         delegate: None,
         catch_up: None,
+        close: false,
         contains_catch_up: Status::Pending,
         updates: true,
         mergeable: Status::Passed,
@@ -1584,3 +1585,5 @@ fn an_update_outstanding_still_waits() {
     assert_eq!(next.decision, Decision::Wait { until: Some(at(30)) });
     assert_eq!(next.change, c);
 }
+
+mod close;

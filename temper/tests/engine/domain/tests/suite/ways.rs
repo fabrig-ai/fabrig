@@ -381,6 +381,7 @@ fn view_driver() -> (Driver, engine::Assignment) {
             PROJECT,
             engine::ProjectLanding {
                 by: engine::Way::Queue,
+                close_job: None,
                 merge_job: None,
                 repositories: Box::new([engine::RepositoryChecks {
                     repository: skein_forge::api::Repository { forge: FORGE, repository: 2 },
@@ -749,6 +750,7 @@ fn path_driver(ci_and_tiers: bool, equal_paths: bool) -> Driver {
                     PROJECT,
                     engine::ProjectLanding {
                         by: engine::Way::Queue,
+                        close_job: None,
                         merge_job: Some(b"merge".as_slice().into()),
                         repositories: Box::new([engine::RepositoryChecks {
                             repository: skein_forge::api::Repository { forge: FORGE, repository: 2 },

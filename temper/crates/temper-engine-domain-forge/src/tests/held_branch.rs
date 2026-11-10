@@ -193,7 +193,9 @@ fn a_landing_changes_repair_writes_the_goal_branch_under_its_goals_hold() {
                 change::Delegate::Resolve { base } | change::Delegate::Merge { base, .. } => {
                     items::Start::Merge { branch: GOAL_BRANCH.into(), base }
                 }
-                change::Delegate::Produce | change::Delegate::Gate { .. } => unreachable!("repair or resolution"),
+                change::Delegate::Produce | change::Delegate::Close | change::Delegate::Gate { .. } => {
+                    unreachable!("repair or resolution")
+                }
             };
             assert_eq!(item.start, start);
             let requests = outputs(
