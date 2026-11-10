@@ -167,6 +167,41 @@ pub fn opening() -> (Domain, Token) {
     (d, call)
 }
 
+/// Take a call under the caller's clock, including connector-owned outage waits.
+pub fn next_at(d: &mut Domain, env: &Env<Limits>) -> (Token, skein_forge::api::Op) {
+    landing_seen(d);
+    let mut out = Queue::uncapped();
+    for _ in 0..env.limits.client.pending {
+        resume(d, env, &mut out);
+        while let Some(request) = out.pop() {
+            if let Request::Call { call, op, .. } = request {
+                return (call, op);
+            }
+        }
+    }
+    panic!("one forge call at {:?}", env.now)
+}
+
+pub fn answer_at(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    call: Token,
+    result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
+) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    step(d, env, Event::Client(skein_forge_client::Event::Answered { free: 0, rate: None, call, cost: 1, result }), &mut out);
+    d.reclaim();
+    out
+}
+
+pub fn advance(d: &mut Domain, env: &mut Env<Limits>, by: Duration) -> Queue<Request> {
+    env.now = env.now.saturating_add(by);
+    env.wall = Wall::from_nanos(env.wall.as_nanos().saturating_add(by.as_nanos()));
+    let mut out = Queue::uncapped();
+    fire(d, env, &mut out);
+    out
+}
+
 pub fn next_call(d: &mut Domain) -> (Token, skein_forge::api::Op) {
     if !d.steps.is_empty() {
         landing_seen(d);
