@@ -765,7 +765,7 @@ is due again once its dependencies are done.
    names gather its workspace items, and name the application's
    credentials they need (connectors.md, section 10); and loads its
    transcript's saved window when it has one, for resuming or for the
-   tail of a fresh brief, including a transient retry (7.2). An activation
+   tail of a fresh brief after its window closed (7.2). An activation
    that needs this load stays due while the root is busy; one with no
    saved window can prepare its brief then. Either way it is given the calls
    committed after its task's last committed turn: a resumed run as a
@@ -935,13 +935,20 @@ program its endpoint names (`../protocol/configuration.md`, section 3).
   tail. Earlier windows' turns stay readable by parties
   (`../client/domain/contract.md`, section 6), and are never sent to a
   run. A transcript the agent cannot use fails its run as transient,
-  saying so, and the next run is prepared fresh. A transient retry loads
-  the saved window for its brief's tail, and never resumes it. If that
-  load is unread, preparation continues fresh without the tail and
-  without spending another transient try. An unread open window with
-  no transient try spent counts one transient preparation failure;
-  its retry can then continue without that unread tail. A failed load,
-  rather than an unread window, remains a preparation failure.
+  saying so, and closes its window (its run proof's `CurrentWindow`
+  marked closed): the next run is prepared fresh from that window's
+  tail, and never resumes it. **Only the window's own history closes
+  it:** a transcript the agent refuses or reports unusable, or a window
+  whose load is unread. Any other failure, transient ones included (a
+  preparation, a brief's gathering, a workspace another run holds), and
+  an interruption (6.1; hosts.md, 6.6), leave the window open, and the
+  next attempt resumes it within the resume limit, whatever tries the
+  task spent before. If a closed window's tail is unread, preparation
+  continues fresh without the tail and spends no transient try. An
+  open window whose load is unread counts one transient preparation
+  failure and is closed; its retry continues fresh without that tail. A
+  failed load, rather than an unread window, remains a preparation
+  failure and closes nothing.
 - **A turn too large for a page.** A window is loaded a page at a time,
   each within the store's page room. A turn past that room is loaded
   cut: its fields and its length, never its bytes
@@ -978,13 +985,13 @@ program its endpoint names (`../protocol/configuration.md`, section 3).
   gives no text for that turn. If no turn leaves text, the tail is empty:
   the closed window's next attempt still starts fresh, without a failure
   counted. A window page that cannot hold one turn hands that turn on
-  cut (above). An open unread window counts a transient failure only when no
-  transient try has been spent; a transient retry leaves out that tail
-  and continues fresh, as for an unread closed window.
+  cut (above). An open unread window counts one transient failure and
+  is closed, its retry continuing fresh without that tail, as for an
+  unread closed window.
   However the upgrade's
   stop classes the attempt it ends (temper's `draft/upgrades.md`, 7.2),
-  both a closed window and a transient retry's open window are kept for
-  their tails' loads; neither is resumed. The run proof
+  a closed window is kept for its tail's load and never resumed, and an
+  open one is resumed as any is (above). The run proof
   keeps the window as a `CurrentWindow` (its attempt, its turn, whether
   it is closed: core-v6's `Window`); the transcript a run prepares keeps
   the pair it loads from, and whether it is closed beside it.
@@ -1425,6 +1432,16 @@ The fleet child domain knows the hosts and the runs they host:
   failing charter's number; model window and output also name the model's
   position. Callers can then read required and offered amounts without
   repeating admission policy.
+- **A hello waits for the stored settings.** The fleet judges a hello's
+  agent bounds against the needs of the settings the store holds
+  (17.7), never the configuration's alone: from its construction until
+  the start's settings restore tells it their needs (`Event::Needs`,
+  section 6, step 1), it holds each hello it hears, admitting and
+  refusing none, and judges them in the order heard once told, a first
+  start's seeded settings included. A held channel lost meanwhile is
+  dropped with its hello. So a worker that dials a starting engine is
+  never refused for a charter its store has since changed, whichever of
+  the two starts first, and a run it lists is adopted as at any hello.
 - **Standing hello refusals are volatile facts.** The fleet keeps the latest
   actual refusal for each host kind, even with no diagnostic history room.
   Admitting a hello clears only that kind's fact; duplicate hellos neither
@@ -1595,7 +1612,7 @@ Which is which, by what 7.1 prepares:
 | a required section past the brief's deadline | transient | `SECTION: not gathered by its deadline` |
 | a connector says its system failed for now | transient | the connector's |
 | a dependency's result the store no longer answers with | transient | `results: a dependency's result could not be read` |
-| a transcript's window that does not load | transient | `transcript: its window could not be loaded`, or `transcript: its window could not be read` for an open window unread with no transient try spent (7.2) |
+| a transcript's window that does not load | transient | `transcript: its window could not be loaded`, or `transcript: its window could not be read` for an open window unread, which closes it (7.2) |
 | a required section that cannot fit, whole or cut | permanent | `SECTION: does not fit the brief's budget`, or `brief: its required sections do not fit its budget` |
 | a section a connector answered past its bound | permanent | `SECTION: answered past its bound` |
 | a plan the brief child refuses: more sections than a brief holds, a budget past the limit, a core text past it, a section planned twice, a deadline passed | permanent | `brief: ...`, naming which; for a core text, `SECTION: its text is past the brief's limit` |

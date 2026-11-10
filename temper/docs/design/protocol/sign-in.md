@@ -910,10 +910,22 @@ local users, and a fixed value is no secret. So the box's client has none, and
 other rules are skein's, per client, so no other client is weakened.
 
 **The source's step:** the last of the owned group's, after Forgejo answers
-(`setup.md`, 7.1): `temper forge source`, which adds the source unless Forgejo lists
-it, by `add-oauth --name temper --provider openidConnect --key forgejo
---auto-discover-url ISSUER/.well-known/openid-configuration` with `--work-path` and
-`--config`. temper is serving by then, since it asked for the group. On a restart, serve
+(`setup.md`, 7.1): `temper forge source`, which makes the source serve. It reads
+temper's discovery document first, `ISSUER/.well-known/openid-configuration`, within
+the set-up's deadline; with no answer it ends failed, `temper's discovery did not
+answer`. Then, unless Forgejo lists the source, it adds it, by `add-oauth --name temper
+--provider openidConnect --key forgejo --auto-discover-url
+ISSUER/.well-known/openid-configuration` with `--work-path` and `--config`, which works
+at once while Forgejo runs. With the source listed, it asks Forgejo for the source's
+sign-in, `GET /user/oauth2/temper` at the owned `listen`, following no redirect: a
+redirect to temper's `/oauth/authorize` says Forgejo serves it, and the step ends
+added. Forgejo loads a source's discovery when it starts, and a source whose discovery
+did not answer then is listed but not served; on that sign-in Forgejo, finding no
+provider for it, loads its sources again, so the same request makes it serve. Any
+other answer ends the step failed, `Forgejo does not serve the source`. A step that
+ends failed runs again while its group stands (`setup.md`, 7.2), so the source serves
+once the engine answers, whichever started first, and Forgejo is never restarted for
+it. temper is serving by the step's first run, since it asked for the group. On a restart, serve
 starts before this group too: a later preparation's source commands and Forgejo, loading its
 source, fetch discovery. So serve's read at its start comes before preparation's new handover,
 which it reads again once its first reconcile has waited for Forgejo, taking it before the
@@ -932,8 +944,9 @@ and `--config` (`setup.md`, 6.3). Each of the two commands has the set-up's dead
 address it is given and serve answers it only once it is up.
 
 - **It never fails the set-up.** Any ending of the step leaves the set-up succeeding:
-  one line in `box.log`, the forge's page fact saying so, and the links plain. Never a
-  welcome failure (`setup.md`, 7.2). Any ending of the preparation's two commands
+  one line in `box.log`, the forge's page fact saying so, and the links plain until a
+  later run of the step makes the source serve, which turns the fact and the links back.
+  Never a welcome failure (`setup.md`, 7.2). Any ending of the preparation's two commands
   leaves the preparation going, with one line in its own log and the source as it was:
   the entry still serves, so a press then ends at Forgejo's own error, on the old
   address, until a later start succeeds. Forgejo's own login still works.

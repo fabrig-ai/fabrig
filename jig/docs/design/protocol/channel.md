@@ -830,7 +830,10 @@ holds, and neither of its components reads them.
   names; wire numbers and `Closed` facts do not change.
 - **Redial on loss,** after a jittered backoff that doubles up to a
   ceiling, starting over once a channel has proved itself: it carried the
-  hello and stayed open for the configured span.
+  hello and stayed open for the configured span. While the grace's clock
+  runs (below), no wait passes a quarter of the grace, whatever the
+  ceiling, so a worker dials an engine that is restarting at least four
+  times before its grace passes.
 - **The hub hears the link,** through the worker's root: up, once ready,
   when it asks the hub to report what it hosts and sends the hello first;
   lost, when it starts the grace's clock.
@@ -846,7 +849,13 @@ holds, and neither of its components reads them.
   the link lost. Past the grace with no channel back, the
   component tells the worker's root, which asks the hub to cancel every
   run it hosts for lost contact (`../domain/hosts.md`, 6.6). A channel
-  back within the grace stops the clock.
+  back within the grace stops the clock once the engine has admitted its
+  hello: at the first record the engine sends after it, `sources` (4.3).
+  A channel refused, at its opening or at its hello, or lost before that
+  record, leaves the clock running from the first loss, never armed
+  again: so a worker the engine does not take back stops its runs within
+  the stop bound it stated, as one with no channel does, and the
+  engine's grace, counted from its own view, still outlasts it.
 - **The stop bound counts from the engine's view.** A silent partition is
   noticed by each side on its own clock, a silence deadline after the last
   frame it heard, and the engine may have last heard from the worker a
