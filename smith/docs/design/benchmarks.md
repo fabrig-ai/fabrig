@@ -281,7 +281,7 @@ benchmarks/
   summaries/               one per committed run
 ```
 
-- **Ordinary Rust** under the test-harness rules (programming-model.md,
+- **Ordinary Rust** under the test-harness rules (skein/docs/foundation/programming-model.md,
   section 10.2): its orders, samples and bootstrap draw from a seed it
   records, and it measures time on one monotonic clock.
 - **Its own `clippy.toml`.** The root file's shell bans include
@@ -833,7 +833,7 @@ repository task's delegation and length.
 
 - **To smith's tests.** Benchmarks find and show; tests specify and gate.
   A benchmark does not replay and its outcome varies, so what it finds is
-  reproduced in the lowest tier that shows it (testing-strategy.md,
+  reproduced in the lowest tier that shows it (skein/docs/foundation/testing-strategy.md,
   section 9) and fixed there with that test; the probe stays as evidence
   of the effect. Benchmarks never stand in for a world's story.
 - **To the live tier** (testing.md, section 2.3). The live tier checks
