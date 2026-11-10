@@ -221,9 +221,7 @@ enum Observed {
 fn observation(answer: Answer) -> Observed {
     match answer {
         Answer::Commit(commit) => Observed::Head { commit },
-        Answer::Compare { before, after, contains_before, .. } => {
-            Observed::Contains { before, after, contains: contains_before }
-        }
+        Answer::Compare { before, after, behind, .. } => Observed::Contains { before, after, contains: behind == 0 },
         Answer::Located { .. }
         | Answer::Items { .. }
         | Answer::Item { .. }

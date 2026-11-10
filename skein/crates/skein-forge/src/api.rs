@@ -128,7 +128,7 @@ pub enum Read {
     Branches { prefix: Box<[u8]> },
     /// Read pull files.
     PullFiles { number: u64, head: Commit, page: u32 },
-    /// Whole bounded comparison; `TooLarge` means unknown overlap.
+    /// Names and counts; fewer names than `changed` means unknown overlap.
     Compare { before: Commit, after: Commit },
     /// Provider descriptions and links, with a failing job's attempt.
     Checks { commit: Commit },
@@ -214,7 +214,8 @@ pub enum Answer {
     /// The observed head must equal the request's head.
     PullFiles { head: Commit, files: Box<[File]>, more: bool },
     /// Return compare.
-    Compare { before: Commit, after: Commit, contains_before: bool, files: Box<[File]>, commits: Box<[Commit]> },
+    /// Names, counts and containment of two commits; no contents (forge.md, 3.2 and 3.3).
+    Compare { before: Commit, after: Commit, ahead: u64, behind: u64, files: Box<[Box<[u8]>]>, changed: u64 },
     /// Return checks.
     Checks(Box<[Status]>),
     /// Bytes from one pinned job attempt, cut to the requested byte budget.

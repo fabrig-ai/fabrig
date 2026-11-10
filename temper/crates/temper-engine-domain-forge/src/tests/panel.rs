@@ -437,9 +437,10 @@ fn landed_panel_keeps_passed_ci_across_a_restart() {
         Answer::Compare {
             before: fixtures::BASE,
             after: fixtures::HEAD,
-            contains_before: true,
             files: Box::new([]),
-            commits: Box::new([]),
+            ahead: 0,
+            behind: 0,
+            changed: 0,
         },
         Answer::Reviews { reviews: Box::new([]), more: false },
     ] {

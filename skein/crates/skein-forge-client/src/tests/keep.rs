@@ -609,9 +609,10 @@ fn writer_moves_require_forward_ancestry_and_authenticated_identity() {
             Answer::Compare {
                 before: [1; 32],
                 after: [2; 32],
-                contains_before: forward,
                 files: Box::new([]),
-                commits: Box::new([]),
+                ahead: 0,
+                behind: u64::from(!forward),
+                changed: 0,
             },
         );
         assert_eq!(h.drift, expected_drift);

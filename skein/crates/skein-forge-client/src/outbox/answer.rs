@@ -34,7 +34,7 @@ pub(crate) fn answered(
         Answer::Item { comments, more, .. } => super::find::comments_found(d, env, number, phase, &comments, more, out),
         Answer::Reviews { reviews, more } => super::find::reviews_found(d, env, number, phase, &reviews, more, out),
         Answer::Pull(pull) => pulled(d, env, number, phase, pull, out),
-        Answer::Compare { commits, .. } => super::find::compared(d, env, number, phase, commits.is_empty(), out),
+        Answer::Compare { ahead, .. } => super::find::compared(d, env, number, phase, ahead == 0, out),
         Answer::Commit(commit) => branch_found(d, env, number, commit, out),
         Answer::Created(item) => super::finished(d, env, number, Made::Created(item), false, out),
         Answer::Commented(comment) => super::finished(d, env, number, Made::Commented(comment), false, out),

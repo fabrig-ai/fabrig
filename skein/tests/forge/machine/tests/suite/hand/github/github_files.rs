@@ -54,13 +54,14 @@ fn each_contents_operation_answers_through_the_github_fake() {
         ),
         (
             Read::Compare { before: first, after: head },
-            3,
+            1,
             Answer::Compare {
                 before: first,
                 after: head,
-                contains_before: true,
-                files: Box::new([file.clone()]),
-                commits: Box::new([head]),
+                files: Box::new([file.path.clone()]),
+                ahead: 1,
+                behind: 0,
+                changed: 1,
             },
         ),
         (
@@ -121,40 +122,26 @@ fn pull_files_reads_before_sides_at_the_merge_base() {
 
 #[test]
 fn whole_file_bodies_fit_the_answer_bound_and_refuse_one_byte_past_it() {
-    // PullFiles pays 64 bytes for File and four bytes for its path. Compare
-    // also pays 32 bytes for the commit. The rest is the whole after body.
+    // PullFiles pays 64 bytes for File and four bytes for its path.
     const ANSWER: u32 = 4096;
-    for comparison in [false, true] {
-        let cap = if comparison { 3996 } else { 4028 };
-        for extra in [0, 1] {
-            let content = f::filled(cap + extra, b'x');
-            let mut fake = Fake::new(&content, false);
-            let mut h = harness_with(&fake, skein_forge_connection::Shared { answer_bytes: ANSWER, ..f::shared() });
-            let head = object(fake.head);
-            let read = if comparison {
-                Read::Compare { before: object(fake.first), after: head }
-            } else {
-                Read::PullFiles { number: fake.number, head, page: 1 }
-            };
-            let answer = run(&mut h, &mut fake, read);
-            if extra == 1 {
-                assert_eq!(answer.result, Err(Error::TooLarge));
-            } else {
-                let files =
-                    Box::new([File { path: Box::from(b"file".as_slice()), before: None, after: Some(content) }]);
-                let expected = if comparison {
-                    Answer::Compare {
-                        before: object(fake.first),
-                        after: head,
-                        contains_before: true,
-                        files,
-                        commits: Box::new([head]),
-                    }
-                } else {
-                    Answer::PullFiles { head, files, more: false }
-                };
-                assert_eq!(answer.result, Ok(expected));
-            }
+    for extra in [0, 1] {
+        let content = f::filled(4028 + extra, b'x');
+        let mut fake = Fake::new(&content, false);
+        let mut h = harness_with(&fake, skein_forge_connection::Shared { answer_bytes: ANSWER, ..f::shared() });
+        let head = object(fake.head);
+        let number = fake.number;
+        let answer = run(&mut h, &mut fake, Read::PullFiles { number, head, page: 1 });
+        if extra == 1 {
+            assert_eq!(answer.result, Err(Error::TooLarge));
+        } else {
+            assert_eq!(
+                answer.result,
+                Ok(Answer::PullFiles {
+                    head,
+                    files: Box::new([File { path: Box::from(b"file".as_slice()), before: None, after: Some(content) }]),
+                    more: false
+                })
+            );
         }
     }
 }
@@ -235,19 +222,18 @@ fn measure_files_page(comparison: bool, ceiling: u64) {
         call_heap.count(span.end());
         if let Some(answer) = h.answered(1) {
             let Ok(answer) = &answer.result else { unreachable!("full files page succeeds") };
-            let files = if comparison {
-                let Answer::Compare { files, commits, .. } = answer else { unreachable!("Compare answer") };
-                // Component Compare requests admit one commit per page.
-                assert_eq!(commits.len(), 1);
-                files
+            if comparison {
+                let Answer::Compare { files, ahead, changed, .. } = answer else { unreachable!("Compare answer") };
+                assert_eq!(*ahead, 1);
+                assert_eq!(*changed, u64::from(shared.rows));
+                assert_eq!(u32::try_from(files.len()).expect("row count"), shared.rows);
             } else {
                 let Answer::PullFiles { files, more, .. } = answer else { unreachable!("PullFiles answer") };
                 assert!(!more);
-                files
-            };
-            assert_eq!(u32::try_from(files.len()).expect("row count"), shared.rows);
-            for file in files {
-                assert_eq!(file.after.as_deref(), Some(content.as_ref()));
+                assert_eq!(u32::try_from(files.len()).expect("row count"), shared.rows);
+                for file in files {
+                    assert_eq!(file.after.as_deref(), Some(content.as_ref()));
+                }
             }
             assert!(
                 u64::try_from(call_heap.peak).expect("positive peak") <= ceiling,

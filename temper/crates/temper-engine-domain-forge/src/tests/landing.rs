@@ -289,9 +289,10 @@ fn landing_merge_carries_coherent_evidence_and_veto_withdraws_it() {
         Ok(Answer::Compare {
             before: fixtures::BASE,
             after: fixtures::HEAD,
-            contains_before: true,
             files: Box::new([]),
-            commits: Box::new([]),
+            ahead: 0,
+            behind: 0,
+            changed: 0,
         }),
     );
     fixtures::answer_next(&mut d, Ok(Answer::Pull(fixtures::open_pull())));

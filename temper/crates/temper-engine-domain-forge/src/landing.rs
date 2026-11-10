@@ -959,10 +959,10 @@ pub(crate) fn answered(
                 }
                 Stage::Compare(_) => {
                     fact.contains_main = match answer {
-                        Ok(api::Answer::Compare { before, after, contains_before, .. })
+                        Ok(api::Answer::Compare { before, after, behind, .. })
                             if before == fact.main && after == fact.head =>
                         {
-                            if contains_before {
+                            if behind == 0 {
                                 policy::Status::Passed
                             } else {
                                 policy::Status::Failed

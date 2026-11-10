@@ -265,9 +265,10 @@ fn step_at_head(d: &mut Domain, head: skein_forge::api::Commit) -> Box<[Request]
         Ok(Answer::Compare {
             before: fixtures::BASE,
             after: head,
-            contains_before: true,
             files: Box::new([]),
-            commits: Box::new([]),
+            ahead: 0,
+            behind: 0,
+            changed: 0,
         }),
     );
     fixtures::answer_next(d, Ok(Answer::Reviews { reviews: Box::new([]), more: false }))

@@ -191,8 +191,8 @@ pub(crate) fn answered_resource(
         }
         Answer::Reviews { reviews, more } => reviews_answered(d, env, key, phase, reviews, more, out),
         Answer::Commit(commit) => branch_answered(d, env, key, commit, out),
-        Answer::Compare { before, after, contains_before, .. } => {
-            branch_compared(d, env, key, before, after, contains_before, out);
+        Answer::Compare { before, after, behind, .. } => {
+            branch_compared(d, env, key, before, after, behind == 0, out);
         }
         Answer::Items { .. }
         | Answer::Runs { .. }

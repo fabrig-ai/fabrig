@@ -29,9 +29,10 @@ fn look_update(h: &mut writing::Harness, head: [u8; 32], found: bool) {
         Ok(Answer::Compare {
             before: head,
             after: [2; 32],
-            contains_before: false,
             files: Box::new([]),
-            commits: if found { Box::new([]) } else { Box::new([[2; 32]]) },
+            ahead: u64::from(!found),
+            behind: 1,
+            changed: 0,
         }),
     );
 }

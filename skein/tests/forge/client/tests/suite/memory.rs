@@ -145,13 +145,9 @@ impl Measured {
             Asked::Comment => api::Answer::Commented(7),
             Asked::Review => api::Answer::Reviewed(7),
             Asked::Merge => api::Answer::Merged([3; 32]),
-            Asked::Compare(before, after) => api::Answer::Compare {
-                before,
-                after,
-                contains_before: false,
-                files: Box::new([]),
-                commits: Box::new([]),
-            },
+            Asked::Compare(before, after) => {
+                api::Answer::Compare { before, after, files: Box::new([]), ahead: 0, behind: 1, changed: 0 }
+            }
             Asked::Artifact => api::Answer::File {
                 head: [1; 32],
                 path: Box::from(*b"failed.txt"),

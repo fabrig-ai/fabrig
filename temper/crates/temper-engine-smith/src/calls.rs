@@ -97,7 +97,7 @@ const PULL_FILES_SPEC: Spec = Spec {
 const COMPARE_SCHEMA: &[u8] = br#"{"type":"object","additionalProperties":false,"properties":{"repository":{"type":"string","description":"The repository, as owner/name; leave it out, or empty, when the project has one."},"before":{"type":"string","description":"The earlier commit's id: 40 or 64 lowercase hexadecimal digits."},"after":{"type":"string","description":"The later commit's id: 40 or 64 lowercase hexadecimal digits."}},"required":["before","after"]}"#;
 const COMPARE_SPEC: Spec = Spec {
     name: b"read_compare",
-    description: b"Compare commits whole; no pages. Files and commits each fit forge.client.rows, decoded bytes fit forge.client.answer_bytes. Use read_pull_files or read_file.",
+    description: b"Compare commits by names, counts and containment, without contents. No raw reads. Read a path's contents with read_file at each commit; Missing means absent.",
     schema: COMPARE_SCHEMA,
     effect: run::HostEffect::Read,
 };

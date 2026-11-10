@@ -66,7 +66,7 @@ fn read(out: &mut Queue<Request>) -> (Token, Read) {
 fn answer(d: &mut Domain, owner: Token, result: Result<Answer, Error>) -> Queue<Request> {
     let mut out = Queue::uncapped();
     let missing = result == Err(Error::Missing);
-    assert!(brief::brief_answer(d, owner, result, &mut out));
+    assert!(brief::brief_answer(d, owner, result, LIMITS.client.rows, &mut out));
     if missing {
         let Some(Request::BriefReadRefused { error: Some(Error::Missing), .. }) = out.pop() else {
             panic!("missing read diagnostic");

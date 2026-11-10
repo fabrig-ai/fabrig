@@ -1208,17 +1208,6 @@ fn forge_answers_print_commits_at_the_identifier_width() {
                 b"file at ".as_slice(),
                 b":\n".as_slice(),
             ),
-            (
-                api::Answer::Compare {
-                    before: SHA1_HEAD,
-                    after: *commit,
-                    contains_before: true,
-                    files: Box::new([]),
-                    commits: Box::new([*commit]),
-                },
-                b"Contains prior head: yes\n".as_slice(),
-                b"\n".as_slice(),
-            ),
             (pull_answer(api::State::Open, *commit, None), b"Pull 1 head work commit ".as_slice(), b" base main state open CI passed".as_slice()),
             (pull_answer(api::State::Closed, SHA1_HEAD, Some(*commit)), b"Pull 1 head work commit abcdef0123456789abcdef0123456789abcdef01 base main state closed merged commit ".as_slice(), b" CI passed".as_slice()),
         ] {
@@ -2935,59 +2924,50 @@ fn a_denied_release_names_the_control_family_once() {
 }
 
 #[test]
-fn a_real_changes_compare_is_past_the_stocks_bounds() {
+#[expect(
+    clippy::disallowed_methods,
+    clippy::format_push_string,
+    reason = "the rendering table constructs readable expected UTF-8 text"
+)]
+fn comparisons_answer_names_counts_and_containment_with_omissions() {
     use skein_forge::{api, measure};
-    // Stock values: temper/docs/help/reference/limits.md.
-    const ROWS: u32 = 8;
-    const ANSWER_BYTES: u64 = 65_536;
-    const NINE: u32 = 9; // One past the stock row bound.
-    const UNCHANGED_LINES: usize = 16_499;
-    // 16,499 unchanged two-byte lines and one changed two-byte line: 33,000 bytes per side.
-    let mut before = "x\n".repeat(UNCHANGED_LINES).into_bytes();
-    before.extend_from_slice(b"a\n");
-    let mut after = "x\n".repeat(UNCHANGED_LINES).into_bytes();
-    after.extend_from_slice(b"b\n");
-    let one_line = api::File {
-        path: b"f".as_slice().into(),
-        before: Some(b"a\n".as_slice().into()),
-        after: Some(b"b\n".as_slice().into()),
-    };
-    let mut nine_files = skein_lib::List::with_capacity(NINE);
-    let mut nine_commits = skein_lib::List::with_capacity(NINE);
-    for n in 0..NINE {
-        nine_files
-            .push(api::File { path: format!("f{n}").into_bytes().into(), ..one_line.clone() })
-            .expect("nine files fit");
-        nine_commits.push([u8::try_from(n).expect("nine commits"); 32]).expect("nine commits fit");
-    }
-    for (case, files, commits, rows_fit, bytes_fit) in [
-        ("nine one-line files", nine_files.into_boxed(), [SHA1_HEAD].into(), false, true),
-        ("nine commits", Box::new([one_line]), nine_commits.into_boxed(), false, true),
-        (
-            "one line changed in a 33 KB file",
-            Box::new([api::File {
-                path: b"f".as_slice().into(),
-                before: Some(before.into()),
-                after: Some(after.into()),
-            }]),
-            Box::new([SHA1_HEAD]),
-            true,
-            false,
-        ),
+    for (ahead, behind, changed, paths) in [
+        (2u64, 0u64, 3u64, vec![Box::from(*b"x"), Box::from(*b"y")]),
+        (9, 0, 9, vec![Box::from(*b"x"); 8]),
+        (22, 3, 1, vec![Box::from(*b"x")]),
     ] {
-        let compare = compare_answer(files, commits);
-        // These are the forge client's independent row and decoded-byte checks.
-        assert_eq!(measure::answer_rows(&compare, ROWS), rows_fit, "{case}");
-        let size = measure::answer(&compare).expect("fixture measure fits");
-        assert_eq!(size <= ANSWER_BYTES, bytes_fit, "{case}: {size} bytes");
+        for (after, digits) in COMMIT_SPELLINGS {
+            let compare = api::Answer::Compare {
+                before: SHA1_HEAD,
+                after: *after,
+                ahead,
+                behind,
+                changed,
+                files: paths.clone().into_boxed_slice(),
+            };
+            assert!(measure::answer_rows(&compare, 8));
+            assert!(measure::answer(&compare).unwrap() < 65_536);
+            let rendered = answer(&engine::CallAnswer::ForgeRead(Box::new(Ok(compare))));
+            let a = core::str::from_utf8(digits).unwrap();
+            let b = "abcdef0123456789abcdef0123456789abcdef01";
+            let contains = if behind == 0 { "contains" } else { "lacks" };
+            let mut expected = format!(
+                "{a} is {ahead} commits ahead of {b} and {behind} behind it.\n{a} {contains} {b}.\nChanged files: {changed}\n"
+            );
+            for path in &paths {
+                expected.push_str(core::str::from_utf8(path.as_ref()).unwrap());
+                expected.push('\n');
+            }
+            let left = changed - u64::try_from(paths.len()).unwrap();
+            if left > 0 {
+                expected.push_str(&format!(
+                    "[{left} not listed: read_pull_files lists a pull's files; read_file reads a path at each commit]\n"
+                ));
+            }
+            assert!(!rendered.error());
+            assert_eq!(rendered.text(), expected.as_bytes());
+        }
     }
-}
-
-fn compare_answer(
-    files: Box<[skein_forge::api::File]>,
-    commits: Box<[skein_forge::api::Commit]>,
-) -> skein_forge::api::Answer {
-    skein_forge::api::Answer::Compare { before: [1; 32], after: SHA1_HEAD, contains_before: true, files, commits }
 }
 
 #[test]
@@ -3138,15 +3118,15 @@ fn declarations_say_when_to_call_goal_and_what_prefix_to_give() {
 fn successful_compare_over_host_bound_keeps_measured_feedback() {
     use skein_forge::api;
     const CAP: u32 = 2048;
-    const CONTENT_BYTES: usize = 3000; // The content alone exceeds CAP.
-    let compare = compare_answer(
-        Box::new([api::File {
-            path: b"f".as_slice().into(),
-            before: Some(vec![b'a'; CONTENT_BYTES].into()),
-            after: None,
-        }]),
-        Box::new([SHA1_HEAD]),
-    );
+    const PATH_BYTES: usize = 3000; // The path alone exceeds CAP.
+    let compare = api::Answer::Compare {
+        before: SHA1_HEAD,
+        after: SHA1_HEAD,
+        ahead: 1,
+        behind: 0,
+        changed: 1,
+        files: Box::new([vec![b'f'; PATH_BYTES].into_boxed_slice()]),
+    };
     let recorded = engine::CallAnswer::ForgeRead(Box::new(Ok(compare)));
     let whole = answer(&recorded);
     let size = u32::try_from(whole.text().len()).expect("fixture size");

@@ -251,6 +251,7 @@ pub(crate) fn brief_answer(
     domain: &mut Domain,
     owner: Token,
     result: Result<skein_forge::api::Answer, skein_forge::api::Error>,
+    rows: u32,
     out: &mut Queue<Request>,
 ) -> bool {
     if domain.document_fetches.contains_key(&owner) {
@@ -361,10 +362,10 @@ pub(crate) fn brief_answer(
             append(&mut fetch.words, b" lists the rest, and read_file reads a path at the head or the base]\n");
             comparison(&mut fetch)
         }
-        Ok(skein_forge::api::Answer::Compare { before, after, files, commits, .. })
+        Ok(skein_forge::api::Answer::Compare { before, after, files, ahead, changed, .. })
             if fetch.stage == BriefStage::Compare && Some((before, after)) == fetch.comparison =>
         {
-            comparison_words(&mut fetch, files, commits);
+            comparison_words(&mut fetch, files, ahead, changed, rows);
             None
         }
         Err(skein_forge::api::Error::TooLarge) if fetch.stage == BriefStage::Compare => {
@@ -540,44 +541,52 @@ fn comparison(fetch: &mut BriefFetch) -> Option<skein_forge::api::Read> {
     }
 }
 
-/// Comparison contents follow the pinned pull identity and gathered diff.
-fn comparison_words(
-    fetch: &mut BriefFetch,
-    files: Box<[skein_forge::api::File]>,
-    commits: Box<[skein_forge::api::Commit]>,
-) {
-    match fetch.mode {
-        PullMode::Conflict(_) | PullMode::Semantic(_) => {
-            append(&mut fetch.words, b"What landed in the base:\n");
-            for commit in commits {
-                append(&mut fetch.words, &crate::commit_text(&commit));
-                append(&mut fetch.words, b"\n");
-            }
-            for file in files {
-                append(&mut fetch.words, b"Base file: ");
-                append(&mut fetch.words, &file.path);
-                append(&mut fetch.words, b"\n");
-                if match fetch.mode {
-                    PullMode::Conflict(_) => true,
-                    PullMode::Review | PullMode::Semantic(_) | PullMode::Other => false,
-                } {
-                    for changed in &fetch.changed {
-                        if changed == &file.path {
-                            append(&mut fetch.words, b"Conflicting file: ");
-                            append(&mut fetch.words, &file.path);
-                            append(&mut fetch.words, b"\n");
-                        }
-                    }
+/// Comparison names follow the pinned pull identity and gathered diff (forge.md, 8.4).
+fn comparison_words(fetch: &mut BriefFetch, files: Box<[Box<[u8]>]>, ahead: u64, changed: u64, rows: u32) {
+    let base = match fetch.mode {
+        PullMode::Conflict(_) | PullMode::Semantic(_) => true,
+        PullMode::Review | PullMode::Other => false,
+    };
+    if base {
+        append(&mut fetch.words, b"What landed in the base: ");
+        append(&mut fetch.words, &decimal(ahead));
+        append(&mut fetch.words, b" commits\n");
+    } else {
+        append(&mut fetch.words, b"Against base:\n");
+    }
+    for path in &files {
+        if base {
+            append(&mut fetch.words, b"Base file: ");
+        }
+        append(&mut fetch.words, path);
+        append(&mut fetch.words, b"\n");
+        if let PullMode::Conflict(_) = fetch.mode {
+            for own in &fetch.changed {
+                if own == path {
+                    append(&mut fetch.words, b"Conflicting file: ");
+                    append(&mut fetch.words, path);
+                    append(&mut fetch.words, b"\n");
                 }
             }
         }
-        PullMode::Review | PullMode::Other => {
-            append(&mut fetch.words, b"Against base:\n");
-            for file in files {
-                append(&mut fetch.words, &file.path);
-                append(&mut fetch.words, b"\n");
-            }
-        }
+    }
+    let left = changed.saturating_sub(skein_lib::len_u64(files.len()));
+    if left > 0 {
+        append(&mut fetch.words, b"[");
+        append(&mut fetch.words, &decimal(left));
+        append(
+            &mut fetch.words,
+            if base {
+                b" more base files not listed: past forge.client.rows ("
+            } else {
+                b" more files not listed: past forge.client.rows ("
+            },
+        );
+        append(&mut fetch.words, &decimal(u64::from(rows)));
+        append(
+            &mut fetch.words,
+            if base { b"); read them in your checkout]\n" } else { b"); read_pull_files lists them]\n" },
+        );
     }
 }
 

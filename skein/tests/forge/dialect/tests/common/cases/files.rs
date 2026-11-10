@@ -195,10 +195,8 @@ pub fn expected(answer: Answer) -> (Document, Vec<Row>) {
             (Document::Listed { skipped: 0 }, v.into_vec().into_iter().map(Row::Artifact).collect())
         }
         Answer::Files(v) => (Document::Listed { skipped: 0 }, v.into_vec().into_iter().map(Row::File).collect()),
-        Answer::Compare { compare, commits, files } => {
-            let mut rows = commits.into_vec().into_iter().map(Row::Commit).collect::<Vec<_>>();
-            rows.extend(files.into_vec().into_iter().map(Row::File));
-            (Document::Compare(compare), rows)
+        Answer::Compare { compare, files, .. } => {
+            (Document::Compare(compare), files.into_vec().into_iter().map(Row::File).collect())
         }
         Answer::Runs { total_count, runs } => {
             (Document::Runs { total_count }, runs.into_vec().into_iter().map(Row::Run).collect())

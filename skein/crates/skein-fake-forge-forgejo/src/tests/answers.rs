@@ -259,6 +259,8 @@ fn a_files_false_comparison_keeps_commits_and_lists_no_files() {
         base: 8,
         head: 9,
         contains_base: true,
+        ahead: 1,
+        behind: 0,
         files: Box::new([a::ChangedFile { path: boxed(b"src"), before: None, after: Some(boxed(b"a")) }]),
         commits: Box::new([9]),
     };

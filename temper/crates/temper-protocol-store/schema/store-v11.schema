@@ -119,7 +119,7 @@ record Collaborator { user: u64 permission: Permission }
 record StatusesAnswer { ci: Ci statuses: bytes 2097152 pieces Status more: bool }
 record RemarksAnswer { remarks: bytes 2097152 pieces Remark more: bool }
 record PullFilesAnswer { head: fixed 32 files: bytes 2097152 pieces File more: bool }
-record CompareAnswer { before: fixed 32 after: fixed 32 contains_before: bool files: bytes 2097152 pieces File commits: list 65536 fixed 32 }
+record CompareAnswer { before: fixed 32 after: fixed 32 ahead: u64 behind: u64 files: list 1024 bytes 1048576 changed: u64 }
 record ChecksAnswer { statuses: bytes 2097152 pieces Status }
 record CollaboratorsAnswer { collaborators: list 65536 Collaborator more: bool }
 record Located { repository: u32 }

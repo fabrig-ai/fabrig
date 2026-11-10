@@ -1404,9 +1404,10 @@ fn a_release_waits_while_its_lost_writer_is_waiting_for_read_room() {
         Ok(skein_forge::api::Answer::Compare {
             before: [2; 32],
             after: [4; 32],
-            contains_before: true,
             files: Box::new([]),
-            commits: Box::new([]),
+            ahead: 0,
+            behind: 0,
+            changed: 0,
         }),
     );
     assert!(answered.contains(&Request::ContinueRelease { task: 10 }));
