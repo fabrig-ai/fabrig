@@ -1,5 +1,6 @@
 """Regression checks for document moves, on small repositories built per test."""
 from pathlib import Path
+import os
 import subprocess
 import sys
 import tempfile
@@ -739,6 +740,17 @@ git = fail_add
         self.commit("whole status citation")
         self.apply(f"{A} 2 -> {DESIGN}/new.md\ntitle {DESIGN}/new.md: New\n")
         self.assertEqual(self.read(B), "# b\n\nSee `new.status.md`.\n")
+        self.clean_check()
+
+    def test_split_status_report_is_identical_across_hash_seeds(self):
+        self.write(f"{DESIGN}/a.status.md", "# status\n\n- **Not yet:** 1 and 2.1: shared.\n")
+        self.commit("split status report")
+        mapping = f"{A} 2 -> {DESIGN}/new.md\ntitle {DESIGN}/new.md: New\n"
+        dry = self.move(mapping, "--dry-run", env={"PATH": os.defpath, "PYTHONHASHSEED": "1"})
+        applied = self.move(mapping, env={"PATH": os.defpath, "PYTHONHASHSEED": "2"})
+        self.assertEqual(dry.returncode, 0, dry.stdout + dry.stderr)
+        self.assertEqual(applied.returncode, 0, applied.stdout + applied.stderr)
+        self.assertEqual(dry.stdout, applied.stdout)
         self.clean_check()
 
     def test_all_map_errors_leave_tree_and_index_unchanged(self):
