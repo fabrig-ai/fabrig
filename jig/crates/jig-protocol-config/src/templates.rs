@@ -100,6 +100,7 @@ fn report_list(value: Result<List<u32>, What>, path: &Path, problems: &mut Probl
         }
     }
 }
+#[expect(clippy::too_many_lines, reason = "one template reads and checks its complete configuration shape")]
 fn template(
     document: &Document,
     at: u32,
