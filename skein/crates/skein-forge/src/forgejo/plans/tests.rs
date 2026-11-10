@@ -140,7 +140,19 @@ mod job_resolution;
 
 #[test]
 fn answer_rows_past_the_limit_are_too_large() {
-    const LIMIT: u32 = 1; // One fewer than the two branches.
-    let answer = crate::api::Answer::Branches(Box::new([Box::new([]), Box::new([])]));
+    use crate::api::{Answer, Bypass, Protection};
+    const LIMIT: u32 = 1; // One fewer than the two required contexts.
+    let contexts = Box::new([Box::from(&b"build"[..]), Box::from(&b"test"[..])]);
+    let answer = Answer::Protection(Some(Protection {
+        branch: Box::from(&b"main"[..]),
+        contexts,
+        approvals: 0,
+        dismiss_stale: false,
+        queue: false,
+        signatures: false,
+        linear: false,
+        code_owners: false,
+        bypass: Bypass::Never,
+    }));
     assert_eq!(super::reads::size::answer(&answer, LIMIT), Err(crate::api::Error::TooLarge));
 }

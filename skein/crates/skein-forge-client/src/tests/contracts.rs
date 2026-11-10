@@ -238,13 +238,14 @@ fn answer_measurements_count_fixed_slots_and_variable_payloads() {
     );
 }
 
-const BYTE_CASES: usize = 4; // items, item, pull, job
+const BYTE_CASES: usize = 5; // items, item, pull, job, branches
 type ByteCase = (&'static str, Read, Answer, u32);
 fn byte_cases() -> [ByteCase; BYTE_CASES] {
     [
         ("items", Read::Items { since: at(0), page: 1, kind: None }, items_answer(), ITEMS_BYTES),
         ("item", Read::Item { number: 9, after: 0 }, item_answer(), ITEM_BYTES),
         ("pull", Read::Pull { number: 9 }, pull_answer(), PULL_BYTES),
+        ("branches", Read::Branches { prefix: Box::from(&b"m"[..]) }, Answer::Branches(branch_rows(40)), 800),
         (
             "job",
             Read::Job { part: api::LogPart::End, attempt: ATTEMPT, max_bytes: JOB_LOG_ROOM },
@@ -263,43 +264,25 @@ fn admitted(read: Read, answer: Answer, cap: u32) -> Box<[Request]> {
 
 #[test]
 fn answers_within_configured_admission_bounds_are_forwarded_unchanged() {
-    skein_rows::check(
-        [
-            ("answer_bytes_at_bound_are_admitted", byte_cases()),
-            (
-                "row_answers_at_bound_are_admitted",
-                row_cases(ROW_BOUND).map(|(name, read, answer)| (name, read, answer, ROW_BYTE_ROOM)),
-            ),
-        ],
-        |cases| {
-            for (name, read, answer, bytes) in cases {
-                let expected = Request::Read { owner: Token::new(1), result: Ok(answer.clone()) };
-                assert_eq!(admitted(read, answer, bytes).as_ref(), &[expected], "{name}");
-            }
-        },
-    );
+    for (name, read, answer, bytes) in byte_cases()
+        .into_iter()
+        .chain(row_cases(ROW_BOUND).map(|(name, read, answer)| (name, read, answer, ROW_BYTE_ROOM)))
+    {
+        let expected = Request::Read { owner: Token::new(1), result: Ok(answer.clone()) };
+        assert_eq!(admitted(read, answer, bytes).as_ref(), &[expected], "{name}");
+    }
 }
 
 #[test]
 fn answers_exceeding_configured_admission_bounds_are_refused_consistently() {
-    skein_rows::check(
-        [
-            (
-                "answer_bytes_past_bound_are_refused",
-                byte_cases().map(|(name, read, answer, bytes)| (name, read, answer, bytes - 1)),
-            ),
-            (
-                "row_answers_past_bound_are_refused",
-                row_cases(OVER_ROWS).map(|(name, read, answer)| (name, read, answer, ROW_BYTE_ROOM)),
-            ),
-        ],
-        |cases| {
-            for (name, read, answer, bytes) in cases {
-                let expected = Request::Read { owner: Token::new(1), result: Err(Error::TooLarge) };
-                assert_eq!(admitted(read, answer, bytes).as_ref(), &[expected], "{name}");
-            }
-        },
-    );
+    for (name, read, answer, bytes) in byte_cases()
+        .map(|(name, read, answer, bytes)| (name, read, answer, bytes - 1))
+        .into_iter()
+        .chain(row_cases(OVER_ROWS).map(|(name, read, answer)| (name, read, answer, ROW_BYTE_ROOM)))
+    {
+        let expected = Request::Read { owner: Token::new(1), result: Err(Error::TooLarge) };
+        assert_eq!(admitted(read, answer, bytes).as_ref(), &[expected], "{name}");
+    }
 }
 
 fn empty_rows(rows: u32) -> Box<[Box<[u8]>]> {
@@ -318,10 +301,9 @@ fn branch_rows(rows: u32) -> Box<[Box<[u8]>]> {
     names.into_boxed()
 }
 
-const ROW_CASES: usize = 4; // branches, labels, reviewers, protection contexts
+const ROW_CASES: usize = 3; // labels, reviewers, protection contexts
 fn row_reads() -> [(&'static str, Read); ROW_CASES] {
     [
-        ("branches", Read::Branches { prefix: Box::from(&b"m"[..]) }),
         ("labels", Read::Item { number: 9, after: 0 }),
         ("reviewers", Read::Pull { number: 9 }),
         ("protection", Read::Protection { branch: Box::from(&b"kit"[..]) }),
@@ -335,7 +317,6 @@ fn row_cases(rows: u32) -> [(&'static str, Read, Answer); ROW_CASES] {
         reviewers.push(reviewer).expect("reviewer fixture fits");
     }
     let answers = [
-        Answer::Branches(branch_rows(rows)),
         Answer::Item { item, comments: Box::new([]), more: false },
         Answer::Pull(super::fixtures::keep::reviewed_pull(reviewers.into_boxed())),
         Answer::Protection(Some(api::Protection {
@@ -356,7 +337,11 @@ fn row_cases(rows: u32) -> [(&'static str, Read, Answer); ROW_CASES] {
 
 #[test]
 fn answer_rows_at_bound_fit() {
-    for (name, _, answer) in row_cases(ROW_BOUND) {
+    for (name, answer) in row_cases(ROW_BOUND)
+        .map(|(name, _, answer)| (name, answer))
+        .into_iter()
+        .chain([("many branches", Answer::Branches(branch_rows(40)))])
+    {
         assert!(crate::measure::answer_rows(&answer, ROW_BOUND), "{name}");
     }
 }

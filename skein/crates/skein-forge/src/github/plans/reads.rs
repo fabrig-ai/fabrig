@@ -184,8 +184,8 @@ impl Plan {
                 if prefix.is_empty() {
                     return Err(api::Error::Empty);
                 }
-                let capacity = size::capacity(bounds, crate::measure::STRING_BYTES)?;
-                self.limit = size::page_size(bounds, capacity)?;
+                let capacity = size::byte_capacity(bounds, crate::measure::STRING_BYTES)?;
+                self.limit = size::page_size(bounds, crate::github::pin::PAGE_CAP)?;
                 self.rows = List::with_capacity(capacity);
             }
             Read::Items { .. } | Read::Item { .. } => self.issue_admission(bounds)?,
@@ -535,9 +535,6 @@ impl Plan {
             document::Row::Branch(name) => {
                 if !name.starts_with(prefix) {
                     return Ok(());
-                }
-                if self.rows.len() >= bounds.rows {
-                    return Err(api::Error::TooLarge);
                 }
                 self.size = size::add(self.size, &name, bounds)?;
                 match self.rows.push(name) {
