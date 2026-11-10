@@ -358,6 +358,6 @@ own tests:
   jig's attack story that needs no browser, a rebound Host, against
   `temper serve`'s clients' listener: a request naming a host off the
   list is answered `421`, with nothing done (jig's
-  `protocol/browser.md`, section 15). The cross-site request and the
+  `protocol/browser/testing.md`). The cross-site request and the
   framed page need a browser, and come with temper's browser tier
   (`web/testing.md`).

@@ -1,4 +1,4 @@
-//! Application-named browser-shell stories (protocol/browser.md, 15).
+//! Application-named browser-shell stories (protocol/browser/testing.md).
 use skein_fake_person::Find;
 
 pub mod attacks;

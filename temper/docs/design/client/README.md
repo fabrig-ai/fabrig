@@ -167,7 +167,7 @@ temper-client-shell-cli         `temper ctl`, over jig-client-shell-native, and 
 for tests
 skein-fake-person               the person, on skein-ui's tree (../testing/fakes.md, 4)
 jig-client-test-kit             jig's check, and the faults of jig's client worlds (jig's `client/domain/testing.md`, 6.2 and section 7)
-jig-client-fake-person-browser  jig's attack stories (jig's `protocol/browser.md`, section 15)
+jig-client-fake-person-browser  jig's attack stories (jig's `protocol/browser/testing.md`)
 temper-client-world             tests/client: temper's client joined to temper's engine root (section 10)
 skein-fake-person-browser       the person in Chromium, through skein-browser (web/testing.md)
 temper-client-browser-world     tests/client-browser: the browser tier (web/testing.md)
@@ -713,7 +713,7 @@ was answered with. A box enables it beside the printed link
     PORT to this one first.", then the expiry's line. The engine is on
     loopback, so a browser elsewhere reaches it through a tunnel to its
     listener on the same port, which jig's guards require of the
-    address (jig's `protocol/browser.md`, 12.2).
+    address (jig's `protocol/browser/README.md`, 12.2).
   - *Asking again:* Enter in the Link field while it is empty, once the
     approval has ended or was not asked, or a pasted link has replaced
     it, asks again (`may_ask_again`), and its line says "Press Enter to

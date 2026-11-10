@@ -36,7 +36,7 @@ prefix; jig's test application mounts it at `/jig`.
   its route `400`, and one past the route's bound `413`, each with
   nothing done; any other method or path under the prefix is `404`, but
   a `GET` of the link's route (below) and the public reads' (5). The guards' answers are the
-  example guards' (`../browser.md`, 12.2).
+  example guards' (`../browser/README.md`, 12.2).
 - **The printed link's URL** is `<prefix>/v1/sign-in/link?secret=…` on
   the loopback address the application's server listens on, which the
   application's startup prints. A `GET` of it, a browser's opening the
@@ -45,7 +45,7 @@ prefix; jig's test application mounts it at `/jig`.
   application's page, which the server answers there, with
   `Referrer-Policy: no-referrer`; the shell takes the secret out of the
   address and `POST`s it, with the browser header, which signs in
-  (`../browser.md`, section 11). A native client sends the secret by the
+  (`../browser/README.md`, section 11). A native client sends the secret by the
   same `POST`.
 - **No provider route.** The application's sign-in runs on its own
   routes; after a `Minted`, its server sets the credential's cookie on
@@ -87,7 +87,7 @@ prefix; jig's test application mounts it at `/jig`.
   base64url>; Path=<the prefix>; HttpOnly; SameSite=Strict;
   Max-Age=<the sign-in's remaining life>`, and `Secure` on an exchange
   that came by the public name (below), never on one that came by the
-  listener's own address (why each: `../browser.md`, section 19). Its life is
+  listener's own address (why each: `../browser/README.md`, section 18). Its life is
   the sign-in's, from the sign-in's expiry, which a `Minted` carries
   (`wire.md`, 2.2); signing out clears it, with `Max-Age=0`. The engine end reads
   it as each exchange's credential, the link's sign-in's among them: a
@@ -101,7 +101,7 @@ prefix; jig's test application mounts it at `/jig`.
   prefix, or gives none; it is no member of jig's configuration, as
   the listener is not (`../configuration.md`, section 3). The `Host`
   allow-list holds it beside the listener's own addresses
-  (`../browser.md`, 12.2), and each exchange is decided by its `Host`
+  (`../browser/README.md`, 12.2), and each exchange is decided by its `Host`
   alone, byte for byte as the request sent it, with no case folded and
   no port normalised: one that came by the public name came through the
   proxy, over TLS, and its cookie is `Secure`; one that came by the
@@ -120,8 +120,8 @@ prefix; jig's test application mounts it at `/jig`.
 - **The browser header,** `Jig-Client: browser`, on every request a
   browser makes under the prefix, the stream's `GET` among them, added
   by the browser's transport: in jig's browser parts, the client's
-  adapter (`../browser.md`, 5.1 and section 11). The engine end checks it
-  (`../browser.md`, 12.2): an exchange carrying it is a browser's, its
+  adapter (`../browser/README.md`, 5.1 and section 11). The engine end checks it
+  (`../browser/README.md`, 12.2): an exchange carrying it is a browser's, its
   sign-in answered with the cookie; any other, with the credential in
   its answer's body.
 - **The credential's carrier, told to the component:** the engine end
@@ -141,7 +141,7 @@ prefix; jig's test application mounts it at `/jig`.
   transport adds (3); a response's status and body back as a
   `Reply`, or `Lost`; `OpenStream` as the stream's `GET`, its body cut
   into messages (2). The native shell and the reference's browser
-  client host use it (`../browser.md`, 3.2); an application's own shell
+  client host use it (`../browser/README.md`, 3.2); an application's own shell
   may.
 - **`jig-protocol-engine-clients-http`,** the engine end, a component on
   skein's HTTP server: each call under its prefix routed to one of the
@@ -193,9 +193,9 @@ prefix; jig's test application mounts it at `/jig`.
   wraps, or replaces with its own: a `Host` allow-list; the browser's
   required header and the POSTs' content type, which force a preflight,
   with no CORS; the cookie's attributes; a referrer policy on the
-  printed link's route. What each stops is `../browser.md`'s (`../browser.md`, section 19
+  printed link's route. What each stops is `../browser/README.md`'s (`../browser/README.md`, section 18
   ), and so are jig's attack stories an application may run against
-  its own server (`../browser.md`, section 15). A page's policy
+  its own server (`../browser/testing.md`). A page's policy
   (its content security policy, its frames) is the application's
   page's.
 
@@ -216,9 +216,9 @@ prefix; jig's test application mounts it at `/jig`.
   bearer on these routes, and hands the component no credential, so the
   answer is the same for every visitor, signed in or not, and varies on
   nothing the request carries but its path. The guards that stand are
-  the `Host` allow-list (`../browser.md`, 12.2), checked first; a public
+  the `Host` allow-list (`../browser/README.md`, 12.2), checked first; a public
   read changes nothing, as the printed link's `GET` does not
-  (`../browser.md`, section 19), so it needs neither the browser header nor
+  (`../browser/README.md`, section 18), so it needs neither the browser header nor
   a content type. No guard of another route is relaxed.
 - **Its answers,** each with a fixed set of headers and no others:
   - *the document:* `200`, `application/octet-stream`, its record, and
@@ -239,7 +239,7 @@ prefix; jig's test application mounts it at `/jig`.
   header. No answer allows stale serving: no `stale-while-revalidate`,
   no `stale-if-error`. The engine end gives these and no others; the
   application's server adds its page's policy to every answer of its
-  origin's, these among them (`../browser.md`, 12.1), as it would any
+  origin's, these among them (`../browser/README.md`, 12.1), as it would any
   other: the same fields on every answer, varying on nothing the
   request carries, and its `Cross-Origin-Resource-Policy: same-origin`
   keeps another origin's page from loading the document at all.

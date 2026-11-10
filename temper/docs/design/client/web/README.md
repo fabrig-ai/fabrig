@@ -8,7 +8,7 @@ target, with later look requests, and takes precedence over `mockups/`
 (the user, 2026-11-05). Journeys record and print what temper draws
 (`journeys.md`). How a view runs in a browser is
 skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
-(jig's `protocol/browser.md`). What is still open is section 3.
+(jig's `protocol/browser/README.md`). What is still open is section 3.
 
 ## 1. In one page
 
@@ -17,7 +17,7 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
   WebAssembly under a browser shell of temper's,
   `temper-client-shell-web`, on skein's browser parts (`skein-ui-web`;
   skein's `ui/web/README.md`) and jig's client adapter and sign-in part
-  (`jig-client-shell-web`; jig's `protocol/browser.md`, 5.1), with
+  (`jig-client-shell-web`; jig's `protocol/browser/README.md`, 5.1), with
   neither jig's look nor its reference UI. The adapter carries jig's
   default HTTP mapping over fetch (`jig-client-protocol-http`). temper
   writes no web wire and no web protocol of its own: the client's
@@ -39,7 +39,7 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
   ), from the bundle the binary holds or a directory its
   configuration names, with jig's example guards and the page's policy,
   which is temper's: a strict content security policy, no frames, no
-  CORS (jig's `protocol/browser.md`, 12.1 and 12.2). A binary built
+  CORS (jig's `protocol/browser/README.md`, 12.1 and 12.2). A binary built
   without its browser serves the page for no bundle, and the terminal
   works as before (2.2).
 - **The bundle is in the binary.** A plain `cargo build` (or `cargo
@@ -92,7 +92,7 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
   `wasm32-unknown-unknown`, and a library on every target for its host
   and its journeys (`journeys.md`, section 2), ordinary Rust as a shell is (skein's
   `ui/README.md`, section 2), copied from jig's reference browser shell,
-  `jig-client-test-shell-web` (jig's `protocol/browser.md`, 3.1), with
+  `jig-client-test-shell-web` (jig's `protocol/browser/README.md`, 3.1), with
   temper's client root, view and records in place of jig's test
   application's, and none of jig's look (`jig-client-shell-web`'s
   `look`, `jig.css`). Its modules:
@@ -138,17 +138,17 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
   The shipped bundle holds none of it.
 - **It decides nothing.** What a page shows and does is the domain's
   and the view's, step code under the subset; the shell orders the
-  platform's work (jig's `protocol/browser.md`, 3.1).
+  platform's work (jig's `protocol/browser/README.md`, 3.1).
 - **The failure page:** past the restart part's limit, the page says
   "The application failed.", in temper's words, since it takes none of
   jig's look; it starts nothing and keeps the small store (jig's
-  `protocol/browser.md`, 5.1).
+  `protocol/browser/README.md`, 5.1).
 - **The small store** is the browser's session storage, under the
   prefix `temper.`, holding `jig-client`'s records alone, as the
   terminal's file does (`../README.md`, section 4); from the adoption form
   a pending adoption is among them, a kept request
   (`../forge/records.md`). Each load of the page is a client of its own, with
-  its own stream (jig's `protocol/browser.md`, section 10). The root can
+  its own stream (jig's `protocol/browser/README.md`, section 10). The root can
   step the client several times in one turn: each write the client asks
   for (`Save`, `Erase`) is answered once, after the turn's whole storage
   has finished, and every one is refused if any write was refused.
@@ -165,13 +165,13 @@ replay says the same clocks (`../view.md`, 6).
 ### 2.2 Serving
 
 - **The routes of the clients' listener,** temper's, in this order,
-  over jig's mapping (jig's `protocol/browser.md`, section 12) and
+  over jig's mapping (jig's `protocol/browser/README.md`, section 12) and
   skein's serving of a bundle (skein's `ui/web/bundle.md`, 4):
   1. what jig's default mapping claims, under `/jig`, to jig's clients'
      component: every request there but a `GET` of the printed link's
      route, which the mapping leaves to the page, answered with the
      page's policy and `Referrer-Policy: no-referrer` (jig's
-     `protocol/browser.md`, 12.1 and 12.2);
+     `protocol/browser/README.md`, 12.1 and 12.2);
   2. with no bundle, the configuration naming none (`null`) and the
      binary built without its own (2.6), a `GET` of any other path but
      under `/bundle/` and `/robots.txt`, the printed link's route among
@@ -189,13 +189,13 @@ replay says the same clocks (`../view.md`, 6).
      form the request takes (skein's `ui/web/bundle.md`, 4); any other path
      under `/bundle/`: not found;
   5. `/robots.txt`, the bundle's one root file (skein's `ui/web/README.md`,
-     3.3, step 5; jig's `protocol/browser.md`, section 12), disallowing
+     3.3, step 5; jig's `protocol/browser/README.md`, section 12), disallowing
      every path;
   6. any other `GET`, the printed link's route among them: the page,
      with its ETag and `no-cache`, and `304` on a matching
      `If-None-Match` (skein's `ui/web/bundle.md`, 4).
 - **The page's policy,** on every answer temper gives: jig's reference
-  policy as it stands (jig's `protocol/browser.md`, 12.1): `default-src 'none';
+  policy as it stands (jig's `protocol/browser/README.md`, 12.1): `default-src 'none';
   script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src
   'self'; font-src 'self'; connect-src 'self'; base-uri 'none';
   form-action 'none'; frame-ancestors 'none'`, with `nosniff`,
@@ -390,7 +390,7 @@ replay says the same clocks (`../view.md`, 6).
   is a move within the client, with a new history entry; back and
   forward are moves too, each entry keeping its scroll; a reload, or an
   address typed or opened, is a new client at that address (jig's
-  `protocol/browser.md`, section 10). That a client opens at the inbox
+  `protocol/browser/README.md`, section 10). That a client opens at the inbox
   (`../README.md`, 3.4) is the terminal's: in a browser the address is the
   browser's, and the client keeps no record of its own.
 - **A heading drawn after its page** (the answer of 2026-11-06 to the
@@ -417,7 +417,7 @@ replay says the same clocks (`../view.md`, 6).
   a sign-in, before anything is sent; the client signs in with it
   (`SignIn { with: Link { secret, held: None } }`), and the mapping's
   answer sets its cookie, which the client never sees (jig's
-  `protocol/browser.md`, section 11). The browser sends its cookie with
+  `protocol/browser/README.md`, section 11). The browser sends its cookie with
   the link's sign-in, as with any exchange: with a live link, a person
   still signed in keeps their sign-in, its number and expiry, and the answer sets no
   cookie, so the browser's stays as it was (jig's `domain/people/README.md`,
@@ -462,7 +462,7 @@ replay says the same clocks (`../view.md`, 6).
   page's own exchanges, same-origin and started by temper's page,
   carry it, whatever opened the tab, as the `Authorize` place's do
   (`../../protocol/openid-provider.md`, 3). Its read and its decision go under
-  jig's browser guards (jig's `protocol/browser.md`, 12.2), and the
+  jig's browser guards (jig's `protocol/browser/README.md`, 12.2), and the
   mapping tells the engine they carried the cookie, so the engine
   takes them as a browser's (jig's `protocol/client/default-http.md`, 3); `temper
   ctl`'s bearer is refused (`../ctl/README.md`, section 7). Signed out,

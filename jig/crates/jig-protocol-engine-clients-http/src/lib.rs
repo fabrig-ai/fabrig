@@ -327,7 +327,7 @@ pub fn link_path(settings: &Settings, secret: &Secret) -> Box<[u8]> {
 #[cfg(test)]
 mod tests;
 
-/// The application's printed-link page adds this policy (protocol/browser.md, 12.2).
+/// The application's printed-link page adds this policy (protocol/browser/README.md, 12.2).
 #[must_use]
 pub fn link_page() -> skein_http::Header {
     skein_http::Header { name: Box::from(b"referrer-policy".as_slice()), value: Box::from(b"no-referrer".as_slice()) }

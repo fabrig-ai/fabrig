@@ -337,7 +337,7 @@ read by the application: ui.sections(), ui.shown()
   client's small store, under keys of the reference UI's own, apart
   from the client's records, which the client's own saves carry alone:
   in a browser, skein's small store, the tab's session storage
-  (`../../protocol/browser.md`, section 10); a file, for a terminal.
+  (`../../protocol/browser/README.md`, section 10); a file, for a terminal.
 - **Written with the client's.** The application gives the transport a
   step's records of the reference UI's among the step's writes, with
   the client's, so they are written before the step's exchanges leave:
