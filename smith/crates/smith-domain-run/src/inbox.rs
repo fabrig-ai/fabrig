@@ -56,6 +56,10 @@ impl Inbox {
         !self.queued.is_empty()
     }
 
+    pub(crate) fn has_offered(&self) -> bool {
+        !self.offered.is_empty()
+    }
+
     /// Move the admitted Start batch ahead of every later relayed message.
     pub(crate) fn carry(&mut self, facts: &mut Facts, token: Token, messages: Box<[crate::Message]>) -> bool {
         let mut finish_requested = false;
