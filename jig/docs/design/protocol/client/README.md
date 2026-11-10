@@ -460,14 +460,14 @@ recipient.
 - **jig's browser parts,** `jig-client-shell-web`: the client's
   adapter, which carries the default mapping's calls over skein's
   fetch, the printed link's sign-in, and jig's look, over skein's
-  `skein-ui-web` (`../browser.md`, 5.1), for `ops` and jig's test
+  `skein-ui-web` (`../browser/README.md`, 5.1), for `ops` and jig's test
   application, whose browser shell is `jig-client-test-shell-web`
-  (`../browser.md`, 3.1). An application's own browser shell uses them,
+  (`../browser/README.md`, 3.1). An application's own browser shell uses them,
   skein's parts alone, or neither.
 - **Its pages are served by the application's server,** through skein's
   serving contract (skein's `ui/web/bundle.md`), under its own
   policy: jig serves no page, no bundle, and reserves no path
-  (`../service.md`, section 2; `../browser.md`, section 12).
+  (`../service.md`, section 2; `../browser/README.md`, section 12).
 
 ## 10. Limits and the worst case
 
@@ -572,7 +572,7 @@ Each within jig's suites' budgets.
   answered busy or full with none), a call ended before its reply said
   gone once, as `ExchangeGone`, and a call answered or never handed
   over said gone never, and the
-  example guards' stories (`../browser.md`, section 15).
+  example guards' stories (`../browser/testing.md`).
 - **The protocol world,** `jig-client-protocol-world`: the client's
   world's stories (`../../client/domain/testing.md`, section 4) run through
   bytes: `jig-client` over the native shell's machines and the default
@@ -588,8 +588,8 @@ Each within jig's suites' budgets.
   sent once, never resent nor in the small store (section 3); a slow
   stream never holds the engine up.
 - **The browser tier:** the reference UI's browser shell in Chromium,
-  against jig's test application, `jig-test` (`../browser.md`, section
-  15).
+  against jig's test application, `jig-test` (`../browser/testing.md`
+  ).
 
 ## 12. Open questions
 
@@ -608,7 +608,7 @@ Each within jig's suites' budgets.
   client's try: one that read the local link before a restart, or before
   8 other links were spent or expired.
 - **Several tabs:** each tab a client with its own stream, which a hidden
-  tab lets go (`../browser.md`, section 10); whether tabs of one person
+  tab lets go (`../browser/README.md`, section 10); whether tabs of one person
   share one stream through the platform's means.
 - **A page that is left sending its stream gone as it goes** (a
   `keepalive` request at `pagehide`), so that a tab whose next page
@@ -662,7 +662,7 @@ Each within jig's suites' budgets.
   sign-in flows, with `Mint` sent from its server alone (`sign-in.md`); the
   printed link's URL, printed from the secret the component gives; its
   small store's storage, answering each write; and its server's guards
-  (`../browser.md`, 12.2).
+  (`../browser/README.md`, 12.2).
 - **The engine's domain** is owed nothing beyond
   `../../client/domain/contract/README.md`, section 7: sign-ins numbered by their
   commit, made for an identity the application verified, and a party

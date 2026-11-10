@@ -141,7 +141,7 @@ Deployment       hosts, accounts, connectors, capacity
   words on a command line, is printed and parsed by the application's
   codec. The reference UI's codec (`jig_client_view::address`) gives
   jig's places their paths, at the root, as
-  `../../protocol/browser.md`, section 9, lists them: total, bounded
+  `../../protocol/browser/README.md`, section 9, lists them: total, bounded
   step code, since a path is a person's input, and any path it does not
   know is a place with no page, shown as missing (section 8). An
   application takes it as is, under a prefix, with its own segment

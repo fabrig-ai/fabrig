@@ -1,4 +1,4 @@
-//! The example browser guards (protocol/browser.md, 12.2).
+//! The example browser guards (protocol/browser/README.md, 12.2).
 use alloc::boxed::Box;
 use skein_http::{Method, server::Call};
 use skein_lib::List;

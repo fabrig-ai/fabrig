@@ -193,7 +193,7 @@ older model; latest-run metadata independent of turns is deferred
 (`client/domain/client/conversations.md` and `client/domain/client/README.md`, section 15).
 The code departs in a few single items (`README.md`, `client/domain/client/README.md`, `domain/engine/README.md`,
 `client/domain/contract/README.md`, `client/domain/testing.md`, `client/domain/view.md`, `domain/hosts/README.md`, `domain/people/README.md`, `domain/root.md`, `domain/testing.md`,
-`protocol/README.md`, `protocol/browser.md`, `protocol/client/README.md`, `protocol/configuration.md`, `protocol/service.md`, `protocol/store/README.md`). `domain/model.md`,
+`protocol/README.md`, `protocol/browser/README.md`, `protocol/client/README.md`, `protocol/configuration.md`, `protocol/service.md`, `protocol/store/README.md`). `domain/model.md`,
 `domain/providers.md` and `client/domain/README.md` have no gap of their
 own. Its drafts: `draft/account-facts.md`'s remaining design work is
 `draft/account-facts.md`, section 6's third step:
@@ -263,7 +263,7 @@ Design documents:
 - [`protocol/configuration.md`](protocol/configuration.status.md)
 - [`protocol/client/README.md`](protocol/client/README.status.md)
 - [`protocol/store/README.md`](protocol/store/README.status.md)
-- [`protocol/browser.md`](protocol/browser.status.md)
+- [`protocol/browser/README.md`](protocol/browser/README.status.md)
 
 Drafts:
 - [`draft/account-facts.md`](draft/account-facts.status.md)

@@ -42,13 +42,13 @@ does for the client:
   the next call at once (`ctl/README.md`, 6.2).
 - **The printed link opened in a browser:** a `GET` of the link's route
   spends nothing, and the mapping leaves it to the application's page
-  (jig's `protocol/browser.md`, section 11). With a bundle, temper's
+  (jig's `protocol/browser/README.md`, section 11). With a bundle, temper's
   server answers it with the page, which signs the browser in by it
   (`web/README.md`, 2.4); with none, the page for no bundle, which says
   so and names `temper open` (`web/README.md`, 2.2), with
   `Referrer-Policy: no-referrer`, and the link is `temper open`'s alone
   (`line.md`, 1).
-- **jig's example guards, as they are** (jig's `protocol/browser.md`,
+- **jig's example guards, as they are** (jig's `protocol/browser/README.md`,
   12.2), the Host allow-list holding the listener's own address. The
   terminal sends its credential as a bearer token; the cookie is the
   browser's (`web/README.md`).

@@ -1,4 +1,4 @@
-//! The reference origin's policy (protocol/browser.md, 12.1).
+//! The reference origin's policy (protocol/browser/README.md, 12.1).
 use alloc::boxed::Box;
 use skein_http::{Header, server::Response};
 use skein_lib::{List, bytes};

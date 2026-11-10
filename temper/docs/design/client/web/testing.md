@@ -13,7 +13,7 @@
   with the bundle named: no Forgejo, no runner. 1's
   stories need no answer of the forge's or the LLM's, so its forge and
   its LLM endpoint are unreached, on closed loopback ports, as jig's
-  tier serves (jig's `protocol/browser.md`, section 15). The fake
+  tier serves (jig's `protocol/browser/testing.md`). The fake
   forge, hosted on loopback in that loop by skein's forge peer
   (`../../testing/fakes.md`, 2), and skein's fake LLM peer, as the
   process tier has them (`../../testing/process-tier.md`), join with the
@@ -31,7 +31,7 @@
   browser shows. What skein's browser parts prove for every application
   (the mapping of roles, a patch keeping focus, caret and scroll, the
   store, the bundler) and what jig's prove for every client of jig's
-  (jig's `protocol/browser.md`, section 15) are not proved again.
+  (jig's `protocol/browser/testing.md`) are not proved again.
 - **Every story checks the policy too:** skein's harness fails a test
   on a policy violation, an exception or a native dialog (skein's
   `ui/web/testing.md`, 2).
@@ -68,8 +68,8 @@
 6. **jig's attack stories that need a browser,** from
    `jig-client-fake-person-browser`, against `temper serve`: a
    cross-site request from another port and from another host does
-   nothing; a framed page shows nothing (jig's `protocol/browser.md`,
-   section 15). The rebound Host, which needs no browser, stays in the
+   nothing; a framed page shows nothing (jig's `protocol/browser/testing.md`
+   ). The rebound Host, which needs no browser, stays in the
    process tier (`../testing.md`).
 
 Not in the tier: skein's `typing_while_patched`, which takes a second

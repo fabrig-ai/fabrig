@@ -210,7 +210,7 @@ delegate's phases; the frame's speed changes how long the person waits
   for the printed link among the lines the world prints, puts the
   link's path and query in the address, and starts the client, whose
   sign-in part spends it as a person's browser does (jig's
-  `protocol/browser.md`, section 11). No credential is made by hand.
+  `protocol/browser/README.md`, section 11). No credential is made by hand.
 - **The frame** wires its controls to the bridge's pace, the worker's
   restart and the story's choice, shows the world's time from the
   platform's clock, and offers the session's log by a key.

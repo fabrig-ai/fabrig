@@ -1,4 +1,4 @@
-//! The mapping's calls carried by skein's transport (protocol/browser.md, 10).
+//! The mapping's calls carried by skein's transport (protocol/browser/README.md, 10).
 use jig_client_protocol_http::Call;
 use skein_ui_web::{fetch, store, transport};
 

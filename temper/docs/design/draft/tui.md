@@ -191,7 +191,7 @@ their words and look are refined on the recording (section 5).
      approval never taken expires with nothing made.
 - **A browser approves, nothing else:** the approval is sent with the
   browser's cookie, under jig's browser guards (jig's
-  `protocol/browser.md`, 12.2), so that no agent driving `temper ctl`
+  `protocol/browser/README.md`, 12.2), so that no agent driving `temper ctl`
   as the owner (`../client/ctl/README.md`, section 7) can approve a
   terminal.
 - **The code in the tab's address,** on a box, so that one press

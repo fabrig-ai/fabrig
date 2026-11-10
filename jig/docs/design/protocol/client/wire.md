@@ -195,7 +195,7 @@ the engine's messages to the client as they come.
 - **A client is one run of `jig-client`,** from its start to its end: a
   native process; a browser page from its load until it is left. A link
   followed, or back and forward, within the page's history keeps it
-  (`../browser.md`, section 9); a reload, an address typed or opened, or
+  (`../browser/README.md`, section 9); a reload, an address typed or opened, or
   back and forward to an entry another load made, starts a new client.
   Each client holds a stream of its own, so two clients of one sign-in,
   two tabs or a page and the page that follows it, hold two. The engine

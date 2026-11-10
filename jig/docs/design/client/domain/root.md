@@ -370,9 +370,9 @@ to fill. The host around them, which steps the root for every shell and
 carries the client's messages over jig's default HTTP mapping through
 `jig-client-protocol-http` (`../../protocol/client/default-http.md`), is
 copied from jig's test application's, as
-its binary and its service are (`../../protocol/browser.md`, 3.2;
+its binary and its service are (`../../protocol/browser/README.md`, 3.2;
 `../../protocol/service.md`, section 7); so is its browser shell, from
-`jig-client-test-shell-web` (`../../protocol/browser.md`, 3.1). `ops`'s
+`jig-client-test-shell-web` (`../../protocol/browser/README.md`, 3.1). `ops`'s
 client root, `jig-ops-client-domain`, and its view root,
 `jig-ops-client-view`, are such copies (`../../examples.md`, section 8).
 

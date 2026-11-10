@@ -1,4 +1,4 @@
-//! Take the printed link out of history before starting the host (protocol/browser.md, 11).
+//! Take the printed link out of history before starting the host (protocol/browser/README.md, 11).
 use skein_lib::base64::{self, Alphabet};
 #[derive(Debug)]
 pub struct Route<'a> {

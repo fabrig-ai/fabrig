@@ -36,7 +36,7 @@ section 4. What is still open is listed in section 14.
   routes, its URL space and every HTTP and browser guard, and mounts
   the component under any prefix. jig ships a default HTTP mapping, both
   ends, with example guards, to use, wrap or leave (`client/wire.md`, section 2 and `client/default-http.md`
-  ; `browser.md`, 12.2).
+  ; `browser/README.md`, 12.2).
 - **jig owns credentials, not sign-in flows.** The clients' component
   mints, verifies, expires and revokes credentials. Its built-ins are
   the printed link, on loopback, and services' credentials; any other
@@ -94,7 +94,7 @@ section 4. What is still open is listed in section 14.
    the small store, shells.
 7. **store/README.md:** the store: skein-kv in the engine, keys and records,
    commits and loads, transcripts, secrets, growth.
-8. **browser.md:** a browser's client: the default HTTP mapping's
+8. **browser/README.md:** a browser's client: the default HTTP mapping's
    browser end, `jig-client-shell-web`, over skein's browser parts
    (skein's `ui/web/README.md`), and the cookie that carries a browser's
    credential; the example guards and jig's attack stories, for the
@@ -121,7 +121,7 @@ section 4. What is still open is listed in section 14.
 | jig's messages | what a client and the clients' component exchange, whatever carries them: a keyed request, a read, opening and closing a watch, signing in and out, and the stream's events; each names its owner and its version (`client/wire.md`, 2.1) |
 | the clients' component | `jig-protocol-engine-clients`, the engine's side of jig's messages: it takes them with an opaque credential from the application's transport, and a `Mint` from its server; it mints, verifies, expires and revokes credentials; it knows no HTTP (`client/wire.md`, 2.2) |
 | the transport | the application's carrier of jig's messages between `jig-client` and the clients' component: HTTP, a local socket, or an in-process channel |
-| the default HTTP mapping | jig's optional transport over HTTP, both ends, `jig-client-protocol-http` and `jig-protocol-engine-clients-http`, with example guards (`client/default-http.md`; `browser.md`, 12.2) |
+| the default HTTP mapping | jig's optional transport over HTTP, both ends, `jig-client-protocol-http` and `jig-protocol-engine-clients-http`, with example guards (`client/default-http.md`; `browser/README.md`, 12.2) |
 | a credential | what signing in leaves: minted for an identity, its digest in the secrets' records, opaque bytes to the transport (`client/sign-in.md`). Neither a credential grant nor an application's credential |
 | profile | a named set of every limit jig takes, consistent with one another (`limits.md`) |
 | agent capability | the hub's agent: `smith-host-domain`, agent processes, one per run; or `smith-inline-agent`, smith's domains in the host's process (`../domain/hosts/README.md`, section 5) |
@@ -184,11 +184,11 @@ An application that mixes the last two has both.
 | `jig-protocol-store` | component, codecs | engine | jig's records and the application's on skein-kv, transcripts' files, the secrets' store (`store/README.md`) |
 | `jig-client-protocol-wire` | codecs | engine, client | jig's wire records, both ends, from schemas: jig's messages, their operations and compound requests, subjects and reads, documents, the stream's events, the small store's records (`client/wire.md`, section 1) |
 | `jig-protocol-engine-clients` | component | engine | the clients' component: jig's messages from the application's transport, each with its credential as opaque bytes, and to it; a `Mint` from the application's server; streams and their pacing; credentials minted, verified, expired and revoked, the printed link's secret; the OpenID provider's codes and access tokens (`client/openid.md`); translation to and from the core's vocabulary. No HTTP, path, cookie or listener (`client/wire.md`, 2.2) |
-| `jig-protocol-engine-clients-http` | mapping | engine | the default HTTP mapping's engine end: its routes under the prefix the application mounts it at, the stream as server-sent events, the credential as a cookie or a bearer, and the example guards (`client/default-http.md`; `browser.md`, 12.2), and the server part an application builds its listener on (`service.md`, 11.4) |
+| `jig-protocol-engine-clients-http` | mapping | engine | the default HTTP mapping's engine end: its routes under the prefix the application mounts it at, the stream as server-sent events, the credential as a cookie or a bearer, and the example guards (`client/default-http.md`; `browser/README.md`, 12.2), and the server part an application builds its listener on (`service.md`, 11.4) |
 | `jig-client-protocol-link` | component | client | jig's messages encoded and decoded, the stream's events, the small store's records; no HTTP (`client/wire.md`, 2.3) |
 | `jig-client-protocol-http` | mapping | client | the default HTTP mapping's client end: a message as a method, a path, headers and a body; the stream's server-sent events cut into events; for the host and wasm32 (`client/default-http.md`, 4) |
 | `jig-protocol-transcript` | decoding | engine, client | turns' bytes into the client's vocabulary (`../client/domain/client/conversations.md`) |
-| `jig-client-shell-web`, `jig-client-shell-native` | shells' parts, a shell | client | jig's browser parts over skein's `skein-ui-web`: the client's adapter over skein's fetch, the printed link's sign-in, jig's look (`browser.md`, 5.1); and the native shell over skein's HTTP client, with `jig-client-protocol-http` (`client/README.md`, section 9) |
+| `jig-client-shell-web`, `jig-client-shell-native` | shells' parts, a shell | client | jig's browser parts over skein's `skein-ui-web`: the client's adapter over skein's fetch, the printed link's sign-in, jig's look (`browser/README.md`, 5.1); and the native shell over skein's HTTP client, with `jig-client-protocol-http` (`client/README.md`, section 9) |
 
 Beside them, smith's components, by the agent capability:
 `smith-protocol-llm`, over skein's `skein-llm-connection`, in a process
@@ -206,7 +206,7 @@ processes (smith's `protocol/host.md`, sections 2 and 3).
   client's shells and their parts. The reference UI's bundle is made at
   build by skein's bundler, `skein-ui-bundle`, a tool, not a component,
   and served by the application's server (skein's `ui/web/bundle.md`, 2;
-  `browser.md`, 4.2 and section 12).
+  `browser/README.md`, 4.2 and section 12).
 - **Each depends** on skein-lib, io's vocabulary, the skein components it
   drives, its codec crate, and the domain vocabulary it translates: the
   hub's for the channel's sides, the core's (or a child's) for the
@@ -230,7 +230,7 @@ processes (smith's `protocol/host.md`, sections 2 and 3).
 | an `agent` command, smith's agent shell, and smith's agent modes beside it (`--mcp-relay`, `--program-child`), if its workers run agent processes from its own binary | the binary | copied from the reference binary (`service.md`, section 7) |
 | its configuration's own members, and their parsing | each process | its own |
 | its connectors' protocols: their systems' clients, credentials, and webhooks, on a listener of each connector's own at an address its configuration names, or on its server's, routed by path (section 13) | the engine | its own |
-| its server: the clients' listener, on jig's server part (`service.md`, 11.4), its TLS, its routes and its URL space; its own pages, bundle and API; jig's clients' component, mounted under any prefix it chooses, since jig reserves no path; every HTTP and browser guard, jig's example guards as they are, wrapped, or its own | the engine | its own, after the reference service's (`service.md`, section 7; `browser.md`, section 12) |
+| its server: the clients' listener, on jig's server part (`service.md`, 11.4), its TLS, its routes and its URL space; its own pages, bundle and API; jig's clients' component, mounted under any prefix it chooses, since jig reserves no path; every HTTP and browser guard, jig's example guards as they are, wrapped, or its own | the engine | its own, after the reference service's (`service.md`, section 7; `browser/README.md`, section 12) |
 | its transport: jig's messages carried between `jig-client` and the clients' component, each with its credential: jig's default HTTP mapping, as it is or wrapped, or its own (a local socket, an in-process channel) | engine and client | jig's default mapping, or its own (`client/default-http.md`) |
 | its sign-in: every way of signing in but the printed link and services' credentials (OAuth, a directory, a chat platform's identity), on its own routes, redirects included, with its settings and secrets; the identity it verified, handed to the clients' component in a `Mint`, from its server code alone; how the minted credential travels | the engine, the client | its own (`client/sign-in.md`) |
 | its presentation: its routes and screens, words and look, confirmations and drafts, home and navigation, on `jig-client` and jig's helpers if they suit, with skein's UI kit, anything else, or nothing; or jig's reference UI, `jig-client-view`, as `ops` and jig's test application use it | the client | its own (`../client/domain/`) |
@@ -409,14 +409,14 @@ Each is generic, and says nothing about jig.
     composes with jig's settings (skein's `ui/text.md`);
   - `skein-ui-web`, the browser parts each usable alone and their
     default mapping of roles to elements, beside which jig's own parts
-    sit (`browser.md`, 5.1): their platform halves call through the glue
+    sit (`browser/README.md`, 5.1): their platform halves call through the glue
     crates, `wasm-bindgen`, `js-sys` and `web-sys`, pinned in the
     workspace, which with their dependencies are the only `unsafe` such
     a client runs (`programming-model.md`, section 2.1);
     `jig-client-shell-web` forbids it in its own code;
   - `skein-ui-bundle`, the bundler, which writes the reference UI's
     bundle, under the prefix the application's server serves it at
-    (skein's `ui/web/bundle.md`, 2 to 4; `browser.md`, 4.2);
+    (skein's `ui/web/bundle.md`, 2 to 4; `browser/README.md`, 4.2);
   - `skein-fake-person`, the person over the tree, and
     `skein-fake-person-browser`, its face over skein's browser kit (a
     name matched by words as well as exactly, a press at a point within
@@ -424,8 +424,8 @@ Each is generic, and says nothing about jig.
     harness, which stops the application's binary and starts it again
     within a story, with skein's stories for a browser shell, which
     jig's tier calls beside its own (skein's `ui/web/testing.md`, 2;
-    `../client/domain/testing.md`, section 3; `browser.md`, section
-    15).
+    `../client/domain/testing.md`, section 3; `browser/testing.md`
+    ).
 - **LLM accounts' mechanism:** the accounts driver, with sources added
   and removed while it runs, sign-out with revocation, the client id a
   registration is issued kept with its record, signed in with the
@@ -610,7 +610,7 @@ What the store asks of the domain is `store/README.md`, section 10.
   jig ships what an application may take or leave: its default HTTP
   mapping, both ends, with example guards, and attack stories in its
   test kit, checked and never mandated (`client/default-http.md`;
-  `browser.md`, 12.2 and section 15); and its reference UI, on the
+  `browser/README.md`, 12.2 and `browser/testing.md`); and its reference UI, on the
   public client alone, which proves the API is enough
   (`../client/domain/`).
 - **jig owns credentials, the application owns sign-in flows.** jig
