@@ -47,7 +47,7 @@ pub(crate) enum Read {
     Raw { owner: Box<[u8]>, name: Box<[u8]>, commit: api::Commit, path: Box<[u8]> },
     Issues { owner: Box<[u8]>, name: Box<[u8]>, since: Wall, page: u32, per_page: u32 },
     Issue { owner: Box<[u8]>, name: Box<[u8]>, number: u64 },
-    Comments { owner: Box<[u8]>, name: Box<[u8]>, number: u64, page: u32, per_page: u32 },
+    Comments { owner: Box<[u8]>, name: Box<[u8]>, number: u64, page: u32, per_page: u32, since: Option<Wall> },
     Locate { owner: Box<[u8]>, name: Box<[u8]> },
     Branch { owner: Box<[u8]>, name: Box<[u8]>, branch: Box<[u8]> },
     Branches { owner: Box<[u8]>, name: Box<[u8]>, page: u32, per_page: u32 },
@@ -140,6 +140,7 @@ fn contents(read: &Read) -> bool {
 }
 
 #[expect(clippy::too_many_lines, reason = "each read variant translates to its domain call and retained identity")]
+#[expect(clippy::manual_map, reason = "step code spells Option transformations with exhaustive matches")]
 pub(crate) fn call(
     service: &Service,
     read: Read,
@@ -274,10 +275,16 @@ pub(crate) fn call(
                 limit: per_page.min(service.limits.page),
             }),
         ),
-        Read::Issue { number, .. } => (Pending::Issue, Op::Read(a::Read::Item { number, after: 0 })),
-        Read::Comments { number, page, per_page, .. } => (
+        Read::Issue { number, .. } => (Pending::Issue, Op::Read(a::Read::Item { number, after: 0, since: None })),
+        Read::Comments { number, page, per_page, since, .. } => (
             Pending::Comments { target: bytes::copy_of(target), page, size: per_page.min(service.limits.page) },
-            Op::Read(a::Read::Comments { number }),
+            Op::Read(a::Read::Comments {
+                number,
+                since: match since {
+                    Some(time) => Some(skein_lib::Time::from_nanos(time.as_nanos())),
+                    None => None,
+                },
+            }),
         ),
         Read::Repository(_) | Read::Locate { .. } => (Pending::Repository(row.clone()), Op::Read(a::Read::Settings)),
         Read::Branch { branch, .. } => (Pending::Branch(branch.clone()), Op::Read(a::Read::Branch { branch })),

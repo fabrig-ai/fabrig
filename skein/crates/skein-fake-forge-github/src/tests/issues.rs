@@ -32,7 +32,8 @@ fn github_fake_issues_and_comments_drive_the_dialect_plans() {
         }
     }
     let api::Answer::Item { item, comments, more } =
-        r::read(&mut h, &token, api::Read::Item { number: first, after: 0 }).expect("item and paged comments plan")
+        r::read(&mut h, &token, api::Read::Item { number: first, after: 0, since: Time::ZERO })
+            .expect("item and paged comments plan")
     else {
         panic!("item answer")
     };
@@ -44,14 +45,19 @@ fn github_fake_issues_and_comments_drive_the_dialect_plans() {
         assert_eq!(comment.provenance, api::Provenance::Original);
     }
     assert!(!more);
-    let api::Answer::Item { comments: after, .. } =
-        r::read(&mut h, &token, api::Read::Item { number: first, after: comments.first().expect("first comment").id })
-            .expect("after filter")
-    else {
+    let api::Answer::Item { comments: after, .. } = r::read(
+        &mut h,
+        &token,
+        api::Read::Item { number: first, after: comments.first().expect("first comment").id, since: Time::ZERO },
+    )
+    .expect("after filter") else {
         panic!("item answer")
     };
     assert_eq!(after.len(), 2);
-    assert_eq!(r::read(&mut h, &token, api::Read::Item { number: 999, after: 0 }), Err(api::Error::Missing));
+    assert_eq!(
+        r::read(&mut h, &token, api::Read::Item { number: 999, after: 0, since: Time::ZERO }),
+        Err(api::Error::Missing)
+    );
     assert_eq!(h.hooks, 0);
 }
 #[test]
@@ -132,7 +138,14 @@ fn github_fake_issue_routes_refuse_outside_installation_and_invalid_pages() {
             per_page: 100,
         },
         Request::Issue { owner: f::boxed(b"acme"), name: f::boxed(b"absent"), number: 1 },
-        Request::Comments { owner: f::boxed(b"acme"), name: f::boxed(b"absent"), number: 1, page: 1, per_page: 100 },
+        Request::Comments {
+            owner: f::boxed(b"acme"),
+            name: f::boxed(b"absent"),
+            number: 1,
+            page: 1,
+            per_page: 100,
+            since: None,
+        },
     ] {
         let encoded = skein_forge::github::request::encode(&request, &h.limits.github).expect("encoded read");
         let response =
@@ -193,6 +206,87 @@ fn github_fake_issues_since_observed_cutoff_and_inclusive_timestamp() {
         if present {
             let Row::Issue(row) = rows.as_slice().first().unwrap() else { panic!("issue") };
             assert_eq!(row.number, number);
+        }
+    }
+}
+
+#[test]
+#[expect(clippy::manual_map, reason = "step-style tests spell Option transformations with exhaustive matches")]
+fn github_fake_comments_since_filters_updates_before_pages_and_links() {
+    // Whole seconds after GitHub's observed issues-since cutoff.
+    const T1: u64 = 1_700_000_000_000_000_000;
+    const T2: u64 = 1_700_000_010_000_000_000;
+    const T3: u64 = 1_700_000_020_000_000_000;
+    for (label, since, edited, page, expected, more) in [
+        ("absent", None, false, 1, &["one", "two"][..], true),
+        ("inclusive", Some(T2), false, 1, &["two", "three"][..], false),
+        ("filtered last page", Some(T2), false, 2, &[][..], false),
+        ("edited old comment", Some(T2), true, 1, &["edited", "two"][..], true),
+        ("edited last page", Some(T2), true, 2, &["three"][..], false),
+    ] {
+        let mut h = r::harness();
+        let number = r::issue(&mut h, b"thread");
+        let mut first = None;
+        for (now, body) in [(T1, b"one".as_slice()), (T2, b"two"), (T3, b"three")] {
+            h.env.now = Time::from_nanos(now);
+            let a::Answer::Commented(id) =
+                r::call(&mut h, a::Op::Write(a::Write::Comment { number, body: f::boxed(body) }))
+            else {
+                panic!("comment")
+            };
+            first = first.or(Some(id));
+        }
+        if edited {
+            r::call(
+                &mut h,
+                a::Op::Write(a::Write::EditComment { id: first.expect("first"), body: f::boxed(b"edited") }),
+            );
+        }
+        let token = r::token(&mut h);
+        let request = Request::Comments {
+            owner: f::boxed(b"acme"),
+            name: f::boxed(b"widgets"),
+            number,
+            since: match since {
+                Some(time) => Some(skein_lib::Wall::from_nanos(time)),
+                None => None,
+            },
+            page,
+            per_page: 2,
+        };
+        let encoded = skein_forge::github::request::encode(&request, &h.limits.github).expect("comments");
+        let response = h.ask(encoded.method, &encoded.target, Some(token.expose()), b"");
+        assert_eq!(response.status, 200, "{label}");
+        let (rows, Document::Rows) = h.decode(Kind::CommentRows, &response) else { panic!("comments") };
+        assert_eq!(usize::try_from(rows.len()).unwrap(), expected.len(), "{label}");
+        for (row, expected) in rows.iter().zip(expected) {
+            let Row::Comment(row) = row else { panic!("comment row") };
+            let skein_forge::text::Body::Kept(body) = &row.body else { panic!("kept body") };
+            assert_eq!(body.as_ref(), expected.as_bytes(), "{label}");
+        }
+        assert_eq!(response.link.is_some(), more, "{label}: next Link");
+        if page == 1 {
+            let since = match since {
+                Some(time) => Time::from_nanos(time),
+                None => Time::ZERO,
+            };
+            let api::Answer::Item { comments, more, .. } =
+                r::read(&mut h, &token, api::Read::Item { number, after: 0, since }).expect("filtered comment plan")
+            else {
+                panic!("item")
+            };
+            let wanted: &[&str] = if edited {
+                &["edited", "two", "three"]
+            } else if since == Time::ZERO {
+                &["one", "two", "three"]
+            } else {
+                &["two", "three"]
+            };
+            assert_eq!(comments.len(), wanted.len(), "{label}: plan follows filtered pages");
+            for (comment, body) in comments.iter().zip(wanted) {
+                assert_eq!(comment.body.as_ref(), body.as_bytes(), "{label}: plan follows filtered pages");
+            }
+            assert!(!more);
         }
     }
 }

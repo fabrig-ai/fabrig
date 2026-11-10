@@ -2,6 +2,7 @@
 use super::{
     Bounds, Plan, Request, Roster, State, Step, Tables, Whose, api, bytes, d, keep_document, reading, size, terminal,
 };
+use crate::api::Excess;
 use alloc::boxed::Box;
 use skein_lib::List;
 impl Plan {
@@ -40,7 +41,11 @@ impl Plan {
                 let document = match body {
                     super::Body::Document(document) => document,
                     super::Body::Malformed(crate::forgejo::decode::Malformed::Bound { field }) => {
-                        return Err(if field == b"log" { api::Error::InvalidAnswer } else { api::Error::TooLarge });
+                        return Err(if field == b"log" {
+                            api::Error::InvalidAnswer
+                        } else {
+                            api::Error::TooLarge(Excess::unnamed())
+                        });
                     }
                     super::Body::Malformed(_) | super::Body::Empty | super::Body::Raw { .. } => {
                         return Err(api::Error::InvalidAnswer);
@@ -75,21 +80,26 @@ impl Plan {
                 api::Answer::Located { repository: u32::try_from(repository.id).expect("repository checked") }
             }
             State::Settings => api::Answer::Settings(reading::settings(self.keep_repository(document, tables)?)),
-            State::Issue { row, after } => {
+            State::Issue { row, after, since } => {
                 let item = match document {
                     d::Document::Issue(issue) => reading::summary(word, issue),
                     _ => return Err(api::Error::InvalidAnswer),
                 };
                 let size = size::summary(&item, bounds.rows)?;
                 if size > u64::from(bounds.answer_bytes) {
-                    return Err(api::Error::TooLarge);
+                    return Err(api::Error::TooLarge(Excess {
+                        bound: api::Bound::AnswerBytes,
+                        limit: u64::from(bounds.answer_bytes),
+                        size,
+                        exact: false,
+                    }));
                 }
                 let room = u64::from(bounds.answer_bytes)
                     .saturating_sub(size)
                     .checked_div(u64::try_from(crate::measure::COMMENT_BYTES).expect("comment width"))
                     .expect("nonzero width");
                 let rows = List::with_capacity(bounds.rows.min(u32::try_from(room).expect("bounded room")));
-                let step = self.send(Request::Comments { at: row.at(), number: item.number });
+                let step = self.send(Request::Comments { at: row.at(), number: item.number, since });
                 return Ok((State::Comments { item, rows, more: false, size, after }, Some(step)));
             }
             State::Pull { row } => return Self::pull_status(row, pull(document)?, bounds),
@@ -100,6 +110,8 @@ impl Plan {
                 }
                 let step = self.send(Request::Pulls {
                     at: row.at(),
+                    head: Some(head.clone()),
+                    base: Some(base.clone()),
                     page: super::r::Page { page: Some(1), limit: Some(bounds.page_size) },
                 });
                 return Ok((State::Pulls { row, head, base, pull: Box::new(pull), found: false, page: 1 }, Some(step)));
@@ -107,9 +119,11 @@ impl Plan {
             State::Pulls { row, head, base, pull, found, page } => {
                 let skipped = listed(document)?;
                 if !found && self.count.saturating_add(skipped) >= bounds.page_size {
-                    let page = page.checked_add(1).ok_or(api::Error::TooLarge)?;
+                    let page = page.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
                     let step = self.send(Request::Pulls {
                         at: row.at(),
+                        head: Some(head.clone()),
+                        base: Some(base.clone()),
                         page: super::r::Page { page: Some(page), limit: Some(bounds.page_size) },
                     });
                     return Ok((State::Pulls { row, head, base, pull, found, page }, Some(step)));
@@ -276,11 +290,11 @@ fn listed(document: d::Document) -> Result<u32, api::Error> {
 #[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
 fn check_repository(state: &State, document: &d::Document, expected: u32) -> Result<(), api::Error> {
     let id = match document {
-        d::Document::Repository(repository) => u32::try_from(repository.id),
+        d::Document::Repository(repository) => repository.id,
         _ => return Ok(()),
     };
-    let Ok(id) = id else {
-        return Err(api::Error::TooLarge);
+    let Ok(id) = u32::try_from(id) else {
+        return Err(api::Error::TooLarge(Excess::exact(api::Bound::Forge, u64::from(u32::MAX), id)));
     };
     let by_id = match state {
         State::Resolving { .. } | State::Settings => true,

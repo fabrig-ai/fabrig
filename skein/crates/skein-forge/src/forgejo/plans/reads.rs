@@ -46,7 +46,7 @@ enum State {
     Items { rows: List<api::Summary>, now: Time, size: u64 },
     Reviews { format: ObjectFormat, rows: List<api::Review>, size: u64 },
     Remarks { rows: List<api::Remark>, more: bool, page: u32, size: u64 },
-    Issue { row: Repository, after: u64 },
+    Issue { row: Repository, after: u64, since: Option<Wall> },
     Comments { item: api::Summary, rows: List<api::Comment>, more: bool, size: u64, after: u64 },
     Pull { row: Repository },
     PullFor { row: Repository, head: Box<[u8]>, base: Box<[u8]> },
@@ -132,6 +132,7 @@ impl Plan {
         self.count = 0;
         Step::send(request)
     }
+    #[expect(clippy::too_many_lines, reason = "initial request dispatch exhaustively names the read vocabulary")]
     fn initial(
         &mut self,
         read: api::Read,
@@ -152,7 +153,11 @@ impl Plan {
                     return Err(api::Error::Empty);
                 }
                 if max_bytes > bounds.answer_bytes {
-                    return Err(api::Error::TooLarge);
+                    return Err(api::Error::TooLarge(api::Excess::exact(
+                        api::Bound::AnswerBytes,
+                        u64::from(bounds.answer_bytes),
+                        u64::from(max_bytes),
+                    )));
                 }
                 let plan = super::artifact::Plan::new(row, run, name, max_bytes);
                 let step = plan.begin();
@@ -184,7 +189,14 @@ impl Plan {
                     },
                 )
             }
-            api::Read::Item { number, after } => (State::Issue { row, after }, Request::Issue { at, number }),
+            api::Read::Item { number, after, since } => (
+                State::Issue {
+                    row,
+                    after,
+                    since: if since == Time::ZERO { None } else { Some(Wall::from_nanos(since.as_nanos())) },
+                },
+                Request::Issue { at, number },
+            ),
             api::Read::Pull { number } => (State::Pull { row }, Request::Pull { at, number }),
             api::Read::PullFor { head, base } => {
                 (State::PullFor { row, head: head.clone(), base: base.clone() }, Request::PullFor { at, head, base })
@@ -209,7 +221,7 @@ impl Plan {
                 (
                     State::Branches {
                         prefix: prefix.clone(),
-                        rows: List::with_capacity(bounds.rows.min(room)),
+                        rows: List::with_capacity(room),
                         size: 0,
                         missing: false,
                     },
@@ -382,11 +394,15 @@ impl Plan {
         word: &[u8],
         tables: &mut Tables,
     ) -> Result<State, api::Error> {
-        self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge)?;
+        self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge(api::Excess::unnamed()))?;
         if let Some(bound) = self.bound
             && self.count > bound
         {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(api::Excess::at_least(
+                if bound == bounds.rows { api::Bound::Rows } else { api::Bound::Forge },
+                u64::from(bound),
+                u64::from(self.count),
+            )));
         }
         keep_row(&value, self.repository.forge, tables);
         match &mut state {
@@ -412,14 +428,13 @@ impl Plan {
                     d::Row::User(user) => user.id,
                     _ => return Err(api::Error::InvalidAnswer),
                 };
-                if !charge(
+                charge(
                     size,
                     u64::try_from(crate::measure::COLLABORATOR_BYTES).expect("collaborator width"),
-                    rows.len() < rows.capacity(),
+                    rows.len(),
+                    rows.capacity(),
                     bounds,
-                ) {
-                    return Err(api::Error::TooLarge);
-                }
+                )?;
                 rows.push(api::Collaborator { user, permission: api::Permission::None }).expect("room checked");
             }
             State::Items { rows, size, .. } => {
@@ -428,9 +443,7 @@ impl Plan {
                     _ => return Err(api::Error::InvalidAnswer),
                 };
                 let added = row_size(crate::measure::SUMMARY_BYTES, size::summary(&item, bounds.rows)?, bounds)?;
-                if !charge(size, added, rows.len() < rows.capacity(), bounds) {
-                    return Err(api::Error::TooLarge);
-                }
+                charge(size, added, rows.len(), rows.capacity(), bounds)?;
                 rows.push(item).expect("room checked");
             }
             State::Comments { rows, more, size, .. } => {
@@ -440,7 +453,7 @@ impl Plan {
                 };
                 let added =
                     row_size(crate::measure::COMMENT_BYTES, body_size(&comment.body, comment.key.as_deref())?, bounds)?;
-                if charge(size, added, rows.len() < rows.capacity(), bounds) {
+                if charge(size, added, rows.len(), rows.capacity(), bounds).is_ok() {
                     rows.push(comment).expect("room checked");
                 } else {
                     *more = true;
@@ -458,15 +471,16 @@ impl Plan {
                         body_size(&review.body, review.key.as_deref())?,
                         bounds,
                     )?;
-                    if !charge(size, added, rows.len() < rows.capacity(), bounds) {
-                        return Err(api::Error::TooLarge);
-                    }
+                    charge(size, added, rows.len(), rows.capacity(), bounds)?;
                     rows.push(review).expect("room checked");
                 }
             }
             State::Remarks { rows, more, page, size } => match value {
                 d::Row::ReviewComment(remark) => {
-                    let skip = page.saturating_sub(1).checked_mul(bounds.page_size).ok_or(api::Error::TooLarge)?;
+                    let skip = page
+                        .saturating_sub(1)
+                        .checked_mul(bounds.page_size)
+                        .ok_or(api::Error::TooLarge(api::Excess::unnamed()))?;
                     if self.count > skip.saturating_add(bounds.page_size) {
                         *more = true;
                         self.cut = true;
@@ -477,7 +491,7 @@ impl Plan {
                             body_size(&remark.body, Some(&remark.path))?,
                             bounds,
                         )?;
-                        if charge(size, added, rows.len() < rows.capacity(), bounds) {
+                        if charge(size, added, rows.len(), rows.capacity(), bounds).is_ok() {
                             rows.push(remark).expect("room checked");
                         } else {
                             *more = true;
@@ -495,10 +509,19 @@ impl Plan {
                 if !branch.starts_with(prefix) {
                     return Err(api::Error::InvalidAnswer);
                 }
-                let added = row_size(crate::measure::STRING_BYTES, skein_lib::len_u64(branch.len()), bounds)?;
-                if !charge(size, added, rows.len() < rows.capacity(), bounds) {
-                    return Err(api::Error::TooLarge);
+                let total = size
+                    .checked_add(skein_lib::len_u64(branch.len()))
+                    .ok_or(api::Error::TooLarge(api::Excess::unnamed()))?
+                    .checked_add(skein_lib::len_u64(crate::measure::STRING_BYTES))
+                    .ok_or(api::Error::TooLarge(api::Excess::unnamed()))?;
+                if total > u64::from(bounds.answer_bytes) {
+                    return Err(api::Error::TooLarge(api::Excess::at_least(
+                        api::Bound::AnswerBytes,
+                        u64::from(bounds.answer_bytes),
+                        total,
+                    )));
                 }
+                *size = total;
                 rows.push(branch).expect("room checked");
             }
             State::Protection => match value {
@@ -527,31 +550,49 @@ fn turn(mode: super::turn::Mode, row: Repository, bounds: Bounds) -> (State, Ste
     let step = plan.begin(bounds);
     (State::Delegated(Box::new(Delegate::Turn(plan))), step)
 }
-fn charge(size: &mut u64, added: u64, room: bool, bounds: Bounds) -> bool {
-    if !room {
-        return false;
+fn charge(size: &mut u64, added: u64, count: u32, capacity: u32, bounds: Bounds) -> Result<(), api::Error> {
+    if count >= capacity {
+        let excess = if count >= bounds.rows {
+            api::Excess {
+                bound: api::Bound::Rows,
+                limit: u64::from(bounds.rows),
+                size: u64::from(count).saturating_add(1),
+                exact: false,
+            }
+        } else {
+            api::Excess {
+                bound: api::Bound::AnswerBytes,
+                limit: u64::from(bounds.answer_bytes),
+                size: size.saturating_add(added),
+                exact: false,
+            }
+        };
+        return Err(api::Error::TooLarge(excess));
     }
-    let Some(total) = size.checked_add(added) else {
-        return false;
-    };
+    let total = size.checked_add(added).ok_or(api::Error::TooLarge(api::Excess::unnamed()))?;
     if total > u64::from(bounds.answer_bytes) {
-        return false;
+        return Err(api::Error::TooLarge(api::Excess {
+            bound: api::Bound::AnswerBytes,
+            limit: u64::from(bounds.answer_bytes),
+            size: total,
+            exact: false,
+        }));
     }
     *size = total;
-    true
+    Ok(())
 }
 fn row_size(width: usize, bytes: u64, bounds: Bounds) -> Result<u64, api::Error> {
     if bounds.rows == 0 {
-        return Err(api::Error::TooLarge);
+        return Err(api::Error::TooLarge(api::Excess::exact(api::Bound::Rows, 0, 1)));
     }
-    bytes.checked_add(u64::try_from(width).expect("row width")).ok_or(api::Error::TooLarge)
+    bytes.checked_add(u64::try_from(width).expect("row width")).ok_or(api::Error::TooLarge(api::Excess::unnamed()))
 }
 fn body_size(body: &[u8], extra: Option<&[u8]>) -> Result<u64, api::Error> {
     let extra = match extra {
         Some(extra) => skein_lib::len_u64(extra.len()),
         None => 0,
     };
-    skein_lib::len_u64(body.len()).checked_add(extra).ok_or(api::Error::TooLarge)
+    skein_lib::len_u64(body.len()).checked_add(extra).ok_or(api::Error::TooLarge(api::Excess::unnamed()))
 }
 fn head(
     mut state: State,
@@ -599,8 +640,13 @@ fn head(
     Ok(state)
 }
 fn terminal(answer: api::Answer, bounds: Bounds) -> Result<Step, api::Error> {
-    if size::answer(&answer, bounds.rows)? > u64::from(bounds.answer_bytes) {
-        return Err(api::Error::TooLarge);
+    let size = size::answer(&answer, bounds.rows)?;
+    if size > u64::from(bounds.answer_bytes) {
+        return Err(api::Error::TooLarge(api::Excess::exact(
+            api::Bound::AnswerBytes,
+            u64::from(bounds.answer_bytes),
+            size,
+        )));
     }
     Ok(Step::Done(Ok(answer)))
 }

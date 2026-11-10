@@ -116,7 +116,10 @@ fn github_commit_ids() {
     let mut non_sha1 = commit;
     non_sha1[31] = 1;
     assert_eq!(id::write_commit(&non_sha1), None);
-    assert_eq!(id::repository(1u64 << 32), Err(api::Error::TooLarge));
+    assert_eq!(
+        id::repository(1u64 << 32),
+        Err(api::Error::TooLarge(api::Excess::exact(api::Bound::Forge, u64::from(u32::MAX), 1_u64 << 32)))
+    );
     assert_eq!(id::repository(u64::from(u32::MAX)), Ok(u32::MAX));
 }
 
@@ -126,6 +129,9 @@ fn github_request_targets() {
     for case in requests() {
         let encoded = request::encode(&case.request, &good).unwrap();
         assert_eq!(encoded.target.as_ref(), case.target, "{}", case.label);
+        if let Request::Comments { .. } = &case.request {
+            assert_eq!(server::route(Method::Get, case.target, &good), Some(case.request.clone()), "{}", case.label);
+        }
         assert_eq!(encoded.method, Method::Get, "{}", case.label);
         assert_eq!(encoded.body, None, "{}", case.label);
         assert_eq!(encoded.auth, Auth::Installation, "{}", case.label);

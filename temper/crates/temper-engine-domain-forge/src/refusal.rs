@@ -34,7 +34,7 @@ impl RefusalCause {
                 put(&mut words, b"invalid branch name; correct the task's resource name, then release");
             }
             Self::Backend(error) => {
-                put(&mut words, crate::effect_words::error_words(error));
+                put(&mut words, &crate::effect_words::error_words(error));
                 put(&mut words, recovery(error));
             }
         }
@@ -55,7 +55,7 @@ fn recovery(error: skein_forge::api::Error) -> &'static [u8] {
         Error::NotConnected | Error::NotInstalled => b"; reconnect the forge or accept its installation, then release",
         Error::Missing | Error::MissingJob => b"; restore the missing target or correct its name, then release",
         Error::Busy => b"; waiting for local admission; retries automatically",
-        Error::TooLarge => b"; reduce the response or operation size, then release",
+        Error::TooLarge(_) => b"; reduce the response or operation size, then release",
         Error::Unavailable
         | Error::Timeout
         | Error::RateLimited { .. }
@@ -143,4 +143,31 @@ pub(crate) fn limit(
         }),
         cause: RefusalCause::Limit { member, configured: u64::from(configured), needed },
     });
+}
+
+/// A refused forge bound, in the words of domain/forge.md, 8.4.
+#[must_use]
+pub fn bound_words(excess: skein_forge::api::Excess) -> Box<[u8]> {
+    use skein_forge::api::Bound;
+    let mut out = List::uncapped();
+    let (name, unit): (&[u8], &[u8]) = match excess.bound {
+        Bound::Rows => (b"forge.client.rows", b" rows"),
+        Bound::AnswerBytes => (b"forge.client.answer_bytes", b" bytes"),
+        Bound::OpBytes => (b"forge.client.op_bytes", b" bytes"),
+        Bound::Forge if excess.limit == 0 && excess.size == 0 => {
+            return Box::from(b"a bound of the forge's".as_slice());
+        }
+        Bound::Forge => (b"a bound of the forge's", b""),
+        Bound::Unnamed => return Box::from(b"an unnamed bound".as_slice()),
+    };
+    put(&mut out, name);
+    put(&mut out, b" (");
+    put(&mut out, skein_lib::Decimal::of(excess.limit).as_bytes());
+    put(&mut out, b"): ");
+    if !excess.exact {
+        put(&mut out, b"at least ");
+    }
+    put(&mut out, skein_lib::Decimal::of(excess.size).as_bytes());
+    put(&mut out, unit);
+    out.into_boxed()
 }

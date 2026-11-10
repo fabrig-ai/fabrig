@@ -173,7 +173,7 @@ pub(super) fn track(d: &mut Domain, env: &Env<Limits>, event: &Event) {
                     | Error::Forbidden
                     | Error::Missing
                     | Error::MissingJob
-                    | Error::TooLarge
+                    | Error::TooLarge(_)
                     | Error::Empty
                     | Error::Full
                     | Error::Exists
@@ -214,7 +214,7 @@ pub(super) fn read_ended(d: &mut Domain, env: &Env<Limits>, owner: Token, result
             | Error::Forbidden
             | Error::Missing
             | Error::MissingJob
-            | Error::TooLarge
+            | Error::TooLarge(_)
             | Error::Empty
             | Error::Full
             | Error::Exists

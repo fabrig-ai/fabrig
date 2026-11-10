@@ -111,10 +111,9 @@ fn settle_starts_no_listing_poll_or_find() {
     // An independently kept branch has its poll due when the stop arrives.
     let mut kept = Kept::new();
     kept.keep(Box::new([watch(branch(), false)]));
-    kept.clock();
     let read = kept.one();
     kept.answer(read, Answer::Commit([1; 32]));
-    kept.fire(105);
+    kept.fire(160);
     assert!(kept.domain.is_ready());
     kept.event(Event::Settle);
     assert!(kept.send().is_none(), "a due poll starts no call");
@@ -187,16 +186,7 @@ fn settling_keeps_a_reviews_proving_find_and_an_updates_comparison() {
     update.answer(verify, Ok(Answer::Pull(pull([3; 32]))));
     assert_eq!(update.settled, None);
     let compare = update.one();
-    update.answer(
-        compare,
-        Ok(Answer::Compare {
-            before: [3; 32],
-            after: [2; 32],
-            contains_before: false,
-            files: Box::new([]),
-            commits: Box::new([]),
-        }),
-    );
+    update.answer(compare, Ok(Answer::Commits { commits: Box::new([]), more: false }));
     assert_eq!(update.settled.as_deref(), Some([].as_slice()));
     assert_eq!(update.writes, 1);
 }

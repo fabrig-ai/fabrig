@@ -195,7 +195,7 @@ and no policy. Every type is a plain value.
 
 ### 3.2 The calls
 
-24 reads and 18 writes, in families. Each call has one answer.
+25 reads and 18 writes, in families. Each call has one answer.
 
 | Family | Calls | Answer |
 |---|---|---|
@@ -206,7 +206,7 @@ and no policy. Every type is a plain value.
 | CI | `Statuses`, `Checks`, `Job` | `Statuses`; `Checks`; `Job` |
 | Actions | `Runs`, `Run`, `Artifact`; `Dispatch`, `Rerun` | `Runs`; `Run`; `File`; `Done`; `Done` |
 | Branches | `Branch`, `Branches`, `Commits` | `Commit`; `Branches`; `Commits` |
-| Contents | `PullFiles`, `Compare`, `File`, `Tree` | `PullFiles`; `Compare`; `File`; `Tree` |
+| Contents | `PullFiles`, `Compare`, `Range`, `File`, `Tree` | `PullFiles`; `Compare`; `Range`; `File`; `Tree` |
 | The repository | `Protection`, `Settings`, `Collaborators`, `Permission` | the same names |
 | Creations | `CreateIssue` (keyed), `OpenPull` | `Created` |
 | Labels | `Labels`, `CreateLabel` | `Done`; `Done` or `Exists` |
@@ -223,6 +223,20 @@ and no policy. Every type is a plain value.
   `OpenPull` takes none.
 - **`PullFor { head, base }`** asks for the open pull request of a head
   and a base, else the oldest.
+- **`Item { number, after, since }`** asks for an item and its comments
+  with ids above `after`. `since` is a time at or before the update of
+  every comment above `after`, which the dialect sends as its forge's own
+  filter so that the forge sends fewer; 0 sends none. `after` stays the
+  answer's check (3.7): a comment at or below it that the forge still
+  sends is skipped. An owner that knows no such time sends 0.
+- **`Range { before, after }`** counts the commits after `before` up to
+  `after`, those `after` holds and `before` lacks, and lists none: no
+  commit, no file, no side. It is the read of containment and of
+  emptiness: `before` contains `after` exactly when it counts 0, so an
+  owner asking whether a head holds a base's tip asks
+  `Range { before: head, after: tip }`, and one asking whether a range
+  is empty asks `Range` over it. Its answer holds no list, so no range is
+  too long for it.
 - **`Job { attempt, max_bytes, part }`** asks for one part of one job
   attempt's log: `End`, the end of its failed step's log, or of its
   whole log when no step failed; or `Start`, the first bytes of its
@@ -275,6 +289,14 @@ and no policy. Every type is a plain value.
 - **`Commits { before, after, page }`** lists the commits after
   `before` up to `after`, oldest first, each its id, its parents and its
   message, in pages from 1.
+- **`Compare { before, after }`** compares two commits by names and
+  counts alone: the paths changed from their merge base to `after`, and
+  the commits each has that the other lacks, so whether `after` contains
+  `before`. It carries no file's contents and lists no commit. A reader
+  that asks only whether one commit contains another reads the ancestry
+  range instead, `Commits { before: container, after: contained, page: 1
+  }`, complete and empty; one that needs a file's contents reads it by
+  path at each commit (`File`).
 - **`Tree { object, page }`** reads one tree, not recursively: a
   commit's root tree, or a tree by its id, as its parent's entry names
   it. Each entry is a name, a mode, a kind and an object id, in name
@@ -282,11 +304,14 @@ and no policy. Every type is a plain value.
 
 ### 3.3 The answers
 
-29 answers: `Located`, `Items`, `Item`, `Pull`, `Reviews`, `Statuses`,
-`Remarks`, `Commit`, `Branches`, `Commits`, `PullFiles`, `Compare`, `Checks`,
-`Job`, `File`, `Tree`, `Runs`, `Run`, `Protection`, `Settings`,
+30 answers: `Located`, `Items`, `Item`, `Pull`, `Reviews`, `Statuses`,
+`Remarks`, `Commit`, `Branches`, `Commits`, `PullFiles`, `Compare`, `Range`,
+`Checks`, `Job`, `File`, `Tree`, `Runs`, `Run`, `Protection`, `Settings`,
 `Collaborators`, `Permission`, `Created`, `Commented`, `Reviewed`,
 `Merged`, `Queued`, `Branch`, `Done`.
+
+- **`Range { before, after, commits }`** carries its call's `before` and
+  `after` and the count, `commits`, a `u64`.
 
 - **A paged answer says whether more follows** (`more`): `Items`,
   `Item` (its comments), `Reviews`, `Statuses`, `Remarks`, `PullFiles`
@@ -301,6 +326,15 @@ and no policy. Every type is a plain value.
   follows.
 - **`Pull` answers both `Pull` and `PullFor`;** the `Commit` answer is a
   branch's tip.
+- **`Compare`** carries `ahead`, the commits `after` has that `before`
+  lacks; `behind`, those `before` has that `after` lacks, 0 when `after`
+  contains `before`; `files`, the changed paths in the forge's order, as
+  many as the answer holds, at most `rows` within `answer_bytes`; and
+  `changed`, how many files changed in all, so that `changed` past
+  `files`' length says how many it left out. A comparison is refused for
+  neither the paths it leaves out nor its commits, so two branches
+  however far apart compare, unless the forge cuts its own listing
+  (forge-github.md, 4.1).
 - **`Queued` is final for its call.** It answers `Merge` alone, and
   says the merge is the queue's now: neither a merge nor a refusal. The
   client keeps the write open until a read finds the pull request merged
@@ -314,10 +348,13 @@ and no policy. Every type is a plain value.
     seconds since the epoch. The client's budget takes it in place of
     its configured window (forge-client.md, section 6). Forgejo's
     answers carry none.
-  - **`Validator`,** a read's validator (an `ETag`), at most 128
-    printable bytes (`VALIDATOR_BYTES`). A read sent with one that the
-    forge answers `304` is answered as not modified, at no cost
-    (`free`). Forgejo's dialect sends none.
+  - **`Validator`,** a read's validator (an `ETag`, or a
+    `Last-Modified`), at most 128 printable bytes (`VALIDATOR_BYTES`).
+    A read sent with one that the forge answers `304` is answered from
+    the answer the component kept, counted in `free`
+    (forge-connection.md, 4.6). Both dialects send them on every read;
+    Forgejo sends an `ETag` on a file's raw read and none on a branch's
+    JSON, and a read with none kept is sent as before.
 
 ### 3.4 The errors
 
@@ -332,7 +369,7 @@ and no policy. Every type is a plain value.
 | `Forbidden` | the writer lacks the permission (a bad or lacking credential included) |
 | `Missing` | the object is absent |
 | `MissingJob` | the job attempt is absent, or is no longer the attempt asked for |
-| `TooLarge` | a request or an answer passes a bound |
+| `TooLarge(Excess)` | a request or an answer passes a bound, which it names with the size met |
 | `Empty` | the write has no content |
 | `Full` | the forge has no room for the write (a quota) |
 | `Exists` | the object already exists |
@@ -361,6 +398,26 @@ and no policy. Every type is a plain value.
 - **`Timeout` is the error that leaves a write's outcome unknown.** The
   client finds the outcome by the write's key, or by reading
   (forge-client.md, section 7).
+- **`TooLarge` names its bound and its size,** as `Excess { bound,
+  limit, size, exact }`, a plain value:
+  - `bound`, a `Bound`: `OpBytes`, `AnswerBytes` or `Rows`, the client's
+    own configured bounds (forge-client.md, 2.2 and 2.3), passed by a
+    call's bytes, an answer's bytes by the measure (3.7), or an answer's
+    longest list; `Forge`, a bound of the dialect's, the component's or
+    the forge's own: a body past `body_bytes_in`, a string past
+    `string_bytes`, a listing the forge cuts, a count past the
+    vocabulary's width; `Unnamed`, where the check kept no figure.
+  - `limit`, the bound's figure, and `size`, what was met, both in the
+    bound's unit, bytes or rows. Both are 0 for `Unnamed`, and for a
+    `Forge` bound whose figure the check does not hold.
+  - `exact`: `size` is the whole's, measured; otherwise it is a lower
+    bound, what had been read when the bound stopped the read.
+
+  So `size` less `limit` says by how much, at least. A call's
+  `max_bytes` past `answer_bytes` is `AnswerBytes`, its `size` the
+  `max_bytes` asked. A dialect names the client's bound where its own
+  check is the client's figure (the answer's bytes left for a file's
+  side, a page's rows), and `Forge` or `Unnamed` otherwise.
 
 ### 3.5 The hint
 
@@ -462,13 +519,14 @@ body the forge keeps changes (5.3).
 
   | Call | An answer fits when |
   |---|---|
-  | any | it has the shape in 3.2's table; a read's answer past `answer_bytes` or `rows` is `TooLarge`, a write's `InvalidAnswer`, a lost answer (forge-client.md, 7.4); any other mismatch is `InvalidAnswer` |
+  | any | it has the shape in 3.2's table; a read's answer past `answer_bytes`, or with a list past `rows` but `Branches`' names, is `TooLarge`, naming the bound with the answer's exact measure (3.4), a write's `InvalidAnswer`, a lost answer (forge-client.md, 7.4); any other mismatch is `InvalidAnswer` |
   | `Items` | `updated` never decreases; rows of one time rise strictly by number; numbers are nonzero and unique; each row's kind is the call's, when it names one |
   | `Item` | the number is the call's; comment ids rise strictly and are above `after` |
   | `Reviews` | ids rise strictly |
   | `Pull`, `PullFor` | the number is the call's; for `PullFor`, the head and base are the call's |
   | `PullFiles` | the head is the call's |
-  | `Compare` | `before` and `after` are the call's |
+  | `Compare` | `before` and `after` are the call's, and `files` holds at most `changed` paths |
+  | `Range` | `before` and `after` are the call's |
   | `Checks` | each job's head is the call's commit |
   | `Job` | the attempt is the call's, and the log is within `max_bytes` |
   | `Runs` | each run's workflow and commit are the call's; ids are unique |
@@ -495,12 +553,15 @@ body the forge keeps changes (5.3).
   | a `Run` | 128 |
   | a `RunJob`, an `Entry` | 64 |
   | an input | 32 |
-  | a `Collaborator`; a string in a list (a label, a branch, a context) | 16 |
+  | a `Collaborator`; a string in a list (a label, a branch, a context, a compared path) | 16 |
   | an id in a list (a reviewer) | 8 |
 
   Each width is at least its type's size on the target, asserted when
   the crate is built, so the measure bounds memory and is one on every
-  target. A row count is no part of it: `rows` is checked beside it.
+  target. A row count is no part of it: `rows` is checked beside it, on
+  every list but `Branches`' names, which are small and bounded by their
+  bytes alone, each its width and its length (5.2). `Range` holds no
+  list, and measures 0.
   The page size (5.1), the client's checks (forge-client.md, section 2.3)
   and the component's limits (forge-connection.md, section 7) all use
   it.
@@ -781,8 +842,16 @@ sections 4.3 and 4.5, list them.
   more after it when it came full, or when Forgejo says so (`X-HasMore`
   on a pull request's files). A combined status's `state` and
   `total_count` are the page's, not the commit's (Forgejo 17 computes
-  them over the page asked for), so neither is a verdict or a count:
-  its pages are read until one comes short, and folded.
+  them over the page asked for), so a status listing has more after it
+  when its page came full, never by its `total_count`. A first page
+  that comes short holds every status of the commit, so its `state`,
+  each context's latest folded by Forgejo, is the commit's verdict, read
+  as 5.2's notes on CI map it: a read that needs the verdict alone
+  (`Pull`'s) takes it from that page, and reads and folds every page
+  only when the first came full. A `warning` state is the one exception:
+  Forgejo may rank it above a pending context, so a short page whose
+  `state` is `warning` has its own rows folded, which the read keeps
+  folding as they stream, keeping none.
   Listings Forgejo does not page are read whole and cut as they stream.
 - **Users by id.** The vocabulary names people by their forge user id;
   the API names them by login in paths and bodies. The component keeps
@@ -798,17 +867,18 @@ first failure, but where a row says otherwise.
 | Call | Requests | Answer from |
 |---|---|---|
 | `Read::Items { since, page, kind }` | `GET R/issues?state=all&type=issues\|pulls&since=<since>&sort=leastupdate&page=<page>&limit=<size>`, `type` only with a kind | each row a `Summary` (5.3): `number`; a `pull_request` object makes it a pull; `state`; `user.id`; `labels[].name`, for display; `updated_at`; `title`; `body` and its key; `more` when the page came full; `now` from `Date` |
-| `Read::Item { number, after }` | `GET R/issues/<number>`; `GET R/issues/<number>/comments` (unpaged) | the issue as a `Summary`; its comments with ids above `after`, oldest first, as many as the answer holds (5.3): `id`, `user.id`, `created_at`, `body` and its key, its provenance and revision; `more` when one is left |
-| `Read::Pull { number }` | `GET R/pulls/<number>`; then `Read::Checks`' status pages for `head.sha`, every page | `number`; `state`; `head.ref`, `base.ref`; `head.sha` as `commit`; `base.sha` as `base_commit`, none when empty; `merge_commit_sha` when `merged`; `mergeable`; `requested_reviewers[].id`; CI folded from every context's latest status, as `Checks` folds them, never a page's combined `state` |
-| `Read::PullFor { head, base }` | `GET R/pulls/<base>/<head>`; when it names a pull request that is not open, `GET R/pulls?state=open&sort=oldest&page=<n>&limit=<size>` from page 1, until a row has the head and base or a page comes short; then the status read, as `Pull`, of the pull request answered | the open pull request for the head and base, else the one the lookup named; as `Pull` |
+| `Read::Item { number, after, since }` | `GET R/issues/<number>`; `GET R/issues/<number>/comments?since=<since>` (unpaged), `since` only when not 0 | the issue as a `Summary`; its comments with ids above `after`, oldest first, as many as the answer holds (5.3): `id`, `user.id`, `created_at`, `body` and its key, its provenance and revision; `more` when one is left |
+| `Read::Pull { number }` | `GET R/pulls/<number>`; then `Read::Checks`' status pages for `head.sha`, from page 1, until one comes short, with none of its job reads | `number`; `state`; `head.ref`, `base.ref`; `head.sha` as `commit`; `base.sha` as `base_commit`, none when empty; `merge_commit_sha` when `merged`; `mergeable`; `requested_reviewers[].id`; CI the first page's combined `state` when that page came short and its `state` is not `warning` (5.1); else folded from every context's latest status over every page, as `Checks` folds them, no row kept |
+| `Read::PullFor { head, base }` | `GET R/pulls/<base>/<head>`; when it names a pull request that is not open, `GET R/pulls?state=open&head=<head>&base=<base>&sort=oldest&page=<n>&limit=<size>` from page 1, until a row has the head and base or a page comes short; then the status read, as `Pull`, of the pull request answered | the open pull request for the head and base, else the one the lookup named; as `Pull` |
 | `Read::Reviews { number, page }` | `GET R/pulls/<number>/reviews?page=<page>&limit=<size>` | submitted reviews, oldest first: `id`, `user.id`, `state` as the verdict, `commit_id`, `body` and its key, `submitted_at` as `at`, `official`, provenance and revision; `more` when the page came full |
-| `Read::Statuses { commit, page }` | `GET R/commits/<commit>/status?page=<page>&limit=<size>`; for each status whose link names a run of this repository's Actions, the job resolved as `Checks` resolves it | each context's latest status on the page: `updated_at`, `context`, `status`, `description`, `target_url` as its link (links are absolute, below), its `job` as for `Checks`; `more` when the page came full; the page's own `state` is not CI (5.1) |
+| `Read::Statuses { commit, page }` | `GET R/commits/<commit>/status?page=<page>&limit=<size>`; for each status whose link names a run of this repository's Actions, the job resolved as `Checks` resolves it | each context's latest status on the page: `updated_at`, `context`, `status`, `description`, `target_url` as its link (links are absolute, below), its `job` as for `Checks`; `more` when the page came full, never by `total_count` (5.1); `ci` the page's combined `state` and `total_count`, the commit's verdict only on a first page that came short (5.1) |
 | `Read::Remarks { number, review, page }` | `GET R/pulls/<number>/reviews/<review>/comments` (unpaged) | the `page`th slice of `<size>`, cut as it streams: `id`, `user.id`, `path`, `position` as `line`, `body`; `more` when a comment follows the slice |
 | `Read::Branch { branch }` | `GET R/branches/<branch>` | `commit.id` |
-| `Read::Branches { prefix }` | `GET R/git/refs/heads/<prefix>` | branch names from matching `refs/heads/` refs; no matches (`404`) gives an empty list and keeps the repository row; past the matching answer's bound, `TooLarge` |
+| `Read::Branches { prefix }` | `GET R/git/refs/heads/<prefix>` | branch names from matching `refs/heads/` refs, as many as `answer_bytes` holds by the measure (3.7), with no row bound; no matches (`404`) gives an empty list and keeps the repository row; matching names past `answer_bytes`, `TooLarge` |
 | `Read::PullFiles { number, head, page }` | `GET R/pulls/<number>`; `GET R/pulls/<number>/files?page=<page>&limit=<size>`; for each file, `GET R/raw/<path>?ref=<merge_base>` (but for `added`; at `previous_filename` for `renamed`) and `GET R/raw/<filename>?ref=<head>` (but for `deleted`) | `head`; each file's `filename` with its contents at the merge base and at the head, a side absent when the file's `status` says so or its read answers `404`; `more` from `X-HasMore`; a `head.sha` other than `head` fails the call `Stale` before any file is read |
-| `Read::Compare { before, after }` | `GET R/compare/<before>...<after>?verification=false`; `GET R/compare/<after>...<before>?files=false&verification=false`; for each file, `GET R/raw/<filename>?ref=<before>` and `?ref=<after>` | `files[].filename` with its contents at `before` and at `after`, a side absent when its read answers `404`; `commits[].sha`; `contains_before` when the second comparison's `total_commits` is 0; the whole comparison within the answer's bound, or `TooLarge` |
-| `Read::Checks { commit }` | `GET R/commits/<commit>/status?page=<n>&limit=<size>`, every page; for each status whose link names a run of this repository's Actions, pending, passed or failed: `GET R/actions/runs?head_sha=<commit>&run_number=<n>&page=1&limit=1`, then `GET R/actions/runs/<id>/jobs` | each context's latest status as for `Statuses`, its `job` the commit, the run's `id`, the job's `id` and its `attempt` when found, none otherwise: the link's index of the job in its run is never taken for the job's `id` |
+| `Read::Compare { before, after }` | `GET R/compare/<before>...<after>?verification=false`; `GET R/compare/<after>...<before>?files=false&verification=false` | `files[].filename`, in Forgejo's order, kept while they fit `rows` and what is left of the answer's bound, and each counted in `changed`; `ahead`, the first comparison's `total_commits`, and `behind`, the second's; no commit's id and no file's side is kept or read |
+| `Read::Range { before, after }` | `GET R/compare/<before>...<after>?files=false&verification=false` | `total_commits` as `commits`; the `commits` list skipped as it streams, none of it kept |
+| `Read::Checks { commit }` | `GET R/commits/<commit>/status?page=<n>&limit=<size>`, every page; for each run the statuses' links name, pending, passed or failed, once, in the order its first status comes: `GET R/actions/runs?head_sha=<commit>&run_number=<n>&page=1&limit=1`, then `GET R/actions/runs/<id>/jobs`; every status linking to that run takes its job from that one list | each context's latest status as for `Statuses`, its `job` the commit, the run's `id`, the job's `id` and its `attempt` when found, none otherwise: the link's index of the job in its run is never taken for the job's `id` |
 | `Read::Job { attempt, max_bytes, part }` | `GET R/actions/runs/<run>`; `GET R/actions/jobs/<job>`; `GET R/actions/jobs/<job>/logs?attempt=<attempt>&step=<number>` with `Range: bytes=-<max_bytes>`, `step` the failed step's, absent when no step failed; for `Start`, `GET R/actions/jobs/<job>/logs?attempt=<attempt>` with `Range: bytes=0-<max_bytes − 1>` and no `step` | the failed step, its `number` and `name` (5.3), none when no step failed; for `End`, the last `max_bytes` bytes of that step's log, or of the job's whole log when no step failed, `truncated` when `Content-Range` names bytes before them; for `Start`, the job's whole log's first `max_bytes` bytes, `truncated` when `Content-Range` names bytes after them; `MissingJob` when a read answers `404`, the run's `commit_sha` is not the attempt's head, or the job's `run_id` or `attempt` is not the attempt's |
 | `Read::File { head, path, max_bytes }` | `GET R/raw/<path>?ref=<head>` with `Range: bytes=0-<max_bytes>` | the first `max_bytes` bytes; `truncated` when more came |
 | `Read::Protection { branch }` | `GET R/branches/<branch>`; then `GET R/branch_protections/<effective_branch_protection_name>` when it names a rule, or `GET R/branch_protections` when it names none | `rule_name`, `status_check_contexts` when `enable_status_check`, `required_approvals`, `dismiss_stale_approvals`, `require_signed_commits`; none when no rule applies; a `403` (a writer who is not an admin) `Forbidden` |
@@ -830,7 +900,7 @@ first failure, but where a row says otherwise.
 | `Write::Update { number, style }` | `POST R/pulls/<number>/update?style=merge\|rebase` | `Done` |
 | `Write::Status { commit, context, check, description, link }` | `POST R/statuses/<commit>` `{state: pending\|success\|failure, context, description, target_url}`, the last two only when not empty | `Done` |
 | `Read::Tree { object, page }` | `GET R/git/trees/<object>?page=<page>&per_page=<size>` | each entry's `path` as its name, `mode`, `type` (`blob`, `tree`, `commit`) and `sha`, in git's order; `more` when the page came full (Forgejo's `truncated` stays true on a short last page, so it is not read); a `tree` of `null` past the last page is an empty page |
-| `Read::Runs { workflow, commit, page }` | `GET R/actions/runs?head_sha=<commit>&page=<page>&limit=<size>` (Forgejo ignores a `workflow` filter, so the dialect keeps the rows whose workflow file is the call's) | each run as a `Run` without its jobs, newest first, its event from `trigger_event`, its user from `trigger_user.id`, made at `created`; `more` when the provider's page came full, counted on its rows before the dialect's filter |
+| `Read::Runs { workflow, commit, page }` | `GET R/actions/runs?workflow_id=<workflow>&head_sha=<commit>&page=<page>&limit=<size>` (the dialect still keeps only the rows whose workflow file is the call's, so a forge that ignores the filter answers the same) | each run as a `Run` without its jobs, newest first, its event from `trigger_event`, its user from `trigger_user.id`, made at `created`; `more` when the provider's page came full, counted on its rows before the dialect's filter |
 | `Read::Run { run }` | `GET R/actions/runs/<run>`; `GET R/actions/runs/<run>/jobs`; for each failed job, `GET R/actions/jobs/<job>` for its steps | the `Run` with its jobs and each failed job's failed step (5.2's notes, "A failed job's log") |
 | `Read::Artifact { run, name, max_bytes }` | `GET R/actions/runs/<run>/artifacts?name=<name>`; `GET R/actions/artifacts/<id>/zip` | the archive's one entry, inflated where deflated, its first `max_bytes` bytes; `truncated` when more came; `Missing` when no artifact has the name; `Refused` for an archive of several entries or another compression |
 | `Read::Commits { before, after, page }` | `GET R/compare/<before>...<after>?files=false&verification=false`, its `commits` from the page's offset | each commit's `sha`, `parents[].sha` and `commit.message`, oldest first; `more` when a page's worth is left. Forgejo lists them newest first, so a range longer than the answer's rows and bytes hold keeps its oldest commits, as many as they hold, giving up the newest as older ones come; a page those hold whole is answered, with `more`, and a page they don't, or a range whose oldest commit alone passes the answer, is `TooLarge` |
@@ -841,7 +911,9 @@ first failure, but where a row says otherwise.
 
 `Branches` requires a nonempty prefix bounded like a branch name. An empty
 prefix ends with `Error::Empty` before repository resolution or any GET.
-Only matching names count against the row and answer-byte bounds.
+Only matching names count against the answer-byte bound, and no row
+bound applies to them: a name is small, so a prefix's names are as many
+as `answer_bytes` holds (3.7).
 
 Notes on the table:
 
@@ -858,10 +930,13 @@ Notes on the table:
   forge answers the same way (fake-forge.md, section 4), and section 9
   names the real one's facts.
 - **An item's comments are not paged by Forgejo.** The call reads the
-  whole thread, keeps the comments with ids above `after` as the answer
-  holds them, and skips the rest as they stream, bodies unread; the next
-  call names the last comment kept as its `after`. Section 12 weighs
-  long threads.
+  thread Forgejo sends, keeps the comments with ids above `after` as the
+  answer holds them, and skips the rest as they stream, bodies unread;
+  the next call names the last comment kept as its `after`. Forgejo
+  filters the thread by `since`, sending only comments updated at or
+  after it, so a thread read again with the owner's `since` (3.2) sends
+  what changed since, not the whole thread; a comment at or below
+  `after` that it still sends, one edited since, is skipped as before.
 - **Issues and pull requests share one numbering,** so an `Item` read of
   a pull request is its conversation, and `Edit`, `Close` and `Reopen`
   are the issue routes for both.
@@ -879,9 +954,12 @@ Notes on the table:
   alone, never from a history of runs. `Checks` and each requested
   `Statuses` page resolve every status whose link names a run of the
   repository's Actions, pending, passed or failed, to the run's and the
-  job's API ids and the job's attempt, two requests per such status; an
-  unresolved link names no job, and a link's index of the job in its run
-  is never taken for its id. `Pull`'s CI fold resolves none.
+  job's API ids and the job's attempt, two requests per run the call's
+  statuses link to, made once: the statuses of one run, one per job,
+  take their jobs from the one list read for it, and a run not found is
+  not asked again in the call. An unresolved link names no job, and a
+  link's index of the job in its run is never taken for its id. `Pull`'s
+  CI resolves none.
 - **Job attempts.** An Actions status links to its job's page,
   `<the path of the repository's html_url>/actions/runs/<run
   number>/jobs/<job index>`, relative to the forge's origin, as Forgejo
@@ -920,13 +998,13 @@ Notes on the table:
 - **Who posted a status is not carried.** A status written by Actions
   has no `creator`, and nothing in the vocabulary reads a status's
   poster: CI is read by context and state. `Status` has no author.
-- **Contents of a pull request's files and of a comparison** are read
-  file by file, two reads each, since the vocabulary carries each
-  changed file whole on both sides (`File`); the reads count in the
-  call's cost. A side that does not fit what is left of the answer's
-  bound fails the call as `TooLarge`. A comparison's files are
-  Forgejo's (from the two commits' merge base); their sides are read at
-  `before` and at `after`.
+- **Contents of a pull request's files** are read file by file, two
+  reads each, since the vocabulary carries each changed file whole on
+  both sides (`File`); the reads count in the call's cost. A side that
+  does not fit what is left of the answer's bound fails the call as
+  `TooLarge`. A comparison reads no file's contents: its files are
+  Forgejo's names, from the two commits' merge base, and a reader asks
+  for a file's contents by path (`File`).
 - **Merges.** `Do` is the repository's `default_merge_style`, kept with
   its path (forge-connection.md, section 4): the merge style is the
   repository's own. `head_commit_id` makes the merge conditional on the
@@ -941,12 +1019,15 @@ Notes on the table:
   (forge-client.md, 7.3).
 - **A pull request for a head and base.** Forgejo keeps at most one pull
   request open for a head and a base. Its lookup, `pulls/{base}/{head}`,
-  names one of several, the oldest (section 9), and its listing has no
-  head or base filter. So `PullFor` answers the open one: the lookup's,
-  or, when the lookup names one closed or merged, the row of the open
-  pull requests' listing whose `head.ref`, `head.repo_id` and `base.ref`
-  are the call's head, its repository and its base, every other row
-  skipped as it streams. With none open, it answers the one the lookup
+  names one of several, the oldest (section 9). So `PullFor` answers the
+  open one: the lookup's, or, when the lookup names one closed or
+  merged, the row of the open pull requests' listing whose `head.ref`,
+  `head.repo_id` and `base.ref` are the call's head, its repository and
+  its base, every other row skipped as it streams. The listing is asked
+  with the `head` and `base` filters, the call's branches, so Forgejo
+  sends the rows of those branches alone; the row check stays, so a
+  forge that ignores a filter answers the same, at a scan's cost
+  (section 9). With none open, it answers the one the lookup
   named. An owner that opens a pull request only when none exists for its
   branches, and reopens it when it was closed, follows the oldest, and
   the listing is read only when that one is closed or merged, or another
@@ -954,8 +1035,11 @@ Notes on the table:
   the call's deadline bounds them.
 - **Comparisons ask for what they keep.** Every comparison sends
   `verification=false`, since no commit's signature is read; one read
-  only for its `total_commits` (`OpenPull`'s, and `Compare`'s second)
-  also sends `files=false`, so Forgejo lists no commit's files.
+  only for its `total_commits` (`OpenPull`'s, `Range`'s and `Compare`'s
+  second) also sends `files=false`, so Forgejo lists no commit's files.
+  Forgejo still lists the range's commits, which such a read skips as
+  they stream: `Range` keeps nothing but the count, so containment and
+  emptiness cost one request and no file side, however long the range.
   `files=false` leaves the comparison's own `files` empty too (section
   9), so `Compare`'s first comparison, which keeps them, never sends it.
   The answer is decoded in the same way: what the call does not keep
@@ -1022,8 +1106,7 @@ Notes on the table:
   contents are read within what is left of `answer_bytes`: a file's
   after its path, a job's log after its step's name, so the answer never
   passes it. `File` and `Job` are cut there as at their `max_bytes`, and
-  say so (`truncated`); a side of `PullFiles` or `Compare` is never cut
-  (5.2).
+  say so (`truncated`); a side of `PullFiles` is never cut (5.2), and a comparison's names stop at the answer's bound, counted on in `changed`.
 - **Revisions.** A comment's or a review's revision is the first eight
   bytes, big-endian, of the SHA-256 of its whole body as the forge
   returns it, computed as the string streams past; for a body not kept,
@@ -1057,7 +1140,7 @@ Notes on the table:
   may have been done. It fails a read as `InvalidAnswer`. Either way the
   connection is closed, since what followed on it can no longer be
   trusted. A repository id past the vocabulary's 32 bits fails the call
-  as `TooLarge`.
+  as `TooLarge` (`Forge`, `limit` 4,294,967,295, `size` the id).
 
 ### 5.4 Failures
 
@@ -1088,7 +1171,7 @@ such a request costs nothing.
 | `409` on `Merge`, `head out of date` | `Stale` |
 | `409` on `Update`, `merge failed because of conflict` | `Conflict` |
 | a pull request's head other than `PullFiles` names | `Stale` |
-| an answer past the component's bounds | `TooLarge` on a read; `Timeout` on a write, which may have been done |
+| an answer past the component's bounds | `TooLarge` on a read, `Forge` with the bound and what was read where the component gives them, else `Unnamed`; `Timeout` on a write, which may have been done |
 | a write whose text is not UTF-8, which JSON cannot carry; nothing written | `Refused` |
 | any other `4xx` | `Refused` on a write; `InvalidAnswer` on a read |
 
@@ -1466,7 +1549,12 @@ on. What no run records yet has its own bullet, near the end.
   - that an issue's comments and a review's comments take no page and
     come whole however many there are (5.2, `Item` and `Remarks`);
   - that a job no runner took has no steps, and that its log, and a log
-    Forgejo no longer keeps, answer `404` (5.2, "A failed job's log").
+    Forgejo no longer keeps, answer `404` (5.2, "A failed job's log");
+  - that the open pull requests' listing honours `head` and `base`, an
+    issue's comments `since`, and the Actions runs' listing
+    `workflow_id` (5.2). Each narrows what Forgejo sends, and the
+    dialect's own row checks stay, so where one is ignored the answer is
+    the same and only its cost grows.
 - **Actions, trees and the turn, recorded** (Forgejo 17.0.1 and runner
   13.2.1, the conformance's `landings` facts: 24 hold, 7 recorded as
   failing and followed by the dialect and the fake): a dispatch answers
@@ -1600,19 +1688,13 @@ the suites (testing.md, section 6).
   is refused the same way (`skein-forge/src/forgejo/plans/commits.rs`); whether
   Forgejo answers one on a long range is unknown. Default: as they stand, until
   an answer shows a fault.
-- **Long threads, read whole.** Each `Item` read of a participating
-  object streams its whole thread, since Forgejo does not page comments.
-  Its timeline is paged (`issues/{n}/timeline?since&page&limit`) but
-  mixes every event with comments and pages by offset, which a deletion
-  shifts; or the component could send `since`, the creation time of
-  comment `after`, if the client named it. Default: the whole thread,
-  its cost in time, not memory.
 - **Dismissed reviews:** whether one counts as no verdict, or as the
   comment it was. Default: the comment it was.
-- **Contents on demand.** A pull request's files and a comparison cost
-  two reads per file, since `File` carries contents; an overlap needs
-  paths only. Default: contents always read, as the client asks; a read
-  of paths alone would be the client's to name.
+- **Contents on demand.** A pull request's files cost two reads per file,
+  since `File` carries contents; an overlap needs paths only. Default: a
+  pull request's contents always read, as the client asks; a comparison
+  reads names alone (3.2), and a pull request's paths alone would be
+  another read for the client to name.
 - **A file too large for the answer** fails its call as `TooLarge`.
   Default: so; a side cut with a mark would need `File` to carry one.
 - **Bodies past `body_bytes`** are carried empty. Default: so, the

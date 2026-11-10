@@ -114,7 +114,9 @@ fn read_op(read: &client::Read, l: &Limits) -> forge::Read {
             author: None,
             limit: l.rows,
         },
-        client::Read::Item { number, after } => forge::Read::Item { number: *number, after: *after },
+        client::Read::Item { number, after, since } => {
+            forge::Read::Item { number: *number, after: *after, since: Some(*since) }
+        }
         client::Read::Pull { number } | client::Read::Reviews { number, .. } | client::Read::Remarks { number, .. } => {
             forge::Read::Pull { number: *number }
         }
@@ -215,7 +217,7 @@ pub fn error(error: forge::Error, now: Time) -> client::Error {
             | forge::What::Page
             | forge::What::Review => client::Error::Missing,
         },
-        forge::Error::TooLarge => client::Error::TooLarge,
+        forge::Error::TooLarge => client::Error::TooLarge(skein_forge::api::Excess::unnamed()),
         forge::Error::Full => client::Error::Full,
         forge::Error::Exists | forge::Error::AlreadyQueued(_) => client::Error::Exists,
         forge::Error::Circular | forge::Error::Refused => client::Error::Refused,
@@ -302,17 +304,25 @@ pub fn answer(asked: &client::Op, answer: forge::Answer, l: &Limits) -> client::
         forge::Answer::PullFiles { head, files, more } => {
             client::Answer::PullFiles { head: commit(head), files: files_in(files), more }
         }
-        forge::Answer::Comparison { base, head, contains_base, files, commits, merge_base: _ } => {
-            let mut ids = List::with_capacity(u32::try_from(commits.len()).expect("bounded fake comparison"));
-            for id in commits {
-                ids.push(commit(id)).expect("comparison capacity");
+        forge::Answer::Comparison { base, head, ahead, behind, files, .. } => {
+            let changed = skein_lib::len_u64(files.len());
+            let mut paths = List::with_capacity(l.rows);
+            let mut size = 0u64;
+            for file in files {
+                let width = 16u64.saturating_add(skein_lib::len_u64(file.path.len()));
+                if paths.len() == l.rows || size.saturating_add(width) > u64::from(l.answer_bytes) {
+                    break;
+                }
+                size = size.saturating_add(width);
+                paths.push(file.path).expect("comparison rows checked");
             }
             client::Answer::Compare {
                 before: commit(base),
                 after: commit(head),
-                contains_before: contains_base,
-                files: files_in(files),
-                commits: ids.into_boxed(),
+                ahead,
+                behind,
+                changed,
+                files: paths.into_boxed(),
             }
         }
         forge::Answer::Checks(checks) => checks_answer(asked, checks),

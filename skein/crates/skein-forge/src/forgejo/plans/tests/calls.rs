@@ -46,11 +46,11 @@ pub(super) struct ReadCase {
     kept: bool,
     login: Option<&'static [u8]>,
 }
-pub(super) fn read_cases() -> [[ReadCase; 5]; 4] {
-    [find_cases(), review_cases(), content_cases(), repository_cases()]
+pub(super) fn read_cases() -> [Box<[ReadCase]>; 4] {
+    [find_cases(), Box::new(review_cases()), Box::new(content_cases()), Box::new(repository_cases())]
 }
-fn find_cases() -> [ReadCase; 5] {
-    [
+fn find_cases() -> Box<[ReadCase]> {
+    Box::new([
         ReadCase {
             name: "locate",
             read: Read::Locate { owner: Box::from(&b"fixture"[..]), name: Box::from(&b"specimen"[..]) },
@@ -76,7 +76,7 @@ fn find_cases() -> [ReadCase; 5] {
         },
         ReadCase {
             name: "item",
-            read: Read::Item { number: 1, after: 0 },
+            read: Read::Item { number: 1, after: 0 , since: Time::ZERO },
             replies: &[(200, REPOSITORY), (200, ISSUE), (200, b"[]")],
             expected: Ok(Answer::Item { item: summary(), comments: Box::new([]), more: false }),
             sends: &[
@@ -87,6 +87,22 @@ fn find_cases() -> [ReadCase; 5] {
             range: None,
             kept: true,
             login: None,
+        },
+        ReadCase {
+            name: "item comments since, including an edited older id",
+            read: Read::Item { number: 1, after: 1, since: Time::from_nanos(1_000_000_000) },
+            replies: &[(200, REPOSITORY), (200, ISSUE), (200, br#"[{"id":1,"user":{"id":2,"login":"writer"},"created_at":"1970-01-01T00:00:00Z","updated_at":"1970-01-01T00:00:02Z","body":"edited"},{"id":2,"user":{"id":2,"login":"writer"},"created_at":"1970-01-01T00:00:02Z","updated_at":"1970-01-01T00:00:02Z","body":"new"}]"#)],
+            expected: Ok(Answer::Item { item: summary(), comments: Box::new([api::Comment {
+                id: 2, author: 2, created: Time::from_nanos(2_000_000_000),
+                body: Box::from(*b"new"), key: None, provenance: api::Provenance::Original,
+                revision: super::super::reading::revision(&crate::forgejo::document::Body::Kept(Box::from(*b"new")), Some(skein_lib::Wall::from_nanos(2_000_000_000))),
+            }]), more: false }),
+            sends: &[
+                "GET /api/v1/repositories/1",
+                "GET /api/v1/repos/fixture/specimen/issues/1",
+                "GET /api/v1/repos/fixture/specimen/issues/1/comments?since=1970-01-01T00%3A00%3A01Z",
+            ],
+            range: None, kept: true, login: None,
         },
         ReadCase {
             name: "pull",
@@ -116,7 +132,7 @@ fn find_cases() -> [ReadCase; 5] {
             kept: true,
             login: None,
         },
-    ]
+    ])
 }
 fn review_cases() -> [ReadCase; 5] {
     [
@@ -194,13 +210,23 @@ fn content_cases() -> [ReadCase; 5] {
         ReadCase {
             name: "compare",
             read: Read::Compare { before: BASE, after: HEAD },
-            replies: &[(200, REPOSITORY), (200, EMPTY_COMPARE), (200, EMPTY_COMPARE)],
+            replies: &[(200, REPOSITORY), (200, LARGE_COMPARE), (200, REVERSE_COMPARE)],
             expected: Ok(Answer::Compare {
                 before: BASE,
                 after: HEAD,
-                contains_before: true,
-                files: Box::new([]),
-                commits: Box::new([]),
+                ahead: 22,
+                behind: 3,
+                changed: 12,
+                files: Box::new([
+                    Box::from(*b"a"),
+                    Box::from(*b"b"),
+                    Box::from(*b"c"),
+                    Box::from(*b"d"),
+                    Box::from(*b"e"),
+                    Box::from(*b"f"),
+                    Box::from(*b"g"),
+                    Box::from(*b"h"),
+                ]),
             }),
             sends: &[
                 "GET /api/v1/repositories/1",
@@ -398,7 +424,7 @@ fn listings() -> [Listing; 7] {
         (
             Read::PullFor { head: Box::from(&b"work"[..]), base: Box::from(&b"main"[..]) },
             &[CLOSED_PULL],
-            "pulls?state=open&sort=oldest&page=1&limit=",
+            "pulls?state=open&head=work&base=main&sort=oldest&page=1&limit=",
         ),
         (Read::Checks { commit: HEAD }, &[], "commits/0100000000000000000000000000000000000000/status?page=1&limit="),
     ]
@@ -436,21 +462,52 @@ fn read_plans_emit_escaped_targets_for_supplied_inputs() {
     skein_rows::check(
         [
             (
+                "pull_listing_branches_have_golden_targets",
+                (
+                    Read::PullFor { head: Box::from(&b"feat/x y"[..]), base: Box::from(&b"main/z &"[..]) },
+                    [CLOSED_PULL].as_slice(),
+                    [
+                        "GET /api/v1/repos/fixture/specimen/pulls/main%2Fz%20%26/feat%2Fx%20y",
+                        "GET /api/v1/repos/fixture/specimen/pulls?state=open&head=feat%2Fx%20y&base=main%2Fz%20%26&sort=oldest&page=1&limit=2",
+                    ].as_slice(),
+                ),
+            ),
+            (
                 "branch_slashes_have_golden_targets",
-                (Read::Branch { branch: Box::from(&b"a/b"[..]) }, "GET /api/v1/repos/fixture/specimen/branches/a%2Fb"),
+                (
+                    Read::Branch { branch: Box::from(&b"a/b"[..]) },
+                    [].as_slice(),
+                    ["GET /api/v1/repos/fixture/specimen/branches/a%2Fb"].as_slice(),
+                ),
             ),
             (
                 "far_future_times_have_golden_targets",
                 (
                     Read::Items { since: Time::from_nanos(u64::MAX), page: 1, kind: None },
-                    "GET /api/v1/repos/fixture/specimen/issues?state=all&since=2554-07-21T23%3A34%3A33Z&sort=leastupdate&page=1&limit=2",
+                    [].as_slice(),
+                    ["GET /api/v1/repos/fixture/specimen/issues?state=all&since=2554-07-21T23%3A34%3A33Z&sort=leastupdate&page=1&limit=2"].as_slice(),
+                ),
+            ),
+
+            (
+                "comments_escape_far_future_time",
+                (
+                    Read::Item { number: 1, after: 0, since: Time::from_nanos(u64::MAX) },
+                    [ISSUE].as_slice(),
+                    [
+                        "GET /api/v1/repos/fixture/specimen/issues/1",
+                        "GET /api/v1/repos/fixture/specimen/issues/1/comments?since=2554-07-21T23%3A34%3A33Z",
+                    ].as_slice(),
                 ),
             ),
         ],
-        |(read, target)| {
+        |(read, before, targets)| {
             let mut run = Run::known(Op::Read(read));
             run.begin();
-            run.assert_sent(&[target]);
+            for body in before {
+                run.answer(200, body);
+            }
+            run.assert_sent(targets);
         },
     );
 }
@@ -471,88 +528,53 @@ fn body_revisions_match_literal_big_endian_digest_goldens() {
     );
 }
 
+const LARGE_COMPARE: &[u8] = br#"{"total_commits":22,"commits":[{"sha":"not read"}],"files":[{"filename":"a","status":null},{"filename":"b"},{"filename":"c"},{"filename":"d"},{"filename":"e"},{"filename":"f"},{"filename":"g"},{"filename":"h"},{"filename":"i"},{"filename":"j"},{"filename":"k"},{"filename":"l"}]}"#;
+const REVERSE_COMPARE: &[u8] = br#"{"total_commits":3,"commits":null,"files":[]}"#;
 // Reconstructed from walk-103's measured shape: two commits, three paths, six rows.
 // The walk record does not contain the complete Forgejo response body.
 const REPEATED_COMPARE: &[u8] = br#"{"total_commits":2,"commits":[{"sha":"0200000000000000000000000000000000000000"},{"sha":"0100000000000000000000000000000000000000"}],"files":[{"filename":"a","status":"added"},{"filename":"a","status":"modified"},{"filename":"b","status":"renamed","previous_filename":"old"},{"filename":"b","status":"modified"},{"filename":"c","status":"deleted"},{"filename":"c","status":"modified"}]}"#;
-const COMPARE_SENDS: [&str; 8] = [
+const COMPARE_SENDS: [&str; 2] = [
     "GET /api/v1/repos/fixture/specimen/compare/0300000000000000000000000000000000000000...0100000000000000000000000000000000000000?verification=false",
     "GET /api/v1/repos/fixture/specimen/compare/0100000000000000000000000000000000000000...0300000000000000000000000000000000000000?files=false&verification=false",
-    "GET /api/v1/repos/fixture/specimen/raw/a?ref=0300000000000000000000000000000000000000",
-    "GET /api/v1/repos/fixture/specimen/raw/a?ref=0100000000000000000000000000000000000000",
-    "GET /api/v1/repos/fixture/specimen/raw/b?ref=0300000000000000000000000000000000000000",
-    "GET /api/v1/repos/fixture/specimen/raw/b?ref=0100000000000000000000000000000000000000",
-    "GET /api/v1/repos/fixture/specimen/raw/c?ref=0300000000000000000000000000000000000000",
-    "GET /api/v1/repos/fixture/specimen/raw/c?ref=0100000000000000000000000000000000000000",
 ];
-// Two 32-byte commits and three files, each 64 bytes plus a path and two one-byte sides.
-const COMPARE_BYTES: u32 = 265;
-const COMPARE_PATHS: u32 = 3;
-const COMPARE_COMMIT: api::Commit = {
-    let mut commit = [0; 32];
-    commit[0] = 2;
-    commit
-};
-const COMPARE_SIDES: [&[u8]; 6] = [b"a", b"A", b"b", b"B", b"c", b"C"];
-
 fn repeated_compare(bounds: crate::forgejo::plans::plan::Bounds) -> Step {
     let mut limits = fixtures::limits();
     limits.json.length = u32::try_from(REPEATED_COMPARE.len()).unwrap();
     let mut run = Run::with_limits(limits, bounds, Op::Read(Read::Compare { before: BASE, after: HEAD }));
     run.begin();
-    let step = run.answer(200, REPEATED_COMPARE);
-    if let Step::Done(_) = step {
-        return step;
-    }
-    run.answer(200, EMPTY_COMPARE);
-    for (index, body) in COMPARE_SIDES.into_iter().enumerate() {
-        run.assert_sent(&COMPARE_SENDS[..=index.saturating_add(2)]);
-        let step = run.answer(200, body);
-        if let Step::Done(_) = step {
-            return step;
-        }
-    }
-    panic!("comparison did not end after reading each endpoint once")
+    run.answer(200, REPEATED_COMPARE);
+    let terminal = run.answer(200, EMPTY_COMPARE);
+    run.assert_sent(&COMPARE_SENDS);
+    terminal
 }
-
-fn repeated_compare_answer() -> Step {
-    let files = Box::new([
-        api::File { path: Box::from(*b"a"), before: Some(Box::from(*b"a")), after: Some(Box::from(*b"A")) },
-        api::File { path: Box::from(*b"b"), before: Some(Box::from(*b"b")), after: Some(Box::from(*b"B")) },
-        api::File { path: Box::from(*b"c"), before: Some(Box::from(*b"c")), after: Some(Box::from(*b"C")) },
-    ]);
+fn repeated_compare_answer(kept: usize) -> Step {
+    let paths: &[&[u8]] = &[b"a", b"a", b"b", b"b", b"c", b"c"];
+    let mut files = skein_lib::List::with_capacity(6);
+    for path in paths.iter().take(kept) {
+        files.push(Box::from(*path)).unwrap();
+    }
     Step::Done(Ok(Answer::Compare {
         before: BASE,
         after: HEAD,
-        contains_before: true,
-        commits: Box::new([COMPARE_COMMIT, HEAD]),
-        files,
+        ahead: 2,
+        behind: 0,
+        changed: 6,
+        files: files.into_boxed(),
     }))
 }
 #[test]
 fn repeated_comparison_paths_obey_file_and_answer_byte_bounds() {
     skein_rows::check(
         [
-            ("compare_repeated_paths_reads_each_file_once: ordinary bounds", (BOUNDS, repeated_compare_answer())),
+            ("all names", (BOUNDS, repeated_compare_answer(6))),
             (
-                "compare_repeated_paths_reads_each_file_once: exact bounds",
-                (
-                    crate::forgejo::plans::plan::Bounds { rows: COMPARE_PATHS, answer_bytes: COMPARE_BYTES, ..BOUNDS },
-                    repeated_compare_answer(),
-                ),
+                "exact bytes",
+                (crate::forgejo::plans::plan::Bounds { answer_bytes: 102, ..BOUNDS }, repeated_compare_answer(6)),
             ),
+            ("past rows", (crate::forgejo::plans::plan::Bounds { rows: 5, ..BOUNDS }, repeated_compare_answer(5))),
             (
-                "compare_distinct_files_still_obey_answer_bounds: files",
-                (
-                    crate::forgejo::plans::plan::Bounds { rows: COMPARE_PATHS - 1, ..BOUNDS },
-                    Step::Done(Err(Error::TooLarge)),
-                ),
-            ),
-            (
-                "compare_distinct_files_still_obey_answer_bounds: bytes",
-                (
-                    crate::forgejo::plans::plan::Bounds { answer_bytes: COMPARE_BYTES - 1, ..BOUNDS },
-                    Step::Done(Err(Error::TooLarge)),
-                ),
+                "past bytes",
+                (crate::forgejo::plans::plan::Bounds { answer_bytes: 101, ..BOUNDS }, repeated_compare_answer(5)),
             ),
         ],
         |(bounds, expected)| assert_eq!(repeated_compare(bounds), expected),
@@ -619,7 +641,7 @@ fn refusals_match_status_and_whole_message() {
 #[test]
 fn first_failure_ends_the_plan() {
     for (factory, replies, sends) in first_failures() {
-        let mut run = factory(Op::Read(Read::Item { number: 1, after: 0 }));
+        let mut run = factory(Op::Read(Read::Item { number: 1, after: 0, since: Time::ZERO }));
         run.begin();
         for (status, body) in replies {
             run.answer(*status, body);

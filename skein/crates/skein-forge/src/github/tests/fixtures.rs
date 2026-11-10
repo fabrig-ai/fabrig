@@ -93,7 +93,7 @@ pub struct TargetCase {
     pub target: &'static [u8],
     pub raw: bool,
 }
-pub fn requests() -> [TargetCase; 25] {
+pub fn requests() -> [TargetCase; 27] {
     let owner: Box<[u8]> = Box::from(*b"o");
     let name: Box<[u8]> = Box::from(*b"n");
     let commit = super::super::id::commit(SHA).unwrap();
@@ -103,7 +103,9 @@ pub fn requests() -> [TargetCase; 25] {
         TargetCase { label:"locate",request:Request::Locate { owner:owner.clone(),name:name.clone() },target:b"/repos/o/n",raw:false },
         TargetCase { label:"issues",request:Request::Issues { owner:owner.clone(),name:name.clone(),since:wall(),page:2,per_page:20 },target:b"/repos/o/n/issues?state=all&since=2026-10-20T08%3A00%3A00Z&sort=updated&direction=asc&per_page=20&page=2",raw:false },
         TargetCase { label:"issue",request:Request::Issue { owner:owner.clone(),name:name.clone(),number:3 },target:b"/repos/o/n/issues/3",raw:false },
-        TargetCase { label:"comments",request:Request::Comments { owner:owner.clone(),name:name.clone(),number:3,page:2,per_page:20 },target:b"/repos/o/n/issues/3/comments?per_page=20&page=2",raw:false },
+        TargetCase { label:"comments",request:Request::Comments { owner:owner.clone(),name:name.clone(),number:3,page:2,per_page:20 , since: None },target:b"/repos/o/n/issues/3/comments?per_page=20&page=2",raw:false },
+        TargetCase { label:"comments since page 1",request:Request::Comments { owner:owner.clone(),name:name.clone(),number:3,since:Some(wall()),page:1,per_page:20 },target:b"/repos/o/n/issues/3/comments?since=2026-10-20T08%3A00%3A00Z&per_page=20&page=1",raw:false },
+        TargetCase { label:"comments since page 2",request:Request::Comments { owner:owner.clone(),name:name.clone(),number:3,since:Some(wall()),page:2,per_page:20 },target:b"/repos/o/n/issues/3/comments?since=2026-10-20T08%3A00%3A00Z&per_page=20&page=2",raw:false },
         TargetCase { label:"pull",request:Request::Pull { owner:owner.clone(),name:name.clone(),number:3 },target:b"/repos/o/n/pulls/3",raw:false },
         TargetCase { label:"open pulls",request:Request::PullsFor { owner:owner.clone(),name:name.clone(),head:Box::from(*b"b"),base:Box::from(*b"main"),open:true },target:b"/repos/o/n/pulls?state=open&head=o%3Ab&base=main&per_page=1",raw:false },
         TargetCase { label:"all pulls",request:Request::PullsFor { owner:owner.clone(),name:name.clone(),head:Box::from(*b"feat/x y"),base:Box::from(*b"main"),open:false },target:b"/repos/o/n/pulls?state=all&head=o%3Afeat%2Fx%20y&base=main&sort=created&direction=asc&per_page=1",raw:false },

@@ -538,18 +538,24 @@ fn write_inner_overflow_is_timeout() {
 
 #[test]
 fn read_inner_overflow_is_too_large() {
-    let mut run = bounded_run(Op::Read(Read::Item { number: ITEM_NUMBER, after: 0 }));
-    assert_eq!(run.answer(200, THREE_LABELS), Step::Done(Err(Error::TooLarge)));
+    let mut run = bounded_run(Op::Read(Read::Item { number: ITEM_NUMBER, after: 0, since: skein_lib::Time::ZERO }));
+    let Step::Done(Err(Error::TooLarge(_))) = run.answer(200, THREE_LABELS) else {
+        panic!("expected a typed size refusal");
+    };
     for read in [Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1 }, Read::Checks { commit: HEAD }] {
         let mut run = bounded_run(Op::Read(read));
-        assert_eq!(inner_overflow(&mut run), Some(Step::Done(Err(Error::TooLarge))));
+        let Some(Step::Done(Err(Error::TooLarge(_)))) = inner_overflow(&mut run) else {
+            panic!("expected a typed size refusal");
+        };
     }
 }
 
 #[test]
 fn open_pull_inner_overflow_is_too_large() {
     let mut run = bounded_run(Op::Write(write_cases::open_pull()));
-    assert_eq!(inner_overflow(&mut run), Some(Step::Done(Err(Error::TooLarge))));
+    let Some(Step::Done(Err(Error::TooLarge(_)))) = inner_overflow(&mut run) else {
+        panic!("expected a typed size refusal");
+    };
 }
 
 #[test]
@@ -568,8 +574,6 @@ const SHORT_RAW: &[u8] = b"abc";
 const FULL_RAW: &[u8] = b"abcd";
 const JOB_TAIL: &[u8] = b"bcd";
 const CHANGED_FILES: &[u8] = br#"[{"filename":"x","status":"changed","previous_filename":""}]"#;
-const CHANGED_COMPARE: &[u8] =
-    br#"{"total_commits":0,"commits":[],"files":[{"filename":"x","status":"changed","previous_filename":""}]}"#;
 fn raw_body(run: &mut Run, bytes: &[u8], more: bool) -> Option<Step> {
     run.hear(Heard::Head { status: 200, fields: fixtures::fields() });
     run.hear(Heard::Done(AnswerBody::Raw { bytes: Box::from(bytes), more }))
@@ -619,36 +623,34 @@ fn file_sides_past_remaining_room_are_too_large() {
     let answer_bytes =
         u32::try_from(crate::measure::FILE_BYTES.saturating_add(FILE_PATH.len()).saturating_add(SHORT_RAW.len()))
             .unwrap();
-    for (read, answers, sends) in side_cases() {
-        let mut run = Run::with(super::super::plan::Bounds { answer_bytes, ..BOUNDS }, Op::Read(read));
-        replies(&mut run, answers);
-        assert_eq!(run.answer(200, FULL_RAW), Step::Done(Err(Error::TooLarge)));
-        run.assert_sent(sends);
+    for (bytes, more) in [(FULL_RAW, false), (SHORT_RAW, true)] {
+        for (read, answers, sends) in side_cases() {
+            let mut run = Run::with(super::super::plan::Bounds { answer_bytes, ..BOUNDS }, Op::Read(read));
+            replies(&mut run, answers);
+            assert_eq!(
+                raw_body(&mut run, bytes, more),
+                Some(Step::Done(Err(Error::TooLarge(api::Excess::at_least(
+                    api::Bound::AnswerBytes,
+                    u64::from(answer_bytes),
+                    u64::from(answer_bytes).saturating_add(1)
+                )))))
+            );
+            run.assert_sent(sends);
+        }
     }
 }
 
 type SideCase = (Read, &'static [(u16, &'static [u8])], &'static [&'static str]);
-fn side_cases() -> [SideCase; 2] {
-    [
-        (
-            Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1 },
-            &[(200, PULL), (200, CHANGED_FILES)],
-            &[
-                "GET /api/v1/repos/fixture/specimen/pulls/1",
-                "GET /api/v1/repos/fixture/specimen/pulls/1/files?page=1&limit=2",
-                "GET /api/v1/repos/fixture/specimen/raw/x?ref=0300000000000000000000000000000000000000",
-            ],
-        ),
-        (
-            Read::Compare { before: fixtures::BASE, after: HEAD },
-            &[(200, CHANGED_COMPARE), (200, fixtures::EMPTY_COMPARE)],
-            &[
-                "GET /api/v1/repos/fixture/specimen/compare/0300000000000000000000000000000000000000...0100000000000000000000000000000000000000?verification=false",
-                "GET /api/v1/repos/fixture/specimen/compare/0100000000000000000000000000000000000000...0300000000000000000000000000000000000000?files=false&verification=false",
-                "GET /api/v1/repos/fixture/specimen/raw/x?ref=0300000000000000000000000000000000000000",
-            ],
-        ),
-    ]
+fn side_cases() -> [SideCase; 1] {
+    [(
+        Read::PullFiles { number: ITEM_NUMBER, head: HEAD, page: 1 },
+        &[(200, PULL), (200, CHANGED_FILES)],
+        &[
+            "GET /api/v1/repos/fixture/specimen/pulls/1",
+            "GET /api/v1/repos/fixture/specimen/pulls/1/files?page=1&limit=2",
+            "GET /api/v1/repos/fixture/specimen/raw/x?ref=0300000000000000000000000000000000000000",
+        ],
+    )]
 }
 
 // The asked id differs from the response's id; owner 2 is REPOSITORY's fixture owner.
@@ -717,25 +719,58 @@ fn branch_prefix_uses_one_refs_request_for_two_matches() {
 }
 
 #[test]
-fn branch_prefix_past_eight_matches_is_too_large() {
-    let mut run = Run::with(
-        crate::forgejo::plans::plan::Bounds { rows: 8, ..BOUNDS },
-        Op::Read(Read::Branches { prefix: Box::from(&b"temper/"[..]) }),
-    );
-    run.begin();
-    let length = br#"{"ref":"refs/heads/temper/0"}"#.len().checked_mul(9).unwrap().checked_add(10).unwrap();
-    let mut body = skein_lib::Writer::new(length);
-    body.put(b"[").unwrap();
-    for index in 0_u64..9 {
-        if index != 0 {
-            body.put(b",").unwrap();
+fn branch_prefix_matches_are_bounded_by_bytes_alone() {
+    // Each temper/NN name measures 16 bytes of storage and 9 of name.
+    for count in [9, 40] {
+        let mut names = skein_lib::List::with_capacity(count);
+        let row_bytes = br#"{"ref":"refs/heads/"#.len() + 9 + br#""}"#.len();
+        let length = usize::try_from(count).unwrap() * (row_bytes + 1) + 1;
+        let mut body = skein_lib::Writer::new(length);
+        body.put(b"[").unwrap();
+        for index in 0..count {
+            let mut name = skein_lib::Writer::new(9);
+            name.put(b"temper/").unwrap();
+            if index < 10 {
+                name.put(b"0").unwrap();
+            }
+            name.put(skein_lib::Decimal::of(u64::from(index)).as_bytes()).unwrap();
+            let name = name.finish();
+            if index != 0 {
+                body.put(b",").unwrap();
+            }
+            body.put(br#"{"ref":"refs/heads/"#).unwrap();
+            body.put(&name).unwrap();
+            body.put(br#""}"#).unwrap();
+            names.push(name).expect("fixture names");
         }
-        body.put(br#"{"ref":"refs/heads/temper/"#).unwrap();
-        body.put(skein_lib::Decimal::of(index).as_bytes()).unwrap();
-        body.put(br#""}"#).unwrap();
+        body.put(b"]").unwrap();
+        let names = names.into_boxed();
+        let body = body.finish();
+        let measured = count * 25;
+        for rows in [0, 8] {
+            for (answer_bytes, fits) in [(measured, true), (measured - 1, false)] {
+                let mut limits = fixtures::limits();
+                limits.json.length = u32::try_from(body.len()).unwrap();
+                let mut run = Run::with_limits(
+                    limits,
+                    crate::forgejo::plans::plan::Bounds { rows, answer_bytes, ..BOUNDS },
+                    Op::Read(Read::Branches { prefix: Box::from(&b"temper/"[..]) }),
+                );
+                run.begin();
+                let expected = if fits {
+                    Ok(Answer::Branches(names.clone()))
+                } else {
+                    Err(Error::TooLarge(api::Excess::at_least(
+                        api::Bound::AnswerBytes,
+                        u64::from(answer_bytes),
+                        u64::from(measured),
+                    )))
+                };
+                assert_eq!(run.answer(200, &body), Step::Done(expected), "{count} {rows} {answer_bytes}");
+                run.assert_sent(&["GET /api/v1/repos/fixture/specimen/git/refs/heads/temper%2F"]);
+            }
+        }
     }
-    body.put(b"]").unwrap();
-    assert_eq!(run.answer(200, &body.finish()), Step::Done(Err(Error::TooLarge)));
 }
 
 #[test]
@@ -801,7 +836,9 @@ fn read_rows_check_the_bound_before_keeping_and_keep_before_validation() {
         );
         run.begin();
         let row = Row::User(User { id: 7, login: Box::from(&b"writer"[..]), is_admin: false, full_name: Box::new([]) });
-        assert_eq!(run.hear(Heard::Row(row)), Some(Step::Done(Err(Error::TooLarge))));
+        let Some(Step::Done(Err(Error::TooLarge(_)))) = run.hear(Heard::Row(row)) else {
+            panic!("expected a typed size refusal");
+        };
         assert_eq!(run.tables().user(REPO.forge, 7), kept);
     }
 }

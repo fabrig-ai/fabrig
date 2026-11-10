@@ -2,24 +2,15 @@
 use super::{MISSING, replies, side_cases};
 use crate::api::{self, Answer, Error, Op, Read};
 use crate::forgejo::plans::plan::Step;
-use crate::forgejo::tests::fixtures::{self, ATTEMPT, BASE, HEAD, JOB, PAGE_SIZE, PULL, RAW_BYTES, REPO, RUN, Run};
+use crate::forgejo::tests::fixtures::{self, ATTEMPT, HEAD, JOB, PAGE_SIZE, PULL, RAW_BYTES, REPO, RUN, Run};
 use alloc::boxed::Box;
 use skein_lib::Time;
 
 const FAILING: &[u8] = br#"{"state":"failure","total_count":1,"statuses":[{"creator":null,"updated_at":"1970-01-01T00:00:00Z","context":"build","status":"failure","description":"failed","target_url":"/fixture/specimen/actions/runs/5/jobs/1"}]}"#;
 const RUNS: &[u8] = br#"{"total_count":1,"workflow_runs":[{"id":7,"index_in_repo":5,"commit_sha":"0100000000000000000000000000000000000000"}]}"#;
 
-fn side_answers(file: api::File) -> [Answer; 2] {
-    [
-        Answer::PullFiles { head: HEAD, files: Box::new([file.clone()]), more: false },
-        Answer::Compare {
-            before: BASE,
-            after: HEAD,
-            contains_before: true,
-            files: Box::new([file]),
-            commits: Box::new([]),
-        },
-    ]
+fn side_answers(file: api::File) -> [Answer; 1] {
+    [Answer::PullFiles { head: HEAD, files: Box::new([file.clone()]), more: false }]
 }
 fn failed_check() -> api::Status {
     api::Status {
@@ -79,11 +70,6 @@ fn redirect_drops_the_path() {
             "pull side",
             Read::PullFiles { number: 1, head: HEAD, page: 1 },
             &[(200, PULL), (200, super::CHANGED_FILES)][..],
-        ),
-        (
-            "compare side",
-            Read::Compare { before: BASE, after: HEAD },
-            &[(200, super::CHANGED_COMPARE), (200, fixtures::EMPTY_COMPARE)][..],
         ),
     ] {
         let mut run = Run::known(Op::Read(read));
@@ -193,7 +179,7 @@ fn branch_and_contents_404_keep_the_row() {
 
 #[test]
 fn repository_404_drops_the_row() {
-    for read in [Read::Settings, Read::Item { number: 1, after: 0 }] {
+    for read in [Read::Settings, Read::Item { number: 1, after: 0, since: Time::ZERO }] {
         let mut run = Run::known(Op::Read(read));
         run.begin();
         assert_eq!(run.answer(404, MISSING), Step::Done(Err(Error::Missing)));

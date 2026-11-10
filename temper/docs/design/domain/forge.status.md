@@ -37,6 +37,15 @@ world's `forge_routes::close_change`, `forge_routes::goal_closer` and
 `forge_routes::goal_closes` stories exercise the composed path with fake
 forge and job completions; they establish no deployment outcome.
 
+- **Not yet:** 5.2, by plan `forge-polls-quiet`: no `fallback`
+  reaches the client (`forge.client.fallback_ms`), and the landing's
+  and tiers' flights poll their runs every `poll`, not at `poll_at`.
+- **Not yet:** 5.9: a call answered ask at the bound, with no row past
+  its day, erases the project's rows older than 7 days without marking
+  `decided`, so its document lists them until the next mark
+  (`temper-engine-domain-forge/src/away.rs`, `decided`); no test holds
+  that branch's sweep.
+
 Section 11.1 has no known implementation gap in whole-goal child isolation:
 words-only calls and batch members use the nearest held goal branch,
 including callers in its subtree; an explicit destination outside it is
@@ -581,6 +590,12 @@ a change's merge job from the engine through its worker to the fake forge
   `tasks.message_bytes` and marked with `…`, as a question passed up is.
   This keeps the message within its admission bound, where the design says
   the answer's words are whole.
+- **Not yet:** 5.3, 8.5: containment is read as a commit list or a
+  comparison, not a `Range`: the change step's up-to-date and catch-up
+  ranges (`Read::Commits`, `temper-engine-domain-forge/src/domain.rs`,
+  `ancestry_status`), a landing member's main (`landing.rs`) and a lost
+  run's observed head (`domain.rs`, `lost_read`) (skein's `forge.md`,
+  3.2).
 - **Not yet:** 6: a `Flight` row whose entry the forge does not hold
   panics at its link, where the section refuses the start
   (`root.status.md`, 9.1).

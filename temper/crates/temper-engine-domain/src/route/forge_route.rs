@@ -803,8 +803,8 @@ fn describe_agent(
             return Err(why);
         }
     };
-    let name =
-        resource_name(adopted, &resource, env.limits.authority.segments).ok_or(skein_forge::api::Error::TooLarge)?;
+    let name = resource_name(adopted, &resource, env.limits.authority.segments)
+        .ok_or(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()))?;
     let form = match described.form {
         forge::EffectForm::Creation => EffectForm::Creation,
         forge::EffectForm::Transition => EffectForm::Transition,
@@ -4629,7 +4629,16 @@ fn step_dependents(domain: &mut Domain, env: &Env<Limits>, dependency: u64) {
                 && row.waiting_on.contains(&dependency)
                 && let tasks::Phase::Active(_) = row.phase
             {
-                domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+                if domain.core.tasks.procedure_due(task).is_some() {
+                    // An idle-only wake cannot refresh a step already reading its facts.
+                    let repository = change.repository;
+                    let base = change.base.clone();
+                    let Some(entry) = crate::fresh(&mut domain.core.counters, Family::ConnectorRow) else { return };
+                    let step = change_step(domain, env, task, entry, repository, &base, false);
+                    domain.work.push(Work::Forge(step));
+                } else {
+                    domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+                }
             }
         }
     }
@@ -5019,7 +5028,7 @@ pub(crate) fn outputs(
                 holds::hold_as(domain, task, tasks::Hold::EffectFailed, &words);
             }
             forge::Request::LostReadFailed { task, attempt, resource, reason } => {
-                let words = holds::lost_words(domain, task, attempt, &resource, reason);
+                let words = holds::lost_words(domain, task, attempt, &resource, &reason);
                 holds::hold_as(domain, task, tasks::Hold::ResourceUnavailable, &words);
             }
             forge::Request::NotMade { entry, task } => {
@@ -5457,7 +5466,7 @@ fn adoption_failure(error: skein_forge::api::Error) -> people::Outcome {
         | skein_forge::api::Error::Unavailable
         | skein_forge::api::Error::Timeout
         | skein_forge::api::Error::RateLimited { .. } => people::Outcome::Again(people::Again::Busy),
-        skein_forge::api::Error::TooLarge | skein_forge::api::Error::Full => {
+        skein_forge::api::Error::TooLarge(_) | skein_forge::api::Error::Full => {
             people::Outcome::Refused(people::Refusal::Limit { which: people::LimitKind::Resource })
         }
         skein_forge::api::Error::NotInstalled

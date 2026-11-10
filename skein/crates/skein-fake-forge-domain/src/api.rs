@@ -86,11 +86,13 @@ pub enum Read {
         page: u32,
         limit: u32,
     },
-    /// The item `number` and a page of its comments with ids above `after`.
+    /// The item `number` and a page of its comments with ids above `after`,
+    /// updated at or after `since` when given.
     /// Answered by [`Answer::Item`].
     Item {
         number: u64,
         after: u64,
+        since: Option<Time>,
     },
     /// The comment `id`. Answered by [`Answer::Comment`].
     Comment {
@@ -158,9 +160,10 @@ pub enum Read {
     Jobs {
         run: u64,
     },
-    /// The whole thread, oldest first.
+    /// The thread updated at or after `since` when given, oldest first.
     Comments {
         number: u64,
+        since: Option<Time>,
     },
     /// The oldest matching pull, open or not.
     FirstPull {
@@ -169,6 +172,8 @@ pub enum Read {
     },
     /// Open pulls, oldest first, paged from one.
     OpenPulls {
+        head: Option<Box<[u8]>>,
+        base: Option<Box<[u8]>>,
         page: u32,
         limit: u32,
     },
@@ -504,6 +509,8 @@ pub enum Answer {
         head: u64,
         /// Whether the requested base is an ancestor of the head.
         contains_base: bool,
+        ahead: u64,
+        behind: u64,
         files: Box<[ChangedFile]>,
         commits: Box<[u64]>,
     },

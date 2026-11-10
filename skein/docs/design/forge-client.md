@@ -18,7 +18,8 @@ rest.
   rows, progress and outcomes first, its calls after.
 - **A bounded working set** (section 3), refused whole past capacity,
   **kept up by listing,** sooner on a hint, which is a reason to read and
-  never a fact (section 4). **Fresh reads go first** (section 5).
+  never a fact, and less often while deliveries arrive (section 4).
+  **Fresh reads go first** (section 5).
 - **One request budget** (section 6): four classes share `rate` requests
   per `window`, never more than the forge says it has left, and a `304`
   costs nothing. A rate refusal holds them all until its reset.
@@ -85,13 +86,14 @@ construction: `pending` and `calls` (at most `pending`), `op_bytes` and
 `answer_bytes`; `rate`, `reserve` (at most `rate`) and `window`;
 `read_attempts`, `backoff` and `backoff_max` (at least `backoff`);
 `resources`, `repositories`, `rows` and `inbox`; `poll`, `poll_max` (at
-least `poll`), `hinted`, `slow` and `settle`; `entries`,
+least `poll`), `hinted`, `slow`, `settle` and `fallback`; `entries`,
 `write_attempts`, `lifetime` and `clock_margin`; `facts`.
 
 `valid(l)` refuses a zero limit except `op_bytes`, `answer_bytes`,
-`reserve`, `backoff_max`, `poll_max` and `facts`, and refuses a pair above
-out of order or an unrepresentable derived capacity. Operations,
-answers, pending calls, rows and kept facts retain their edge caps.
+`reserve`, `backoff_max`, `poll_max`, `fallback` and `facts`, and refuses
+a pair above out of order or an unrepresentable derived capacity.
+`fallback` 0 stretches no pace (4.1). Operations, answers, pending
+calls, rows and kept facts retain their edge caps.
 
 ### 2.3 Admission and answer checks
 
@@ -104,12 +106,13 @@ answers, pending calls, rows and kept facts retain their edge caps.
   string its length.
 - **An operation is admitted** when its bytes are at most
   `op_bytes`, its pages start at 1, a file's path is not empty and a
-  `max_bytes` is from 1 to `answer_bytes`; else it is `TooLarge`, with no
-  call.
+  `max_bytes` is from 1 to `answer_bytes`; else it is `TooLarge`, with no call: `OpBytes` with the operation's bytes,
+  or `AnswerBytes` with the `max_bytes` asked, both exact (forge.md, 3.4).
 - **An answer is checked** against its call before anyone takes it, by
-  forge.md, section 3.7's table. Past `answer_bytes` or `rows` it is
-  `TooLarge` for a read and, for a write, `InvalidAnswer`: a lost
-  answer, since the write may have been done (7.4, step 5). Any other
+  forge.md, section 3.7's table. Past `answer_bytes`, or with a list past `rows` (every list but `Branches`' names), it is
+  `TooLarge` for a read, naming the bound it passed with the answer's exact
+  measure, `Rows` (its longest list's rows) before `AnswerBytes` (its bytes)
+  where it passes both; for a write it is `InvalidAnswer`: a lost answer, since the write may have been done (7.4, step 5). Any other
   mismatch is `InvalidAnswer`, and so is an answered `Busy`: `Busy` is
   the client's own refusal, never a dialect's.
 
@@ -120,7 +123,9 @@ The client holds the resources the owner names, and nothing else.
 - **A resource** is a `Repository`, `Branch`, `Pull` or `Issue` of a
   repository. A `Watch` adds whether it **participates**, delivering
   people's comments and reviews; only a pull request or issue may. A
-  `Repository` watch uses its listing only.
+  `Repository` watch keeps its repository's row and reads nothing of its
+  own; a repository is listed only for its issue and pull watches
+  (section 4).
 - **Rows,** saved as they change (section 2.1): a repository's `mark` (the
   forge's time of its last complete listing) and `clock` (the newest
   forge time seen); per resource, its `Watch`, scan cursors, the stamps
@@ -153,6 +158,16 @@ The client holds the resources the owner names, and nothing else.
   forge's time, inclusive, least recently updated first, paged from 1.
   Its cost follows the rate of change, not the items held. It repeats
   after `poll`, or `hinted` once a hint named the repository.
+  - **Only for items.** A listing nudges only issues and pull requests
+    (below), so it runs only while its repository has an `Issue` or
+    `Pull` watch. A repository watched only for branches, or as a
+    `Repository`, keeps its row and lists nothing, and a hint starts no
+    listing there. When its last issue or pull watch leaves, its listing
+    stops and its mark is cleared, saved; when one comes again, the
+    listing starts with no mark, since every watch it then serves is new
+    and read at once. A restored repository with no restored issue or
+    pull watch lists nothing, and a fresh pass (section 8) owes no
+    listing for it.
   - **No mark:** the first listing takes the forge's time as the mark and
     reads no history.
   - **Paging.** A full page ending at a later time moves `since` there
@@ -161,8 +176,8 @@ The client holds the resources the owner names, and nothing else.
     the listing began, it is instead the time of the first full page of
     one time, when there was one. The next listing replays what may have
     moved, and the stamps drop repeats.
-  - **A listing that fails** keeps its place and goes again after
-    `backoff`. It reports nothing.
+  - **A listing that fails** keeps its place and goes again after a
+    wait that grows (4.2). It reports nothing.
 - **Per resource.** An item a listing reports changed, and a resource a
   hint affects, is read after `hinted`, as `Keep`. A pull request then
   rests `poll`, doubling after each quiet read to `poll_max` (capped at
@@ -176,24 +191,38 @@ The client holds the resources the owner names, and nothing else.
   The read that ends a `slow` rest, or retries a failure, is `Slow`. A
   participating item's `Slow` read rescans its comments from 0 and rereads
   its reviews, finding an edit that moved no time; a hint naming an item
-  asks for the same.
+  asks for the same. Every rest and repair is stretched while its
+  repository hears (4.1).
+- **Comments since.** An item's read names `since` (forge.md, 3.2) so the
+  forge sends only the comments that can be new. It is the cached
+  item's `updated` when the last read of the row ended its comments
+  (`more` false) and this read goes on from it: every comment above
+  `after` was made after that read's listing, so after that time. It is
+  0 when the row has no cached item, while a scan goes on across reads
+  (`more` was true), and for a rescan from 0. A row not participating
+  reads no comment: its `after` is the largest id and its `since` the
+  largest time (forge.md, 5.1), so the forge sends none. Nothing new is
+  stored: the cached item and the scan's flags are the row's already.
 - **Hints.** `Hint { repository, change, key }` names an item, a branch,
   a branch moved (with head and actor) or a commit. It affects the held
   resources it can have moved: the item, the branch, the pull requests
   with that branch or commit as head or base, the repository's listing.
   Nothing it says is stored or delivered. A branch name or key over
   `op_bytes` is refused with a fact and read for nothing.
-  - **Echoes are the owner's.** The owner drops the hints its own writes
-    cause, by key and by pusher. The client reads on every hint it holds a
-    resource for, and uses a hint's pusher (its actor) for drift alone.
+  - **Every hint is handed over,** the owner's own echoes among them,
+    which keep its repository hearing (4.1). The client reads on every
+    hint it holds a resource for and drops the news its owner's writes
+    cause by its echo ledger and keys (7.6); it uses a hint's pusher (its
+    actor) for drift alone.
   - **No pace depends on a hint:** one lost, refused or never sent costs
     latency, never liveness.
 - **Drift.** The owner says which branches a writer holds (`Writer`) and
   which commit its run pushed (`Pushed`). The client reports
   `Drift { resource, expected, observed }` when a branch's tip differs
   from the pushed head with no writer holding the branch, moves backwards
-  under a writer (a `Fresh` comparison finds the old tip not contained in
-  the new), is moved by a hint's actor who is not a configured writer, or
+  under a writer (a `Fresh` ancestry range, `Commits { before: new, after:
+  old, page: 1 }`, lists a commit: the new tip
+  lacks the old; a refused ancestry read is remembered and skipped until its inputs change, as in 4.2), is moved by a hint's actor who is not a configured writer, or
   is gone (`observed` none). A forward move by a writer is its own and
   reports no news. An absent branch clears its cached tip in the stored
   live record and reports deletion drift only when that tip was present;
@@ -210,12 +239,82 @@ The client holds the resources the owner names, and nothing else.
   is kept on the live row in memory, with no stored-format change: once
   per absence, and once more after a restart at its first absent read.
   The owner treats that notice as before the restart. Other errors
-  report `Changed` and are read again after `backoff`.
+  report `Changed` and are kept or read again as 4.2 says.
 - **Settling.** Forgejo answers a pull request not mergeable while it
   checks, and orders a job's end and its commit status nowhere (forge.md,
   section 9). Both settle within `settle`, which the client checks only
   to be above 0. It runs no window for it: the rereads within `settle`
   are the owner's fresh reads (section 5).
+
+### 4.1 Hearing, and the fallback
+
+Deliveries say what moved; timed reads catch what they miss. While a
+repository's deliveries arrive, its timed reads fall back to `fallback`.
+
+- **A repository hears** while its last hint came less than `fallback`
+  ago. Every hint the client takes for a repository it keeps counts,
+  whoever caused it: the owner's own echo proves that deliveries arrive
+  as well as another's write does. A hint refused for its width counts
+  for nothing, and a repository with no row hears nothing. Hearing is
+  kept in memory alone, with no stored-format change: after a restart a
+  repository hears nothing until its next hint.
+- **Stretched while it hears.** Each timed read of a hearing repository
+  falls due at the later of its own time and the last hint plus
+  `fallback`: its listing's repeat, a resource's rest (`poll` doubling
+  to `poll_max`, `slow`, a `Missing` rest), a participating item's
+  repair, and a queued merge's look (7.7). A hint still reads at
+  `hinted`. Neither a fresh read (section 5) nor a failure's wait (4.2)
+  is stretched.
+- **A missed delivery is still caught.** The read due at the last hint
+  plus `fallback` reads all a delivery could have announced, so a lost
+  one costs at most `fallback` of latency. Once `fallback` passes with
+  no hint, the repository no longer hears and every pace is section 4's
+  until its next hint. `fallback` 0 stretches nothing.
+- **The owner's own polls** take the same rule from
+  `Domain::poll_at(&self, limits: &Limits, now: Time, repository:
+  Repository, interval: Duration) -> Time`: `now + interval`, or, while
+  the repository hears, the later of that and its last hint plus
+  `fallback`. It reads state and changes none.
+- **The repository is the unit.** A forge sends a repository's
+  deliveries of every kind through one hook (Forgejo's organisation
+  hook, GitHub's App), so a hook that fails stops them alike, and that
+  repository stops hearing within `fallback`. Hearing is never lent from
+  one repository to another, whose hook may be another.
+
+### 4.2 Refusals and failures
+
+A keeping read that fails is refused for its inputs, or may pass when
+asked again.
+
+- **Refused for its inputs.** `TooLarge` answers a live resource's
+  same inputs the same way: a comparison of two commits (the drift
+  check's, section 4), a scan past `inbox` stamps or pages, and an
+  answer past `answer_bytes` or `rows` (2.3). The live row keeps each refusal in
+  memory: its phase, and for a comparison its two commits; a pull may hold
+  one for each of its phases. It reports
+  `Changed { result: Err(TooLarge) }` once and rests as after a read.
+  While its inputs stand, a timed read skips the refused phase and goes
+  on to the next one: a pull's object phase to its pull, its pull to its
+  reviews when they are owed. A branch refused its comparison keeps its
+  cached tip and claims neither drift nor news; a resource left with
+  nothing to read rests.
+- **Its inputs change** when a hint affects the resource or the listing
+  reports it changed, and, for a comparison, when the branch's next read
+  answers another tip, which is another pair. The next read of that
+  phase then tries again. A restart forgets the refusal and tries once
+  more. A read whose inputs changed while it was out keeps no refusal:
+  its `TooLarge` is reported, and the next read tries again.
+- **Any other failure** but `Missing` (section 4) may pass when asked
+  again. It reports `Changed` each time and is read again after
+  `backoff`, doubling after each failure in a row to at most `slow`, the
+  backstop's pace, or `backoff` where `slow` is shorter; an answer the client
+  takes sets the wait back to `backoff`, and one it refuses (`InvalidAnswer`)
+  is a failure in a row. A listing
+  that fails waits the same way and reports nothing, `TooLarge`
+  included, since a listing's pages move as items change. These waits
+  are not stretched (4.1): a failing read is not a quiet one.
+- **Fresh reads keep section 5's rule:** one terminal, never kept as a
+  refusal. What an owner asks again is the owner's.
 
 ## 5. Fresh reads
 
@@ -350,7 +449,7 @@ an update's head holding its base. **Unrecoverable:** none of these.
 | update from base, by a merge or a rebase | Idempotent: every copy leaves its head containing the base, or changes nothing | its head containing the base |
 | dispatch a workflow | Unrecoverable | a run of its workflow at its branch's commit made since start (`Runs`) |
 | rerun a job | Unrecoverable: Forgejo checks no attempt, and refuses only a run not completed | the job's attempt past the one named (`Run`) |
-| update a ref, fast-forward only | Conditional: the forge refuses a move that is not a fast-forward | the branch at the commit, or at a commit containing it (`Branch`, `Compare`): made, though main moved past it since |
+| update a ref, fast-forward only | Conditional: the forge refuses a move that is not a fast-forward | the branch at the commit, or at a commit containing it (`Branch`, then the ancestry range `Commits { before: tip, after: commit, page: 1 }` complete and empty): made, though main moved past it since |
 | create an issue, comment, review | Unrecoverable | its key since start |
 | create a branch | Unrecoverable | the branch at that commit |
 | delete a branch | Idempotent | the branch gone |
@@ -403,8 +502,12 @@ judge.
 4. **Answer.** A typed answer ends in `Outcome::Made { made, found }`.
    A review, merge and update are proved by a read after the answer: the
    review by its key, the merge by its pull request merged at the entry's
-   head and base, the update by a comparison showing the head holds the
-   base. A merge not so proved is `Raced { Merged, Stale }`; an update
+   head and base, the update by an ancestry range showing the head holds
+   the base: `Commits { before: head, after: base, page: 1 }`, complete
+   and empty; one that lists a commit or is refused `TooLarge` shows it
+   does not, and any other failure, or an empty page that says more
+   follow, is a failed read. Neither reads a comparison's files. A merge
+   not so proved is `Raced { Merged, Stale }`; an update
    not so proved is not found, and so made again (section 7.5). A merge answered `Queued` is
    the queue's (7.7).
 5. **A lost answer.** `Timeout` or `InvalidAnswer` on a write may have
@@ -478,7 +581,8 @@ was neither made nor refused, and it lands, or not, later.
   the queue decides; the owner knows this from `Outcome::Queued`.
 - **Looked at.** A fresh `Read::Pull`, budgeted as a find (7.5), on each
   hint naming the pull request and at each `poll` while the entry is
-  queued, on the timers the client already keeps.
+  queued, stretched while its repository hears (4.1), on the timers the
+  client already keeps.
 - **Decided.** Merged at the entry's head: `Made { Merged(commit) }`.
   Merged at another head: `Raced { Merged, Stale }`. Closed unmerged:
   `Failed(Closed)`. Open with `queued`: still kept. Open and out of the
@@ -534,8 +638,9 @@ before it writes.
 3. **Prepare.** The owner tells `Writer` for the branches its writers
    hold, sends `PauseOutbox`, and hands every stored entry not held for a
    person to `Make`. An entry with an attempt starts at its find.
-4. **Read afresh.** `ReadAfresh` reads each repository's listing from its
-   stored mark, inclusive, and each live resource, all as `Fresh`, so what
+4. **Read afresh.** `ReadAfresh` reads the listing of each repository
+   with an issue or pull watch from its stored mark, inclusive (section
+   4), and each live resource, all as `Fresh`, so what
    changed while it was down is read once. `ReadAfreshDone` ends it, once
    no watched resource or repository is left to read: after an answer, or
    after a `Keep` that drops the last one still owed (an owner that stops
@@ -571,7 +676,14 @@ before it writes.
   ejected, a later comment on its pull waiting, and a queued entry
   restored; a stop that settles at once, waits for a sent merge's proving
   read, sends no write due or queued, and names an entry unfinished at
-  its bound, one tick either side of it.
+  its bound, one tick either side of it; a listing run only while an
+  issue or pull watch lives, stopped with its mark cleared and started
+  again with none; rests, repairs and a queued merge's looks stretched
+  while a repository hears and at section 4's paces once `fallback`
+  passes with no hint, a hint still read at `hinted`, and `poll_at`
+  answering both; a refused comparison and an inbox scan past its cap
+  reported once and read again only when their inputs change; a
+  failure's wait doubling to `slow` and set back by an answer.
 - **The client world** (testing-strategy.md, section 2.2) runs the client
   alone under a durable scripted parent that commits a decision whole
   before it releases any call, over skein's fake forge domain
@@ -623,3 +735,12 @@ before it writes.
   copy may also cause its owner's drift hold, and a rebase may drop a later
   push (7.3). Default: `lifetime` is kept until update times and those costs
   are measured.
+- **A quiet repository's hook.** Hearing is proved by deliveries alone
+  (4.1), so a repository with no delivery for `fallback` polls at
+  section 4's paces though its hook may be well. A heartbeat, such as a
+  forge's test delivery, would prove the hook at a write per `fallback`.
+  Default: deliveries alone; a quiet watch polls as before.
+- **Hearing lent within a hook.** One Forgejo organisation hook serves
+  every repository of its organisation, so one repository's deliveries
+  prove its siblings' too. Default: each repository hears for itself
+  (4.1), which never stretches a watch whose hook is not known to work.

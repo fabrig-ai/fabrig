@@ -1,5 +1,6 @@
 //! Invented documents exercise the protection plan through its own decoders.
 use super::fixtures::{decode, limits};
+use crate::api::Excess;
 use crate::{
     api,
     github::{
@@ -150,7 +151,10 @@ fn sources_join_contexts_counts_booleans_and_least_bypass() {
 #[test]
 fn distinct_rulesets_are_bounded_and_bypass_takes_the_least() {
     let rules = br#"[{"ruleset_id":11,"type":"merge_queue"},{"ruleset_id":12,"type":"required_linear_history"}]"#;
-    assert_eq!(run(rules, None, br#"{"current_user_can_bypass":"always"}"#, false, 1), (Err(api::Error::TooLarge), 1));
+    assert_eq!(
+        run(rules, None, br#"{"current_user_can_bypass":"always"}"#, false, 1),
+        (Err(api::Error::TooLarge(Excess::unnamed())), 1)
+    );
     let (answer, cost) = run(rules, None, br#"{"current_user_can_bypass":"pull_requests_only"}"#, false, 2);
     assert_eq!(protection(answer).bypass, api::Bypass::PullsOnly);
     assert_eq!(cost, 4);

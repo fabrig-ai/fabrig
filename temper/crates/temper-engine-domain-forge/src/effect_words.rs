@@ -16,16 +16,16 @@ fn put(words: &mut List<u8>, bytes: &[u8]) {
 
 pub(crate) fn account(entry: &Entry, repository: Option<&crate::Repository>, outcome: Outcome) -> Option<Box<[u8]>> {
     let result = match outcome {
-        Outcome::Held => b"uncertain: it may or may not have been made".as_slice(),
+        Outcome::Held => Box::from(b"uncertain: it may or may not have been made".as_slice()),
         Outcome::Failed(error) => error_words(error),
-        Outcome::Withdrawn => b"withdrawn before completion",
+        Outcome::Withdrawn => Box::from(b"withdrawn before completion".as_slice()),
         Outcome::Raced { why, .. } => error_words(why),
         Outcome::Made { .. } | Outcome::Queued | Outcome::Uncertain => return None,
     };
     let mut words = List::with_capacity(ACCOUNT_BYTES);
     put(&mut words, operation(&entry.effect.write));
     put(&mut words, b": ");
-    put(&mut words, result);
+    put(&mut words, &result);
     put(&mut words, b"; resource ");
     if let Some(repository) = repository {
         put(&mut words, &repository.owner);
@@ -104,13 +104,18 @@ fn target(words: &mut List<u8>, write: &Write) {
     }
 }
 
-pub(crate) fn error_words(error: Error) -> &'static [u8] {
-    match error {
+pub(crate) fn error_words(error: Error) -> Box<[u8]> {
+    let words: &[u8] = match error {
         Error::Forbidden => b"forge refused permission",
         Error::Protected => b"forge protection refused the write",
         Error::Missing => b"target missing",
         Error::MissingJob => b"job attempt missing",
-        Error::TooLarge => b"configured size bound exceeded",
+        Error::TooLarge(excess) => {
+            let mut words = List::uncapped();
+            put(&mut words, b"past ");
+            put(&mut words, &crate::bound_words(excess));
+            return words.into_boxed();
+        }
         Error::Empty => b"empty operation",
         Error::Full => b"forge has no room",
         Error::Exists => b"target already exists",
@@ -126,5 +131,6 @@ pub(crate) fn error_words(error: Error) -> &'static [u8] {
         Error::Unavailable => b"forge unavailable",
         Error::Timeout => b"forge timed out",
         Error::RateLimited { .. } => b"forge rate limited",
-    }
+    };
+    Box::from(words)
 }

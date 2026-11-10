@@ -66,6 +66,7 @@ pub const LIMITS: forge::Limits = forge::Limits {
         hinted: Duration::from_secs(1),
         slow: Duration::from_secs(40),
         settle: Duration::from_secs(30),
+        fallback: Duration::ZERO,
         facts: 16,
     },
     issue_policy: temper_engine_domain_forge_issues::Limits {

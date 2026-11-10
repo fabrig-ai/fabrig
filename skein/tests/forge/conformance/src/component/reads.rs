@@ -61,7 +61,7 @@ pub(super) fn run(runner: Option<&Path>, f: &Fixture, h: &mut Hosted, facts: &mu
         .u64()
         .ok_or("least updated item")?;
     facts.push(h.observe("component-read-items", repo, Read::Items { since: Time::ZERO, page: 1, kind: None }.operation(), |a| matches!(a, Answer::Items { items, now, .. } if items.first().is_some_and(|i| i.number == oldest && i.kind == api::Kind::Pull) && *now > Time::ZERO)));
-    facts.push(h.observe("component-read-item", repo, Read::Item { number: issue, after: 0 }.operation(), |a| matches!(a, Answer::Item { item, comments, more } if item.number == issue && item.title.as_ref() == b"read fixture" && item.body.as_ref() == b"read body" && comments.len() == 1 && comments[0].id == comment && comments[0].body.as_ref() == b"thread fixture" && !more)));
+    facts.push(h.observe("component-read-item", repo, Read::Item { number: issue, after: 0 , since: Time::ZERO }.operation(), |a| matches!(a, Answer::Item { item, comments, more } if item.number == issue && item.title.as_ref() == b"read fixture" && item.body.as_ref() == b"read body" && comments.len() == 1 && comments[0].id == comment && comments[0].body.as_ref() == b"thread fixture" && !more)));
     for (name, read) in [
         ("component-read-pull", Read::Pull { number: f.feature }),
         ("component-read-pull-for", Read::PullFor { head: bytes("feature/slash"), base: bytes("main") }),
@@ -90,7 +90,7 @@ pub(super) fn run(runner: Option<&Path>, f: &Fixture, h: &mut Hosted, facts: &mu
         |a| matches!(a, Answer::Branches(b) if { let mut b = b.to_vec(); b.sort(); b == names }),
     ));
     facts.push(h.observe("component-read-pull-files", repo, Read::PullFiles { number: f.feature, head, page: 1 }.operation(), |a| matches!(a, Answer::PullFiles { head: got, files, more: true } if *got == head && files.len() == 1 && files.iter().enumerate().all(|(i,f)| f.path == bytes(&format!("file-{i}.txt")) && f.before.is_none() && f.after == Some(bytes(&format!("file {i}\n")))))));
-    facts.push(h.observe("component-read-compare", repo, Read::Compare { before: base, after: head }.operation(), |a| matches!(a, Answer::Compare { before, after, contains_before: true, files, commits } if *before == base && *after == head && commits.len() == 3 && files.len() == 3 && (0..3).all(|i| files.iter().any(|f| f.path == bytes(&format!("file-{i}.txt")) && f.before.is_none() && f.after == Some(bytes(&format!("file {i}\n"))))))));
+    facts.push(h.observe("component-read-compare", repo, Read::Compare { before: base, after: head }.operation(), |a| matches!(a, Answer::Compare {before, after, files, ahead: 3, behind: 0, changed: 3} if *before == base && *after == head && files.len() == 3 && (0..3).all(|i| files.iter().any(|path| *path == bytes(&format!("file-{i}.txt")))))));
     actions(runner, f, h, facts)?;
     facts.push(h.observe("component-read-file", repo, Read::File { head, path: bytes("file-0.txt"), max_bytes: 4 }.operation(), |a| matches!(a, Answer::File { head: got, path, bytes, truncated: true } if *got == head && path.as_ref() == b"file-0.txt" && bytes.as_ref() == b"file")));
     let protection = h.call(repo, Read::Protection { branch: bytes("main") }.operation());

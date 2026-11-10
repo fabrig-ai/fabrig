@@ -108,6 +108,7 @@ pub struct World {
     fake_out: Queue<fake::Request>,
     pub pending: BTreeMap<Token, skein_forge::api::Op>,
     pub forge_calls: u32,
+    pub forge_reads: Option<Vec<(Token, skein_forge::api::Read)>>,
     pub adopted: Vec<forge_top::ApplicationOutcome>,
     pub signed_in: Option<u64>,
     pub web_replies: Vec<people::Reply>,
@@ -181,6 +182,7 @@ pub struct StoryLimits {
     pub spec_bytes: Option<u32>,
     pub result_bytes: Option<u32>,
     pub forge_charter: Option<u32>,
+    pub forge_commits: Option<u32>,
     pub kinds: bool,
     pub questions: Option<u32>,
     pub merge_kind: bool,
@@ -351,6 +353,7 @@ impl World {
             inbox_messages,
             inbox_bytes,
             forge_charter,
+            forge_commits: _,
             kinds,
             questions,
             merge_kind,
@@ -888,6 +891,9 @@ impl World {
         let StoryLimits { turn, tier, across, library_gate_latency, tasks, landing_members, slots, .. } = *timing;
         let mut fake_config = forge_world::fake_config();
         fake_config.limits.repositories = 2;
+        if let Some(commits) = timing.forge_commits {
+            fake_config.limits.commits = commits;
+        }
         if stock.is_some() {
             // The peer accepts the same whole issue bodies and retained comments.
             fake_config.limits.body_bytes = limits.forge.issue_policy.body_bytes;
@@ -1052,6 +1058,7 @@ impl World {
             fake_out: Queue::uncapped(),
             pending: BTreeMap::new(),
             forge_calls: 0,
+            forge_reads: None,
             adopted: Vec::new(),
             signed_in: None,
             web_replies: Vec::new(),
@@ -1573,6 +1580,9 @@ impl World {
                         self.writes.push(write.clone());
                         self.repository_writes.push((repository, write.clone()));
                     }
+                    if let (Some(reads), skein_forge::api::Op::Read(read)) = (&mut self.forge_reads, &op) {
+                        reads.push((call, read.clone()));
+                    }
                     self.forge_calls += 1;
                     let issue_write = match &op {
                         skein_forge::api::Op::Write(skein_forge::api::Write::CreateIssue { .. }) => true,
@@ -1945,6 +1955,20 @@ impl World {
         assert!(matches!(answer, engine::CallAnswer::Sent { .. }), "goal answers question {question}: {answer:?}");
     }
 
+    /// Drain the current terminals before choosing a committed restart cut.
+    pub fn drain_cut(&mut self) {
+        for _ in 0..STEPS {
+            if self.store.pending.is_empty() && self.pending.is_empty() && self.events.is_empty() {
+                return;
+            }
+            self.tick();
+        }
+        assert!(
+            self.store.pending.is_empty() && self.pending.is_empty() && self.events.is_empty(),
+            "restart cut drains within the fixture's bound"
+        );
+    }
+
     /// Restore a delegate question with its reserved answer room at a committed cut.
     pub fn restore_delegate_question(&mut self, delegate: u64, words: &[u8]) -> u64 {
         self.restore_delegate_message(delegate, words, tasks::MessageKind::Question)
@@ -1956,6 +1980,7 @@ impl World {
     }
 
     fn restore_delegate_message(&mut self, delegate: u64, words: &[u8], kind: tasks::MessageKind) -> u64 {
+        self.drain_cut();
         assert!(self.store.pending.is_empty());
         let mut header = self.store.header();
         header.messages += 1;

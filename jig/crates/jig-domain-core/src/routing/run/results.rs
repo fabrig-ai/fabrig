@@ -79,7 +79,7 @@ pub(crate) fn begin(core: &mut Core, work: &mut Queue<Work>, task: u64, ids: Box
             failure: jig_domain_brief::GatherFailure {
                 fate: jig_domain_brief::GatherFate::Capacity,
                 section: b"results",
-                words: b"no read flight is free",
+                words: Box::from(b"no read flight is free".as_slice()),
             },
         });
     } else {
@@ -184,7 +184,7 @@ pub(crate) fn loaded(
                     failure: jig_domain_brief::GatherFailure {
                         fate: jig_domain_brief::GatherFate::Transient,
                         section: b"results",
-                        words: b"a dependency's result could not be read",
+                        words: Box::from(b"a dependency's result could not be read".as_slice()),
                     },
                 });
                 return out;

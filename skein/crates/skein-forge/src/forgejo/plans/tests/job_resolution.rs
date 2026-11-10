@@ -130,7 +130,18 @@ fn resolving_statuses_keeps_the_answer_byte_bound() {
             run.answer(200, RUNS);
             step = run.answer(200, JOBS);
         }
-        assert_eq!(step, Step::Done(if fits { Ok(expected.clone()) } else { Err(Error::TooLarge) }));
+        assert_eq!(
+            step,
+            Step::Done(if fits {
+                Ok(expected.clone())
+            } else {
+                Err(Error::TooLarge(api::Excess::at_least(
+                    api::Bound::AnswerBytes,
+                    u64::from(answer_bytes),
+                    u64::from(size),
+                )))
+            })
+        );
     }
 }
 #[test]

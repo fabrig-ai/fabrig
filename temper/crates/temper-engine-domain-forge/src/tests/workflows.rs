@@ -225,9 +225,6 @@ fn observe(d: &mut Domain, branch: &[u8], previous: Option<api::Commit>) {
             },
         },
     );
-    let (call, op) = fixtures::next_call(d);
-    let Op::Read(Read::Items { .. }) = op else { panic!("repository poll: {op:?}") };
-    fixtures::answer(d, call, Ok(Answer::Items { items: Box::new([]), more: false, now: env().now }));
     let call = expect_read(d, Read::Branch { branch: branch.into() });
     fixtures::answer(d, call, Ok(Answer::Commit(TIP)));
 }
@@ -237,7 +234,7 @@ fn observe(d: &mut Domain, branch: &[u8], previous: Option<api::Commit>) {
 fn the_landing_branch_reads_its_workflows_again_only_when_they_may_have_changed() {
     enum Trigger {
         First,
-        Land { branch: &'static [u8], files: Option<&'static [u8]> },
+        Land { branch: &'static [u8], files: Option<&'static [u8]>, changed: u64 },
         Failed,
         InFlight,
         Adoption,
@@ -248,23 +245,32 @@ fn the_landing_branch_reads_its_workflows_again_only_when_they_may_have_changed(
     }
     for (name, trigger, expected) in [
         ("first tip", Trigger::First, Some(file_read(b".github/workflows", TIP))),
-        ("ordinary landing", Trigger::Land { branch: b"main", files: Some(b"src/lib.rs") }, None),
+        ("ordinary landing", Trigger::Land { branch: b"main", files: Some(b"src/lib.rs"), changed: 1 }, None),
         (
             "GitHub workflow",
-            Trigger::Land { branch: b"main", files: Some(b".github/workflows/ci.yml") },
+            Trigger::Land { branch: b"main", files: Some(b".github/workflows/ci.yml"), changed: 1 },
             Some(file_read(b".github/workflows", TIP)),
         ),
         (
             "Forgejo workflow",
-            Trigger::Land { branch: b"main", files: Some(b".forgejo/workflows/ci.yml") },
+            Trigger::Land { branch: b"main", files: Some(b".forgejo/workflows/ci.yml"), changed: 1 },
             Some(file_read(b".github/workflows", TIP)),
         ),
         (
             "comparison refused",
-            Trigger::Land { branch: b"main", files: None },
+            Trigger::Land { branch: b"main", files: None, changed: 1 },
             Some(file_read(b".github/workflows", TIP)),
         ),
-        ("other branch", Trigger::Land { branch: b"release", files: Some(b".github/workflows/ci.yml") }, None),
+        (
+            "partial comparison",
+            Trigger::Land { branch: b"main", files: Some(b"src/lib.rs"), changed: 2 },
+            Some(file_read(b".github/workflows", TIP)),
+        ),
+        (
+            "other branch",
+            Trigger::Land { branch: b"release", files: Some(b".github/workflows/ci.yml"), changed: 1 },
+            None,
+        ),
         ("failed read marks next move", Trigger::Failed, Some(file_read(b".github/workflows", TIP))),
         ("one read in flight", Trigger::InFlight, Some(Read::Branch { branch: b"main".as_slice().into() })),
         ("adoption", Trigger::Adoption, Some(Read::Branch { branch: b"main".as_slice().into() })),
@@ -277,16 +283,17 @@ fn the_landing_branch_reads_its_workflows_again_only_when_they_may_have_changed(
         let mut out = Queue::uncapped();
         match trigger {
             Trigger::First => observe(&mut d, b"main", None),
-            Trigger::Land { branch, files } => {
+            Trigger::Land { branch, files, changed } => {
                 observe(&mut d, branch, Some([3; 32]));
                 let call = expect_read(&mut d, Read::Compare { before: [3; 32], after: TIP });
                 let result = match files {
                     Some(path) => Ok(Answer::Compare {
                         before: [3; 32],
                         after: TIP,
-                        contains_before: true,
-                        files: Box::new([api::File { path: path.into(), before: None, after: None }]),
-                        commits: Box::new([]),
+                        files: Box::new([path.into()]),
+                        ahead: 0,
+                        behind: 0,
+                        changed,
                     }),
                     None => Err(Error::Forbidden),
                 };

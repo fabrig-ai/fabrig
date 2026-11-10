@@ -4,6 +4,7 @@ use super::{
     plan::{Bounds, Exchange, Step},
     tables::{self, Repository, Tables},
 };
+use crate::api::Excess;
 use crate::{
     api,
     github::{document, header::Head, request::Request},
@@ -32,7 +33,7 @@ enum Read {
     Branch { branch: Box<[u8]> },
     Branches { prefix: Box<[u8]> },
     Items { since: skein_lib::Time, page: u32, kind: Option<api::Kind> },
-    Item { number: u64, after: u64 },
+    Item { number: u64, after: u64, since: skein_lib::Time },
     Pull { number: u64 },
     PullFor { head: Box<[u8]>, base: Box<[u8]> },
     Statuses { commit: api::Commit, page: u32 },
@@ -123,7 +124,7 @@ impl Plan {
             api::Read::Branch { branch } => Read::Branch { branch },
             api::Read::Branches { prefix } => Read::Branches { prefix },
             api::Read::Items { since, page, kind } => Read::Items { since, page, kind },
-            api::Read::Item { number, after } => Read::Item { number, after },
+            api::Read::Item { number, after, since } => Read::Item { number, after, since },
             api::Read::Pull { number } => Read::Pull { number },
             api::Read::PullFor { head, base } => Read::PullFor { head, base },
             api::Read::Statuses { commit, page } => Read::Statuses { commit, page },
@@ -184,8 +185,8 @@ impl Plan {
                 if prefix.is_empty() {
                     return Err(api::Error::Empty);
                 }
-                let capacity = size::capacity(bounds, crate::measure::STRING_BYTES)?;
-                self.limit = size::page_size(bounds, capacity)?;
+                let capacity = size::byte_capacity(bounds, crate::measure::STRING_BYTES)?;
+                self.limit = size::page_size(bounds, crate::github::pin::PAGE_CAP)?;
                 self.rows = List::with_capacity(capacity);
             }
             Read::Items { .. } | Read::Item { .. } => self.issue_admission(bounds)?,
@@ -194,8 +195,8 @@ impl Plan {
             Read::Commits { .. } => self.commits_admission(bounds)?,
             Read::Compare { .. } | Read::PullFiles { .. } => self.files_admission(bounds)?,
             Read::File { path, max_bytes, .. } => {
-                let path = u32::try_from(path.len()).ok().ok_or(api::Error::TooLarge)?;
-                let room = bounds.answer_bytes.checked_sub(path).ok_or(api::Error::TooLarge)?;
+                let path = u32::try_from(path.len()).ok().ok_or(api::Error::TooLarge(Excess::unnamed()))?;
+                let room = bounds.answer_bytes.checked_sub(path).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
                 self.raw_cap = room.min(*max_bytes);
             }
             Read::Reviews { .. } => {
@@ -526,9 +527,13 @@ impl Plan {
         let Read::Branches { prefix } = &self.read else {
             return Err(api::Error::InvalidAnswer);
         };
-        self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge)?;
+        self.count = self.count.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
         if self.count > self.limit {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(Excess::at_least(
+                api::Bound::Forge,
+                u64::from(self.limit),
+                u64::from(self.count),
+            )));
         }
         match row {
             document::Row::SkippedBranch => Ok(()),
@@ -536,13 +541,10 @@ impl Plan {
                 if !name.starts_with(prefix) {
                     return Ok(());
                 }
-                if self.rows.len() >= bounds.rows {
-                    return Err(api::Error::TooLarge);
-                }
                 self.size = size::add(self.size, &name, bounds)?;
                 match self.rows.push(name) {
                     Ok(()) => Ok(()),
-                    Err(_) => Err(api::Error::TooLarge),
+                    Err(_) => Err(api::Error::TooLarge(Excess::unnamed())),
                 }
             }
             document::Row::Issue(_)

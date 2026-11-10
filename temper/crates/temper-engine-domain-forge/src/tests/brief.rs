@@ -81,7 +81,7 @@ fn gather(checks: Box<[Status]>, log: &[u8], budget: u32) -> Domain {
     assert_eq!(*read, Read::Checks { commit: HEAD });
     let owner = *owner;
     let mut out = Queue::uncapped();
-    assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Checks(checks)), &mut out));
+    assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Checks(checks)), LIMITS.client.rows, &mut out));
     for _ in 0..LIMITS.client.rows.saturating_add(1) {
         let Some(request) = out.pop() else { break };
         if let Request::BriefClient {
@@ -99,6 +99,7 @@ fn gather(checks: Box<[Status]>, log: &[u8], budget: u32) -> Domain {
                     log: log[tail..].into(),
                     truncated: tail > 0,
                 }),
+                LIMITS.client.rows,
                 &mut out
             ));
         } else if let Request::BriefSized { section: SECTION, size: Ok(size) } = request {
@@ -300,12 +301,13 @@ fn pending_pull(body: &[u8], state: temper_engine_domain_forge_change::State) ->
         &mut d,
         owner,
         Ok(Answer::Item { item, comments: Box::default(), more: false }),
+        LIMITS.client.rows,
         &mut out
     ));
     let mut pull = fixtures::open_pull();
     pull.commit = HEAD;
     pull.base_commit = None;
-    assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Pull(pull)), &mut out));
+    assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Pull(pull)), LIMITS.client.rows, &mut out));
     (d, owner)
 }
 
@@ -322,6 +324,7 @@ fn pull_section(body: &[u8]) -> Box<[u8]> {
         &mut d,
         owner,
         Ok(Answer::PullFiles { head: HEAD, files: Box::default(), more: false }),
+        LIMITS.client.rows,
         &mut out
     ));
     take(&mut d)
@@ -333,7 +336,13 @@ fn resolution_section(files: Box<[skein_forge::api::File]>) -> Box<[u8]> {
         temper_engine_domain_forge_change::State::Resolving { requested: true, base: fixtures::BASE },
     );
     let mut out = Queue::uncapped();
-    assert!(brief::brief_answer(&mut d, owner, Ok(Answer::PullFiles { head: HEAD, files, more: false }), &mut out));
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Ok(Answer::PullFiles { head: HEAD, files, more: false }),
+        LIMITS.client.rows,
+        &mut out
+    ));
     assert_eq!(
         out.pop(),
         Some(Request::BriefClient {
@@ -350,10 +359,12 @@ fn resolution_section(files: Box<[skein_forge::api::File]>) -> Box<[u8]> {
         Ok(Answer::Compare {
             before: HEAD,
             after: fixtures::BASE,
-            contains_before: false,
             files: Box::default(),
-            commits: Box::default(),
+            ahead: 0,
+            behind: 1,
+            changed: 0
         }),
+        LIMITS.client.rows,
         &mut out
     ));
     take(&mut d)
@@ -386,7 +397,7 @@ fn a_resolutions_files_are_carried_whole_or_named() {
     for (name, files, expected) in rows {
         let bytes = resolution_section(files);
         let section = text(&bytes).split_once("Files and diff:\n").expect("files heading").1;
-        let contents = match section.split_once("What landed in the base:\n") {
+        let contents = match section.split_once("What landed in the base: 0 commits\n") {
             Some((files, _)) => Some(files),
             None => None,
         };
@@ -422,6 +433,7 @@ fn remarks_section(remarks: &[u8]) -> Box<[u8]> {
         &mut d,
         owner,
         Ok(Answer::Reviews { reviews: Box::default(), more: false }),
+        LIMITS.client.rows,
         &mut Queue::uncapped()
     ));
     take(&mut d)
@@ -478,7 +490,8 @@ fn a_requests_section_quotes_only_the_reviewed_heads_body_and_line_remark() {
             ]),
             more: false
         }),
-        &mut out,
+        LIMITS.client.rows,
+        &mut out
     ));
     let Some(Request::BriefClient {
         event: skein_forge_client::Event::Read { owner: call, read: Read::Remarks { review: 11, .. }, .. },
@@ -501,7 +514,8 @@ fn a_requests_section_quotes_only_the_reviewed_heads_body_and_line_remark() {
             }]),
             more: false
         }),
-        &mut out,
+        LIMITS.client.rows,
+        &mut out
     ));
     let bytes = take(&mut d);
     assert_eq!(
@@ -524,6 +538,7 @@ fn a_request_without_remarks_ends_with_an_explicit_marker() {
             &mut d,
             owner,
             Ok(Answer::Reviews { reviews: reviews.into(), more: false }),
+            LIMITS.client.rows,
             &mut out
         ));
         if let Some(Request::BriefClient {
@@ -534,6 +549,7 @@ fn a_request_without_remarks_ends_with_an_explicit_marker() {
                 &mut d,
                 owner,
                 Ok(Answer::Remarks { remarks: Box::new([]), more: false }),
+                LIMITS.client.rows,
                 &mut out
             ));
         }
@@ -564,7 +580,7 @@ fn a_requests_section_refuses_a_moved_change_head() {
         },
     );
     let [Request::BriefSized { section: SECTION, size: Err(why) }] = out.as_ref() else { panic!("moved: {out:?}") };
-    assert_eq!(*why, brief_words::MOVED);
+    assert_eq!(*why, brief_words::moved());
 }
 
 #[test]
@@ -622,7 +638,7 @@ fn pending_checks() -> (Domain, Token) {
 fn pending_job() -> (Domain, Token, Read) {
     let (mut d, owner) = pending_checks();
     let mut out = Queue::uncapped();
-    assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Checks(red_checks())), &mut out));
+    assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Checks(red_checks())), LIMITS.client.rows, &mut out));
     let Some(Request::BriefClient { event: skein_forge_client::Event::Read { read, .. } }) = out.pop() else {
         panic!("one pinned job read: {out:?}")
     };
@@ -634,7 +650,7 @@ fn pending_job() -> (Domain, Token, Read) {
 fn a_busy_job_read_waits_for_reclaim_then_keeps_the_step_and_log_end() {
     let (mut d, owner, read) = pending_job();
     let mut out = Queue::uncapped();
-    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), &mut out));
+    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), LIMITS.client.rows, &mut out));
     assert!(out.is_empty(), "a refusal cannot retry in the same drain");
     assert!(!brief::waiting(&d));
     brief::retry(&mut d, &mut out);
@@ -658,6 +674,7 @@ fn a_busy_job_read_waits_for_reclaim_then_keeps_the_step_and_log_end() {
             log: RUNNER_LOG.into(),
             truncated: false,
         }),
+        LIMITS.client.rows,
         &mut out
     ));
     let Some(Request::BriefSized { section: SECTION, size: Ok(size) }) = out.pop() else {
@@ -680,7 +697,7 @@ fn a_job_read_busy_until_the_gather_deadline_keeps_the_marker() {
     let deadline = env().now.saturating_add(Duration::from_secs(30));
     let mut out = Queue::uncapped();
     for _ in 0_u32..3 {
-        assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), &mut out));
+        assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), LIMITS.client.rows, &mut out));
         assert!(out.is_empty());
         d.reclaim();
         brief::retry(&mut d, &mut out);
@@ -691,7 +708,7 @@ fn a_job_read_busy_until_the_gather_deadline_keeps_the_marker() {
             })
         );
     }
-    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), &mut out));
+    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), LIMITS.client.rows, &mut out));
     brief::expire(&mut d, Time::from_nanos(deadline.as_nanos().checked_sub(1).unwrap()), &mut out);
     assert!(out.is_empty(), "the original deadline stays in force");
     assert_eq!(brief::next_deadline(&d), Some(deadline));
@@ -721,7 +738,13 @@ fn an_inflight_job_at_the_gather_deadline_leaves_the_section_late() {
         let deadline = env().now.saturating_add(Duration::from_secs(30));
         let mut out = Queue::uncapped();
         if retried {
-            assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), &mut out));
+            assert!(brief::brief_answer(
+                &mut d,
+                owner,
+                Err(skein_forge::api::Error::Busy),
+                LIMITS.client.rows,
+                &mut out
+            ));
             assert_eq!(brief::next_deadline(&d), Some(deadline));
             d.reclaim();
             brief::retry(&mut d, &mut out);
@@ -744,7 +767,7 @@ fn checks_busy_until_the_gather_deadline_fail_the_section() {
     let (mut d, owner) = pending_checks();
     let deadline = env().now.saturating_add(Duration::from_secs(30));
     let mut out = Queue::uncapped();
-    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), &mut out));
+    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), LIMITS.client.rows, &mut out));
     assert_eq!(brief::next_deadline(&d), Some(deadline));
     brief::expire(&mut d, Time::from_nanos(deadline.as_nanos().checked_sub(1).unwrap()), &mut out);
     assert!(out.is_empty());
@@ -757,7 +780,7 @@ fn checks_busy_until_the_gather_deadline_fail_the_section() {
             error: Some(skein_forge::api::Error::Busy)
         })
     );
-    assert_eq!(out.pop(), Some(Request::BriefSized { section: SECTION, size: Err(brief_words::BUSY) }));
+    assert_eq!(out.pop(), Some(Request::BriefSized { section: SECTION, size: Err(brief_words::busy()) }));
     assert!(out.is_empty());
     assert!(d.briefs_idle());
 }
@@ -766,7 +789,7 @@ fn checks_busy_until_the_gather_deadline_fail_the_section() {
 fn dropping_a_busy_section_ends_its_retry() {
     let (mut d, owner, _) = pending_job();
     let mut out = Queue::uncapped();
-    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), &mut out));
+    assert!(brief::brief_answer(&mut d, owner, Err(skein_forge::api::Error::Busy), LIMITS.client.rows, &mut out));
     assert!(outputs(&mut d, Event::DropBrief { section: SECTION }).is_empty());
     d.reclaim();
     brief::retry(&mut d, &mut out);
@@ -817,7 +840,11 @@ fn each_unread_error_has_its_count_and_fixed_words() {
         (Error::NotInstalled, Permanent, b"the forge App is not installed"),
         (Error::Missing, Permanent, b"the forge has no such object"),
         (Error::MissingJob, Permanent, b"the forge has no such object"),
-        (Error::TooLarge, Permanent, b"the answer is past the client's limit"),
+        (
+            Error::TooLarge(skein_forge::api::Excess::exact(skein_forge::api::Bound::Rows, 8, 9)),
+            Permanent,
+            b"the answer is past forge.client.rows (8): 9 rows",
+        ),
         (Error::Full, Permanent, b"the forge refused this read"),
         (Error::Stale, Permanent, b"the forge refused this read"),
         (Error::Refused, Permanent, b"the forge refused this read"),
@@ -825,17 +852,17 @@ fn each_unread_error_has_its_count_and_fixed_words() {
     for (error, fate, words) in rows {
         let unread = brief_words::unread_of(&Err(*error));
         assert_eq!(unread.fate, *fate, "{error:?}");
-        assert_eq!(unread.words, *words, "{error:?}");
+        assert_eq!(unread.words.as_ref(), *words, "{error:?}");
     }
     let mut pull = fixtures::open_pull();
     pull.commit = [99; 32];
     assert_eq!(
         brief_words::unread_of(&Ok(Answer::Pull(pull))),
-        BriefUnread { fate: Transient, words: b"the change's head moved" }
+        BriefUnread { fate: Transient, words: Box::from(b"the change's head moved".as_slice()) }
     );
     assert_eq!(
         brief_words::unread_of(&Ok(Answer::Commit(HEAD))),
-        BriefUnread { fate: Permanent, words: b"the forge answered another read" }
+        BriefUnread { fate: Permanent, words: Box::from(b"the forge answered another read".as_slice()) }
     );
 }
 
@@ -845,10 +872,13 @@ fn local_section_failures_name_the_bound_or_room_that_failed() {
     let mut d = domain();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut out = Queue::uncapped();
-    let unnamed = BriefUnread { fate: BriefFate::Permanent, words: b"the change cannot be named in its section" };
+    let unnamed = BriefUnread {
+        fate: BriefFate::Permanent,
+        words: Box::from(b"the change cannot be named in its section".as_slice()),
+    };
     assert_eq!(
         brief::brief_pull(&mut d, SECTION, item, BriefCommit(HEAD), 1, 512, &mut out),
-        Some(BriefRead::Failed(unnamed))
+        Some(BriefRead::Failed(unnamed.clone()))
     );
     let mut row = fixtures::opening_row();
     row.pull = Some(1);
@@ -856,17 +886,20 @@ fn local_section_failures_name_the_bound_or_room_that_failed() {
     outputs(&mut d, Event::Change { row });
     assert_eq!(
         brief::brief_pull(&mut d, SECTION, item, BriefCommit([99; 32]), 1, 512, &mut out),
-        Some(BriefRead::Failed(BriefUnread { fate: BriefFate::Transient, words: b"the change's head moved" }))
+        Some(BriefRead::Failed(BriefUnread {
+            fate: BriefFate::Transient,
+            words: Box::from(b"the change's head moved".as_slice())
+        }))
     );
     assert_eq!(
         brief::brief_pull(&mut d, SECTION, item, BriefCommit(HEAD), 1, 1, &mut out),
-        Some(BriefRead::Failed(unnamed))
+        Some(BriefRead::Failed(unnamed.clone()))
     );
     assert_eq!(
         brief::brief_pull(&mut d, SECTION, item, BriefCommit(HEAD), 0, 512, &mut out),
         Some(BriefRead::Failed(BriefUnread {
             fate: BriefFate::Permanent,
-            words: b"the connector cannot hold this section"
+            words: Box::from(b"the connector cannot hold this section".as_slice())
         }))
     );
     d.brief_fetches = skein_lib::Map::with_capacity(0);
@@ -874,7 +907,7 @@ fn local_section_failures_name_the_bound_or_room_that_failed() {
         brief::brief_pull(&mut d, SECTION, item, BriefCommit(HEAD), 1, 512, &mut out),
         Some(BriefRead::Failed(BriefUnread {
             fate: BriefFate::Capacity,
-            words: b"the connector has no room for another read"
+            words: Box::from(b"the connector has no room for another read".as_slice())
         }))
     );
     assert!(out.is_empty(), "no local refusal makes a forge read");
@@ -885,7 +918,7 @@ fn local_section_failures_name_the_bound_or_room_that_failed() {
             owner: SECTION,
             read: BriefRead::Failed(BriefUnread {
                 fate: BriefFate::Permanent,
-                words: b"the failed checks do not fit their section"
+                words: Box::from(b"the failed checks do not fit their section".as_slice())
             })
         })
     );

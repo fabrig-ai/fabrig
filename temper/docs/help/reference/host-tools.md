@@ -4,7 +4,7 @@ Kind: reference
 
 Every tool temper adds to its runs' own: what it does, as a run reads it, whether it reads or writes, and the members of its input.
 
-File, pull-file and compare replies fit the smaller of core.call_answer_bytes less the tool name and the receiving agent allowance (agent.json profile.declared.tool_payload). Raising core.call_answer_bytes alone cannot overcome a smaller agent allowance. Oversized rendered comparisons return measured-size feedback and recovery instructions; forge size refusals have unknown measured size. Host-fitted file prefixes keep [file truncated] and give size and recovery feedback when room permits. max_bytes selects a raw prefix, with no offset; a cut is incomplete. Metadata that leaves no content room needs a shorter path or a larger allowance. Oversized pull-file pages retain changed paths as room permits and distinguish omitted contents from absent sides. Read selected paths at the head and base commits, resolving the base separately; recover omitted paths by listing directories at both commits. Later pages only list other files.
+File, pull-file and compare replies fit the smaller of core.call_answer_bytes less the tool name and the receiving agent allowance (agent.json profile.declared.tool_payload). Raising core.call_answer_bytes alone cannot overcome a smaller agent allowance. Oversized rendered comparisons return measured-size feedback and recovery instructions; forge size refusals name the bound passed and the exact size, or at least the size read. Unnamed checks say an unnamed bound; a forge bound without figures says a bound of the forge's. Each refusal says how to read on. Host-fitted file prefixes keep [file truncated] and give size and recovery feedback when room permits. max_bytes selects a raw prefix, with no offset; a cut is incomplete. Metadata that leaves no content room needs a shorter path or a larger allowance. Oversized pull-file pages retain changed paths as room permits and distinguish omitted contents from absent sides. Read selected paths at the head and base commits, resolving the base separately; recover omitted paths by listing directories at both commits. Later pages only list other files.
 
 ## decided
 
@@ -248,7 +248,7 @@ A write.
 
 ## read_items
 
-Read a page of a repository's issues and pull requests, those updated least recently first, from a time on.
+Issues/pulls, oldest updates first; forge.client.rows/answer_bytes bounded. Advance page.
 
 A read.
 
@@ -259,7 +259,7 @@ A read.
 
 ## read_item
 
-Read an issue or a pull request with its comments.
+Issue/pull and comments within forge.client.rows/answer_bytes. Advance after for comments; read_items for summaries.
 
 A read.
 
@@ -269,7 +269,7 @@ A read.
 
 ## read_pull
 
-Read a pull request.
+Pull within forge.client.rows/answer_bytes. Files: read_pull_files by page, or read_file by path at head/base.
 
 A read.
 
@@ -278,7 +278,7 @@ A read.
 
 ## read_pull_for
 
-Find the pull request from one branch into another.
+Find a pull by head/base within forge.client.rows/answer_bytes. Files: read_pull_files by page or read_file by path at head/base.
 
 A read.
 
@@ -288,7 +288,7 @@ A read.
 
 ## read_reviews
 
-Read a page of a pull request's reviews.
+Pull reviews within forge.client.rows/answer_bytes. Advance page for other rows; it skips an oversized page.
 
 A read.
 
@@ -298,7 +298,7 @@ A read.
 
 ## read_statuses
 
-Read a page of the statuses posted on a commit.
+Commit statuses within forge.client.rows/answer_bytes. Advance page for other rows; it skips an oversized page.
 
 A read.
 
@@ -308,7 +308,7 @@ A read.
 
 ## read_remarks
 
-Read a page of one review's remarks on a pull request.
+Review remarks within forge.client.rows/answer_bytes. Advance page for other rows; it skips an oversized page.
 
 A read.
 
@@ -319,7 +319,7 @@ A read.
 
 ## read_branch
 
-Read a branch's head.
+Branch head within forge.client.answer_bytes; read_branches with a longer prefix lists names.
 
 A read.
 
@@ -328,7 +328,7 @@ A read.
 
 ## read_branches
 
-List the branches whose names start with a prefix.
+List the branches whose names start with a prefix. The names fit forge.client.answer_bytes; a longer prefix reads fewer.
 
 A read.
 
@@ -337,7 +337,7 @@ A read.
 
 ## read_pull_files
 
-Read changed files at a head. Sides fit forge and host limits; oversized pages omit contents. Use read_file at both commits; later pages skip this page.
+Changed files within forge.client.rows/answer_bytes. Whole sides; read_file at head/base. Next page lists other files, not this page.
 
 A read.
 
@@ -348,7 +348,7 @@ A read.
 
 ## read_compare
 
-Compare commits whole; no pages. Files and commits each fit forge.client.rows, decoded bytes fit forge.client.answer_bytes. Use read_pull_files or read_file.
+Compare commits by names, counts and containment, without contents. No raw reads. Read a path's contents with read_file at each commit; Missing means absent.
 
 A read.
 
@@ -358,7 +358,7 @@ A read.
 
 ## read_checks
 
-Read a commit's combined checks.
+Combined checks within forge.client.rows/answer_bytes; read_statuses by page, then read_job for a failed job.
 
 A read.
 
@@ -367,7 +367,7 @@ A read.
 
 ## read_file
 
-Read a file prefix or list a directory. max_bytes limits raw bytes; metadata and escaping use host room. Too large: lower max_bytes; a prefix is incomplete.
+File prefix or directory within forge.client.answer_bytes and max_bytes. A cut is incomplete; lower max_bytes or select directory paths.
 
 A read.
 
@@ -378,7 +378,7 @@ A read.
 
 ## read_job
 
-Read one CI job's failed-step end or job tail, cut at a byte limit.
+Failed-step end or job tail within forge.client.answer_bytes. Lower max_bytes for the same attempt to fit.
 
 A read.
 
@@ -391,7 +391,7 @@ A read.
 
 ## read_protection
 
-Read a branch's protection.
+Branch protection within forge.client.rows/answer_bytes. No pages; read_branch or read_items for narrower context.
 
 A read.
 
@@ -400,7 +400,7 @@ A read.
 
 ## read_settings
 
-Read the repository's settings.
+Repository settings within forge.client.answer_bytes. No pages; read_branch or read_items for narrower context.
 
 A read.
 
@@ -408,7 +408,7 @@ A read.
 
 ## read_collaborators
 
-Read a page of the repository's collaborators; read_permission names each.
+Collaborators within forge.client.rows/answer_bytes; advance page. read_permission reads one user.
 
 A read.
 
@@ -417,7 +417,7 @@ A read.
 
 ## read_permission
 
-Read a forge user's permission on the repository, with their id and login when available.
+User permission within forge.client.answer_bytes. No pages; read_collaborators lists users by page.
 
 A read.
 

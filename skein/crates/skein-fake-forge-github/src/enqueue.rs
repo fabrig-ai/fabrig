@@ -104,7 +104,7 @@ pub(crate) fn finish(
                     let number = pending.number;
                     return call(
                         Pending { stage: Stage::Author { pull: Box::new(pull), context: context.clone() }, ..pending },
-                        a::Op::Read(a::Read::Item { number, after: 0 }),
+                        a::Op::Read(a::Read::Item { number, after: 0, since: None }),
                         reply_to,
                     );
                 }
