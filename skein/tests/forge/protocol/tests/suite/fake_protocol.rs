@@ -84,7 +84,7 @@ fn a_failed_job_read_names_its_failed_step_and_reads_its_log() {
         panic!("Checks: {:?}", joint.answered(1))
     };
     let attempt = statuses[0].job.expect("The failed status links its job");
-    joint.call(2, REPO, Op::Read(Read::Job { attempt, max_bytes: 4096 }));
+    joint.call(2, REPO, Op::Read(Read::Job { part: skein_forge::api::LogPart::End, attempt, max_bytes: 4096 }));
     joint.run_for(Duration::from_secs(1));
     let answered = joint.answered(2).expect("Job answer");
     assert_eq!(answered.cost, 3, "Run, job, the step log");
@@ -104,12 +104,32 @@ fn a_failed_jobs_log_end_comes_through_a_suffix_range() {
         panic!("Checks: {:?}", joint.answered(1))
     };
     let attempt = statuses[0].job.expect("The failed status links its job");
-    joint.call(2, REPO, Op::Read(Read::Job { attempt, max_bytes: 8 }));
+    joint.call(2, REPO, Op::Read(Read::Job { part: skein_forge::api::LogPart::End, attempt, max_bytes: 8 }));
     joint.run_for(Duration::from_secs(1));
     let answered = joint.answered(2).expect("Job answer");
     assert_eq!(answered.cost, 3, "Run, job, the step log");
     let step = Some(skein_forge::api::Step { number: 1, name: Box::from(BUILD_STEP_NAME) });
     assert_eq!(answered.result, Ok(Answer::Job { attempt, step, log: Box::from(&b"build 3\n"[..]), truncated: true }));
+}
+
+#[test]
+fn a_start_read_reads_the_fake_logs_first_bytes() {
+    let mut joint = Joint::failing(5);
+    let pushed = joint.push(b"work", b"change");
+    joint.run_for(Duration::from_secs(1));
+    let head = skein_forge_kit::client::commit(pushed);
+    joint.call(1, REPO, Op::Read(Read::Checks { commit: head }));
+    joint.run_for(Duration::from_secs(1));
+    let Some(Ok(Answer::Checks(statuses))) = joint.answered(1).map(|a| &a.result) else {
+        panic!("Checks: {:?}", joint.answered(1))
+    };
+    let attempt = statuses[0].job.expect("The failed status links its job");
+    joint.call(2, REPO, Op::Read(Read::Job { attempt, max_bytes: 8, part: skein_forge::api::LogPart::Start }));
+    joint.run_for(Duration::from_secs(1));
+    let answered = joint.answered(2).expect("Job answer");
+    assert_eq!(answered.cost, 3, "Run metadata, job metadata, whole job log");
+    let step = Some(skein_forge::api::Step { number: 1, name: Box::from(BUILD_STEP_NAME) });
+    assert_eq!(answered.result, Ok(Answer::Job { attempt, step, log: Box::from(&b"set up b"[..]), truncated: true }));
 }
 
 #[test]

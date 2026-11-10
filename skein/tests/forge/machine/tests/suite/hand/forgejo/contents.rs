@@ -367,7 +367,11 @@ fn checks_read_every_status_page_until_one_comes_short() {
 #[test]
 fn a_job_log_at_another_head_is_missing_job() {
     let mut h = fixtures::known();
-    h.call(1, fixtures::REPO, Op::Read(Read::Job { attempt: ATTEMPT, max_bytes: 4 }));
+    h.call(
+        1,
+        fixtures::REPO,
+        Op::Read(Read::Job { part: skein_forge::api::LogPart::End, attempt: ATTEMPT, max_bytes: 4 }),
+    );
     h.run(Duration::from_millis(1));
     assert_eq!(
         h.request_lines(fixtures::FORGE).into_boxed().last().expect("run").as_ref(),
@@ -389,7 +393,11 @@ fn a_job_of_another_id_run_or_attempt_is_missing_job() {
         ("other run", &br#"{"id":10,"run_id":8,"attempt":3}"#[..]),
     ] {
         let mut h = fixtures::known();
-        h.call(1, fixtures::REPO, Op::Read(Read::Job { attempt: ATTEMPT, max_bytes: 4 }));
+        h.call(
+            1,
+            fixtures::REPO,
+            Op::Read(Read::Job { part: skein_forge::api::LogPart::End, attempt: ATTEMPT, max_bytes: 4 }),
+        );
         h.answer(fixtures::FORGE, &fixtures::ok(RUN));
         h.answer(fixtures::FORGE, &fixtures::ok(jobs));
         h.run(Duration::from_millis(10));
@@ -401,7 +409,11 @@ fn a_job_of_another_id_run_or_attempt_is_missing_job() {
 fn a_job_read_answered_404_is_missing_job_at_each_exchange() {
     for (name, before, cost) in [("run", &[][..], 1), ("job", &[RUN][..], 2), ("log", &[RUN, JOB][..], 3)] {
         let mut h = fixtures::known();
-        h.call(1, fixtures::REPO, Op::Read(Read::Job { attempt: ATTEMPT, max_bytes: 4 }));
+        h.call(
+            1,
+            fixtures::REPO,
+            Op::Read(Read::Job { part: skein_forge::api::LogPart::End, attempt: ATTEMPT, max_bytes: 4 }),
+        );
         for document in before {
             h.answer(fixtures::FORGE, &fixtures::ok(document));
         }
@@ -411,6 +423,67 @@ fn a_job_read_answered_404_is_missing_job_at_each_exchange() {
         assert_eq!((answer.cost, answer.result.clone()), (cost, Err(Error::MissingJob)), "{name}");
     }
 }
+#[test]
+fn a_job_logs_start_read_sends_a_head_range_and_keeps_the_first_bytes() {
+    for (max_bytes, response, log, truncated, range) in [
+        (
+            4,
+            b"HTTP/1.1 206 Partial Content\r\nContent-Length: 4\r\nContent-Range: bytes 0-3/8\r\n\r\nabcd".as_slice(),
+            b"abcd".as_slice(),
+            true,
+            b"Range: bytes=0-3\r\n".as_slice(),
+        ),
+        (
+            64,
+            b"HTTP/1.1 206 Partial Content\r\nContent-Length: 8\r\nContent-Range: bytes 0-7/8\r\n\r\nabcdefgh"
+                .as_slice(),
+            b"abcdefgh".as_slice(),
+            false,
+            b"Range: bytes=0-63\r\n".as_slice(),
+        ),
+        (
+            4,
+            b"HTTP/1.1 200 OK\r\nContent-Length: 8\r\n\r\nabcdefgh".as_slice(),
+            b"abcd".as_slice(),
+            true,
+            b"Range: bytes=0-3\r\n".as_slice(),
+        ),
+    ] {
+        let mut h = fixtures::known();
+        h.call(
+            1,
+            fixtures::REPO,
+            Op::Read(Read::Job { attempt: ATTEMPT, max_bytes, part: skein_forge::api::LogPart::Start }),
+        );
+        h.answer(fixtures::FORGE, &fixtures::ok(RUN));
+        h.answer(fixtures::FORGE, &fixtures::ok(JOB));
+        let request = h.request_bytes(fixtures::FORGE);
+        assert!(
+            skein_lib::bytes::find(
+                &request,
+                b"GET /api/v1/repos/fixture/specimen/actions/jobs/10/logs?attempt=3 HTTP/1.1\r\n"
+            )
+            .is_some(),
+            "Start requests the whole job log, without a step query"
+        );
+        assert!(skein_lib::bytes::find(&request, range).is_some(), "head range counts bytes");
+        h.answer(fixtures::FORGE, response);
+        h.run(Duration::from_millis(10));
+        let answer = h.answered(1).expect("job log");
+        assert_eq!(answer.cost, 3, "Run metadata, job metadata, whole job log");
+        assert_eq!(
+            answer.result,
+            Ok(Answer::Job {
+                attempt: ATTEMPT,
+                step: Some(Step { number: 1, name: Box::from(&b"build"[..]) }),
+                log: Box::from(log),
+                truncated,
+            }),
+            "Start retains the head and keeps the failed-step metadata"
+        );
+    }
+}
+
 #[test]
 fn job_log_responses_retain_tails_and_report_truncation() {
     skein_rows::check(
@@ -449,7 +522,11 @@ fn job_log_responses_retain_tails_and_report_truncation() {
         ],
         |(response, log, truncated)| {
             let mut h = fixtures::known();
-            h.call(1, fixtures::REPO, Op::Read(Read::Job { attempt: ATTEMPT, max_bytes: 4 }));
+            h.call(
+                1,
+                fixtures::REPO,
+                Op::Read(Read::Job { part: skein_forge::api::LogPart::End, attempt: ATTEMPT, max_bytes: 4 }),
+            );
             h.answer(fixtures::FORGE, &fixtures::ok(RUN));
             h.answer(fixtures::FORGE, &fixtures::ok(JOB));
             let request = h.request_bytes(fixtures::FORGE);
@@ -502,7 +579,11 @@ fn job(statuses: [&str; 3]) -> Box<[u8]> {
 }
 fn read_job(document: &[u8], log: &[u8], max: u32) -> fixtures::Harness {
     let mut h = fixtures::known();
-    h.call(1, fixtures::REPO, Op::Read(Read::Job { attempt: ATTEMPT, max_bytes: max }));
+    h.call(
+        1,
+        fixtures::REPO,
+        Op::Read(Read::Job { part: skein_forge::api::LogPart::End, attempt: ATTEMPT, max_bytes: max }),
+    );
     h.answer(fixtures::FORGE, &fixtures::ok(RUN));
     h.answer(fixtures::FORGE, &fixtures::ok(document));
     h.answer(fixtures::FORGE, &fixtures::ok(log));
@@ -647,7 +728,11 @@ fn a_jobs_log_room_is_answer_bytes_less_its_steps_name() {
     h.answer(fixtures::FORGE, &fixtures::user_ok());
     h.answer(fixtures::FORGE, &fixtures::settings_ok());
     h.known(fixtures::REPO, fixtures::specimen());
-    h.call(1, fixtures::REPO, Op::Read(Read::Job { attempt: ATTEMPT, max_bytes: max }));
+    h.call(
+        1,
+        fixtures::REPO,
+        Op::Read(Read::Job { part: skein_forge::api::LogPart::End, attempt: ATTEMPT, max_bytes: max }),
+    );
     h.answer(fixtures::FORGE, &fixtures::ok(RUN));
     h.answer(fixtures::FORGE, &fixtures::ok(JOB));
     h.answer(fixtures::FORGE, &fixtures::ok(log.as_slice()));

@@ -4,7 +4,7 @@ use skein_forge_client_world::{LIMITS, translate};
 #[test]
 fn a_job_with_no_failed_step_translates_to_its_whole_logs_end() {
     let attempt = api::JobAttempt { head: translate::commit(3), run: 3, job: 7, attempt: 2 };
-    let asked = api::Op::Read(api::Read::Job { attempt, max_bytes: 4 });
+    let asked = api::Op::Read(api::Read::Job { part: api::LogPart::End, attempt, max_bytes: 4 });
     let steps = Box::new([
         forge::Step {
             number: 0,

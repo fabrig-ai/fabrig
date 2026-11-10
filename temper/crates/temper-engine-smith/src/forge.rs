@@ -116,6 +116,7 @@ fn read(kind: &[u8], value: &Value) -> Result<api::Read, Problem> {
         }),
         b"checks" => Ok(api::Read::Checks { commit: commit(value.required(b"commit")?, b"commit")? }),
         b"job" => Ok(api::Read::Job {
+            part: api::LogPart::End,
             attempt: api::JobAttempt {
                 head: commit(value.required(b"head")?, b"head")?,
                 run: positive_number(value, b"run")?,

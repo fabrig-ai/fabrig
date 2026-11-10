@@ -140,7 +140,7 @@ fn actions(runner: Option<&Path>, f: &Fixture, h: &mut Hosted, facts: &mut Vec<F
             .into_iter()
             .find(|s| s.get("status").is("failure"))
             .ok_or("failed step")?;
-        facts.push(h.observe("component-read-job", repo, Read::Job { attempt, max_bytes: 65536 }.operation(), |a| matches!(a, Answer::Job { attempt: got, step: Some(step), log, .. } if *got == attempt && Some(u64::from(step.number)) == failed.get("number").u64() && Some(step.name.as_ref()) == failed.get("name").str().map(str::as_bytes) && log.windows(b"KIT_CONFORMANCE_FAILED_JOB".len()).any(|s| s == b"KIT_CONFORMANCE_FAILED_JOB"))));
+        facts.push(h.observe("component-read-job", repo, Read::Job { part: api::LogPart::End, attempt, max_bytes: 65536 }.operation(), |a| matches!(a, Answer::Job { attempt: got, step: Some(step), log, .. } if *got == attempt && Some(u64::from(step.number)) == failed.get("number").u64() && Some(step.name.as_ref()) == failed.get("name").str().map(str::as_bytes) && log.windows(b"KIT_CONFORMANCE_FAILED_JOB".len()).any(|s| s == b"KIT_CONFORMANCE_FAILED_JOB"))));
         let number = failed.get("number").u64().ok_or("Failed step number")?;
         let log = f.exchange(
             "GET",
@@ -149,7 +149,7 @@ fn actions(runner: Option<&Path>, f: &Fixture, h: &mut Hosted, facts: &mut Vec<F
             Some(&f.writer.token),
             None,
         )?;
-        facts.push(h.observe(JOB_END, repo, Read::Job { attempt, max_bytes: 16 }.operation(), |a| matches!(a, Answer::Job { step: Some(step), log: kept, truncated: true, .. } if u64::from(step.number) == number && kept.len() == 16 && log.body.ends_with(kept))));
+        facts.push(h.observe(JOB_END, repo, Read::Job { part: api::LogPart::End, attempt, max_bytes: 16 }.operation(), |a| matches!(a, Answer::Job { step: Some(step), log: kept, truncated: true, .. } if u64::from(step.number) == number && kept.len() == 16 && log.body.ends_with(kept))));
     } else {
         facts.push(super::fact("component-read-job", false, &"checks contained no failed job attempt"));
         facts.push(super::fact(JOB_END, false, &"Checks contained no failed job attempt"));

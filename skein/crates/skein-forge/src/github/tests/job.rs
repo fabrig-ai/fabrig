@@ -57,7 +57,8 @@ impl Call {
                 },
             );
         }
-        let mut plan = Plan::new(KEY, api::Op::Read(api::Read::Job { attempt: attempt(), max_bytes }));
+        let mut plan =
+            Plan::new(KEY, api::Op::Read(api::Read::Job { part: api::LogPart::End, attempt: attempt(), max_bytes }));
         assert_eq!(
             plan.begin(bounds, b"example-app", &mut tables),
             Ok(Step::send(if cached { request(false) } else { Request::Repository { id: 7 } }))

@@ -624,7 +624,7 @@ pub fn digest(bytes: &[u8]) -> u64 {
 }
 
 fn job_answer(asked: &client::Op, job: &forge::Job, steps: &[forge::Step]) -> client::Answer {
-    let client::Op::Read(client::Read::Job { attempt, max_bytes }) = asked else {
+    let client::Op::Read(client::Read::Job { attempt, max_bytes, .. }) = asked else {
         panic!("Job answer requires a job read")
     };
     assert_eq!(job.attempt, attempt.attempt, "Worlds read the pinned attempt");

@@ -17,7 +17,7 @@ impl Plan {
         Ok(self.send(request))
     }
     pub(super) fn job_done(&mut self, job: document::Job, bounds: Bounds) -> Result<Option<Step>, api::Error> {
-        let Read::Job { attempt, max_bytes } = self.read else {
+        let Read::Job { attempt, max_bytes, .. } = self.read else {
             return Err(api::Error::InvalidAnswer);
         };
         if self.stage != Stage::Job {
@@ -46,25 +46,34 @@ impl Plan {
         let redirect = redirect::parse(location, length, length)?;
         self.stage = Stage::Log;
         self.response = Response::Head;
-        let retention = if self.job_step.is_some() {
-            Retention::FailedStep { bytes: self.raw_cap }
-        } else {
-            Retention::Tail { bytes: self.raw_cap }
+        let Read::Job { part, .. } = self.read else {
+            return Err(api::Error::InvalidAnswer);
+        };
+        let retention = match part {
+            api::LogPart::Start => Retention::Head { bytes: self.raw_cap },
+            api::LogPart::End if self.job_step.is_some() => Retention::FailedStep { bytes: self.raw_cap },
+            api::LogPart::End => Retention::Tail { bytes: self.raw_cap },
         };
         Ok(Some(Step::Redirect { redirect, retention }))
     }
     pub(super) fn job_raw(&mut self, bytes: Box<[u8]>, more: bool, bounds: Bounds) -> Result<Option<Step>, api::Error> {
-        let Read::Job { attempt, .. } = self.read else {
+        let Read::Job { attempt, part, .. } = self.read else {
             return Err(api::Error::InvalidAnswer);
         };
         if self.stage != Stage::Log {
             return Err(api::Error::InvalidAnswer);
         }
         let cap = skein_lib::usize_of(self.raw_cap);
-        let start = bytes.len().saturating_sub(cap);
-        let truncated = more || start != 0;
-        let log =
-            if start == 0 { bytes } else { skein_lib::bytes::copy_of(bytes.get(start..).expect("tail within bytes")) };
+        let truncated = more || bytes.len() > cap;
+        let log = if bytes.len() <= cap {
+            bytes
+        } else {
+            let kept = match part {
+                api::LogPart::Start => bytes.get(..cap).expect("head within bytes"),
+                api::LogPart::End => bytes.get(bytes.len().saturating_sub(cap)..).expect("tail within bytes"),
+            };
+            skein_lib::bytes::copy_of(kept)
+        };
         let step = self.job_step.take();
         self.terminal(api::Answer::Job { attempt, step, log, truncated }, bounds)
     }

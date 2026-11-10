@@ -226,7 +226,7 @@ fn content_cases() -> [ReadCase; 5] {
         },
         ReadCase {
             name: "job",
-            read: Read::Job { attempt: ATTEMPT, max_bytes: RAW_BYTES },
+            read: Read::Job { part: api::LogPart::End, attempt: ATTEMPT, max_bytes: RAW_BYTES },
             replies: &[(200, REPOSITORY), (200, RUN), (200, JOB), (200, b"abc")],
             expected: Ok(Answer::Job {
                 attempt: ATTEMPT,
@@ -258,7 +258,7 @@ fn content_cases() -> [ReadCase; 5] {
                 "GET /api/v1/repositories/1",
                 "GET /api/v1/repos/fixture/specimen/raw/x?ref=0100000000000000000000000000000000000000",
             ],
-            range: Some(Range::Head(RAW_BYTES)),
+            range: Some(Range::Head(RAW_BYTES + 1)),
             kept: true,
             login: None,
         },

@@ -428,7 +428,7 @@ fn files_at_a_different_head_are_refused_and_deletions_survive() {
 fn job_logs_are_bounded_and_pinned_to_the_failing_attempt() {
     let mut h = Harness::new(LIMITS);
     let attempt = api::JobAttempt { head: [1; 32], run: 7, job: 8, attempt: 2 };
-    let read = Read::Job { attempt, max_bytes: 64 };
+    let read = Read::Job { part: api::LogPart::End, attempt, max_bytes: 64 };
     drop(h.step(Event::Read { owner: Token::new(1), repository: REPO, read: read.clone() }));
     let sent = h.one();
     let answer = Answer::Job {
@@ -471,7 +471,7 @@ fn job_logs_are_bounded_and_pinned_to_the_failing_attempt() {
         &h.step(Event::Read {
             owner: Token::new(5),
             repository: REPO,
-            read: Read::Job { attempt, max_bytes: LIMITS.answer_bytes + 1 },
+            read: Read::Job { part: api::LogPart::End, attempt, max_bytes: LIMITS.answer_bytes + 1 },
         }),
         5,
         Error::TooLarge,
@@ -686,7 +686,7 @@ fn a_job_answers_step_name_counts_against_answer_bytes() {
         drop(h.step(Event::Read {
             owner: Token::new(1),
             repository: REPO,
-            read: Read::Job { attempt, max_bytes: 4096 },
+            read: Read::Job { part: api::LogPart::End, attempt, max_bytes: 4096 },
         }));
         let sent = h.one();
         let answer = Answer::Job {

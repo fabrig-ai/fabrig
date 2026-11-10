@@ -811,6 +811,7 @@ fn github_reaches_ready_through_its_accepted_installations() {
         1,
         skein_forge::api::Repository { forge: fixtures::FORGE, repository: 2 },
         skein_forge::api::Op::Read(skein_forge::api::Read::Job {
+            part: skein_forge::api::LogPart::End,
             attempt: skein_forge::api::JobAttempt { head, run: 1, job: 1, attempt: 1 },
             max_bytes: 1_024,
         }),

@@ -245,7 +245,12 @@ fn byte_cases() -> [ByteCase; BYTE_CASES] {
         ("items", Read::Items { since: at(0), page: 1, kind: None }, items_answer(), ITEMS_BYTES),
         ("item", Read::Item { number: 9, after: 0 }, item_answer(), ITEM_BYTES),
         ("pull", Read::Pull { number: 9 }, pull_answer(), PULL_BYTES),
-        ("job", Read::Job { attempt: ATTEMPT, max_bytes: JOB_LOG_ROOM }, job_answer(), JOB_BYTES),
+        (
+            "job",
+            Read::Job { part: api::LogPart::End, attempt: ATTEMPT, max_bytes: JOB_LOG_ROOM },
+            job_answer(),
+            JOB_BYTES,
+        ),
     ]
 }
 

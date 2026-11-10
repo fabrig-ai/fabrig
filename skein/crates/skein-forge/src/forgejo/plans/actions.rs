@@ -28,9 +28,9 @@ enum State {
     Listing { checks: Checks, page: u32 },
     RunLookup { checks: Checks, run_number: u64, job_index: u32, run: Option<u64>, missing: bool },
     JobsLookup { checks: Checks, job_index: u32, run: u64, missing: bool },
-    Run { attempt: api::JobAttempt, max: u32 },
-    Job { attempt: api::JobAttempt, max: u32, step: Option<api::Step> },
-    Log { attempt: api::JobAttempt, step: Option<api::Step>, truncated: bool },
+    Run { attempt: api::JobAttempt, max: u32, part: api::LogPart },
+    Job { attempt: api::JobAttempt, max: u32, part: api::LogPart, step: Option<api::Step> },
+    Log { attempt: api::JobAttempt, max: u32, part: api::LogPart, step: Option<api::Step>, truncated: bool },
     Ended,
 }
 #[derive(Debug)]
@@ -47,7 +47,7 @@ impl Plan {
             api::Read::Statuses { commit, page } => {
                 Self::listing(commit, Shape::Statuses { ci: api::Ci::None, more: false }, page, bounds, true)
             }
-            api::Read::Job { attempt, max_bytes } => State::Run { attempt, max: max_bytes },
+            api::Read::Job { attempt, max_bytes, part } => State::Run { attempt, max: max_bytes, part },
             api::Read::Runs { .. }
             | api::Read::Run { .. }
             | api::Read::Tree { .. }
@@ -150,13 +150,19 @@ impl Plan {
                     return Err(api::Error::MissingJob);
                 }
             }
-            State::Log { truncated, .. } => {
+            State::Log { truncated, part, max, .. } => {
                 if status == 404 {
                     tables.drop_repository(repository);
                     return Err(api::Error::MissingJob);
                 }
                 if let Some(range) = fields.content_range {
-                    *truncated = range.first > 0;
+                    *truncated = match part {
+                        api::LogPart::End => range.first > 0,
+                        api::LogPart::Start => match range.total {
+                            Some(total) => total > range.end.min(u64::from(*max)),
+                            None => false,
+                        },
+                    };
                 }
                 if status == 206 {
                     return Ok(state);
@@ -253,11 +259,11 @@ impl Plan {
                 State::Ended => unreachable!("owner stops feeding an ended actions plan"),
             },
             d::Row::Step(value) => match state {
-                State::Job { attempt, max, mut step } => {
+                State::Job { attempt, max, part, mut step } => {
                     if step.is_none() && value.status == d::StepStatus::Failure {
                         step = Some(api::Step { number: value.number, name: value.name });
                     }
-                    Ok(State::Job { attempt, max, step })
+                    Ok(State::Job { attempt, max, part, step })
                 }
                 State::Listing { .. }
                 | State::RunLookup { .. }
@@ -314,15 +320,25 @@ impl Plan {
             Body::Document(document) => document,
             Body::Raw { bytes, more } => {
                 return match state {
-                    State::Log { attempt, step, truncated } => Ok((
-                        State::Ended,
-                        Some(Step::Done(Ok(api::Answer::Job {
-                            attempt,
-                            step,
-                            log: bytes,
-                            truncated: more || truncated,
-                        }))),
-                    )),
+                    State::Log { attempt, max, part, step, truncated } => {
+                        let cap = skein_lib::usize_of(max);
+                        let cut = bytes.len() > cap;
+                        let log = match part {
+                            api::LogPart::Start if cut => {
+                                skein_lib::bytes::copy_of(bytes.get(..cap).expect("head within bytes"))
+                            }
+                            api::LogPart::End | api::LogPart::Start => bytes,
+                        };
+                        Ok((
+                            State::Ended,
+                            Some(Step::Done(Ok(api::Answer::Job {
+                                attempt,
+                                step,
+                                log,
+                                truncated: more || truncated || cut,
+                            }))),
+                        ))
+                    }
                     State::Listing { .. }
                     | State::RunLookup { .. }
                     | State::JobsLookup { .. }
@@ -387,7 +403,7 @@ impl Plan {
                 }
                 self.next_check(checks)
             }
-            State::Run { attempt, max } => {
+            State::Run { attempt, max, part } => {
                 let run = match document {
                     d::Document::Run(run) => run,
                     _ => return Err(api::Error::InvalidAnswer),
@@ -397,9 +413,9 @@ impl Plan {
                     return Err(api::Error::MissingJob);
                 }
                 let sent = self.send(r::Request::Job { at: self.row.at(), job: attempt.job });
-                Ok((State::Job { attempt, max, step: None }, Some(sent)))
+                Ok((State::Job { attempt, max, part, step: None }, Some(sent)))
             }
-            State::Job { attempt, max, step } => {
+            State::Job { attempt, max, part, step } => {
                 let job = match document {
                     d::Document::Job(job) => job,
                     _ => return Err(api::Error::InvalidAnswer),
@@ -412,14 +428,20 @@ impl Plan {
                         at: self.row.at(),
                         job: attempt.job,
                         attempt: attempt.attempt,
-                        step: match &step {
-                            Some(step) => Some(step.number),
-                            None => None,
+                        step: match part {
+                            api::LogPart::End => match &step {
+                                Some(step) => Some(step.number),
+                                None => None,
+                            },
+                            api::LogPart::Start => None,
                         },
                     },
-                    range: Some(crate::forgejo::plans::plan::Range::Tail(max)),
+                    range: Some(match part {
+                        api::LogPart::End => crate::forgejo::plans::plan::Range::Tail(max),
+                        api::LogPart::Start => crate::forgejo::plans::plan::Range::Head(max),
+                    }),
                 });
-                Ok((State::Log { attempt, step, truncated: false }, Some(sent)))
+                Ok((State::Log { attempt, max, part, step, truncated: false }, Some(sent)))
             }
             State::Log { .. } => Err(api::Error::InvalidAnswer),
             State::Ended => unreachable!("owner stops feeding an ended actions plan"),

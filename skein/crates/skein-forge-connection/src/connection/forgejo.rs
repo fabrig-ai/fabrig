@@ -23,10 +23,19 @@ pub struct Exchange {
     heard: Queue<Heard>,
     after: u64,
     keep: Keep,
+    head_total: Option<u64>,
 }
 impl Exchange {
     pub fn new() -> Self {
-        Self { request: None, decoder: None, done: None, heard: Queue::uncapped(), after: 0, keep: Keep::Head(0) }
+        Self {
+            request: None,
+            decoder: None,
+            done: None,
+            heard: Queue::uncapped(),
+            after: 0,
+            keep: Keep::Head(0),
+            head_total: None,
+        }
     }
     pub fn start(
         &mut self,
@@ -54,7 +63,7 @@ impl Exchange {
         let body = Connection::body(&mut headers, encoded.body.as_deref());
         if let Some(range) = range {
             let (prefix, max) = match range {
-                Range::Head(n) => (b"bytes=0-".as_slice(), n),
+                Range::Head(n) => (b"bytes=0-".as_slice(), n.saturating_sub(1)),
                 Range::Tail(n) => (b"bytes=-".as_slice(), n),
             };
             let decimal = skein_lib::Decimal::of(u64::from(max));
@@ -65,6 +74,7 @@ impl Exchange {
                 .push(skein_http::Header { name: Box::from(&b"Range"[..]), value: value.finish() })
                 .expect("five Forgejo header fields");
         }
+        self.head_total = None;
         self.request = Some(request);
         self.decoder = None;
         self.done = None;
@@ -97,6 +107,13 @@ impl Exchange {
         let content_range = match response.header(b"Content-Range") {
             Some(value) => header::content_range(value),
             None => None,
+        };
+        self.head_total = match self.keep {
+            Keep::Head(_) => match content_range {
+                Some(range) => range.total,
+                None => None,
+            },
+            Keep::Tail(_) => None,
         };
         let close = match response.header(b"Connection") {
             Some(value) => value.eq_ignore_ascii_case(b"close"),
@@ -168,7 +185,13 @@ impl Exchange {
                             self.done.take().unwrap_or(Body::Malformed(decode::Malformed::Missing { field: b"" }))
                         }
                         Payload::Empty => self.done.take().unwrap_or(Body::Empty),
-                        Payload::Raw { bytes, more } => Body::Raw { bytes, more },
+                        Payload::Raw { bytes, more } => {
+                            let omitted = match self.head_total {
+                                Some(total) => total > skein_lib::len_u64(bytes.len()),
+                                None => false,
+                            };
+                            Body::Raw { bytes, more: more || omitted }
+                        }
                     };
                     let closes = match &body {
                         Body::Malformed(_) | Body::Raw { more: true, .. } => true,

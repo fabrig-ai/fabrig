@@ -45,7 +45,7 @@ enum Read {
     Compare { before: api::Commit, after: api::Commit },
     Commits { before: api::Commit, after: api::Commit, page: u32 },
     PullFiles { number: u64, head: api::Commit, page: u32 },
-    Job { attempt: api::JobAttempt, max_bytes: u32 },
+    Job { attempt: api::JobAttempt, max_bytes: u32, part: api::LogPart },
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Stage {
@@ -137,7 +137,7 @@ impl Plan {
             api::Read::PullFiles { number, head, page } => Read::PullFiles { number, head, page },
             api::Read::Checks { commit } => Read::Checks { commit },
             api::Read::Protection { branch } => Read::Protection { branch },
-            api::Read::Job { attempt, max_bytes } => Read::Job { attempt, max_bytes },
+            api::Read::Job { attempt, max_bytes, part } => Read::Job { attempt, max_bytes, part },
         };
         Self {
             repository,

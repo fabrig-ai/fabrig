@@ -56,7 +56,7 @@ fn answering_404_keeps_the_path() {
 
 #[test]
 fn terminal_404_drops_the_path() {
-    let job = Read::Job { attempt: ATTEMPT, max_bytes: RAW_BYTES };
+    let job = Read::Job { part: api::LogPart::End, attempt: ATTEMPT, max_bytes: RAW_BYTES };
     for (name, read, answers, error) in [
         ("run", job.clone(), &[][..], Error::MissingJob),
         ("job", job.clone(), &[(200, RUN)][..], Error::MissingJob),
@@ -73,7 +73,7 @@ fn terminal_404_drops_the_path() {
 fn redirect_drops_the_path() {
     for (name, read, answers) in [
         ("file", Read::File { head: HEAD, path: Box::from(super::FILE_PATH), max_bytes: RAW_BYTES }, &[][..]),
-        ("job", Read::Job { attempt: ATTEMPT, max_bytes: RAW_BYTES }, &[(200, RUN)][..]),
+        ("job", Read::Job { part: api::LogPart::End, attempt: ATTEMPT, max_bytes: RAW_BYTES }, &[(200, RUN)][..]),
         ("checks", Read::Checks { commit: HEAD }, &[(200, FAILING)][..]),
         (
             "pull side",

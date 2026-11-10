@@ -115,6 +115,35 @@ fn fixture_step() -> api::Step {
 }
 
 #[test]
+fn a_job_logs_start_read_keeps_the_head_of_the_redirected_log() {
+    let metadata = br#"{"id":1,"run_id":1,"run_attempt":1,"head_sha":"910a2dec89025cc1000000000000000100000000","steps":[{"number":3,"name":"build","conclusion":"failure"}]}"#;
+    let mut w = plaintext_job(
+        metadata,
+        b"selection: 7\nbuild failed\n##[error]Process completed with exit code 1.\nPost job cleanup.\n",
+    );
+    w.call(2, REPO, Op::Read(Read::Job { attempt: attempt(), max_bytes: 13, part: api::LogPart::Start }));
+    w.run_for(SECOND);
+    terminal(
+        &w,
+        2,
+        FOLLOW_COST,
+        &Ok(Value::Job {
+            attempt: attempt(),
+            step: Some(api::Step { number: 3, name: Box::from(*b"build") }),
+            log: Box::from(*b"selection: 7\n"),
+            truncated: true,
+        }),
+    );
+    let request = w.requests().last().expect("redirected log GET");
+    assert!(request.starts_with(b"GET /logs/2/1/1"), "the redirect was followed");
+    assert!(
+        !request.windows(b"Range:".len()).any(|bytes| bytes.eq_ignore_ascii_case(b"Range:")),
+        "the redirected GET carries no Range"
+    );
+    finish(&mut w, READY_REQUESTS + usize::try_from(FOLLOW_COST).expect("three follow requests"));
+}
+
+#[test]
 fn github_job_without_a_failed_step_keeps_cleanup_in_the_job_tail() {
     let metadata =
         br#"{"id":1,"run_id":1,"run_attempt":1,"head_sha":"910a2dec89025cc1000000000000000100000000","steps":[]}"#;
@@ -159,7 +188,7 @@ fn attempt() -> api::JobAttempt {
     api::JobAttempt { head, run: 1, job: 1, attempt: 1 }
 }
 fn read(world: &mut Machine, call: u64, max_bytes: u32) {
-    world.call(call, REPO, Op::Read(Read::Job { attempt: attempt(), max_bytes }));
+    world.call(call, REPO, Op::Read(Read::Job { part: api::LogPart::End, attempt: attempt(), max_bytes }));
     world.run_for(SECOND);
 }
 fn terminal(world: &Machine, call: u64, cost: u32, expected: &Result<Value, Error>) {
@@ -320,7 +349,7 @@ fn checks_log(w: &mut Machine, head: api::Commit, call: u64) {
     assert!(check.url.windows(b"/job/".len()).any(|bytes| bytes == b"/job/"));
     let pinned = check.job.expect("Actions job resolved from its link");
     assert_eq!(pinned.head, head);
-    w.call(call + 1, REPO, Op::Read(Read::Job { attempt: pinned, max_bytes: 96 }));
+    w.call(call + 1, REPO, Op::Read(Read::Job { part: api::LogPart::End, attempt: pinned, max_bytes: 96 }));
     w.run_for(SECOND);
     let Ok(Value::Job { attempt, log, truncated, .. }) = &w.answered(call + 1).expect("job log").result else {
         panic!("pinned job log")

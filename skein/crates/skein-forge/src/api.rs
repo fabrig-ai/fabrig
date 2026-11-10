@@ -87,6 +87,13 @@ pub enum Op {
     /// A write operation.
     Write(Write),
 }
+/// The part of a job's log to retain (skein/docs/design/forge.md, 3.2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum LogPart {
+    End,
+    Start,
+}
+
 /// A typed forge read, bounded by the client’s limits.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Read {
@@ -126,7 +133,7 @@ pub enum Read {
     /// Provider descriptions and links, with a failing job's attempt.
     Checks { commit: Commit },
     /// Bounded plaintext log for one failed job attempt at its head.
-    Job { attempt: JobAttempt, max_bytes: u32 },
+    Job { attempt: JobAttempt, max_bytes: u32, part: LogPart },
     /// One file at an immutable head, cut to the requested byte budget.
     File { head: Commit, path: Box<[u8]>, max_bytes: u32 },
     /// Requires admin, including an absent rule.

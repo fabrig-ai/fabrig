@@ -117,11 +117,11 @@ fn a_connection_close_answer_ends_its_connection_after_it() {
 #[test]
 fn raw_reads_keep_the_range_and_refuse_bytes_past_remaining_answer_room() {
     let rows: [RawRow; 5] = [
-        ("short", b"ab", 3, 10, b"ab", false, Phase::Idle, b"Range: bytes=0-3\r\n"),
-        ("exact max", b"abc", 3, 10, b"abc", false, Phase::Idle, b"Range: bytes=0-3\r\n"),
-        ("one more", b"abcdef", 3, 10, b"abcd", true, Phase::Closed, b"Range: bytes=0-3\r\n"),
-        ("remaining answer", b"abcdef", 5, 3, b"abc", true, Phase::Closed, b"Range: bytes=0-5\r\n"),
-        ("empty", b"", 3, 10, b"", false, Phase::Idle, b"Range: bytes=0-3\r\n"),
+        ("short", b"ab", 3, 10, b"ab", false, Phase::Idle, b"Range: bytes=0-2\r\n"),
+        ("exact max", b"abc", 3, 10, b"abc", false, Phase::Idle, b"Range: bytes=0-2\r\n"),
+        ("one more", b"abcdef", 3, 10, b"abcd", true, Phase::Closed, b"Range: bytes=0-2\r\n"),
+        ("remaining answer", b"abcdef", 5, 3, b"abc", true, Phase::Closed, b"Range: bytes=0-4\r\n"),
+        ("empty", b"", 3, 10, b"", false, Phase::Idle, b"Range: bytes=0-2\r\n"),
     ];
     for (name, response, max, room, expected, more, phase, range) in rows {
         let mut h = fixtures::ConnectionHarness::new();
@@ -137,6 +137,32 @@ fn raw_reads_keep_the_range_and_refuse_bytes_past_remaining_answer_room() {
         assert!(contains(&h.sent, range), "{name}: range header");
     }
 }
+#[test]
+fn head_ranges_count_bytes_and_report_a_truncated_partial_response() {
+    for (max, body, fields, more, range) in [
+        (1, b"a".as_slice(), b"Content-Range: bytes 0-0/8\r\n".as_slice(), true, b"Range: bytes=0-0\r\n".as_slice()),
+        (4, b"abcd".as_slice(), b"Content-Range: bytes 0-3/8\r\n".as_slice(), true, b"Range: bytes=0-3\r\n".as_slice()),
+        (
+            4,
+            b"abcd".as_slice(),
+            b"Content-Range: bytes 0-3/4\r\n".as_slice(),
+            false,
+            b"Range: bytes=0-3\r\n".as_slice(),
+        ),
+    ] {
+        let mut h = fixtures::ConnectionHarness::new();
+        h.start_forgejo(raw_request(), Some(Range::Head(max))).expect("valid head range");
+        let response = crate::fixtures::response_with_fields(206, body, fields);
+        let heard = h.answer(&response);
+        assert!(contains(&h.sent, range), "Head(n) requests exactly n bytes");
+        assert_eq!(
+            heard.last(),
+            Some(&Heard::Done(skein_forge::forgejo::plans::Body::Raw { bytes: Box::from(body), more })),
+            "Content-Range reports bytes omitted after the retained prefix"
+        );
+    }
+}
+
 type TailRow = (&'static str, &'static [u8], &'static [u8], bool, Phase);
 type RawRow = (&'static str, &'static [u8], u32, u32, &'static [u8], bool, Phase, &'static [u8]);
 fn contains(bytes: &[u8], expected: &[u8]) -> bool {
