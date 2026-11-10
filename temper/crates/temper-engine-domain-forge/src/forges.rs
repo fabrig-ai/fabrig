@@ -130,7 +130,11 @@ pub(crate) fn document(
     forges: &[Configured],
 ) -> Result<(Map<u16, Configured>, u16), skein_forge::api::Error> {
     if forges.len() > usize::try_from(limit).expect("forge count fits usize") {
-        return Err(skein_forge::api::Error::TooLarge);
+        return Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::exact(
+            skein_forge::api::Bound::Forge,
+            u64::from(limit),
+            skein_lib::len_u64(forges.len()),
+        )));
     }
     // Document forges and records each enter at the kept-forges bound.
     let mut configured = Map::uncapped();
@@ -138,10 +142,14 @@ pub(crate) fn document(
     for forge in forges {
         forge_number = forge_number.max(forge.number);
         if forge.git.len() > skein_lib::usize_of(crate::PULL_ADDRESS_BYTES) {
-            return Err(skein_forge::api::Error::TooLarge);
+            return Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::exact(
+                skein_forge::api::Bound::Forge,
+                u64::from(crate::PULL_ADDRESS_BYTES),
+                skein_lib::len_u64(forge.git.len()),
+            )));
         }
         if configured.insert(forge.number, forge.clone()).is_err() {
-            return Err(skein_forge::api::Error::TooLarge);
+            return Err(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::unnamed()));
         }
     }
     Ok((configured, forge_number))

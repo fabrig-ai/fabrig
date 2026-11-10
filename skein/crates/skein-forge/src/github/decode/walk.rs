@@ -55,8 +55,6 @@ pub(super) enum Node {
     Entry,
     FileRows,
     FileRow,
-    CompareCommits,
-    CompareCommit,
     CompareFiles,
     CompareFile,
     MergeBase,
@@ -304,11 +302,9 @@ fn document_fields(node: Node) -> &'static [Field] {
         Node::Compare => {
             const {
                 &[
-                    field(b"total_commits", Read::Number),
+                    field(b"ahead_by", Read::Number),
                     field(b"behind_by", Read::Number),
-                    field(b"commits", Read::Container(Role::Document(Node::CompareCommits))),
                     field(b"files", Read::Container(Role::Document(Node::CompareFiles))),
-                    optional(b"merge_base_commit", Read::Container(Role::Document(Node::MergeBase))),
                 ]
             }
         }
@@ -529,7 +525,7 @@ fn document_fields(node: Node) -> &'static [Field] {
         Node::Branch => {
             const { &[field(b"name", Read::Text), field(b"commit", Read::Container(Role::Document(Node::Commit)))] }
         }
-        Node::CompareCommit | Node::MergeBase | Node::Commit => const { &[field(b"sha", Read::Text)] },
+        Node::MergeBase | Node::Commit => const { &[field(b"sha", Read::Text)] },
         Node::Error => {
             const { &[field(b"message", Read::Body), optional(b"errors", Read::Container(Role::Document(Node::Errors)))] }
         }
@@ -540,7 +536,6 @@ fn document_fields(node: Node) -> &'static [Field] {
         | Node::AppEvents
         | Node::EntryRows
         | Node::FileRows
-        | Node::CompareCommits
         | Node::CompareFiles
         | Node::ReviewRows
         | Node::RemarkRows
@@ -574,7 +569,6 @@ fn element(role: Role) -> Option<Role> {
         Node::AppEvents => Some(Role::Document(Node::AppEvents)),
         Node::EntryRows => Some(Role::Document(Node::Entry)),
         Node::FileRows => Some(Role::Document(Node::FileRow)),
-        Node::CompareCommits => Some(Role::Document(Node::CompareCommit)),
         Node::CompareFiles => Some(Role::Document(Node::CompareFile)),
         Node::ReviewRows => Some(Role::Document(Node::Review)),
         Node::RemarkRows => Some(Role::Document(Node::Remark)),
@@ -651,7 +645,6 @@ fn element(role: Role) -> Option<Role> {
         | Node::MergeBaseOnly
         | Node::Entry
         | Node::FileRow
-        | Node::CompareCommit
         | Node::CompareFile
         | Node::MergeBase
         | Node::Review

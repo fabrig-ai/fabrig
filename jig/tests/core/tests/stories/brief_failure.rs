@@ -4,10 +4,20 @@ use super::*;
 use jig_domain_brief::{GatherFailure, GatherFate};
 use skein_lib::Duration;
 
-const PERMANENT: GatherFailure =
-    GatherFailure { fate: GatherFate::Permanent, section: b"task", words: b"could not be read within its bounds" };
-const CAPACITY: GatherFailure =
-    GatherFailure { fate: GatherFate::Capacity, section: b"brief", words: b"no brief slot is free" };
+fn permanent() -> GatherFailure {
+    GatherFailure {
+        fate: GatherFate::Permanent,
+        section: b"task",
+        words: Box::from(b"could not be read within its bounds".as_slice()),
+    }
+}
+fn capacity() -> GatherFailure {
+    GatherFailure {
+        fate: GatherFate::Capacity,
+        section: b"brief",
+        words: Box::from(b"no brief slot is free".as_slice()),
+    }
+}
 
 fn failing_brief(failure: GatherFailure, seed: u64) -> (World, u64) {
     let mut world = plan_world(seed);
@@ -26,15 +36,15 @@ fn logged(world: &mut World, task: u64, failure: GatherFailure) {
 fn held(world: &mut World, task: u64) {
     let allowance = world.env().limits.core.tasks.retries.permanent.retries;
     for _ in 0..allowance {
-        logged(world, task, PERMANENT);
+        logged(world, task, permanent());
         world.advance(Duration::from_secs(2));
     }
-    logged(world, task, PERMANENT);
+    logged(world, task, permanent());
 }
 
 #[test]
 fn a_brief_that_cannot_be_read_counts_to_a_hold_naming_it() {
-    let (mut world, task) = failing_brief(PERMANENT, 924);
+    let (mut world, task) = failing_brief(permanent(), 924);
     let allowance = world.env().limits.core.tasks.retries.permanent.retries;
     assert_eq!(
         live_row(&world, task).retry_notice,
@@ -42,13 +52,13 @@ fn a_brief_that_cannot_be_read_counts_to_a_hold_naming_it() {
             class: tasks::Class::Permanent,
             count: 1,
             allowance,
-            reason: Some(PERMANENT.reason()),
+            reason: Some(permanent().reason()),
         })
     );
     held(&mut world, task);
     assert!(matches!(&live_row(&world, task).phase, tasks::Phase::Held {
         why: tasks::Hold::Failures(tasks::Class::Permanent), source: Some(source), ..
-    } if **source == tasks::HoldSource::Preparation { words: PERMANENT.reason() }));
+    } if **source == tasks::HoldSource::Preparation { words: permanent().reason() }));
     assert!(!world.assignments.iter().any(|(number, _)| *number == task));
     world.reads = Some(jig_core_world::reads::Parties::new(world.store.applied));
     jig_core_world::reads::ask(&mut world, 91, core::reads::Read::Task { task });
@@ -58,13 +68,13 @@ fn a_brief_that_cannot_be_read_counts_to_a_hold_naming_it() {
     let core::documents::Document::Task(document) = document.as_ref() else { panic!("task document") };
     let hold = document.hold.as_ref().expect("failure hold on document");
     assert_eq!(hold.reason, tasks::Hold::Failures(tasks::Class::Permanent));
-    assert_eq!(hold.words.as_ref().expect("preparation words").bytes.as_ref(), PERMANENT.reason().as_ref());
+    assert_eq!(hold.words.as_ref().expect("preparation words").bytes.as_ref(), permanent().reason().as_ref());
     world.close();
 }
 
 #[test]
 fn no_room_for_a_brief_pauses_past_any_allowance_and_then_runs() {
-    let (mut world, task) = failing_brief(CAPACITY, 925);
+    let (mut world, task) = failing_brief(capacity(), 925);
     let retries = world.env().limits.core.tasks.retries;
     let allowance = [retries.transient, retries.permanent, retries.run, retries.agent, retries.lost, retries.invalid]
         .iter()
@@ -72,17 +82,17 @@ fn no_room_for_a_brief_pauses_past_any_allowance_and_then_runs() {
         .max()
         .expect("failure classes");
     for count in 1..=allowance + 2 {
-        logged(&mut world, task, CAPACITY);
+        logged(&mut world, task, capacity());
         assert_eq!(
             live_row(&world, task).retry_notice,
-            Some(tasks::RetryNotice::Refused { count, reason: Some(CAPACITY.reason()) })
+            Some(tasks::RetryNotice::Refused { count, reason: Some(capacity().reason()) })
         );
         assert_eq!(live_row(&world, task).tries, tasks::Tries::NONE);
         assert!(matches!(live_row(&world, task).phase, tasks::Phase::Active(tasks::Active::BackingOff { .. })));
         assert!(!world.assignments.iter().any(|(number, _)| *number == task));
         world.advance(Duration::from_secs(2));
     }
-    logged(&mut world, task, CAPACITY);
+    logged(&mut world, task, capacity());
     world.domain.script_brief_failure(None);
     world.advance(Duration::from_secs(2));
     let run = running(&world, task);
@@ -92,12 +102,12 @@ fn no_room_for_a_brief_pauses_past_any_allowance_and_then_runs() {
 
 #[test]
 fn a_release_counts_again_and_runs() {
-    let (mut world, task) = failing_brief(PERMANENT, 926);
+    let (mut world, task) = failing_brief(permanent(), 926);
     held(&mut world, task);
     // A release starts the class's allowance afresh even if the system still refuses.
     let revision = live_row(&world, task).revisions.hold;
     ask(&mut world, 92, people::Ask::Release { project: 1, task, revision, again: None });
-    logged(&mut world, task, PERMANENT);
+    logged(&mut world, task, permanent());
     assert!(matches!(
         live_row(&world, task).retry_notice,
         Some(tasks::RetryNotice::Failed { class: tasks::Class::Permanent, count: 1, .. })
@@ -111,9 +121,12 @@ fn a_release_counts_again_and_runs() {
 
 #[test]
 fn a_late_section_counts_as_transient() {
-    let failure =
-        GatherFailure { fate: GatherFate::Transient, section: b"context", words: b"not gathered by its deadline" };
-    let (mut world, task) = failing_brief(failure, 927);
+    let failure = GatherFailure {
+        fate: GatherFate::Transient,
+        section: b"context",
+        words: Box::from(b"not gathered by its deadline".as_slice()),
+    };
+    let (mut world, task) = failing_brief(failure.clone(), 927);
     let allowance = world.env().limits.core.tasks.retries.transient.retries;
     assert_eq!(
         live_row(&world, task).retry_notice,

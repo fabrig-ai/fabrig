@@ -32,7 +32,7 @@ pub(crate) fn brief_outputs(
                         why: brief::GatherFailure {
                             fate: brief::GatherFate::Permanent,
                             section: forge_brief_name(&connector.kind),
-                            words: b"the connector cannot hold this section",
+                            words: Box::from(b"the connector cannot hold this section".as_slice()),
                         },
                     }));
                     continue;
@@ -110,7 +110,7 @@ pub(crate) fn brief_outputs(
                         failure: Some(brief::GatherFailure {
                             fate: brief::GatherFate::Permanent,
                             section: b"brief",
-                            words: b"a section's owner no longer holds it",
+                            words: Box::from(b"a section's owner no longer holds it".as_slice()),
                         }),
                     }));
                     continue;
@@ -472,7 +472,7 @@ pub(crate) fn finish_brief_plan(
             failure: Some(brief::GatherFailure {
                 fate: brief::GatherFate::Permanent,
                 section: b"home",
-                words: b"no room for its required section",
+                words: Box::from(b"no room for its required section".as_slice()),
             }),
         }));
         return;
@@ -524,7 +524,7 @@ pub(crate) fn finish_brief_plan(
                 failure: Some(brief::GatherFailure {
                     fate: brief::GatherFate::Permanent,
                     section: b"brief",
-                    words: b"no room for its required forge sections",
+                    words: Box::from(b"no room for its required forge sections".as_slice()),
                 }),
             }));
             return;

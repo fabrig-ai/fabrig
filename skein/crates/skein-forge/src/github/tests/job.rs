@@ -1,4 +1,5 @@
 use super::fixtures::{self, decode, limits};
+use crate::api::Excess;
 use crate::{
     api,
     github::{
@@ -142,7 +143,7 @@ fn job_metadata_bounds_and_malformed_steps_reject_the_answer() {
     let error = decode(Kind::Job, input.as_bytes(), 7, &limits).1.unwrap_err();
     let mut call = Call::new(8, true, bounds());
     call.head(200, None);
-    assert_eq!(call.heard(Heard::Done(Body::Malformed(error))), Some(failed(api::Error::TooLarge)));
+    assert_eq!(call.heard(Heard::Done(Body::Malformed(error))), Some(failed(api::Error::TooLarge(Excess::unnamed()))));
 }
 #[test]
 fn job_missing_statuses_and_each_attempt_mismatch_are_missing_job() {

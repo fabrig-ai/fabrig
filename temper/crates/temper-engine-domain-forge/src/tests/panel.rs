@@ -434,13 +434,7 @@ fn landed_panel_keeps_passed_ci_across_a_restart() {
         Answer::Pull(merged),
         fixtures::checks(skein_forge::api::Check::Passed),
         fixtures::checks(skein_forge::api::Check::Passed),
-        Answer::Compare {
-            before: fixtures::BASE,
-            after: fixtures::HEAD,
-            contains_before: true,
-            files: Box::new([]),
-            commits: Box::new([]),
-        },
+        Answer::Commits { commits: Box::new([]), more: false },
         Answer::Reviews { reviews: Box::new([]), more: false },
     ] {
         commit_panel_records(&mut records, fixtures::answer_next(&mut d, Ok(answer)));

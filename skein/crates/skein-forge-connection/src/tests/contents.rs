@@ -57,15 +57,12 @@ fn measured_contents() -> [(&'static str, Answer, u64); 4] {
             Answer::Compare {
                 before: BASE,
                 after: HEAD,
-                contains_before: true,
-                files: Box::new([File {
-                    path: Box::from(&b"x"[..]),
-                    before: Some(Box::from(&b"a"[..])),
-                    after: Some(Box::from(&b"bc"[..])),
-                }]),
-                commits: Box::new([HEAD]),
+                files: Box::new([Box::from(&b"x"[..])]),
+                ahead: 1,
+                behind: 0,
+                changed: 1,
             },
-            100,
+            17,
         ),
     ]
 }

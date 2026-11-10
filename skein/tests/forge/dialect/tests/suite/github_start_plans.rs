@@ -339,7 +339,10 @@ fn github_start_listing_bound_by_rows() {
         Ok(Some(Step::send(Request::Installations { page: 2 })))
     );
     listing_head(&mut plan, false, bounds);
-    assert_eq!(listing_page(&mut plan, &[INSTALLATION + 1], bounds), Ok(Some(Step::Done(Err(api::Error::TooLarge)))));
+    let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = listing_page(&mut plan, &[INSTALLATION + 1], bounds)
+    else {
+        panic!("expected a typed size refusal");
+    };
     assert_eq!(plan.heard(Heard::Done(installation_page(&[]).1), bounds), Err(api::Error::InvalidAnswer));
     // The fixed installation page cap is independent of the total answer bound.
     let roomy = Bounds { rows: pin::PAGE_CAP + 1, answer_bytes: 4096, ..bounds };
@@ -350,7 +353,9 @@ fn github_start_listing_bound_by_rows() {
     for _ in 0..pin::PAGE_CAP {
         assert_eq!(plan.heard(Heard::Row(row.clone()), roomy), Ok(None));
     }
-    assert_eq!(plan.heard(Heard::Row(row), roomy), Ok(Some(Step::Done(Err(api::Error::TooLarge)))));
+    let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = plan.heard(Heard::Row(row), roomy) else {
+        panic!("expected a typed size refusal");
+    };
 }
 
 #[test]
@@ -401,20 +406,21 @@ fn github_start_installations_refuses_page_zero() {
 fn github_start_installations_bound_by_rows() {
     let bounds = Bounds { rows: 1, ..bounds() };
     let mut plan = installations_plan(false, bounds);
-    assert_eq!(
-        installations_page(&mut plan, &[INSTALLATION, INSTALLATION + 1], bounds),
-        Ok(Some(Step::Done(Err(api::Error::TooLarge))))
-    );
+    let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) =
+        installations_page(&mut plan, &[INSTALLATION, INSTALLATION + 1], bounds)
+    else {
+        panic!("expected a typed size refusal");
+    };
 }
 
 #[test]
 fn github_start_installations_first_row_exceeds_zero_bounds() {
     for bounds in [Bounds { rows: 0, ..bounds() }, Bounds { answer_bytes: 0, ..bounds() }] {
         let mut plan = installations_plan(false, bounds);
-        assert_eq!(
-            installations_page(&mut plan, &[INSTALLATION], bounds),
-            Ok(Some(Step::Done(Err(api::Error::TooLarge))))
-        );
+        let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = installations_page(&mut plan, &[INSTALLATION], bounds)
+        else {
+            panic!("expected a typed size refusal");
+        };
     }
 }
 
@@ -427,7 +433,9 @@ fn github_start_installations_bound_by_page_cap() {
     for _ in 0..pin::PAGE_CAP {
         assert_eq!(plan.heard(Heard::Row(row.clone()), roomy), Ok(None));
     }
-    assert_eq!(plan.heard(Heard::Row(row), roomy), Ok(Some(Step::Done(Err(api::Error::TooLarge)))));
+    let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = plan.heard(Heard::Row(row), roomy) else {
+        panic!("expected a typed size refusal");
+    };
 }
 
 #[test]
@@ -442,7 +450,14 @@ fn github_start_installations_answer_bytes_bound() {
                 next: false,
             }),
         ),
-        (page_bytes - 1, Err(api::Error::TooLarge)),
+        (
+            page_bytes - 1,
+            Err(api::Error::TooLarge(skein_forge::api::Excess::at_least(
+                skein_forge::api::Bound::AnswerBytes,
+                u64::from(page_bytes - 1),
+                u64::from(page_bytes),
+            ))),
+        ),
     ] {
         let bounds = Bounds { answer_bytes, ..bounds() };
         let mut plan = installations_plan(false, bounds);
@@ -552,15 +567,15 @@ fn github_start_reachable_one_page() {
 fn github_start_reachable_admission() {
     for (page, size, bounds, error) in [
         (0, 1, bounds(), api::Error::Refused),
-        (1, 0, bounds(), api::Error::TooLarge),
+        (1, 0, bounds(), api::Error::TooLarge(skein_forge::api::Excess::unnamed())),
         (
             1,
             pin::PAGE_CAP + 1,
             Bounds { page_size: pin::PAGE_CAP + 1, rows: pin::PAGE_CAP + 1, ..bounds() },
-            api::Error::TooLarge,
+            api::Error::TooLarge(skein_forge::api::Excess::unnamed()),
         ),
-        (1, 3, bounds(), api::Error::TooLarge),
-        (1, 2, Bounds { rows: 1, ..bounds() }, api::Error::TooLarge),
+        (1, 3, bounds(), api::Error::TooLarge(skein_forge::api::Excess::unnamed())),
+        (1, 2, Bounds { rows: 1, ..bounds() }, api::Error::TooLarge(skein_forge::api::Excess::unnamed())),
     ] {
         let mut plan = Reachable::new(page, size);
         assert_eq!(plan.begin(bounds), Err(error));
@@ -585,7 +600,9 @@ fn github_start_reachable_page_past_its_size() {
     let mut plan = Reachable::new(1, 1);
     plan.begin(bounds()).unwrap();
     reachable_head(&mut plan, false, bounds());
-    assert_eq!(picker_page(&mut plan, &[2, 3], bounds()), Ok(Some(Step::Done(Err(api::Error::TooLarge)))));
+    let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = picker_page(&mut plan, &[2, 3], bounds()) else {
+        panic!("expected a typed size refusal");
+    };
     let mut plan = Reachable::new(1, 1);
     plan.begin(bounds()).unwrap();
     reachable_head(&mut plan, false, bounds());
@@ -677,7 +694,10 @@ fn github_start_malformed_body() {
     let Body::Malformed(_) = &truncated else { panic!("a truncated real body is malformed") };
     for (body, error) in [
         (Body::Malformed(Malformed::Shape { field: b"id" }), api::Error::InvalidAnswer),
-        (Body::Malformed(Malformed::Bound { field: b"rows" }), api::Error::TooLarge),
+        (
+            Body::Malformed(Malformed::Bound { field: b"rows" }),
+            api::Error::TooLarge(skein_forge::api::Excess::unnamed()),
+        ),
         (Body::Raw { bytes: Box::from(*b"acme"), more: true }, api::Error::InvalidAnswer),
         (Body::Empty, api::Error::InvalidAnswer),
         (truncated, api::Error::InvalidAnswer),
@@ -742,7 +762,14 @@ fn github_start_answer_bytes_bound() {
     let repository_bytes = width + 4 + 7;
     for (answer_bytes, expected) in [
         (installation_bytes * 2, Ok(Box::<[_]>::from([installation(INSTALLATION), installation(INSTALLATION + 1)]))),
-        (installation_bytes * 2 - 1, Err(api::Error::TooLarge)),
+        (
+            installation_bytes * 2 - 1,
+            Err(api::Error::TooLarge(skein_forge::api::Excess::at_least(
+                skein_forge::api::Bound::AnswerBytes,
+                u64::from(installation_bytes * 2 - 1),
+                u64::from(installation_bytes * 2),
+            ))),
+        ),
     ] {
         let bounds = Bounds { answer_bytes, ..bounds() };
         let mut plan = Listing::new();
@@ -754,7 +781,14 @@ fn github_start_answer_bytes_bound() {
     }
     for (answer_bytes, expected) in [
         (repository_bytes * 2, Ok(Page { rows: Box::from([repository(2), repository(3)]), next: false })),
-        (repository_bytes * 2 - 1, Err(api::Error::TooLarge)),
+        (
+            repository_bytes * 2 - 1,
+            Err(api::Error::TooLarge(skein_forge::api::Excess::at_least(
+                skein_forge::api::Bound::AnswerBytes,
+                u64::from(repository_bytes * 2 - 1),
+                u64::from(repository_bytes * 2),
+            ))),
+        ),
     ] {
         let bounds = Bounds { answer_bytes, ..bounds() };
         let mut plan = Reachable::new(1, 2);

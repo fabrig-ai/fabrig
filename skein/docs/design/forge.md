@@ -289,6 +289,14 @@ and no policy. Every type is a plain value.
 - **`Commits { before, after, page }`** lists the commits after
   `before` up to `after`, oldest first, each its id, its parents and its
   message, in pages from 1.
+- **`Compare { before, after }`** compares two commits by names and
+  counts alone: the paths changed from their merge base to `after`, and
+  the commits each has that the other lacks, so whether `after` contains
+  `before`. It carries no file's contents and lists no commit. A reader
+  that asks only whether one commit contains another reads the ancestry
+  range instead, `Commits { before: container, after: contained, page: 1
+  }`, complete and empty; one that needs a file's contents reads it by
+  path at each commit (`File`).
 - **`Tree { object, page }`** reads one tree, not recursively: a
   commit's root tree, or a tree by its id, as its parent's entry names
   it. Each entry is a name, a mode, a kind and an object id, in name
@@ -318,6 +326,15 @@ and no policy. Every type is a plain value.
   follows.
 - **`Pull` answers both `Pull` and `PullFor`;** the `Commit` answer is a
   branch's tip.
+- **`Compare`** carries `ahead`, the commits `after` has that `before`
+  lacks; `behind`, those `before` has that `after` lacks, 0 when `after`
+  contains `before`; `files`, the changed paths in the forge's order, as
+  many as the answer holds, at most `rows` within `answer_bytes`; and
+  `changed`, how many files changed in all, so that `changed` past
+  `files`' length says how many it left out. A comparison is refused for
+  neither the paths it leaves out nor its commits, so two branches
+  however far apart compare, unless the forge cuts its own listing
+  (forge-github.md, 4.1).
 - **`Queued` is final for its call.** It answers `Merge` alone, and
   says the merge is the queue's now: neither a merge nor a refusal. The
   client keeps the write open until a read finds the pull request merged
@@ -352,7 +369,7 @@ and no policy. Every type is a plain value.
 | `Forbidden` | the writer lacks the permission (a bad or lacking credential included) |
 | `Missing` | the object is absent |
 | `MissingJob` | the job attempt is absent, or is no longer the attempt asked for |
-| `TooLarge` | a request or an answer passes a bound |
+| `TooLarge(Excess)` | a request or an answer passes a bound, which it names with the size met |
 | `Empty` | the write has no content |
 | `Full` | the forge has no room for the write (a quota) |
 | `Exists` | the object already exists |
@@ -381,6 +398,26 @@ and no policy. Every type is a plain value.
 - **`Timeout` is the error that leaves a write's outcome unknown.** The
   client finds the outcome by the write's key, or by reading
   (forge-client.md, section 7).
+- **`TooLarge` names its bound and its size,** as `Excess { bound,
+  limit, size, exact }`, a plain value:
+  - `bound`, a `Bound`: `OpBytes`, `AnswerBytes` or `Rows`, the client's
+    own configured bounds (forge-client.md, 2.2 and 2.3), passed by a
+    call's bytes, an answer's bytes by the measure (3.7), or an answer's
+    longest list; `Forge`, a bound of the dialect's, the component's or
+    the forge's own: a body past `body_bytes_in`, a string past
+    `string_bytes`, a listing the forge cuts, a count past the
+    vocabulary's width; `Unnamed`, where the check kept no figure.
+  - `limit`, the bound's figure, and `size`, what was met, both in the
+    bound's unit, bytes or rows. Both are 0 for `Unnamed`, and for a
+    `Forge` bound whose figure the check does not hold.
+  - `exact`: `size` is the whole's, measured; otherwise it is a lower
+    bound, what had been read when the bound stopped the read.
+
+  So `size` less `limit` says by how much, at least. A call's
+  `max_bytes` past `answer_bytes` is `AnswerBytes`, its `size` the
+  `max_bytes` asked. A dialect names the client's bound where its own
+  check is the client's figure (the answer's bytes left for a file's
+  side, a page's rows), and `Forge` or `Unnamed` otherwise.
 
 ### 3.5 The hint
 
@@ -482,13 +519,13 @@ body the forge keeps changes (5.3).
 
   | Call | An answer fits when |
   |---|---|
-  | any | it has the shape in 3.2's table; a read's answer past `answer_bytes`, or with a list past `rows` but `Branches`' names, is `TooLarge`, a write's `InvalidAnswer`, a lost answer (forge-client.md, 7.4); any other mismatch is `InvalidAnswer` |
+  | any | it has the shape in 3.2's table; a read's answer past `answer_bytes`, or with a list past `rows` but `Branches`' names, is `TooLarge`, naming the bound with the answer's exact measure (3.4), a write's `InvalidAnswer`, a lost answer (forge-client.md, 7.4); any other mismatch is `InvalidAnswer` |
   | `Items` | `updated` never decreases; rows of one time rise strictly by number; numbers are nonzero and unique; each row's kind is the call's, when it names one |
   | `Item` | the number is the call's; comment ids rise strictly and are above `after` |
   | `Reviews` | ids rise strictly |
   | `Pull`, `PullFor` | the number is the call's; for `PullFor`, the head and base are the call's |
   | `PullFiles` | the head is the call's |
-  | `Compare` | `before` and `after` are the call's |
+  | `Compare` | `before` and `after` are the call's, and `files` holds at most `changed` paths |
   | `Range` | `before` and `after` are the call's |
   | `Checks` | each job's head is the call's commit |
   | `Job` | the attempt is the call's, and the log is within `max_bytes` |
@@ -516,7 +553,7 @@ body the forge keeps changes (5.3).
   | a `Run` | 128 |
   | a `RunJob`, an `Entry` | 64 |
   | an input | 32 |
-  | a `Collaborator`; a string in a list (a label, a branch, a context) | 16 |
+  | a `Collaborator`; a string in a list (a label, a branch, a context, a compared path) | 16 |
   | an id in a list (a reviewer) | 8 |
 
   Each width is at least its type's size on the target, asserted when
@@ -839,7 +876,7 @@ first failure, but where a row says otherwise.
 | `Read::Branch { branch }` | `GET R/branches/<branch>` | `commit.id` |
 | `Read::Branches { prefix }` | `GET R/git/refs/heads/<prefix>` | branch names from matching `refs/heads/` refs, as many as `answer_bytes` holds by the measure (3.7), with no row bound; no matches (`404`) gives an empty list and keeps the repository row; matching names past `answer_bytes`, `TooLarge` |
 | `Read::PullFiles { number, head, page }` | `GET R/pulls/<number>`; `GET R/pulls/<number>/files?page=<page>&limit=<size>`; for each file, `GET R/raw/<path>?ref=<merge_base>` (but for `added`; at `previous_filename` for `renamed`) and `GET R/raw/<filename>?ref=<head>` (but for `deleted`) | `head`; each file's `filename` with its contents at the merge base and at the head, a side absent when the file's `status` says so or its read answers `404`; `more` from `X-HasMore`; a `head.sha` other than `head` fails the call `Stale` before any file is read |
-| `Read::Compare { before, after }` | `GET R/compare/<before>...<after>?verification=false`; `GET R/compare/<after>...<before>?files=false&verification=false`; for each file, `GET R/raw/<filename>?ref=<before>` and `?ref=<after>` | `files[].filename` with its contents at `before` and at `after`, a side absent when its read answers `404`; `commits[].sha`; `contains_before` when the second comparison's `total_commits` is 0; the whole comparison within the answer's bound, or `TooLarge` |
+| `Read::Compare { before, after }` | `GET R/compare/<before>...<after>?verification=false`; `GET R/compare/<after>...<before>?files=false&verification=false` | `files[].filename`, in Forgejo's order, kept while they fit `rows` and what is left of the answer's bound, and each counted in `changed`; `ahead`, the first comparison's `total_commits`, and `behind`, the second's; no commit's id and no file's side is kept or read |
 | `Read::Range { before, after }` | `GET R/compare/<before>...<after>?files=false&verification=false` | `total_commits` as `commits`; the `commits` list skipped as it streams, none of it kept |
 | `Read::Checks { commit }` | `GET R/commits/<commit>/status?page=<n>&limit=<size>`, every page; for each run the statuses' links name, pending, passed or failed, once, in the order its first status comes: `GET R/actions/runs?head_sha=<commit>&run_number=<n>&page=1&limit=1`, then `GET R/actions/runs/<id>/jobs`; every status linking to that run takes its job from that one list | each context's latest status as for `Statuses`, its `job` the commit, the run's `id`, the job's `id` and its `attempt` when found, none otherwise: the link's index of the job in its run is never taken for the job's `id` |
 | `Read::Job { attempt, max_bytes, part }` | `GET R/actions/runs/<run>`; `GET R/actions/jobs/<job>`; `GET R/actions/jobs/<job>/logs?attempt=<attempt>&step=<number>` with `Range: bytes=-<max_bytes>`, `step` the failed step's, absent when no step failed; for `Start`, `GET R/actions/jobs/<job>/logs?attempt=<attempt>` with `Range: bytes=0-<max_bytes − 1>` and no `step` | the failed step, its `number` and `name` (5.3), none when no step failed; for `End`, the last `max_bytes` bytes of that step's log, or of the job's whole log when no step failed, `truncated` when `Content-Range` names bytes before them; for `Start`, the job's whole log's first `max_bytes` bytes, `truncated` when `Content-Range` names bytes after them; `MissingJob` when a read answers `404`, the run's `commit_sha` is not the attempt's head, or the job's `run_id` or `attempt` is not the attempt's |
@@ -961,13 +998,13 @@ Notes on the table:
 - **Who posted a status is not carried.** A status written by Actions
   has no `creator`, and nothing in the vocabulary reads a status's
   poster: CI is read by context and state. `Status` has no author.
-- **Contents of a pull request's files and of a comparison** are read
-  file by file, two reads each, since the vocabulary carries each
-  changed file whole on both sides (`File`); the reads count in the
-  call's cost. A side that does not fit what is left of the answer's
-  bound fails the call as `TooLarge`. A comparison's files are
-  Forgejo's (from the two commits' merge base); their sides are read at
-  `before` and at `after`.
+- **Contents of a pull request's files** are read file by file, two
+  reads each, since the vocabulary carries each changed file whole on
+  both sides (`File`); the reads count in the call's cost. A side that
+  does not fit what is left of the answer's bound fails the call as
+  `TooLarge`. A comparison reads no file's contents: its files are
+  Forgejo's names, from the two commits' merge base, and a reader asks
+  for a file's contents by path (`File`).
 - **Merges.** `Do` is the repository's `default_merge_style`, kept with
   its path (forge-connection.md, section 4): the merge style is the
   repository's own. `head_commit_id` makes the merge conditional on the
@@ -1069,8 +1106,7 @@ Notes on the table:
   contents are read within what is left of `answer_bytes`: a file's
   after its path, a job's log after its step's name, so the answer never
   passes it. `File` and `Job` are cut there as at their `max_bytes`, and
-  say so (`truncated`); a side of `PullFiles` or `Compare` is never cut
-  (5.2).
+  say so (`truncated`); a side of `PullFiles` is never cut (5.2), and a comparison's names stop at the answer's bound, counted on in `changed`.
 - **Revisions.** A comment's or a review's revision is the first eight
   bytes, big-endian, of the SHA-256 of its whole body as the forge
   returns it, computed as the string streams past; for a body not kept,
@@ -1104,7 +1140,7 @@ Notes on the table:
   may have been done. It fails a read as `InvalidAnswer`. Either way the
   connection is closed, since what followed on it can no longer be
   trusted. A repository id past the vocabulary's 32 bits fails the call
-  as `TooLarge`.
+  as `TooLarge` (`Forge`, `limit` 4,294,967,295, `size` the id).
 
 ### 5.4 Failures
 
@@ -1135,7 +1171,7 @@ such a request costs nothing.
 | `409` on `Merge`, `head out of date` | `Stale` |
 | `409` on `Update`, `merge failed because of conflict` | `Conflict` |
 | a pull request's head other than `PullFiles` names | `Stale` |
-| an answer past the component's bounds | `TooLarge` on a read; `Timeout` on a write, which may have been done |
+| an answer past the component's bounds | `TooLarge` on a read, `Forge` with the bound and what was read where the component gives them, else `Unnamed`; `Timeout` on a write, which may have been done |
 | a write whose text is not UTF-8, which JSON cannot carry; nothing written | `Refused` |
 | any other `4xx` | `Refused` on a write; `InvalidAnswer` on a read |
 
@@ -1654,11 +1690,11 @@ the suites (testing.md, section 6).
   an answer shows a fault.
 - **Dismissed reviews:** whether one counts as no verdict, or as the
   comment it was. Default: the comment it was.
-- **Contents on demand.** A pull request's files and a comparison cost
-  two reads per file, since `File` carries contents; an overlap needs
-  paths only. Containment and emptiness read `Range` (3.2), no file at
-  all. Default: contents always read by `PullFiles` and `Compare`, as
-  the owner asks.
+- **Contents on demand.** A pull request's files cost two reads per file,
+  since `File` carries contents; an overlap needs paths only. Default: a
+  pull request's contents always read, as the client asks; a comparison
+  reads names alone (3.2), and a pull request's paths alone would be
+  another read for the client to name.
 - **A file too large for the answer** fails its call as `TooLarge`.
   Default: so; a side cut with a mark would need `File` to carry one.
 - **Bodies past `body_bytes`** are carried empty. Default: so, the

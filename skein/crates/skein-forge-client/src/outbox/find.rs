@@ -1,4 +1,4 @@
-use super::{Condition, Domain, Env, Error, Limits, Made, Outcome, Phase, Queue, Request, Time, api};
+use super::{Answer, Condition, Domain, Env, Error, Limits, Made, Outcome, Phase, Queue, Request, Time, api};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(super) struct Listing {
@@ -47,7 +47,7 @@ pub(super) fn listed(
         | Phase::Check
         | Phase::Make
         | Phase::DispatchRuns { .. }
-        | Phase::Compare { .. }
+        | Phase::Ancestry { .. }
         | Phase::AfterUpdate
         | Phase::AfterMerge { .. } => {
             unreachable!("items answer only clock or issue find")
@@ -73,7 +73,7 @@ pub(super) fn comments_found(
         | Phase::Queued
         | Phase::Make
         | Phase::DispatchRuns { .. }
-        | Phase::Compare { .. }
+        | Phase::Ancestry { .. }
         | Phase::AfterUpdate
         | Phase::AfterMerge { .. } => {
             unreachable!("comments answer find")
@@ -143,7 +143,7 @@ pub(super) fn reviews_found(
         | Phase::Queued
         | Phase::Make
         | Phase::DispatchRuns { .. }
-        | Phase::Compare { .. }
+        | Phase::Ancestry { .. }
         | Phase::AfterUpdate
         | Phase::AfterMerge { .. } => {
             unreachable!("reviews answer find")
@@ -161,16 +161,16 @@ fn original(provenance: api::Provenance) -> bool {
         api::Provenance::Revised | api::Provenance::Unknown => false,
     }
 }
-pub(super) fn compared(
+pub(super) fn ancestry_answered(
     d: &mut Domain,
     env: &Env<Limits>,
     number: u64,
     phase: Phase,
-    empty: bool,
+    result: Result<Answer, Error>,
     out: &mut Queue<Request>,
 ) {
     let head = match phase {
-        Phase::Compare { head, .. } => head,
+        Phase::Ancestry { head, .. } => head,
         Phase::DispatchRuns { .. }
         | Phase::Clock
         | Phase::Check
@@ -179,10 +179,31 @@ pub(super) fn compared(
         | Phase::Find { .. }
         | Phase::AfterUpdate
         | Phase::AfterMerge { .. } => {
-            unreachable!("comparison answers update recovery")
+            unreachable!("ancestry answers update recovery")
         }
     };
-    if empty {
+    let contained = match result {
+        Ok(Answer::Commits { commits, more }) => {
+            if !commits.is_empty() {
+                false
+            } else if more {
+                super::retry::failed(d, env, number, phase, Error::InvalidAnswer, out);
+                return;
+            } else {
+                true
+            }
+        }
+        Err(Error::TooLarge(_)) => false,
+        result => {
+            let error = match result {
+                Err(error) => error,
+                Ok(_) => Error::InvalidAnswer,
+            };
+            super::retry::failed(d, env, number, phase, error, out);
+            return;
+        }
+    };
+    if contained {
         super::finished(d, env, number, Made::Updated(head), true, out);
     } else {
         super::retry::not_found(d, env, number, out);

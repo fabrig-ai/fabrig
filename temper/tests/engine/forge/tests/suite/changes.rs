@@ -100,7 +100,7 @@ fn a_catch_up_starts_when_the_full_comparison_is_too_large() {
     use skein_forge::api::{Answer, CommitMessage, Error};
     for ancestry in [
         None,
-        Some(Err(Error::TooLarge)),
+        Some(Err(Error::TooLarge(skein_forge::api::Excess::unnamed()))),
         Some(Ok(Answer::Commits {
             commits: Box::new([CommitMessage { id: [0; 32], parents: Box::new([]), message: Box::new([]) }]),
             more: true,
