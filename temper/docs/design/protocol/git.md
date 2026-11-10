@@ -353,9 +353,10 @@ git diff-files --name-only -z --diff-filter=U          only after exit 1
   far as it was kept, and a last path that was cut is dropped; section
   8's rule for `stdout_bytes` keeps room for `conflicts` whole paths. The
   merge's state stays on disk whole, every file marked in the tree and
-  unmerged in the index, whatever their count (2026-11-09). This listing
-  alone reads a kept prefix: every other invocation's stdout past its
-  bound is `Broken`, as section 6 says.
+  unmerged in the index, whatever their count (2026-11-09). The merge command's stdout is human progress, never parsed: it is
+  drained and bounded, and truncating it cannot change exit 0 or exit 1.
+  The later NUL listing alone reads a kept prefix; every other parsed
+  invocation's stdout past its bound is `Broken`, as section 6 says.
 - **Exit 1 with an empty list,** as for a commit git cannot merge, or any
   other exit: `Broken`.
 - **`diff-files`,** the plumbing command, lists the index's unmerged
@@ -589,8 +590,8 @@ variable of the worker's own process reaches git.
 - **stdout,** up to `stdout_bytes`, which is enough for every output
   section 4 reads. Past it, the bytes are read and dropped, counted, so
   git is never blocked on its pipe, and an operation whose output passed
-  the cap ends `Broken`, but for a merge's listing of its unmerged
-  paths, read as far as it was kept (4.6).
+  the cap ends `Broken`, but for a merge's progress, which is not parsed,
+  and its listing of unmerged paths, read as far as it was kept (4.6).
 - **stderr,** its last `stderr_bytes`, with the count of bytes dropped
   before them. It is read only to classify a failure, and its last
   `PushDiagnostic::CAPACITY` bytes, with that count, are the diagnostic

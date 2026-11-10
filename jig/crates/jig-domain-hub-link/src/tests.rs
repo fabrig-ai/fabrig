@@ -595,3 +595,22 @@ fn a_refused_start_is_transient_permanent_or_busy() {
         assert_eq!(answer, expected, "a refused start closes without an acknowledgement");
     }
 }
+
+/// jig/docs/design/domain/engine.md, 7.5: the cause accompanies the class.
+#[test]
+fn a_failed_jobs_cause_is_carried_to_its_task() {
+    for (detail, reason) in [
+        (b"push: Broken: early EOF".as_slice(), b"push: Broken: early EOF".as_slice()),
+        (b"\xffexit 127: python3 missing", b"?exit 127: python3 missing"),
+    ] {
+        let ending = host::JobEnding::Failed {
+            failure: host::JobFailure::Undelivered(host::DeliveryOutcome::Failed),
+            detail: detail.into(),
+            work: host::Work { left: None, saved: None },
+        };
+        assert_eq!(
+            payload::job_end(&ending),
+            tasks::End::FailedWithReason { class: tasks::Class::Transient, reason: reason.into() }
+        );
+    }
+}

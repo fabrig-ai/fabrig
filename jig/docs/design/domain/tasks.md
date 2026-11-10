@@ -580,7 +580,13 @@ them (5.7).
   it needs a decision. A hold keeps whatever the task had: its result
   while closing, its inbox, its attempt number. A failure that came from
   preparing keeps its reason on the retry notice and, past its tries, on
-  the hold, whose words say it (engine.md, 9.1).
+  the hold, whose words say it (engine.md, 9.1). A classified activation
+  failure may carry `End::FailedWithReason { class, reason }`: the same
+  retry policy as `End::Failed(class)`, with a UTF-8 reason within
+  `REASON_BYTES` (128 bytes), retained on its retry notice and its
+  `HoldSource::Preparation` after exhaustion. That source covers both
+  preparation and activation causes. The terminal proof stores this
+  reason too, so a restart before task settlement retains it.
 - **A hold is escalated** (section 9): it waits for the nearest task or
   party above it that may decide, which it wakes. Whoever it reaches
   decides it: releases the task from it, leaves the task held or passes

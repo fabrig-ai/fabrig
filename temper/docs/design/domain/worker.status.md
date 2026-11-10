@@ -61,7 +61,7 @@ Section 4.4's close kind is built: kind 4 is declared with its bounds,
 prepares the close change's checkout and delivers its staged tree with the
 goal's status message (`temper-worker-domain/src/jobs.rs`, `commit_title`).
 
-Section 4.4's failure lines have no known gap but the result's why below.
+Section 4.4's failure causes reach the answer, the engine log and the held job.
 When its hub answers a job failed or refused, the worker writes its line
 (`temper-service/src/worker.rs`, `job_answer`, the why kept by
 `temper-worker-domain/src/jobs.rs`), an in-process worker's among serve's
@@ -72,11 +72,14 @@ cannot encode included. A preparation's failure carries its step and git's
 fault as its detail (`temper-worker-domain-checkout/src/hold.rs`,
 `preparation_detail`), a command's its exit or signal and its error
 output's end (`temper-worker-domain-tooling/src/domain.rs`), and a delivery
-not made names its push's outcome and diagnostic on the worker's line
-alone. `job_stderr_forms_escape_and_bound_their_why`,
+not made names its push's outcome and diagnostic in the answer as well as
+the worker's line. Request writes, process setup and result reads name their
+step, a result read retaining exit 0 or 3 and the command's stderr tail. `job_stderr_forms_escape_and_bound_their_why`,
 `job_answer_evidence_reaches_operator_once`,
 `failed_jobs_name_the_workers_why_once` and the checkout's prepare tables
-hold them.
+hold them. Jig carries the bounded cause through retry exhaustion into
+its hold source, including after restart; the engine world's
+`a_failed_merge_job_is_held_after_its_retries` checks that source.
 
 Sections 4.4 and 5 have no known gap in a merge past the checkout's
 `conflicts`: its preparation leaves the merge in progress, every file
@@ -174,13 +177,6 @@ them (`temper/crates/temper/src/agent.rs`). The service gives the worker's
   for 8 and 10, which fit, so this is section 12's question. No test runs 8
   slots past `temper::prepare_in`: that request takes the next deployment at 8
   and 10 as its proof, with no walk, and no record shows one.
-- **Design departs:** 4.4, from the request `merge-job-runs-2` of
-  2026-11-09, item 2, decided by temper/migration's answer of 2026-11-09:
-  a job that fails for good holds with its failures' class alone, each
-  failure's why in the worker's and the engine's lines, where the request
-  has its reason in the hold. Words in the hold need section 12's
-  stored-format change (*A hold naming its run's last failure*), left
-  until the next deployment's lines are read.
 - **Departs:** 5, 9: with `TEMPER_WORKSPACE_REUSE` in the worker's
   environment at its start, a workspace stays as it is between workstreams and
   across a restart; unset, which is the default and the only shipped form,

@@ -1932,6 +1932,7 @@ fn hydrate_result(
             | tasks::End::Exceeded(_)
             | tasks::End::Parked
             | tasks::End::Failed(_)
+            | tasks::End::FailedWithReason { .. }
             | tasks::End::Refused
             | tasks::End::Recheck => {}
         }

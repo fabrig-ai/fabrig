@@ -2,6 +2,11 @@
 
 2026-11-10. Where jig's code lags or departs from [tasks.md](tasks.md).
 
+Section 5.5's classified activation cause has no known gap. `FailedWithReason`
+uses the existing reason bound and retry policy, and keeps its UTF-8 words
+on the retry notice and exhausted hold through task restoration. The job
+failure table checks the notice, hold and restored source.
+
 Section 5.2 has no known gap in an agent claim interrupted by its
 engine's orderly stop: `End::Recheck` keeps committed turns, calls and
 saved work, spends no try, adds no backoff and makes the task due again.

@@ -1,6 +1,11 @@
 # engine: status
 
-2026-11-09. Where jig's code lags or departs from [engine.md](engine.md).
+2026-11-10. Where jig's code lags or departs from [engine.md](engine.md).
+
+Section 7.5's failed-job cause accompanies its retry class through the hub
+link and terminal proof into the task's notice and exhausted hold. The
+nonempty worker detail and an invalid start's why use the existing reason
+bound; no retry allowance changes.
 
 Section 5.1 has no known gap in *Whole across families, through a kill*:
 the core world over its directory-backed store on the simulated disk,

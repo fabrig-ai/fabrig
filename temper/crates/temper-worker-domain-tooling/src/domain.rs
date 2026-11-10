@@ -84,7 +84,7 @@ enum State {
     Writing { program: Box<[u8]>, deadline: Duration },
     Spawning,
     Running,
-    Reading { deliver: bool, most: u32 },
+    Reading { deliver: bool, most: u32, code: u8 },
     Ending,
     Stopped,
 }
@@ -226,12 +226,15 @@ fn advance(job: &mut Job, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
             }
         }
         Event::Read { owner, bytes } => match job.state {
-            State::Reading { deliver, most } => {
+            State::Reading { deliver, most, code } => {
                 let end = match bytes {
                     Some(result) if within(&result, most) => End::Finished { result, deliver },
-                    Some(_) | None => {
-                        End::Failed { detail: diagnostic(b"result missing or past its bound", &job.tail) }
-                    }
+                    Some(_) | None => End::Failed {
+                        detail: diagnostic(
+                            &exit_words(b"read result.json failed or past bound after exit ", code),
+                            &job.tail,
+                        ),
+                    },
                 };
                 job.state = State::Ending;
                 out.push(Request::Ended { owner, end });
@@ -243,7 +246,10 @@ fn advance(job: &mut Job, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
                 State::Writing { .. } => return,
                 State::Spawning | State::Running => {
                     job.state = State::Ending;
-                    out.push(Request::Ended { owner, end: End::Failed { detail: job.tail.clone() } });
+                    out.push(Request::Ended {
+                        owner,
+                        end: End::Failed { detail: diagnostic(b"process gone without exit status", &job.tail) },
+                    });
                 }
                 State::Reading { .. } | State::Ending | State::Stopped => {}
             }
@@ -258,7 +264,8 @@ fn written_job(job: &mut Job, env: &Env<Limits>, owner: Token, written: bool, ou
             if !written {
                 job.state = State::Ending;
                 job.process_gone = true;
-                out.push(Request::Ended { owner, end: End::Failed { detail: Box::new([]) } });
+                job.tail = copy_of(b"write request.json failed");
+                out.push(Request::Ended { owner, end: End::Failed { detail: copy_of(b"write request.json failed") } });
                 return;
             }
             let request_path = path(&job.directory, b"/request.json", b"", env.limits.path_bytes)
@@ -289,23 +296,24 @@ fn exited_job(job: &mut Job, env: &Env<Limits>, owner: Token, exit: Exit, out: &
             let most = env.limits.file_bytes.min(job.kind.bound.result);
             let path = path(&job.directory, b"/result.json", b"", env.limits.path_bytes)
                 .expect("admission checked the result path");
-            job.state = State::Reading { deliver: code == 0 && job.kind.delivers, most };
+            job.state = State::Reading { deliver: code == 0 && job.kind.delivers, most, code };
             out.push(Request::Read { owner, path, most });
             return;
         }
-        Exit::Code(code) => {
-            let number = skein_lib::Decimal::of(u64::from(code));
-            let mut prefix =
-                Writer::new(b"exit ".len().checked_add(number.as_bytes().len()).expect("bounded exit code"));
-            prefix.put(b"exit ").expect("exit prefix");
-            prefix.put(number.as_bytes()).expect("exit code");
-            End::Failed { detail: diagnostic(&prefix.finish(), &job.tail) }
-        }
+        Exit::Code(code) => End::Failed { detail: diagnostic(&exit_words(b"exit ", code), &job.tail) },
         Exit::Signal => End::Failed { detail: diagnostic(b"signal", &job.tail) },
         Exit::Deadline => End::Deadline,
     };
     job.state = State::Ending;
     out.push(Request::Ended { owner, end });
+}
+
+fn exit_words(prefix: &[u8], code: u8) -> Box<[u8]> {
+    let number = skein_lib::Decimal::of(u64::from(code));
+    let mut words = Writer::new(prefix.len().checked_add(number.as_bytes().len()).expect("bounded exit code"));
+    words.put(prefix).expect("exit prefix");
+    words.put(number.as_bytes()).expect("exit code");
+    words.finish()
 }
 
 fn diagnostic(why: &[u8], tail: &[u8]) -> Box<[u8]> {

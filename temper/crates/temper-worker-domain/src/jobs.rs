@@ -252,7 +252,8 @@ pub(crate) fn answered(
     domain: &mut Domain,
     run: Token,
     attempt: Token,
-    answer: host::JobEnding,
+    mut answer: host::JobEnding,
+    detail_bytes: u32,
     out: &mut Queue<Request>,
 ) {
     let (work, preparation) = workspace::job_parts(domain, &answer);
@@ -282,6 +283,13 @@ pub(crate) fn answered(
             host::JobEnding::Failed { .. } | host::JobEnding::Refused(_) => Some(job_reason(&answer)),
             host::JobEnding::Finished { .. } => None,
         };
+    }
+    if let host::JobEnding::Failed { detail, .. } = &mut answer
+        && let Some(evidence) = domain.job_evidence.get(&(run, attempt))
+        && let Some(why) = evidence.why.as_deref()
+    {
+        let start = why.len().saturating_sub(usize::try_from(detail_bytes).expect("u32 bound"));
+        *detail = Box::from(why.get(start..).expect("bounded job cause"));
     }
     match &answer {
         host::JobEnding::Refused(_) => workspace::forget(domain, run, attempt),

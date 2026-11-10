@@ -240,7 +240,31 @@ impl Operation {
                 )
                 | None => false,
             };
-        let invalid = if child.dropped == 0 {
+        let progress = match self.command {
+            Command::Merge { .. } => true,
+            Command::SnapshotHead
+            | Command::SnapshotMerge { .. }
+            | Command::SnapshotFetch { .. }
+            | Command::SnapshotReachable { .. }
+            | Command::SnapshotReset { .. }
+            | Command::Version
+            | Command::Origin { .. }
+            | Command::Clone { .. }
+            | Command::Fetch { .. }
+            | Command::Create { .. }
+            | Command::CheckOut { .. }
+            | Command::Clean
+            | Command::Unmerged
+            | Command::Add
+            | Command::DiffIndex { .. }
+            | Command::WriteTree
+            | Command::CommitTree { .. }
+            | Command::IsAncestor { .. }
+            | Command::Push { .. } => false,
+        };
+        let invalid = if progress {
+            false
+        } else if child.dropped == 0 {
             !stdout.is_empty() && stdout.last().copied() != Some(self.delimiter())
         } else {
             !merge_listing

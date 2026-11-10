@@ -608,7 +608,7 @@ pub(crate) const TOOLING_FILE_BYTES: u32 = 1_048_576;
 pub(crate) const TOOLING_LOG_BYTES: u32 = 65_536;
 #[cfg(feature = "worker")]
 pub(crate) const TOOLING_PATH_BYTES: u32 = 4096;
-pub(crate) const TOOLING_PATH: &[u8] = b"/usr/bin:/bin";
+pub(crate) const TOOLING_PATH: &[u8] = b"/usr/local/bin:/usr/bin:/bin";
 
 /// The merge job's kind and bounds (temper/docs/design/domain/worker.md, 4.4).
 pub(crate) const MERGE_KIND: u32 = 3;

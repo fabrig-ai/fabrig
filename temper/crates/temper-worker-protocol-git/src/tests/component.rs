@@ -84,32 +84,22 @@ fn a_cancel_between_invocations_starts_no_further_one() {
 }
 #[test]
 fn stdout_past_its_cap_is_read_dropped_and_ends_broken() {
-    for request in [
-        fixtures::fetch(fixtures::OWNER, fixtures::DEADLINE),
-        Request::Io {
-            owner: fixtures::OWNER,
-            op: git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT },
-            deadline: fixtures::DEADLINE,
-            identity: None,
-        },
-    ] {
-        let mut component = fixtures::Started::new();
-        component.down(request);
-        let (child, pipes) = component.spawned();
-        component.stdout(pipes[0], &[b'\n'; 513]);
-        assert!(!component.below.out.io.is_empty(), "reading continues past the cap");
-        component.end(pipes[0]);
-        component.end(pipes[1]);
-        component.exited(child, 0);
-        component.closed(child, &pipes);
-        assert_eq!(
-            component.done(),
-            Some((
-                fixtures::OWNER,
-                git::Done::FailedWithOutput { fault: git::Fault::Broken, diagnostic: git::PushDiagnostic::empty() }
-            ))
-        );
-    }
+    let mut component = fixtures::Started::new();
+    component.down(fixtures::fetch(fixtures::OWNER, fixtures::DEADLINE));
+    let (child, pipes) = component.spawned();
+    component.stdout(pipes[0], &[b'\n'; 513]);
+    assert!(!component.below.out.io.is_empty(), "reading continues past the cap");
+    component.end(pipes[0]);
+    component.end(pipes[1]);
+    component.exited(child, 0);
+    component.closed(child, &pipes);
+    assert_eq!(
+        component.done(),
+        Some((
+            fixtures::OWNER,
+            git::Done::FailedWithOutput { fault: git::Fault::Broken, diagnostic: git::PushDiagnostic::empty() }
+        ))
+    );
 }
 #[test]
 fn a_merges_unmerged_stdout_alone_keeps_a_prefix_past_its_cap() {
@@ -265,4 +255,37 @@ fn a_look_spawns_at_the_worker_root_without_an_identity() {
         })
     );
     assert_eq!(component.done(), None);
+}
+
+/// temper/docs/design/protocol/git.md, 4.6: merge progress is not a parsed result.
+#[test]
+fn a_merges_progress_stdout_does_not_refuse_its_conflict_listing() {
+    for code in [0, 1] {
+        let mut component = fixtures::Started::new();
+        component.down(Request::Io {
+            owner: fixtures::OWNER,
+            op: git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT },
+            deadline: fixtures::DEADLINE,
+            identity: None,
+        });
+        let (child, pipes) = component.spawned();
+        component.stdout(pipes[0], &[b'x'; 513]);
+        component.end(pipes[0]);
+        component.end(pipes[1]);
+        component.exited(child, code);
+        component.closed(child, &pipes);
+        let expected = if code == 0 {
+            git::Done::Merged
+        } else {
+            assert_eq!(component.done(), None, "the conflict listing still runs");
+            let (child, pipes) = component.spawned();
+            component.stdout(pipes[0], b"baseline\0");
+            component.end(pipes[0]);
+            component.end(pipes[1]);
+            component.exited(child, 0);
+            component.closed(child, &pipes);
+            git::Done::Conflicted { files: Box::new([b"baseline".as_slice().into()]) }
+        };
+        assert_eq!(component.done(), Some((fixtures::OWNER, expected)));
+    }
 }

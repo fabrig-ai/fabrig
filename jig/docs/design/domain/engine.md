@@ -1316,7 +1316,9 @@ run's-own class; failure to start uses the agent's class; an oversized
 result uses invalid; lost contact and shutdown use lost. Engine cancellation
 ends it as cancelled. Busy before starting is a refusal, spending no try. A
 finished job becomes its task's Job result, without asking to cancel
-delegates (2026-11-04).
+delegates (2026-11-04). A failed job's nonempty detail accompanies its
+class as a bounded `FailedWithReason` (tasks.md, 5.5); an invalid start's
+reason does too. The engine retains it through retries into the hold.
 
 ## 8. The fleet
 

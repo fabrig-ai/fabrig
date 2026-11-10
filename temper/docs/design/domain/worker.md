@@ -520,9 +520,13 @@ too (2026-11-09):
   says which. A delivery not made names the push's outcome and its
   diagnostic. A refusal names its cause. Where jig's answer carries a
   detail (a preparation's, a command's, a start's), the why is that
-  detail, within the host's `detail_bytes`; a delivery's and a deadline's
-  answers carry none (jig's `domain/hosts.md`, 6.9), so their why is the
-  worker's line alone.
+  detail, within the host's `detail_bytes`. Before sending the answer,
+  the root also puts a delivery's cause or a deadline's step in that
+  detail. A failed request write names `request.json`; a process setup
+  failure names the command and directory; a process gone without an
+  exit names that step. A missing or oversized result names exit 0 or
+  3 and the stderr tail. The worker's line may keep more of a delivery's
+  diagnostic than the bounded answer.
 - **On the engine,** when the hub accepts that answer, section 4.3's
   operator line, in its form: `<binary> serve: task TASK run RUN attempt
   ATTEMPT failed CLASS: job KIND: DETAIL`, or `refused REASON: job KIND:
@@ -532,7 +536,11 @@ too (2026-11-09):
   itself as refused, is the engine's line alone.
 - **Each line** is written once per answer, escaped to one line, its why
   cut to its last 4,096 bytes, as 4.3's is. The lines are operator output:
-  no fact, turn, result or hold holds them, and no LLM is shown them.
+  no fact or turn holds them. A failed job's answer carries its cause;
+  jig keeps the last `REASON_BYTES` (128 bytes) as UTF-8 on the retry notice
+  and, past its allowance, the hold (jig's `domain/tasks.md`, 5.5).
+  The change's held merge delegate therefore says why it failed, alongside
+  its failure class and the way out.
 
 ## 5. Checkouts
 
@@ -953,28 +961,20 @@ for; and that nothing is live once it settles.
   deployment asks for more than they hold. The user's to decide.
 - **jig's:** saving periodically, and a worker's failed dials before its
   first channel (jig's `domain/hosts.md`, section 12).
-- **A hold naming its run's last failure.** A task held `out of tries:
-  run failures` names no failure: the reason is 4.3's operator line
-  alone. A job held out of tries is the same, its reasons 4.4's lines,
-  and the change would name a job's last failure too; temper/migration
-  answered on 2026-11-09 that words in a job's hold wait until a
-  deployment's job lines have been read. The ending reaches the hub as its class
-  (`jig-domain-hub-link/src/payload.rs`) and every durable record holds
-  the class (jig's `tasks_v9` and `core_v6`), so naming it stores the
-  last failure's bounded text with the hold. No LLM is shown this detail,
-  while a hold's words reach the LLM's task read
-  (`temper-engine-smith/src/answers.rs`), so it takes a field of its own
-  or a path to clients alone. Default: the line alone, which `task show`'s
-  way out points to and `temper help hold` and `temper help server` say how
-  to read, until that proves too little. Keeping text means one last
-  failure per hold, replaced on each failure, with a byte bound and readers
-  the user decides first. The operator line's 4,096-byte tail is no choice
-  of that stored bound. Task readers could then see text now confined to
-  the engine's log, including tool output, paths, provider errors or echoed
-  credentials, which cannot be reliably redacted. Restricting it to owners
-  and maintainers needs a reading path of its own. The change crosses jig's
-  task and core schemas, the hub payload and the client wire, with their
-  versions, migration and goldens. The user's to decide.
+- **A hold naming an agent run's last failure.** An agent task held
+  `out of tries: run failures` names no failure: the reason is 4.3's
+  operator line alone. Job failures carry their bounded cause into the
+  hold (4.4). Default for an agent run: the line alone, which `task
+  show`'s way out points to and `temper help hold` and `temper help
+  server` say how to read, until that proves too little. Keeping agent
+  text means one last failure per hold, replaced on each failure, with
+  a byte bound and readers the user decides first. The operator line's
+  4,096-byte tail is no choice of that stored bound. Task readers could
+  then see text now confined to the engine's log, including tool output,
+  paths, provider errors or echoed credentials, which cannot be reliably
+  redacted. Restricting it to owners and maintainers needs a reading path
+  of its own. An agent ending's producer and its payload must carry the
+  cause, as the job's do. The user's to decide.
 - **What a deployment's operators may read of a run's prompts.** A run's
   prompts hold repository text and anything an agent read, and a real
   design of keeping them starts from who may read them
