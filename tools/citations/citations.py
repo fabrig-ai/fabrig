@@ -10,7 +10,9 @@ Usage, from the repository root:
 (counted per file and target, renames mapped), so a branch may not add one, directly or by
 removing or renumbering what another file cites. `--all` fails on every broken citation.
 Both check committed trees (`git archive`), never the working tree, and skip what
-`tools/citations/allow.txt` lists. Exit 0 clean, 1 findings, 2 usage or git failure.
+`tools/citations/allow.txt` lists. In the trees `tools/citations/sized.txt` lists, a design
+document over LIMIT bytes fails too: under `--base`, only one that crossed the limit or grew
+while over it. Exit 0 clean, 1 findings, 2 usage or git failure.
 """
 import collections
 import fnmatch
@@ -24,6 +26,8 @@ TREES = ("temper", "smith", "skein", "jig", "hearth")
 CODE_EXT = (".rs", ".py", ".sh", ".toml", ".js")
 SLASH_COMMENTS = (".rs", ".js")
 ALLOW = "tools/citations/allow.txt"
+SIZED = "tools/citations/sized.txt"
+LIMIT = 64 * 1024  # a design document's bytes (DESIGN.md, 5)
 
 NUM = r"\d+(?:\.\d+)*"
 SEP = r"(?:\s*,\s*(?:and\s+|or\s+)?|\s+and\s+|\s+or\s+|\s+to\s+|\s*[–-]\s*)"
@@ -526,6 +530,37 @@ def allowed(root):
     return pairs
 
 
+def sized_trees(root):
+    """The trees whose design documents LIMIT covers: sized.txt's lines, `#` starting a comment."""
+    try:
+        with open(os.path.join(root, SIZED), encoding="utf-8") as fh:
+            names = [line.split("#", 1)[0].strip() for line in fh]
+    except FileNotFoundError:
+        return set()
+    names = [name for name in names if name]
+    unknown = [name for name in names if name not in TREES]
+    if unknown:
+        raise ValueError(f"{SIZED}: not a tree: {', '.join(unknown)}")
+    return set(names)
+
+
+def sizes(root, tracked, trees):
+    """Bytes of each Markdown file under the given trees' docs/design/."""
+    return {rel: os.path.getsize(os.path.join(root, rel)) for rel in tracked
+            if rel.endswith(".md") and tree_of(rel) in trees and rel.split("/")[1:3] == ["docs", "design"]}
+
+
+def oversized(head, base=None):
+    """(file, bytes) over LIMIT; against a base, only those that crossed it or grew while over it."""
+    return sorted((rel, size) for rel, size in head.items()
+                  if size > LIMIT and (base is None or size > base.get(rel, 0)))
+
+
+def show_sizes(big):
+    for rel, size in big:
+        print(f"{rel}: size {size:,} bytes, over the {LIMIT:,}-byte limit: split it along its concepts")
+
+
 def git(*args):
     return subprocess.run(("git", *args), check=True, capture_output=True, text=True).stdout
 
@@ -535,7 +570,7 @@ def extract(rev, into):
     names = git("ls-tree", "-r", "--name-only", rev).splitlines()
     # git archive refuses a pathspec that matches nothing
     present = [f":(glob)**/*{ext}" for ext in (".md",) + CODE_EXT if any(n.endswith(ext) for n in names)]
-    present += [ALLOW] if ALLOW in names else []
+    present += [name for name in (ALLOW, SIZED) if name in names]
     archive = subprocess.run(("git", "archive", "--format=tar", rev, "--", *present),
                              check=True, capture_output=True).stdout
     subprocess.run(("tar", "-x", "-C", into), input=archive, check=True)
@@ -596,27 +631,40 @@ def main(argv):
             allow = allowed(head_root)
             head = check(head_root, head_tracked)
             head_keys = keys(head, allow)
+            trees = sized_trees(head_root)
+            head_sizes = sizes(head_root, head_tracked, trees)
             if "--all" in args:
                 show(head, head_keys)
+                big = oversized(head_sizes)
+                show_sizes(big)
                 total = sum(head_keys.values())
                 print(f"citations: {total} broken in {args['--head']}", file=sys.stderr)
-                return 1 if total else 0
+                if big:
+                    print(f"citations: {len(big)} design documents over the size limit", file=sys.stderr)
+                return 1 if total or big else 0
             base_root = os.path.join(tmp, "base")
             os.mkdir(base_root)
             base_tracked = extract(args["--base"], base_root)
-            base_keys = keys(check(base_root, base_tracked), allow, renames(args["--base"], args["--head"]))
+            moved = renames(args["--base"], args["--head"])
+            base_keys = keys(check(base_root, base_tracked), allow, moved)
+            base_sizes = {moved.get(rel, rel): size for rel, size in sizes(base_root, base_tracked, trees).items()}
     except (subprocess.CalledProcessError, ValueError) as error:
         detail = getattr(error, "stderr", None) or error
         print(f"citations: {detail}", file=sys.stderr)
         return 2
     new = head_keys - base_keys
     show(head, new)
+    big = oversized(head_sizes, base_sizes)
+    show_sizes(big)
     total = sum(new.values())
     print(f"citations: {total} new broken since {args['--base']} ({sum(head_keys.values())} in all)",
           file=sys.stderr)
     if total:
         print(f"Fix each citation, or list a non-citation in {ALLOW} (FILE TARGET # reason).", file=sys.stderr)
-    return 1 if total else 0
+    if big:
+        print(f"citations: {len(big)} design documents crossed or grew past the size limit; move their "
+              "concepts into documents of their own with tools/citations/move.py.", file=sys.stderr)
+    return 1 if total or big else 0
 
 
 if __name__ == "__main__":
