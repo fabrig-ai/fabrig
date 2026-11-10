@@ -1,4 +1,4 @@
-//! Borrowed account facts and row-bound operations (temper/docs/design/client/README.md, 3.5–3.6).
+//! Borrowed account facts and row-bound operations (temper/docs/design/client/pages/README.md and temper/docs/design/client/README.md, 3.6).
 use super::Request;
 use crate::owner::Owner;
 use jig_client::{Client, Handle, Latest, State, contract as c};
@@ -42,7 +42,7 @@ pub fn document(client: &Client) -> Option<&c::Accounts> {
     if let Latest::Jig(c::Delivery::Accounts(accounts)) = doc.latest? { Some(accounts) } else { None }
 }
 
-/// A page-local confirmation, never kept across a reload (client/README.md, 3.5, Ready's place).
+/// A page-local confirmation, never kept across a reload (client/pages/README.md, Ready's place).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Added {
     pub provider: u32,

@@ -1,11 +1,11 @@
-//! Goals in the run's words (domain/agent.md, 4.3.2 and 8.2).
+//! Goals in the run's words (domain/agent/tools.md, 2, and domain/agent/agents.md, 2).
 use super::{Delegate, Domain, Env, Limits};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{Decimal, List, Writer};
 use temper_engine_domain_forge as forge;
 
-/// The root names an advisor after the caller's words (domain/agent.md, 4.3.2).
+/// The root names an advisor after the caller's words (domain/agent/tools.md, 2).
 const ADVISOR_SCOPE: &[u8] =
     b"You are an advisor: you read what your brief asks and report what you found; you change nothing and ask no one.";
 
@@ -16,7 +16,7 @@ const ASK_PLAN: &[u8] =
     b"this work is to be agreed: ask your requester your plan with message, as a question, and wait";
 
 /// Work goals carry a tracked priority; advisors and chats are untracked.
-/// The caller owns its plan regardless of who requested it (domain/agent.md, 4.3.2).
+/// The caller owns its plan regardless of who requested it (domain/agent/tools.md, 2).
 pub(crate) fn refusal(domain: &Domain, task: u64, advisor: bool, agree: bool) -> Option<&'static [u8]> {
     let row = domain.core.tasks.task(task)?;
     if row.tracked.is_some()

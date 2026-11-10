@@ -1,11 +1,11 @@
-//! Seeded public paths (temper/docs/design/client/browser.md, 8.1 and 8.4).
+//! Seeded public paths (temper/docs/design/client/web/public.md, 1 and 4).
 use skein_lib::Rng;
 use std::panic::catch_unwind;
 use temper_client_domain::address::{Place, Public, parse, print_public};
 
 // Match the codec world's 2,000 draws, each independently replayable.
 const SEEDS: u64 = 2_000;
-// browser.md, 8.1: each public identifier is 16 lowercase hexadecimal digits.
+// client/web/public.md, 1: each public identifier is 16 lowercase hexadecimal digits.
 const ID_DIGITS: usize = 16;
 const PROJECT_AT: usize = b"/public/projects/".len();
 

@@ -4,42 +4,42 @@
 
 Sections 2 to 6 are carried by the design, milestone N1 of
 `whole-story.execution.md`, but for lag 4 and the departures below:
-`../domain/forge.md`, 5.5 and 5.8 to 5.10, `../protocol/configuration.md`,
-section 7 and 13.2, `../domain/agent.md`, 4.3, and
-`../client/README.md`, 3.5, 5.13 and 5.14; section 3's view of the
+`../domain/forge/attention.md`, 1 and 4 to 6, `../protocol/configuration/limits.md` and `../protocol/configuration/settings.md`, section 2
+, `../domain/agent/tools.md`, and
+`../client/pages/README.md` and `../client/pages/settings.md`, 2 and `../client/pages/goal.md`, 3; `what-reaches-you.md`, section 3's view of the
 table is 5.13's *What reaches you*, the three columns `surfaces.md`,
 section 7, draws, milestone P3b, in place of Settings' section and its
-checks. Section 8 is carried by
-`../client/README.md`, 3.5, **Only you**, and 5.5, *Each state*,
+checks. `what-reaches-you.md`, section 8 is carried by
+`../client/pages/README.md`, **Only you**, and 5.5, *Each state*,
 milestone N3a, but for lag 8. Where the code lags them is their status
 files'.
 
 - **Design lags:**
   - 4: no design gives a standing role's person
     (`standing-roles.status.md`), so a standing role's case waits for R1
-    of `whole-story.execution.md`. `../domain/forge.md`, 5.10 judges the
+    of `whole-story.execution.md`. `../domain/forge/attention.md`, 6 judges the
     paths a call names alone, not those its asker's change touches at its
-    head: the forge reads a change's paths with rules by path, section 7,
+    head: the forge reads a change's paths with rules by path, `what-reaches-you.md`, section 7,
     N2 of `whole-story.execution.md`.
-  - 7: a landing rule names no path set (`../protocol/configuration.md`,
-    section 3 and 13.3); `../domain/forge.md`, 8.7 reads no paths a change
+  - 7: a landing rule names no path set (`../protocol/configuration/engine.md` and `../protocol/configuration/settings.md`, section 3
+    ); `../domain/forge/change/gates.md`, 2 reads no paths a change
     touches from its merge base, and 8.12's line names none; 8.12 and
-    section 9 leave a change waiting on a person's approval first in its
+    `what-reaches-you.md`, section 9 leave a change waiting on a person's approval first in its
     branch's queue, holding every landing behind it.
-  - 8: `../client/README.md`, 3.5's **Only you** lists a person's own
+  - 8: `../client/pages/README.md`'s **Only you** lists a person's own
     sign-in signed out and a login their account reads as expiring, as
     the mockups' audit words it (`surfaces.md`, section 4); its line
     saying what waits, "Two agents on vsr wait for this login.", a
     forge's token to replace and a person task asking an act are that
-    document's later parts (section 11): jig's `accounts` document names
+    document's later parts (`what-reaches-you.md`, section 11): jig's `accounts` document names
     no task waiting on a person's own account (jig's
     `client/domain/contract/documents.md`, 1), no read says a forge's token
     must be replaced, and a person task asking an act stays among the
-    cards. The terminal's inbox lists no Only you (`../client/README.md`,
-    6.14), a later part of `what-reaches-you.md`, section 11's too, temper/tui's.
-  - 9: `../client/README.md`, 5.13's *Telling you* is disabled; no design
-    holds a service worker, a push or a digest (`../client/browser.md`),
-    nor mail settings (`../protocol/configuration.md`); no design serves
+    cards. The terminal's inbox lists no Only you (`../client/tui/pages.md`
+    ), a later part of `what-reaches-you.md`, section 11's too, temper/tui's.
+  - 9: `../client/pages/settings.md`, 2's *Telling you* is disabled; no design
+    holds a service worker, a push or a digest (`../client/web/README.md`),
+    nor mail settings (`../protocol/configuration/README.md`); no design serves
     the web client over HTTPS at a deployment's name for a phone, keeps a
     VAPID key pair among the deployment's secrets
     (`../protocol/credentials.md`), or has `temper ctl me push add`.
@@ -50,7 +50,7 @@ files'.
   projects, the shown card's first, the count marked "+" past them, where
   this section lists every project's, since each project's rows are a
   watch of their own within the client's room
-  (`../client/README.md`, 3.5, *Decided for you*, and `../client/README.md`, section 11's open
+  (`../client/pages/README.md`, *Decided for you*, and `../client/README.md`, section 5's open
   question, default four); and a page draws at most seven rows, the
   newest, counting the rest in its heading, as Home has since `ui-away`.
 - **Design departs:** 2, decided by the cut of `ui-reaches` on
@@ -58,7 +58,7 @@ files'.
   patterns match the paths of any of the project's repositories, where
   the draft has them over a repository's tree, because a project's
   classes are the project's and a call names repository-relative paths
-  (`../domain/forge.md`, 5.10); a set meant for one repository names
+  (`../domain/forge/attention.md`, 6); a set meant for one repository names
   paths only it holds.
 - **Open:**
   - 9: push or mail by default; default push where offered, mail where the

@@ -196,7 +196,7 @@ impl Side {
     pub const fn playground_failure(&self) -> Option<&playground::StartFailure> {
         self.playground.failure.as_ref()
     }
-    /// From the act's send until the read is none (temper/docs/design/client/README.md, 4.8).
+    /// From the act's send until the read is none (temper/docs/design/client/forge/family.md, 7).
     #[must_use]
     pub const fn leaving(&self) -> bool {
         self.playground.leaving
@@ -220,7 +220,7 @@ impl Side {
     pub const fn panel(&self) -> Option<&panel::Panel> {
         self.panel.as_ref()
     }
-    /// Whether the printed link signed in, once the forges watch delivered (client/README.md, 4.6).
+    /// Whether the printed link signed in, once the forges watch delivered (client/forge/records.md).
     #[must_use]
     pub const fn linked(&self) -> Option<bool> {
         self.linked
@@ -563,7 +563,7 @@ pub fn ask(adoption: &Adoption, limits: &Limits) -> Option<jig_client::Ask> {
         record: family::request(adoption, &wire_limits(limits)?)?,
     })
 }
-/// Encode a checked making request in its destination's scope (client/README.md, 4.6).
+/// Encode a checked making request in its destination's scope (client/forge/records.md).
 #[must_use]
 pub fn make_repository(
     request: &temper_client_protocol_wire::v1::MakeRepository,
@@ -575,7 +575,7 @@ pub fn make_repository(
     };
     Some(jig_client::Ask::Family { scope, record: family::make_repository(request, &wire_limits(limits)?)? })
 }
-/// Ready's copies are named in address order, starting at one (client/README.md, 3.5).
+/// Ready's copies are named in address order, starting at one (client/pages/README.md).
 #[must_use]
 pub fn copy_key(number: u64) -> skein_lib::RequestKey {
     let number = skein_lib::Decimal::of(number);
@@ -598,7 +598,7 @@ pub fn answer(limits: &crate::Limits, answered: &jig_client::Answered) -> Option
     }
 }
 
-/// Ready and ctl name the same adoption (temper/docs/design/client/README.md, 3.5).
+/// Ready and ctl name the same adoption (temper/docs/design/client/pages/README.md).
 #[must_use]
 pub fn first_repository_key(forge: u16, additional: bool) -> skein_lib::RequestKey {
     let prefix: &[u8] = if additional { b"first-repository-additional-" } else { b"first-repository-" };
@@ -609,7 +609,7 @@ pub fn first_repository_key(forge: u16, additional: bool) -> skein_lib::RequestK
     crate::key::named(crate::key::TOOLS, &crate::key::Name::new(&text.finish()).expect("first repository key fits"))
 }
 
-/// Each refusal gives Home's next adoption a new name (temper/docs/design/client/README.md, 3.5).
+/// Each refusal gives Home's next adoption a new name (temper/docs/design/client/pages/README.md).
 #[must_use]
 pub fn first_repository_again_key(forge: u16, attempt: u64) -> skein_lib::RequestKey {
     let prefix = b"first-repository-again-";

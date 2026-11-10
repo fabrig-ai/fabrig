@@ -1,4 +1,4 @@
-//! The switcher's browser form (temper/docs/design/client/README.md, 5.3).
+//! The switcher's browser form (temper/docs/design/client/view.md, 3).
 const TASK_PAGES: &str = include_str!("../../task-pages.css");
 const SHEET: &str = include_str!("../../temper.css");
 
@@ -46,7 +46,7 @@ fn scrolling_panes_contain_their_hidden_absolute_parts() {
         assert!(rule(selector).contains("position: relative;"), "{selector}");
         assert!(rule(selector).contains("overflow-y: auto;"), "{selector}");
     }
-    // The log is what the page keys scroll; nothing around it scrolls the column (client/README.md, 5.9).
+    // The log is what the page keys scroll; nothing around it scrolls the column (client/pages/task.md, 2).
     for thread in ["#app > .temper-session .temper-thread:has(> [role=log])", ".temper-agent-page .temper-thread"] {
         assert!(rule(thread).contains("overflow: hidden;"), "{thread}");
     }

@@ -1,4 +1,4 @@
-//! Refusals expose positions and kinds alone (client/journeys.md, 3.7 and 6).
+//! Refusals expose positions and kinds alone (client/web/journeys.md, 3.7 and 6).
 use jig_client_protocol_wire as w;
 use skein_lib::{
     Time, Wall, Writer,

@@ -1,4 +1,4 @@
-//! Command lists (temper/docs/design/client/README.md, 3.5, A command's list; 6.14, The commands).
+//! Command lists (temper/docs/design/client/pages/README.md, A command's list; 6.14, The commands).
 use crate::words::Words;
 use alloc::boxed::Box;
 use jig_client::contract as c;
@@ -7,7 +7,7 @@ use temper_client_domain::{
     Address, Domain,
     pages::{Act, chats as chat_pages, terminal::Listing},
 };
-/// An option in the terminal's list (temper/docs/design/client/README.md, 6.14, The commands).
+/// An option in the terminal's list (temper/docs/design/client/tui/pages.md, The commands).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Choice {
     pub name: Box<[u8]>,
@@ -15,7 +15,7 @@ pub struct Choice {
     pub selected: bool,
     pub act: Act,
 }
-/// A command's head (temper/docs/design/client/README.md, 3.5, A command's list).
+/// A command's head (temper/docs/design/client/pages/README.md, A command's list).
 #[must_use]
 pub fn list_head(listing: Listing) -> &'static [u8] {
     match listing {
@@ -24,17 +24,17 @@ pub fn list_head(listing: Listing) -> &'static [u8] {
         Listing::Chats => b"Chats",
     }
 }
-/// The picker's models, without provider links (temper/docs/design/client/README.md, 3.5, A command's list).
+/// The picker's models, without provider links (temper/docs/design/client/pages/README.md, A command's list).
 #[must_use]
 pub fn models(root: &Domain, _task: Option<&c::Task>, w: &Words) -> Box<[Choice]> {
     crate::choice::picker::model_choices(root, w)
 }
-/// The chosen model's efforts (temper/docs/design/client/README.md, 3.5, A command's list).
+/// The chosen model's efforts (temper/docs/design/client/pages/README.md, A command's list).
 #[must_use]
 pub fn efforts(root: &Domain, _task: Option<&c::Task>, _w: &Words) -> Box<[Choice]> {
     crate::choice::picker::effort_choices(root)
 }
-/// Live chats, newest first, without the open one (temper/docs/design/client/README.md, 6.14, The commands).
+/// Live chats, newest first, without the open one (temper/docs/design/client/tui/pages.md, The commands).
 #[must_use]
 pub fn chats(root: &Domain, w: &Words) -> Box<[Choice]> {
     let Some(chats) = root.pages().chats() else { return Box::default() };
@@ -77,14 +77,14 @@ pub fn chats(root: &Domain, w: &Words) -> Box<[Choice]> {
     }
     choices.into_boxed()
 }
-/// A confirmation's question and acts (temper/docs/design/client/README.md, 3.5, A command's list).
+/// A confirmation's question and acts (temper/docs/design/client/pages/README.md, A command's list).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Confirmation {
     pub head: &'static [u8],
     pub take: &'static [u8],
     pub keep: &'static [u8],
 }
-/// An unsent close or restart (temper/docs/design/client/README.md, 6.14, The commands).
+/// An unsent close or restart (temper/docs/design/client/tui/pages.md, The commands).
 #[must_use]
 pub fn confirmation(root: &Domain) -> Option<Confirmation> {
     if !crate::pages::terminal::commands::confirms(root) || root.pages().confirmation()?.sent.is_some() {

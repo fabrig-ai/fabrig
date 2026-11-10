@@ -1,4 +1,4 @@
-//! Joined person reads (temper/docs/design/domain/agent.md, 8.4.1).
+//! Joined person reads (temper/docs/design/domain/agent/ask-temper.md, 1).
 use super::*;
 use serde_json::json;
 use temper_engine_domain_world::{fixtures::report_delegate, protocol, walking};

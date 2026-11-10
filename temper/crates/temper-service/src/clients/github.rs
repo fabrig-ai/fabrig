@@ -1,4 +1,4 @@
-//! Deferred replies for the setup route (client/forge.md, 9.1).
+//! Deferred replies for the setup route (client/forge/served.md, 1).
 use super::Clients;
 use crate::setup::{MANIFEST_SCRIPT_HASH, MANIFEST_STYLE_HASH, PAGE_STYLE_HASH};
 use alloc::boxed::Box;

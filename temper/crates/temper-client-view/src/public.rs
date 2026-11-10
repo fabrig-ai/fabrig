@@ -1,4 +1,4 @@
-//! Pages from public records alone (temper/docs/design/client/browser.md, 8.3).
+//! Pages from public records alone (temper/docs/design/client/web/public.md, 3).
 use crate::{
     sign_in::Ways,
     words::{Times, Word, Words},

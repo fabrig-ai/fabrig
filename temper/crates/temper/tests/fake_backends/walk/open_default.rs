@@ -1,4 +1,4 @@
-//! Ready's Create and reload on the fake box (temper/docs/design/domain/testing.md, 2;
+//! Ready's Create and reload on the fake box (temper/docs/design/testing/README.md, 2;
 //! temper/docs/design/client/README.md, 2).
 use crate::support::WITHIN;
 use skein_lib::Time;

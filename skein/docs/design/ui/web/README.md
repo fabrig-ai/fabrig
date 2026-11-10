@@ -823,7 +823,7 @@ the application that needs it.
   disclosure, which is the page part's (section 5), nor to select a
   field's words as it takes the focus. Each waits for an application that
   needs it; temper's rename draws without them
-  (`temper/docs/design/client/README.md`, 11).
+  (`temper/docs/design/client/README.md`, 5).
 - **A tab kept once it is pointed:** the platform lets a pointed tab go
   (section 8), so an application can't close it at its end. Keeping it waits
   for `temper/docs/design/draft/sign-in-new-tab.md`, 6, where a provider's

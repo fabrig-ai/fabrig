@@ -1,5 +1,5 @@
 //! Settings values cross the protocol boundary whole and within its bounds
-//! (temper/docs/design/domain/root.md, 5.6).
+//! (temper/docs/design/domain/routing.md, 6).
 use temper_engine_domain_forge::{GateLast, GatePattern, JudgeFreshness, settings};
 
 use crate::kinds::{Bounds, decode, encode, size};

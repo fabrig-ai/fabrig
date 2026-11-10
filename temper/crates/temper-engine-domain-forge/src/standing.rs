@@ -1,6 +1,6 @@
 //! Standing landing requirements over held rules
-//! (temper/docs/design/protocol/configuration.md, 13.3;
-//! temper/docs/design/domain/forge.md, 8.7).
+//! (temper/docs/design/protocol/configuration/settings.md, 3;
+//! temper/docs/design/domain/forge/change/gates.md, 2).
 use alloc::boxed::Box;
 use skein_lib::List;
 use temper_engine_domain_forge_change as change;
@@ -80,7 +80,7 @@ impl Domain {
     }
 
     /// Name the counted request only when requirement 5 first refuses on an approval
-    /// of a change, never a goal landing (temper/docs/design/domain/forge.md, 8.3).
+    /// of a change, never a goal landing (temper/docs/design/domain/forge/change/gates.md, 1).
     #[must_use]
     pub fn review_request(
         &self,

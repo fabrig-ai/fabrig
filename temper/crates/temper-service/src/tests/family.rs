@@ -3559,7 +3559,7 @@ fn the_worst_small_changes_document_fits_its_decision() {
 
 #[test]
 fn the_worst_small_ways_document_fits_its_decision() {
-    // A stock headline's bound (temper/docs/design/protocol/configuration.md, 13.10).
+    // A stock headline's bound (temper/docs/design/protocol/configuration/settings.md, 8).
     const HEADLINE_BYTES: u32 = 120;
     let limits = crate::limits::profile(crate::limits::Profile::Small);
     let worst_view = w::ViewAnswer::encoded_bound(&w::CEILINGS).unwrap();

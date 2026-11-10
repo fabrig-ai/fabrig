@@ -1,4 +1,4 @@
-//! The owner-run GitHub story (domain/testing.md, 2.7). Never invoked by the gate.
+//! The owner-run GitHub story (testing/live-tier.md). Never invoked by the gate.
 use super::{
     cluster, ctl, github, github_land,
     relay::{Guard, Relay},
@@ -21,7 +21,7 @@ use std::{
 const WITHIN: Duration = Duration::from_secs(1200);
 const POLL: Duration = Duration::from_secs(2);
 /// Install links asked while setup is busy, one a poll: the reconcile after a connect is the
-/// engine's own, which `forge list --until settled` does not cover (client/tools.md, 5.4).
+/// engine's own, which `forge list --until settled` does not cover (client/ctl/tools.md, 4).
 const BUSY: u32 = 30;
 const REPOSITORY: &str = "temper-probe";
 
@@ -275,7 +275,7 @@ impl Judge<'_> {
         *calls = Some(Box::new(batch));
     }
     fn install(&mut self, host: &mut cluster::Root) {
-        // A key's first answer is replayed (client/tools.md, 7): each ask again draws a fresh key.
+        // A key's first answer is replayed (client/ctl/README.md, 5): each ask again draws a fresh key.
         let key = format!("live-install-{}", self.busy);
         self.one(host, &["forge", "install", "1", "--key", &key], Stage::Link);
     }

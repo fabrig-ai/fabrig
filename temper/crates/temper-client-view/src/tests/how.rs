@@ -1,4 +1,4 @@
-//! How work runs' parts in both shells (temper/docs/design/client/README.md, 5.13).
+//! How work runs' parts in both shells (temper/docs/design/client/pages/settings.md, 2).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,

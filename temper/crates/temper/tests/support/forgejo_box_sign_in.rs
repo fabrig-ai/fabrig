@@ -1,4 +1,4 @@
-//! A box's own issuer and its real owned Forgejo (protocol/sign-in.md, 9.9).
+//! A box's own issuer and its real owned Forgejo (protocol/openid-provider.md, 9).
 use super::{
     configuration,
     forge_sign_in::success,

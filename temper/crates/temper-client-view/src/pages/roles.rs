@@ -1,4 +1,4 @@
-//! A role's or a rule's page (temper/docs/design/client/README.md, 3.5).
+//! A role's or a rule's page (temper/docs/design/client/pages/README.md).
 use super::settings::{self, Tab};
 use crate::{
     frame::Bindings,

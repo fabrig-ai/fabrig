@@ -1,4 +1,4 @@
-//! Goal topic facts (jig's domain/connectors.md, 5.4; domain/forge.md, 7).
+//! Goal topic facts (jig's domain/connectors.md, 5.4; domain/forge/README.md, 5).
 //! Subtree membership is durable in subscribers. File lists are disposable,
 //! bounded and pinned by fresh pull reads around all pages. Missing facts
 //! make overlap unknown. A head change refreshes the facts.

@@ -1,4 +1,4 @@
-//! Standalone auto-grant issuer (protocol/setup.md, 7.5).
+//! Standalone auto-grant issuer (protocol/setup/box.md, 5).
 //! Decoding and plan construction do no io; the binary drives the existing peer.
 use crate::{Refusal, credential, read};
 use alloc::boxed::Box;

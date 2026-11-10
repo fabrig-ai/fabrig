@@ -1,4 +1,4 @@
-//! Chats and their document provenance (temper/docs/design/client/README.md, 3.5).
+//! Chats and their document provenance (temper/docs/design/client/pages/README.md).
 //! Live rows are borrowed from the client; closed rows are one bounded read page.
 use super::{
     Request,
@@ -13,10 +13,10 @@ use jig_client::contract::{
 use jig_client::{Client, Handle, Key, Latest, Readable, Readout, Told, Watchable};
 use skein_lib::{Env, List, Map, Queue, Time, Writer};
 
-/// Ask temper's stock template (temper/docs/design/protocol/configuration.md, 13.4).
+/// Ask temper's stock template (temper/docs/design/protocol/configuration/stock.md).
 pub const ASKING_TEMPLATE: u32 = 5;
 
-/// A design session's stock template (temper/docs/design/protocol/configuration.md, 13.4).
+/// A design session's stock template (temper/docs/design/protocol/configuration/stock.md).
 pub const DRAFTING_TEMPLATE: u32 = 6;
 
 #[derive(Debug)]
@@ -571,7 +571,7 @@ impl Chats {
         asking
     }
     /// The person's newest Ask temper chat in the project, not closed
-    /// (temper/docs/design/client/README.md, 3.5, Settings).
+    /// (temper/docs/design/client/pages/README.md, Settings).
     #[must_use]
     pub fn open_asking(&self, client: &Client, me: Option<&Me>, project: u32) -> Option<u64> {
         let query = self.query?;
@@ -605,7 +605,7 @@ fn handle(number: u64) -> Handle {
     Handle { asker: Owner::Pages.asker(), number }
 }
 
-/// A chat of template 5's charter (temper/docs/design/client/README.md, 3.5, To begin).
+/// A chat of template 5's charter (temper/docs/design/client/pages/README.md, To begin).
 #[must_use]
 pub fn asking(me: &Me, project: u32, executor: &c::ChipExecutor) -> bool {
     let Some(template) = jig_client::shapes::template(me, project, ASKING_TEMPLATE) else { return false };
@@ -615,7 +615,7 @@ pub fn asking(me: &Me, project: u32, executor: &c::ChipExecutor) -> bool {
     }
 }
 
-/// A design session: a chat of template 6's charter (temper/docs/design/client/README.md, 3.5).
+/// A design session: a chat of template 6's charter (temper/docs/design/client/pages/README.md).
 #[must_use]
 pub fn drafting(me: &Me, project: u32, executor: &c::ChipExecutor) -> bool {
     let Some(template) = jig_client::shapes::template(me, project, DRAFTING_TEMPLATE) else { return false };
@@ -657,7 +657,7 @@ fn newest_asking(rows: &List<c::TaskLine>, me: &Me, project: u32, newest: &mut O
     }
 }
 
-/// A chat whose phase or phase facts have ended (temper/docs/design/client/README.md, 3.5).
+/// A chat whose phase or phase facts have ended (temper/docs/design/client/pages/README.md).
 #[must_use]
 pub fn ended(chip: &c::Chip) -> bool {
     use c::{ChipPhase, ChipPhaseFacts, Phase};

@@ -1,5 +1,5 @@
 //! Stock defaults with the world's scripted model and bounded store.
-//! Box identity worlds follow temper/docs/design/domain/forge.md, 4.6.
+//! Box identity worlds follow temper/docs/design/domain/forge/adoption.md, 6.
 use super::*;
 use serde_json::{Value, json};
 use skein_lib::Duration;
@@ -199,7 +199,7 @@ fn box_owner_identity() -> people::IdentityKey {
 pub(super) fn restart_box_with_second_owner(world: &mut World) {
     use temper_engine_domain_forge as forge;
     // A link retained by the person's earlier one-owner deployment is stale
-    // under this world's two configured owners (temper/docs/design/domain/forge.md, 4.6).
+    // under this world's two configured owners (temper/docs/design/domain/forge/adoption.md, 6).
     let mut record = world
         .driver
         .store
@@ -249,7 +249,7 @@ fn worker_hello() -> Event {
     greeting
 }
 
-/// The settings family's own tools (temper/docs/design/domain/agent.md, 4.3).
+/// The settings family's own tools (temper/docs/design/domain/agent/tools.md).
 pub(super) fn settings_config() -> engine::Config {
     let mut config = config();
     let mut charter = config
@@ -648,7 +648,7 @@ impl World {
     }
 }
 
-/// A `see` answer whole, following `more: TOKEN` (agent.md, 8.4.1); the parts it took.
+/// A `see` answer whole, following `more: TOKEN` (domain/agent/ask-temper.md, 1); the parts it took.
 pub(super) fn see_whole(
     driver: &mut Driver,
     run: &engine::Assignment,

@@ -1,5 +1,5 @@
 //! The fake forge (`skein_fake_forge_domain`) as io's git meets it, across the
-//! network (testing.md, 4.2 and 4.3): the transport a working tree's
+//! network (testing/fakes.md, 2 and 3): the transport a working tree's
 //! git reaches its remotes through ([`Remote`]), routed to the forge's domain
 //! as the worker's calls, and the forge's one store, where git names its
 //! commits and finds their trees. And what a world does to the forge from

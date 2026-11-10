@@ -1,4 +1,4 @@
-//! The relay's policy alone (temper/docs/design/domain/forge.md, 8.11).
+//! The relay's policy alone (temper/docs/design/domain/forge/change/questions.md, 1).
 use crate::{
     Asked, Open, QUESTION_LINE, QUESTIONS_OPEN, Questions, RelayAct, RelayHeard, Route, Settled, Stands, relay,
 };

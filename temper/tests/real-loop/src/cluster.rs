@@ -1,4 +1,4 @@
-//! Engine and named workers on one ring (protocol/README.md, 15.6).
+//! Engine and named workers on one ring (protocol/cluster.md, 6).
 use crate::{calls, fixtures, forge, llm, service::ServiceHost, world};
 use skein_io::kernel::{Complete, Done, Op};
 use std::{fmt::Write as _, net::SocketAddr, os::unix::fs::DirBuilderExt, path::Path};
@@ -103,8 +103,8 @@ impl Shape {
             serde_json::from_slice(&std::fs::read(data.join("temper.json")).expect("base document"))
                 .expect("base JSON");
         // Link deadlines exceed PATIENCE, so load cannot lose a link or run in this story.
-        // Loss and grace belong to the engine's domain world (domain/testing.md, 2.4).
-        // The stop bound stays below fleet grace (protocol/README.md, 15.3).
+        // Loss and grace belong to the engine's domain world (testing/real-loop.md).
+        // The stop bound stays below fleet grace (protocol/cluster.md, 3).
         let ping_ms = crate::PATIENCE.as_nanos().div_euclid(1_000_000) + 1;
         let silence_ms = 3 * ping_ms;
         let [grace_ms, agent_stop_ms, delivery_ms, save_ms] = [10_u64, 5, 5, 5];

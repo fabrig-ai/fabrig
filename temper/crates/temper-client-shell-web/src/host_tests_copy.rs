@@ -1,4 +1,4 @@
-//! The Copy leaves in its press’s turn (temper/docs/design/client/README.md, 3.5).
+//! The Copy leaves in its press’s turn (temper/docs/design/client/pages/README.md).
 use super::*;
 use temper_client_domain::copy::Written;
 

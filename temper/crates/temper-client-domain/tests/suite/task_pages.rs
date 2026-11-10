@@ -295,7 +295,7 @@ mod tests {
         root_event(root, Event::Went { place: domain::Place::Address(address) })
     }
 
-    // client/README.md 5.8: "reads an ended goal's document once more when its watch ends";
+    // client/pages/goal.md 2: "reads an ended goal's document once more when its watch ends";
     // jig's client/domain/contract/README.md 5.2: an ended subject is read for its end.
     #[test]
     fn goal_watch_end_reads_and_keeps_the_final_document() {
@@ -313,7 +313,7 @@ mod tests {
         );
     }
 
-    // client/README.md 5.9: latest thread page "read again on each change of the document";
+    // client/pages/task.md 2: latest thread page "read again on each change of the document";
     // the chat's bounded thread holds one page read at a time.
     #[test]
     fn agent_document_changes_coalesce_the_latest_activity_read() {
@@ -332,7 +332,7 @@ mod tests {
         assert!(activity_reads(&settled).is_empty(), "no uncaused third read");
     }
 
-    // client/README.md 5.9: an agent's task is "no priority" and has a thread,
+    // client/pages/task.md 2: an agent's task is "no priority" and has a thread,
     // while ended delegate queries belong to goals and procedures (5.8, 5.10).
     #[test]
     fn untracked_agent_reads_activity_without_an_ended_children_query() {
@@ -349,7 +349,7 @@ mod tests {
         assert!(root.pages().task().expect("agent").ended.is_none());
     }
 
-    // client/README.md 5.9: a live run has a run watch, no run out ends it as a chat's;
+    // client/pages/task.md 2: a live run has a run watch, no run out ends it as a chat's;
     // 3.5: "Leaving releases the page" including its run and conversation.
     #[test]
     fn leaving_agent_releases_its_run_and_drops_late_thread_answers() {
@@ -374,7 +374,7 @@ mod tests {
         assert!(root.pages().task().is_none(), "late activity cannot resurrect page");
     }
 
-    // client/README.md 5.9: an agent's task has "no priority" and its thread:
+    // client/pages/task.md 2: an agent's task has "no priority" and its thread:
     // 5.11's untracking changes the document to an agent's page, which reads it.
     #[test]
     fn untracking_opens_the_agents_thread() {
@@ -389,7 +389,7 @@ mod tests {
         assert_eq!(activity_reads(&requests).len(), 1, "agent opens its own thread");
     }
 
-    // client/README.md 5.8's ended-delegate page belongs to a goal's shape; the
+    // client/pages/goal.md 2's ended-delegate page belongs to a goal's shape; the
     // README does not say whether 5.11's untracking releases it.
     #[test]
     #[ignore = "backlog: an untracked goal's page keeps its goal-only ended page (Task.ended stays Some under Shape::Agent); nothing draws it, and README 5.8/5.11 do not say it is released"]

@@ -1,4 +1,4 @@
-//! Public kinds, key ownership and glue (temper/docs/design/client/forge.md, 11).
+//! Public kinds, key ownership and glue (temper/docs/design/client/forge/README.md, 9).
 use super::*;
 use jig_domain_core as core;
 use skein_lib::{ReplyTo, Token};

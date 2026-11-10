@@ -144,7 +144,7 @@ code from the first step.
   prepare, fail a boot on trial, fill the disk mid-build, or drop the
   engine during an activation, and check that the machine always comes
   back bootable. This is the machine fake temper already plans (
-  `temper/docs/design/domain/testing.md`, section 3.2), so the two should share it. os's real
+  `temper/docs/design/testing/README.md`, section 3.2), so the two should share it. os's real
   tests need sudo and feature gates; this is the largest gain in quality
   over it.
 - **A realistic fake at every boundary.** Each external tool is a

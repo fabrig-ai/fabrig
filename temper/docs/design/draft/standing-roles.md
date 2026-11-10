@@ -56,8 +56,8 @@ role of the project's people.
 
 ## 2. What a standing role is
 
-- **Its rules:** a charter, as every agent has (`../protocol/configuration.md`,
-  13.4): instructions for its area's work, in parts by why a run runs
+- **Its rules:** a charter, as every agent has (`../protocol/configuration/stock.md`
+  ): instructions for its area's work, in parts by why a run runs
   (`per-wake.md`, section 3), its models and efforts, its tools and its
   documents (jig's `domain/engine/settings.md`, 9). They change by a proposal of
   settings, as every setting does (jig's `domain/engine/settings.md`, 6).
@@ -239,7 +239,7 @@ role of the project's people.
 - **What Home's brief reads.** A standing role's Now is what Home's brief
   reads of its area. The brief itself, its agent and its page are
   `surfaces.md`, section 3's, carried out by temper/ui; this draft changes
-  nothing of `../domain/forge.md`, 5.7.
+  nothing of `../domain/forge/attention.md`, 3.
 
 ## 8. Parties outside temper
 
@@ -247,7 +247,7 @@ role of the project's people.
   the care of its logins, a later lab that proves the code continuously. Each
   sometimes finds something wrong, or needs a person.
 - **They file through `temper ctl`,** each a party with a sign-in of its own
-  (`../client/tools.md`, section 9):
+  (`../client/ctl/README.md`, section 7):
   - **a finding,** with its kind, its paths or label and its reproduction,
     routed by area like any (section 4);
   - **a need,** a question for a person with its choices and why, sent to
@@ -291,12 +291,12 @@ Each is a design lag, by its status file.
   (`../domain/findings.md`, sections 2 and 6; `../domain/after-landing.md`,
   section 7).
 - **A standing role in the stock** (temper): its charter and its template
-  (`../protocol/configuration.md`, 13.4), and its row among the agents temper
-  runs (`../domain/agent.md`, section 8).
+  (`../protocol/configuration/stock.md`), and its row among the agents temper
+  runs (`../domain/agent/agents.md`).
 - **Its pages and acts** (temper's client): Team and a standing role's card,
   and talking with a standing role, on the web and in the terminal
-  (`../client/README.md`, 5.3 and section 6); in `temper ctl`
-  (`../client/tools.md`, 5.3), `role list`, `role show`, `role talk` (a
+  (`../client/view.md`, 3 and `../client/line.md`); in `temper ctl`
+  (`../client/ctl/tools.md`, 3), `role list`, `role show`, `role talk` (a
   person's words to a standing role, which open or continue its session, its
   answer printed), `finding file` and `need ask`. A rule it proposes is
   decided with `proposal show` and `proposal decide`, as any proposal
@@ -316,7 +316,7 @@ Each is a design lag, by its status file.
   budget: a proposal an owner accepts. Whoever hands it the area is its
   person (section 2).
 - **The stock's standing roles' rules are temper's to write,** as the
-  coordinator's are (`../protocol/configuration.md`, 13.4, charter 5): the
+  coordinator's are (`../protocol/configuration/stock.md`, charter 5): the
   triager first, then the ones the pilot needs, a prover for tests and a
   porter for a follow (`follows.md`, section 2).
 
@@ -353,8 +353,8 @@ each landing.
   owner at any time;
   random wake times, where no run resumes past a quiet span and every fresh
   run follows a written Now or the session's recorded end.
-- **A world story,** with a fake model's script (`../domain/testing.md`, 2.1
-  and 2.4): on the playground's repository, a standing role owns the tests. A red of its
+- **A world story,** with a fake model's script (`../testing/README.md`, 2.1 and `../testing/real-loop.md`
+  ): on the playground's repository, a standing role owns the tests. A red of its
   tier reaches the triager, which hands it to the role; it triages it, makes the repair change, and the change
   lands. It writes its Now. A wake an hour later starts fresh, its brief
   holding that Now and no transcript. A person talks with it, and an

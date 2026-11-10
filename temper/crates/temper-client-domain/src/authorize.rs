@@ -1,10 +1,10 @@
-//! The browser's authorization place (protocol/sign-in.md, 9.3).
+//! The browser's authorization place (protocol/openid-provider.md, 3).
 use crate::{Domain, Limits, Place, Request};
 use alloc::boxed::Box;
 use jig_client::{AuthorizeWhy, Authorized, Link};
 use skein_lib::{Env, Queue};
 
-/// Only signed-out authorization addresses must fit Google's return path (protocol/sign-in.md, 9.3).
+/// Only signed-out authorization addresses must fit Google's return path (protocol/openid-provider.md, 3).
 const SIGNED_OUT_ADDRESS_BYTES: usize = 1024;
 /// Jig's raw authorization query ceiling, shared with its wire codec.
 pub const QUERY_BYTES: u32 = jig_client_protocol_wire::v19::CEILINGS.authorize_query;

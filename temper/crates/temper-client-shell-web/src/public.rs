@@ -1,4 +1,4 @@
-//! Anonymous browser host, without a client or store (temper/docs/design/client/browser.md, 8.2).
+//! Anonymous browser host, without a client or store (temper/docs/design/client/web/public.md, 2).
 use crate::{host::Duties, limits};
 use jig_client_protocol_http::{self as http, PublicHeard};
 use jig_client_shell_web::adapter::{Asked, Heard};

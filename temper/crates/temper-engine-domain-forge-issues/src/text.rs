@@ -1,4 +1,4 @@
-//! UTF-8 projections fitted to forge byte bounds (domain/forge.md, 8.1 and 12).
+//! UTF-8 projections fitted to forge byte bounds (domain/forge/change/README.md, 1 and domain/forge/issues.md).
 use alloc::boxed::Box;
 use skein_lib::Writer;
 

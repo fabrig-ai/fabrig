@@ -50,17 +50,17 @@ milestone that meets a question the draft leaves open takes its section
   link, its directory, closing), 4.3 (the first screen) and 4.4 (its
   parts).
 - **Design:** the TUI's part of `../client/README.md` (its crates, its
-  host, its terminal, its directory) and of `../protocol/README.md`,
-  section 4 (bare `temper`); the full-screen shell in skein's design
+  host, its terminal, its directory) and of `../protocol/binaries.md`
+   (bare `temper`); the full-screen shell in skein's design
   beside `ui/text.md`; its theme, from the browser's chat terminal
-  (`../client/browser.md`, 2.5).
+  (`../client/web/look.md`).
 - **Builds:** skein's full-screen shell, its renderer and its terminal;
   the TUI's view and host on temper's client root; bare `temper` and
   `temper ADDRESS`; the sign-in screen with its pasted link; the first
   screen, live.
 - **Tests:** the renderer's frames for the first screen at two sizes,
   light and dark; the host's seam in the client's joint world, a TUI
-  signed in by a link drawing `me` (`../domain/testing.md`, 6.3); the
+  signed in by a link drawing `me` (`../testing/checks.md`, 3); the
   engine stopped and started again under it; the terminal left as found
   on each way out.
 - **Walk:** on a fresh `temper box`, `temper` in another terminal, the
@@ -73,7 +73,7 @@ milestone that meets a question the draft leaves open takes its section
 - **Design:** jig's third built-in way, in jig's
   `client/domain/contract/README.md`, section 2, jig's `domain/people/README.md`,
   section 3, and jig's `protocol/client/sign-in.md`; the web's
-  approval page in `../client/README.md` and `../client/browser.md`, 2.3
+  approval page in `../client/README.md` and `../client/web/README.md`, 2.3
   and 2.4; the TUI's signing in, with its own lines.
 - **Builds:** jig's approval, asked, approved, refused, expired and
   taken, its credential drawn only when taken, and its bounds; the
@@ -84,9 +84,9 @@ milestone that meets a question the draft leaves open takes its section
   party's sign-in alone, one from a client that isn't a browser
   refused, one never taken making no sign-in; in temper's client world,
   a TUI's approval approved by a second client, signed in as a browser
-  is (`../domain/testing.md`, 6.3); the address the TUI opens made from
+  is (`../testing/checks.md`, 3); the address the TUI opens made from
   its own parts alone; the browser's page in the gallery's states
-  (`../client/browser.md`, section 7).
+  (`../client/web/gallery.md`).
 - **Walk:** on a fresh `temper box`, its link opened in a browser, then
   `temper` in another terminal, approved, the first screen.
 - **Done** when it lands.
@@ -94,7 +94,7 @@ milestone that meets a question the draft leaves open takes its section
 ### M3. Recorded
 
 - **Executes:** `tui.md`, section 5.
-- **Design:** the TUI's journeys, beside `../client/journeys.md`: the
+- **Design:** the TUI's journeys, beside `../client/web/journeys.md`: the
   recorder, the replay, the print, its tests, recording again, and the
   look requested on frames.
 - **Builds:** the recorder in a build of its own, the replay through the
@@ -102,7 +102,7 @@ milestone that meets a question the draft leaves open takes its section
   test, recording again in a pseudo-terminal with the approval given in
   headless Chromium, the redaction's TUI originals, the theme's
   overlay; and the first journey, committed with its README.
-- **Tests:** as the browser's journeys' (`../client/journeys.md`,
+- **Tests:** as the browser's journeys' (`../client/web/journeys.md`,
   section 6), within their cost; the redaction and the scan shared with
   them.
 - **Walk:** the user opens the first journey's frames.

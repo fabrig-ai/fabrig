@@ -1,4 +1,4 @@
-//! A new chat on the session layout (temper/docs/design/client/README.md, 3.5, 4.8 and 5.6).
+//! A new chat on the session layout (temper/docs/design/client/pages/README.md and temper/docs/design/client/forge/family.md, 7 and temper/docs/design/client/pages/welcome.md, 2).
 use crate::{
     frame::Bindings,
     look,
@@ -272,7 +272,7 @@ fn context(b: &mut Builder, root: &Domain, words: &Words) {
     b.close();
 }
 
-/// The playground whose start `NewChat` shows (temper/docs/design/client/README.md, 4.8).
+/// The playground whose start `NewChat` shows (temper/docs/design/client/forge/family.md, 7).
 pub(crate) fn playground_start(root: &Domain) -> Option<&temper_client_domain::forge::Playground> {
     let Address::NewChat { .. } = root.pages().address() else { return None };
     let playground = root.forge().playground()?;

@@ -221,7 +221,7 @@ fn readable_models() -> jig_client::contract::Me {
     me
 }
 
-// client/tools.md 5.2--5.6, with the plan's typed proposals and close reason.
+// client/ctl/README.md 5.2--5.6, with the plan's typed proposals and close reason.
 const USAGES: &[&[u8]] = &[
     b"me [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
     b"inbox [--project PROJECT] [--kind questions|proposals|escalations|person-tasks|results|replies] [--root TASK] [--after CURSOR] [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",

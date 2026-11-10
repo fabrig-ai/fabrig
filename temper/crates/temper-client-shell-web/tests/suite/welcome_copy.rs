@@ -1,4 +1,4 @@
-//! The command reserves room for its longest Copy label (temper/docs/design/client/README.md, 3.5).
+//! The command reserves room for its longest Copy label (temper/docs/design/client/pages/README.md).
 #[test]
 fn the_welcome_command_reserves_the_copy_inset_label_and_gap_at_every_width() {
     let css = include_str!("../../temper.css");

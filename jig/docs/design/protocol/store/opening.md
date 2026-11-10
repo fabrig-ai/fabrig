@@ -419,7 +419,7 @@ impl PatchSets {
   the family's last kept text; a set that fails is refused, `Set` with
   patch 0. That each record of the map lies in one family's range takes
   a walk, which the baseline's rehearsal makes (temper's
-  `protocol/README.md`, section 9), not every open.
+  `protocol/README.md`, section 7), not every open.
 - **One sequence per owner,** numbered in one crate, its store crate
   (jig's `jig-protocol-store`, temper's `temper-protocol-store`): an
   owner whose families another crate of its keeps (jig's `jig-accounts`

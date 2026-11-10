@@ -1,5 +1,5 @@
 //! Ask temper's kept line reaches its person's page and its Delete button
-//! (temper/docs/design/client/README.md, 5.17; temper/docs/design/domain/agent.md, 8.4.4).
+//! (temper/docs/design/client/pages/remembered.md; temper/docs/design/domain/agent/ask-temper.md, 4).
 use jig_client_kit::harness::Until;
 use skein_fake_person::{Find, Step};
 use skein_ui::Role;

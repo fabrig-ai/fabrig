@@ -1,9 +1,9 @@
-//! A branch's path (temper/docs/design/domain/forge.md, 8.13).
+//! A branch's path (temper/docs/design/domain/forge/change/branch-path.md).
 use alloc::boxed::Box;
 pub(crate) mod cards;
 mod derive;
 mod rules;
-/// Who acts at a stop (domain/forge.md, 8.13).
+/// Who acts at a stop (domain/forge/change/branch-path.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Actor {
     Person,
@@ -12,7 +12,7 @@ pub enum Actor {
     Bar,
 }
 
-/// What a stop is, one per kind of step (temper/docs/design/domain/forge.md, 8.13).
+/// What a stop is, one per kind of step (temper/docs/design/domain/forge/change/branch-path.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Step {
     Ask,
@@ -129,7 +129,7 @@ impl Path {
 }
 
 /// How work starts on the project (kind 7, its way's template and that template's work).
-/// See temper/docs/design/domain/forge.md, 8.13.
+/// See temper/docs/design/domain/forge/change/branch-path.md.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Start {
     Chat,
@@ -195,7 +195,7 @@ pub struct Inputs {
     pub agents: Box<[Agent]>, // one per charter the path names
 }
 
-/// Derive the branch's path (temper/docs/design/domain/forge.md, 8.13).
+/// Derive the branch's path (temper/docs/design/domain/forge/change/branch-path.md).
 #[must_use]
 pub fn derive(inputs: &Inputs) -> Path {
     let repository = match &inputs.repository {

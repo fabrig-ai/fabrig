@@ -3,7 +3,7 @@
 `.temper/close close <request.json>` settles a goal's in-flight status entries
 (`DESIGN.md`, section 2) once every change of the goal has ended, before its
 closer lands the goal (temper/docs/design/protocol/tooling.md, 4.2;
-temper/docs/design/domain/forge.md, 11.2). It runs from a job directory with
+temper/docs/design/domain/forge/branches.md, 2). It runs from a job directory with
 the goal's branch checked out in `<repository name>/`, with no model, no
 credential and no network, and needs only Python's standard library and git.
 

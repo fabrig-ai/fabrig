@@ -1,4 +1,4 @@
-//! Forge records and the bounded attempts owned by their routing (client/README.md, 4.6).
+//! Forge records and the bounded attempts owned by their routing (client/forge/records.md).
 #![deny(
     clippy::indexing_slicing,
     clippy::arithmetic_side_effects,
@@ -50,7 +50,7 @@ pub fn make_repository(request: &w::MakeRepository, limits: &w::Limits) -> Optio
         w::Requesting::new(limits, w::RequestingParts { request: w::Request::MakeRepository(request.clone()) }).ok()?;
     Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) })
 }
-/// Read one picker page (temper/docs/design/client/forge.md, 5.1).
+/// Read one picker page (temper/docs/design/client/forge/repositories.md, 1).
 #[must_use]
 pub fn reachable(forge: u16, installation: Option<u64>, page: u32, limits: &w::Limits) -> Option<jig_client::Family> {
     let request = w::Reachable::new(limits, w::ReachableParts { forge, installation, page }).ok()?;
@@ -58,7 +58,7 @@ pub fn reachable(forge: u16, installation: Option<u64>, page: u32, limits: &w::L
     Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) })
 }
 
-/// Dismiss a failed making by name (temper/docs/design/client/README.md, 4.6).
+/// Dismiss a failed making by name (temper/docs/design/client/forge/records.md).
 #[must_use]
 pub fn dismiss_making(
     forge: u16,
@@ -275,7 +275,7 @@ pub fn forges(bytes: &[u8], limits: &w::Limits) -> Option<Box<[forge::forges::Ro
     let (rows, _) = forges_document(bytes, limits)?;
     Some(rows)
 }
-/// The forge rows and whether the printed link signed in (client/README.md, 4.6).
+/// The forge rows and whether the printed link signed in (client/forge/records.md).
 #[must_use]
 pub fn forges_document(bytes: &[u8], limits: &w::Limits) -> Option<(Box<[forge::forges::Row]>, bool)> {
     use forge::forges::{Kind, Mode, Offer, Row};
@@ -486,7 +486,7 @@ fn first_from(first: w::FirstRepository) -> forge::forges::First {
     }
 }
 
-/// One fresh picker page; it carries no credentials (client/README.md, 4.6).
+/// One fresh picker page; it carries no credentials (client/forge/records.md).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Page {
     pub rows: Box<[Reached]>,
@@ -540,7 +540,7 @@ fn admin_stop(stop: w::AdminStop) -> forge::forges::AdminStop {
     }
 }
 
-/// Decode the playground's complete record (temper/docs/design/client/README.md, 4.8).
+/// Decode the playground's complete record (temper/docs/design/client/forge/family.md, 7).
 #[must_use]
 pub fn playground(record: &[u8], limits: &w::Limits) -> Option<forge::Playground> {
     let answer = wire::decode_playground_answer(record, limits)?.into_parts();

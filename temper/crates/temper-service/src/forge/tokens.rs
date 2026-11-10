@@ -1,4 +1,4 @@
-//! Runtime bot identities and GitHub git tokens (temper/docs/design/protocol/forge.md, 2.1).
+//! Runtime bot identities and GitHub git tokens (temper/docs/design/protocol/forge/engine.md, 1).
 use crate::{engine::Engine, settings};
 use alloc::boxed::Box;
 use skein_forge_connection::Account;

@@ -593,7 +593,7 @@ fn github_component_checks_key_deadline_and_renewal() {
 
 #[test]
 fn installation_capacity_fits_the_client_row_at_64_and_refuses_65() {
-    // client/README.md, 4.6: the row carries at most 64 installations.
+    // client/forge/records.md: the row carries at most 64 installations.
     const ROW_INSTALLATIONS: u32 = 64;
     let jig = fixtures::engine().jig;
     for (installations, accepted) in [(ROW_INSTALLATIONS, true), (ROW_INSTALLATIONS + 1, false)] {

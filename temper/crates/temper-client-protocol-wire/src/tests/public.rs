@@ -1,4 +1,4 @@
-//! The visitor's reachable shape and bounds (temper/docs/design/client/forge.md, 11.4).
+//! The visitor's reachable shape and bounds (temper/docs/design/client/forge/README.md, 9.4).
 #[path = "public/bounds.rs"]
 mod bounds;
 #[path = "public/shape.rs"]

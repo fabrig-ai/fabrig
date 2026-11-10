@@ -1,4 +1,4 @@
-//! Hosts the pure parent machine while retaining the lock (protocol/setup.md, 6.4).
+//! Hosts the pure parent machine while retaining the lock (protocol/setup/owned.md, 4).
 use crate::run::{Failed, checked};
 use skein_io::{
     Event, Io, Limits, Request,
@@ -42,7 +42,7 @@ pub fn run(limits: &Limits, launch: &Launch, address: std::net::SocketAddr) -> R
     let listener = io.adopt_listener(Fd::new(3), address).expect("room for listener");
     let mut args: Vec<Box<[u8]>> =
         // Kill: a Forgejo left shutting down gracefully would meet a restarted
-        // forge run's on the box's socket and its database (protocol/setup.md, 6.4).
+        // forge run's on the box's socket and its database (protocol/setup/owned.md, 4).
         [
             b"internal".as_slice(),
             b"forge-child",

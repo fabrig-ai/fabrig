@@ -1,4 +1,4 @@
-//! Native pages received by the fake person, including the forms (temper/docs/design/client/README.md, 3.5).
+//! Native pages received by the fake person, including the forms (temper/docs/design/client/pages/README.md).
 use skein_fake_person::{Find, Step};
 use skein_lib::Duration;
 use temper_client_domain::{

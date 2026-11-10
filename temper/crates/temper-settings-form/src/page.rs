@@ -1,4 +1,4 @@
-//! Settings pages use the host answer allowance (domain/agent.md, 4.3).
+//! Settings pages use the host answer allowance (domain/agent/tools.md).
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Writer};
 

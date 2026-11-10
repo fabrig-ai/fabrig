@@ -2,7 +2,7 @@ use std::{fs, path::Path};
 fn forbidden(source: &str) -> bool {
     let compact: String = source.chars().filter(|c| !c.is_whitespace()).collect();
     // Calls through the setup's process boundary are not std process operations
-    // (temper/docs/design/protocol/setup.md, 11).
+    // (temper/docs/design/protocol/setup/README.md, 7).
     let compact = compact.replace("temper_forge_setup_shell::process::", "ForgeProcess::");
     compact.contains("std::process")
         || compact.contains("process::") && compact.contains("usestd::{")
@@ -17,7 +17,7 @@ fn forbidden_at(path: &Path, source: &str) -> bool {
     {
         source.replace("std::process::ExitCode", "ExitCode").replace("process::ExitCode", "ExitCode")
     } else if path.ends_with("temper-service-shell/src/lib.rs") {
-        // Serve's run reads the first link's secret from stdin (protocol/setup.md, 7.1).
+        // Serve's run reads the first link's secret from stdin (protocol/setup/box.md, 1).
         // Its stdin guard is not a file lock; file locks and process operations stay guarded.
         source.replace("std::io::stdin().lock()", "BoxLinkInput")
     } else if path.ends_with("temper-worker-shell/src/program_login.rs") {
@@ -26,11 +26,11 @@ fn forbidden_at(path: &Path, source: &str) -> bool {
         source.replace("std::process::Command", "TerminalCommand").replace("process::CommandExt", "TerminalExec")
     } else if path.ends_with("temper-fetch-shell/src/fetch.rs") {
         // Claude Code's missing build is fetched under an exclusive file lock
-        // (protocol/setup.md, 6.6); process operations stay in process.rs.
+        // (protocol/setup/owned.md, 6); process operations stay in process.rs.
         source.replace(".lock()", ".fetch_lock()")
     } else if path.ends_with("temper-launcher/src/lib.rs") {
         // The launcher execs the pinned build and links the running executable;
-        // its process id names concurrent link replacements (protocol/setup.md, 6.6).
+        // its process id names concurrent link replacements (protocol/setup/owned.md, 6).
         source
             .replace("std::process::Command", "LauncherCommand")
             .replace("process::CommandExt", "LauncherExec")

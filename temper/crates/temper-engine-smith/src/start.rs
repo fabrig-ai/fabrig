@@ -110,7 +110,7 @@ pub fn start(
 }
 
 /// The channel charter takes its mode from the task's ending and resumes
-/// only when policy allows and turns are kept (domain/agent.md, 4.6).
+/// only when policy allows and turns are kept (domain/agent/charter.md, 5).
 #[must_use]
 pub fn charter(assignment: &engine::Assignment) -> run::Charter {
     charter_with_history(assignment, !assignment.transcript.is_empty())

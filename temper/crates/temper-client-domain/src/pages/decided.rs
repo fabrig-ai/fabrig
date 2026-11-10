@@ -1,4 +1,4 @@
-//! Decided for you: the open page's projects' decisions (temper/docs/design/client/README.md, 3.5, Decided for you).
+//! Decided for you: the open page's projects' decisions (temper/docs/design/client/pages/README.md, Decided for you).
 use super::Pages;
 use crate::{Address, Domain, Limits, Request, forge, owner::Owner};
 use alloc::boxed::Box;

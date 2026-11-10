@@ -1,4 +1,4 @@
-//! DIRECTORY's private files and its engine address (client/tools.md, 8.1).
+//! DIRECTORY's private files and its engine address (client/ctl/README.md, 6.1).
 use crate::{arguments::Class, host::Startup, limits};
 use skein_io::{
     Addr, file,
@@ -614,7 +614,7 @@ impl Directory {
         step::down(&mut self.io, &env, request, &mut self.events, &mut self.submissions);
     }
 }
-/// What a failed or unexpected answer says (client/tools.md, 8.1): the file layer's error
+/// What a failed or unexpected answer says (client/ctl/README.md, 6.1): the file layer's error
 /// by name, `too large`, or `unexpected answer`; never an event's bytes.
 fn answer_words(event: &file::Event) -> String {
     match event {

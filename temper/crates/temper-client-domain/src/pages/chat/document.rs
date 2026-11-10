@@ -1,4 +1,4 @@
-//! A chat's document and its call's words (temper/docs/design/client/README.md, 3.5).
+//! A chat's document and its call's words (temper/docs/design/client/pages/README.md).
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
 
@@ -35,7 +35,7 @@ pub struct NoteWrite {
     pub change: NoteChange,
 }
 
-/// Whether the tool writes the chat's document (client/README.md, 3.5).
+/// Whether the tool writes the chat's document (client/pages/README.md).
 #[must_use]
 pub fn writes(tool: &[u8]) -> bool {
     tool == b"note" || tool == b"document"

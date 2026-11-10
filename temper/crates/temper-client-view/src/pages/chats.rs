@@ -1,4 +1,4 @@
-//! The Chats page (temper/docs/design/client/README.md, 3.5, 5.1 and 5.6).
+//! The Chats page (temper/docs/design/client/pages/README.md and temper/docs/design/client/view.md, 1 and temper/docs/design/client/pages/welcome.md, 2).
 use crate::{
     frame::Bindings,
     words::{TimeForm, Times, Word, Words},
@@ -245,7 +245,7 @@ pub(crate) fn row(
     b.key(skein_ui::Key { owner: crate::frame::owner(), kind: 10, a: line.chip.task, b: 0 });
     b.open(Role::Slot);
     b.style(crate::look::CHATS_TOP);
-    // A slot keeps the number's command available in the terminal (client/README.md, 3.5).
+    // A slot keeps the number's command available in the terminal (client/pages/README.md).
     b.open(Role::Slot);
     let asking = match root.pages().me(root.client()) {
         Some(me) => temper_client_domain::pages::chats::asking(me, line.project, &line.chip.executor),
@@ -488,7 +488,7 @@ pub(crate) fn status_words(
     (token, name)
 }
 
-/// Active work follows the bar, including while words stream (client/README.md, 3.5).
+/// Active work follows the bar, including while words stream (client/pages/README.md).
 pub(crate) fn active(root: &Domain, words: &Words) -> bool {
     let Some(chat) = root.pages().chat() else { return false };
     let Some(task) = chat.task(root.client()) else { return false };
@@ -506,11 +506,11 @@ pub(crate) fn active(root: &Domain, words: &Words) -> bool {
     );
     token == crate::look::STATUS_ACTIVE
 }
-/// The conversation draws dots until the reply's words begin (client/README.md, 3.5).
+/// The conversation draws dots until the reply's words begin (client/pages/README.md).
 pub(crate) fn working(root: &Domain, words: &Words, thread: &jig_client::thread::Thread) -> bool {
     active(root, words) && words_not_begun(thread)
 }
-/// A nonempty provisional line settles the work before it (client/README.md, 3.5 and 5.9).
+/// A nonempty provisional line settles the work before it (client/pages/README.md and client/pages/task.md, 2).
 pub(crate) fn words_not_begun(thread: &jig_client::thread::Thread) -> bool {
     match thread.lines().into_boxed().last() {
         Some(jig_client::thread::Line::Provisional { text, .. }) => text.is_empty(),
@@ -523,7 +523,7 @@ pub(crate) fn words_not_begun(thread: &jig_client::thread::Thread) -> bool {
         | None => true,
     }
 }
-/// Whether chats in this project can write drafts (temper/docs/design/client/README.md, 5.13).
+/// Whether chats in this project can write drafts (temper/docs/design/client/pages/settings.md, 2).
 #[must_use]
 pub fn drafts_offered(root: &Domain, project: u32) -> bool {
     temper_client_domain::pages::drafts_offered(root, project)

@@ -1,4 +1,4 @@
-//! Views read when shown and at a newer revision (temper/docs/design/client/README.md, 5.16).
+//! Views read when shown and at a newer revision (temper/docs/design/client/pages/chat/conversation.md, 3).
 use super::{Chat, Request, handle, unwatch};
 use crate::{
     Limits, forge,

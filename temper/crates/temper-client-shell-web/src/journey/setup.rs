@@ -1,4 +1,4 @@
-//! The setup before a journey's recording (client/journeys.md, 8.2).
+//! The setup before a journey's recording (client/web/journeys.md, 8.2).
 use super::Unreadable;
 use skein_ui::{Act, Role};
 #[derive(Debug, PartialEq, Eq)]
@@ -18,7 +18,7 @@ pub struct Setup {
     pub reload: Box<[u8]>,
     pub marks: Vec<MarkWait>,
 }
-/// Read a setup's ordered records (client/journeys.md, 8.2).
+/// Read a setup's ordered records (client/web/journeys.md, 8.2).
 pub fn setup(file: &[u8]) -> Result<Setup, Unreadable> {
     let mut setup = Setup { after: None, steps: Vec::new(), reload: Box::new([]), marks: Vec::new() };
     let mut loaded = false;

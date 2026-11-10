@@ -1,4 +1,4 @@
-//! Kept names, replay admission and diagnostics (client/tools.md, 7 and 8.2).
+//! Kept names, replay admission and diagnostics (client/ctl/README.md, 5 and 6.2).
 use alloc::{boxed::Box, collections::BTreeMap};
 use jig_client::{Ask, Client, Held, Key, Record};
 use jig_client_protocol_link::{Limits, translate};

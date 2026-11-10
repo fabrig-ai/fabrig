@@ -1,4 +1,4 @@
-//! Work's head, filters and cards (temper/docs/design/client/README.md, 3.5; browser.md, 2.5).
+//! Work's head, filters and cards (temper/docs/design/client/pages/README.md; client/web/look.md).
 use crate::{
     frame::Bindings,
     look,

@@ -39,7 +39,7 @@ pub(super) fn kept(domain: &Domain, env: &Env<Limits>, task: u64) -> bool {
     false
 }
 
-/// Pending dependencies in the task's dependency order (domain/forge.md, 8.11).
+/// Pending dependencies in the task's dependency order (domain/forge/change/questions.md, 1).
 pub(super) fn pending(
     domain: &Domain,
     env: &Env<Limits>,

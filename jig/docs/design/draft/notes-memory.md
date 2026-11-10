@@ -15,7 +15,7 @@ adopted, and no plan takes it up until the user does. It
 starts from jig's notes as they stand (`../domain/engine/briefs.md`, section
 2; `jig-domain-notes`), and its first consumer is temper's chats, whose
 document is drawn beside their conversation (the look request
-`configure-chat-draft`, `temper/docs/design/client/journeys.md`, 7).
+`configure-chat-draft`, `temper/docs/design/client/web/journeys.md`, 7).
 
 ## 1. In one page
 

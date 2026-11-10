@@ -1,4 +1,4 @@
-//! The engine's command table (temper/docs/design/protocol/README.md, 4.2).
+//! The engine's command table (temper/docs/design/protocol/binaries.md, 2).
 use temper_engine_shell::forge::{FETCH, FORGE_CHILD, PREPARE, REMOVE, RUN, SIGN_IN, SOURCE};
 use temper_shell::{
     commands::{DIRECTORIES, HELP, Row, Table, Who},

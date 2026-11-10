@@ -1,4 +1,4 @@
-//! Temper's setting names, family reads and values (temper/docs/design/client/tools.md, 4 and 5.2).
+//! Temper's setting names, family reads and values (temper/docs/design/client/ctl/README.md, 4, and temper/docs/design/client/ctl/tools.md, 2).
 use crate::jig::{
     call::{Call, Project, Value, number, value},
     render::Text,

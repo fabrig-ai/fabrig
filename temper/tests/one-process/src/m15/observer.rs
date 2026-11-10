@@ -1,4 +1,4 @@
-//! Fake-issued values remain in this observer; failures name only their surface (temper/docs/design/domain/testing.md, 2.5).
+//! Fake-issued values remain in this observer; failures name only their surface (temper/docs/design/testing/README.md, 2.5).
 use crate::fixtures;
 use skein_fake_peers::forge::Peer;
 use skein_io::kernel::{Complete, Done, Fd, Op};

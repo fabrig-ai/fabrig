@@ -1,4 +1,4 @@
-//! Team's hand-made deliveries (temper/docs/design/client/browser.md, 7.2).
+//! Team's hand-made deliveries (temper/docs/design/client/web/gallery.md, 2).
 use super::{Address, Domain, List, c, doc, started};
 use crate::driver::{answer, deliver, down, step};
 use jig_client::{Down, Readable, Up, Watchable};

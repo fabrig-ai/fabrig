@@ -1,4 +1,4 @@
-//! B1 rung-b1-6 box3's recorded agents on the fake peers (domain/testing.md, 2.4).
+//! B1 rung-b1-6 box3's recorded agents on the fake peers (testing/real-loop.md).
 //! Regenerate from the workspace root with temper/tests/real-loop/tests/fixtures/b1/regenerate.sh.
 use crate::{
     Exit, ForgeRecipe, Ran, argv,

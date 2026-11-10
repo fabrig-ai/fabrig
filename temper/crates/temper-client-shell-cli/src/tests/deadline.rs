@@ -1,4 +1,4 @@
-//! Deadline words follow the outstanding work (client/tools.md, 6.3).
+//! Deadline words follow the outstanding work (client/ctl/results.md, 3).
 use super::fixtures::{self, Engine};
 use crate::{
     limits,
@@ -154,7 +154,7 @@ fn deadline_words_are_only_the_tables_and_address() {
 }
 #[test]
 fn every_deadline_line_fits_at_the_address_bound() {
-    const LINE: usize = 240; // client/tools.md, 6.3, including prefix and newline.
+    const LINE: usize = 240; // client/ctl/results.md, 3, including prefix and newline.
     let address = "a".repeat(usize::try_from(limits::ADDRESS).expect("address bound"));
     for (waited, _) in WAIT_WORDS {
         for (act, _) in ACT_WORDS {

@@ -4,7 +4,7 @@
     clippy::wildcard_enum_match_arm,
     reason = "routing tests inspect captured events and diagnostics"
 )]
-//! Replacement access and durable records (temper/docs/design/protocol/forge.md, 2.2 and 2.6).
+//! Replacement access and durable records (temper/docs/design/protocol/forge/engine.md, 2 and 6).
 use super::create_tests::Forge;
 use super::tokens_tests::{self as tokens, Tokens};
 use super::*;

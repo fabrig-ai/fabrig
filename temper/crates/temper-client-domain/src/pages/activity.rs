@@ -1,4 +1,4 @@
-//! Retry rule for conversation activity (temper/docs/design/client/README.md, 3.5).
+//! Retry rule for conversation activity (temper/docs/design/client/pages/README.md).
 use super::{Request, task::ReadEnd};
 use jig_client::{Client, Handle, Readable, Readout, contract as c};
 use skein_lib::{Duration, Queue, Time};
@@ -7,7 +7,7 @@ pub(super) const READ_FIRST: Duration = Duration::from_secs(1);
 pub(super) const READ_MOST: Duration = Duration::from_secs(30);
 
 /// A conversation's activity read, asked again after a transient end
-/// while its page is open (temper/docs/design/client/README.md, 3.5).
+/// while its page is open (temper/docs/design/client/pages/README.md).
 #[derive(Debug)]
 pub(crate) struct Asking {
     asked: Option<c::Read>,

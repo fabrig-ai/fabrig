@@ -110,7 +110,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                 | Event::MakingStopped { .. }
                 | Event::MakingAdopt { .. }) => engine.events.push(root::Event::Forge(Box::new(event))),
                 // skein's forge/connection.md, section 2: no returned-hint request; never offer it again.
-                // protocol/forge.md, 2: these views are not kept; restart publishes connections and skein's forge/connection.md, 4.4's baseline.
+                // protocol/forge/engine.md: these views are not kept; restart publishes connections and skein's forge/connection.md, 4.4's baseline.
                 Event::AppRecorded { .. }
                 | Event::Hint { .. }
                 | Event::Connection { .. }
@@ -531,7 +531,7 @@ pub(crate) fn job_assignment(
     )
 }
 
-/// Build the channel event and note from the same words (protocol/README.md, 15.3).
+/// Build the channel event and note from the same words (protocol/cluster.md, 3).
 pub(crate) fn refuse(
     engine: &mut Engine,
     channel: skein_lib::Token,

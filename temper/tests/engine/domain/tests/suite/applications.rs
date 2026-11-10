@@ -1,4 +1,4 @@
-//! The forge's keyed adoption through the root (domain/forge.md, 4).
+//! The forge's keyed adoption through the root (domain/forge/adoption.md).
 use jig_domain_people as people;
 use skein_lib::{ReplyTo, Token};
 use temper_engine_domain as engine;

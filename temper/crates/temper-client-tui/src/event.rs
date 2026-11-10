@@ -1,4 +1,4 @@
-//! The view's events (temper/docs/design/client/README.md, 6.14 and 6.17).
+//! The view's events (temper/docs/design/client/tui/pages.md and temper/docs/design/client/tui/box.md).
 use alloc::boxed::Box;
 use temper_client_domain::pages::terminal::Command;
 
@@ -24,15 +24,15 @@ pub enum Event {
     Theme { choice: Option<crate::theme::ThemeChoice> },
 }
 
-/// The TUI's own command (temper/docs/design/client/README.md, 6.17).
+/// The TUI's own command (temper/docs/design/client/tui/box.md).
 pub const LOG_COMMAND: &[u8] = b"/log";
 
-/// The TUI's closing command (temper/docs/design/client/README.md, 6.14).
+/// The TUI's closing command (temper/docs/design/client/tui/pages.md).
 pub const QUIT: &[u8] = b"/quit";
-/// Sent whole, the same closing command, never listed (client/README.md, 6.14).
+/// Sent whole, the same closing command, never listed (client/tui/pages.md).
 pub const EXIT: &[u8] = b"/exit";
 
-/// The TUI's own commands (temper/docs/design/client/README.md, 6.14).
+/// The TUI's own commands (temper/docs/design/client/tui/pages.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Own {
     Draft,
@@ -77,7 +77,7 @@ pub fn command_name(command: Command) -> &'static [u8] {
         | Command::Help => command.name(),
     }
 }
-/// An act on one need's prompt (temper/docs/design/client/README.md, 6.14).
+/// An act on one need's prompt (temper/docs/design/client/tui/pages.md).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum WalkStep {
     Choose { words: Box<[u8]> },

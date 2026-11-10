@@ -1,5 +1,5 @@
 //! A plain repository request goes straight from the chat to a change
-//! (temper/docs/design/domain/agent.md, 8.2).
+//! (temper/docs/design/domain/agent/agents.md, 2).
 use super::*;
 
 #[test]

@@ -1,4 +1,4 @@
-//! Pure section assembly (temper/docs/design/domain/agent.md, 8.4.3).
+//! Pure section assembly (temper/docs/design/domain/agent/ask-temper.md, 3).
 use crate::{DocumentAction, DocumentRefusal};
 use alloc::boxed::Box;
 use skein_lib::{List, Writer};

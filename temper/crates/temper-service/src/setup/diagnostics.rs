@@ -1,4 +1,4 @@
-//! The wanted names alone reach the operator's log (protocol/setup.md, 17.5; call 7).
+//! The wanted names alone reach the operator's log (protocol/setup/github.md, 5; call 7).
 use alloc::boxed::Box;
 use skein_forge::github::document::Access;
 use skein_forge_setup::github::Lacking;

@@ -1,4 +1,4 @@
-//! Chat template selection (temper/docs/design/client/tools.md, 5.3 and 6.3).
+//! Chat template selection (temper/docs/design/client/ctl/tools.md, 3, and temper/docs/design/client/ctl/results.md, 3).
 use crate::tests::fixtures as f;
 use jig_client::{contract as c, shapes};
 use skein_lib::List;

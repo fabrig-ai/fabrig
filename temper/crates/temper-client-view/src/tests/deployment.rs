@@ -1,4 +1,4 @@
-//! Deployment read states in both shells (temper/docs/design/client/README.md, 3.5).
+//! Deployment read states in both shells (temper/docs/design/client/pages/README.md).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,

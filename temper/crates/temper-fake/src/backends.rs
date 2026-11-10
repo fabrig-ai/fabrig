@@ -1,4 +1,4 @@
-//! Bounded public-document rewrites for configuration.md, 12.1. No files or sockets are opened here.
+//! Bounded public-document rewrites for protocol/configuration/directories.md, 1. No files or sockets are opened here.
 use crate::{Refusal, read};
 use alloc::boxed::Box;
 use core::net::{IpAddr, SocketAddr};
@@ -27,7 +27,7 @@ pub struct Peers {
     pub llm: SocketAddr,
     pub forgejo: SocketAddr,
 }
-/// Shared by the supervised welcome peers (protocol/setup.md, 7.5).
+/// Shared by the supervised welcome peers (protocol/setup/box.md, 5).
 pub const SEED: u64 = 7;
 
 /// The fake program's model, alongside the credential-backed `OpenAI` model.
@@ -572,7 +572,7 @@ fn forge_document(socket: &[u8], data: &[u8], d: &Document, clients: u32) -> Res
     let at = member(d, listener, b"socket", &p)?;
     let clients = read::text(d, at, 128, &p.member(b"socket"))?;
     // The sandbox starts without forge records; Connect makes the first one
-    // (temper/docs/design/protocol/forge.md, 2.2).
+    // (temper/docs/design/protocol/forge/engine.md, 2).
     let setup = text(&read::joined(&[b"http://", &clients, b"/forges/1/github/setup"]))?;
     Ok(read::joined(&[b"{\"listen\":", &address(socket)?, b",\"admin_token\":", &text(&path(data, b"github-admin.token"))?,
         br#", "owner":"fake-person","repositories":[{"name":"widget","landing":"main","ci":null}],"github":{"app":{"id":1,"slug":"temper-fake","bot":2,"key":0,"setup_url":"#,&setup,br#"},"accounts":[{"login":"fake-person","id":3,"kind":"user","installation":{"id":1,"repositories":"all"}}]}}"#]))

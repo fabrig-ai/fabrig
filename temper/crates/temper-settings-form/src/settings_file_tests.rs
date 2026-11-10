@@ -1,4 +1,4 @@
-//! Charter settings in the file's forms (temper/docs/design/client/tools.md, 5.3).
+//! Charter settings in the file's forms (temper/docs/design/client/ctl/tools.md, 3).
 use crate::{Limits, file, values, view as c};
 use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits as JsonLimits};

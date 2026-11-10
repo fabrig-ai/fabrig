@@ -1,7 +1,7 @@
 # A stopped run's twin
 
 `twin` turns the selected tasks' transcripts from a cleanly stopped deployment
-into a `temper fake llm --document` document (domain/testing.md, 4.1).
+into a `temper fake llm --document` document (testing/fakes.md, 1).
 It is a developer tool, never shipped or published.
 
 ```sh

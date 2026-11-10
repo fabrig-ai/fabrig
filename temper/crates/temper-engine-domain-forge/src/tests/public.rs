@@ -1,4 +1,4 @@
-//! Public source-table tests (temper/docs/design/client/forge.md, 11.4).
+//! Public source-table tests (temper/docs/design/client/forge/README.md, 9.4).
 use crate::*;
 use skein_lib::{Duration, Env, Time, Wall};
 #[test]

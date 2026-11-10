@@ -1,9 +1,9 @@
-//! The person's playground acts and the deployment's reset (temper/docs/design/protocol/setup.md, 8.4).
+//! The person's playground acts and the deployment's reset (temper/docs/design/protocol/setup/playground.md).
 use super::{Decision, Delivery, Domain, Env, Limits, Work, applications, core, emit, forge, people};
 use alloc::boxed::Box;
 use skein_lib::{ReplyTo, Token};
 
-/// Temper's chat template (temper/docs/design/protocol/configuration.md, 2).
+/// Temper's chat template (temper/docs/design/protocol/configuration/README.md, 2).
 const CHAT_TEMPLATE: u32 = 1;
 
 #[derive(Hash, Debug)]

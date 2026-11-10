@@ -1,4 +1,4 @@
-//! CI on a commit, folded over the adoption's contexts (domain/forge.md, 5.3).
+//! CI on a commit, folded over the adoption's contexts (domain/forge/keeping-up.md, 3).
 use alloc::boxed::Box;
 use skein_forge::api::{Check, Ci, Status};
 

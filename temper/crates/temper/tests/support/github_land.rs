@@ -1,4 +1,4 @@
-//! A chat lands on a connected App and finds the same landing after restart (domain/testing.md, 2.6).
+//! A chat lands on a connected App and finds the same landing after restart (testing/process-tier.md).
 use super::{
     Scratch, WITHIN, cluster, ctl,
     github::{self, App, Scan, make_app, request_url},
@@ -655,7 +655,7 @@ impl Referee<cluster::Root> for Judge {
                 .expect("fixed workers listener");
             let directory = self.members.dir("engine");
             super::forgejo::bootstrap(&directory.join("config"), &directory.join("data"), &directory.join("cache"));
-            // temper/docs/design/protocol/setup.md, 17.7; temper/docs/design/protocol/forge.md, 2.1.
+            // temper/docs/design/protocol/setup/github.md, 7; temper/docs/design/protocol/forge/engine.md, 1.
             let mut record = temper_real_loop_world::fixtures::forgejo_record(address);
             record.kind = temper_engine_domain_forge::Kind::GitHub;
             record.place.web = Some(format!("http://{address}").into_bytes().into());

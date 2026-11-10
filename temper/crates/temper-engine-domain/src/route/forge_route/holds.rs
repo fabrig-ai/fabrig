@@ -1,5 +1,5 @@
 //! Retained accounts of procedure decisions and resource holds
-//! (temper/docs/design/domain/forge.md, 8.4, 8.5 and 11).
+//! (temper/docs/design/domain/forge/change/repairs.md and temper/docs/design/domain/forge/change/README.md, 3 and temper/docs/design/domain/forge/branches.md).
 use super::{
     Domain, EffectDescription, Env, Limits, List, ProcedureStep, StepEnd, Work, append, append_change_replies,
     authority, decimal, forge, tasks,

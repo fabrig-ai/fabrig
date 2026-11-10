@@ -1,4 +1,4 @@
-//! Names and bounded words shared by person answers (domain/agent.md, 8.4.1).
+//! Names and bounded words shared by person answers (domain/agent/ask-temper.md, 1).
 use super::super::join;
 use alloc::boxed::Box;
 use jig_domain_core::{documents as d, settings::CatalogueModel};

@@ -1,4 +1,4 @@
-//! Joined-world replay (temper/docs/design/domain/testing.md, 6.3).
+//! Joined-world replay (temper/docs/design/testing/checks.md, 3).
 use super::{PARTY, chats_page, faults, world};
 use jig_client_kit::harness::{Outcome, Until};
 use skein_world::domain::Verdict;

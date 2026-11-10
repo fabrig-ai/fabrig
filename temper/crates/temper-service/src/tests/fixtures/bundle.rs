@@ -62,7 +62,7 @@ pub fn body(peer: &super::http::Peer) -> &[u8] {
     let at = skein_lib::bytes::find(received, b"\r\n\r\n").expect("answer head").checked_add(4).unwrap();
     received.get(at..).expect("answer body")
 }
-/// The page's policy as `answered` gives it, names lowercased (client/browser.md, 2.2).
+/// The page's policy as `answered` gives it, names lowercased (client/web/README.md, 2.2).
 pub const POLICY: [(&[u8], &[u8]); 5] = [
     (b"content-security-policy", b"default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"),
     (b"x-content-type-options", b"nosniff"),

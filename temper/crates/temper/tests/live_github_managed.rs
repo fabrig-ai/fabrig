@@ -1,5 +1,5 @@
-//! The managed sitting's Ready on the fake (temper/docs/design/domain/testing.md, 2.6)
-//! and its owner-run relay against github.com (temper/docs/design/domain/testing.md, 2.7).
+//! The managed sitting's Ready on the fake (temper/docs/design/testing/process-tier.md)
+//! and its owner-run relay against github.com (temper/docs/design/testing/live-tier.md).
 #![expect(dead_code, reason = "the existing relay also serves other test binaries")]
 #[path = "support/managed_client.rs"]
 mod managed_client;
@@ -33,7 +33,7 @@ fn managed_relay() {
 }
 
 /// Runs the fake sitting, or its client with the sitting's mode and stdin link
-/// when `TEMPER_MANAGED_CLIENT` is set (temper/docs/design/domain/testing.md, 2.6).
+/// when `TEMPER_MANAGED_CLIENT` is set (temper/docs/design/testing/process-tier.md).
 #[test]
 fn managed_ready_client() {
     match managed_client::role() {

@@ -1,4 +1,4 @@
-//! Resolver Pull sections against client admission (temper/docs/design/domain/forge.md, 8.4).
+//! Resolver Pull sections against client admission (temper/docs/design/domain/forge/change/repairs.md).
 use skein_fake_forge_domain::api as raw;
 use skein_forge::api;
 use skein_lib::Token;

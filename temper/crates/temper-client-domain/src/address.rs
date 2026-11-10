@@ -1,4 +1,4 @@
-//! temper's addresses and the pages' filters (client/README.md, 3.5), and their paths (client/browser.md, 2.3).
+//! temper's addresses and the pages' filters (client/pages/README.md), and their paths (client/web/README.md, 2.3).
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Writer};
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -31,10 +31,10 @@ pub enum Address {
     Remembered,
     Limits,
 }
-/// The welcome's query names its step (client/browser.md, 2.3).
+/// The welcome's query names its step (client/web/README.md, 2.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Step {
-    /// `/welcome`: decides by the store's state (client/README.md, 3.5).
+    /// `/welcome`: decides by the store's state (client/pages/README.md).
     Welcome,
     /// `/welcome?at=welcome`: the same step, asked for by its link.
     WelcomeAsked,
@@ -74,7 +74,7 @@ pub enum ChatsFilter {
     Drafts,
     Closed,
 }
-/// The project goals' filter is its query (temper/docs/design/client/browser.md, 2.3).
+/// The project goals' filter is its query (temper/docs/design/client/web/README.md, 2.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GoalsFilter {
     All,
@@ -82,7 +82,7 @@ pub enum GoalsFilter {
     Live,
     Ended,
 }
-/// Work's own filters; Goals and Changes have their own addresses (temper/docs/design/client/browser.md, 2.3).
+/// Work's own filters; Goals and Changes have their own addresses (temper/docs/design/client/web/README.md, 2.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WorkFilter {
     All,
@@ -107,7 +107,7 @@ pub enum Kind {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Place {
     Address(Address),
-    /// The approval page (client/README.md, 3.5, The approval page): a code, or none to type one.
+    /// The approval page (client/pages/README.md, The approval page): a code, or none to type one.
     Approve {
         code: Option<jig_client::ApprovalCode>,
     },
@@ -121,7 +121,7 @@ pub enum Place {
     Public(Public),
 }
 
-/// The page's path (client/browser.md, 2.3): `/`, `/chats`, `/chats/new`, `/chats/<task>`, `/tasks/<task>`,
+/// The page's path (client/web/README.md, 2.3): `/`, `/chats`, `/chats/new`, `/chats/<task>`, `/tasks/<task>`,
 /// `/projects/<project>/team`, `/projects/<project>/work`, `/deployment/members`, `/deployment/limits`, `/projects/<project>/goals`, `/projects/<project>`, `/projects/<project>/settings`, `/projects/<project>/settings/repositories`, `/projects/<project>/settings/models`, `/projects/<project>/settings/builders`, `/projects/<project>/settings/roles/<charter>`, `/projects/<project>/settings/rules/<kind>/<number>`, `/projects/<project>/ask`, `/projects/<project>/adopt`, `/accounts`. The pages add their set filter fields as a query.
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one closed address match prints each path and its query")]
@@ -583,7 +583,7 @@ fn forge_choice(query: &[u8]) -> Option<Choice> {
             if choice.is_some() {
                 continue;
             }
-            // A value that doesn't read is dropped, so a repeat after it is the first that reads (browser.md, 2.3).
+            // A value that doesn't read is dropped, so a repeat after it is the first that reads (client/web/README.md, 2.3).
             choice = if value == b"github" {
                 Some(Choice::GitHub)
             } else if value == b"owned" {
@@ -678,7 +678,7 @@ pub enum Public {
     Landing { project: u64, task: u64 },
 }
 
-/// A public page's canonical path (temper/docs/design/client/browser.md, 8.1).
+/// A public page's canonical path (temper/docs/design/client/web/public.md, 1).
 #[must_use]
 pub fn print_public(page: &Public) -> Box<[u8]> {
     let (project, tail, task) = match *page {
@@ -766,7 +766,7 @@ fn draft_query(query: &[u8]) -> bool {
     false
 }
 
-/// The approval page's code as shown (client/browser.md, 2.3).
+/// The approval page's code as shown (client/web/README.md, 2.3).
 #[must_use]
 pub fn print_approve(code: Option<jig_client::ApprovalCode>) -> Box<[u8]> {
     let Some(code) = code else { return b"/terminal".as_slice().into() };

@@ -1,4 +1,4 @@
-//! Public identities, rows and times (temper/docs/design/client/browser.md, 8.3).
+//! Public identities, rows and times (temper/docs/design/client/web/public.md, 3).
 use super::Draw;
 use crate::words::{TimeForm, Word};
 use alloc::boxed::Box;

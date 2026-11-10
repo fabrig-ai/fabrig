@@ -1,5 +1,5 @@
 //! Density and settings moves (temper/docs/design/draft/surfaces.md, 12 and 14;
-//! temper/docs/design/client/README.md, 3.5 and 5.3).
+//! temper/docs/design/client/pages/README.md and temper/docs/design/client/view.md, 3).
 use skein_lib::{List, Rng, Wall};
 use std::{cmp::Reverse, collections::BTreeMap, panic::catch_unwind};
 use temper_client_domain::{

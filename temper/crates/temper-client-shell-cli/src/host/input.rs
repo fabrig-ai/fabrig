@@ -1,4 +1,4 @@
-//! Load and check external input before DIRECTORY opens (client/tools.md, 8.2).
+//! Load and check external input before DIRECTORY opens (client/ctl/README.md, 6.2).
 use super::{Class, Down, OneShot, Parsed, Read, Time, Up, arguments, io, limits};
 use temper_client_tools::{
     help,

@@ -79,7 +79,7 @@ Each list has one entry per line; `#` starts a comment line.
 - **The after-landing tier:** after each landing on main,
   `tools/tiers/run smith live` runs `live-smith` (`smith/docs/design/testing.md`, 2.3),
   and `tools/tiers/run temper live -- --run-ignored only` runs `live-temper`'s
-  owned-forge landing pair (`temper/docs/design/domain/testing.md`, 2.7).
+  owned-forge landing pair (`temper/docs/design/testing/live-tier.md`).
   The inputs for `live-smith` are `SMITH_LIVE`, the directory holding smith's
   ChatGPT record and Claude Code's login (smith's section 2.3); for `live-temper`,
   `TEMPER_LIVE_ACCOUNT` (a held ChatGPT record), `TEMPER_LIVE_CLAUDE` (Claude Code's

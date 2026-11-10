@@ -1,4 +1,4 @@
-//! Home's shared cards (temper/docs/design/client/README.md, 3.5, Home, The cards).
+//! Home's shared cards (temper/docs/design/client/pages/README.md, Home, The cards).
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,

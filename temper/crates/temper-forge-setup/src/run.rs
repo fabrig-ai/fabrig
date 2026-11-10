@@ -1,4 +1,4 @@
-//! Pure admission checks for a locked owned process (protocol/setup.md, 6.4).
+//! Pure admission checks for a locked owned process (protocol/setup/owned.md, 4).
 use crate::{
     place::{File, Place},
     setup::Owned,

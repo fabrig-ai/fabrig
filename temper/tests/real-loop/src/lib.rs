@@ -1,4 +1,4 @@
-//! The standalone stack on one checked real loop (domain/testing.md, 2.4).
+//! The standalone stack on one checked real loop (testing/real-loop.md).
 #![forbid(unsafe_code)]
 
 pub mod case;

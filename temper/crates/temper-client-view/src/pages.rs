@@ -52,7 +52,7 @@ pub(crate) fn project_name(me: Option<&jig_client::contract::Me>, project: u32) 
     None
 }
 
-/// The playground's forge has no external pages (temper/docs/design/client/README.md, 4.8).
+/// The playground's forge has no external pages (temper/docs/design/client/forge/family.md, 7).
 pub(crate) fn serves_pages(root: &temper_client_domain::Domain, forge: u16) -> bool {
     match root.forge().playground() {
         Some(playground) => playground.forge != forge,

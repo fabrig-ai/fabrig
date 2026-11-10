@@ -1,4 +1,4 @@
-//! Keyed setup and the deployment document through the real core (domain/root.md, 5.1).
+//! Keyed setup and the deployment document through the real core (domain/routing.md, 1).
 #![expect(clippy::disallowed_methods, reason = "ordinary test assertions inspect captured requests")]
 #![expect(clippy::match_like_matches_macro, reason = "explicit test patterns; matches is banned by the subset")]
 use super::resume_fixture::{config, root_with_config};

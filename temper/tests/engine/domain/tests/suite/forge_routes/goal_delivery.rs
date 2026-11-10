@@ -1,7 +1,7 @@
 //! A goal's delivery lands by a change while its run keeps writing
-//! (temper/docs/design/domain/forge.md, 8.1, 8.5, 8.11 and 11.1;
-//! temper/docs/design/domain/agent.md, 4.3 and 4.3.1;
-//! temper/docs/design/protocol/configuration.md, 13.9).
+//! (temper/docs/design/domain/forge/change/README.md, 1 and 3, and temper/docs/design/domain/forge/change/questions.md, 1, and temper/docs/design/domain/forge/branches.md, 1;
+//! temper/docs/design/domain/agent/tools.md;
+//! temper/docs/design/protocol/configuration/reference.md).
 use super::goal_branch::{branch_tip, forge_hold, goal_request, writer};
 use super::goal_landing::{assert_goal_holds, ended, finish_run, land_into_goal, row, status};
 use super::*;
@@ -743,7 +743,7 @@ fn freed_merge_job(world: &mut World, goal: &engine::Assignment, delegate: u64) 
     job
 }
 
-// temper/docs/design/domain/forge.md, 9: a queued change follows its goal's priority-only amendment.
+// temper/docs/design/domain/forge/queues.md: a queued change follows its goal's priority-only amendment.
 #[test]
 fn a_goals_priority_amendment_moves_its_queued_change() {
     let (mut world, goal, branch) = running_goal();

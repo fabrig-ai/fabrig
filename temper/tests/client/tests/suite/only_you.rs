@@ -1,4 +1,4 @@
-//! Only you through the client and engine (temper/docs/design/client/README.md, 3.5).
+//! Only you through the client and engine (temper/docs/design/client/pages/README.md).
 use jig_client::contract as c;
 use jig_client_kit::harness::App;
 use jig_domain_accounts as a;

@@ -1,4 +1,4 @@
-//! The fake git program hosted by skein's simulated world (temper/docs/design/domain/testing.md, 4.3).
+//! The fake git program hosted by skein's simulated world (temper/docs/design/testing/fakes.md, 3).
 #![forbid(unsafe_code)]
 pub use skein_fake_checkout::git::Remote;
 use skein_io::kernel::Spawn;

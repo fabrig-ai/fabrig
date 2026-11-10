@@ -709,7 +709,7 @@ pub(crate) fn refuse_forge_fit(domain: &mut Domain) -> bool {
 }
 
 /// Only charter values set at an entrance are checked; resets and stored
-/// proposal acceptances retain their admitted values (temper/docs/design/domain/agent.md, 4.3).
+/// proposal acceptances retain their admitted values (temper/docs/design/domain/agent/tools.md).
 pub(crate) fn room_refusal(
     host: Option<crate::room::HostPart>,
     items: &[core::settings::Item],

@@ -1,5 +1,5 @@
 //! A full forge outbox defers projections and ends the root's step
-//! (`temper/docs/design/domain/forge.md`, 6 and 12).
+//! (`temper/docs/design/domain/forge/README.md`, 4 and `temper/docs/design/domain/forge/issues.md`).
 use skein_lib::{Env, Queue, Wall};
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_issues as issues;

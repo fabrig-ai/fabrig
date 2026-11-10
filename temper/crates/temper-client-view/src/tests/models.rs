@@ -1,4 +1,4 @@
-//! Settings' supplied model offer (temper/docs/design/client/README.md, 3.5, The `Models` tab).
+//! Settings' supplied model offer (temper/docs/design/client/pages/README.md, The `Models` tab).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,

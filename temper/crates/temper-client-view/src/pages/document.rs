@@ -1,4 +1,4 @@
-//! The document beside a chat (temper/docs/design/client/README.md, 3.5).
+//! The document beside a chat (temper/docs/design/client/pages/README.md).
 use crate::{
     frame::Bindings,
     look,

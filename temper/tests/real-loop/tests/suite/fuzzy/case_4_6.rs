@@ -15,7 +15,7 @@ const ONE: usize = 1;
 
 #[test]
 fn a_restarted_workstation_keeps_the_directors_question_and_answers_it_once() {
-    // the hang past the grace, a fenced attempt still running, a stalled run's bound, three questions, no single point, the reboot's faults: testing.md 5.3's 4.6 row
+    // the hang past the grace, a fenced attempt still running, a stalled run's bound, three questions, no single point, the reboot's faults: testing/reference-case.md's 4.6 row
     // All workers start together. The first configured free slot is ws; its
     // first-life assignments below check that the chat actually started there.
     let cluster = run_cluster_forge(

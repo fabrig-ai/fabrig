@@ -1,4 +1,4 @@
-//! Kind files and their started probes (temper/docs/design/protocol/setup.md, 7.1).
+//! Kind files and their started probes (temper/docs/design/protocol/setup/box.md, 1).
 use crate::{
     lines::joined,
     machine::{Input, Why},

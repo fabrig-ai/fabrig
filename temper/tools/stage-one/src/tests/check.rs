@@ -1,4 +1,4 @@
-//! Profile evidence and mutations: `temper/docs/design/domain/testing.md`, 6.5.4.
+//! Profile evidence and mutations: `temper/docs/design/testing/checks.md`, 5.4.
 use std::fs;
 use std::path::Path;
 use std::process::ExitCode;

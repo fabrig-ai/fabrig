@@ -1,5 +1,5 @@
 //! Executable restart boundaries on minimal deployments.
-//! temper/docs/design/domain/testing.md, 2.6 and 6.1.
+//! temper/docs/design/testing/process-tier.md and temper/docs/design/testing/checks.md, 1.
 use super::{
     Ended, Scratch, boxed,
     ctl::{Call, Step},

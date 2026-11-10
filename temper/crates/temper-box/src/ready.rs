@@ -1,4 +1,4 @@
-//! The owned process's version barrier, on the box's io (protocol/setup.md, 6.6/7.1).
+//! The owned process's version barrier, on the box's io (protocol/setup/README.md, 6.6/7.1).
 use alloc::boxed::Box;
 use core::net::SocketAddr;
 use skein_io::{Addr, Event, Request};

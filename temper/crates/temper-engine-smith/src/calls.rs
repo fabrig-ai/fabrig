@@ -1,5 +1,5 @@
 //! Engine host-tool declarations and whole-object decoding. A malformed call
-//! is feedback to Smith's LLM, never a root decision (domain/agent.md, 4.3).
+//! is feedback to Smith's LLM, never a root decision (domain/agent/tools.md).
 
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
@@ -539,7 +539,7 @@ pub fn call_in(
     Ok(Decoded::Call(engine::Call { completion: name.completion, position: name.position, tool }))
 }
 
-/// Decode the forge's bounded decision words (temper/docs/design/domain/forge.md, 5.9).
+/// Decode the forge's bounded decision words (temper/docs/design/domain/forge/attention.md, 5).
 fn decided(value: &Value) -> Result<temper_engine_domain_forge::DecidedCall, Problem> {
     use temper_engine_domain_forge as forge;
     let question = value.required(b"question")?.text(b"question")?;

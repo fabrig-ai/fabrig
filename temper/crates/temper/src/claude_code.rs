@@ -1,4 +1,4 @@
-//! Claude Code's launcher (protocol/setup.md, 6.6).
+//! Claude Code's launcher (protocol/setup/owned.md, 6).
 use std::ffi::OsStr;
 pub use temper_launcher::is_launcher;
 

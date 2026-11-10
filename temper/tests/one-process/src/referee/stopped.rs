@@ -1,4 +1,4 @@
-//! Signal and restart boundaries, independently decoded (temper/docs/design/protocol/README.md, 8).
+//! Signal and restart boundaries, independently decoded (temper/docs/design/protocol/README.md, 6).
 use super::{AgentRecord, Store};
 use crate::world::{Counts, Proc, Stopped, Story};
 use jig_domain_core::{CoreRecord, Record};

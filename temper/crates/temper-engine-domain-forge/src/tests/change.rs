@@ -846,7 +846,7 @@ fn change_words_past_operation_bound_register_whole_and_open_with_marked_cuts() 
 #[test]
 fn pull_bodies_fit_the_forge_bound_without_cutting_retained_words() {
     const OP_BYTES: u32 = 131_070; // call-room's reference payload less its separator.
-    const BODY_BYTES: usize = 65_536; // temper/docs/design/domain/forge.md, 8.1.
+    const BODY_BYTES: usize = 65_536; // temper/docs/design/domain/forge/change/README.md, 1.
     const MARKER: &[u8] = "…\nThe change's full words are on its task in temper.".as_bytes();
     // All three rows, including the reference-sized body, measured 5.9 ms of CPU together.
     for (bytes, cut) in [(BODY_BYTES, false), (BODY_BYTES + 1, true), (131_070, true)] {
@@ -1318,7 +1318,7 @@ fn opens_pull(requests: &[Request]) -> bool {
     false
 }
 
-// A settled update is interpreted by the top (temper/docs/design/domain/forge.md, 10).
+// A settled update is interpreted by the top (temper/docs/design/domain/forge/README.md, 6).
 fn updating_entry(preparing: bool) -> (Domain, skein_forge_client::Entry) {
     use skein_forge::api::{UpdateStyle, Write};
     use temper_engine_domain_forge_change as change;

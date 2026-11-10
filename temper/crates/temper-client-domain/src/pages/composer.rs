@@ -1,4 +1,4 @@
-//! What a person types into a composer, held as typed (client/README.md, 5.4).
+//! What a person types into a composer, held as typed (client/view.md, 4).
 use alloc::boxed::Box;
 
 /// An edit's first `hold` bytes, cut back to a character, and the characters past them.

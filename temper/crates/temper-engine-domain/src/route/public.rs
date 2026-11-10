@@ -1,4 +1,4 @@
-//! Public admission and the forge handoff (temper/docs/design/client/forge.md, 11.1–11.2).
+//! Public admission and the forge handoff (temper/docs/design/client/forge/README.md, 9.1–9.2).
 use super::{Decision, Delivery, Domain, Env, Limits, core, emit};
 use crate::boundary::Work;
 use alloc::boxed::Box;

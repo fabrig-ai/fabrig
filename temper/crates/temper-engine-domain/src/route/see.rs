@@ -1,4 +1,4 @@
-//! `see`: Ask temper's read by address (temper/docs/design/domain/agent.md, 8.4.1).
+//! `see`: Ask temper's read by address (temper/docs/design/domain/agent/ask-temper.md, 1).
 pub(super) mod forge;
 pub(crate) mod person;
 pub(super) mod proposal;
@@ -9,14 +9,14 @@ use alloc::boxed::Box;
 use jig_domain_core::{self as core, reads::Answer, settings::Setting};
 use skein_lib::{List, Writer};
 
-/// What a `see` call read, for its renderer (domain/agent.md, 8.4.1).
+/// What a `see` call read, for its renderer (domain/agent/ask-temper.md, 1).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum SeeAnswer {
-    /// The project's ways (temper/docs/design/protocol/configuration.md, 13.10).
+    /// The project's ways (temper/docs/design/protocol/configuration/settings.md, 8).
     Ways(Box<temper_engine_domain_ways::WaysDocument>),
     /// A `settings` family read's answer, with an inventory's context.
     Settings(Box<SeeSettings>),
-    /// An address read as the chat's person (domain/agent.md, 8.4.1).
+    /// An address read as the chat's person (domain/agent/ask-temper.md, 1).
     Person(Box<SeePerson>),
     /// An address read as the person whose first read was refused.
     NotRead(SeeNotRead),
@@ -91,7 +91,7 @@ pub enum SeeRead {
     Inbox { needs: Answer, words: Box<[SeeWords]> },
 }
 
-/// A needs-page question's words as its person read answered (domain/agent.md, 8.4.1).
+/// A needs-page question's words as its person read answered (domain/agent/ask-temper.md, 1).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct SeeWords {
     pub task: u64,
@@ -158,7 +158,7 @@ pub enum SeeProposal {
     Unknown,
 }
 
-/// A `see` read in flight (domain/agent.md, 8.4.1).
+/// A `see` read in flight (domain/agent/ask-temper.md, 1).
 #[derive(Hash, Debug)]
 pub(crate) struct SeeFlight {
     pub line: Box<[u8]>,
@@ -173,7 +173,7 @@ pub(crate) enum SeeReading {
     Person(Box<person::Gathered>),
 }
 
-/// One address, as its line parses in the chat's project (agent.md, 8.4.1).
+/// One address, as its line parses in the chat's project (domain/agent/ask-temper.md, 1).
 #[derive(PartialEq, Eq, Debug)]
 pub(crate) enum Address {
     Ways,

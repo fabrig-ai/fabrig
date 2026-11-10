@@ -101,7 +101,7 @@ fn text(world: &ClientWorld, client: ClientId) -> String {
     value
 }
 
-// client/README.md 5.10: "Its ended ones are 5.8's ended rows, read once from
+// client/pages/task.md 3: "Its ended ones are 5.8's ended rows, read once from
 // the engine" and "read again when its tree or its document changes";
 // their state is their ending.
 #[test]
@@ -125,7 +125,7 @@ fn a_review_stays_in_its_tasks_after_it_leaves_the_live_tree_and_after_reopening
     assert!(!text(&world, client).contains("None."), "an ended procedure with an ended child is not empty");
 }
 
-// client/README.md 5.10: the query reads "its children in the order they
+// client/pages/task.md 3: the query reads "its children in the order they
 // were made" (QueryOrder::Ended, by number);
 // a page for the ended child itself must never list that child as its own child.
 #[test]
@@ -168,8 +168,8 @@ fn assert_cut_review(world: &ClientWorld, client: ClientId) {
     );
 }
 
-// client/README.md 5.10: an already-running procedure still draws its
-// panel's step line when its page first opens (client/forge.md 9.2).
+// client/pages/task.md 3: an already-running procedure still draws its
+// panel's step line when its page first opens (client/forge/served.md 2).
 #[test]
 fn a_change_prepared_by_the_existing_engine_driver_shows_its_current_line() {
     let (mut world, task) = change_world();
@@ -212,9 +212,9 @@ fn a_change_prepared_by_the_existing_engine_driver_shows_its_current_line() {
     assert!(page.contains(line), "panel at {step:?} supplies line {line:?}, drawn page: {page}");
 }
 
-// client/README.md 5.10: "Its ended ones are 5.8's ended rows, read once from
+// client/pages/task.md 3: "Its ended ones are 5.8's ended rows, read once from
 // the engine";
-// client/forge.md 9.2: an ended change keeps its last panel when opened later.
+// client/forge/served.md 2: an ended change keeps its last panel when opened later.
 #[test]
 fn a_page_first_opened_after_landing_reads_its_ended_review() {
     let (mut world, task) = change_world();

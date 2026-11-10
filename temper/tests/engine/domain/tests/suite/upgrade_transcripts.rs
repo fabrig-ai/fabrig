@@ -1,5 +1,5 @@
 //! Independent M1 checks of temper's transcript-load translation.
-//! domain/root.md 7.1, 8 and 9; jig's domain/engine/executors.md 2.
+//! domain/root.md 6.1, 7 and 8; jig's domain/engine/executors.md 2.
 //! The public driver supplies already rendered text, not smith's renderer.
 use jig_domain_core as core;
 use jig_domain_people as people;

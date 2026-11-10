@@ -11,7 +11,7 @@ use temper_engine_domain_forge_change as change;
 /// `PANEL_NAME_BYTES` (1,024 bytes for each owner and repository name).
 pub const HOME_SECTION_BYTES: u32 = 209 + 6 * crate::PANEL_NAME_BYTES;
 
-/// The adoption hold's words (domain/forge.md, section 11), bounded by the
+/// The adoption hold's words (domain/forge/branches.md), bounded by the
 /// caller's read allotment and the longest admitted names. Omitted bytes follow
 /// the other forge sections' cuts.
 #[must_use]
@@ -66,7 +66,7 @@ pub(crate) struct BriefFetch {
 }
 
 /// A request quotes the reviewed head while the section stays pinned to the change's head
-/// (domain/forge.md, 8.4).
+/// (domain/forge/change/repairs.md).
 #[derive(Hash, Debug)]
 struct RequestReviews {
     reviewed: BriefCommit,
@@ -146,7 +146,7 @@ pub(crate) fn brief_part(words: &BriefWords, parts: u32, bytes: u32) -> BriefRea
     }
 }
 
-/// Reviews and repairs share the pull identity (temper/docs/design/domain/forge.md, 8.3–8.4).
+/// Reviews and repairs share the pull identity (temper/docs/design/domain/forge/change/gates.md, 1 and temper/docs/design/domain/forge/change/repairs.md).
 fn pull_identity(domain: &Domain, row: &crate::ChangeRow, head: BriefCommit, bytes: u32) -> Option<BriefWords> {
     let number = row.pull?;
     let mut words = BriefWords::with_capacity(bytes, false);
@@ -477,7 +477,7 @@ pub(crate) fn brief_answer(
 }
 
 /// Name a conflicting file whose whole contents exceed the section's room
-/// (temper/docs/design/domain/forge.md, 8.4, A resolution).
+/// (temper/docs/design/domain/forge/change/repairs.md, A resolution).
 fn name_conflict_if_past_room(words: &mut BriefWords, file: &skein_forge::api::File) -> bool {
     let before = match file.before.as_deref() {
         Some(bytes) => bytes,
@@ -517,7 +517,7 @@ fn name_conflict_if_past_room(words: &mut BriefWords, file: &skein_forge::api::F
 }
 
 /// Every pull section goes from its last gathered or omitted files page to its comparison
-/// (temper/docs/design/domain/forge.md, 8.4).
+/// (temper/docs/design/domain/forge/change/repairs.md).
 fn comparison(fetch: &mut BriefFetch) -> Option<skein_forge::api::Read> {
     let comparison = match fetch.mode {
         PullMode::Review | PullMode::Other => match fetch.base {

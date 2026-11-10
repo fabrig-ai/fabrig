@@ -1,4 +1,4 @@
-//! A stop's words and card (temper/docs/design/domain/forge.md, 8.13).
+//! A stop's words and card (temper/docs/design/domain/forge/change/branch-path.md).
 use super::{ASKED, Actor, Card, Fact, Inputs, LABEL, NAME, Opens, Step, Stop, VALUE, WHO, WORDS};
 use crate::cut_on_word;
 use alloc::boxed::Box;
@@ -48,7 +48,7 @@ pub(super) fn agent_card(inputs: &Inputs, charter: u32, who: &[u8], name: &[u8])
     card(who, name, Box::new([fact(b"Charter", &value)]))
 }
 
-/// The coordinator's agent facts followed by its order or landing (temper/docs/design/domain/forge.md, 8.13).
+/// The coordinator's agent facts followed by its order or landing (temper/docs/design/domain/forge/change/branch-path.md).
 pub(super) fn coordinator_card(inputs: &Inputs, charter: u32, who: &[u8], extra: Fact) -> Card {
     let mut card = agent_card(inputs, charter, who, b"the coordinator");
     let mut facts = List::uncapped();
@@ -60,7 +60,7 @@ pub(super) fn coordinator_card(inputs: &Inputs, charter: u32, who: &[u8], extra:
     card
 }
 
-/// An agent’s role facts (temper/docs/design/domain/forge.md, 8.13).
+/// An agent’s role facts (temper/docs/design/domain/forge/change/branch-path.md).
 #[must_use]
 pub fn role_card(agent: &super::Agent, who: &[u8], name: &[u8]) -> Card {
     let mut model = List::uncapped();

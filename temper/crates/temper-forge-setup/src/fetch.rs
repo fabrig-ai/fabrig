@@ -1,4 +1,4 @@
-//! Forgejo's pinned releases (protocol/setup.md, 6.6).
+//! Forgejo's pinned releases (protocol/setup/owned.md, 6).
 use crate::{
     check::joined,
     setup::{Origin, Owned},

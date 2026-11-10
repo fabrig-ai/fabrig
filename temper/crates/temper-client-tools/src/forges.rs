@@ -1,4 +1,4 @@
-//! The deployment's forge tools (temper/docs/design/client/tools.md, 5.5).
+//! The deployment's forge tools (temper/docs/design/client/ctl/areas.md).
 use crate::jig::table::{
     Keyed, Kind,
     Occurs::{Optional, Required},
@@ -860,7 +860,7 @@ fn text_identity(row: &Row, out: &mut Text) {
     out.put(&row.host);
 }
 
-#[expect(clippy::too_many_lines, reason = "one forge row keeps its public fields together; client/tools.md, 5.5")]
+#[expect(clippy::too_many_lines, reason = "one forge row keeps its public fields together; client/ctl/areas.md")]
 fn encode_rows(rows: &[Row], digest: Option<Digest>, out: &mut Encoder) {
     out.object_start();
     out.key(b"forges");

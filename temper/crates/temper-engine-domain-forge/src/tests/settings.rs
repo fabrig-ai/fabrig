@@ -1,5 +1,5 @@
 //! Values of the forge's kinds and procedure waits
-//! (temper/docs/design/protocol/configuration.md, 13.2 and 13.3).
+//! (temper/docs/design/protocol/configuration/settings.md, 2 and 3).
 use crate::settings::{
     Bounds, Held, Item, Kind, LandingRule, Refusal, RuleApproval, RuleGate, TemplateGoal, Value, judge, requires,
 };

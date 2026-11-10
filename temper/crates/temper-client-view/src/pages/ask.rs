@@ -1,4 +1,4 @@
-//! Shared card words and parts (temper/docs/design/client/README.md, 3.5).
+//! Shared card words and parts (temper/docs/design/client/pages/README.md).
 use crate::{
     frame::Bindings,
     look,
@@ -134,7 +134,7 @@ fn bounded_words(card: &Card) -> &jig_client::contract::DocumentText {
     &person_in_words(card).expect("question in words").spec.specification.words
 }
 
-/// Context, evidence and the way to finish reading a cut question (client/README.md, 3.5).
+/// Context, evidence and the way to finish reading a cut question (client/pages/README.md).
 pub(crate) fn whole_parts(b: &mut Builder, asked: &Asked<'_>, w: &Words, bindings: &mut Bindings) {
     if let Some(parsed) = &asked.parsed {
         if !parsed.context.is_empty() {

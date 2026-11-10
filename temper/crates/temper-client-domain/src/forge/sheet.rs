@@ -1,5 +1,5 @@
-//! Add repositories: reads, selections and sends (temper/docs/design/client/README.md, 4.4,
-//! 4.5 and 4.6; temper/docs/design/client/forge.md, 5.1).
+//! Add repositories: reads, selections and sends (temper/docs/design/client/forge/family.md, 4 and 5 and temper/docs/design/client/forge/records.md
+//! ; temper/docs/design/client/forge/repositories.md, 1).
 use super::{
     Field, Limits, Request, Side, Typed,
     forges::{Connection, Kind, Mode, Row, State},

@@ -1,4 +1,4 @@
-//! Refusal causes cross the in-process root boundary (temper/docs/design/domain/forge.md, 5.1).
+//! Refusal causes cross the in-process root boundary (temper/docs/design/domain/forge/keeping-up.md, 1).
 use alloc::boxed::Box;
 use skein_lib::List;
 

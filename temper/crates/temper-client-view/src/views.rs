@@ -1,4 +1,4 @@
-//! Views in committed replies and the chat document (temper/docs/design/client/README.md, 5.16).
+//! Views in committed replies and the chat document (temper/docs/design/client/pages/chat/conversation.md, 3).
 use crate::{
     look, paths,
     words::{Word, Words},

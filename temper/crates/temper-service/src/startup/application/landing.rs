@@ -1,4 +1,4 @@
-//! Project landing ways, checks and tiers (temper/docs/design/protocol/configuration.md, 3).
+//! Project landing ways, checks and tiers (temper/docs/design/protocol/configuration/engine.md).
 use super::{Problems, What, limits, read};
 use alloc::boxed::Box;
 use jig_protocol_config::{self as config, Path};
@@ -43,7 +43,7 @@ pub(super) fn parse(
                         found = true;
                     }
                 }
-                // temper/docs/design/protocol/configuration.md, 3: either way
+                // temper/docs/design/protocol/configuration/engine.md: either way
                 // can configure a restored project; policy rules live in the store.
                 let restored = landing.is_some();
                 if !found && !restored {
@@ -151,7 +151,7 @@ fn optional_close_job(
     optional_job(object, document, b"close_job", path, problems)
 }
 // The job command is relative, with no parent segment or NUL
-// (temper/docs/design/protocol/configuration.md, 3).
+// (temper/docs/design/protocol/configuration/engine.md).
 fn optional_job(
     object: &mut crate::startup::members::Object,
     document: &Document,
@@ -257,7 +257,7 @@ fn check(
     Some(Check { name, workflow, ignored: ignored.into_boxed() })
 }
 // A tier's words are optional, bounded UTF-8 without controls
-// (temper/docs/design/protocol/configuration.md, 3).
+// (temper/docs/design/protocol/configuration/engine.md).
 #[expect(clippy::disallowed_methods, reason = "the configuration protocol checks Unicode controls in tier words")]
 fn description(
     object: &mut crate::startup::members::Object,

@@ -10,10 +10,10 @@ temper has one download today, the whole product in one binary, which a person r
 - macOS;
 - how the site's release job builds and publishes them, with no new CI.
 
-It departs from "one binary" (`../README.md`, section 1; `../protocol/README.md`, section 4) for a deployment only. The box keeps one binary.
+It departs from "one binary" (`../README.md`, section 1; `../protocol/binaries.md`) for a deployment only. The box keeps one binary.
 
 No earlier story split the binaries. What exists already:
-- the cluster's engine-alone and worker-alone shapes of one binary's `serve` (`../protocol/README.md`, 15.1);
+- the cluster's engine-alone and worker-alone shapes of one binary's `serve` (`../protocol/cluster.md`, 1);
 - the client, worker and engine crates' boundaries;
 - smith's own `smith-agent` executable.
 
@@ -63,11 +63,11 @@ No earlier story split the binaries. What exists already:
 
 The four cover the processes. These commands of today's binary needed a home, and some things stay the deployer's:
 
-- **Clients beyond the TUI: `temper ctl`.** It's how a person's scripts, automations and QA drive a deployment (`../client/tools.md`, sections 1 and 8). Like the TUI, it's a client of the engine's listener, with no engine code, so it goes in `temper` beside the TUI. That's a departure from "just the TUI". `temper open`, the older line client the tests use, stays in the box binary alone.
-- **The engine host's commands:** `forge fetch`, `prepare`, `run`, `sign-in`, `source` and `remove`, the owned Forgejo's setup and run (`../protocol/setup.md`, sections 6 and 7.4). Also `versions` and `upgrade` (`../protocol/README.md`, section 4).
-- **The worker host's command:** `program-login`, signing a program's source in where the worker's agents run it (`../protocol/setup.md`, 6.6).
+- **Clients beyond the TUI: `temper ctl`.** It's how a person's scripts, automations and QA drive a deployment (`../client/ctl/README.md`, sections 1 and 6). Like the TUI, it's a client of the engine's listener, with no engine code, so it goes in `temper` beside the TUI. That's a departure from "just the TUI". `temper open`, the older line client the tests use, stays in the box binary alone.
+- **The engine host's commands:** `forge fetch`, `prepare`, `run`, `sign-in`, `source` and `remove`, the owned Forgejo's setup and run (`../protocol/setup/owned.md` and `../protocol/setup/box.md`, section 4). Also `versions` and `upgrade` (`../protocol/binaries.md`).
+- **The worker host's command:** `program-login`, signing a program's source in where the worker's agents run it (`../protocol/setup/owned.md`, 6).
 - **Help in each binary,** of its own commands. The `commands` reference page names each command's binary.
-- **Not in the set: `init`.** Writing a cluster's documents isn't designed: `../protocol/README.md`, section 14, leaves it open, and `init` writes a standalone deployment (`serve-without-box.md`, section 1). A deployment's engine and worker documents are written by hand, as `../../help/server.md` does, until a cluster's `init` is designed. That includes the worker's secret and its digest on the engine, `hosts.workers` and the shared limits. The design then gives the engine's and the worker's binaries their `init`.
+- **Not in the set: `init`.** Writing a cluster's documents isn't designed: `../protocol/README.md`, section 11, leaves it open, and `init` writes a standalone deployment (`serve-without-box.md`, section 1). A deployment's engine and worker documents are written by hand, as `../../help/server.md` does, until a cluster's `init` is designed. That includes the worker's secret and its digest on the engine, `hosts.workers` and the shared limits. The design then gives the engine's and the worker's binaries their `init`.
 - **Also not in the set,** staying in the box binary:
   - the fakes (`temper fake …`);
   - `temper box`;
@@ -90,9 +90,9 @@ The four cover the processes. These commands of today's binary needed a home, an
 | `temper-worker` | `serve` (a worker-alone document); `program-login`; `help` | each worker's host |
 | `temper-agent` | `temper-agent AGENT.json`, one run; its list mode; `--mcp-relay`; `--program-child`; run as `claude`, the fetched Claude Code launcher | each worker's host, started by the worker |
 
-- **A binary refuses a document that isn't its own.** `temper-engine serve` refuses one with a worker member, and `temper-worker serve` refuses one with an engine member. Each refusal names the binary that would run it. The standalone shape, engine and worker in one process, stays the box's (`../protocol/README.md`, 15.1).
+- **A binary refuses a document that isn't its own.** `temper-engine serve` refuses one with a worker member, and `temper-worker serve` refuses one with an engine member. Each refusal names the binary that would run it. The standalone shape, engine and worker in one process, stays the box's (`../protocol/cluster.md`, 1).
 - **The worker starts `temper-agent`:**
-  - The worker's document names `temper-agent` as the agent's program, in place of today's own executable with `internal agent` (`../protocol/setup.md`, 8.2).
+  - The worker's document names `temper-agent` as the agent's program, in place of today's own executable with `internal agent` (`../protocol/setup/init.md`, 2).
   - The model-list launch runs the same program in its list mode.
   - The fetched Claude Code launcher's `claude` link points at the agent's program, not at the binary that places it. Today the worker's start and `program-login` place it.
 - **The web client is the engine's.** Only `temper-engine` links the browser bundle, embedded.
@@ -135,7 +135,7 @@ Whichever is chosen:
 
 - **`v{MAJOR}`** is the major of the workspace's version, `0` now, v0.1.0 included. `--version` prints it beside the commit, as `../release.md`, section 3, designs. That isn't built yet, and the plans build it for the four (section 9).
 - **One commit a set:** the four are built and published together from one commit, which names their directory (section 2). Each binary's `--version` prints its name, the version and the commit.
-- **Mixing isn't refused before the first release.** temper's versions keep their numbers until the first release (`../protocol/README.md`, section 9), so an engine, a worker or a client of another commit isn't refused while their versions match. Running the four of one commit together is the deployer's to keep: the set's directory and its pinned link are how. At an upgrade, jig's rule stops the engine and its workers together. Whether a client shows the version of the deployment it reaches stays `../release.md`'s open question (section 7).
+- **Mixing isn't refused before the first release.** temper's versions keep their numbers until the first release (`../protocol/README.md`, section 7), so an engine, a worker or a client of another commit isn't refused while their versions match. Running the four of one commit together is the deployer's to keep: the set's directory and its pinned link are how. At an upgrade, jig's rule stops the engine and its workers together. Whether a client shows the version of the deployment it reaches stays `../release.md`'s open question (section 7).
 - **A tagged release** builds its set as `../release.md`, section 5, builds its file, and the site's job publishes it under `v{MAJOR}` in its commit's directory, like any build. Placing a release's files among the tag's releases, named by version, stays `release.md`'s, and is later here (section 11).
 
 ## 7. macOS
@@ -196,7 +196,7 @@ Plans use the focused and fuzzy suites alone.
   - it refuses an unknown command;
   - the engine and the worker each refuse the other's document, naming the right binary.
 - **The cluster on separate binaries:**
-  - The process tier's cluster story (`../protocol/README.md`, 15.6) gets a sibling that starts `temper-engine`, two `temper-worker`s and `temper-agent`, in place of `temper serve` and `temper internal agent`, and runs a task on each worker.
+  - The process tier's cluster story (`../protocol/cluster.md`, 6) gets a sibling that starts `temper-engine`, two `temper-worker`s and `temper-agent`, in place of `temper serve` and `temper internal agent`, and runs a task on each worker.
   - Another story signs `temper ctl` from the client, `temper` (`cli.md`, section 4), in to a `temper-engine` and reads `me`.
   - Both are written and compiled in their plans, and run after landing.
 - **The release:** after landing, a one-off release build publishes both sets. A fresh Linux machine then runs an engine, a worker and its agent from one commit's directory, by the help alone. That's a walk, after landing.

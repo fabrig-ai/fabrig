@@ -159,7 +159,7 @@ fn steps() -> Vec<temper_real_loop_world::calls::Step> {
         ends_leaving(&[Leftover {
             task: PROCEDURE,
             may_be: &[Left::Due, Left::Preparing, Left::Claimed, Left::Running],
-            why: "GitHub token smoke ends on the coder's push, before review and landing (domain/testing.md, 2.4)",
+            why: "GitHub token smoke ends on the coder's push, before review and landing (testing/real-loop.md)",
         }]),
     ]
 }

@@ -924,7 +924,7 @@ pub const TASK_TEXT: Tool = Tool {
     notes: b"Each chunk keeps UTF-8 characters whole. Follow the printed call\nuntil no more. Instructions use the task's override, or its charter\nat the task's recorded settings revision. Result reads the kept terminal\nreport; unavailable reports are unknown.\n",
 };
 
-/// Whole notes of a task's scope (client/tools.md, 5.2).
+/// Whole notes of a task's scope (client/ctl/tools.md, 2).
 pub const TASK_NOTES_AT: u8 = 69;
 pub const TASK_NOTES: Tool = Tool {
     name: b"task notes",
@@ -1030,7 +1030,7 @@ pub const RESTORE: Tool = Tool {
     notes: b"A forgotten revision exits 2, naming the oldest kept. A revision\ntoo large to restore exits 2; restore a later revision instead.\nRead the proposal with proposal show PROPOSAL, then decide it\nwith proposal decide PROPOSAL accept --key KEY.\n",
 };
 
-/// Visibility's position in the tools table (client/tools.md, 5.3).
+/// Visibility's position in the tools table (client/ctl/tools.md, 3).
 pub const PROJECT_AMEND_AT: u8 = 64;
 pub const PROJECT_AMEND: Tool = Tool {
     name: b"project amend",

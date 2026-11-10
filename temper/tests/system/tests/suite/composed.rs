@@ -133,7 +133,7 @@ fn an_open_chats_reply_reaches_its_run_watch_in_pieces_before_its_turn_commits()
     use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
 
     // The process face plays the service's live producer; the world plays
-    // the party's run watch (domain/testing.md, 2.1).
+    // the party's run watch (testing/README.md, 2.1).
     let reply = b"Hello there.";
     let pieces = 3;
     let mut world = World::open_chat_in_pieces(

@@ -1,4 +1,4 @@
-//! All projects' words, parts and actions (temper/docs/design/client/README.md, 3.5).
+//! All projects' words, parts and actions (temper/docs/design/client/pages/README.md).
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,

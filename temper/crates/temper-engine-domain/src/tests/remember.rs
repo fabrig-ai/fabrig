@@ -1,4 +1,4 @@
-//! Root memory calls write by place (temper/docs/design/domain/agent.md, 8.4.4).
+//! Root memory calls write by place (temper/docs/design/domain/agent/ask-temper.md, 4).
 use crate::route::{host_route, remember};
 use crate::{CallAnswer as C, RememberAction as A, RememberDid as D, RememberRefusal as R, Remembered as Answer};
 use jig_domain_core::{self as core, NamedAction};

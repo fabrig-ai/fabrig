@@ -1,4 +1,4 @@
-//! Builders' read-only facts (temper/docs/design/client/README.md, 3.5, Builders).
+//! Builders' read-only facts (temper/docs/design/client/pages/README.md, Builders).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,

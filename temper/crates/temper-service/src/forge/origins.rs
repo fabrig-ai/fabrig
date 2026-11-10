@@ -1,4 +1,4 @@
-//! Bounded volatile origin diagnostics (temper/docs/design/protocol/forge.md, 3.6).
+//! Bounded volatile origin diagnostics (temper/docs/design/protocol/forge/README.md, 2.6).
 use alloc::boxed::Box;
 use skein_forge::github::redirect::Origin;
 use skein_lib::{Decimal, Map, Queue, Writer};

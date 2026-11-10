@@ -1,4 +1,4 @@
-//! A chat's first message read whole within `long_text` (temper/docs/design/client/README.md, 5.4).
+//! A chat's first message read whole within `long_text` (temper/docs/design/client/view.md, 4).
 use super::{Request, c};
 use crate::pages::activity::{Asking, read_end};
 use jig_client::{Client, Handle, Readout};

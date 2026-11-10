@@ -1,4 +1,4 @@
-//! Playground records and reset (temper/docs/design/protocol/setup.md, 8.4).
+//! Playground records and reset (temper/docs/design/protocol/setup/playground.md).
 use crate::{
     Answered, Bot, BoxKind, Connection, Domain, EndAnswer, ForgeState, Key, Kind, Mode, Playground, PlaygroundConfig,
     PlaygroundState, Request, ResetAct, ResetStep, StartAnswer, StartFailure, Stored,
@@ -243,7 +243,7 @@ fn reset(d: &mut Domain, out: &mut Queue<Request>) {
                 if crate::removal::begin(d, row.forge, out) {
                     return;
                 }
-                // An ended forge can still be waiting for its secrets or box (temper/docs/design/domain/forge.md, 4.1).
+                // An ended forge can still be waiting for its secrets or box (temper/docs/design/domain/forge/adoption.md, 1).
                 removed(d, out);
                 return;
             }
@@ -306,7 +306,7 @@ pub(crate) fn removed(d: &mut Domain, out: &mut Queue<Request>) {
     }
 }
 
-/// Reset a restored start or running playground (temper/docs/design/protocol/setup.md, 8.4).
+/// Reset a restored start or running playground (temper/docs/design/protocol/setup/playground.md).
 pub(crate) fn restart(d: &mut Domain, out: &mut Queue<Request>) {
     let Some(mut row) = d.playground else { return };
     match row.state {

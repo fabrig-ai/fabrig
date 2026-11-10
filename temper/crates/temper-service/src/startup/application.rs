@@ -1,5 +1,5 @@
-//! Machine and client settings, read strictly (temper/docs/design/protocol/configuration.md, 3).
-//! A box's sign-in is exclusive (temper/docs/design/protocol/sign-in.md, 9.9).
+//! Machine and client settings, read strictly (temper/docs/design/protocol/configuration/engine.md).
+//! A box's sign-in is exclusive (temper/docs/design/protocol/openid-provider.md, 9).
 mod demo;
 mod landing;
 mod public;
@@ -30,7 +30,7 @@ pub struct Members {
     pub overrides: Box<[(Box<[u8]>, u64)]>,
     pub workers: Box<[Worker]>,
 }
-/// The application's clients listener (protocol/configuration.md, section 3).
+/// The application's clients listener (protocol/configuration/engine.md).
 #[derive(Debug)]
 pub struct Clients {
     /// The socket address used for the listener, Host guard and printed links.
@@ -40,7 +40,7 @@ pub struct Clients {
     /// The browser origin and jig public name (protocol/sign-in.md, 2.2).
     pub public: Option<Origin>,
 }
-/// The optional webhook listener (protocol/configuration.md, section 3).
+/// The optional webhook listener (protocol/configuration/engine.md).
 #[derive(Debug)]
 pub struct Webhooks {
     pub listener: config::Address,
@@ -92,7 +92,7 @@ pub fn clients(document: &Document, at: u32, path: &Path, bundle: bool, problems
     read::form(socket, path, problems);
     Some(Clients { listener, bundle: directory, public })
 }
-/// The forge's browser origin (protocol/sign-in.md, 9.1 and 9.7).
+/// The forge's browser origin (protocol/openid-provider.md, 1 and 7).
 pub(crate) fn forge_origin(
     git: &[u8],
     web: Option<&[u8]>,
@@ -415,7 +415,7 @@ pub fn parse(
         landing_projects,
     })
 }
-/// The startup files named by the application (temper/docs/design/protocol/configuration.md, 3).
+/// The startup files named by the application (temper/docs/design/protocol/configuration/engine.md).
 pub fn files(members: &Members) -> Box<[config::File]> {
     let mut files = List::with_capacity(
         members.limits.forge.forges.checked_mul(4).expect("bounded forge files").checked_add(2).expect("sign-in files"),

@@ -152,7 +152,7 @@ pub(super) fn choice(
         b.close();
     }
 }
-/// Shared plan cards (temper/docs/design/client/README.md, 3.5, `ConnectModel` and Model).
+/// Shared plan cards (temper/docs/design/client/pages/README.md, `ConnectModel` and Model).
 fn cards(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, ways: &skein_lib::List<Way>) {
     let Some(me) = accounts::current_me(root.client()) else { return };
     let mut plans = skein_lib::List::with_capacity(ways.len());
@@ -714,7 +714,7 @@ fn key_details(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Binding
     other_ways(b, root, w, bindings);
     b.close();
 }
-/// The whole command for NAME (client/README.md, 4.6, *The printed command*).
+/// The whole command for NAME (client/forge/records.md, *The printed command*).
 pub(crate) fn printed_command(root: &Domain, w: &Words, name: &[u8]) -> Box<[u8]> {
     let (environment, answered) = match root.pages().connect_model() {
         Some(page) => (page.program_environment(), page.program_environment_answered()),

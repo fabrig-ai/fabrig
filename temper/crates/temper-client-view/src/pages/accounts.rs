@@ -1,4 +1,4 @@
-//! Supplied accounts and the playground model (temper/docs/design/client/README.md, 3.5, 4.8 and 5.5).
+//! Supplied accounts and the playground model (temper/docs/design/client/pages/README.md and temper/docs/design/client/forge/family.md, 7 and temper/docs/design/client/pages/accounts.md, 2).
 use super::settings;
 use crate::look;
 use crate::{
@@ -673,7 +673,7 @@ pub(super) fn outcome(
     } else if form.paste_state(root.client()) == accounts::PasteState::Ended {
         paste(b, root, w, bindings, form, false);
     } else if form.returned() && form.paste_state(root.client()) != accounts::PasteState::Closed {
-        // A departed sign-in's address come back to by hand while it still waits (client/README.md, 5.5).
+        // A departed sign-in's address come back to by hand while it still waits (client/pages/accounts.md, 2).
         paste(b, root, w, bindings, form, false);
     }
 }
@@ -832,7 +832,7 @@ pub(crate) fn account_heading(root: &Domain, w: &Words, row: &c::AccountLine) ->
 
 /// Ready names the first usable account by its kind and who it is, a
 /// signed-in plan as "PLAN plan · WHO", with no holder: the model and
-/// its effort are chosen elsewhere (client/README.md, 3.5).
+/// its effort are chosen elsewhere (client/pages/README.md).
 pub(crate) fn first_usable_short(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
     first_usable(root, w, true)
 }
@@ -1017,7 +1017,7 @@ fn paste_restart(
     };
     named_control(b, bindings, &super::connect_model::label(me, way, &ways, w), meaning, false, false);
 }
-/// The sign-in’s paste, folded while a model connection waits (client/README.md, 3.5).
+/// The sign-in’s paste, folded while a model connection waits (client/pages/README.md).
 pub(super) fn paste(
     b: &mut Builder,
     root: &Domain,

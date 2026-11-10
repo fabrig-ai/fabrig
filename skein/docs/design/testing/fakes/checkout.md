@@ -6,10 +6,10 @@
 (../../../foundation/programming-model.md, section 10.2; ../../../foundation/testing-strategy.md, section 4.3),
 shared by temper's and smith's worlds. It lives in `crates/`, because it
 also ships in a product: temper's `temper fake git`, a demo's git
-(temper's `protocol/setup.md`, 8.4), runs it as a program over the fake
+(temper's `protocol/setup/playground.md`), runs it as a program over the fake
 forge's git route (forge.md, section 4). Its assertions stay
 contract checks that end the process. A caller whose remote is across a
-network answers the synchronous boundary (section 4) itself; temper's
+network answers the synchronous boundary (`checkout.md`, section 4) itself; temper's
 replays a command once each answer it lacks has arrived.
 
 It keeps byte-path files, directories, links and special nodes, registered

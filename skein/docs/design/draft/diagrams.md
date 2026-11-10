@@ -7,7 +7,7 @@ what is built, "to avoid round trips like 'I actually wanted this to
 look different'". Nothing here is adopted, and no plan takes it up
 until the user does. Its first consumer is temper's configuring chat,
 whose document draws how work reaches main (the look request
-`configure-chat-draft`, `temper/docs/design/client/journeys.md`, 7).
+`configure-chat-draft`, `temper/docs/design/client/web/journeys.md`, 7).
 
 ## 1. In one page
 
@@ -140,7 +140,7 @@ value. Centred is at a box's left plus half its width, rounded down.
 
 - **An agent illustrates with a flow** where a sequence says more
   drawn: the owner's instructions say so, and name the subset (temper's
-  configuring agent's: `temper/docs/design/domain/agent.md`, 8.1).
+  configuring agent's: `temper/docs/design/domain/agent/agents.md`, 1).
 - **Who acts at each node:** temper's Ask temper marks each node by who
   acts at it (section 2; `temper/docs/design/draft/ask-temper.md`, 6.3).
 - **The same block reads in a repository:** a forge that renders

@@ -1,6 +1,6 @@
 //! One real root and its children, driven by one person, one worker and
 //! the existing ordered fake store. Requests become later input events
-//! (domain/root.md, section 12).
+//! (domain/root.md, section 11).
 
 use crate::journal_limits as journal;
 use crate::protocol::{self, Protocol};
@@ -522,7 +522,7 @@ enum TerminalRecovery {
 }
 
 /// Complete frozen world state between iterations; only the store and scripts
-/// outlive replacement of the root process (domain/root.md, section 12).
+/// outlive replacement of the root process (domain/root.md, section 11).
 #[derive(Hash, Debug)]
 pub struct World {
     settings: Settings,
@@ -1041,7 +1041,7 @@ impl World {
 
 /// Replay every frozen root, child, store and pending script state in lockstep,
 /// including diagnostic queues with identical observation settings
-/// (domain/root.md, section 12; testing-strategy.md, section 6).
+/// (domain/root.md, section 11; testing-strategy.md, section 6).
 #[must_use]
 pub fn run_replayed(settings: Settings) -> World {
     let mut first = World::new(settings);

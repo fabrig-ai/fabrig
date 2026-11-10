@@ -1,4 +1,4 @@
-//! Read cut goal words before finding their draft provenance (client/README.md, 5.8, 5.14).
+//! Read cut goal words before finding their draft provenance (client/pages/goal.md, 2, 3).
 use super::super::activity::Asking;
 use super::{Request, c, draft_of, handle};
 use alloc::boxed::Box;

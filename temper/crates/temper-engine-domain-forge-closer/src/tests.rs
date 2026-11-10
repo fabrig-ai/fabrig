@@ -1,4 +1,4 @@
-//! Goal report composition and byte bounds (temper/docs/design/domain/forge.md, 11.2).
+//! Goal report composition and byte bounds (temper/docs/design/domain/forge/branches.md, 2).
 #![expect(clippy::disallowed_macros, reason = "test fixtures use formatted expected words and vectors")]
 #![expect(clippy::disallowed_methods, reason = "tests inspect UTF-8 and construct fixture lists")]
 

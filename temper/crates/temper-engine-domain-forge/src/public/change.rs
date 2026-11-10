@@ -1,4 +1,4 @@
-//! The change source table (temper/docs/design/client/forge.md, 11.3).
+//! The change source table (temper/docs/design/client/forge/README.md, 9.3).
 use super::{Names, PublicAsk, w};
 use crate::{ChangeRow, Domain, Limits};
 use skein_lib::List;

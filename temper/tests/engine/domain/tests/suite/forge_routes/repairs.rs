@@ -1,5 +1,5 @@
 //! A goal's repair names a red landing and keeps it across restart
-//! (temper/docs/design/domain/agent.md, 4.3.1; after-landing.md, 7).
+//! (temper/docs/design/domain/agent/tools.md, 1; after-landing.md, 7).
 use super::tiers::{baseline, cleared, produce, result};
 use super::*;
 use temper_engine_domain_forge_change::State;

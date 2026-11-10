@@ -1,4 +1,4 @@
-//! The browser half of recording again, over the native walk (client/journeys.md, 8.1–8.2).
+//! The browser half of recording again, over the native walk (client/web/journeys.md, 8.1–8.2).
 //! Like skein's harness (skein/docs/design/ui/web/testing.md, 2), this is ordinary Rust: the clock is
 //! supplied by the harness, and only completed downloads are read here.
 use crate::Refusal;
@@ -19,7 +19,7 @@ use temper_client_shell_web::journey::{self, Control, SetupStep, Step};
 const HORIZON: Duration = Duration::from_secs(600);
 const POLL: Duration = Duration::from_millis(50);
 
-/// What `again` starts from, found by `main` (client/journeys.md, 8.1).
+/// What `again` starts from, found by `main` (client/web/journeys.md, 8.1).
 pub struct Paths {
     pub temper: PathBuf,
     pub bundle: PathBuf,

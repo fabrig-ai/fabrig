@@ -1,4 +1,4 @@
-//! The project's checked table (temper/docs/design/domain/forge.md, 5.10).
+//! The project's checked table (temper/docs/design/domain/forge/attention.md, 6).
 use crate::{
     Class, Classes, ITEMS, Item, Kind, NAME_BYTES, PATTERN_BYTES, PATTERNS, PathSet, Refusal, SETS, Subject,
     WORDS_BYTES, Way, well_formed,

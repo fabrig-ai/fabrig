@@ -1,4 +1,4 @@
-//! Forge commands and slot removal (temper/docs/design/protocol/setup.md, 7.1).
+//! Forge commands and slot removal (temper/docs/design/protocol/setup/box.md, 1).
 use std::{
     ffi::OsString,
     fs,
@@ -343,7 +343,7 @@ fn run_process(
     }
     Err(run_failure(binary, host::run(limits, &launch), &launch, number, directories))
 }
-/// The fake shares only the private directory and token with an owned forge (protocol/setup.md, 8.4).
+/// The fake shares only the private directory and token with an owned forge (protocol/setup/playground.md).
 fn prepare_fake(path: &std::path::Path) -> Result<(), String> {
     match fs::symlink_metadata(path) {
         Ok(_) => return Ok(()),
@@ -393,7 +393,7 @@ fn webhook_listener(named: &temper_service::startup::Named) -> Result<Option<cor
 }
 
 /// Composes a forge's setup entry: its group's kind, or the machine's `owned` part with none
-/// (temper/docs/design/protocol/setup.md, 7.1 and 7.4).
+/// (temper/docs/design/protocol/setup/box.md, 1 and 4).
 pub fn entry(
     directories: &super::Directories,
     machine: &temper_forge_setup::machine::Machine,
@@ -542,7 +542,7 @@ pub const FORGE_CHILD: Row = Row {
     notes: "",
 };
 
-/// Whether the forge command checks the deployment document (protocol/README.md, 4.2).
+/// Whether the forge command checks the deployment document (protocol/binaries.md, 2).
 #[must_use]
 pub fn reads_document(row: &Row) -> bool {
     row.words.first() == Some(&"forge") && row.words != REMOVE.words

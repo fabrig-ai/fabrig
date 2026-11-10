@@ -390,7 +390,7 @@ fn the_terminal_prints_the_name_description_and_rows() {
 }
 #[test]
 fn rows_and_names_end_on_character_and_phrase_boundaries() {
-    // The contract bounds a row at 160 bytes and a name at 256 (README.md, 3.5).
+    // The contract bounds a row at 160 bytes and a name at 256 (client/pages/README.md).
     let tool = [b'x'; 256];
     let tree = line(&[call(1, &tool, b"{}", Some(b"outcome"))], &[], None, false, 0);
     assert_eq!(disclosure(&tree).name.as_ref().unwrap().len(), 256);

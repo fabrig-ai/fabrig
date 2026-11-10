@@ -73,9 +73,9 @@ Then the goal parks (jig's `domain/engine/executors.md`, 4).
 
 - **A goal's run may modify its checkout and deliver,** where it holds a goal
   branch. A chat's, an advisor's and a reviewer's runs still inspect alone
-  (`../domain/agent.md`, 4.3).
+  (`../domain/agent/tools.md`).
 - **It delivers to its own run branch,** `temper/<root>/r<task>`
-  (`../domain/forge.md`, section 11), never to g, so it takes no writer slot of
+  (`../domain/forge/branches.md`), never to g, so it takes no writer slot of
   g, and merges into g go on while it runs. The project's checks run at
   delivery, as for a producer.
 - **Delivering isn't finishing.** The goal's result stays a report. jig's
@@ -84,11 +84,11 @@ Then the goal parks (jig's `domain/engine/executors.md`, 4).
   its outcomes.
 - **`change` lands it:** `{"branch": "run", "landing": "goal", "words": "..."}`.
   It is a change on its requester's held branch as `"mine"` is
-  (`../domain/forge.md`, 8.1): no producing step, its head the branch's tip as
+  (`../domain/forge/change/README.md`, 1): no producing step, its head the branch's tip as
   read at opening, held by the goal, one at a time, and closing deletes nothing.
   It lands into g by g's queue like any change. A conflict goes to the merge job
   and a resolution.
-- **g stays written by change alone** (`../domain/forge.md`, 11.1).
+- **g stays written by change alone** (`../domain/forge/branches.md`, 1).
 - **Later runs may deliver too:** a revision of the design is the goal's to
   write, or a designer's. A run starts from g's tip, with whatever the run branch
   holds that g lacks merged in, so its delivery fast-forwards the run branch.
@@ -117,13 +117,13 @@ Then the goal parks (jig's `domain/engine/executors.md`, 4).
 - **Costs,** as the user reads them: "I don't think there's any downside in
   carrying the spec with the task, it can easily be 64k". jig's `tasks.spec_bytes`
   is already 131,072 and a brief's task section already holds a whole spec
-  (`../domain/agent.md`, 4.3). A goal's plan section shows each delegate's state
+  (`../domain/agent/tools.md`). A goal's plan section shows each delegate's state
   and spec revision, not its words.
 
 ## 6. Room
 
 - **A call:** `tool_payload` follows a model's declared `output`, about 10,662
-  bytes at 8,192 tokens (`../protocol/configuration.md`, 13.8). `output` isn't sent
+  bytes at 8,192 tokens (`../protocol/configuration/settings.md`, 7). `output` isn't sent
   to the providers we use, so it changes no model's behaviour. The reference
   takes about 98,500 tokens, 128 KB, as the user sized a message on 2026-11-03,
   and 48,000 tokens, 64 KB, if the start's checks refuse it: the agent's largest
@@ -135,14 +135,14 @@ Then the goal parks (jig's `domain/engine/executors.md`, 4).
   charter and its tools. Past it, a brief is cut.
 - **A report:** a change's `body` is held to 3,584 bytes by jig's
   `CHANGE_BODY_MAX`, smith's outcome and `hub.outcome_bytes`
-  (`../domain/agent.md`, section 10). It follows the call's payload instead, so it
+  (`../domain/agent/README.md`, section 8). It follows the call's payload instead, so it
   is a setting from then on. In the pipeline, 71% of 4,468 coding reports passed
   3,584 bytes, with a median of 5.3 KB and a p99 of 24.7 KB.
 - **First, a test:** an argument of 64 to 128 KB through Claude Code into smith's
   MCP server has never run. The largest seen is about 10 KB.
 - **Budgets aren't a plan's bound yet:** the pipeline has none, so a deployment
   starts goals with `--as-allowed`, or too high to hit. The half a `change` carves
-  (`../domain/agent.md`, 4.3.1) stays.
+  (`../domain/agent/tools.md`, 1) stays.
 
 `model-catalogue.md` moves models into the store, and keeps window and output the
 stock's (its section 2). This section changes the reference's figures. Whether the
@@ -165,7 +165,7 @@ The goal's charter takes `results: last_or_failure` (jig's
 | the close-out's result | finishes |
 
 - **Questions wake at once,** as the pipeline answers an integration plan's.
-- **Catch-ups wake on overlap alone** (`../domain/forge.md`, 7.3), not on every
+- **Catch-ups wake on overlap alone** (`../domain/forge/README.md`, 5.3), not on every
   move of main as the pipeline's do. The user: "it covers plain conflicts, and I'm
   okay with semantic conflicts being caught at merge time or after landing, they
   should be rare."
@@ -189,7 +189,7 @@ later choice, made at the goal's start, and ends the amendment.
 - **Rust reads them with `include_str!`,** as `temper-docs` reads help, with no
   generated code. `docs/examples/reference/*.json` becomes generated, and a test
   holds it to its sources.
-- **The reference stays out of the binary** (`../protocol/configuration.md`, 13.9).
+- **The reference stays out of the binary** (`../protocol/configuration/reference.md`).
 - **The move changes no text.** It follows `model-catalogue.md`, which changes these
   charters.
 
@@ -199,7 +199,7 @@ later choice, made at the goal's start, and ends the amendment.
   them, and the tree runs to the end by itself. A landing kept by dependencies hasn't
   been walked, and each later batch must amend its `after`.
 - **A spec past one call:** split it, or have `change` name a note, as
-  `propose_settings` does (`../domain/agent.md`, 8.1). One of the pipeline's 1,406
+  `propose_settings` does (`../domain/agent/agents.md`, 1). One of the pipeline's 1,406
   specs passed 42 KB, and none 64 KB. Not built until one needs it.
 - **A foreman before a repair:** the pipeline reads a refused branch first. temper
   repairs at once. Nothing has measured the difference.

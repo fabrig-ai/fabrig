@@ -1,4 +1,4 @@
-//! Team's parts and moves (temper/docs/design/client/README.md, 3.5, Team;
+//! Team's parts and moves (temper/docs/design/client/pages/README.md, Team;
 //! temper/docs/design/draft/surfaces.md, 12 and 14).
 use jig_client::contract as c;
 use jig_client_kit::stories;

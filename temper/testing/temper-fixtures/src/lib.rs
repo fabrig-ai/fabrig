@@ -1,4 +1,4 @@
-//! Shared client documents and harness helpers (temper/docs/design/domain/testing.md, 7).
+//! Shared client documents and harness helpers (temper/docs/design/testing/README.md, 5).
 #![expect(clippy::must_use_candidate, reason = "shared test fixtures return values for their callers to inspect")]
 
 pub mod browse;

@@ -1,5 +1,5 @@
-//! One level-triggered change step (domain/forge.md, section 8).
-//! Updates with no result or outstanding write decide again (temper/docs/design/domain/forge.md, 10).
+//! One level-triggered change step (domain/forge/change/README.md).
+//! Updates with no result or outstanding write decide again (temper/docs/design/domain/forge/README.md, 6).
 //!
 //! The top keeps the returned state and commits each decision before it sends
 //! a delegate or effect. The top reports Pending while a write is outstanding.
@@ -78,7 +78,7 @@ fn advance(change: &Change, facts: &Facts, standing: &Heard, now: Wall, limits: 
         return Stepped { change: next, decision: Decision::None };
     }
     // A conflicting preparation cancels its producer before waiting for that
-    // producer's writer slot (domain/forge.md, 8.11).
+    // producer's writer slot (domain/forge/change/questions.md, 1).
     let start_conflicted = match next.early {
         Early::None => false,
         Early::Started(_) | Early::Spent(_) => standing.start_conflict.is_some(),
@@ -261,7 +261,7 @@ fn closed_pull_holds(state: &State) -> bool {
     }
 }
 
-/// A hold whose reason is CI failed at the head (temper/docs/design/domain/forge.md, 8.4).
+/// A hold whose reason is CI failed at the head (temper/docs/design/domain/forge/change/repairs.md).
 /// `was` `Repairing` with a CI reason: `Failed`, `Stalled`, `Repairs` or `Authority`.
 /// `was` `Checking` or `CancellingGates`: `Repairs` or `Authority`.
 /// Every other pair is false: `Gating`, drift, `Questions`, `Rejected`, `Resolutions`, `Updates`.
@@ -497,7 +497,7 @@ fn producing(
         }
         Early::None => {}
     }
-    // A failed producer holds whatever it delivered (domain/forge.md, 8.4).
+    // A failed producer holds whatever it delivered (domain/forge/change/repairs.md).
     if requested && standing.delegate == Status::Failed {
         return hold(change, Hold::Failed);
     }
@@ -543,7 +543,7 @@ fn producing(
     }
 }
 
-// A catch-up's producer is the merge job (temper/docs/design/domain/forge.md, 8.2, 8.4).
+// A catch-up's producer is the merge job (temper/docs/design/domain/forge/change/README.md, 2, temper/docs/design/domain/forge/change/repairs.md).
 fn catch_up_due(mut change: Change, commit: [u8; 32], facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
     match facts.contains_catch_up {
         Status::Passed => {
@@ -582,7 +582,7 @@ fn request_producer(mut change: Change, facts: &Facts, standing: &Heard, now: Wa
 }
 
 // Dependency waits arm no stall; producing starts its clock when the wait ends
-// (temper/docs/design/domain/forge.md, 8.11).
+// (temper/docs/design/domain/forge/change/questions.md, 1).
 fn producer_start(change: &mut Change, facts: &Facts, standing: &Heard) -> bool {
     match change.early {
         Early::Started(_) | Early::Spent(_) => {
@@ -731,7 +731,7 @@ fn checking(
 
 /// A head already behind takes its base before CI concludes on it, once for
 /// a head a push gave it, and never with the change's last update
-/// (temper/docs/design/domain/forge.md, 8.2, step 3).
+/// (temper/docs/design/domain/forge/change/README.md, 2, step 3).
 fn behind_unchecked(change: &Change, facts: &Facts, limits: &Limits) -> bool {
     facts.contains_base == Status::Failed
         && change.clean.is_empty()
@@ -1063,7 +1063,7 @@ fn update_due(
     Stepped { change, decision: Decision::Effect(Effect::Update { head, base }) }
 }
 
-// Each conflict counts once, including a job followed by a resolution (temper/docs/design/domain/forge.md, 8.4).
+// Each conflict counts once, including a job followed by a resolution (temper/docs/design/domain/forge/change/repairs.md).
 fn conflict_due(
     change: Change,
     base: [u8; 32],
@@ -1237,7 +1237,7 @@ fn landing(change: Change, head: [u8; 32], facts: &Facts, standing: &Heard, now:
     }
 }
 
-/// Record a failed review without inventing a verdict (domain/forge.md, 8.3).
+/// Record a failed review without inventing a verdict (domain/forge/change/gates.md, 1).
 /// The top consumes the child's result once before calling this transition.
 #[must_use]
 pub fn review_failed(change: &Change, number: u64, head: [u8; 32], now: Wall, limits: &Limits) -> Change {

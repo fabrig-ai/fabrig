@@ -1967,7 +1967,7 @@ fn playground_accounts(model: bool) -> c::Accounts {
     }
 }
 
-/// Playground read fixtures (temper/docs/design/client/README.md, 4.8).
+/// Playground read fixtures (temper/docs/design/client/forge/family.md, 7).
 pub fn deliver_playground(
     root: &mut temper_client_domain::Domain,
     read: Token,

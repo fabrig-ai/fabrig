@@ -258,7 +258,7 @@ fn a_welcome_query_it_cannot_read_opens_its_first_step() {
         parse(b"/welcome?x=1&at=model&at=forge"),
         Place::Address(Address::Welcome { step: Step::Model { way: None } })
     );
-    // A first that doesn't read is dropped, and the next that reads is the step (browser.md, 2.3).
+    // A first that doesn't read is dropped, and the next that reads is the step (client/web/README.md, 2.3).
     assert_eq!(
         parse(b"/welcome?at=done&at=forge"),
         Place::Address(Address::Welcome { step: Step::Forge { forge: None } })

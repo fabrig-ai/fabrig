@@ -1,5 +1,5 @@
 //! A goal's taking makes its branch; its release deletes it once a change landed it, and keeps it otherwise
-//! (temper/docs/design/domain/forge.md, 2, 11.1 and 16).
+//! (temper/docs/design/domain/forge/README.md, 2, and temper/docs/design/domain/forge/branches.md, 1, and temper/docs/design/domain/forge/README.md, 9).
 use super::{
     BranchHead, Domain, Env, Limits, LostReadState, Name, Request, Role, Stored, Writer, child, emit, keep_entry,
     save_hold, to_client,

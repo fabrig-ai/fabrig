@@ -1,4 +1,4 @@
-//! Public readback over the service's cold restart (temper testing.md, 2.5).
+//! Public readback over the service's cold restart (temper testing/README.md, 2.5).
 use crate::{
     ctl::{Caller, Command},
     fixtures,

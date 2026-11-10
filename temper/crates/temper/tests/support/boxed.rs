@@ -17,10 +17,10 @@ use std::{
 };
 
 /// The patience that ends a hung box story, never its guide: a story's time is measured idle
-/// (domain/testing.md 6.1). Keep a duration under test separate from this horizon.
+/// (testing/checks.md 1). Keep a duration under test separate from this horizon.
 pub const BOX_DEADLINE: Duration = Duration::from_secs(240);
 
-/// The box's own log of this run, empty before its first line (protocol/setup.md, 7.2).
+/// The box's own log of this run, empty before its first line (protocol/setup/box.md, 2).
 #[must_use]
 pub fn box_log(data: &Path) -> String {
     match std::fs::read_to_string(data.join("box/logs/box.log")) {
@@ -30,7 +30,7 @@ pub fn box_log(data: &Path) -> String {
     }
 }
 
-/// Serve has listened on the clients' listener this run: the moment the first link used to print (protocol/setup.md, 7.2).
+/// Serve has listened on the clients' listener this run: the moment the first link used to print (protocol/setup/box.md, 2).
 #[must_use]
 pub fn serve_listening(data: &Path) -> bool {
     match std::fs::read_to_string(data.join("box/logs/serve.log")) {
@@ -701,7 +701,7 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
         release_llm(calls, peers, &mut self.release_answers);
         // A release before the response reaches its hold changes nothing.
         // Keep driving it even when the held peer has no io or timer ready
-        // (domain/testing.md, 2.6, the scripts' process cadence).
+        // (testing/process-tier.md, the scripts' process cadence).
         self.next_release = calls.llm_release().map(|_| now.saturating_add(Duration::from_millis(20)));
         if self.on_link.is_some()
             && printed_link(calls.stdout()).is_some()

@@ -6,7 +6,7 @@ names makes a change here, which a standing role or a person owns, and a
 check proves
 the two still agree. It is the mechanism the whole story's pilot needs
 (`whole-story.md`, 5.2): vsr's C, ported to Rust line by line, continuously.
-It adds to `../domain/forge.md`, 7.1's topics and 8.1's parameters, and it
+It adds to `../domain/forge/README.md`, 5.1's topics and 8.1's parameters, and it
 wins where they differ until its plans fold it in. temper/migration carries
 out the follow, its changes and its check; temper/ui, its lag and parity on
 Home, Team and How work runs (`surfaces.md`, sections 3, 6 and 7).
@@ -53,7 +53,7 @@ every setting is (`configuring.md`, 5.2). It holds:
   project, a branch of it (its landing branch, main, when none is named),
   and path prefixes; none means every path.
 - **Its target:** a repository of this project that temper writes, an
-  owned one (`../domain/forge.md`, section 4), and the branch its follow
+  owned one (`../domain/forge/adoption.md`), and the branch its follow
   changes land into: the repository's landing branch, unless it names
   another.
 - **Its owner:** a standing role of this project (`standing-roles.md`,
@@ -63,11 +63,11 @@ every setting is (`configuring.md`, 5.2). It holds:
   its owner's word; or `code`, where each starts once the one before it
   has landed, and the owner wakes only for a question, a hold or a red.
 - **Its producer:** the charter and LLM choice a follow change's producer
-  runs under, as `change` names them (`../domain/agent.md`, 4.3.1). For a
+  runs under, as `change` names them (`../domain/agent/tools.md`, 1). For a
   port, the charter carries the port's rules: line by line, the source's
   names and order kept.
-- **Its check:** a gate of the target's repository (`../domain/forge.md`,
-  8.3), named by the follow, which every follow change carries (section 4).
+- **Its check:** a gate of the target's repository (`../domain/forge/change/gates.md`,
+  1), named by the follow, which every follow change carries (`follows.md`, section 4).
 - **The follow change's words,** made by code, never by a model: the
   source landing's commit, its message, its pull request's link where it
   has one, and its diff over the follow's paths, cut to the change's bound
@@ -89,7 +89,7 @@ is per change, and leaves merging them to its owner.
 Code, with no model:
 
 - **Hears the source's landings** on the topic of landings on a
-  repository's branch (`../domain/forge.md`, 7.1), read as 7.2 reads them:
+  repository's branch (`../domain/forge/README.md`, 5.1), read as 7.2 reads them:
   temper's landings and those it did not make alike, with the files each
   touched.
 - **Keeps those that touch the follow's paths,** in the source's order: the
@@ -128,12 +128,12 @@ Its owner, at a wake (`standing-roles.md`, section 3):
   source's project, which gives nothing (section 6). In the pilot, a source
   construct with no direct form in the target goes to Porter's person.
 - **Hears its producers' questions first,** as a change's agents' questions
-  reach its requester (`../domain/forge.md`, 8.11).
+  reach its requester (`../domain/forge/change/questions.md`, 1).
 
 ## 4. The check
 
-- **A gate of the target's,** defined as any gate is (`../domain/forge.md`,
-  8.3), which the follow names and every follow change carries beside the
+- **A gate of the target's,** defined as any gate is (`../domain/forge/change/gates.md`,
+  1), which the follow names and every follow change carries beside the
   target's landing rule.
 - **Given the followed commit:** dispatched as a gate is
   (`../domain/landing.md`, 7.1), with the newest source commit the change
@@ -141,7 +141,7 @@ Its owner, at a wake (`standing-roles.md`, section 3):
   fetch the source there. For a port, the source's tests at that commit,
   built against the target.
 - **A red at the gate** is the change's, repaired as any change's is
-  (`../domain/forge.md`, 8.4), its producer told which of the source's
+  (`../domain/forge/change/repairs.md`), its producer told which of the source's
   tests fail. A change that keeps failing is held, and its owner hears it.
 - **After landing,** the target's tiers follow its main as any repository's
   do (`../domain/after-landing.md`, section 3): the slow suites, the
@@ -173,7 +173,7 @@ Its owner, at a wake (`standing-roles.md`, section 3):
 - **Within one deployment.** The source is a repository of another project
   of the same deployment, on any forge the deployment keeps.
 - **Read as context.** The target's project adopts the source's repository
-  as context (`../domain/forge.md`, section 4), so its tasks may read it and
+  as context (`../domain/forge/adoption.md`), so its tasks may read it and
   its owner's runs check it out read only beside the target. A follow of a
   repository the project hasn't adopted is refused.
 - **A context repository's landings** are heard for its follows: the forge
@@ -227,7 +227,7 @@ The whole story's pilot (`whole-story.md`, 5.2) is a follow.
 ## 9. Its acceptance
 
 Focused and fuzzy tests alone, in worlds with the fake forge and the fake
-model (`../domain/testing.md`, sections 4 and 5).
+model (`../testing/fakes.md` and `../testing/README.md`, section 4).
 
 - **Focused,** in a world with two projects on the fake forge, the target's
   adopting the source's repository as context, and a follow owned by a

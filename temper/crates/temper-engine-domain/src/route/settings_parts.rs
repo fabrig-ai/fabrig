@@ -1,11 +1,11 @@
-//! Settings parts held for one asking run (temper/docs/design/domain/agent.md, 8.4.2).
+//! Settings parts held for one asking run (temper/docs/design/domain/agent/ask-temper.md, 2).
 use crate::{CallAnswer, CallKey, Domain, KindValue, PartsAnswer, Tool, Work};
 use alloc::boxed::Box;
 use jig_domain_core::{self as core, settings as s};
 use jig_domain_tasks as tasks;
 use skein_lib::{List, ReplyTo};
 
-/// One run's parts, typed as the decoder gave them (domain/agent.md, 8.4.2).
+/// One run's parts, typed as the decoder gave them (domain/agent/ask-temper.md, 2).
 #[derive(Hash, Debug)]
 pub(crate) struct Held {
     attempt: u64,

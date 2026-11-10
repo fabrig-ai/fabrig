@@ -1,4 +1,4 @@
-//! Adversarial kept-change stories against domain/forge.md, 8.2 and 9.
+//! Adversarial kept-change stories against domain/forge/change/README.md, 2 and domain/forge/queues.md.
 use skein_lib::Wall;
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change as change;

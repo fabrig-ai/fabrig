@@ -6,8 +6,8 @@ box`, and shows the link it prints. The user asked that
 `temper box` print the link at once, its port already open, and print
 nothing else: "It should print nothing else, and only refreshed links.
 Except for errors, those would be printed too, but that's it." The user
-chose this version over a progress page. It changes `../protocol/setup.md`,
-7.2 (the box's terminal and its sign-in block), and jig's
+chose this version over a progress page. It changes `../protocol/setup/box.md`,
+2 (the box's terminal and its sign-in block), and jig's
 `protocol/client/sign-in.md` (the printed link's secret). The user
 asked for it to be built (2026-11-05).
 
@@ -42,7 +42,7 @@ Opened again once spent, it prints a fresh one here.
 ```
 
 - **The link alone on stdout,** the other lines on stderr, as today, in
-  that order (`../protocol/setup.md`, 7.2). The link's address is the
+  that order (`../protocol/setup/box.md`, 2). The link's address is the
   configured public origin and link route, as today.
 - **A fresh link,** after a spent or expired one was opened or when a
   restarted serve draws one, is printed alone: a blank line, then the

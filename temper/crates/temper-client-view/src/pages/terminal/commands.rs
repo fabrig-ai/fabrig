@@ -1,4 +1,4 @@
-//! Commands and their lists under the box (temper/docs/design/client/README.md, 3.5).
+//! Commands and their lists under the box (temper/docs/design/client/pages/README.md).
 use super::{Act, Bindings, Builder, Domain, Role, Run, Shortcut, State, Words, look};
 use alloc::boxed::Box;
 use jig_client::contract as c;
@@ -303,7 +303,7 @@ pub(super) fn notes(b: &mut Builder, root: &Domain) {
     }
 }
 
-/// A terminal note (temper/docs/design/client/README.md, 3.5, The terminal's notes).
+/// A terminal note (temper/docs/design/client/pages/README.md, The terminal's notes).
 pub(crate) fn note(note: &Note) -> Box<[u8]> {
     match note {
         Note::Help => help(),

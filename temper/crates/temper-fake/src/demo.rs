@@ -1,4 +1,4 @@
-//! The playground's LLM, read before files (temper/docs/design/protocol/configuration.md, 3).
+//! The playground's LLM, read before files (temper/docs/design/protocol/configuration/engine.md).
 use crate::{Refusal, limits, llm, read};
 use alloc::boxed::Box;
 use core::net::SocketAddr;
@@ -29,7 +29,7 @@ impl KeyRefused {
         }
     }
 }
-/// A demo key file's key: its bytes less a final newline (protocol/setup.md, 8.4).
+/// A demo key file's key: its bytes less a final newline (protocol/setup/playground.md).
 pub fn key(file: &[u8]) -> Result<&[u8], KeyRefused> {
     let key = match file.strip_suffix(b"\n") {
         Some(key) => key,
@@ -44,7 +44,7 @@ pub fn key(file: &[u8]) -> Result<&[u8], KeyRefused> {
     Ok(key)
 }
 
-/// The deployment's demo, checked against the document (protocol/setup.md, 8.4).
+/// The deployment's demo, checked against the document (protocol/setup/playground.md).
 #[derive(Debug)]
 pub struct Demo {
     llm: llm::Document,
@@ -166,7 +166,7 @@ fn models(number: u32, listen: SocketAddr, llm: &config::Llm, p: &Path) -> Resul
             config::Transport::Tls { .. } => return Err(read::why(p, b"names an endpoint with TLS")),
             config::Transport::Plaintext => {}
         }
-        // Dialect 3 is OpenAI's public Responses route (configuration.md, section 2).
+        // Dialect 3 is OpenAI's public Responses route (protocol/configuration/README.md, section 2).
         if endpoint.dialect != 3 {
             return Err(read::why(p, b"names an endpoint not in OpenAI's dialect"));
         }

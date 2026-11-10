@@ -178,9 +178,9 @@ fn task_text_joins_to_its_bounds_with_exact_utf8_offsets() {
 #[test]
 #[expect(clippy::disallowed_methods, reason = "the step table inspects rendered UTF-8 lines")]
 fn task_text_cut_pages_say_so_first() {
-    // tools.md, 6.4: 600 source bytes span three 259-byte pages; 200 fit whole.
+    // client/ctl/results.md, 4: 600 source bytes span three 259-byte pages; 200 fit whole.
     let limits = crate::jig::Limits { part: 259, ..crate::limits::tools() };
-    let mut failures = skein_lib::List::with_capacity(5); // Five page/control rows (tools.md, 11.1).
+    let mut failures = skein_lib::List::with_capacity(5); // Five page/control rows (client/ctl/testing.md, 1).
     let words = [b'x'; 600]; // Three 259-byte pages, with the last short.
     for (size, from, json, first, last, absent, present) in [
         (

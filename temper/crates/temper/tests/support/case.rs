@@ -1,4 +1,4 @@
-//! The reference case on the cluster's processes (domain/testing.md, 2.6 and 5.3).
+//! The reference case on the cluster's processes (testing/process-tier.md and testing/reference-case.md).
 mod project;
 use super::{
     Ended, Scratch, WITHIN, cluster, ctl,
@@ -25,7 +25,7 @@ use temper_real_loop_world::{
     forge::Fixture,
 };
 
-// domain/testing.md, 2.6: pass at least every 20 ms while PLACED's release is due.
+// testing/process-tier.md: pass at least every 20 ms while PLACED's release is due.
 const PLACED_RELEASE_INTERVAL: Duration = Duration::from_millis(20);
 
 pub struct Run {
@@ -695,7 +695,7 @@ impl Judge {
             Step::Watching { call } => {
                 let slot = *self.slots.get(*call).expect("Watching names a started call");
                 assert!(batch.ends()[slot].exit.is_none(), "Watching call {call} already ended");
-                // No delivery barrier: ended documents are retained (domain/testing.md, 2.6).
+                // No delivery barrier: ended documents are retained (testing/process-tier.md).
             }
             Step::Terminal(_) => panic!("Terminal unsupported"),
             Step::Browse { .. } => panic!("Browse unsupported"),

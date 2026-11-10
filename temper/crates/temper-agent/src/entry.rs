@@ -1,4 +1,4 @@
-//! The deployment agent's mode dispatch (temper/docs/design/protocol/README.md, 4.3).
+//! The deployment agent's mode dispatch (temper/docs/design/protocol/binaries.md, 3).
 
 use super::ExitCode;
 use std::{env, ffi::OsStr};

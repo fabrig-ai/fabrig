@@ -1,6 +1,6 @@
 // Fixture parsing without a deployment keeps written paths.
 //! What the root's construction asserts and the worker's rules against the
-//! agent, each refused at start naming its path (protocol/configuration.md, 7).
+//! agent, each refused at start naming its path (protocol/configuration/limits.md).
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
@@ -377,7 +377,7 @@ fn complete_profile_startup(document: &[u8], agent: &crate::settings::Agent) {
     }
 }
 
-/// Merge every shipped overlay member as configuration.md, 13.9 requires.
+/// Merge every shipped overlay member as protocol/configuration/reference.md requires.
 fn merge_profile(base: &[u8], overlay: &[u8]) -> Box<[u8]> {
     use skein_json::writer::{Encoder, Limits};
     let bounds = jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 };

@@ -1,4 +1,4 @@
-//! Joined recording streams (client/journeys.md, 3.2 and 3.6).
+//! Joined recording streams (client/web/journeys.md, 3.2 and 3.6).
 use super::Line;
 use jig_client_shell_web::adapter::Heard;
 use skein_lib::base64::{self, Alphabet};
@@ -9,7 +9,7 @@ pub struct Event {
     pub line: u32,
     pub record: Box<[u8]>,
 }
-/// Stream text outside data payloads and bare framing (client/journeys.md, 3.6).
+/// Stream text outside data payloads and bare framing (client/web/journeys.md, 3.6).
 pub struct Plain {
     pub line: u32,
     pub bytes: Box<[u8]>,

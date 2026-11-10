@@ -25,7 +25,7 @@ pub enum Start {
 /// Root-translated identities and branch names for one repository.
 #[derive(Debug)]
 pub struct Seed {
-    /// The run may modify through its held run branch (temper/docs/design/domain/forge.md, 11.1).
+    /// The run may modify through its held run branch (temper/docs/design/domain/forge/branches.md, 1).
     pub modify: bool,
     pub task: u64,
     pub parent: Option<u64>,
@@ -227,7 +227,7 @@ impl Domain {
 
     /// A modifying goal delivers through its run branch from its confirmed goal branch;
     /// other tasks start at the repository's base
-    /// (temper/docs/design/domain/forge.md, 11.1).
+    /// (temper/docs/design/domain/forge/branches.md, 1).
     fn task_workspace_item(&self, seed: &Seed, repository: &crate::Repository) -> Option<CheckoutSelection> {
         if repository.role != Role::Context {
             for (name, hold) in &self.holds {
@@ -264,7 +264,7 @@ impl Domain {
         ))
     }
 
-    /// Repairs and resolutions write under the branch's hold (temper/docs/design/domain/forge.md, 8.1).
+    /// Repairs and resolutions write under the branch's hold (temper/docs/design/domain/forge/change/README.md, 1).
     fn change_branch_holder(&self, row: &crate::ChangeRow) -> u64 {
         match crate::domain::change_branch_hold(self, row) {
             Some((holder, _)) => holder,
@@ -335,7 +335,7 @@ pub(crate) fn branch_starts_with(name: &crate::Name, prefix: &[u8]) -> bool {
     at == prefix.len()
 }
 
-/// The goal's own branch (temper/docs/design/domain/forge.md, 11.1).
+/// The goal's own branch (temper/docs/design/domain/forge/branches.md, 1).
 pub(crate) fn goal_branch(name: &crate::Name, prefix: &[u8]) -> Option<(u64, u64)> {
     let branch = branch_bytes(name)?;
     let own = branch.strip_prefix(prefix)?;

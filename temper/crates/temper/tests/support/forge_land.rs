@@ -1,4 +1,4 @@
-//! A person's change on the owned forge, signed in with `ChatGPT` (domain/testing.md, 2.6–2.7).
+//! A person's change on the owned forge, signed in with `ChatGPT` (testing/process-tier.md and testing/live-tier.md).
 pub mod conversation;
 use super::{Process, sign_in};
 use skein_fake_llm_domain::api::{self, Finish, Line, Script, Turn};
@@ -12,7 +12,7 @@ pub mod rung;
 mod survivors;
 
 /// forge-setup's first repository goes into project 1, the first made
-/// (temper/docs/design/client/tools.md, 5.5): work/hello is project 1's.
+/// (temper/docs/design/client/ctl/areas.md): work/hello is project 1's.
 const FIRST_PROJECT: &str = "1";
 
 /// The model side: processes a story adds beside the box and ctl.
@@ -125,7 +125,7 @@ pub fn plan_scripts(plan: &Plan<'_>) -> Box<[Script]> {
             .expect("change tool JSON")
             .into_boxed_slice(),
     }]);
-    // An Open chat replies with text and keeps listening (domain/agent.md, 4.6).
+    // An Open chat replies with text and keeps listening (domain/agent/charter.md, 5).
     // The first box stops without Close; no finish request or closing turn runs here.
     chat.turns[2] = text(LANDED.as_bytes());
     scripts.into_boxed_slice()
@@ -346,7 +346,7 @@ pub fn restart_script(chat_cue: &[u8]) -> Box<[Script]> {
     // the first box's delegate, wait and reply are turns 0 to 2, played there.
     // The restart runs the chat's lost attempt again, which answers (turn 3);
     // Close then asks the parked run to finish, and its text ends it (turn 4,
-    // domain/agent.md, 4.6). An Open run offers no finish tool.
+    // domain/agent/charter.md, 5). An Open run offers no finish tool.
     let text =
         |bytes: &[u8]| Turn { lines: Box::new([Line::Text { text: bytes.into() }]), finish: Finish::Stop, tokens: 20 };
     let played = b"Played in the first box.";
@@ -398,7 +398,7 @@ pub fn plan_ended_tasks(calls: &[super::Ended]) -> (usize, [Vec<u64>; 2]) {
 }
 
 /// The chat's ended delegates and its change's, read whole, a page at a time, by `--after`
-/// and the cursor each page prints (temper/docs/design/domain/testing.md, 2.7).
+/// and the cursor each page prints (temper/docs/design/testing/live-tier.md).
 pub struct EndedDelegates {
     project: u64,
     parents: [u64; 2],
@@ -874,7 +874,7 @@ pub fn live_store(account: bool) -> (PathBuf, bool) {
 }
 
 /// The owned-forge landing story's own store under `TEMPER_LIVE_STORE`, so the pair runs
-/// in one invocation, each on its own deployment (domain/testing.md, 2.7).
+/// in one invocation, each on its own deployment (testing/live-tier.md).
 #[must_use]
 #[expect(clippy::disallowed_methods, reason = "cli C4: TEMPER_LIVE_STORE, through temper's test table once it exists")]
 pub fn landing_store(model: LiveModel<'_>) -> (PathBuf, bool) {
@@ -1179,7 +1179,7 @@ pub(super) fn scoped_token(paths: &[PathBuf; 3], first: bool, number: u64, login
 
 /// Commands are admitted one at a time so a failure cannot start the next act.
 /// A fresh store's account comes from a person's sign-in, or from a held
-/// record moved in by `import` (client/tools.md, 5.5), or a
+/// record moved in by `import` (client/ctl/areas.md), or a
 /// held Claude Code directory declared and verified on the worker. A held `ChatGPT`
 /// record is imported again after its first box returned it, with a distinct key.
 #[must_use]
@@ -1441,7 +1441,7 @@ pub struct LiveChange {
     pub file: serde_json::Value,
 }
 
-/// The settings changes a fresh sitting applies, in order (domain/testing.md, 2.7):
+/// The settings changes a fresh sitting applies, in order (testing/live-tier.md):
 /// a model taken by name first, alone, at the highest model number the inventory
 /// leaves free, from the stock row it copies (`live-model`); then charters 1 and 2
 /// naming the story's model alone (`live-settings`).
@@ -1522,7 +1522,7 @@ pub struct LivePlan<'a> {
 
 impl LivePlan<'_> {
     /// The sitting's client directory, `client` beneath the run's root: every ctl call's
-    /// DIRECTORY, the held record's import and give-back included (domain/testing.md, 2.7).
+    /// DIRECTORY, the held record's import and give-back included (testing/live-tier.md).
     #[must_use]
     pub fn client_directory(&self) -> PathBuf {
         self.client.join("client")
@@ -1598,7 +1598,7 @@ pub fn replies_after(
     Ok(replies)
 }
 
-/// domain/testing.md, 2.7: the chat's one delegate is its change; an agent's
+/// testing/live-tier.md: the chat's one delegate is its change; an agent's
 /// task, as a goal is, fails the story at once, naming it.
 pub fn change_delegate(row: &serde_json::Value) -> Result<u64, String> {
     let task = row["chip"]["task"].as_u64().ok_or("delegate task missing (chip.task)")?;
@@ -1616,11 +1616,11 @@ pub fn change_delegate(row: &serde_json::Value) -> Result<u64, String> {
         format!("a {kind}'s")
     };
     Err(format!(
-        "the chat's delegate task {task} is {description}, not a change: the shipped chat chooses change (testing.md 2.7)"
+        "the chat's delegate task {task} is {description}, not a change: the shipped chat chooses change (testing/live-tier.md)"
     ))
 }
 
-/// domain/testing.md, 2.7: the landing check's words name the chat's
+/// testing/live-tier.md: the landing check's words name the chat's
 /// committed calls, those that succeeded and those that failed.
 pub fn require_chat_change(evidence: &conversation::Evidence) -> Result<(), String> {
     let succeeded = evidence.tools.iter().cloned().collect::<Vec<_>>().join(", ");

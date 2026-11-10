@@ -1,4 +1,4 @@
-//! The QA model's document and played scripts (protocol/setup.md, 8.4).
+//! The QA model's document and played scripts (protocol/setup/playground.md).
 pub mod observations;
 use crate::{Refusal, credential, read, turn};
 use alloc::boxed::Box;
@@ -117,7 +117,7 @@ impl Document {
     pub fn models(&self) -> &[Model] {
         &self.models
     }
-    /// Live-domain limits with the document's fixed reply latency (protocol/setup.md, 8.4).
+    /// Live-domain limits with the document's fixed reply latency (protocol/setup/playground.md).
     #[must_use]
     pub fn limits(&self) -> domain::Config {
         let latency = Duration::from_millis(u64::from(self.reply_ms));
@@ -416,7 +416,7 @@ pub const LIMITS: domain::Config = domain::Config {
     unscoped_reads: 0,
 };
 
-/// Constructs the checked configuration's peer without io (protocol/setup.md, 8.4).
+/// Constructs the checked configuration's peer without io (protocol/setup/playground.md).
 pub fn peer(configuration: Configuration) -> Result<skein_fake_peers::llm::Peer, skein_fake_peers::Error> {
     crate::wire::llm(configuration, false)
 }
@@ -427,7 +427,7 @@ pub fn recording_peer(configuration: Configuration) -> Result<skein_fake_peers::
 }
 
 /// One bounded, bodyless HTTP/1.1 control exchange on skein's server machine.
-/// The host queues the requested release before acknowledging it (protocol/setup.md, 8.4).
+/// The host queues the requested release before acknowledging it (protocol/setup/playground.md).
 pub mod control {
     use alloc::boxed::Box;
     use skein_http::{Method, Version, server as http};

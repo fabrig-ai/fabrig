@@ -1,6 +1,6 @@
 //! A second deployment connects to the owned fixture solely as a Forgejo elsewhere.
 //! Its no-review rule replaces the adopted project's stock rule
-//! (temper/docs/design/protocol/configuration.md, 13.3–13.4).
+//! (temper/docs/design/protocol/configuration/settings.md, 3 and temper/docs/design/protocol/configuration/stock.md).
 use super::{Forge, Process, Scratch, ctl, forgejo::Throwaway, write_private};
 use serde_json::{Value, json};
 use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
@@ -412,7 +412,7 @@ fn connected(calls: &mut ctl::Calls, root: &Path, restarted: bool) {
     assert_eq!(row["state"], "connected");
     assert_eq!(row["mode"], "managed");
     if restarted {
-        // temper/docs/design/protocol/setup.md, 6.7: keep the first intent across restarts.
+        // temper/docs/design/protocol/setup/owned.md, 7: keep the first intent across restarts.
         assert_eq!(row["first"]["state"], "made");
         assert_eq!(row["first"]["org"], "elsewhere");
         assert_eq!(row["first"]["repository"], "first");

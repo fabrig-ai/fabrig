@@ -1,4 +1,4 @@
-//! Source catalogue admission and seeding (protocol/setup.md, 7.5).
+//! Source catalogue admission and seeding (protocol/setup/box.md, 5).
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,

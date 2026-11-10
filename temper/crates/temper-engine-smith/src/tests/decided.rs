@@ -1,4 +1,4 @@
-//! The decision tool's bounds and words (temper/docs/design/domain/agent.md, 4.3).
+//! The decision tool's bounds and words (temper/docs/design/domain/agent/tools.md).
 use super::{Problem, decided, engine};
 use temper_engine_domain_forge as forge;
 

@@ -1,4 +1,4 @@
-//! Skein's forge peer shares its domain with hosted git (domain/testing.md, 2.4).
+//! Skein's forge peer shares its domain with hosted git (testing/real-loop.md).
 use crate::fixtures;
 use skein_fake_forge_domain::{self as domain, api};
 use skein_fake_peers::forge::{Delivery, Forge, Kept, Observation, Peer};

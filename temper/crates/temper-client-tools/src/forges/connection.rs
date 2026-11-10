@@ -1,4 +1,4 @@
-//! Forge connections (temper/docs/design/client/tools.md, 5.5).
+//! Forge connections (temper/docs/design/client/ctl/areas.md).
 use super::{ACCEPT, CONNECT, Forges, INSTALL, REPLACE, domain, finish};
 use crate::{
     jig::{

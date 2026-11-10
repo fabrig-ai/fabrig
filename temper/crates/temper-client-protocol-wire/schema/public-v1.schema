@@ -1,7 +1,7 @@
 family temper-public-wire 1
 
 # The visitor's forge records, apart from the panels.
-# temper/docs/design/client/forge.md, 11.1, 11.3 and 11.4.
+# temper/docs/design/client/forge/README.md, 9.1, 9.3 and 9.4.
 # Tasks are places in PublicApplication.tasks; commits are the panels' fixed hashes.
 enum PublicStep { producing, opening, recreating, reopening, checking, gating, queued, first, updating, resolving, repairing, landing, landed, ended, ready, preparing, verifying, red, cleared }
 record PublicGateNumber { gate: u64 }

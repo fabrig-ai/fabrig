@@ -1,4 +1,4 @@
-//! The deployment's client (temper/docs/design/protocol/README.md, section 4).
+//! The deployment's client (temper/docs/design/protocol/binaries.md).
 use crate::support;
 use skein_io::kernel::Exit;
 use support::ctl::{Call, Step, Story, json};

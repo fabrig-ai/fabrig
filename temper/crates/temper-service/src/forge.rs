@@ -1,4 +1,4 @@
-//! The forge component's boundary to the engine (protocol/README.md, 6).
+//! The forge component's boundary to the engine (protocol/README.md, 4).
 pub(crate) mod gone;
 pub(crate) mod origins;
 pub(crate) mod records;
@@ -13,7 +13,7 @@ use temper_engine_domain_forge as forge;
 /// The user agent every forge request carries; a test pins it.
 pub const USER_AGENT: &str = "temper/0.0.0";
 const WORD: &[u8] = b"temper";
-/// The address of a forge whose host name doesn't resolve (protocol/setup.md, 8.3). skein's
+/// The address of a forge whose host name doesn't resolve (protocol/setup/init.md, 3). skein's
 /// forge connection and setup host refuse an in-process address, so a held forge keeps its
 /// entries with this one: loopback port 0, which no listener can hold. No socket ever sees it:
 /// `forge::connect` and the setup gate refuse a held forge before either component is asked.

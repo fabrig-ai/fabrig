@@ -1,4 +1,4 @@
-//! Forge documents from retained facts (domain/landing.md, 14; domain/forge.md, 5.5).
+//! Forge documents from retained facts (domain/landing.md, 14; domain/forge/attention.md, 1).
 use crate::{Check, DISMISSED_SUBJECT, Domain, Panel, PersonFact, ReceiptKey, ReceiptRun};
 use alloc::boxed::Box;
 use core::mem::size_of_val;
@@ -8,7 +8,7 @@ use temper_engine_domain_forge_landing as policy;
 mod changes;
 pub use changes::{ChangesLanded, ChangesQueue, ChangesQueued, ChangesView};
 
-/// The changes waiting on a person's approval, the party's own scope (domain/forge.md, 8.12).
+/// The changes waiting on a person's approval, the party's own scope (domain/forge/change/questions.md, 2).
 pub const APPROVALS_SUBJECT: u64 = (1 << 62) | (1 << 37);
 
 /// A project changes subject lies outside task and landing list subjects.
@@ -332,7 +332,7 @@ fn proof_key(proof: policy::Proof) -> Option<[u8; 32]> {
 }
 
 impl Document {
-    /// Owned storage retained by the root's asking decision (domain/root.md, 5.1).
+    /// Owned storage retained by the root's asking decision (domain/routing.md, 1).
     #[must_use]
     pub fn owned_bytes(&self) -> usize {
         let mut size = size_of::<Self>();
@@ -437,7 +437,7 @@ fn phase_bytes(phase: &policy::Phase) -> usize {
     }
 }
 
-/// The adopted repository's project owns its changes document (domain/forge.md, 9).
+/// The adopted repository's project owns its changes document (domain/forge/queues.md).
 pub(crate) fn changes_mark(d: &Domain, repository: skein_forge::api::Repository) -> Option<[u64; 3]> {
     let project = d.repositories.get(&repository)?.project;
     Some([changes_subject(project), crate::status_subject(project), APPROVALS_SUBJECT])

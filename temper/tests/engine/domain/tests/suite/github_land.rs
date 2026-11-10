@@ -8,7 +8,7 @@ use temper_engine_domain_forge_change as change;
 use temper_engine_domain_world::forge_routes::{Change, Gate, StoryLimits, World, change_world_in};
 use temper_engine_forge_world::REPO;
 
-// domain/forge.md 8.4 and the shipped limits in the QA brief.
+// domain/forge/change/repairs.md and the shipped limits in the QA brief.
 const STALL: Duration = Duration::from_secs(1800);
 const GATHER: Duration = Duration::from_secs(30);
 const READ_DELAY: Duration = Duration::from_secs(31);
@@ -112,7 +112,7 @@ fn at(world: &mut World, when: Wall) {
 
 #[test]
 fn silent_ci_at_shipped_stall_boundary() {
-    // QA: domain/forge.md 8.2, 8.4; Q2. Exercise the actual procedure's wake.
+    // QA: domain/forge/change/README.md, 2, domain/forge/change/repairs.md; Q2. Exercise the actual procedure's wake.
     let (mut world, _) = silent_change();
     let since = change_row(&world).change.since.as_nanos();
     let deadline = since + STALL.as_nanos();
@@ -153,7 +153,7 @@ fn requester_heard_hold(world: &World, requester: u64, change: u64) -> bool {
 
 #[test]
 fn stalled_change_notifies_its_requester() {
-    // QA: domain/forge.md 8.4; Q2. The requester is the live chat that delegated.
+    // QA: domain/forge/change/repairs.md; Q2. The requester is the live chat that delegated.
     let (mut world, requester) = silent_change();
     // Finish the scripted chat's active run as parked, as a real requester
     // does after delegating; its next assignment can then carry the notice.
@@ -206,7 +206,7 @@ fn stalled_change_notifies_its_requester() {
 
 #[test]
 fn slow_required_brief_reaches_shipped_gather_limit() {
-    // QA: domain/forge.md 8.4; domain/testing.md 4.2; Q6. A required
+    // QA: domain/forge/change/repairs.md; testing/fakes.md 2; Q6. A required
     // section never becomes a successful partial brief when gather expires.
     // The cited design does not prescribe fail vs hold vs retry at expiry.
     let mut brief = World::configured(true, true).env.limits.brief;

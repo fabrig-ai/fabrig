@@ -1,4 +1,4 @@
-//! Starting a goal in a chat uses the shared sheet (client/README.md, 3.5).
+//! Starting a goal in a chat uses the shared sheet (client/pages/README.md).
 #![expect(clippy::disallowed_methods, reason = "ordinary tests inspect semantic trees and prints")]
 use super::{connect_forge, documents, fixtures as f};
 use crate::look;

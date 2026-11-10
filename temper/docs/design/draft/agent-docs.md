@@ -7,7 +7,7 @@ is for automated, unattended delivery; people read the site, which is
 the user's and outside this draft; the text stays concise, with one
 consistent structure that never grows by accretion; and the tools may
 be renamed and regrouped where that serves.
-`../protocol/documentation.md` and `../client/tools.md` build on it.
+`../protocol/documentation.md` and `../client/ctl/README.md` build on it.
 Approved by the user on temper#13 (10-27), the command line regrouped
 as section 7 has it; each part becomes contract in the documents it
 names as it is built.
@@ -82,7 +82,7 @@ names as it is built.
 | index | what temper is, the map with a line per noun, the walks and recipes, the placeholders | written, its lists checked | 6 KB |
 
 - **At the point of use,** every result prints what can follow as calls
-  (`../client/tools.md`, 6.1), and every cut says how to read on. An
+  (`../client/ctl/results.md`, 1), and every cut says how to read on. An
   error is one line of at most 240 bytes: what is wrong, the value or
   bound that made it so, and the act that mends it or the page that
   explains. A refusal is said in its concept's words. A host tool's
@@ -242,7 +242,7 @@ temper ctl help [GROUP [VERB]]
     temper holds, erased), `declare`, `verify`, `rank`, `retry`,
     `export`, `import`, `make`.
 
-  A new verb is a change of this list; `../client/tools.md` 5.5's
+  A new verb is a change of this list; `../client/ctl/areas.md`'s
   area 4, jig's plumbing, takes its group and verbs when designed.
 - **A wait is a read:** a read of one watched subject takes `--since
   DIGEST`, `--until CONDITION` and `--timeout DURATION`, and with either
@@ -268,7 +268,7 @@ temper ctl help [GROUP [VERB]]
   | `adopt`, `change N`, `demo-start` | `repository adopt`, `change show N`, `playground start` |
   | `wait SUBJECT` | the subject's read with `--until` or `--since` |
 
-  The named tools of `../client/tools.md` 5.5's areas 2 and 3 take
+  The named tools of `../client/ctl/areas.md`'s areas 2 and 3 take
   their group: `goal start`, `proposal withdraw`, `inbox seen`, `task
   take`, `task hand-back`, `task move`, `party make` (a service),
   `project show`, `deployment show`.
@@ -401,6 +401,6 @@ temper ctl help [GROUP [VERB]]
   decoder; jig's once a second application documents the same form.
 - **The host tools' names** on the groups' words (`settings_propose`
   for `propose_settings`): default, unchanged (7.2).
-- **The MCP endpoint** (`../client/tools.md`, section 14): its tools'
+- **The MCP endpoint** (`../client/ctl/README.md`, section 11): its tools'
   descriptions from the same table, when it comes.
 - **Translations:** English only.

@@ -1,4 +1,4 @@
-//! The box and its running steps end together (temper/docs/design/protocol/setup.md, 13.1).
+//! The box and its running steps end together (temper/docs/design/protocol/setup/testing.md, 1).
 use crate::box_link;
 use crate::support::{boxed, parent};
 use std::{fs, process::Stdio};

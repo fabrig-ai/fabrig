@@ -1,4 +1,4 @@
-//! The rail's rules and domain facts (temper/docs/design/client/README.md, 5.3).
+//! The rail's rules and domain facts (temper/docs/design/client/view.md, 3).
 use super::{
     fixtures as f,
     welcome::{deliver, event, up},

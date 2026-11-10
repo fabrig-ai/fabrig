@@ -1,4 +1,4 @@
-//! Two open tabs leave a fresh client its room (temper/docs/design/protocol/configuration.md, 7).
+//! Two open tabs leave a fresh client its room (temper/docs/design/protocol/configuration/limits.md).
 use jig_client_kit::harness::{ClientId, Until, World};
 use skein_fake_person::{Find, Step};
 use skein_ui::Role;

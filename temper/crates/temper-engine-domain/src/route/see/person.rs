@@ -1,4 +1,4 @@
-//! Sequential reads as the chat's requester (domain/agent.md, 8.4.1; domain/root.md, 5.1).
+//! Sequential reads as the chat's requester (domain/agent/ask-temper.md, 1; domain/routing.md, 1).
 use super::{
     Address, Decision, Domain, Env, FlightRender, Limits, ReplyTo, SeeAnswer, SeeFlight, SeeNames, SeeNotRead,
     SeePerson, SeeRead, SeeReading, SeeWords, Work,

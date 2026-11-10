@@ -1,5 +1,5 @@
 //! One chat borrows its task and retains jig's bounded conversation projection
-//! (temper/docs/design/client/README.md, 3.5 and 5.15).
+//! (temper/docs/design/client/pages/README.md and temper/docs/design/client/pages/chat/conversation.md, 2).
 pub mod document;
 mod request;
 pub mod sheet;
@@ -25,7 +25,7 @@ pub enum Sending {
     Seen,
     Close,
 }
-/// Each card's read follows the conversation's waits (client/README.md, 3.5, 5.13).
+/// Each card's read follows the conversation's waits (client/pages/README.md, client/pages/settings.md, 2).
 #[derive(Debug)]
 struct CardRead {
     handle: Handle,
@@ -74,7 +74,7 @@ pub struct Chat {
     pub words: Box<[u8]>,
     pub beyond: u64,
     pub composer_focus: u64,
-    /// The proposal "Change something" was pressed on, until something is sent or it is decided (client/README.md, 5.13).
+    /// The proposal "Change something" was pressed on, until something is sent or it is decided (client/pages/settings.md, 2).
     pub change_asked: Option<c::ProposalKey>,
     pub pending: List<(Key, Sending)>,
     pub outcome: Option<jig_client::Outcome>,
@@ -91,20 +91,20 @@ pub struct Chat {
     pub final_task: Option<Box<c::Task>>,
 }
 impl Chat {
-    /// The first message's bytes and whether they are whole (client/README.md, 5.4).
+    /// The first message's bytes and whether they are whole (client/view.md, 4).
     #[must_use]
     pub fn request<'a>(&'a self, client: &'a Client) -> Option<(&'a [u8], bool)> {
         let words = &self.task(client)?.spec.specification.words;
         Some(self.request.words(words))
     }
 
-    /// The log's end request (temper/docs/design/client/README.md, 5.15).
+    /// The log's end request (temper/docs/design/client/pages/chat/conversation.md, 2).
     #[must_use]
     pub fn to_end(&self) -> u64 {
         self.to_end
     }
 
-    /// The supplied call under way (temper/docs/design/client/README.md, 3.5).
+    /// The supplied call under way (temper/docs/design/client/pages/README.md).
     #[must_use]
     pub fn current_call(&self) -> Option<&c::CurrentCall> {
         self.current_run.as_ref()?.call.as_ref()
@@ -699,7 +699,7 @@ impl Chat {
         let document = self.delegation(client, task)?;
         if document.requester == c::Requester::Task(self.task) { Some(document) } else { None }
     }
-    /// Reconcile independently delivered chat and card documents (client/README.md, 3.5).
+    /// Reconcile independently delivered chat and card documents (client/pages/README.md).
     #[must_use]
     pub fn waiting_delegates(&self, client: &Client) -> u32 {
         let Some(task) = self.task(client) else { return 0 };
@@ -765,7 +765,7 @@ impl Chat {
             let turn = match line {
                 jig_client::thread::Line::Turn { turn, .. } => turn,
                 // A heard result names its delegate as a result block does, before
-                // the chat's resumed turn carries one (client/README.md, 5.7).
+                // the chat's resumed turn carries one (client/view.md, 5).
                 jig_client::thread::Line::Activity { line } => {
                     if let Some(task) = delegation::heard(&line.source.line)
                         && !tasks.as_slice().contains(&task)
@@ -795,7 +795,7 @@ impl Chat {
                 }
             }
         }
-        // The live delegates anchor follows the window's anchors (client/README.md, 5.7).
+        // The live delegates anchor follows the window's anchors (client/view.md, 5).
         for task in &live {
             if !tasks.as_slice().contains(task) && tasks.push(*task).is_err() {
                 break;
@@ -1025,7 +1025,7 @@ impl Chat {
         }
         true
     }
-    /// Making lines bring back retained proposals independently of the live list (client/README.md, 5.13).
+    /// Making lines bring back retained proposals independently of the live list (client/pages/settings.md, 2).
     fn made_cards(&mut self, client: &Client, out: &mut Queue<Request>) {
         let mut keys = List::with_capacity(self.thread.limits.lines);
         for line in self.thread.lines().into_boxed() {
@@ -1445,7 +1445,7 @@ impl Chat {
 }
 /// A screen and a half as a chat's opening reads hold it: the held lines'
 /// weight, a screen and a half of an 80 by 24 terminal
-/// (temper/docs/design/client/README.md, 5.15).
+/// (temper/docs/design/client/pages/chat/conversation.md, 2).
 pub(crate) const OPENING_WEIGHT: u64 = 2_880;
 #[must_use]
 pub fn thread_limits(limits: &Limits) -> jig_client::thread::Limits {
@@ -1510,7 +1510,7 @@ fn run_notes(run: &c::RunState) -> bool {
     }
 }
 
-/// The person's own pause (client/README.md, 3.5): held by a placed hold of theirs, mode Stop, over the task's own subtree.
+/// The person's own pause (client/pages/README.md): held by a placed hold of theirs, mode Stop, over the task's own subtree.
 #[must_use]
 pub fn paused(chip: &c::Chip, me: &c::Me) -> bool {
     let c::ChipPhaseFacts { phase, details } = chip.details.as_ref();

@@ -1,4 +1,4 @@
-//! client/tools.md, 6.3: a deadline names watches refused busy.
+//! client/ctl/results.md, 3: a deadline names watches refused busy.
 
 use super::{DEADLINE_TICK, fixtures, limits};
 use skein_io::kernel::Exit;

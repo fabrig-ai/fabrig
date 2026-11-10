@@ -1,4 +1,4 @@
-//! The box's lines to its TUI in front (temper/docs/design/protocol/setup.md, 7.6).
+//! The box's lines to its TUI in front (temper/docs/design/protocol/setup/box.md, 6).
 use crate::{
     layout::Placed,
     lines::joined,
@@ -7,12 +7,12 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::{List, bytes};
 
-/// A line's most bytes, its line feed among them (setup.md, 7.6).
+/// A line's most bytes, its line feed among them (protocol/setup/box.md, 6).
 pub const LINE_BYTES: usize = 8192;
-/// The most lines the box holds that its front has not taken (setup.md, 7.6).
+/// The most lines the box holds that its front has not taken (protocol/setup/box.md, 6).
 pub const HELD: u32 = 256;
 
-/// One of the box's lines to its front (setup.md, 7.6).
+/// One of the box's lines to its front (protocol/setup/box.md, 6).
 #[derive(Clone, PartialEq, Eq)]
 pub enum Line {
     Link { url: Box<[u8]> },

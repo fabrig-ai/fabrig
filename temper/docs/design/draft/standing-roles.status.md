@@ -33,18 +33,18 @@
     not designed.
   - 5: no landing rule by path holds a standing role's change that touches
     paths a rule guards (`what-reaches-you.status.md`, 7).
-  - 5 and 9: `../domain/agent.md`, section 8 has no row for a standing role,
-    and `../protocol/configuration.md`, 13.4 no standing role's charter or
+  - 5 and 9: `../domain/agent/agents.md` has no row for a standing role,
+    and `../protocol/configuration/stock.md` no standing role's charter or
     template.
-  - 6 and 7: `../client/README.md`, 3.5, *Team*, draws a project's people
+  - 6 and 7: `../client/pages/README.md`, *Team*, draws a project's people
     alone (`surfaces.status.md`, 6), with no standing role's card or
-    report, and its 5.3 and section 6 no conversation with one; Home's
+    report, and its 5.3 and `standing-roles.md`, section 6 no conversation with one; Home's
     brief reading the owners' Nows is `surfaces.status.md`'s.
-  - 8 and 11: `../client/tools.md`, 5.3 has `finding route`, `finding
+  - 8 and 11: `../client/ctl/tools.md`, 3 has `finding route`, `finding
     backlog` and `finding drop`, but no `finding file`, `need ask`, `role
     list`, `role show` or `role talk`.
   - 10: `stock-ways.md`, section 2 lets a way set how work starts and lands
-    alone, and its 3.3 and `../protocol/configuration.md`, 13.10 bring no
+    alone, and its 3.3 and `../protocol/configuration/settings.md`, 8 bring no
     standing role with a way.
 - **Open:**
   - 3: the context bound's default, half the window, and how far under the

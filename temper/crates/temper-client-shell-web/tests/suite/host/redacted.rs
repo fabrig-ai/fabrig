@@ -1,4 +1,4 @@
-//! Real host and view evidence for redaction (temper/docs/design/client/journeys.md, 3.3, 3.6–3.8 and 4).
+//! Real host and view evidence for redaction (temper/docs/design/client/web/journeys.md, 3.3 and 3.6–3.8 and 4).
 use super::{walk, written};
 use jig_client_protocol_wire as w;
 use skein_lib::{Reader, Secret, Writer, bytes::find, sha256::digest};

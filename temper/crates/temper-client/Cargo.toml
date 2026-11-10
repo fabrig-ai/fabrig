@@ -1,6 +1,6 @@
 [package]
 name = "temper-client"
-description = "The deployment's client: the TUI and temper ctl (protocol/README.md, section 4)"
+description = "The deployment's client: the TUI and temper ctl (protocol/binaries.md)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -1,4 +1,4 @@
-//! Scenarios at the separate piece/commit boundary (domain/testing.md, 6.3).
+//! Scenarios at the separate piece/commit boundary (testing/checks.md, 3).
 use jig_client_kit::harness::{ClientId, Until, World};
 use skein_fake_person::{Face, Find, Found, Step, TreeFace};
 use skein_world::domain::Verdict;
@@ -9,7 +9,7 @@ const PARTS: &[&[u8]] = &[b"QA joint prefix", b" and its full suffix."];
 const WHOLE: &[u8] = b"QA joint prefix and its full suffix.";
 
 fn whole_reply_before_commit() -> (World<Temper, Joint>, ClientId) {
-    // domain/testing.md, 6.3: the text and its committed turn are separate releases.
+    // testing/checks.md, 3: the text and its committed turn are separate releases.
     let mut world = fixtures::open_world(fixtures::SEED);
     world.front().reply_in_pieces(PARTS);
     let task = fixtures::chat(world.front(), b"QA joint live text");
@@ -69,7 +69,7 @@ fn the_words_stay_on_the_page_at_every_step_of_a_turns_end() {
 
 #[test]
 fn returning_to_the_chat_reads_the_held_prefix_and_its_commit() {
-    // client/README.md, 3.5: leaving closes handles; the page watches what it shows.
+    // client/pages/README.md: leaving closes handles; the page watches what it shows.
     // The real-loop typist cannot follow a numbered task link inside a list row.
     let mut world = fixtures::open_world(fixtures::SEED);
     world.front().reply_in_pieces(PARTS);

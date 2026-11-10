@@ -1,4 +1,4 @@
-//! Only Chromium proves that the manifest posts itself under its form-action policy (client/browser.md, 4.4).
+//! Only Chromium proves that the manifest posts itself under its form-action policy (client/web/testing.md, 4).
 use skein_fake_person::{Find, Step as PersonStep};
 use skein_fake_person_browser::{Harness, Lent, Outcome, Script, Sent, Step};
 use skein_ui::Role;

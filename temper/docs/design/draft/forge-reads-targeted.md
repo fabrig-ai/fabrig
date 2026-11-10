@@ -21,7 +21,7 @@ A survey of `origin/main` against a real deployment, Forgejo 17.0.1, found reads
 - **Run discovery** sends `workflow=`, which Forgejo ignores. Its filter is `workflow_id`.
 - **Branch lists** (`read_branches`, `GET git/refs/heads/{prefix}`) can't page and are capped at `forge.client.rows` = 8 names. One goal's saved branches already pass that.
 - **Page sizes** come from the worst permitted row (about 255 KB for a pull file with both sides), so items, reviews and pull-file pages hold one row each.
-- **A refusal is a bare `TooLarge`** that names no bound. `temper/docs/design/domain/agent.md` (about lines 374-378) says "nine files, nine commits" pass, against the bound of 8.
+- **A refusal is a bare `TooLarge`** that names no bound. `temper/docs/design/domain/agent/README.md` (about lines 374-378) says "nine files, nine commits" pass, against the bound of 8.
 
 ## What's wanted, ranked. Drop from the bottom if it passes six tasks, and say what you dropped
 
@@ -43,9 +43,9 @@ A survey of `origin/main` against a real deployment, Forgejo 17.0.1, found reads
 4. **Pages sized for real rows.** Item, review and pull-file pages hold as many rows as fit the answer's bytes, not one for a worst case that never comes, with the per-row bound still checked.
 5. **Refusals name their bound and size, and the design says what passes:**
    - `TooLarge` says which bound and by how much;
-   - `agent.md` and `forge.md` (about line 4078) agree with the configured figures;
+   - `../domain/agent/README.md` and `../domain/forge/README.md` (about line 4078) agree with the configured figures;
    - the agents' tool descriptions say how to read on: by page, by path, or by the smaller form.
-6. **The design says so,** in `temper/docs/design/domain/forge.md` and `agent.md` and the forgejo dialect's design, with their status files.
+6. **The design says so,** in `temper/docs/design/domain/forge/README.md` and `../domain/agent/README.md` and the forgejo dialect's design, with their status files.
 
 ## Not in this plan
 

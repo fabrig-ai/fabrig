@@ -1,4 +1,4 @@
-//! Mapping the configured setup forges to the pinned host (protocol/setup.md, 5.1).
+//! Mapping the configured setup forges to the pinned host (protocol/setup/reconcile.md, 1).
 use alloc::boxed::Box;
 use jig_protocol_config::{Path, Problems, What};
 use skein_forge_setup::{github, host};
@@ -42,7 +42,7 @@ pub(super) fn github(
     let number = skein_lib::Decimal::of(u64::from(forge));
     let given = github::given::Given {
         forge,
-        // A person's installations are kept; a shared App's hook is left as read (setup.md, 17.7).
+        // A person's installations are kept; a shared App's hook is left as read (protocol/setup/github.md, 7).
         repair_hook: !read_only,
         uninstall_strays: false,
         word: Box::from(b"temper".as_slice()),

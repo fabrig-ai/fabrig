@@ -15,7 +15,7 @@ branch it names, the packed refs and the index, a worktree's included;
 its library holds `VERSION`, `COMMIT` and `line`, and its tests hold
 the commit's word and the watched paths. `temper-engine --version` and
 `temper-agent --version` print from it. `temper-client --version`
-prints from a build script of its own (`protocol/README.status.md`, 4).
+prints from a build script of its own (`protocol/binaries.status.md`).
 
 - **Not yet:** 2: the release's file, its symbol check and checksum. 3:
   `temper --version` and `temper version`: the box's binary prints no

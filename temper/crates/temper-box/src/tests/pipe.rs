@@ -153,7 +153,7 @@ fn fetched_lines_have_the_wire_spelling() {
 }
 #[test]
 fn the_longest_fetched_line_fits_the_least_line_bound() {
-    // protocol/setup.md, 7.1: box.line_bytes is at least 64.
+    // protocol/setup/box.md, 1: box.line_bytes is at least 64.
     const LEAST_LINE_BYTES: usize = 64;
     let mut fetched = temper_forge_setup::fetch::Fetched::read(b"fetched forgejo 1 of 1 bytes").unwrap();
     fetched.done = u64::MAX;

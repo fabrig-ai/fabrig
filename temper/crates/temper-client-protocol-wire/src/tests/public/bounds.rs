@@ -1,4 +1,4 @@
-//! Maximal visitor answers and entrance refusals (temper/docs/design/client/forge.md, 11.4).
+//! Maximal visitor answers and entrance refusals (temper/docs/design/client/forge/README.md, 9.4).
 use crate::{Bounds, public_bounds, public_limits, public_v1 as w};
 use skein_lib::{List, Reader, Writer};
 

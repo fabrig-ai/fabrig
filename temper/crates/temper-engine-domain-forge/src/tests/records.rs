@@ -1,4 +1,4 @@
-//! Kept forge records (temper/docs/design/protocol/forge.md, 2.1; temper/docs/design/domain/forge.md, 4.1).
+//! Kept forge records (temper/docs/design/protocol/forge/engine.md, 1; temper/docs/design/domain/forge/adoption.md, 1).
 use super::*;
 use crate::settings as setting;
 

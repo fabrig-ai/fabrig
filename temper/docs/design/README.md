@@ -23,7 +23,7 @@ section 8.
   what is its own: the forge as a connector, its agents' charters and
   tools, the checkout its workers prepare, its client, and the forge's
   setup.
-- **The forge is the one external system** (`domain/forge.md`).
+- **The forge is the one external system** (`domain/forge/README.md`).
   Repositories are adopted as they are. A change has a procedure of its
   own to landing: produced, checked by CI, reviewed by gates, repaired,
   brought up to date, landed through a queue per branch. A goal shows on
@@ -37,7 +37,7 @@ section 8.
   what needs no judgement: a change's way to landing, a branch brought
   up to date. An agent is woken for what does: making a change,
   repairing a failure, reviewing, resolving a conflict, revising a plan.
-- **The agents are smith's** (`domain/agent.md`). temper writes their
+- **The agents are smith's** (`domain/agent/README.md`). temper writes their
   charters and serves their tools; it builds no agent. Its worker hosts
   smith's agent processes, each run in a checkout of the repositories its
   task names (`domain/worker.md`).
@@ -52,10 +52,10 @@ section 8.
   serve` runs the engine and one worker in one process on one person's
   machine; `temper open` is the person's terminal; `temper internal
   agent` is smith's agent, one process per run; `temper forge` and
-  `temper box` set a forge up and run it (`protocol/setup.md`). A
+  `temper box` set a forge up and run it (`protocol/setup/README.md`). A
   deployment runs a binary per process, `temper-engine` among them
-  (`protocol/README.md`, 4.1).
-- **Tested at every tier** (`domain/testing.md`): domains and fakes in worlds,
+  (`protocol/binaries.md`, 1).
+- **Tested at every tier** (`testing/README.md`): domains and fakes in worlds,
   then through bytes, then the standalone service, hosted agents and
   fake peers on one real ring, then the real binary with an owned
   Forgejo, its runner and real git, then a real model.
@@ -73,30 +73,30 @@ One story:
 1. `temper serve` runs on a deployment's directories,
    configured for one Forgejo (with Actions, or with project checks), one
    git identity, one worker and its LLM providers, never an account
-   (`protocol/configuration.md`; `protocol/credentials.md`, sections 3
+   (`protocol/configuration/README.md`; `protocol/credentials.md`, sections 3
    and 4). The forge is connected, managed, or owned on a box
-   (`protocol/setup.md`).
+   (`protocol/setup/README.md`).
 2. `temper open DIRECTORY LINK` signs the person in by the printed link
-   and shows their inbox (`client/README.md`, sections 6 and 7). With
+   and shows their inbox (`client/line.md` and `client/README.md`, section 4). With
    no LLM account yet, a banner offers the ways to add one: a sign-in
    with an LLM provider, a Claude Code login made with `temper
    program-login`, or a key; the person adds one on the accounts page
-   (`client/README.md`, 3.5 and 5.5).
+   (`client/pages/README.md` and `client/pages/accounts.md`, 2).
 3. The person adopts a repository into the configured project, through
-   the adoption form (`client/README.md`, 4.4).
+   the adoption form (`client/forge/family.md`, 4).
 4. The person starts a chat and asks for a change; the stock chat reads
    the code through the forge and delegates the change whole to a change
-   task (`domain/agent.md`, 4.3.1; `domain/forge.md`, 8.1).
+   task (`domain/agent/tools.md`, 1; `domain/forge/change/README.md`, 1).
 5. Agents do the rest: the change is produced, its pull request opened,
    checked by CI and by an agent's review (a gate the usual landing rule
-   asks for, `domain/forge.md`, 8.3 and 8.7), repaired when either
+   asks for, `domain/forge/change/gates.md`, 1 and 2), repaired when either
    fails, and landed. No person acts on it.
 6. The person follows it from the chat: its delegates and their phases
    in words, and, if the change is held, why, with what may be done
-   (`client/forge.md`, 2.4 and 2.5).
+   (`client/forge/README.md`, 2.4 and 2.5).
 7. The person sees what landed: the pull request and the merge commit,
    in the forge's words, with a link to each on the forge
-   (`client/forge.md`, 2.5).
+   (`client/forge/README.md`, 2.5).
 8. `temper serve` is stopped and started again; nothing the person saw
    is lost, and work in flight goes on.
 
@@ -123,11 +123,11 @@ forge     Forgejo and its runner: polled, hinted by its webhooks (domain/forge.m
   `domain/hosts/README.md`).
 - **People reach temper through its client:** temper's pages on jig's
   client, `jig-client`, in a terminal and in a browser
-  (`client/README.md`; `client/browser.md`).
+  (`client/README.md`; `client/web/README.md`).
 - **Standalone first.** Hosts apart, webhooks from another host, TLS on
   the engine's listeners and contained process trees come with a
   deployment beyond one person's machine (`protocol/README.md`,
-  section 14).
+  section 11).
 
 ## 4. On skein, smith and jig
 
@@ -153,22 +153,22 @@ forge, temper adds:
 
 - **Nothing is forced.** temper never forces a push, never writes to an
   object it does not own but as a participant, and never overwrites a
-  change it did not make (`domain/forge.md`, 8.5 and 8.7).
+  change it did not make (`domain/forge/change/README.md`, 3, and `domain/forge/change/gates.md`, 2).
 - **A merge lands what was checked:** exactly the head its decision saw,
   with every requirement its branch's rules enforce met: CI, gates and
   approvals at that head, up to date on the decision's reads
-  (`domain/forge.md`, 8.7).
+  (`domain/forge/change/gates.md`, 2).
 - **A landing temper did not make is news,** like any other
-  (`domain/forge.md`, 7.2).
+  (`domain/forge/README.md`, 5.2).
 - **A change temper did not make to what it owns holds the task that
-  relies on it,** and the client says why (`domain/forge.md`, 8.5).
+  relies on it,** and the client says why (`domain/forge/change/README.md`, 3).
 
 ## 6. Documents
 
 - **`domain/`:** temper's domain layer on jig's: its root, the forge
   connector, landings by turn (`landing.md`), what follows a landing
   (`after-landing.md`) and findings (`findings.md`), the worker, and
-  what temper fills in of smith's agent; and `testing.md`, temper's tiers, its fakes, its scenarios and its layout,
+  what temper fills in of smith's agent; and `testing/README.md`, temper's tiers, its fakes, its scenarios and its layout,
   on skein's testing strategy and jig's worlds. Its `README.md` gives the
   reading order, the structure, the names and the decisions.
 - **`protocol/`:** temper's protocol layer on jig's: the processes and
@@ -179,9 +179,9 @@ forge, temper adds:
   reading order and the names.
 - **`client/`:** temper's client on `jig-client`. Its `README.md` is the
   client: its client root and pages, the forge's client family, its view,
-  the terminal, signing in, and the clients' listener; `forge.md` is the
-  forge's part of the client, `browser.md` the browser shell,
-  `journeys.md` its pages recorded and printed, `tools.md`
+  the terminal, signing in, and the clients' listener; `client/forge/README.md` is the
+  forge's part of the client, `client/web/README.md` the browser shell,
+  `client/web/journeys.md` its pages recorded and printed, `client/ctl/README.md`
   `temper ctl`, temper for agents (reads, jig's operations and waits,
   from a command line), and `mockups/` the pages' design: their look,
   parts, words and acts, binding for what is not built yet and
@@ -204,17 +204,17 @@ forge, temper adds:
 ## 7. Conventions
 
 - **A bare file name** names a document of the same directory: in
-  `domain/`, `forge.md` is `domain/forge.md`; in `protocol/`, it is
-  `protocol/forge.md`. temper's other documents are named by their path
-  from there: `../protocol/forge.md`, `../client/README.md`; from this
+  `domain/`, `client/forge/README.md` is `domain/forge/README.md`; in `protocol/`, it is
+  `protocol/forge/README.md`. temper's other documents are named by their path
+  from there: `protocol/forge/README.md`, `../client/README.md`; from this
   directory, `domain/root.md`.
 - **Code cites a section** by the document's path from this directory,
-  at module or type level: `domain/forge.md`, 8.2; `protocol/forge.md`,
-  3.2; `client/README.md`, 3.5.
+  at module or type level: `domain/forge/change/README.md`, 2; `protocol/forge/README.md`,
+  2.2; `client/pages/README.md`.
 - **jig's documents** are named with jig's name and their path in jig's
   `docs/design/`: jig's `domain/connectors.md`, jig's
   `protocol/channel/README.md`, jig's `client/domain/client/README.md`. jig has two
-  `jig/docs/design/client/domain/client/README.md` and two `testing.md`, so a bare jig file name is never
+  `jig/docs/design/client/domain/client/README.md` and two `testing/README.md`, so a bare jig file name is never
   enough.
 - **smith's documents** likewise: smith's `domain/run.md`. skein's
   foundation documents by their own names: `programming-model.md`,
@@ -233,10 +233,10 @@ forge, temper adds:
 - **A person's approval as a rule:** whether temper alone enforces it,
   or posts the approval as the person, with a forge credential they
   signed in with, so that the forge's protection requires it too
-  (`domain/forge.md`, section 20).
+  (`domain/forge/README.md`, section 11).
 - **Contributions in and out:** outside contributions to a project
   temper works on, and temper's own contributions upstream
-  (`domain/forge.md`, sections 13 and 14). Neither is needed first.
+  (`domain/forge/README.md`, sections 7 and 8). Neither is needed first.
 
 ## 9. Crates' names
 
@@ -264,7 +264,7 @@ temper's side before the layer:
 - the user documentation's, of no side, `temper-docs`
   (`protocol/documentation.md`); the settings' form, `temper-settings-form`;
   `temper init`'s files, `temper-init`; the fakes the binary ships,
-  `temper-fake` and `temper-fake-git` (`domain/testing.md`, 4.3);
+  `temper-fake` and `temper-fake-git` (`testing/fakes.md`, 3);
 - the playground's, of no side: its composition, `temper-playground`,
   and the fake git program it hosts, `temper-fake-git-hosted`
   (`playground.md`, 3);
@@ -273,10 +273,10 @@ temper's side before the layer:
   engine's, `temper-engine`, with the shells they share,
   `temper-engine-shell` and `temper-shell`, and `temper-version`; the
   deployment's client, `temper-client`, and its agent, `temper-agent`
-  (`protocol/README.md`, section 4 and 4.3).
+  (`protocol/binaries.md`).
 
-`protocol/README.md`, section 5 says what each holds and depends on. Test
+`protocol/components.md` says what each holds and depends on. Test
 kits are named by their kind (`testing/temper-github-app`); the
 forge's are skein's (`skein-fake-forge-domain` in skein's `crates/`,
 `testing/skein-throwaway-forgejo`), and the worlds live in `tests/`
-(`domain/testing.md`, section 7).
+(`testing/README.md`, section 5).

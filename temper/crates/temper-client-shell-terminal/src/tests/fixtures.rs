@@ -989,7 +989,7 @@ mod task;
 
 pub mod golden_cards;
 
-/// A Changes page supplied at the forge family boundary (client/README.md, 3.5).
+/// A Changes page supplied at the forge family boundary (client/pages/README.md).
 pub fn changes_page() -> skein_ui::Tree {
     page(&client::Address::Changes { project: 1 }, false)
 }

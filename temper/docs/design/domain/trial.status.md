@@ -36,6 +36,6 @@ holds the later account's line, failure and retry on that account.
 
 The pane's missing spend notice and its placement before Ready are design
 gaps recorded in `../draft/model-check.status.md`, sections 2 and 3. The
-missing gallery samples are `../client/browser.status.md`, 7.2. Section 8
+missing gallery samples are `../client/web/gallery.status.md`, 2. `trial.md`, section 8
 keeps the intentional limits on deployment accounts, project-only keys,
 Settings and restart retention.

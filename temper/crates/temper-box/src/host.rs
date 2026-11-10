@@ -1,5 +1,5 @@
 //! The machine on skein-io, with one bounded chunk per child pipe.
-//! Kind files and removers follow temper/docs/design/protocol/setup.md, 7.1.
+//! Kind files and removers follow temper/docs/design/protocol/setup/box.md, 1.
 use crate::{
     layout::{self, Placed},
     limits::{Limits, Unfit},
@@ -29,7 +29,7 @@ pub enum Echo {
     None,
     Steps,
 }
-/// The first link drawn by the box (protocol/setup.md, 7.2). Debug hides its credentials and URL.
+/// The first link drawn by the box (protocol/setup/box.md, 2). Debug hides its credentials and URL.
 pub struct FirstLink {
     pub url: Box<[u8]>,
     pub secret: Secret,
@@ -40,7 +40,7 @@ impl core::fmt::Debug for FirstLink {
         f.debug_struct("FirstLink").finish_non_exhaustive()
     }
 }
-/// The box's TUI child (temper/docs/design/protocol/setup.md, 7.6).
+/// The box's TUI child (temper/docs/design/protocol/setup/box.md, 6).
 pub struct Front {
     pub arguments: Box<[Box<[u8]>]>,
     pub link: Secret,
@@ -53,7 +53,7 @@ impl core::fmt::Debug for Front {
 /// The descriptors and command inherited from the binary.
 pub struct Settings {
     pub program: Box<[u8]>,
-    /// The box's own id where steps start through `internal forge-child` (protocol/setup.md, 7.1).
+    /// The box's own id where steps start through `internal forge-child` (protocol/setup/box.md, 1).
     pub parent: Option<u32>,
     pub environment: Box<[Box<[u8]>]>,
     pub serve: Box<[u8]>,
@@ -61,15 +61,15 @@ pub struct Settings {
     pub root: Fd,
     pub echo: Echo,
     pub data: Box<[u8]>,
-    /// Whole lines, with line feeds and no time, that open the box log (protocol/setup.md, 7.2).
+    /// Whole lines, with line feeds and no time, that open the box log (protocol/setup/box.md, 2).
     pub log_lines: Box<[Box<[u8]>]>,
     pub first_link: Option<FirstLink>,
     pub front: Option<Front>,
-    /// How the first and fresh links reach stdout (temper/docs/design/protocol/setup.md, 7.2).
+    /// How the first and fresh links reach stdout (temper/docs/design/protocol/setup/box.md, 2).
     pub link_form: terminal::LinkForm,
-    /// The word running this binary (temper/docs/design/protocol/setup.md, 7.2).
+    /// The word running this binary (temper/docs/design/protocol/setup/box.md, 2).
     pub word: Box<[u8]>,
-    /// Whole untimed lines following the first block on stderr (protocol/setup.md, 7.2).
+    /// Whole untimed lines following the first block on stderr (protocol/setup/box.md, 2).
     pub after_block: Box<[u8]>,
     pub signals: Fd,
     pub stdout: Fd,
@@ -1669,7 +1669,7 @@ fn adopt_listeners(io: &mut Io, held: &[(Fd, core::net::SocketAddr)]) -> List<(c
     }
     listeners
 }
-/// The same exec boundary preserves each step's descriptors, environment and process group (protocol/setup.md, 7.1).
+/// The same exec boundary preserves each step's descriptors, environment and process group (protocol/setup/box.md, 1).
 fn spawn_arguments(settings: &Settings, arguments: &[Box<[u8]>]) -> Box<[Box<[u8]>]> {
     let Some(parent) = settings.parent else { return Box::from(arguments) };
     let mut args = List::uncapped();

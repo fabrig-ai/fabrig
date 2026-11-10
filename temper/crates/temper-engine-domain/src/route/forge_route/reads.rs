@@ -1,4 +1,4 @@
-//! Forge read admission and refusals (temper/docs/design/domain/agent.md, 8).
+//! Forge read admission and refusals (temper/docs/design/domain/agent/agents.md).
 //! Authority findings reach both the tool result and volatile operator facts.
 use super::{
     CallAnswer, CallKey, Decision, Domain, Env, Limits, List, Queue, ReplyTo, Token, Work, authority, effect_access,
@@ -23,7 +23,7 @@ pub(crate) fn read_call(
 }
 
 impl Domain {
-    /// Admit and correlate a fresh forge read (domain/forge.md, 5.3).
+    /// Admit and correlate a fresh forge read (domain/forge/keeping-up.md, 3).
     pub(crate) fn read_forge_call(
         domain: &mut Domain,
         limits: &Limits,
@@ -114,7 +114,7 @@ fn refused(domain: &mut Domain, key: CallKey, layer: &'static str, reason: &'sta
     super::super::diagnostics::read(domain, key, layer, reason, error, findings);
 }
 
-/// Busy reads wait in the host's bounded backoff (temper/docs/design/domain/forge.md, 5.3).
+/// Busy reads wait in the host's bounded backoff (temper/docs/design/domain/forge/keeping-up.md, 3).
 pub(super) fn read_answer(domain: &mut Domain, owner: Token, result: Result<Answer, Error>) {
     let Some((to, key)) = domain.forge_reading.remove(&owner) else { return };
     if let Err(error) = &result {

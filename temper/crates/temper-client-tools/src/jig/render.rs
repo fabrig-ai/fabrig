@@ -522,7 +522,7 @@ pub(crate) fn waiting(
     printed
 }
 
-/// The engine's unsaved admission refusal (client/tools.md, 6.3).
+/// The engine's unsaved admission refusal (client/ctl/results.md, 3).
 pub(crate) fn answers_full(prefix: &[u8], held: u32, room_at: skein_lib::Wall) -> Printed {
     fn line(prefix: &[u8], held: u32, room_at: skein_lib::Wall, out: &mut Text) {
         out.put(prefix);

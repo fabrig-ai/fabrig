@@ -1,4 +1,4 @@
-//! What every binary of temper's starts from (temper/docs/design/protocol/README.md, section 5).
+//! What every binary of temper's starts from (temper/docs/design/protocol/components.md).
 #![forbid(unsafe_code)]
 
 use std::{os::unix::ffi::OsStrExt, path::Path};

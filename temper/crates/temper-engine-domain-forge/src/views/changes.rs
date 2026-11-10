@@ -1,5 +1,5 @@
-//! A project's whole queues and retained titles (temper/docs/design/domain/forge.md, 9;
-//! temper/docs/design/client/README.md, 4.6; temper/docs/design/client/forge.md, 3).
+//! A project's whole queues and retained titles (temper/docs/design/domain/forge/queues.md;
+//! temper/docs/design/client/forge/records.md; temper/docs/design/client/forge/README.md, 3).
 use crate::{ChangeRow, Domain, LandingRed, Limits};
 use alloc::boxed::Box;
 use core::cmp::Reverse;

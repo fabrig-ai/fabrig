@@ -1,11 +1,11 @@
-//! Volatile public connects; only handles cross this boundary (client/README.md, 8).
+//! Volatile public connects; only handles cross this boundary (client/engine.md).
 use crate::{AcceptAnswer, Answered, Ask, ConnectAnswer, Connection, Domain, ForgeRefusal, InstallAnswer, Request};
 use alloc::boxed::Box;
 use jig_domain_core::Carried;
 use jig_domain_people::Role;
 use skein_lib::{Map, Queue, Token};
 
-/// The run's admission determines its end (temper/docs/design/protocol/forge.md, 2.2).
+/// The run's admission determines its end (temper/docs/design/protocol/forge/engine.md, 2).
 #[derive(Clone, Copy, Hash, Debug, PartialEq, Eq)]
 enum RunKind {
     Admin,
@@ -202,7 +202,7 @@ fn resolve(
         | Ask::Replace { .. }) => Ok(ask),
     }
 }
-/// Admission precedes the first save (temper/docs/design/protocol/forge.md, 2.2; temper/docs/design/protocol/setup.md, 6.7).
+/// Admission precedes the first save (temper/docs/design/protocol/forge/engine.md, 2; temper/docs/design/protocol/setup/owned.md, 7).
 fn make(
     d: &mut Domain,
     forge: crate::ForgeAsk,
@@ -374,7 +374,7 @@ fn with_intent(d: &Domain, forge: u16, how: crate::How) -> crate::How {
         | crate::How::ForgejoTokens) => how,
     }
 }
-/// Tokens and replacement preserve the connection until their run finishes (temper/docs/design/protocol/forge.md, 2.2).
+/// Tokens and replacement preserve the connection until their run finishes (temper/docs/design/protocol/forge/engine.md, 2).
 #[expect(clippy::too_many_arguments, reason = "the admitted request and its caller travel together")]
 fn tokens_or_replace(
     d: &mut Domain,
@@ -444,7 +444,7 @@ fn tokens_or_replace(
     }
 }
 
-/// Admission for the string-managed Forgejo form (client/README.md, 8).
+/// Admission for the string-managed Forgejo form (client/engine.md).
 #[expect(clippy::too_many_arguments, reason = "the admitted request and its caller travel together")]
 fn admin(
     d: &mut Domain,
@@ -550,7 +550,7 @@ fn keep_first(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
         }
     }
 }
-/// Keep the user found by Check (temper/docs/design/protocol/forge.md, 2.2).
+/// Keep the user found by Check (temper/docs/design/protocol/forge/engine.md, 2).
 pub(crate) fn bot_login(d: &mut Domain, forge: u16, login: Box<[u8]>, out: &mut Queue<Request>) {
     if login.is_empty() || login.len() > 255 || d.forge_ended(forge) {
         return;
@@ -662,7 +662,7 @@ pub(crate) fn ended(
     }
 }
 
-/// Volatile per-forge diagnostics, bounded in bytes without splitting UTF-8 (client/forge.md, 5.4).
+/// Volatile per-forge diagnostics, bounded in bytes without splitting UTF-8 (client/forge/deployment.md).
 fn stopped_end(d: &mut Domain, forge: u16, why: &[u8], stop: Option<crate::AdminStop>, out: &mut Queue<Request>) {
     // The host supplies UTF-8. Back over continuation bytes at the cut;
     // text validation belongs to the protocol boundary.

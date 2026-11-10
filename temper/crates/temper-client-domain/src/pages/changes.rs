@@ -1,4 +1,4 @@
-//! The changes watch and one task read per shown row (temper/docs/design/client/README.md, 3.5, 4.6).
+//! The changes watch and one task read per shown row (temper/docs/design/client/pages/README.md, temper/docs/design/client/forge/records.md).
 use super::Request;
 use crate::{forge, owner::Owner};
 use alloc::boxed::Box;
@@ -180,7 +180,7 @@ impl Changes {
     pub const fn state(&self) -> &State {
         &self.state
     }
-    /// The goal named by a listed task, once its read has arrived (client/README.md, 3.5).
+    /// The goal named by a listed task, once its read has arrived (client/pages/README.md).
     #[must_use]
     pub fn goal(&self, task: u64) -> Option<u64> {
         for row in &self.reads {

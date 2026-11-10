@@ -74,13 +74,13 @@ spellings are placeholders.
 | a client's kept requests | the person's browser or shell | jig's client | as jig's client says (7.4) |
 | the cache | the cache directory | — | never carried |
 
-The directories are `../protocol/configuration.md`'s (section 12); what
+The directories are `../protocol/configuration/README.md`'s (`../protocol/configuration/directories.md`); what
 the store holds is jig's `protocol/store/README.md` (4.4) and
-`../protocol/store.md`'s (section 2).
+`../protocol/store.md`'s (`../protocol/store.md`, section 2).
 
 **What must keep its identity:** the deployment's id, which names its
-branches and keys' markers on the forge (`../protocol/forge.md`, section
-4); the installation's id; every number the domain gives (tasks,
+branches and keys' markers on the forge (`../protocol/forge/README.md`, section
+3); the installation's id; every number the domain gives (tasks,
 attempts, messages, sources, accounts, issued program names), so that
 none is given twice; and the commit position, which the deployment's
 header and projections name, and which patches carry on, being ordinary
@@ -97,8 +97,8 @@ acknowledged is in the engine or on the forge.
   today. Behind, it patches a copy (`upgrades.md`, section 6), printing a line per patch
   and what it counted, then opens the new generation as today.
 - **Every shape with a store:** `temper serve`, an engine alone and
-  `temper box` (`../protocol/README.md`, section 15). A worker alone
-  keeps no store; its small files are read as section 10 says.
+  `temper box` (`../protocol/cluster.md`). A worker alone
+  keeps no store; its small files are read as `upgrades.md`, section 10 says.
 - **Refused before anything is written,** naming why:
   - a store ahead of the binary: there are no patches backwards;
   - a store from before the baseline, which is made again, as today
@@ -130,13 +130,13 @@ acknowledged is in the engine or on the forge.
 - **After that commit,** going back is restoring a backup. The new
   version may have acted on the forge, and the old one, restored, may act
   again; an owned Forgejo migrated since needs its dump restored with it
-  (`../protocol/setup.md`, 6.3). The tool refuses `--back` and says so.
+  (`../protocol/setup/owned.md`, 3). The tool refuses `--back` and says so.
 
 ### 3.3 Backups
 
 A backup is a copy of the data directory with the deployment stopped
-(jig's `protocol/store/README.md`, section 11; `../protocol/setup.md`, section
-16). The previous generation is a copy of the maps alone, not of the
+(jig's `protocol/store/README.md`, section 11; `../protocol/setup/README.md`, section
+10). The previous generation is a copy of the maps alone, not of the
 transcripts, the forge or the programs' logins. Online backups stay open
 (section 15).
 
@@ -147,7 +147,7 @@ transcripts, the forge or the programs' logins. Online backups stay open
 The baseline is the first release (skein's `data/codec/README.md`, section 5).
 Until it, each encoding keeps its current version: changes a reader
 would notice change the schema, generated code and one set of golden
-bytes in place (`../protocol/README.md`, section 9). A reader still
+bytes in place (`../protocol/README.md`, section 7). A reader still
 refuses another version and nothing is translated (jig's
 `protocol/README.md`, section 7). A version names no one layout yet, so a
 store from an older build is started afresh when its families change:
@@ -168,7 +168,7 @@ release, not at a landing; `first-release.md` proposes v0.1.0.
   by the patching's last commit.
 - **Versions move at a release,** so a released version names one
   layout. Before the baseline, schema changes keep the current number
-  (`../protocol/README.md`, section 9; skein's `data/codec/README.md`, section 5).
+  (`../protocol/README.md`, section 7; skein's `data/codec/README.md`, section 5).
 - **A landed patch never changes.** Until it lands, its author edits it
   with the schema; once on `main`, deployments may have run it. Two
   branches that each add jig's patch 41 meet at `land`, whose rebase and
@@ -393,8 +393,8 @@ outcomes; the deployment's and installation's ids.
   place in its queue.
 - **Runs end with a full upgrade,** as at any stop: the workers stop
   first, their runs stopped once the engine has every turn and answer
-  (`../protocol/README.md`, 15.4), and the tasks retry after the start.
-  An upgrade of the engine alone keeps them (section 9).
+  (`../protocol/cluster.md`, 4), and the tasks retry after the start.
+  An upgrade of the engine alone keeps them (`upgrades.md`, section 9).
 
 ### 7.3 Sign-ins
 
@@ -450,7 +450,7 @@ outcomes; the deployment's and installation's ids.
   wires match. Only a mark beyond the store's applied level counts.
 - **The workers may stay** when the new engine speaks their channel's
   version (jig's `protocol/channel/README.md`, 4.1) and temper's payload version
-  (`../protocol/README.md`, section 9), and hands out smith's charters
+  (`../protocol/README.md`, section 7), and hands out smith's charters
   and turns in the versions their agents read, and there is no such
   pending fresh mark. Patching keeps live claims and attempts, since it
   keeps every record.
@@ -481,7 +481,7 @@ outcomes; the deployment's and installation's ids.
   and the previous release's: a member added is optional, with a
   default; a member removed or renamed is accepted for one release with a
   warning naming its replacement, then refused as unknown, as today
-  (`../protocol/configuration.md`, section 2). A deployment that skips a
+  (`../protocol/configuration/README.md`, section 2). A deployment that skips a
   release may find a removed member refused, by name.
 - **Settings in the store shrink it** (`configuring.md`, section 3):
   charters, templates, policies and rules in the store, where patches
@@ -496,13 +496,13 @@ outcomes; the deployment's and installation's ids.
 ## 11. The forge
 
 - **An owned Forgejo upgrades at its preparation,** as today
-  (`../protocol/setup.md`, 6.3): a dump before the migration, pins that
+  (`../protocol/setup/owned.md`, 3): a dump before the migration, pins that
   refuse a downgrade. A temper release may move its pins; the box
   prepares at its start, a service deployment by `temper forge prepare`
   before the engine's start. Going back past a migration needs its dump.
 - **What temper wrote on the forge outlives every version:** its keys'
   markers in what it creates, the key's first byte its version
-  (`../protocol/forge.md`, section 4), and the branches in the
+  (`../protocol/forge/README.md`, section 3), and the branches in the
   deployment's namespace. From the baseline the connector reads every
   version of a marker, and the deployment's id is kept, so the
   namespace and the markers stay its own.
@@ -540,7 +540,7 @@ From the baseline:
 ## 13. Proving it
 
 On the existing tiers (skein's `testing-strategy.md`, section 2;
-`../domain/testing.md`, section 2), storage mechanics tested once, below
+`../testing/README.md`, section 2), storage mechanics tested once, below
 the domains:
 
 - **Step tests:** each patch over golden records, old in, expected new
@@ -553,7 +553,7 @@ the domains:
   candidate, then asserted: identities and counters, policies, outcomes,
   old turns read in the current version.
 - **A story through an upgrade,** in the one-process world
-  (`../domain/testing.md`, 2.5): a project, a person and an account; a
+  (`../testing/README.md`, 2.5): a project, a person and an account; a
   goal and a change through a landing; a chat paused and a task
   mid-run; settle, stop, start the new binary, and go on. The referee:
   the promised history equal before and after, no effect made twice,
@@ -568,7 +568,7 @@ the domains:
   flight in a patched family.
 - **The engine alone:** the engine upgraded while a worker's run goes on,
   adopted at its hello; a window past the grace ending the run.
-- **The process tier** (`../domain/testing.md`, 2.6): stop, start the new
+- **The process tier** (`../testing/process-tier.md`): stop, start the new
   binary and go back, on fakes, with an owned Forgejo's migration as its
   tests have it.
 

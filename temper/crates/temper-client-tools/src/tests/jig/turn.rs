@@ -57,7 +57,7 @@ fn a_turn_continuation_starts_at_its_byte_offset() {
 #[test]
 #[expect(clippy::disallowed_methods, reason = "the step table inspects rendered UTF-8 lines")]
 fn a_part_read_says_its_cut_first() {
-    let mut failures = skein_lib::List::with_capacity(5); // Five part/control rows (tools.md, 11.1).
+    let mut failures = skein_lib::List::with_capacity(5); // Five part/control rows (client/ctl/testing.md, 1).
     for (argv, turn, first, last, uncut) in [
         (
             fixtures::TURN_PART_CALL,

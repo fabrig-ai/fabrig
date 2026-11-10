@@ -36,7 +36,7 @@ temper-sign-in-callback = { max-threads = 1 }
 
 [profile.default]
 # The temper block keeps the drivers' helpers focused and excludes their offline
-# process proofs (temper/docs/design/domain/testing.md, 2.6).
+# process proofs (temper/docs/design/testing/process-tier.md).
 default-filter = """
 (
   (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))
@@ -159,7 +159,7 @@ slow-timeout = { period = "40s", terminate-after = 3 }
 test-threads = 1
 
 # Process stories and the two drivers' offline proofs, three at a time
-# (temper/docs/design/domain/testing.md, 2.6).
+# (temper/docs/design/testing/process-tier.md).
 [profile.process-temper]
 default-filter = "(binary(=process) | (binary(=proof_live) & test(/^rung_b0s_/)) | (binary(=live_github_managed) & test(=managed_ready_client))) & (package(/^temper(-|$)/) | package(=git-transcripts))"
 global-timeout = "25m"
@@ -171,7 +171,7 @@ filter = "package(=temper) & binary(=process) & test(=fake_backends::walk::sign_
 test-group = "temper-sign-in-callback"
 
 # The after-landing tier, under --run-ignored only: the owned-forge landing pair on the
-# sign-ins the tier takes as inputs (temper/docs/design/domain/testing.md, 2.7). The owner's
+# sign-ins the tier takes as inputs (temper/docs/design/testing/live-tier.md). The owner's
 # scripts ignore this filter and name their own story.
 [profile.live-temper]
 default-filter = "(binary(=live) & (test(=a_person_asks_chatgpt_to_land_a_change_on_the_owned_forge) | test(=a_person_asks_claude_code_to_land_a_change_on_the_owned_forge))) & (package(/^temper(-|$)/) | package(=git-transcripts))"

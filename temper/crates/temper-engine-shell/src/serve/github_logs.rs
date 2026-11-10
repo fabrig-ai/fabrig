@@ -1,4 +1,4 @@
-//! GitHub job-log origins resolved before the loop (temper/docs/design/protocol/forge.md, 3.6).
+//! GitHub job-log origins resolved before the loop (temper/docs/design/protocol/forge/README.md, 2.6).
 use jig_protocol_config::Address;
 use skein_forge::github::redirect::Origin;
 use skein_forge_connection::settings::LogOrigin;

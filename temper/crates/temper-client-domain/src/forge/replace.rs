@@ -1,4 +1,4 @@
-//! Per-row replacement of carried credentials (temper/docs/design/client/forge.md, 5.4).
+//! Per-row replacement of carried credentials (temper/docs/design/client/forge/deployment.md).
 use super::{Limits, Request, Served, Side, forges, github};
 use alloc::boxed::Box;
 use jig_client::{Ask, Event, Family, Key, Told, contract as c};

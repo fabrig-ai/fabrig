@@ -1,5 +1,5 @@
 //! Two people read Team through the client and engine roots
-//! (temper/docs/design/client/README.md, 3.5, Team).
+//! (temper/docs/design/client/pages/README.md, Team).
 use jig_client_kit::harness::{ClientId, Until, World};
 use skein_fake_person::{Face, Find, Found, Step, TreeFace};
 use skein_ui::Role;

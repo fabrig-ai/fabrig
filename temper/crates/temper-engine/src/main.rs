@@ -1,4 +1,4 @@
-//! The engine's entry point (temper/docs/design/protocol/README.md, 4.2).
+//! The engine's entry point (temper/docs/design/protocol/binaries.md, 2).
 mod commands;
 
 use commands::ENGINE;

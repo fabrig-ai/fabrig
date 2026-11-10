@@ -1,5 +1,5 @@
 //! The page policy for the clients' listener and static playground
-//! (temper/docs/design/client/browser.md, 2.2; temper/docs/design/playground.md, 7).
+//! (temper/docs/design/client/web/README.md, 2.2; temper/docs/design/playground.md, 7).
 use alloc::boxed::Box;
 use skein_lib::Writer;
 

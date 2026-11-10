@@ -1,4 +1,4 @@
-/// Facts a party keeps (temper/docs/design/domain/forge.md, 5.5).
+/// Facts a party keeps (temper/docs/design/domain/forge/attention.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum PersonFact {
     /// "Skip" on the project's "To begin".
@@ -9,7 +9,7 @@ pub enum PersonFact {
     KeepAsking { project: u32, subject: temper_protocol_reaches::Subject, at: u64 },
 }
 
-/// A dismissal's answer (temper/docs/design/domain/forge.md, 5.5).
+/// A dismissal's answer (temper/docs/design/domain/forge/attention.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum DismissAnswer {
     Dismissed,

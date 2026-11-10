@@ -1,4 +1,4 @@
-//! Forge-making acts keep their records and restartable intent (temper/docs/design/protocol/forge.md, 2.2; temper/docs/design/protocol/setup.md, 6.7).
+//! Forge-making acts keep their records and restartable intent (temper/docs/design/protocol/forge/engine.md, 2; temper/docs/design/protocol/setup/owned.md, 7).
 #![expect(clippy::disallowed_methods, reason = "ordinary assertions inspect captured requests")]
 #![expect(clippy::match_like_matches_macro, reason = "explicit test patterns follow the step subset")]
 use super::*;

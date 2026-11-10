@@ -1,5 +1,5 @@
 //! Scripted host calls through the root and smith's decoder and renderer
-//! (temper/docs/design/domain/testing.md, 6.4).
+//! (temper/docs/design/testing/checks.md, 4).
 use crate::{direct::Driver, protocol};
 use jig_domain_core as core;
 use skein_lib::{Duration, ReplyTo, Token};

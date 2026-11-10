@@ -1,4 +1,4 @@
-//! Project landings, sittings and briefs (temper/docs/design/domain/forge.md, 5.6, 5.7).
+//! Project landings, sittings and briefs (temper/docs/design/domain/forge/attention.md, 2, 3).
 use crate::{Answered, Domain, Key, Limits, Request, Stored};
 use alloc::boxed::Box;
 use skein_forge::api::Repository;
@@ -6,7 +6,7 @@ use skein_lib::{Duration, Env, List, Queue, Token, Wall};
 
 mod words;
 
-/// A new sitting past this (temper/docs/design/domain/forge.md, 5.6).
+/// A new sitting past this (temper/docs/design/domain/forge/attention.md, 2).
 pub const SITTING: Duration = Duration::from_secs(1800);
 pub const BRIEF_SENTENCE_BYTES: usize = 200;
 pub const BRIEF_LEDE_BYTES: usize = 600;
@@ -18,7 +18,7 @@ pub struct Brief {
     pub at: Wall,
     pub landed: u64,
 }
-/// A status run in flight (temper/docs/design/domain/forge.md, 5.7); task none until the root has made it.
+/// A status run in flight (temper/docs/design/domain/forge/attention.md, 3); task none until the root has made it.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct StatusRunning {
     pub task: Option<u64>,
@@ -186,7 +186,7 @@ impl Domain {
     }
 }
 
-// A brief and a stuck run each get an hour (temper/docs/design/domain/forge.md, 5.7).
+// A brief and a stuck run each get an hour (temper/docs/design/domain/forge/attention.md, 3).
 const HOUR: Duration = Duration::from_secs(3600);
 
 fn old(now: Wall, then: Wall) -> bool {
@@ -255,7 +255,7 @@ pub(crate) fn heard(d: &mut Domain, now: Wall, task: u64, report: Option<Box<[u8
     }
 }
 
-/// The first paragraph and remaining words of a status report (temper/docs/design/domain/forge.md, 5.7).
+/// The first paragraph and remaining words of a status report (temper/docs/design/domain/forge/attention.md, 3).
 #[must_use]
 pub fn status_paragraphs(words: &[u8]) -> (&[u8], &[u8]) {
     let mut from = 0;
@@ -276,7 +276,7 @@ pub fn status_paragraphs(words: &[u8]) -> (&[u8], &[u8]) {
 }
 
 impl Domain {
-    /// The project whose current status run names this task (temper/docs/design/domain/forge.md, 5.7).
+    /// The project whose current status run names this task (temper/docs/design/domain/forge/attention.md, 3).
     #[must_use]
     pub fn status_project(&self, task: u64) -> Option<u32> {
         for (project, row) in &self.project_facts {

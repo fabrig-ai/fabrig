@@ -1,4 +1,4 @@
-//! A page's parts (temper/docs/design/client/README.md, 3.5, A page's parts).
+//! A page's parts (temper/docs/design/client/pages/README.md, A page's parts).
 use crate::Domain;
 use skein_lib::Wall;
 

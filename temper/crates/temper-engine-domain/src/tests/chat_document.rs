@@ -1,4 +1,4 @@
-//! Section writes follow temper/docs/design/domain/agent.md, 8.4.3.
+//! Section writes follow temper/docs/design/domain/agent/ask-temper.md, 3.
 use crate::route::document::{heading, made};
 use crate::{DocumentAction as A, DocumentRefusal as R};
 

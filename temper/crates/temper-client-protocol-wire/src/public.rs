@@ -1,4 +1,4 @@
-//! Visitor records bounded by the panels (temper/docs/design/client/forge.md, 11.4).
+//! Visitor records bounded by the panels (temper/docs/design/client/forge/README.md, 9.4).
 use crate::{Bounds, TASKS_AHEAD, public_v1};
 
 /// Set the visitor codec's limits from the panels, refusing invalid panel bounds.

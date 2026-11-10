@@ -1,5 +1,5 @@
 //! Outside branch moves and completed shell writes, independent of either root
-//! (temper/docs/design/domain/forge.md, 8.7).
+//! (temper/docs/design/domain/forge/change/gates.md, 2).
 use crate::{
     fixtures,
     world::{Proc, Pushed, Story},
@@ -84,7 +84,7 @@ impl Forge {
             }
             if matches!(self.story, Story::PlaygroundA) {
                 // Keep the landing branch's move too: a queue may land the
-                // pushed head as a merge commit (temper/docs/design/domain/forge.md, 8.7).
+                // pushed head as a merge commit (temper/docs/design/domain/forge/change/gates.md, 2).
                 let landed_push = self
                     .merged
                     .iter()

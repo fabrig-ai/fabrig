@@ -1,4 +1,4 @@
-//! Reading histories made before the page opens (temper/docs/design/client/browser.md, 4.3).
+//! Reading histories made before the page opens (temper/docs/design/client/web/testing.md, 3).
 use crate::{Tier, WITHIN, temper};
 use skein_fake_person::Step as PersonStep;
 use skein_fake_person_browser::{Command, Opens, Script, Sent, Setup, Stdin, Step, harness::Output};

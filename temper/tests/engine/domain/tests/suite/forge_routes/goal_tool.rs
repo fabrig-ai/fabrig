@@ -318,7 +318,7 @@ fn a_goals_authority_is_the_runs_narrowed() {
     assert_eq!(row.authority.models, parent.authority.models);
 }
 
-// temper/docs/design/domain/agent.md, 8.2: a chat's goal cannot address a person.
+// temper/docs/design/domain/agent/agents.md, 2: a chat's goal cannot address a person.
 #[test]
 fn a_chats_goal_keeps_no_person_executor() {
     let world = World::configured_limits(

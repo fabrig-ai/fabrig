@@ -189,7 +189,7 @@ fn a_green_head_with_no_repair_records_no_repair_words() {
     assert_eq!(result, ChangeResult::empty());
 }
 
-// temper/docs/design/domain/agent.md, 4.4: the report shares room with its evidence.
+// temper/docs/design/domain/agent/charter.md, 3: the report shares room with its evidence.
 #[test]
 fn the_largest_report_beside_its_evidence_is_whole_then_marked() {
     const ROOM: u32 = 10_660;

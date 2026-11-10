@@ -1,4 +1,4 @@
-//! Settings files through the joined roots (temper/docs/design/client/tools.md, 5.3 and 11.2).
+//! Settings files through the joined roots (temper/docs/design/client/ctl/tools.md, 3, and temper/docs/design/client/ctl/testing.md, 2).
 use jig_client::contract as c;
 use jig_client_kit::harness::{ClientId, Settings, World};
 use jig_domain_core::settings;
@@ -405,7 +405,7 @@ fn each_kind_through_ctl_proposed_shown_accepted_and_restored() {
             .lines()
             .position(|line| line.trim_start().starts_with(&format!("{}:", kind.name)))
             .unwrap_or_else(|| panic!("missing {}\n{revision}", kind.name));
-        // temper/docs/design/client/tools.md, 5.2: a set value is printed whole before what it replaced.
+        // temper/docs/design/client/ctl/tools.md, 2: a set value is printed whole before what it replaced.
         let mut lines = revision.lines().skip(line + 1);
         assert_eq!(lines.next().expect("set value"), value_json(*setting, changed.clone()), "{revision}");
         assert!(lines.next().expect("replaced line").trim_start().starts_with("was: "), "{revision}");
@@ -422,7 +422,7 @@ fn each_kind_through_ctl_proposed_shown_accepted_and_restored() {
     let review = call(&mut world, agent, &[b"proposal", b"show", proposal.as_bytes()]);
     for (kind, (setting, original)) in KINDS.iter().zip(&originals) {
         assert!(review.contains(kind.name), "{review}");
-        // temper/docs/design/client/tools.md, 5.2 and jig/docs/design/domain/engine/settings.md, 10:
+        // temper/docs/design/client/ctl/tools.md, 2 and jig/docs/design/domain/engine/settings.md, 10:
         // restored application defaults are reviewed as resets; their values are read after acceptance.
         let proposed = if matches!(setting, c::Setting::Application { .. }) {
             "would be default".to_owned()

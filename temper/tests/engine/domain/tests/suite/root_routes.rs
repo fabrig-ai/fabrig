@@ -4756,7 +4756,7 @@ fn placements(driver: &Driver) -> Vec<(Token, u64, u64)> {
         .collect()
 }
 
-// protocol/README.md, 15.4 and 15.6: the cluster's placement and fencing.
+// protocol/cluster.md, 4 and 6: the cluster's placement and fencing.
 #[test]
 fn a_lost_workers_run_is_placed_on_the_other_worker_past_its_grace() {
     const LOST_CHANNEL: Token = Token::new(7);

@@ -349,7 +349,7 @@ refused for its grace.
 An application sometimes acts where no client is there to ask: at the
 end of what a person's conversations were about, at a start that a
 restart cut short, at the reset of what it made for a person (temper's
-playground: temper's `protocol/setup.md`, 8.4). A connector then asks
+playground: temper's `protocol/setup/playground.md`). A connector then asks
 the core for one of a few acts in the deployment's name, as the
 deployment requests the tasks its configuration or a connector starts
 (../tasks/README.md, section 3). An act has no party, no sign-in and no role: the

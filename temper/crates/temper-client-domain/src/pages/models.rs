@@ -1,4 +1,4 @@
-//! Model switches and names ask the newest catalogue (temper/docs/design/client/README.md, 3.5, The `Models` tab).
+//! Model switches and names ask the newest catalogue (temper/docs/design/client/pages/README.md, The `Models` tab).
 use super::{Pages, Request, accounts, choice};
 use crate::{Address, owner::Owner};
 use alloc::boxed::Box;
@@ -308,7 +308,7 @@ pub fn name_shape(name: &[u8]) -> bool {
     true
 }
 
-/// Only the person's usable list-bearing accounts offer a read (client/README.md, 3.5).
+/// Only the person's usable list-bearing accounts offer a read (client/pages/README.md).
 #[must_use]
 pub fn readable(client: &Client, provider: u32) -> bool {
     let Some(me) = accounts::current_me(client) else { return false };

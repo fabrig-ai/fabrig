@@ -1,4 +1,4 @@
-//! Worker construction and compatibility checks (protocol/README.md, 7 and 15.1).
+//! Worker construction and compatibility checks (protocol/README.md, 5, and protocol/cluster.md, 1).
 use super::checks::{against, at, own, short, worker_limit};
 use super::{
     CallAnswer, NamedWorker, Problems, Shape, What, application, call_input_path, checks, indexed, member, problem,
@@ -209,7 +209,7 @@ pub struct WorkerPart {
     pub named: NamedWorker,
     pub files: Box<[config::File]>,
 }
-/// Read exactly a worker's part for serve and program-login (protocol/README.md, 15.1).
+/// Read exactly a worker's part for serve and program-login (protocol/cluster.md, 1).
 pub fn worker_part(input: &[u8], directories: &config::Directories) -> Result<WorkerPart, Problems> {
     if shape(input, directories)? != Shape::WorkerAlone {
         return Err(problem(Path::root(), What::WorkerAlone));

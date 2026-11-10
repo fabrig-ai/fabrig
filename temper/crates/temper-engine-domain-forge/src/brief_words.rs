@@ -1,7 +1,7 @@
-//! Fixed reasons and counts for section reads (temper/docs/design/domain/forge.md, 8.4).
+//! Fixed reasons and counts for section reads (temper/docs/design/domain/forge/change/repairs.md).
 use skein_forge::api::{Answer, Error};
 
-/// How a section's unread reason counts (temper/docs/design/domain/forge.md, 8.4).
+/// How a section's unread reason counts (temper/docs/design/domain/forge/change/repairs.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum BriefFate {
     Capacity,
@@ -9,7 +9,7 @@ pub enum BriefFate {
     Permanent,
 }
 
-/// Fixed words for a section that could not be read (temper/docs/design/domain/forge.md, 8.4).
+/// Fixed words for a section that could not be read (temper/docs/design/domain/forge/change/repairs.md).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct BriefUnread {
     pub fate: BriefFate,

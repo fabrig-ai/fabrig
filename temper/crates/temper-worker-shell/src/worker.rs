@@ -1,4 +1,4 @@
-//! A worker's start: a worker alone's whole, and what a standalone start's worker takes (protocol/README.md, 4.5 and 15.1).
+//! A worker's start: a worker alone's whole, and what a standalone start's worker takes (protocol/binaries.md, 5, and protocol/cluster.md, 1).
 use crate::{agent, path};
 use std::os::unix::ffi::OsStrExt;
 use temper_service as service;

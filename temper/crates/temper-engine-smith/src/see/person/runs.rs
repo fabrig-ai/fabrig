@@ -1,4 +1,4 @@
-//! Activity summaries and whole turns (temper/docs/design/domain/agent.md, 8.4.1 and 8.4.4).
+//! Activity summaries and whole turns (temper/docs/design/domain/agent/ask-temper.md, 1 and 4).
 use super::{count, join, words};
 use alloc::boxed::Box;
 use jig_domain_core::reads::{Answer, EndedValue, PageRow, PageTurn, Why};

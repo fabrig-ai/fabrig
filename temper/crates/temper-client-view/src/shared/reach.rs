@@ -1,4 +1,4 @@
-//! A reach's subject in shared words (temper/docs/design/client/README.md, 3.5, Needs you, Stop asking).
+//! A reach's subject in shared words (temper/docs/design/client/pages/README.md, Needs you, Stop asking).
 use crate::words::{Word, Words};
 use alloc::boxed::Box;
 use skein_ui::phrases::Hole;
@@ -41,7 +41,7 @@ fn under_words(w: &Words, object: Box<[u8]>, under: u8, classes: Option<&Classes
     }
     object
 }
-/// An offer's words: the narrowed table's change (temper/docs/design/client/README.md, 3.5, Needs you, Stop asking).
+/// An offer's words: the narrowed table's change (temper/docs/design/client/pages/README.md, Needs you, Stop asking).
 #[must_use]
 pub fn offer(w: &Words, classes: &Classes, reach: &Reach, offer: Offer) -> Box<[u8]> {
     match offer {
@@ -89,7 +89,7 @@ pub fn allowed(w: &Words, reach: &Reach, classes: Option<&Classes>) -> Box<[u8]>
     w.say(word, &[Hole::Name(object(w, subject, reach.under, classes))])
 }
 
-/// A need's reason line, every shell's (temper/docs/design/client/README.md, 3.5, Needs you, Why it reached you).
+/// A need's reason line, every shell's (temper/docs/design/client/pages/README.md, Needs you, Why it reached you).
 #[must_use]
 pub fn why(
     root: &temper_client_domain::Domain,

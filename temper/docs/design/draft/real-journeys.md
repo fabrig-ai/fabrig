@@ -1,7 +1,7 @@
 # Journeys on real models
 
 Draft, 2026-11-05, from a session with the user that day. Journeys are
-recorded on fake backends alone (`../client/journeys.md`, 3.5), because
+recorded on fake backends alone (`../client/web/journeys.md`, 3.5), because
 a recording keeps everything the page was given. The user: "we need to
 fix this, because a few things are hard to show without real models.
 We can do this: email gets redacted (I don't think it matters), for
@@ -15,7 +15,7 @@ be built (2026-11-05).
 - **A real box takes the recording bundle:** `temper box --bundle
   BUNDLE`, as `--fake-backends` takes one today (section 2).
 - **`add` redacts, then proves** (section 3). Before the first replay's
-  proof (`../client/journeys.md`, 4.3) it replaces every secret the
+  proof (`../client/web/journeys.md`, 4.3) it replaces every secret the
   recording holds, every person's email address, and each text the
   person names. Each original gets one placeholder of the same length,
   everywhere it appears, so that the replay still holds.
@@ -23,7 +23,7 @@ be built (2026-11-05).
   secret's shape (section 4). Nothing is written then.
 - **A real journey is recorded by a person:** `again` walks fake boxes
   alone. A stale real journey is recorded again by hand, and the
-  journeys' table (`../client/journeys.md`, 9) says which are real
+  journeys' table (`../client/web/journeys.md`, 9) says which are real
   (section 5).
 
 ## 2. The real box's bundle
@@ -39,7 +39,7 @@ be built (2026-11-05).
 ## 3. Redaction
 
 `add NAME FILE` redacts before it proves. It reads the recording as its
-lines (`../client/journeys.md`, 3.2), and within each one every quoted
+lines (`../client/web/journeys.md`, 3.2), and within each one every quoted
 field. A `heard piece` is a stream's `data:` line, so its payload is
 redacted decoded and encoded back.
 
@@ -83,9 +83,9 @@ the bytes. The person adds a `--redact` and runs `add` again.
 - **Recorded by hand,** on a fresh box with real accounts. The person
   uses public repositories and writes nothing private into the chats:
   the model's words are kept as they were given.
-- **Not walked by `again`** (`../client/journeys.md`, 8.1), which starts
+- **Not walked by `again`** (`../client/web/journeys.md`, 8.1), which starts
   fake boxes alone. A stale real journey is recorded again by its person.
-- **Named as real** in the journeys' table (`../client/journeys.md`,
+- **Named as real** in the journeys' table (`../client/web/journeys.md`,
   9), beside the fake journeys.
 - **Section 3.5's rule** becomes: fake backends, or real ones redacted
   by `add`.

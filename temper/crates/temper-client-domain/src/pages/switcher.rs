@@ -1,4 +1,4 @@
-//! The banner's project forms and keyed acts (temper/docs/design/client/README.md, 5.3).
+//! The banner's project forms and keyed acts (temper/docs/design/client/view.md, 3).
 use super::Request;
 use crate::{Address, owner::Owner};
 use alloc::boxed::Box;

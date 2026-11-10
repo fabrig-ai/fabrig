@@ -35,8 +35,8 @@ times reach the accounts watch without marking an unchanged offer.
   bounds is (`jig-domain-core`'s `routing/refusals.rs`,
   `note_person_refusal`), where the notes child's refusal names both
   (`../../../domain/engine/briefs.md`, 2.1), so a client says the bound from a
-  figure of its own (temper's `temper/docs/design/client/README.status.md`,
-  5.17).
+  figure of its own (temper's `temper/docs/design/client/pages/remembered.status.md`
+  ).
 
 `documents.md`, section 1 has no known gap in either account row's bounded facts,
 registered-kind filtering or application of each kind's audience. The

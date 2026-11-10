@@ -1,4 +1,4 @@
-//! Display identities accompanying a person's answer (domain/agent.md, 8.4.1).
+//! Display identities accompanying a person's answer (domain/agent/ask-temper.md, 1).
 use super::{Answer, Domain, Gathered, Part, SeeNames, documents};
 use crate::{RepositoryIdentity, SeeName};
 use alloc::boxed::Box;

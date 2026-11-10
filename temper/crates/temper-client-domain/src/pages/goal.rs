@@ -1,4 +1,4 @@
-//! A goal's reads and pure page facts (temper/docs/design/client/README.md, 5.8).
+//! A goal's reads and pure page facts (temper/docs/design/client/pages/goal.md, 2).
 mod specification;
 use super::{Request, delegation, goals, report, task};
 use crate::owner::Owner;
@@ -273,7 +273,7 @@ pub fn draft_of(words: &[u8]) -> (Option<Box<[u8]>>, Option<u64>) {
     }
     (draft, chat)
 }
-/// Whether the goal's words hold the exact asking line (client/README.md, 5.8).
+/// Whether the goal's words hold the exact asking line (client/pages/goal.md, 2).
 #[must_use]
 pub fn always_asks(words: &[u8]) -> bool {
     let mut start = 0;

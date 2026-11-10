@@ -1,4 +1,4 @@
-//! Complete watch admission and timed retry (temper/docs/design/domain/forge.md, 5.1 and 8.5).
+//! Complete watch admission and timed retry (temper/docs/design/domain/forge/keeping-up.md, 1, and temper/docs/design/domain/forge/change/README.md, 3).
 use super::{
     ChangeRow, Domain, Env, Limits, Name, PendingStep, Request, StepStage, Stored, What, Writer, child, child_env,
     drain, emit, participating, to_client, valid_name,

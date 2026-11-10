@@ -1,9 +1,9 @@
-//! A gate keeping parties' inputs from the root (temper/docs/design/protocol/README.md, 8.2).
+//! A gate keeping parties' inputs from the root (temper/docs/design/protocol/README.md, 6.2).
 use alloc::boxed::Box;
 use jig_domain_core::start::Phase;
 use skein_lib::{Decimal, Time, bytes};
 
-/// Why the gate keeps a party's input from the root (protocol/README.md, 8.2).
+/// Why the gate keeps a party's input from the root (protocol/README.md, 6.2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum CoreWait {
     Starting { step: Option<Phase> },

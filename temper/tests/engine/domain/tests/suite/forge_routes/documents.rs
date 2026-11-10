@@ -1,6 +1,6 @@
 //! A charter's documents reach its runs through the core, root and forge
-//! (temper/docs/design/domain/testing.md, 6.4;
-//! temper/docs/design/protocol/configuration.md, 13.7).
+//! (temper/docs/design/testing/checks.md, 4;
+//! temper/docs/design/protocol/configuration/settings.md, 6).
 use super::*;
 use jig_domain_core::Document;
 use jig_domain_link::EndpointBound;

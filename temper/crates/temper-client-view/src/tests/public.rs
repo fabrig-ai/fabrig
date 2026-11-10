@@ -1,4 +1,4 @@
-//! Anonymous view checks (temper/docs/design/client/browser.md, 8.4).
+//! Anonymous view checks (temper/docs/design/client/web/public.md, 4).
 use super::fixtures;
 use crate::{
     public::{PublicView, build_public},

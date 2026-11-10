@@ -1,4 +1,4 @@
-//! Dependency links and amendment facts (client/tools.md, 6.1 and 6.2).
+//! Dependency links and amendment facts (client/ctl/results.md, 1 and 2).
 use super::Text;
 use jig_client::{contract as c, words::Word};
 use skein_json::writer::Encoder;

@@ -15,20 +15,20 @@ pub const EXCHANGES: u32 = 8;
 pub const BODY_BYTES: u32 = 33_554_432;
 /// Stream body chunk bytes.
 pub const PIECE: u32 = 4096;
-/// Field text and a person's conversation words (client/README.md, 5.4).
+/// Field text and a person's conversation words (client/view.md, 4).
 pub const CONVERSATION_TEXT: u32 = 512;
-/// The tier's window at its `long_text` floor (client/README.md, 5.15),
-/// a thirty-second of `document_bytes` (client/browser.md, 4.3).
+/// The tier's window at its `long_text` floor (client/pages/chat/conversation.md, 2),
+/// a thirty-second of `document_bytes` (client/web/testing.md, 3).
 #[cfg(feature = "small-window")]
 const WINDOW_BYTES: Option<u64> = Some(32_768);
-/// The person's bundle reads the whole `document_bytes` window (client/README.md, 5.15).
+/// The person's bundle reads the whole `document_bytes` window (client/pages/chat/conversation.md, 2).
 #[cfg(not(feature = "small-window"))]
 const WINDOW_BYTES: Option<u64> = None;
-/// The tier's whole bodies, goal words and turns fit its window (client/README.md, 5.4):
-/// the largest page `read_docs` answers, `temper_docs::PAGE_BYTES` (client/browser.md, 4.3).
+/// The tier's whole bodies, goal words and turns fit its window (client/view.md, 4):
+/// the largest page `read_docs` answers, `temper_docs::PAGE_BYTES` (client/web/testing.md, 3).
 #[cfg(feature = "small-window")]
 pub const LONG_TEXT: u32 = 32_768;
-/// The person's `long_text` for whole bodies, goal words and turns (client/README.md, 5.4).
+/// The person's `long_text` for whole bodies, goal words and turns (client/view.md, 4).
 #[cfg(not(feature = "small-window"))]
 pub const LONG_TEXT: u32 = 131_072;
 /// The root's bounds: `temper-client-shell-terminal`'s `native().client`.

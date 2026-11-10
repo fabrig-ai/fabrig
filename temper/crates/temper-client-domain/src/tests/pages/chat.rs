@@ -2466,7 +2466,7 @@ fn an_ended_read_leaves_latest_free() {
     assert!(out.is_empty());
 }
 
-// client/README.md, 3.5: the person's placed stop and its independently named revision.
+// client/pages/README.md: the person's placed stop and its independently named revision.
 const PAUSE_REVISION: u64 = 19;
 const PAUSE_WORDS: &[u8] = b"And then?";
 fn paused_task() -> c::Task {

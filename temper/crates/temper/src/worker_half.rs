@@ -1,4 +1,4 @@
-//! The box's worker half (temper/docs/design/protocol/README.md, 5).
+//! The box's worker half (temper/docs/design/protocol/components.md).
 use crate::directories::Directories;
 use crate::{path, printed, program_login};
 use temper_engine_shell::serve::{WorkerHalf, WorkerStart};

@@ -1,4 +1,4 @@
-//! Template paging on the simulated native transport (temper/docs/design/domain/testing.md, 2.4).
+//! Template paging on the simulated native transport (temper/docs/design/testing/real-loop.md).
 use serde_json::{Value, json};
 fn turn(name: &[u8], value: &Value) -> skein_fake_llm_domain::api::Turn {
     use skein_fake_llm_domain::api::{Finish, Line, Turn};

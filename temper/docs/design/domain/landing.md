@@ -6,15 +6,15 @@ candidates prepared by the project's tooling or by temper's default,
 gates proved by receipts kept by key, and the project's landing turn,
 which fast-forwards each main to its proved candidate. It replaces, for
 such a project, the change's CI, its queue, its updates and its merge
-in the repository's style (`forge.md`, 8.2 steps 3 and 5 to 7,
-`forge.md`, sections 9 and 10). What follows a landing, its tiers and its verdict,
+in the repository's style (`forge/change/README.md`, 2 steps 3 and 5 to 7,
+`forge/queues.md` and `forge/README.md`, section 6). What follows a landing, its tiers and its verdict,
 is `after-landing.md`. The forge's calls it makes are skein's
-`forge/README.md`, 3.2. What is still open is section 17.
+`forge/README.md`, 3.2. What is still open is `landing.md`, section 17.
 
 ## 1. In one page
 
 - **A project lands by queue or by turn,** its own setting (section
-  13). `queue` is `forge.md`'s change procedure, sections 8 to 10, and
+  13). `queue` is `forge/README.md`'s change procedure, `forge/change/README.md` and `forge/queues.md` and `forge/README.md`, section 6, and
   stays the default until a project's turn has been walked on real
   backends. `turn` is this document. A change follows the way its
   project names when it becomes ready.
@@ -62,7 +62,7 @@ temper-engine-domain-forge              the top: landings' and receipts' states,
 
 - **The top keeps** each landing's state (family `Landing`), the
   receipts (family `Receipt`), the keys in flight, and who holds each
-  project's turn, as it keeps the changes' states (`forge.md`, section
+  project's turn, as it keeps the changes' states (`forge/README.md`, section
   3). The turn is derived, never stored: the landing whose phase is
   `turn` holds it.
 - **`landing` is policy,** as `change` is: given a landing's state, its
@@ -84,12 +84,12 @@ producing ─► opening ─► ready ─► preparing ─► proving ─► tur
                           └──────────┴────────────┘
 ```
 
-- **Producing and opening** are `forge.md`'s 8.2, steps 1 and 2. No CI
+- **Producing and opening** are `forge/README.md`'s 8.2, steps 1 and 2. No CI
   runs on a pushed head: the project's gate workflows are dispatch-only
   (section 7), and the change has no checking step.
 - **Ready:** its head pushed and its pull request open; every blocking
   judgement gate the landing rules and the change ask for (a review, a
-  person's approval: `forge.md`, 8.3) holds at its head; and its task
+  person's approval: `forge/change/gates.md`, 1) holds at its head; and its task
   is not kept by a dependency. A review runs as soon as the head is
   pushed.
 - **Then its landing's phases:** preparing, proving and the turn are
@@ -97,10 +97,10 @@ producing ─► opening ─► ready ─► preparing ─► proving ─► tur
   news, and makes what its landing asks of it on its own branch, under
   its own hold: the forge's rebase (5.2), or a prepare job delegated
   (5.3). The turn's merge of its pull request is the landing's (8).
-- **Repairing** (`forge.md`, 8.4): a gate's real failure at the
+- **Repairing** (`forge/change/repairs.md`): a gate's real failure at the
   candidate, given its failing output. Its new head makes the change
   ready again, and the landing prepares again.
-- **Resolving** (`forge.md`, 8.4): a conflict prepare could not settle,
+- **Resolving** (`forge/change/repairs.md`): a conflict prepare could not settle,
   in a workspace where main's tip is merged into the change's branch
   with the files in conflict marked. Its pushed merge contains main's
   tip, so the next prepare takes the head as it is (5.2).
@@ -108,14 +108,14 @@ producing ─► opening ─► ready ─► preparing ─► proving ─► tur
   landing: the candidate, which is main's commit, and its pull request.
   It then verifies, and ends at cleared (`after-landing.md`, section 6).
 - **Judgement gates carry over clean prepares,** where their freshness
-  is `clean` (`forge.md`, 8.3): a verdict given at a head counts at the
+  is `clean` (`forge/change/gates.md`, 1): a verdict given at a head counts at the
   candidates temper's prepare made from it without settling a conflict,
   as `clean` counts clean updates, since the member's diff is unchanged.
   An `exact` verdict counts at its head alone, so a candidate that is
   not that head asks for it again. A candidate whose prepare settled a
   conflict, a resolution, or a repair asks for every judgement gate
   again. The change keeps the heads its clean prepares led through,
-  which the landing rules read (`forge.md`, 8.7).
+  which the landing rules read (`forge/change/gates.md`, 2).
 
 ## 4. A landing
 
@@ -128,7 +128,7 @@ producing ─► opening ─► ready ─► preparing ─► proving ─► tur
   resolutions are its change's delegates, under that goal.
 - **How changes join one:**
   - **`with`:** a change names the changes it must land with, a
-    parameter of its own (`forge.md`, 8.1), when it is made or by an
+    parameter of its own (`forge/change/README.md`, 1), when it is made or by an
     amendment of a task that may name the other one (jig's
     `domain/tasks/changes.md`'s rule for dependencies). `with` is
     symmetric and transitive: the connector joins the closure into one
@@ -154,8 +154,8 @@ producing ─► opening ─► ready ─► preparing ─► proving ─► tur
     member in each downstream repository the project's pins name that
     has none of its own, whose only change is the bumped pin, on a
     branch the landing makes and holds, `temper/<root>/l<task>`, with a
-    pull request of its own that the landing opens (5.3; `forge.md`,
-    11). It has no change task: its prepare job is the landing's
+    pull request of its own that the landing opens (5.3; `forge/branches.md`
+    ). It has no change task: its prepare job is the landing's
     delegate, its gates are its repository's test gates, with no
     judgement gate, its merge is the landing's, and its branch is
     deleted as the landing closes.
@@ -171,7 +171,7 @@ producing ─► opening ─► ready ─► preparing ─► proving ─► tur
   in the decision that joins them.
 - **Requested by the deployment on the project's behalf,** with the
   authority the project's policy gives landings, as a branch's repair
-  under `queue` is (`forge.md`, section 9); funded from the project's
+  under `queue` is (`forge/queues.md`); funded from the project's
   spend, made with a budget of zero, its priced effects funded at the
   effect from the period's unreserved spend, so that a period reserved
   whole never stops it (jig's `domain/authority.md`, section 6). It answers to no one:
@@ -224,7 +224,7 @@ For a project with no prepare command, one member per repository:
   head is the candidate. The branch is the change's, held by it, and
   the update is made in its name, so no run of temper's writes it
   meanwhile (jig's `domain/tasks/holds.md`, 3); a head moved by another
-  identity is drift, as ever (`forge.md`, 8.5).
+  identity is drift, as ever (`forge/change/README.md`, 3).
 - **A conflict** makes the forge refuse the rebase: the member resolves
   it (section 3), and its merged head is then the candidate as it is.
   main keeps the resolution's merge commit.
@@ -247,16 +247,16 @@ For a project with no prepare command, one member per repository:
   it does not contain the one before, once it contains main's tip it
   asked for, even when a read sees it before the update's outcome
   returns: the preparing change takes its own branch's move as its
-  update. This is the one move `forge.md`, 8.5 takes as the change's
+  update. This is the one move `forge/change/README.md`, 3 takes as the change's
   that is not forward. Another hand's push present when the forge reads
   the branch is carried into the candidate. A push made after that read
   can be dropped by the rebase's forced push (skein's `forge/client.md`,
   7.3: the forge's update checks no head). A head moved by another
   identity at any other time is drift.
 - **Lost.** A rebase whose answer is lost is looked for and made again as
-  any update is, and a prepare let go decides again as `forge.md`, 10
+  any update is, and a prepare let go decides again as `forge/README.md`, 6
   says, at the head and main it was asked for. A copy landing once the
-  candidate is proving rewrites the head under its proof: `forge.md`, 10
+  candidate is proving rewrites the head under its proof: `forge/README.md`, 6
   says what that costs.
 
 ### 5.3 The project's tooling, and stacks
@@ -271,7 +271,7 @@ For a project with no prepare command, one member per repository:
   last member's change, for a repository with members, asked by its
   landing as it asks for the forge's rebase (5.2); the landing itself,
   for a pin-only member's branch, which the landing makes and holds
-  (`forge.md`, 11).
+  (`forge/branches.md`).
 - **The job runs the project's command,** at the home's pinned
   revision, with no model and no forge credentials, or, with none
   named, temper's own rebase of the stack in dependency order. It may
@@ -372,7 +372,7 @@ For a project with no prepare command, one member per repository:
   (skein's `forge/forgejo.md`, section 2), so no status read wakes it. Its polls
   are due at the client's `poll_at` for the run's repository, every
   `poll` or, while that repository hears, at its last hint plus
-  `fallback` (`forge.md`, 5.2). A
+  `fallback` (`forge/keeping-up.md`, 2). A
   run another user triggered is never taken. Two that match are two of
   temper's own dispatches of one key at one commit, either of which
   proves it: the first to complete makes the receipt. A run whose
@@ -396,7 +396,7 @@ For a project with no prepare command, one member per repository:
 ### 7.3 A real failure
 
 - **A run whose workflow's own step failed** makes a failed receipt,
-  and the failing member's change is repaired (`forge.md`, 8.4), its
+  and the failing member's change is repaired (`forge/change/repairs.md`), its
   brief carrying each failed job's failed step and the end of its log
   (skein's `Read::Job`). The landing waits for the member to be ready
   again, then prepares again, and only the keys that changed run.
@@ -430,7 +430,7 @@ For a project with no prepare command, one member per repository:
   did, keep their candidates and receipts.
 - **Then each member lands, upstream first,** by a fast-forward of its
   main to exactly its candidate, made by the landing task and judged by
-  the landing rules (`forge.md`, 8.7, where `ci` is the test gates by
+  the landing rules (`forge/change/gates.md`, 2, where `ci` is the test gates by
   receipt at the candidate), a pin-only member's as any other:
   - **on Forgejo,** by the merge of its pull request, fast-forward
     only, at the candidate (skein's `Write::Merge { how:
@@ -439,7 +439,7 @@ For a project with no prepare command, one member per repository:
     updating main's ref to the candidate, fast-forward only (skein's
     `Write::UpdateRef`). The update is a push, so it passes a rule
     requiring a pull request only where temper's App may always bypass
-    it (`Always`; `PullsOnly` is not enough: `forge.md`, 4.4). A
+    it (`Always`; `PullsOnly` is not enough: `forge/adoption.md`, 4). A
     ruleset's bypass covers every rule in it, so it may waive required
     checks too, but the candidate carries temper's statuses (10) and
     meets them either way. GitHub marks the pull request merged once
@@ -450,8 +450,8 @@ For a project with no prepare command, one member per repository:
   landed commit is its member change's: the change lands, and its goal
   hears its own change's landing, as under `queue`.
 - **Nothing runs inside the turn:** no gate, no prepare, no run of an
-  agent's. A merge refused or uncertain is settled as `forge.md`,
-  section 6 settles any merge: a fast-forward-only merge raced by
+  agent's. A merge refused or uncertain is settled as `forge/README.md`,
+  section 4 settles any merge: a fast-forward-only merge raced by
   another landing on Forgejo answers uncertain, its find reads the pull
   request unmerged, and the stale check of the next try sends the
   landing back to prepare.
@@ -507,7 +507,7 @@ For a project with no prepare command, one member per repository:
 
 ## 11. Effects and kinds
 
-Three kinds join `forge.md`'s section 6, each a row of its own:
+Three kinds join `forge/README.md`'s section 4, each a row of its own:
 
 | Kind | Effect | What it is | Recovery class | Found again after an uncertain failure |
 |---|---|---|---|---|
@@ -523,23 +523,23 @@ Three kinds join `forge.md`'s section 6, each a row of its own:
   and, for a pin-only member, its branch's creation and its pull
   request's opening and closing (kinds 9, 3 and 12), the branch released
   as the landing closes, by the release a change's branch takes
-  (`forge.md`, 11), never by an effect of kind 15; its
+  (`forge/branches.md`), never by an effect of kind 15; its
   members' rebases are theirs (kind 11, which a change holds already),
   under their holds.
 - **The landing rules govern kind 19 as they govern kind 4,** the merge
-  (`forge.md`, 8.7): each requirement judged at the candidate, CI being
+  (`forge/change/gates.md`, 2): each requirement judged at the candidate, CI being
   the test gates by receipt.
 - **The grant:** the project's policy gives the landing procedure kinds
   3, 4, 6, 9, 12, 16, 17 and, on GitHub, 19 on the project's
   repositories, as it
-  gives a queue's repair its kinds (`forge.md`, section 9); temper's
+  gives a queue's repair its kinds (`forge/queues.md`); temper's
   root grants them to each landing task it makes. Until jig gives the
   tasks the deployment starts on a project's behalf only what the
   policy gives them (jig's `domain/authority.md`, section 6, built so
   far as the project's whole ceiling), a landing holds the ceiling, as
   a queue's repair does; its effects are still each admitted by the
   core and judged by the enforced landing rules.
-- **A purpose of its own,** tag 6 in `forge.md`'s table: a landing's
+- **A purpose of its own,** tag 6 in `forge/README.md`'s table: a landing's
   step, its task (8 bytes), the member (2), the gate (2), the
   operation (1: a dispatch, a rerun, a pending status, a verdict's
   status), the candidate's preparation, counted from 1 in the landing
@@ -563,8 +563,8 @@ Three kinds join `forge.md`'s section 6, each a row of its own:
 - New families at the next bytes, in place until the first release
   (`../protocol/store.md`, section 2), through the baseline's goldens
   (`../draft/upgrades.md`).
-- **Bounded** by the forge's limits (`../protocol/configuration.md`,
-  section 7): `landings`, live landings per deployment;
+- **Bounded** by the forge's limits (`../protocol/configuration/limits.md`
+  ): `landings`, live landings per deployment;
   `landing_members`, members per landing; `gates`, test gates per
   repository; `receipts_per_gate`; `ignored_paths`, per gate, each
   within a branch name's bounds; and `inputs`, within skein's `INPUTS`.
@@ -577,7 +577,7 @@ Three kinds join `forge.md`'s section 6, each a row of its own:
 
 ### 13.1 Kinds
 
-Two kinds of temper's join `../protocol/configuration.md`, 13.2, each
+Two kinds of temper's join `../protocol/configuration/settings.md`, 2, each
 the forge's, judged in the change's decision:
 
 | Kind | Scope | Numbers | Value |
@@ -591,22 +591,22 @@ Kind 4's members, each with its default and the section it serves:
 |---|---|---|
 | `by`: `queue` or `turn` | `queue` | section 1 |
 | `prepare`, `key`: paths in the home, or none; `home_revision`; `prepare_timeout` | temper's own prepare and key | 5.3, 6.1 |
-| `merge_job`: a path in each repository it merges, or none | none: a conflict goes to a resolution at once | `forge.md`, 8.4 and 10 |
+| `merge_job`: a path in each repository it merges, or none | none: a conflict goes to a resolution at once | `forge/change/repairs.md` and `forge/README.md`, 6 |
 | `dependencies_join` | yes | 4.1 |
 | `pins`: each a downstream and an upstream repository; `pins_follow_main` | none; no | 4.1, 5.3 |
 | `stale_proofs`; `gate_retries` | 2; 2 | 9; 7.4 |
 | `tier_retries`; `verification_bound`; `suspects`: `bisect` or `tell_all`; `red_pauses` | 2; two hours; `bisect`; no | `after-landing.md`, 3, 5.2, 6, 7 |
 | `findings`: on or off; `triager` and `chooser`, a task or a role; `tester_charter`; `areas`, each a repository and an area | off; the person's chat; the chat; none | `findings.md`, 2, 6, 8 |
-| `questions_on_forge` | off | `forge.md`, 12.1 |
+| `questions_on_forge` | off | `forge/issues.md`, 1 |
 
 - **Until both kinds are settings** on jig's application settings (jig's
   `domain/engine/settings.md`, 5), a project's `by`, its `tier_retries` and
   `verification_bound` (`verification_bound_ms` there), its
   `merge_job`, and its repositories' gates and tiers are
   configured in the document's `landing` member
-  (`../protocol/configuration.md`, section 3), as the landing rules are,
+  (`../protocol/configuration/engine.md`), as the landing rules are,
   and read at the start.
-- **Read by a branch's path** (`forge.md`, 8.13): the project's `by`,
+- **Read by a branch's path** (`forge/change/branch-path.md`): the project's `by`,
   and each repository's gates and tiers with the branch each tier
   follows, as the forge holds them, so that a path draws "prepare",
   "prove" and "turn" under `turn` and a tier's stops where it has one.
@@ -635,7 +635,7 @@ Kind 4's members, each with its default and the section it serves:
 
 ## 14. Views and acts
 
-Under `../client/tools.md`, 5.1's names (a group `landing`):
+Under `../client/ctl/tools.md`, 1's names (a group `landing`):
 
 | Tool | What it answers or does |
 |---|---|
@@ -651,27 +651,27 @@ change and its merge with `change show TASK`. A matching change document
 on the shared task watch means no landing; malformed documents and
 documents for another task or project remain errors.
 
-- **A change's panel** (`forge.md`, 8.8) names its landing and its way.
+- **A change's panel** (`forge/change/README.md`, 5) names its landing and its way.
 - **Acts** are jig's on the landing task: release and cancel, by the
   project's maintainers.
 
 ## 15. Restart
 
-- **Restored whole** with the forge's other families (`forge.md`,
-  section 16).
+- **Restored whole** with the forge's other families (`forge/README.md`,
+  section 9).
 - **Before any landing steps,** each member's main and head are read
   afresh, and each run in flight is read (`Read::Run`); a dispatch
   whose outcome was uncertain is found by its runs, as section 11 says.
-- **A landing in its turn** settles its merges as `forge.md`'s merges
+- **A landing in its turn** settles its merges as `forge/README.md`'s merges
   settle; its members found landed are landed, and the rest prepare
   again if their bases moved.
 
 ## 16. The world
 
-Stories in the forge's world (`forge.md`, section 18; `testing.md`,
-4.2), the fake forge running dispatched workflows (skein's
+Stories in the forge's world (`forge/README.md`, section 10; `../testing/fakes.md`,
+2), the fake forge running dispatched workflows (skein's
 `testing/fakes/forge.md`). The process tier adds one story on a real Forgejo
-with its runner, for what only they show (`testing.md`, 2.6): a
+with its runner, for what only they show (`../testing/process-tier.md`): a
 landing whose dispatched job the runner cancels, rerun and landed
 across a restart of the binary. The forge's world holds:
 
@@ -692,7 +692,7 @@ across a restart of the binary. The forge's world holds:
 - **a conflict** is resolved by a merge of main into the member, which
   lands as it is;
 - **a restart** mid-proof finds its run, and mid-turn settles its merge;
-- **under `queue`,** every story of `forge.md`'s world passes unchanged.
+- **under `queue`,** every story of `forge/README.md`'s world passes unchanged.
 - **on the fake GitHub:** a landing of one under the App's `Always`
   bypass, its gate dispatched and its receipt posted, main
   fast-forwarded by a ref update; a lost ref update found made; a
@@ -712,7 +712,7 @@ across a restart of the binary. The forge's world holds:
 - **A late prepare copy** (5.2): how often it rewrites a candidate under
   proof, costs another CI run or a drift hold, or drops a later push,
   awaits measurement with the update's real time (skein's
-  `forge/client.md`, 11; `forge.md`, 20). Default: the lifetime stays and
+  `forge/client.md`, 11; `forge/README.md`, 11). Default: the lifetime stays and
   a moved head after prepare is drift; every merge still names its exact
   checked head.
 - **A judgement gate's key** as a patch id of the member's diff, which a

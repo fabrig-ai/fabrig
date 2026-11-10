@@ -1,4 +1,4 @@
-//! A project's changes own one subject and the reads of the rows it shows (client/README.md, 3.5).
+//! A project's changes own one subject and the reads of the rows it shows (client/pages/README.md).
 use super::welcome::{deliver, event};
 use crate::{
     Address, Domain, Event, Place, Request, forge,

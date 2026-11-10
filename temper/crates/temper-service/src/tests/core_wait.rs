@@ -2,7 +2,7 @@ use crate::{CoreWait, Note, core_wait::Watch};
 use jig_domain_core::start::Phase;
 use skein_lib::{Duration, Time, Wall};
 
-// protocol/README.md, 8.2 bounds the whole line, including its newline.
+// protocol/README.md, 6.2 bounds the whole line, including its newline.
 const LINE_BYTES: usize = 240;
 
 fn at(ms: u64) -> Time {

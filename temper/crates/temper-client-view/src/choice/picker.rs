@@ -1,4 +1,4 @@
-//! The model and effort at the composer (client/README.md, 3.5).
+//! The model and effort at the composer (client/pages/README.md).
 use super::{
     Act, Address, Bindings, Box, Builder, Domain, Hole, Role, State, W, Words, account_link, account_row, c, can_send,
     changeable, choice, control, line, model_shown, provider_shown, shown,
@@ -121,7 +121,7 @@ pub(crate) fn picker(b: &mut Builder, root: &Domain, task: Option<&c::Task>, w: 
     b.close();
 }
 
-/// The model and effort the next run takes (client/README.md, 3.5).
+/// The model and effort the next run takes (client/pages/README.md).
 pub(crate) fn closed_line(root: &Domain, task: Option<&c::Task>, w: &Words) -> Box<[u8]> {
     let me = temper_client_domain::pages::accounts::current_me(root.client());
     let draft = root.pages().choice();
@@ -177,7 +177,7 @@ fn offered_model<'a>(models: Option<&'a skein_lib::List<c::MeModel>>, name: &c::
     }
     None
 }
-/// One model and effort in the picker's shown names (client/README.md, 3.5): the offered
+/// One model and effort in the picker's shown names (client/pages/README.md): the offered
 /// name, "Claude " before an `anthropic` model's, and no effort for the playground's.
 fn shown_line(
     root: &Domain,
@@ -206,7 +206,7 @@ fn shown_line(
     }
     name
 }
-/// What a page with no composer says it ran on (client/README.md, 3.5); none until its
+/// What a page with no composer says it ran on (client/pages/README.md); none until its
 /// conversation is read to its end.
 pub(crate) fn ran_line(root: &Domain, task: &c::Task, thread: &Thread, w: &Words) -> Option<Box<[u8]>> {
     if !thread.caught_up() {
@@ -548,7 +548,7 @@ fn efforts_at(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings
     b.close();
 }
 
-// Account groups follow their first appearance in the offer (client/README.md, 3.5, The work's account and model).
+// Account groups follow their first appearance in the offer (client/pages/README.md, The work's account and model).
 fn model_groups(models: &skein_lib::List<c::MeModel>) -> skein_lib::List<(Option<u32>, Option<u32>)> {
     let mut capacity = models.len();
     for model in models {
@@ -589,7 +589,7 @@ fn group_accounts(models: &skein_lib::List<c::MeModel>, provider: Option<u32>) -
     }
     accounts
 }
-/// The options of the terminal model list (temper/docs/design/client/README.md, 3.5).
+/// The options of the terminal model list (temper/docs/design/client/pages/README.md).
 pub(crate) fn model_choices(root: &Domain, w: &Words) -> Box<[crate::shared::Choice]> {
     let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) else { return Box::default() };
     let draft = root.pages().choice();
@@ -637,7 +637,7 @@ pub(crate) fn model_choices(root: &Domain, w: &Words) -> Box<[crate::shared::Cho
     }
     choices.into_boxed()
 }
-/// The options of the terminal effort list (temper/docs/design/client/README.md, 3.5).
+/// The options of the terminal effort list (temper/docs/design/client/pages/README.md).
 pub(crate) fn effort_choices(root: &Domain) -> Box<[crate::shared::Choice]> {
     let Some(me) = temper_client_domain::pages::accounts::current_me(root.client()) else { return Box::default() };
     let draft = root.pages().choice();

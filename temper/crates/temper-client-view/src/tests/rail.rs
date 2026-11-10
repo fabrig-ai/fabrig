@@ -1,4 +1,4 @@
-//! The project's frame (temper/docs/design/client/README.md, 5.1 and 5.3).
+//! The project's frame (temper/docs/design/client/view.md, 1 and 3).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,

@@ -1,11 +1,11 @@
 //! A goal's landing uses its words' first line as the pull title
-//! (temper/docs/design/domain/forge.md, 8.1).
+//! (temper/docs/design/domain/forge/change/README.md, 1).
 use super::goal_branch::{change, goal_request};
 use super::*;
 
 const LANDING_CALL: u64 = 95;
 const STEPS: u32 = 1000; // The forge world's bound for opening a landing.
-const TITLE_BYTES: usize = 256; // temper/docs/design/domain/forge.md, 8.1.
+const TITLE_BYTES: usize = 256; // temper/docs/design/domain/forge/change/README.md, 1.
 const SPEC_BYTES: u32 = 1024; // Holds the longest words, their title parameter, and branch names.
 const GOAL_REQUEST: u8 = 92;
 

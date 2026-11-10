@@ -127,7 +127,7 @@ fn a_zero_byte_token_is_not_signed_in() {
     assert_eq!(f.stderr(), b"temper ctl: DIRECTORY is not signed in\n");
     assert_eq!(f.exit(), Some(Exit::Code(1)));
 }
-/// client/tools.md, 8.1: `address` is written by sign-in, so a DIRECTORY without it is not signed in.
+/// client/ctl/README.md, 6.1: `address` is written by sign-in, so a DIRECTORY without it is not signed in.
 #[test]
 fn a_directory_without_an_address_is_not_signed_in() {
     let mut f = fixtures::Frame::act(fixtures::CHAT);
@@ -137,7 +137,7 @@ fn a_directory_without_an_address_is_not_signed_in() {
     assert_eq!(f.exit(), Some(Exit::Code(1)));
     assert_eq!(f.requests(), 0);
 }
-/// client/tools.md, 8.1: a step's failure names the step and the error.
+/// client/ctl/README.md, 6.1: a step's failure names the step and the error.
 #[test]
 fn a_directory_step_that_fails_names_the_step_and_the_error() {
     const LONG_ADDRESS: &[u8] = &[b'a'; limits::ADDRESS as usize + 1];

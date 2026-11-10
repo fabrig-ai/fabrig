@@ -1,4 +1,4 @@
-//! Forge users in jig's parties (domain/forge.md, 4; protocol/store.md, 2).
+//! Forge users in jig's parties (domain/forge/adoption.md; protocol/store.md, 2).
 
 use jig_domain_people::IdentityKey;
 use skein_lib::{Reader, Writer};

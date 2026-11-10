@@ -1,4 +1,4 @@
-//! Other task pages and shared task parts (temper/docs/design/client/README.md, 5.8–5.11).
+//! Other task pages and shared task parts (temper/docs/design/client/pages/goal.md, 2, and temper/docs/design/client/pages/task.md, 2–4).
 use crate::{
     frame::Bindings,
     look,
@@ -133,7 +133,7 @@ pub(crate) fn reading(b: &mut Builder, page: &task::Task, words: &Words) {
     let holes = if word == Word::ReadingTask { &[Hole::Number(page.number)][..] } else { &[] };
     text(b, Role::Status, &words.say(word, holes));
 }
-/// An offered act by its admission (client/README.md, 5.11).
+/// An offered act by its admission (client/pages/task.md, 4).
 pub(crate) fn act(
     b: &mut Builder,
     task: &c::Task,
@@ -218,7 +218,7 @@ fn button(b: &mut Builder, word: Word, act: Act, words: &Words, bindings: &mut B
     b.bind(bindings.insert(act));
     b.close();
 }
-/// The page's two amendment controls (client/README.md, 5.11).
+/// The page's two amendment controls (client/pages/task.md, 4).
 pub(crate) fn amendment(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindings) {
     let Some(page) = root.pages().task() else { return };
     let Some(open) = &page.amending else { return };
@@ -514,7 +514,7 @@ fn parent(b: &mut Builder, stack: &mut List<u64>, parent: Option<u64>) {
     }
     stack.truncate(u32::try_from(keep).expect("tree stack fits"));
 }
-/// client/README.md, 5.8: keep each live root's delegates under it, in supplied
+/// client/pages/goal.md, 2: keep each live root's delegates under it, in supplied
 /// sibling order. Task lookup is O(log n); linking and the explicit walk are O(n).
 fn tree_order(root: u64, rows: &[(u64, Option<u64>)]) -> List<u32> {
     let bound = u32::try_from(rows.len()).expect("tree rows fit");

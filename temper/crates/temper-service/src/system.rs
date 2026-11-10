@@ -1,4 +1,4 @@
-//! One process, joined through io's workers channel (protocol/README.md, 8).
+//! One process, joined through io's workers channel (protocol/README.md, 6).
 use crate::{
     AccountsRuntime, End, Stop, Worker, accounts, clients, engine, limits, route::box_link, settings, stop, store,
     values, workers,
@@ -503,7 +503,7 @@ impl Service {
             None => true,
         }
     }
-    /// Adopt a held listener before the first down pass (protocol/setup.md, 7.1).
+    /// Adopt a held listener before the first down pass (protocol/setup/box.md, 1).
     /// A Listen for its address claims it; refusal leaves the descriptor with the caller.
     pub fn adopt_listener(&mut self, fd: Fd, addr: core::net::SocketAddr) -> Result<(), Fd> {
         if self.held_listeners.room() == 0 {
@@ -517,7 +517,7 @@ impl Service {
             Err(fd) => Err(fd),
         }
     }
-    /// Adopt the box's lines and requests (protocol/setup.md, 7.1).
+    /// Adopt the box's lines and requests (protocol/setup/box.md, 1).
     /// io may keep a bounded read pending until close cancels it.
     /// On refusal the caller retains both descriptors.
     pub fn adopt_box(&mut self, requests: Fd, answers: Fd, line_bytes: u32) -> Result<(), BoxRefusal> {
@@ -738,7 +738,7 @@ impl Service {
         }
     }
 }
-/// Core settings with the application's private tools (domain/agent.md, 8.4.4).
+/// Core settings with the application's private tools (domain/agent/ask-temper.md, 4).
 pub(crate) fn core_config(config: &jig_protocol_config::Engine, seeds: &settings::Seeds) -> jig_domain_core::Config {
     let mut core = jig_protocol_config::core(config, seeds.deployment, seeds.seed);
     let mut tools = List::with_capacity(1);
@@ -780,7 +780,7 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
         iterate_stage(service, stage, now, wall);
     }
 }
-/// One stage of a pass, in the loop's order (protocol/README.md, 8.1).
+/// One stage of a pass, in the loop's order (protocol/README.md, 6.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Stage {
     Io,
@@ -791,7 +791,7 @@ pub enum Stage {
 }
 pub const STAGES: [Stage; 5] = [Stage::Io, Stage::Route, Stage::Engine, Stage::Worker, Stage::Out];
 
-/// Run one stage with the pass's times (protocol/README.md, 8.1).
+/// Run one stage with the pass's times (protocol/README.md, 6.1).
 #[expect(clippy::too_many_lines, reason = "the five ordered stages include supervised worker shutdown")]
 pub fn iterate_stage(service: &mut Service, stage: Stage, now: Time, wall: Wall) {
     match stage {
@@ -1180,7 +1180,7 @@ impl Service {
     }
 }
 
-/// Whether the deployment can set up an owned forge (temper/docs/design/client/README.md, 4.6).
+/// Whether the deployment can set up an owned forge (temper/docs/design/client/forge/records.md).
 pub(crate) const fn deployment_owned(document_owned: bool, under_box: bool) -> bool {
     document_owned && under_box
 }
@@ -1199,10 +1199,10 @@ pub(crate) fn playground_config(
     }
 }
 
-/// github.com's remotes' base (temper/docs/design/protocol/configuration.md, 3).
+/// github.com's remotes' base (temper/docs/design/protocol/configuration/engine.md).
 pub(crate) const GITHUB_REMOTE: &[u8] = b"https://github.com";
 
-/// Machine places passed to the root (temper/docs/design/protocol/configuration.md, 3).
+/// Machine places passed to the root (temper/docs/design/protocol/configuration/engine.md).
 pub(crate) fn machine_config(machine: &temper_forge_setup::machine::Machine) -> temper_engine_domain_forge::Machine {
     use temper_engine_domain_forge::{Address, Machine, Place};
     let github = match &machine.github {

@@ -1,5 +1,5 @@
 //! The shell's adapter over the temper composition (jig's protocol/service.md, 7).
-//! Start refusals name their cause (temper/docs/design/protocol/README.md, 4).
+//! Start refusals name their cause (temper/docs/design/protocol/binaries.md).
 use skein_io::kernel::{Complete, Exit, Submit};
 use skein_lib::{Queue, Time, Wall};
 use std::io::{self, Write};

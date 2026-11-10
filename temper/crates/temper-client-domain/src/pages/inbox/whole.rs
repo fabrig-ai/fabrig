@@ -1,4 +1,4 @@
-//! A person task's question read whole (temper/docs/design/client/README.md, 3.5, Whole).
+//! A person task's question read whole (temper/docs/design/client/pages/README.md, Whole).
 use super::{Request, client};
 use jig_client::{Handle, Readable, Readout, contract as c};
 use skein_lib::{List, Queue};

@@ -1,4 +1,4 @@
-//! Kept forges and their navigation dot (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5, 4.4 and 4.8).
+//! Kept forges and their navigation dot (temper/docs/design/client/forge/deployment.md; temper/docs/design/client/pages/README.md and temper/docs/design/client/forge/family.md, 4 and 7).
 use super::{
     Playground, connect,
     forges::{Connection, Mode, Row, State},
@@ -164,7 +164,7 @@ pub fn unadopted_first(forges: &State) -> Option<(u16, &[u8], &[u8])> {
     first
 }
 
-/// A project's repositories (temper/docs/design/client/README.md, 5.3).
+/// A project's repositories (temper/docs/design/client/view.md, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Held<'a> {
     Unknown,

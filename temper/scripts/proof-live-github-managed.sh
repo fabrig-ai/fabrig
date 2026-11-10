@@ -12,7 +12,7 @@ case ${1:-} in live|fake|fake-wide) mode=$1 ;; *) printf '%s\n' 'usage: proof-li
 port=${2:-8765}
 case $port in ''|*[!0-9]*) exit 2 ;; esac
 [ "$port" -ge 1 ] && [ "$port" -le 65535 ] || exit 2
-# Connect makes the App under the person's own account (protocol/setup.md, 17.2), so a live
+# Connect makes the App under the person's own account (protocol/setup/github.md, 2), so a live
 # sitting says whose: the relay admits that login's conversion alone. No default.
 if [ "$mode" = live ]; then
     person=${TEMPER_MANAGED_PERSON:-}

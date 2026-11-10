@@ -1,5 +1,5 @@
 //! CI cuts preserve whole check heads and spend the remaining room on log tails
-//! (domain/forge.md, 8.4). Retained structure also governs a parent's later cut.
+//! (domain/forge/change/repairs.md). Retained structure also governs a parent's later cut.
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Writer};
 

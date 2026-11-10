@@ -1,4 +1,4 @@
-//! Task timers survive fresh runs (temper/docs/design/domain/testing.md, 2.2).
+//! Task timers survive fresh runs (temper/docs/design/testing/README.md, 2.2).
 use super::*;
 
 #[test]

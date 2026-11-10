@@ -13,7 +13,7 @@ pub type BranchHead = (Box<[u8]>, Box<[u8]>);
 // The landing story gathers its agent's brief before the person's next command.
 const BRIEF_GATHER_MS: u64 = 5000;
 
-/// Hold real host-executed jobs by run id (temper/docs/design/domain/testing.md, 2.6).
+/// Hold real host-executed jobs by run id (temper/docs/design/testing/process-tier.md).
 pub struct JobBarrier {
     directory: PathBuf,
 }
@@ -68,7 +68,7 @@ impl JobBarrier {
     }
 }
 
-/// The owned Forgejo of domain/testing.md 2.6, prepared and run by temper's
+/// The owned Forgejo of testing/process-tier.md, prepared and run by temper's
 /// commands with its runner, attached through skein's `Instance`, with a kept
 /// bot, the person's token and repository.
 pub struct Throwaway {
@@ -336,7 +336,7 @@ pub fn seed(directory: &Path, instance: &mut Instance) {
 }
 
 /// Let the first service start commit stock settings and owners before adding fixture records.
-/// temper/docs/design/protocol/forge.md, 2.1; jig's start owns the initial store mark.
+/// temper/docs/design/protocol/forge/engine.md, 1; jig's start owns the initial store mark.
 pub fn bootstrap(config: &Path, data: &Path, cache: &Path) {
     use skein_world::end_to_end::{Binary, Command, Mode};
     let path = config.join("temper.json");
@@ -531,7 +531,7 @@ fn repository(instance: &Instance, person: &Token, sleep_seconds: u64, workflow:
     );
     request(instance, person, "PATCH", "/api/v1/repos/acme/widget", &json!({"has_actions":true}), 200);
     // The hinted job sleeps 5 s, outlasting its overridden 3 s settle window
-    // (protocol/setup.md 13.4).
+    // (protocol/setup/testing.md 4).
     let check = format!("test ! -e slow || sleep {sleep_seconds}\ntest -s README.md\n");
     for (path, content) in [("check.sh", check.as_str()), (".forgejo/workflows/check.yaml", workflow)] {
         let length = skein_lib::base64::encoded_len(

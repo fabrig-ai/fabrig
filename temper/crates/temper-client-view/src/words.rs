@@ -1,6 +1,6 @@
 //! temper's frame and forge words as checked English data.
 //! Trial endings: temper/docs/design/domain/trial.md, 6.4.
-//! Playground and forge setup words (temper/docs/design/client/forge.md, 5.4; temper/docs/design/client/README.md, 3.5 and 5.6).
+//! Playground and forge setup words (temper/docs/design/client/forge/deployment.md; temper/docs/design/client/pages/README.md and temper/docs/design/client/pages/welcome.md, 2).
 use alloc::boxed::Box;
 use skein_lib::{List, bytes::copy_of};
 use skein_ui::{
@@ -1286,7 +1286,7 @@ pub enum Word {
     ChatPaused,
     ChatSendResumes,
     ChatWorking,
-    /// A model writing its answer, on the shared running line (client/README.md, 6.14).
+    /// A model writing its answer, on the shared running line (client/tui/pages.md).
     RunningWork,
     ConnectForge,
     ChatTitle,
@@ -1694,13 +1694,13 @@ pub enum Word {
 }
 // Room for temper, jig, account, card and forge phrases.
 // Six chat projection phrases, alongside the agent's original work-line words.
-// Eleven amendment editor phrases (client/README.md, 5.11), and five added
+// Eleven amendment editor phrases (client/pages/task.md, 4), and five added
 // dependency mark phrases (5.8).
 // Two names for navigation and cards.
-// Five chats heading, filter and empty phrases (client/README.md, 3.5).
+// Five chats heading, filter and empty phrases (client/pages/README.md).
 // An empty plan's line (5.8) and a waiting agent's Message note (5.11).
 // The composer's line and its chooser replace seven choice phrases (5.5).
-// A task's name over its words in a chat (client/README.md, 3.5).
+// A task's name over its words in a chat (client/pages/README.md).
 // Forty-seven time form, calendar and placement phrases (5.12).
 // The change panel adds 86 forge phrases (2000–2085).
 // Three empty and partial ended-children phrases (5.10).
@@ -1710,64 +1710,64 @@ pub enum Word {
 // Nine of jig's phrases for a hold on a configured bound.
 // The flow's three state words (5.2).
 // The Accounts navigation's two state words (5.3).
-// ConnectForge's and the welcome's forge words (client/forge.md, 5.4).
+// ConnectForge's and the welcome's forge words (client/forge/deployment.md).
 // The Forges page, navigation dot and setup strip, with owned Runs and password (27 phrases).
-// Thirty-one model-flow phrases (client/README.md, 5.5).
-// The account rows' nineteen literal and two shaped phrases (client/README.md, 5.5).
+// Thirty-one model-flow phrases (client/pages/accounts.md, 2).
+// The account rows' nineteen literal and two shaped phrases (client/pages/accounts.md, 2).
 // The setup fields and first repository add eleven phrases.
 // Seven playground start status, failure and retry phrases (5.6).
 // The Model step adds four forge phrases and twenty-two segments.
 // The browser sign-in heading and Google link add two phrases.
-// Ready names the first project and its request endings (client/README.md, 3.5).
+// Ready names the first project and its request endings (client/pages/README.md).
 // Account moves add four account literals and one task-wait phrase.
 // The Authorize place and page-owned forge sign-in add twelve phrases.
 // The owned row's Runs and first-password lines add two words and three phrases.
 // A failed setup's step adds five phrases.
-// A task document's reading line and eight lasting read ends (client/README.md, 3.5).
+// A task document's reading line and eight lasting read ends (client/pages/README.md).
 // The paste of a sign-in's address adds sixteen phrases and twenty-one segments.
 // M1's Model details add eight phrases and sixteen segments.
 // The welcome's Forgejo card adds three literal phrases and segments.
 // Eighteen playground, removal and forge choice literals.
 pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
 // The post-landing panel has ten phrases and eighteen segments.
-// The row's Replace adds seven phrases and nine segments (client/forge.md, 5.4).
+// The row's Replace adds seven phrases and nine segments (client/forge/deployment.md).
 // The banner's setup link and project switcher add two literal phrases (5.1 and 5.6).
 // Restore's forgotten refusal adds one phrase and two segments.
-// The welcome's "Continue" to Ready adds one literal phrase (client/README.md, 3.5).
+// The welcome's "Continue" to Ready adds one literal phrase (client/pages/README.md).
 // The welcome's Model cards add two phrases of one hole and three segments each (3.5).
 // The welcome's temper box line, its Model cards' notes and its forge line's detail
 // add six phrases and ten segments; its ticked forge line's old phrase, one phrase
-// and five segments, is gone (client/README.md, 3.5).
+// and five segments, is gone (client/pages/README.md).
 // The welcome's Forgejo sheet adds twelve literal phrases and segments (3.5).
 // Ready's first project adds three literal phrases and two of a hole; its
 // checklist's forge status and model account phrases are gone (3.5).
 // The chats page with no welcome and no project adds one literal phrase (3.5).
 // Model’s connected login and first repository are separate detail phrases (3.5).
 // Home and Settings add two phrases, each with one hole and three segments (3.5).
-// The rail adds four literals and one counted entry (client/README.md, 5.3).
+// The rail adds four literals and one counted entry (client/view.md, 3).
 // Five switcher phrases describe repository rows in both shells.
 // Home adds 35 phrases for its steps, intro and connected lines (3.5).
 // Everyday Home adds twenty-one phrases (3.5).
 // To begin replaces seven phrases with nine for the card, notes and Skip (3.5).
-// More accounts adds six phrases (client/README.md, 3.5).
-// Removing Connected removes seven phrases (client/README.md, 3.5).
-// Ask temper adds seven literal phrases (client/README.md, 3.5).
+// More accounts adds six phrases (client/pages/README.md).
+// Removing Connected removes seven phrases (client/pages/README.md).
+// Ask temper adds seven literal phrases (client/pages/README.md).
 // Ask temper tag adds one literal phrase (3.5).
-// Welcome's resumed setup adds one literal phrase (client/README.md, 3.5).
-// Forge status adds two phrases and removes View (client/README.md, 3.5).
-// The Ask temper opening replaces one phrase with nineteen (client/README.md, 3.5).
-// Settings, Needs you and the chat document include their literal phrases (client/README.md, 3.5, 5.13).
-// The rail names its navigation, new box and switcher (client/README.md, 5.3).
-// Last landing adds two phrases (client/README.md, 3.5).
-// The waiting page removes five phrases across its words and accounts (client/README.md, 3.5).
-// The try adds thirteen phrases and removes the host-check note (client/README.md, 3.5).
-// The command’s Copy adds three literal phrases (client/README.md, 3.5).
-// The pane names its running step and region and removes the box’s words (client/README.md, 3.5, The try).
-// The composer picker replaces fourteen phrases with thirteen (client/README.md, 3.5).
-// Repository making rows use eight phrases and eighteen segments (client/README.md, 3.5).
+// Welcome's resumed setup adds one literal phrase (client/pages/README.md).
+// Forge status adds two phrases and removes View (client/pages/README.md).
+// The Ask temper opening replaces one phrase with nineteen (client/pages/README.md).
+// Settings, Needs you and the chat document include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
+// The rail names its navigation, new box and switcher (client/view.md, 3).
+// Last landing adds two phrases (client/pages/README.md).
+// The waiting page removes five phrases across its words and accounts (client/pages/README.md).
+// The try adds thirteen phrases and removes the host-check note (client/pages/README.md).
+// The command’s Copy adds three literal phrases (client/pages/README.md).
+// The pane names its running step and region and removes the box’s words (client/pages/README.md, The try).
+// The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
+// Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 const PHRASES: u32 = 2318;
-// Settings and Needs you include their literal phrases (client/README.md, 3.5, 5.13).
-// Overturn adds its button and three toast phrases (client/README.md, 3.5).
+// Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
+// Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
 // Ready's empty-name line has two literals and a Name hole, two more segments (3.5).
 // Ready's repository lead adds one phrase and three segments (3.5).
@@ -1778,19 +1778,19 @@ const PHRASES: u32 = 2318;
 // To begin removes four segments with its shorter words and new card phrases (3.5).
 // More accounts adds eight literal and hole segments (3.5).
 // Removing Connected removes twenty-three literal and hole segments (3.5).
-// Ask temper adds seven literal segments (client/README.md, 3.5).
+// Ask temper adds seven literal segments (client/pages/README.md).
 // Ask temper tag adds one literal segment (3.5).
-// Welcome's resumed setup adds one literal segment (client/README.md, 3.5).
+// Welcome's resumed setup adds one literal segment (client/pages/README.md).
 // Forge status adds four segments and removes View (3.5).
 // The Ask temper opening adds twenty literal and hole segments (3.5).
-// Settings, Needs you and the chat document include their literal segments (client/README.md, 3.5, 5.13).
+// Settings, Needs you and the chat document include their literal segments (client/pages/README.md, client/pages/settings.md, 2).
 // The agent check refusal names its charter, adding two segments.
-// The rail menu adds six literal segments (client/README.md, 5.3).
+// The rail menu adds six literal segments (client/view.md, 3).
 // The unsent answer toast adds one literal phrase and segment (3.5).
-// Last landing adds four segments (client/README.md, 3.5).
-// The waiting page removes eleven literal and hole segments (client/README.md, 3.5).
+// Last landing adds four segments (client/pages/README.md).
+// The waiting page removes eleven literal and hole segments (client/pages/README.md).
 // The try adds twenty-three segments and removes one host-check segment (3.5).
-// The command’s Copy adds three literal segments (client/README.md, 3.5).
+// The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
 const SEGMENTS: u32 = 4157;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
@@ -5104,7 +5104,7 @@ impl Word {
         PhraseId { owner, number }
     }
 }
-/// The shell whose words the view says (client/browser.md, 2.4).
+/// The shell whose words the view says (client/web/README.md, 2.4).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Shell {
     Terminal,
@@ -5112,7 +5112,7 @@ pub enum Shell {
 }
 #[derive(Clone, Debug)]
 pub struct Words {
-    /// The shell's minutes east of universal time (temper/docs/design/client/README.md, 5.12).
+    /// The shell's minutes east of universal time (temper/docs/design/client/view.md, 6).
     pub zone_minutes: i32,
     pub shell: Shell,
     pub book: Phrasebook,
@@ -5125,14 +5125,14 @@ pub struct Words {
 // clock: 256 bytes holds its longest three-sentence explanation whole.
 const REFUSAL_BYTES: u32 = 256;
 const SET_UP_FAILURE_BYTES: u32 = temper_client_domain::forge::forges::FAILURE_BYTES;
-// Switcher paths join two Name holes, a slash, " +", and ten u32 digits (client/README.md, 5.3).
+// Switcher paths join two Name holes, a slash, " +", and ten u32 digits (client/view.md, 3).
 fn switcher_repository_bytes(joined: u32) -> Result<u32, Invalid> {
     joined.checked_mul(2).ok_or(Invalid::Overflow)?.checked_add(13).ok_or(Invalid::Overflow)
 }
 // Thirty-two 64-byte project names, each with room for the five-byte conjunction
-// (client/README.md, 5.13).
+// (client/pages/settings.md, 2).
 const SETTINGS_PROJECT_NAMES_BYTES: u32 = 2208;
-// Twenty items, six implicit kinds and six implicit sets, each within 200 bytes with words (client/README.md, 5.13).
+// Twenty items, six implicit kinds and six implicit sets, each within 200 bytes with words (client/pages/settings.md, 2).
 const CLASSES_OBJECTS_BYTES: u32 = 6400;
 #[expect(clippy::too_many_lines, reason = "one table prices each phrase-specific input bound")]
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
@@ -5192,7 +5192,7 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     if word == Word::AnsweredReply {
         return Ok(temper_client_protocol_wire::CUE_BYTES);
     }
-    // Changes names the wire's complete repository and branch (client/README.md, 4.6).
+    // Changes names the wire's complete repository and branch (client/forge/records.md).
     if word == Word::ChangesQueueNamed {
         return Ok(if last {
             temper_client_protocol_wire::v1::CEILINGS.changes_queue_branch
@@ -5401,7 +5401,7 @@ pub(crate) fn english_declarations() -> [(&'static str, u64, u64); 3] {
 }
 
 impl Words {
-    /// The shell's minutes east of universal time (temper/docs/design/client/README.md, 5.12).
+    /// The shell's minutes east of universal time (temper/docs/design/client/view.md, 6).
     pub(crate) fn set_zone_minutes(&mut self, zone_minutes: i32) {
         self.zone_minutes = zone_minutes;
     }
@@ -5414,7 +5414,7 @@ impl Words {
         i64::try_from(self.local_nanos(at).div_euclid(i128::from(DAY))).expect("wall and i32 minutes' days fit i64")
     }
 
-    /// The configured playground model's identifier has its own display name (client/README.md, 5.6).
+    /// The configured playground model's identifier has its own display name (client/pages/welcome.md, 2).
     pub(crate) fn model_name(&self, name: &[u8]) -> Box<[u8]> {
         if name == SCRIPTED_MODEL { self.say(Word::PlaygroundModelName, &[]) } else { copy_of(name) }
     }
@@ -5491,7 +5491,7 @@ impl Words {
     pub fn capacity(&self) -> Option<u32> {
         Some(self.ordinary_capacity()?.max(self.classes_capacity()?))
     }
-    /// Grouped classes occur only in Settings and a proposal's items (client/README.md, 5.13).
+    /// Grouped classes occur only in Settings and a proposal's items (client/pages/settings.md, 2).
     pub(crate) fn classes_capacity(&self) -> Option<u32> {
         let mut most = 0;
         for word in [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut] {
@@ -7254,7 +7254,7 @@ mod clock_tests {
     }
 }
 
-/// Client times (client/README.md, 5.12) and Home's last-look span (3.5).
+/// Client times (client/view.md, 6) and Home's last-look span (3.5).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TimeForm {
     Ago,
@@ -7293,7 +7293,7 @@ impl Times {
         self.next = [self.next, next].into_iter().flatten().min();
         text
     }
-    /// Public rows use full units with the same span, ago and reconsideration rules (client/browser.md, 8.3).
+    /// Public rows use full units with the same span, ago and reconsideration rules (client/web/public.md, 3).
     pub(crate) fn public_time(&mut self, words: &Words, form: TimeForm, at: skein_lib::Wall) -> Box<[u8]> {
         let text = self.say(words, form, at);
         let minutes = self.now.as_nanos().saturating_sub(at.as_nanos()).checked_div(MINUTE).expect("nonzero minute");
@@ -7503,7 +7503,7 @@ fn next_tick(
     Some(skein_lib::Wall::from_nanos(nanos))
 }
 
-/// Grouped counts and spend (temper/docs/design/client/README.md, 5.5).
+/// Grouped counts and spend (temper/docs/design/client/pages/accounts.md, 2).
 pub(crate) fn grouped(value: u64) -> Box<[u8]> {
     let digits = skein_lib::Decimal::of(value);
     let digits = digits.as_bytes();

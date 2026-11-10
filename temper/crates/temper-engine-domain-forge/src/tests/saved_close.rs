@@ -1,4 +1,4 @@
-//! Saved branches join the stored release path (temper/docs/design/domain/forge.md, 11).
+//! Saved branches join the stored release path (temper/docs/design/domain/forge/branches.md).
 use super::*;
 use skein_forge::api::{Answer, Error, Op, Write};
 

@@ -1,4 +1,4 @@
-//! Configuring stage one: `temper/docs/design/domain/testing.md`, 6.5.
+//! Configuring stage one: `temper/docs/design/testing/checks.md`, 5.
 
 pub mod check;
 pub mod collect;

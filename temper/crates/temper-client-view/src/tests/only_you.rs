@@ -1,4 +1,4 @@
-//! Only you's browser region (temper/docs/design/client/README.md, 3.5, Only you).
+//! Only you's browser region (temper/docs/design/client/pages/README.md, Only you).
 #![expect(clippy::disallowed_methods, clippy::disallowed_types, reason = "ordinary tests inspect semantic subtrees")]
 use super::{accounts, fixtures as f, inbox, needs};
 use crate::look;

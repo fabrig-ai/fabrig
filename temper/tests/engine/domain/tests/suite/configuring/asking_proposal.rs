@@ -1,4 +1,4 @@
-//! Ask temper's proposal read (temper/docs/design/domain/agent.md, 8.4.1).
+//! Ask temper's proposal read (temper/docs/design/domain/agent/ask-temper.md, 1).
 use super::*;
 use serde_json::json;
 

@@ -1,4 +1,4 @@
-//! A load releases the preceding client's watches (client/browser.md, 2.4).
+//! A load releases the preceding client's watches (client/web/README.md, 2.4).
 use jig_client_kit::harness::Until;
 use skein_fake_person::{Find, Step};
 use skein_ui::Role;

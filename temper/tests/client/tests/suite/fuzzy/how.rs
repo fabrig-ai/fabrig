@@ -1,5 +1,5 @@
 //! Parts follow their facts, drawings keep every stop and columns keep every subject
-//! (temper/docs/design/client/README.md, 5.13; temper/docs/design/draft/surfaces.md, 12).
+//! (temper/docs/design/client/pages/settings.md, 2; temper/docs/design/draft/surfaces.md, 12).
 use jig_client::contract::TemplateBudget;
 use skein_lib::{List, Rng};
 use skein_ui::{Builder, Role};
@@ -91,7 +91,7 @@ fn check_parts(facts: &Facts, seed: u64, step: u32) {
 }
 
 fn path(rng: &mut Rng, limits: &w::Limits) -> w::BranchPath {
-    // The fixture uses the wire's bound of 24 stops (forge.md, 8.13).
+    // The fixture uses the wire's bound of 24 stops (domain/forge/change/branch-path.md).
     let count = u32::try_from(rng.between(0, u64::from(limits.branch_path_stops))).expect("wire count");
     let mut stops = List::with_capacity(count);
     for index in 0..count {
@@ -401,7 +401,7 @@ fn moved_table(classes: &Classes, rng: &mut Rng) -> Classes {
     Classes { items: items.into_boxed_slice(), sets: sets.into_boxed_slice() }
 }
 
-// Build the settings order once (temper/docs/design/client/README.md, 5.13),
+// Build the settings order once (temper/docs/design/client/pages/settings.md, 2),
 // independently of reaches' per-column traversal. Item identity includes its
 // place: two rules with words may share a subject and still each need a line.
 fn settings_order(classes: &Classes) -> Vec<Line> {

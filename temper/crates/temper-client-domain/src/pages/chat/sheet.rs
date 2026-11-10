@@ -1,4 +1,4 @@
-//! A chat opens the shared goal sheet with its document (client/README.md, 3.5, 5.14).
+//! A chat opens the shared goal sheet with its document (client/pages/README.md, client/pages/goal.md, 3).
 use crate::{
     Domain, Limits,
     pages::{self, Act, Event, Request, home},

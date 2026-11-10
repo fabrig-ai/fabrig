@@ -1,4 +1,4 @@
-//! Shared engine commands (temper/docs/design/protocol/README.md, 4.1).
+//! Shared engine commands (temper/docs/design/protocol/binaries.md, 1).
 #[cfg(test)]
 extern crate self as temper;
 use directories::{Directories, private_root, unread};

@@ -1,4 +1,4 @@
-//! A change's merge job through the engine and worker (domain/testing.md, 2.1).
+//! A change's merge job through the engine and worker (testing/README.md, 2.1).
 use std::fmt::Write;
 use temper_system_world::composed::{World, merge_job::Row};
 use temper_worker_checkout_world::translate::commit;

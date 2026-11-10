@@ -1,5 +1,5 @@
 #!/bin/sh
-# Build the browser bundle (client/browser.md, 4.3; playground.md, 7).
+# Build the browser bundle (client/web/testing.md, 3; playground.md, 7).
 set -eu
 profile=debug
 flag=

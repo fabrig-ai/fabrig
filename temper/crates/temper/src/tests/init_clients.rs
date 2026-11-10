@@ -1,4 +1,4 @@
-//! Init's document text fits its clients (temper/docs/design/protocol/setup.md, 8.1 and 15).
+//! Init's document text fits its clients (temper/docs/design/protocol/setup/init.md, 1, and temper/docs/design/protocol/setup/README.md, 9).
 use core::num::NonZeroU16;
 
 #[test]

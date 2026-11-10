@@ -128,7 +128,7 @@ fn the_stock_holds_a_goals_note_scope_and_an_observer_none() {
     assert!(observer.note_resources.is_empty());
 }
 
-// temper/docs/design/protocol/configuration.md, 13.9: reference settings widen stock authority.
+// temper/docs/design/protocol/configuration/reference.md: reference settings widen stock authority.
 #[test]
 fn configure_reference_authority_allows_coordinator_tools() {
     use jig_domain_authority::{Answer, Call, NoteScope, Scopes};
@@ -412,7 +412,7 @@ fn ask_temper_is_charter_11_and_template_5() {
         words.contains("project-classes: what agents decide for a person and what asks them, by kind and by path set.")
     );
     ask_design_first_rules(words);
-    assert!(words.len() <= 10_240, "Ask temper's instructions fit ask-temper.md, 4.1's 10 KB");
+    assert!(words.len() <= 10_240, "Ask temper's instructions fit draft/ask-temper.md, 4.1's 10 KB");
     for heading in [
         "## temper, as you explain it",
         "## Finding out",
@@ -742,7 +742,7 @@ fn the_goals_charter_asks_for_one_report_revised_in_place() {
     }
 }
 
-// temper/docs/design/protocol/configuration.md, 13.4; domain/agent.md, 4.3.
+// temper/docs/design/protocol/configuration/stock.md; domain/agent/tools.md.
 #[test]
 fn a_goal_is_told_to_call_decided_before_it_asks() {
     for (words, prefixes) in [
@@ -833,7 +833,7 @@ fn the_chats_words_mark_an_advisors_read_only_report() {
 
 #[test]
 fn only_the_goals_paragraph_ends_with_the_questions_line_form() {
-    // domain/agent.md, 8.2: a goal writes its question in the client's line form.
+    // domain/agent/agents.md, 2: a goal writes its question in the client's line form.
     const SENTENCE: &str = " Write a question to your requester as one line asking it, a blank line, what they need to know, then a line starting Saw: with what you saw, and a line starting Choice: for each option, the one you recommend ending (recommended).";
     let words = include_str!("../stock/chat.txt");
     for (role, expected) in [
@@ -1166,7 +1166,7 @@ fn init_inbox_holds_three_message_credits_within_the_store_codec() {
     assert_eq!(limits.tasks.result_bytes, 10_660);
     assert_eq!(limits.tasks.message_bytes, 10_660);
     assert_eq!(limits.tasks.inbox_bytes, 82 * limits.tasks.message_bytes);
-    // protocol/configuration.md, 13.4: news and answer credits, four live
+    // protocol/configuration/stock.md: news and answer credits, four live
     // delegates' result reservations, and one unread result coexist.
     let required = 2 * limits.tasks.message_bytes + 5 * limits.tasks.result_bytes;
     assert_eq!(required, 74_620);
@@ -1589,7 +1589,7 @@ fn kinds_are_declared_with_their_bounds() {
 
 #[test]
 fn the_binary_gives_the_forges_stock_at_every_start() {
-    // configuration.md, 13.4: every project's rule 1, both forge charters and each charter's words and template 4's work.
+    // protocol/configuration/stock.md: every project's rule 1, both forge charters and each charter's words and template 4's work.
     const ITEMS: usize = 13;
     use temper_engine_domain_forge::{self as forge, settings};
     let engine = fixtures::engine();
@@ -1971,7 +1971,7 @@ fn the_rules_delegate_to_the_status_charter() {
     }
 }
 
-// temper/docs/design/protocol/configuration.md, 13.4; temper/docs/design/domain/trial.md, 2.
+// temper/docs/design/protocol/configuration/stock.md; temper/docs/design/domain/trial.md, 2.
 #[test]
 fn the_trial_charter_is_one_working_turn_and_reaches_nothing() {
     let engine = engine(&generated());

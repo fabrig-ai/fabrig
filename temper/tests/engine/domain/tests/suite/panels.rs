@@ -239,7 +239,7 @@ fn a_changes_watch_without_a_project_role_is_refused() {
     assert!(driver.immediate.iter().any(|request| matches!(request, root::Request::Party(root::PartyRequest::WatchRefused { watcher, why: jig_domain_core::WatchRefusal::NotAllowed }) if *watcher == WATCHER)));
 }
 
-// The two parties have different sittings in the same project (domain/forge.md, 5.6).
+// The two parties have different sittings in the same project (domain/forge/attention.md, 2).
 const OWN_PREVIOUS: Wall = Wall::from_nanos(11);
 const OWN_LATEST: Wall = Wall::from_nanos(22);
 const OTHER_PREVIOUS: Wall = Wall::from_nanos(33);

@@ -1,4 +1,4 @@
-//! Bounded problems and measured stderr lines (protocol/configuration.md, 2).
+//! Bounded problems and measured stderr lines (protocol/configuration/README.md, 2).
 use crate::limits;
 use alloc::boxed::Box;
 use jig_protocol_config as config;
@@ -51,7 +51,7 @@ pub enum What {
         batch_bytes: u32,
     },
     /// An explicit call bound below the local agent's call input
-    /// (protocol/configuration.md, 7): `bytes` the configured bound, also
+    /// (protocol/configuration/limits.md): `bytes` the configured bound, also
     /// the wire answer's; `input` the agent's `tool_payload`; `ask` its
     /// channel's `host_ask_input`; `reply` its `host_reply_text`, smith's
     /// `host_reply_bytes`.
@@ -223,7 +223,7 @@ fn redirect_listener(listener: super::Listener, writer: &mut Writer, length: &mu
     };
     put(writer, length, measuring, name);
 }
-/// The admission paragraph shared by startup paths and hello refusals (protocol/README.md, 15.3).
+/// The admission paragraph shared by startup paths and hello refusals (protocol/cluster.md, 3).
 pub(crate) fn admission_words(why: jig_domain_fleet::AgentShortfall, offered: u64, required: u64) -> Box<[u8]> {
     let mut length = 0;
     admission(why, offered, required, &mut Writer::new(0), &mut length, true);

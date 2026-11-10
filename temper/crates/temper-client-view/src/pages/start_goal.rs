@@ -1,4 +1,4 @@
-//! The draft's start sheet (temper/docs/design/client/README.md, 5.14).
+//! The draft's start sheet (temper/docs/design/client/pages/goal.md, 3).
 use crate::{
     frame::Bindings,
     look,

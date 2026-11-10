@@ -47,7 +47,7 @@ fn begin(loads: &mut Loads, after: Option<Key>, most: u32, out: &mut Queue<Reque
     owner
 }
 
-/// temper/docs/design/domain/root.md, 8: a waiter that stops between pages releases its slot.
+/// temper/docs/design/domain/root.md, 7: a waiter that stops between pages releases its slot.
 #[test]
 fn an_uncontinued_transcript_page_releases_its_slot_at_reclaim() {
     for abandon in [false, true] {

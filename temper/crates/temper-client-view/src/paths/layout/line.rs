@@ -1,4 +1,4 @@
-//! Whole judgement curves, each actor's fade (temper/docs/design/client/README.md, 5.16).
+//! Whole judgement curves, each actor's fade (temper/docs/design/client/pages/chat/conversation.md, 3).
 
 use super::{Layout, Position, judgement};
 use crate::{

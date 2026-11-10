@@ -1,11 +1,11 @@
-//! Watch admission and terminal ownership (temper/docs/design/protocol/configuration.md, 7).
+//! Watch admission and terminal ownership (temper/docs/design/protocol/configuration/limits.md).
 use jig_domain_core::documents::{Watched, Window};
 use jig_domain_people as people;
 use skein_lib::{ReplyTo, Token};
 use temper_engine_domain as root;
 use temper_engine_domain_world::{direct::Driver, store::Store, walking};
 
-// One shipped client's watches, including me (protocol/configuration.md, 7).
+// One shipped client's watches, including me (protocol/configuration/limits.md).
 const ROOM: u32 = 22;
 const FIRST: Token = Token::new(1_000);
 const EXTRA: Token = Token::new(2_000);

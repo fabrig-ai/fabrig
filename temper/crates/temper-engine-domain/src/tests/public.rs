@@ -1,4 +1,4 @@
-//! Root admission and connector public reads (temper/docs/design/client/forge.md, 11).
+//! Root admission and connector public reads (temper/docs/design/client/forge/README.md, 9).
 use super::{projection_settled, resume_fixture};
 use crate::route::public;
 use crate::{Decision, Delivery, Domain, Event, Limits, PartyInput, PartyRequest, Request};

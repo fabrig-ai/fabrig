@@ -1,4 +1,4 @@
-//! Only you on Needs you (temper/docs/design/client/README.md, 3.5, Only you).
+//! Only you on Needs you (temper/docs/design/client/pages/README.md, Only you).
 use crate::{
     accounts::words::{self, Word as W},
     frame::Bindings,

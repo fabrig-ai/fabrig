@@ -1,4 +1,4 @@
-//! Connection sequencing and serialized installation rewrites (temper/docs/design/protocol/forge.md, 2.1–2.6).
+//! Connection sequencing and serialized installation rewrites (temper/docs/design/protocol/forge/engine.md, 1–6).
 use super::{Write, answer, ended, failure_text};
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
@@ -71,7 +71,7 @@ pub(super) enum IntentSource {
     Request,
     Record,
 }
-/// A restored forge's read after its reconcile (protocol/setup.md, 6.5).
+/// A restored forge's read after its reconcile (protocol/setup/owned.md, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(super) enum ReadAgain {
     No,
@@ -356,7 +356,7 @@ fn manifest_back(engine: &crate::engine::Engine, token: Token) -> Option<&[u8]> 
         _ => None,
     }
 }
-/// The App's kept mark and account identify the person (temper/docs/design/protocol/setup.md, 17.2).
+/// The App's kept mark and account identify the person (temper/docs/design/protocol/setup/github.md, 2).
 fn app_answer(
     engine: &crate::engine::Engine,
     forge: u16,
@@ -736,7 +736,7 @@ fn configured(engine: &crate::engine::Engine, number: u16) -> Option<&crate::set
     }
     engine.workers.forges.get(number)
 }
-/// Check keeps each pasted row only after the preceding row's Kept (protocol/forge.md, 2.6).
+/// Check keeps each pasted row only after the preceding row's Kept (protocol/forge/engine.md, 6).
 fn keep_tokens(engine: &mut crate::engine::Engine, run: Token, after: Option<Item>, login: Box<[u8]>) {
     let forge = engine.setup.runs.get(&run).expect("live Check").forge;
     if engine.domain.forge_ended(forge) {
@@ -1387,7 +1387,7 @@ fn adopt_local(engine: &mut crate::engine::Engine, forge: u16) {
         .expect("one adoption per local fake");
 }
 /// A kept secret reaches a connected forge before its plan makes the hook
-/// (temper/docs/design/protocol/setup.md, 5.4).
+/// (temper/docs/design/protocol/setup/reconcile.md, 4).
 fn hand_secret(engine: &mut crate::engine::Engine, forge: u16) {
     let Some(config) = configured(engine, forge) else { return };
     let expected = records::origin(connection::settings::Kind::Forgejo, &config.api);
@@ -1806,7 +1806,7 @@ fn admin_done(engine: &mut crate::engine::Engine, token: Token, outcome: reconci
     unreachable!("admin Done belongs to Reconcile or Create");
 }
 
-// temper/docs/design/protocol/setup.md, 5.4: the step disambiguates missing and refused.
+// temper/docs/design/protocol/setup/reconcile.md, 4: the step disambiguates missing and refused.
 fn access_failure(step: reconcile::Stage, why: reconcile::Why) -> domain::AdoptionRefusal {
     use reconcile::{Stage, Why};
     if step == Stage::Admin {
