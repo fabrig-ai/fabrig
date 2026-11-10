@@ -26,8 +26,8 @@ pub(crate) enum FileKind {
     DirectoryEntry,
     File,
     Files,
-    Commit,
-    Commits,
+    ComparedPath,
+    ComparedPaths,
     Compare,
 }
 const fn field(key: &'static [u8], read: Read, required: bool) -> Field {
@@ -81,13 +81,13 @@ pub(crate) fn fields(kind: FileKind) -> &'static [Field] {
                 ]
             }
         }
-        FileKind::Parent | FileKind::Commit => const { &[field(b"sha", Read::Id { empty: false }, true)] },
+        FileKind::Parent => const { &[field(b"sha", Read::Id { empty: false }, true)] },
+        FileKind::ComparedPath => const { &[field(b"filename", Read::Text, true)] },
         FileKind::Compare => {
             const {
                 &[
                     field(b"total_commits", Read::Number, true),
-                    field(b"commits", Read::Array(Kind::File(FileKind::Commits)), true),
-                    field(b"files", Read::Array(Kind::File(FileKind::Files)), true),
+                    field(b"files", Read::Array(Kind::File(FileKind::ComparedPaths)), true),
                 ]
             }
         }
@@ -96,7 +96,7 @@ pub(crate) fn fields(kind: FileKind) -> &'static [Field] {
         | FileKind::DirectoryEntries
         | FileKind::Entries
         | FileKind::Files
-        | FileKind::Commits => &[],
+        | FileKind::ComparedPaths => &[],
     }
 }
 pub(crate) fn element(kind: FileKind) -> Option<Kind> {
@@ -106,7 +106,7 @@ pub(crate) fn element(kind: FileKind) -> Option<Kind> {
         FileKind::DirectoryEntries => Some(Kind::File(FileKind::DirectoryEntry)),
         FileKind::Entries => Some(Kind::File(FileKind::TreeEntry)),
         FileKind::Files => Some(Kind::File(FileKind::File)),
-        FileKind::Commits => Some(Kind::File(FileKind::Commit)),
+        FileKind::ComparedPaths => Some(Kind::File(FileKind::ComparedPath)),
         FileKind::Range
         | FileKind::Message
         | FileKind::MessageBody
@@ -115,7 +115,7 @@ pub(crate) fn element(kind: FileKind) -> Option<Kind> {
         | FileKind::Tree
         | FileKind::TreeEntry
         | FileKind::File
-        | FileKind::Commit
+        | FileKind::ComparedPath
         | FileKind::Compare => None,
     }
 }
@@ -368,11 +368,8 @@ impl Files {
                 Row::TreeEntry(core::mem::replace(&mut self.entry, entry())),
                 skein_json::tokenizer::Request::Next,
             ),
-            Move::End(Kind::File(FileKind::File)) => {
+            Move::End(Kind::File(FileKind::File | FileKind::ComparedPath)) => {
                 Step::Row(Row::File(core::mem::replace(&mut self.file, file())), skein_json::tokenizer::Request::Next)
-            }
-            Move::End(Kind::File(FileKind::Commit)) => {
-                Step::Row(Row::Commit(self.commit), skein_json::tokenizer::Request::Next)
             }
             Move::End(Kind::File(
                 FileKind::Range
@@ -383,7 +380,7 @@ impl Files {
                 | FileKind::Tree
                 | FileKind::Entries
                 | FileKind::Files
-                | FileKind::Commits
+                | FileKind::ComparedPaths
                 | FileKind::Compare,
             )) => Step::Demand(skein_json::tokenizer::Request::Next),
             Move::End(
@@ -414,8 +411,8 @@ impl Files {
                 | FileKind::Parent
                 | FileKind::DirectoryEntry
                 | FileKind::File
-                | FileKind::Commit
-                | FileKind::Commits => {
+                | FileKind::ComparedPath
+                | FileKind::ComparedPaths => {
                     unreachable!("file root selection")
                 }
             }),

@@ -1,4 +1,5 @@
 use super::fixtures::{self, bytes, decode, limits};
+use crate::api::Excess;
 use crate::{
     api,
     github::{
@@ -253,24 +254,27 @@ fn github_checks_bounds_and_page_cap() {
             assert_eq!(result, Some(Step::send(job_request(11))));
             assert_eq!(answer(call.job(&job(11))).len(), 1);
         } else {
-            assert_eq!(result, failed(api::Error::TooLarge));
+            let Some(Step::Done(Err(api::Error::TooLarge(_)))) = result else {
+                panic!("expected a typed size refusal");
+            };
         }
     }
     let mut call = runs_started(Bounds { rows: 1, ..bounds() });
     assert_eq!(call.runs(core::slice::from_ref(&row), true), Some(Step::send(request(Kind::CheckRuns, 2, 1))));
-    assert_eq!(call.runs(&[row], false), failed(api::Error::TooLarge));
+    let Some(Step::Done(Err(api::Error::TooLarge(_)))) = call.runs(&[row], false) else {
+        panic!("expected a typed size refusal");
+    };
     let mut call = runs_started(bounds());
-    assert_eq!(
-        call.runs(
-            &[
-                run(1, api::Check::Passed, b"example-app"),
-                run(2, api::Check::Passed, b"example-app"),
-                run(3, api::Check::Passed, b"example-app")
-            ],
-            false
-        ),
-        failed(api::Error::TooLarge)
-    );
+    let Some(Step::Done(Err(api::Error::TooLarge(_)))) = call.runs(
+        &[
+            run(1, api::Check::Passed, b"example-app"),
+            run(2, api::Check::Passed, b"example-app"),
+            run(3, api::Check::Passed, b"example-app"),
+        ],
+        false,
+    ) else {
+        panic!("expected a typed size refusal");
+    };
     for run_pages in [false, true] {
         let mut call = started(bounds(), 7);
         if run_pages {
@@ -285,7 +289,9 @@ fn github_checks_bounds_and_page_cap() {
             };
             let result = call.heard(Heard::Done(Body::Document(document)));
             if page == 50 {
-                assert_eq!(result, failed(api::Error::TooLarge));
+                let Some(Step::Done(Err(api::Error::TooLarge(_)))) = result else {
+                    panic!("expected a typed size refusal");
+                };
             } else {
                 assert_eq!(
                     result,
@@ -301,7 +307,9 @@ fn github_checks_bounds_and_page_cap() {
     for invalid in
         [Bounds { rows: 0, ..bounds() }, Bounds { page_size: 0, ..bounds() }, Bounds { answer_bytes: 159, ..bounds() }]
     {
-        assert_eq!(Call::new(invalid, true, 7).begin(), Err(api::Error::TooLarge));
+        let Err(api::Error::TooLarge(_)) = Call::new(invalid, true, 7).begin() else {
+            panic!("expected a typed size refusal");
+        };
     }
 }
 #[test]
@@ -457,11 +465,13 @@ fn github_checks_metadata_defaults_and_bounds() {
         call.statuses(core::slice::from_ref(&context), true),
         Some(Step::send(request(Kind::CombinedStatus, 2, 1)))
     );
-    assert_eq!(call.statuses(&[context], false), failed(api::Error::TooLarge));
+    let Some(Step::Done(Err(api::Error::TooLarge(_)))) = call.statuses(&[context], false) else {
+        panic!("expected a typed size refusal");
+    };
     for stage in 0_u8..3 {
         for (malformed, error) in [
             (Malformed::Missing { field: b"id" }, api::Error::InvalidAnswer),
-            (Malformed::Bound { field: b"name" }, api::Error::TooLarge),
+            (Malformed::Bound { field: b"name" }, api::Error::TooLarge(Excess::unnamed())),
         ] {
             let mut call = match stage {
                 0 => started(bounds(), 7),

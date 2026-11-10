@@ -72,9 +72,14 @@ impl Plan {
         })
     }
     fn add(&mut self, size: u64, bounds: Bounds) -> Result<(), api::Error> {
-        self.size = self.size.checked_add(size).ok_or(api::Error::TooLarge)?;
+        self.size = self.size.checked_add(size).ok_or(api::Error::TooLarge(api::Excess::unnamed()))?;
         if self.size > u64::from(bounds.answer_bytes) {
-            return Err(api::Error::TooLarge);
+            return Err(api::Error::TooLarge(api::Excess {
+                bound: api::Bound::AnswerBytes,
+                limit: u64::from(bounds.answer_bytes),
+                size: self.size,
+                exact: false,
+            }));
         }
         Ok(())
     }
@@ -108,11 +113,12 @@ impl Plan {
                 Body::Document(document) => self.done(document, bounds),
                 Body::Malformed(
                     crate::forgejo::decode::Malformed::Bound { .. } | crate::forgejo::decode::Malformed::TooLong { .. },
-                ) => Err(api::Error::TooLarge),
+                ) => Err(api::Error::TooLarge(api::Excess::unnamed())),
                 Body::Empty | Body::Raw { .. } | Body::Malformed(_) => Err(api::Error::InvalidAnswer),
             },
         }
     }
+    #[expect(clippy::too_many_lines, reason = "row dispatch names every receiving state and its measured refusal")]
     fn row(&mut self, row: d::Row, bounds: Bounds) -> Result<(), api::Error> {
         let source = core::mem::replace(&mut self.state, State::Ended);
         self.state = match row {
@@ -122,18 +128,23 @@ impl Plan {
                     // Forgejo filters head_sha but ignores workflow (forge.md, 9).
                     if value.workflow.as_ref() == workflow.as_ref() && value.commit == commit {
                         let size = crate::measure::run(&value)
-                            .ok_or(api::Error::TooLarge)?
+                            .ok_or(api::Error::TooLarge(api::Excess::unnamed()))?
                             .checked_add(u64::try_from(crate::measure::RUN_BYTES).expect("run width"))
-                            .ok_or(api::Error::TooLarge)?;
+                            .ok_or(api::Error::TooLarge(api::Excess::unnamed()))?;
                         self.add(size, bounds)?;
-                        runs.push(value).or(Err(api::Error::TooLarge))?;
+                        runs.push(value).or(Err(api::Error::TooLarge(crate::measure::capacity_excess(
+                            runs.capacity(),
+                            bounds.rows,
+                            bounds.answer_bytes,
+                            crate::measure::RUN_BYTES,
+                        ))))?;
                     }
                     State::Runs {
                         workflow,
                         commit,
                         page,
                         runs,
-                        count: count.checked_add(1).ok_or(api::Error::TooLarge)?,
+                        count: count.checked_add(1).ok_or(api::Error::TooLarge(api::Excess::unnamed()))?,
                     }
                 }
                 State::Tree { .. } | State::Run { .. } | State::Jobs { .. } | State::Steps { .. } => {
@@ -153,8 +164,18 @@ impl Plan {
                         skein_lib::len_u64(crate::measure::TREE_ENTRY_BYTES.saturating_add(value.name.len())),
                         bounds,
                     )?;
-                    entries.push(value).or(Err(api::Error::TooLarge))?;
-                    State::Tree { object, page, entries, count: count.checked_add(1).ok_or(api::Error::TooLarge)? }
+                    entries.push(value).or(Err(api::Error::TooLarge(crate::measure::capacity_excess(
+                        entries.capacity(),
+                        bounds.rows,
+                        bounds.answer_bytes,
+                        crate::measure::TREE_ENTRY_BYTES,
+                    ))))?;
+                    State::Tree {
+                        object,
+                        page,
+                        entries,
+                        count: count.checked_add(1).ok_or(api::Error::TooLarge(api::Excess::unnamed()))?,
+                    }
                 }
                 State::Runs { .. } | State::Run { .. } | State::Jobs { .. } | State::Steps { .. } => {
                     return Err(api::Error::InvalidAnswer);
@@ -171,7 +192,7 @@ impl Plan {
             d::Row::Step(step) => match source {
                 State::Steps { run, mut jobs, position } => {
                     let job = jobs.get_mut(position).expect("failed job position");
-                    job.steps = job.steps.checked_add(1).ok_or(api::Error::TooLarge)?;
+                    job.steps = job.steps.checked_add(1).ok_or(api::Error::TooLarge(api::Excess::unnamed()))?;
                     if step.status == d::StepStatus::Failure && job.step.is_none() {
                         let size = skein_lib::len_u64(step.name.len());
                         job.step = Some(api::Step { number: step.number, name: step.name });
@@ -227,7 +248,12 @@ impl Plan {
             conclusion,
             step: None,
         })
-        .or(Err(api::Error::TooLarge))?;
+        .or(Err(api::Error::TooLarge(crate::measure::capacity_excess(
+            jobs.capacity(),
+            bounds.rows,
+            bounds.answer_bytes,
+            crate::measure::RUN_JOB_BYTES,
+        ))))?;
         Ok(State::Jobs { run, jobs })
     }
     #[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge.status.md, 4.2")]
@@ -259,7 +285,7 @@ impl Plan {
                         return Err(api::Error::InvalidAnswer);
                     }
                     let run = run_value(run, self.row.object_format)?;
-                    self.add(crate::measure::run(&run).ok_or(api::Error::TooLarge)?, bounds)?;
+                    self.add(crate::measure::run(&run).ok_or(api::Error::TooLarge(api::Excess::unnamed()))?, bounds)?;
                     step = Step::send(r::Request::Jobs { at: self.row.at(), run: expected });
                     State::Jobs { run, jobs }
                 }

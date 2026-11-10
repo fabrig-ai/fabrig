@@ -181,7 +181,7 @@ pub(crate) fn answered(
             | api::Error::InvalidAnswer
             | api::Error::Timeout
             | api::Error::MissingJob
-            | api::Error::TooLarge
+            | api::Error::TooLarge(_)
             | api::Error::Empty
             | api::Error::Full
             | api::Error::Exists

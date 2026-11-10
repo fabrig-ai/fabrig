@@ -121,9 +121,10 @@ fn maximal_answer(listing: Listing) -> api::Answer {
         Listing::Compare => api::Answer::Compare {
             before: [0; 32],
             after: fixtures::BRANCH_HEAD,
-            contains_before: true,
-            commits: Box::new([fixtures::BRANCH_HEAD]),
-            files: Box::new([]),
+            files: Box::new([fixtures::filled(string, b'p')]),
+            ahead: 1,
+            behind: 0,
+            changed: 1,
         },
         Listing::PullFiles => api::Answer::PullFiles {
             head: fixtures::BRANCH_HEAD,

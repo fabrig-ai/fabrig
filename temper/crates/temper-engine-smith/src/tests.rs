@@ -1208,17 +1208,6 @@ fn forge_answers_print_commits_at_the_identifier_width() {
                 b"file at ".as_slice(),
                 b":\n".as_slice(),
             ),
-            (
-                api::Answer::Compare {
-                    before: SHA1_HEAD,
-                    after: *commit,
-                    contains_before: true,
-                    files: Box::new([]),
-                    commits: Box::new([*commit]),
-                },
-                b"Contains prior head: yes\n".as_slice(),
-                b"\n".as_slice(),
-            ),
             (pull_answer(api::State::Open, *commit, None), b"Pull 1 head work commit ".as_slice(), b" base main state open CI passed".as_slice()),
             (pull_answer(api::State::Closed, SHA1_HEAD, Some(*commit)), b"Pull 1 head work commit abcdef0123456789abcdef0123456789abcdef01 base main state closed merged commit ".as_slice(), b" CI passed".as_slice()),
         ] {
@@ -2935,123 +2924,83 @@ fn a_denied_release_names_the_control_family_once() {
 }
 
 #[test]
-fn a_real_changes_compare_is_past_the_stocks_bounds() {
+#[expect(
+    clippy::disallowed_methods,
+    clippy::format_push_string,
+    reason = "the rendering table constructs readable expected UTF-8 text"
+)]
+fn comparisons_answer_names_counts_and_containment_with_omissions() {
     use skein_forge::{api, measure};
-    // Stock values: temper/docs/help/reference/limits.md.
-    const ROWS: u32 = 8;
-    const ANSWER_BYTES: u64 = 65_536;
-    const NINE: u32 = 9; // One past the stock row bound.
-    const UNCHANGED_LINES: usize = 16_499;
-    // 16,499 unchanged two-byte lines and one changed two-byte line: 33,000 bytes per side.
-    let mut before = "x\n".repeat(UNCHANGED_LINES).into_bytes();
-    before.extend_from_slice(b"a\n");
-    let mut after = "x\n".repeat(UNCHANGED_LINES).into_bytes();
-    after.extend_from_slice(b"b\n");
-    let one_line = api::File {
-        path: b"f".as_slice().into(),
-        before: Some(b"a\n".as_slice().into()),
-        after: Some(b"b\n".as_slice().into()),
-    };
-    let mut nine_files = skein_lib::List::with_capacity(NINE);
-    let mut nine_commits = skein_lib::List::with_capacity(NINE);
-    for n in 0..NINE {
-        nine_files
-            .push(api::File { path: format!("f{n}").into_bytes().into(), ..one_line.clone() })
-            .expect("nine files fit");
-        nine_commits.push([u8::try_from(n).expect("nine commits"); 32]).expect("nine commits fit");
-    }
-    for (case, files, commits, rows_fit, bytes_fit) in [
-        ("nine one-line files", nine_files.into_boxed(), [SHA1_HEAD].into(), false, true),
-        ("nine commits", Box::new([one_line]), nine_commits.into_boxed(), false, true),
-        (
-            "one line changed in a 33 KB file",
-            Box::new([api::File {
-                path: b"f".as_slice().into(),
-                before: Some(before.into()),
-                after: Some(after.into()),
-            }]),
-            Box::new([SHA1_HEAD]),
-            true,
-            false,
-        ),
+    for (ahead, behind, changed, paths) in [
+        (2u64, 0u64, 3u64, vec![Box::from(*b"x"), Box::from(*b"y")]),
+        (9, 0, 9, vec![Box::from(*b"x"); 8]),
+        (22, 3, 1, vec![Box::from(*b"x")]),
     ] {
-        let compare = compare_answer(files, commits);
-        // These are the forge client's independent row and decoded-byte checks.
-        assert_eq!(measure::answer_rows(&compare, ROWS), rows_fit, "{case}");
-        let size = measure::answer(&compare).expect("fixture measure fits");
-        assert_eq!(size <= ANSWER_BYTES, bytes_fit, "{case}: {size} bytes");
+        for (after, digits) in COMMIT_SPELLINGS {
+            let compare = api::Answer::Compare {
+                before: SHA1_HEAD,
+                after: *after,
+                ahead,
+                behind,
+                changed,
+                files: paths.clone().into_boxed_slice(),
+            };
+            assert!(measure::answer_rows(&compare, 8));
+            assert!(measure::answer(&compare).unwrap() < 65_536);
+            let rendered = answer(&engine::CallAnswer::ForgeRead(Box::new(Ok(compare))));
+            let a = core::str::from_utf8(digits).unwrap();
+            let b = "abcdef0123456789abcdef0123456789abcdef01";
+            let contains = if behind == 0 { "contains" } else { "lacks" };
+            let mut expected = format!(
+                "{a} is {ahead} commits ahead of {b} and {behind} behind it.\n{a} {contains} {b}.\nChanged files: {changed}\n"
+            );
+            for path in &paths {
+                expected.push_str(core::str::from_utf8(path.as_ref()).unwrap());
+                expected.push('\n');
+            }
+            let left = changed - u64::try_from(paths.len()).unwrap();
+            if left > 0 {
+                expected.push_str(&format!(
+                    "[{left} not listed: read_pull_files lists a pull's files; read_file reads a path at each commit]\n"
+                ));
+            }
+            assert!(!rendered.error());
+            assert_eq!(rendered.text(), expected.as_bytes());
+        }
     }
-}
-
-fn compare_answer(
-    files: Box<[skein_forge::api::File]>,
-    commits: Box<[skein_forge::api::Commit]>,
-) -> skein_forge::api::Answer {
-    skein_forge::api::Answer::Compare { before: [1; 32], after: SHA1_HEAD, contains_before: true, files, commits }
 }
 
 #[test]
 #[expect(clippy::disallowed_methods, reason = "the test inspects the host guidance as UTF-8 text")]
 fn read_compare_too_large_names_bounds_and_paged_fallback() {
     use skein_forge::api::Error;
-    let refused = engine::CallAnswer::ForgeRead(Box::new(Err(Error::TooLarge)));
+    let refused = engine::CallAnswer::ForgeRead(Box::new(Err(Error::TooLarge(skein_forge::api::Excess::exact(
+        skein_forge::api::Bound::Rows,
+        8,
+        22,
+    )))));
     let rendered = crate::answer_for_tool(&refused, b"read_compare", 2048, crate::ForgeReadBounds::STOCK);
     assert!(rendered.error());
     let text = core::str::from_utf8(rendered.text()).expect("compare guidance is UTF-8");
+    assert!(text.starts_with("Forge read failed: too large: past forge.client.rows (8): 22 rows.\n"));
     for guidance in [
-        "This comparison is too large to return whole",
         "commit ids were read",
         "another id won't help",
         "Never retry with a changed or guessed id",
-        "no pages",
-        "forge.client.rows (8)",
-        "files",
-        "commits",
-        "forge.client.answer_bytes (65536)",
-        "both whole sides of every changed file",
-        "Which bound was exceeded is unknown",
-        "read_pull",
         "read_pull_files",
-        "head",
-        "page=1",
-        "advance page while more follows",
         "read_file",
         "both endpoints",
-        "directories",
         "max_bytes",
-        "sides must fit whole",
     ] {
         assert!(text.contains(guidance), "missing {guidance}: {text:?}");
     }
-    let mut previous = 0;
-    for phrase in [
-        "too large to return whole",
-        "commit ids were read",
-        "another id won't help",
-        "Never retry",
-        "no pages",
-        "forge.client.rows (8)",
-        "forge.client.answer_bytes (65536)",
-        "Which bound was exceeded is unknown",
-        "read_pull to",
-        "read_pull_files",
-        "read_file to",
-    ] {
-        let position = text.find(phrase).expect(phrase);
-        assert!(position > previous, "out of order: {phrase}");
-        previous = position;
-    }
-    for absent in ["core.call_answer_bytes", "host answer limit"] {
-        assert!(!text.contains(absent), "unexpected {absent}");
-    }
+    assert!(!text.contains("unknown"));
     for cap in [0, 32, 512, 2048] {
         let bounded = crate::answer_for_tool(&refused, b"read_compare", cap, crate::ForgeReadBounds::STOCK);
         assert!(bounded.error());
         assert!(bounded.text().len() <= usize::try_from(cap).unwrap());
         assert_eq!(bounded.text(), &text.as_bytes()[..bounded.text().len()]);
     }
-    let unrelated = crate::answer_for_tool(&refused, b"read_pull", 2048, crate::ForgeReadBounds::STOCK);
-    assert_eq!(unrelated.text(), b"Forge read failed: too large. The answer passed forge.client.rows (8) or forge.client.answer_bytes (65536); which one is unknown.");
     let missing = engine::CallAnswer::ForgeRead(Box::new(Err(Error::Missing)));
     assert_eq!(
         crate::answer_for_tool(&missing, b"read_compare", 2048, crate::ForgeReadBounds::STOCK).text(),
@@ -3059,27 +3008,36 @@ fn read_compare_too_large_names_bounds_and_paged_fallback() {
     );
 }
 
-/// agent.md, 4.3: a forge size refusal names both configured bounds, not a guessed cause.
+/// agent.md, 4.3: a forge size refusal retains its bound, measure and read-on words.
 #[test]
 fn forge_read_too_large_names_configured_bounds_and_clips() {
-    use crate::ForgeReadBounds;
-    use skein_forge::api::Error;
-    const SMALL_CAP: u32 = 64; // Too short for the bounds and uncertainty together.
-    const STOCK_TEXT: &[u8] = b"Forge read failed: too large. The answer passed forge.client.rows (8) or forge.client.answer_bytes (65536); which one is unknown.";
-    let refused = engine::CallAnswer::ForgeRead(Box::new(Err(Error::TooLarge)));
-    for (forge, expected) in [
-        (ForgeReadBounds::STOCK, STOCK_TEXT),
-        (ForgeReadBounds { rows: 3, answer_bytes: 4096 }, b"Forge read failed: too large. The answer passed forge.client.rows (3) or forge.client.answer_bytes (4096); which one is unknown.".as_slice()),
+    use skein_forge::api::{Bound, Error, Excess};
+    for (excess, expected) in [
+        (Excess::exact(Bound::Rows, 8, 22), "forge.client.rows (8): 22 rows"),
+        (
+            Excess::at_least(Bound::AnswerBytes, 65_536, 70_000),
+            "forge.client.answer_bytes (65536): at least 70000 bytes",
+        ),
+        (Excess::exact(Bound::OpBytes, 32, 44), "forge.client.op_bytes (32): 44 bytes"),
+        (Excess::exact(Bound::Forge, 4_294_967_295, 4_294_967_296), "a bound of the forge's (4294967295): 4294967296"),
+        (Excess::at_least(Bound::Forge, 0, 0), "a bound of the forge's"),
+        (Excess::unnamed(), "an unnamed bound"),
     ] {
-        for tool in [b"read_branch".as_slice(), b"read_pull"] {
-            let cap = u32::try_from(expected.len()).expect("refusal length fits");
-            let whole = crate::answer_for_tool(&refused, tool, cap, forge);
+        let refused = engine::CallAnswer::ForgeRead(Box::new(Err(Error::TooLarge(excess))));
+        for (tool, recovery) in [
+            (b"read_branches".as_slice(), "Use a longer prefix, or read_branch for one name."),
+            (b"read_reviews", "Advance page to list the rest; a later page skips this oversized page."),
+        ] {
+            let expected = format!("Forge read failed: too large: past {expected}. {recovery}");
+            // An unrelated renderer configuration cannot replace the excess's figures.
+            let forge = crate::ForgeReadBounds { rows: 3, answer_bytes: 4096 };
+            let whole = crate::answer_for_tool(&refused, tool, 2048, forge);
             assert!(whole.error());
-            assert_eq!(whole.text(), expected);
-            for cap in [0, SMALL_CAP, cap - 1] {
+            assert_eq!(whole.text(), expected.as_bytes());
+            for cap in [0, 64, u32::try_from(expected.len()).unwrap() - 1] {
                 let clipped = crate::answer_for_tool(&refused, tool, cap, forge);
                 assert!(clipped.error());
-                assert_eq!(clipped.text(), &expected[..usize::try_from(cap).unwrap()]);
+                assert_eq!(clipped.text(), &expected.as_bytes()[..usize::try_from(cap).unwrap()]);
             }
         }
     }
@@ -3091,11 +3049,15 @@ fn forge_read_too_large_names_configured_bounds_and_clips() {
 fn a_refused_branch_read_says_what_to_read_instead() {
     use skein_forge::api::Error;
     const BRANCHES_EMPTY: &str = "Forge read failed: empty. read_branches needs a nonempty prefix, as temper/ for temper's branches. read_settings names the default branch, and read_branch reads one branch by its name.";
-    const BRANCHES_TOO_LARGE: &str = "Forge read failed: too large. The names under this prefix pass forge.client.answer_bytes, the one bound a branch list has: name a longer prefix, as temper/goal/ in place of temper/, or read one branch by its name with read_branch.";
+    const BRANCHES_TOO_LARGE: &str = "Forge read failed: too large: past forge.client.answer_bytes (65536): at least 65537 bytes. Use a longer prefix, or read_branch for one name.";
     const BRANCH_MISSING: &str = "Forge read failed: missing. The forge has no branch of that name in this repository. read_settings names its default branch, and read_branches lists the names under a prefix, as temper/. A goal's own branch is there only where its goal holds one, and a run branch from its first push.";
     for (tool, error, expected) in [
         (b"read_branches".as_slice(), Error::Empty, BRANCHES_EMPTY),
-        (b"read_branches", Error::TooLarge, BRANCHES_TOO_LARGE),
+        (
+            b"read_branches",
+            Error::TooLarge(skein_forge::api::Excess::at_least(skein_forge::api::Bound::AnswerBytes, 65536, 65537)),
+            BRANCHES_TOO_LARGE,
+        ),
         (b"read_branch", Error::Missing, BRANCH_MISSING),
         (b"read_branch", Error::Empty, "Forge read failed: empty"),
         (b"read_branches", Error::Missing, "Forge read failed: missing"),
@@ -3168,15 +3130,15 @@ fn declarations_say_when_to_call_goal_and_what_prefix_to_give() {
 fn successful_compare_over_host_bound_keeps_measured_feedback() {
     use skein_forge::api;
     const CAP: u32 = 2048;
-    const CONTENT_BYTES: usize = 3000; // The content alone exceeds CAP.
-    let compare = compare_answer(
-        Box::new([api::File {
-            path: b"f".as_slice().into(),
-            before: Some(vec![b'a'; CONTENT_BYTES].into()),
-            after: None,
-        }]),
-        Box::new([SHA1_HEAD]),
-    );
+    const PATH_BYTES: usize = 3000; // The path alone exceeds CAP.
+    let compare = api::Answer::Compare {
+        before: SHA1_HEAD,
+        after: SHA1_HEAD,
+        ahead: 1,
+        behind: 0,
+        changed: 1,
+        files: Box::new([vec![b'f'; PATH_BYTES].into_boxed_slice()]),
+    };
     let recorded = engine::CallAnswer::ForgeRead(Box::new(Ok(compare)));
     let whole = answer(&recorded);
     let size = u32::try_from(whole.text().len()).expect("fixture size");
@@ -3373,18 +3335,11 @@ fn file_and_pull_rendering_boundaries() {
         }
     }
     for tool in [b"read_file".as_slice(), b"read_pull_files"] {
-        let recorded = engine::CallAnswer::ForgeRead(Box::new(Err(api::Error::TooLarge)));
+        let recorded = engine::CallAnswer::ForgeRead(Box::new(Err(api::Error::TooLarge(api::Excess::unnamed()))));
         let feedback = crate::answer_for_tool(&recorded, tool, 1024, crate::ForgeReadBounds::STOCK);
         let words = feedback.text();
         assert!(feedback.error());
-        for required in [
-            "1024",
-            "size unknown",
-            "read_file",
-            "max_bytes",
-            "forge.client.rows (8)",
-            "forge.client.answer_bytes (65536)",
-        ] {
+        for required in ["Forge read failed: too large: past an unnamed bound.", "read_file", "max_bytes"] {
             assert!(skein_lib::bytes::find(words, required.as_bytes()).is_some(), "missing {required}: {words:?}");
         }
     }

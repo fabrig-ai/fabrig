@@ -109,7 +109,7 @@ pub(crate) fn prepared(
             jig_domain_brief::GatherFailure {
                 fate: jig_domain_brief::GatherFate::Capacity,
                 section: b"run",
-                words: b"no room for its proof",
+                words: Box::from(b"no room for its proof".as_slice()),
             },
         );
     }

@@ -57,7 +57,7 @@ enum RefusalStep {
 #[expect(clippy::too_many_lines, reason = "input refusal scripts share one boundary driver")]
 fn a_refusal_is_kept_until_its_inputs_change() {
     use RefusalStep::{Fire, Hint, HintOut, Listed, Pushed, Quiet, Read as R, UnchangedTip, Writer};
-    let compare = Read::Compare { before: [1; 32], after: [2; 32] };
+    let compare = Read::Commits { before: [2; 32], after: [1; 32], page: 1 };
     let pull_read = Read::Pull { number: 9 };
     let reviews = Read::Reviews { number: 9, page: 1 };
     let oversized = Answer::Item { item: summary(), comments: Box::new([comment(1), comment(2)]), more: false };
@@ -73,7 +73,7 @@ fn a_refusal_is_kept_until_its_inputs_change() {
                     Pushed,
                     Writer(true),
                     R(branch_read(), Ok(Answer::Commit([2; 32]))),
-                    R(compare.clone(), Err(Error::TooLarge)),
+                    R(compare.clone(), Err(Error::TooLarge(api::Excess::unnamed()))),
                     UnchangedTip,
                     Fire(101),
                     Quiet,
@@ -88,17 +88,23 @@ fn a_refusal_is_kept_until_its_inputs_change() {
                     Hint(Change::Branch(Box::from(*b"topic"))),
                     Fire(221),
                     R(branch_read(), Ok(Answer::Commit([2; 32]))),
-                    R(compare, Err(Error::TooLarge)),
+                    R(compare, Err(Error::TooLarge(api::Excess::unnamed()))),
                     Fire(281),
                     R(branch_read(), Ok(Answer::Commit([3; 32]))),
-                    R(Read::Compare { before: [1; 32], after: [3; 32] }, Err(Error::TooLarge)),
+                    R(
+                        Read::Commits { before: [3; 32], after: [1; 32], page: 1 },
+                        Err(Error::TooLarge(api::Excess::unnamed())),
+                    ),
                     UnchangedTip,
                     Fire(341),
                     R(branch_read(), Ok(Answer::Commit([1; 32]))),
                     Quiet,
                     Fire(401),
                     R(branch_read(), Ok(Answer::Commit([3; 32]))),
-                    R(Read::Compare { before: [1; 32], after: [3; 32] }, Err(Error::TooLarge)),
+                    R(
+                        Read::Commits { before: [3; 32], after: [1; 32], page: 1 },
+                        Err(Error::TooLarge(api::Excess::unnamed())),
+                    ),
                     Writer(false),
                     R(branch_read(), Ok(Answer::Commit([3; 32]))),
                 ]),
@@ -221,7 +227,7 @@ fn a_refusal_is_kept_until_its_inputs_change() {
                 1,
                 Box::new([
                     R(object_read(0), Ok(empty_object())),
-                    R(Read::Pull { number: 9 }, Err(Error::TooLarge)),
+                    R(Read::Pull { number: 9 }, Err(Error::TooLarge(api::Excess::unnamed()))),
                     R(Read::Reviews { number: 9, page: 1 }, Ok(Answer::Reviews { reviews: Box::new([]), more: false })),
                     Fire(105),
                     R(object_read(0), Ok(empty_object())),
@@ -261,7 +267,7 @@ fn a_refusal_is_kept_until_its_inputs_change() {
                 false,
                 1,
                 Box::new([
-                    R(branch_read(), Err(Error::TooLarge)),
+                    R(branch_read(), Err(Error::TooLarge(api::Excess::unnamed()))),
                     Fire(160),
                     Quiet,
                     Fire(220),
@@ -331,7 +337,9 @@ fn refusal_row((resource, participating, errors, steps): RefusalCase) {
     }
     assert_eq!(h.failures.len(), errors);
     for error in h.failures.as_slice() {
-        assert_eq!(*error, Error::TooLarge);
+        let Error::TooLarge(_) = error else {
+            panic!("expected a permanent size refusal");
+        };
     }
 }
 

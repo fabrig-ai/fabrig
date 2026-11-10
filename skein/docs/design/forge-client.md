@@ -106,13 +106,13 @@ calls, rows and kept facts retain their edge caps.
   string its length.
 - **An operation is admitted** when its bytes are at most
   `op_bytes`, its pages start at 1, a file's path is not empty and a
-  `max_bytes` is from 1 to `answer_bytes`; else it is `TooLarge`, with no
-  call.
+  `max_bytes` is from 1 to `answer_bytes`; else it is `TooLarge`, with no call: `OpBytes` with the operation's bytes,
+  or `AnswerBytes` with the `max_bytes` asked, both exact (forge.md, 3.4).
 - **An answer is checked** against its call before anyone takes it, by
-  forge.md, section 3.7's table. Past `answer_bytes`, or with a list
-  past `rows` (every list but `Branches`' names, forge.md, 3.7), it is
-  `TooLarge` for a read and, for a write, `InvalidAnswer`: a lost
-  answer, since the write may have been done (7.4, step 5). Any other
+  forge.md, section 3.7's table. Past `answer_bytes`, or with a list past `rows` (every list but `Branches`' names), it is
+  `TooLarge` for a read, naming the bound it passed with the answer's exact
+  measure, `Rows` (its longest list's rows) before `AnswerBytes` (its bytes)
+  where it passes both; for a write it is `InvalidAnswer`: a lost answer, since the write may have been done (7.4, step 5). Any other
   mismatch is `InvalidAnswer`, and so is an answered `Busy`: `Busy` is
   the client's own refusal, never a dialect's.
 
@@ -220,8 +220,9 @@ The client holds the resources the owner names, and nothing else.
   which commit its run pushed (`Pushed`). The client reports
   `Drift { resource, expected, observed }` when a branch's tip differs
   from the pushed head with no writer holding the branch, moves backwards
-  under a writer (a `Fresh` `Range { before: new, after: old }` counts
-  commits: the old tip is not contained in the new), is moved by a hint's actor who is not a configured writer, or
+  under a writer (a `Fresh` ancestry range, `Commits { before: new, after:
+  old, page: 1 }`, lists a commit: the new tip
+  lacks the old; a refused ancestry read is remembered and skipped until its inputs change, as in 4.2), is moved by a hint's actor who is not a configured writer, or
   is gone (`observed` none). A forward move by a writer is its own and
   reports no news. An absent branch clears its cached tip in the stored
   live record and reports deletion drift only when that tip was present;
@@ -448,7 +449,7 @@ an update's head holding its base. **Unrecoverable:** none of these.
 | update from base, by a merge or a rebase | Idempotent: every copy leaves its head containing the base, or changes nothing | its head containing the base |
 | dispatch a workflow | Unrecoverable | a run of its workflow at its branch's commit made since start (`Runs`) |
 | rerun a job | Unrecoverable: Forgejo checks no attempt, and refuses only a run not completed | the job's attempt past the one named (`Run`) |
-| update a ref, fast-forward only | Conditional: the forge refuses a move that is not a fast-forward | the branch at the commit, or at a commit containing it (`Branch`, `Range`): made, though main moved past it since |
+| update a ref, fast-forward only | Conditional: the forge refuses a move that is not a fast-forward | the branch at the commit, or at a commit containing it (`Branch`, then the ancestry range `Commits { before: tip, after: commit, page: 1 }` complete and empty): made, though main moved past it since |
 | create an issue, comment, review | Unrecoverable | its key since start |
 | create a branch | Unrecoverable | the branch at that commit |
 | delete a branch | Idempotent | the branch gone |
@@ -501,8 +502,12 @@ judge.
 4. **Answer.** A typed answer ends in `Outcome::Made { made, found }`.
    A review, merge and update are proved by a read after the answer: the
    review by its key, the merge by its pull request merged at the entry's
-   head and base, the update by a `Range { before: head, after: base }`
-   counting 0, the head holding the base. A merge not so proved is `Raced { Merged, Stale }`; an update
+   head and base, the update by an ancestry range showing the head holds
+   the base: `Commits { before: head, after: base, page: 1 }`, complete
+   and empty; one that lists a commit or is refused `TooLarge` shows it
+   does not, and any other failure, or an empty page that says more
+   follow, is a failed read. Neither reads a comparison's files. A merge
+   not so proved is `Raced { Merged, Stale }`; an update
    not so proved is not found, and so made again (section 7.5). A merge answered `Queued` is
    the queue's (7.7).
 5. **A lost answer.** `Timeout` or `InvalidAnswer` on a write may have

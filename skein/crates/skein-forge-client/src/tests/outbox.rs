@@ -178,33 +178,61 @@ fn a_retargeted_merge_fails_before_any_write() {
 }
 #[test]
 fn update_recovery_proves_the_requested_base_is_an_ancestor() {
-    let mut h = Harness::new();
-    h.make(
-        1,
-        Write::Update { number: 9, style: api::UpdateStyle::Merge },
-        Condition::Update { head: [1; 32], base: [2; 32] },
-    );
-    h.clock();
-    let check = h.one();
-    h.answer(check, Ok(Answer::Pull(pull([1; 32]))));
-    let update = h.one();
-    h.answer(update, Err(Error::Timeout));
-    let find = h.one();
-    h.answer(find, Ok(Answer::Pull(pull([3; 32]))));
-    let compare = h.one();
-    assert_eq!(compare.op, Op::Read(Read::Compare { before: [3; 32], after: [2; 32] }));
-    h.answer(
-        compare,
-        Ok(Answer::Compare {
-            before: [3; 32],
-            after: [2; 32],
-            contains_before: false,
-            files: Box::new([]),
-            commits: Box::new([]),
-        }),
-    );
-    assert_eq!(h.writes, 1);
-    assert_eq!(h.outcomes.as_slice().last(), Some(&(1, Outcome::Made { made: Made::Updated([3; 32]), found: true })));
+    let listed = api::CommitMessage { id: [2; 32], parents: Box::new([]), message: Box::new([]) };
+    for (answer, proved) in [
+        (Ok(Answer::Commits { commits: Box::new([]), more: false }), Some(true)),
+        (Ok(Answer::Commits { commits: Box::new([listed.clone()]), more: false }), Some(false)),
+        (Ok(Answer::Commits { commits: Box::new([listed]), more: true }), Some(false)),
+        (Err(Error::TooLarge(api::Excess::unnamed())), Some(false)),
+        (Ok(Answer::Commits { commits: Box::new([]), more: true }), None),
+        (Err(Error::Unavailable), None),
+        (Err(Error::Forbidden), None),
+        (Err(Error::Missing), None),
+    ] {
+        for lost in [false, true] {
+            let mut h = Harness::new();
+            h.env.limits.read_attempts = 1;
+            h.make(
+                1,
+                Write::Update { number: 9, style: api::UpdateStyle::Merge },
+                Condition::Update { head: [1; 32], base: [2; 32] },
+            );
+            h.clock();
+            let check = h.one();
+            h.answer(check, Ok(Answer::Pull(pull([1; 32]))));
+            let update = h.one();
+            h.answer(update, if lost { Err(Error::Timeout) } else { Ok(Answer::Done) });
+            h.fire(111);
+            let find = h.one();
+            h.answer(find, Ok(Answer::Pull(pull([1; 32]))));
+            let ancestry = h.one();
+            assert_eq!(ancestry.op, Op::Read(Read::Commits { before: [1; 32], after: [2; 32], page: 1 }));
+            h.answer(ancestry, answer.clone());
+            match proved {
+                Some(true) => {
+                    assert_eq!(h.writes, 1);
+                    assert_eq!(
+                        h.outcomes.as_slice().last(),
+                        Some(&(1, Outcome::Made { made: Made::Updated([1; 32]), found: true }))
+                    );
+                }
+                Some(false) => {
+                    let check = h.one();
+                    assert_eq!(check.op, Op::Read(Read::Pull { number: 9 }));
+                    h.answer(check, Ok(Answer::Pull(pull([1; 32]))));
+                    let update = h.one();
+                    assert_eq!(update.op, Op::Write(Write::Update { number: 9, style: api::UpdateStyle::Merge }));
+                    assert_eq!(h.writes, 2, "unproved update made again");
+                }
+                None => {
+                    assert_eq!(h.writes, 1);
+                    assert!(h.store.get(&1).is_some());
+                    assert!(h.domain.next_deadline().is_some());
+                    assert!(h.send().is_none(), "failed read waits");
+                }
+            }
+        }
+    }
 }
 #[test]
 fn accepted_merge_requires_post_result_base_and_head_verification() {
@@ -323,7 +351,7 @@ fn an_uncertain_set_waits_for_its_original_lifetime_without_neighbor_probes() {
     assert_eq!(h.writes, 2);
 }
 #[test]
-fn comparison_overflow_leaves_update_uncertain_without_another_write() {
+fn ancestry_overflow_does_not_prove_an_update_before_its_deadline() {
     let mut h = Harness::new();
     h.make(
         1,
@@ -338,7 +366,7 @@ fn comparison_overflow_leaves_update_uncertain_without_another_write() {
     let find = h.one();
     h.answer(find, Ok(Answer::Pull(pull([3; 32]))));
     let compare = h.one();
-    h.answer(compare, Err(Error::TooLarge));
+    h.answer(compare, Err(Error::TooLarge(api::Excess::unnamed())));
     assert_eq!(h.writes, 1);
     assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Uncertain)]);
     assert!(h.store.get(&1).is_some());

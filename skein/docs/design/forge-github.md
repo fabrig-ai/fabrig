@@ -166,7 +166,7 @@ the call fails `TooLarge` when a 50th page still has a next.
 | `Read::Branch { branch }` | `GET R/branches/<branch>` | `commit.sha` |
 | `Read::Branches { prefix }` | `GET R/branches?per_page=<size>&page=<n>`, from 1 until no next | only names starting with the nonempty prefix, within `string_bytes`; a longer one skipped; only matches count against the answer bound, with no row bound (forge.md, 3.7), past it `TooLarge`; an empty prefix is `Empty` before any GET |
 | `Read::PullFiles { number, head, page }` | `GET R/pulls/<number>`; `GET R/compare/<base.sha>...<head.sha>?per_page=1`, for `merge_base_commit.sha`; `GET R/pulls/<number>/files?per_page=<size>&page=<page>`; for each file, the raw read (below) at the merge base, at `previous_filename` for `renamed`, but for `added`, and at the head but for `removed` | as forge.md 5.2; a `head.sha` other than `head` is `Stale` before any file is read; `more` from `Link` |
-| `Read::Compare { before, after }` | `GET R/compare/<before>...<after>?per_page=<size>`; for each file, the raw reads at `before` and `after` | `files[].filename` with its sides; `commits[].sha`; `contains_before` when `behind_by` is 0; `TooLarge` when the listed commits are fewer than `total_commits`, or `files` holds 300, GitHub's cap (`compare-files-capped-300`) |
+| `Read::Compare { before, after }` | `GET R/compare/<before>...<after>?per_page=1` | `files[].filename`, kept while they fit `rows` and the answer's bound, and each counted in `changed`; `ahead` from `ahead_by`, `behind` from `behind_by`; no raw read; `TooLarge` when `files` holds 300, GitHub's cap (`compare-files-capped-300`) |
 | `Read::Range { before, after }` | `GET R/compare/<before>...<after>?per_page=1` | `total_commits` as `commits`; the one commit and the files it lists skipped as they stream |
 | `Read::Checks { commit }` | `GET R/commits/<commit>/status?per_page=<size>&page=<n>`, every page; `GET R/commits/<commit>/check-runs?filter=latest&per_page=<size>&page=<n>`, every page; for each failed Actions check with a resolvable link, `GET R/actions/jobs/<job>` | each status as for `Statuses`; each check run as a `Status` (4.4), its `job` the commit, the run from `run_id`, the job its `id` and the attempt its `run_attempt`, after validating the linked run and job and the requested head (4.4), none otherwise |
 | `Read::Job { attempt, max_bytes, part }` | `GET R/actions/jobs/<job>`; `GET R/actions/jobs/<job>/logs`, answered `302`; the redirect followed (section 10) | the failed step: the first of `steps[]` whose `conclusion` is `failure`, its `number` and `name`; for `End`, the log's last `max_bytes` bytes (10), for `Start`, its first (10); `MissingJob` on a `404` or `410`, or when `run_id`, `run_attempt` or `head_sha` is not the attempt's |
@@ -181,16 +181,12 @@ The dropped rows are names the client can't hold, such as queue branches
 past the bound; the client makes no name past `string_bytes`, so it never
 looks for a branch it dropped (`Read::Branches { prefix }`, 5.3's row).
 
-- **Compare pages commits, not files.** Its page size is the least of
-  `rows`, `PAGE_CAP` (100), and `answer_bytes` / 32, the commit id's
-  measure. The first page carries the files for the whole comparison,
-  capped at 300; later commit pages carry no files. The plan asks for
-  one page and refuses fewer commits than `total_commits`, so it never
-  answers a partial comparison. The file sides and commit ids together
-  must fit the answer bound. `contains_before` comes from `behind_by == 0`,
-  including for a diverged comparison; a nonzero `ahead_by` alone does not
-  show containment. PullFiles asks for only the merge base and keeps
-  `per_page=1`.
+- **Compare reads one page.** Its first page carries the files for the
+  whole comparison, capped at 300, and its counts; later pages carry
+  commits alone, which Compare keeps none of, so it asks for one commit a
+  page and reads no later page. Containment is `behind_by == 0`, for a
+  diverged comparison too; a nonzero `ahead_by` alone does not show it.
+  PullFiles asks for only the merge base and keeps `per_page=1`.
 - **The raw read** is `GET R/contents/<path>?ref=<commit>` with `Accept:
   application/vnd.github.raw+json`, the path's slashes kept: a `200`
   that is not JSON is the file's bytes, a `404` an absent side.

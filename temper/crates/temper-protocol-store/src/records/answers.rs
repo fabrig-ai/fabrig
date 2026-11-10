@@ -115,8 +115,8 @@ pub(super) fn encode(value: &d::Answer) -> w::Answer {
         d::Answer::PullFiles { head, files, more } => {
             w::Answer::PullFiles(encode_pull_files_answer(*head, files, *more))
         }
-        d::Answer::Compare { before, after, contains_before, files, commits } => {
-            w::Answer::Compare(encode_compare_answer(*before, *after, *contains_before, files, commits))
+        d::Answer::Compare { before, after, ahead, behind, files, changed } => {
+            w::Answer::Compare(encode_compare_answer(*before, *after, *ahead, *behind, files, *changed))
         }
         d::Answer::Checks(statuses) => w::Answer::Checks(encode_checks_answer(statuses)),
         d::Answer::Collaborators { collaborators, more } => {
@@ -235,14 +235,8 @@ pub(super) fn decode(value: w::Answer, bounds: &Bounds) -> Result<d::Answer, Und
             d::Answer::PullFiles { head, files: decode_files(&files, bounds)?, more }
         }
         w::Answer::Compare(value) => {
-            let w::CompareAnswerParts { before, after, contains_before, files, commits } = value.into_parts();
-            d::Answer::Compare {
-                before,
-                after,
-                contains_before,
-                files: decode_files(&files, bounds)?,
-                commits: commits.into_boxed(),
-            }
+            let w::CompareAnswerParts { before, after, ahead, behind, files, changed } = value.into_parts();
+            d::Answer::Compare { before, after, ahead, behind, changed, files: files.into_boxed() }
         }
         w::Answer::Checks(value) => {
             let w::ChecksAnswerParts { statuses } = value.into_parts();
@@ -548,13 +542,14 @@ fn decode_files(bytes: &[u8], bounds: &Bounds) -> Result<Box<[d::File]>, Undecod
     }
     Err(Undecodable)
 }
-fn encode_commits(values: &[d::Commit]) -> List<d::Commit> {
-    let mut result = List::with_capacity(u32::try_from(values.len()).expect("admitted count"));
-    for value in values {
-        result.push(*value).expect("same count");
+fn encode_paths(values: &[Box<[u8]>]) -> List<Box<[u8]>> {
+    let mut paths = List::with_capacity(u32::try_from(values.len()).expect("bounded paths"));
+    for path in values {
+        paths.push(path.clone()).expect("sized paths");
     }
-    result
+    paths
 }
+
 fn encode_collaborators(values: &[d::Collaborator]) -> List<w::Collaborator> {
     let mut result = List::with_capacity(u32::try_from(values.len()).expect("admitted count"));
     for value in values {
@@ -603,19 +598,14 @@ pub(super) fn encode_pull_files_answer(head: d::Commit, files: &[d::File], more:
 fn encode_compare_answer(
     before: d::Commit,
     after: d::Commit,
-    contains_before: bool,
-    files: &[d::File],
-    commits: &[d::Commit],
+    ahead: u64,
+    behind: u64,
+    files: &[Box<[u8]>],
+    changed: u64,
 ) -> w::CompareAnswer {
     w::CompareAnswer::new(
         &w::CEILINGS,
-        w::CompareAnswerParts {
-            before,
-            after,
-            contains_before,
-            files: encode_files(files),
-            commits: encode_commits(commits),
-        },
+        w::CompareAnswerParts { before, after, ahead, behind, changed, files: encode_paths(files) },
     )
     .expect(FITS)
 }

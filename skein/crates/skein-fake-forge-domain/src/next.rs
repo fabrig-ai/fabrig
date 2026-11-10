@@ -103,7 +103,7 @@ pub(crate) fn compare(
     // Finish the merge-base walk before building the comparison histories,
     // so their scratch is not held together.
     let merge_base = git::merge_base(domain, base, head);
-    let files = changed(domain, limits, Some(base), head)?;
+    let files = changed(domain, limits, merge_base, head)?;
     let old = git::ancestors(domain, base);
     let new = git::ancestors(domain, head);
     let mut commits = List::with_capacity(limits.commits);
@@ -112,7 +112,15 @@ pub(crate) fn compare(
             commits.push(commit).expect("one visit per commit");
         }
     }
+    let mut behind = 0u64;
+    for commit in &old {
+        if !new.contains(commit) {
+            behind = behind.saturating_add(1);
+        }
+    }
     Ok(Answer::Comparison {
+        ahead: u64::from(commits.len()),
+        behind,
         merge_base,
         base,
         head,

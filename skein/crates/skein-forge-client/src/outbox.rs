@@ -64,7 +64,7 @@ enum Phase {
     Queued,
     Find { page: u32, after: u64 },
     DispatchRuns { head: Commit, page: u32 },
-    Compare { head: Commit, base: Commit },
+    Ancestry { head: Commit, base: Commit },
     AfterUpdate,
     AfterMerge { merged: Commit },
 }
@@ -174,7 +174,12 @@ pub(crate) fn make(d: &mut Domain, env: &Env<Limits>, entry: Entry, again: bool,
     } else if !crate::identity::connected(d, entry.repository) {
         Some(Error::Forbidden)
     } else if !valid(&entry, &env.limits) {
-        Some(Error::TooLarge)
+        Some(Error::TooLarge(match crate::measure::effect(&entry.effect) {
+            Some(size) if size > u64::from(env.limits.op_bytes) => {
+                api::Excess::exact(api::Bound::OpBytes, u64::from(env.limits.op_bytes), size)
+            }
+            Some(_) | None => api::Excess::unnamed(),
+        }))
     } else if d.outbox.entries.len() >= env.limits.entries {
         Some(Error::Busy)
     } else {
@@ -294,7 +299,7 @@ pub(crate) fn pump(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
         | Phase::Queued
         | Phase::Make
         | Phase::DispatchRuns { .. }
-        | Phase::Compare { .. }
+        | Phase::Ancestry { .. }
         | Phase::AfterUpdate
         | Phase::AfterMerge { .. } => {}
     }
@@ -308,7 +313,7 @@ pub(crate) fn pump(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
         | Phase::Queued
         | Phase::Find { .. }
         | Phase::DispatchRuns { .. }
-        | Phase::Compare { .. }
+        | Phase::Ancestry { .. }
         | Phase::AfterUpdate
         | Phase::AfterMerge { .. } => Priority::Fresh,
     };
@@ -327,7 +332,7 @@ fn operation(w: &Writing, phase: Phase) -> Op {
             };
             Read::Runs { workflow: workflow.clone(), commit: head, page }
         }
-        Phase::Compare { head, base } => Read::Compare { before: head, after: base },
+        Phase::Ancestry { head, base } => Read::Commits { before: head, after: base, page: 1 },
         Phase::Check | Phase::Queued | Phase::AfterUpdate | Phase::AfterMerge { .. } => {
             Read::Pull { number: w.lane.number.expect("conditional effect names an item") }
         }
@@ -383,7 +388,7 @@ pub(crate) fn sent(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Que
         | Phase::Queued
         | Phase::Find { .. }
         | Phase::DispatchRuns { .. }
-        | Phase::Compare { .. }
+        | Phase::Ancestry { .. }
         | Phase::AfterUpdate
         | Phase::AfterMerge { .. } => {}
     }

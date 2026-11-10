@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 
 use skein_lib::{Decimal, Queue, Token, Writer};
 
-use crate::brief_words::{BOUNDS, CHECKS, ROOM};
+use crate::brief_words::{bounds, checks, room};
 use crate::{BriefRead, BriefSource, Domain, Request, brief};
 
 #[derive(PartialEq, Eq, Hash, Debug)]
@@ -47,11 +47,11 @@ pub(crate) fn gather(
     out: &mut Queue<Request>,
 ) {
     if domain.brief_pending.contains_key(&section) || domain.brief_held.contains_key(&section) {
-        out.push(Request::BriefSized { section, size: Err(BOUNDS) });
+        out.push(Request::BriefSized { section, size: Err(bounds()) });
         return;
     }
     if domain.brief_pending.len().saturating_add(domain.brief_held.len()) >= domain.brief_held.capacity() {
-        out.push(Request::BriefSized { section, size: Err(ROOM) });
+        out.push(Request::BriefSized { section, size: Err(room()) });
         return;
     }
     domain
@@ -71,7 +71,7 @@ pub(crate) fn ready(domain: &mut Domain, section: Token, read: BriefRead, out: &
         return;
     }
     let words = match read {
-        BriefRead::Got { bytes, left } => render(pending.source, bytes, left, pending.budget).ok_or(BOUNDS),
+        BriefRead::Got { bytes, left } => render(pending.source, bytes, left, pending.budget).ok_or(bounds()),
         BriefRead::Failed(unread) => Err(unread),
     };
     match words {
@@ -108,7 +108,7 @@ pub(crate) fn ready_ci(
     let Some(pending) = domain.brief_pending.remove(&section) else {
         let read = match ci.render(budget) {
             Some(bytes) => BriefRead::Got { bytes, left: 0 },
-            None => BriefRead::Failed(CHECKS),
+            None => BriefRead::Failed(checks()),
         };
         out.push(Request::BriefReady { owner: section, read });
         return;
@@ -135,7 +135,7 @@ pub(crate) fn ready_ci(
                 .expect("pending reserved held room");
             out.push(Request::BriefSized { section, size: Ok(size) });
         }
-        None => out.push(Request::BriefSized { section, size: Err(CHECKS) }),
+        None => out.push(Request::BriefSized { section, size: Err(checks()) }),
     }
 }
 
@@ -169,13 +169,13 @@ pub(crate) fn ready_document(
                 .expect("pending reserved held room");
             out.push(Request::BriefSized { section, size: Ok(size) });
         }
-        None => out.push(Request::BriefSized { section, size: Err(BOUNDS) }),
+        None => out.push(Request::BriefSized { section, size: Err(bounds()) }),
     }
 }
 
 pub(crate) fn cut(domain: &mut Domain, section: Token, bytes: u32, out: &mut Queue<Request>) {
     let Some(held) = domain.brief_held.remove(&section) else {
-        out.push(Request::BriefSized { section, size: Err(BOUNDS) });
+        out.push(Request::BriefSized { section, size: Err(bounds()) });
         return;
     };
     if bytes >= u32::try_from(held.words.len()).expect("bounded section") {
@@ -184,7 +184,7 @@ pub(crate) fn cut(domain: &mut Domain, section: Token, bytes: u32, out: &mut Que
         out.push(Request::BriefSized { section, size: Ok(size) });
         return;
     }
-    let unread = if held.ci.is_some() { CHECKS } else { BOUNDS };
+    let unread = if held.ci.is_some() { checks() } else { bounds() };
     let rendered = match &held.document {
         Some(document) => document.render(bytes),
         None => match &held.ci {
