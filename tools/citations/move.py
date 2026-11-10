@@ -656,7 +656,7 @@ def main(argv):
         root = Path.cwd()
         if Path(git("rev-parse", "--show-toplevel").strip()) != root:
             raise ValueError("run from the repository root")
-        if git("status", "--porcelain=v1", "--untracked-files=no"):
+        if git("--no-optional-locks", "status", "--porcelain=v1", "--untracked-files=no"):
             raise ValueError("working tree has tracked changes; commit or restore them first")
         tracked = set(git("ls-files", "-z").rstrip("\0").split("\0")) - {""}
         entries, titles, errors = read_map(Path(argv[0]))
