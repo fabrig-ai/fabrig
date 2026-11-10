@@ -341,7 +341,8 @@ fn settings_neutral_form_preserves_ctls_bounds() {
         neutral.settings.authority_note_resources, ctl.settings.authority_note_resources,
         "authority_note_resources"
     );
-    assert_eq!(neutral.settings.delegation_kinds, 16);
+    // Eighteen executor places fit the whole reference delegation.
+    assert_eq!(neutral.settings.delegation_kinds, 18);
     assert_eq!(neutral.settings.delegation_kinds, ctl.settings.delegation_kinds, "delegation_kinds");
     assert_eq!(neutral.settings.part_key_path_value, ctl.settings.part_key_path_value, "part_key_path_value");
     assert_eq!(
@@ -608,6 +609,8 @@ fn settings_ceiling(grant_count: u32, kind_count: u32) -> jig_domain_authority::
         authority::Executor::Procedure(2),
         authority::Executor::Procedure(3),
         authority::Executor::Procedure(4),
+        authority::Executor::Procedure(6),
+        authority::Executor::Job(4),
         authority::Executor::Charter(7),
         authority::Executor::Charter(8),
         authority::Executor::Charter(9),
@@ -632,7 +635,8 @@ fn the_settings_tool_restores_the_stocks_policy_and_rules() {
     use jig_domain_authority as authority;
     use settings_form::view as form;
     let limits = settings_form::Limits::standard();
-    for (grant_count, kind_count) in [(14, 9), (16, 16)] {
+    // The closer procedure and close job add two executor places in each case.
+    for (grant_count, kind_count) in [(14, 11), (16, 18)] {
         let ceiling = settings_ceiling(grant_count, kind_count);
         let policy = jig_domain_core::ConfiguredPolicy {
             policy: authority::Policy {
@@ -679,7 +683,7 @@ fn the_settings_tool_restores_the_stocks_policy_and_rules() {
                 jig_protocol_engine_clients::translate::settings::setting_document(&document, &[], &limits.settings)
                     .expect("settings document fits wire bounds");
             let restored = settings_form::wire::restore_setting_document(&wire, &limits)
-                .expect("stock and sixteen-entry settings restore without document limit");
+                .expect("stock and eighteen-entry settings restore without document limit");
             assert_eq!(restored.revision, 1);
             let ceiling = match restored.value.expect("setting value") {
                 form::SettingValue::Policy(policy) => {

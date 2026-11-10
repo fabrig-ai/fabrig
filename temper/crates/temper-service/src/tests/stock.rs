@@ -149,6 +149,16 @@ fn configure_reference_authority_allows_coordinator_tools() {
     let mut configured = policy.clone();
     widen_reference(&mut rules.ceiling, &required);
     widen_reference(&mut configured.ceiling, &required);
+    for role in &mut configured.roles {
+        role.authority.delegation.kinds = role
+            .authority
+            .delegation
+            .kinds
+            .iter()
+            .copied()
+            .filter(|kind| *kind != jig_domain_authority::Executor::Charter(12))
+            .collect();
+    }
     widen_reference(&mut configured.roles[0].authority, &required);
     for (old, new) in [
         (&stock.rules.ceiling, &rules.ceiling),
@@ -181,7 +191,14 @@ fn assert_reference_authority(old: &jig_domain_authority::Authority, new: &jig_d
     restored.notes = old.notes;
     restored.delegation.kinds = old.delegation.kinds.clone();
     assert_eq!(&restored, old, "budgets, grants and other authority fields survive");
-    for executor in [Executor::Charter(5), Executor::Charter(7), Executor::Role(0)] {
+    for executor in [
+        Executor::Charter(5),
+        Executor::Charter(7),
+        Executor::Charter(8),
+        Executor::Procedure(6),
+        Executor::Job(4),
+        Executor::Role(0),
+    ] {
         assert!(new.delegation.kinds.contains(&executor));
     }
 }
@@ -225,6 +242,7 @@ fn widen_reference(authority: &mut jig_domain_authority::Authority, required: &s
     authority.tools.0 |= required.tools;
     authority.notes.0 |= required.notes;
     let mut kinds = authority.delegation.kinds.to_vec();
+    kinds.retain(|kind| *kind != Executor::Charter(12));
     for executor in &required.delegation.kinds {
         let executor = match executor {
             settings_form::view::AuthorityExecutor::Charter(n) => Executor::Charter(*n),
@@ -533,10 +551,12 @@ fn each_floor_refuses_one_below_the_stocks_need() {
     assert_eq!(run, (11_112, Setting::Charter(5)));
     let current = settings::Current::new(defaults, &engine.limits.core, &[]);
     let rows: &[(&[u8], u64, Setting, &str)] = &[
-        (b"core.policy_bytes", 5918, Setting::Policy(1), "the stock's policy 1 needs 5918 bytes"),
+        // Two executor places in four policy authorities add 2 * 4 * 8 bytes.
+        (b"core.policy_bytes", 5982, Setting::Policy(1), "the stock's policy 1 needs 5982 bytes"),
         (b"core.run_bytes", run.0, run.1, ""),
         (b"authority.grants", 14, Setting::Rules, "the stock's rules need 14 grants"),
-        (b"authority.executors", 15, Setting::Rules, "the stock's rules need 15 executors"),
+        // The closer procedure and close job add two executor places.
+        (b"authority.executors", 17, Setting::Rules, "the stock's rules need 17 executors"),
         (b"authority.segments", 1, Setting::Rules, "the stock's rules need 1 segment"),
         (b"authority.segment_bytes", 5, Setting::Rules, "the stock's rules need 5 bytes"),
         (b"authority.roles", 4, Setting::Policy(1), "the stock's policy 1 needs 4 roles"),
@@ -658,9 +678,10 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
     // named only parses the document and lists its files. No file read or
     // listener opening can occur before this refusal.
     let found = crate::startup::named(&document, &config::Directories::working()).unwrap_err();
+    // Two executor places in four authorities add 64 bytes to the policy.
     assert_eq!(
         crate::startup::lines(&found).as_ref(),
-        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5918 bytes; raise it in engine.limits.overrides\n"
+        b"engine.limits.overrides.core.policy_bytes: core.policy_bytes is 100; the stock's policy 1 needs 5982 bytes; raise it in engine.limits.overrides\n"
     );
 }
 #[test]
@@ -1298,7 +1319,9 @@ fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
                 Executor::Procedure(2),
                 Executor::Procedure(3),
                 Executor::Procedure(4),
+                Executor::Procedure(6),
                 Executor::Job(3),
+                Executor::Job(4),
                 Executor::Role(0),
                 Executor::Role(1),
                 Executor::Role(2),
@@ -1818,6 +1841,7 @@ fn the_stock_reports_follow_the_deployment_result_bound_and_keep_its_floor() {
     expected.name = b"goal for a draft".as_slice().into();
     expected.executor = jig_domain_people::TemplateExecutor::Charter(5);
     expected.resources = Box::new([jig_domain_people::Symbol { connector: 1, symbol: 1 }]);
+    expected.flags.ended_by = jig_domain_tasks::EndedBy::Closer(jig_domain_tasks::Closer { connector: 1, code: 6 });
     assert_eq!(stock.templates.iter().find(|template| template.number == 4).unwrap(), &expected);
     for result_bytes in [32, 10_660, 262_144] {
         engine.limits.core.tasks.result_bytes = result_bytes;

@@ -98,10 +98,12 @@ pub(crate) fn claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claimin
             }
             budget == 0
         }
-        crate::Executor::Agent { .. } => match crate::funders::available(task.numbers) {
-            Some(left) => budget != 0 && budget <= left,
-            None => false,
-        },
+        crate::Executor::Agent { .. } => {
+            match crate::funders::available(crate::closer::claim_numbers(domain, number).expect("live claim")) {
+                Some(left) => budget != 0 && budget <= left,
+                None => false,
+            }
+        }
         crate::Executor::Procedure { .. } | crate::Executor::Person(_) => {
             return refused(to, Some(number), Refusal::Executor, out);
         }
@@ -114,6 +116,7 @@ pub(crate) fn claim(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, claimin
         Err(Some(resource)) => return out.push(Request::WriterWaiting { reply_to: to, task: Some(number), resource }),
         Err(None) => return refused(to, Some(number), Refusal::Holds, out),
     }
+    crate::closer::yield_for_run(domain, env, number, out);
     finish_claim(domain, env, to, claiming, out);
 }
 
@@ -635,6 +638,7 @@ pub(crate) fn activation(domain: &mut Domain, env: &Env<Limits>, to: ReplyTo, en
                 Phase::Closing(Closing { stage: Stage::Delegates, ending: Ending::Failed { reason: Box::new([]) } });
         }
     }
+    crate::closer::take_available(domain, env, number, out);
     publish(domain, env, number, out);
     if nothing_awaited && record(domain, number).expect("idle task live").phase == Phase::Active(Active::Idle) {
         if closer {

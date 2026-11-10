@@ -39,9 +39,12 @@ pub fn with_repository(seed: u64, limits: &client::Limits, reader: Reader, repos
     engine_limits.people.people = 6; // Box owner, forge collaborators and the deployment service.
     engine_limits.people.initial_owners = 2;
     engine_limits.people.holdings = 4;
-    engine_limits.authority.executors = 4;
-    engine_limits.tasks.executor_kinds = 4;
-    engine_limits.documents.executors = 4;
+    // Draft first adds the closer procedure and close job to four executor places.
+    engine_limits.authority.executors = 6;
+    // Draft first adds the closer procedure and close job to four executor places.
+    engine_limits.tasks.executor_kinds = 6;
+    // Draft first adds the closer procedure and close job to four executor places.
+    engine_limits.documents.executors = 6;
     engine_limits.authority.roles = 2;
     let mut config = kinds::configuration(&engine_limits);
     config.core.seed = seed;
@@ -79,6 +82,8 @@ pub fn with_repository(seed: u64, limits: &client::Limits, reader: Reader, repos
         authority::Executor::Charter(5),
         authority::Executor::Role(0),
         authority::Executor::Job(3),
+        authority::Executor::Procedure(6),
+        authority::Executor::Job(4),
     ]);
     let project = &mut config.core.seed_projects[0].policy;
     project.permissions = Box::new([]);

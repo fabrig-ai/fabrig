@@ -223,7 +223,7 @@
           "conversation": false,
           "listed": true,
           "retention": "kept",
-          "ended_by": "result"
+          "ended_by": {"closer": {"connector": 1, "code": 6}}
         },
         "label": 2,
         "grace": null,

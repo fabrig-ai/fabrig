@@ -453,7 +453,8 @@ const STANDARD_ROOT: Root = Root {
         // Deep task row at jig standard's bounds, including its inbox, later choice
         // and two reason sets (engine::row_bound).
         // The task's closer adds 32 bytes to the task owner.
-        transcript_bytes: 22_467_728,
+        // Two added executor places retain two 8-byte AuthorityExecutor values.
+        transcript_bytes: 22_467_744,
         result_bytes: STANDARD_BRIEF.brief_bytes,
         ..ROOT.journal
     },

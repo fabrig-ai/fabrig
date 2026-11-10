@@ -17,7 +17,7 @@ const GOAL_BUDGET: u64 = 300; // Leaves 200 of the owner's 500 units for an outs
 // The stock coordinator's 11K allowance at the fixture's Sol prices (K = 8,720).
 const STOCK_GOAL_BUDGET: u64 = 95_920;
 
-fn stock_defaults() -> jig_domain_core::settings::Defaults {
+pub(super) fn stock_defaults() -> jig_domain_core::settings::Defaults {
     let catalogue = jig_domain_core::settings::CatalogueModel {
         first_read: None,
         number: 1,

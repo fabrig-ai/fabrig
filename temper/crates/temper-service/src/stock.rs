@@ -671,7 +671,9 @@ fn ceiling(ceiling_spend: u64) -> authority::Authority {
                 authority::Executor::Procedure(2),
                 authority::Executor::Procedure(3),
                 authority::Executor::Procedure(4),
+                authority::Executor::Procedure(6),
                 authority::Executor::Job(3),
+                authority::Executor::Job(4),
                 authority::Executor::Role(0),
                 authority::Executor::Role(1),
                 authority::Executor::Role(2),
@@ -719,6 +721,10 @@ fn draft_goal(result_bytes: u32) -> Template {
         name: bytes::copy_of(b"goal for a draft"),
         executor: TemplateExecutor::Charter(5),
         resources: Box::new([jig_domain_people::Symbol { connector: 1, symbol: 1 }]),
+        flags: Flags {
+            ended_by: EndedBy::Closer(jig_domain_tasks::Closer { connector: 1, code: 6 }),
+            ..goal(result_bytes).flags
+        },
         ..goal(result_bytes)
     }
 }

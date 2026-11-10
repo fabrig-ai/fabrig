@@ -260,6 +260,7 @@ pub(crate) fn end(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut
                 .spent_below
                 .checked_add(spent)
                 .expect("root ensures priced aggregates fit accounting unit");
+            crate::closer::take_available(domain, env, parent_number, out);
             publish(domain, env, parent_number, out);
         }
         // Post once against the original source in the task-end commit.

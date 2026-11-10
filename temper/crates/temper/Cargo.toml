@@ -69,6 +69,7 @@ skein-fake-forge-domain.workspace = true
 skein-kv.workspace = true
 
 [dev-dependencies]
+jig-domain-authority.workspace = true
 temper-fetch.workspace = true
 jig-client-kit.workspace = true
 temper-engine-domain-world = { path = "../../tests/engine/domain" }

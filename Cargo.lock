@@ -4901,6 +4901,7 @@ dependencies = [
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-client-shell-native",
+ "jig-domain-authority",
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",

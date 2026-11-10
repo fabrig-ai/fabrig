@@ -51,7 +51,7 @@ pub fn native() -> Limits {
                     watches: 22, // Holds four projects' decided and the shared session watches.
                     turn_bytes: 1_048_576,
                     backoff: jig_client::Backoff { first: Duration::from_secs(1), most: Duration::from_secs(30) },
-                    authority: 16, // Entries in an authority's grants, delegation kinds and notes' scopes.
+                    authority: 18, // Eighteen executor places size grants, delegation kinds and notes' scopes.
                     heartbeat: Duration::from_secs(30),
                     reads: 32, // Sixteen inbox cards, seven decisions and nine other Home/session reads.
                     parts: 16,

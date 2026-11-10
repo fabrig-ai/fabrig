@@ -34,8 +34,8 @@ fn the_box_has_room_for_reference_creating_executors() {
     assert_eq!(limits.documents.lines, 16);
     assert!(usize::try_from(limits.documents.lines).unwrap() >= charters.len());
     assert!(limits.documents.lines >= limits.tasks.charters);
-    // The reference permits procedures p2, p3 and p4 on each configured connector.
-    let procedures = 3 * written["engine"]["connectors"].as_array().unwrap().len();
+    // The closer adds procedure p6 beside p2, p3 and p4 on each configured connector.
+    let procedures = 4 * written["engine"]["connectors"].as_array().unwrap().len();
     assert!(usize::try_from(limits.documents.lines).unwrap() >= procedures);
 }
 

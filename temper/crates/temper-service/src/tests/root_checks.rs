@@ -11,7 +11,9 @@ use super::fixtures;
 use crate::startup::{Problems, checks, lines};
 
 // The stock catalogue holds nine charters.
-const ENGINE_OVERRIDES: &str = r#""tasks.charters":9,"core.templates":5,"authority.executors":15,"tasks.executor_kinds":15,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1"#;
+// The closer procedure and close job give seventeen authority executor places.
+// Their task executor places hold the same seventeen-kind stock delegation.
+const ENGINE_OVERRIDES: &str = r#""tasks.charters":9,"core.templates":5,"authority.executors":17,"tasks.executor_kinds":17,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1"#;
 const WORKER_OVERRIDES: &str = r#""hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048"#;
 
 fn started(document: &[u8]) -> Box<[u8]> {

@@ -163,6 +163,10 @@ fn the_reference_settings_file_decodes() {
     assert_eq!(goal.name.bytes(), b"goal for a draft");
     assert_eq!(goal.tracked, Some(1));
     assert_eq!(goal.label, 2);
+    assert_eq!(
+        goal.flags.ended_by,
+        settings_form::view::EndedBy::Closer(settings_form::view::Closer { connector: 1, code: 6 })
+    );
     let llm = goal.llm.as_ref().expect("goal model choice");
     assert_eq!(llm.main.model.bytes(), b"claude-opus-5-5");
     assert_eq!(llm.main.effort.as_ref().expect("coordinator effort").bytes(), b"xhigh");
@@ -574,7 +578,9 @@ fn reference_charters() -> Vec<jig_domain_core::settings::Item> {
     .expect("reference settings");
     let mut charters: Vec<_> = reference
         .iter()
-        .filter(|item| matches!(item.setting, Setting::Charter(SettingNumber { number: COORDINATOR | DESIGNER })))
+        .filter(|item| {
+            matches!(item.setting, Setting::Charter(SettingNumber { number: COORDINATOR | DESIGNER | TRIAGE }))
+        })
         .map(core_item)
         .collect();
     // Ctl resolves the reference's forge document names to connector 1 before sending.
@@ -588,28 +594,29 @@ fn reference_charters() -> Vec<jig_domain_core::settings::Item> {
     charters
 }
 
-fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 2] {
+fn reference_delegations() -> [Vec<jig_client::contract::AuthorityExecutor>; 1] {
     use jig_client::contract::AuthorityExecutor as Executor;
-    let sixteen = vec![
+    let eighteen = vec![
         Executor::Charter(1),
         Executor::Charter(2),
         Executor::Charter(4),
         Executor::Charter(COORDINATOR),
         Executor::Charter(FOREMAN),
         Executor::Charter(DESIGNER),
+        Executor::Charter(TRIAGE),
         Executor::Charter(STATUS),
         Executor::Charter(11),
-        Executor::Charter(12),
         Executor::Procedure(2),
         Executor::Procedure(3),
         Executor::Procedure(4),
+        Executor::Procedure(6),
         Executor::Job(3),
+        Executor::Job(4),
         Executor::Role(0),
         Executor::Role(1),
         Executor::Role(2),
     ];
-    let fifteen = sixteen.iter().copied().filter(|kind| *kind != Executor::Charter(DESIGNER)).collect();
-    [fifteen, sixteen]
+    [eighteen]
 }
 
 fn check_reference_delegation(mut engine: jig_protocol_config::Engine) {
@@ -619,22 +626,48 @@ fn check_reference_delegation(mut engine: jig_protocol_config::Engine) {
     jig_protocol_config::pass(&mut engine, stock).expect("stock settings");
     let config = jig_protocol_config::core(&engine, [0; 16], 1);
     let limits = &engine.limits.core;
+    // The whole reference delegation occupies eighteen executor places.
+    assert_eq!(limits.tasks.executor_kinds, 18);
+    assert_eq!(limits.authority.executors, 18);
     let current = settings::Current::new(config.defaults, limits, &[]);
     let charters = reference_charters();
-    assert_eq!(charters.len(), 2);
+    assert_eq!(charters.len(), 3);
     assert_eq!(settings::check_change(&current, &charters, &config.settings, &config.connectors, limits), Ok(()));
     let mut rules = reference_rules(&current);
     for kinds in reference_delegations() {
         let count = u32::try_from(kinds.len()).expect("reference kind count");
+        assert_eq!(count, 18);
         rules.ceiling.delegation.kinds = List::with_capacity(count);
         for kind in kinds {
             rules.ceiling.delegation.kinds.push(kind).expect("delegation count");
         }
         let mut items = charters.clone();
-        items.push(core_item(&SettingItem {
+        let rules_item = core_item(&SettingItem {
             setting: Setting::Rules,
             edit: SettingEdit::Set(SettingSet { value: SettingValue::Rules(Box::new(rules.clone())) }),
-        }));
+        });
+        let settings::Edit::Set(settings::Value::Rules(core_rules)) = &rules_item.edit else { panic!("rules") };
+        let mut policy = current.policy(1).expect("stock policy").clone();
+        policy.policy.ceiling.delegation.kinds.clone_from(&core_rules.ceiling.delegation.kinds);
+        for role in &mut policy.policy.roles {
+            if role.number == 0 {
+                role.authority.delegation.kinds.clone_from(&core_rules.ceiling.delegation.kinds);
+            } else {
+                role.authority.delegation.kinds = role
+                    .authority
+                    .delegation
+                    .kinds
+                    .iter()
+                    .copied()
+                    .filter(|kind| *kind != jig_domain_authority::Executor::Charter(12))
+                    .collect();
+            }
+        }
+        items.push(rules_item);
+        items.push(settings::Item {
+            setting: settings::Setting::Policy(1),
+            edit: settings::Edit::Set(settings::Value::Policy(Box::new(policy))),
+        });
         let change = settings::Change {
             against: current.newest(),
             items: items.into_boxed_slice(),
@@ -716,4 +749,44 @@ fn the_reference_project_file_shows_its_goals_and_lands_main_alone() {
     assert!(rule.up_to_date);
     assert!(rule.gates.is_empty());
     assert!(rule.approvals.is_empty());
+}
+
+// temper/docs/design/client/README.md, 2: each client receives the stock delegation whole.
+#[test]
+fn the_stock_settings_document_decodes_in_every_client() {
+    use jig_domain_core::{reads, settings};
+    let engine = reference_engine(&serde_json::json!({"profile":"standard","overrides":{}}));
+    let stock = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
+    assert_eq!(stock.rules.ceiling.delegation.kinds.len(), 17);
+    let source = reads::SettingDocument {
+        setting: settings::Setting::Rules,
+        revision: 1,
+        value: Some(settings::Value::Rules(Box::new(stock.rules))),
+        application: None,
+        proposed: None,
+    };
+    let presets = [
+        ("terminal", temper_client_shell_terminal::limits::native().client.client),
+        ("browser", temper_client_shell_web::limits::client().client),
+        ("ctl", temper_client_tools::limits::client().client),
+    ];
+    for (name, preset) in presets {
+        let link = jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("client limits");
+        let wire = jig_protocol_engine_clients::translate::settings::setting_document(&source, &[], link.wire())
+            .unwrap_or_else(|why| panic!("{name} receives stock settings: {why:?}"));
+        let mut bytes = skein_lib::Writer::new(usize::try_from(wire.measure()).unwrap());
+        wire.encode(&mut bytes).unwrap();
+        let bytes = bytes.finish();
+        let mut reader = skein_lib::Reader::new(&bytes);
+        let decoded = jig_client_protocol_wire::SettingDocument::decode(link.wire(), &mut reader).unwrap();
+        let restored = jig_client_protocol_link::translate::settings::restore_setting_document(&decoded, &link)
+            .unwrap_or_else(|why| panic!("{name} restores stock settings: {why:?}"));
+        let Some(jig_client::contract::SettingValue::Rules(rules)) = restored.value else { panic!("stock rules") };
+        assert_eq!(rules.ceiling.delegation.kinds.len(), 17, "{name}");
+        for form in [temper_client_tools::limits::form(), settings_form::Limits::standard()] {
+            let restored = settings_form::wire::restore_setting_document(&decoded, &form).expect("settings form");
+            let Some(SettingValue::Rules(rules)) = restored.value else { panic!("form rules") };
+            assert_eq!(rules.ceiling.delegation.kinds.len(), 17);
+        }
+    }
 }

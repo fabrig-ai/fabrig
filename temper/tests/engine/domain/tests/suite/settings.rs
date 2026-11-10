@@ -287,10 +287,12 @@ fn stock_limits() -> engine::Limits {
     let mut limits = walking::limits();
     // Room for the stock policy and the world's settings charter, with fourteen grants.
     limits.authority.grants = 16;
-    limits.authority.executors = 15;
+    // The closer procedure and close job add two executor places.
+    limits.authority.executors = 17;
     limits.authority.roles = 4;
     limits.documents.grants = 16;
-    limits.documents.executors = 15;
+    // The closer procedure and close job add two executor places.
+    limits.documents.executors = 17;
     limits.notes.scopes = 32;
     // Room for the stock charters and the world's settings charter.
     limits.tasks.charters = 9;

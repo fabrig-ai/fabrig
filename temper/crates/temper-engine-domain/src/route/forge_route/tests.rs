@@ -2003,13 +2003,17 @@ fn procedure_root() -> (super::Domain, skein_lib::Env<super::Limits>) {
         authority::Executor::Charter(1),
         authority::Executor::Procedure(super::LANDING_CODE),
         authority::Executor::Procedure(super::AFTER_LANDING_CODE),
+        authority::Executor::Procedure(super::GOAL_CLOSER_CODE),
+        authority::Executor::Job(4),
     ]);
     config.core.defaults.rules.maximum_run_spend = 1000;
     config.core.defaults.rules.ceiling.delegation.kinds = kinds.clone();
     config.core.seed_projects[0].policy.policy.ceiling.delegation.kinds = kinds;
     let mut limits = crate::tests::resume_fixture::limits();
-    limits.authority.executors = 3;
-    limits.tasks.executor_kinds = 3;
+    // The closer procedure and close job add two executor places.
+    limits.authority.executors = 5;
+    // The closer procedure and close job add two executor places.
+    limits.tasks.executor_kinds = 5;
     limits.tasks.parameters = 4;
     limits.tasks.spec_bytes = 256;
     let (mut domain, env) = crate::tests::resume_fixture::root_with_config_and_limits(config, &limits);

@@ -1053,6 +1053,13 @@ impl Domain {
         Some(last)
     }
 
+    /// Financial numbers a run can claim after its closer yields its unused reservation
+    /// (jig/docs/design/domain/tasks.md, 5.10). The claim commits the resize.
+    #[must_use]
+    pub fn claim_numbers(&self, number: u64) -> Option<crate::Numbers> {
+        crate::closer::claim_numbers(self, number)
+    }
+
     /// Fresh read-only preparation facts; admission must not trust an older async snapshot.
     #[must_use]
     pub fn run_context(&self, number: u64) -> Option<Box<crate::RunContext>> {

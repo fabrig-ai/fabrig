@@ -591,8 +591,10 @@ impl World {
                 if turn || tier.is_some() {
                     limits.authority.grants = 14;
                     limits.tasks.authority_grants = 14;
-                    limits.authority.executors = 7;
-                    limits.tasks.executor_kinds = 7;
+                    // The closer procedure and close job add two executor places.
+                    limits.authority.executors = 9;
+                    // The closer procedure and close job add two executor places.
+                    limits.tasks.executor_kinds = 9;
                     // Verification evidence has 256 bytes beside the live result label.
                     limits.tasks.result_bytes = 256 + RESULT_MESSAGE_BYTES;
                     limits.tasks.inbox_bytes += limits.tasks.inbox_messages * RESULT_MESSAGE_BYTES;
@@ -616,6 +618,8 @@ impl World {
                         authority::Executor::Procedure(2),
                         authority::Executor::Procedure(3),
                         authority::Executor::Procedure(4),
+                        authority::Executor::Procedure(6),
+                        authority::Executor::Job(4),
                     ]);
                     policy.ceiling = rules.ceiling.clone();
                     let rule = engine::LandingRule {
@@ -1279,7 +1283,9 @@ impl World {
         if authority {
             let kinds = &mut self.restart_config.core.defaults.rules.ceiling.delegation.kinds;
             let mut extended = kinds.to_vec();
-            extended.push(authority::Executor::Job(forge_top::CLOSE_KIND));
+            if !extended.contains(&authority::Executor::Job(forge_top::CLOSE_KIND)) {
+                extended.push(authority::Executor::Job(forge_top::CLOSE_KIND));
+            }
             let count = u32::try_from(extended.len()).expect("fixture executor count");
             self.env.limits.tasks.executor_kinds = self.env.limits.tasks.executor_kinds.max(count);
             self.env.limits.authority.executors = self.env.limits.authority.executors.max(count);
@@ -1301,7 +1307,7 @@ impl World {
         self.env.limits.documents = paths::document_limits(self.env.limits.documents, &self.env.limits);
         self.creating =
             jig_test_profile::fixtures::Creating::new(&self.restart_config.core, self.env.limits.tasks.tree_tasks);
-        let mut codec = crate::store::widest();
+        let mut codec = self.env.limits;
         codec.tasks = self.env.limits.tasks;
         codec.authority = self.env.limits.authority;
         self.store = crate::fixtures::restored_over(
@@ -1327,7 +1333,9 @@ impl World {
         self.env.limits.loads.reply_bytes = self.env.limits.loads.reply_bytes.max(131_072);
         let kinds = &mut self.restart_config.core.defaults.rules.ceiling.delegation.kinds;
         let mut extended = kinds.to_vec();
-        extended.push(authority::Executor::Procedure(6));
+        if !extended.contains(&authority::Executor::Procedure(6)) {
+            extended.push(authority::Executor::Procedure(6));
+        }
         let count = u32::try_from(extended.len()).expect("fixture executor count");
         self.env.limits.tasks.executor_kinds = self.env.limits.tasks.executor_kinds.max(count);
         self.env.limits.authority.executors = self.env.limits.authority.executors.max(count);
@@ -1339,7 +1347,7 @@ impl World {
         self.env.limits.documents = paths::document_limits(self.env.limits.documents, &self.env.limits);
         self.creating =
             jig_test_profile::fixtures::Creating::new(&self.restart_config.core, self.env.limits.tasks.tree_tasks);
-        let mut codec = crate::store::widest();
+        let mut codec = self.env.limits;
         codec.tasks = self.env.limits.tasks;
         codec.authority = self.env.limits.authority;
         self.store = crate::fixtures::restored_over(

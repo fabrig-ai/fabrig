@@ -86,7 +86,8 @@ impl Limits {
         settings.pattern_end_open_value = 32_768;
         settings.pattern_segments = 9;
         settings.pattern_segments_item = 32_768;
-        settings.delegation_kinds = 16;
+        // Eighteen executor places fit the whole reference delegation.
+        settings.delegation_kinds = 18;
         settings.authority_grants = 1_048_576;
         settings.authority_note_resources = 1_048_576;
         settings.field_rule_name = 32_768;
@@ -137,7 +138,8 @@ impl Limits {
             result_bytes: 6_292_480,
             text: 32_768,
             rows: 32,
-            authority: 16,
+            // Eighteen executor places size each receiving authority list.
+            authority: 18,
             fields: 16,
         }
     }
