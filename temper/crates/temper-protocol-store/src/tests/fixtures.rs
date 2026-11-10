@@ -866,6 +866,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         report: Box::new([]),
         repairs: Some([28; 32]),
         catch_up: None,
+        close: None,
         merge_result: None,
     }
 }

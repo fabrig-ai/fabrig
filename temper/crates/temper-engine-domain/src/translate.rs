@@ -47,6 +47,7 @@ pub struct Config {
 pub(crate) struct RootConfig {
     pub(crate) ways_stock: Box<[temper_engine_domain_ways::StockWay]>,
     pub(crate) merge_kind: Option<JobBound>,
+    pub(crate) close_kind: Option<JobBound>,
     pub(crate) forge_connector: u16,
     pub(crate) landings: Map<u32, ProjectLanding>,
 }
@@ -63,6 +64,7 @@ pub struct LandingRules {
 pub struct ProjectLanding {
     pub by: Way,
     pub merge_job: Option<Box<[u8]>>,
+    pub close_job: Option<Box<[u8]>>,
     pub repositories: Box<[RepositoryChecks]>,
     pub after: AfterLandingCheck,
 }
@@ -160,8 +162,13 @@ pub(crate) fn project_landing(forge: &mut forge::Domain, project: u32, landing: 
     ) {
         return false;
     }
-    match &landing.merge_job {
-        Some(command) => forge.project_merge_job(project, command.clone()),
+    if let Some(command) = &landing.merge_job
+        && !forge.project_merge_job(project, command.clone())
+    {
+        return false;
+    }
+    match &landing.close_job {
+        Some(command) => forge.project_close_job(project, command.clone()),
         None => true,
     }
 }

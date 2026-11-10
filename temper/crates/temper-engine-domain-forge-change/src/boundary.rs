@@ -322,6 +322,8 @@ pub struct Facts {
     pub delegate: Option<Delegate>,
     /// A catch-up's commit (`ChangeRow::catch_up`), `None` for every other change.
     pub catch_up: Option<Commit>,
+    /// A close job produces this change (temper/docs/design/domain/forge.md, 8.1).
+    pub close: bool,
     /// Whether the landing tip contains the catch-up commit (temper/docs/design/domain/forge.md, 8.2).
     pub contains_catch_up: Status,
     /// Whether its landing branch's rules ask up to date (domain/forge.md, 8.7).
@@ -400,6 +402,8 @@ pub struct Heard {
 pub enum Delegate {
     /// Produce and push the change's branch.
     Produce,
+    /// Settle the close request at the landing branch tip.
+    Close,
     /// Repair CI or a gate failure on the branch.
     Repair(Repair),
     /// Resolve a conflicting update from a merge in progress.

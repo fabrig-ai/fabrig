@@ -44,7 +44,7 @@ fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
         bound: Duration::from_millis(456_789),
     };
     assert!(d.project_landing(6, Way::Queue, Box::new([]), other));
-    let (way, kept, _, _) = d.landing.projects.get(&5).expect("configured project");
+    let (way, kept, _, _, _) = d.landing.projects.get(&5).expect("configured project");
     assert_eq!(*way, Way::Turn);
     assert_eq!(kept.as_ref(), repositories.as_ref());
     assert_eq!(d.landing.gates(5, REPO), repositories[0].gates.as_ref());
@@ -94,6 +94,46 @@ fn a_projects_merge_job_is_kept_per_project() {
         assert!(d.project_landing(PROJECT, way, Box::new([]), after));
         assert_eq!(d.merge_job(PROJECT), None);
         assert_eq!(d.merge_job(OTHER), Some(OTHER_COMMAND));
+    }
+}
+
+/// Close commands belong to configured projects (temper/docs/design/protocol/configuration.md, 3).
+#[test]
+fn a_projects_close_job_is_kept_per_project() {
+    use temper_engine_domain_forge_change::Way;
+    use temper_engine_domain_forge_tiers::{Settings, Suspects};
+    const PROJECT: u32 = 5;
+    const OTHER: u32 = 6;
+    const UNCONFIGURED: u32 = 7;
+    const COMMAND: &[u8] = b".temper/close";
+    const OTHER_COMMAND: &[u8] = b"scripts/close";
+    let after = AfterLanding {
+        verdict: Settings { retries: 2, suspects: Suspects::Bisect },
+        bound: Duration::from_millis(7_200_000),
+    };
+    for way in [Way::Queue, Way::Turn] {
+        let mut d = domain();
+        assert_eq!(d.close_job(PROJECT), None);
+        assert!(!d.project_close_job(PROJECT, COMMAND.into()));
+        assert!(d.landing.projects.is_empty());
+        assert!(d.project_landing(PROJECT, way, Box::new([]), after));
+        assert!(d.project_landing(OTHER, way, Box::new([]), after));
+        assert_eq!(d.landing.projects.len(), LIMITS.judge_projects);
+        assert!(d.project_close_job(PROJECT, COMMAND.into()));
+        assert_eq!(d.close_job(PROJECT), Some(COMMAND));
+        assert_eq!(d.close_job(OTHER), None);
+        assert!(!d.project_landing(UNCONFIGURED, way, Box::new([]), after));
+        assert!(!d.project_close_job(UNCONFIGURED, COMMAND.into()));
+        assert_eq!(d.close_job(UNCONFIGURED), None);
+        assert_eq!(d.landing.projects.len(), LIMITS.judge_projects);
+        assert!(d.project_close_job(OTHER, OTHER_COMMAND.into()));
+        assert_eq!(d.close_job(PROJECT), Some(COMMAND));
+        assert_eq!(d.close_job(OTHER), Some(OTHER_COMMAND));
+        assert!(d.project_close_job(PROJECT, OTHER_COMMAND.into()));
+        assert_eq!(d.close_job(PROJECT), Some(OTHER_COMMAND));
+        assert!(d.project_landing(PROJECT, way, Box::new([]), after));
+        assert_eq!(d.close_job(PROJECT), None);
+        assert_eq!(d.close_job(OTHER), Some(OTHER_COMMAND));
     }
 }
 

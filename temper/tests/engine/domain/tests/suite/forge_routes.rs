@@ -3911,3 +3911,6 @@ mod decided;
 
 #[path = "forge_routes/live_delegate.rs"]
 mod live_delegate;
+
+#[path = "forge_routes/close_change.rs"]
+mod close_change;

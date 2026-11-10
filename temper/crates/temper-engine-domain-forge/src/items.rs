@@ -108,6 +108,9 @@ impl Domain {
                     (start, Some(row.branch.clone()), Some(row.task), None, false)
                 }
 
+                change::Delegate::Close => {
+                    (Start::Branch(row.base.clone()), Some(row.branch.clone()), Some(row.task), None, false)
+                }
                 change::Delegate::Repair(_) => (
                     Start::Branch(row.branch.clone()),
                     Some(row.branch.clone()),
@@ -173,7 +176,8 @@ impl Domain {
             },
             Some((
                 _,
-                change::Delegate::Repair(_)
+                change::Delegate::Close
+                | change::Delegate::Repair(_)
                 | change::Delegate::Resolve { .. }
                 | change::Delegate::Merge { .. }
                 | change::Delegate::Gate { .. },

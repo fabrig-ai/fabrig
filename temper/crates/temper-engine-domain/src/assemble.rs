@@ -507,6 +507,7 @@ pub(crate) fn finish_brief_plan(
             forge_change::Delegate::Resolve { .. }
             | forge_change::Delegate::Merge { .. }
             | forge_change::Delegate::Produce
+            | forge_change::Delegate::Close
             | forge_change::Delegate::Gate { .. } => (None, false),
         };
         let needed = if why.is_some() { 2 } else { 1 };

@@ -5,7 +5,7 @@
 //! a delegate or effect. The top reports Pending while a write is outstanding.
 //! This policy never reads the forge or commits an outbox entry itself.
 use alloc::boxed::Box;
-use skein_lib::{List, Wall};
+use skein_lib::{List, Wall, bytes::copy_of};
 
 use crate::{
     Ask, AuthorityHold, AuthorityLack, Change, Decision, Delegate, Early, Effect, EffectResult, Facts, Freshness, Gate,
@@ -502,7 +502,7 @@ fn producing(
         return hold(change, Hold::Failed);
     }
     match facts.branch {
-        Some(head) if facts.titled => {
+        Some(head) if facts.titled && (!facts.close || standing.delegate == Status::Passed) => {
             change.state = State::Opening { requested: false };
             change.last_head = Some(head);
             change.since = now;
@@ -511,6 +511,11 @@ fn producing(
         Some(_) if !requested => request_producer(change, facts, standing, now),
         Some(_) => waiting_on_agent(change, facts, standing, now, limits),
         None if !requested => {
+            if facts.close {
+                change.state = State::Producing { requested: true };
+                change.since = now;
+                return Stepped { change, decision: Decision::Delegate(Delegate::Close) };
+            }
             if let Some(commit) = facts.catch_up {
                 return catch_up_due(change, commit, facts, now, limits);
             }
@@ -518,6 +523,10 @@ fn producing(
         }
         None => match standing.delegate {
             Status::Passed => match facts.delegate {
+                Some(Delegate::Close) => {
+                    change.state = State::NoChange { words: copy_of(b"Nothing to settle.") };
+                    Stepped { change, decision: Decision::NoChange }
+                }
                 Some(Delegate::Merge { base, .. }) => {
                     let mut stepped = resolving_due(change, base, now, limits);
                     if stepped.decision == Decision::Delegate(Delegate::Resolve { base }) {
@@ -1172,6 +1181,7 @@ fn resolving(
             }
             Some(
                 Delegate::Produce
+                | Delegate::Close
                 | Delegate::Repair(_)
                 | Delegate::Resolve { .. }
                 | Delegate::Gate { .. }
@@ -1196,7 +1206,7 @@ fn delegated(
         change.state = match delegate {
             Delegate::Repair(why) => State::Repairing { requested: true, why },
             Delegate::Resolve { base } | Delegate::Merge { base, .. } => State::Resolving { requested: true, base },
-            Delegate::Produce | Delegate::Gate { .. } => unreachable!("delegated phase has one kind"),
+            Delegate::Produce | Delegate::Close | Delegate::Gate { .. } => unreachable!("delegated phase has one kind"),
         };
         return Stepped { change, decision: Decision::Delegate(delegate) };
     }
@@ -1322,7 +1332,11 @@ fn missing(standing: &Heard, delegate: Delegate) -> Option<AuthorityHold> {
     let spend = standing.spend?;
     let reserve = match delegate {
         Delegate::Gate { .. } => spend.review,
-        Delegate::Produce | Delegate::Repair(_) | Delegate::Resolve { .. } | Delegate::Merge { .. } => spend.coding,
+        Delegate::Produce
+        | Delegate::Close
+        | Delegate::Repair(_)
+        | Delegate::Resolve { .. }
+        | Delegate::Merge { .. } => spend.coding,
     };
     (spend.left < reserve).then_some(AuthorityHold {
         recovery: spend.recovery,

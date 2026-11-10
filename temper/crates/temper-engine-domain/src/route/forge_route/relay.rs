@@ -583,7 +583,9 @@ fn asking_delegate(delegate: Option<(u64, change::Delegate)>, target: u64) -> bo
         Some((child, change::Delegate::Produce | change::Delegate::Repair(_) | change::Delegate::Resolve { .. })) => {
             child == target
         }
-        Some((_, change::Delegate::Gate { .. } | change::Delegate::Merge { .. })) | None => false,
+        Some((_, change::Delegate::Gate { .. } | change::Delegate::Merge { .. } | change::Delegate::Close)) | None => {
+            false
+        }
     }
 }
 

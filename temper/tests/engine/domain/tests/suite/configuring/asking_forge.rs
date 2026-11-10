@@ -12,6 +12,7 @@ fn an_asking_chat_reads_the_forge() {
             PROJECT,
             engine::ProjectLanding {
                 by: engine::Way::Queue,
+                close_job: None,
                 merge_job: Some(b"scripts/merge".as_slice().into()),
                 after: engine::AfterLandingCheck { tier_retries: 2, verification_bound_ms: 7_200_000 },
                 repositories: Box::new([engine::RepositoryChecks {

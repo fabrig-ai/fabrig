@@ -154,6 +154,7 @@ fn decode_repair(value: w::Repair) -> d::Repair {
 fn encode_delegate(value: d::Delegate) -> w::Delegate {
     match value {
         d::Delegate::Produce => w::Delegate::Produce,
+        d::Delegate::Close => w::Delegate::Close,
         d::Delegate::Repair(why) => w::Delegate::Repair(
             w::RepairValue::new(&w::CEILINGS, w::RepairValueParts { why: encode_repair(why) }).expect(FITS),
         ),
@@ -178,6 +179,7 @@ fn encode_delegate(value: d::Delegate) -> w::Delegate {
 fn decode_delegate(value: w::Delegate) -> d::Delegate {
     match value {
         w::Delegate::Produce => d::Delegate::Produce,
+        w::Delegate::Close => d::Delegate::Close,
         w::Delegate::Repair(value) => d::Delegate::Repair(decode_repair(value.into_parts().why)),
         w::Delegate::Resolve(value) => d::Delegate::Resolve { base: value.into_parts().commit },
         w::Delegate::Merge(value) => {
@@ -633,6 +635,7 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
         report,
         repairs,
         catch_up,
+        close,
         merge_result,
     } = value;
     w::ChangeRow::new(
@@ -690,6 +693,7 @@ pub(super) fn encode_change_row(value: &top::ChangeRow) -> w::ChangeRow {
             report: report.clone(),
             repairs: *repairs,
             catch_up: *catch_up,
+            close: close.clone(),
             merge_result: merge_result.clone(),
             effect_account: match effect_account {
                 Some(account) => Some(
@@ -739,6 +743,7 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         report,
         repairs,
         catch_up,
+        close,
         merge_result,
     } = value.into_parts();
     top::ChangeRow {
@@ -788,6 +793,7 @@ pub(super) fn decode_change_row(value: w::ChangeRow) -> top::ChangeRow {
         report,
         repairs,
         catch_up,
+        close,
         merge_result,
         effect_account: match effect_account {
             Some(account) => {

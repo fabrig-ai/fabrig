@@ -112,6 +112,7 @@ fn config(seed: u64) -> engine::Config {
         }
     }
     let mut landing = engine::ProjectLanding {
+        close_job: None,
         merge_job: Some(b".temper/merge".as_slice().into()),
         by: engine::Way::Queue,
         repositories: Box::new([]),

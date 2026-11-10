@@ -1240,6 +1240,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         report: Box::new([]),
         repairs: None,
         catch_up: None,
+        close: None,
         merge_result: None,
     }
 }
@@ -2314,6 +2315,7 @@ fn cleared_and_uncleared_results_qualify_the_landing_before_its_evidence() {
             .insert(
                 5,
                 crate::translate::ProjectLanding {
+                    close_job: None,
                     merge_job: None,
                     by: crate::translate::Way::Queue,
                     repositories: Box::new([crate::translate::RepositoryChecks {
@@ -4198,5 +4200,22 @@ fn a_hold_decided_while_its_procedure_is_not_due_keeps_its_account() {
             entry: None,
             words: b"its questions are spent: 4 of 4 taken".as_slice().into(),
         }
+    );
+}
+
+/// temper/docs/design/domain/worker.md, 4.4: preserve the close request whole.
+#[test]
+fn a_close_jobs_spec_is_its_command_and_its_request() {
+    use temper_protocol_worker_wire::v1;
+    let request = br#"{"version":1,"goal":7,"changes":[{"task":9,"landed":true}]}"#;
+    let bytes = super::close::spec(b"fabrig", b".temper/close", request, 16384).expect("close spec");
+    let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("job spec");
+    assert_eq!(decoded.command(), b"fabrig/.temper/close");
+    assert_eq!(decoded.request(), request);
+    let bound = u32::try_from(bytes.len()).expect("bounded spec");
+    assert_eq!(super::close::spec(b"fabrig", b".temper/close", request, bound), Some(bytes));
+    assert_eq!(
+        super::close::spec(b"fabrig", b".temper/close", request, bound.checked_sub(1).expect("nonempty spec")),
+        None
     );
 }

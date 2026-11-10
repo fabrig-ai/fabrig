@@ -447,7 +447,11 @@ impl Domain {
             None
         };
         let mut merge_kind = None;
+        let mut close_kind = None;
         for bound in &config.core.jobs {
+            if bound.kind.0 == forge::CLOSE_KIND {
+                close_kind = Some(*bound);
+            }
             if bound.kind.0 == forge::MERGE_KIND {
                 merge_kind = Some(*bound);
             }
@@ -455,8 +459,16 @@ impl Domain {
         if let Some(bound) = merge_kind {
             forge.merge_kind(bound.spec, bound.result);
         }
-        let root_config =
-            RootConfig { merge_kind, forge_connector, landings: config.landings, ways_stock: config.ways_stock };
+        if let Some(bound) = close_kind {
+            forge.close_kind(bound.spec, bound.result);
+        }
+        let root_config = RootConfig {
+            merge_kind,
+            close_kind,
+            forge_connector,
+            landings: config.landings,
+            ways_stock: config.ways_stock,
+        };
         let link_rng = skein_lib::Rng::new(config.core.seed);
         config.core.kept_starts =
             Box::new([tasks::KeptStart { connector: forge_connector, code: forge_route::CHANGE_CODE }]);

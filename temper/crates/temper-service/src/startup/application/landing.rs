@@ -436,6 +436,7 @@ fn project_landing(
     }
     Some(engine::ProjectLanding {
         by,
+        close_job: None,
         merge_job,
         repositories: repositories.into_boxed(),
         after: engine::AfterLandingCheck {
