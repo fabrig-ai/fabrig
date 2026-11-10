@@ -939,6 +939,11 @@ part:
   `slow_ms`, `settle_ms` and `fallback_ms`. The paces are what they are
   with no webhook, so a delivery lost, refused or never sent costs
   latency, never liveness (skein's `forge-client.md`, section 4).
+- **Listings only for items.** A repository is listed only while one of
+  its issue or pull watches lives (skein's `forge-client.md`, section 4):
+  one temper names only for branches, as a goal's, a landing's and a
+  tier's are, or watches as itself, lists nothing, and a hint there starts
+  no listing. Its branches keep their own paces.
 - **Events first, polls as a fallback.** While a repository's
   deliveries arrive, its timed reads, and temper's own polls of it,
   fall back to `fallback`, 5 minutes as shipped (skein's
@@ -4102,8 +4107,8 @@ restored change is judged by the rules as they are. temper's steps:
    history is Missing and never supplies the change's pull number.
 
 Its listings start from the newest time the store kept for each
-repository, inclusive, so what changed while the engine was down is
-read once.
+repository with an issue or pull watch, inclusive, so what changed while
+the engine was down is read once.
 
 ## 18. The world
 

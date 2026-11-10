@@ -120,7 +120,7 @@ fn github_watched_absent_branch_resolves_repository_once() {
 
     let mut world = World::github(71, 0);
     let branch = b"never-pushed";
-    // The repository's listing establishes its row before the branch joins.
+    // The repository watch keeps its row without a listing before the branch joins.
     world.event(Event::Keep {
         owner: Token::new(1),
         watches: Box::new([Watch {
@@ -136,7 +136,7 @@ fn github_watched_absent_branch_resolves_repository_once() {
             participating: false,
         }]),
     });
-    // Three slow rests cover stable absence while repository listings continue.
+    // Three slow rests cover stable absence with no repository listing.
     world.run_for(fixtures::LIMITS.slow.saturating_mul(3).saturating_add(Duration::from_secs(2)));
     world.event(Event::Keep { owner: Token::new(2), watches: Box::new([]) });
     invariants(&mut world);
