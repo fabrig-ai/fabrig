@@ -38,7 +38,7 @@ SECTION_AFTER = re.compile(
 NUM_RE = re.compile(NUM)
 MD_TOKEN = re.compile(r"(?<![\w/.<>-])((?:(?:\.\./)+|\./|/)?[\w][\w.+-]*(?:/[\w.+-]+)*\.md)(?![\w/-])")
 LINK = re.compile(r"\[([^\]]*)\]\(([^)\s]+)\)")
-OWNER = re.compile(r"(?i)\b(temper|smith|skein|jig|hearth)['’]s(?:\s+[\w-]+){0,2}\s*[`\[(]*$")
+OWNER = re.compile(r"(?i)\b(temper|smith|skein|jig|hearth)['’]s(?:\s*\(*|(?:\s+[\w-]+){1,2}\s*)[`\[]*$")
 # A citation of any other repository's document is refused: never resolved, since resolve()
 # would find a same-named file here by suffix.
 OUTSIDE = re.compile(
