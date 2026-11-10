@@ -162,7 +162,7 @@ fn unavailable_or_rejected_results_back_off_without_spending_attempts() {
                     jig_domain_brief::GatherFailure {
                         fate: jig_domain_brief::GatherFate::Transient,
                         section: b"results",
-                        words: b"a dependency's result could not be read",
+                        words: Box::from(b"a dependency's result could not be read".as_slice()),
                     }
                 );
                 failures = failures.checked_add(1).unwrap();

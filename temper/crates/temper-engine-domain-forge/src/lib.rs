@@ -86,7 +86,7 @@ pub use result::{ChangeResult, ResultText};
 mod reconcile;
 mod refusal;
 mod removal;
-pub use refusal::RefusalCause;
+pub use refusal::{RefusalCause, bound_words};
 pub mod runs;
 mod views;
 pub use reconcile::{MissingLink, Need, RecordKind};

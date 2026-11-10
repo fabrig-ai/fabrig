@@ -71,12 +71,12 @@ fn prepare_inbox(row: &mut Live, phase: Phase, priority: Priority, out: &mut Que
                 out.push(Request::Save { record: Stored::Live(row.record.clone()) });
             }
         }
-        Phase::Object | Phase::Pull | Phase::Reviews(_) | Phase::Branch | Phase::BranchCompare { .. } => {}
+        Phase::Object | Phase::Pull | Phase::Reviews(_) | Phase::Branch | Phase::BranchAncestry { .. } => {}
     }
 }
 fn operation(row: &Live, key: &Resource, phase: Phase) -> Read {
     match phase {
-        Phase::BranchCompare { before, after } => Read::Compare { before, after },
+        Phase::BranchAncestry { before, after } => Read::Commits { before: after, after: before, page: 1 },
         Phase::Object => match key.what {
             What::Pull(number) | What::Issue(number) => Read::Item {
                 number,

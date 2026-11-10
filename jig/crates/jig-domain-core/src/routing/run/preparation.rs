@@ -34,7 +34,7 @@ pub(crate) fn brief_assembled(
             brief::GatherFailure {
                 fate: brief::GatherFate::Permanent,
                 section: b"run",
-                words: b"no attempt number is left",
+                words: Box::from(b"no attempt number is left".as_slice()),
             },
         );
     };
@@ -154,7 +154,7 @@ pub(crate) fn workspace_prepared(
             brief::GatherFailure {
                 fate: brief::GatherFate::Capacity,
                 section: b"run",
-                words: b"no room for its proof",
+                words: Box::from(b"no room for its proof".as_slice()),
             },
         );
     }
@@ -399,7 +399,7 @@ pub(crate) fn plan_brief(
             failure: brief::GatherFailure {
                 fate: brief::GatherFate::Permanent,
                 section: b"task",
-                words: b"could not be read within its bounds",
+                words: Box::from(b"could not be read within its bounds".as_slice()),
             },
         });
         return out;
@@ -420,7 +420,7 @@ pub(crate) fn plan_brief(
                 failure: brief::GatherFailure {
                     fate: brief::GatherFate::Permanent,
                     section: b"results",
-                    words: b"could not be read within its bounds",
+                    words: Box::from(b"could not be read within its bounds".as_slice()),
                 },
             });
             return out;
@@ -442,7 +442,7 @@ pub(crate) fn plan_brief(
                 failure: brief::GatherFailure {
                     fate: brief::GatherFate::Permanent,
                     section: b"transcript",
-                    words: b"could not be read within its bounds",
+                    words: Box::from(b"could not be read within its bounds".as_slice()),
                 },
             });
             return out;
@@ -666,9 +666,10 @@ pub(crate) fn route_preparation_failed(
 
 /// One classification and log route for every brief failure (engine.md, 9.1).
 pub(crate) fn preparation_failure(task: u64, failure: brief::GatherFailure, out: &mut Queue<Request>) -> tasks::Event {
-    out.push(Request::Now(Box::new(Now::BriefFailed { task, failure })));
     let reason = failure.reason();
-    match failure.fate {
+    let fate = failure.fate;
+    out.push(Request::Now(Box::new(Now::BriefFailed { task, failure })));
+    match fate {
         brief::GatherFate::Capacity => tasks::Event::PreparationPaused { task, reason },
         brief::GatherFate::Transient => {
             tasks::Event::PreparationCounted { task, class: tasks::Class::Transient, reason }
@@ -687,7 +688,11 @@ pub(crate) fn route_claim_refused(core: &mut Core, work: &mut Queue<Work>, task:
         out.push(Request::Now(Box::new(Now::DropAssignment { task })));
         let event = preparation_failure(
             task,
-            brief::GatherFailure { fate: brief::GatherFate::Capacity, section: b"claim", words: b"refused" },
+            brief::GatherFailure {
+                fate: brief::GatherFate::Capacity,
+                section: b"claim",
+                words: Box::from(b"refused".as_slice()),
+            },
             &mut out,
         );
         work.push(Work::Event(Event::Tasks(event)));
@@ -780,7 +785,7 @@ pub(crate) fn transcript_loaded(
             brief::GatherFailure {
                 fate: brief::GatherFate::Transient,
                 section: b"transcript",
-                words: b"its window could not be loaded",
+                words: Box::from(b"its window could not be loaded".as_slice()),
             },
         ),
         crate::routing::TranscriptLoad::Unread => transcript_unread(core, work, task),
@@ -793,7 +798,7 @@ pub(crate) fn transcript_loaded(
                     brief::GatherFailure {
                         fate: brief::GatherFate::Transient,
                         section: b"transcript",
-                        words: b"its window could not be loaded",
+                        words: Box::from(b"its window could not be loaded".as_slice()),
                     },
                 );
             }
@@ -809,7 +814,7 @@ pub(crate) fn transcript_loaded(
                         brief::GatherFailure {
                             fate: brief::GatherFate::Transient,
                             section: b"transcript",
-                            words: b"its window could not be loaded",
+                            words: Box::from(b"its window could not be loaded".as_slice()),
                         },
                     );
                 }
@@ -845,7 +850,7 @@ pub(crate) fn transcript_unread(core: &mut Core, work: &mut Queue<Work>, task: u
             brief::GatherFailure {
                 fate: brief::GatherFate::Transient,
                 section: b"transcript",
-                words: b"its window could not be read",
+                words: Box::from(b"its window could not be read".as_slice()),
             },
         );
     }

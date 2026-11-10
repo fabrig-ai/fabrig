@@ -17,7 +17,7 @@ fn goal_world_in(
     tier: Option<temper_engine_domain_world::tier_runs::Tier>,
     main_ci: bool,
 ) -> (World, engine::Assignment, Box<[u8]>) {
-    goal_world_with_ci(close, branch, tier, main_ci, true, STEPS)
+    goal_world_with_ci(close, branch, tier, main_ci, true, STEPS, None)
 }
 #[expect(
     clippy::fn_params_excessive_bools,
@@ -30,6 +30,7 @@ fn goal_world_with_ci(
     main_ci: bool,
     silent_ci: bool,
     passes: u32,
+    commits: Option<u32>,
 ) -> (World, engine::Assignment, Box<[u8]>) {
     let mut world = World::configured_limits(
         true,
@@ -49,6 +50,7 @@ fn goal_world_with_ci(
             authority_batch: Some(8),
             tasks_batch: Some(8),
             result_bytes: Some(4096),
+            forge_commits: commits,
             ..StoryLimits::default()
         },
     )
@@ -94,6 +96,10 @@ fn goal_world_with_ci(
             approvals: Box::new([]),
         },
     ]));
+    if commits.is_some() {
+        let client = skein_forge_client::Limits { rows: 8, ..world.env.limits.forge.client };
+        world = world.with_forge_client(client);
+    }
     world.adopt();
     let mut event = protocol::hello_slots(CHANNEL, 4, Box::new([]));
     let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello, .. }, .. }) = &mut event
@@ -426,6 +432,45 @@ fn a_closer_closes_lands_and_reports() {
 }
 
 #[test]
+fn a_far_diverged_goal_closes_lands_and_reports_without_comparisons() {
+    use skein_forge::api::Read;
+    let (mut world, goal, branch) = goal_world_with_ci(true, true, None, false, true, STEPS, Some(64));
+    world.forge_reads = Some(Vec::new());
+    let mut goal_tips = vec![translate::commit(branch_tip(&mut world, &branch))];
+    for n in 0_u8..21 {
+        let tip = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"goal", &[n], 1)
+            .expect("goal advances");
+        goal_tips.push(translate::commit(tip));
+    }
+    for n in 0_u8..22 {
+        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"main", &[n], 1)
+            .expect("main advances independently");
+    }
+    let main = translate::commit(branch_tip(&mut world, b"main"));
+    let closer = make_closer(&mut world, &goal, 400);
+    let job = close_job(&mut world);
+    let tasks::Party::Task(close) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
+    finish_close(&mut world, close, &branch, &job);
+    wait_ended(&mut world, close);
+    goal_tips.push(translate::commit(branch_tip(&mut world, &branch)));
+    let landing = wait_landing(&mut world, closer);
+    wait_ended(&mut world, closer);
+    let change::State::Landed { merge, .. } = row(&world, landing).change.state else { panic!("landing merged") };
+    assert_eq!(translate::commit(branch_tip(&mut world, b"main")), merge);
+    assert!(!result_words(&world, closer).is_empty(), "closer reported");
+    assert!(
+        !world.forge_reads.as_ref().expect("recorded reads").iter().any(|(_, read)| matches!(read,
+            Read::Compare { before, after } if
+                (*before == main && goal_tips.contains(after)) ||
+                (*after == main && goal_tips.contains(before)) ||
+                (goal_tips.contains(before) && goal_tips.contains(after))
+        )),
+        "containment reads no full comparison"
+    );
+    world.close();
+}
+
+#[test]
 fn a_closer_without_a_close_job_skips_the_close_step() {
     let (mut world, goal, branch) = goal_world(false, true);
     add_change(&mut world, &goal, &branch, 93, b"First", b"done");
@@ -736,7 +781,7 @@ fn selection_change(world: &mut World, goal: &engine::Assignment, branch: &[u8],
     produce_with_status(world, made[0].task, branch, &producer, title, b"done", None);
 }
 fn selection_world() -> (World, engine::Assignment, Box<[u8]>, u64, u64) {
-    let (mut world, goal, branch) = goal_world_with_ci(false, true, None, false, false, 0);
+    let (mut world, goal, branch) = goal_world_with_ci(false, true, None, false, false, 0, None);
     fake::set_opening(&mut world.fake, b"org/repo", b"build", b"selection: full\n...");
     selection_change(&mut world, &goal, &branch, 93, b"source");
     let closer = make_closer(&mut world, &goal, 94);

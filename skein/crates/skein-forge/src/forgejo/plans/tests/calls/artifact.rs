@@ -1,5 +1,6 @@
 //! Artifact requests, streamed listings and archives meet at the call plan.
 use super::*;
+use crate::api::Excess;
 use crate::forgejo::{client, document as d, request::Request, server, tests::zip::archive};
 const RUN_ID: u64 = 7;
 const ARTIFACT_ID: u64 = 11;
@@ -114,7 +115,7 @@ fn whole_archives_fit_exactly_at_the_answer_bound() {
                 truncated: false,
             }),
         ),
-        (bound.saturating_sub(1), Err(Error::TooLarge)),
+        (bound.saturating_sub(1), Err(Error::TooLarge(Excess::unnamed()))),
     ] {
         let mut plan =
             Run::with(crate::forgejo::plans::plan::Bounds { answer_bytes, ..BOUNDS }, Op::Read(read(FILE_BYTES)));

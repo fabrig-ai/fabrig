@@ -130,7 +130,7 @@ fn answer_rows(answer: &skein_forge::api::Answer) -> u64 {
         Answer::Statuses { statuses, .. } | Answer::Checks(statuses) => count(statuses.len()),
         Answer::Remarks { remarks, .. } => count(remarks.len()),
         Answer::PullFiles { files, .. } => count(files.len()),
-        Answer::Compare { files, commits, .. } => count(files.len()).max(count(commits.len())),
+        Answer::Compare { files, .. } => count(files.len()),
         Answer::Protection(Some(value)) => count(value.contexts.len()),
         Answer::Collaborators { collaborators, .. } => count(collaborators.len()),
         Answer::Branches(_)

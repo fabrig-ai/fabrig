@@ -17,7 +17,7 @@ fn logged(out: &[Request], expected: brief::GatherFailure) {
         if let Request::Now(now) = request
             && let Now::BriefFailed { task, failure } = now.as_ref()
         {
-            assert_eq!((*task, *failure), (1, expected));
+            assert_eq!((*task, failure.clone()), (1, expected.clone()));
             count = count.checked_add(1).unwrap();
         }
     }
@@ -50,14 +50,14 @@ fn a_required_child_section_keeps_its_failure_and_releases_preparation() {
     let failure = brief::GatherFailure {
         fate: brief::GatherFate::Transient,
         section: b"context",
-        words: b"not gathered by its deadline",
+        words: Box::from(b"not gathered by its deadline".as_slice()),
     };
     let out = watch_outputs(
         &mut core,
         &limits,
-        Event::Brief(brief::GatherEvent::Missing { brief: Token::new(1), section, why: failure }),
+        Event::Brief(brief::GatherEvent::Missing { brief: Token::new(1), section, why: failure.clone() }),
     );
-    logged(&out, failure);
+    logged(&out, failure.clone());
     assert_eq!(core.tasks.task(1).unwrap().tries.transient, 1);
     assert_eq!(
         core.tasks.task(1).unwrap().retry_notice,
@@ -80,9 +80,9 @@ fn an_exhausted_run_number_counts_as_permanent_and_tells_the_root() {
     let failure = brief::GatherFailure {
         fate: brief::GatherFate::Permanent,
         section: b"run",
-        words: b"no attempt number is left",
+        words: Box::from(b"no attempt number is left".as_slice()),
     };
-    logged(&out, failure);
+    logged(&out, failure.clone());
     assert_eq!(
         core.tasks.task(1).unwrap().retry_notice,
         Some(tasks::RetryNotice::Failed {
@@ -122,10 +122,10 @@ fn a_full_result_read_table_pauses_with_its_reason() {
         brief::GatherFailure {
             fate: brief::GatherFate::Capacity,
             section: b"results",
-            words: b"no read flight is free",
+            words: Box::from(b"no read flight is free".as_slice()),
         }
     );
-    let out = crate::routing::run::preparation::route_preparation_failed(&mut core, &mut work, task, failure);
+    let out = crate::routing::run::preparation::route_preparation_failed(&mut core, &mut work, task, failure.clone());
     let Some(Work::Event(Event::Tasks(event))) = work.pop() else { panic!("tasks failure route") };
     send_task(&mut core, &limits, event);
     let mut out = out;
@@ -133,7 +133,7 @@ fn a_full_result_read_table_pauses_with_its_reason() {
     while let Some(request) = out.pop() {
         requests.push(request).unwrap();
     }
-    logged(requests.as_slice(), failure);
+    logged(requests.as_slice(), failure.clone());
     assert_eq!(core.tasks.task(1).unwrap().tries, tasks::Tries::NONE);
     assert_eq!(
         core.tasks.task(1).unwrap().retry_notice,
@@ -162,7 +162,7 @@ fn an_unread_core_section_counts_as_permanent() {
         brief::GatherFailure {
             fate: brief::GatherFate::Permanent,
             section: b"task",
-            words: b"could not be read within its bounds",
+            words: Box::from(b"could not be read within its bounds".as_slice()),
         }
     );
     let _out = crate::routing::run::preparation::route_preparation_failed(&mut core, &mut work, task, failure);
@@ -204,9 +204,12 @@ fn a_full_proof_table_pauses_before_claiming_an_agent() {
             workspace: None,
         },
     );
-    let failure =
-        brief::GatherFailure { fate: brief::GatherFate::Capacity, section: b"run", words: b"no room for its proof" };
-    logged(&out, failure);
+    let failure = brief::GatherFailure {
+        fate: brief::GatherFate::Capacity,
+        section: b"run",
+        words: Box::from(b"no room for its proof".as_slice()),
+    };
+    logged(&out, failure.clone());
     assert_eq!(
         core.tasks.task(1).unwrap().retry_notice,
         Some(tasks::RetryNotice::Refused { count: 1, reason: Some(failure.reason()) })

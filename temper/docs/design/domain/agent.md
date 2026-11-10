@@ -385,26 +385,25 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
   without it. `read_collaborators` lists ids, for `read_permission` to
   name.
 
-- **A compare is whole, with no pages.** Its files and commits each fit
-  `forge.client.rows`, and its decoded answer, both whole sides of every
-  changed file, fits `forge.client.answer_bytes` (skein's
-  `forge-client.md`, 2.3, and `forge.md`, 5.2 and 5.3), so an ordinary
-  change passes them: nine files, nine commits, or a line changed in a
-  long file. A `read_compare` size refusal names both
-  limits with their configured figures, without claiming which was exceeded.
-  It says first that the commit ids were read and that no other id helps,
-  since a run that isn't
-  told retries with one it made up. It directs a run with
-  an existing pull to `read_pull` for its head, then `read_pull_files`
-  at that head, from page 1 while more follows. Pull-file sides must
-  also fit whole. Otherwise, or when that page is too large, the run
-  lists directories with `read_file` at both endpoints and reads
-  selected files at each within `max_bytes`. It names no host answer bound
-  to raise: the forge client refused this, and raising one would not help.
-  The refusal stays marked
-  an error and fits the host answer's byte bound. A successful comparison
-  whose rendered form exceeds that bound returns measured-size feedback
-  with the same recovery instead of losing its body at the worker.
+- **A compare is by names, with no contents.** `read_compare` answers
+  how many commits `after` has that `before` lacks and how many it lacks,
+  whether `after` contains `before`, and the changed files' paths, at
+  most `forge.client.rows` (8 as configured) with how many it left out
+  (skein's `forge.md`, 3.2 and 3.3). It reads no file's contents, so two
+  branches however far apart compare. Its answer, a line each:
+  `AFTER is A commits ahead of BEFORE and B behind it.`, then `AFTER
+  contains BEFORE.` or `AFTER lacks BEFORE.`, then `Changed files: N`,
+  each path it holds, and, where it holds fewer than N, `[K not listed:
+  read_pull_files lists a pull's files; read_file reads a path at each
+  commit]`. A file's contents are `read_file` at `before` and at
+  `after`, a side `Missing` where the file is absent; its description
+  says so. A `read_compare` refusal (a forge that cuts its own listing)
+  names its bound as any read's does, says that the commit ids were read
+  and that no other id helps, since a run that isn't told retries with
+  one it made up, and directs it to `read_pull_files` or `read_file`. A
+  successful comparison whose rendered form exceeds the host answer's
+  bound returns measured-size feedback with the same recovery instead of
+  losing its body at the worker.
 - **File reads fit the host answer's bound.** The adapter measures rendered
   file, directory and pull-file answers, including metadata and byte escaping.
   A file keeps the largest UTF-8 prefix that fits with its metadata,
@@ -459,10 +458,16 @@ anything in one: the drafter's runs so (8.5), and keep their sub-agents.
     a longer prefix reads fewer.
 
   Every other tool's `Missing` and `Empty` keep their one line. A forge read
-  refused as too large names `forge.client.rows` and `forge.client.answer_bytes`
-  with their configured figures, without claiming which was passed. The
-  refusal stays marked an error and is cut to fit the host answer's
-  bound, as the compare's is.
+  refused as too large names the bound it passed and the size it met, in a
+  bound's words (`forge.md`, 8.4): `Forge read failed: too large: past
+  forge.client.rows (8): 22 rows.`, then how to read on, as its tool's
+  description says. Each forge read's description names the bounds its
+  answer meets and how to read past them: a listing by its next page, a
+  file by path within `max_bytes` (`read_file`), a pull's files by page
+  or a path at the head or the base, a comparison by names with each
+  file's contents by path, a branch list by a longer prefix. The refusal
+  stays marked an error and is cut to fit the host answer's bound, as
+  the compare's is.
 - **Reads and writes:** the forge's reads, `recall`, `settings` and `read_docs` are reads; every
   other host tool is a write, which smith runs alone (smith's
   `domain/run.md`, 5.2).

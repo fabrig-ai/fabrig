@@ -37,6 +37,6 @@ pub fn write_commit(commit: &api::Commit) -> Option<[u8; 40]> {
 pub fn repository(id: u64) -> Result<u32, api::Error> {
     match u32::try_from(id) {
         Ok(id) => Ok(id),
-        Err(_) => Err(api::Error::TooLarge),
+        Err(_) => Err(api::Error::TooLarge(api::Excess::exact(api::Bound::Forge, u64::from(u32::MAX), id))),
     }
 }

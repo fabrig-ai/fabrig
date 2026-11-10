@@ -286,12 +286,12 @@ fn a_pull_is_rebased_then_merged_fast_forward() {
         Outcome::Made { made: Made::Updated(_), .. }
     ));
     let head = branch(&mut world, b"work");
-    let Answer::Compare { contains_before, .. } =
+    let Answer::Compare { behind, .. } =
         world.read(Read::Compare { before: commit(main), after: head }).expect("rebased ancestry")
     else {
         panic!("compare")
     };
-    assert!(contains_before);
+    assert_eq!(behind, 0);
     world.run_for(Duration::from_secs(3));
     assert_eq!(
         world.write(Write::Merge { number, head, how: MergeHow::FastForwardOnly }),

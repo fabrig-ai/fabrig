@@ -154,5 +154,8 @@ fn answer_rows_past_the_limit_are_too_large() {
         code_owners: false,
         bypass: Bypass::Never,
     }));
-    assert_eq!(super::reads::size::answer(&answer, LIMIT), Err(crate::api::Error::TooLarge));
+    assert_eq!(
+        super::reads::size::answer(&answer, LIMIT),
+        Err(crate::api::Error::TooLarge(crate::api::Excess::exact(crate::api::Bound::Rows, 1, 2)))
+    );
 }

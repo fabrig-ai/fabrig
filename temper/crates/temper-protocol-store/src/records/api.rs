@@ -240,7 +240,24 @@ pub(crate) fn encode_error(value: d::Error) -> w::Error {
         d::Error::Forbidden => w::Error::Forbidden,
         d::Error::Missing => w::Error::Missing,
         d::Error::MissingJob => w::Error::MissingJob,
-        d::Error::TooLarge => w::Error::TooLarge,
+        d::Error::TooLarge(value) => w::Error::TooLarge(
+            w::Excess::new(
+                &w::CEILINGS,
+                w::ExcessParts {
+                    bound: match value.bound {
+                        d::Bound::OpBytes => w::Bound::OpBytes,
+                        d::Bound::AnswerBytes => w::Bound::AnswerBytes,
+                        d::Bound::Rows => w::Bound::Rows,
+                        d::Bound::Forge => w::Bound::Forge,
+                        d::Bound::Unnamed => w::Bound::Unnamed,
+                    },
+                    limit: value.limit,
+                    size: value.size,
+                    exact: value.exact,
+                },
+            )
+            .expect(FITS),
+        ),
         d::Error::Empty => w::Error::Empty,
         d::Error::Full => w::Error::Full,
         d::Error::Exists => w::Error::Exists,
@@ -263,7 +280,18 @@ pub(super) fn decode_error(value: w::Error) -> d::Error {
         w::Error::Forbidden => d::Error::Forbidden,
         w::Error::Missing => d::Error::Missing,
         w::Error::MissingJob => d::Error::MissingJob,
-        w::Error::TooLarge => d::Error::TooLarge,
+        w::Error::TooLarge(value) => d::Error::TooLarge(d::Excess {
+            bound: match value.bound() {
+                w::Bound::OpBytes => d::Bound::OpBytes,
+                w::Bound::AnswerBytes => d::Bound::AnswerBytes,
+                w::Bound::Rows => d::Bound::Rows,
+                w::Bound::Forge => d::Bound::Forge,
+                w::Bound::Unnamed => d::Bound::Unnamed,
+            },
+            limit: value.limit(),
+            size: value.size(),
+            exact: value.exact(),
+        }),
         w::Error::Empty => d::Error::Empty,
         w::Error::Full => d::Error::Full,
         w::Error::Exists => d::Error::Exists,

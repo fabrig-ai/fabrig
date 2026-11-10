@@ -47,10 +47,12 @@ fn turn_writes_refuse_invalid_fields_at_admission() {
     ] {
         let mut h = writing::Harness::new();
         h.make(1, write, Condition::None);
-        assert_eq!(h.outcomes.as_slice(), &[(1, Outcome::Failed(Error::TooLarge))]);
+        let [(1, Outcome::Failed(Error::TooLarge(_)))] = h.outcomes.as_slice() else {
+            panic!("invalid write must be refused: {:?}", h.outcomes);
+        };
         assert!(h.send().is_none());
     }
-    assert!(crate::bounds::op(&api::Op::Write(dispatch()), &LIMITS));
+    crate::bounds::op(&api::Op::Write(dispatch()), &LIMITS).expect("fits");
     let status = Write::Status {
         commit: [1; 32],
         context: Box::new([]),
@@ -58,13 +60,13 @@ fn turn_writes_refuse_invalid_fields_at_admission() {
         description: skein_lib::bytes::zeroed(api::DESCRIPTION_BYTES),
         link: Box::new([]),
     };
-    assert!(crate::bounds::op(&api::Op::Write(status), &LIMITS));
+    crate::bounds::op(&api::Op::Write(status), &LIMITS).expect("fits");
     let mut ten = skein_lib::List::with_capacity(10);
     for _ in 0..api::INPUTS {
         ten.push(api::Input { name: Box::from(*b"k"), value: Box::new([]) }).expect("ten inputs");
     }
     let write = Write::Dispatch { workflow: Box::from(*b"ci"), branch: Box::from(*b"work"), inputs: ten.into_boxed() };
-    assert!(crate::bounds::op(&api::Op::Write(write), &crate::Limits { op_bytes: 1024, ..LIMITS }));
+    crate::bounds::op(&api::Op::Write(write), &crate::Limits { op_bytes: 1024, ..LIMITS }).expect("fits");
 }
 #[test]
 fn turn_pages_start_at_one() {
@@ -156,8 +158,8 @@ fn artifacts_and_commit_pages_check_admission() {
     ] {
         super::fixtures::recovery::refused_read(read);
     }
-    assert!(crate::bounds::op(&api::Op::Read(artifact_read(LIMITS.answer_bytes)), &LIMITS));
-    assert!(crate::bounds::op(&api::Op::Read(commit_read()), &LIMITS));
+    crate::bounds::op(&api::Op::Read(artifact_read(LIMITS.answer_bytes)), &LIMITS).expect("fits");
+    crate::bounds::op(&api::Op::Read(commit_read()), &LIMITS).expect("fits");
 }
 #[test]
 fn artifact_bytes_and_commit_ids_must_fit_the_call() {
@@ -179,12 +181,12 @@ fn commit_parents_and_messages_obey_the_answer_bounds() {
     const COMMIT_OVERHEAD: u32 = 64 + 32;
     let mut value = commit_message();
     value.parents = super::fixtures::recovery::repeated([1; 32], LIMITS.rows + 1);
-    assert!(!crate::bounds::answer(&Answer::Commits { commits: Box::new([value]), more: false }, &LIMITS));
+    assert!(crate::bounds::answer(&Answer::Commits { commits: Box::new([value]), more: false }, &LIMITS).is_err());
     let mut value = commit_message();
     value.message = skein_lib::bytes::zeroed(usize::try_from(LIMITS.answer_bytes - COMMIT_OVERHEAD).unwrap());
-    assert!(crate::bounds::answer(&Answer::Commits { commits: Box::new([value.clone()]), more: false }, &LIMITS));
+    crate::bounds::answer(&Answer::Commits { commits: Box::new([value.clone()]), more: false }, &LIMITS).expect("fits");
     value.message = skein_lib::bytes::zeroed(usize::try_from(LIMITS.answer_bytes - COMMIT_OVERHEAD + 1).unwrap());
-    assert!(!crate::bounds::answer(&Answer::Commits { commits: Box::new([value]), more: false }, &LIMITS));
+    assert!(crate::bounds::answer(&Answer::Commits { commits: Box::new([value]), more: false }, &LIMITS).is_err());
 }
 #[test]
 fn artifact_and_commits_retry_as_reads_and_spend_cost() {

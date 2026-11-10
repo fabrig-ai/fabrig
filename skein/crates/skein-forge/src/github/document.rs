@@ -477,6 +477,7 @@ pub struct Review {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Compare {
     pub total_commits: u64,
+    pub ahead_by: u64,
     pub behind_by: u64,
     pub merge_base: Option<api::Commit>,
 }

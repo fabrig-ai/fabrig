@@ -163,7 +163,10 @@ pub(crate) fn refused(
 }
 
 fn fail(work: &mut Queue<Work>, task: u64, fate: brief::GatherFate, words: &'static [u8]) {
-    work.push(Work::PreparationFailed { task, failure: brief::GatherFailure { fate, section: b"preferences", words } });
+    work.push(Work::PreparationFailed {
+        task,
+        failure: brief::GatherFailure { fate, section: b"preferences", words: Box::from(words) },
+    });
 }
 
 fn render(lines: &List<notes::Line>) -> Box<[u8]> {

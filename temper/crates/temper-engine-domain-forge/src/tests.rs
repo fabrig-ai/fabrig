@@ -1101,7 +1101,7 @@ fn a_lost_writers_read_refused_for_room_is_asked_again_when_room_frees() {
     outputs(&mut d, Event::Lost { task: 9, attempt: 1 });
     ready(&mut d);
     ready(&mut d);
-    // The first branch moved; its comparison finds the client's table full.
+    // The first branch moved; its ancestry read finds the client's table full.
     assert!(branch_at(&mut d, 1, 4).is_empty(), "nothing refused");
     ready(&mut d);
     ready(&mut d);
@@ -1113,9 +1113,52 @@ fn a_lost_writers_read_refused_for_room_is_asked_again_when_room_frees() {
         &[Request::Call {
             call: Token::new(5),
             repository: REPO,
-            op: skein_forge::api::Op::Read(skein_forge::api::Read::Compare { before: [2; 32], after: [4; 32] }),
+            op: skein_forge::api::Op::Read(skein_forge::api::Read::Commits {
+                before: [4; 32],
+                after: [2; 32],
+                page: 1
+            }),
         }]
     );
+}
+
+#[test]
+fn a_lost_writer_uses_reverse_ancestry_for_its_reread() {
+    use skein_forge::api::{Answer, Op, Read};
+    use temper_engine_domain_forge_change::Status;
+    for (result, status) in fixtures::ancestry_cases() {
+        let mut d = domain();
+        let name = run_branch(b"7");
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        outputs(
+            &mut d,
+            Event::Restore {
+                record: Stored::BranchHead(BranchHead { name: name.clone(), commit: fixtures::BASE, owned: true }),
+            },
+        );
+        outputs(&mut d, Event::Hold { entry: 0, task: 7, resource: name.clone(), from: None });
+        outputs(&mut d, Event::Claim { task: 9, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([7]) });
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        outputs(&mut d, Event::Lost { task: 9, attempt: 1 });
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Commits { before: fixtures::HEAD, after: fixtures::BASE, page: 1 }));
+        let requests = fixtures::answer_once(&mut d, call, result);
+        let hold = d.hold(&name).expect("hold");
+        let unknown = status == Status::Unknown;
+        assert_eq!(hold.writer, if unknown { Some(Writer::Lost { task: 9, attempt: 1 }) } else { None });
+        assert_eq!(hold.drift.is_some(), status == Status::Failed);
+        let mut failed = false;
+        for request in &requests {
+            if let Request::LostReadFailed { task: 9, .. } = request {
+                failed = true;
+            }
+        }
+        assert_eq!(failed, unknown);
+        assert_eq!(d.branch_head(&name), Some(if status == Status::Passed { fixtures::HEAD } else { fixtures::BASE }));
+    }
 }
 
 #[test]
@@ -1220,7 +1263,7 @@ fn a_failed_goals_lost_writer_reports_its_read_failure() {
         task: 7,
         attempt: 4,
         resource: name.clone(),
-        reason: b"forge policy refused the operation",
+        reason: Box::from(b"forge policy refused the operation".as_slice()),
     }));
     assert_eq!(d.hold(&name).unwrap().writer, Some(Writer::Lost { task: 7, attempt: 4 }));
 }
@@ -1259,7 +1302,7 @@ fn a_task_can_claim_its_own_stale_writer() {
                 task: 7,
                 attempt: 4,
                 resource: name.clone(),
-                reason: b"forge policy refused the operation",
+                reason: Box::from(b"forge policy refused the operation".as_slice()),
             }));
             assert_eq!(d.hold(&name).unwrap().writer, Some(Writer::Run { task: 7, attempt: 5 }));
         }
@@ -1298,7 +1341,7 @@ fn a_lost_writers_read_answered_not_connected_is_asked_again_when_its_forge_conn
                 task: 9,
                 attempt: 1,
                 resource: run_branch(b"7"),
-                reason: b"forge policy refused the operation",
+                reason: Box::from(b"forge policy refused the operation".as_slice()),
             }),
             refused
         );
@@ -1388,7 +1431,7 @@ fn a_release_waits_while_its_lost_writer_is_waiting_for_read_room() {
     outputs(&mut d, Event::Lost { task: 9, attempt: 1 });
     ready(&mut d);
     ready(&mut d);
-    // Branch temper/10 sorts first; its comparison waits for call room.
+    // Branch temper/10 sorts first; its ancestry read waits for call room.
     branch_at(&mut d, 1, 4);
     let closing =
         outputs(&mut d, Event::Release { task: 10, root: 10, ending: ReleaseEnding::Done, reason: None, entry: 20 });
@@ -1399,17 +1442,8 @@ fn a_release_waits_while_its_lost_writer_is_waiting_for_read_room() {
     ready(&mut d);
     branch_at(&mut d, 3, 2);
     let (call, _) = fixtures::next_call(&mut d);
-    let answered = fixtures::answer(
-        &mut d,
-        call,
-        Ok(skein_forge::api::Answer::Compare {
-            before: [2; 32],
-            after: [4; 32],
-            contains_before: true,
-            files: Box::new([]),
-            commits: Box::new([]),
-        }),
-    );
+    let answered =
+        fixtures::answer(&mut d, call, Ok(skein_forge::api::Answer::Commits { commits: Box::new([]), more: false }));
     assert!(answered.contains(&Request::ContinueRelease { task: 10 }));
 }
 
@@ -1680,7 +1714,11 @@ fn a_configured_git_base_is_bounded_by_its_priced_pull_address_bytes() {
         } else {
             assert_eq!(
                 result.err(),
-                Some(skein_forge::api::Error::TooLarge),
+                Some(skein_forge::api::Error::TooLarge(skein_forge::api::Excess::exact(
+                    skein_forge::api::Bound::Forge,
+                    2048,
+                    2049
+                ))),
                 "a larger base is refused before retaining it"
             );
         }
@@ -1844,7 +1882,7 @@ fn configured_forges_are_bounded_at_construction() {
     Domain::new(&LIMITS, 4, config(), &[], &forges.as_slice()[..count], false).unwrap();
     assert_eq!(
         Domain::new(&LIMITS, 4, config(), &[], forges.as_slice(), false).unwrap_err(),
-        skein_forge::api::Error::TooLarge
+        skein_forge::api::Error::TooLarge(skein_forge::api::Excess::exact(skein_forge::api::Bound::Forge, 4, 5))
     );
 }
 

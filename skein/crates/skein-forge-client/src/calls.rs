@@ -373,9 +373,9 @@ pub(crate) fn answered(
     let result = match result {
         Ok(answer) => {
             let op = &d.calls.slab.get(id).expect("the terminal call remains").op;
-            if !bounds::answer(&answer, &env.limits) {
+            if let Err(excess) = bounds::answer(&answer, &env.limits) {
                 match op {
-                    Op::Read(_) => Err(Error::TooLarge),
+                    Op::Read(_) => Err(Error::TooLarge(excess)),
                     Op::Write(_) => Err(Error::InvalidAnswer),
                 }
             } else if !crate::api::accepts(op, &answer) {
@@ -417,7 +417,7 @@ pub(crate) fn answered(
             Error::Forbidden
             | Error::Missing
             | Error::MissingJob
-            | Error::TooLarge
+            | Error::TooLarge(_)
             | Error::Empty
             | Error::Full
             | Error::Exists

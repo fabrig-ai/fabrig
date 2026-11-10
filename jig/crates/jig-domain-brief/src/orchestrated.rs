@@ -25,12 +25,12 @@ pub enum Fate {
 }
 
 /// Why a section or a brief could not be prepared, in fixed words (domain/engine.md, 9.1).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Failure {
     pub fate: Fate,
     /// The section's name, or `b"brief"`.
     pub section: &'static [u8],
-    pub words: &'static [u8],
+    pub words: Box<[u8]>,
 }
 
 impl Failure {
@@ -41,7 +41,7 @@ impl Failure {
         let mut writer = Writer::new(size);
         writer.put(self.section).expect("measured section name");
         writer.put(b": ").expect("measured separator");
-        writer.put(self.words).expect("measured failure words");
+        writer.put(&self.words).expect("measured failure words");
         writer.finish()
     }
 }
@@ -217,7 +217,7 @@ fn begin(
         return;
     };
     let failure = if domain.briefs.contains_key(&brief) || domain.briefs.len() == env.limits.briefs {
-        Some(Failure { fate: Fate::Capacity, section: b"brief", words: b"no brief slot is free" })
+        Some(Failure { fate: Fate::Capacity, section: b"brief", words: Box::from(b"no brief slot is free".as_slice()) })
     } else if count > env.limits.sections {
         Some(too_many)
     } else if budget > env.limits.brief_bytes {
@@ -521,11 +521,15 @@ fn section_name(section: &Planned) -> &'static [u8] {
 }
 
 fn permanent(section: &'static [u8], words: &'static [u8]) -> Failure {
-    Failure { fate: Fate::Permanent, section, words }
+    Failure { fate: Fate::Permanent, section, words: Box::from(words) }
 }
 
 fn late(section: &Planned) -> Failure {
-    Failure { fate: Fate::Transient, section: section_name(section), words: b"not gathered by its deadline" }
+    Failure {
+        fate: Fate::Transient,
+        section: section_name(section),
+        words: Box::from(b"not gathered by its deadline".as_slice()),
+    }
 }
 
 fn fail(brief: Token, active: &Active, why: Missing, failure: Failure, out: &mut Queue<Request>) {
