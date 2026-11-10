@@ -666,6 +666,36 @@ fn a_resumed_run_names_its_first_runs_attempt() {
     }
 }
 
+fn host_ending(world: &mut World, ending: jig_domain_host::Ending, spent: u64) {
+    world.send(root::Event::Link {
+        channel: Token::new(7),
+        link: root::link::Event::Up(jig_domain_host::LinkUp::Answer {
+            run: Token::new(world.task()),
+            attempt: Token::new(world.attempt()),
+            answer: jig_domain_host::RunAnswer { read: None, refused: Box::new([]), turns: 0, spent, ending },
+        }),
+    });
+}
+
+#[test]
+fn an_unrelated_transient_try_does_not_disable_a_later_windows_resume() {
+    use jig_domain_host as host;
+    let mut world = World::new(Setup { seed: 118, ..Setup::default() });
+    host_ending(&mut world, host::Ending::Failed {
+        failure: host::Failure::Unprepared(host::Preparation::Transient),
+        detail: Box::new([]), work: host::Work { left: None, saved: None },
+    }, 0);
+    world.retry_due();
+    let conversation = world.attempt();
+    world.window_turn(1, 1, None, b"window after preparation retry");
+    world.end(tasks::End::Failed(tasks::Class::Lost), 1);
+    world.retry_due();
+    let assignment = world.assigned.as_ref().expect("retry resumes the open window");
+    assert_eq!(assignment.conversation, conversation);
+    assert_eq!(assignment.transcript.as_ref(), [Box::<[u8]>::from(&b"window after preparation retry"[..])]);
+    assert_eq!(world.domain.core().tasks.task(world.task()).expect("live chat").tries.transient, 1);
+}
+
 #[test]
 fn a_fresh_start_after_a_transient_failure_names_its_own() {
     let mut world = World::new(Setup { seed: 111, ..Setup::default() });

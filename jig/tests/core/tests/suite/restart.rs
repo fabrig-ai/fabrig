@@ -518,6 +518,36 @@ fn a_restart_with_workers_elsewhere_still_waits_for_them() {
 }
 
 #[test]
+fn a_contact_cancellation_after_restart_resumes_without_spending_a_try() {
+    use jig_domain_host as host;
+    let mut world = World::new(Setup { seed: 126, ..Setup::default() });
+    world.window_turn(1, 2, None, b"remote window before restart");
+    let (task, attempt) = (world.task(), world.attempt());
+    let tries = restored_task(&world, task).tries;
+    world.restart(126, false);
+    hello(&mut world, Box::new([Hosting { run: Token::new(task), attempt: Token::new(attempt), phase: Phase::Active }]));
+    account(&mut world);
+    world.send(root::Event::Link {
+        channel: Token::new(7),
+        link: root::link::Event::Up(host::LinkUp::Answer {
+            run: Token::new(task), attempt: Token::new(attempt),
+            answer: host::RunAnswer {
+                read: None, refused: Box::new([]), turns: 1, spent: 3,
+                ending: host::Ending::Failed { failure: host::Failure::Cancelled(host::Reason::Contact),
+                    detail: Box::new([]), work: host::Work { left: None, saved: None } },
+            },
+        }),
+    });
+    assert_eq!(restored_task(&world, task).tries, tries);
+    let resumed = world.assigned.as_ref().expect("immediate resumed assignment");
+    assert!(resumed.attempt > attempt);
+    assert_eq!(resumed.conversation, attempt);
+    assert_eq!(resumed.transcript.as_ref(), [Box::<[u8]>::from(&b"remote window before restart"[..])]);
+    assert_eq!(restored_task(&world, task).numbers.spent, 3);
+    assert_eq!(interrupted(&world, task, attempt), 1);
+}
+
+#[test]
 fn a_restart_keeps_the_window_a_turn_opened() {
     let mut world = World::new(Setup { seed: 125, ..Setup::default() });
     world.turn(1, 1, None, b"earlier window");

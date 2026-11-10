@@ -122,6 +122,30 @@ fn a_worker_whose_checks_outlast_a_change_reserve_is_refused() {
     );
 }
 #[test]
+fn a_hello_waits_for_restored_needs_then_adopts_its_listed_run_once() {
+    let mut configured = needs_window(8192);
+    configured.charters[0].change_reserve = Some(Duration::from_secs(10));
+    let mut restored = configured.clone();
+    restored.charters[0].change_reserve = Some(Duration::from_secs(60));
+    let mut h = Harness::unrestored(LIMITS, 0, configured);
+    let mut bounds = bounds_window(8192);
+    bounds.checks = Duration::from_secs(60);
+    let mut report = hello(bounds);
+    report.hosting = Box::new([Hosting { run: R1, attempt: A1, phase: Phase::Active }]);
+    assert!(h.adopt(R1, A1).is_empty());
+    assert!(h.step(Event::Hello { worker: 0, channel: C1, hello: report }).is_empty());
+    assert_eq!(h.domain.workers(), 0);
+    // One held hello per channel; a repeated report cannot repeat Sources or admission.
+    assert!(h.step(Event::Hello { worker: 0, channel: C1, hello: hello(bounds_window(8192)) }).is_empty());
+    step(&mut h.domain, &h.env, Event::Needs(restored), &mut h.out);
+    let requests: Vec<_> = (0..h.out.len()).map(|_| h.out.pop().expect("restored hello output")).collect();
+    assert_eq!(requests.iter().filter(|r| matches!(r, Request::Sources { channel, .. } if *channel == C1)).count(), 1);
+    assert!(!requests.iter().any(|r| matches!(r, Request::Refuse { .. })));
+    assert_eq!(h.domain.workers(), 1);
+    assert!(h.answer(C1, R1, A1, Answer::Parked, 1).iter().any(|r| matches!(r, Request::Answered { .. })));
+}
+
+#[test]
 fn a_charter_for_the_engine_only_needs_nothing_of_workers() {
     let mut needs = needs_window(8192);
     needs.charters[0].kinds = Kinds::Engine;

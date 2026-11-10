@@ -424,6 +424,23 @@ fn a_jobs_answer_reaches_the_core_as_its_end() {
     }
 }
 
+/// jig/docs/design/domain/hosts.md, 6.6: worker cancellations interrupt agent attempts.
+#[test]
+fn worker_cancellations_interrupt_agents_but_not_engine_cancellations() {
+    for (reason, expected) in [
+        (host::Reason::Contact, tasks::End::Recheck),
+        (host::Reason::Shutdown, tasks::End::Recheck),
+        (host::Reason::Engine, tasks::End::Failed(tasks::Class::Agent)),
+    ] {
+        let ending = host::Ending::Failed {
+            failure: host::Failure::Cancelled(reason),
+            detail: Box::new([]),
+            work: host::Work { left: None, saved: Some(Token::new(99)) },
+        };
+        assert_eq!(payload::ending(&ending), expected);
+    }
+}
+
 /// jig/docs/design/domain/engine.md, 7.5: every job failure has a task retry class.
 #[test]
 fn job_failures_keep_their_contract_classes() {
