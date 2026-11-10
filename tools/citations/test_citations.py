@@ -375,6 +375,44 @@ class Citations(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("allow.txt:1", result.stderr)
 
+    def test_a_sized_tree_refuses_a_document_crossing_the_limit(self):
+        self.write("tools/citations/sized.txt", "skein  # sized\n")
+        self.commit("sized")
+        self.write(f"{DESIGN}/c.md", "# c\n\n" + "x" * (64 * 1024))
+        self.commit("head")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"{DESIGN}/c.md: size 65,541 bytes, over the 65,536-byte limit", result.stdout)
+
+    def test_a_document_already_over_the_limit_may_shrink_or_move_but_not_grow(self):
+        self.write(f"{DESIGN}/c.md", "# c\n\n" + "x" * (70 * 1024))
+        self.write("tools/citations/sized.txt", "skein\n")
+        self.commit("over")
+        self.write(f"{DESIGN}/c.md", "# c\n\n" + "x" * (69 * 1024))
+        self.commit("shrunk")
+        self.assertEqual(self.since_base().returncode, 0)
+        self.git("mv", f"{DESIGN}/c.md", f"{DESIGN}/d.md")
+        self.commit("moved")
+        self.assertEqual(self.since_base().returncode, 0)
+        self.write(f"{DESIGN}/d.md", "# c\n\n" + "x" * (69 * 1024 + 1))
+        self.commit("grown")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"{DESIGN}/d.md: size", result.stdout)
+        self.assertEqual(self.run_check("--all").returncode, 1)
+
+    def test_an_unsized_tree_has_no_limit(self):
+        self.write(f"{DESIGN}/c.md", "# c\n\n" + "x" * (70 * 1024))
+        self.commit("head")
+        self.assertEqual(self.since_base().returncode, 0)
+
+    def test_sized_txt_names_only_trees(self):
+        self.write("tools/citations/sized.txt", "skein\nfab\n")
+        self.commit("head")
+        result = self.since_base()
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("not a tree: fab", result.stderr)
+
     def test_usage(self):
         self.assertEqual(self.run_check().returncode, 2)
         self.assertEqual(self.run_check("--all", "--base", "HEAD").returncode, 2)
