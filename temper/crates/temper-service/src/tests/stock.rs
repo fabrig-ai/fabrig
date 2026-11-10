@@ -1298,7 +1298,9 @@ fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
                 Executor::Procedure(2),
                 Executor::Procedure(3),
                 Executor::Procedure(4),
+                Executor::Procedure(6),
                 Executor::Job(3),
+                Executor::Job(4),
                 Executor::Role(0),
                 Executor::Role(1),
                 Executor::Role(2),
@@ -1818,6 +1820,7 @@ fn the_stock_reports_follow_the_deployment_result_bound_and_keep_its_floor() {
     expected.name = b"goal for a draft".as_slice().into();
     expected.executor = jig_domain_people::TemplateExecutor::Charter(5);
     expected.resources = Box::new([jig_domain_people::Symbol { connector: 1, symbol: 1 }]);
+    expected.flags.ended_by = jig_domain_tasks::EndedBy::Closer(jig_domain_tasks::Closer { connector: 1, code: 6 });
     assert_eq!(stock.templates.iter().find(|template| template.number == 4).unwrap(), &expected);
     for result_bytes in [32, 10_660, 262_144] {
         engine.limits.core.tasks.result_bytes = result_bytes;
