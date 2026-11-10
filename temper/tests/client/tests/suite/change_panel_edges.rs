@@ -96,7 +96,9 @@ fn late_open_landed_change_keeps_its_final_panel() {
     }
     let value = panel(&world, client);
     let wire::Step::Landed(landed) = value.step() else {
-        panic!("design client/forge/served.md 2: a page first opened after landing must receive its final panel: {value:?}");
+        panic!(
+            "design client/forge/served.md 2: a page first opened after landing must receive its final panel: {value:?}"
+        );
     };
     let merge = *landed.merge();
     let number = value.pull().as_ref().expect("retained pull").number();
@@ -300,7 +302,11 @@ fn ci_failure_is_read_into_the_panel_and_names_its_repair() {
     let wire::Step::Repairing(repair) = value.step() else {
         panic!("design domain/forge/change/repairs.md: failed CI must enter repair: {value:?}");
     };
-    assert_eq!(repair.reason(), &wire::Reason::Ci, "design client/forge/served.md 2: a CI repair must retain its CI reason");
+    assert_eq!(
+        repair.reason(),
+        &wire::Reason::Ci,
+        "design client/forge/served.md 2: a CI repair must retain its CI reason"
+    );
     assert_eq!(value.repairs().used(), 1);
     assert!(value.runs().is_some(), "the named repair has an admitted delegate: {value:?}");
 }

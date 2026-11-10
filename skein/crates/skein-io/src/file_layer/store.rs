@@ -230,7 +230,10 @@ pub(super) fn start(
     let private = private_owner.is_some();
     let no_follow = no_follow || private;
     let produced = digest(&bytes);
-    #[expect(clippy::disallowed_methods, reason = "runtime/io/files.md: retain the store's boxed allocation at its exact length")]
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "runtime/io/files.md: retain the store's boxed allocation at its exact length"
+    )]
     let bytes = Contents(bytes.into_vec());
     let store = Store {
         owner,

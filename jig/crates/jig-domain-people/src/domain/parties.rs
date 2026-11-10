@@ -304,7 +304,10 @@ pub(super) fn signin(
         && let Some(row) = domain.sign_ins.get(&held)
     {
         // A held sign-in is kept only for the same person as the identity.
-        #[expect(clippy::collapsible_if, reason = "held ownership is an explicit comparison (domain/people/README.md, 3)")]
+        #[expect(
+            clippy::collapsible_if,
+            reason = "held ownership is an explicit comparison (domain/people/README.md, 3)"
+        )]
         if row.person == person {
             if row.expires > env.wall && row.due > env.now {
                 return out.push(Request::Reply {

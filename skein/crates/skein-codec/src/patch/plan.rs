@@ -78,7 +78,10 @@ pub(crate) struct SitePlan {
 /// A declared refusal's spans in `Plan::text` and its global site index.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct RefusalPlan {
-    #[cfg_attr(not(test), expect(dead_code, reason = "planning retains refusal names in text order (data/codec/patches.md, 3)"))]
+    #[cfg_attr(
+        not(test),
+        expect(dead_code, reason = "planning retains refusal names in text order (data/codec/patches.md, 3)")
+    )]
     pub(crate) name: Span,
     /// The content without its quotes.
     pub(crate) text: Span,
@@ -458,7 +461,10 @@ fn width(ty: Type) -> Option<u32> {
         | Type::Named(_) => None,
     }
 }
-#[expect(clippy::too_many_lines, reason = "the leaf comparison exhaustively lists schema type pairs (data/codec/diff.md, 3)")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the leaf comparison exhaustively lists schema type pairs (data/codec/diff.md, 3)"
+)]
 fn leaf(matching: &List<Option<DeclIx>>, old: &Schema, new: &Schema, a: Type, b: Type) -> Comparison {
     let equal = match a {
         Type::Named(_) | Type::Bytes { .. } | Type::Secret { .. } | Type::List { .. } | Type::Option(_) => false,

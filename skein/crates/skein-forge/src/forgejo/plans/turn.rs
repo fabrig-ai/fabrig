@@ -230,7 +230,10 @@ impl Plan {
         .or(Err(api::Error::TooLarge))?;
         Ok(State::Jobs { run, jobs })
     }
-    #[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2")]
+    #[expect(
+        clippy::wildcard_enum_match_arm,
+        reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+    )]
     fn done(&mut self, document: d::Document, bounds: Bounds) -> Result<Option<Step>, api::Error> {
         let source = core::mem::replace(&mut self.state, State::Ended);
         let step;

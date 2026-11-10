@@ -186,7 +186,10 @@ mod tests {
         ]);
     }
     #[test]
-    #[expect(clippy::too_many_lines, reason = "data/codec/diff.md 6 groups the type comparison table into one test process")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "data/codec/diff.md 6 groups the type comparison table into one test process"
+    )]
     fn fields_compare_types_and_preserve_current_order() {
         check(&[
             Row {

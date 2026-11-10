@@ -182,7 +182,10 @@ pub enum Request {
 
 // runtime/io/files.md: a file's contents print as their length, never their bytes.
 impl core::fmt::Debug for Request {
-    #[expect(clippy::too_many_lines, reason = "runtime/io/files.md: exhaustively preserve every request variant and field")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "runtime/io/files.md: exhaustively preserve every request variant and field"
+    )]
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             Request::Lock { owner, root } => f.debug_struct("Lock").field("owner", owner).field("root", root).finish(),

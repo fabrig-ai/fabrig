@@ -83,7 +83,10 @@ impl Plan {
     }
 }
 
-#[expect(clippy::wildcard_enum_match_arm, reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2")]
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+)]
 fn document_answer(read: Read, document: Document) -> Heard {
     match read {
         Read::User => match document {

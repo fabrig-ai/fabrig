@@ -1280,7 +1280,9 @@ fn setup(r: &mut Runner<'_>) -> Result<()> {
         if !r.fake() {
             r.facts.push(Fact {
                 name,
-                outcome: Outcome::Unchecked("live App is read only; fake-only manifest fact (testing/fakes/github.md 2)".into()),
+                outcome: Outcome::Unchecked(
+                    "live App is read only; fake-only manifest fact (testing/fakes/github.md 2)".into(),
+                ),
             });
             continue;
         }

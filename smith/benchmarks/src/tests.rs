@@ -866,7 +866,12 @@ fn matching_committed_medians_replace_estimates_and_stale_pins_do_not() {
     let costs =
         crate::committed_costs(&suite, &tasks, std::slice::from_ref(&summary), &agents, &models).expect("costs");
     assert_eq!((costs["probes/recorded"].seconds, costs["probes/recorded"].tokens), (1, 110));
-    let chosen = crate::choose_guards_with_costs(&suite, &tasks, &["../../docs/design/benchmarks/README.md, section 5.2".into()], &costs);
+    let chosen = crate::choose_guards_with_costs(
+        &suite,
+        &tasks,
+        &["../../docs/design/benchmarks/README.md, section 5.2".into()],
+        &costs,
+    );
     assert_eq!(chosen.selected, ["probes/recorded"]);
     assert_eq!((chosen.estimated_seconds, chosen.estimated_tokens), (2, 220));
     let mut stale = summary;

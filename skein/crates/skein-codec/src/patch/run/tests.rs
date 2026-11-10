@@ -1216,7 +1216,10 @@ fn rooms(patcher: &Patcher) -> Rooms {
 }
 
 /// What `call` returns, and the allocations it made on this thread (testing/README.md, 5).
-#[expect(clippy::disallowed_types, reason = "the test measures a synchronous call's allocations (testing/README.md, 5)")]
+#[expect(
+    clippy::disallowed_types,
+    reason = "the test measures a synchronous call's allocations (testing/README.md, 5)"
+)]
 fn counted<T>(call: impl FnOnce() -> T) -> (T, u64) {
     let span = skein_heap::Span::start();
     let result = call();
