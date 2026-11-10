@@ -201,16 +201,21 @@ fn fixed_answer_lists_past_their_counts_fail_to_decode() {
     for user in 0_u64..9 {
         collaborators.push(Collaborator { user, permission: Permission::Write }).expect("fixture room");
     }
+    let mut paths = skein_lib::List::with_capacity(9);
+    for _ in 0u32..9 {
+        paths.push(Box::from(b"x".as_slice())).unwrap();
+    }
     let cases = [
         ("collaborators", Answer::Collaborators { collaborators: collaborators.into_boxed(), more: true }),
         (
-            "commits",
+            "compared paths",
             Answer::Compare {
                 before: [1; 32],
                 after: [2; 32],
-                contains_before: false,
-                files: Box::new([]),
-                commits: Box::new([[3; 32]; 9]),
+                files: paths.into_boxed(),
+                ahead: 22,
+                behind: 3,
+                changed: 12,
             },
         ),
     ];

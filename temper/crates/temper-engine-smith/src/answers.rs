@@ -1560,15 +1560,32 @@ fn forge_answer(text: &mut Text, answer: &api::Answer) -> Result<(), Problem> {
                 text.add(b"More files available.\n")?;
             }
         }
-        api::Answer::Compare { files, commits, contains_before, .. } => {
-            text.add(b"Contains prior head: ")?;
-            text.add(if *contains_before { b"yes\n" } else { b"no\n" })?;
-            for commit in commits {
-                text.commit(commit)?;
+        api::Answer::Compare { before, after, ahead, behind, files, changed } => {
+            text.commit(after)?;
+            text.add(b" is ")?;
+            text.number(*ahead)?;
+            text.add(b" commits ahead of ")?;
+            text.commit(before)?;
+            text.add(b" and ")?;
+            text.number(*behind)?;
+            text.add(b" behind it.\n")?;
+            text.commit(after)?;
+            text.add(if *behind == 0 { b" contains " } else { b" lacks " })?;
+            text.commit(before)?;
+            text.add(b".\nChanged files: ")?;
+            text.number(*changed)?;
+            text.add(b"\n")?;
+            for path in files {
+                text.add(path)?;
                 text.add(b"\n")?;
             }
-            for file in files {
-                file_text(text, file)?;
+            let left = changed.saturating_sub(skein_lib::len_u64(files.len()));
+            if left > 0 {
+                text.add(b"[")?;
+                text.number(left)?;
+                text.add(
+                    b" not listed: read_pull_files lists a pull's files; read_file reads a path at each commit]\n",
+                )?;
             }
         }
         api::Answer::Checks(statuses) => {

@@ -10,7 +10,7 @@ const SECTION: Token = Token::new(245);
 const BYTES: u32 = 2048;
 
 fn tree(files: u32) -> Box<[raw::File]> {
-    let mut tree = vec![raw::File { path: Box::from(b"shared".as_slice()), content: Box::from(b"base".as_slice()) }];
+    let mut tree = vec![raw::File { path: Box::from(b"shared".as_slice()), content: Box::from(b"landed".as_slice()) }];
     for number in 1..files {
         tree.push(raw::File {
             path: format!("base-{number}").into_bytes().into_boxed_slice(),
@@ -25,6 +25,7 @@ fn resolver(files: u32, extra_commits: u32, missing: bool) -> (World, u64, api::
     world.adopt();
     world.produce_file(b"g", b"shared", b"base");
     world.produce_on(b"temper/51", b"g");
+    world.push_file(b"temper/51", b"shared", b"ours");
     let pull = world.open_pull(b"temper/51", b"g");
     let head = translate::commit(world.branch(b"temper/51"));
     for (branch, count) in [(b"landing-one".as_slice(), 2), (b"landing-two".as_slice(), files)] {
@@ -65,14 +66,15 @@ fn gather(world: &mut World, pull: u64, head: api::Commit) {
     world.run_for(5);
 }
 
-fn completed(world: &mut World, pull: u64, head: api::Commit, excess_rows: usize) {
-    let sizes: Vec<_> = world
-        .seen()
-        .iter()
-        .filter_map(|request| {
-            if let top::Request::BriefSized { section: SECTION, size } = request { Some(size.clone()) } else { None }
-        })
-        .collect();
+fn completed(world: &mut World, pull: u64, head: api::Commit, files: u32, commits: usize) {
+    let sizes: Vec<_> =
+        world
+            .seen()
+            .iter()
+            .filter_map(|request| {
+                if let top::Request::BriefSized { section: SECTION, size } = request { Some(size.clone()) } else { None }
+            })
+            .collect();
     assert_eq!(sizes.len(), 1, "one terminal sizing response");
     let size = sizes[0].clone().expect("required Pull section survives comparison admission");
     assert!(size <= BYTES);
@@ -96,14 +98,20 @@ fn completed(world: &mut World, pull: u64, head: api::Commit, excess_rows: usize
     ] {
         assert!(text.contains(&context), "missing pinned context {context}: {text}");
     }
-    assert_eq!(
-        text.contains(&format!("[comparison omitted: past forge.client.rows (8): {excess_rows} rows]")),
-        excess_rows > 8,
-        "{text}"
-    );
-    if excess_rows <= 8 {
-        assert!(text.contains("What landed in the base:") && text.contains("Base file: base-1"));
+    assert!(text.contains(&format!("What landed in the base: {commits} commits")), "{text}");
+    assert_eq!(text.lines().filter(|line| line.starts_with("Base file: ")).count(), files.min(8) as usize, "{text}");
+    assert!(text.contains("Base file: shared\nConflicting file: shared\n"), "{text}");
+    assert!(text.contains("Base file: base-1"), "{text}");
+    if files > 8 {
+        assert!(
+            text.contains(&format!(
+                "[{} more base files not listed: past forge.client.rows (8); read them in your checkout]",
+                files - 8
+            )),
+            "{text}"
+        );
     }
+    assert!(!text.contains("comparison omitted"), "{text}");
     world.take_calls();
     world.run_for(40);
     assert!(!world.take_calls().iter().any(|op| matches!(op, api::Op::Read(api::Read::Compare { .. }))));
@@ -111,7 +119,7 @@ fn completed(world: &mut World, pull: u64, head: api::Commit, excess_rows: usize
 
 #[test]
 fn resolver_compare_over_rows_keeps_required_pull_section() {
-    for (files, extra, commits) in [(8, 0, 2), (9, 0, 2), (16, 0, 2), (3, 6, 8), (3, 7, 9)] {
+    for (files, extra, commits) in [(8, 0, 2), (9, 0, 2), (16, 0, 2), (3, 6, 8), (3, 7, 9), (12, 20, 22)] {
         let (mut world, pull, head, base) = resolver(files, extra, false);
         let raw::Answer::Comparison { files: changed, commits: history, .. } = world.inspect(&raw::Read::Compare {
             base: world.branch(b"temper/51"),
@@ -124,16 +132,17 @@ fn resolver_compare_over_rows_keeps_required_pull_section() {
         assert_eq!(changed.len(), usize::try_from(files).expect("file count"));
         assert_eq!(history.len(), commits);
         gather(&mut world, pull, head);
+        let calls = world.take_calls();
+        assert!(
+            !calls.iter().any(|op| matches!(op, api::Op::Read(api::Read::File { head, .. }) if *head == base)),
+            "no base contents are read"
+        );
         assert_eq!(
-            world
-                .take_calls()
-                .iter()
-                .filter(|op| **op == api::Op::Read(api::Read::Compare { before: head, after: base }))
-                .count(),
+            calls.iter().filter(|op| **op == api::Op::Read(api::Read::Compare { before: head, after: base })).count(),
             1,
             "one pinned comparison"
         );
-        completed(&mut world, pull, head, usize::try_from(files).expect("file rows").max(commits));
+        completed(&mut world, pull, head, files, commits);
     }
 }
 

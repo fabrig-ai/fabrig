@@ -567,10 +567,9 @@ fn text(byte: u8) -> Box<[u8]> {
 fn observe(full: &mut Full, answer: &api::Answer) {
     let bytes = u32::try_from(skein_forge::measure::answer(answer).expect("bounded answer")).expect("answer bytes");
     full.answer_bytes = full.answer_bytes.max(bytes);
-    if let api::Answer::Compare { files, commits, .. } = answer {
-        assert_eq!(bytes, 65_536, "the full comparison fills its answer");
+    if let api::Answer::Compare { files, ahead, .. } = answer {
         full.file_rows = full.file_rows.max(u32::try_from(files.len()).expect("files"));
-        full.compare_commits = full.compare_commits.max(u32::try_from(commits.len()).expect("commits"));
+        full.compare_commits = full.compare_commits.max(u32::try_from(*ahead).expect("commits"));
     } else if let api::Answer::PullFiles { files, .. } = answer {
         assert_eq!(bytes, 65_536, "the full files page fills its answer");
         full.file_rows = full.file_rows.max(u32::try_from(files.len()).expect("files"));
@@ -901,14 +900,11 @@ fn comparison_response(kind: Kind, target: &str) -> Vec<u8> {
         };
         return fixtures::response(200, body.as_bytes());
     }
-    assert!(
-        target.contains("per_page=8") || target.contains("per_page=1"),
-        "Compare admits eight commits; PullFiles asks only for the merge base"
-    );
+    assert!(target.contains("per_page=1"), "Compare asks for one commit; PullFiles asks only for the merge base");
     let files = file_descriptors(true);
     // The response holds one commit and eight files.
     let body = format!(
-        r#"{{"total_commits":1,"behind_by":0,"merge_base_commit":{{"sha":"{ZERO}"}},"commits":[{{"sha":"{ONE}"}}],"files":[{files}]}}"#
+        r#"{{"total_commits":1,"ahead_by":1,"behind_by":0,"merge_base_commit":{{"sha":"{ZERO}"}},"commits":[{{"sha":"{ONE}"}}],"files":[{files}]}}"#
     );
     fixtures::response(200, body.as_bytes())
 }

@@ -204,27 +204,29 @@ fn answer_measurement_counts_each_variants_owned_data_bytes() {
                 Answer::Compare {
                     before: [1; 32],
                     after: [2; 32],
-                    contains_before: true,
-                    files: Box::new([file]),
-                    commits: Box::new([]),
+                    ahead: 1,
+                    behind: 0,
+                    changed: 1,
+                    files: Box::new([file.path]),
                 },
-                70,
+                19,
             ),
         ))
         .unwrap();
     }
     {
         rows.push((
-            "measure_answer_commit: comparison commits",
+            "measure_answer_counts: no owned bytes",
             (
                 Answer::Compare {
                     before: [1; 32],
                     after: [2; 32],
-                    contains_before: true,
+                    ahead: 1,
+                    behind: 0,
+                    changed: 1,
                     files: Box::new([]),
-                    commits: Box::new([[1; 32]]),
                 },
-                32,
+                0,
             ),
         ))
         .unwrap();

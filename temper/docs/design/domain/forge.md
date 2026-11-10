@@ -1697,13 +1697,13 @@ LLM:
   prefix, or with none named, or when the overlap is unknown.
 
 The files are read from the forge (a pull request's files, or the
-comparison of the branch's old and new tips), cached per head and cut at
-a limit past which the overlap is unknown. Forgejo pages a pull
-request's files but answers a comparison whole
-(skein's `forge.md`, section 9): the protocol layer bounds the
-comparison's bytes, files and commits before the domain holds them, and
-a bound reached, an unusable answer or an uncertain completeness makes
-the overlap unknown and wakes every affected subscriber. A pull
+comparison of the branch's old and new tips, by names alone: skein's
+`forge.md`, 3.2 and 3.3), cached per head and cut at a limit past which
+the overlap is unknown. A comparison names at most `forge.client.rows`
+paths and counts the rest (`changed`): one that leaves a path out, an
+unusable answer or an uncertain completeness makes the overlap unknown
+and wakes every affected subscriber, and its paths are a landing's files
+for workflow discovery too (4.7). A pull
 request's pages count only while fresh reads before and after them name
 the same head; a head that moved voids the listing.
 
@@ -2329,12 +2329,24 @@ delegate's terminal wakes it to offer the landed result.
   `absent after`. A named file takes its lines' room alone, so the files
   after it are carried as they fit. The charter's fit
   (`agent.md`, 4.3) can still cut the section's end, with its own line.
-  If the pull section's pinned comparison exceeds the forge client's answer
-  byte or row limit, the section keeps its pull identity and gathered content
-  and appends a comparison-omitted notice within its byte budget. This completes
-  the section; it does not retry the comparison or raise the client's limits.
-  Other comparison read failures are the section's read failures (below). The
-  same rule applies to the pull sections for reviews and repairs.
+  Its pinned comparison, of the head and the base it conflicts with, is by
+  names (skein's `forge.md`, 3.2 and 3.3), so a conflict however far its
+  branches have gone apart is compared: `What landed in the base: N
+  commits`, N its `ahead`; then each path it names, `Base file: PATH`,
+  followed by `Conflicting file: PATH` where the pull's own files name it
+  too; then, where it names fewer than its `changed`, `[K more base files
+  not listed: past forge.client.rows (R); read them in your checkout]`, K
+  what it left out and R the configured rows. A repair's comparison, from
+  its last clean head, reads the same. A review's says `Against base:`,
+  then its paths, then `[K more files not listed: past forge.client.rows
+  (R); read_pull_files lists them]`. Each line is appended where it fits
+  the section's room, so the section keeps what fits and names what it
+  left out. A comparison refused `TooLarge` keeps the section's pull
+  identity and gathered content and appends a comparison-omitted notice
+  within its byte budget. This completes the section; it does not retry
+  the comparison or raise the client's limits. Other comparison read
+  failures are the section's read failures (below). The same rule applies
+  to the pull sections for reviews and repairs.
   Likewise, if a page of the pull's files exceeds the forge client's answer
   byte or row limit (a page carries each of its files whole on both sides,
   skein's `forge.md`, 5.2, so one large document can pass it however small

@@ -697,108 +697,83 @@ fn compare_read() -> api::Read {
     api::Read::Compare { before: review(1).commit, after: crate::github::id::commit(fixtures::OTHER_SHA).unwrap() }
 }
 fn comparison(total_commits: u64, behind_by: u64) -> document::Compare {
-    document::Compare { total_commits, behind_by, merge_base: Some(review(1).commit) }
+    document::Compare { total_commits: 0, ahead_by: total_commits, behind_by, merge_base: None }
 }
 fn file(path: &[u8]) -> document::File {
     document::File { path: Box::from(path), status: document::FileStatus::Modified, previous: None }
-}
-fn compare_rows(call: &mut Call, commit: bool) {
-    if commit {
-        call.heard(Heard::Row(Row::Commit(review(1).commit))).unwrap();
-    }
-    call.heard(Heard::Row(Row::File(file(b"dir/x y")))).unwrap();
 }
 fn sent(value: Result<Option<Step>, api::Error>) -> crate::github::plans::plan::Exchange {
     let Ok(Some(Step::Send(exchange))) = value else { panic!("expected exchange") };
     exchange
 }
+fn compare_paths(count: u32) -> Box<[Box<[u8]>]> {
+    let mut paths = skein_lib::List::with_capacity(count);
+    for _ in 0..count {
+        paths.push(Box::from(b"x".as_slice())).unwrap();
+    }
+    paths.into_boxed()
+}
 #[test]
-fn github_compare_contains_and_raw_sides() {
+fn github_compare_names_counts_and_containment() {
     let api::Read::Compare { before, after } = compare_read() else { panic!("Compare") };
     golden(
-        &Request::Compare { owner: owner(), name: name(), before, after, per_page: 4 },
-        b"/repos/acme/widgets/compare/0123456789abcdef0123456789abcdef01234567...abcdef0123456789abcdef0123456789abcdef01?per_page=4",
+        &Request::Compare { owner: owner(), name: name(), before, after, per_page: 1 },
+        b"/repos/acme/widgets/compare/0123456789abcdef0123456789abcdef01234567...abcdef0123456789abcdef0123456789abcdef01?per_page=1",
         Some(Kind::Compare), Accept::Json,
     );
     let mut wire = Writer::new(1024);
-    server::compare(&comparison(1, 0), &[before], &[file(b"dir/x y")], &mut wire).unwrap();
-    document(
-        Kind::Compare,
-        &bytes(wire),
-        Document::Compare(comparison(1, 0)),
-        &[Row::Commit(before), Row::File(file(b"dir/x y"))],
-    );
-    for behind_by in [0, 1] {
-        let mut call = started(compare_read(), bounds());
-        compare_rows(&mut call, true);
-        let exchange = sent(call.done(Document::Compare(comparison(1, behind_by))));
-        assert_eq!(exchange.request, raw_request());
-        assert_eq!(exchange.retention, Some(crate::github::plans::plan::Retention::Whole { bytes: ROOM - 103 }));
-        call.head(false);
-        let exchange = sent(raw_body(&mut call, b"old", false));
-        assert_eq!(
-            exchange.request,
-            Request::Raw { owner: owner(), name: name(), path: Box::from(*b"dir/x y"), commit: after }
-        );
-        call.head(false);
-        assert_eq!(
-            raw_body(&mut call, b"new", false),
-            ended(Ok(api::Answer::Compare {
-                before,
-                after,
-                contains_before: behind_by == 0,
-                commits: Box::from([before]),
-                files: Box::from([api::File {
-                    path: Box::from(*b"dir/x y"),
-                    before: Some(Box::from(*b"old")),
-                    after: Some(Box::from(*b"new"))
-                }]),
-            }))
-        );
+    server::compare(&comparison(22, 3), &[before], &[file(b"x")], &mut wire).unwrap();
+    document(Kind::Compare, &bytes(wire), Document::Compare(comparison(22, 3)), &[Row::File(file(b"x"))]);
+    for (rows, answer_bytes, kept) in [(8, ROOM, 8), (12, ROOM, 12), (12, 17, 1)] {
+        for behind in [0, 3] {
+            let mut call = started(compare_read(), Bounds { rows, answer_bytes, ..bounds() });
+            for _ in 0u32..12 {
+                call.heard(Heard::Row(Row::File(file(b"x")))).unwrap();
+            }
+            assert_eq!(
+                call.done(Document::Compare(document::Compare { ahead_by: 22, ..comparison(1, behind) })),
+                ended(Ok(api::Answer::Compare {
+                    before,
+                    after,
+                    ahead: 22,
+                    behind,
+                    changed: 12,
+                    files: compare_paths(kept),
+                }))
+            );
+        }
     }
 }
 #[test]
 fn github_compare_caps_and_short_commits() {
     for wire in [
-        br#"{"total_commits":0,"behind_by":0,"commits":[],"files":[]}"#.as_slice(),
-        br#"{"files":[],"commits":[],"behind_by":0,"total_commits":0,"ignored":{"x":true}}"#,
+        br#"{"ahead_by":22,"behind_by":3,"commits":[{"sha":"not read"}],"files":[]}"#.as_slice(),
+        br#"{"files":[],"behind_by":3,"ahead_by":22,"ignored":{"x":true}}"#,
     ] {
         document(
             Kind::Compare,
             wire,
-            Document::Compare(document::Compare { merge_base: None, ..comparison(0, 0) }),
+            Document::Compare(document::Compare { total_commits: 0, ahead_by: 22, behind_by: 3, merge_base: None }),
             &[],
         );
     }
     for wire in [
-        br#"{"total_commits":0,"behind_by":0,"commits":[],"files":[{}]}"#.as_slice(),
-        br#"{"total_commits":0,"behind_by":0,"commits":[{"sha":"A"}],"files":[]}"#,
-        br#"{"total_commits":0,"behind_by":0,"commits":[],"files":[],"files":[]}"#,
-        br#"{"total_commits":0,"behind_by":0,"commits":[],"files":null}"#,
+        br#"{"ahead_by":0,"behind_by":0,"files":[{}]}"#.as_slice(),
+        br#"{"ahead_by":0,"behind_by":0,"files":[],"files":[]}"#,
+        br#"{"ahead_by":0,"behind_by":0,"files":null}"#,
     ] {
         malformed(Kind::Compare, wire);
     }
-    let mut call = started(compare_read(), bounds());
-    call.heard(Heard::Row(Row::Commit(review(1).commit))).unwrap();
-    let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = call.done(Document::Compare(comparison(2, 0))) else {
-        panic!("expected a typed size refusal");
-    };
-    let mut call = started(compare_read(), Bounds { page_size: 1, ..bounds() });
-    call.heard(Heard::Row(Row::Commit(review(1).commit))).unwrap();
-    let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = call.heard(Heard::Row(Row::Commit(review(1).commit)))
-    else {
-        panic!("expected a typed size refusal");
-    };
     for count in [299u32, 300] {
         let mut wire = Writer::new(12000);
-        let mut files = skein_lib::List::with_capacity(300);
+        let mut files = skein_lib::List::with_capacity(count);
         for _ in 0..count {
             files.push(file(b"x")).unwrap();
         }
-        server::compare(&comparison(0, 0), &[], files.as_slice(), &mut wire).unwrap();
+        server::compare(&comparison(1000, 0), &[], files.as_slice(), &mut wire).unwrap();
         let wire = bytes(wire);
         let mut cap = limits();
-        cap.inner = 300;
+        cap.inner = 150; // The test collector holds 300 rows; comparison paths exceed inner.
         cap.json.length = 12000;
         for chunk in [1, 7] {
             let (rows, result) = decode(Kind::Compare, &wire, chunk, &cap);
@@ -810,62 +785,24 @@ fn github_compare_caps_and_short_commits() {
             }
         }
     }
-    for commits in [false, true] {
-        let mut wire = Writer::new(1024);
-        let two_commits = [review(1).commit, review(1).commit];
-        let commit_rows = if commits { two_commits.as_slice() } else { &[] };
-        let file_rows: &[document::File] = if commits { &[] } else { &[file(b"x"), file(b"y")] };
-        server::compare(&comparison(0, 0), commit_rows, file_rows, &mut wire).unwrap();
-        let wire = bytes(wire);
-        for inner in [1, 2] {
-            let mut cap = limits();
-            cap.inner = inner;
-            for chunk in [1, 7] {
-                assert_eq!(decode(Kind::Compare, &wire, chunk, &cap).1.is_ok(), inner == 2);
-            }
-        }
-    }
 }
 #[test]
-fn github_compare_absent_side_and_budget() {
-    let mut call = started(compare_read(), Bounds { answer_bytes: 74, ..bounds() });
-    compare_rows(&mut call, false);
-    sent(call.done(Document::Compare(comparison(0, 0))));
-    let exchange = sent(call.heard(Heard::Head { status: 404, head: Head::new() }));
-    assert_eq!(exchange.retention, Some(crate::github::plans::plan::Retention::Whole { bytes: 3 }));
-    call.head(false);
-    let Ok(Some(Step::Done(Ok(api::Answer::Compare { files, .. })))) = raw_body(&mut call, b"abc", false) else {
-        panic!("Compare answer")
-    };
-    assert_eq!(files[0].before, None);
-    assert_eq!(files[0].after, Some(Box::from(*b"abc")));
-    for (body, more) in [(b"abcd".as_slice(), false), (b"abc", true)] {
-        let mut call = started(compare_read(), Bounds { answer_bytes: 74, ..bounds() });
-        compare_rows(&mut call, false);
-        sent(call.done(Document::Compare(comparison(0, 0))));
-        call.head(false);
-        let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = raw_body(&mut call, body, more) else {
-            panic!("expected a typed size refusal");
-        };
-    }
-    let mut call = started(compare_read(), Bounds { answer_bytes: 70, ..bounds() });
-    let Ok(Some(Step::Done(Err(api::Error::TooLarge(_))))) = call.heard(Heard::Row(Row::File(file(b"dir/x y")))) else {
-        panic!("expected a typed size refusal");
-    };
-    for status in [200, 410, 500] {
-        let mut call = started(compare_read(), bounds());
-        compare_rows(&mut call, false);
-        sent(call.done(Document::Compare(comparison(0, 0))));
-        let mut head = Head::new();
-        head.json = true;
-        let expected = if status == 200 {
-            api::Error::InvalidAnswer
-        } else if status == 410 {
-            api::Error::Missing
-        } else {
-            api::Error::Timeout
-        };
-        assert_eq!(call.heard(Heard::Head { status, head }), ended(Err(expected)));
+fn github_compare_answer_budget_keeps_the_names_that_fit() {
+    for (answer_bytes, kept) in [(17, 1), (16, 0)] {
+        let mut call = started(compare_read(), Bounds { answer_bytes, ..bounds() });
+        call.heard(Heard::Row(Row::File(file(b"x")))).unwrap();
+        let api::Read::Compare { before, after } = compare_read() else { panic!("Compare") };
+        assert_eq!(
+            call.done(Document::Compare(comparison(9, 0))),
+            ended(Ok(api::Answer::Compare {
+                before,
+                after,
+                ahead: 9,
+                behind: 0,
+                changed: 1,
+                files: compare_paths(kept),
+            }))
+        );
     }
     let mut call = started(compare_read(), bounds());
     assert_eq!(call.done(Document::Rows), ended(Err(api::Error::InvalidAnswer)));
@@ -950,7 +887,12 @@ fn github_pull_files_stale_before_contents() {
         assert!(rows.is_empty());
         assert_eq!(
             result,
-            Ok(Document::Compare(document::Compare { total_commits: 0, behind_by: 0, merge_base: Some(merge_base()) }))
+            Ok(Document::Compare(document::Compare {
+                total_commits: 0,
+                ahead_by: 0,
+                behind_by: 0,
+                merge_base: Some(merge_base())
+            }))
         );
         decode(Kind::Compare, &wire, chunk, &cap).1.unwrap_err();
         for bad in [

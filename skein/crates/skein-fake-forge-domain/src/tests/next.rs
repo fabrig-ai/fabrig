@@ -114,7 +114,7 @@ fn comparisons_ignore_paging_and_refuse_incomplete_data_explicitly() {
     h.push(ENGINE, b"work", two).unwrap();
     let first = h.ok(PERSON, read(Read::Compare { base: FIRST, head: two, page: 1, limit: 1 }));
     assert_eq!(first, h.ok(PERSON, read(Read::Compare { base: FIRST, head: two, page: 4, limit: 1 })));
-    let Answer::Comparison { base, head, merge_base, contains_base: _, files: changed, commits } = first else {
+    let Answer::Comparison { base, head, merge_base, contains_base: _, files: changed, commits, .. } = first else {
         unreachable!("a comparison")
     };
     assert_eq!((base, head), (FIRST, two));
@@ -231,15 +231,18 @@ fn oversized_update_repository_is_not_retained_for_a_delayed_write() {
 fn comparisons_carry_the_shared_base_of_divergent_and_unrelated_histories() {
     let mut h = Harness::new(CALM);
     let left = h.commit(FIRST, &[(b"one", b"left")]);
+    let left = h.commit(left, &[(b"one", b"left again")]);
     let right = h.commit(FIRST, &[(b"two", b"right")]);
     h.push(ENGINE, b"left", left).unwrap();
     h.push(ENGINE, b"right", right).unwrap();
-    let Answer::Comparison { merge_base, contains_base, .. } =
+    let Answer::Comparison { merge_base, contains_base, ahead, behind, files, .. } =
         h.ok(PERSON, read(Read::Compare { base: left, head: right, page: 1, limit: 1 }))
     else {
         unreachable!("comparison")
     };
     assert_eq!(merge_base, Some(FIRST));
+    assert_eq!((ahead, behind), (1, 2));
+    assert_eq!(files.len(), 1, "paths are from the merge base, not the opposite endpoint");
     assert!(!contains_base);
     let mut other = setup();
     other.name = copy_of(b"acme/unrelated");

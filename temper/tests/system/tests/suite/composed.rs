@@ -697,13 +697,9 @@ fn assert_forge_read_feedback(world: &World, refused: bool) {
         assert!(!output.contains("answer-not-shown"), "forge feedback was destroyed: {output}");
         assert!(output.len() <= 8192);
     }
-    assert!(outputs[0].0.contains("read_file"), "compare must give recovery: {}", outputs[0].0);
+    assert!(!outputs[0].1, "names-only compare fits without the file's contents");
+    assert!(outputs[0].0.contains("Changed files: 1\ndocs/design/formats.md\n"));
     if refused {
-        let (compare, compare_error) = &outputs[0];
-        assert!(compare_error);
-        assert!(compare.contains("Forge read failed: too large: past an unnamed bound."), "{compare}");
-        assert!(compare.contains("forge.client.rows") && compare.contains("forge.client.answer_bytes"));
-        assert!(!compare.contains("host answer limit"), "a host bound cannot fix a forge refusal: {compare}");
         let (pull_files, pull_files_error) = &outputs[1];
         assert!(pull_files_error);
         assert!(pull_files.contains("Forge read failed: too large: past an unnamed bound."));
@@ -714,8 +710,6 @@ fn assert_forge_read_feedback(world: &World, refused: bool) {
         }
         return;
     }
-    assert!(outputs[0].1, "oversized successful compare becomes actionable error feedback");
-    assert!(outputs[0].0.contains("rendered size"));
     assert!(outputs[1].0.contains("[omitted]"));
     assert_eq!(outputs[2].0.len(), 8192, "metadata and escaping share the exact receiving bound");
     assert!(outputs[2].0.contains("\\x09"));

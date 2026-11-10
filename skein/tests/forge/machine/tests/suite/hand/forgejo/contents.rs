@@ -113,29 +113,24 @@ fn side_cases() -> [SideCase; 3] {
     ]
 }
 #[test]
-fn comparisons_read_both_directions_and_both_file_sides() {
+fn comparisons_read_both_directions_without_file_sides() {
     let mut h = fixtures::known();
     h.call(1, fixtures::REPO, Op::Read(Read::Compare { before: BASE, after: HEAD }));
     h.answer(fixtures::FORGE, &fixtures::ok(br#"{"total_commits":1,"commits":[{"sha":"0100000000000000000000000000000000000000"}],"files":[{"filename":"file","status":"modified"}]}"#));
     h.answer(fixtures::FORGE, &fixtures::ok(br#"{"total_commits":0,"commits":[],"files":[]}"#));
-    h.answer(fixtures::FORGE, &fixtures::ok(b"before"));
-    h.answer(fixtures::FORGE, &fixtures::ok(b"after"));
     h.run(Duration::from_millis(10));
     let answer = h.answered(1).expect("comparison");
     assert_eq!(
         (answer.cost, answer.result.clone()),
         (
-            4,
+            2,
             Ok(Answer::Compare {
                 before: BASE,
                 after: HEAD,
-                contains_before: true,
-                files: Box::new([File {
-                    path: Box::from(&b"file"[..]),
-                    before: Some(Box::from(&b"before"[..])),
-                    after: Some(Box::from(&b"after"[..]))
-                }]),
-                commits: Box::new([HEAD])
+                files: Box::new([Box::from(&b"file"[..])]),
+                ahead: 1,
+                behind: 0,
+                changed: 1
             })
         )
     );

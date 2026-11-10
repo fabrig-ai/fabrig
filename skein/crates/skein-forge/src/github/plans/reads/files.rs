@@ -93,11 +93,12 @@ impl Plan {
 pub(super) struct State {
     descriptors: skein_lib::Queue<crate::github::document::File>,
     files: skein_lib::List<api::File>,
-    commits: skein_lib::List<api::Commit>,
+    paths: skein_lib::List<Box<[u8]>>,
+    changed: u64,
+    full: bool,
     current: Option<api::File>,
     before: api::Commit,
     after: api::Commit,
-    contains: bool,
     previous: Option<Box<[u8]>>,
     status: Option<crate::github::document::FileStatus>,
     more: bool,
@@ -108,11 +109,12 @@ impl State {
         Self {
             descriptors: skein_lib::Queue::with_capacity(0),
             files: skein_lib::List::with_capacity(0),
-            commits: skein_lib::List::with_capacity(0),
+            paths: skein_lib::List::with_capacity(0),
+            changed: 0,
+            full: false,
             current: None,
             before: [0; 32],
             after: [0; 32],
-            contains: false,
             previous: None,
             status: None,
             more: false,
@@ -122,13 +124,15 @@ impl State {
 }
 impl Plan {
     pub(super) fn files_admission(&mut self, bounds: Bounds) -> Result<(), api::Error> {
-        let commits = super::size::capacity(bounds, crate::measure::COMMIT_BYTES)?;
-        let files = super::size::capacity(bounds, crate::measure::FILE_BYTES)?;
-        let (capacity, commits) = if let Read::PullFiles { .. } = self.read { (files, 0) } else { (commits, commits) };
-        self.limit = super::size::page_size(bounds, capacity)?;
-        self.files.descriptors = skein_lib::Queue::with_capacity(files);
-        self.files.files = skein_lib::List::with_capacity(files);
-        self.files.commits = skein_lib::List::with_capacity(commits);
+        if let Read::Compare { .. } = self.read {
+            self.limit = 1;
+            self.files.paths = skein_lib::List::with_capacity(bounds.rows);
+        } else {
+            let files = super::size::capacity(bounds, crate::measure::FILE_BYTES)?;
+            self.limit = super::size::page_size(bounds, files)?;
+            self.files.descriptors = skein_lib::Queue::with_capacity(files);
+            self.files.files = skein_lib::List::with_capacity(files);
+        }
         Ok(())
     }
     pub(super) fn compare_initial(&mut self) -> Result<Step, api::Error> {
@@ -148,35 +152,35 @@ impl Plan {
             return Err(api::Error::InvalidAnswer);
         }
         match row {
-            crate::github::document::Row::Commit(commit) => {
+            crate::github::document::Row::Commit(_) => {
                 if self.stage != Stage::Compare {
                     return Err(api::Error::InvalidAnswer);
                 }
-                if self.files.commits.len() >= self.limit || self.files.commits.len() >= bounds.rows {
-                    return Err(api::Error::TooLarge(crate::measure::capacity_excess(
-                        self.files.commits.len(),
-                        bounds.rows,
-                        bounds.answer_bytes,
-                        crate::measure::COMMIT_BYTES,
-                    )));
-                }
-                self.keep_bytes(32, &[], bounds)?;
-                if self.files.commits.push(commit).is_err() {
-                    return Err(api::Error::TooLarge(crate::measure::capacity_excess(
-                        self.files.commits.capacity(),
-                        bounds.rows,
-                        bounds.answer_bytes,
-                        crate::measure::COMMIT_BYTES,
-                    )));
-                }
             }
             crate::github::document::Row::File(file) => {
-                if self.files.descriptors.len() >= bounds.rows
-                    || (self.stage == Stage::Compare && self.files.descriptors.len() >= 299)
-                {
+                if self.stage == Stage::Compare {
+                    self.files.changed = self.files.changed.checked_add(1).ok_or(api::Error::TooLarge(Excess::unnamed()))?;
+                    if self.files.changed >= 300 {
+                        return Err(api::Error::TooLarge(Excess::at_least(api::Bound::Forge, 299, self.files.changed)));
+                    }
+                    let width = u64::try_from(crate::measure::STRING_BYTES)
+                        .expect("path width")
+                        .saturating_add(skein_lib::len_u64(file.path.len()));
+                    if !self.files.full
+                        && self.files.paths.len() < bounds.rows
+                        && self.size.saturating_add(width) <= u64::from(bounds.answer_bytes)
+                    {
+                        self.size = self.size.saturating_add(width);
+                        self.files.paths.push(file.path).expect("rows checked");
+                    } else {
+                        self.files.full = true;
+                    }
+                    return Ok(());
+                }
+                if self.files.descriptors.len() >= bounds.rows {
                     return Err(api::Error::TooLarge(Excess::at_least(
-                        if self.files.descriptors.len() >= bounds.rows { api::Bound::Rows } else { api::Bound::Forge },
-                        u64::from(if self.files.descriptors.len() >= bounds.rows { bounds.rows } else { 299 }),
+                        api::Bound::Rows,
+                        u64::from(bounds.rows),
                         u64::from(self.files.descriptors.len()).saturating_add(1),
                     )));
                 }
@@ -248,19 +252,21 @@ impl Plan {
         if self.stage != Stage::Compare {
             return Err(api::Error::InvalidAnswer);
         }
-        if comparison.total_commits > u64::from(self.files.commits.len()) {
-            return Err(api::Error::TooLarge(Excess::exact(
-                if comparison.total_commits > u64::from(bounds.rows) { api::Bound::Rows } else { api::Bound::Forge },
-                if comparison.total_commits > u64::from(bounds.rows) {
-                    u64::from(bounds.rows)
-                } else {
-                    u64::from(self.files.commits.len())
-                },
-                comparison.total_commits,
-            )));
-        }
-        self.files.contains = comparison.behind_by == 0;
-        self.next_file(bounds)
+        let Read::Compare { before, after } = self.read else {
+            return Err(api::Error::InvalidAnswer);
+        };
+        let files = core::mem::replace(&mut self.files.paths, skein_lib::List::with_capacity(0)).into_boxed();
+        self.terminal(
+            api::Answer::Compare {
+                before,
+                after,
+                ahead: comparison.ahead_by,
+                behind: comparison.behind_by,
+                files,
+                changed: self.files.changed,
+            },
+            bounds,
+        )
     }
     fn next_file(&mut self, bounds: Bounds) -> Result<Option<Step>, api::Error> {
         if let Some(file) = self.files.descriptors.pop() {
@@ -276,13 +282,7 @@ impl Plan {
             return self.side_request(self.files.status != Some(crate::github::document::FileStatus::Added), bounds);
         }
         let files = core::mem::replace(&mut self.files.files, skein_lib::List::with_capacity(0)).into_boxed();
-        let commits = core::mem::replace(&mut self.files.commits, skein_lib::List::with_capacity(0)).into_boxed();
-        if let Read::Compare { before, after } = self.read {
-            self.terminal(
-                api::Answer::Compare { before, after, contains_before: self.files.contains, files, commits },
-                bounds,
-            )
-        } else if let Read::PullFiles { head, .. } = self.read {
+        if let Read::PullFiles { head, .. } = self.read {
             self.terminal(api::Answer::PullFiles { head, files, more: self.files.more }, bounds)
         } else {
             Err(api::Error::InvalidAnswer)

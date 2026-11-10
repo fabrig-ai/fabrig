@@ -348,7 +348,7 @@ A read.
 
 ## read_compare
 
-Compare commits whole; no pages. Files and commits each fit forge.client.rows, decoded bytes fit forge.client.answer_bytes. Use read_pull_files or read_file.
+Compare commits by names, counts and containment, without contents. No raw reads. Read a path's contents with read_file at each commit; Missing means absent.
 
 A read.
 

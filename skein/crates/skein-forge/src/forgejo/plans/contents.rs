@@ -17,19 +17,24 @@ struct Sides {
     changed: List<d::ChangedFile>,
     files: List<api::File>,
     position: u32,
-    ask: Ask,
+    head: api::Commit,
+    more: Option<bool>,
 }
 #[derive(Debug)]
-enum Ask {
-    Pull { head: api::Commit, more: Option<bool> },
-    Compare { commits: List<api::Commit>, contains: bool },
+struct Compared {
+    before: api::Commit,
+    after: api::Commit,
+    files: List<Box<[u8]>>,
+    changed: u64,
+    ahead: u64,
+    full: bool,
 }
 #[derive(Debug)]
 enum State {
     Pull { number: u64, head: api::Commit, page: u32, changed: List<d::ChangedFile>, files: List<api::File> },
     Files(Sides),
-    Compare(Sides),
-    Reverse(Sides),
+    Compare(Compared),
+    Reverse(Compared),
     Before { sides: Sides, missing: bool },
     After { sides: Sides, missing: bool },
     File { head: api::Commit, path: Box<[u8]>, max: u32, missing: bool },
@@ -57,13 +62,13 @@ impl Plan {
                 bounds.page_size,
             ),
             api::Read::Compare { before, after } => (
-                State::Compare(Sides {
+                State::Compare(Compared {
                     before,
                     after,
-                    changed: List::with_capacity(bounds.rows),
                     files: List::with_capacity(bounds.rows),
-                    position: 0,
-                    ask: Ask::Compare { commits: List::with_capacity(bounds.rows), contains: false },
+                    changed: 0,
+                    ahead: 0,
+                    full: false,
                 }),
                 bounds.rows,
             ),
@@ -174,10 +179,7 @@ impl Plan {
                     }
                     State::Directory { .. } => (false, super::failure::Asked::Leaf),
                     State::Files(sides) => {
-                        match &mut sides.ask {
-                            Ask::Pull { more, .. } => *more = fields.has_more,
-                            Ask::Compare { .. } => return Err(api::Error::InvalidAnswer),
-                        }
+                        sides.more = fields.has_more;
                         (false, super::failure::Asked::Read)
                     }
                     State::Pull { .. } | State::Compare(_) | State::Reverse(_) => (false, super::failure::Asked::Read),
@@ -253,7 +255,22 @@ impl Plan {
             },
             d::Row::File(file) => match state {
                 State::Files(sides) => State::Files(self.keep_file(sides, file, bounds)?),
-                State::Compare(sides) => State::Compare(self.keep_file(sides, file, bounds)?),
+                State::Compare(mut compared) => {
+                    compared.changed = compared.changed.checked_add(1).ok_or(api::Error::TooLarge(api::Excess::unnamed()))?;
+                    let width = u64::try_from(crate::measure::STRING_BYTES)
+                        .expect("path width")
+                        .saturating_add(skein_lib::len_u64(file.filename.len()));
+                    if !compared.full
+                        && compared.files.len() < bounds.rows
+                        && self.size.saturating_add(width) <= u64::from(bounds.answer_bytes)
+                    {
+                        self.size = self.size.saturating_add(width);
+                        compared.files.push(file.filename).expect("rows checked");
+                    } else {
+                        compared.full = true;
+                    }
+                    State::Compare(compared)
+                }
                 State::Reverse(sides) => State::Reverse(sides),
                 State::Pull { .. }
                 | State::Before { .. }
@@ -262,23 +279,8 @@ impl Plan {
                 | State::Directory { .. } => return Err(api::Error::InvalidAnswer),
                 State::Ended => unreachable!("contents owner stops after Done"),
             },
-            d::Row::Commit(commit) => match state {
-                State::Compare(mut sides) => {
-                    let commit = reading::commit(commit, self.row.object_format).ok_or(api::Error::InvalidAnswer)?;
-                    self.add_size(u64::try_from(crate::measure::COMMIT_BYTES).expect("commit width"), bounds)?;
-                    match &mut sides.ask {
-                        Ask::Compare { commits, .. } => {
-                            commits.push(commit).or(Err(api::Error::TooLarge(crate::measure::capacity_excess(
-                                commits.capacity(),
-                                bounds.rows,
-                                bounds.answer_bytes,
-                                crate::measure::COMMIT_BYTES,
-                            ))))?;
-                        }
-                        Ask::Pull { .. } => return Err(api::Error::InvalidAnswer),
-                    }
-                    State::Compare(sides)
-                }
+            d::Row::Commit(_) => match state {
+                State::Compare(compared) => State::Compare(compared),
                 State::Reverse(sides) => State::Reverse(sides),
                 State::Pull { .. }
                 | State::Files(_)
@@ -312,16 +314,6 @@ impl Plan {
         Ok(())
     }
     fn keep_file(&mut self, mut sides: Sides, file: d::ChangedFile, bounds: Bounds) -> Result<Sides, api::Error> {
-        match &sides.ask {
-            Ask::Compare { .. } => {
-                for kept in &sides.changed {
-                    if kept.filename == file.filename {
-                        return Ok(sides);
-                    }
-                }
-            }
-            Ask::Pull { .. } => {}
-        }
         self.add_size(skein_lib::len_u64(crate::measure::FILE_BYTES.saturating_add(file.filename.len())), bounds)?;
         let value = api::File { path: file.filename.clone(), before: None, after: None };
         sides.files.push(value).or(Err(api::Error::TooLarge(crate::measure::capacity_excess(
@@ -359,14 +351,7 @@ impl Plan {
                 let before = reading::commit(pull.merge_base.ok_or(api::Error::InvalidAnswer)?, self.row.object_format)
                     .ok_or(api::Error::InvalidAnswer)?;
                 Ok((
-                    State::Files(Sides {
-                        before,
-                        after: head,
-                        changed,
-                        files,
-                        position: 0,
-                        ask: Ask::Pull { head, more: None },
-                    }),
+                    State::Files(Sides { before, after: head, changed, files, position: 0, head, more: None }),
                     Step::send(r::Request::PullFiles {
                         at: self.row.at(),
                         number,
@@ -378,8 +363,8 @@ impl Plan {
                 listed(body)?;
                 self.next_side(sides, bounds)
             }
-            State::Compare(sides) => {
-                comparison(body)?;
+            State::Compare(mut sides) => {
+                sides.ahead = comparison(body)?.total_commits;
                 let step = Step::send(r::Request::Compare {
                     at: self.row.at(),
                     before: self.row.id(sides.after),
@@ -388,22 +373,23 @@ impl Plan {
                 });
                 Ok((State::Reverse(sides), step))
             }
-            State::Reverse(mut sides) => {
-                let comparison = comparison(body)?;
-                match &mut sides.ask {
-                    Ask::Compare { contains, .. } => *contains = comparison.total_commits == 0,
-                    Ask::Pull { .. } => return Err(api::Error::InvalidAnswer),
-                }
-                self.next_side(sides, bounds)
+            State::Reverse(compared) => {
+                let behind = comparison(body)?.total_commits;
+                let answer = api::Answer::Compare {
+                    before: compared.before,
+                    after: compared.after,
+                    ahead: compared.ahead,
+                    behind,
+                    files: compared.files.into_boxed(),
+                    changed: compared.changed,
+                };
+                Ok((State::Ended, Step::Done(Ok(answer))))
             }
             State::Before { mut sides, .. } => {
                 let value = self.raw(body, bounds)?;
                 sides.files.get_mut(sides.position).ok_or(api::Error::InvalidAnswer)?.before = value;
                 let file = sides.changed.get(sides.position).expect("listed file");
-                let deleted = match sides.ask {
-                    Ask::Pull { .. } => file.status == d::FileStatus::Deleted,
-                    Ask::Compare { .. } => false,
-                };
+                let deleted = file.status == d::FileStatus::Deleted;
                 if deleted {
                     sides.position = sides.position.saturating_add(1);
                     self.next_side(sides, bounds)
@@ -452,15 +438,11 @@ impl Plan {
             return Ok(self.terminal(sides));
         }
         let file = sides.changed.get(sides.position).expect("listed file");
-        let compare = match sides.ask {
-            Ask::Compare { .. } => true,
-            Ask::Pull { .. } => false,
-        };
-        if !compare && file.status == d::FileStatus::Added {
+        if file.status == d::FileStatus::Added {
             let step = self.read_side(file.filename.clone(), sides.after);
             return Ok((State::After { sides, missing: false }, step));
         }
-        let path = if !compare && file.status == d::FileStatus::Renamed {
+        let path = if file.status == d::FileStatus::Renamed {
             file.previous_filename.as_ref().ok_or(api::Error::InvalidAnswer)?.clone()
         } else {
             file.filename.clone()
@@ -495,17 +477,10 @@ impl Plan {
     }
     fn terminal(&self, sides: Sides) -> (State, Step) {
         let files = sides.files.into_boxed();
-        let answer = match sides.ask {
-            Ask::Pull { head, more } => {
-                api::Answer::PullFiles { head, more: more.unwrap_or(files.len() == usize_of(self.limit)), files }
-            }
-            Ask::Compare { commits, contains } => api::Answer::Compare {
-                before: sides.before,
-                after: sides.after,
-                contains_before: contains,
-                files,
-                commits: commits.into_boxed(),
-            },
+        let answer = api::Answer::PullFiles {
+            head: sides.head,
+            more: sides.more.unwrap_or(files.len() == usize_of(self.limit)),
+            files,
         };
         (State::Ended, Step::Done(Ok(answer)))
     }

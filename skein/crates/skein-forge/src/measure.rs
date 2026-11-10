@@ -222,8 +222,12 @@ pub fn answer(value: &Answer) -> Option<u64> {
             Some(held)
         }
         Answer::PullFiles { files: values, .. } => files(values),
-        Answer::Compare { files: values, commits, .. } => {
-            files(values)?.checked_add(rows(commits.len(), COMMIT_BYTES)?)
+        Answer::Compare { files, .. } => {
+            let mut held = rows(files.len(), STRING_BYTES)?;
+            for path in files {
+                held = held.checked_add(bytes(path)?)?;
+            }
+            Some(held)
         }
         Answer::Protection(value) => match value {
             Some(value) => {
@@ -330,7 +334,7 @@ pub fn answer_list_rows(value: &Answer) -> usize {
         Answer::Remarks { remarks, .. } => remarks.len(),
         Answer::Branches(branches) => branches.len(),
         Answer::PullFiles { files, .. } => files.len(),
-        Answer::Compare { files, commits, .. } => files.len().max(commits.len()),
+        Answer::Compare { files, .. } => files.len(),
         Answer::Protection(protection) => match protection {
             Some(value) => value.contexts.len(),
             None => 0,

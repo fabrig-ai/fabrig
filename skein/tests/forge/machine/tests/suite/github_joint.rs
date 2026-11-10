@@ -287,15 +287,12 @@ fn github_compare_reads_a_two_commit_change_through_the_fake() {
         Ok(Answer::Compare {
             before,
             after,
-            contains_before: true,
-            commits: commits.into_boxed_slice(),
-            files: Box::from([api::File {
-                path: Box::from(b"file".as_slice()),
-                before: None,
-                after: Some(Box::from(b"repair".as_slice()))
-            }])
+            files: Box::from([Box::from(b"file".as_slice())]),
+            ahead: skein_lib::len_u64(commits.into_boxed_slice().len()),
+            behind: 0,
+            changed: 1
         })
     );
-    assert_eq!(answer.cost, 4, "resolve, compare and two file sides");
+    assert_eq!(answer.cost, 2, "resolve and compare");
     assert_eq!(world.tally().routes.get(&skein_fake_forge_forgejo::Route::Compare), Some(&1));
 }

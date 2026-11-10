@@ -32,7 +32,7 @@ impl State {
         Self { total: 0, count: 0, inner, id: [0; 32], parents: List::with_capacity(inner), message: Box::from([]) }
     }
     pub(super) fn document(&self) -> document::Compare {
-        document::Compare { total_commits: self.total, behind_by: 0, merge_base: None }
+        document::Compare { total_commits: self.total, ahead_by: 0, behind_by: 0, merge_base: None }
     }
     pub(super) fn end(&mut self, node: Node) -> Result<Option<document::Row>, Malformed> {
         if node != Node::Commit {

@@ -740,12 +740,10 @@ pub fn remaining_answers() -> [skein_forge::api::Answer; 6] {
         Answer::Compare {
             before: [9; 32],
             after: [10; 32],
-            contains_before: true,
-            files: Box::new([
-                file(),
-                skein_forge::api::File { path: Box::new([11]), before: Some(Box::new([12])), after: None },
-            ]),
-            commits: Box::new([[13; 32], [14; 32]]),
+            files: Box::new([file().path, Box::new([11])]),
+            ahead: 22,
+            behind: 3,
+            changed: 12,
         },
         Answer::Checks(Box::new([status(), skein_forge::api::Status { job: None, ..status() }])),
         Answer::Collaborators {
