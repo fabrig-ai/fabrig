@@ -284,11 +284,13 @@ fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, co
                         }
                     }
                     let writes = workspace.writes.clone();
-                    let inserted =
-                        match domain.run_workspaces.insert(task, WorkspacePreparation::Ready(PreparedWorkspace { workspace, claim_names })) {
-                            Ok(None) => true,
-                            Ok(Some(_)) | Err(_) => false,
-                        };
+                    let inserted = match domain
+                        .run_workspaces
+                        .insert(task, WorkspacePreparation::Ready(PreparedWorkspace { workspace, claim_names }))
+                    {
+                        Ok(None) => true,
+                        Ok(Some(_)) | Err(_) => false,
+                    };
                     assert!(inserted, "one workspace flight per task");
                     Some(writes)
                 }

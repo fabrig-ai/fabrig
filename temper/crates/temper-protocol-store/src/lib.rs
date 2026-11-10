@@ -35,9 +35,10 @@ pub fn application(
 pub struct Undecodable;
 
 /// Schema limits checked once alongside the forge's key bounds.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Bounds {
-    limits: v11::Limits,
+    // Keep schema limits out of the store's by-value construction frames.
+    limits: Box<v11::Limits>,
     forge: temper_engine_domain_forge::Limits,
 }
 impl Bounds {
@@ -118,7 +119,7 @@ pub fn bounds(forge: &temper_engine_domain_forge::Limits, change_words: u32) -> 
         ..records::limits(forge)?
     };
     v11::check_limits(&limits).ok()?;
-    Some(Bounds { limits, forge: *forge })
+    Some(Bounds { limits: Box::new(limits), forge: *forge })
 }
 
 /// Every application key, relative to jig's application tag.

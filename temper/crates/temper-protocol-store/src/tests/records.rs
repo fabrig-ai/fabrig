@@ -1607,7 +1607,7 @@ fn standard_sized_question_words_and_held_answers_round_trip() {
     let bytes = records::encode(&row);
     assert_eq!(records::decode(&bytes, &bounds), Ok(row));
     for words in [false, true] {
-        let mut short = bounds;
+        let mut short = bounds.clone();
         if words {
             short.limits.open_words -= 1;
         } else {

@@ -1,7 +1,5 @@
 //! The admitted step and ordered journal release (jig's domain/root.md, 3).
-use crate::boundary::{
-    BriefConnector, BriefSection, Event, Fact, Payload, Read, Released, Request, Work,
-};
+use crate::boundary::{BriefConnector, BriefSection, Event, Fact, Payload, Read, Released, Request, Work};
 use crate::limits::{Limits, backlog, core_limits, environment_core, payload_slots, run_policy_bound, valid};
 use crate::restart::{connector_restarting, request_load};
 use crate::route::{forge_route, host_route, policy_translate, route_core_requests, route_into, step_routed};

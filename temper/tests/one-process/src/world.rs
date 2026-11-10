@@ -1309,7 +1309,7 @@ impl ServiceObserver {
         families: &temper_protocol_store::Bounds,
     ) -> Self {
         self.codec = *codec;
-        self.families = *families;
+        self.families = families.clone();
         self
     }
 }
