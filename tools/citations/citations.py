@@ -212,15 +212,18 @@ def comment_of(line, rel):
 
 
 def logical_lines(lines, rel, is_code):
-    """(text, [(offset, line number)]) joining wrapped prose: Markdown paragraphs, code comment runs."""
+    """(text, [(offset, line, column)]) for wrapped prose and code comment runs.
+
+    Lines and columns are one-based, including indentation and comment markers.
+    """
     buf, marks, fence = [], [], False
 
     def flush():
         if not buf:
             return None
         text, at = "", []
-        for part, ln in zip(buf, marks):
-            at.append((len(text), ln))
+        for part, (ln, col) in zip(buf, marks):
+            at.append((len(text), ln, col))
             text += part + " "
         return text, at
 
@@ -230,14 +233,14 @@ def logical_lines(lines, rel, is_code):
             whole = body is not None and line.lstrip().startswith("//" if rel.endswith(SLASH_COMMENTS) else "#")
             if body is not None and body.strip() and whole:
                 buf.append(body.strip())
-                marks.append(ln)
+                marks.append((ln, (len(line) - len(body)) + len(body) - len(body.lstrip()) + 1))
                 continue
             out = flush()
             if out:
                 yield out
             buf, marks = [], []
             if body is not None and ".md" in body:
-                yield body, [(0, ln)]
+                yield body, [(0, ln, (len(line) - len(body)) + 1)]
             continue
         if line.lstrip().startswith("```"):
             fence = not fence
@@ -256,7 +259,7 @@ def logical_lines(lines, rel, is_code):
             if not line.strip():
                 continue
         buf.append(line.strip())
-        marks.append(ln)
+        marks.append((ln, len(line) - len(line.lstrip()) + 1))
         if line.startswith(("|", "#")):
             out = flush()
             if out:
@@ -269,7 +272,7 @@ def logical_lines(lines, rel, is_code):
 
 def line_at(marks, offset):
     ln = marks[0][1]
-    for at, number in marks:
+    for at, number, _ in marks:
         if at <= offset:
             ln = number
     return ln
@@ -291,12 +294,43 @@ def check(root, tracked):
     return out
 
 
-def check_file(tree, rel, lines, is_code):
-    out = []
+# Positions are one-based and spans are half-open. Numbers retain all documents that
+# satisfy the checker's reading, so a consumer can distinguish an ambiguous reading.
+Position = collections.namedtuple("Position", "file line column")
+Number = collections.namedtuple("Number", "value start end targets")
+Citation = collections.namedtuple(
+    "Citation", "kind file line context token start end target how owner numbers targets link")
+Link = collections.namedtuple("Link", "text start end tail tail_start tail_end")
+
+
+def position_at(rel, marks, offset):
+    at, ln, col = marks[0]
+    for mark in marks:
+        if mark[0] <= offset:
+            at, ln, col = mark
+    return Position(rel, ln, col + offset - at)
+
+
+def citations(tree, rel, lines, is_code):
+    """Yield every reading used by check_file, with physical spans and resolutions.
+
+    A path reading includes its following section numbers. Bare readings and status
+    labels have no path token; their numbers carry the candidates that hold them.
+    Link metadata covers its label and its query/anchor suffix separately.
+    """
     is_status = rel.endswith(".status.md")
     self_doc = doc_of_status(rel)
     by_step, seen_label = False, False
     for text, marks in logical_lines(lines, rel, is_code):
+        def pos(offset):
+            return position_at(rel, marks, offset)
+
+        def numbers(match, group, offset, targets):
+            return tuple(Number(m.group(), pos(offset + match.start(group) + m.start()),
+                                pos(offset + match.start(group) + m.end()),
+                                tuple(t for t in targets if m.group() in tree.heading_numbers(t)))
+                         for m in NUM_RE.finditer(match.group(group)))
+
         if is_status and not seen_label:
             first_label = min(status_label_matches(rel, text), key=lambda m: m.start(), default=None)
             prefix = text[:first_label.start()] if first_label else text
@@ -306,65 +340,69 @@ def check_file(tree, rel, lines, is_code):
         if not is_code:
             for m in LINK.finditer(text):
                 target = m.group(2)
-                if re.match(r"^[a-z]+:", target) or target.startswith("#"):
+                if re.match(r"^[a-z]+:", target):
+                    continue
+                if target.startswith("#"):
+                    # Local anchors do not take part in the gate's path/section checks.
+                    # Expose their coordinates to consumers that move the heading.
+                    link = Link(m.group(1), pos(m.start(1)), pos(m.end(1)), target,
+                                pos(m.start(2)), pos(m.end(2)))
+                    yield Citation("anchor", rel, line_at(marks, m.start()), m.group(0), "",
+                                   pos(m.start(2)), pos(m.start(2)), rel, "local-anchor", None,
+                                   (), (), link)
                     continue
                 tok = re.split(r"[?#]", target, maxsplit=1)[0]
                 if tok:
-                    spans.append((m.start(), m.end(), tok, text[m.end():]))
+                    link = Link(m.group(1), pos(m.start(1)), pos(m.end(1)), target[len(tok):],
+                                pos(m.start(2) + len(tok)), pos(m.end(2)))
+                    spans.append((m.start(), m.end(), tok, text[m.end():], m.start(2), link))
                 masked = masked[: m.start()] + " " * (m.end() - m.start()) + masked[m.end():]
         for m in MD_TOKEN.finditer(masked):
             if "://" not in text[max(0, m.start() - 10): m.start() + 1]:
-                spans.append((m.start(), m.end(), m.group(1), text[m.end():]))
+                spans.append((m.start(), m.end(), m.group(1), text[m.end():], m.start(1), None))
         spans.sort()
         covered, resolved, explicit_owners = [], [], []
         item_target = None
-        for start, end, tok, after in spans:
+        for start, end, tok, after, token_start, link in spans:
             if "<" in tok or "*" in tok or tok.startswith("http") or (is_code and not tok.endswith(".md")):
                 continue
             before = text[:start]
             ln = line_at(marks, start)
             ctx = text[max(0, start - 60): end + 60].strip()
+            owner, nums, targets = None, (), ()
             if OUTSIDE.search(before[-50:]):
-                out.append(("path", rel, ln, tok, "outside", ctx))
-                continue
-            om = OWNER.search(before[-40:])
-            owner = om.group(1).lower() if om else None
-            if owner:
-                explicit_owners.append((start, owner))
-            elif re.search(r"\bits\s*[`\[]*$", before, re.IGNORECASE):
-                sentence = before.rfind(". ") + 2
-                owners = [o for st, o in explicit_owners if st >= sentence]
-                owner = owners[-1] if owners else None
-            res, how = resolve(tree, rel, tok, owner, is_code)
-            if res is None:
-                out.append(("path", rel, ln, tok, how, ctx))
-                continue
-            resolved.append((start, res))
-            if re.match(r"^(?:[-*+]|\d+\.)\s+\*\*`?$", before) and re.match(r"^`?:\*\*", after):
-                item_target = res
-            if re.match(r":\d", after):
-                continue  # a line number
-            sm = SECTION_AFTER.match(after)
-            if not (sm and res.endswith(".md")) or DATE.match(sm.group(1)):
-                continue
-            if NUM_RE.fullmatch(sm.group(1)) and re.match(r"\s+places\b", after[sm.end():]) \
-                    and not re.search(r"(?:sections?|§)\s", sm.group(0)):
-                continue
-            covered.append((end, end + sm.end()))
-            have = set(tree.heading_numbers(doc_of_status(res)))
-            if how in ("loose", "suffix-ambiguous", "code-base", "code-anc", "suffix-same") \
-                    and "/" not in tok.lstrip("./"):
-                # an ambiguous bare name: a section of any same-named document of the tree counts
-                base = os.path.basename(tok)
-                home = owner or tree_of(rel)
-                prefix = f"{home}/docs/" if home else "docs/"
-                for doc in tree.markdown():
-                    if os.path.basename(doc) == base and doc.startswith(prefix):
-                        have |= tree.heading_numbers(doc)
-            for n in parse_nums(sm.group(1)):
-                if n not in have:
-                    detail = "missing" if have else "no-numbered-headings"
-                    out.append(("section", rel, ln, f"{res} {n}", detail, ctx))
+                res, how = None, "outside"
+            else:
+                om = OWNER.search(before[-40:])
+                owner = om.group(1).lower() if om else None
+                if owner:
+                    explicit_owners.append((start, owner))
+                elif re.search(r"\bits\s*[`\[]*$", before, re.IGNORECASE):
+                    sentence = before.rfind(". ") + 2
+                    owners = [o for st, o in explicit_owners if st >= sentence]
+                    owner = owners[-1] if owners else None
+                res, how = resolve(tree, rel, tok, owner, is_code)
+            if res is not None:
+                resolved.append((start, res))
+                if re.match(r"^(?:[-*+]|\d+\.)\s+\*\*`?$", before) and re.match(r"^`?:\*\*", after):
+                    item_target = res
+                sm = SECTION_AFTER.match(after) if not re.match(r":\d", after) else None
+                if sm and res.endswith(".md") and not DATE.match(sm.group(1)):
+                    count = (NUM_RE.fullmatch(sm.group(1)) and re.match(r"\s+places\b", after[sm.end():])
+                             and not re.search(r"(?:sections?|§)\s", sm.group(0)))
+                    if not count:
+                        covered.append((end, end + sm.end()))
+                        targets = [doc_of_status(res)]
+                        if how in ("loose", "suffix-ambiguous", "code-base", "code-anc", "suffix-same") \
+                                and "/" not in tok.lstrip("./"):
+                            base = os.path.basename(tok)
+                            home = owner or tree_of(rel)
+                            prefix = f"{home}/docs/" if home else "docs/"
+                            targets += [doc for doc in tree.markdown() if os.path.basename(doc) == base
+                                        and doc.startswith(prefix) and doc not in targets]
+                        nums = numbers(sm, 1, end, targets)
+            yield Citation("path", rel, ln, ctx, tok, pos(token_start), pos(token_start + len(tok)),
+                           res, how, owner, nums, tuple(targets), link)
         if is_code:
             continue
         for m in BARE_SECTION.finditer(text):
@@ -381,13 +419,39 @@ def check_file(tree, rel, lines, is_code):
             targets = [self_doc] + antecedent[-1:]
             if item_target and item_target not in targets:
                 targets.append(item_target)
-            for n in parse_nums(m.group(2)):
-                if not any(n in tree.heading_numbers(t) for t in targets):
-                    detail = "missing" if tree.heading_numbers(self_doc) else "no-numbered-headings"
-                    out.append(("section-self", rel, line_at(marks, m.start()), f"{'|'.join(targets)} {n}",
-                                detail, text[max(0, m.start() - 80): m.end() + 40].strip()))
+            yield Citation("section-self", rel, line_at(marks, m.start()),
+                           text[max(0, m.start() - 80): m.end() + 40].strip(), None,
+                           pos(m.start()), pos(m.end()), None, "bare", None,
+                           numbers(m, 2, 0, targets), tuple(targets), None)
         if is_status and not by_step:
-            out.extend(status_labels(tree, rel, self_doc, text, marks))
+            for m in status_label_matches(rel, text):
+                yield Citation("status-label", rel, line_at(marks, m.start()),
+                               text[max(0, m.start() - 20): m.end() + 80].strip(), None,
+                               pos(m.start()), pos(m.end()), self_doc, "status", None,
+                               numbers(m, 1, 0, [self_doc]), (self_doc,), None)
+
+
+def check_file(tree, rel, lines, is_code):
+    out = []
+    for citation in citations(tree, rel, lines, is_code):
+        c = citation
+        if c.kind == "anchor":
+            continue
+        if c.kind == "path" and c.target is None:
+            out.append(("path", rel, c.line, c.token, c.how, c.context))
+        have = set().union(*(tree.heading_numbers(t) for t in c.targets))
+        for n in c.numbers:
+            if n.targets:
+                continue
+            if c.kind == "path":
+                kind, target = "section", f"{c.target} {n.value}"
+                detail = "missing" if have else "no-numbered-headings"
+            elif c.kind == "section-self":
+                kind, target = c.kind, f"{'|'.join(c.targets)} {n.value}"
+                detail = "missing" if tree.heading_numbers(doc_of_status(rel)) else "no-numbered-headings"
+            else:
+                kind, target, detail = c.kind, f"{c.target} {n.value}", "missing"
+            out.append((kind, rel, c.line, target, detail, c.context))
     return out
 
 
