@@ -30,7 +30,7 @@ Which setting: its kind and number, or project for project settings.
 
 ## charter
 
-How an agent's run works: its instructions, models, tools, hosts and budget. A task's runs read the charter of the settings revision the task was made in.
+An agent run's instructions, models, tools, hosts and budget. Runs use the charter from the task's creation revision.
 
 - `rest`: true or false. Whether the other catalogue models follow the named first choices; false when absent.
 - `number`: integer, 0 to 4,294,967,295. The charter's number, the same as `setting.number`.
@@ -64,7 +64,7 @@ Instructions a run reads after the charter's shared text when its reasons meet t
 
 ## document
 
-A document every run of the charter reads in its brief, as the file is at the branch's head when the run is prepared: a rule that lands there reaches the next run.
+A file in each charter run's brief, read at the branch head during preparation; landed rules reach the next run.
 
 - `forge`: text, at most 32,768 bytes. The canonical `host` in Ask temper's `see settings` inventory under `project repositories`, alongside OWNER/NAME; people can also read `temper ctl DIR forge list` (or `forge list --json`). It is the host in repository resource names, including its port; copy it unchanged, not the forge number or web address.
 - `repository`: text, at most 65,537 bytes. The repository as OWNER/NAME; one adopted in no project gives a section saying so.
@@ -134,7 +134,7 @@ A batch of messages that wakes a task once.
 
 ## template
 
-How a new task of one shape is filled: its executor, result, budget, deadline and flags. A task keeps the values it was made with; a change reaches the tasks made after it.
+New tasks of one shape: executor, result, budget, deadline and flags. Creation values stay; changes affect later tasks.
 
 - `resources`: list of at most 32, each `symbol`. Optional; absent means an empty list. No pair twice. Resource symbols resolved for the new task; forge connector 1, symbol 1 is its own goal branch.
 - `number`: integer, 0 to 4,294,967,295. The template's number, the same as `setting.number`; a chat is filled from template 1 and a goal from template 2.
@@ -272,18 +272,18 @@ How a task behaves and is kept.
 
 ## ended_by
 
-What ends a task: a word, or an object with one member.
+What ends a task: a word or one-member object.
 
 - `"result"`: Its run's result.
-- `"requester"`: Its requester alone; it needs `conversation` and a charter as `executor`, else refused as `shape`.
-- `closer`: `closer`. A named procedure ends the task.
+- `"requester"`: Its requester alone; requires `conversation` and a charter `executor`, else `shape` refusal.
+- `closer`: `closer`. A named procedure ends it.
 
 ## closer
 
-The procedure that closes the task when nothing is left to await.
+Procedure closing the task when nothing remains to await.
 
-- `connector`: integer, 0 to 65,535. The connector whose procedure closes the task.
-- `code`: integer, 0 to 4,294,967,295. The closing procedure's code.
+- `connector`: integer, 0 to 65,535. The closing procedure's connector.
+- `code`: integer, 0 to 4,294,967,295. The procedure's code.
 
 ## llm
 
@@ -310,7 +310,7 @@ A model, by name, and its effort.
 
 ## policy
 
-What a project made from it starts with, as a copy it keeps. A change reaches the projects made after it, never an existing project's own policy.
+A project's initial policy, copied and kept. Changes affect later projects, never an existing project's policy.
 
 - `escalation_role`: integer, 0 to 4,294,967,295, or null. The role an escalation reaches last, or null; that role must accept proposals and decide escalations.
 - `ceiling`: `authority`. The most any task in the project may have; within the rules, else refused as `rules`.
@@ -351,7 +351,7 @@ A forge collaborator's permission, and the project role it gives at adoption.
 
 ## rules
 
-The deployment's ceilings: every project's policy is within them, and every decision reads them afresh. A narrowing reaches existing tasks; a widening never widens one.
+Deployment ceilings bound every project's policy, read afresh for each decision. Narrowing reaches existing tasks; widening never widens them.
 
 - `ceiling`: `authority`. The most any project may have.
 - `period_spend`: integer. The most a project's period spend may be.
@@ -561,11 +561,11 @@ A named set of repository-relative path patterns, numbered distinctly from 1 to 
 
 ## charter-words
 
-A JSON string: what the charter does, 1 to 120 UTF-8 bytes holding no control character. With none kept, Roles says the charter by its instructions' first sentence. Its selector requires the charter's number and has no project.
+What the charter does: a JSON string of 1 to 120 UTF-8 bytes, no control characters. If absent, Roles uses its instructions' first sentence. Selector: charter number, no project.
 
 ## project-words
 
-How work runs' headline and lede for the project's own way, both required. With none kept, How work runs says the way's own words. Its selector requires project and has no number.
+Both headline and lede for the project's own way in How work runs. If absent, it uses the way's words. Selector: project, no number.
 
 - `headline`: text, at most 120 bytes. Required: 1 to 120 UTF-8 bytes holding no control character.
 - `lede`: text, at most 480 bytes. Required: 1 to 480 UTF-8 bytes holding no control character.
