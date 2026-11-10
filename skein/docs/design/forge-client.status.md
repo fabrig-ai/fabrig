@@ -1,6 +1,6 @@
 # forge-client: status
 
-2026-11-06. Where skein's code lags or departs from [forge-client.md](forge-client.md).
+2026-11-10. Where skein's code lags or departs from [forge-client.md](forge-client.md).
 
 - **Not yet:** 7.3, 10: no real-Forgejo conformance record shows a merge
   update of a head already holding its base, or a rebase's push overtaking

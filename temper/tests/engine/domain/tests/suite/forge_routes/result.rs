@@ -342,6 +342,7 @@ fn finish_repaired_story(
     note: Box<[u8]>,
 ) {
     let review = next(&mut world, 3);
+    world.drain_cut();
     world.restart_same();
     world.until(Until::Ready);
     finish(

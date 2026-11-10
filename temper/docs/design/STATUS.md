@@ -1166,6 +1166,7 @@ Drafts:
 - [`draft/fetch-progress.md`](draft/fetch-progress.status.md)
 - [`draft/first-run-projects.md`](draft/first-run-projects.status.md)
 - [`draft/forge-identity.md`](draft/forge-identity.status.md)
+- [`draft/forge-polls-quiet.md`](draft/forge-polls-quiet.status.md)
 - [`draft/github.md`](draft/github.status.md)
 - [`draft/goal-as-designer.md`](draft/goal-as-designer.status.md)
 - [`draft/goal-runs-itself.md`](draft/goal-runs-itself.status.md)

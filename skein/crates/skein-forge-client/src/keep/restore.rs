@@ -71,6 +71,12 @@ pub(crate) fn restored(d: &mut Domain) {
             d.keep.failed = true;
         }
     }
+    for key in super::repos(&d.keep) {
+        if super::listed(&d.keep, key) {
+            let row = d.keep.repos.get_mut(&key).expect("restored repository remains");
+            row.state = Scan::Due(Progress::first(row.record.mark));
+        }
+    }
     d.keep.ready = true;
 }
 pub(crate) fn start_fresh(d: &mut Domain) {
@@ -88,7 +94,7 @@ pub(crate) fn start_fresh(d: &mut Domain) {
     }
     for key in super::repos(&d.keep) {
         let row = d.keep.repos.get_mut(&key).expect("restored repository remains");
-        if row.active {
+        if row.active && row.state != Scan::Off {
             row.fresh = Fresh::Pending;
             row.state = Scan::Due(Progress::first(row.record.mark));
         }
