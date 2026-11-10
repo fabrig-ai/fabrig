@@ -3,9 +3,9 @@
 2026-11-10. Where skein's code lags or departs from [forge-client.md](forge-client.md).
 
 - **Not yet:** 2.3: `Branches`' names are checked against `rows`
-  (`skein-forge/src/measure.rs`, `answer_rows`). [in flight: change 32]
+  (`skein-forge/src/measure.rs`, `answer_rows`).
 - **Not yet:** 4: an item's read sends no `since` (`keep/poll.rs`).
-  [in flight: change 25]
+ 
 - **Not yet:** 4: drift's `Fresh` read is a `Compare`. 7.4: an update is
   proved by a `Compare`'s empty commits (`outbox.rs`, `outbox/answer.rs`),
   not a `Range`.

@@ -6,11 +6,9 @@ Unlisted sections have no known gap. Section 10.1's App JWT check uses
 the key's public half and verifies without signing; its exact-token/key
 cache and the claims checked on every request are present.
 
-- **Not yet:** 4: the open pull requests' listing ignores `head` and `base`.
-  [in flight: change 23]
 - **Not yet:** 4, 10.1: an issue's comments ignore `since`, on the Forgejo
   layer (`skein-forge/src/forgejo/server/items.rs`) and the GitHub layer.
-  [in flight: change 25]
+ 
 - **Not yet:** 4: the runs' listing has no `workflow_id`
   (`skein-fake-forge-forgejo/src/routes.rs`).
 - **Not yet:** 4: a refused source leaves no repository (`skein-fake-forge-forgejo/src/setup/migrate.rs`, `migration`), where Forgejo leaves an empty one, and `DeleteRepository` asks `write:repository` (`server.rs`, `missing_scope`), where Forgejo asks `write:organization`, so no story shows either. 4: a caller who is no site admin and holds no grant reads any repository by its path as `403` (`skein-fake-forge-domain/src/domain.rs`, `authorized_read`), where Forgejo shows a public one to any token and answers a private one `404` (`unreadable-repository-by-path-is-404`), as the fake's read by id does, so on the fake no adoption finds a public repository temper's forge user may only read. 4: no fact records a private source's refusal, which the fake answers as a missing one's. 10.2: the GitHub layer refuses no push as `GH013`: a push reaches the domain, whose `Rejected` is its only refusal. So 11's required-signatures fact stays unchecked on the fake.
