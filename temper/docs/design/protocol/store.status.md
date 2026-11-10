@@ -8,6 +8,10 @@ for provider 0 and rejects other lengths. Its table holds the exact bytes,
 both integer maxima and invalid forms. There is no migration or store-version
 change, as no supported deployment requires compatibility.
 
+Section 4's `Error` record changed in place, its `too_large` carrying an
+`Excess`, by goal 64: the deployment's store, written before it, is made
+afresh at its next redeploy, which waits for the running goals to settle.
+
 Section 2's family 25 stores the optional `ForgeLink` in store v11 in
 place, without a version bump or migration. Both numbers must be nonzero;
 the record codec and its fuzzy round trip include the field. Links for

@@ -2319,9 +2319,8 @@ delegate's terminal wakes it to offer the landed result.
   skein's `forge.md`, 5.2, so one large document can pass it however small
   its change), the section keeps its pull identity, its gathered content and
   the pages before it, and appends a files-omitted notice within its byte
-  budget, naming that page and the tools that read its files
-  (`read_pull_files` from the next page, `read_file` for a path at the head
-  or the base). The section then goes on as after its last page, to its
+  budget, naming that page, its bound and the tools that read its files:
+  `[files omitted from page P: past BOUND; read_pull_files from page P+1 lists the rest, and read_file reads a path at the head or the base]`. The section then goes on as after its last page, to its
   comparison where it has one; it reads no later page of files and raises no
   limit. This holds for every pull section, a review's included, so a
   review of a small change to a large document starts.
@@ -2341,11 +2340,25 @@ delegate's terminal wakes it to offer the landed result.
   | an answer of another shape | permanent | `the forge answered another read` |
   | `Forbidden`, `NotInstalled` | permanent | `the forge forbids this read`, `the forge App is not installed` |
   | `Missing`, `MissingJob` | permanent | `the forge has no such object` |
-  | `TooLarge` | permanent | `the answer is past the client's limit` |
+  | `TooLarge` | permanent | `the answer is past BOUND`, in a bound's words (below) |
   | any other error | permanent | `the forge refused this read` |
   | no change for the pull, its identity past the section's bytes, or a title that fills them; no repository for a home-access reason | permanent | `the change cannot be named in its section` |
   | failed checks whose heads do not fit their section | permanent | `the failed checks do not fit their section` |
   | a section the plan gave wrong bounds, or the connector no longer holds | permanent | `the connector cannot hold this section` |
+
+- **A bound's words.** A `TooLarge` is named by its `Excess` (skein's
+  `forge.md`, 3.4), in the same words wherever temper writes it: a
+  brief's notices and its REASON above, a host tool's refusal
+  (`agent.md`, 4.3) and the log's `brief read refused` line. BOUND is
+  `forge.client.rows (LIMIT): SIZE rows`, `forge.client.answer_bytes
+  (LIMIT): SIZE bytes` or `forge.client.op_bytes (LIMIT): SIZE bytes`,
+  SIZE read `at least SIZE` where the size is not exact; `a bound of the
+  forge's (LIMIT): SIZE` for `Forge`, or `a bound of the forge's` where it
+  holds no figure; and `an unnamed bound` for `Unnamed`. LIMIT is the
+  configured figure the client refused at, so the words agree with the
+  configuration (`../protocol/configuration.md`, section 7), as in
+  `the answer is past forge.client.rows (8): 22 rows`. A pull section's
+  comparison-omitted notice reads `[comparison omitted: past BOUND]`.
 
   A repair's two forge sections, its pull section and its reason (CI's or
   reviews'), are a pair, and each can stand without the other: the agent has
@@ -4239,14 +4252,6 @@ whole.
   belongs beside the owned-Forgejo domain story, then a real person's
   review in the live tier (`testing.md`, section 11). Default: lower
   setup, link and review checks establish those separate pieces alone.
-- **A forge read past its bound** (8.4): distinguishing
-  `forge.client.rows` from `forge.client.answer_bytes`, with the measured
-  size, needs skein's bare `TooLarge` to carry the bound and an exact or
-  lower-bound measure, then temper's stored answer to retain them.
-  Those public-interface and stored-format decisions belong to their
-  owners. Default: keep the files-omitted notice and the tool's unknown
-  measure; neither raise the room nor split a file across pages. A host
-  answer's rendered-size bound is separate from the forge client's bound.
 - **A goal closing with a run branch g lacks** (section 11): the branch goes
   with its goal, what it held with it. A goal's own branch is kept where no
   change landed it. Retaining unlanded run work on close would need a
