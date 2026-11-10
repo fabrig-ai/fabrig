@@ -411,7 +411,7 @@ fn sign_in_refuses_machine_owned_person_email_at_its_path() {
 }
 
 #[test]
-fn only_a_box_signing_in_runs_source_last_and_ignores_its_ending() {
+fn only_a_box_signing_in_retries_source_last_and_ignores_its_ending() {
     let mut machine = read(TEMPLATE_MACHINE, &directories());
     machine.owned.as_mut().unwrap().sign_in = Some(b"forgejo".as_slice().into());
     let steps = kinds(&machine, &[], Box::new([]), true);
@@ -419,7 +419,7 @@ fn only_a_box_signing_in_runs_source_last_and_ignores_its_ending() {
     let (stage, source) = steps.asked[0].steps.last().unwrap();
     assert_eq!(*stage, Stage::Source);
     assert_eq!(source.name(), b"source");
-    assert_eq!(source.kind(), Kind::Once);
+    assert_eq!(source.kind(), Kind::Source);
     assert!(source.ignores_ending());
     let expected = [b"forge".as_slice(), b"source", FORGE_ARGUMENT];
     assert_eq!(source.arguments().len(), expected.len());

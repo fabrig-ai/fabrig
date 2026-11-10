@@ -897,7 +897,8 @@ fn is_effect(order: &Order) -> bool {
         | Order::WriteGroup { .. }
         | Order::RunRemover { .. }
         | Order::Unlink { .. }
-        | Order::Say { .. } => true,
+        | Order::Say { .. }
+        | Order::Source { .. } => true,
     }
 }
 
