@@ -11812,14 +11812,7 @@ own tests:
   they last read while the state says "Offline". Default: so, its words
   refined on the recording.
 
-### 11.4 The web
-
-- **Reading a conversation in every browser** (5.15; `../draft/chat-reading.md`, 5):
-  the position staying put when lines load above is for the user to read on a
-  real chat. Default: the browser tier runs Chromium, including with
-  `overflow-anchor: none`; Firefox and Safari themselves are read, not run.
-
-### 11.5 `temper ctl`
+### 11.5 Clients that are not a person's
 
 - **Clients that are not a person's:** a command run once and a
   service acting as a party are the agents' tools, `temper ctl`
